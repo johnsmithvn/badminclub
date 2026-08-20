@@ -1435,6 +1435,7 @@ function Input({
       display: 'flex',
       flexDirection: 'column',
       gap: 6,
+      minWidth: 0,
       ...containerStyle
     }
   }, label && /*#__PURE__*/React.createElement("label", {
@@ -1674,6 +1675,7 @@ function Select({
       display: 'flex',
       flexDirection: 'column',
       gap: 6,
+      minWidth: 0,
       ...containerStyle
     }
   }, label && /*#__PURE__*/React.createElement("label", {
