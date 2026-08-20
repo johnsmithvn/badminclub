@@ -132,7 +132,7 @@ export default function Assign() {
                     <div style={S.label}>{p.name}</div>
                     <div style={S.caption}>{playerMeta(p, stats[p.key] && stats[p.key].n)}</div>
                   </div>
-                  <LevelChip level={p.level} />
+                  <LevelChip level={p.level} levels={db.levels} />
                 </div>
               )
             })}
@@ -184,7 +184,7 @@ export default function Assign() {
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <span style={S.label}>{p.name}</span>
-                          <LevelChip level={p.level} />
+                          <LevelChip level={p.level} levels={db.levels} />
                         </div>
                         <div style={S.caption}>{playerMeta(p, stats[p.key] && stats[p.key].n)}</div>
                       </>
@@ -242,7 +242,7 @@ export default function Assign() {
                           {rosterHere.filter((p) => placed.indexOf(p.key) < 0).map((p) => (
                             <div key={p.key} {...dragProps(p.key)} onClick={() => a.pickPlayer(p.key)} style={S.rosterChip}>
                               <span style={S.label}>{p.name}</span>
-                              <LevelChip level={p.level} />
+                              <LevelChip level={p.level} levels={db.levels} />
                             </div>
                           ))}
                           {rosterHere.length === 0 && <span style={S.caption}>{t('assign.rosterEmpty')}</span>}

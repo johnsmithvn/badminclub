@@ -8,7 +8,7 @@ import { dd, monthOf, monthTxt } from '#utils/dates.js'
 import { t } from '#i18n'
 import {
   courtCost, courtExtraCost, courtPayMode, courtTxt,
-  groupOf, guestOf, memberOf, sessionOf, soldTotal, timeTxt,
+  groupOf, guestOf, memberOf, payerName, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 
 /** Các hạng mục sổ quỹ. Dùng key, đừng dùng chữ. */
@@ -79,7 +79,7 @@ export function ledger(db) {
         label: t('ledger.label.courtBill', {
           venue: b.venue, month: monthTxt(b.month).toLowerCase(), note: b.note ? ' · ' + b.note : '',
         }),
-        amount: b.amount, by: b.payer,
+        amount: b.amount, by: payerName(db, b.payerId, b.payer),
       })
     )
   }
@@ -123,7 +123,7 @@ export function ledger(db) {
         type: (db.shuttleTypes.find((x) => x.id === p.typeId) || { name: '' }).name,
         tubes: p.tubes, qty: p.qty,
       }),
-      amount: p.total, by: p.payer,
+      amount: p.total, by: payerName(db, p.payerId, p.payer),
     })
   )
 

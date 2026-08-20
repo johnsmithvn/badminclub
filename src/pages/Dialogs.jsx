@@ -6,6 +6,7 @@ import { Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
 import { checkOf, checkPreview, fmtK, genderTxt } from '#lib/money.js'
+import { venueOptions } from '#lib/forms.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -59,6 +60,23 @@ const Note = ({ children, tone }) => (
     {children}
   </div>
 )
+
+/**
+ * Ô chọn người trả. Trỏ về BẢN GHI thành viên chứ không gõ tên: "Thuý" / "Thúy" / "Thuy" gõ tay
+ * là ba người khác nhau trong báo cáo, và không lần ngược được từ khoản chi về người ứng tiền.
+ * Bỏ trống = quỹ CLB tự trả.
+ */
+function PayerSelect({ field }) {
+  const { db, ui, a } = useApp()
+  return (
+    <Select label={t('fund.fPayer')} value={ui.form[field] || ''}
+      hint={t('fund.fPayerHint')}
+      options={[{ value: '', label: t('fund.payerFund') }].concat(
+        db.members.filter((m) => m.active !== false).map((m) => ({ value: m.id, label: m.name }))
+      )}
+      onChange={(e) => a.setF(field, e.target.value)} />
+  )
+}
 
 /** Các dòng sân dùng chung cho dialog tạo lịch và buổi đột xuất. */
 function CourtRows() {
@@ -213,7 +231,7 @@ function PurchaseDialog() {
         <Input label={t('shuttles.fTotal')} mono suffix={t('units.dong')} value={String(f.pTotal ?? '')}
           onChange={(e) => a.setF('pTotal', e.target.value)} />
       </div>
-      <Input label={t('shuttles.fPayer')} value={f.pPayer || ''} onChange={(e) => a.setF('pPayer', e.target.value)} />
+      <PayerSelect field="pPayer" />
 
       {/* Đếm tủ lúc mua tự nhiên hơn bắt nhớ đếm cuối tháng — mua cầu thì đằng nào cũng mở tủ. */}
       {!checked && (
@@ -275,8 +293,9 @@ function CheckDialog() {
 /* ---------------- hoá đơn sân ---------------- */
 
 function BillDialog() {
-  const { ui, a } = useApp()
+  const { db, ui, a } = useApp()
   const f = ui.form
+  const venues = venueOptions(db)
   return (
     <Shell title={t('fund.billDlgTitle')} desc={t('fund.billDlgDesc')}
       onSubmit={() => a.createCourtBill()} submitLabel={t('common.save')} submitIcon="landmark">
@@ -285,11 +304,19 @@ function BillDialog() {
           onChange={(e) => a.setF('bDate', e.target.value)} />
         <Input label={t('fund.fMonth')} mono value={f.bMonth || ''} onChange={(e) => a.setF('bMonth', e.target.value)} />
       </div>
-      <Input label={t('fund.billVenue')} value={f.bVenue || ''} onChange={(e) => a.setF('bVenue', e.target.value)} />
+      {/* Địa điểm lấy từ danh sách sân trong Cài đặt, khỏi gõ tay lệch tên mỗi tháng một kiểu.
+          CLB chưa khai sân nào thì vẫn cho gõ, không chặn đường nhập hoá đơn. */}
+      {venues.length
+        ? <Select label={t('fund.billVenue')} value={f.bVenue || ''}
+            hint={t('fund.billVenueHint')}
+            options={venues.map((v) => ({ value: v, label: v }))}
+            onChange={(e) => a.setF('bVenue', e.target.value)} />
+        : <Input label={t('fund.billVenue')} hint={t('fund.billVenueEmpty')} value={f.bVenue || ''}
+            onChange={(e) => a.setF('bVenue', e.target.value)} />}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Input label={t('fund.billAmount')} mono suffix={t('units.dong')} value={String(f.bAmount ?? '')}
           onChange={(e) => a.setF('bAmount', e.target.value)} />
-        <Input label={t('fund.billPayer')} value={f.bPayer || ''} onChange={(e) => a.setF('bPayer', e.target.value)} />
+        <PayerSelect field="bPayer" />
       </div>
       <Input label={t('fund.billNote')} value={f.bNote || ''} onChange={(e) => a.setF('bNote', e.target.value)} />
     </Shell>

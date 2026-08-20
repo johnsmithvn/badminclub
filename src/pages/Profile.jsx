@@ -93,7 +93,7 @@ function ChangeRequest() {
         : <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Overline>{t('members.colLevel')}</Overline>
-              <LevelChip level={me.level} />
+              <LevelChip level={me.level} levels={db.levels} />
               {me.pendingLevel && (
                 <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
                   {t('members.pendingLevel', { level: me.pendingLevel, month: me.pendingLevelFrom })}

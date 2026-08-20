@@ -5,9 +5,9 @@ import { addMonth, dd, ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
-  perTube, presentCount, quotaFor, remainSessions, rowCost, sGuests, guestRev, sessionCost,
-  sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt, unitPrice,
-  adjustRows, pendingOffset,
+  perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, sessionCost,
+  sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
+  adjustRows, pendingOffset, joinDues,
 } from '#lib/money.js'
 import { fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -497,29 +497,37 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         }
         const dues = d.dues.slice()
         const roster = { ...d.roster }
+        const fix = (month, gid) => {
+          const base = roster[month] || ensureRoster(d, month)
+          roster[month] = { ...base, [gid]: { ...(base[gid] || {}), [id]: 'fixed' } }
+        }
         gs.forEach((gid) => {
           const g = d.groups.find((x) => x.id === gid)
-          const base = roster[nextM] || ensureRoster(d, nextM)
-          const gm = { ...(base[gid] || {}) }
-          gm[id] = 'fixed'
-          roster[nextM] = { ...base, [gid]: gm }
-          if (start === 'now') {
-            const rem = remainSessions(d, gid, d.month)
-            const u = unitPrice(d, mb, g, d.month)
-            if (rem > 0) {
-              dues.push({
-                id: uid(), month: d.month, groupId: gid, memberId: id, amount: u.unit * rem,
-                paid: false, paidAt: null, method: '', note: 'Vào giữa tháng · ' + rem + ' buổi còn lại',
-              })
-            }
-          }
+          fix(nextM, gid)
+          if (start !== 'now') return
+          // Vào từ THÁNG NÀY thì phải cố định cả tháng này, không thì người mới không hiện ở
+          // màn điểm danh và không ai chấm công cho họ được.
+          fix(d.month, gid)
+          const jd = joinDues(d, mb, g, d.month)
+          if (jd.amount <= 0) return
+          dues.push({
+            id: uid(), month: d.month, groupId: gid, memberId: id, amount: jd.amount,
+            paid: false, paidAt: null, method: '',
+            note: jd.full ? t('members.joinFull') : t('members.joinPartial', { n: jd.sessions }),
+          })
         })
         return { dues, roster, members: d.members.concat([mb]) }
       })
       upUi(() => ({ dialog: null, form: {} }))
+      const owed = db().dues.filter((x) => x.month === db().month && x.memberId === (db().members[db().members.length - 1] || {}).id)
       toast(start === 'next'
         ? t('toast.memberAddedNext', { name, month: monthTxt(nextM).toLowerCase() })
-        : t('toast.memberAdded', { name }))
+        : start === 'now'
+          ? t('toast.memberAddedNow', {
+              name, month: monthTxt(db().month).toLowerCase(),
+              amount: fmtK(owed.reduce((x, y) => x + y.amount, 0)),
+            })
+          : t('toast.memberAdded', { name }))
     },
 
     /* ---------- lịch cố định và buổi ---------- */
@@ -660,7 +668,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         purchases: d.purchases.concat([{
           id: uid(), date: pDate, typeId: f.pType, tubes, extra, qty,
           pricePerTube: tubes ? Math.round(total / tubes) : 0, total,
-          payer: f.pPayer || 'Quỹ CLB', note: f.pNote || '',
+          // Người trả trỏ về bản ghi thành viên. `fundedBy` để P5 dùng (quỹ trả / thành viên ứng).
+          payerId: f.pPayer || null, fundedBy: null, note: f.pNote || '',
         }]),
       }))
       upUi(() => ({ dialog: null, form: {} }))
@@ -699,7 +708,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return {
           courtBills: (d.courtBills || []).concat([{
             id: uid(), month: f.bMonth, date: f.bDate, venue: f.bVenue, amount: amt,
-            payer: f.bPayer || 'Quỹ CLB', note: f.bNote || '',
+            payerId: f.bPayer || null, payer: '', note: f.bNote || '',
           }]),
         }
       })

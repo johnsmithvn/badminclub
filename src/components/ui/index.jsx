@@ -16,12 +16,16 @@ export function SessionPill({ status, size = 'sm' }) {
   return <StatusPill status={m.pill} label={m.label} size={size} />
 }
 
-/** Chip trình độ — màu lấy từ levelStyle, đừng tự chọn màu. */
-export function LevelChip({ level }) {
+/**
+ * Chip trình độ — màu lấy từ levelStyle, đừng tự chọn màu.
+ * `levels` là thang của CLB (db.levels): màu chia theo VỊ TRÍ trong thang, nên CLB đặt thang
+ * riêng vẫn ra dải màu yếu→mạnh đúng. Bỏ trống thì dùng thang mặc định.
+ */
+export function LevelChip({ level, levels }) {
   return (
     <span style={{
       font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
-      whiteSpace: 'nowrap', ...levelStyle(level),
+      whiteSpace: 'nowrap', ...levelStyle(level, levels),
     }}>
       {level}
     </span>

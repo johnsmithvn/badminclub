@@ -6,7 +6,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
 import {
   costRow, costState, courtCost, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
-  groupOf, guestDebtRows, memberOf, monthSessions, shuttleUnit, stock, timeTxt,
+  groupOf, guestDebtRows, isPresent, memberOf, monthSessions, shuttleUnit, stock, timeTxt,
 } from '#lib/money.js'
 import { fundBalance, monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
@@ -51,7 +51,9 @@ function Overview() {
   const attend = {}
   closed.forEach((s) => {
     const map = db.attendance[s.id] || {}
-    Object.keys(map).forEach((k) => { if (map[k]) attend[k] = (attend[k] || 0) + 1 })
+    // isPresent chứ không `if (map[k])`: 'extra' cũng là có mặt, và viết rõ ra thì đọc code
+    // không phải nhớ rằng chuỗi 'extra' tình cờ truthy.
+    Object.keys(map).forEach((k) => { if (isPresent(map[k])) attend[k] = (attend[k] || 0) + 1 })
   })
   const maxAtt = Math.max(1, ...Object.keys(attend).map((k) => attend[k]))
 

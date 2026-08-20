@@ -199,18 +199,25 @@ chính tập sự kiện sinh tiền — viết tầng ghi trước là viết l
       đủ 4 nhánh. `dbmap` ghi được `cost_*` xuống DB và buổi chưa chốt xuống NULL chứ không phải 0.
       Đã mutation-test: tắt nhánh đóng băng và làm hỏng mapping đều bị test bắt.
 
-### P3 · B8 + Issue 1 · Đơn giá đúng + back hai chiều — migration `0007`
+### P3 · B8 + Issue 1 · Đơn giá đúng + back hai chiều — migration `0007` · **XONG 2026-08-20**
 
-- [ ] **B8 · Back tiền tính theo giá hiện tại.** `money.js: unitPrice` đọc `member_groups.fee_male`
-      / `fee_female` **hiện tại**. Sửa quỹ nam 250k → 280k là người đã đóng 250k được back theo
-      280k, quỹ trả vượt. Phải tính từ `monthly_dues.amount` của chính người đó.
-- [ ] **Issue 1 · Back tiền chỉ chạy một chiều.** Bảng `member_adjustments` có dấu +
-      `attend_state='extra'` + `settle_mode`. Người cố định nhóm khác đi thêm một buổi hiện chỉ
-      thu được bằng cách nhét vào `session_guests` giá khách — sai người, sai tiền, phồng báo cáo khách.
-- [ ] `settle='offset_next_dues'`: không ghi giao dịch, trừ vào `monthly_dues` tháng sau.
-- [ ] **L4 · `back_credits` xuống DB với `amount = 0`** (`dbmap` chỉ ghi cờ `paid`, `0003` đặt
-      `DEFAULT 0`). Mọi báo cáo tiền back bằng SQL đều ra 0. Xử lý chung khi thay bằng `member_adjustments`.
-- [ ] UI điểm danh 3 → 4 trạng thái; tab "Back tiền" ở Công nợ thành bảng đối chiếu hai chiều.
+- [x] **B8 · Back tiền tính theo giá hiện tại.** `unitPrice` giờ đọc `monthly_dues.amount` của
+      chính người đó; chỉ khi tháng chưa chốt danh sách (chưa có dòng dues) mới rơi về cấu hình nhóm.
+- [x] **Issue 1 · Back tiền chỉ chạy một chiều.** `member_adjustments` + `attend_state='extra'` +
+      `settle_mode`. `money.js: adjustRows` trả cả hai chiều, dấu ÂM = quỹ nợ người, DƯƠNG = người
+      nợ quỹ. Dòng đã chốt thì ĐỌC số đã lưu, không tính lại.
+- [x] `settle='offset_next_dues'`: không ghi giao dịch nào. `lockRoster` cộng thẳng dấu vào
+      `monthly_dues.amount` tháng sau rồi đánh dấu khoản đó đã xử lý.
+- [x] **L4 · `back_credits` xuống DB với `amount = 0`** — bảng mới ghi ĐỦ số. `back_credits`
+      giữ nguyên không xoá, dữ liệu cũ được `0007` chuyển sang; app thôi không đọc bảng đó nữa.
+- [x] Điểm danh thêm trạng thái **Đi thêm** + ô chọn người đi thêm ngay dưới danh sách. Tab
+      "Back tiền" đổi thành **Đối chiếu buổi**: hai chiều, có cột chọn cách trả (tiền mặt / trừ
+      tháng sau), hai con số tổng riêng cho phải-trả và phải-thu.
+
+- [x] Test: đơn giá không đổi khi sửa quỹ nhóm giữa chừng · người đi thêm sinh khoản DƯƠNG đúng
+      đơn giá của nhóm BUỔI · người đã cố định nhóm đó thì KHÔNG bị tính tiền đi thêm · khoản đã
+      lưu đứng yên khi điểm danh đổi · `offset_next_dues` không sinh dòng nào ở sổ quỹ.
+      Đã mutation-test cả bốn.
 
 ### P4 · Issue 3 · Đóng thiếu — migration `0008`
 
@@ -288,6 +295,8 @@ Hai việc dưới bắt được gần hết.
 | `createPurchase` đặt tên biến là `t` (loại cầu), che hàm dịch `t()` | nhập kho mà để trống số lượng → `t('toast.needQty')` gọi vào object → TypeError, dialog chết không báo gì | đổi tên thành `ty`, thêm guard CLB chưa có loại cầu nào |
 | Đăng ký trùng email / username / SĐT chỉ bị chặn ở DB | dữ liệu vẫn an toàn (cả 3 cột đều UNIQUE) nhưng user đọc được `"User already registered"` hoặc lỗi Postgres thô | dịch lỗi ra tiếng Việt ở `AuthContext: signUpUnwrap`, chặn submit khi đã biết username bị chiếm |
 | `empty.test.js` assert `costRow(...).perHead` — trường không tồn tại | `String(undefined)` không chứa `'NaN'` nên assert luôn đúng: test canh NaN mà không canh gì cả | đổi sang `Number.isFinite(...per)` |
+| `adjustRows` tính tiền "đi thêm buổi" cho cả người ĐÃ cố định nhóm đó | người cố định cả hai nhóm (fixture có 6 người như vậy) vừa đóng quỹ tháng vừa bị tính thêm đơn giá buổi — thu hai lần cùng một buổi | lọc bằng `isFixed` trong `adjustRows`, có test regression |
+| `markAll` dựng bảng điểm danh rỗng rồi ghi đè | bấm "Tất cả có mặt/vắng" là hất sạch người đi thêm ra khỏi buổi | giữ bảng cũ, chỉ ghi đè người trong danh sách cố định |
 
 ---
 

@@ -176,7 +176,7 @@ function club1Data() {
       { id: 'L3', date: '2026-07-31', dir: 'in', cat: 'other', label: 'Tổng thu tháng 7 (số liệu chuyển từ Excel)', amount: 7004000, by: 'Chuyển sổ' },
       { id: 'L4', date: '2026-07-31', dir: 'out', cat: 'other', label: 'Tổng chi tháng 7 (số liệu chuyển từ Excel)', amount: 7475000, by: 'Chuyển sổ' },
     ],
-    backPaid: {},
+    adjustments: [],
     roster: {
       '2026-09': {
         G1: { M1: 'fixed', M2: 'fixed', M3: 'fixed', M4: 'fixed', M5: 'off', M6: 'fixed', M7: 'fixed', M8: 'fixed',
@@ -250,7 +250,7 @@ function club2Data() {
       { id: 'P1', date: '2026-08-01', typeId: 'S1', tubes: 5, extra: 0, qty: 60, pricePerTube: 320000,
         total: 1600000, payer: 'Huy', note: '' },
     ],
-    stockChecks: [], courtBills: [], manual: [], backPaid: {}, roster: {}, locked: {}, changes: [],
+    stockChecks: [], courtBills: [], manual: [], adjustments: [], roster: {}, locked: {}, changes: [],
     lineups: {}, matches: [], playing: {}, courtMin: {}, courtGroups: {}, groupMode: {},
     sessionId: 'B3',
     seq: { B: 4, SG: 0, D: dues.length, K: 0, M: members.length, P: 1, L: 0, SC: 1, SK: 0, MT: 0 },

@@ -91,15 +91,42 @@ const buys = rows.filter((r) => r.cat === CATS.shuttle)
 assert.equal(buys.length, 2, 'P1 total = 0 nên không phải giao dịch tiền')
 assert.equal(buys.reduce((t, r) => t + r.amount, 0), 3200000 + 3300000)
 
-/* ---------- back tiền chỉ vào sổ khi đã trả ---------- */
+/* ---------- đối chiếu buổi chỉ vào sổ khi đã trả / đã thu ---------- */
 assert.equal(rows.filter((r) => r.cat === CATS.back).length, 0)
-const paidBack = { ...db, backPaid: { '2026-08:G1:M5': true } }
+const adj = (x) => ({
+  id: 'AJ1', key: '2026-08:G1:M5:absent_back', month: '2026-08', groupId: 'G1', memberId: 'M5',
+  kind: 'absent_back', sessions: 2, unit: 40000, amount: -80000, settle: 'cash',
+  paid: true, paidAt: null, ...x,
+})
+// Chiều ÂM: quỹ trả lại người vắng → một dòng CHI.
+const paidBack = { ...db, adjustments: [adj({})] }
 const bk = ledger(paidBack).filter((r) => r.cat === CATS.back)
 assert.equal(bk.length, 1)
-assert.equal(bk[0].amount, 80000, 'M5 nữ nhóm CN: 40.000 × 2 buổi vắng')
+assert.equal(bk[0].amount, 80000, 'sổ quỹ ghi số dương, chiều nằm ở dir')
 assert.equal(bk[0].date, '2026-08-28', 'back ghi ngày month-28')
 assert.equal(bk[0].dir, 'out')
 assert.equal(fundBalance(paidBack), fundBalance(db) - 80000)
+
+// Chiều DƯƠNG: người đi thêm buổi trả quỹ → một dòng THU, hạng mục riêng.
+const paidExtra = {
+  ...db,
+  adjustments: [adj({ kind: 'extra_session', amount: 63000, paidAt: '2026-08-20' })],
+}
+const ex = ledger(paidExtra).filter((r) => r.cat === CATS.extra)
+assert.equal(ex.length, 1)
+assert.equal(ex[0].dir, 'in')
+assert.equal(ex[0].amount, 63000)
+assert.equal(ex[0].date, '2026-08-20', 'có paidAt thì ghi đúng ngày đó')
+assert.equal(fundBalance(paidExtra), fundBalance(db) + 63000)
+
+// Chưa trả → không có dòng nào.
+assert.equal(ledger({ ...db, adjustments: [adj({ paid: false })] }).filter((r) => r.cat === CATS.back).length, 0)
+
+// Trừ vào quỹ tháng sau → KHÔNG có giao dịch, quỹ không đổi một đồng.
+// Tiền không đổi tay lần nào, ghi vào sổ là bịa ra giao dịch không có thật.
+const offset = { ...db, adjustments: [adj({ settle: 'offset_next_dues' })] }
+assert.equal(ledger(offset).filter((r) => r.cat === CATS.back).length, 0)
+assert.equal(fundBalance(offset), fundBalance(db), 'trừ vào tháng sau thì số dư đứng yên')
 
 /* ---------- monthFlow KHÔNG tính dòng mang sang ---------- */
 const flow = monthFlow(db, '2026-08')

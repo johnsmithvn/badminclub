@@ -5,7 +5,7 @@ import { Button, Card, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
-import { billsOf, courtPayMode, fmt } from '#lib/money.js'
+import { billsOf, courtPayMode, fmt, payerName } from '#lib/money.js'
 import { catLabel, dailySummary, fundBalance, ledgerGrouped, monthFlow } from '#lib/ledger.js'
 import { courtBillForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -83,7 +83,7 @@ function CourtBills({ canMoney }) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={S.label}>{b.venue}</div>
                       <Mono color="var(--text-muted)">
-                        {ddmy(b.date) + (b.payer ? ' · ' + b.payer : '') + (b.note ? ' · ' + b.note : '')}
+                        {ddmy(b.date) + ' · ' + payerName(db, b.payerId, b.payer) + (b.note ? ' · ' + b.note : '')}
                       </Mono>
                     </div>
                     <Mono weight={600} size={14} color="var(--status-incident)">{fmt(b.amount)}</Mono>

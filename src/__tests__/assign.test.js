@@ -169,16 +169,22 @@ const cg3 = autoSplit(players, [0, 1, 2])
 assert.deepEqual([...new Set(Object.values(cg3))].sort(), [0, 1, 2])
 
 /* ---------- cân trình độ hai bên lưới ---------- */
-assert.equal(courtBalance({}, 0, lvOf).text, 'Chưa đủ 4 người')
-assert.equal(courtBalance({ c0t0s0: 'M1', c0t0s1: 'M2' }, 0, lvOf).text, 'Chưa đủ 4 người',
+// LUÔN truyền db.levels — thang trình độ là dữ liệu của từng CLB. Quên truyền thì hàm rơi về
+// thang mặc định ở app.json và kết luận cân/lệch đổi theo, dù người trên sân không đổi ai.
+assert.equal(courtBalance({}, 0, lvOf, db.levels).text, 'Chưa đủ 4 người')
+assert.equal(courtBalance({ c0t0s0: 'M1', c0t0s1: 'M2' }, 0, lvOf, db.levels).text, 'Chưa đủ 4 người',
   'một bên trống thì chưa đánh giá được')
 // M7 (TB) + M12 (TB) vs M5 (Newbie) + M18 (Newbie) → lệch rõ
 const skew = { c0t0s0: 'M7', c0t0s1: 'M12', c0t1s0: 'M5', c0t1s1: 'M18' }
 const lvAll = (key) => (db.members.find((x) => x.id === key) || {}).level
-assert.equal(courtBalance(skew, 0, lvAll).text, 'Lệch trình độ giữa hai bên')
+assert.equal(courtBalance(skew, 0, lvAll, db.levels).text, 'Lệch trình độ giữa hai bên')
 // TB + Newbie vs TB- + TBY → trung bình gần nhau
 const even = { c0t0s0: 'M7', c0t0s1: 'M5', c0t1s0: 'M9', c0t1s1: 'M14' }
-assert.equal(courtBalance(even, 0, lvAll).text, 'Hai bên cân trình độ')
+assert.equal(courtBalance(even, 0, lvAll, db.levels).text, 'Hai bên cân trình độ')
+// Cùng đội hình đó, đọc bằng thang khác thì kết luận khác — bằng chứng thang là dữ liệu CLB.
+// Thang này kéo TB ra xa: (TB 5 + Newbie 0)/2 = 2.5 vs (TB- 2 + TBY 1)/2 = 1.5 → lệch 1.0
+assert.equal(courtBalance(even, 0, lvAll, ['Newbie', 'TBY', 'TB-', 'x', 'y', 'TB']).text,
+  'Lệch trình độ giữa hai bên')
 
 /* ---------- đánh giá độ đều lượt ---------- */
 assert.equal(fairness([], {}).tone, 'muted')

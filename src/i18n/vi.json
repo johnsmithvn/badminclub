@@ -38,7 +38,8 @@
   "attend": {
     "present": "Có mặt",
     "absent": "Vắng",
-    "unmarked": "Chưa điểm danh"
+    "unmarked": "Chưa điểm danh",
+    "extra": "Đi thêm"
   },
   "sessionState": {
     "draft": "Chưa mở",
@@ -228,7 +229,8 @@
       "shuttle": "Mua cầu",
       "back": "Back cố định nghỉ",
       "withdraw": "Trích quỹ",
-      "other": "Khác"
+      "other": "Khác",
+      "extra": "Đi thêm buổi"
     },
     "label": {
       "opening": "Chốt sổ Excel chuyển sang app",
@@ -237,7 +239,7 @@
       "courtBill": "{{venue}} · trọn {{month}}{{note}}",
       "courtSession": "{{courts}} · {{time}}",
       "sold": "{{courts}} · buổi {{date}}",
-      "extra": "{{courts}} · buổi {{date}}",
+      "extra": "{{name}} đi thêm {{n}} buổi",
       "shuttle": "{{type}} · {{tubes}} ống · {{qty}} quả",
       "back": "{{name}} · nghỉ {{n}} buổi"
     },
@@ -429,8 +431,8 @@
     "debtCollected": "Đã thu hết nợ {{name}}",
     "duePaid": "Đã ghi {{name}} đóng quỹ {{amount}}",
     "dueUnpaid": "Đã bỏ đánh dấu đóng quỹ {{name}}",
-    "backPaid": "Đã ghi chi back tiền vào sổ quỹ",
-    "backUnpaid": "Đã bỏ đánh dấu back tiền",
+    "backPaid": "Đã đánh dấu trả back",
+    "backUnpaid": "Đã bỏ đánh dấu trả back",
     "rosterLocked": "Đã chốt danh sách và sinh quỹ {{month}}",
     "rosterUnlocked": "Đã mở lại danh sách để sửa",
     "changeApproved": "Đã duyệt thay đổi",
@@ -474,7 +476,16 @@
     "zaloCopied": "Đã copy báo cáo Zalo",
     "checkDone": "{{month}} đã kiểm kho ngày {{date}} rồi — mỗi tháng chỉ kiểm một lần",
     "needShuttleType": "Chưa có loại cầu nào — thêm ở Cài đặt → Cầu trước khi nhập kho",
-    "purchaseAddedChecked": "Đã nhập {{qty}} quả, {{unit}} đ/quả · kiểm kho luôn: lệch {{diff}} quả, chia vào {{n}} buổi ước tính"
+    "purchaseAddedChecked": "Đã nhập {{qty}} quả, {{unit}} đ/quả · kiểm kho luôn: lệch {{diff}} quả, chia vào {{n}} buổi ước tính",
+    "needMember": "Chọn người đi thêm trước đã",
+    "extraAdded": "{{name}} được đánh dấu đi thêm buổi này — sẽ hiện ở tab Đối chiếu",
+    "extraRemoved": "Đã bỏ người đi thêm khỏi buổi",
+    "adjustPaid": "Đã trả {{name}} {{amount}}",
+    "adjustCollected": "Đã thu {{name}} {{amount}}",
+    "adjustUndone": "Đã bỏ đánh dấu — khoản này quay lại chờ xử lý",
+    "settleCash": "{{name}}: trả bằng tiền mặt",
+    "settleOffset": "{{name}}: trừ vào quỹ tháng sau, không ghi giao dịch",
+    "memberAddedNow": "Đã thêm {{name}} · cố định từ {{month}}, quỹ phải thu {{amount}} — xem ở Công nợ"
   },
   "group": {
     "allClub": "Cả CLB",
@@ -567,7 +578,10 @@
       "live": "đang tính",
       "temp": "đóng băng tạm",
       "final": "số chốt"
-    }
+    },
+    "extraPick": "Chọn người đi thêm…",
+    "extraAdd": "Thêm người đi thêm",
+    "extraDueTag": "trả theo đơn giá buổi"
   },
   "sessionCol": {
     "date": "Ngày",
@@ -593,7 +607,7 @@
     "emptyGroup": "Nhóm này chưa có ai cố định tháng này",
     "emptyGroupHint": "Vào Thành viên → tab Cố định tháng sau để thêm người vào nhóm, hoặc thêm thành viên mới.",
     "tabAll": "Tất cả",
-    "tabNext": "Cố định tháng sau",
+    "tabNext": "Danh sách cố định",
     "tabPending": "Chờ duyệt",
     "listTitle": "Danh sách thành viên",
     "listSub": "{{n}} người đang hoạt động",
@@ -653,7 +667,11 @@
     "fWhen": "Trình độ mới áp dụng khi nào",
     "whenNow": "Áp dụng ngay",
     "whenNext": "Từ tháng sau",
-    "editGroupNote": "Muốn đổi nhóm cố định của tháng sau thì vào tab Cố định tháng sau — mỗi tháng một danh sách riêng."
+    "editGroupNote": "Muốn đổi nhóm cố định của tháng sau thì vào tab Cố định tháng sau — mỗi tháng một danh sách riêng.",
+    "rosterThis": "Tháng này · {{month}}",
+    "rosterNext": "Tháng sau · {{month}}",
+    "joinFull": "Vào giữa tháng · nhóm chưa có buổi nào nên thu trọn gói",
+    "joinPartial": "Vào giữa tháng · {{n}} buổi còn lại"
   },
   "schedules": {
     "listTitle": "Lịch tập cố định",
@@ -720,24 +738,38 @@
     "duesSub": "Bấm vào một người để đánh dấu đã đóng",
     "duesEmpty": "Tháng này chưa sinh quỹ",
     "duesEmptyHint": "Vào Thành viên → Cố định tháng sau → bấm Chốt danh sách để sinh quỹ tháng.",
-    "backTitle": "Back tiền cuối tháng",
-    "backSub": "Trả lại tiền cho người cố định nhưng nghỉ buổi",
-    "backAlertTitle": "Đơn giá một buổi tính thế nào",
-    "backAlert": "Đơn giá = quỹ tháng ÷ số buổi của nhóm trong tháng (không tính buổi đã hủy), làm tròn nghìn. Back = đơn giá × số buổi ĐÃ CHỐT mà người đó bị đánh Vắng. Ghi chi ngày 28 hàng tháng.",
+    "backTitle": "Đối chiếu buổi",
+    "backSub": "Người cố định nghỉ được trả lại · người đi thêm buổi phải trả — cùng một đơn giá",
+    "backAlertTitle": "Đối chiếu chạy hai chiều",
+    "backAlert": "Đơn giá một buổi = quỹ tháng người đó thực đóng ÷ số buổi của nhóm trong tháng. Vắng thì quỹ trả lại, đi thêm buổi của nhóm khác thì trả cho quỹ. Quỹ tháng vẫn thu trọn gói, đơn giá này chỉ dùng để đối chiếu.",
     "backColMember": "Người",
     "backColGroup": "Nhóm",
-    "backColAbsent": "Nghỉ",
+    "backColAbsent": "Số buổi",
     "backColTotal": "Tổng buổi",
     "backColUnit": "Đơn giá",
     "backColAmount": "Tiền back",
     "backColStatus": "Trạng thái",
     "backPaid": "Đã trả",
     "backUnpaid": "Chưa trả",
-    "backEmpty": "Không ai phải back tiền tháng này",
-    "backEmptyHint": "Chỉ người cố định bị đánh Vắng ở buổi ĐÃ CHỐT mới được back.",
+    "backEmpty": "Chưa có khoản nào phải đối chiếu",
+    "backEmptyHint": "Tháng này chưa ai vắng buổi cố định, cũng chưa ai đi thêm buổi nhóm khác.",
     "totalDebt": "Tổng nợ {{amount}}",
-    "totalBack": "Tổng back {{amount}}",
-    "totalDues": "Còn thiếu {{amount}}"
+    "totalBack": "Quỹ phải trả {{amount}}",
+    "totalDues": "Còn thiếu {{amount}}",
+    "backNote": "Chưa bấm thì chỉ là khoản phải trả / phải thu, quỹ không đổi một đồng. Chọn “Trừ tháng sau” thì không có giao dịch nào — số được cộng thẳng vào quỹ tháng sau lúc chốt danh sách.",
+    "backColSettle": "Cách trả",
+    "totalExtra": "Quỹ phải thu {{amount}}",
+    "extraUncollected": "Chưa thu",
+    "adjustOffset": "Trừ tháng sau",
+    "offsetNote": "đã trừ {{amount}} từ đối chiếu tháng trước",
+    "kind": {
+      "absent_back": "vắng",
+      "extra_session": "đi thêm"
+    },
+    "settle": {
+      "cash": "Tiền mặt",
+      "offset_next_dues": "Trừ quỹ tháng sau"
+    }
   },
   "fund": {
     "tabMonth": "Tổng hợp tháng",
@@ -791,7 +823,12 @@
     "fAmount": "Số tiền",
     "billDlgTitle": "Hoá đơn tiền sân trọn tháng",
     "billDlgDesc": "Ghi đúng số tiền đã chuyển cho chủ sân",
-    "fMonth": "Của tháng"
+    "fMonth": "Của tháng",
+    "fPayer": "Người trả",
+    "fPayerHint": "Bỏ trống = quỹ CLB tự trả",
+    "payerFund": "Quỹ CLB",
+    "billVenueHint": "Lấy từ danh sách sân ở Cài đặt",
+    "billVenueEmpty": "Chưa khai sân nào ở Cài đặt — gõ tay tạm"
   },
   "shuttles": {
     "tabBuy": "Mua cầu",

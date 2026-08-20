@@ -129,7 +129,10 @@ const raw = {
   }],
   rosterRows: [{ month: '2026-09', group_id: 'gr1', member_id: 'm1', state: 'off' }],
   locks: [{ month: '2026-08' }],
-  backCredits: [{ month: '2026-08', group_id: 'gr1', member_id: 'm1', paid: true }],
+  adjustments: [{
+    id: 'aj1', month: '2026-08', group_id: 'gr1', member_id: 'm1', kind: 'absent_back',
+    sessions: 2, unit_price: 40000, amount: -80000, settle: 'cash', paid: true, paid_at: '2026-08-28',
+  }],
   guestPrices: [{ level: 'Y', gender: 'nu', price: 50000 }],
   manual: [{ id: 'l1', date: '2026-08-10', direction: 'out', category: 'withdraw', label: 'X', amount: 5000, payer_name: 'A' }],
 }
@@ -147,7 +150,11 @@ assert.deepEqual(back.courtGroups.s1, { m1: 1 })
 assert.deepEqual(back.matches[0].playerKeys, ['m1', 'g1'], 'người chơi phải xếp theo team 0 trước')
 assert.deepEqual(back.roster, { '2026-09': { gr1: { m1: 'off' } } })
 assert.deepEqual(back.locked, { '2026-08': true })
-assert.deepEqual(back.backPaid, { '2026-08:gr1:m1': true })
+assert.deepEqual(back.adjustments, [{
+  id: 'aj1', key: '2026-08:gr1:m1:absent_back', month: '2026-08', groupId: 'gr1', memberId: 'm1',
+  kind: 'absent_back', sessions: 2, unit: 40000, amount: -80000, settle: 'cash',
+  paid: true, paidAt: '2026-08-28',
+}], 'bảng đối chiếu phải mang ĐỦ số xuống client, không chỉ cờ paid như back_credits cũ')
 assert.deepEqual(back.guestPrices, [
   { level: 'Y', nam: 0, nu: 50000 },
   { level: 'Y+', nam: 0, nu: 0 },

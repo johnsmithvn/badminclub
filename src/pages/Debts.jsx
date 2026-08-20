@@ -1,11 +1,11 @@
 // Công nợ: khách theo người rủ · khách theo người · quỹ tháng · back tiền (handoff 02 §5).
 
-import { Alert, Avatar, Button, Card, Tabs } from '#ds'
+import { Alert, Avatar, Button, Card, Select, Tabs } from '#ds'
 import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { monthTxt } from '#utils/dates.js'
 import {
-  backRows, duesOf, fmt, genderTxt, guestDebtByInviter, guestDebtRows, memberOf,
+  adjustRows, duesOf, fmt, genderTxt, guestDebtByInviter, guestDebtRows, memberOf,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -17,7 +17,7 @@ export default function Debts() {
 
   const guestRows = guestDebtRows(db, db.month).filter((r) => r.debt > 0)
   const dues = duesOf(db, db.month)
-  const backs = backRows(db, db.month)
+  const backs = adjustRows(db, db.month)
 
   return (
     <>
@@ -157,9 +157,17 @@ function Dues({ dues, canMoney }) {
 
 /* ---------------- back tiền ---------------- */
 
+/**
+ * Đối chiếu buổi — HAI CHIỀU, cùng một đơn giá, chỉ khác dấu.
+ *   amount ÂM  quỹ nợ người: cố định mà nghỉ, được trả lại
+ *   amount DƯƠNG người nợ quỹ: đi thêm buổi của nhóm khác
+ * Chưa bấm gì thì chỉ là khoản phải trả / phải thu, KHÔNG đụng vào quỹ.
+ */
 function Back({ rows, canMoney }) {
   const { a } = useApp()
-  const total = rows.filter((r) => !r.paid).reduce((x, r) => x + r.amount, 0)
+  const open = rows.filter((r) => !r.paid)
+  const owed = open.filter((r) => r.amount < 0).reduce((x, r) => x - r.amount, 0)
+  const due = open.filter((r) => r.amount > 0).reduce((x, r) => x + r.amount, 0)
 
   return (
     <>
@@ -169,7 +177,12 @@ function Back({ rows, canMoney }) {
         subtitle={t('debts.backSub')}
         icon="rotate-ccw"
         padding="0"
-        actions={<Mono weight={600} color="var(--status-delayed)">{t('debts.totalBack', { amount: fmt(total) })}</Mono>}
+        actions={
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <Mono weight={600} color="var(--status-incident)">{t('debts.totalBack', { amount: fmt(owed) })}</Mono>
+            <Mono weight={600} color="var(--status-delivered)">{t('debts.totalExtra', { amount: fmt(due) })}</Mono>
+          </div>
+        }
       >
         {rows.length === 0
           ? <Empty icon="circle-check" title={t('debts.backEmpty')} hint={t('debts.backEmptyHint')} />
@@ -181,31 +194,65 @@ function Back({ rows, canMoney }) {
                 <span style={S.r}>{t('debts.backColTotal')}</span>
                 <span style={S.r}>{t('debts.backColUnit')}</span>
                 <span style={S.r}>{t('debts.backColAmount')}</span>
+                <span>{t('debts.backColSettle')}</span>
                 <span style={S.r}>{t('debts.backColStatus')}</span>
               </div>
-              {rows.map((r) => (
-                <div key={r.key} style={{ ...S.backGrid, ...S.backRow }}>
-                  <span style={{ color: 'var(--text-primary)', font: 'var(--type-label)' }}>{r.member.name}</span>
-                  <span style={S.caption}>{r.group.name}</span>
-                  <span style={S.r}>{r.absent}</span>
-                  <span style={S.r}>{r.total}</span>
-                  <span style={S.r}>{fmt(r.unit)}</span>
-                  <span style={{ ...S.r, fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(r.amount)}</span>
-                  <span style={{ ...S.r, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button variant={r.paid ? 'ghost' : 'secondary'} size="sm" disabled={!canMoney}
-                      icon={r.paid ? 'circle-check' : 'send'} onClick={() => a.payBack(r.key)}>
-                      {t(r.paid ? 'debts.backPaid' : 'debts.backUnpaid')}
-                    </Button>
-                  </span>
-                </div>
-              ))}
+              {rows.map((r) => {
+                const back = r.amount < 0
+                const offset = r.settle === 'offset_next_dues'
+                return (
+                  <div key={r.key} style={{ ...S.backGrid, ...S.backRow }}>
+                    <span style={{ color: 'var(--text-primary)', font: 'var(--type-label)' }}>{r.member.name}</span>
+                    <span style={S.caption}>
+                      {r.group.name}
+                      <span style={back ? S.kindBack : S.kindExtra}>{t('debts.kind.' + r.kind)}</span>
+                    </span>
+                    <span style={S.r}>{r.sessions}</span>
+                    <span style={S.r}>{r.total}</span>
+                    <span style={S.r}>{fmt(r.unit)}</span>
+                    {/* Dấu là thông tin, không phải trang trí: − quỹ trả ra, + quỹ thu về. */}
+                    <span style={{
+                      ...S.r, fontWeight: 600,
+                      color: back ? 'var(--status-incident)' : 'var(--status-delivered)',
+                    }}>
+                      {(back ? '−' : '+') + fmt(Math.abs(r.amount))}
+                    </span>
+                    <span>
+                      <Select size="sm" disabled={!canMoney || r.paid} value={r.settle}
+                        options={[
+                          { value: 'cash', label: t('debts.settle.cash') },
+                          { value: 'offset_next_dues', label: t('debts.settle.offset_next_dues') },
+                        ]}
+                        onChange={(e) => a.setAdjustSettle(r.key, e.target.value)} />
+                    </span>
+                    <span style={{ ...S.r, display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button variant={r.paid ? 'ghost' : 'secondary'} size="sm" disabled={!canMoney}
+                        icon={r.paid ? 'circle-check' : back ? 'send' : 'hand-coins'}
+                        onClick={() => a.settleAdjust(r.key)}>
+                        {r.paid
+                          ? t(offset ? 'debts.adjustOffset' : 'debts.backPaid')
+                          : t(back ? 'debts.backUnpaid' : 'debts.extraUncollected')}
+                      </Button>
+                    </span>
+                  </div>
+                )
+              })}
             </div>}
+        <div style={{ ...S.caption, padding: '10px 18px' }}>{t('debts.backNote')}</div>
       </Card>
     </>
   )
 }
 
 const S = {
+  kindBack: {
+    font: '600 9px/1 var(--font-sans)', padding: '3px 6px', borderRadius: 99, marginLeft: 6,
+    background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap',
+  },
+  kindExtra: {
+    font: '600 9px/1 var(--font-sans)', padding: '3px 6px', borderRadius: 99, marginLeft: 6,
+    background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)', whiteSpace: 'nowrap',
+  },
   row: {
     display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px',
     border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
@@ -216,7 +263,8 @@ const S = {
   },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
-  backGrid: { display: 'grid', gridTemplateColumns: '1.3fr 1.2fr .6fr .8fr .9fr 1fr 1.1fr', gap: 8, minWidth: 780 },
+  // 8 cột: người · nhóm+loại · số buổi · tổng buổi · đơn giá · thành tiền · cách trả · trạng thái
+  backGrid: { display: 'grid', gridTemplateColumns: '1.3fr 1.5fr .6fr .7fr .9fr 1fr 1.3fr 1.2fr', gap: 8, minWidth: 980 },
   backHead: {
     padding: '10px 18px', background: 'var(--surface-inset)', borderBottom: '1px solid var(--border-subtle)',
     font: 'var(--type-overline)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)',

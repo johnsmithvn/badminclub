@@ -150,7 +150,27 @@ lập trong từng sân**, không ai bị đẩy sang sân khác.
 ## 6. Công nợ · Sổ quỹ · Kho cầu
 
 **Công nợ** 3 tab: nợ khách gộp theo **người rủ** (để nhắc thu hộ) · nợ theo từng **khách** ·
-**quỹ tháng** thành viên cố định · **back tiền** cuối tháng.
+**quỹ tháng** thành viên cố định · **đối chiếu buổi** cuối tháng.
+
+**Đối chiếu buổi chạy hai chiều**, cùng một đơn giá, chỉ khác dấu:
+
+| | Ai | Dấu | Ghi sổ khi bấm |
+| --- | --- | --- | --- |
+| Vắng buổi cố định | người trong danh sách cố định của nhóm | **−** quỹ nợ người | chi · Back cố định nghỉ |
+| Đi thêm buổi nhóm khác | thành viên CLB, không cố định nhóm đó | **+** người nợ quỹ | thu · Đi thêm buổi |
+
+`đơn giá = quỹ tháng NGƯỜI ĐÓ THỰC ĐÓNG ÷ số buổi của nhóm trong tháng`. Đọc `monthly_dues` chứ
+không đọc cấu hình nhóm hiện tại — sửa quỹ nhóm giữa chừng thì người đã đóng giá cũ phải được
+đối chiếu theo giá cũ.
+
+Người đi thêm **không phải khách giao lưu**: họ trả theo đơn giá buổi của nhóm chứ không theo bảng
+giá khách, và không được đếm vào báo cáo "khách theo trình độ". Đánh dấu ở màn điểm danh, trạng
+thái thứ ba là **Đi thêm**. Người đã cố định nhóm đó thì không bao giờ tính là đi thêm — họ đã
+đóng quỹ tháng rồi.
+
+Hai cách tất toán: **tiền mặt** (ghi một dòng sổ quỹ) hoặc **trừ vào quỹ tháng sau** (KHÔNG ghi
+giao dịch nào — tiền không đổi tay, số được cộng dấu vào `monthly_dues.amount` lúc chốt danh sách
+tháng sau).
 
 **Sổ quỹ** — 9 hạng mục, chiều thu/chi. Bảng dưới nói **nguồn sự thật hiện tại**: `ledger()`
 suy ra từ chính bản ghi gốc, `transactions` mới chỉ giữ dòng nhập tay. Đích đến là ghi thẳng vào

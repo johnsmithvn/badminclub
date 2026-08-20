@@ -27,6 +27,12 @@ export const fmt = (n) => fmtK(n) + ' ' + t('units.dong')
 
 export const courtOf = (db, id) => db.courts.find((c) => c.id === id) || { name: t('common.unknown'), price: 0 }
 export const memberOf = (db, id) => db.members.find((m) => m.id === id) || { name: t('common.unknown') }
+/**
+ * Tên người trả một khoản chi. Ưu tiên bản ghi thành viên (payerId); chuỗi gõ tay chỉ còn để
+ * đọc dữ liệu cũ — xem migration 0008.
+ */
+export const payerName = (db, payerId, legacy) =>
+  (payerId ? memberOf(db, payerId).name : '') || legacy || t('common.unknown')
 export const guestOf = (db, id) => db.guests.find((g) => g.id === id) || { name: t('common.unknown') }
 export const sessionOf = (db, id) => db.sessions.find((s) => s.id === id)
 
@@ -323,16 +329,23 @@ export function adjustRows(db, monthKey) {
     const sess = monthSessions(db, monthKey).filter((s) => s.groupId === g.id && s.status === 'closed')
     if (!sess.length) return
     const att = (s) => db.attendance[s.id] || {}
+    const fixed = groupMembers(db, g.id, monthKey)
+    const isFixed = new Set(fixed.map((m) => m.id))
 
-    groupMembers(db, g.id, monthKey).forEach((m) => {
+    fixed.forEach((m) => {
       push(g, m, 'absent_back', sess.filter((s) => att(s)[m.id] === false).length, -1)
     })
 
     // Người đi thêm: có ô điểm danh 'extra' ở buổi của nhóm này.
+    // Người ĐÃ cố định nhóm này thì bỏ qua, dù ô điểm danh có là 'extra' đi nữa — họ đã đóng
+    // quỹ tháng cho nhóm, tính thêm tiền đi thêm buổi là thu hai lần cùng một buổi. Hay gặp ở
+    // người cố định cả hai nhóm.
     const extras = {}
     sess.forEach((s) => {
       const a = att(s)
-      Object.keys(a).forEach((mid) => { if (a[mid] === 'extra') extras[mid] = (extras[mid] || 0) + 1 })
+      Object.keys(a).forEach((mid) => {
+        if (a[mid] === 'extra' && !isFixed.has(mid)) extras[mid] = (extras[mid] || 0) + 1
+      })
     })
     Object.keys(extras).forEach((mid) => {
       const m = db.members.find((x) => x.id === mid)
@@ -354,6 +367,21 @@ export const pendingOffset = (db, mid, month) =>
 /** Số buổi còn lại của nhóm trong tháng tính từ hôm nay — dùng khi thêm người giữa tháng. */
 export const remainSessions = (db, gid, month) =>
   monthSessions(db, month).filter((x) => x.groupId === gid && x.date >= db.today && x.status !== 'cancelled').length
+
+/**
+ * Quỹ tháng của người vào GIỮA THÁNG. Hai cảnh khác hẳn nhau:
+ *
+ *  - Nhóm CHƯA có buổi nào trong tháng — CLB vừa dựng giữa tháng, lịch tập chưa tạo. Người này
+ *    rồi sẽ đánh đủ số buổi của tháng, nên thu TRỌN GÓI. Trước đây rơi vào nhánh "0 buổi còn
+ *    lại" nên không sinh khoản nào, thành ra thêm người giữa tháng là không có gì để thu.
+ *  - Nhóm ĐÃ có buổi — thu theo số buổi còn lại tính từ hôm nay, theo đơn giá một buổi.
+ */
+export function joinDues(db, m, g, month) {
+  const all = monthSessions(db, month).filter((s) => s.groupId === g.id && s.status !== 'cancelled')
+  if (!all.length) return { full: true, sessions: 0, amount: m.gender === 'nu' ? g.feeNu : g.feeNam }
+  const sessions = remainSessions(db, g.id, month)
+  return { full: false, sessions, amount: unitPrice(db, m, g, month).unit * sessions }
+}
 
 /* ---------- giá thành từng buổi · TẦNG B ---------- */
 
@@ -413,14 +441,25 @@ export const costState = (s) => (!s.costFrozenAt ? 'live' : s.shuttleEst ? 'temp
 
 /* ---------- màu và nhãn ---------- */
 
-export function levelStyle(l) {
-  const map = {
-    Newbie: ['var(--status-idle-bg)', 'var(--status-idle-fg)'],
-    TBY: ['var(--status-scheduled-bg)', 'var(--status-scheduled-fg)'],
-    'TB-': ['var(--status-transit-bg)', 'var(--status-transit-fg)'],
-    TB: ['var(--status-delivered-bg)', 'var(--status-delivered-fg)'],
-  }
-  const pair = map[l] || map.Newbie
+/** Bảng màu trình độ, yếu → mạnh. Thang dài hơn bảng màu thì các bậc cuối dùng chung màu mạnh nhất. */
+const LEVEL_PALETTE = [
+  ['var(--status-idle-bg)', 'var(--status-idle-fg)'],
+  ['var(--status-scheduled-bg)', 'var(--status-scheduled-fg)'],
+  ['var(--status-transit-bg)', 'var(--status-transit-fg)'],
+  ['var(--status-delivered-bg)', 'var(--status-delivered-fg)'],
+]
+
+/**
+ * Màu của một bậc trình độ, chia theo VỊ TRÍ trong thang của CLB chứ không theo tên.
+ * Bảng cứng theo tên ('TBY', 'TB-'…) sẽ hỏng ngay khi CLB đặt thang riêng — mà thang trình độ
+ * là dữ liệu của từng CLB (clubs.levels), không phải hằng số.
+ */
+export function levelStyle(l, levels) {
+  const scale = levels && levels.length ? levels : LEVELS
+  const i = scale.indexOf(l)
+  const slot = i < 0 ? 0 : Math.min(LEVEL_PALETTE.length - 1,
+    Math.floor((i * LEVEL_PALETTE.length) / Math.max(1, scale.length)))
+  const pair = LEVEL_PALETTE[slot]
   return { background: pair[0], color: pair[1] }
 }
 

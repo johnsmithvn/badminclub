@@ -2,10 +2,11 @@
 import assert from 'node:assert/strict'
 import { seed } from './fixture.js'
 import {
-  backRows, checkDue, checkPreview, costRow, costState, courtBase, courtCost, courtExtraCost,
-  courtNet, estSessions, fmt, fmtK, freezeCost, groupMembers, guestDebtRows, guestPrice, levelIdx,
-  levelOf, playedCourts, presentCount, quotaFor, remainSessions, sessionCost, sessionOf,
-  shuttleUnit, soldTotal, spreadDiff, stock, unfrozenCost, unitPrice,
+  adjustKey, adjustRows, checkDue, checkPreview, costRow, costState, courtBase, courtCost,
+  courtExtraCost, courtNet, estSessions, fmt, fmtK, freezeCost, groupMembers, guestDebtRows,
+  guestPrice, isPresent, levelIdx, levelOf, levelStyle, playedCourts, pendingOffset, presentCount, quotaFor,
+  remainSessions, sessionCost, sessionMembers, sessionOf, shuttleUnit, soldTotal, spreadDiff,
+  stock, unfrozenCost, unitPrice,
 } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -26,10 +27,22 @@ assert.equal(fmtK(500), '1.000')
 assert.equal(fmt(120000), '120.000 đ')
 
 /* ---------- trình độ ---------- */
-assert.equal(levelIdx('Newbie'), 0)
-assert.equal(levelIdx('TB'), 3)
-assert.ok(levelIdx('TB') > levelIdx('TB-') && levelIdx('TB-') > levelIdx('TBY'), 'Newbie < TBY < TB- < TB')
+// Khoá THỨ TỰ chứ không khoá vị trí cụ thể: thang mặc định là cấu hình, thêm bậc là chuyện
+// bình thường; cái không được sai là thứ tự yếu → mạnh, vì thuật toán cân sân dùng đúng nó.
+assert.equal(levelIdx('Newbie'), 0, 'bậc đầu thang luôn là yếu nhất')
+assert.ok(
+  cfg.levelsDefault.every((l, i) => i === 0 || levelIdx(l) > levelIdx(cfg.levelsDefault[i - 1])),
+  'levelIdx phải tăng dần đúng theo thứ tự khai trong app.json'
+)
+assert.ok(levelIdx('TB') > levelIdx('TB-') && levelIdx('TB-') > levelIdx('TBY'), 'TBY < TB- < TB')
+assert.ok(levelIdx('TBY') > levelIdx('Y'), 'Y < TBY')
 assert.equal(levelIdx('không có'), 0, 'trình độ lạ về 0, không crash')
+
+// Màu chia theo VỊ TRÍ trong thang của CLB, không theo tên bậc.
+const scale = ['a', 'b', 'c', 'd', 'e', 'f']
+assert.notDeepEqual(levelStyle('a', scale), levelStyle('f', scale), 'yếu nhất và mạnh nhất phải khác màu')
+assert.deepEqual(levelStyle('a', scale), levelStyle('Newbie'), 'bậc đầu thang nào cũng cùng một màu')
+assert.deepEqual(levelStyle('lạ hoắc', scale), levelStyle('a', scale), 'bậc không có trong thang thì về màu đầu')
 
 // levelOf tôn trọng thay đổi đang chờ áp dụng
 const m = { level: 'TBY', pendingLevel: 'TB-', pendingLevelFrom: '2026-09' }
@@ -125,18 +138,19 @@ assert.equal(unitPrice(db, { gender: 'nam' }, g2, '2026-08').unit, 63000, 'round
 assert.equal(unitPrice(db, { gender: 'nam' }, g1, '2030-01').n, 1)
 assert.equal(unitPrice(db, { gender: 'nam' }, g1, '2030-01').unit, 250000)
 
-// Back tiền: chỉ tính buổi đã CHỐT mà người đó bị đánh Vắng
-const backs = backRows(db, '2026-08')
-const m5 = backs.find((r) => r.member.id === 'M5')
+// Back tiền: chỉ tính buổi đã CHỐT mà người đó bị đánh Vắng. Dấu ÂM = quỹ nợ người.
+const backs = adjustRows(db, '2026-08')
+const m5 = backs.find((r) => r.member.id === 'M5' && r.kind === 'absent_back')
 assert.ok(m5, 'M5 vắng B1 và B5 (cả hai đã chốt)')
-assert.equal(m5.absent, 2)
-assert.equal(m5.amount, m5.unit * 2)
+assert.equal(m5.sessions, 2)
 assert.equal(m5.unit, 40000, 'M5 là nữ nhóm CN')
-assert.equal(m5.amount, 80000)
-assert.ok(!backs.some((r) => r.absent === 0), 'không ai nghỉ 0 buổi mà vẫn có dòng back')
+assert.equal(m5.amount, -80000, 'quỹ nợ người thì amount ÂM')
+assert.equal(m5.settle, 'cash')
+assert.equal(m5.paid, false)
+assert.ok(!backs.some((r) => r.sessions === 0), 'không ai nghỉ 0 buổi mà vẫn có dòng')
 assert.ok(
-  backs.every((r, i, arr) => i === 0 || arr[i - 1].amount >= r.amount),
-  'sắp theo số tiền giảm dần'
+  backs.every((r, i, arr) => i === 0 || Math.abs(arr[i - 1].amount) >= Math.abs(r.amount)),
+  'sắp theo số tiền giảm dần, không phân biệt chiều'
 )
 
 /* ---------- công nợ khách ---------- */
@@ -193,6 +207,90 @@ assert.equal(ck9.share, 0, 'không có buổi ước lượng thì không chia �
 assert.equal(checkPreview(db, '', 40).month, db.today.slice(0, 7))
 // Chưa gõ số đếm: coi như 0, không NaN
 assert.ok(Number.isFinite(checkPreview(db, '2026-08-31', '').diff))
+
+/* ---------- B8: đơn giá lấy từ quỹ tháng NGƯỜI ĐÓ ĐÓNG, không từ cấu hình nhóm ---------- */
+
+// Sửa quỹ nhóm giữa chừng: người đã đóng 250.000 không được back theo giá mới.
+const dbRaise = { ...db, groups: db.groups.map((g) => (g.id === 'G1' ? { ...g, feeNam: 280000 } : g)) }
+const mNam = db.members.find((m) => m.gender === 'nam' && groupMembers(db, 'G1', '2026-08').some((x) => x.id === m.id))
+assert.ok(mNam, 'phải có ít nhất một nam cố định nhóm CN')
+const dueNam = db.dues.find((d) => d.month === '2026-08' && d.groupId === 'G1' && d.memberId === mNam.id)
+assert.ok(dueNam && dueNam.amount === 250000, 'người đó đã chốt quỹ 250.000 cho tháng 8')
+// Phải truyền NHÓM ĐÃ TĂNG GIÁ vào, không thì đọc feeNam cũ cũng ra 250.000 và assert vô nghĩa.
+const g1Raised = dbRaise.groups.find((g) => g.id === 'G1')
+assert.equal(g1Raised.feeNam, 280000, 'dựng đúng cảnh: cấu hình nhóm đã bị sửa')
+assert.equal(unitPrice(dbRaise, mNam, g1Raised, '2026-08').fee, 250000,
+  'đọc quỹ ĐÃ CHỐT của người đó, không đọc feeNam mới')
+assert.equal(unitPrice(dbRaise, mNam, g1Raised, '2026-08').unit, 50000,
+  '250.000 ÷ 5 buổi = 50.000, không phải 280.000 ÷ 5 = 56.000')
+
+// Tháng chưa chốt danh sách (chưa có dòng dues) thì mới rơi về giá cấu hình của nhóm.
+const dbNoDues = { ...db, dues: [] }
+assert.equal(unitPrice(dbNoDues, mNam, dbRaise.groups.find((g) => g.id === 'G1'), '2026-08').fee, 280000)
+
+/* ---------- đối chiếu chiều NGƯỢC: người đi thêm buổi nhóm khác ---------- */
+
+// Người cố định nhóm T6 và KHÔNG cố định nhóm CN, hôm 02/08 đi thêm buổi CN (B1 đã chốt).
+// Nhiều người cố định cả hai nhóm nên phải lọc, không lấy bừa người đầu danh sách.
+const g1ids = new Set(groupMembers(db, 'G1', '2026-08').map((m) => m.id))
+const gone = groupMembers(db, 'G2', '2026-08').find((m) => !g1ids.has(m.id))
+assert.ok(gone, 'phải có người cố định T6 mà không cố định CN')
+const dbExtra = {
+  ...db,
+  attendance: { ...db.attendance, B1: { ...(db.attendance.B1 || {}), [gone.id]: 'extra' } },
+}
+assert.equal(isPresent('extra'), true, "'extra' vẫn là có mặt")
+assert.ok(sessionMembers(dbExtra, S('B1')).some((m) => m.id === gone.id), 'người đi thêm phải lọt vào danh sách buổi')
+assert.equal(presentCount(dbExtra, S('B1')), presentCount(db, S('B1')) + 1, 'đầu người tăng 1')
+
+const ex = adjustRows(dbExtra, '2026-08').find((r) => r.kind === 'extra_session' && r.memberId === gone.id)
+assert.ok(ex, 'phải sinh một dòng người-nợ-quỹ')
+assert.equal(ex.sessions, 1)
+assert.equal(ex.amount, ex.unit, 'đi 1 buổi thì nợ đúng 1 đơn giá')
+assert.ok(ex.amount > 0, 'người nợ quỹ thì amount DƯƠNG')
+assert.equal(ex.group.id, 'G1', 'đơn giá lấy theo nhóm của BUỔI, không phải nhóm của người')
+assert.equal(ex.key, adjustKey('2026-08', 'G1', gone.id, 'extra_session'))
+
+// REGRESSION: người ĐÃ cố định nhóm CN mà ô điểm danh là 'extra' thì KHÔNG bị tính tiền —
+// họ đã đóng quỹ tháng cho nhóm này rồi, tính thêm là thu hai lần cùng một buổi.
+const both = groupMembers(db, 'G2', '2026-08').find((m) => g1ids.has(m.id))
+assert.ok(both, 'fixture phải có người cố định cả hai nhóm')
+const dbBoth = {
+  ...db,
+  attendance: { ...db.attendance, B1: { ...(db.attendance.B1 || {}), [both.id]: 'extra' } },
+}
+assert.equal(
+  adjustRows(dbBoth, '2026-08').filter((r) => r.kind === 'extra_session' && r.memberId === both.id).length,
+  0, 'người cố định nhóm đó không bao giờ là người đi thêm'
+)
+
+/* ---------- dòng đã lưu thì ĐỨNG YÊN, không tính lại ---------- */
+
+const saved = {
+  id: 'AJ1', key: m5.key, month: '2026-08', groupId: 'G1', memberId: 'M5', kind: 'absent_back',
+  sessions: 2, unit: 40000, amount: -80000, settle: 'cash', paid: true, paidAt: '2026-08-28',
+}
+// Quỹ nhóm đổi + điểm danh đổi, khoản đã trả vẫn phải giữ nguyên con số.
+const dbSaved = {
+  ...dbRaise, dues: [], adjustments: [saved],
+  attendance: { ...db.attendance, B3: { ...(db.attendance.B3 || {}), M5: false } },
+}
+const m5b = adjustRows(dbSaved, '2026-08').find((r) => r.key === m5.key)
+assert.equal(m5b.amount, -80000, 'khoản đã chốt không được tính lại')
+assert.equal(m5b.sessions, 2)
+assert.equal(m5b.paid, true)
+assert.equal(m5b.saved, true)
+
+/* ---------- khoản xin trừ vào quỹ tháng sau ---------- */
+
+const off = { ...saved, id: 'AJ2', settle: 'offset_next_dues', paid: false, paidAt: null }
+const dbOff = { ...db, adjustments: [off] }
+assert.equal(pendingOffset(dbOff, 'M5', '2026-09').length, 1, 'tháng sau thì thấy khoản treo')
+assert.equal(pendingOffset(dbOff, 'M5', '2026-08').length, 0, 'chính tháng sinh ra nó thì chưa')
+assert.equal(pendingOffset({ ...dbOff, adjustments: [{ ...off, paid: true }] }, 'M5', '2026-09').length, 0,
+  'đã xử lý thì thôi')
+assert.equal(pendingOffset({ ...dbOff, adjustments: [saved] }, 'M5', '2026-09').length, 0,
+  'khoản trả tiền mặt không trừ vào quỹ tháng sau')
 
 /* ---------- ĐÓNG BĂNG giá thành: số của buổi đã chốt không được trôi ---------- */
 

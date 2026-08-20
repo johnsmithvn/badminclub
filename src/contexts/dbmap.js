@@ -186,7 +186,8 @@ export function toDb(raw, ctx) {
     })),
     courtBills: (raw.courtBills || []).map((b) => ({
       id: b.id, month: b.month, date: b.paid_on, venue: b.venue,
-      amount: num(b.amount), payer: b.payer || '', note: b.note || '',
+      amount: num(b.amount), payerId: b.payer_member_id || null,
+      payer: b.payer || '', note: b.note || '',   // payer: chỉ còn để đọc dữ liệu cũ nhập tay
     })),
     manual: (raw.manual || []).map((x) => ({
       id: x.id, date: x.date, dir: x.direction, cat: x.category, label: x.label,
@@ -195,7 +196,8 @@ export function toDb(raw, ctx) {
     purchases: (raw.purchases || []).map((p) => ({
       id: p.id, date: p.date, typeId: p.type_id, tubes: p.tubes, extra: p.extra_units,
       qty: p.total_units, pricePerTube: num(p.price_per_tube), total: num(p.total_amount),
-      payer: p.funded_by || '', note: p.note || '',
+      // funded_by là NGUỒN TIỀN (fund / member_advance), không phải tên người — xem 0008.
+      payerId: p.payer_member_id || null, fundedBy: p.funded_by || null, note: p.note || '',
     })),
     stockChecks: (raw.stockChecks || []).map((s) => ({
       id: s.id, date: s.date, month: s.month, counted: s.counted,
@@ -379,7 +381,8 @@ export function toRows(db, ctx) {
 
   db.courtBills.forEach((b) => put('court_bills', {
     id: b.id, club_id: cid, month: b.month, paid_on: b.date, venue: b.venue,
-    amount: b.amount, payer: b.payer || null, note: b.note || null,
+    amount: b.amount, payer_member_id: uu(b.payerId), payer: b.payer || null,
+    note: b.note || null,
   }))
 
   db.manual.forEach((x) => put('transactions', {
@@ -390,7 +393,8 @@ export function toRows(db, ctx) {
   db.purchases.forEach((p) => put('shuttle_purchases', {
     id: p.id, club_id: cid, date: p.date, type_id: p.typeId, tubes: p.tubes,
     extra_units: p.extra, total_units: p.qty, price_per_tube: p.pricePerTube || null,
-    total_amount: p.total, funded_by: p.payer || null, note: p.note || null,
+    total_amount: p.total, payer_member_id: uu(p.payerId), funded_by: p.fundedBy || null,
+    note: p.note || null,
   }))
 
   ;(db.stockChecks || []).forEach((s) => put('stock_checks', {

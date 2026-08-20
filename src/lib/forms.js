@@ -23,12 +23,22 @@ export const purchaseForm = (db) => ({
   pTubes: 10, pExtra: 0, pTotal: '', pPayer: '', pNote: '', pLeft: '',
 })
 
+/** Địa điểm để chọn khi nhập hoá đơn sân: gom địa chỉ các sân của CLB, bỏ trùng. */
+export const venueOptions = (db) => {
+  const seen = []
+  ;(db.courts || []).forEach((c) => {
+    const v = (c.addr || '').trim() || c.name
+    if (v && seen.indexOf(v) < 0) seen.push(v)
+  })
+  return seen
+}
+
 /** Form kiểm kho cuối tháng. */
 export const stockCheckForm = (db) => ({ ckDate: db.today, ckCount: '' })
 
-/** Form hoá đơn sân trọn tháng. */
+/** Form hoá đơn sân trọn tháng. `bPayer` là id thành viên, không phải tên gõ tay. */
 export const courtBillForm = (db) => ({
-  bDate: db.today, bMonth: db.month, bVenue: (db.courts[0] && db.courts[0].addr) || '',
+  bDate: db.today, bMonth: db.month, bVenue: venueOptions(db)[0] || '',
   bAmount: '', bPayer: '', bNote: '',
 })
 

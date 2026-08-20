@@ -4,7 +4,7 @@
 import { Avatar, Button, Card, DataTable, Tabs } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { addMonth, monthTxt } from '#utils/dates.js'
+import { addMonth, monthShort, monthTxt } from '#utils/dates.js'
 import { duesOf, fmt, genderTxt, memberOf, rosterStatus } from '#lib/money.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -15,7 +15,10 @@ export default function Members() {
   const { db, ui, a } = useApp()
   const tab = ui.tab.members || 'all'
   const canEdit = can(db.viewAs || 'owner', 'members')
-  const nextM = addMonth(db.month, 1)
+  // Chốt danh sách được cho CẢ tháng đang xem, không chỉ tháng sau. Dựng CLB giữa tháng thì
+  // việc đầu tiên phải làm là chốt danh sách THÁNG NÀY để có quỹ tháng mà thu.
+  const rosterWhen = ui.tab.roster || 'next'
+  const rosterM = rosterWhen === 'this' ? db.month : addMonth(db.month, 1)
   const pendingChanges = db.changes.filter((c) => c.status === 'pending')
 
   return (
@@ -31,7 +34,7 @@ export default function Members() {
         onChange={(v) => a.setTab('members', v)}
       />
       {tab === 'all' && <AllMembers canEdit={canEdit} />}
-      {tab === 'next' && <NextMonth month={nextM} canEdit={canEdit} />}
+      {tab === 'next' && <NextMonth month={rosterM} canEdit={canEdit} />}
       {tab === 'pending' && <Pending canEdit={canEdit} />}
     </>
   )
@@ -59,7 +62,7 @@ function AllMembers({ canEdit }) {
       key: 'l', header: t('members.colLevel'),
       render: (r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <LevelChip level={r.level} />
+          <LevelChip level={r.level} levels={db.levels} />
           {r.pendingLevel && (
             <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
               {t('members.pendingLevel', { level: r.pendingLevel, month: r.pendingLevelFrom })}
@@ -130,7 +133,7 @@ function AllMembers({ canEdit }) {
 /* ---------------- tab Cố định tháng sau ---------------- */
 
 function NextMonth({ month, canEdit }) {
-  const { db, a } = useApp()
+  const { db, ui, a } = useApp()
   const locked = !!db.locked[month]
   const day = parseInt(db.today.slice(8, 10), 10)
   const lockDay = db.club.lockDay || cfg.club.defaultLockDay
@@ -143,12 +146,25 @@ function NextMonth({ month, canEdit }) {
         subtitle={t('members.nextSub')}
         icon="calendar-days"
         padding="14px 16px"
-        actions={canEdit && (
-          <Button variant={locked ? 'secondary' : 'primary'} size="sm" icon={locked ? 'rotate-ccw' : 'check'}
-            onClick={() => a.lockRoster(month)}>
-            {t(locked ? 'members.unlock' : 'members.lockNow')}
-          </Button>
-        )}
+        actions={
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Tabs
+              variant="segmented"
+              items={[
+                { value: 'this', label: t('members.rosterThis', { month: monthShort(db.month) }) },
+                { value: 'next', label: t('members.rosterNext', { month: monthShort(addMonth(db.month, 1)) }) },
+              ]}
+              value={ui.tab.roster || 'next'}
+              onChange={(v) => a.setTab('roster', v)}
+            />
+            {canEdit && (
+              <Button variant={locked ? 'secondary' : 'primary'} size="sm" icon={locked ? 'rotate-ccw' : 'check'}
+                onClick={() => a.lockRoster(month)}>
+                {t(locked ? 'members.unlock' : 'members.lockNow')}
+              </Button>
+            )}
+          </div>
+        }
       >
         <div style={{ display: 'grid', gap: 12 }}>
           <div style={{ font: 'var(--type-caption)', color: locked ? 'var(--status-delivered)' : 'var(--text-muted)' }}>

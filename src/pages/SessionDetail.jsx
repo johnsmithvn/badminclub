@@ -8,9 +8,9 @@ import { Empty, LevelChip, Mono, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
-  costRow, costState, courtOf, courtPayMode, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
+  costRow, costState, courtOf, courtPayMode, courtTxt, duesOf, fmt, fmtK, genderTxt,
   groupOf, guestOf, guestPaidRev, guestPrice, levelOf, perTube, playedCourts, presentCount,
-  quotaFor, rowCost, sGuests, sessionOf, soldTotal, timeTxt,
+  quotaFor, rowCost, sGuests, sessionMembers, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -39,7 +39,9 @@ export default function SessionDetail() {
   const canMoney = can(role, 'money')
   const month = s.date.slice(0, 7)
   const group = groupOf(db, s.groupId)
-  const members = groupMembers(db, s.groupId, month)
+  // Cố định của nhóm + người đi thêm hôm nay. Người đi thêm trả tiền theo ĐƠN GIÁ MỘT BUỔI
+  // của nhóm, không phải giá khách — họ là người nhà, xem tab Đối chiếu ở Công nợ.
+  const members = sessionMembers(db, s)
   const att = db.attendance[s.id] || {}
   const guests = sGuests(db, s.id)
   const dues = duesOf(db, month)
@@ -107,41 +109,55 @@ export default function SessionDetail() {
             {members.length === 0 && <Empty icon="users" title={t('members.emptyGroup')} hint={t('members.emptyGroupHint')} />}
             {members.map((m) => {
               const state = att[m.id]
+              const extra = state === 'extra'
               const due = dues.find((d) => d.memberId === m.id && d.groupId === s.groupId)
               return (
-                <button
-                  key={m.id}
-                  type="button"
-                  disabled={!canEdit}
-                  onClick={() => a.toggleAtt(s.id, m.id)}
-                  style={{
-                    ...S.attRow,
-                    cursor: canEdit ? 'pointer' : 'default',
-                    background: state === true ? 'var(--surface-accent-soft)' : state === false ? 'var(--surface-sunken)' : 'var(--surface-card)',
-                    borderColor: state === true ? 'var(--teal-500)' : 'var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <div style={S.label}>{m.name}</div>
-                    <div style={S.caption}>{genderTxt(m.gender) + ' · ' + levelOf(m, month)}</div>
-                  </div>
-                  <LevelChip level={levelOf(m, month)} />
-                  <span style={{
-                    font: 'var(--type-label)',
-                    color: state === true ? 'var(--status-transit)' : state === false ? 'var(--text-muted)' : 'var(--text-disabled)',
-                    minWidth: 74, textAlign: 'right',
-                  }}>
-                    {state === true ? t('attend.present') : state === false ? t('attend.absent') : t('attend.unmarked')}
-                  </span>
-                  <span style={{
-                    font: 'var(--type-caption)', minWidth: 96, textAlign: 'right',
-                    color: !due ? 'var(--text-disabled)' : due.paid ? 'var(--status-delivered)' : 'var(--status-delayed)',
-                  }}>
-                    {!due ? t('session.noDueTag') : due.paid ? t('session.duePaidTag') : t('session.dueUnpaidTag')}
-                  </span>
-                </button>
+                <div key={m.id} style={{
+                  ...S.attRow,
+                  background: state === true ? 'var(--surface-accent-soft)'
+                    : extra ? 'var(--status-scheduled-bg)'
+                      : state === false ? 'var(--surface-sunken)' : 'var(--surface-card)',
+                  borderColor: state === true ? 'var(--teal-500)'
+                    : extra ? 'var(--status-scheduled-fg)' : 'var(--border-subtle)',
+                }}>
+                  <button type="button" disabled={!canEdit || extra}
+                    onClick={() => a.toggleAtt(s.id, m.id)}
+                    style={{
+                      ...S.attBtn,
+                      cursor: canEdit && !extra ? 'pointer' : 'default',
+                    }}>
+                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <div style={S.label}>{m.name}</div>
+                      <div style={S.caption}>{genderTxt(m.gender) + ' · ' + levelOf(m, month)}</div>
+                    </div>
+                    <LevelChip level={levelOf(m, month)} levels={db.levels} />
+                    <span style={{
+                      font: 'var(--type-label)', minWidth: 74, textAlign: 'right',
+                      color: state === true ? 'var(--status-transit)'
+                        : extra ? 'var(--status-scheduled-fg)'
+                          : state === false ? 'var(--text-muted)' : 'var(--text-disabled)',
+                    }}>
+                      {extra ? t('attend.extra')
+                        : state === true ? t('attend.present')
+                          : state === false ? t('attend.absent') : t('attend.unmarked')}
+                    </span>
+                  </button>
+                  {extra
+                    ? <>
+                        <span style={{ ...S.caption, minWidth: 96, textAlign: 'right' }}>{t('session.extraDueTag')}</span>
+                        {canEdit && <IconButton icon="user-round-minus" size="sm" variant="ghost"
+                          label={t('common.delete')} onClick={() => a.removeExtra(s.id, m.id)} />}
+                      </>
+                    : <span style={{
+                        font: 'var(--type-caption)', minWidth: 96, textAlign: 'right',
+                        color: !due ? 'var(--text-disabled)' : due.paid ? 'var(--status-delivered)' : 'var(--status-delayed)',
+                      }}>
+                        {!due ? t('session.noDueTag') : due.paid ? t('session.duePaidTag') : t('session.dueUnpaidTag')}
+                      </span>}
+                </div>
               )
             })}
+            {canEdit && <ExtraPicker s={s} members={members} />}
           </div>
         </Card>
 
@@ -285,6 +301,34 @@ export default function SessionDetail() {
   )
 }
 
+/* ---------------- thêm người đi thêm ---------------- */
+
+/**
+ * Thành viên CLB nhưng không cố định nhóm này, hôm nay có đánh. Trước đây cách duy nhất để thu
+ * là nhét họ vào danh sách khách với giá khách — sai người, thu vượt, và phồng báo cáo khách.
+ * Giờ họ trả theo ĐƠN GIÁ MỘT BUỔI của nhóm, hiện ở tab Đối chiếu bên Công nợ.
+ */
+function ExtraPicker({ s, members }) {
+  const { db, ui, a } = useApp()
+  const inSession = new Set(members.map((m) => m.id))
+  const rest = db.members.filter((m) => m.active !== false && !inSession.has(m.id))
+  if (!rest.length) return null
+
+  return (
+    <div style={S.extraBox}>
+      <Select size="sm" style={{ flex: 1, minWidth: 160 }}
+        value={ui.form.exMember || ''}
+        options={[{ value: '', label: t('session.extraPick') }]
+          .concat(rest.map((m) => ({ value: m.id, label: m.name + ' · ' + levelOf(m, s.date.slice(0, 7)) })))}
+        onChange={(e) => a.setF('exMember', e.target.value)} />
+      <Button variant="secondary" size="sm" icon="user-round-plus"
+        onClick={() => { a.addExtra(s.id, ui.form.exMember); a.setF('exMember', '') }}>
+        {t('session.extraAdd')}
+      </Button>
+    </div>
+  )
+}
+
 /* ---------------- form thêm khách ---------------- */
 
 function GuestForm() {
@@ -397,6 +441,14 @@ const S = {
   attRow: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', width: '100%',
     border: '1px solid', borderRadius: 8, font: 'inherit',
+  },
+  attBtn: {
+    display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0,
+    background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit',
+  },
+  extraBox: {
+    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3,
+    padding: '9px 11px', borderRadius: 8, border: '1px dashed var(--border-subtle)',
   },
   courtRow: {
     display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', padding: '9px 11px',

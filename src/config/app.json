@@ -3,9 +3,14 @@
   "timezone": "Asia/Ho_Chi_Minh",
   "levelsDefault": [
     "Newbie",
+    "Y",
+    "Y+",
     "TBY",
+    "TBY+",
     "TB-",
-    "TB"
+    "TB",
+    "TB+",
+    "TBK"
   ],
   "genders": [
     "nam",

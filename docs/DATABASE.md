@@ -84,8 +84,8 @@ kho. Ghi thêm chi theo từng buổi là đếm hai lần.
 | Giá 1 quả cầu | `SUM(total_amount)/SUM(total_units)` các đợt có `total_amount > 0` | `money.js: shuttleUnit` |
 | Định mức cầu | `group.quota × số sân còn chơi / số sân không thuê thêm`, sàn 6 | `money.js: quotaFor` |
 | Ai phải đóng quỹ tháng | `group_memberships` của tháng đó, `state='fixed'` | `money.js: groupMembers` |
-| Đơn giá 1 buổi (để back) | `fee / số buổi nhóm trong tháng ≠ cancelled` | `money.js: unitPrice` |
-| Back tiền | đơn giá × số buổi `closed` bị đánh Vắng | `money.js: backRows` |
+| Đơn giá 1 buổi (để đối chiếu) | `monthly_dues.amount` **của chính người đó** ÷ số buổi nhóm trong tháng ≠ cancelled | `money.js: unitPrice` |
+| Đối chiếu buổi | đơn giá × số buổi; ÂM khi vắng, DƯƠNG khi đi thêm. Dòng đã lưu thì đọc số đã lưu | `money.js: adjustRows` |
 | Chi phí buổi · /người · quỹ bù | Tầng B, tính live từ giá **hiện tại** — sẽ đóng băng, xem §8 | `money.js: costRow` |
 | Số trận từng người | `match_players` join `matches` theo `session_id` | `assign.js: matchStats` |
 
@@ -117,7 +117,10 @@ ngày của CLB.
 | Nhập hoá đơn sân trọn tháng | **có** | out | `court` | `paid_on` |
 | Kiểm kho cuối tháng | không | | | chỉ chỉnh `shuttle_used` |
 | Tính ra khoản back | không | | | khoản phải trả |
-| Tick đã trả back | **có** | out | `back` | mặc định ngày 28 |
+| Tick đã trả back (đối chiếu, amount ÂM) | **có** | out | `back` | `paid_at`, mặc định ngày 28 |
+| Tick đã thu người đi thêm (amount DƯƠNG) | **có** | in | `extra` | `paid_at`, mặc định ngày 28 |
+| Chọn "trừ vào quỹ tháng sau" | không | | | cộng dấu vào `monthly_dues.amount` tháng sau — tiền không đổi tay lần nào |
+| Đánh dấu "đi thêm" ở điểm danh | không | | | sinh khoản phải thu ở bảng đối chiếu |
 | Ghi thu / chi tay | **có** | in/out | `withdraw` · `other` | user chọn |
 
 Hai chỗ dễ hiểu sai nhất:
@@ -137,11 +140,11 @@ State `db` của client dùng shape gọn của prototype. Bảng dưới là ma
 
 | Trong `db` (client) | Bảng Postgres | Khác biệt cần xử lý |
 | --- | --- | --- |
-| `attendance[sessionId][memberId] = true/false` | `attendances` (1 dòng/người) | bool → enum `present`/`absent`; chưa điểm danh = **không có dòng** |
+| `attendance[sessionId][memberId] = true \| false \| 'extra'` | `attendances` (1 dòng/người) | → enum `present`/`absent`/`extra`; chưa điểm danh = **không có dòng**. `'extra'` = đi thêm, không cố định nhóm — vẫn là **có mặt** (`money.js: isPresent`) |
 | `sessions[].courts[]` (array lồng) | `session_courts` (bảng riêng) | index của array **chính là** `court_index` — thứ tự quyết định slot id `c{ci}t{team}s{seat}` |
 | `roster[month][groupId][memberId] = state` | `group_memberships` | 1 dòng/người/tháng/nhóm |
 | `locked[month] = true` | `roster_locks` | |
-| `backPaid['2026-08:G1:M5'] = true` | `back_credits` | key gộp `month:groupId:memberId` → 3 cột |
+| `adjustments[]` | `member_adjustments` | `key` = `month:groupId:memberId:kind`, dựng lại y hệt `money.js: adjustKey` |
 | `lineups[sessionId][slot] = playerKey` | `session_lineups` | `playerKey` là member id **hoặc** guest id → cần `player_type` |
 | `courtGroups[sessionId][playerKey] = courtIdx` | `session_court_groups` | như trên |
 | `matches[].playerKeys[4]` | `matches` + `match_players` | 1 trận → 4 dòng, kèm `team` |
@@ -156,7 +159,7 @@ State `db` của client dùng shape gọn của prototype. Bảng dưới là ma
 | `manual[].by` | `transactions.payer_name` | tên người ghi, chốt lúc ghi (người đó có thể rời CLB) |
 | `club.levels` / `db.levels` | `clubs.levels text[]` | thứ tự mảng = thứ tự mạnh dần |
 | `guestPrices[{level,nam,nu}]` | `guest_price_rules` | 1 dòng client → 2 dòng DB (nam + nữ); `effective_from` = `clubs.opening_date` |
-| `backPaid['month:gid:mid']` | `back_credits` | chỉ ghi cờ `paid`; số buổi/đơn giá/số tiền tính lại từ buổi + quỹ tháng |
+
 
 **`playerKey` là chỗ dễ sai nhất:** ở client member và guest dùng chung một namespace key
 (`M5`, `K3`). Trong DB phải luôn đi kèm `player_type` vì hai bảng id riêng.
@@ -216,6 +219,7 @@ dán nguyên nội dung file migration vào và bấm Run, từng file một the
 | `0003_levels_and_client_sync.sql` | trình độ theo từng CLB (bỏ enum `skill_level`), `club_member_groups`, `sessions.group_mode`, `session_courts.default_minutes`, `transactions.payer_name`, RPC `club_pending_requests` |
 | `0004_fix_gen_club_code.sql` | **Sửa lỗi chặn tạo CLB.** `gen_club_code()` khai biến plpgsql tên `code` trùng cột `clubs.code` → `create_club` trả 400 `column reference "code" is ambiguous`. Thân plpgsql chỉ là text lúc `CREATE` nên lỗi không lộ khi apply, chỉ lộ khi có người bấm tạo CLB |
 | `0005_cost_freeze.sql` | `sessions.cost_*` (7 cột) đóng băng giá thành lúc chốt buổi + `stock_checks UNIQUE (club_id, month)` |
+| `0007_member_adjustments.sql` | Đối chiếu buổi hai chiều: `attend_state` thêm `'extra'`, enum `adjust_kind` + `settle_mode`, bảng `member_adjustments` (ghi đủ số, không chỉ cờ `paid` như `back_credits`), chuyển dữ liệu cũ sang. `back_credits` giữ nguyên, app thôi đọc |
 | `0006_grants.sql` | **Sửa lỗi chặn nạp dữ liệu.** 0002 chỉ bật RLS + tạo policy, không `GRANT` bảng nào → `permission denied for table clubs`, select bảng trả 403 trong khi RPC vẫn 200. Cấp quyền bảng cho `authenticated` + default privileges cho bảng thêm sau |
 
 ## 7. Việc còn lại trước khi chạy thật
@@ -237,10 +241,10 @@ thứ tự ở `TASKS.md` Phase 9. **Chưa cái nào được apply** — cột 
 
 | # | Thay đổi | Vì sao |
 | --- | --- | --- |
-| — | **Đã apply: mục 5 và 6** (`0005_cost_freeze.sql`) | |
+| — | **Đã apply: mục 5 và 6** (`0005_cost_freeze.sql`) · **mục 1** (`0007_member_adjustments.sql`) | |
 | ~~5~~ | ✅ `sessions` thêm `cost_court` · `cost_shuttle_unit` · `cost_shuttle` · `cost_total` · `cost_guest_rev` · `cost_heads` · `cost_frozen_at` | Giá thành đang tính live từ giá **hiện tại**. Mua thêm một đợt cầu giá khác là mọi buổi quá khứ đổi số. Chốt buổi phải đóng băng. |
 | ~~6~~ | ✅ `stock_checks` thêm `UNIQUE (club_id, month)` | Mỗi tháng chỉ một lần kiểm kho. |
-| 1 | Bảng `member_adjustments` + `attend_state` thêm `'extra'` + enum `settle_mode('cash','offset_next_dues')` | Back tiền hiện chỉ chạy **một chiều**. Người cố định nhóm khác đi thêm một buổi không có chỗ thu — hiện phải nhét vào `session_guests` với giá khách, sai cả tiền lẫn báo cáo. |
+| ~~1~~ | ✅ Bảng `member_adjustments` + `attend_state` thêm `'extra'` + enum `settle_mode('cash','offset_next_dues')` | Back tiền hiện chỉ chạy **một chiều**. Người cố định nhóm khác đi thêm một buổi không có chỗ thu — hiện phải nhét vào `session_guests` với giá khách, sai cả tiền lẫn báo cáo. |
 | 3 | `monthly_dues` thêm `paid_amount bigint`, bỏ `paid` | `paid` boolean không ghi được "đóng trước 150k/250k": tick thì thừa 100k, không tick thì thiếu 150k. |
 | 4 | `funded_by` → enum `fund_source('fund','member_advance')` + bảng `member_payables` | Thành viên ứng tiền mua cầu bị ghi chi ngay → quỹ giảm trong khi tiền chưa ra, và không ai nhớ phải trả người ứng. **Dọn dữ liệu trước:** `dbmap` đang ghi tên người trả (chuỗi tự do) vào chính cột `funded_by` — phải chuyển sang `payer_member_id` rồi mới `ALTER TYPE`. |
 | 2 | `transactions` thành nguồn ghi thật (xem §1 luật 3) | Làm **sau cùng**: các mục 1/3/4 đổi chính tập sự kiện sinh tiền, viết tầng ghi trước là viết lại hai lần. |

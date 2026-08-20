@@ -5,7 +5,7 @@ import { Alert, Button, Card, DataTable, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
-import { checkDue, estSessions, fmt, fmtK, groupOf, monthSessions, shuttleUnit, stock } from '#lib/money.js'
+import { checkDue, estSessions, fmt, fmtK, groupOf, monthSessions, payerName, shuttleUnit, stock } from '#lib/money.js'
 import { purchaseForm, stockCheckForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -123,7 +123,7 @@ function Purchases({ canMoney }) {
       key: 'pu', header: t('shuttles.colPerUnit'), align: 'right', mono: true,
       render: (r) => (r.total && r.qty ? fmtK(Math.round(r.total / r.qty)) : '—'),
     },
-    { key: 'p', header: t('shuttles.colPayer'), muted: true, render: (r) => r.payer || t('common.unknown') },
+    { key: 'p', header: t('shuttles.colPayer'), muted: true, render: (r) => payerName(db, r.payerId, r.payer) },
   ]
 
   return (
