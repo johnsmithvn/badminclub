@@ -152,30 +152,32 @@ giá thành trôi), cộng 5 chỗ lệch tìm thêm khi đọc code.
 `P1 → P2 → P3 → P4 → P5 → P6 → P7`. Issue 2 (sổ quỹ ghi thật) để **sau cùng** vì P3/P4/P5 đổi
 chính tập sự kiện sinh tiền — viết tầng ghi trước là viết lại lần hai.
 
-### P1 · Lệch nhỏ + Issue 6 + N1–N4 — không đụng schema
+### P1 · Lệch nhỏ + Issue 6 + N1–N4 — không đụng schema · **XONG 2026-08-20** (chờ user bấm thử)
 
-- [ ] **L1 · "Quỹ bù" hai màn hình ra hai số.** `SessionDetail.jsx` tính `cost − rev − sold`,
+- [x] **L1 · "Quỹ bù" hai màn hình ra hai số.** `SessionDetail.jsx` tính `cost − rev − sold`,
       `money.js: costRow` tính `cost − rev`. `courtNet` đã loại sân bán khỏi chi phí rồi, trừ
       thêm `soldAmount` là tính lợi ích bán sân lần thứ hai. **Chốt theo đặc tả:**
       `quỹ bù = chi phí − thu khách`; SessionDetail gọi thẳng `costRow()`, bỏ công thức riêng.
-- [ ] **L2 · `session.closeRule` nói ngược đặc tả.** Câu hiện tại — *"Buổi chỉ vào sổ quỹ khi đã
+- [x] **L2 · `session.closeRule` nói ngược đặc tả.** Câu hiện tại — *"Buổi chỉ vào sổ quỹ khi đã
       chốt"* — chính là câu gây ra hiểu nhầm N1. Chốt buổi chỉ ghi sổ sân bán · sân thuê thêm ·
       tiền sân mode `session`.
-- [ ] **Issue 6 · Kiểm kho lấy sai tháng.** `appActions.js: applyCheck` dùng `d0.month` (tháng
+- [x] **Issue 6 · Kiểm kho lấy sai tháng.** `appActions.js: applyCheck` dùng `d0.month` (tháng
       đang chọn ở header) thay vì tháng của `ckDate`. Kiểm ngày 31/08 khi header ở tháng 09 →
       lệch tháng 8 chia vào buổi tháng 9, sai hai tháng cùng lúc và không ai biết.
       Kèm dòng xem trước trong dialog: *"Chia vào 8 buổi ước tính của tháng 08/2026 · +2 quả mỗi buổi"*.
-- [ ] **N1 · Card "Chốt tiền buổi này" trông y như hoá đơn.** Đổi nhãn → "Giá thành buổi này",
+- [x] **N1 · Card "Chốt tiền buổi này" trông y như hoá đơn.** Đổi nhãn → "Giá thành buổi này",
       subtitle *"Chỉ để biết buổi tốn bao nhiêu — không ghi vào sổ quỹ"*, caption dưới bốn ô nói
       rõ tiền sân đã trả theo hoá đơn tháng, tiền cầu đã trả khi nhập kho.
-- [ ] **N2 · "Quỹ phải bù" đọc như quỹ đã trả** → "Quỹ đang gánh".
-- [ ] **N3 · Tiền cầu hiện trên buổi mà ngày đó không có tiền ra.** Ghi nguồn ngay cạnh số:
+- [x] **N2 · "Quỹ phải bù" đọc như quỹ đã trả** → "Quỹ đang gánh".
+- [x] **N3 · Tiền cầu hiện trên buổi mà ngày đó không có tiền ra.** Ghi nguồn ngay cạnh số:
       *"34 quả × 27.500 đ/quả · giá bình quân kho"*.
-- [ ] **N4 · Tiền sân từng buổi ≠ hoá đơn tháng.** Khi `court_pay_mode='month'`, badge nhỏ
+- [x] **N4 · Tiền sân từng buổi ≠ hoá đơn tháng.** Khi `court_pay_mode='month'`, badge nhỏ
       *"theo hoá đơn tháng"* cạnh ô tiền sân của buổi.
 - [ ] **L5 · Bảng "Giá thành từng buổi" chỉ liệt kê buổi `closed`** (`Home.jsx`), đặc tả nói mọi
-      buổi trong tháng đang chọn. P2, làm cùng nếu rẻ.
-- [ ] Test: khoá `costRow` và hàm chọn tháng kiểm kho trong `__tests__/money.test.js`.
+      buổi trong tháng đang chọn. **Hoãn sang P2:** thêm buổi chưa chốt vào bảng mà chưa có badge
+      trạng thái thì user không phân biệt được số nào còn đổi được — làm cùng badge của P2.
+- [x] Test: khoá `costRow` (bán sân không trừ vào quỹ bù) và `checkPreview` (tháng lấy từ ngày
+      kiểm) trong `__tests__/money.test.js`; `checkPreview` thêm vào `__tests__/empty.test.js`.
 
 ### P2 · Issue 5 + 7 · Đóng băng giá thành — migration `0004`
 

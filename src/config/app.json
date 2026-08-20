@@ -43,7 +43,9 @@
   "shuttle": {
     "quotaMin": 6,
     "perTubeDefault": 12,
-    "quotaDefault": 24
+    "quotaDefault": 24,
+    "checkRemindMonths": 2,
+    "checkLowStock": 20
   },
   "match": {
     "defaultMinutes": 20,

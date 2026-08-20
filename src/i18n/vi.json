@@ -1058,7 +1058,9 @@
     "registered": "Đã tạo tài khoản {{name}} — đang vào app",
     "loggedIn": "Xin chào {{name}}",
     "loggedOut": "Đã đăng xuất",
-    "loading": "Đang kiểm tra phiên đăng nhập"
+    "loading": "Đang kiểm tra phiên đăng nhập",
+    "errEmailTaken": "Email này đã có tài khoản — đăng nhập, hoặc dùng email khác",
+    "errUniqueTaken": "Tên đăng nhập hoặc số điện thoại đã có người dùng — đổi rồi thử lại"
   },
   "clubs": {
     "title": "CLB của tôi",

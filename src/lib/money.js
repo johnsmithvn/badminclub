@@ -3,7 +3,7 @@
 // khi lưu là đơn giá một buổi (unitPrice) — dùng để back tiền.
 // Hàm ở đây thuần: nhận db (state) + tham số, không đụng React/Supabase.
 
-import { hours, monthOf } from '#utils/dates.js'
+import { hours, monthOf, monthsBetween } from '#utils/dates.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 
@@ -147,7 +147,42 @@ export function checkPreview(db, date, counted) {
   const systemLeft = stock(db).left
   const diff = systemLeft - (parseInt(counted, 10) || 0)
   const est = estSessions(db, month)
-  return { month, systemLeft, diff, est, n: est.length, share: est.length ? Math.round(diff / est.length) : 0 }
+  return {
+    month, systemLeft, diff, est, n: est.length, done: checkOf(db, month),
+    share: est.length ? Math.round(diff / est.length) : 0,
+  }
+}
+
+/** Lần kiểm kho của một tháng, nếu có. Mỗi tháng chỉ được một lần — xem uq_check_month. */
+export const checkOf = (db, month) => (db.stockChecks || []).find((c) => c.month === month) || null
+
+/** Chia phần lệch vào các buổi ước lượng; phần dư dồn vào buổi cuối để tổng khớp tuyệt đối. */
+export function spreadDiff(est, diff) {
+  const out = {}
+  let rest = diff
+  est.forEach((x, i) => {
+    const share = i === est.length - 1 ? rest : Math.round(diff / est.length)
+    rest -= share
+    out[x.id] = share
+  })
+  return out
+}
+
+/**
+ * Có nên nhắc kiểm kho không → '' | 'never' | 'stale' | 'low'.
+ * Bỏ kiểm kho thì tồn kho và giá thành trôi mà KHÔNG AI BIẾT: sai số có hệ thống chứ không
+ * random, nên càng để lâu càng lệch cùng một hướng. Quỹ không sai đồng nào, nhưng "quỹ bù mỗi
+ * buổi" — con số dùng để quyết định có tăng quỹ tháng hay không — thì sai.
+ */
+export function checkDue(db) {
+  if (!(db.purchases || []).length) return ''          // chưa mua đợt nào thì chưa có gì để đếm
+  const month = monthOf(db.today)
+  if (checkOf(db, month)) return ''
+  const last = (db.stockChecks || []).map((c) => c.month).sort().pop()
+  if (!last) return 'never'
+  if (monthsBetween(last, month) > cfg.shuttle.checkRemindMonths) return 'stale'
+  if (stock(db).left < cfg.shuttle.checkLowStock) return 'low'
+  return ''
 }
 
 /* ---------- khách giao lưu ---------- */
@@ -247,14 +282,61 @@ export function backRows(db, monthKey) {
 export const remainSessions = (db, gid, month) =>
   monthSessions(db, month).filter((x) => x.groupId === gid && x.date >= db.today && x.status !== 'cancelled').length
 
-/* ---------- giá thành từng buổi (tab Báo cáo) ---------- */
+/* ---------- giá thành từng buổi · TẦNG B ---------- */
 
+/**
+ * Giá thành một buổi. Tầng B — KHÔNG BAO GIỜ sinh dòng ở sổ quỹ (xem DATABASE.md §3).
+ *
+ * Buổi đã đóng băng (`costFrozenAt`) thì ĐỌC số đã lưu, không tính lại: mua thêm một đợt cầu
+ * giá khác hoặc chủ sân tăng giá thì buổi cũ phải giữ nguyên con số đã đọc hôm chốt.
+ *
+ * `quỹ bù = chi phí − thu khách`. KHÔNG trừ tiền bán sân: `courtNet` đã loại sân bán khỏi chi
+ * phí rồi, trừ thêm `soldAmount` nữa là tính lợi ích bán sân hai lần.
+ */
 export function costRow(db, s) {
+  if (s.costFrozenAt) {
+    const people = s.costHeads || 0
+    const cost = s.costTotal || 0
+    const rev = s.costGuestRev || 0
+    return {
+      people, cost, rev, court: s.costCourt || 0, shuttle: s.costShuttle || 0,
+      unit: s.costShuttleUnit || 0, per: cost / (people || 1), subsidy: cost - rev, frozen: true,
+    }
+  }
   const people = presentCount(db, s) + sGuests(db, s.id).length
-  const cost = courtNet(db, s) + (s.shuttleUsed || 0) * shuttleUnit(db)
+  const unit = shuttleUnit(db)
+  const court = courtNet(db, s)
+  const shuttle = (s.shuttleUsed || 0) * unit
+  const cost = court + shuttle
   const rev = guestRev(db, s.id)
-  return { people, cost, rev, per: cost / (people || 1), subsidy: cost - rev }
+  return { people, cost, rev, court, shuttle, unit, per: cost / (people || 1), subsidy: cost - rev, frozen: false }
 }
+
+/**
+ * Ảnh chụp giá thành để gắn vào bản ghi buổi lúc chốt. Thuần — action chỉ việc merge vào buổi.
+ * Cố tình đi qua costRow ở nhánh live để số đóng băng LUÔN BẰNG số đang hiện trên màn hình.
+ */
+export function freezeCost(db, s, at) {
+  const c = costRow(db, { ...s, costFrozenAt: null })
+  return {
+    costCourt: c.court, costShuttleUnit: c.unit, costShuttle: c.shuttle, costTotal: c.cost,
+    costGuestRev: c.rev, costHeads: c.people, costFrozenAt: at,
+  }
+}
+
+/** Mở lại buổi → số quay về tính live. Xoá hẳn để không còn số cũ lảng vảng trong bản ghi. */
+export const unfrozenCost = () => ({
+  costCourt: null, costShuttleUnit: null, costShuttle: null, costTotal: null,
+  costGuestRev: null, costHeads: null, costFrozenAt: null,
+})
+
+/**
+ * Trạng thái con số giá thành — quyết định badge nào hiện trên UI.
+ *   live  buổi chưa chốt, số còn đổi
+ *   temp  đóng băng tạm, số cầu còn là định mức, kiểm kho sẽ chỉnh lại
+ *   final số chốt, không đổi nữa
+ */
+export const costState = (s) => (!s.costFrozenAt ? 'live' : s.shuttleEst ? 'temp' : 'final')
 
 /* ---------- màu và nhãn ---------- */
 

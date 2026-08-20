@@ -39,6 +39,8 @@ export default function Register() {
     if (!f.email.trim() || !f.username.trim() || !f.password) return setErr(t('auth.errRequired'))
     if (f.password.length < 6) return setErr(t('auth.errPasswordShort'))
     if (f.password !== f.password2) return setErr(t('auth.errPasswordMismatch'))
+    // Đã biết chắc username bị chiếm thì chặn tại chỗ, khỏi để DB nổ ra lỗi khó đọc.
+    if (uname === false) return setErr(t('auth.usernameTaken'))
 
     setBusy(true)
     try {

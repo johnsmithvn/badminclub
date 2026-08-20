@@ -10,6 +10,17 @@ const Ctx = createContext(null)
 
 const ACTIVE_CLUB_KEY = 'badminclub.activeClubId'
 
+/** Lỗi đăng ký của Supabase/Postgres → câu tiếng Việt. Xem chú thích ở signUp. */
+function signUpUnwrap({ data, error }) {
+  if (!error) return data
+  const m = String(error.message || '')
+  if (/already registered|already exists|User already/i.test(m)) throw new Error(t('auth.errEmailTaken'))
+  if (/Database error saving new user|duplicate key|unique constraint/i.test(m)) {
+    throw new Error(t('auth.errUniqueTaken'))
+  }
+  throw new Error(m)
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -81,10 +92,15 @@ export function AuthProvider({ children }) {
   const activeClub = clubs.find((c) => c.id === activeClubId) || null
 
   const api = useMemo(() => ({
-    /** Đăng ký: email + username + mật khẩu bắt buộc; phone không bắt buộc. */
+    /**
+     * Đăng ký: email + username + mật khẩu bắt buộc; phone không bắt buộc.
+     * Trùng email / username / SĐT đều bị chặn ở DB (`profiles` có UNIQUE cả ba cột), nhưng
+     * username và SĐT nổ trong trigger `handle_new_user` nên Postgres chỉ trả một câu chung —
+     * không nói được cột nào. Dịch ra tiếng Việt ở đây thay vì để user đọc lỗi thô.
+     */
     async signUp({ email, username, password, name, phone, gender, level }) {
       if (!supabase) throw new Error(t('auth.noDb'))
-      const data = unwrap(await supabase.auth.signUp({
+      const data = signUpUnwrap(await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
