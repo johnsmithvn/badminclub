@@ -61,9 +61,10 @@ Giá bình quân **toàn kho**, không dùng `shuttle_types.price_per_tube`: cá
 
 ---
 
-## 4. Chỗ localStorage khác Postgres
+## 4. Chỗ state client khác Postgres
 
-Bản localStorage hiện tại dùng shape gọn của prototype. Bảng dưới là map khi nối Supabase.
+State `db` của client dùng shape gọn của prototype. Bảng dưới là map ĐANG DÙNG — cài đặt thật ở
+`src/contexts/dbmap.js`, có test khoá ở `src/__tests__/dbmap.test.js`.
 
 | Trong `db` (client) | Bảng Postgres | Khác biệt cần xử lý |
 | --- | --- | --- |
@@ -76,10 +77,17 @@ Bản localStorage hiện tại dùng shape gọn của prototype. Bảng dướ
 | `courtGroups[sessionId][playerKey] = courtIdx` | `session_court_groups` | như trên |
 | `matches[].playerKeys[4]` | `matches` + `match_players` | 1 trận → 4 dòng, kèm `team` |
 | `playing[sessionId][courtIdx] = timestamp` | *(không lưu DB)* | trạng thái đồng hồ; nếu cần nhiều người cùng thấy thì thêm `sessions.timer_started_at` |
-| `manual[]` | `transactions` (nhập tay) | |
+| `manual[]` | `transactions` **có `ref_type = 'manual'`** | dòng do RPC sinh (`ref_type` khác) client không đụng tới |
 | `guestPrices[]` | `guest_price_rules` | thêm `effective_from` |
 | `club.linkModes.{code,invite,phone}` | `clubs.allow_code_join / allow_invite / allow_phone_suggest` | |
-| `seq` (bộ đếm id `M1`, `B7`…) | *(bỏ)* | Postgres dùng `gen_random_uuid()` |
+| `seq` (bộ đếm id `M1`, `B7`…) | *(đã bỏ)* | client sinh `crypto.randomUUID()`, trùng kiểu `uuid` nên ghi thẳng, khỏi bảng map id |
+| `members[].groupIds` | `club_member_groups` | nhóm cố định **gốc**; khác `group_memberships` là danh sách chốt theo tháng |
+| `groupMode[sessionId]` | `sessions.group_mode` | |
+| `courtMin[sessionId][ci]` | `session_courts.default_minutes` | |
+| `manual[].by` | `transactions.payer_name` | tên người ghi, chốt lúc ghi (người đó có thể rời CLB) |
+| `club.levels` / `db.levels` | `clubs.levels text[]` | thứ tự mảng = thứ tự mạnh dần |
+| `guestPrices[{level,nam,nu}]` | `guest_price_rules` | 1 dòng client → 2 dòng DB (nam + nữ); `effective_from` = `clubs.opening_date` |
+| `backPaid['month:gid:mid']` | `back_credits` | chỉ ghi cờ `paid`; số buổi/đơn giá/số tiền tính lại từ buổi + quỹ tháng |
 
 **`playerKey` là chỗ dễ sai nhất:** ở client member và guest dùng chung một namespace key
 (`M5`, `K3`). Trong DB phải luôn đi kèm `player_type` vì hai bảng id riêng.
@@ -112,18 +120,28 @@ FROM transactions WHERE club_id = $1;
 
 ## 6. Chạy migration
 
+Lần đầu `supabase start` sẽ tự chạy hết `supabase/migrations/`. DB đã dựng rồi thì áp bản mới:
+
 ```bash
-psql "$DATABASE_URL" -f supabase/migrations/0001_init.sql
+npm run db:migrate
 ```
 
 > **CẤM `supabase db reset`**, `DROP DATABASE`, `DROP SCHEMA ... CASCADE`, `TRUNCATE`,
-> `DELETE FROM ... WHERE true` — xem `docs/RULES.md` #12. Cập nhật schema bằng file migration mới
-> (`0002_*.sql`), không sửa file cũ đã chạy.
+> `DELETE FROM ... WHERE true` — xem `docs/RULES.md` §7. Cập nhật schema bằng file migration mới
+> (`000N_*.sql`), không sửa file cũ đã chạy.
+
+| File | Nội dung |
+| --- | --- |
+| `0001_init.sql` | 30 bảng + enum + index |
+| `0002_auth_rls.sql` | trigger tạo profile, RPC đăng nhập/tạo CLB/duyệt vào CLB, RLS toàn bộ |
+| `0003_levels_and_client_sync.sql` | trình độ theo từng CLB (bỏ enum `skill_level`), `club_member_groups`, `sessions.group_mode`, `session_courts.default_minutes`, `transactions.payer_name`, RPC `club_pending_requests` |
 
 ## 7. Việc còn lại trước khi chạy thật
 
-- [ ] RLS trên mọi bảng: user chỉ thấy CLB mình là `club_members`.
-- [ ] Kiểm cờ quyền **server-side** theo `role_permissions` — ẩn UI chỉ là lớp thứ hai.
+- [x] RLS trên mọi bảng: user chỉ thấy CLB mình là `club_members`.
+- [ ] Kiểm RLS bằng hai tài khoản khác CLB (chưa thử bằng tay).
+- [ ] Kiểm cờ quyền **server-side** theo `role_permissions` — hiện `has_club_perm` đã có, nhưng
+      chưa rà từng bảng bằng test.
 - [ ] Trigger ghi `audit_logs` cho mọi bảng dính tiền.
 - [ ] Trigger/RPC sinh `transactions` khi chốt buổi, để không phụ thuộc client.
 - [ ] Realtime channel theo `session_id` cho `session_lineups` + `matches`.

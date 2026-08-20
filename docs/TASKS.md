@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v0.1.0 · **Updated:** 2026-08-19
+**Version:** v0.2.0 · **Updated:** 2026-08-20
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -29,7 +29,7 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 - [x] `logic/ledger.js` — sổ quỹ, số dư, gộp dòng, tổng hợp theo ngày
 - [x] `logic/assign.js` — slot, 5 chế độ xếp, chia đều, số trận, cân trình độ
 - [x] `logic/roles.js` — ma trận quyền 5 vai
-- [x] `seed.js` — dữ liệu mẫu 2 CLB (tháng 08/2026)
+- [x] `__tests__/fixture.js` — bộ dữ liệu cố định cho test (trước là `data/seed.js`, app không import)
 - [x] `store.js` + `actions.js` — state, persist, mọi hành động ghi dữ liệu
 - [x] `__tests__/dates.test.js`
 - [x] `__tests__/money.test.js`
@@ -83,15 +83,28 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
       `create_club`, `join_club_by_code`, `approve_join_request`, `reject_join_request`, `my_clubs`,
       `my_join_requests`, RLS toàn bộ bảng theo `is_club_member` / `has_club_perm`
 - [x] Cả hai migration **đã apply thành công** trên Postgres 17 local
-- [x] `@supabase/supabase-js` + `src/lib/supabase.js` (thiếu env thì chạy chế độ dữ liệu mẫu, không crash)
+- [x] `@supabase/supabase-js` + `src/lib/supabase.js` (thiếu env thì app hiện màn hướng dẫn, không crash)
 - [x] `contexts/AuthContext.jsx`: phiên, profile, `my_clubs`, `activeClubId`
 - [x] Màn **Đăng ký** (email + username + mật khẩu bắt buộc, SĐT tuỳ chọn) và **Đăng nhập**
       (email / username / SĐT), không OTP không xác thực email
 - [x] Màn **CLB của tôi**: chọn CLB · tạo CLB · tham gia bằng mã · xem yêu cầu đang chờ
 - [x] Gác cổng: chưa đăng nhập → `/dang-nhap`; đã đăng nhập chưa chọn CLB → `/clb`
-- [x] Sidebar dùng CLB thật khi đã nối DB; có dải cảnh báo dữ liệu bên trong còn là mẫu
-- [ ] **`storage.js: load()` → fetch Supabase theo `activeClubId`, map về shape `db` hiện tại**
-- [ ] **Từng action trong `appActions.js` ghi thẳng Supabase**
+- [x] Sidebar dùng CLB thật (`my_clubs`); bỏ dải cảnh báo dữ liệu mẫu vì không còn dữ liệu mẫu
+- [x] `0003_levels_and_client_sync.sql`: trình độ theo từng CLB (bỏ enum `skill_level`),
+      `club_member_groups`, `sessions.group_mode`, `session_courts.default_minutes`,
+      `transactions.payer_name`, RPC `club_pending_requests`, sửa `create_club` +
+      `approve_join_request` + `handle_new_user`
+- [x] `contexts/dbmap.js` — map thuần client ↔ 30 bảng + `diff()` (3 chế độ ghi: `id` / `key` / `scope`)
+- [x] `contexts/storage.js` — `load(clubId)` fetch song song + `save(db)` đồng bộ ngầm theo từng dòng
+- [x] `contexts/AppContext.jsx` — nạp async theo `activeClubId`, `reload()`, báo lỗi đồng bộ ra toast
+- [x] Id client đổi sang `crypto.randomUUID()`, bỏ sạch bộ đếm `seq`
+- [x] Bỏ chế độ dữ liệu mẫu: `data/seed.js` → `__tests__/fixture.js`; thiếu `.env.local` thì app
+      hiện màn hướng dẫn thay vì chạy dữ liệu bịa
+- [x] `db.myRole` là vai thật; "Xem như" chỉ chọn được vai của mình hoặc yếu hơn
+- [x] Cài đặt → Chung: sửa thang trình độ của CLB (thay ô "Xoá dữ liệu local" đã bỏ)
+- [x] `__tests__/dbmap.test.js` — khoá hai bất biến: không đổi thì không ghi, đổi một chỗ thì
+      ghi đúng một chỗ
+- [ ] **User chạy `npm run db:migrate` (hoặc `db reset`) rồi bấm thử 13 màn trên DB thật** ← việc tiếp theo
 - [ ] Kiểm RLS bằng 2 tài khoản khác CLB
 - [ ] Realtime channel theo `session_id` cho `session_lineups` + `matches`
 - [ ] Trigger `audit_logs`; RPC sinh `transactions` khi chốt buổi (không phụ thuộc client)
@@ -114,6 +127,10 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 | Toast của `toggleSchedule` bị ngược | tắt lịch mà toast báo "Đã bật lịch" | đọc state TRƯỚC khi ghi |
 | Thiếu 5 icon mà component TDMS tự dùng (`info`, `truck`, `triangle-alert`, `circle-pause`, `ellipsis`) | Alert/StatusPill/DataTable hiện ô icon trống | thêm vào `ds/icons.js`, có audit tự động |
 | Test `fmtK(-2500)` kỳ vọng sai | — (test sai, không phải code sai) | sửa test, ghi chú quirk `Math.round` làm tròn .5 về +∞ |
+| `DROP TYPE skill_level` mà không sửa `handle_new_user` | thân hàm plpgsql chỉ là text nên Postgres KHÔNG chặn; đăng ký tài khoản mới sẽ chết lúc chạy | `0003` tạo lại `handle_new_user` trước khi drop type |
+| Đổi CLB giữa lúc đang đồng bộ | ảnh chụp của CLB cũ đè lên CLB mới → lần save sau **xoá dữ liệu CLB cũ** | `flush()` kiểm lại `synced.clubId === cid` trước mỗi lần ghi ảnh chụp |
+| "Xem như" cho chọn cả vai mạnh hơn vai thật | UI mở ra nhưng RLS chặn → người dùng chỉ thấy lỗi không hiểu | `viewAsOptions()` chỉ trả vai của mình và yếu hơn |
+| `createSchedule` / `createAdhoc` gán cứng `shuttleTypeId: 'S1'` | id của dữ liệu mẫu, trên DB thật là khoá ngoại chết | lấy `d.shuttleTypes[0]`, không có thì `null` |
 
 ---
 
@@ -121,5 +138,6 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 
 | Việc | Vì sao cần user | Chặn cái gì |
 | --- | --- | --- |
-| Chạy `npm run db:start` + `npm run db:env > .env.local` | agent không tự cài/chạy hạ tầng trên máy user | chế độ thật |
-| Dữ liệu thật của CLB (Excel) | cần số quỹ mang sang + danh sách thật | seed production |
+| Chạy `npm run db:start` + `db:migrate` + `db:env > .env.local` | agent không tự cài/chạy hạ tầng trên máy user | chạy được app |
+| Có xoá sạch DB (`npx supabase db reset`) hay giữ tài khoản cũ | mất data, phải user quyết — `docs/RULES.md` §7 | bắt đầu sạch |
+| Dữ liệu thật của CLB (Excel) | cần số quỹ mang sang + danh sách thật | nhập liệu ban đầu |

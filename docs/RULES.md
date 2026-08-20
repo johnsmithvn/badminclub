@@ -1,6 +1,6 @@
 # RULES.md — Quản lý CLB cầu lông
 
-**Version:** v6.3.0 · **Updated:** 2026-08-19
+**Version:** v6.4.0 · **Updated:** 2026-08-20
 
 Quy tắc hiện hành cho human developer và coding agent. `CLAUDE.md` là entrypoint ngắn; file này là
 policy chi tiết. Lịch sử rule cũ nằm trong git/CHANGELOG, không lặp ở đây.
@@ -53,8 +53,9 @@ một blocker mà user phải quyết định.
   ngưỡng cân trình độ…) nằm ở `src/config/app.json`. **Cấm** số ma thuật trong logic.
 - Ma trận quyền 5 vai nằm ở `src/config/permissions.json` — tương ứng bảng `role_permissions`
   trong DB, app không cho sửa.
-- Danh sách enum (`levels`, `genders`, `sessionStates`, `shuttleModes`…) lấy từ config, không
-  viết lại mảng ở nhiều file.
+- Danh sách enum (`genders`, `sessionStates`, `shuttleModes`…) lấy từ config, không viết lại
+  mảng ở nhiều file. **Ngoại lệ:** `levels` là dữ liệu của từng CLB (`db.levels`), `app.json`
+  chỉ giữ `levelsDefault` cho CLB mới — xem §3.4.
 
 ### 3.3 Dữ liệu ghi vào DB phải là KEY, không phải chữ hiển thị
 
@@ -66,9 +67,18 @@ một blocker mà user phải quyết định.
   hiển thị, một lần sửa copy là mọi bản ghi cũ mồ côi.
 - Cùng nguyên tắc cho `status`, `role`, `level`, `shuttleMode`, `dir`, `effective`.
 
-### 3.4 Dữ liệu mẫu → `src/data/seed.js`
+### 3.4 KHÔNG có dữ liệu mẫu trong app
 
-Chỉ dùng cho lần chạy đầu khi localStorage rỗng. **Cấm** rải dữ liệu mẫu trong component.
+App lấy 100% dữ liệu từ Supabase. Thiếu `.env.local` thì app hiện màn hướng dẫn chạy lệnh, chứ
+**không** rơi về dữ liệu mẫu — chạy trên dữ liệu bịa rồi tưởng là thật là cách nhanh nhất để
+đưa ra kết luận sai về tiền.
+
+Bộ dữ liệu cố định của prototype nằm ở `src/__tests__/fixture.js`, **chỉ test import**. App
+không import file đó và nó không vào bundle. **Cấm** rải dữ liệu mẫu trong component.
+
+Trình độ (`levels`) là **dữ liệu của từng CLB** (`clubs.levels`), không phải hằng số:
+`app.json → levelsDefault` chỉ là danh sách khởi tạo cho CLB mới. Thứ tự trong mảng chính là
+thứ tự mạnh dần mà thuật toán cân sân dùng.
 
 ## 4. Cấu trúc thư mục và import
 
@@ -81,8 +91,9 @@ src/
     layout/            AppLayout · Sidebar · AppHeader · ToastHost
     ui/                primitive dùng chung của app (Mono, LevelChip, Empty…)
   config/              app.json · permissions.json
-  contexts/            AppContext.jsx (state + persist) · appActions.js (mọi hành động ghi)
-  data/                seed.js
+  contexts/            AuthContext.jsx (phiên + CLB của tôi) · AppContext.jsx (state 1 CLB)
+                       appActions.js (mọi hành động ghi) · storage.js (I/O) · dbmap.js (map)
+  data/                schema.js (mô tả schema cho trang Sơ đồ dữ liệu)
   hooks/               hook dùng chung (useClock…)
   i18n/                index.js + <locale>.json
   lib/                 logic nghiệp vụ THUẦN: money · ledger · assign · roles
@@ -100,7 +111,9 @@ src/
 | `pages/*` | đọc state qua `useApp()`, gọi selector của `lib/`, gọi `a.<action>()` | tự `setDb`, tự viết công thức tiền |
 | `contexts/appActions.js` | chỗ **duy nhất** được ghi state | chứa công thức tiền |
 | `lib/*`, `utils/*` | hàm thuần `(db, args) => giá trị` | `setState`, `fetch`, import React |
-| `contexts/AppContext.jsx` | giữ state, persist | chứa nghiệp vụ |
+| `contexts/AppContext.jsx` | giữ state, nạp/đồng bộ | chứa nghiệp vụ |
+| `contexts/storage.js` | **điểm chạm mạng duy nhất** | chứa nghiệp vụ hoặc công thức |
+| `contexts/dbmap.js` | map thuần client ↔ Postgres | gọi mạng, import React |
 | `components/ds/*` | — | **sửa tay** (file sinh ra từ handoff) |
 
 **Import:** dùng alias subpath của `package.json` (`#lib/…`, `#ui`, `#ds`, `#i18n`, `#routes`…).

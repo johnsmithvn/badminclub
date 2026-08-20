@@ -12,6 +12,7 @@
 import { supabase, unwrap } from '#supabase'
 import { clubRow, diff, toDb, toRows } from '#contexts/dbmap.js'
 import { monthOf } from '#utils/dates.js'
+import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
 /** Ngày hôm nay theo đồng hồ máy, dạng 'YYYY-MM-DD' (không dùng toISOString để không lệch múi giờ). */
@@ -63,6 +64,12 @@ export async function load(clubId) {
     supabase.rpc('club_pending_requests', { p_club: clubId }),
   ])
 
+  const clubRowRaw = unwrap(club)
+  // DB dựng từ trước mà chưa áp 0003 thì thiếu clubs.levels và RPC club_pending_requests.
+  // Nói thẳng ra thay vì chạy nửa vời rồi lỗi rải rác khắp nơi.
+  if (!Object.prototype.hasOwnProperty.call(clubRowRaw, 'levels')) {
+    throw new Error(t('sync.needMigrate'))
+  }
   const memberRows = unwrap(members)
   const requests = joinRequests.error ? [] : (joinRequests.data || [])
 
@@ -84,7 +91,7 @@ export async function load(clubId) {
   })
 
   const raw = {
-    club: unwrap(club),
+    club: clubRowRaw,
     courts: unwrap(courts),
     groups: unwrap(groups),
     members: memberRows,
@@ -192,7 +199,10 @@ async function apply(op) {
   return unwrap(await del)
 }
 
-const inList = (vals) => '(' + vals.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',') + ')'
+// Danh sách cho toán tử `in` của PostgREST. Số để trần (cột int), chuỗi bọc nháy kép.
+const inList = (vals) => '(' + vals.map((v) =>
+  (typeof v === 'number' ? String(v) : '"' + String(v).replace(/"/g, '""') + '"')
+).join(',') + ')'
 
 /** Đổi CLB: quên ảnh chụp cũ để lần save sau không so nhầm sang dữ liệu CLB khác. */
 export function reset() {

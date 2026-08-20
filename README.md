@@ -11,41 +11,62 @@ số đều phải giải thích được nguồn gốc**.
 
 ## Chạy
 
-App có **hai chế độ**, tự nhận biết theo `.env.local`:
+**Không có chế độ dữ liệu mẫu.** Toàn bộ dữ liệu nằm ở Supabase; thiếu `.env.local` thì app hiện
+màn hướng dẫn chứ không chạy trên dữ liệu bịa.
 
-| Chế độ | Khi nào | Dữ liệu |
-| --- | --- | --- |
-| **Dữ liệu mẫu** | chưa có `.env.local` | localStorage, seed 2 CLB mẫu tháng 08/2026. Không cần đăng nhập, vào thẳng app |
-| **Thật** | có `.env.local` | Supabase local (Docker). Phải đăng ký / đăng nhập, rồi chọn CLB |
+Cần **Docker Desktop đang chạy**.
 
-### Chế độ dữ liệu mẫu — chạy ngay
+### 1. Dựng DB (lần đầu, mất vài phút tải image)
 
 ```bash
 npm install
-npm run dev
 ```
-
-Mở http://localhost:5173. Xem trước màn đăng nhập/đăng ký tại `/dang-nhap`, `/dang-ky`, `/clb`.
-
-### Chế độ thật — cần Docker Desktop đang chạy
 
 ```bash
 npm run db:start
 ```
 
-Lần đầu sẽ tải image (vài phút). Xong thì lấy key và ghi vào `.env.local`:
+`supabase start` tự chạy hết `supabase/migrations/` khi dựng container lần đầu — không cần làm gì
+thêm. DB đã dựng từ trước mà repo có migration mới thì áp bằng:
+
+```bash
+npm run db:migrate
+```
+
+Muốn xem migration nào đã chạy:
+
+```bash
+npx supabase migration list
+```
+
+### 2. Lấy key vào `.env.local`
 
 ```bash
 npm run db:env > .env.local
 ```
 
-Khởi động lại dev server để Vite đọc env mới:
+Kiểm tra file có đúng hai dòng, `VITE_SUPABASE_ANON_KEY` phải là chuỗi `eyJ…` chứ không rỗng.
+
+### 3. Chạy dev server
 
 ```bash
 npm run dev
 ```
 
-Sau đó: `/dang-ky` tạo tài khoản → `/clb` tạo CLB hoặc nhập mã → vào app.
+Mở http://localhost:5173 → `/dang-ky` tạo tài khoản → `/clb` tạo CLB (hoặc nhập mã mời) → vào app.
+
+CLB mới tạo ra gần như **rỗng**: chỉ có bạn (vai `owner`), một loại cầu mặc định, và thang trình
+độ mặc định. Sân · nhóm cố định · thành viên · giá khách phải tự nhập ở **Cài đặt**. Đó là dữ liệu
+thật của CLB bạn, app không bịa hộ.
+
+### Muốn xoá sạch DB làm lại từ đầu
+
+Lệnh dưới **xoá toàn bộ dữ liệu** (tài khoản, CLB, buổi, tiền) rồi chạy lại 3 migration từ đầu.
+Không hoàn lại được:
+
+```bash
+npx supabase db reset
+```
 
 | Cổng | Địa chỉ | Việc |
 | --- | --- | --- |
@@ -61,12 +82,12 @@ Sau đó: `/dang-ky` tạo tài khoản → `/clb` tạo CLB hoặc nhập mã �
 | `npm run dev` | dev server tại http://localhost:5173 |
 | `npm run build` | build production vào `dist/` |
 | `npm run preview` | xem thử bản build |
-| `npm test` | test logic tiền / sổ quỹ / chia sân / ngày tháng |
+| `npm test` | test logic tiền / sổ quỹ / chia sân / ngày tháng / map ↔ Postgres |
 | `npm run lint` | ESLint |
 | `npm run db:start` · `db:stop` · `db:status` | quản lý Supabase local |
+| `npm run db:migrate` | áp migration còn thiếu lên DB đang chạy (không xoá data) |
 | `npm run db:env` | in env để ghi vào `.env.local` |
 
-Xoá dữ liệu mẫu trong trình duyệt: Cài đặt → Chung → *Xoá dữ liệu local*.
 
 ### Đăng nhập / đăng ký
 
@@ -90,8 +111,9 @@ src/
     layout/            AppLayout · Sidebar · AppHeader · ToastHost
     ui/                primitive của app (Mono, LevelChip, Empty, Bar…)
   config/              app.json · permissions.json   ← MỌI hằng số
-  contexts/            AuthContext.jsx (phiên + CLB của tôi) · AppContext.jsx · appActions.js · storage.js
-  data/                seed.js · schema.js
+  contexts/            AuthContext.jsx (phiên + CLB của tôi) · AppContext.jsx (state 1 CLB)
+                       appActions.js (mọi hành động ghi) · storage.js (I/O duy nhất) · dbmap.js (map ↔ Postgres)
+  data/                schema.js
   hooks/               useClock.js
   i18n/                index.js · vi.json            ← MỌI chữ
   lib/                 money · ledger · assign · roles · forms  (THUẦN, test được)
@@ -99,8 +121,8 @@ src/
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/
   utils/               dates.js
-  __tests__/           test cho lib/ và utils/
-supabase/               config.toml · migrations/0001_init.sql · 0002_auth_rls.sql
+  __tests__/           test cho lib/ · utils/ · dbmap + fixture.js (dữ liệu test, app KHÔNG import)
+supabase/               config.toml · migrations/0001_init.sql · 0002_auth_rls.sql · 0003_levels_and_client_sync.sql
 docs/                   RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS
 DESIGN.md
 ```
@@ -112,6 +134,7 @@ Import bằng alias subpath của Node (`#lib/…`, `#ui`, `#ds`, `#i18n`) — c
 
 1. **Không hard-code chữ hay hằng số.** Chữ ở `src/i18n/vi.json`, số ở `src/config/*.json`.
    Dữ liệu ghi vào DB (như `transactions.category`) lưu **key**, không lưu chữ hiển thị.
+   Thang trình độ là dữ liệu của từng CLB (`clubs.levels`), sửa ở Cài đặt → Chung.
 2. **Tiền là `bigint` VND, không lưu số đã làm tròn.** `transactions` là sổ quỹ duy nhất.
 3. **Buổi chỉ ảnh hưởng tiền khi `status='closed'`.** Chia sân và số trận không bao giờ ảnh hưởng tiền.
 
@@ -124,15 +147,15 @@ Chi tiết: [docs/RULES.md](docs/RULES.md).
 | [docs/RULES.md](docs/RULES.md) | Policy cho người và cho agent — đọc trước khi sửa gì |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Stack, cây file, phân lớp, đường lên Supabase |
 | [docs/FEATURES.md](docs/FEATURES.md) | Chức năng từng màn + luật nghiệp vụ dễ sai |
-| [docs/DATABASE.md](docs/DATABASE.md) | Schema, nguồn của từng con số, map localStorage ↔ Postgres |
+| [docs/DATABASE.md](docs/DATABASE.md) | Schema, nguồn của từng con số, map state client ↔ Postgres |
 | [docs/TASKS.md](docs/TASKS.md) | Trạng thái thật của việc dựng app |
 | [DESIGN.md](DESIGN.md) | Token màu/chữ/spacing, khung app, copywriting |
 
 ## Đang làm tiếp
 
-Đã xong: schema + RLS + RPC trên Supabase local, đăng ký/đăng nhập, màn CLB (tạo · tham gia bằng mã),
-phê duyệt trong Cài đặt.
+Đã xong: schema + RLS + RPC, đăng ký/đăng nhập, màn CLB, phê duyệt, và **cả 13 màn trong CLB đọc
+ghi thẳng Supabase** qua `contexts/storage.js` + `contexts/dbmap.js` (đồng bộ ngầm theo từng dòng
+— xem `docs/ARCHITECTURE.md` §6).
 
-Còn lại: **13 màn trong CLB vẫn đọc dữ liệu mẫu ở localStorage.** Việc còn lại là thay `load()`/`save()`
-trong `src/contexts/storage.js` bằng query Supabase theo `activeClubId`, và cho từng action trong
-`appActions.js` ghi thẳng DB. Không màn hình nào phải sửa. Xem `docs/TASKS.md` Phase 7.
+Còn lại: kiểm RLS bằng hai tài khoản khác CLB, realtime cho chia sân, RPC sinh `transactions` khi
+chốt buổi, `audit_logs`, rồi đẩy lên Supabase cloud. Xem `docs/TASKS.md` Phase 7.
