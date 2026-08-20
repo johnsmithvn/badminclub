@@ -110,6 +110,8 @@ assert.ok(Number.isFinite(M.costRow(dbS, s0).per), 'chi phí mỗi người ra N
 assert.ok(Number.isFinite(M.costRow(dbS, s0).subsidy))
 ok('costState', () => M.costState(s0))
 ok('checkDue', () => M.checkDue(db))
+ok('joinDues', () => M.joinDues(db, { gender: 'nam' }, M.groupOf(db, 'ALL'), MONTH))
+ok('payerName', () => M.payerName(db, null, ''))
 assert.deepEqual(M.spreadDiff([], 5), {})
 
 assert.equal(ok('remainSessions', () => M.remainSessions(dbS, 'x', MONTH)), 0)

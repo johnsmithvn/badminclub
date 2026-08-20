@@ -157,6 +157,7 @@ State `db` của client dùng shape gọn của prototype. Bảng dưới là ma
 | `groupMode[sessionId]` | `sessions.group_mode` | |
 | `courtMin[sessionId][ci]` | `session_courts.default_minutes` | |
 | `manual[].by` | `transactions.payer_name` | tên người ghi, chốt lúc ghi (người đó có thể rời CLB) |
+| `courtBills[].payerId` · `purchases[].payerId` | `payer_member_id` | trỏ về bản ghi thành viên. Trường `payer` chỉ còn để ĐỌC dữ liệu cũ nhập tay — xem `money.js: payerName` |
 | `club.levels` / `db.levels` | `clubs.levels text[]` | thứ tự mảng = thứ tự mạnh dần |
 | `guestPrices[{level,nam,nu}]` | `guest_price_rules` | 1 dòng client → 2 dòng DB (nam + nữ); `effective_from` = `clubs.opening_date` |
 
@@ -219,6 +220,7 @@ dán nguyên nội dung file migration vào và bấm Run, từng file một the
 | `0003_levels_and_client_sync.sql` | trình độ theo từng CLB (bỏ enum `skill_level`), `club_member_groups`, `sessions.group_mode`, `session_courts.default_minutes`, `transactions.payer_name`, RPC `club_pending_requests` |
 | `0004_fix_gen_club_code.sql` | **Sửa lỗi chặn tạo CLB.** `gen_club_code()` khai biến plpgsql tên `code` trùng cột `clubs.code` → `create_club` trả 400 `column reference "code" is ambiguous`. Thân plpgsql chỉ là text lúc `CREATE` nên lỗi không lộ khi apply, chỉ lộ khi có người bấm tạo CLB |
 | `0005_cost_freeze.sql` | `sessions.cost_*` (7 cột) đóng băng giá thành lúc chốt buổi + `stock_checks UNIQUE (club_id, month)` |
+| `0008_payer_link.sql` | `court_bills.payer_member_id`; dồn tên gõ tay trong `shuttle_purchases.funded_by` vào `note` để cột đó trả lại đúng nghĩa nguồn tiền (dọn trước cho P5) |
 | `0007_member_adjustments.sql` | Đối chiếu buổi hai chiều: `attend_state` thêm `'extra'`, enum `adjust_kind` + `settle_mode`, bảng `member_adjustments` (ghi đủ số, không chỉ cờ `paid` như `back_credits`), chuyển dữ liệu cũ sang. `back_credits` giữ nguyên, app thôi đọc |
 | `0006_grants.sql` | **Sửa lỗi chặn nạp dữ liệu.** 0002 chỉ bật RLS + tạo policy, không `GRANT` bảng nào → `permission denied for table clubs`, select bảng trả 403 trong khi RPC vẫn 200. Cấp quyền bảng cho `authenticated` + default privileges cho bảng thêm sau |
 

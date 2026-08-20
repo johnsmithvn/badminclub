@@ -219,19 +219,45 @@ chính tập sự kiện sinh tiền — viết tầng ghi trước là viết l
       lưu đứng yên khi điểm danh đổi · `offset_next_dues` không sinh dòng nào ở sổ quỹ.
       Đã mutation-test cả bốn.
 
-### P4 · Issue 3 · Đóng thiếu — migration `0008`
+### P3.5 · Chặn vận hành thật — migration `0008` · **XONG 2026-08-20**
+
+Sáu chỗ user gặp ngay khi dựng CLB thật giữa tháng. Không nằm trong đặc tả dòng tiền nhưng chặn
+đường dùng, nên chen vào trước P4.
+
+- [x] **Không chốt được danh sách THÁNG NÀY.** Tab cố định hard-code `addMonth(db.month, 1)` nên
+      chỉ thấy tháng sau. Dựng CLB giữa tháng thì không sinh được `monthly_dues` tháng này →
+      không có gì để thu, không có gì để nhắc. Thêm nút chuyển **Tháng này / Tháng sau**.
+- [x] **Thêm người "cố định từ tháng này" mà không sinh khoản thu.** Hai lỗi chồng nhau:
+      (a) chỉ ghi cố định cho tháng SAU nên người mới không hiện ở màn điểm danh tháng này;
+      (b) tiền tính theo "số buổi còn lại", mà CLB mới dựng chưa có buổi nào → 0 buổi → 0 đồng.
+      `money.js: joinDues` xử lý cả hai cảnh: chưa có buổi thì thu trọn gói, có rồi thì thu theo
+      số buổi còn lại.
+- [x] **Tạo xong không sửa được cố định / không cố định** — cùng gốc với mục đầu, nút chuyển
+      tháng giải quyết luôn.
+- [x] **Hoá đơn sân và nhập kho gõ tay người trả.** `payer_member_id` trỏ về bản ghi thành viên;
+      địa điểm chọn từ danh sách sân ở Cài đặt. Dọn luôn chỗ ghi TÊN người vào cột
+      `shuttle_purchases.funded_by` (L3) — tên cũ dồn vào `note`, cột đó trả lại đúng nghĩa
+      "nguồn tiền" để P5 `ALTER TYPE` được.
+- [x] **Thang trình độ 9 bậc**: Newbie · Y · Y+ · TBY · TBY+ · TB- · TB · TB+ · TBK.
+      `levelStyle` chuyển sang chia màu theo VỊ TRÍ trong thang của CLB, không map cứng theo tên
+      — map theo tên hỏng ngay khi CLB đặt thang riêng, mà thang là dữ liệu của từng CLB.
+- [x] **Người đi lẻ không biết thêm ở đâu.** Hai đường khác nhau, giờ nói rõ trên UI:
+      thành viên CLB đi lẻ → "Thêm người đi lẻ" ở khối Điểm danh, trả theo **đơn giá buổi**;
+      người ngoài CLB → khối Khách giao lưu, trả theo **bảng giá khách**.
+
+### P4 · Issue 3 · Đóng thiếu — migration `0009`
 
 - [ ] `monthly_dues.paid_amount bigint`, bỏ `paid`. Trạng thái suy ra từ `paid_amount` vs `amount`.
 - [ ] Mỗi lần thu thêm ghi một dòng, không ghi đè.
 
-### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0009`
+### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0010`
 
 - [ ] **L3 · Dọn dữ liệu trước.** `dbmap.js` đang ghi **tên người trả** (chuỗi tự do) vào cột
       `funded_by`. Chuyển sang `payer_member_id` rồi mới `ALTER TYPE` sang enum, không thì migration chết.
 - [ ] `funded_by` enum `fund_source` + bảng `member_payables`. `member_advance` → **không** ghi chi,
       tạo khoản phải trả; khi trả người ứng mới ghi chi.
 
-### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0010` + đổi `lib/ledger.js`
+### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0011` + đổi `lib/ledger.js`
 
 - [ ] Mỗi sự kiện ở `DATABASE.md` §3.1 ghi ngay một dòng `transactions` kèm `ref_type` + `ref_id`.
       Bỏ tick thì ghi dòng đảo chiều, không xoá cứng.
@@ -296,6 +322,10 @@ Hai việc dưới bắt được gần hết.
 | Đăng ký trùng email / username / SĐT chỉ bị chặn ở DB | dữ liệu vẫn an toàn (cả 3 cột đều UNIQUE) nhưng user đọc được `"User already registered"` hoặc lỗi Postgres thô | dịch lỗi ra tiếng Việt ở `AuthContext: signUpUnwrap`, chặn submit khi đã biết username bị chiếm |
 | `empty.test.js` assert `costRow(...).perHead` — trường không tồn tại | `String(undefined)` không chứa `'NaN'` nên assert luôn đúng: test canh NaN mà không canh gì cả | đổi sang `Number.isFinite(...per)` |
 | `adjustRows` tính tiền "đi thêm buổi" cho cả người ĐÃ cố định nhóm đó | người cố định cả hai nhóm (fixture có 6 người như vậy) vừa đóng quỹ tháng vừa bị tính thêm đơn giá buổi — thu hai lần cùng một buổi | lọc bằng `isFixed` trong `adjustRows`, có test regression |
+| Tab cố định hard-code `addMonth(db.month, 1)` | dựng CLB giữa tháng thì không có cách nào chốt danh sách THÁNG NÀY → không sinh `monthly_dues`, không có gì để thu và không sửa được ai cố định ai không | nút chuyển Tháng này / Tháng sau |
+| `createMember` "từ tháng này" chỉ ghi roster tháng SAU, và tính tiền theo số buổi còn lại | CLB mới chưa có buổi nào → 0 buổi → không sinh khoản thu nào; người mới cũng không hiện ở màn điểm danh tháng này | ghi roster cả hai tháng + `joinDues` thu trọn gói khi nhóm chưa có buổi |
+| `payerName` đi qua `memberOf` | `memberOf` trả placeholder `'—'` cho id không tìm thấy, mà `'—'` truthy nên id chết nuốt mất tên cũ đang có | tra thẳng `db.members`, không qua placeholder |
+| `courtBalance` trong test không truyền `db.levels` | test vô tình bám vào thang mặc định ở `app.json`; đổi thang mặc định là test đỏ dù logic không sai | test truyền `db.levels` như app vẫn làm, thêm case chứng minh thang đổi thì kết luận đổi |
 | `markAll` dựng bảng điểm danh rỗng rồi ghi đè | bấm "Tất cả có mặt/vắng" là hất sạch người đi thêm ra khỏi buổi | giữ bảng cũ, chỉ ghi đè người trong danh sách cố định |
 
 ---

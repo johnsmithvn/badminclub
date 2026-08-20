@@ -74,6 +74,16 @@ Báo cáo: thu chi theo tháng (cột đôi) · tỷ lệ đi tập · khách th
 Điểm danh: bấm vào tên để đổi Có mặt / Vắng. Có "Tất cả có mặt" / "Tất cả vắng".
 Chỉ hiện **thành viên cố định của nhóm trong tháng đó** (`roster` = `fixed`).
 
+**Hai đường cho người đi lẻ — đừng nhầm:**
+
+| Ai | Thêm ở đâu | Trả bao nhiêu | Vào báo cáo nào |
+| --- | --- | --- | --- |
+| **Thành viên CLB**, không cố định nhóm đó | khối Điểm danh → *Thêm người đi lẻ* | **đơn giá một buổi** của nhóm | Công nợ → Đối chiếu buổi |
+| **Người ngoài CLB** (vãng lai) | khối Khách giao lưu | **bảng giá khách** theo trình độ × giới tính | Khách theo trình độ · số lượt khách |
+
+Nhét thành viên vào danh sách khách là sai cả ba: sai người, thu vượt (giá khách > đơn giá buổi),
+và phồng báo cáo khách vì đếm cả người nhà.
+
 **Khách giao lưu:** nhập tên + giới tính + trình độ + người rủ → giá tự tính, **chốt luôn** vào
 bản ghi. Trùng tên khách cũ thì tái dùng bản ghi khách, chỉ cập nhật người rủ.
 Mỗi khách có công tắc *đã trả* / *ghi nợ*.
@@ -138,6 +148,15 @@ lập trong từng sân**, không ai bị đẩy sang sân khác.
 để xếp lượt mới, dừng đồng hồ. `Bỏ trận vừa ghi` xoá match cuối, **không** phục hồi lineup.
 
 ## 5. Lịch tháng · Lịch cố định · Thành viên
+
+**Chốt danh sách cố định** làm được cho **cả tháng đang xem lẫn tháng sau** — nút chuyển nằm ngay
+trên thẻ. Dựng CLB giữa tháng thì việc đầu tiên là chốt danh sách **tháng này**, không thì không
+có `monthly_dues` nào để thu và màn Công nợ trống trơn.
+
+Thêm thành viên chọn *cố định từ tháng này* thì họ được ghi cố định cho **cả hai** tháng, và sinh
+luôn khoản quỹ tháng này: nhóm chưa có buổi nào thì **thu trọn gói**, đã có buổi rồi thì **thu
+theo số buổi còn lại** tính từ hôm nay.
+
 
 - **Lịch tháng**: lưới tháng, chip buổi theo màu trạng thái, bấm mở buổi.
 - **Lịch cố định**: tạo một lần → sinh buổi cả kỳ. Không sinh trùng (đã có buổi cùng ngày + nhóm thì bỏ qua).

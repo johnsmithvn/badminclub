@@ -513,7 +513,7 @@
     "emptyTitle": "Chưa có buổi nào trong tháng này",
     "emptyHint": "Bấm Tạo lịch hàng loạt để sinh buổi cho cả kỳ, hoặc Buổi đột xuất cho một buổi lẻ.",
     "attendTitle": "Điểm danh thành viên",
-    "attendSub": "Bấm vào tên để đổi Có mặt / Vắng",
+    "attendSub": "Bấm vào tên để đổi Có mặt / Vắng · thành viên nhóm khác đi lẻ thì thêm ở cuối danh sách",
     "allPresent": "Tất cả có mặt",
     "allAbsent": "Tất cả vắng",
     "attendCount": "{{present}} có mặt / {{total}} người",
@@ -531,7 +531,7 @@
     "soldBadge": "Đã bán",
     "courtRule": "Sân đã bán không tính vào chi phí buổi và làm giảm định mức cầu. Sân thuê thêm ghi chi riêng ngoài hoá đơn tháng.",
     "guestsTitle": "Khách giao lưu",
-    "guestsSub": "Giá tự tính theo trình độ và giới tính",
+    "guestsSub": "Người NGOÀI CLB. Thành viên CLB đi lẻ thì thêm ở khối Điểm danh, trả theo đơn giá buổi",
     "guestName": "Tên khách",
     "guestGender": "Giới tính",
     "guestLevel": "Trình độ",
@@ -579,8 +579,8 @@
       "temp": "đóng băng tạm",
       "final": "số chốt"
     },
-    "extraPick": "Chọn người đi thêm…",
-    "extraAdd": "Thêm người đi thêm",
+    "extraPick": "Chọn thành viên đi lẻ hôm nay…",
+    "extraAdd": "Thêm người đi lẻ",
     "extraDueTag": "trả theo đơn giá buổi"
   },
   "sessionCol": {

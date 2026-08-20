@@ -4,9 +4,9 @@ import { seed } from './fixture.js'
 import {
   adjustKey, adjustRows, checkDue, checkPreview, costRow, costState, courtBase, courtCost,
   courtExtraCost, courtNet, estSessions, fmt, fmtK, freezeCost, groupMembers, guestDebtRows,
-  guestPrice, isPresent, levelIdx, levelOf, levelStyle, playedCourts, pendingOffset, presentCount, quotaFor,
-  remainSessions, sessionCost, sessionMembers, sessionOf, shuttleUnit, soldTotal, spreadDiff,
-  stock, unfrozenCost, unitPrice,
+  guestPrice, isPresent, joinDues, levelIdx, levelOf, levelStyle, payerName, playedCourts,
+  pendingOffset, presentCount, quotaFor, remainSessions, sessionCost, sessionMembers, sessionOf,
+  shuttleUnit, soldTotal, spreadDiff, stock, unfrozenCost, unitPrice,
 } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -364,6 +364,40 @@ const dbLow = {
 }
 assert.ok(stock(dbLow).left < cfg.shuttle.checkLowStock, 'dựng đúng cảnh tồn kho thấp')
 assert.equal(checkDue(dbLow), 'low')
+
+/* ---------- người vào GIỮA THÁNG: phải sinh được khoản để thu ---------- */
+
+const gCN = db.groups.find((g) => g.id === 'G1')
+const joiner = { id: 'MX', gender: 'nam' }
+
+// Nhóm đã có buổi trong tháng → thu theo số buổi CÒN LẠI tính từ hôm nay.
+const dbMid = { ...db, today: '2026-08-19' }
+const jd = joinDues(dbMid, joiner, gCN, '2026-08')
+assert.equal(jd.full, false)
+assert.equal(jd.sessions, remainSessions(dbMid, 'G1', '2026-08'))
+assert.ok(jd.sessions > 0, 'ngày 19/08 nhóm CN còn buổi')
+assert.equal(jd.amount, unitPrice(dbMid, joiner, gCN, '2026-08').unit * jd.sessions)
+assert.ok(jd.amount < gCN.feeNam, 'vào giữa tháng thì thu ít hơn trọn gói')
+
+// Nhóm CHƯA có buổi nào trong tháng — CLB vừa dựng giữa tháng, lịch chưa tạo.
+// Trước đây rơi vào nhánh "0 buổi còn lại" nên KHÔNG sinh khoản nào: thêm người xong không có
+// gì để thu. Giờ thu trọn gói vì họ sẽ đánh đủ số buổi của tháng.
+const jdFull = joinDues(db, joiner, gCN, '2030-01')
+assert.equal(jdFull.full, true)
+assert.equal(jdFull.sessions, 0)
+assert.equal(jdFull.amount, gCN.feeNam, 'chưa có buổi nào thì thu trọn gói')
+assert.equal(joinDues(db, { id: 'MY', gender: 'nu' }, gCN, '2030-01').amount, gCN.feeNu)
+
+// Buổi của tháng đã đánh hết (hôm nay sau buổi cuối) → không còn gì để thu.
+assert.equal(joinDues({ ...db, today: '2026-08-31' }, joiner, gCN, '2026-08').amount, 0)
+
+/* ---------- tên người trả một khoản chi ---------- */
+
+const someone = db.members[0]
+assert.equal(payerName(db, someone.id, 'gõ tay lệch'), someone.name, 'ưu tiên bản ghi thành viên')
+assert.equal(payerName(db, null, 'Thúy'), 'Thúy', 'dữ liệu cũ nhập tay vẫn đọc được')
+assert.equal(payerName(db, 'không-có-ai', 'Thúy'), 'Thúy', 'id chết thì rơi về chuỗi cũ')
+assert.ok(payerName(db, null, '').length > 0, 'không có gì thì vẫn phải ra chữ, không ra rỗng')
 
 /* ---------- số buổi còn lại trong tháng ---------- */
 const dbToday = { ...db, today: '2026-08-19' }

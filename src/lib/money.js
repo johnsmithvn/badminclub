@@ -31,8 +31,12 @@ export const memberOf = (db, id) => db.members.find((m) => m.id === id) || { nam
  * Tên người trả một khoản chi. Ưu tiên bản ghi thành viên (payerId); chuỗi gõ tay chỉ còn để
  * đọc dữ liệu cũ — xem migration 0008.
  */
-export const payerName = (db, payerId, legacy) =>
-  (payerId ? memberOf(db, payerId).name : '') || legacy || t('common.unknown')
+export const payerName = (db, payerId, legacy) => {
+  // Tra thẳng, KHÔNG qua memberOf: memberOf trả placeholder '—' cho id không tìm thấy, mà '—'
+  // là chuỗi truthy nên id chết sẽ nuốt mất cái tên cũ đang có.
+  const m = payerId ? db.members.find((x) => x.id === payerId) : null
+  return (m && m.name) || legacy || t('common.unknown')
+}
 export const guestOf = (db, id) => db.guests.find((g) => g.id === id) || { name: t('common.unknown') }
 export const sessionOf = (db, id) => db.sessions.find((s) => s.id === id)
 
