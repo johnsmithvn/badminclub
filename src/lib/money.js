@@ -234,9 +234,24 @@ export function guestDebtByInviter(db, monthKey) {
 
 /* ---------- điểm danh ---------- */
 
+/**
+ * Một ô điểm danh có ba giá trị: `true` có mặt · `false` vắng · `'extra'` đi thêm.
+ * `'extra'` là người KHÔNG cố định của nhóm nhưng hôm đó có đánh — họ vẫn là người có mặt,
+ * chỉ khác ở chỗ tiền của họ đi qua bảng đối chiếu chứ không qua quỹ tháng của nhóm.
+ */
+export const isPresent = (v) => v === true || v === 'extra'
+
+/** Ai xuất hiện trong buổi: người cố định của nhóm + người đi thêm (có bản ghi điểm danh). */
+export function sessionMembers(db, s) {
+  const fixed = groupMembers(db, s.groupId, monthOf(s.date))
+  const ids = new Set(fixed.map((m) => m.id))
+  const a = db.attendance[s.id] || {}
+  return fixed.concat(db.members.filter((m) => !ids.has(m.id) && a[m.id] !== undefined))
+}
+
 export function presentCount(db, s) {
   const a = db.attendance[s.id] || {}
-  return groupMembers(db, s.groupId, monthOf(s.date)).filter((m) => a[m.id] === true).length
+  return sessionMembers(db, s).filter((m) => isPresent(a[m.id])).length
 }
 export function absentCount(db, s) {
   const a = db.attendance[s.id] || {}
@@ -248,35 +263,93 @@ export function absentCount(db, s) {
 export const duesOf = (db, monthKey) => db.dues.filter((d) => d.month === monthKey)
 
 /**
- * Đơn giá một buổi của một người trong một nhóm — CHỈ dùng để back tiền, không dùng để thu.
- * n = số buổi của nhóm trong tháng chưa bị hủy (tối thiểu 1).
+ * Đơn giá một buổi của một người trong một nhóm — CHỈ dùng để đối chiếu (back tiền cho người
+ * vắng, thu tiền người đi thêm). KHÔNG dùng để thu quỹ tháng: quỹ tháng thu trọn gói.
+ *
+ * n = số buổi của nhóm trong tháng chưa bị huỷ (tối thiểu 1).
+ *
+ * Tiền lấy từ `monthly_dues.amount` của CHÍNH NGƯỜI ĐÓ, không đọc `member_groups.fee_*` hiện
+ * tại. Đọc cấu hình hiện tại thì sửa quỹ nam 250k → 280k giữa chừng là người đã đóng 250k lại
+ * được back theo 280k — quỹ trả vượt. Cùng họ với luật "đừng đọc cấu hình hiện tại để tính
+ * chuyện đã xảy ra" của đóng băng giá thành.
+ *
+ * Tháng chưa chốt danh sách thì chưa có dòng dues nào, lúc đó mới rơi về giá cấu hình của nhóm.
  */
 export function unitPrice(db, m, g, monthKey) {
   const n = monthSessions(db, monthKey).filter((s) => s.groupId === g.id && s.status !== 'cancelled').length || 1
-  const fee = m.gender === 'nu' ? g.feeNu : g.feeNam
+  const due = (db.dues || []).find((d) => d.month === monthKey && d.groupId === g.id && d.memberId === m.id)
+  const fee = due ? due.amount : m.gender === 'nu' ? g.feeNu : g.feeNam
   const raw = fee / n
   const r = cfg.money.roundTo
   return { n, fee, raw, unit: db.club.roundUnit ? Math.round(raw / r) * r : Math.round(raw) }
 }
 
-/** Back tiền cuối tháng: đơn giá × số buổi đã chốt mà người cố định bị đánh Vắng. */
-export function backRows(db, monthKey) {
+/** Khoá của một dòng đối chiếu. Trùng khoá = cùng một khoản, không sinh dòng thứ hai. */
+export const adjustKey = (month, gid, mid, kind) => [month, gid, mid, kind].join(':')
+
+/** Dòng đối chiếu đã lưu (đã chốt cách trả, hoặc đã trả) — nếu có. */
+export const savedAdjust = (db, key) => (db.adjustments || []).find((x) => x.key === key) || null
+
+/**
+ * ĐỐI CHIẾU BUỔI cuối tháng — hai chiều, cùng một đơn giá, chỉ khác dấu.
+ *
+ *   absent_back    người cố định của nhóm mà VẮNG buổi đã chốt   amount ÂM    quỹ nợ người
+ *   extra_session  người đi thêm buổi không thuộc nhóm mình      amount DƯƠNG người nợ quỹ
+ *
+ * Dòng đã lưu (`db.adjustments`) thì ĐỌC số đã lưu, không tính lại — sửa điểm danh hay sửa quỹ
+ * nhóm về sau không được làm đổi khoản đã chốt cách trả.
+ */
+export function adjustRows(db, monthKey) {
   const out = []
+  const push = (g, m, kind, sessions, sign) => {
+    if (!sessions) return
+    const key = adjustKey(monthKey, g.id, m.id, kind)
+    const saved = savedAdjust(db, key)
+    const u = unitPrice(db, m, g, monthKey)
+    const row = saved
+      ? { sessions: saved.sessions, unit: saved.unit, amount: saved.amount }
+      : { sessions, unit: u.unit, amount: sign * u.unit * sessions }
+    out.push({
+      key, month: monthKey, member: m, group: g, kind, groupId: g.id, memberId: m.id,
+      total: u.n, fee: u.fee, ...row,
+      settle: saved ? saved.settle : 'cash',
+      paid: saved ? !!saved.paid : false,
+      paidAt: saved ? saved.paidAt : null,
+      saved: !!saved,
+    })
+  }
+
   db.groups.forEach((g) => {
     const sess = monthSessions(db, monthKey).filter((s) => s.groupId === g.id && s.status === 'closed')
+    if (!sess.length) return
+    const att = (s) => db.attendance[s.id] || {}
+
     groupMembers(db, g.id, monthKey).forEach((m) => {
-      const ab = sess.filter((s) => (db.attendance[s.id] || {})[m.id] === false).length
-      if (!ab) return
-      const u = unitPrice(db, m, g, monthKey)
-      const key = monthKey + ':' + g.id + ':' + m.id
-      out.push({
-        key, member: m, group: g, absent: ab, total: u.n, unit: u.unit, fee: u.fee,
-        amount: u.unit * ab, paid: !!db.backPaid[key],
-      })
+      push(g, m, 'absent_back', sess.filter((s) => att(s)[m.id] === false).length, -1)
+    })
+
+    // Người đi thêm: có ô điểm danh 'extra' ở buổi của nhóm này.
+    const extras = {}
+    sess.forEach((s) => {
+      const a = att(s)
+      Object.keys(a).forEach((mid) => { if (a[mid] === 'extra') extras[mid] = (extras[mid] || 0) + 1 })
+    })
+    Object.keys(extras).forEach((mid) => {
+      const m = db.members.find((x) => x.id === mid)
+      if (m) push(g, m, 'extra_session', extras[mid], 1)
     })
   })
-  return out.sort((a, b) => b.amount - a.amount)
+
+  // Khoản to nhất lên trước, không phân biệt chiều.
+  return out.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
 }
+
+/**
+ * Khoản đối chiếu còn treo của một người, đã chọn "trừ vào quỹ tháng sau" mà chưa xử lý.
+ * Dấu cộng thẳng vào `monthly_dues.amount`: âm thì tháng sau đóng ít đi, dương thì đóng thêm.
+ */
+export const pendingOffset = (db, mid, month) =>
+  (db.adjustments || []).filter((x) => x.memberId === mid && x.settle === 'offset_next_dues' && !x.paid && x.month < month)
 
 /** Số buổi còn lại của nhóm trong tháng tính từ hôm nay — dùng khi thêm người giữa tháng. */
 export const remainSessions = (db, gid, month) =>

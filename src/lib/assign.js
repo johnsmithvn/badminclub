@@ -3,7 +3,7 @@
 // Toàn bộ hàm ở đây thuần: nhận dữ liệu, trả dữ liệu mới, không setState.
 
 import { monthOf } from '#utils/dates.js'
-import { groupMembers, levelIdx, levelOf, sGuests } from '#lib/money.js'
+import { isPresent, levelIdx, levelOf, sGuests, sessionMembers } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 
@@ -22,7 +22,7 @@ export function assignableSessions(db) {
     .filter((s) => {
       if (s.date < db.today || s.status !== 'open') return false
       const a = db.attendance[s.id] || {}
-      return Object.keys(a).some((k) => a[k] === true)
+      return Object.keys(a).some((k) => isPresent(a[k]))
     })
     .sort((a, b) => (a.date < b.date ? -1 : 1))
 }
@@ -32,8 +32,9 @@ export function sessionPlayers(db, s) {
   if (!s) return []
   const month = monthOf(s.date)
   const att = db.attendance[s.id] || {}
-  const mem = groupMembers(db, s.groupId, month)
-    .filter((m) => att[m.id] === true)
+  // sessionMembers chứ không groupMembers: người đi thêm cũng ra sân, cũng phải được xếp.
+  const mem = sessionMembers(db, s)
+    .filter((m) => isPresent(att[m.id]))
     .map((m) => ({ key: m.id, name: m.name, level: levelOf(m, month), gender: m.gender, guest: false }))
   const gs = sGuests(db, s.id).map((sg) => {
     const g = db.guests.find((x) => x.id === sg.guestId) || { name: '—' }
