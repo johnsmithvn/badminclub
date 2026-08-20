@@ -181,7 +181,8 @@ export function toDb(raw, ctx) {
     })),
     dues: (raw.dues || []).map((d) => ({
       id: d.id, month: d.month, groupId: d.group_id, memberId: d.member_id,
-      amount: num(d.amount), paid: d.paid, paidAt: d.paid_at || null,
+      // `paid_amount` là nguồn sự thật; cột `paid` chỉ còn là bản sao suy ra (xem 0009).
+      amount: num(d.amount), paidAmount: num(d.paid_amount), paidAt: d.paid_at || null,
       method: d.method || '', note: d.note || '',
     })),
     courtBills: (raw.courtBills || []).map((b) => ({
@@ -367,8 +368,10 @@ export function toRows(db, ctx) {
 
   db.dues.forEach((d) => put('monthly_dues', {
     id: d.id, club_id: cid, month: d.month, group_id: d.groupId, member_id: d.memberId,
-    amount: d.amount, paid: !!d.paid, paid_at: d.paidAt || null,
-    method: d.method || null, note: d.note || null,
+    amount: d.amount, paid_amount: d.paidAmount || 0,
+    // `paid` là cột DEPRECATED, ghi lại như bản sao suy ra để nó không nói dối với báo cáo SQL cũ.
+    paid: (d.paidAmount || 0) >= d.amount,
+    paid_at: d.paidAt || null, method: d.method || null, note: d.note || null,
   }))
 
   // Ghi ĐỦ số, không chỉ cờ `paid` như bảng back_credits cũ: khoản đã chốt phải đọc được

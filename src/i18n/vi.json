@@ -241,7 +241,8 @@
       "sold": "{{courts}} · buổi {{date}}",
       "extra": "{{name}} đi thêm {{n}} buổi",
       "shuttle": "{{type}} · {{tubes}} ống · {{qty}} quả",
-      "back": "{{name}} · nghỉ {{n}} buổi"
+      "back": "{{name}} · nghỉ {{n}} buổi",
+      "duesPartial": "{{name}} · {{group}} · {{month}} (đóng thiếu, còn {{remain}})"
     },
     "by": {
       "payNow": "Trả ngay",
@@ -363,7 +364,8 @@
     "noUpcoming": "Không còn buổi nào phía trước",
     "noUpcomingHint": "Mọi buổi đã diễn ra hoặc đã chốt. Tạo lịch cho kỳ tới ở Lịch tập cố định.",
     "noDebt": "Không có khách nào còn nợ",
-    "noDebtHint": "Khách giao lưu chưa trả tiền sẽ hiện ở đây, gộp theo từng người."
+    "noDebtHint": "Khách giao lưu chưa trả tiền sẽ hiện ở đây, gộp theo từng người.",
+    "duePartialTag": "đã đóng {{amount}}"
   },
   "report": {
     "flow": "Thu chi theo tháng",
@@ -429,7 +431,7 @@
     "guestAdded": "Đã thêm khách {{name}} · {{by}} rủ · {{price}}",
     "guestRemoved": "Đã bỏ khách khỏi buổi",
     "debtCollected": "Đã thu hết nợ {{name}}",
-    "duePaid": "Đã ghi {{name}} đóng quỹ {{amount}}",
+    "duePaid": "Đã nhận {{amount}} của {{name}} — đủ quỹ tháng",
     "dueUnpaid": "Đã bỏ đánh dấu đóng quỹ {{name}}",
     "backPaid": "Đã đánh dấu trả back",
     "backUnpaid": "Đã bỏ đánh dấu trả back",
@@ -485,7 +487,9 @@
     "adjustUndone": "Đã bỏ đánh dấu — khoản này quay lại chờ xử lý",
     "settleCash": "{{name}}: trả bằng tiền mặt",
     "settleOffset": "{{name}}: trừ vào quỹ tháng sau, không ghi giao dịch",
-    "memberAddedNow": "Đã thêm {{name}} · cố định từ {{month}}, quỹ phải thu {{amount}} — xem ở Công nợ"
+    "memberAddedNow": "Đã thêm {{name}} · cố định từ {{month}}, quỹ phải thu {{amount}} — xem ở Công nợ",
+    "duePartial": "Đã nhận {{amount}} của {{name}} · còn thiếu {{remain}}",
+    "needAmount": "Nhập số tiền lớn hơn 0"
   },
   "group": {
     "allClub": "Cả CLB",
@@ -581,7 +585,8 @@
     },
     "extraPick": "Chọn thành viên đi lẻ hôm nay…",
     "extraAdd": "Thêm người đi lẻ",
-    "extraDueTag": "trả theo đơn giá buổi"
+    "extraDueTag": "trả theo đơn giá buổi",
+    "duePartialTag": "Thiếu {{amount}}"
   },
   "sessionCol": {
     "date": "Ngày",
@@ -735,7 +740,7 @@
     "noGuestDebt": "Không có khách nào còn nợ",
     "noGuestDebtHint": "Khách chưa trả tiền buổi sẽ hiện ở đây, gộp theo từng người và theo người rủ.",
     "duesTitle": "Quỹ tháng thành viên cố định",
-    "duesSub": "Bấm vào một người để đánh dấu đã đóng",
+    "duesSub": "Nhập số tiền đã nhận. Để trống ô số tiền = thu nốt phần còn thiếu",
     "duesEmpty": "Tháng này chưa sinh quỹ",
     "duesEmptyHint": "Vào Thành viên → Cố định tháng sau → bấm Chốt danh sách để sinh quỹ tháng.",
     "backTitle": "Đối chiếu buổi",
@@ -769,7 +774,10 @@
     "settle": {
       "cash": "Tiền mặt",
       "offset_next_dues": "Trừ quỹ tháng sau"
-    }
+    },
+    "dueRemain": "còn {{amount}}",
+    "dueCollect": "Thu",
+    "dueClear": "Xoá số đã nhận"
   },
   "fund": {
     "tabMonth": "Tổng hợp tháng",

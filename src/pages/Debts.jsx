@@ -1,11 +1,12 @@
 // Công nợ: khách theo người rủ · khách theo người · quỹ tháng · back tiền (handoff 02 §5).
 
-import { Alert, Avatar, Button, Card, Select, Tabs } from '#ds'
+import { Alert, Avatar, Button, Card, IconButton, Input, Select, Tabs } from '#ds'
 import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { monthTxt } from '#utils/dates.js'
 import {
-  adjustRows, duesOf, fmt, genderTxt, guestDebtByInviter, guestDebtRows, memberOf,
+  adjustRows, dueState, duesOf, duesTotal, fmt, fmtK, genderTxt, guestDebtByInviter,
+  guestDebtRows, memberOf,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -25,7 +26,7 @@ export default function Debts() {
         variant="underline"
         items={[
           { value: 'guest', label: t('debts.tabGuest'), count: guestRows.length },
-          { value: 'dues', label: t('debts.tabDues'), count: dues.filter((x) => !x.paid).length },
+          { value: 'dues', label: t('debts.tabDues'), count: dues.filter((x) => dueState(x).remain > 0).length },
           { value: 'back', label: t('debts.tabBack'), count: backs.filter((x) => !x.paid).length },
         ]}
         value={tab}
@@ -109,8 +110,8 @@ function GuestDebts({ rows, canMoney }) {
 /* ---------------- quỹ tháng ---------------- */
 
 function Dues({ dues, canMoney }) {
-  const { db, a } = useApp()
-  const missing = dues.filter((x) => !x.paid).reduce((x, y) => x + y.amount, 0)
+  const { db, ui, a } = useApp()
+  const missing = duesTotal(dues).remain
 
   return (
     <Card
@@ -131,21 +132,46 @@ function Dues({ dues, canMoney }) {
               return (
                 <div key={g.id} style={{ display: 'grid', gap: 7 }}>
                   <Overline>{g.name}</Overline>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {list.map((x) => (
-                      <button key={x.id} type="button" disabled={!canMoney}
-                        onClick={() => a.toggleDue(x.id)}
-                        style={{
+                  <div style={{ display: 'grid', gap: 7 }}>
+                    {list.map((x) => {
+                      const st = dueState(x)
+                      const key = 'due' + x.id
+                      return (
+                        <div key={x.id} style={{
                           ...S.dueChip,
-                          cursor: canMoney ? 'pointer' : 'default',
-                          background: x.paid ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
-                          borderColor: x.paid ? 'var(--teal-500)' : 'var(--border-subtle)',
+                          background: st.state === 'full' ? 'var(--surface-accent-soft)'
+                            : st.state === 'partial' ? 'var(--status-delayed-bg)' : 'var(--surface-card)',
+                          borderColor: st.state === 'full' ? 'var(--teal-500)'
+                            : st.state === 'partial' ? 'var(--status-delayed)' : 'var(--border-subtle)',
                         }}>
-                        <Avatar name={memberOf(db, x.memberId).name} size={22} />
-                        <span style={S.label}>{memberOf(db, x.memberId).name}</span>
-                        <Mono color={x.paid ? 'var(--status-delivered)' : 'var(--status-delayed)'}>{fmt(x.amount)}</Mono>
-                      </button>
-                    ))}
+                          <Avatar name={memberOf(db, x.memberId).name} size={22} />
+                          <span style={{ ...S.label, flex: 1, minWidth: 90 }}>{memberOf(db, x.memberId).name}</span>
+                          {/* Da nhan / phai dong - hien ca hai de khong phai doan con thieu bao nhieu. */}
+                          <Mono color={st.state === 'full' ? 'var(--status-delivered)' : 'var(--text-primary)'}>
+                            {fmtK(st.paid) + ' / ' + fmt(st.amount)}
+                          </Mono>
+                          {st.remain > 0 && (
+                            <Mono color="var(--status-delayed)">{t('debts.dueRemain', { amount: fmtK(st.remain) })}</Mono>
+                          )}
+                          {canMoney && st.remain > 0 && (
+                            <>
+                              {/* Bo trong o nay = thu not phan con thieu. Dien so = thu mot phan. */}
+                              <Input size="sm" mono style={{ width: 108 }}
+                                placeholder={fmtK(st.remain)} value={ui.form[key] || ''}
+                                onChange={(e) => a.setF(key, e.target.value)} />
+                              <Button variant="secondary" size="sm" icon="hand-coins"
+                                onClick={() => { a.payDue(x.id, ui.form[key] || undefined); a.setF(key, '') }}>
+                                {t('debts.dueCollect')}
+                              </Button>
+                            </>
+                          )}
+                          {canMoney && st.paid > 0 && (
+                            <IconButton icon="rotate-ccw" size="sm" variant="ghost"
+                              label={t('debts.dueClear')} onClick={() => a.clearDue(x.id)} />
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )

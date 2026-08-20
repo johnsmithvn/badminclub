@@ -7,7 +7,7 @@
 import { dd, monthOf, monthTxt } from '#utils/dates.js'
 import { t } from '#i18n'
 import {
-  courtCost, courtExtraCost, courtPayMode, courtTxt,
+  courtCost, courtExtraCost, courtPayMode, courtTxt, dueState, fmtK,
   groupOf, guestOf, memberOf, payerName, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 
@@ -42,15 +42,21 @@ export function ledger(db) {
     label: t('ledger.label.opening'), amount: db.club.opening, by: db.club.openingBy || '',
   })
 
-  db.dues.filter((d) => d.paid).forEach((d) =>
+  // Ghi đúng số ĐÃ NHẬN, không phải số phải đóng: đóng thiếu thì sổ quỹ chỉ được thấy phần
+  // đã vào tay. ponytail: một khoản = một dòng, chưa tách được từng lần thu vì lịch sử thu
+  // nằm ở `transactions` — làm ở P6 (Issue 2).
+  db.dues.forEach((d) => {
+    const st = dueState(d)
+    if (st.paid <= 0) return
     out.push({
       id: 'du' + d.id, date: d.paidAt || d.month + '-01', dir: 'in', cat: CATS.dues,
-      label: t('ledger.label.dues', {
-        name: memberOf(db, d.memberId).name, group: groupOf(db, d.groupId).name, month: monthTxt(d.month),
+      label: t(st.full ? 'ledger.label.dues' : 'ledger.label.duesPartial', {
+        name: memberOf(db, d.memberId).name, group: groupOf(db, d.groupId).name,
+        month: monthTxt(d.month), remain: fmtK(st.remain),
       }),
-      amount: d.amount, by: d.method,
+      amount: st.paid, by: d.method,
     })
-  )
+  })
 
   db.sessionGuests.filter((g) => g.paid).forEach((g) => {
     const s = sessionOf(db, g.sessionId)

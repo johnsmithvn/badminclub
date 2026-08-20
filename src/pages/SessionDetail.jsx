@@ -8,7 +8,7 @@ import { Empty, LevelChip, Mono, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
-  costRow, costState, courtOf, courtPayMode, courtTxt, duesOf, fmt, fmtK, genderTxt,
+  costRow, costState, courtOf, courtPayMode, courtTxt, dueState, duesOf, fmt, fmtK, genderTxt,
   groupOf, guestOf, guestPaidRev, guestPrice, levelOf, perTube, playedCourts, presentCount,
   quotaFor, rowCost, sGuests, sessionMembers, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
@@ -150,9 +150,14 @@ export default function SessionDetail() {
                       </>
                     : <span style={{
                         font: 'var(--type-caption)', minWidth: 96, textAlign: 'right',
-                        color: !due ? 'var(--text-disabled)' : due.paid ? 'var(--status-delivered)' : 'var(--status-delayed)',
+                        color: !due ? 'var(--text-disabled)'
+                          : dueState(due).state === 'full' ? 'var(--status-delivered)' : 'var(--status-delayed)',
                       }}>
-                        {!due ? t('session.noDueTag') : due.paid ? t('session.duePaidTag') : t('session.dueUnpaidTag')}
+                        {!due ? t('session.noDueTag')
+                          : dueState(due).state === 'full' ? t('session.duePaidTag')
+                            : dueState(due).state === 'partial'
+                              ? t('session.duePartialTag', { amount: fmtK(dueState(due).remain) })
+                              : t('session.dueUnpaidTag')}
                       </span>}
                 </div>
               )

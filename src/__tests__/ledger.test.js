@@ -81,8 +81,27 @@ assert.equal(ledger(soldButOpen).filter((r) => r.cat === CATS.courtSold).length,
 
 /* ---------- quỹ tháng, khách, mua cầu ---------- */
 const dues = rows.filter((r) => r.cat === CATS.dues)
-assert.equal(dues.length, db.dues.filter((d) => d.paid).length, 'chỉ dues đã đóng mới vào sổ')
+assert.equal(dues.length, db.dues.filter((d) => d.paidAmount > 0).length, 'chỉ dues đã nhận tiền mới vào sổ')
 assert.ok(dues.every((r) => r.dir === 'in'))
+assert.equal(dues.reduce((x, r) => x + r.amount, 0),
+  db.dues.reduce((x, d) => x + (d.paidAmount || 0), 0), 'sổ quỹ ghi đúng tổng đã nhận')
+
+// ĐÓNG THIẾU: phải đóng 250.000, đưa trước 150.000 → sổ quỹ chỉ được thấy 150.000.
+// Cờ boolean cũ không ghi được cảnh này: tick thì thừa 100.000, không tick thì thiếu 150.000.
+const someDue = db.dues.find((d) => d.paidAmount > 0)
+const partial = {
+  ...db,
+  dues: db.dues.map((d) => (d.id === someDue.id ? { ...d, paidAmount: 150000, amount: 250000 } : d)),
+}
+const pr = ledger(partial).filter((r) => r.cat === CATS.dues && r.id === 'du' + someDue.id)
+assert.equal(pr.length, 1)
+assert.equal(pr[0].amount, 150000, 'ghi số ĐÃ NHẬN, không phải số phải đóng')
+assert.ok(pr[0].label.includes('100.000'), 'nhãn phải nói còn thiếu bao nhiêu')
+assert.equal(fundBalance(partial), fundBalance(db) - someDue.paidAmount + 150000)
+
+// Chưa nhận đồng nào → không có dòng nào.
+const none = { ...db, dues: db.dues.map((d) => ({ ...d, paidAmount: 0 })) }
+assert.equal(ledger(none).filter((r) => r.cat === CATS.dues).length, 0)
 
 const guests = rows.filter((r) => r.cat === CATS.guest)
 assert.equal(guests.length, db.sessionGuests.filter((g) => g.paid).length, 'chỉ khách đã trả mới vào sổ')
@@ -155,7 +174,7 @@ assert.equal(new Set(grouped.map((g) => g.key)).size, grouped.length, 'key nhóm
 // 20 người đóng quỹ cùng ngày 03/08 phải gộp thành MỘT dòng
 const duesGroup = grouped.find((g) => g.cat === CATS.dues && g.date === '2026-08-03')
 assert.ok(duesGroup && duesGroup.items.length > 1, 'nhiều người đóng cùng ngày phải gộp')
-assert.equal(duesGroup.items.length, db.dues.filter((d) => d.paid && d.paidAt === '2026-08-03').length)
+assert.equal(duesGroup.items.length, db.dues.filter((d) => d.paidAmount > 0 && d.paidAt === '2026-08-03').length)
 
 /* ---------- tổng hợp theo ngày: quỹ luỹ kế ---------- */
 const sum = dailySummary(db, '2026-08')

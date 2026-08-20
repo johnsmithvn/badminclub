@@ -273,6 +273,34 @@ export function absentCount(db, s) {
 export const duesOf = (db, monthKey) => db.dues.filter((d) => d.month === monthKey)
 
 /**
+ * Trạng thái một khoản quỹ tháng — SUY RA từ số tiền đã nhận, không giữ cờ riêng.
+ * Boolean `paid` không ghi được cảnh hay gặp nhất: phải đóng 250.000, đưa trước 150.000.
+ * Tick thì sổ quỹ thừa 100.000, không tick thì thiếu 150.000.
+ *
+ *   state 'none'    chưa đóng đồng nào
+ *         'partial' đóng thiếu, còn nợ `remain`
+ *         'full'    đủ (hoặc đưa dư, phần dư giữ nguyên chứ không cắt)
+ */
+export function dueState(d) {
+  const amount = d.amount || 0
+  const paid = Math.max(0, d.paidAmount || 0)
+  return {
+    amount, paid,
+    remain: Math.max(0, amount - paid),
+    full: paid >= amount && amount > 0,
+    state: paid <= 0 ? 'none' : paid >= amount ? 'full' : 'partial',
+  }
+}
+
+/** Tổng đã thu / còn thiếu của một danh sách quỹ tháng. */
+export function duesTotal(list) {
+  return (list || []).reduce((acc, d) => {
+    const st = dueState(d)
+    return { amount: acc.amount + st.amount, paid: acc.paid + st.paid, remain: acc.remain + st.remain }
+  }, { amount: 0, paid: 0, remain: 0 })
+}
+
+/**
  * Đơn giá một buổi của một người trong một nhóm — CHỈ dùng để đối chiếu (back tiền cho người
  * vắng, thu tiền người đi thêm). KHÔNG dùng để thu quỹ tháng: quỹ tháng thu trọn gói.
  *

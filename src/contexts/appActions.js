@@ -7,7 +7,7 @@ import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, sessionCost,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
-  adjustRows, pendingOffset, joinDues,
+  adjustRows, pendingOffset, joinDues, dueState,
 } from '#lib/money.js'
 import { fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -361,14 +361,31 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     /* ---------- quỹ tháng, back tiền, danh sách cố định ---------- */
-    toggleDue: (id) => {
+    /**
+     * Ghi nhận tiền quỹ tháng đã NHẬN. `amount` bỏ trống = thu nốt phần còn thiếu.
+     * Không dùng cờ bật/tắt nữa: đóng trước một phần là chuyện thường, cờ boolean thì hoặc
+     * ghi thừa hoặc ghi thiếu.
+     */
+    payDue: (id, amount) => {
       const was = db().dues.find((y) => y.id === id)
       if (!was) return
-      up((d) => ({ dues: d.dues.map((x) => (x.id === id ? { ...x, paid: !x.paid, paidAt: x.paid ? null : d.today } : x)) }))
+      const st = dueState(was)
+      const add = amount === undefined ? st.remain : Math.max(0, parseInt(amount, 10) || 0)
+      if (add <= 0) return toast(t('toast.needAmount'))
+      const next = st.paid + add
+      up((d) => ({ dues: d.dues.map((x) => (x.id === id ? { ...x, paidAmount: next, paidAt: d.today } : x)) }))
       const name = memberOf(db(), was.memberId).name
-      toast(was.paid
-        ? t('toast.dueUnpaid', { name })
-        : t('toast.duePaid', { name, amount: fmt(was.amount) }))
+      const left = Math.max(0, st.amount - next)
+      toast(left > 0
+        ? t('toast.duePartial', { name, amount: fmt(add), remain: fmt(left) })
+        : t('toast.duePaid', { name, amount: fmt(add) }))
+    },
+    /** Xoá sạch số đã nhận của một khoản — dùng khi ghi nhầm người. */
+    clearDue: (id) => {
+      const was = db().dues.find((y) => y.id === id)
+      if (!was || !dueState(was).paid) return
+      up((d) => ({ dues: d.dues.map((x) => (x.id === id ? { ...x, paidAmount: 0, paidAt: null } : x)) }))
+      toast(t('toast.dueUnpaid', { name: memberOf(db(), was.memberId).name }))
     },
     /**
      * Đánh dấu một khoản đối chiếu đã trả / đã thu.
@@ -435,7 +452,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             const off = pend.reduce((x, y) => x + y.amount, 0)
             dues.push({
               id: uid(), month, groupId: g.id, memberId: mid,
-              amount: Math.max(0, base + off), paid: false, paidAt: null, method: '',
+              amount: Math.max(0, base + off), paidAmount: 0, paidAt: null, method: '',
               note: off ? t('debts.offsetNote', { amount: fmtK(Math.abs(off)) }) : '',
             })
           })
@@ -512,7 +529,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           if (jd.amount <= 0) return
           dues.push({
             id: uid(), month: d.month, groupId: gid, memberId: id, amount: jd.amount,
-            paid: false, paidAt: null, method: '',
+            paidAmount: 0, paidAt: null, method: '',
             note: jd.full ? t('members.joinFull') : t('members.joinPartial', { n: jd.sessions }),
           })
         })

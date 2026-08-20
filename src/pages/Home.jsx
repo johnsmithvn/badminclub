@@ -5,8 +5,9 @@ import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, sessionColumn
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
 import {
-  costRow, costState, courtCost, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
-  groupOf, guestDebtRows, isPresent, memberOf, monthSessions, shuttleUnit, stock, timeTxt,
+  costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK, genderTxt,
+  groupMembers, groupOf, guestDebtRows, isPresent, memberOf, monthSessions, shuttleUnit, stock,
+  timeTxt,
 } from '#lib/money.js'
 import { fundBalance, monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
@@ -39,7 +40,7 @@ function Overview() {
   const sess = monthSessions(db, month)
   const closed = sess.filter((s) => s.status === 'closed')
   const dues = duesOf(db, month)
-  const duesPaid = dues.filter((d) => d.paid)
+  const duesPaid = dues.filter((d) => dueState(d).full)
   const debtors = guestDebtRows(db, month).filter((r) => r.debt > 0)
   const totalDebt = debtors.reduce((x, r) => x + r.debt, 0)
   const flow = monthFlow(db, month)
@@ -71,8 +72,8 @@ function Overview() {
         <StatCard label={t('home.dues')} value={duesPaid.length + ' / ' + dues.length} icon="users"
           tone={dues.length && duesPaid.length === dues.length ? 'positive' : 'warning'}
           caption={t('home.duesCaption', {
-            paid: fmtK(duesPaid.reduce((x, d) => x + d.amount, 0)),
-            total: fmtK(dues.reduce((x, d) => x + d.amount, 0)),
+            paid: fmtK(duesTotal(dues).paid),
+            total: fmtK(duesTotal(dues).amount),
           })} />
       </div>
 
@@ -127,8 +128,9 @@ function Overview() {
             : <div style={{ display: 'grid', gap: 16 }}>
             {db.groups.map((g) => {
               const d = dues.filter((x) => x.groupId === g.id)
-              const paid = d.filter((x) => x.paid)
-              const missing = d.filter((x) => !x.paid).reduce((x, y) => x + y.amount, 0)
+              const paid = d.filter((x) => dueState(x).full)
+              const tot = duesTotal(d)
+              const missing = tot.remain
               return (
                 <div key={g.id} style={{ display: 'grid', gap: 7 }}>
                   <ProgressBar label={g.name} value={paid.length} max={d.length || 1}
@@ -138,9 +140,9 @@ function Overview() {
                     <span>
                       {t('home.duesCollected')}{' '}
                       <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                        {fmt(paid.reduce((x, y) => x + y.amount, 0))}
+                        {fmt(tot.paid)}
                       </strong>
-                      {' / ' + fmt(d.reduce((x, y) => x + y.amount, 0))}
+                      {' / ' + fmt(tot.amount)}
                     </span>
                     <span>{missing ? t('home.duesMissing', { amount: fmt(missing) }) : t('common.enough')}</span>
                   </div>
@@ -150,16 +152,21 @@ function Overview() {
             <div style={SS.dashTop}>
               <Overline>{t('home.unpaidTitle')}</Overline>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {dues.filter((d) => !d.paid).map((d) => (
-                  <div key={d.id} style={SS.chip}>
-                    <Avatar name={memberOf(db, d.memberId).name} size={22} />
-                    <span style={SS.label}>{memberOf(db, d.memberId).name}</span>
-                    <Mono color="var(--status-delayed)">{fmt(d.amount)}</Mono>
-                    <IconButton icon="check" size="sm" variant="ghost"
-                      label={t('home.markPaid')} onClick={() => a.toggleDue(d.id)} />
-                  </div>
-                ))}
-                {dues.every((d) => d.paid) && <Mono color="var(--text-muted)">{t('common.enough')}</Mono>}
+                {dues.filter((d) => dueState(d).remain > 0).map((d) => {
+                  const st = dueState(d)
+                  return (
+                    <div key={d.id} style={SS.chip}>
+                      <Avatar name={memberOf(db, d.memberId).name} size={22} />
+                      <span style={SS.label}>{memberOf(db, d.memberId).name}</span>
+                      <Mono color="var(--status-delayed)">{fmt(st.remain)}</Mono>
+                      {st.paid > 0 && <span style={SS.caption}>{t('home.duePartialTag', { amount: fmtK(st.paid) })}</span>}
+                      {/* Nut nay thu NOT phan con thieu; thu mot phan thi vao Cong no. */}
+                      <IconButton icon="check" size="sm" variant="ghost"
+                        label={t('home.markPaid')} onClick={() => a.payDue(d.id)} />
+                    </div>
+                  )
+                })}
+                {dues.every((d) => dueState(d).remain <= 0) && <Mono color="var(--text-muted)">{t('common.enough')}</Mono>}
               </div>
             </div>
           </div>}

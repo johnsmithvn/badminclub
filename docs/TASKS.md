@@ -245,10 +245,18 @@ Sáu chỗ user gặp ngay khi dựng CLB thật giữa tháng. Không nằm tro
       thành viên CLB đi lẻ → "Thêm người đi lẻ" ở khối Điểm danh, trả theo **đơn giá buổi**;
       người ngoài CLB → khối Khách giao lưu, trả theo **bảng giá khách**.
 
-### P4 · Issue 3 · Đóng thiếu — migration `0009`
+### P4 · Issue 3 · Đóng thiếu — migration `0009` · **XONG 2026-08-20**
 
-- [ ] `monthly_dues.paid_amount bigint`, bỏ `paid`. Trạng thái suy ra từ `paid_amount` vs `amount`.
-- [ ] Mỗi lần thu thêm ghi một dòng, không ghi đè.
+- [x] `monthly_dues.paid_amount bigint`. Trạng thái suy ra bằng `money.js: dueState` —
+      `none` / `partial` / `full`. KHÔNG drop cột `paid`: giữ lại làm bản sao suy ra
+      (`paid_amount >= amount`) để báo cáo SQL cũ không nói dối, drop sau khi chắc.
+- [x] Sổ quỹ ghi số **đã nhận**, không phải số phải đóng. Nhãn nói rõ còn thiếu bao nhiêu.
+- [ ] Tách từng LẦN thu thành từng dòng riêng — cần bảng `transactions` thật, làm ở **P6**.
+      Hiện một khoản = một dòng mang tổng đã nhận.
+- [x] UI: ô nhập số tiền ở tab Quỹ tháng (để trống = thu nốt phần còn thiếu) · nút thu nhanh ở
+      Trang chủ · nhãn "Thiếu {{amount}}" ở màn điểm danh.
+- [x] Test: `dueState` đủ 4 nhánh kể cả đưa dư và số âm rác · sổ quỹ ghi đúng tổng đã nhận ·
+      đóng thiếu 150/250 thì sổ chỉ thấy 150. Đã mutation-test.
 
 ### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0010`
 

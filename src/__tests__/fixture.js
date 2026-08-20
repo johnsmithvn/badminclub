@@ -136,7 +136,8 @@ function club1Data() {
       dues.push({
         id: 'D' + ++dn, month: '2026-08', groupId: g.id, memberId: m.id,
         amount: m.gender === 'nu' ? g.feeNu : g.feeNam,
-        paid: !unpaid, paidAt: unpaid ? null : '2026-08-03', method: 'Chuyển khoản', note: '',
+        paidAmount: unpaid ? 0 : (m.gender === 'nu' ? g.feeNu : g.feeNam),
+        paidAt: unpaid ? null : '2026-08-03', method: 'Chuyển khoản', note: '',
       })
     })
   })
@@ -235,7 +236,8 @@ function club2Data() {
   const dues = members.map((m, i) => ({
     id: 'D' + (i + 1), month: '2026-08', groupId: 'G1', memberId: m.id,
     amount: m.gender === 'nu' ? 170000 : 200000,
-    paid: m.id !== 'M6', paidAt: m.id !== 'M6' ? '2026-08-02' : null, method: 'Tiền mặt', note: '',
+    paidAmount: m.id === 'M6' ? 0 : (m.gender === 'nu' ? 170000 : 200000),
+    paidAt: m.id !== 'M6' ? '2026-08-02' : null, method: 'Tiền mặt', note: '',
   }))
 
   return {

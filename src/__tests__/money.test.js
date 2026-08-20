@@ -4,7 +4,7 @@ import { seed } from './fixture.js'
 import {
   adjustKey, adjustRows, checkDue, checkPreview, costRow, costState, courtBase, courtCost,
   courtExtraCost, courtNet, estSessions, fmt, fmtK, freezeCost, groupMembers, guestDebtRows,
-  guestPrice, isPresent, joinDues, levelIdx, levelOf, levelStyle, payerName, playedCourts,
+  dueState, duesTotal, guestPrice, isPresent, joinDues, levelIdx, levelOf, levelStyle, payerName, playedCourts,
   pendingOffset, presentCount, quotaFor, remainSessions, sessionCost, sessionMembers, sessionOf,
   shuttleUnit, soldTotal, spreadDiff, stock, unfrozenCost, unitPrice,
 } from '#lib/money.js'
@@ -364,6 +364,25 @@ const dbLow = {
 }
 assert.ok(stock(dbLow).left < cfg.shuttle.checkLowStock, 'dựng đúng cảnh tồn kho thấp')
 assert.equal(checkDue(dbLow), 'low')
+
+/* ---------- đóng thiếu: trạng thái suy ra từ SỐ TIỀN, không phải cờ ---------- */
+
+const D = (amount, paidAmount) => dueState({ amount, paidAmount })
+assert.deepEqual(D(250000, 0).state, 'none')
+assert.deepEqual(D(250000, 150000).state, 'partial', 'đưa trước một phần')
+assert.deepEqual(D(250000, 250000).state, 'full')
+assert.deepEqual(D(250000, 300000).state, 'full', 'đưa dư vẫn là đủ')
+assert.equal(D(250000, 150000).remain, 100000)
+assert.equal(D(250000, 300000).remain, 0, 'đưa dư thì còn nợ 0, không ra số âm')
+assert.equal(D(250000, 300000).paid, 300000, 'phần dư giữ nguyên, không bị cắt về 250.000')
+assert.equal(D(250000, -5).paid, 0, 'số âm rác thì coi như chưa đóng')
+assert.equal(D(0, 0).state, 'none')
+assert.equal(D(0, 0).full, false, 'khoản 0 đồng không tính là đã đóng đủ')
+
+const tot = duesTotal([{ amount: 250000, paidAmount: 150000 }, { amount: 200000, paidAmount: 200000 }])
+assert.deepEqual(tot, { amount: 450000, paid: 350000, remain: 100000 })
+assert.deepEqual(duesTotal([]), { amount: 0, paid: 0, remain: 0 })
+assert.deepEqual(duesTotal(undefined), { amount: 0, paid: 0, remain: 0 })
 
 /* ---------- người vào GIỮA THÁNG: phải sinh được khoản để thu ---------- */
 

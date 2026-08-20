@@ -5,7 +5,7 @@ import { Avatar, Button, Card, DataTable, Tabs } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { addMonth, monthShort, monthTxt } from '#utils/dates.js'
-import { duesOf, fmt, genderTxt, memberOf, rosterStatus } from '#lib/money.js'
+import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, rosterStatus } from '#lib/money.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -86,14 +86,14 @@ function AllMembers({ canEdit }) {
       render: (r) => {
         const mine = dues.filter((x) => x.memberId === r.id)
         if (!mine.length) return <span style={{ color: 'var(--text-disabled)' }}>{t('members.duesNone')}</span>
-        const unpaid = mine.filter((x) => !x.paid)
+        const unpaid = mine.filter((x) => dueState(x).remain > 0)
         return (
           <span style={{
             font: 'var(--type-label)',
             color: unpaid.length ? 'var(--status-delayed)' : 'var(--status-delivered)',
           }}>
             {unpaid.length
-              ? t('members.duesUnpaid') + ' · ' + fmt(unpaid.reduce((x, y) => x + y.amount, 0))
+              ? t('members.duesUnpaid') + ' · ' + fmt(duesTotal(unpaid).remain)
               : t('members.duesPaid')}
           </span>
         )
