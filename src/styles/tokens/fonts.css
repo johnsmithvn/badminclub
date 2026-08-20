@@ -1,0 +1,11 @@
+/* TDMS webfonts — served from the Fontsource CDN (jsDelivr).
+   SUBSTITUTION NOTE: no brand font files were supplied. Barlow (display/UI headings),
+   IBM Plex Sans (body/UI) and IBM Plex Mono (codes, numerics) are the chosen stand-ins. */
+@font-face{font-family:"Barlow";font-style:normal;font-weight:500;font-display:swap;src:url("https://cdn.jsdelivr.net/fontsource/fonts/barlow@latest/latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"Barlow";font-style:normal;font-weight:600;font-display:swap;src:url("https://cdn.jsdelivr.net/fontsource/fonts/barlow@latest/latin-600-normal.woff2") format("woff2")}
+@font-face{font-family:"Barlow";font-style:normal;font-weight:700;font-display:swap;src:url("https://cdn.jsdelivr.net/fontsource/fonts/barlow@latest/latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:400;font-display:swap;src:url("https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-sans@latest/latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:500;font-display:swap;src:url("https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-sans@latest/latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:600;font-display:swap;src:url("https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-sans@latest/latin-600-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:400;font-display:swap;src:url("https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:600;font-display:swap;src:url("https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-600-normal.woff2") format("woff2")}

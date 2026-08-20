@@ -1,0 +1,414 @@
+// Chi tiết buổi: điểm danh · sân buổi này · khách giao lưu · chốt tiền (handoff 02 §3).
+// Nút "Chốt buổi" là hành động primary DUY NHẤT của trang.
+
+import { useEffect } from 'react'
+import { useParams } from 'react-router-dom'
+import { Button, Card, IconButton, Input, Select, Switch } from '#ds'
+import { Empty, LevelChip, Mono, Overline, SessionPill } from '#ui'
+import { useApp } from '#contexts/AppContext.jsx'
+import { ddmy, wd } from '#utils/dates.js'
+import {
+  courtNet, courtOf, courtTxt, duesOf, fmt, genderTxt, groupMembers, groupOf, guestOf,
+  guestPaidRev, guestPrice, guestRev, levelOf, perTube, playedCourts, presentCount,
+  quotaFor, rowCost, sGuests, sessionCost, sessionOf, shuttleUnit, soldTotal, timeTxt,
+} from '#lib/money.js'
+import { addCourtForm, guestForm } from '#lib/forms.js'
+import { can } from '#lib/roles.js'
+import { t } from '#i18n'
+import cfg from '#config/app.json' with { type: 'json' }
+
+export default function SessionDetail() {
+  const { db, a } = useApp()
+  const { id } = useParams()
+  const sid = id || db.sessionId
+  const s = sessionOf(db, sid)
+
+  // URL là nguồn sự thật; đồng bộ vào db để action dùng db.sessionId.
+  useEffect(() => { if (sid) a.setSessionId(sid) }, [sid, a])
+
+  if (!s) {
+    return (
+      <Card padding="0">
+        <Empty icon="calendar-days" title={t('session.emptyTitle')} hint={t('session.emptyHint')} />
+      </Card>
+    )
+  }
+
+  const role = db.viewAs || 'owner'
+  const canEdit = can(role, 'sessions')
+  const canMoney = can(role, 'money')
+  const month = s.date.slice(0, 7)
+  const group = groupOf(db, s.groupId)
+  const members = groupMembers(db, s.groupId, month)
+  const att = db.attendance[s.id] || {}
+  const guests = sGuests(db, s.id)
+  const dues = duesOf(db, month)
+
+  const unit = shuttleUnit(db)
+  const shuttleMoney = (s.shuttleUsed || 0) * unit
+  const court = courtNet(db, s)
+  const rev = guestRev(db, s.id)
+  const paid = guestPaidRev(db, s.id)
+  const sold = soldTotal(s)
+  const cost = sessionCost(db, s)
+
+  return (
+    <>
+      <div>
+        <Button variant="ghost" size="sm" icon="arrow-left" onClick={() => a.go('sessions')}>
+          {t('session.backToList')}
+        </Button>
+      </div>
+
+      <Card padding="14px 18px">
+        <div style={S.headRow}>
+          <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>
+                {ddmy(s.date) + ' · ' + wd(s.date)}
+              </span>
+              <SessionPill status={s.status} size="md" />
+            </div>
+            <Mono color="var(--text-muted)">
+              {group.name + ' · ' + timeTxt(s) + ' · ' + courtTxt(db, s)}
+            </Mono>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="secondary" size="sm" icon="send" onClick={() => a.copyZalo(s.id)}>
+              {t('session.copyZalo')}
+            </Button>
+            {canEdit && s.status !== 'cancelled' && (
+              <Button variant="ghost" size="sm" icon="circle-x" onClick={() => a.setSessionStatus(s.id, 'cancelled')}>
+                {t('session.doCancel')}
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))', gap: 16, alignItems: 'start' }}>
+        {/* ---------------- điểm danh ---------------- */}
+        <Card
+          title={t('session.attendTitle')}
+          subtitle={t('session.attendSub')}
+          icon="user-round-check"
+          padding="14px 16px"
+          actions={canEdit && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Button variant="secondary" size="sm" onClick={() => a.markAll(s.id, true)}>{t('session.allPresent')}</Button>
+              <Button variant="ghost" size="sm" onClick={() => a.markAll(s.id, false)}>{t('session.allAbsent')}</Button>
+            </div>
+          )}
+        >
+          <div style={{ display: 'grid', gap: 7 }}>
+            <Mono color="var(--text-muted)">
+              {t('session.attendCount', { present: presentCount(db, s), total: members.length })}
+            </Mono>
+            {members.length === 0 && <Empty icon="users" title={t('members.emptyGroup')} hint={t('members.emptyGroupHint')} />}
+            {members.map((m) => {
+              const state = att[m.id]
+              const due = dues.find((d) => d.memberId === m.id && d.groupId === s.groupId)
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() => a.toggleAtt(s.id, m.id)}
+                  style={{
+                    ...S.attRow,
+                    cursor: canEdit ? 'pointer' : 'default',
+                    background: state === true ? 'var(--surface-accent-soft)' : state === false ? 'var(--surface-sunken)' : 'var(--surface-card)',
+                    borderColor: state === true ? 'var(--teal-500)' : 'var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    <div style={S.label}>{m.name}</div>
+                    <div style={S.caption}>{genderTxt(m.gender) + ' · ' + levelOf(m, month)}</div>
+                  </div>
+                  <LevelChip level={levelOf(m, month)} />
+                  <span style={{
+                    font: 'var(--type-label)',
+                    color: state === true ? 'var(--status-transit)' : state === false ? 'var(--text-muted)' : 'var(--text-disabled)',
+                    minWidth: 74, textAlign: 'right',
+                  }}>
+                    {state === true ? t('attend.present') : state === false ? t('attend.absent') : t('attend.unmarked')}
+                  </span>
+                  <span style={{
+                    font: 'var(--type-caption)', minWidth: 96, textAlign: 'right',
+                    color: !due ? 'var(--text-disabled)' : due.paid ? 'var(--status-delivered)' : 'var(--status-delayed)',
+                  }}>
+                    {!due ? t('session.noDueTag') : due.paid ? t('session.duePaidTag') : t('session.dueUnpaidTag')}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+
+        {/* ---------------- cột phải ---------------- */}
+        <div style={{ display: 'grid', gap: 16 }}>
+          <Card
+            title={t('session.courtsTitle')}
+            subtitle={t('session.courtsSub')}
+            icon="map-pin"
+            padding="14px 16px"
+            actions={canEdit && (
+              <Button variant="secondary" size="sm" icon="plus"
+                onClick={() => a.openDialog('addcourt', addCourtForm(db, s))}>
+                {t('session.addCourt')}
+              </Button>
+            )}
+          >
+            <div style={{ display: 'grid', gap: 9 }}>
+              {(s.courts || []).map((c, i) => (
+                <div key={i} style={S.courtRow}>
+                  <div style={{ flex: 1, minWidth: 140 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                      <span style={S.label}>{courtOf(db, c.courtId).name}</span>
+                      {c.extra && <span style={S.tagAmber}>{t('session.extraBadge')}</span>}
+                      {c.sold && <span style={S.tagGreen}>{t('session.soldBadge')}</span>}
+                    </div>
+                    <Mono color="var(--text-muted)">{c.from + ' → ' + c.to}</Mono>
+                  </div>
+                  <Mono weight={600} color={c.sold ? 'var(--text-muted)' : 'var(--text-primary)'}
+                    style={c.sold ? { textDecoration: 'line-through' } : undefined}>
+                    {fmt(rowCost(db, c))}
+                  </Mono>
+                  {canEdit && (
+                    <>
+                      <Button variant={c.sold ? 'ghost' : 'secondary'} size="sm"
+                        onClick={() => a.toggleCourtSold(s.id, i)}>
+                        {c.sold ? t('session.unsell') : t('session.sell')}
+                      </Button>
+                      {c.extra && (
+                        <IconButton icon="trash-2" size="sm" variant="ghost"
+                          label={t('common.delete')} onClick={() => a.removeSessionCourt(s.id, i)} />
+                      )}
+                    </>
+                  )}
+                  {c.sold && (
+                    <div style={S.soldBox}>
+                      <Input label={t('session.soldAmount')} mono suffix={t('units.dong')}
+                        value={String(c.soldAmount || 0)} disabled={!canEdit}
+                        onChange={(e) => a.setSold(s.id, i, 'soldAmount', e.target.value)}
+                        style={{ width: 140 }} />
+                      <Input label={t('session.soldTo')} value={c.soldTo || ''} disabled={!canEdit}
+                        onChange={(e) => a.setSold(s.id, i, 'soldTo', e.target.value)}
+                        style={{ width: 170 }} />
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div style={S.caption}>{t('session.courtRule')}</div>
+            </div>
+          </Card>
+
+          <Card title={t('session.guestsTitle')} subtitle={t('session.guestsSub')} icon="user-round-plus" padding="14px 16px">
+            {canEdit && <GuestForm />}
+            <div style={{ display: 'grid', gap: 8, marginTop: guests.length ? 12 : 0 }}>
+              {guests.length === 0
+                ? <Empty icon="user-round-plus" title={t('session.guestEmpty')} hint={t('session.guestEmptyHint')} />
+                : guests.map((g) => (
+                    <div key={g.id} style={S.guestRow}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={S.label}>{guestOf(db, g.guestId).name}</div>
+                        <div style={S.caption}>{genderTxt(g.gender) + ' · ' + g.level}</div>
+                      </div>
+                      <Select size="sm" style={{ width: 136 }}
+                        options={[{ value: '', label: t('session.guestByShort') }].concat(
+                          db.members.map((m) => ({ value: m.id, label: m.name }))
+                        )}
+                        value={g.invitedBy || ''}
+                        onChange={(e) => a.setGuestInviter(g.id, e.target.value)} />
+                      <Mono weight={600} color="var(--text-primary)">{fmt(g.price)}</Mono>
+                      <Switch label={g.paid ? t('session.guestPaid') : t('session.guestDebt')}
+                        checked={g.paid} onChange={() => a.toggleGuestPaid(g.id)} />
+                      {canEdit && (
+                        <IconButton icon="trash-2" size="sm" variant="ghost"
+                          label={t('common.delete')} onClick={() => a.removeGuest(g.id)} />
+                      )}
+                    </div>
+                  ))}
+            </div>
+          </Card>
+
+          <Card title={t('session.closeTitle')} subtitle={t('session.closeSub')} icon="calculator" padding="14px 16px">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <ShuttleBox s={s} canEdit={canEdit} />
+
+              <div style={S.sumBox}>
+                <SumRow label={t('session.sumCourt')} value={fmt(court)} />
+                <SumRow label={t('session.sumShuttle')} value={fmt(shuttleMoney)} />
+                {sold > 0 && <SumRow label={t('session.sumSold')} value={fmt(sold)} color="var(--status-delivered)" />}
+                <SumRow label={t('session.sumGuest')} value={fmt(rev)} />
+                <SumRow label={t('session.sumGuestPaid')} value={fmt(paid)} color="var(--status-delivered)" />
+                <SumRow label={t('session.sumGuestDebt')} value={fmt(rev - paid)} color="var(--status-delayed)" />
+                <div style={S.sumDivider} />
+                <SumRow label={t('session.sumCost')} value={fmt(cost)} strong />
+                <SumRow label={t('session.sumSubsidy')} value={fmt(cost - rev - sold)} strong
+                  color={cost - rev - sold > 0 ? 'var(--status-incident)' : 'var(--status-delivered)'} />
+              </div>
+
+              <div style={S.caption}>{t('session.closeRule')}</div>
+
+              {canEdit && (
+                <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+                  {s.status === 'draft' && (
+                    <Button variant="primary" icon="user-round-check" onClick={() => a.setSessionStatus(s.id, 'open')}>
+                      {t('session.doOpen')}
+                    </Button>
+                  )}
+                  {s.status === 'open' && (
+                    <Button variant="primary" icon="circle-check" disabled={!canMoney}
+                      onClick={() => a.setSessionStatus(s.id, 'closed')}>
+                      {t('session.doClose')}
+                    </Button>
+                  )}
+                  {(s.status === 'closed' || s.status === 'cancelled') && (
+                    <Button variant="secondary" icon="rotate-ccw" onClick={() => a.setSessionStatus(s.id, 'open')}>
+                      {t('session.doReopen')}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/* ---------------- form thêm khách ---------------- */
+
+function GuestForm() {
+  const { db, ui, a } = useApp()
+  const f = ui.form && ui.form.gLevel ? ui.form : guestForm(db)
+  const set = (k, v) => a.setF(k, v)
+  const price = guestPrice(db, f.gLevel, f.gGender)
+
+  return (
+    <div style={S.guestForm}>
+      <Input label={t('session.guestName')} value={f.gName || ''} onChange={(e) => set('gName', e.target.value)} />
+      <Select label={t('session.guestGender')} value={f.gGender}
+        options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
+        onChange={(e) => set('gGender', e.target.value)} />
+      <Select label={t('session.guestLevel')} value={f.gLevel}
+        options={db.levels.map((l) => ({ value: l, label: l }))}
+        onChange={(e) => set('gLevel', e.target.value)} />
+      <Select label={t('session.guestBy')} value={f.gBy || ''}
+        options={[{ value: '', label: t('common.unknown') }].concat(db.members.map((m) => ({ value: m.id, label: m.name })))}
+        onChange={(e) => set('gBy', e.target.value)} />
+      <Button variant="accent" icon="plus" onClick={() => a.addGuest()}>
+        {t('common.add') + ' · ' + fmt(price)}
+      </Button>
+    </div>
+  )
+}
+
+/* ---------------- ba cách vào số cầu ---------------- */
+
+function ShuttleBox({ s, canEdit }) {
+  const { db, a } = useApp()
+  const mode = s.shuttleMode || 'quota'
+  const per = perTube(db, s)
+  const group = groupOf(db, s.groupId)
+
+  const note = mode === 'quota'
+    ? t('session.quotaNote', { group: group.name, quota: quotaFor(db, s), courts: playedCourts(s) })
+    : mode === 'tubes'
+      ? t('session.tubesNote', { tubes: s.tubesOpened || 0, per, loose: s.loose || 0, total: s.shuttleUsed || 0 })
+      : t('session.exactNote')
+
+  return (
+    <div style={{ display: 'grid', gap: 9 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {cfg.shuttleModes.map((m) => (
+          <Button key={m} size="sm" variant={mode === m ? 'primary' : 'secondary'} disabled={!canEdit}
+            onClick={() => a.setShuttleMode(s.id, m)}>
+            {t('session.shuttleMode' + m[0].toUpperCase() + m.slice(1))}
+          </Button>
+        ))}
+      </div>
+
+      {mode === 'tubes' && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <Stepper label={t('session.tubesLabel')} value={s.tubesOpened || 0} disabled={!canEdit}
+            onMinus={() => a.bumpTubes(s.id, -1)} onPlus={() => a.bumpTubes(s.id, 1)} />
+          <Stepper label={t('session.looseLabel')} value={s.loose || 0} disabled={!canEdit}
+            onMinus={() => a.bumpLoose(s.id, -1)} onPlus={() => a.bumpLoose(s.id, 1)} />
+        </div>
+      )}
+
+      {mode === 'exact' && (
+        <Input label={t('session.exactLabel')} mono suffix={t('units.shuttle')} disabled={!canEdit}
+          value={String(s.shuttleUsed || 0)} onChange={(e) => a.setShuttle(s.id, e.target.value)}
+          style={{ width: 180 }} />
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <Mono weight={600} size={14} color="var(--text-primary)">
+          {(s.shuttleUsed || 0) + ' ' + t('units.shuttle')}
+        </Mono>
+        {s.shuttleEst && <span style={S.tagAmber}>{t('session.estTag')}</span>}
+        <span style={S.caption}>{note}</span>
+      </div>
+    </div>
+  )
+}
+
+function Stepper({ label, value, onMinus, onPlus, disabled }) {
+  return (
+    <div style={{ display: 'grid', gap: 4 }}>
+      <Overline>{label}</Overline>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <IconButton icon="minus" size="sm" variant="secondary" label="-" disabled={disabled} onClick={onMinus} />
+        <Mono weight={600} size={14} color="var(--text-primary)" style={{ minWidth: 28, textAlign: 'center' }}>
+          {value}
+        </Mono>
+        <IconButton icon="plus" size="sm" variant="secondary" label="+" disabled={disabled} onClick={onPlus} />
+      </div>
+    </div>
+  )
+}
+
+const SumRow = ({ label, value, color, strong }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+    <span style={{ font: strong ? 'var(--type-label)' : 'var(--type-caption)', color: 'var(--text-secondary)' }}>
+      {label}
+    </span>
+    <Mono weight={strong ? 600 : 400} size={strong ? 14 : 13} color={color || 'var(--text-primary)'}>
+      {value}
+    </Mono>
+  </div>
+)
+
+const S = {
+  headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
+  caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
+  attRow: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', width: '100%',
+    border: '1px solid', borderRadius: 8, font: 'inherit',
+  },
+  courtRow: {
+    display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', padding: '9px 11px',
+    border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
+  },
+  soldBox: { display: 'flex', gap: 9, flexBasis: '100%', flexWrap: 'wrap' },
+  guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.2fr auto', gap: 9, alignItems: 'flex-end' },
+  guestRow: {
+    display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', padding: '8px 11px',
+    border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
+  },
+  sumBox: { display: 'grid', gap: 7, padding: '12px 14px', borderRadius: 8, background: 'var(--surface-inset)' },
+  sumDivider: { height: 1, background: 'var(--border-subtle)', margin: '3px 0' },
+  tagAmber: {
+    font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
+    background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap',
+  },
+  tagGreen: {
+    font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
+    background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)', whiteSpace: 'nowrap',
+  },
+}

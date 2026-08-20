@@ -1,0 +1,18 @@
+:root{
+--space-0:0px;--space-1:2px;--space-2:4px;--space-3:6px;--space-4:8px;--space-5:12px;
+--space-6:16px;--space-7:20px;--space-8:24px;--space-9:32px;--space-10:40px;--space-11:48px;
+--space-12:64px;--space-13:80px;
+
+/* Density rules — desktop console is compact, driver app is roomy */
+--pad-control-x:14px;--pad-control-y:9px;
+--pad-card:20px;--pad-card-tight:14px;
+--pad-page-x:28px;--pad-page-y:24px;
+--gap-field:12px;--gap-section:24px;--gap-stack:8px;
+
+/* Touch targets — never below these */
+--target-web:36px;--target-touch:48px;--target-touch-primary:56px;
+
+/* Structure */
+--sidebar-w:248px;--sidebar-w-collapsed:64px;--topbar-h:60px;--row-h:52px;--row-h-touch:72px;
+--content-max:1440px;
+}

@@ -1,0 +1,5 @@
+:root{
+--radius-xs:3px;--radius-sm:5px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;--radius-2xl:22px;--radius-pill:999px;
+--radius-control:6px;--radius-card:10px;--radius-sheet:18px;--radius-chip:999px;
+--border-hairline:1px;--border-strong:1.5px;--border-focus:2px;
+}

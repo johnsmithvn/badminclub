@@ -1,0 +1,51 @@
+{
+  "name": "badminclub",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src",
+    "test": "node src/__tests__/dates.test.js && node src/__tests__/money.test.js && node src/__tests__/ledger.test.js && node src/__tests__/assign.test.js && node src/__tests__/dbmap.test.js",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:status": "supabase status",
+    "db:env": "supabase status -o env --override-name api.url=VITE_SUPABASE_URL --override-name auth.anon_key=VITE_SUPABASE_ANON_KEY",
+    "db:migrate": "supabase migration up"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "lucide-react": "^1.33.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@vitejs/plugin-react": "^6.0.5",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.4",
+    "globals": "^17.11.0",
+    "vite": "^8.2.1"
+  },
+  "imports": {
+    "#components/*": "./src/components/*",
+    "#config/*": "./src/config/*",
+    "#contexts/*": "./src/contexts/*",
+    "#data/*": "./src/data/*",
+    "#ds": "./src/components/ds/index.js",
+    "#hooks/*": "./src/hooks/*",
+    "#i18n": "./src/i18n/index.js",
+    "#i18n/*": "./src/i18n/*",
+    "#lib/*": "./src/lib/*",
+    "#pages/*": "./src/pages/*",
+    "#routes": "./src/routes/index.js",
+    "#styles/*": "./src/styles/*",
+    "#supabase": "./src/lib/supabase.js",
+    "#ui": "./src/components/ui/index.jsx",
+    "#utils/*": "./src/utils/*"
+  }
+}

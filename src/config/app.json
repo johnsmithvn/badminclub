@@ -1,0 +1,72 @@
+{
+  "locale": "vi",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "levelsDefault": [
+    "Newbie",
+    "TBY",
+    "TB-",
+    "TB"
+  ],
+  "genders": [
+    "nam",
+    "nu"
+  ],
+  "sessionStates": [
+    "draft",
+    "open",
+    "closed",
+    "cancelled"
+  ],
+  "rosterStates": [
+    "fixed",
+    "off",
+    "pending"
+  ],
+  "shuttleModes": [
+    "quota",
+    "tubes",
+    "exact"
+  ],
+  "courtPayModes": [
+    "month",
+    "session"
+  ],
+  "toastMs": 2600,
+  "sync": {
+    "debounceMs": 500
+  },
+  "clockTickMs": 10000,
+  "money": {
+    "roundTo": 1000,
+    "shuttleUnitFallback": 26667
+  },
+  "shuttle": {
+    "quotaMin": 6,
+    "perTubeDefault": 12,
+    "quotaDefault": 24
+  },
+  "match": {
+    "defaultMinutes": 20,
+    "playersPerCourt": 4,
+    "teamsPerCourt": 2
+  },
+  "club": {
+    "defaultLockDay": 25,
+    "codeLength": 8
+  },
+  "assign": {
+    "balanceThreshold": 0.6,
+    "fairnessThreshold": 1
+  },
+  "ui": {
+    "contentMaxWidth": 1440,
+    "sidebarWidth": 248,
+    "topStatMin": 230,
+    "cardPairMin": 420,
+    "topAttendCount": 7,
+    "topDebtCount": 5,
+    "recentSessionCount": 5,
+    "barChartHeight": 170,
+    "barMonthCount": 4
+  }
+}

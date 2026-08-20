@@ -1,0 +1,394 @@
+// Trang chủ: tab Tổng quan + tab Báo cáo (handoff 02 §1).
+
+import { Avatar, Button, Card, DataTable, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
+import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, sessionColumns } from '#ui'
+import { useApp } from '#contexts/AppContext.jsx'
+import { ddmy, monthTxt } from '#utils/dates.js'
+import {
+  costRow, courtCost, courtNet, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
+  groupOf, guestDebtRows, memberOf, monthSessions, shuttleUnit, stock, timeTxt,
+} from '#lib/money.js'
+import { fundBalance, monthFlow } from '#lib/ledger.js'
+import { t } from '#i18n'
+import cfg from '#config/app.json' with { type: 'json' }
+
+export default function Home() {
+  const { ui, a } = useApp()
+  const tab = ui.tab.home || 'overview'
+  return (
+    <>
+      <Tabs
+        variant="underline"
+        items={[
+          { value: 'overview', label: t('home.tabs.overview') },
+          { value: 'report', label: t('home.tabs.report') },
+        ]}
+        value={tab}
+        onChange={(v) => a.setTab('home', v)}
+      />
+      {tab === 'overview' ? <Overview /> : <Report />}
+    </>
+  )
+}
+
+/* ============================ TỔNG QUAN ============================ */
+
+function Overview() {
+  const { db, a } = useApp()
+  const month = db.month
+  const sess = monthSessions(db, month)
+  const closed = sess.filter((s) => s.status === 'closed')
+  const dues = duesOf(db, month)
+  const duesPaid = dues.filter((d) => d.paid)
+  const debtors = guestDebtRows(db, month).filter((r) => r.debt > 0)
+  const totalDebt = debtors.reduce((x, r) => x + r.debt, 0)
+  const flow = monthFlow(db, month)
+  const st = stock(db)
+  const bal = fundBalance(db)
+  const upcoming = db.sessions.filter((s) => s.date >= db.today && s.status !== 'cancelled').slice(0, 4)
+
+  // Số buổi có mặt của từng người trong tháng — chỉ tính buổi đã chốt.
+  const attend = {}
+  closed.forEach((s) => {
+    const map = db.attendance[s.id] || {}
+    Object.keys(map).forEach((k) => { if (map[k]) attend[k] = (attend[k] || 0) + 1 })
+  })
+  const maxAtt = Math.max(1, ...Object.keys(attend).map((k) => attend[k]))
+
+  return (
+    <>
+      <div style={GRID_STAT}>
+        <StatCard label={t('home.fundBalance')} value={fmt(bal)} icon="wallet"
+          tone={bal < 0 ? 'critical' : 'neutral'}
+          caption={t('home.fundCaption', { amount: fmt(db.club.opening), date: ddmy(db.club.openingDate) })} />
+        <StatCard label={t('home.guestDebt')} value={fmt(totalDebt)} icon="clock-alert" tone="warning"
+          caption={t('home.guestDebtCaption', { n: debtors.length, month: monthTxt(month).toLowerCase() })} />
+        <StatCard label={t('home.stock')} value={st.left} unit={t('units.shuttle')} icon="package" tone="accent"
+          caption={t('home.stockCaption', { bought: st.bought, used: st.used })} />
+        <StatCard label={t('home.dues')} value={duesPaid.length + ' / ' + dues.length} icon="users"
+          tone={dues.length && duesPaid.length === dues.length ? 'positive' : 'warning'}
+          caption={t('home.duesCaption', {
+            paid: fmtK(duesPaid.reduce((x, d) => x + d.amount, 0)),
+            total: fmtK(dues.reduce((x, d) => x + d.amount, 0)),
+          })} />
+      </div>
+
+      <div style={GRID_STAT}>
+        <StatCard label={t('home.monthIn')} value={fmt(flow.in)} icon="trending-up" tone="positive"
+          caption={t('home.monthInCaption')} />
+        <StatCard label={t('home.monthOut')} value={fmt(flow.out)} icon="trending-down" tone="critical"
+          caption={t('home.monthOutCaption')} />
+        <StatCard label={t('home.avgShuttle')}
+          value={closed.length ? Math.round(closed.reduce((x, s) => x + s.shuttleUsed, 0) / closed.length) : 0}
+          unit={t('units.shuttlePerSession')} icon="package-open"
+          caption={t('home.avgShuttleCaption', { unit: fmtK(shuttleUnit(db)) })} />
+        <StatCard label={t('home.closedRatio')} value={closed.length + ' / ' + sess.length} icon="clipboard-check"
+          caption={t('home.closedCaption', { n: sess.length - closed.length })} />
+      </div>
+
+      <div style={GRID_PAIR}>
+        <Card title={t('home.upcoming')} subtitle={t('home.upcomingSub')} icon="calendar-clock" padding="0">
+          {upcoming.length === 0
+            ? <Empty icon="calendar-days" title={t('home.noUpcoming')} hint={t('home.noUpcomingHint')} />
+            : <div style={{ display: 'grid' }}>
+                {upcoming.map((s) => (
+                  <div key={s.id} style={SS.upRow}>
+                    <DayBox iso={s.date} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={SS.label}>{groupOf(db, s.groupId).name}</div>
+                      <Mono color="var(--text-muted)">{timeTxt(s) + ' · ' + courtTxt(db, s)}</Mono>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <Mono weight={600} color="var(--text-primary)">{fmt(courtCost(db, s))}</Mono>
+                      <div style={SS.caption}>{t('home.courtCostLabel')}</div>
+                    </div>
+                    <Button size="sm" icon="user-round-check"
+                      variant={s.status === 'draft' ? 'secondary' : 'accent'}
+                      onClick={() => {
+                        if (s.status === 'draft') a.setSessionStatus(s.id, 'open')
+                        a.openSession(s.id)
+                      }}>
+                      {s.status === 'draft' ? t('home.openSession') : t('home.markAttend')}
+                    </Button>
+                  </div>
+                ))}
+              </div>}
+        </Card>
+
+        <Card title={t('home.duesProgress')} subtitle={monthTxt(month)} icon="banknote"
+          actions={<Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.go('debts')}>
+            {t('home.duesLink')}
+          </Button>}>
+          <div style={{ display: 'grid', gap: 16 }}>
+            {db.groups.map((g) => {
+              const d = dues.filter((x) => x.groupId === g.id)
+              const paid = d.filter((x) => x.paid)
+              const missing = d.filter((x) => !x.paid).reduce((x, y) => x + y.amount, 0)
+              return (
+                <div key={g.id} style={{ display: 'grid', gap: 7 }}>
+                  <ProgressBar label={g.name} value={paid.length} max={d.length || 1}
+                    tone={d.length && paid.length === d.length ? 'success' : 'warning'}
+                    valueLabel={t('home.duesRatio', { paid: paid.length, total: d.length })} />
+                  <div style={SS.between}>
+                    <span>
+                      {t('home.duesCollected')}{' '}
+                      <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                        {fmt(paid.reduce((x, y) => x + y.amount, 0))}
+                      </strong>
+                      {' / ' + fmt(d.reduce((x, y) => x + y.amount, 0))}
+                    </span>
+                    <span>{missing ? t('home.duesMissing', { amount: fmt(missing) }) : t('common.enough')}</span>
+                  </div>
+                </div>
+              )
+            })}
+            <div style={SS.dashTop}>
+              <Overline>{t('home.unpaidTitle')}</Overline>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {dues.filter((d) => !d.paid).map((d) => (
+                  <div key={d.id} style={SS.chip}>
+                    <Avatar name={memberOf(db, d.memberId).name} size={22} />
+                    <span style={SS.label}>{memberOf(db, d.memberId).name}</span>
+                    <Mono color="var(--status-delayed)">{fmt(d.amount)}</Mono>
+                    <IconButton icon="check" size="sm" variant="ghost"
+                      label={t('home.markPaid')} onClick={() => a.toggleDue(d.id)} />
+                  </div>
+                ))}
+                {dues.every((d) => d.paid) && <Mono color="var(--text-muted)">{t('common.enough')}</Mono>}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div style={GRID_PAIR}>
+        <Card title={t('home.topAttend')} subtitle={t('home.topAttendSub')} icon="trophy" padding="16px 18px">
+          <div style={{ display: 'grid', gap: 10 }}>
+            {Object.keys(attend).sort((x, y) => attend[y] - attend[x]).slice(0, cfg.ui.topAttendCount)
+              .map((k, i) => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Mono style={{ width: 16, textAlign: 'right' }} color="var(--text-muted)">{i + 1}</Mono>
+                  <Avatar name={memberOf(db, k).name} size={26} />
+                  <span style={{ ...SS.label, flex: '0 0 96px', ...SS.ellipsis }}>{memberOf(db, k).name}</span>
+                  <Bar pct={Math.round((attend[k] / maxAtt) * 100)}
+                    color={i === 0 ? 'var(--teal-500)' : 'var(--navy-500)'} />
+                  <Mono>{t('home.sessionCount', { n: attend[k] })}</Mono>
+                </div>
+              ))}
+            {!Object.keys(attend).length && <Empty title={t('home.noSession')} hint={t('home.noSessionHint')} />}
+          </div>
+        </Card>
+
+        <Card title={t('home.topDebt')} subtitle={t('home.topDebtSub')} icon="user-round-x" padding="16px 18px">
+          <div style={{ display: 'grid', gap: 9 }}>
+            {debtors.slice(0, cfg.ui.topDebtCount).map((r) => (
+              <div key={r.guest.id} style={SS.debtRow}>
+                <Avatar name={r.guest.name} size={28} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={SS.label}>{r.guest.name}</div>
+                  <div style={SS.caption}>
+                    {t('home.topDebtMeta', { n: r.sessions, gender: genderTxt(r.guest.gender), level: r.guest.level })}
+                  </div>
+                </div>
+                <Mono weight={600} size={14} color="var(--status-delayed)">{fmt(r.debt)}</Mono>
+                <Button variant="secondary" size="sm" icon="circle-check"
+                  onClick={() => a.collectDebt(r.guest.id)}>{t('home.collect')}</Button>
+              </div>
+            ))}
+            {!debtors.length && <Empty icon="circle-check" title={t('home.noDebt')} hint={t('home.noDebtHint')} />}
+          </div>
+        </Card>
+      </div>
+
+      <Card title={t('home.recent')} subtitle={t('home.recentSub')} icon="history" padding="0">
+        {sess.length === 0
+          ? <Empty icon="calendar-days" title={t('home.noSession')} hint={t('home.noSessionHint')} />
+          : <DataTable columns={sessionColumns(db)}
+              rows={sess.slice().reverse().slice(0, cfg.ui.recentSessionCount)}
+              rowKey="id" onRowClick={(r) => a.openSession(r.id)} />}
+      </Card>
+    </>
+  )
+}
+
+/* ============================ BÁO CÁO ============================ */
+
+function Report() {
+  const { db } = useApp()
+  const month = db.month
+  const unit = shuttleUnit(db)
+
+  // 4 tháng gần nhất, cột đôi thu/chi
+  const months = []
+  for (let i = cfg.ui.barMonthCount - 1; i >= 0; i--) {
+    const [y, mo] = month.split('-').map(Number)
+    const d = new Date(y, mo - 1 - i, 1)
+    months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'))
+  }
+  const flows = months.map((m) => ({ m, ...monthFlow(db, m) }))
+  const maxFlow = Math.max(1, ...flows.map((f) => Math.max(f.in, f.out)))
+  const H = cfg.ui.barChartHeight
+
+  const closed = monthSessions(db, month).filter((s) => s.status === 'closed')
+  // Tỷ lệ đi tập: mẫu số là số buổi đã chốt của nhóm mà người đó cố định
+  const rows = []
+  db.groups.forEach((g) => {
+    const gSess = closed.filter((s) => s.groupId === g.id)
+    if (!gSess.length) return
+    groupMembers(db, g.id, month).forEach((m) => {
+      const went = gSess.filter((s) => (db.attendance[s.id] || {})[m.id] === true).length
+      rows.push({ key: g.id + m.id, name: m.name, went, total: gSess.length, pct: Math.round((went / gSess.length) * 100) })
+    })
+  })
+  rows.sort((x, y) => y.pct - x.pct || y.went - x.went)
+
+  // Khách theo trình độ
+  const byLevel = {}
+  db.sessionGuests.forEach((sg) => {
+    const s = db.sessions.find((x) => x.id === sg.sessionId)
+    if (!s || s.date.slice(0, 7) !== month) return
+    if (!byLevel[sg.level]) byLevel[sg.level] = { level: sg.level, sum: 0, count: 0 }
+    byLevel[sg.level].sum += sg.price
+    byLevel[sg.level].count++
+  })
+  const levelRows = db.guestPrices.map((p) => byLevel[p.level] || { level: p.level, sum: 0, count: 0 })
+  const maxLevelSum = Math.max(1, ...levelRows.map((r) => r.sum))
+
+  return (
+    <>
+      <Card title={t('report.flow')} subtitle={t('report.flowSub')} icon="chart-column" padding="18px">
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 26, paddingTop: 8, overflowX: 'auto' }}>
+          {flows.map((f) => {
+            const net = f.in - f.out
+            return (
+              <div key={f.m} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: H }}>
+                  <div style={{ width: 26, borderRadius: '4px 4px 0 0', background: 'var(--teal-500)', height: Math.round((f.in / maxFlow) * H) }} />
+                  <div style={{ width: 26, borderRadius: '4px 4px 0 0', background: 'var(--status-incident)', height: Math.round((f.out / maxFlow) * H) }} />
+                </div>
+                <div style={SS.label}>{f.m.slice(5, 7) + '/' + f.m.slice(0, 4)}</div>
+                <div style={{ font: 'var(--type-caption)', color: net >= 0 ? 'var(--status-delivered)' : 'var(--status-incident)' }}>
+                  {(net >= 0 ? '+' : '') + fmtK(net)}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </Card>
+
+      <div style={{ ...GRID_PAIR, gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))', alignItems: 'start' }}>
+        <Card title={t('report.attendRate')} subtitle={t('report.attendRateSub')} icon="user-round-check" padding="16px 18px">
+          <div style={{ display: 'grid', gap: 9 }}>
+            {rows.map((r) => {
+              const color = r.pct >= 80 ? 'var(--status-delivered)' : r.pct >= 50 ? 'var(--navy-500)' : 'var(--status-delayed)'
+              return (
+                <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ ...SS.label, flex: '0 0 96px', ...SS.ellipsis }}>{r.name}</span>
+                  <Bar pct={r.pct} color={color} />
+                  <Mono style={{ flex: '0 0 56px', textAlign: 'right' }}>{r.went + '/' + r.total}</Mono>
+                  <Mono weight={600} size={12} color={color} style={{ flex: '0 0 40px', textAlign: 'right' }}>{r.pct + '%'}</Mono>
+                </div>
+              )
+            })}
+            {!rows.length && <Empty title={t('home.noSession')} hint={t('home.noSessionHint')} />}
+          </div>
+        </Card>
+
+        <Card title={t('report.byLevel')} subtitle={t('report.byLevelSub')} icon="layers" padding="16px 18px">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {levelRows.map((r) => {
+              const price = db.guestPrices.find((p) => p.level === r.level) || { nam: 0, nu: 0 }
+              return (
+                <div key={r.level} style={{ display: 'grid', gap: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={SS.label}>
+                      {r.level}{' '}
+                      <span style={SS.caption}>
+                        · {t('report.levelPrice', { price: fmtK(price.nam) + '/' + fmtK(price.nu) })}
+                      </span>
+                    </span>
+                    <Mono weight={600} color="var(--text-primary)">{fmt(r.sum)}</Mono>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <Bar pct={Math.round((r.sum / maxLevelSum) * 100)} height={7} />
+                    <Mono color="var(--text-muted)">{t('report.guestTimes', { n: r.count })}</Mono>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      </div>
+
+      <Card title={t('report.costTable')} subtitle={t('report.costTableSub')} icon="calculator" padding="0">
+        <div style={{ display: 'grid', overflowX: 'auto' }}>
+          <div style={{ ...SS.costGrid, ...SS.costHead }}>
+            <span>{t('report.col.session')}</span>
+            <span>{t('report.col.group')}</span>
+            <span style={SS.r}>{t('report.col.people')}</span>
+            <span style={SS.r}>{t('report.col.court')}</span>
+            <span style={SS.r}>{t('report.col.shuttle')}</span>
+            <span style={SS.r}>{t('report.col.cost')}</span>
+            <span style={SS.r}>{t('report.col.guestRev')}</span>
+            <span style={SS.r}>{t('report.col.perHead')}</span>
+            <span style={SS.r}>{t('report.col.subsidy')}</span>
+          </div>
+          {closed.map((s) => {
+            const c = costRow(db, s)
+            return (
+              <div key={s.id} style={{ ...SS.costGrid, ...SS.costRow }}>
+                <span style={{ color: 'var(--text-primary)' }}>{s.date.slice(8, 10) + '/' + s.date.slice(5, 7)}</span>
+                <span style={SS.caption}>{groupOf(db, s.groupId).name}</span>
+                <span style={SS.r}>{c.people}</span>
+                <span style={SS.r}>{fmtK(courtNet(db, s))}</span>
+                <span style={SS.r}>{fmtK((s.shuttleUsed || 0) * unit)}</span>
+                <span style={{ ...SS.r, color: 'var(--text-primary)', fontWeight: 600 }}>{fmtK(c.cost)}</span>
+                <span style={{ ...SS.r, color: 'var(--status-delivered)' }}>{fmtK(c.rev)}</span>
+                <span style={SS.r}>{fmtK(c.per)}</span>
+                <span style={{
+                  ...SS.r, fontWeight: 600,
+                  color: c.subsidy > 0 ? 'var(--status-incident)' : 'var(--status-delivered)',
+                }}>
+                  {fmtK(c.subsidy)}
+                </span>
+              </div>
+            )
+          })}
+          {!closed.length && <Empty title={t('home.noSession')} hint={t('home.noSessionHint')} />}
+        </div>
+      </Card>
+    </>
+  )
+}
+
+const COST_COLS = '1fr 1.2fr .7fr .9fr .9fr 1fr 1fr .9fr 1fr'
+const SS = {
+  upRow: {
+    display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px',
+    borderTop: '1px solid var(--border-subtle)',
+  },
+  label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
+  caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
+  ellipsis: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  between: { display: 'flex', justifyContent: 'space-between', gap: 10, font: 'var(--type-caption)', color: 'var(--text-muted)' },
+  dashTop: { borderTop: '1px dashed var(--border-subtle)', paddingTop: 12, display: 'grid', gap: 8 },
+  chip: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px',
+    border: '1px solid var(--border-subtle)', borderRadius: 99, background: 'var(--surface-card)',
+  },
+  debtRow: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px',
+    border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
+  },
+  costGrid: { display: 'grid', gridTemplateColumns: COST_COLS, gap: 8, minWidth: 900 },
+  costHead: {
+    padding: '10px 18px', background: 'var(--surface-inset)', borderBottom: '1px solid var(--border-subtle)',
+    font: 'var(--type-overline)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)',
+    color: 'var(--text-muted)',
+  },
+  costRow: {
+    padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)',
+    font: 'var(--type-mono)', color: 'var(--text-secondary)',
+  },
+  r: { textAlign: 'right' },
+}

@@ -1,0 +1,70 @@
+/* Dark mode — the night-shift dispatch floor and in-cab driver view.
+   Apply with <html data-theme="dark"> or class="theme-dark". */
+[data-theme="dark"],.theme-dark{
+--surface-page:#0B1220;
+--surface-card:#141D2E;
+--surface-raised:#1A2437;
+--surface-sunken:#0B1220;
+--surface-inset:#101927;
+--surface-nav:#080F1C;
+--surface-nav-active:rgba(0,178,169,.16);
+--surface-overlay:#1A2437;
+--surface-scrim:rgba(3,8,17,.68);
+--surface-accent-soft:rgba(0,178,169,.14);
+--surface-brand-soft:rgba(60,116,196,.14);
+
+--text-primary:#E9EFF7;
+--text-secondary:#A8B7CB;
+--text-muted:#8494AA;
+--text-disabled:#5B6B81;
+--text-inverse:#0B1220;
+--text-on-nav:rgba(233,239,247,.72);
+--text-on-nav-active:#FFFFFF;
+--text-link:#7AA3DC;
+--text-link-hover:#B6CDEC;
+--text-accent:#2FCCC3;
+--text-danger:#FF8578;
+
+--border-subtle:#22304A;
+--border-default:#2E3E5C;
+--border-strong-color:#42557A;
+--border-focus-color:#3C74C4;
+--border-nav:rgba(255,255,255,.10);
+
+--action-primary-bg:#1D50A0;
+--action-primary-bg-hover:#2A61B6;
+--action-primary-bg-active:#143C7D;
+--action-primary-fg:#FFFFFF;
+--action-accent-bg:#00B2A9;
+--action-accent-bg-hover:#2FCCC3;
+--action-accent-bg-active:#009489;
+--action-accent-fg:#04302C;
+--action-secondary-bg:#1A2437;
+--action-secondary-bg-hover:#22304A;
+--action-secondary-fg:#E9EFF7;
+--action-ghost-bg-hover:rgba(255,255,255,.07);
+--action-danger-bg:#D63B2B;
+--action-danger-bg-hover:#E14434;
+--action-disabled-bg:#1A2437;
+--action-disabled-fg:#5B6B81;
+
+--field-bg:#101927;
+--field-bg-disabled:#161F30;
+--field-border:#2E3E5C;
+--field-border-hover:#42557A;
+--field-placeholder:#6C7C93;
+
+--status-scheduled-bg:rgba(60,116,196,.18);--status-scheduled-fg:#9FC0EA;
+--status-transit-bg:rgba(0,178,169,.18);--status-transit-fg:#5FDBD3;
+--status-delivered-bg:rgba(18,168,103,.18);--status-delivered-fg:#5FD9A2;
+--status-delayed-bg:rgba(224,138,0,.18);--status-delayed-fg:#F0B75C;
+--status-incident-bg:rgba(225,68,52,.18);--status-incident-fg:#FF9A8F;
+--status-idle-bg:rgba(148,164,186,.14);--status-idle-fg:#A8B7CB;
+
+--shadow-xs:0 1px 1px rgba(0,0,0,.30);
+--shadow-sm:0 1px 2px rgba(0,0,0,.34),0 1px 3px rgba(0,0,0,.24);
+--shadow-md:0 2px 4px rgba(0,0,0,.30),0 6px 14px rgba(0,0,0,.32);
+--shadow-lg:0 8px 24px rgba(0,0,0,.44),0 2px 6px rgba(0,0,0,.30);
+--shadow-overlay:0 24px 60px rgba(0,0,0,.60),0 4px 12px rgba(0,0,0,.40);
+--ring-focus:0 0 0 3px rgba(60,116,196,.42);
+}

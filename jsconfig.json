@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "checkJs": false,
+    "resolveJsonModule": true,
+    "paths": {
+      "#config/*": ["./src/config/*"],
+      "#i18n": ["./src/i18n/index.js"],
+      "#i18n/*": ["./src/i18n/*"],
+      "#lib/*": ["./src/lib/*"],
+      "#utils/*": ["./src/utils/*"],
+      "#data/*": ["./src/data/*"],
+      "#ds": ["./src/components/ds/index.js"],
+      "#ui": ["./src/components/ui/index.jsx"],
+      "#components/*": ["./src/components/*"],
+      "#contexts/*": ["./src/contexts/*"],
+      "#hooks/*": ["./src/hooks/*"],
+      "#pages/*": ["./src/pages/*"],
+      "#routes": ["./src/routes/index.js"],
+      "#styles/*": ["./src/styles/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
