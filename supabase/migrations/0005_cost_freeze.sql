@@ -1,5 +1,5 @@
 /* =====================================================================
-   0004_cost_freeze.sql — Đóng băng giá thành buổi + khoá kiểm kho theo tháng
+   0005_cost_freeze.sql — Đóng băng giá thành buổi + khoá kiểm kho theo tháng
    Đặc tả: docs/DATABASE.md §3 (hai tầng) · §8 mục 5 và 6 · TASKS.md Phase 9 · P2
 
    Vì sao cần:
@@ -10,19 +10,22 @@
 
    Nguyên tắc: DỮ LIỆU ĐÃ CHỐT THÌ LƯU LẠI, KHÔNG BAO GIỜ TÍNH LẠI QUÁ KHỨ TỪ GIÁ HIỆN TẠI.
 
-   KHÔNG xoá, KHÔNG sửa dữ liệu đang có. Chỉ thêm cột (NULL được) và một ràng buộc.
+   AN TOÀN:
+   - KHÔNG xoá, KHÔNG sửa dữ liệu đang có. Chỉ thêm cột (NULL được) và một ràng buộc.
+   - CHẠY LẠI ĐƯỢC nhiều lần. Dán vào SQL editor của Supabase cloud mà lỡ chạy hai lần thì
+     lần sau không báo lỗi, không đổi gì thêm.
    ===================================================================== */
 
 /* ---------- 1. Ảnh chụp giá thành tại thời điểm chốt buổi ---------- */
 
 ALTER TABLE sessions
-  ADD COLUMN cost_court        bigint,   -- courtNet tại thời điểm chốt (đã loại sân bán)
-  ADD COLUMN cost_shuttle_unit bigint,   -- giá bình quân MỘT QUẢ lúc đó
-  ADD COLUMN cost_shuttle      bigint,   -- shuttle_used × cost_shuttle_unit
-  ADD COLUMN cost_total        bigint,   -- cost_court + cost_shuttle
-  ADD COLUMN cost_guest_rev    bigint,   -- thu khách chốt tại buổi
-  ADD COLUMN cost_heads        int,      -- số có mặt + số khách
-  ADD COLUMN cost_frozen_at    date;     -- NULL = chưa đóng băng
+  ADD COLUMN IF NOT EXISTS cost_court        bigint,   -- courtNet lúc chốt (đã loại sân bán)
+  ADD COLUMN IF NOT EXISTS cost_shuttle_unit bigint,   -- giá bình quân MỘT QUẢ lúc đó
+  ADD COLUMN IF NOT EXISTS cost_shuttle      bigint,   -- shuttle_used × cost_shuttle_unit
+  ADD COLUMN IF NOT EXISTS cost_total        bigint,   -- cost_court + cost_shuttle
+  ADD COLUMN IF NOT EXISTS cost_guest_rev    bigint,   -- thu khách chốt tại buổi
+  ADD COLUMN IF NOT EXISTS cost_heads        int,      -- số có mặt + số khách
+  ADD COLUMN IF NOT EXISTS cost_frozen_at    date;     -- NULL = chưa đóng băng
 
 COMMENT ON COLUMN sessions.cost_frozen_at IS
   'NULL = chưa đóng băng, đọc số tính live. Có giá trị = ĐỌC cost_*, KHÔNG tính lại. '
@@ -35,9 +38,9 @@ COMMENT ON COLUMN sessions.cost_shuttle_unit IS
   'giá bình quân lúc đó".';
 
 /* Ba trạng thái của một con số giá thành, đọc bằng hai cờ:
-     cost_frozen_at NULL              → buổi chưa chốt, đang tính live
+     cost_frozen_at NULL                   → buổi chưa chốt, đang tính live
      cost_frozen_at có · shuttle_est true  → đóng băng TẠM, chờ kiểm kho
-     cost_frozen_at có · shuttle_est false → SỐ CHỐT, không đổi nữa           */
+     cost_frozen_at có · shuttle_est false → SỐ CHỐT, không đổi nữa                */
 
 /* ---------- 2. Mỗi tháng chỉ một lần kiểm kho ---------- */
 
@@ -45,8 +48,16 @@ COMMENT ON COLUMN sessions.cost_shuttle_unit IS
    cùng một tháng thì lần hai không còn buổi nào để chia, hoặc tệ hơn là chia chồng lên phần
    đã chia. App đã chặn ở tầng action; đây là chốt chặn cuối ở DB.
 
-   LƯU Ý KHI CHẠY: nếu DB đang có sẵn hai lần kiểm kho cùng một tháng, lệnh này sẽ BÁO LỖI và
-   dừng — đúng như mong muốn, đừng tự xoá bớt. Xem lại dữ liệu, giữ lần kiểm đúng, rồi chạy lại:
-     SELECT club_id, month, count(*) FROM stock_checks GROUP BY 1,2 HAVING count(*) > 1;          */
+   Nếu DB đang có sẵn hai lần kiểm kho cùng một tháng thì khối dưới BÁO LỖI và dừng — đúng như
+   mong muốn, đừng tự xoá bớt. Xem lại dữ liệu, giữ lần kiểm đúng, rồi chạy lại:
+     SELECT club_id, month, count(*) FROM stock_checks GROUP BY 1,2 HAVING count(*) > 1;      */
 
-ALTER TABLE stock_checks ADD CONSTRAINT uq_check_month UNIQUE (club_id, month);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'uq_check_month' AND conrelid = 'public.stock_checks'::regclass
+  ) THEN
+    ALTER TABLE stock_checks ADD CONSTRAINT uq_check_month UNIQUE (club_id, month);
+  END IF;
+END $$;
