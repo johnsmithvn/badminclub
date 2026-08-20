@@ -37,7 +37,7 @@ export async function load(clubId) {
 
   const [
     club, courts, groups, members, guests, shuttleTypes, schedules, sessions,
-    dues, backCredits, courtBills, manual, purchases, stockChecks, guestPrices,
+    dues, adjustments, courtBills, manual, purchases, stockChecks, guestPrices,
     locks, rosterRows, changes, invites, joinRequests,
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
@@ -49,7 +49,7 @@ export async function load(clubId) {
     of('schedules', '*, schedule_slots(*)'),
     of('sessions', SESSION_TREE),
     of('monthly_dues'),
-    of('back_credits'),
+    of('member_adjustments'),
     of('court_bills'),
     of('transactions').eq('ref_type', 'manual'),
     of('shuttle_purchases'),
@@ -100,7 +100,7 @@ export async function load(clubId) {
     schedules: unwrap(schedules),
     sessions: unwrap(sessions),
     dues: unwrap(dues),
-    backCredits: unwrap(backCredits),
+    adjustments: unwrap(adjustments),
     courtBills: unwrap(courtBills),
     manual: unwrap(manual),
     purchases: unwrap(purchases),

@@ -86,7 +86,10 @@ export function toDb(raw, ctx) {
     })
 
     const att = {}
-    ;(s.attendances || []).forEach((a) => { att[a.member_id] = a.status === 'present' })
+    // Ba trạng thái: true có mặt · false vắng · 'extra' đi thêm (không cố định của nhóm).
+    ;(s.attendances || []).forEach((a) => {
+      att[a.member_id] = a.status === 'extra' ? 'extra' : a.status === 'present'
+    })
     if (Object.keys(att).length) attendance[s.id] = att
 
     const lu = {}
@@ -139,10 +142,14 @@ export function toDb(raw, ctx) {
   const locked = {}
   ;(raw.locks || []).forEach((l) => { locked[l.month] = true })
 
-  const backPaid = {}
-  ;(raw.backCredits || []).forEach((b) => {
-    if (b.paid) backPaid[b.month + ':' + b.group_id + ':' + b.member_id] = true
-  })
+  // Đối chiếu buổi. `key` dựng lại y hệt money.js: adjustKey — dòng nào cũng tra được từ
+  // bảng tính live mà không phải join tay.
+  const adjustments = (raw.adjustments || []).map((x) => ({
+    id: x.id, key: [x.month, x.group_id, x.member_id, x.kind].join(':'),
+    month: x.month, groupId: x.group_id, memberId: x.member_id, kind: x.kind,
+    sessions: x.sessions, unit: num(x.unit_price), amount: num(x.amount),
+    settle: x.settle, paid: !!x.paid, paidAt: x.paid_at || null,
+  }))
 
   // Một dòng giá / trình độ, hai cột nam-nữ — đúng hình mà màn Cài đặt đang dùng.
   // Trình độ nào chưa có giá thì hiện 0 chứ không biến mất khỏi bảng.
@@ -166,7 +173,7 @@ export function toDb(raw, ctx) {
     levels,
     courts, groups, members, guests, schedules, sessions,
     attendance, sessionGuests, lineups, courtGroups, groupMode, courtMin, matches,
-    roster, locked, backPaid, guestPrices,
+    roster, locked, adjustments, guestPrices,
 
     shuttleTypes: (raw.shuttleTypes || []).map((s) => ({
       id: s.id, name: s.name, perTube: s.per_tube,
@@ -301,7 +308,8 @@ export function toRows(db, ctx) {
   Object.keys(db.attendance || {}).forEach((sid) => {
     const m = db.attendance[sid] || {}
     Object.keys(m).forEach((mid) => put('attendances', {
-      session_id: sid, member_id: mid, status: m[mid] ? 'present' : 'absent',
+      session_id: sid, member_id: mid,
+      status: m[mid] === 'extra' ? 'extra' : m[mid] ? 'present' : 'absent',
     }))
   })
 
@@ -361,13 +369,13 @@ export function toRows(db, ctx) {
     method: d.method || null, note: d.note || null,
   }))
 
-  Object.keys(db.backPaid || {}).forEach((key) => {
-    if (!db.backPaid[key]) return
-    const [month, gid, mid] = key.split(':')
-    // ponytail: chỉ lưu cờ đã trả; số buổi / đơn giá / số tiền tính lại được từ buổi + quỹ tháng
-    // (xem backRows trong lib/money.js). Nếu cần query SQL ra tiền back thì phải ghi đủ.
-    put('back_credits', { club_id: cid, month, group_id: gid, member_id: mid, paid: true })
-  })
+  // Ghi ĐỦ số, không chỉ cờ `paid` như bảng back_credits cũ: khoản đã chốt phải đọc được
+  // bằng SQL, và phải đứng yên khi điểm danh hay quỹ nhóm đổi về sau.
+  ;(db.adjustments || []).forEach((x) => put('member_adjustments', {
+    id: x.id, club_id: cid, month: x.month, group_id: x.groupId, member_id: x.memberId,
+    kind: x.kind, sessions: x.sessions || 0, unit_price: x.unit || 0, amount: x.amount || 0,
+    settle: x.settle || 'cash', paid: !!x.paid, paid_at: x.paidAt || null,
+  }))
 
   db.courtBills.forEach((b) => put('court_bills', {
     id: b.id, club_id: cid, month: b.month, paid_on: b.date, venue: b.venue,
@@ -451,7 +459,7 @@ export const TABLES = [
   { table: 'group_memberships', mode: 'key', conflict: 'month,group_id,member_id', scope: ['month', 'group_id'], child: 'member_id' },
   { table: 'roster_locks', mode: 'scope', scope: ['club_id'] },
   { table: 'monthly_dues', mode: 'id' },
-  { table: 'back_credits', mode: 'scope', scope: ['club_id'] },
+  { table: 'member_adjustments', mode: 'id' },
   { table: 'court_bills', mode: 'id' },
   { table: 'transactions', mode: 'id' },
   { table: 'shuttle_purchases', mode: 'id' },

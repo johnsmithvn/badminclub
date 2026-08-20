@@ -7,7 +7,7 @@
 import { dd, monthOf, monthTxt } from '#utils/dates.js'
 import { t } from '#i18n'
 import {
-  backRows, courtCost, courtExtraCost, courtPayMode, courtTxt,
+  courtCost, courtExtraCost, courtPayMode, courtTxt,
   groupOf, guestOf, memberOf, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 
@@ -21,6 +21,7 @@ export const CATS = {
   courtExtra: 'courtExtra',
   shuttle: 'shuttle',
   back: 'back',
+  extra: 'extra',
   withdraw: 'withdraw',
   other: 'other',
 }
@@ -126,14 +127,21 @@ export function ledger(db) {
     })
   )
 
-  Object.keys(db.backPaid).filter((k) => db.backPaid[k]).forEach((k) => {
-    const month = k.split(':')[0]
-    const r = backRows(db, month).find((x) => x.key === k)
-    if (!r) return
+  // Đối chiếu buổi — hai chiều, đọc SỐ ĐÃ LƯU chứ không tính lại từ điểm danh hiện tại.
+  //   amount ÂM  → chi, quỹ trả lại người vắng
+  //   amount DƯƠNG → thu, người đi thêm buổi trả quỹ
+  // settle='offset_next_dues' KHÔNG có dòng nào ở đây: nó trừ thẳng vào quỹ tháng sau, tiền
+  // không đổi tay lần nào nên ghi vào sổ quỹ là bịa ra một giao dịch không có thật.
+  ;(db.adjustments || []).forEach((x) => {
+    if (!x.paid || x.settle !== 'cash' || !x.amount) return
+    const back = x.amount < 0
     out.push({
-      id: 'bk' + k, date: month + '-28', dir: 'out', cat: CATS.back,
-      label: t('ledger.label.back', { name: r.member.name, n: r.absent }),
-      amount: r.amount, by: t('ledger.by.transfer'),
+      id: 'aj' + x.id, date: x.paidAt || x.month + '-28',
+      dir: back ? 'out' : 'in', cat: back ? CATS.back : CATS.extra,
+      label: t(back ? 'ledger.label.back' : 'ledger.label.extra', {
+        name: memberOf(db, x.memberId).name, n: x.sessions,
+      }),
+      amount: Math.abs(x.amount), by: t('ledger.by.transfer'),
     })
   })
 

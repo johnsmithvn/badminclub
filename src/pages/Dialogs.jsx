@@ -347,23 +347,25 @@ function NewGroupDialog() {
     a.setF('grCourts', picked.indexOf(cid) >= 0 ? picked.filter((x) => x !== cid) : picked.concat([cid]))
 
   return (
-    <Shell title={t('settings.dlgGroupTitle')} desc={t('settings.dlgGroupDesc')} width={600}
+    <Shell title={t('settings.dlgGroupTitle')} desc={t('settings.dlgGroupDesc')} width={520}
       onSubmit={() => a.addGroup()} submitLabel={t('common.add')} submitIcon="plus">
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Input label={t('settings.fGroupName')} value={f.grName || ''} onChange={(e) => a.setF('grName', e.target.value)} />
         <Input label={t('settings.fGroupShort')} value={f.grShort || ''} onChange={(e) => a.setF('grShort', e.target.value)} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         <Select label={t('settings.fGroupWeekday')} value={String(f.grWeekday)}
           options={WD.map((w, i) => ({ value: String(i), label: w }))}
           onChange={(e) => a.setF('grWeekday', e.target.value)} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
         <Input label={t('settings.fGroupFrom')} mono value={f.grFrom || ''} onChange={(e) => a.setF('grFrom', e.target.value)} />
         <Input label={t('settings.fGroupTo')} mono value={f.grTo || ''} onChange={(e) => a.setF('grTo', e.target.value)} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         <Input label={t('settings.colFeeMale')} mono value={f.grFeeNam || ''} onChange={(e) => a.setF('grFeeNam', e.target.value)} />
         <Input label={t('settings.colFeeFemale')} mono value={f.grFeeNu || ''} onChange={(e) => a.setF('grFeeNu', e.target.value)} />
+        <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={f.grQuota || ''}
+          onChange={(e) => a.setF('grQuota', e.target.value)} />
       </div>
-      <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={f.grQuota || ''}
-        onChange={(e) => a.setF('grQuota', e.target.value)} />
       <div style={{ display: 'grid', gap: 6 }}>
         <Overline>{t('settings.fGroupCourts')}</Overline>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>

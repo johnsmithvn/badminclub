@@ -885,6 +885,8 @@ function Dialog({
     style: {
       width: sheet ? '100%' : 'min(92vw, ' + width + 'px)',
       maxHeight: '86vh',
+      minWidth: 0,
+      boxSizing: 'border-box',
       overflow: 'auto',
       background: 'var(--surface-overlay)',
       borderRadius: sheet ? 'var(--radius-sheet) var(--radius-sheet) 0 0' : 'var(--radius-lg)',

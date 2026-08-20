@@ -7,6 +7,7 @@ import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, remainSessions, rowCost, sGuests, guestRev, sessionCost,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt, unitPrice,
+  adjustRows, pendingOffset,
 } from '#lib/money.js'
 import { fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -24,6 +25,24 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
   const form = () => uiRef.current.form || {}
   /** Ghi db: fn(d) trả về phần thay đổi. */
   const up = (fn) => setDb((d) => ({ ...d, ...fn(d) }))
+
+  /**
+   * Ghi/đè một dòng đối chiếu buổi. Lần đầu chạm vào là LƯU con số hiện tại — từ đó sửa điểm
+   * danh hay sửa quỹ nhóm không làm đổi khoản đã chốt nữa. Cùng nguyên tắc đóng băng giá thành.
+   */
+  const upsertAdjust = (d, row, patch) => {
+    const list = (d.adjustments || []).slice()
+    const i = list.findIndex((x) => x.key === row.key)
+    const base = i >= 0 ? list[i] : {
+      id: uid(), key: row.key, month: row.month, groupId: row.groupId, memberId: row.memberId,
+      kind: row.kind, sessions: row.sessions, unit: row.unit, amount: row.amount,
+      settle: 'cash', paid: false, paidAt: null,
+    }
+    const next = { ...base, ...patch }
+    if (i >= 0) list[i] = next
+    else list.push(next)
+    return list
+  }
 
   /**
    * Áp một lần kiểm kho, trả về phần state thay đổi. Dùng chung cho nút "Kiểm kho" và ô
@@ -172,15 +191,34 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => {
         const a = { ...d.attendance }
         const m = { ...(a[sid] || {}) }
+        // Người đi thêm không có trạng thái "vắng" — họ không cố định nhóm này nên không nợ
+        // buổi nào. Muốn bỏ thì bấm nút xoá.
+        if (m[mid] === 'extra') return {}
         m[mid] = m[mid] === true ? false : true
         a[sid] = m
         return { attendance: a }
       }),
+    /** Thêm người đi thêm: thành viên nhóm khác hôm nay có đánh. Sinh khoản THU ở đối chiếu. */
+    addExtra: (sid, mid) => {
+      if (!mid) return toast(t('toast.needMember'))
+      up((d) => ({ attendance: { ...d.attendance, [sid]: { ...(d.attendance[sid] || {}), [mid]: 'extra' } } }))
+      toast(t('toast.extraAdded', { name: memberOf(db(), mid).name }))
+    },
+    removeExtra: (sid, mid) => {
+      up((d) => {
+        const m = { ...(d.attendance[sid] || {}) }
+        delete m[mid]
+        return { attendance: { ...d.attendance, [sid]: m } }
+      })
+      toast(t('toast.extraRemoved'))
+    },
     markAll: (sid, val) => {
       up((d) => {
         const s = sessionOf(d, sid)
         const a = { ...d.attendance }
-        const m = {}
+        // Bắt đầu từ bảng cũ chứ không bảng rỗng: "tất cả có mặt/vắng" chỉ nói về danh sách
+        // CỐ ĐỊNH, không được hất người đi thêm ra khỏi buổi.
+        const m = { ...(a[sid] || {}) }
         groupMembers(d, s.groupId, monthOf(s.date)).forEach((x) => { m[x.id] = val })
         a[sid] = m
         return { attendance: a }
@@ -332,10 +370,36 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         ? t('toast.dueUnpaid', { name })
         : t('toast.duePaid', { name, amount: fmt(was.amount) }))
     },
-    payBack: (key) => {
-      const was = !!db().backPaid[key]
-      up((d) => ({ backPaid: { ...d.backPaid, [key]: !d.backPaid[key] } }))
-      toast(t(was ? 'toast.backUnpaid' : 'toast.backPaid'))
+    /**
+     * Đánh dấu một khoản đối chiếu đã trả / đã thu.
+     *   amount ÂM  → chi "Back cố định nghỉ"
+     *   amount DƯƠNG → thu "Đi thêm buổi"
+     * Riêng settle='offset_next_dues' thì KHÔNG sinh giao dịch — trừ vào quỹ tháng sau.
+     */
+    settleAdjust: (key) => {
+      const month = key.split(':')[0]
+      const row = adjustRows(db(), month).find((x) => x.key === key)
+      if (!row) return
+      up((d) => (row.paid && row.settle === 'cash'
+        // Bỏ đánh dấu một khoản trả tiền mặt: xoá dòng đã lưu để số quay về tính live.
+        // Khoản trừ tháng sau thì giữ lại, vì cách trả là lựa chọn của user chứ không suy ra được.
+        ? { adjustments: (d.adjustments || []).filter((x) => x.key !== key) }
+        : { adjustments: upsertAdjust(d, row, { paid: !row.paid, paidAt: row.paid ? null : d.today }) }))
+      const back = row.amount < 0
+      toast(row.paid
+        ? t('toast.adjustUndone')
+        : t(back ? 'toast.adjustPaid' : 'toast.adjustCollected',
+             { name: row.member.name, amount: fmt(Math.abs(row.amount)) }))
+    },
+    /** Chọn cách trả: tiền mặt, hay trừ vào quỹ tháng sau. */
+    setAdjustSettle: (key, settle) => {
+      const month = key.split(':')[0]
+      const row = adjustRows(db(), month).find((x) => x.key === key)
+      if (!row || row.paid) return
+      up((d) => (settle === 'cash' && !row.saved
+        ? {}
+        : { adjustments: upsertAdjust(d, row, { settle }) }))
+      toast(t(settle === 'cash' ? 'toast.settleCash' : 'toast.settleOffset', { name: row.member.name }))
     },
     setRoster: (month, gid, mid, val) =>
       up((d) => {
@@ -349,8 +413,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     lockRoster: (month) => {
       const wasLocked = !!db().locked[month]
       up((d) => {
+        // ponytail: bỏ chốt chỉ tắt cờ, KHÔNG hoàn lại các khoản đã trừ vào quỹ tháng này.
+        // Đúng như hành vi cũ (dues sinh ra vẫn ở lại). Cần hoàn thì phải có bước huỷ riêng.
         if (d.locked[month]) return { locked: { ...d.locked, [month]: false } }
         const dues = d.dues.slice()
+        const used = []            // khoản đối chiếu đã tiêu vào tháng này
+        const seen = new Set()     // một người ở hai nhóm chỉ được trừ MỘT lần
         d.groups.forEach((g) => {
           const r = (d.roster[month] || {})[g.id] || {}
           Object.keys(r).forEach((mid) => {
@@ -358,13 +426,23 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             if (dues.some((x) => x.month === month && x.groupId === g.id && x.memberId === mid)) return
             const mb = d.members.find((x) => x.id === mid)
             if (!mb) return
+            const base = mb.gender === 'nu' ? g.feeNu : g.feeNam
+            // Khoản tháng trước xin "trừ vào quỹ tháng sau" — dấu cộng thẳng vào là đúng:
+            // âm (quỹ nợ người) thì đóng ít đi, dương (người nợ quỹ) thì đóng thêm.
+            const pend = seen.has(mid) ? [] : pendingOffset(d, mid, month)
+            seen.add(mid)
+            pend.forEach((x) => used.push(x.key))
+            const off = pend.reduce((x, y) => x + y.amount, 0)
             dues.push({
               id: uid(), month, groupId: g.id, memberId: mid,
-              amount: mb.gender === 'nu' ? g.feeNu : g.feeNam, paid: false, paidAt: null, method: '', note: '',
+              amount: Math.max(0, base + off), paid: false, paidAt: null, method: '',
+              note: off ? t('debts.offsetNote', { amount: fmtK(Math.abs(off)) }) : '',
             })
           })
         })
-        return { dues, locked: { ...d.locked, [month]: true } }
+        const adjustments = (d.adjustments || []).map((x) =>
+          used.indexOf(x.key) < 0 ? x : { ...x, paid: true, paidAt: month + '-01' })
+        return { dues, adjustments, locked: { ...d.locked, [month]: true } }
       })
       toast(wasLocked ? t('toast.rosterUnlocked') : t('toast.rosterLocked', { month: monthTxt(month).toLowerCase() }))
     },
