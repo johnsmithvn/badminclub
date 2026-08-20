@@ -18,7 +18,7 @@ Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả 
 | Icon | **lucide-react** + bảng static `ds/icons.js` | bundled, chạy offline. Giữ đúng bộ icon Lucide mà handoff `06` đã chốt |
 | State | **không lib** — 1 Context + 2 `useState` | đúng hình dạng prototype (một cây state), không cần Redux/Zustand |
 | Chữ và hằng số | `src/i18n/vi.json` + `src/config/*.json` | xem `docs/RULES.md` §3 |
-| Dữ liệu | localStorage (giai đoạn 1) → Supabase (giai đoạn 2) | chưa có Supabase project. Xem §6 |
+| Dữ liệu | **Supabase** (Postgres + Auth + RLS), local qua Docker | không còn chế độ dữ liệu mẫu: thiếu `.env.local` là app không chạy. Xem §6 |
 | Lint | ESLint 9 + `react-hooks` | bắt lỗi hook thật |
 | Test | `node:assert/strict`, không framework | theo `docs/RULES.md` §5 |
 
@@ -41,9 +41,12 @@ src/
     ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar…
   config/             app.json (hằng số) · permissions.json (ma trận quyền)
   contexts/
-    AppContext.jsx    db + ui state, localStorage, Context
+    AuthContext.jsx   phiên đăng nhập, profile, danh sách CLB của tôi, activeClubId
+    AppContext.jsx    db + ui state của MỘT CLB, Context
     appActions.js     MỌI hành động ghi dữ liệu (một chỗ duy nhất)
-  data/seed.js        dữ liệu mẫu 2 CLB (chỉ dùng lần chạy đầu)
+    storage.js        ĐIỂM CHẠM MẠNG DUY NHẤT: load(clubId) / save(db)
+    dbmap.js          map thuần client ↔ 30 bảng Postgres + diff()
+  data/schema.js      mô tả schema để render trang Sơ đồ dữ liệu
   hooks/useClock.js   đồng hồ bấm giờ sân
   i18n/               index.js (hàm t) + vi.json (toàn bộ chữ)
   lib/                LOGIC THUẦN — không React, không I/O, test bằng node
@@ -106,18 +109,18 @@ không thì "buổi sắp tới" và "buổi xếp được" sẽ đứng yên �
 
 ### Nhiều CLB
 
-Mọi bảng nghiệp vụ thuộc về một CLB. Client giữ **một** bộ dữ liệu của CLB đang xem ở gốc `db`,
-bộ của các CLB khác nằm trong `db.clubStore[clubId]`. `switchClub(id)` stash bộ hiện tại vào
-`clubStore` rồi nạp bộ mới (danh sách key: `CLUB_KEYS` trong `data/seed.js`).
+Mọi bảng nghiệp vụ thuộc về một CLB. Client giữ dữ liệu của **đúng một** CLB — CLB đang xem.
+`activeClubId` nằm ở `AuthContext` (persist trong localStorage, chỉ đúng cái id đó). Đổi CLB →
+`AppContext` đẩy nốt thay đổi đang chờ, quên ảnh chụp đồng bộ, rồi `load(clubId)` lại từ đầu.
 
-Khi lên Supabase, cấu trúc này biến mất: chỉ cần `club_id` trong mọi query + một `activeClubId`.
-`CLUB_KEYS` khi đó là danh sách bảng cần refetch.
+Không có `clubStore`: giữ nhiều CLB trong bộ nhớ chỉ để đổi nhanh không đáng đổi lấy nguy cơ
+ghi lẫn dữ liệu giữa hai CLB.
 
 ---
 
 ## 4. Actions (`contexts/appActions.js`)
 
-`makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast })` trả về một object phẳng các hành động.
+`makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload })` trả về một object phẳng các hành động.
 Màn hình dùng: `const { a } = useApp(); a.setSessionStatus(id, 'closed')`.
 
 Ba quy ước:
@@ -143,29 +146,51 @@ Quyền lấy từ `lib/roles.js` + `config/permissions.json` (5 vai, xem handof
 - Route không được phép → `effRoute()` fallback về `home`, **không** hiện trang lỗi.
 - Nút hành động ở header chỉ hiện khi có cờ `sessions`.
 
-`viewAs` là công cụ xem-như của prototype, giữ lại làm preview cho `owner`. **Bản thật phải lấy
-vai từ `club_members.role` của user đang đăng nhập, và backend phải kiểm lại quyền** — ẩn UI chỉ
-là lớp thứ hai.
+`db.myRole` là vai THẬT, lấy từ `club_members.role` qua RPC `my_clubs`. `db.viewAs` là công cụ
+xem-như, chỉ cho chọn vai của mình hoặc **yếu hơn** (`viewAsOptions` trong `lib/roles.js`) — cho
+tự nâng quyền thì UI mở ra nhưng RLS ở Supabase vẫn chặn, người dùng chỉ nhận lỗi không hiểu.
+Ẩn UI luôn chỉ là lớp thứ hai; RLS là lớp thật.
 
 ---
 
-## 6. Đường lên Supabase (giai đoạn 2)
+## 6. Đồng bộ với Supabase
 
-Hiện tại `contexts/AppContext.jsx` có đúng hai điểm chạm I/O: `load()` và `save(db)`. Đó là chỗ duy nhất phải
-thay.
+`contexts/storage.js` là **điểm chạm mạng duy nhất**. Hai hàm:
 
-Thứ tự làm:
+| Hàm | Việc |
+| --- | --- |
+| `load(clubId)` | ~20 query song song (dùng embed của PostgREST cho bảng con) → `dbmap.toDb()` → state `db` |
+| `save(db)` | hẹn giờ `sync.debounceMs` → `dbmap.toRows()` → `dbmap.diff()` so với ảnh chụp lần đồng bộ trước → ghi/xoá **đúng những dòng đã đổi** |
 
-1. Chạy `supabase/migrations/0001_init.sql` (xem `docs/DATABASE.md`) — **bằng `psql -f`, không
-   dùng `supabase db reset`**.
-2. `load()` → fetch song song các bảng theo `activeClubId`, map về đúng shape `db` hiện tại.
-3. `save(db)` biến mất. Thay bằng: mỗi action gọi thẳng Supabase rồi cập nhật state tại chỗ.
-   `appActions.js` đã là chỗ duy nhất ghi dữ liệu nên không phải sửa màn hình nào.
-4. RLS theo `club_members` (một user nhìn được CLB mình tham gia) + kiểm cờ quyền server-side.
-5. Realtime channel theo `session_id` cho `session_lineups` + `matches` (chia sân nhiều người).
+Vì sao đồng bộ ngầm theo dòng, không phải mỗi action tự `await` Supabase:
 
-Điều cần giữ khi chuyển: **tiền lưu `bigint` VND, không lưu số đã làm tròn**; mọi thay đổi tiền
-ghi vào `transactions` (append-only); ngày buổi lưu `date`, tháng lưu `char(7)`.
+- 78 action giữ nguyên hình đồng bộ, UI phản hồi tức thì, 13 màn không phải thêm trạng thái
+  chờ/lỗi/rollback. Chỗ nào đúng sai chỉ nằm trong **một** file map, không rải ra 50 action.
+- Đơn vị ghi là **từng dòng**, nên hai người sửa hai buổi khác nhau không đè nhau. Đổi lại: hai
+  người sửa **cùng một dòng** thì người ghi sau thắng. Không có validate phía server ngoài RLS.
+
+Ba chế độ ghi, khai báo ở `TABLES` trong `dbmap.js`:
+
+| mode | Dùng cho | Cách ghi |
+| --- | --- | --- |
+| `id` | bảng mà client tự sinh `crypto.randomUUID()` cho từng dòng | thêm/sửa/xoá theo `id` |
+| `key` | dòng con có khoá tự nhiên (`session_id` + `member_id`…) | `upsert onConflict`, dọn dòng thừa bằng `scope` + `child` |
+| `scope` | dòng con không có khoá ổn định, tập nhỏ (`schedule_slots`, `match_players`…) | scope nào đổi thì xoá sạch scope đó rồi ghi lại |
+
+Hai bất biến bắt buộc, có test khoá ở `src/__tests__/dbmap.test.js`:
+
+1. **`db` không đổi ⇒ `diff()` rỗng.** Sai chỗ này là mỗi lần bấm phím ghi lại cả CLB.
+2. **Ảnh chụp dựng bằng chính `toRows()`**, không dựng từ dòng đọc về. Nhờ vậy `load` và `save`
+   luôn cùng một hàm map; lệch nhau thì lộ ngay ở lần save đầu chứ không âm thầm xoá dòng.
+
+Hai hành động **không** đi qua đồng bộ ngầm mà gọi RPC rồi `reload()`: `approveJoin` và
+`rejectJoin` — người xin vào CLB chưa phải thành viên nên client không có quyền ghi thẳng.
+
+Điều cần giữ: **tiền lưu `bigint` VND, không lưu số đã làm tròn**; ngày buổi lưu `date`, tháng
+lưu `char(7)`.
+
+Còn lại: RPC sinh `transactions` khi chốt buổi (hiện `lib/ledger.js` tính phía client), realtime
+theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 
 ---
 
