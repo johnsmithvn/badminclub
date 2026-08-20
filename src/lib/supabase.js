@@ -1,20 +1,19 @@
 // Client Supabase duy nhất của app.
-// Thiếu env thì KHÔNG throw — app vẫn chạy được ở chế độ dữ liệu mẫu (localStorage) để dựng UI,
-// và các màn cần đăng nhập sẽ báo rõ là chưa cấu hình DB.
+// Thiếu env thì KHÔNG throw ở tầng module (import lỗi là màn hình trắng, không đọc được gì).
+// Thay vào đó `hasSupabase` = false và App.jsx hiện màn hướng dẫn chạy lệnh dựng DB.
 
 import { createClient } from '@supabase/supabase-js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-/** Đã cấu hình DB chưa. Dùng để quyết định chạy chế độ thật hay chế độ dữ liệu mẫu. */
+/** Đã cấu hình DB chưa. false → App.jsx hiện màn hướng dẫn thay vì router. */
 export const hasSupabase = Boolean(url && anonKey)
 
 if (!hasSupabase && import.meta.env.DEV) {
   console.warn(
     '[supabase] Chưa có VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.\n' +
-    'Chạy:  npm run db:start  rồi  npm run db:env > .env.local  và khởi động lại dev server.\n' +
-    'Trong lúc đó app chạy bằng dữ liệu mẫu trong localStorage.'
+    'Chạy:  npm run db:start  rồi  npm run db:env > .env.local  và khởi động lại dev server.'
   )
 }
 

@@ -685,8 +685,46 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })),
     setShuttleType: (id, k, v) =>
       up((d) => ({
-        shuttleTypes: d.shuttleTypes.map((t) => (t.id === id ? { ...t, [k]: k === 'name' ? v : parseInt(v || 0, 10) || 0 } : t)),
+        shuttleTypes: d.shuttleTypes.map((x) => {
+          if (x.id !== id) return x
+          if (k === 'name' || k === 'active') return { ...x, [k]: v }
+          return { ...x, [k]: parseInt(v || 0, 10) || 0 }
+        }),
       })),
+    addShuttleType: () => {
+      up((d) => ({
+        shuttleTypes: d.shuttleTypes.concat([{
+          id: uid(), name: t('settings.newTypeName'), perTube: cfg.shuttle.perTubeDefault,
+          pricePerTube: 0, active: true,
+        }]),
+      }))
+      toast(t('toast.typeAdded'))
+    },
+
+    /**
+     * Thành viên tự xin đổi thông tin của mình trong CLB (handoff 01 §6).
+     * SĐT áp dụng NGAY, trình độ áp dụng TỪ THÁNG SAU — vì trình độ ảnh hưởng giá khách và
+     * thuật toán cân sân của những buổi đã chốt.
+     */
+    requestChange: (field, value) => {
+      const d0 = db()
+      const me = d0.members.find((m) => m.userId === d0.currentUserId)
+      if (!me) return toast(t('toast.noMemberRecord'))
+      const from = field === 'phone' ? (me.phone || '') : me.level
+      const to = String(value || '').trim()
+      if (!to) return toast(t('toast.changeEmpty'))
+      if (to === from) return toast(t('toast.changeSame'))
+      if ((d0.changes || []).some((c) => c.status === 'pending' && c.memberId === me.id && c.field === field)) {
+        return toast(t('toast.changeDup'))
+      }
+      up((d) => ({
+        changes: (d.changes || []).concat([{
+          id: uid(), memberId: me.id, field, from, to, by: 'member',
+          effective: field === 'phone' ? 'now' : 'next', status: 'pending',
+        }]),
+      }))
+      toast(t(field === 'phone' ? 'toast.changeAskedNow' : 'toast.changeAskedNext'))
+    },
 
     /* ---------- chia sân ---------- */
     setAssignSession: (id) => upUi(() => ({ assignId: id, picked: null })),

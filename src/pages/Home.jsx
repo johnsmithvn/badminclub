@@ -57,6 +57,7 @@ function Overview() {
 
   return (
     <>
+      <Setup />
       <div style={GRID_STAT}>
         <StatCard label={t('home.fundBalance')} value={fmt(bal)} icon="wallet"
           tone={bal < 0 ? 'critical' : 'neutral'}
@@ -119,7 +120,9 @@ function Overview() {
           actions={<Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.go('debts')}>
             {t('home.duesLink')}
           </Button>}>
-          <div style={{ display: 'grid', gap: 16 }}>
+          {db.groups.length === 0
+            ? <Empty icon="users" title={t('home.noGroup')} hint={t('home.noGroupHint')} />
+            : <div style={{ display: 'grid', gap: 16 }}>
             {db.groups.map((g) => {
               const d = dues.filter((x) => x.groupId === g.id)
               const paid = d.filter((x) => x.paid)
@@ -157,7 +160,7 @@ function Overview() {
                 {dues.every((d) => d.paid) && <Mono color="var(--text-muted)">{t('common.enough')}</Mono>}
               </div>
             </div>
-          </div>
+          </div>}
         </Card>
       </div>
 
@@ -208,6 +211,54 @@ function Overview() {
               rowKey="id" onRowClick={(r) => a.openSession(r.id)} />}
       </Card>
     </>
+  )
+}
+
+/* ---------------- CLB mới: bốn bước để dùng được ---------------- */
+
+/**
+ * Chỉ hiện khi CLB còn thiếu dữ liệu nền. Bốn bước phải theo đúng thứ tự này:
+ * nhóm cố định cần sân, thành viên cần nhóm để tính quỹ, lịch cần cả hai.
+ */
+function Setup() {
+  const { db, a } = useApp()
+  const steps = [
+    { key: 'court', done: db.courts.length > 0, icon: 'map-pin', go: () => { a.go('settings'); a.setTab('settings', 'courts') } },
+    { key: 'group', done: db.groups.length > 0, icon: 'users', go: () => { a.go('settings'); a.setTab('settings', 'groups') } },
+    { key: 'member', done: db.members.filter((m) => m.active !== false).length > 1, icon: 'user-round-plus', go: () => a.go('members') },
+    { key: 'schedule', done: db.schedules.length > 0, icon: 'repeat', go: () => a.go('schedules') },
+    // Bảng giá khách sinh sẵn theo thang trình độ nhưng mặc định 0 đ — không sửa thì thu khách ra 0.
+    {
+      key: 'price', done: db.guestPrices.some((p) => p.nam > 0 || p.nu > 0), icon: 'tags',
+      go: () => { a.go('settings'); a.setTab('settings', 'money') },
+    },
+  ]
+  const left = steps.filter((s) => !s.done)
+  if (!left.length) return null
+  const next = left[0]
+
+  return (
+    <Card title={t('setup.cardTitle')} subtitle={t('setup.cardSub', { done: steps.length - left.length, total: steps.length })}
+      icon="list" padding="14px 16px">
+      <div style={{ display: 'grid', gap: 9 }}>
+        {steps.map((s) => (
+          <div key={s.key} style={{ ...SS.stepRow, opacity: s.done ? 0.6 : 1 }}>
+            <IconButton icon={s.done ? 'circle-check' : s.icon} size="sm" variant="ghost"
+              label={t('setup.step.' + s.key + '.title')} onClick={s.go} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...SS.label, textDecoration: s.done ? 'line-through' : 'none' }}>
+                {t('setup.step.' + s.key + '.title')}
+              </div>
+              <div style={SS.caption}>{t('setup.step.' + s.key + '.hint')}</div>
+            </div>
+            {!s.done && (
+              <Button size="sm" variant={s.key === next.key ? 'primary' : 'secondary'} iconAfter="chevron-right"
+                onClick={s.go}>{t('setup.step.' + s.key + '.btn')}</Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 
@@ -377,6 +428,10 @@ const SS = {
     border: '1px solid var(--border-subtle)', borderRadius: 99, background: 'var(--surface-card)',
   },
   debtRow: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px',
+    border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
+  },
+  stepRow: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px',
     border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
   },

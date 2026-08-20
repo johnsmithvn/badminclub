@@ -1,7 +1,7 @@
 // Trang cá nhân: tài khoản dùng cho mọi CLB + danh sách CLB đang tham gia (handoff 02 §6).
 
-import { Avatar, Card } from '#ds'
-import { Empty, Mono, Overline } from '#ui'
+import { Avatar, Button, Card, Input, Select } from '#ds'
+import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { ddmy } from '#utils/dates.js'
@@ -70,7 +70,64 @@ export default function Profile() {
               })}
             </div>}
       </Card>
+
+      <ChangeRequest />
     </div>
+  )
+}
+
+/**
+ * Thành viên tự xin đổi thông tin của mình TRONG CLB đang xem (handoff 01 §6).
+ * Không sửa trực tiếp: mọi thay đổi vào member_changes chờ chủ CLB duyệt ở Thành viên → Chờ duyệt.
+ * SĐT áp dụng ngay, trình độ áp dụng từ tháng sau.
+ */
+function ChangeRequest() {
+  const { db, ui, a } = useApp()
+  const me = db.members.find((m) => m.userId === db.currentUserId)
+  const mine = (db.changes || []).filter((c) => c.status === 'pending' && me && c.memberId === me.id)
+
+  return (
+    <Card title={t('profile.changeTitle')} subtitle={t('profile.changeSub')} icon="settings-2" padding="14px 16px">
+      {!me
+        ? <Empty icon="unlink" title={t('profile.changeNoMember')} hint={t('profile.changeNoMemberHint')} />
+        : <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Overline>{t('members.colLevel')}</Overline>
+              <LevelChip level={me.level} />
+              {me.pendingLevel && (
+                <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
+                  {t('members.pendingLevel', { level: me.pendingLevel, month: me.pendingLevelFrom })}
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 9, alignItems: 'end' }}>
+              <Select label={t('profile.changeLevel')} value={ui.form.rqLevel || me.level}
+                options={db.levels.map((l) => ({ value: l, label: l }))}
+                onChange={(e) => a.setF('rqLevel', e.target.value)} />
+              <Button variant="secondary" icon="send"
+                onClick={() => a.requestChange('level', ui.form.rqLevel || me.level)}>
+                {t('profile.changeSend')}
+              </Button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 9, alignItems: 'end' }}>
+              <Input label={t('profile.changePhone')} mono value={ui.form.rqPhone === undefined ? (me.phone || '') : ui.form.rqPhone}
+                onChange={(e) => a.setF('rqPhone', e.target.value)} />
+              <Button variant="secondary" icon="send"
+                onClick={() => a.requestChange('phone', ui.form.rqPhone === undefined ? (me.phone || '') : ui.form.rqPhone)}>
+                {t('profile.changeSend')}
+              </Button>
+            </div>
+
+            {mine.map((c) => (
+              <Mono key={c.id} color="var(--status-delayed)">
+                {t('profile.changePending', { field: t('members.changeField.' + c.field), to: c.to })}
+              </Mono>
+            ))}
+            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('profile.changeNote')}</div>
+          </div>}
+    </Card>
   )
 }
 

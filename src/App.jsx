@@ -7,6 +7,7 @@
 
 import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Skeleton } from '#ds'
 import AppLayout from '#components/layout/AppLayout.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
@@ -83,7 +84,7 @@ function InClub() {
 
   if (error) return <Splash text={t('sync.loadFailed', { msg: error.message })} />
   // Chưa nạp xong dữ liệu CLB thì chưa render màn nào — mọi màn đều đọc db ngay dòng đầu.
-  if (!db) return <Splash text={t('sync.loading')} />
+  if (!db) return <LoadingClub />
   const role = db.viewAs || 'owner'
 
   // Vai không được vào route này → về Trang chủ, KHÔNG hiện trang lỗi.
@@ -107,6 +108,22 @@ function Splash({ text }) {
   return <div style={S.splash}>{text || t('auth.loading')}</div>
 }
 
+/** Đang nạp dữ liệu CLB: skeleton mang đúng hình nội dung sắp hiện, không dùng spinner. */
+function LoadingClub() {
+  return (
+    <div style={S.load} aria-busy="true" aria-label={t('sync.loading')}>
+      <Skeleton width="200px" height={26} />
+      <div style={S.loadStats}>
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} height={112} radius={10} />)}
+      </div>
+      <div style={S.loadPair}>
+        {[0, 1].map((i) => <Skeleton key={i} height={230} radius={10} />)}
+      </div>
+      <Skeleton height={180} radius={10} />
+    </div>
+  )
+}
+
 /** Thiếu .env.local — nói thẳng phải chạy lệnh gì, đừng để người dùng đoán. */
 function NoDb() {
   return (
@@ -122,6 +139,13 @@ function NoDb() {
 }
 
 const S = {
+  load: {
+    minHeight: '100vh', background: 'var(--surface-page)', padding: '20px 22px',
+    display: 'grid', gap: 16, alignContent: 'start',
+    maxWidth: 1440, margin: '0 auto', width: '100%', boxSizing: 'border-box',
+  },
+  loadStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 12 },
+  loadPair: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(420px,1fr))', gap: 16 },
   splash: {
     minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24,
     background: 'var(--surface-page)', font: 'var(--type-caption)', color: 'var(--text-muted)',

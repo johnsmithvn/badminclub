@@ -218,23 +218,33 @@ function ShuttleTab({ canEdit }) {
         </div>
       </Card>
 
-      <Card title={t('settings.typesTitle')} subtitle={t('settings.typesSub')} icon="package-open" padding="14px 16px">
-        <div style={{ display: 'grid', gap: 10 }}>
-          <div style={{ ...S.typeGrid, ...S.headRow }}>
-            <span>{t('settings.colType')}</span>
-            <span>{t('settings.colPerTube')}</span>
-            <span>{t('settings.colRefPrice')}</span>
-          </div>
-          {db.shuttleTypes.map((x) => (
-            <div key={x.id} style={S.typeGrid}>
-              <Input value={x.name} disabled={!canEdit} onChange={(e) => a.setShuttleType(x.id, 'name', e.target.value)} />
-              <Input mono suffix={t('units.shuttle')} value={String(x.perTube)} disabled={!canEdit}
-                onChange={(e) => a.setShuttleType(x.id, 'perTube', e.target.value)} />
-              <Input mono suffix={t('units.dong')} value={String(x.pricePerTube || 0)} disabled={!canEdit}
-                onChange={(e) => a.setShuttleType(x.id, 'pricePerTube', e.target.value)} />
-            </div>
-          ))}
-        </div>
+      <Card title={t('settings.typesTitle')} subtitle={t('settings.typesSub')} icon="package-open" padding="14px 16px"
+        actions={canEdit && (
+          <Button variant="secondary" size="sm" icon="plus"
+            onClick={() => a.addShuttleType()}>{t('settings.addType')}</Button>
+        )}>
+        {db.shuttleTypes.length === 0
+          ? <Empty icon="package-open" title={t('settings.noType')} hint={t('settings.noTypeHint')} />
+          : <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ ...S.typeGrid, ...S.headRow }}>
+                <span>{t('settings.colType')}</span>
+                <span>{t('settings.colPerTube')}</span>
+                <span>{t('settings.colRefPrice')}</span>
+                <span>{t('settings.colActive')}</span>
+              </div>
+              {db.shuttleTypes.map((x) => (
+                <div key={x.id} style={S.typeGrid}>
+                  <Input value={x.name} disabled={!canEdit} onChange={(e) => a.setShuttleType(x.id, 'name', e.target.value)} />
+                  <Input mono suffix={t('units.shuttle')} value={String(x.perTube)} disabled={!canEdit}
+                    onChange={(e) => a.setShuttleType(x.id, 'perTube', e.target.value)} />
+                  <Input mono suffix={t('units.dong')} value={String(x.pricePerTube || 0)} disabled={!canEdit}
+                    onChange={(e) => a.setShuttleType(x.id, 'pricePerTube', e.target.value)} />
+                  <Switch checked={x.active !== false} disabled={!canEdit}
+                    onChange={() => a.setShuttleType(x.id, 'active', x.active === false)} />
+                </div>
+              ))}
+              <div style={S.caption}>{t('settings.typesNote')}</div>
+            </div>}
       </Card>
     </>
   )
@@ -474,7 +484,7 @@ const S = {
     font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
   },
   pickOn: { borderColor: 'var(--teal-500)', background: 'var(--surface-accent-soft)' },
-  typeGrid: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.2fr', gap: 10, alignItems: 'center' },
+  typeGrid: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.2fr 70px', gap: 10, alignItems: 'center' },
   rolePill: {
     font: '600 10px/1 var(--font-sans)', padding: '6px 9px', borderRadius: 99, whiteSpace: 'nowrap',
     background: 'var(--surface-brand-soft)', color: 'var(--navy-700)', textAlign: 'center',

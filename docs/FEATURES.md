@@ -18,6 +18,24 @@ Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố 
 
 ---
 
+## 0. Bắt đầu với một CLB rỗng
+
+CLB vừa tạo chỉ có: bạn (vai `owner`), một loại cầu mặc định, và thang trình độ mặc định. Thứ tự
+nhập liệu **bắt buộc** theo dây phụ thuộc:
+
+| Bước | Ở đâu | Vì sao phải trước |
+| --- | --- | --- |
+| 1. Sân | Cài đặt → Sân | Nhóm cố định phải chỉ ra đánh ở sân nào; tiền sân từng buổi tính từ giá giờ |
+| 2. Nhóm cố định | Cài đặt → Nhóm cố định | Quỹ tháng, định mức cầu và lịch tập đều tính theo nhóm |
+| 3. Thành viên | Thành viên → Thêm thành viên | Không cần họ có tài khoản; ghép sau ở Cài đặt |
+| 4. Lịch tập cố định | Lịch tập cố định | Sinh sẵn buổi cho cả kỳ |
+| 5. Giá khách giao lưu | Cài đặt → Cách chia tiền | Mặc định 0 đ — không sửa thì thu khách ra 0 |
+
+Trang chủ hiện thẻ nhắc bốn bước đầu và tự ẩn khi đủ. Thang trình độ sửa ở Cài đặt → Chung:
+thứ tự trong danh sách chính là thứ tự mạnh dần mà thuật toán cân sân dùng.
+
+---
+
 ## 1. Vòng đời một tháng
 
 ```

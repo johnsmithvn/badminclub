@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src",
-    "test": "node src/__tests__/dates.test.js && node src/__tests__/money.test.js && node src/__tests__/ledger.test.js && node src/__tests__/assign.test.js && node src/__tests__/dbmap.test.js",
+    "test": "node src/__tests__/dates.test.js && node src/__tests__/money.test.js && node src/__tests__/ledger.test.js && node src/__tests__/assign.test.js && node src/__tests__/dbmap.test.js && node src/__tests__/empty.test.js && node src/__tests__/i18n.test.js",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:status": "supabase status",

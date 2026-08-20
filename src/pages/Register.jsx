@@ -6,7 +6,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Alert, Button, Input, Select } from '#ds'
 import AuthLayout from '#components/layout/AuthLayout.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
-import { hasSupabase } from '#supabase'
 import { genderTxt } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -58,12 +57,6 @@ export default function Register() {
       sub={t('auth.registerSub')}
       footer={<Link to="/dang-nhap" style={{ color: '#fff' }}>{t('auth.toLogin')}</Link>}
     >
-      {!hasSupabase && (
-        <div style={{ marginBottom: 14 }}>
-          <Alert tone="warning" title={t('auth.noDbTitle')}>{t('auth.noDbHint')}</Alert>
-        </div>
-      )}
-
       <form onSubmit={submit} style={{ display: 'grid', gap: 13 }}>
         <Input label={t('auth.fEmail')} type="email" value={f.email} onChange={set('email')}
           autoComplete="email" autoFocus />
@@ -105,7 +98,7 @@ export default function Register() {
         {err && <Alert tone="critical">{err}</Alert>}
 
         <Button type="submit" variant="primary" size="lg" block icon="user-round-plus"
-          loading={busy} disabled={busy || !hasSupabase}>
+          loading={busy} disabled={busy}>
           {t('auth.doRegister')}
         </Button>
       </form>

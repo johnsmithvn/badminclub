@@ -6,7 +6,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Alert, Button, Input } from '#ds'
 import AuthLayout from '#components/layout/AuthLayout.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
-import { hasSupabase } from '#supabase'
 import { t } from '#i18n'
 
 export default function Login() {
@@ -38,12 +37,6 @@ export default function Login() {
       sub={t('auth.loginSub')}
       footer={<Link to="/dang-ky" style={{ color: '#fff' }}>{t('auth.toRegister')}</Link>}
     >
-      {!hasSupabase && (
-        <div style={{ marginBottom: 14 }}>
-          <Alert tone="warning" title={t('auth.noDbTitle')}>{t('auth.noDbHint')}</Alert>
-        </div>
-      )}
-
       <form onSubmit={submit} style={{ display: 'grid', gap: 14 }}>
         <Input label={t('auth.fIdentifier')} value={f.identifier} onChange={set('identifier')}
           autoComplete="username" autoFocus />
@@ -53,7 +46,7 @@ export default function Login() {
         {err && <Alert tone="critical">{err}</Alert>}
 
         <Button type="submit" variant="primary" size="lg" block icon="arrow-left"
-          loading={busy} disabled={busy || !hasSupabase}>
+          loading={busy} disabled={busy}>
           {t('auth.doLogin')}
         </Button>
       </form>

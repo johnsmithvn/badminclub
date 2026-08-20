@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v0.2.0 · **Updated:** 2026-08-20
+**Version:** v0.3.0 · **Updated:** 2026-08-20
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -104,7 +104,16 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 - [x] Cài đặt → Chung: sửa thang trình độ của CLB (thay ô "Xoá dữ liệu local" đã bỏ)
 - [x] `__tests__/dbmap.test.js` — khoá hai bất biến: không đổi thì không ghi, đổi một chỗ thì
       ghi đúng một chỗ
-- [ ] **User chạy `npm run db:migrate` (hoặc `db reset`) rồi bấm thử 13 màn trên DB thật** ← việc tiếp theo
+- [x] Thêm sân · thêm nhóm cố định · thêm loại cầu ngay trong Cài đặt (prototype không có, CLB rỗng
+      trước đây là ngõ cụt: không sân → không nhóm → không lịch → không buổi)
+- [x] Thẻ "CLB mới — năm bước để dùng được" ở Trang chủ (sân → nhóm → thành viên → lịch → giá khách),
+      tự ẩn khi đủ dữ liệu nền
+- [x] Skeleton lúc nạp CLB (handoff 02: "Tải: skeleton, không spinner")
+- [x] Thành viên tự xin đổi trình độ / SĐT ở Trang cá nhân → `member_changes` chờ duyệt
+      (handoff 01 §6 — trước đây không có chỗ nào TẠO ra bản ghi này, tab duyệt là màn chết)
+- [x] `__tests__/empty.test.js` — gọi toàn bộ selector thuần với CLB rỗng, chặn throw / NaN / Infinity
+- [x] `__tests__/i18n.test.js` — mọi `t('key')` viết thẳng trong code phải có trong `vi.json` (732 key)
+- [ ] **User chạy `npm run db:migrate` (hoặc `db reset`), `npm run build`, rồi bấm thử 13 màn trên DB thật** ← việc tiếp theo
 - [ ] Kiểm RLS bằng 2 tài khoản khác CLB
 - [ ] Realtime channel theo `session_id` cho `session_lineups` + `matches`
 - [ ] Trigger `audit_logs`; RPC sinh `transactions` khi chốt buổi (không phụ thuộc client)
@@ -131,6 +140,9 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 | Đổi CLB giữa lúc đang đồng bộ | ảnh chụp của CLB cũ đè lên CLB mới → lần save sau **xoá dữ liệu CLB cũ** | `flush()` kiểm lại `synced.clubId === cid` trước mỗi lần ghi ảnh chụp |
 | "Xem như" cho chọn cả vai mạnh hơn vai thật | UI mở ra nhưng RLS chặn → người dùng chỉ thấy lỗi không hiểu | `viewAsOptions()` chỉ trả vai của mình và yếu hơn |
 | `createSchedule` / `createAdhoc` gán cứng `shuttleTypeId: 'S1'` | id của dữ liệu mẫu, trên DB thật là khoá ngoại chết | lấy `d.shuttleTypes[0]`, không có thì `null` |
+| `addRow()` đọc `db.courts[0].id` | CLB rỗng: bấm "Tạo lịch hàng loạt" → thêm dòng sân là crash trắng màn | kiểm trước, không có sân thì toast chỉ đường sang Cài đặt |
+| Buổi đột xuất "toàn CLB" mang `groupId = 'ALL'` | `'ALL'` không phải uuid → `sessions.group_id` NOT NULL chặn, buổi đột xuất không lưu được | `0003` cho `group_id` nullable, `dbmap` map `'ALL'` ↔ `NULL`, có test |
+| Không có chỗ nào tạo `member_changes` | tab "Thay đổi chờ duyệt" vĩnh viễn rỗng trên DB thật | thêm card xin đổi thông tin ở Trang cá nhân |
 
 ---
 

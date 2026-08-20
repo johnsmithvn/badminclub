@@ -18,7 +18,7 @@ const dig = (obj, key) => key.split('.').reduce((o, k) => (o == null ? undefined
 
 /**
  * Lấy chuỗi theo key, chèn biến dạng {{ten}}.
- *   t('toast.clubSwitched', { club: 'Phú Khê' })
+ *   t('toast.levelsSaved', { n: 5 })
  * Thiếu key thì trả về chính key và cảnh báo ở DEV — để lỗ hổng lộ ra, không im lặng.
  */
 export function t(key, vars) {

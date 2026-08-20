@@ -183,6 +183,35 @@
     "failed": "Chưa lưu được xuống máy chủ: {{msg}}. Thay đổi vẫn còn trên màn hình, sẽ thử lại."
   },
   "setup": {
+    "cardTitle": "CLB mới — bốn bước để dùng được",
+    "cardSub": "Đã xong {{done}}/{{total}}. Thẻ này tự ẩn khi đủ.",
+    "step": {
+      "court": {
+        "title": "Thêm sân",
+        "hint": "Tên sân và giá một giờ. Tiền sân từng buổi tính từ đây.",
+        "btn": "Thêm sân"
+      },
+      "group": {
+        "title": "Thêm nhóm cố định",
+        "hint": "Một khung sinh hoạt lặp theo tuần, ví dụ Cố định Chủ nhật. Quỹ tháng thu theo nhóm.",
+        "btn": "Thêm nhóm"
+      },
+      "member": {
+        "title": "Thêm thành viên",
+        "hint": "Không cần họ có tài khoản. Ghép tài khoản sau ở Cài đặt.",
+        "btn": "Thêm thành viên"
+      },
+      "schedule": {
+        "title": "Tạo lịch tập cố định",
+        "hint": "Tạo một lần, app sinh sẵn buổi cho cả kỳ.",
+        "btn": "Tạo lịch"
+      },
+      "price": {
+        "title": "Điền giá khách giao lưu",
+        "hint": "Mặc định 0 đ cho mọi trình độ. Không sửa thì thêm khách vào buổi sẽ thu 0 đ.",
+        "btn": "Điền giá"
+      }
+    },
     "title": "Chưa cấu hình cơ sở dữ liệu",
     "desc": "App lấy toàn bộ dữ liệu từ Supabase, không có chế độ dữ liệu mẫu. Cần Docker Desktop đang chạy, rồi mở terminal ở thư mục dự án và chạy:",
     "cmds": "npm run db:start\nnpm run db:env > .env.local\nnpm run dev",
@@ -325,6 +354,8 @@
     "collect": "Thu nợ",
     "recent": "Buổi gần nhất",
     "recentSub": "Bấm vào một dòng để mở điểm danh và chia tiền",
+    "noGroup": "Chưa có nhóm cố định nào",
+    "noGroupHint": "Quỹ tháng thu theo nhóm. Vào Cài đặt → Nhóm cố định để thêm.",
     "noSession": "Chưa có buổi nào trong tháng này",
     "noSessionHint": "Bấm Tạo lịch hàng loạt để sinh buổi cho cả kỳ, hoặc Buổi đột xuất cho một buổi lẻ.",
     "noUpcoming": "Không còn buổi nào phía trước",
@@ -358,6 +389,13 @@
   "toast": {
     "viewAsDenied": "Chỉ xem như được vai của mình hoặc vai yếu hơn.",
     "levelsSaved": "Đã lưu thang trình độ ({{n}} bậc). Bảng giá khách và cân trình độ dùng thứ tự mới.",
+    "typeAdded": "Đã thêm một loại cầu. Sửa tên và số quả mỗi ống ở bảng bên dưới.",
+    "noMemberRecord": "Tài khoản của bạn chưa được ghép vào bản ghi thành viên nào của CLB này. Nhờ chủ CLB ghép ở Cài đặt → Tài khoản & quyền.",
+    "changeEmpty": "Chưa nhập giá trị mới.",
+    "changeSame": "Giá trị mới trùng với giá trị đang dùng.",
+    "changeDup": "Bạn đang có một yêu cầu cùng loại chờ duyệt.",
+    "changeAskedNow": "Đã gửi yêu cầu đổi số điện thoại. Chủ CLB duyệt là áp dụng ngay.",
+    "changeAskedNext": "Đã gửi yêu cầu đổi trình độ. Chủ CLB duyệt thì áp dụng từ tháng sau — buổi đã chốt không đổi.",
     "courtCreated": "Đã thêm sân {{name}}. Nhớ gán sân này vào nhóm cố định.",
     "groupCreated": "Đã thêm nhóm {{name}}. Bước tiếp: thêm thành viên rồi tạo lịch cố định.",
     "needCourtName": "Chưa nhập tên sân.",
@@ -805,6 +843,15 @@
     "checkPreview": "Hệ thống {{system}} · lệch {{diff}} · chia vào {{n}} buổi"
   },
   "profile": {
+    "changeTitle": "Đổi thông tin trong CLB",
+    "changeSub": "Gửi yêu cầu, chủ CLB duyệt",
+    "changeNote": "Số điện thoại được duyệt là áp dụng ngay. Trình độ áp dụng từ tháng sau, vì trình độ ảnh hưởng giá khách giao lưu và cách cân sân của các buổi đã chốt.",
+    "changeLevel": "Trình độ mong muốn",
+    "changePhone": "Số điện thoại mới",
+    "changeSend": "Gửi yêu cầu",
+    "changeNoMember": "Tài khoản chưa ghép vào CLB",
+    "changeNoMemberHint": "Nhờ chủ CLB ghép tài khoản của bạn vào một bản ghi thành viên ở Cài đặt → Tài khoản & quyền.",
+    "changePending": "Đang chờ duyệt: {{field}} → {{to}}",
     "accountTitle": "Tài khoản của bạn",
     "accountSub": "Một tài khoản dùng cho mọi CLB",
     "since": "Tạo tài khoản {{date}}",
@@ -846,6 +893,11 @@
     "fBankHolder": "Chủ tài khoản",
     "fBankNo": "Số tài khoản",
     "fBankName": "Ngân hàng",
+    "addType": "Thêm loại cầu",
+    "noType": "Chưa có loại cầu nào",
+    "noTypeHint": "Thêm loại cầu để nhập kho và tính giá bình quân một quả.",
+    "newTypeName": "Loại cầu mới",
+    "typesNote": "Giá tham khảo chỉ để gợi nhập lúc nhập kho. Giá thật để tính tiền lấy từ tổng tiền của từng đợt mua.",
     "addCourt": "Thêm sân",
     "noCourt": "Chưa có sân nào",
     "noCourtHint": "Thêm sân trước, rồi mới tạo được nhóm cố định và lịch tập.",
@@ -997,8 +1049,6 @@
     "errWrong": "Sai tài khoản hoặc mật khẩu",
     "noDb": "Chưa cấu hình database — xem README mục Chạy",
     "noDbTitle": "Chưa nối database",
-    "noDbHint": "Chạy: npm run db:start → npm run db:env > .env.local → khởi động lại dev server. Trong lúc chờ, app vẫn chạy được bằng dữ liệu mẫu.",
-    "noDbDemo": "Dùng dữ liệu mẫu",
     "registered": "Đã tạo tài khoản {{name}} — đang vào app",
     "loggedIn": "Xin chào {{name}}",
     "loggedOut": "Đã đăng xuất",
