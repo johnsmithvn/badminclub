@@ -27,6 +27,9 @@ const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
 const CHANGE_FIELDS = ['level', 'phone', 'gender', 'name']
 const SETTINGS_TABS = ['general', 'money', 'courts', 'shuttles', 'groups', 'access']
+// Trạng thái con số giá thành (money.js: costState) và lý do nhắc kiểm kho (money.js: checkDue).
+const COST_STATES = ['live', 'temp', 'final']
+const CHECK_DUE = ['never', 'stale', 'low']
 
 const SRC = 'src'
 const SKIP = new Set(['ds', '__tests__'])
@@ -95,6 +98,8 @@ SETUP_STEPS.forEach((s) => ['title', 'hint', 'btn'].forEach((f) => need('setup.s
 CHANGE_FIELDS.forEach((f) => need('members.changeField.' + f))
 SCHEMA_GROUPS.forEach((g) => need('schema.group' + g.groupKey))
 SETTINGS_TABS.forEach((k) => need('settings.tab' + cap(k)))
+COST_STATES.forEach((k) => need('session.costState.' + k))
+CHECK_DUE.forEach((k) => need('shuttles.due.' + k))
 
 assert.equal(dyn.length, 0, 'key i18n ghép động không tồn tại:\n  ' + dyn.join('\n  '))
 

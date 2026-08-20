@@ -5,7 +5,7 @@ import { Alert, Button, Card, DataTable, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
-import { estSessions, fmt, fmtK, groupOf, monthSessions, shuttleUnit, stock } from '#lib/money.js'
+import { checkDue, estSessions, fmt, fmtK, groupOf, monthSessions, shuttleUnit, stock } from '#lib/money.js'
 import { purchaseForm, stockCheckForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -16,9 +16,17 @@ export default function Shuttles() {
   const canMoney = can(db.viewAs || 'owner', 'money')
   const st = stock(db)
   const unit = shuttleUnit(db)
+  // Bỏ kiểm kho thì tồn kho và giá thành trôi mà không ai biết — nhắc trước khi lệch quá xa.
+  const due = checkDue(db)
 
   return (
     <>
+      {due && (
+        <Alert tone="warning" title={t('shuttles.dueTitle')}>
+          {t('shuttles.due.' + due)}
+        </Alert>
+      )}
+
       <Alert tone="info" title={t('shuttles.rulesTitle')}>
         <div style={{ display: 'grid', gap: 3 }}>
           <span>{t('shuttles.rule1')}</span>

@@ -5,7 +5,7 @@ import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, sessionColumn
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
 import {
-  costRow, courtCost, courtNet, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
+  costRow, costState, courtCost, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
   groupOf, guestDebtRows, memberOf, monthSessions, shuttleUnit, stock, timeTxt,
 } from '#lib/money.js'
 import { fundBalance, monthFlow } from '#lib/ledger.js'
@@ -267,7 +267,6 @@ function Setup() {
 function Report() {
   const { db } = useApp()
   const month = db.month
-  const unit = shuttleUnit(db)
 
   // 4 tháng gần nhất, cột đôi thu/chi
   const months = []
@@ -281,6 +280,9 @@ function Report() {
   const H = cfg.ui.barChartHeight
 
   const closed = monthSessions(db, month).filter((s) => s.status === 'closed')
+  // Bảng giá thành liệt kê MỌI buổi trong tháng trừ buổi huỷ — buổi chưa chốt vẫn xem được
+  // giá tạm, badge trạng thái nói rõ con số nào còn đổi được.
+  const costSessions = monthSessions(db, month).filter((s) => s.status !== 'cancelled')
   // Tỷ lệ đi tập: mẫu số là số buổi đã chốt của nhóm mà người đó cố định
   const rows = []
   db.groups.forEach((g) => {
@@ -384,15 +386,19 @@ function Report() {
             <span style={SS.r}>{t('report.col.perHead')}</span>
             <span style={SS.r}>{t('report.col.subsidy')}</span>
           </div>
-          {closed.map((s) => {
+          {costSessions.map((s) => {
             const c = costRow(db, s)
+            const st = costState(s)
             return (
               <div key={s.id} style={{ ...SS.costGrid, ...SS.costRow }}>
-                <span style={{ color: 'var(--text-primary)' }}>{s.date.slice(8, 10) + '/' + s.date.slice(5, 7)}</span>
+                <span style={{ color: 'var(--text-primary)' }}>
+                  {s.date.slice(8, 10) + '/' + s.date.slice(5, 7)}
+                  {st !== 'final' && <span style={SS.costTag[st]}>{t('session.costState.' + st)}</span>}
+                </span>
                 <span style={SS.caption}>{groupOf(db, s.groupId).name}</span>
                 <span style={SS.r}>{c.people}</span>
-                <span style={SS.r}>{fmtK(courtNet(db, s))}</span>
-                <span style={SS.r}>{fmtK((s.shuttleUsed || 0) * unit)}</span>
+                <span style={SS.r}>{fmtK(c.court)}</span>
+                <span style={SS.r}>{fmtK(c.shuttle)}</span>
                 <span style={{ ...SS.r, color: 'var(--text-primary)', fontWeight: 600 }}>{fmtK(c.cost)}</span>
                 <span style={{ ...SS.r, color: 'var(--status-delivered)' }}>{fmtK(c.rev)}</span>
                 <span style={SS.r}>{fmtK(c.per)}</span>
@@ -405,15 +411,25 @@ function Report() {
               </div>
             )
           })}
-          {!closed.length && <Empty title={t('home.noSession')} hint={t('home.noSessionHint')} />}
+          {!costSessions.length && <Empty title={t('home.noSession')} hint={t('home.noSessionHint')} />}
         </div>
+        <div style={{ ...SS.caption, padding: '10px 18px' }}>{t('report.costTableNote')}</div>
       </Card>
     </>
   )
 }
 
-const COST_COLS = '1fr 1.2fr .7fr .9fr .9fr 1fr 1fr .9fr 1fr'
+const COST_COLS = '1.35fr 1.2fr .7fr .9fr .9fr 1fr 1fr .9fr 1fr'
+// Badge trạng thái con số giá thành — xem money.js: costState.
+const COST_TAG = {
+  font: '600 9px/1 var(--font-sans)', padding: '3px 6px', borderRadius: 99,
+  marginLeft: 6, whiteSpace: 'nowrap',
+}
 const SS = {
+  costTag: {
+    live: { ...COST_TAG, background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)' },
+    temp: { ...COST_TAG, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' },
+  },
   upRow: {
     display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px',
     borderTop: '1px solid var(--border-subtle)',

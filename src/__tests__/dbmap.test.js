@@ -47,6 +47,27 @@ assert.equal(ops1[0].rows.length, 1)
 assert.equal(ops1[0].rows[0].member_id, mid)
 assert.equal(ops1[0].conflict, 'session_id,member_id')
 
+// Đóng băng giá thành một buổi: chỉ ghi đúng buổi đó, và cột cost_* phải xuống DB thật.
+// Sai chỗ này thì số đóng băng chỉ sống trong RAM, F5 một cái là trôi lại như cũ.
+const dFreeze = clone(db)
+const iFreeze = dFreeze.sessions.findIndex((x) => x.id === 'B1')
+dFreeze.sessions[iFreeze] = {
+  ...dFreeze.sessions[iFreeze],
+  costCourt: 480000, costShuttleUnit: 27500, costShuttle: 935000, costTotal: 1415000,
+  costGuestRev: 130000, costHeads: 10, costFrozenAt: '2026-08-02',
+}
+const opsF = diff(rows, toRows(dFreeze, ctx))
+assert.equal(opsF.length, 1, 'đóng băng 1 buổi phải ra đúng 1 thao tác')
+assert.equal(opsF[0].table, 'sessions')
+assert.equal(opsF[0].rows.length, 1)
+assert.equal(opsF[0].rows[0].cost_total, 1415000)
+assert.equal(opsF[0].rows[0].cost_frozen_at, '2026-08-02')
+assert.equal(opsF[0].rows[0].cost_shuttle_unit, 27500)
+// Buổi chưa đóng băng phải xuống DB là NULL, không phải 0 — 0 nghĩa là "đã chốt, tốn 0 đồng".
+const anyRow = rows.sessions.find((r) => r.id !== 'B1')
+assert.equal(anyRow.cost_frozen_at, null)
+assert.equal(anyRow.cost_total, null)
+
 // Xoá một khách của buổi: bảng có id ở client → xoá theo id.
 const d2 = clone(db)
 const goneId = d2.sessionGuests[0].id

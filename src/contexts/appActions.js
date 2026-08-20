@@ -6,7 +6,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, remainSessions, rowCost, sGuests, guestRev, sessionCost,
-  sessionOf, checkPreview, timeTxt, unitPrice,
+  sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt, unitPrice,
 } from '#lib/money.js'
 import { fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -24,6 +24,34 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
   const form = () => uiRef.current.form || {}
   /** Ghi db: fn(d) trả về phần thay đổi. */
   const up = (fn) => setDb((d) => ({ ...d, ...fn(d) }))
+
+  /**
+   * Áp một lần kiểm kho, trả về phần state thay đổi. Dùng chung cho nút "Kiểm kho" và ô
+   * "còn lại trong tủ" lúc nhập đợt cầu — hai lối vào, một logic.
+   *
+   * Ba việc: chỉnh số cầu các buổi CÒN ƯỚC LƯỢNG của tháng đó · đóng băng CỨNG lại giá thành
+   * mấy buổi vừa chỉnh · ghi một dòng lịch sử kiểm kho.
+   * KHÔNG tạo giao dịch nào: tiền cầu đã ra khỏi quỹ lúc mua, kiểm kho chỉ chia lại số tiền
+   * đã trả đó cho các buổi. Chia lại một cái bánh đã mua thì không tốn thêm tiền.
+   */
+  const stockCheckPatch = (d, date, counted) => {
+    const { month, systemLeft, diff, est, n } = checkPreview(d, date, counted)
+    const delta = spreadDiff(est, diff)
+    return {
+      sessions: d.sessions.map((x) => {
+        if (delta[x.id] === undefined) return x
+        const next = {
+          ...x, shuttleUsed: Math.max(0, x.shuttleUsed + delta[x.id]),
+          shuttleEst: false, shuttleMode: 'exact',
+        }
+        return { ...next, ...freezeCost(d, next, date) }
+      }),
+      stockChecks: (d.stockChecks || []).concat([{
+        id: uid(), date, month, counted: parseInt(counted, 10) || 0,
+        systemLeft, diff, spread: diff ? n : 0,
+      }]),
+    }
+  }
   const upUi = (fn) => setUi((u) => ({ ...u, ...fn(u) }))
   const myRole = () => db().viewAs || 'owner'
   const nextMonthKey = () => addMonth(db().month, 1)
@@ -228,9 +256,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }),
 
     /* ---------- trạng thái buổi ---------- */
+    /**
+     * Chốt buổi → ĐÓNG BĂNG giá thành vào chính bản ghi buổi. Mở lại / huỷ → bỏ đóng băng.
+     * Không đóng băng thì mua thêm một đợt cầu giá khác là mọi buổi cũ đổi con số, sang năm
+     * mở lại tháng cũ user thấy số khác số họ đã đọc hôm nay.
+     * Đây là Tầng B — vẫn KHÔNG sinh dòng nào ở sổ quỹ (xem DATABASE.md §3.1).
+     */
     setSessionStatus: (sid, st) => {
       up((d) => ({
-        sessions: d.sessions.map((x) => (x.id === sid ? { ...x, status: st, closedAt: st === 'closed' ? d.today : x.closedAt } : x)),
+        sessions: d.sessions.map((x) => {
+          if (x.id !== sid) return x
+          const base = { ...x, status: st, closedAt: st === 'closed' ? d.today : x.closedAt }
+          return st === 'closed'
+            ? { ...base, ...freezeCost(d, base, d.today) }
+            : { ...base, ...unfrozenCost() }
+        }),
       }))
       const key = { closed: 'sessionClosed', open: 'sessionOpened', cancelled: 'sessionCancelled' }[st] || 'sessionDraft'
       toast(t('toast.' + key))
@@ -508,58 +548,64 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     /* ---------- kho cầu ---------- */
+    /**
+     * Nhập một đợt cầu. Đây là chỗ DUY NHẤT tiền cầu ra khỏi quỹ — dùng cầu từng buổi không
+     * ghi chi nữa, ghi thêm là đếm hai lần cùng một số tiền.
+     *
+     * Ô "còn lại trong tủ trước khi nhập" (tuỳ chọn) sinh luôn một lần kiểm kho. Đảo thời điểm
+     * đếm sang lúc mua là lối tốt nhất: mua cầu thì đằng nào cũng mở tủ, tự nhiên hơn bắt user
+     * nhớ đếm cuối tháng, mà tần suất mua vốn đã ~1 lần/tháng.
+     */
     createPurchase: () => {
       const f = form()
       const d0 = db()
-      const t = d0.shuttleTypes.find((x) => x.id === f.pType)
+      // KHÔNG đặt tên biến là `t` — sẽ che hàm dịch t() và mọi toast dưới đây nổ TypeError.
+      const ty = d0.shuttleTypes.find((x) => x.id === f.pType)
+      if (!ty) return toast(t('toast.needShuttleType'))
       const tubes = parseInt(f.pTubes || 0, 10) || 0
       const extra = parseInt(f.pExtra || 0, 10) || 0
       const total = parseInt(f.pTotal || 0, 10) || 0
-      const qty = tubes * t.perTube + extra
+      const qty = tubes * ty.perTube + extra
       if (!qty) return toast(t('toast.needQty'))
       if (!total) return toast(t('toast.needTotal'))
-      up((d) => {
-        return {
-          purchases: d.purchases.concat([{
-            id: uid(), date: f.pDate, typeId: f.pType, tubes, extra, qty,
-            pricePerTube: tubes ? Math.round(total / tubes) : 0, total,
-            payer: f.pPayer || 'Quỹ CLB', note: f.pNote || '',
-          }]),
-        }
-      })
+
+      // Ngày để trống thì rơi về hôm nay — nếu không, `date` lưu là '' còn `month` lại tính
+      // theo hôm nay, hai con số của cùng một lần kiểm kho lệch nhau.
+      const pDate = f.pDate || d0.today
+      // Đếm tủ TRƯỚC khi nhập: kiểm kho phải tính trên tồn cũ và giá bình quân cũ.
+      const left = String(f.pLeft ?? '').trim()
+      const check = left === '' || checkOf(d0, monthOf(pDate)) ? null : checkPreview(d0, pDate, left)
+      const canCheck = !!check && (check.diff === 0 || check.n > 0)
+
+      up((d) => ({
+        ...(canCheck ? stockCheckPatch(d, pDate, left) : {}),
+        purchases: d.purchases.concat([{
+          id: uid(), date: pDate, typeId: f.pType, tubes, extra, qty,
+          pricePerTube: tubes ? Math.round(total / tubes) : 0, total,
+          payer: f.pPayer || 'Quỹ CLB', note: f.pNote || '',
+        }]),
+      }))
       upUi(() => ({ dialog: null, form: {} }))
-      toast(t('toast.purchaseAdded', { qty, unit: fmtK(Math.round(total / qty)) }))
+      toast(canCheck
+        ? t('toast.purchaseAddedChecked', {
+            qty, unit: fmtK(Math.round(total / qty)),
+            diff: (check.diff > 0 ? '+' : '') + check.diff, n: check.n,
+          })
+        : t('toast.purchaseAdded', { qty, unit: fmtK(Math.round(total / qty)) }))
     },
     applyCheck: () => {
       const f = form()
       const d0 = db()
-      const counted = parseInt(f.ckCount || 0, 10) || 0
       if (!f.ckCount) return toast(t('toast.needCounted'))
+      const date = f.ckDate || d0.today
       // Tháng chia phần lệch lấy từ NGÀY KIỂM, không phải tháng đang xem ở header.
-      const { month, systemLeft: sysLeft, diff, est, n } = checkPreview(d0, f.ckDate, f.ckCount)
-      if (diff !== 0 && !n) {
-        return toast(t('toast.noEstSession', { month: monthTxt(month) }))
-      }
-      let rest = diff
-      const delta = {}
-      est.forEach((x, i) => {
-        const share = i === n - 1 ? rest : Math.round(diff / n)
-        rest -= share
-        delta[x.id] = share
-      })
-      up((d) => {
-        return {
-          sessions: d.sessions.map((x) =>
-            delta[x.id] === undefined
-              ? x
-              : { ...x, shuttleUsed: Math.max(0, x.shuttleUsed + delta[x.id]), shuttleEst: false, shuttleMode: 'exact' }
-          ),
-          stockChecks: (d.stockChecks || []).concat([{
-            id: uid(), date: f.ckDate || d.today, month, counted, systemLeft: sysLeft,
-            diff, spread: diff ? n : 0,
-          }]),
-        }
-      })
+      const { month, diff, n, done } = checkPreview(d0, date, f.ckCount)
+      // Mỗi tháng một lần: lần hai không còn buổi ước lượng để chia, hoặc chia chồng lên phần
+      // đã chia. DB cũng chặn bằng uq_check_month, chặn ở đây để user thấy câu tử tế.
+      if (done) return toast(t('toast.checkDone', { month: monthTxt(month), date: ddmy(done.date) }))
+      if (diff !== 0 && !n) return toast(t('toast.noEstSession', { month: monthTxt(month) }))
+
+      up((d) => stockCheckPatch(d, date, f.ckCount))
       upUi(() => ({ dialog: null, form: {} }))
       toast(diff === 0
         ? t('toast.stockMatched')

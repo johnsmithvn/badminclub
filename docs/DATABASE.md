@@ -24,6 +24,10 @@ localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
    > nhóm từ 250k lên 280k là tháng 6, tháng 7 tính lại theo giá mới), không sửa được một dòng
    > sai, và không biết ai ghi lúc nào. Xem `TASKS.md` Phase 9 · Issue 2.
 4. **Không xoá cứng.** Dùng `status` / `active` / `deleted_at` — dữ liệu dính tiền.
+   > **GRANT và RLS là hai lớp khác nhau, thiếu lớp nào cũng chặn.** `GRANT` quyết định vai
+   > `authenticated` có được đụng vào bảng không; `RLS` quyết định trong số đó thì thấy dòng nào.
+   > RLS chặn thì trả **0 dòng**; thiếu GRANT thì báo **`permission denied for table X`**. Thấy
+   > câu sau là biết thiếu GRANT chứ không phải policy sai — xem `0006_grants.sql`.
 5. **Ngày buổi tập là `date`** (không `timestamptz`); **tháng là `char(7)`** dạng `2026-08`.
    Timezone Asia/Ho_Chi_Minh.
 6. **Giá chốt tại thời điểm giao dịch.** `session_guests.price` lưu giá lúc đó, không join lại
@@ -185,11 +189,21 @@ FROM transactions WHERE club_id = $1;
 
 ## 6. Chạy migration
 
-Lần đầu `supabase start` sẽ tự chạy hết `supabase/migrations/`. DB đã dựng rồi thì áp bản mới:
+Lần đầu `supabase start` sẽ tự chạy hết `supabase/migrations/`. DB local đã dựng rồi thì áp bản mới:
 
 ```bash
 npm run db:migrate
 ```
+
+**Trên Supabase cloud** (project đang chạy thật) thì không có `db:migrate` — user mở **SQL editor**,
+dán nguyên nội dung file migration vào và bấm Run, từng file một theo đúng thứ tự số.
+
+> **Vì thế mọi migration PHẢI chạy lại được nhiều lần.** Dán tay thì lỡ chạy hai lần, hoặc chạy
+> nửa chừng gặp lỗi rồi sửa và chạy lại cả file, là chuyện bình thường. Dùng
+> `ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, `DROP ... IF EXISTS`, và bọc phần
+> thêm constraint trong `DO $$ ... IF NOT EXISTS (SELECT 1 FROM pg_constraint ...) ... $$`.
+> Migration chỉ chạy được đúng một lần sẽ chặn ngay lần thứ hai bằng lỗi
+> `column ... already exists` và không ai biết phần còn lại của file đã chạy chưa.
 
 > **CẤM `supabase db reset`**, `DROP DATABASE`, `DROP SCHEMA ... CASCADE`, `TRUNCATE`,
 > `DELETE FROM ... WHERE true` — xem `docs/RULES.md` §7. Cập nhật schema bằng file migration mới
@@ -200,6 +214,9 @@ npm run db:migrate
 | `0001_init.sql` | 30 bảng + enum + index |
 | `0002_auth_rls.sql` | trigger tạo profile, RPC đăng nhập/tạo CLB/duyệt vào CLB, RLS toàn bộ |
 | `0003_levels_and_client_sync.sql` | trình độ theo từng CLB (bỏ enum `skill_level`), `club_member_groups`, `sessions.group_mode`, `session_courts.default_minutes`, `transactions.payer_name`, RPC `club_pending_requests` |
+| `0004_fix_gen_club_code.sql` | **Sửa lỗi chặn tạo CLB.** `gen_club_code()` khai biến plpgsql tên `code` trùng cột `clubs.code` → `create_club` trả 400 `column reference "code" is ambiguous`. Thân plpgsql chỉ là text lúc `CREATE` nên lỗi không lộ khi apply, chỉ lộ khi có người bấm tạo CLB |
+| `0005_cost_freeze.sql` | `sessions.cost_*` (7 cột) đóng băng giá thành lúc chốt buổi + `stock_checks UNIQUE (club_id, month)` |
+| `0006_grants.sql` | **Sửa lỗi chặn nạp dữ liệu.** 0002 chỉ bật RLS + tạo policy, không `GRANT` bảng nào → `permission denied for table clubs`, select bảng trả 403 trong khi RPC vẫn 200. Cấp quyền bảng cho `authenticated` + default privileges cho bảng thêm sau |
 
 ## 7. Việc còn lại trước khi chạy thật
 
@@ -220,8 +237,9 @@ thứ tự ở `TASKS.md` Phase 9. **Chưa cái nào được apply** — cột 
 
 | # | Thay đổi | Vì sao |
 | --- | --- | --- |
-| 5 | `sessions` thêm `cost_court` · `cost_shuttle_unit` · `cost_shuttle` · `cost_total` · `cost_guest_rev` · `cost_heads` · `cost_frozen_at` | Giá thành đang tính live từ giá **hiện tại**. Mua thêm một đợt cầu giá khác là mọi buổi quá khứ đổi số. Chốt buổi phải đóng băng. |
-| 6 | `stock_checks` thêm `UNIQUE (club_id, month)` | Mỗi tháng chỉ một lần kiểm kho. |
+| — | **Đã apply: mục 5 và 6** (`0005_cost_freeze.sql`) | |
+| ~~5~~ | ✅ `sessions` thêm `cost_court` · `cost_shuttle_unit` · `cost_shuttle` · `cost_total` · `cost_guest_rev` · `cost_heads` · `cost_frozen_at` | Giá thành đang tính live từ giá **hiện tại**. Mua thêm một đợt cầu giá khác là mọi buổi quá khứ đổi số. Chốt buổi phải đóng băng. |
+| ~~6~~ | ✅ `stock_checks` thêm `UNIQUE (club_id, month)` | Mỗi tháng chỉ một lần kiểm kho. |
 | 1 | Bảng `member_adjustments` + `attend_state` thêm `'extra'` + enum `settle_mode('cash','offset_next_dues')` | Back tiền hiện chỉ chạy **một chiều**. Người cố định nhóm khác đi thêm một buổi không có chỗ thu — hiện phải nhét vào `session_guests` với giá khách, sai cả tiền lẫn báo cáo. |
 | 3 | `monthly_dues` thêm `paid_amount bigint`, bỏ `paid` | `paid` boolean không ghi được "đóng trước 150k/250k": tick thì thừa 100k, không tick thì thiếu 150k. |
 | 4 | `funded_by` → enum `fund_source('fund','member_advance')` + bảng `member_payables` | Thành viên ứng tiền mua cầu bị ghi chi ngay → quỹ giảm trong khi tiền chưa ra, và không ai nhớ phải trả người ứng. **Dọn dữ liệu trước:** `dbmap` đang ghi tên người trả (chuỗi tự do) vào chính cột `funded_by` — phải chuyển sang `payer_member_id` rồi mới `ALTER TYPE`. |

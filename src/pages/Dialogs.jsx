@@ -4,8 +4,8 @@
 import { Button, Dialog, Input, Select, Switch } from '#ds'
 import { Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { WD, dd, genDates, monthTxt } from '#utils/dates.js'
-import { checkPreview, fmtK, genderTxt } from '#lib/money.js'
+import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
+import { checkOf, checkPreview, fmtK, genderTxt } from '#lib/money.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -189,6 +189,11 @@ function PurchaseDialog() {
   const type = db.shuttleTypes.find((x) => x.id === f.pType) || db.shuttleTypes[0] || { perTube: cfg.shuttle.perTubeDefault }
   const qty = (parseInt(f.pTubes || 0, 10) || 0) * type.perTube + (parseInt(f.pExtra || 0, 10) || 0)
   const total = parseInt(f.pTotal || 0, 10) || 0
+  // Cùng cái ngày mà createPurchase sẽ dùng, để xem trước không nói khác lúc bấm.
+  const pDate = f.pDate || db.today
+  // Tháng của ngày nhập đã kiểm kho rồi thì ẩn ô đếm tủ — mỗi tháng chỉ một lần (uq_check_month).
+  const checked = checkOf(db, monthOf(pDate))
+  const left = !checked && String(f.pLeft ?? '').trim() !== '' ? checkPreview(db, pDate, f.pLeft) : null
 
   return (
     <Shell title={t('shuttles.dlgTitle')} desc={t('shuttles.dlgDesc')}
@@ -209,12 +214,29 @@ function PurchaseDialog() {
           onChange={(e) => a.setF('pTotal', e.target.value)} />
       </div>
       <Input label={t('shuttles.fPayer')} value={f.pPayer || ''} onChange={(e) => a.setF('pPayer', e.target.value)} />
+
+      {/* Đếm tủ lúc mua tự nhiên hơn bắt nhớ đếm cuối tháng — mua cầu thì đằng nào cũng mở tủ. */}
+      {!checked && (
+        <Input label={t('shuttles.fLeft')} mono suffix={t('units.shuttle')} value={String(f.pLeft ?? '')}
+          hint={t('shuttles.fLeftHint')} onChange={(e) => a.setF('pLeft', e.target.value)} />
+      )}
+
       <Note>
         {!qty
           ? t('shuttles.previewNeedQty')
           : !total
             ? t('shuttles.previewNeedTotal', { qty })
             : t('shuttles.preview', { qty, unit: fmtK(Math.round(total / qty)) })}
+        {left && <div style={{ marginTop: 4 }}>
+          {left.diff !== 0 && !left.n
+            ? t('shuttles.checkNoEst')
+            : left.diff === 0
+              ? t('shuttles.leftMatch', { system: left.systemLeft })
+              : t('shuttles.leftSpread', {
+                  system: left.systemLeft, diff: (left.diff > 0 ? '+' : '') + left.diff,
+                  n: left.n, month: monthTxt(left.month),
+                })}
+        </div>}
       </Note>
     </Shell>
   )

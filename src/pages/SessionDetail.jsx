@@ -8,9 +8,9 @@ import { Empty, LevelChip, Mono, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
-  costRow, courtNet, courtOf, courtPayMode, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
+  costRow, costState, courtOf, courtPayMode, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
   groupOf, guestOf, guestPaidRev, guestPrice, levelOf, perTube, playedCourts, presentCount,
-  quotaFor, rowCost, sGuests, sessionOf, shuttleUnit, soldTotal, timeTxt,
+  quotaFor, rowCost, sGuests, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -44,14 +44,13 @@ export default function SessionDetail() {
   const guests = sGuests(db, s.id)
   const dues = duesOf(db, month)
 
-  const unit = shuttleUnit(db)
-  const shuttleMoney = (s.shuttleUsed || 0) * unit
-  const court = courtNet(db, s)
   const paid = guestPaidRev(db, s.id)
   const sold = soldTotal(s)
   // Giá thành buổi — CÙNG hàm với bảng "Giá thành từng buổi" ở Báo cáo, không viết lại công thức.
   // quỹ bù = chi phí − thu khách; KHÔNG trừ tiền bán sân vì courtNet đã loại sân bán rồi.
+  // Buổi đã chốt thì c.* là số ĐÃ ĐÓNG BĂNG hôm chốt, không tính lại theo giá hôm nay.
   const c = costRow(db, s)
+  const cState = costState(s)
 
   return (
     <>
@@ -233,15 +232,16 @@ export default function SessionDetail() {
             </div>
           </Card>
 
-          <Card title={t('session.costTitle')} subtitle={t('session.costSub')} icon="calculator" padding="14px 16px">
+          <Card title={t('session.costTitle')} subtitle={t('session.costSub')} icon="calculator" padding="14px 16px"
+            actions={<span style={S.costTag[cState]}>{t('session.costState.' + cState)}</span>}>
             <div style={{ display: 'grid', gap: 12 }}>
               <ShuttleBox s={s} canEdit={canEdit} />
 
               <div style={S.sumBox}>
-                <SumRow label={t('session.sumCourt')} value={fmt(court)}
+                <SumRow label={t('session.sumCourt')} value={fmt(c.court)}
                   hint={courtPayMode(db) === 'month' ? t('session.sumCourtHint') : undefined} />
-                <SumRow label={t('session.sumShuttle')} value={fmt(shuttleMoney)}
-                  hint={t('session.sumShuttleHint', { n: s.shuttleUsed || 0, unit: fmtK(unit) })} />
+                <SumRow label={t('session.sumShuttle')} value={fmt(c.shuttle)}
+                  hint={t('session.sumShuttleHint', { n: s.shuttleUsed || 0, unit: fmtK(c.unit) })} />
                 {sold > 0 && <SumRow label={t('session.sumSold')} value={fmt(sold)}
                   hint={t('session.sumSoldHint')} color="var(--status-delivered)" />}
                 <SumRow label={t('session.sumGuest')} value={fmt(c.rev)} />
@@ -418,4 +418,11 @@ const S = {
     font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
     background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)', whiteSpace: 'nowrap',
   },
+}
+
+// Ba trạng thái của con số giá thành — xem money.js: costState và DATABASE.md §8.
+S.costTag = {
+  live: { ...S.tagAmber, background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)' },
+  temp: S.tagAmber,
+  final: S.tagGreen,
 }

@@ -21,6 +21,8 @@ const uu = (v) => v || null
 /** timestamptz → 'YYYY-MM-DD' (client chỉ giữ tới ngày). */
 const dOf = (v) => (v ? String(v).slice(0, 10) : null)
 const num = (v) => (v == null ? 0 : Number(v))
+/** Như num nhưng GIỮ null. Cột cost_* dùng null để nói "chưa đóng băng" — ép về 0 là sai nghĩa. */
+const numN = (v) => (v == null ? null : Number(v))
 
 /** Khoá nhận diện người chơi trong lineup: member và guest dùng chung namespace ở client,
  *  nên xuống DB phải kèm player_type. */
@@ -115,6 +117,11 @@ export function toDb(raw, ctx) {
       status: s.status, note: s.note || '', shuttleTypeId: s.shuttle_type_id || null,
       shuttleMode: s.shuttle_mode, tubesOpened: s.tubes_opened, loose: s.loose_units,
       shuttleUsed: s.shuttle_used, shuttleEst: s.shuttle_est, closedAt: dOf(s.closed_at),
+      // Giá thành đóng băng lúc chốt buổi. null = chưa đóng băng, đọc số tính live.
+      costCourt: numN(s.cost_court), costShuttleUnit: numN(s.cost_shuttle_unit),
+      costShuttle: numN(s.cost_shuttle), costTotal: numN(s.cost_total),
+      costGuestRev: numN(s.cost_guest_rev), costHeads: numN(s.cost_heads),
+      costFrozenAt: dOf(s.cost_frozen_at),
       courts: rows.map((r) => ({
         courtId: r.court_id, from: hm(r.start_time), to: hm(r.end_time),
         sold: r.is_sold, soldAmount: num(r.sold_amount), soldTo: r.sold_to || '', extra: r.is_extra,
@@ -276,6 +283,11 @@ export function toRows(db, ctx) {
       shuttle_mode: s.shuttleMode, tubes_opened: s.tubesOpened || 0, loose_units: s.loose || 0,
       shuttle_used: s.shuttleUsed || 0, shuttle_est: !!s.shuttleEst, note: s.note || null,
       closed_at: s.closedAt || null, group_mode: !!(db.groupMode || {})[s.id],
+      // `?? null` chứ không `|| null`: số 0 hợp lệ (buổi không dùng quả cầu nào) phải giữ là 0.
+      cost_court: s.costCourt ?? null, cost_shuttle_unit: s.costShuttleUnit ?? null,
+      cost_shuttle: s.costShuttle ?? null, cost_total: s.costTotal ?? null,
+      cost_guest_rev: s.costGuestRev ?? null, cost_heads: s.costHeads ?? null,
+      cost_frozen_at: s.costFrozenAt || null,
     })
     const mins = (db.courtMin || {})[s.id] || {}
     ;(s.courts || []).forEach((r, i) => put('session_courts', {

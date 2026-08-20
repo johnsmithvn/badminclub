@@ -2,11 +2,12 @@
 import assert from 'node:assert/strict'
 import { seed } from './fixture.js'
 import {
-  backRows, checkPreview, costRow, courtBase, courtCost, courtExtraCost, courtNet, estSessions,
-  fmt, fmtK, groupMembers, guestDebtRows, guestPrice, levelIdx, levelOf, playedCourts,
-  presentCount, quotaFor, remainSessions, sessionCost, sessionOf, shuttleUnit, soldTotal,
-  stock, unitPrice,
+  backRows, checkDue, checkPreview, costRow, costState, courtBase, courtCost, courtExtraCost,
+  courtNet, estSessions, fmt, fmtK, freezeCost, groupMembers, guestDebtRows, guestPrice, levelIdx,
+  levelOf, playedCourts, presentCount, quotaFor, remainSessions, sessionCost, sessionOf,
+  shuttleUnit, soldTotal, spreadDiff, stock, unfrozenCost, unitPrice,
 } from '#lib/money.js'
+import cfg from '#config/app.json' with { type: 'json' }
 
 const db = seed()
 const S = (id) => sessionOf(db, id)
@@ -192,6 +193,79 @@ assert.equal(ck9.share, 0, 'không có buổi ước lượng thì không chia �
 assert.equal(checkPreview(db, '', 40).month, db.today.slice(0, 7))
 // Chưa gõ số đếm: coi như 0, không NaN
 assert.ok(Number.isFinite(checkPreview(db, '2026-08-31', '').diff))
+
+/* ---------- ĐÓNG BĂNG giá thành: số của buổi đã chốt không được trôi ---------- */
+
+const b1 = S('B1')
+const live1 = costRow(db, b1)
+assert.equal(live1.frozen, false)
+
+// Đóng băng phải cho ra ĐÚNG con số đang hiện trên màn hình lúc chốt.
+const frozen1 = { ...b1, ...freezeCost(db, b1, '2026-08-02') }
+const read1 = costRow(db, frozen1)
+assert.equal(read1.frozen, true)
+;['people', 'cost', 'rev', 'court', 'shuttle', 'unit', 'per', 'subsidy'].forEach((k) => {
+  assert.equal(read1[k], live1[k], 'đóng băng làm lệch ' + k)
+})
+
+// Mua thêm một đợt cầu giá khác → giá bình quân toàn kho đổi.
+const dbNew = {
+  ...db,
+  purchases: db.purchases.concat([{
+    id: 'P9', date: '2026-09-01', typeId: 'S1', tubes: 10, extra: 0, qty: 120,
+    pricePerTube: 400000, total: 4000000, payer: '', note: '',
+  }]),
+}
+assert.notEqual(shuttleUnit(dbNew), shuttleUnit(db), 'đợt mua mới phải làm đổi giá bình quân')
+
+// Buổi CHƯA đóng băng thì trôi theo giá mới — đây chính là cái issue muốn chặn.
+assert.notEqual(costRow(dbNew, b1).cost, live1.cost, 'buổi chưa đóng băng thì trôi, đúng như cũ')
+// Buổi ĐÃ đóng băng thì đứng yên, kể cả tiền cầu và giá một quả.
+assert.equal(costRow(dbNew, frozen1).cost, live1.cost, 'buổi đã đóng băng KHÔNG được đổi số')
+assert.equal(costRow(dbNew, frozen1).shuttle, live1.shuttle)
+assert.equal(costRow(dbNew, frozen1).unit, live1.unit, 'giá một quả lúc đó phải giữ lại được')
+
+// Chủ sân tăng giá cũng vậy.
+const dbPricier = { ...db, courts: db.courts.map((c) => ({ ...c, price: c.price * 2 })) }
+assert.notEqual(costRow(dbPricier, b1).court, live1.court, 'buổi chưa đóng băng thì theo giá sân mới')
+assert.equal(costRow(dbPricier, frozen1).court, live1.court, 'buổi đã đóng băng giữ giá sân lúc chốt')
+
+// Mở lại buổi → quay về tính live.
+const reopened = { ...frozen1, ...unfrozenCost() }
+assert.equal(costRow(dbNew, reopened).cost, costRow(dbNew, b1).cost, 'mở lại buổi thì số phải sống lại')
+
+/* ---------- ba trạng thái của con số giá thành ---------- */
+
+assert.equal(costState(b1), 'live', 'chưa đóng băng')
+assert.equal(costState({ ...b1, costFrozenAt: '2026-08-02', shuttleEst: true }), 'temp', 'chờ kiểm kho')
+assert.equal(costState({ ...b1, costFrozenAt: '2026-08-02', shuttleEst: false }), 'final', 'số chốt')
+assert.equal(costState(reopened), 'live', 'mở lại buổi thì về live')
+
+/* ---------- chia phần lệch kiểm kho: tổng phải khớp TUYỆT ĐỐI ---------- */
+
+const est3 = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+const sum = (o) => Object.keys(o).reduce((x, k) => x + o[k], 0)
+// 16 ÷ 3 không chia hết — phần dư dồn vào buổi cuối, tổng vẫn đúng 16.
+assert.equal(sum(spreadDiff(est3, 16)), 16)
+assert.equal(sum(spreadDiff(est3, -5)), -5, 'lệch âm cũng phải khớp')
+assert.equal(sum(spreadDiff(est3, 0)), 0)
+assert.equal(sum(spreadDiff([{ id: 'a' }], 7)), 7)
+assert.deepEqual(spreadDiff([], 9), {}, 'không có buổi ước lượng thì không chia đi đâu cả')
+
+/* ---------- nhắc kiểm kho ---------- */
+
+const ck = (month) => ({ id: 'X' + month, date: month + '-28', month, counted: 0, systemLeft: 0, diff: 0, spread: 0 })
+assert.equal(checkDue({ ...db, purchases: [], stockChecks: [] }), '', 'chưa mua cầu thì không có gì để đếm')
+assert.equal(checkDue({ ...db, stockChecks: [] }), 'never', 'đã mua cầu mà chưa kiểm lần nào')
+assert.equal(checkDue({ ...db, stockChecks: [ck('2026-08')] }), '', 'tháng này kiểm rồi thì im')
+assert.equal(checkDue({ ...db, stockChecks: [ck('2026-01')] }), 'stale', 'quá lâu không kiểm')
+const dbLow = {
+  ...db,
+  purchases: [{ id: 'P0', date: '2026-08-01', typeId: 'S1', tubes: 0, extra: 10, qty: 10, pricePerTube: 0, total: 300000, payer: '', note: '' }],
+  stockChecks: [ck('2026-07')],
+}
+assert.ok(stock(dbLow).left < cfg.shuttle.checkLowStock, 'dựng đúng cảnh tồn kho thấp')
+assert.equal(checkDue(dbLow), 'low')
 
 /* ---------- số buổi còn lại trong tháng ---------- */
 const dbToday = { ...db, today: '2026-08-19' }

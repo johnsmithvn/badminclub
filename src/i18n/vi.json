@@ -384,7 +384,8 @@
       "guestRev": "Thu khách",
       "perHead": "/người",
       "subsidy": "Quỹ bù"
-    }
+    },
+    "costTableNote": "Số của buổi đã chốt được đóng băng tại ngày chốt, theo giá cầu bình quân lúc đó — mua thêm đợt cầu giá khác cũng không làm đổi số cũ. Buổi còn nhãn “đóng băng tạm” sẽ được kiểm kho cuối tháng chỉnh lại."
   },
   "toast": {
     "viewAsDenied": "Chỉ xem như được vai của mình hoặc vai yếu hơn.",
@@ -470,7 +471,10 @@
     "matchSaved": "Đã ghi 1 trận · {{n}} người · {{min}} phút",
     "noMatch": "Chưa có trận nào",
     "matchUndone": "Đã bỏ trận vừa ghi",
-    "zaloCopied": "Đã copy báo cáo Zalo"
+    "zaloCopied": "Đã copy báo cáo Zalo",
+    "checkDone": "{{month}} đã kiểm kho ngày {{date}} rồi — mỗi tháng chỉ kiểm một lần",
+    "needShuttleType": "Chưa có loại cầu nào — thêm ở Cài đặt → Cầu trước khi nhập kho",
+    "purchaseAddedChecked": "Đã nhập {{qty}} quả, {{unit}} đ/quả · kiểm kho luôn: lệch {{diff}} quả, chia vào {{n}} buổi ước tính"
   },
   "group": {
     "allClub": "Cả CLB",
@@ -558,7 +562,12 @@
     "sumPerHeadHint": "{{n}} người",
     "sumCourtHint": "theo hoá đơn tháng",
     "sumShuttleHint": "{{n}} quả × {{unit}} đ/quả · giá bình quân kho",
-    "sumSoldHint": "khoản này CÓ vào sổ quỹ"
+    "sumSoldHint": "khoản này CÓ vào sổ quỹ",
+    "costState": {
+      "live": "đang tính",
+      "temp": "đóng băng tạm",
+      "final": "số chốt"
+    }
   },
   "sessionCol": {
     "date": "Ngày",
@@ -846,7 +855,17 @@
     "fCheckDate": "Ngày kiểm",
     "fCheckCount": "Số quả đếm được",
     "checkPreview": "Hệ thống đang ghi tồn {{system}} quả · lệch {{diff}} quả — chia vào {{n}} buổi ước tính của {{month}}, {{share}} quả mỗi buổi",
-    "checkPreviewMatch": "Hệ thống đang ghi tồn {{system}} quả — khớp, không phải chỉnh buổi nào"
+    "checkPreviewMatch": "Hệ thống đang ghi tồn {{system}} quả — khớp, không phải chỉnh buổi nào",
+    "dueTitle": "Nên kiểm kho",
+    "due": {
+      "never": "Chưa kiểm kho lần nào. App đang đoán số cầu mỗi buổi bằng định mức — định mức đặt lệch thì tồn kho và giá thành buổi lệch theo, không có gì báo.",
+      "stale": "Đã lâu không kiểm kho. Đếm một lần để khớp lại tồn kho và giá thành các buổi ước lượng.",
+      "low": "Tồn kho đang thấp mà tháng này chưa kiểm. Đếm trước khi mua đợt mới cho khỏi hụt giữa buổi."
+    },
+    "fLeft": "Còn lại trong tủ trước khi nhập",
+    "fLeftHint": "Không bắt buộc — điền thì tính luôn thành một lần kiểm kho",
+    "leftMatch": "Tồn hệ thống {{system}} quả — khớp, không phải chỉnh buổi nào",
+    "leftSpread": "Tồn hệ thống {{system}} quả · lệch {{diff}} quả — chia vào {{n}} buổi ước tính của {{month}}"
   },
   "profile": {
     "changeTitle": "Đổi thông tin trong CLB",

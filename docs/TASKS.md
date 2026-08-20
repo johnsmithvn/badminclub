@@ -173,24 +173,33 @@ chính tập sự kiện sinh tiền — viết tầng ghi trước là viết l
       *"34 quả × 27.500 đ/quả · giá bình quân kho"*.
 - [x] **N4 · Tiền sân từng buổi ≠ hoá đơn tháng.** Khi `court_pay_mode='month'`, badge nhỏ
       *"theo hoá đơn tháng"* cạnh ô tiền sân của buổi.
-- [ ] **L5 · Bảng "Giá thành từng buổi" chỉ liệt kê buổi `closed`** (`Home.jsx`), đặc tả nói mọi
-      buổi trong tháng đang chọn. **Hoãn sang P2:** thêm buổi chưa chốt vào bảng mà chưa có badge
-      trạng thái thì user không phân biệt được số nào còn đổi được — làm cùng badge của P2.
+- [x] **L5 · Bảng "Giá thành từng buổi" chỉ liệt kê buổi `closed`** (`Home.jsx`) — đã làm ở **P2**
+      cùng badge trạng thái, giờ liệt kê mọi buổi trong tháng trừ buổi huỷ.
 - [x] Test: khoá `costRow` (bán sân không trừ vào quỹ bù) và `checkPreview` (tháng lấy từ ngày
       kiểm) trong `__tests__/money.test.js`; `checkPreview` thêm vào `__tests__/empty.test.js`.
 
-### P2 · Issue 5 + 7 · Đóng băng giá thành — migration `0004`
+### P2 · Issue 5 + 7 · Đóng băng giá thành — migration `0005` · **XONG 2026-08-20**
 
-- [ ] `sessions` thêm 7 cột `cost_*` (`DATABASE.md` §8) + `stock_checks UNIQUE (club_id, month)`.
-- [ ] Chốt buổi → đóng băng. `cost_frozen_at IS NULL` thì tính live, khác NULL thì đọc số đã lưu,
-      **không tính lại**. Lưu `cost_shuttle_unit` riêng để sau còn giải thích được con số.
-- [ ] Kiểm kho → tính lại `cost_*` cho các buổi `shuttle_est=true` rồi đặt `false` → đóng băng cứng.
-- [ ] Badge 3 trạng thái (`đang tính` · `ước lượng` · `số chốt`) ở cả card buổi và bảng Báo cáo.
-- [ ] Banner nhắc kiểm kho: quá 2 tháng chưa kiểm, HOẶC tồn < 20 quả mà tháng này chưa kiểm.
-- [ ] Dialog "Nhập đợt cầu" thêm ô tuỳ chọn *"Còn lại trong tủ trước khi nhập"* → sinh luôn một
-      `stock_checks`. Đảo thời điểm đếm sang lúc mua là lối tốt nhất: mua cầu thì đằng nào cũng mở tủ.
+- [x] `sessions` thêm 7 cột `cost_*` (`DATABASE.md` §8) + `stock_checks UNIQUE (club_id, month)`
+      — `0005_cost_freeze.sql`, chạy lại được nhiều lần.
+- [x] Chốt buổi → đóng băng (`money.js: freezeCost`); mở lại / huỷ → `unfrozenCost()` cho số sống
+      lại. `costRow` đọc số đã lưu khi `costFrozenAt` khác NULL, **không tính lại**.
+- [x] Kiểm kho → chỉnh số cầu rồi đóng băng CỨNG lại các buổi đó. Nút Kiểm kho và ô "còn lại
+      trong tủ" dùng chung một hàm `stockCheckPatch` — hai lối vào, một logic.
+- [x] Badge 3 trạng thái (`money.js: costState` → `đang tính` · `đóng băng tạm` · `số chốt`) ở
+      card buổi và bảng Báo cáo, kèm caption giải thích dưới bảng.
+- [x] Banner nhắc kiểm kho (`money.js: checkDue` → `never` · `stale` · `low`). Ngưỡng ở
+      `app.json: shuttle.checkRemindMonths / checkLowStock`, không phải số ma thuật trong code.
+- [x] Dialog "Nhập đợt cầu" thêm ô tuỳ chọn *"Còn lại trong tủ trước khi nhập"* → sinh luôn một
+      `stock_checks`. Đếm TRƯỚC khi nhập, nên tính trên tồn cũ và giá bình quân cũ. Tháng đó đã
+      kiểm rồi thì ẩn ô đi (mỗi tháng một lần).
 
-### P3 · B8 + Issue 1 · Đơn giá đúng + back hai chiều — migration `0005`
+- [x] Test: đóng băng rồi thì mua đợt cầu giá khác / chủ sân tăng giá đều KHÔNG làm đổi số;
+      buổi chưa đóng băng thì vẫn trôi (đúng như cũ). `spreadDiff` tổng khớp tuyệt đối. `checkDue`
+      đủ 4 nhánh. `dbmap` ghi được `cost_*` xuống DB và buổi chưa chốt xuống NULL chứ không phải 0.
+      Đã mutation-test: tắt nhánh đóng băng và làm hỏng mapping đều bị test bắt.
+
+### P3 · B8 + Issue 1 · Đơn giá đúng + back hai chiều — migration `0007`
 
 - [ ] **B8 · Back tiền tính theo giá hiện tại.** `money.js: unitPrice` đọc `member_groups.fee_male`
       / `fee_female` **hiện tại**. Sửa quỹ nam 250k → 280k là người đã đóng 250k được back theo
@@ -203,19 +212,19 @@ chính tập sự kiện sinh tiền — viết tầng ghi trước là viết l
       `DEFAULT 0`). Mọi báo cáo tiền back bằng SQL đều ra 0. Xử lý chung khi thay bằng `member_adjustments`.
 - [ ] UI điểm danh 3 → 4 trạng thái; tab "Back tiền" ở Công nợ thành bảng đối chiếu hai chiều.
 
-### P4 · Issue 3 · Đóng thiếu — migration `0006`
+### P4 · Issue 3 · Đóng thiếu — migration `0008`
 
 - [ ] `monthly_dues.paid_amount bigint`, bỏ `paid`. Trạng thái suy ra từ `paid_amount` vs `amount`.
 - [ ] Mỗi lần thu thêm ghi một dòng, không ghi đè.
 
-### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0007`
+### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0009`
 
 - [ ] **L3 · Dọn dữ liệu trước.** `dbmap.js` đang ghi **tên người trả** (chuỗi tự do) vào cột
       `funded_by`. Chuyển sang `payer_member_id` rồi mới `ALTER TYPE` sang enum, không thì migration chết.
 - [ ] `funded_by` enum `fund_source` + bảng `member_payables`. `member_advance` → **không** ghi chi,
       tạo khoản phải trả; khi trả người ứng mới ghi chi.
 
-### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0008` + đổi `lib/ledger.js`
+### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0010` + đổi `lib/ledger.js`
 
 - [ ] Mỗi sự kiện ở `DATABASE.md` §3.1 ghi ngay một dòng `transactions` kèm `ref_type` + `ref_id`.
       Bỏ tick thì ghi dòng đảo chiều, không xoá cứng.
@@ -273,6 +282,12 @@ Hai việc dưới bắt được gần hết.
 | `addRow()` đọc `db.courts[0].id` | CLB rỗng: bấm "Tạo lịch hàng loạt" → thêm dòng sân là crash trắng màn | kiểm trước, không có sân thì toast chỉ đường sang Cài đặt |
 | Buổi đột xuất "toàn CLB" mang `groupId = 'ALL'` | `'ALL'` không phải uuid → `sessions.group_id` NOT NULL chặn, buổi đột xuất không lưu được | `0003` cho `group_id` nullable, `dbmap` map `'ALL'` ↔ `NULL`, có test |
 | Không có chỗ nào tạo `member_changes` | tab "Thay đổi chờ duyệt" vĩnh viễn rỗng trên DB thật | thêm card xin đổi thông tin ở Trang cá nhân |
+| `gen_club_code()` khai biến plpgsql tên `code` trùng cột `clubs.code` | **không tạo được CLB nào** — `create_club` trả 400 `column reference "code" is ambiguous`. Thân plpgsql chỉ là text lúc `CREATE` nên apply migration không lộ, chỉ lộ khi có người bấm tạo | `0004`: đổi tên biến thành `v_code` |
+| 0002 bật RLS + tạo policy nhưng **không `GRANT`** bảng nào | tạo CLB xong không nạp được dữ liệu: `permission denied for table clubs`, select bảng 403 trong khi RPC vẫn 200. GRANT và RLS là hai lớp, RLS chặn thì trả 0 dòng chứ không báo permission denied | `0006`: grant bảng cho `authenticated` + default privileges |
+| Migration chỉ chạy được một lần | user apply bằng cách dán vào SQL editor của Supabase cloud; chạy lại là chết ở `column ... already exists`, không ai biết phần sau của file đã chạy chưa | mọi migration dùng `IF NOT EXISTS` / `CREATE OR REPLACE` / `DO $$ ... pg_constraint`; ghi thành luật ở `DATABASE.md` §6 |
+| `createPurchase` đặt tên biến là `t` (loại cầu), che hàm dịch `t()` | nhập kho mà để trống số lượng → `t('toast.needQty')` gọi vào object → TypeError, dialog chết không báo gì | đổi tên thành `ty`, thêm guard CLB chưa có loại cầu nào |
+| Đăng ký trùng email / username / SĐT chỉ bị chặn ở DB | dữ liệu vẫn an toàn (cả 3 cột đều UNIQUE) nhưng user đọc được `"User already registered"` hoặc lỗi Postgres thô | dịch lỗi ra tiếng Việt ở `AuthContext: signUpUnwrap`, chặn submit khi đã biết username bị chiếm |
+| `empty.test.js` assert `costRow(...).perHead` — trường không tồn tại | `String(undefined)` không chứa `'NaN'` nên assert luôn đúng: test canh NaN mà không canh gì cả | đổi sang `Number.isFinite(...per)` |
 
 ---
 

@@ -17,10 +17,10 @@ export const scheduleForm = (db) => ({
   rows: defaultCourtRows(db), start: db.today, end: '',
 })
 
-/** Form nhập kho cầu. */
+/** Form nhập kho cầu. `pLeft` = số quả còn trong tủ TRƯỚC khi nhập, để trống thì bỏ qua. */
 export const purchaseForm = (db) => ({
   pDate: db.today, pType: db.shuttleTypes[0] && db.shuttleTypes[0].id,
-  pTubes: 10, pExtra: 0, pTotal: '', pPayer: '', pNote: '',
+  pTubes: 10, pExtra: 0, pTotal: '', pPayer: '', pNote: '', pLeft: '',
 })
 
 /** Form kiểm kho cuối tháng. */

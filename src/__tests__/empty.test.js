@@ -103,8 +103,13 @@ ok('quotaFor', () => M.quotaFor(dbS, s0))
 ok('costRow', () => M.costRow(dbS, s0))
 ok('courtTxt', () => M.courtTxt(dbS, s0))
 ok('timeTxt', () => M.timeTxt(s0))
-// Buổi rỗng: chi phí mỗi người không được ra NaN (0/0) — costRow đã bị finite() soi ở trên.
-assert.ok(!String(M.costRow(dbS, s0).perHead).includes('NaN'))
+// Buổi rỗng: chi phí mỗi người không được ra NaN (0/0). Trường tên là `per`, KHÔNG phải
+// `perHead` — viết sai tên thì assert luôn đúng một cách vô nghĩa (undefined không chứa 'NaN').
+assert.ok(Number.isFinite(M.costRow(dbS, s0).per), 'chi phí mỗi người ra NaN/Infinity')
+assert.ok(Number.isFinite(M.costRow(dbS, s0).subsidy))
+ok('costState', () => M.costState(s0))
+ok('checkDue', () => M.checkDue(db))
+assert.deepEqual(M.spreadDiff([], 5), {})
 
 assert.equal(ok('remainSessions', () => M.remainSessions(dbS, 'x', MONTH)), 0)
 ok('unitPrice', () => M.unitPrice(dbS, { gender: 'nam' }, M.groupOf(dbS, 'ALL'), MONTH))
