@@ -75,6 +75,10 @@ ALTER TABLE sessions ADD COLUMN group_mode bool NOT NULL DEFAULT false;
 -- courtMin[sessionId][courtIdx] — số phút mặc định của sân khi ghi trận không bấm giờ.
 ALTER TABLE session_courts ADD COLUMN default_minutes int;
 
+-- Buổi đột xuất có thể là của TOÀN CLB, không thuộc nhóm cố định nào (client dùng groupId
+-- 'ALL' cho trường hợp này). Trước đây group_id NOT NULL nên buổi kiểu đó không lưu được.
+ALTER TABLE sessions ALTER COLUMN group_id DROP NOT NULL;
+
 -- manual[].by — tên người ghi dòng thu/chi tay. created_by là uuid tài khoản; cột này
 -- giữ đúng chữ hiển thị trong sổ tại thời điểm ghi (người đó có thể rời CLB sau).
 ALTER TABLE transactions ADD COLUMN payer_name text;

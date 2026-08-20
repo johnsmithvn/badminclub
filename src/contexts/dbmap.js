@@ -110,7 +110,8 @@ export function toDb(raw, ctx) {
     }))
 
     return {
-      id: s.id, date: s.date, groupId: s.group_id, scheduleId: s.schedule_id || null,
+      // group_id NULL = buổi đột xuất của toàn CLB; client gọi nhóm đó là 'ALL' (xem groupOf).
+      id: s.id, date: s.date, groupId: s.group_id || 'ALL', scheduleId: s.schedule_id || null,
       status: s.status, note: s.note || '', shuttleTypeId: s.shuttle_type_id || null,
       shuttleMode: s.shuttle_mode, tubesOpened: s.tubes_opened, loose: s.loose_units,
       shuttleUsed: s.shuttle_used, shuttleEst: s.shuttle_est, closedAt: dOf(s.closed_at),
@@ -269,7 +270,8 @@ export function toRows(db, ctx) {
 
   db.sessions.forEach((s) => {
     put('sessions', {
-      id: s.id, club_id: cid, group_id: s.groupId, schedule_id: uu(s.scheduleId),
+      id: s.id, club_id: cid, group_id: s.groupId === 'ALL' ? null : uu(s.groupId),
+      schedule_id: uu(s.scheduleId),
       date: s.date, status: s.status, shuttle_type_id: uu(s.shuttleTypeId),
       shuttle_mode: s.shuttleMode, tubes_opened: s.tubesOpened || 0, loose_units: s.loose || 0,
       shuttle_used: s.shuttleUsed || 0, shuttle_est: !!s.shuttleEst, note: s.note || null,

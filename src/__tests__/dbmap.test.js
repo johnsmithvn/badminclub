@@ -106,6 +106,8 @@ const raw = {
       ],
     }],
   }],
+  // group_id NULL = buổi đột xuất của toàn CLB.
+  sessionsExtra: null,
   rosterRows: [{ month: '2026-09', group_id: 'gr1', member_id: 'm1', state: 'off' }],
   locks: [{ month: '2026-08' }],
   backCredits: [{ month: '2026-08', group_id: 'gr1', member_id: 'm1', paid: true }],
@@ -125,6 +127,15 @@ assert.deepEqual(back.lineups.s1, { c0t1s0: 'g1' })
 assert.deepEqual(back.courtGroups.s1, { m1: 1 })
 assert.deepEqual(back.matches[0].playerKeys, ['m1', 'g1'], 'người chơi phải xếp theo team 0 trước')
 assert.deepEqual(back.roster, { '2026-09': { gr1: { m1: 'off' } } })
+
+// Buổi đột xuất của toàn CLB: DB lưu group_id NULL, client gọi là 'ALL'. Đi được cả hai chiều.
+const allRaw = {
+  ...raw,
+  sessions: [{ ...raw.sessions[0], id: 's2', group_id: null, session_courts: [], attendances: [], matches: [] }],
+}
+const allBack = toDb(allRaw, { clubId: 'CL1' })
+assert.equal(allBack.sessions[0].groupId, 'ALL', "group_id NULL phải đọc thành 'ALL'")
+assert.equal(toRows(allBack, backCtx).sessions[0].group_id, null, "'ALL' phải ghi xuống NULL")
 assert.deepEqual(back.locked, { '2026-08': true })
 assert.deepEqual(back.backPaid, { '2026-08:gr1:m1': true })
 assert.deepEqual(back.guestPrices, [

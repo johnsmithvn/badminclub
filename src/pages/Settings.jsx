@@ -2,6 +2,7 @@
 
 import { Alert, Avatar, Button, Card, Input, Select, Switch, Tabs } from '#ds'
 import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
+import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, ddmy } from '#utils/dates.js'
 import { ROLES, can, roleDesc } from '#lib/roles.js'
@@ -159,22 +160,33 @@ function MoneyTab({ canEdit }) {
 function Courts({ canEdit }) {
   const { db, a } = useApp()
   return (
-    <Card title={t('settings.courtsTitle')} subtitle={t('settings.courtsSub')} icon="map-pin" padding="14px 16px">
-      <div style={{ display: 'grid', gap: 10 }}>
-        <div style={{ ...S.courtGrid, ...S.headRow }}>
-          <span>{t('settings.colCourt')}</span>
-          <span>{t('settings.colAddress')}</span>
-          <span>{t('settings.colPrice')}</span>
-        </div>
-        {db.courts.map((c) => (
-          <div key={c.id} style={S.courtGrid}>
-            <span style={S.label}>{c.name}</span>
-            <Mono color="var(--text-muted)">{c.addr || t('common.unknown')}</Mono>
-            <Input mono suffix={t('units.dong')} value={String(c.price)} disabled={!canEdit}
-              onChange={(e) => a.setCourtPrice(c.id, e.target.value)} />
-          </div>
-        ))}
-      </div>
+    <Card title={t('settings.courtsTitle')} subtitle={t('settings.courtsSub')} icon="map-pin" padding="14px 16px"
+      actions={canEdit && (
+        <Button variant="secondary" size="sm" icon="plus"
+          onClick={() => a.openDialog('newCourt', courtForm())}>{t('settings.addCourt')}</Button>
+      )}>
+      {db.courts.length === 0
+        ? <Empty icon="map-pin" title={t('settings.noCourt')} hint={t('settings.noCourtHint')} />
+        : <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ ...S.courtGrid, ...S.headRow }}>
+              <span>{t('settings.colCourt')}</span>
+              <span>{t('settings.colAddress')}</span>
+              <span>{t('settings.colPrice')}</span>
+              <span>{t('settings.colActive')}</span>
+            </div>
+            {db.courts.map((c) => (
+              <div key={c.id} style={S.courtGrid}>
+                <Input value={c.name} disabled={!canEdit}
+                  onChange={(e) => a.setCourtField(c.id, 'name', e.target.value)} />
+                <Input value={c.addr || ''} disabled={!canEdit}
+                  onChange={(e) => a.setCourtField(c.id, 'addr', e.target.value)} />
+                <Input mono suffix={t('units.dong')} value={String(c.price)} disabled={!canEdit}
+                  onChange={(e) => a.setCourtField(c.id, 'price', e.target.value)} />
+                <Switch checked={c.active !== false} disabled={!canEdit}
+                  onChange={() => a.setCourtField(c.id, 'active', c.active === false)} />
+              </div>
+            ))}
+          </div>}
     </Card>
   )
 }
@@ -232,29 +244,55 @@ function ShuttleTab({ canEdit }) {
 
 function Groups({ canEdit }) {
   const { db, a } = useApp()
+  const noCourt = db.courts.length === 0
   return (
-    <Card title={t('settings.groupsTitle')} subtitle={t('settings.groupsSub')} icon="users" padding="14px 16px">
-      <div style={{ display: 'grid', gap: 14 }}>
-        {db.groups.map((g) => (
-          <div key={g.id} style={{ display: 'grid', gap: 8, padding: '11px 13px', borderRadius: 8, background: 'var(--surface-inset)' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>{g.name}</span>
-              <Mono color="var(--text-muted)">
-                {WD[g.weekday] + ' · ' + g.from + ' → ' + g.to + ' · ' +
-                  (g.courtIds || []).length + ' ' + t('units.court')}
-              </Mono>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
-              <Input label={t('settings.colFeeMale')} mono suffix={t('units.dong')} value={String(g.feeNam)}
-                disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'feeNam', e.target.value)} />
-              <Input label={t('settings.colFeeFemale')} mono suffix={t('units.dong')} value={String(g.feeNu)}
-                disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'feeNu', e.target.value)} />
-              <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={String(g.quota)}
-                disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'quota', e.target.value)} />
-            </div>
-          </div>
-        ))}
-      </div>
+    <Card title={t('settings.groupsTitle')} subtitle={t('settings.groupsSub')} icon="users" padding="14px 16px"
+      actions={canEdit && (
+        <Button variant="secondary" size="sm" icon="plus" disabled={noCourt}
+          onClick={() => a.openDialog('newGroup', groupForm(db))}>{t('settings.addGroup')}</Button>
+      )}>
+      {db.groups.length === 0
+        ? <Empty icon="users" title={t('settings.noGroup')}
+            hint={noCourt ? t('settings.noCourtFirst') : t('settings.noGroupHint')} />
+        : <div style={{ display: 'grid', gap: 14 }}>
+            {db.groups.map((g) => (
+              <div key={g.id} style={S.groupBox}>
+                <div style={S.groupRow}>
+                  <Input label={t('settings.fGroupName')} value={g.name} disabled={!canEdit}
+                    onChange={(e) => a.setGroupField(g.id, 'name', e.target.value)} />
+                  <Input label={t('settings.fGroupShort')} value={g.short || ''} disabled={!canEdit}
+                    onChange={(e) => a.setGroupField(g.id, 'short', e.target.value)} />
+                  <Select label={t('settings.fGroupWeekday')} value={String(g.weekday)} disabled={!canEdit}
+                    options={WD.map((w, i) => ({ value: String(i), label: w }))}
+                    onChange={(e) => a.setGroupField(g.id, 'weekday', e.target.value)} />
+                  <Input label={t('settings.fGroupFrom')} mono value={g.from} disabled={!canEdit}
+                    onChange={(e) => a.setGroupField(g.id, 'from', e.target.value)} />
+                  <Input label={t('settings.fGroupTo')} mono value={g.to} disabled={!canEdit}
+                    onChange={(e) => a.setGroupField(g.id, 'to', e.target.value)} />
+                </div>
+                <div style={S.groupRow}>
+                  <Input label={t('settings.colFeeMale')} mono suffix={t('units.dong')} value={String(g.feeNam)}
+                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'feeNam', e.target.value)} />
+                  <Input label={t('settings.colFeeFemale')} mono suffix={t('units.dong')} value={String(g.feeNu)}
+                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'feeNu', e.target.value)} />
+                  <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={String(g.quota)}
+                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'quota', e.target.value)} />
+                </div>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <Overline>{t('settings.fGroupCourts')}</Overline>
+                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                    {db.courts.map((c) => (
+                      <button key={c.id} type="button" disabled={!canEdit}
+                        onClick={() => a.toggleGroupCourt(g.id, c.id)}
+                        style={{ ...S.pick, ...((g.courtIds || []).indexOf(c.id) >= 0 ? S.pickOn : null) }}>
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>}
     </Card>
   )
 }
@@ -427,7 +465,15 @@ const S = {
     border: '1px solid var(--border-subtle)', width: 'fit-content', letterSpacing: '.12em',
   },
   priceGrid: { display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 10, alignItems: 'center' },
-  courtGrid: { display: 'grid', gridTemplateColumns: '1.2fr 1.4fr 1fr', gap: 10, alignItems: 'center' },
+  courtGrid: { display: 'grid', gridTemplateColumns: '1.2fr 1.4fr 1fr 70px', gap: 10, alignItems: 'center' },
+  groupBox: { display: 'grid', gap: 8, padding: '11px 13px', borderRadius: 8, background: 'var(--surface-inset)' },
+  groupRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 },
+  pick: {
+    padding: '7px 12px', borderRadius: 99, border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-card)', color: 'var(--text-primary)',
+    font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
+  },
+  pickOn: { borderColor: 'var(--teal-500)', background: 'var(--surface-accent-soft)' },
   typeGrid: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.2fr', gap: 10, alignItems: 'center' },
   rolePill: {
     font: '600 10px/1 var(--font-sans)', padding: '6px 9px', borderRadius: 99, whiteSpace: 'nowrap',

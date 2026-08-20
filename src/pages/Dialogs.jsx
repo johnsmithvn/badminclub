@@ -16,6 +16,8 @@ export default function Dialogs() {
     schedule: ScheduleDialog,
     adhoc: AdhocDialog,
     addcourt: AddCourtDialog,
+    newCourt: NewCourtDialog,
+    newGroup: NewGroupDialog,
     purchase: PurchaseDialog,
     check: CheckDialog,
     bill: BillDialog,
@@ -290,6 +292,70 @@ function LedgerDialog() {
       <Input label={t('fund.fLabel')} value={f.lLabel || ''} onChange={(e) => a.setF('lLabel', e.target.value)} />
       <Input label={t('fund.fAmount')} mono suffix={t('units.dong')} value={String(f.lAmount ?? '')}
         onChange={(e) => a.setF('lAmount', e.target.value)} />
+    </Shell>
+  )
+}
+
+/* ---------------- thêm sân của CLB ---------------- */
+
+function NewCourtDialog() {
+  const { ui, a } = useApp()
+  const f = ui.form
+  return (
+    <Shell title={t('settings.dlgCourtTitle')} desc={t('settings.dlgCourtDesc')}
+      onSubmit={() => a.addCourt()} submitLabel={t('common.add')} submitIcon="plus">
+      <Input label={t('settings.fCourtName')} value={f.cName || ''} onChange={(e) => a.setF('cName', e.target.value)} />
+      <Input label={t('settings.fCourtAddr')} value={f.cAddr || ''} onChange={(e) => a.setF('cAddr', e.target.value)} />
+      <Input label={t('settings.fCourtPrice')} mono suffix={t('units.dong')} value={f.cPrice || ''}
+        onChange={(e) => a.setF('cPrice', e.target.value)} />
+    </Shell>
+  )
+}
+
+/* ---------------- thêm nhóm cố định ---------------- */
+
+function NewGroupDialog() {
+  const { db, ui, a } = useApp()
+  const f = ui.form
+  const picked = f.grCourts || []
+  const toggle = (cid) =>
+    a.setF('grCourts', picked.indexOf(cid) >= 0 ? picked.filter((x) => x !== cid) : picked.concat([cid]))
+
+  return (
+    <Shell title={t('settings.dlgGroupTitle')} desc={t('settings.dlgGroupDesc')} width={600}
+      onSubmit={() => a.addGroup()} submitLabel={t('common.add')} submitIcon="plus">
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr', gap: 10 }}>
+        <Input label={t('settings.fGroupName')} value={f.grName || ''} onChange={(e) => a.setF('grName', e.target.value)} />
+        <Input label={t('settings.fGroupShort')} value={f.grShort || ''} onChange={(e) => a.setF('grShort', e.target.value)} />
+        <Select label={t('settings.fGroupWeekday')} value={String(f.grWeekday)}
+          options={WD.map((w, i) => ({ value: String(i), label: w }))}
+          onChange={(e) => a.setF('grWeekday', e.target.value)} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+        <Input label={t('settings.fGroupFrom')} mono value={f.grFrom || ''} onChange={(e) => a.setF('grFrom', e.target.value)} />
+        <Input label={t('settings.fGroupTo')} mono value={f.grTo || ''} onChange={(e) => a.setF('grTo', e.target.value)} />
+        <Input label={t('settings.colFeeMale')} mono value={f.grFeeNam || ''} onChange={(e) => a.setF('grFeeNam', e.target.value)} />
+        <Input label={t('settings.colFeeFemale')} mono value={f.grFeeNu || ''} onChange={(e) => a.setF('grFeeNu', e.target.value)} />
+      </div>
+      <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={f.grQuota || ''}
+        onChange={(e) => a.setF('grQuota', e.target.value)} />
+      <div style={{ display: 'grid', gap: 6 }}>
+        <Overline>{t('settings.fGroupCourts')}</Overline>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          {db.courts.map((c) => {
+            const on = picked.indexOf(c.id) >= 0
+            return (
+              <button key={c.id} type="button" onClick={() => toggle(c.id)} style={{
+                padding: '7px 12px', borderRadius: 99, border: '1px solid',
+                borderColor: on ? 'var(--teal-500)' : 'var(--border-subtle)',
+                background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
+                color: 'var(--text-primary)', font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
+              }}>{c.name}</button>
+            )
+          })}
+        </div>
+      </div>
+      <Note>{t('settings.dlgGroupNote')}</Note>
     </Shell>
   )
 }

@@ -37,7 +37,9 @@ export const ledgerForm = (db) => ({ lDate: db.today, lDir: 'out', lCat: 'other'
 
 /** Form thêm thành viên. */
 export const memberForm = (db) => ({
-  mName: '', mPhone: '', mGender: 'nam', mLevel: lv1(db), mGroups: [], mStart: 'next',
+  mName: '', mPhone: '', mGender: 'nam', mLevel: lv1(db), mGroups: [],
+  // CLB chưa có nhóm cố định nào thì mặc định 'đi lẻ', không thì bấm Thêm là bị chặn ngay.
+  mStart: db.groups.length ? 'next' : 'none',
 })
 
 /** Trình độ gợi ý mặc định: bậc thứ hai trong thang của CLB, không có thì bậc đầu. */
@@ -52,6 +54,20 @@ export const editMemberForm = (m) => ({
 export const addCourtForm = (db, s) => {
   const r = (s && (s.courts || [])[0]) || { from: '18:00', to: '20:00' }
   return { acCourt: db.courts[0] && db.courts[0].id, acFrom: r.from, acTo: r.to }
+}
+
+/** Form thêm sân của CLB (không phải thêm sân cho một buổi — cái đó là addCourtForm). */
+export const courtForm = () => ({ cName: '', cAddr: '', cPrice: '' })
+
+/** Form thêm nhóm cố định. Giờ và định mức lấy theo nhóm đã có, không có thì mặc định. */
+export const groupForm = (db) => {
+  const g = db.groups[0]
+  return {
+    grName: '', grShort: '', grWeekday: 0,
+    grFrom: g ? g.from : '18:00', grTo: g ? g.to : '20:00',
+    grFeeNam: '', grFeeNu: '', grQuota: String(g ? g.quota : ''),
+    grCourts: db.courts.length === 1 ? [db.courts[0].id] : [],
+  }
 }
 
 /** Form thêm khách giao lưu. */

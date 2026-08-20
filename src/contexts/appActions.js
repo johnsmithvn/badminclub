@@ -2,6 +2,7 @@
 // Quy ước: dbRef.current = db hiện tại (đọc để tính text toast), setDb(partial) để ghi.
 
 import { addMonth, dd, ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
+import cfg from '#config/app.json' with { type: 'json' }
 import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, remainSessions, rowCost, sGuests, guestRev, sessionCost,
@@ -427,10 +428,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         else w.splice(i, 1)
         return { form: { ...u.form, mGroups: w } }
       }),
-    addRow: () =>
+    addRow: () => {
+      // CLB mới chưa có sân nào — nói rõ thay vì nổ vì đọc courts[0].
+      const c = db().courts[0]
+      if (!c) return toast(t('toast.needCourtFirst'))
+      const g = db().groups[0]
       upUi((u) => ({
-        form: { ...u.form, rows: (u.form.rows || []).concat([{ courtId: db().courts[0].id, from: '18:00', to: '20:00' }]) },
-      })),
+        form: {
+          ...u.form,
+          rows: (u.form.rows || []).concat([
+            { courtId: c.id, from: g ? g.from : '18:00', to: g ? g.to : '20:00' },
+          ]),
+        },
+      }))
+    },
     delRow: (i) =>
       upUi((u) => {
         const r = (u.form.rows || []).slice()
@@ -445,6 +456,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }),
     createSchedule: (dates) => {
       const f = form()
+      if (!f.sGroup) return toast(t('toast.needGroupFirst'))
       if (!dates.length) return toast(t('toast.needWeekday'))
       up((d) => {
         const scId = uid()
@@ -623,8 +635,50 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         guestPrices: d.guestPrices.map((x) => (x.level === level ? { ...x, [gender]: parseInt(v || 0, 10) || 0 } : x)),
       })),
-    setCourtPrice: (id, v) =>
-      up((d) => ({ courts: d.courts.map((c) => (c.id === id ? { ...c, price: parseInt(v || 0, 10) || 0 } : c)) })),
+    setCourtField: (id, k, v) =>
+      up((d) => ({
+        courts: d.courts.map((c) => (c.id === id ? { ...c, [k]: k === 'price' ? parseInt(v || 0, 10) || 0 : v } : c)),
+      })),
+    addCourt: () => {
+      const f = form()
+      const name = (f.cName || '').trim()
+      if (!name) return toast(t('toast.needCourtName'))
+      up((d) => ({
+        courts: d.courts.concat([{
+          id: uid(), name, addr: (f.cAddr || '').trim(),
+          price: parseInt(f.cPrice || 0, 10) || 0, active: true,
+        }]),
+      }))
+      upUi(() => ({ dialog: null, form: {} }))
+      toast(t('toast.courtCreated', { name }))
+    },
+    addGroup: () => {
+      const f = form()
+      const name = (f.grName || '').trim()
+      if (!name) return toast(t('toast.needGroupName'))
+      if (!(f.grCourts || []).length) return toast(t('toast.needGroupCourt'))
+      up((d) => ({
+        groups: d.groups.concat([{
+          id: uid(), name, short: (f.grShort || '').trim() || name.slice(0, 3),
+          weekday: parseInt(f.grWeekday || 0, 10) || 0,
+          feeNam: parseInt(f.grFeeNam || 0, 10) || 0,
+          feeNu: parseInt(f.grFeeNu || 0, 10) || 0,
+          from: f.grFrom, to: f.grTo,
+          quota: parseInt(f.grQuota || 0, 10) || cfg.shuttle.quotaDefault,
+          courtIds: f.grCourts.slice(), active: true,
+        }]),
+      }))
+      upUi(() => ({ dialog: null, form: {} }))
+      toast(t('toast.groupCreated', { name }))
+    },
+    toggleGroupCourt: (gid, cid) =>
+      up((d) => ({
+        groups: d.groups.map((g) => {
+          if (g.id !== gid) return g
+          const has = (g.courtIds || []).indexOf(cid) >= 0
+          return { ...g, courtIds: has ? g.courtIds.filter((x) => x !== cid) : (g.courtIds || []).concat([cid]) }
+        }),
+      })),
     setGroupField: (id, k, v) =>
       up((d) => ({
         groups: d.groups.map((g) => (g.id === id ? { ...g, [k]: typeof g[k] === 'number' ? parseInt(v || 0, 10) || 0 : v } : g)),
