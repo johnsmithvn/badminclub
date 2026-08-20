@@ -6,7 +6,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, remainSessions, rowCost, sGuests, guestRev, sessionCost,
-  sessionOf, stock, estSessions, timeTxt, unitPrice,
+  sessionOf, checkPreview, timeTxt, unitPrice,
 } from '#lib/money.js'
 import { fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -535,14 +535,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const d0 = db()
       const counted = parseInt(f.ckCount || 0, 10) || 0
       if (!f.ckCount) return toast(t('toast.needCounted'))
-      const sysLeft = stock(d0).left
-      const diff = sysLeft - counted
-      const month = d0.month
-      const est = estSessions(d0, month)
-      if (diff !== 0 && !est.length) {
-        return toast(t('toast.noEstSession'))
+      // Tháng chia phần lệch lấy từ NGÀY KIỂM, không phải tháng đang xem ở header.
+      const { month, systemLeft: sysLeft, diff, est, n } = checkPreview(d0, f.ckDate, f.ckCount)
+      if (diff !== 0 && !n) {
+        return toast(t('toast.noEstSession', { month: monthTxt(month) }))
       }
-      const n = est.length
       let rest = diff
       const delta = {}
       est.forEach((x, i) => {
@@ -566,7 +563,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ dialog: null, form: {} }))
       toast(diff === 0
         ? t('toast.stockMatched')
-        : t('toast.stockSpread', { diff: (diff > 0 ? '+' : '') + diff, n }))
+        : t('toast.stockSpread', { diff: (diff > 0 ? '+' : '') + diff, n, month: monthTxt(month) }))
     },
 
     /* ---------- sổ quỹ ---------- */

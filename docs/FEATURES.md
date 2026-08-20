@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v0.1.0 · **Updated:** 2026-08-19
+**Version:** v0.2.0 · **Updated:** 2026-08-20
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -13,8 +13,11 @@ Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố 
    Không nhập giá khách (tự tính theo trình độ × giới tính). Không nhập tiền sân (giờ × giá sân).
 2. **Mọi con số phải giải thích được nguồn gốc.** Con số nào cũng đi kèm một câu nói nó từ đâu ra:
    *"Định mức Cố định Chủ nhật: 34 quả/buổi cho 2 sân"*.
-3. **Buổi chỉ ảnh hưởng tiền khi `status='closed'`.** Trước đó mọi con số là dự kiến. Chia sân,
-   số trận, bấm giờ **không bao giờ** ảnh hưởng tiền.
+3. **Nói rõ con số nào là tiền, con số nào là tính toán.** Mỗi màn hình tiền thuộc đúng một
+   trong hai tầng (`DATABASE.md` §3): **Tầng A · sổ quỹ** là tiền đã đổi tay; **Tầng B · giá
+   thành buổi** chỉ để biết buổi tốn bao nhiêu, **không bao giờ** sinh dòng ở sổ quỹ. Chốt buổi
+   chỉ ghi sổ đúng ba thứ — sân bán được, sân thuê thêm, và tiền sân nếu CLB trả theo buổi.
+   Chia sân, số trận, bấm giờ **không bao giờ** ảnh hưởng tiền.
 
 ---
 
@@ -82,7 +85,20 @@ Mỗi khách có công tắc *đã trả* / *ghi nợ*.
 | **Bán sân dư** cho CLB khác | sân đó **không** tính vào chi phí buổi; tiền bán ghi **thu** | định mức cầu **giảm** theo số sân CLB còn chơi |
 | **Thuê thêm sân** (`extra`) | ghi **chi riêng** ngoài hoá đơn tháng | không đổi mẫu số định mức |
 
-**Chốt tiền buổi** — 3 cách vào số cầu, cùng ra một con số:
+**Giá thành buổi này** — card tổng hợp bốn ô: chi phí buổi · thu khách · quỹ đang gánh ·
+giá thành/người. **Không ô nào là giao dịch** — đây là Tầng B. Tiền sân đã trả theo hoá đơn
+tháng, tiền cầu đã trả khi nhập kho; hiện lại ở đây chỉ là phần chia cho riêng buổi này.
+Card phải nói thẳng điều đó, vì bốn ô tiền xếp thành hàng dưới chữ "Chốt" trông y hệt một hoá đơn.
+
+```
+quỹ đang gánh = chi phí buổi − thu khách        ← KHÔNG trừ tiền bán sân,
+                                                  courtNet đã loại sân bán rồi
+```
+
+Con số này phải **giống nhau** ở card chi tiết buổi và bảng "Giá thành từng buổi" ở Báo cáo —
+cùng gọi `money.js: costRow`, không màn nào tự viết lại công thức.
+
+**Ba cách vào số cầu**, cùng ra một con số:
 
 1. `quota` (mặc định, không ai phải đếm): `max(6, round(quota × sân_còn_chơi / sân_không_thuê_thêm))`,
    cờ `shuttle_est = true` → chờ kiểm kho cuối tháng chỉnh lại.
@@ -136,7 +152,9 @@ lập trong từng sân**, không ai bị đẩy sang sân khác.
 **Công nợ** 3 tab: nợ khách gộp theo **người rủ** (để nhắc thu hộ) · nợ theo từng **khách** ·
 **quỹ tháng** thành viên cố định · **back tiền** cuối tháng.
 
-**Sổ quỹ** — 9 hạng mục, chiều thu/chi:
+**Sổ quỹ** — 9 hạng mục, chiều thu/chi. Bảng dưới nói **nguồn sự thật hiện tại**: `ledger()`
+suy ra từ chính bản ghi gốc, `transactions` mới chỉ giữ dòng nhập tay. Đích đến là ghi thẳng vào
+`transactions` — xem `DATABASE.md` §1 luật 3 và §3.1.
 
 | Hạng mục | Chiều | Nguồn |
 | --- | --- | --- |
@@ -157,6 +175,14 @@ cùng ngày = 1 dòng "Quỹ tháng").
 (dấu `~` = buổi đang lấy định mức) · **kiểm kho cuối tháng**: đếm thực tế, so tồn hệ thống,
 phần lệch **chia đều vào các buổi `closed` còn cờ `shuttle_est`** trong tháng, phần dư dồn vào
 buổi cuối để tổng khớp tuyệt đối.
+
+Ba luật của kiểm kho, sai một cái là hỏng số hai tháng:
+
+1. **Tháng chia lệch lấy từ ngày kiểm**, không phải tháng đang chọn ở header. Kiểm ngày 31/08
+   trong lúc header đang ở tháng 09 thì phần lệch của tháng 8 chui vào các buổi tháng 9.
+2. **Chỉ sửa buổi còn cờ ước lượng.** Buổi đã đếm tay (`exact`) là số thật. Không còn buổi ước
+   lượng nào mà kho vẫn lệch thì app **không tự sửa**, mà báo user sửa tay số quả.
+3. **Không tạo giao dịch nào**, kể cả khi hụt kho — xem `DATABASE.md` §3.1.
 
 ## 7. Trang cá nhân · Cài đặt · Sơ đồ dữ liệu
 

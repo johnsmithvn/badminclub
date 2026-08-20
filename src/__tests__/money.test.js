@@ -2,9 +2,10 @@
 import assert from 'node:assert/strict'
 import { seed } from './fixture.js'
 import {
-  backRows, costRow, courtBase, courtCost, courtExtraCost, courtNet, fmt, fmtK, groupMembers,
-  guestDebtRows, guestPrice, levelIdx, levelOf, playedCourts, presentCount, quotaFor,
-  remainSessions, sessionCost, sessionOf, shuttleUnit, soldTotal, stock, unitPrice,
+  backRows, checkPreview, costRow, courtBase, courtCost, courtExtraCost, courtNet, estSessions,
+  fmt, fmtK, groupMembers, guestDebtRows, guestPrice, levelIdx, levelOf, playedCourts,
+  presentCount, quotaFor, remainSessions, sessionCost, sessionOf, shuttleUnit, soldTotal,
+  stock, unitPrice,
 } from '#lib/money.js'
 
 const db = seed()
@@ -159,6 +160,38 @@ assert.equal(sessionCost(db, S('B1')), cr.cost)
 // buổi không ai đi thì chia cho 1, không ra Infinity
 const empty = { ...S('B9'), shuttleUsed: 0 }
 assert.ok(Number.isFinite(costRow({ ...db, attendance: {} }, empty).per))
+
+/* ---------- quỹ bù KHÔNG trừ tiền bán sân ---------- */
+// B3 bán 1 sân 240.000. courtNet đã loại sân đó khỏi chi phí rồi — trừ thêm soldAmount nữa là
+// tính lợi ích bán sân hai lần. Card chi tiết buổi và bảng Báo cáo phải ra CÙNG một con số.
+const b3 = S('B3')
+assert.ok(soldTotal(b3) > 0, 'B3 có bán sân')
+const c3 = costRow(db, b3)
+assert.equal(c3.cost, courtNet(db, b3) + b3.shuttleUsed * unit, 'chi phí = courtNet + tiền cầu')
+assert.equal(c3.subsidy, c3.cost - c3.rev, 'quỹ bù = chi phí − thu khách, KHÔNG trừ tiền bán sân')
+assert.notEqual(c3.subsidy, c3.cost - c3.rev - soldTotal(b3), 'công thức cũ của SessionDetail là sai')
+
+/* ---------- kiểm kho: tháng lấy từ NGÀY KIỂM, không phải tháng đang xem ---------- */
+assert.equal(db.month, '2026-08', 'fixture đang xem tháng 8')
+const ck8 = checkPreview(db, '2026-08-31', 40)
+assert.equal(ck8.month, '2026-08')
+assert.equal(ck8.systemLeft, stock(db).left)
+assert.equal(ck8.diff, stock(db).left - 40)
+assert.equal(ck8.n, estSessions(db, '2026-08').length, 'chia vào đúng số buổi ước lượng của tháng 8')
+assert.ok(ck8.n > 0, 'tháng 8 phải còn buổi ước lượng, không thì test này vô nghĩa')
+assert.equal(ck8.share, Math.round(ck8.diff / ck8.n))
+
+// REGRESSION Issue 6: header vẫn ở tháng 8 nhưng kiểm ngày 05/09 → phải chia vào buổi tháng 9,
+// không được mượn buổi tháng 8. Bug cũ lấy d0.month nên hai tháng sai cùng lúc.
+const ck9 = checkPreview(db, '2026-09-05', 40)
+assert.equal(ck9.month, '2026-09', 'tháng lấy từ ngày kiểm, không lấy tháng đang xem')
+assert.equal(ck9.n, estSessions(db, '2026-09').length)
+assert.equal(ck9.share, 0, 'không có buổi ước lượng thì không chia được')
+
+// Bỏ trống ngày thì rơi về hôm nay, vẫn không đọc db.month
+assert.equal(checkPreview(db, '', 40).month, db.today.slice(0, 7))
+// Chưa gõ số đếm: coi như 0, không NaN
+assert.ok(Number.isFinite(checkPreview(db, '2026-08-31', '').diff))
 
 /* ---------- số buổi còn lại trong tháng ---------- */
 const dbToday = { ...db, today: '2026-08-19' }

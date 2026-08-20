@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v0.3.0 · **Updated:** 2026-08-20
+**Version:** v0.5.0 · **Updated:** 2026-08-20
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -16,7 +16,7 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 - [x] ESLint 9 flat config + `react-hooks`
 - [x] `vercel.json` (SPA rewrite)
 - [x] Bộ docs: `ARCHITECTURE.md`, `DATABASE.md`, `FEATURES.md`, `TASKS.md`, `DESIGN.md`, `RULES.md`
-- [x] Tầng i18n: `src/i18n/index.js` + `vi.json` (779 key) — không còn chữ cứng trong `.jsx`
+- [x] Tầng i18n: `src/i18n/index.js` + `vi.json` (943 chuỗi) — không còn chữ cứng trong `.jsx`
 - [x] Tầng config: `src/config/app.json` (hằng số) + `permissions.json` (ma trận quyền)
 - [x] Cấu trúc chuẩn: `components/{ds,layout,ui}` · `config` · `contexts` · `data` · `hooks` ·
       `i18n` · `lib` · `pages` · `routes` · `styles` · `utils` + alias subpath `#...`
@@ -68,11 +68,13 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 
 - [x] Dialog: tạo lịch hàng loạt · buổi đột xuất · thêm sân · nhập kho · kiểm kho · hoá đơn sân ·
       ghi thu/chi · thêm/sửa thành viên · báo cáo Zalo
-- [x] `npm test` xanh
+- [x] `npm test` xanh — 7 bộ: dates · money · ledger · assign · dbmap · empty · i18n
 - [x] `npm run lint` sạch
-- [x] `npm run build` chạy được (agent đã chạy để kiểm compile — user vẫn nên build lại lần cuối)
-- [x] Smoke test: 12 mục sidebar render đủ, 0 console error, 0 icon thiếu
-- [ ] **User bấm thử 13 màn, xác nhận UI** ← việc tiếp theo
+- [x] Audit icon: 0 icon thiếu (kể cả icon component TDMS tự dùng bên trong)
+- [ ] `npm run build` — **CHƯA ai chạy sau khi nối DB.** Lần chạy được ghi nhận là ở phiên dựng
+      UI với dữ liệu mẫu, từ đó code đã đổi gần hết tầng dữ liệu. Lint đã parse hết JSX nên lỗi
+      cú pháp thì không còn, nhưng đó không phải bằng chứng build pass
+- [ ] Smoke test lại 13 màn — bản cũ chạy trên dữ liệu mẫu, giờ không còn chế độ đó nữa
 
 ## Phase 7 — Supabase
 
@@ -112,12 +114,138 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 - [x] Thành viên tự xin đổi trình độ / SĐT ở Trang cá nhân → `member_changes` chờ duyệt
       (handoff 01 §6 — trước đây không có chỗ nào TẠO ra bản ghi này, tab duyệt là màn chết)
 - [x] `__tests__/empty.test.js` — gọi toàn bộ selector thuần với CLB rỗng, chặn throw / NaN / Infinity
-- [x] `__tests__/i18n.test.js` — mọi `t('key')` viết thẳng trong code phải có trong `vi.json` (732 key)
+- [x] `__tests__/i18n.test.js` — hai phần: (a) quét regex 732 key viết THẲNG trong code, (b) các
+      **họ key ghép động** (`nav.*` `roles.*` `assign.modes.*` `ledger.cat.*` `setup.step.*`
+      `settings.tab*` `sessionState.*` `gender.*` `rosterState.*` `schema.group*`) — loại thiếu key
+      mà regex không thấy và màn hình sẽ hiện thẳng chuỗi `nav.shuttles`. Cộng luật: giá trị trong
+      `vi.json` chỉ được là chuỗi / mảng chuỗi / object lồng — số lọt vào là hằng số đặt sai chỗ
 - [ ] **User chạy `npm run db:migrate` (hoặc `db reset`), `npm run build`, rồi bấm thử 13 màn trên DB thật** ← việc tiếp theo
-- [ ] Kiểm RLS bằng 2 tài khoản khác CLB
-- [ ] Realtime channel theo `session_id` cho `session_lineups` + `matches`
-- [ ] Trigger `audit_logs`; RPC sinh `transactions` khi chốt buổi (không phụ thuộc client)
+- [ ] **Kiểm RLS bằng 2 tài khoản khác CLB.** Policy đã viết đủ cho 30 bảng nhưng CHƯA được
+      chứng minh. Sai chỗ này thì CLB A đọc được tiền của CLB B — nặng hơn mọi mục dưới.
+      Cách làm đã bàn: script node ký 2 tài khoản qua anon key, tạo 2 CLB, assert A không
+      đọc/ghi được gì của B. Cần Supabase local đang chạy. **Chờ user duyệt.**
+
+### Cố ý hoãn — có lý do, không phải quên
+
+- [ ] **Realtime channel theo `session_id`** cho `session_lineups` + `matches` (handoff 05).
+      Hoãn vì: `reload()` từ server giữa lúc người điều phối đang kéo thả sẽ ăn mất thao tác
+      đang làm. Phần chống xung đột cần thiết kế riêng, không phải mấy dòng `subscribe`.
+- [ ] **Nhận lời mời qua SĐT** (handoff 01 §4.2). Phần TẠO đã xong đúng spec: bản ghi
+      `club_invites` + pill "Đã mời DD/MM" trên dòng thành viên. Phần NHẬN (mở link → tạo
+      tài khoản → tự ghép vào đúng bản ghi) cần gửi SMS — chưa có kinh phí. Hai cách ghép còn
+      lại (mã CLB, gợi ý trùng SĐT) chạy được nên không chặn ai.
+- [x] ~~**RPC sinh `transactions` khi chốt buổi**~~ — đã chốt hướng: sổ quỹ lấy sự thật từ
+      `transactions`, ghi tại mỗi sự kiện tiền. Chuyển thành **Phase 9 · P6**, làm sau P3–P5.
+- [ ] Trigger ghi `audit_logs` cho mọi bảng dính tiền.
 - [ ] Đẩy lên Supabase cloud: đổi `VITE_SUPABASE_URL` + `ANON_KEY`, chạy migration bằng `supabase db push`
+
+## Phase 9 — Rà dòng tiền (đợt 2026-08-20)
+
+Kết quả đối chiếu toàn bộ tầng tiền với đặc tả hỏi-đáp dòng tiền. Luật đã chốt nằm ở
+`DATABASE.md` §3 · §3.1 · §8 — đọc trước khi làm bất kỳ mục nào dưới đây.
+
+**Kết luận rà:** 10/12 luồng đã chạy đúng đặc tả. Hai luồng tự nhận là issue (sổ quỹ suy ra ·
+giá thành trôi), cộng 5 chỗ lệch tìm thêm khi đọc code.
+
+### Thứ tự đã chốt
+
+`P1 → P2 → P3 → P4 → P5 → P6 → P7`. Issue 2 (sổ quỹ ghi thật) để **sau cùng** vì P3/P4/P5 đổi
+chính tập sự kiện sinh tiền — viết tầng ghi trước là viết lại lần hai.
+
+### P1 · Lệch nhỏ + Issue 6 + N1–N4 — không đụng schema
+
+- [ ] **L1 · "Quỹ bù" hai màn hình ra hai số.** `SessionDetail.jsx` tính `cost − rev − sold`,
+      `money.js: costRow` tính `cost − rev`. `courtNet` đã loại sân bán khỏi chi phí rồi, trừ
+      thêm `soldAmount` là tính lợi ích bán sân lần thứ hai. **Chốt theo đặc tả:**
+      `quỹ bù = chi phí − thu khách`; SessionDetail gọi thẳng `costRow()`, bỏ công thức riêng.
+- [ ] **L2 · `session.closeRule` nói ngược đặc tả.** Câu hiện tại — *"Buổi chỉ vào sổ quỹ khi đã
+      chốt"* — chính là câu gây ra hiểu nhầm N1. Chốt buổi chỉ ghi sổ sân bán · sân thuê thêm ·
+      tiền sân mode `session`.
+- [ ] **Issue 6 · Kiểm kho lấy sai tháng.** `appActions.js: applyCheck` dùng `d0.month` (tháng
+      đang chọn ở header) thay vì tháng của `ckDate`. Kiểm ngày 31/08 khi header ở tháng 09 →
+      lệch tháng 8 chia vào buổi tháng 9, sai hai tháng cùng lúc và không ai biết.
+      Kèm dòng xem trước trong dialog: *"Chia vào 8 buổi ước tính của tháng 08/2026 · +2 quả mỗi buổi"*.
+- [ ] **N1 · Card "Chốt tiền buổi này" trông y như hoá đơn.** Đổi nhãn → "Giá thành buổi này",
+      subtitle *"Chỉ để biết buổi tốn bao nhiêu — không ghi vào sổ quỹ"*, caption dưới bốn ô nói
+      rõ tiền sân đã trả theo hoá đơn tháng, tiền cầu đã trả khi nhập kho.
+- [ ] **N2 · "Quỹ phải bù" đọc như quỹ đã trả** → "Quỹ đang gánh".
+- [ ] **N3 · Tiền cầu hiện trên buổi mà ngày đó không có tiền ra.** Ghi nguồn ngay cạnh số:
+      *"34 quả × 27.500 đ/quả · giá bình quân kho"*.
+- [ ] **N4 · Tiền sân từng buổi ≠ hoá đơn tháng.** Khi `court_pay_mode='month'`, badge nhỏ
+      *"theo hoá đơn tháng"* cạnh ô tiền sân của buổi.
+- [ ] **L5 · Bảng "Giá thành từng buổi" chỉ liệt kê buổi `closed`** (`Home.jsx`), đặc tả nói mọi
+      buổi trong tháng đang chọn. P2, làm cùng nếu rẻ.
+- [ ] Test: khoá `costRow` và hàm chọn tháng kiểm kho trong `__tests__/money.test.js`.
+
+### P2 · Issue 5 + 7 · Đóng băng giá thành — migration `0004`
+
+- [ ] `sessions` thêm 7 cột `cost_*` (`DATABASE.md` §8) + `stock_checks UNIQUE (club_id, month)`.
+- [ ] Chốt buổi → đóng băng. `cost_frozen_at IS NULL` thì tính live, khác NULL thì đọc số đã lưu,
+      **không tính lại**. Lưu `cost_shuttle_unit` riêng để sau còn giải thích được con số.
+- [ ] Kiểm kho → tính lại `cost_*` cho các buổi `shuttle_est=true` rồi đặt `false` → đóng băng cứng.
+- [ ] Badge 3 trạng thái (`đang tính` · `ước lượng` · `số chốt`) ở cả card buổi và bảng Báo cáo.
+- [ ] Banner nhắc kiểm kho: quá 2 tháng chưa kiểm, HOẶC tồn < 20 quả mà tháng này chưa kiểm.
+- [ ] Dialog "Nhập đợt cầu" thêm ô tuỳ chọn *"Còn lại trong tủ trước khi nhập"* → sinh luôn một
+      `stock_checks`. Đảo thời điểm đếm sang lúc mua là lối tốt nhất: mua cầu thì đằng nào cũng mở tủ.
+
+### P3 · B8 + Issue 1 · Đơn giá đúng + back hai chiều — migration `0005`
+
+- [ ] **B8 · Back tiền tính theo giá hiện tại.** `money.js: unitPrice` đọc `member_groups.fee_male`
+      / `fee_female` **hiện tại**. Sửa quỹ nam 250k → 280k là người đã đóng 250k được back theo
+      280k, quỹ trả vượt. Phải tính từ `monthly_dues.amount` của chính người đó.
+- [ ] **Issue 1 · Back tiền chỉ chạy một chiều.** Bảng `member_adjustments` có dấu +
+      `attend_state='extra'` + `settle_mode`. Người cố định nhóm khác đi thêm một buổi hiện chỉ
+      thu được bằng cách nhét vào `session_guests` giá khách — sai người, sai tiền, phồng báo cáo khách.
+- [ ] `settle='offset_next_dues'`: không ghi giao dịch, trừ vào `monthly_dues` tháng sau.
+- [ ] **L4 · `back_credits` xuống DB với `amount = 0`** (`dbmap` chỉ ghi cờ `paid`, `0003` đặt
+      `DEFAULT 0`). Mọi báo cáo tiền back bằng SQL đều ra 0. Xử lý chung khi thay bằng `member_adjustments`.
+- [ ] UI điểm danh 3 → 4 trạng thái; tab "Back tiền" ở Công nợ thành bảng đối chiếu hai chiều.
+
+### P4 · Issue 3 · Đóng thiếu — migration `0006`
+
+- [ ] `monthly_dues.paid_amount bigint`, bỏ `paid`. Trạng thái suy ra từ `paid_amount` vs `amount`.
+- [ ] Mỗi lần thu thêm ghi một dòng, không ghi đè.
+
+### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0007`
+
+- [ ] **L3 · Dọn dữ liệu trước.** `dbmap.js` đang ghi **tên người trả** (chuỗi tự do) vào cột
+      `funded_by`. Chuyển sang `payer_member_id` rồi mới `ALTER TYPE` sang enum, không thì migration chết.
+- [ ] `funded_by` enum `fund_source` + bảng `member_payables`. `member_advance` → **không** ghi chi,
+      tạo khoản phải trả; khi trả người ứng mới ghi chi.
+
+### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0008` + đổi `lib/ledger.js`
+
+- [ ] Mỗi sự kiện ở `DATABASE.md` §3.1 ghi ngay một dòng `transactions` kèm `ref_type` + `ref_id`.
+      Bỏ tick thì ghi dòng đảo chiều, không xoá cứng.
+- [ ] `ledger()` chuyển thành đọc một bảng. Xoá dần các nhánh suy ra.
+- [ ] Đây là mục đã treo ở "Quyết định đang chờ user" — **đã chốt: làm, nhưng sau cùng.**
+
+### P7 · Mục 4 · Chống sai im lặng
+
+Mười một lỗi nhóm B đều cùng một đặc điểm: **im lặng**, không có gì để so nên không ai phát hiện.
+Hai việc dưới bắt được gần hết.
+
+- [ ] **Màn "Đối chiếu quỹ" — P0 trong nhóm này.** Thủ quỹ nhập số dư NH + tiền mặt đang giữ, app
+      so với sổ và **liệt kê nghi vấn cụ thể** sắp theo mức khớp, không chỉ báo lệch. Lưu
+      `fund_reconciliations` để lần sau chỉ đối chiếu phần phát sinh.
+      Bắt: B1 · B2 · B3 · B4 · B9 · B10 · B11.
+- [ ] **Checklist trước khi chốt buổi.** Dialog liệt kê những gì còn treo, buộc xử lý: ai chưa
+      điểm danh · sân đánh dấu bán mà chưa nhập tiền · số cầu đang là định mức · khách còn ghi nợ.
+      Dòng cuối: *"Chốt buổi này không ghi khoản chi nào vào sổ quỹ."* Bắt: B4 · B6 · B7, xử lý luôn N1.
+- [ ] **B1 · Quên nhập hoá đơn sân tháng — 1.920.000, sai nặng nhất.** Alert đỏ ở Trang chủ khi
+      tháng có buổi `closed` mà `court_bills` tháng đó trống.
+- [ ] **B5 · Buổi huỷ không đánh `cancelled`** → `n` cao hơn thật → `unit` thấp → back trả thiếu.
+      Buổi quá ngày còn `draft` thì nhắc ở Trang chủ, buộc chọn *đã đánh* hoặc *đã huỷ*.
+- [ ] **B7 · Buổi để `open` mãi** → sai tồn kho, sai back, sai tiền sân mode `session`, mất khỏi
+      báo cáo. Trang chủ hiện số buổi quá hạn chưa chốt.
+- [ ] **T1 · Không có khái niệm "tiền đang ở đâu".** `wallets` + `transactions.wallet_id`. Mở
+      được quyền cho vai `host` tick thu khách — hiện họ bị chặn khỏi mọi mục tiền, chính là nguyên nhân B9.
+- [ ] **T2 · Không phân biệt số dư sổ và số dư khả dụng.** StatCard "Số dư khả dụng" cạnh "Số dư
+      quỹ CLB", caption liệt kê nghĩa vụ chưa trả.
+- [ ] **N5 / mục 8 · Tồn kho quy tiền** ở màn Sổ quỹ (`số quả còn × giá bình quân`) — user đang
+      đọc quỹ **thấp hơn** thực tế vì quên số cầu trong tủ.
+
+---
 
 ## Phase 8 — Sau đó (đã có bảng, chưa cần code)
 
@@ -151,5 +279,7 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 | Việc | Vì sao cần user | Chặn cái gì |
 | --- | --- | --- |
 | Chạy `npm run db:start` + `db:migrate` + `db:env > .env.local` | agent không tự cài/chạy hạ tầng trên máy user | chạy được app |
+| Chạy `npm run build` | RULES §6: agent không tự build | không ai biết bản này compile được hay chưa |
+| Có viết script kiểm RLS bằng 2 tài khoản không | script sẽ tạo tài khoản thật trên DB của user | chứng minh CLB A không đọc được CLB B |
 | Có xoá sạch DB (`npx supabase db reset`) hay giữ tài khoản cũ | mất data, phải user quyết — `docs/RULES.md` §7 | bắt đầu sạch |
 | Dữ liệu thật của CLB (Excel) | cần số quỹ mang sang + danh sách thật | nhập liệu ban đầu |

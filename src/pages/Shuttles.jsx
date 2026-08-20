@@ -4,7 +4,7 @@
 import { Alert, Button, Card, DataTable, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { ddmy } from '#utils/dates.js'
+import { ddmy, monthTxt } from '#utils/dates.js'
 import { estSessions, fmt, fmtK, groupOf, monthSessions, shuttleUnit, stock } from '#lib/money.js'
 import { purchaseForm, stockCheckForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -77,7 +77,8 @@ function StockCheck({ canMoney }) {
           <Box label={t('shuttles.checkCounted')} value={last ? last.counted : '—'} />
           <Box label={t('shuttles.checkDiff')} value={last ? (last.diff > 0 ? '+' : '') + last.diff : '—'}
             color={last && last.diff !== 0 ? 'var(--status-delayed)' : undefined} />
-          <Box label={t('shuttles.checkSpread')} value={t('shuttles.checkSpreadUnit', { n: est.length })} />
+          <Box label={t('shuttles.checkSpread')}
+            value={t('shuttles.checkSpreadUnit', { n: est.length, month: monthTxt(db.month) })} />
         </div>
         {!est.length && <div style={S.caption}>{t('shuttles.checkNoEst')}</div>}
         {last && (

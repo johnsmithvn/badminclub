@@ -137,6 +137,19 @@ export function stock(db) {
 export const estSessions = (db, month) =>
   monthSessions(db, month).filter((s) => s.status === 'closed' && s.shuttleEst)
 
+/**
+ * Kiểm kho: tính phần lệch và chia vào đâu. Dialog xem trước và action áp dụng dùng CHUNG hàm này.
+ * Tháng lấy từ NGÀY KIỂM, không phải tháng đang chọn ở header: kiểm ngày 31/08 trong lúc header
+ * đang ở tháng 09 thì phần lệch của tháng 8 sẽ chui vào các buổi tháng 9 — sai hai tháng cùng lúc.
+ */
+export function checkPreview(db, date, counted) {
+  const month = monthOf(date || db.today)
+  const systemLeft = stock(db).left
+  const diff = systemLeft - (parseInt(counted, 10) || 0)
+  const est = estSessions(db, month)
+  return { month, systemLeft, diff, est, n: est.length, share: est.length ? Math.round(diff / est.length) : 0 }
+}
+
 /* ---------- khách giao lưu ---------- */
 
 export const sGuests = (db, sid) => db.sessionGuests.filter((g) => g.sessionId === sid)

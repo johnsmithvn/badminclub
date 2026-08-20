@@ -75,6 +75,7 @@ assert.deepEqual(ok('backRows', () => M.backRows(db, MONTH)), [])
 assert.deepEqual(ok('billsOf', () => M.billsOf(db, MONTH)), [])
 assert.deepEqual(ok('estSessions', () => M.estSessions(db, MONTH)), [])
 ok('stock', () => M.stock(db))
+ok('checkPreview', () => M.checkPreview(db, '', ''))
 // Chưa mua đợt cầu nào → phải dùng giá dự phòng ở config, KHÔNG chia cho 0.
 assert.equal(ok('shuttleUnit', () => M.shuttleUnit(db)), cfg.money.shuttleUnitFallback)
 assert.equal(ok('courtPayMode', () => M.courtPayMode(db)), 'month')

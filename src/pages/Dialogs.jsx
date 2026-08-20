@@ -4,8 +4,8 @@
 import { Button, Dialog, Input, Select, Switch } from '#ds'
 import { Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { WD, dd, genDates } from '#utils/dates.js'
-import { estSessions, fmtK, genderTxt, stock } from '#lib/money.js'
+import { WD, dd, genDates, monthTxt } from '#utils/dates.js'
+import { checkPreview, fmtK, genderTxt } from '#lib/money.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -225,10 +225,8 @@ function PurchaseDialog() {
 function CheckDialog() {
   const { db, ui, a } = useApp()
   const f = ui.form
-  const st = stock(db)
-  const est = estSessions(db, db.month)
-  const counted = parseInt(f.ckCount || 0, 10) || 0
-  const diff = st.left - counted
+  const p = checkPreview(db, f.ckDate, f.ckCount)
+  const noEst = p.diff !== 0 && !p.n
 
   return (
     <Shell title={t('shuttles.checkDlgTitle')} desc={t('shuttles.checkDlgDesc')}
@@ -239,9 +237,14 @@ function CheckDialog() {
         <Input label={t('shuttles.fCheckCount')} mono suffix={t('units.shuttle')} value={String(f.ckCount ?? '')}
           onChange={(e) => a.setF('ckCount', e.target.value)} />
       </div>
-      <Note tone={diff !== 0 && !est.length ? 'warn' : undefined}>
-        {t('shuttles.checkPreview', { system: st.left, diff: (diff > 0 ? '+' : '') + diff, n: est.length })}
-        {diff !== 0 && !est.length && <div style={{ marginTop: 4 }}>{t('shuttles.checkNoEst')}</div>}
+      <Note tone={noEst ? 'warn' : undefined}>
+        {p.diff === 0
+          ? t('shuttles.checkPreviewMatch', { system: p.systemLeft })
+          : t('shuttles.checkPreview', {
+              system: p.systemLeft, diff: (p.diff > 0 ? '+' : '') + p.diff, n: p.n,
+              month: monthTxt(p.month), share: (p.share > 0 ? '+' : '') + p.share,
+            })}
+        {noEst && <div style={{ marginTop: 4 }}>{t('shuttles.checkNoEst')}</div>}
       </Note>
     </Shell>
   )

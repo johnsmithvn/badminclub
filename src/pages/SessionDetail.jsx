@@ -8,9 +8,9 @@ import { Empty, LevelChip, Mono, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
-  courtNet, courtOf, courtTxt, duesOf, fmt, genderTxt, groupMembers, groupOf, guestOf,
-  guestPaidRev, guestPrice, guestRev, levelOf, perTube, playedCourts, presentCount,
-  quotaFor, rowCost, sGuests, sessionCost, sessionOf, shuttleUnit, soldTotal, timeTxt,
+  costRow, courtNet, courtOf, courtPayMode, courtTxt, duesOf, fmt, fmtK, genderTxt, groupMembers,
+  groupOf, guestOf, guestPaidRev, guestPrice, levelOf, perTube, playedCourts, presentCount,
+  quotaFor, rowCost, sGuests, sessionOf, shuttleUnit, soldTotal, timeTxt,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -47,10 +47,11 @@ export default function SessionDetail() {
   const unit = shuttleUnit(db)
   const shuttleMoney = (s.shuttleUsed || 0) * unit
   const court = courtNet(db, s)
-  const rev = guestRev(db, s.id)
   const paid = guestPaidRev(db, s.id)
   const sold = soldTotal(s)
-  const cost = sessionCost(db, s)
+  // Giá thành buổi — CÙNG hàm với bảng "Giá thành từng buổi" ở Báo cáo, không viết lại công thức.
+  // quỹ bù = chi phí − thu khách; KHÔNG trừ tiền bán sân vì courtNet đã loại sân bán rồi.
+  const c = costRow(db, s)
 
   return (
     <>
@@ -232,24 +233,29 @@ export default function SessionDetail() {
             </div>
           </Card>
 
-          <Card title={t('session.closeTitle')} subtitle={t('session.closeSub')} icon="calculator" padding="14px 16px">
+          <Card title={t('session.costTitle')} subtitle={t('session.costSub')} icon="calculator" padding="14px 16px">
             <div style={{ display: 'grid', gap: 12 }}>
               <ShuttleBox s={s} canEdit={canEdit} />
 
               <div style={S.sumBox}>
-                <SumRow label={t('session.sumCourt')} value={fmt(court)} />
-                <SumRow label={t('session.sumShuttle')} value={fmt(shuttleMoney)} />
-                {sold > 0 && <SumRow label={t('session.sumSold')} value={fmt(sold)} color="var(--status-delivered)" />}
-                <SumRow label={t('session.sumGuest')} value={fmt(rev)} />
+                <SumRow label={t('session.sumCourt')} value={fmt(court)}
+                  hint={courtPayMode(db) === 'month' ? t('session.sumCourtHint') : undefined} />
+                <SumRow label={t('session.sumShuttle')} value={fmt(shuttleMoney)}
+                  hint={t('session.sumShuttleHint', { n: s.shuttleUsed || 0, unit: fmtK(unit) })} />
+                {sold > 0 && <SumRow label={t('session.sumSold')} value={fmt(sold)}
+                  hint={t('session.sumSoldHint')} color="var(--status-delivered)" />}
+                <SumRow label={t('session.sumGuest')} value={fmt(c.rev)} />
                 <SumRow label={t('session.sumGuestPaid')} value={fmt(paid)} color="var(--status-delivered)" />
-                <SumRow label={t('session.sumGuestDebt')} value={fmt(rev - paid)} color="var(--status-delayed)" />
+                <SumRow label={t('session.sumGuestDebt')} value={fmt(c.rev - paid)} color="var(--status-delayed)" />
                 <div style={S.sumDivider} />
-                <SumRow label={t('session.sumCost')} value={fmt(cost)} strong />
-                <SumRow label={t('session.sumSubsidy')} value={fmt(cost - rev - sold)} strong
-                  color={cost - rev - sold > 0 ? 'var(--status-incident)' : 'var(--status-delivered)'} />
+                <SumRow label={t('session.sumCost')} value={fmt(c.cost)} strong />
+                <SumRow label={t('session.sumPerHead')} value={fmt(c.per)}
+                  hint={t('session.sumPerHeadHint', { n: c.people })} />
+                <SumRow label={t('session.sumSubsidy')} value={fmt(c.subsidy)} strong
+                  color={c.subsidy > 0 ? 'var(--status-incident)' : 'var(--status-delivered)'} />
               </div>
 
-              <div style={S.caption}>{t('session.closeRule')}</div>
+              <div style={S.caption}>{t('session.costNote')}</div>
 
               {canEdit && (
                 <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
@@ -372,10 +378,11 @@ function Stepper({ label, value, onMinus, onPlus, disabled }) {
   )
 }
 
-const SumRow = ({ label, value, color, strong }) => (
+const SumRow = ({ label, value, color, strong, hint }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
     <span style={{ font: strong ? 'var(--type-label)' : 'var(--type-caption)', color: 'var(--text-secondary)' }}>
       {label}
+      {hint && <span style={{ ...S.caption, marginLeft: 6 }}>{hint}</span>}
     </span>
     <Mono weight={strong ? 600 : 400} size={strong ? 14 : 13} color={color || 'var(--text-primary)'}>
       {value}
