@@ -110,9 +110,14 @@ function LevelsCard({ canEdit }) {
         <Input label={t('settings.fLevels')} value={draft} disabled={!canEdit}
           onChange={(e) => a.setF('levelsText', e.target.value)} />
         <div style={S.caption}>{t('settings.levelsNote')}</div>
-        <div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="primary" size="sm" icon="check" disabled={!canEdit || draft === saved}
             onClick={() => a.setLevels(draft)}>{t('common.save')}</Button>
+          {/* CLB tạo trước khi đổi thang mặc định vẫn giữ thang cũ — nút này để khỏi gõ tay 9 bậc. */}
+          <Button variant="secondary" size="sm" icon="sparkles" disabled={!canEdit}
+            onClick={() => a.setF('levelsText', cfg.levelsDefault.join(', '))}>
+            {t('settings.levelsSuggest')}
+          </Button>
         </div>
       </div>
     </Card>
@@ -135,6 +140,7 @@ function MoneyTab({ canEdit }) {
       <Alert tone="info" title={t('settings.moneyAlertTitle')}>{t('settings.moneyAlert')}</Alert>
       <Card title={t('settings.guestPriceTitle')} subtitle={t('settings.guestPriceSub')} icon="tags" padding="14px 16px">
         <div style={{ display: 'grid', gap: 10 }}>
+          {canEdit && <BulkPrice />}
           <div style={{ ...S.priceGrid, ...S.headRow }}>
             <span>{t('settings.colLevel')}</span>
             <span>{t('settings.colMale')}</span>
@@ -152,6 +158,46 @@ function MoneyTab({ canEdit }) {
         </div>
       </Card>
     </>
+  )
+}
+
+/**
+ * Gán một mức giá cho nhiều trình độ cùng lúc. Thang 9 bậc = 18 ô nhập, mà CLB thực tế chỉ có
+ * vài mức giá — gõ từng ô vừa lâu vừa dễ lệch một ô mà không ai phát hiện.
+ */
+function BulkPrice() {
+  const { db, ui, a } = useApp()
+  const picked = ui.form.bulkLevels || []
+
+  return (
+    <div style={S.bulkBox}>
+      <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <Input label={t('settings.bulkPrice')} mono suffix={t('units.dong')} style={{ width: 150 }}
+          value={String(ui.form.bulkPrice ?? '')} onChange={(e) => a.setF('bulkPrice', e.target.value)} />
+        <Select label={t('settings.bulkWho')} style={{ width: 150 }} value={ui.form.bulkWho || 'both'}
+          options={[
+            { value: 'both', label: t('settings.bulkBoth') },
+            { value: 'nam', label: t('gender.nam') },
+            { value: 'nu', label: t('gender.nu') },
+          ]}
+          onChange={(e) => a.setF('bulkWho', e.target.value)} />
+        <Button variant="accent" size="sm" icon="check" disabled={!picked.length}
+          onClick={() => a.applyPriceBulk()}>
+          {t('settings.bulkApply', { n: picked.length })}
+        </Button>
+      </div>
+      <div style={{ display: 'grid', gap: 5 }}>
+        <Overline>{t('settings.bulkPick')}</Overline>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          {db.levels.map((l) => (
+            <button key={l} type="button" onClick={() => a.toggleBulkLevel(l)}
+              style={{ ...S.pick, ...(picked.indexOf(l) >= 0 ? S.pickOn : null) }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -287,6 +333,16 @@ function Groups({ canEdit }) {
                     disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'feeNu', e.target.value)} />
                   <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={String(g.quota)}
                     disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'quota', e.target.value)} />
+                </div>
+                {/* Đơn giá một buổi CLB tự chốt. Để trống thì app tự chia quỹ tháng ÷ số buổi. */}
+                <div style={S.groupRow}>
+                  <Input label={t('settings.colUnitMale')} mono suffix={t('units.dong')}
+                    hint={t('settings.unitHint')} value={String(g.unitNam || '')}
+                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'unitNam', e.target.value)} />
+                  <Input label={t('settings.colUnitFemale')} mono suffix={t('units.dong')}
+                    hint={t('settings.unitHint')} value={String(g.unitNu || '')}
+                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'unitNu', e.target.value)} />
+                  <span />
                 </div>
                 <div style={{ display: 'grid', gap: 6 }}>
                   <Overline>{t('settings.fGroupCourts')}</Overline>
@@ -473,6 +529,10 @@ const S = {
   codeBox: {
     padding: '9px 12px', borderRadius: 8, background: 'var(--surface-brand-soft)',
     border: '1px solid var(--border-subtle)', width: 'fit-content', letterSpacing: '.12em',
+  },
+  bulkBox: {
+    display: 'grid', gap: 10, padding: '12px 14px', borderRadius: 8,
+    background: 'var(--surface-inset)', border: '1px dashed var(--border-subtle)',
   },
   priceGrid: { display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 10, alignItems: 'center' },
   courtGrid: { display: 'grid', gridTemplateColumns: '1.2fr 1.4fr 1fr 70px', gap: 10, alignItems: 'center' },

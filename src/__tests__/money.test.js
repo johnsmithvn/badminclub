@@ -4,7 +4,7 @@ import { seed } from './fixture.js'
 import {
   adjustKey, adjustRows, checkDue, checkPreview, costRow, costState, courtBase, courtCost,
   courtExtraCost, courtNet, estSessions, fmt, fmtK, freezeCost, groupMembers, guestDebtRows,
-  dueState, duesTotal, guestPrice, isPresent, joinDues, levelIdx, levelOf, levelStyle, payerName, playedCourts,
+  dueState, duesTotal, guestPrice, intOf, isPresent, joinDues, memberRefs, levelIdx, levelOf, levelStyle, payerName, playedCourts,
   pendingOffset, presentCount, quotaFor, remainSessions, sessionCost, sessionMembers, sessionOf,
   shuttleUnit, soldTotal, spreadDiff, stock, unfrozenCost, unitPrice,
 } from '#lib/money.js'
@@ -365,6 +365,72 @@ const dbLow = {
 assert.ok(stock(dbLow).left < cfg.shuttle.checkLowStock, 'dựng đúng cảnh tồn kho thấp')
 assert.equal(checkDue(dbLow), 'low')
 
+/* ---------- đọc số từ ô nhập: dấu phân cách nghìn KHÔNG được ăn mất tiền ---------- */
+
+// parseInt trần cắt ở dấu chấm: parseInt('1.650.000') = 1. Người Việt gõ tiền có dấu chấm là
+// chuyện đương nhiên, nên mọi ô nhập tiền phải đi qua intOf.
+assert.equal(intOf('1.650.000'), 1650000)
+assert.equal(intOf('100.000'), 100000)
+assert.equal(intOf('1,650,000'), 1650000, 'dấu phẩy cũng phải đọc được')
+assert.equal(intOf('250 000'), 250000, 'dấu cách cũng vậy')
+assert.equal(intOf('250000'), 250000)
+assert.equal(intOf(250000), 250000, 'nhận cả số, không chỉ chuỗi')
+assert.equal(intOf(''), 0)
+assert.equal(intOf(null), 0)
+assert.equal(intOf(undefined), 0)
+assert.equal(intOf('abc'), 0, 'gõ bậy thì về 0, không NaN')
+assert.equal(intOf('-5000'), 5000, 'ô nhập tiền không nhận số âm')
+assert.ok(Number.isFinite(intOf('...')), 'không bao giờ ra NaN')
+
+/* ---------- chuyển cố định → vãng lai: KHÔNG được đánh mất khoản, KHÔNG được thu hai lần ---------- */
+
+// Dựng cảnh: M5 (nữ nhóm CN) vắng 2 buổi đã chốt, đã được back 80.000.
+const savedBack = {
+  id: 'AJZ', key: adjustKey('2026-08', 'G1', 'M5', 'absent_back'), month: '2026-08',
+  groupId: 'G1', memberId: 'M5', kind: 'absent_back', sessions: 2, unit: 40000,
+  amount: -80000, settle: 'cash', paid: true, paidAt: '2026-08-28',
+}
+// Gỡ M5 khỏi danh sách cố định nhóm CN tháng 8 = chuyển sang vãng lai.
+const dbVanglai = {
+  ...db,
+  adjustments: [savedBack],
+  roster: { ...db.roster, '2026-08': { ...(db.roster['2026-08'] || {}), G1: { M5: 'off' } } },
+}
+assert.ok(!groupMembers(dbVanglai, 'G1', '2026-08').some((m) => m.id === 'M5'), 'M5 không còn cố định')
+
+const kept = adjustRows(dbVanglai, '2026-08').find((r) => r.key === savedBack.key)
+assert.ok(kept, 'khoản ĐÃ TRẢ không được biến mất — sổ quỹ còn dòng chi thì phải còn dòng giải thích')
+assert.equal(kept.amount, -80000)
+assert.equal(kept.paid, true)
+assert.equal(kept.orphan, true, 'phải đánh dấu là không còn khớp danh sách cố định hiện tại')
+
+// Thu hai lần: M5 đã đóng quỹ tháng 8 cho nhóm CN. Giờ là vãng lai, bị chấm 'extra' một buổi.
+const dueM5 = db.dues.find((d) => d.month === '2026-08' && d.groupId === 'G1' && d.memberId === 'M5')
+assert.ok(dueM5, 'M5 có khoản quỹ tháng 8 nhóm CN')
+const dbTwice = {
+  ...dbVanglai,
+  attendance: { ...db.attendance, B1: { ...(db.attendance.B1 || {}), M5: 'extra' } },
+}
+assert.equal(
+  adjustRows(dbTwice, '2026-08').filter((r) => r.kind === 'extra_session' && r.memberId === 'M5').length,
+  0, 'đã đóng quỹ tháng cho nhóm này rồi thì không tính thêm tiền đi lẻ — thu hai lần cùng một buổi'
+)
+// Còn người CHƯA có quỹ tháng nhóm đó thì vẫn phải thu bình thường.
+const dbNoDue = { ...dbTwice, dues: db.dues.filter((d) => d.id !== dueM5.id) }
+assert.equal(
+  adjustRows(dbNoDue, '2026-08').filter((r) => r.kind === 'extra_session' && r.memberId === 'M5').length,
+  1, 'chưa đóng quỹ nhóm đó thì đi lẻ vẫn phải trả'
+)
+
+/* ---------- xoá cứng thành viên: chỉ khi chưa dính gì ---------- */
+
+assert.ok(memberRefs(db, 'M5').length > 0, 'người đã điểm danh và đóng quỹ thì không xoá cứng được')
+assert.ok(memberRefs(db, 'M5').indexOf('dues') >= 0)
+assert.ok(memberRefs(db, 'M5').indexOf('attend') >= 0)
+const bare = { ...db, members: db.members.concat([{ id: 'MZZ', name: 'Mới toanh', gender: 'nam', active: true }]) }
+assert.deepEqual(memberRefs(bare, 'MZZ'), [], 'người vừa thêm, chưa dính gì thì xoá được')
+assert.deepEqual(memberRefs(db, 'không-có-ai'), [], 'id lạ thì không crash')
+
 /* ---------- đóng thiếu: trạng thái suy ra từ SỐ TIỀN, không phải cờ ---------- */
 
 const D = (amount, paidAmount) => dueState({ amount, paidAmount })
@@ -383,6 +449,36 @@ const tot = duesTotal([{ amount: 250000, paidAmount: 150000 }, { amount: 200000,
 assert.deepEqual(tot, { amount: 450000, paid: 350000, remain: 100000 })
 assert.deepEqual(duesTotal([]), { amount: 0, paid: 0, remain: 0 })
 assert.deepEqual(duesTotal(undefined), { amount: 0, paid: 0, remain: 0 })
+
+/* ---------- đơn giá một buổi do CLB TỰ ĐẶT thì ưu tiên hơn cách chia của app ---------- */
+
+const gcn = db.groups.find((g) => g.id === 'G1')
+const nam = { id: 'MU', gender: 'nam' }
+const nu = { id: 'MV', gender: 'nu' }
+// Chưa đặt gì → app tự chia như cũ.
+assert.equal(unitPrice(db, nam, gcn, '2026-08').override, false)
+assert.equal(unitPrice(db, nam, gcn, '2026-08').unit, 50000, '250.000 ÷ 5 buổi')
+
+// Đặt 60.000/buổi cho nam, 45.000 cho nữ → dùng thẳng, không chia lại.
+const gOwn = { ...gcn, unitNam: 60000, unitNu: 45000 }
+const dbOwn = { ...db, groups: db.groups.map((g) => (g.id === 'G1' ? gOwn : g)) }
+assert.equal(unitPrice(dbOwn, nam, gOwn, '2026-08').unit, 60000)
+assert.equal(unitPrice(dbOwn, nam, gOwn, '2026-08').override, true)
+assert.equal(unitPrice(dbOwn, nu, gOwn, '2026-08').unit, 45000)
+// Số CLB gõ vào KHÔNG bị làm tròn lại — làm tròn là sửa số của họ.
+const gOdd = { ...gcn, unitNam: 63500, unitNu: 63500 }
+assert.equal(unitPrice({ ...db, groups: [gOdd] }, nam, gOdd, '2026-08').unit, 63500)
+// 0 và bỏ trống đều nghĩa là "để app tự chia".
+const gZero = { ...gcn, unitNam: 0, unitNu: null }
+assert.equal(unitPrice(db, nam, gZero, '2026-08').override, false)
+assert.equal(unitPrice(db, nu, gZero, '2026-08').override, false)
+
+// Back tiền đi theo số tự đặt: M5 nữ vắng 2 buổi → 45.000 × 2, không phải 40.000 × 2.
+const dbBackOwn = { ...db, groups: db.groups.map((g) => (g.id === 'G1' ? gOwn : g)) }
+const m5own = adjustRows(dbBackOwn, '2026-08').find((r) => r.memberId === 'M5' && r.kind === 'absent_back')
+assert.equal(m5own.unit, 45000)
+assert.equal(m5own.amount, -90000)
+assert.equal(m5own.unitOverride, true)
 
 /* ---------- người vào GIỮA THÁNG: phải sinh được khoản để thu ---------- */
 

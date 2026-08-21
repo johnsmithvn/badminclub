@@ -112,6 +112,8 @@ ok('costState', () => M.costState(s0))
 ok('checkDue', () => M.checkDue(db))
 ok('joinDues', () => M.joinDues(db, { gender: 'nam' }, M.groupOf(db, 'ALL'), MONTH))
 ok('payerName', () => M.payerName(db, null, ''))
+assert.equal(M.intOf('1.650.000'), 1650000)
+assert.deepEqual(ok('memberRefs', () => M.memberRefs(db, 'x')), [])
 assert.deepEqual(M.spreadDiff([], 5), {})
 
 assert.equal(ok('remainSessions', () => M.remainSessions(dbS, 'x', MONTH)), 0)

@@ -5,7 +5,7 @@ import { Button, Dialog, Input, Select, Switch } from '#ds'
 import { Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
-import { checkOf, checkPreview, fmtK, genderTxt } from '#lib/money.js'
+import { checkOf, checkPreview, fmtK, genderTxt, intOf } from '#lib/money.js'
 import { venueOptions } from '#lib/forms.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
 import { t } from '#i18n'
@@ -205,8 +205,9 @@ function PurchaseDialog() {
   const { db, ui, a } = useApp()
   const f = ui.form
   const type = db.shuttleTypes.find((x) => x.id === f.pType) || db.shuttleTypes[0] || { perTube: cfg.shuttle.perTubeDefault }
-  const qty = (parseInt(f.pTubes || 0, 10) || 0) * type.perTube + (parseInt(f.pExtra || 0, 10) || 0)
-  const total = parseInt(f.pTotal || 0, 10) || 0
+  // intOf chứ không parseInt: xem trước phải ra đúng số mà createPurchase sẽ lưu.
+  const qty = intOf(f.pTubes) * type.perTube + intOf(f.pExtra)
+  const total = intOf(f.pTotal)
   // Cùng cái ngày mà createPurchase sẽ dùng, để xem trước không nói khác lúc bấm.
   const pDate = f.pDate || db.today
   // Tháng của ngày nhập đã kiểm kho rồi thì ẩn ô đếm tủ — mỗi tháng chỉ một lần (uq_check_month).
@@ -489,7 +490,39 @@ function EditMemberDialog() {
           { value: 'next', label: t('members.whenNext') },
         ]}
         onChange={(e) => a.setF('eWhen', e.target.value)} />
-      <Note>{t('members.editGroupNote')}</Note>
+
+      {/* Nhóm cố định sửa ngay tại đây. Gỡ HẾT nhóm = thành người đi lẻ (vãng lai). */}
+      <div style={{ display: 'grid', gap: 7 }}>
+        <Overline>{t('members.fGroups')}</Overline>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {db.groups.map((g) => {
+            const on = (f.eGroups || []).indexOf(g.id) >= 0
+            return (
+              <button key={g.id} type="button" onClick={() => a.toggleMemberGroup(g.id, 'eGroups')} style={{
+                padding: '7px 12px', borderRadius: 99, border: '1px solid',
+                borderColor: on ? 'var(--teal-500)' : 'var(--border-subtle)',
+                background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
+                color: 'var(--text-primary)', font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
+              }}>{g.name}</button>
+            )
+          })}
+          {!db.groups.length && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+            {t('members.noGroupYet')}
+          </span>}
+        </div>
+      </div>
+
+      <Select label={t('members.fWhenGroup')} value={f.eWhenGroup || 'next'}
+        hint={t('members.fWhenGroupHint')}
+        options={[
+          { value: 'next', label: t('members.groupNext') },
+          { value: 'now', label: t('members.groupNow') },
+        ]}
+        onChange={(e) => a.setF('eWhenGroup', e.target.value)} />
+
+      <Note tone={(f.eGroups || []).length ? undefined : 'warn'}>
+        {(f.eGroups || []).length ? t('members.editGroupNote') : t('members.editGroupNone')}
+      </Note>
     </Shell>
   )
 }

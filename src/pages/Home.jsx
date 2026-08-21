@@ -160,7 +160,7 @@ function Overview() {
                       <span style={SS.label}>{memberOf(db, d.memberId).name}</span>
                       <Mono color="var(--status-delayed)">{fmt(st.remain)}</Mono>
                       {st.paid > 0 && <span style={SS.caption}>{t('home.duePartialTag', { amount: fmtK(st.paid) })}</span>}
-                      {/* Nut nay thu NOT phan con thieu; thu mot phan thi vao Cong no. */}
+                      {/* Nút này thu NỐT phần còn thiếu; thu một phần thì vào Công nợ. */}
                       <IconButton icon="check" size="sm" variant="ghost"
                         label={t('home.markPaid')} onClick={() => a.payDue(d.id)} />
                     </div>

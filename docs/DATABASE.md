@@ -84,7 +84,7 @@ kho. Ghi thêm chi theo từng buổi là đếm hai lần.
 | Giá 1 quả cầu | `SUM(total_amount)/SUM(total_units)` các đợt có `total_amount > 0` | `money.js: shuttleUnit` |
 | Định mức cầu | `group.quota × số sân còn chơi / số sân không thuê thêm`, sàn 6 | `money.js: quotaFor` |
 | Ai phải đóng quỹ tháng | `group_memberships` của tháng đó, `state='fixed'` | `money.js: groupMembers` |
-| Đơn giá 1 buổi (để đối chiếu) | `monthly_dues.amount` **của chính người đó** ÷ số buổi nhóm trong tháng ≠ cancelled | `money.js: unitPrice` |
+| Đơn giá 1 buổi (để đối chiếu) | `member_groups.unit_male/unit_female` nếu CLB tự đặt; không thì `monthly_dues.amount` **của chính người đó** ÷ số buổi nhóm trong tháng ≠ cancelled | `money.js: unitPrice` |
 | Đối chiếu buổi | đơn giá × số buổi; ÂM khi vắng, DƯƠNG khi đi thêm. Dòng đã lưu thì đọc số đã lưu | `money.js: adjustRows` |
 | Chi phí buổi · /người · quỹ bù | Tầng B, tính live từ giá **hiện tại** — sẽ đóng băng, xem §8 | `money.js: costRow` |
 | Số trận từng người | `match_players` join `matches` theo `session_id` | `assign.js: matchStats` |
@@ -220,9 +220,11 @@ dán nguyên nội dung file migration vào và bấm Run, từng file một the
 | `0003_levels_and_client_sync.sql` | trình độ theo từng CLB (bỏ enum `skill_level`), `club_member_groups`, `sessions.group_mode`, `session_courts.default_minutes`, `transactions.payer_name`, RPC `club_pending_requests` |
 | `0004_fix_gen_club_code.sql` | **Sửa lỗi chặn tạo CLB.** `gen_club_code()` khai biến plpgsql tên `code` trùng cột `clubs.code` → `create_club` trả 400 `column reference "code" is ambiguous`. Thân plpgsql chỉ là text lúc `CREATE` nên lỗi không lộ khi apply, chỉ lộ khi có người bấm tạo CLB |
 | `0005_cost_freeze.sql` | `sessions.cost_*` (7 cột) đóng băng giá thành lúc chốt buổi + `stock_checks UNIQUE (club_id, month)` |
-| `0008_payer_link.sql` | `court_bills.payer_member_id`; dồn tên gõ tay trong `shuttle_purchases.funded_by` vào `note` để cột đó trả lại đúng nghĩa nguồn tiền (dọn trước cho P5) |
-| `0007_member_adjustments.sql` | Đối chiếu buổi hai chiều: `attend_state` thêm `'extra'`, enum `adjust_kind` + `settle_mode`, bảng `member_adjustments` (ghi đủ số, không chỉ cờ `paid` như `back_credits`), chuyển dữ liệu cũ sang. `back_credits` giữ nguyên, app thôi đọc |
 | `0006_grants.sql` | **Sửa lỗi chặn nạp dữ liệu.** 0002 chỉ bật RLS + tạo policy, không `GRANT` bảng nào → `permission denied for table clubs`, select bảng trả 403 trong khi RPC vẫn 200. Cấp quyền bảng cho `authenticated` + default privileges cho bảng thêm sau |
+| `0007_member_adjustments.sql` | Đối chiếu buổi hai chiều: `attend_state` thêm `'extra'`, enum `adjust_kind` + `settle_mode`, bảng `member_adjustments` (ghi đủ số, không chỉ cờ `paid` như `back_credits`), chuyển dữ liệu cũ sang. `back_credits` giữ nguyên, app thôi đọc |
+| `0008_payer_link.sql` | `court_bills.payer_member_id`; dồn tên gõ tay trong `shuttle_purchases.funded_by` vào `note` để cột đó trả lại đúng nghĩa nguồn tiền (dọn trước cho P5) |
+| `0009_paid_amount.sql` | `monthly_dues.paid_amount` — ghi được trường hợp đóng thiếu. Cột `paid` GIỮ lại làm bản sao suy ra `(paid_amount >= amount)`, không drop |
+| `0010_unit_override.sql` | `member_groups.unit_male` / `unit_female` — đơn giá một buổi CLB tự chốt, ưu tiên hơn cách chia `quỹ tháng ÷ số buổi` |
 
 ## 7. Việc còn lại trước khi chạy thật
 

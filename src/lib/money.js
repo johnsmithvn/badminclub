@@ -23,6 +23,18 @@ export function fmtK(n) {
 /** Như fmtK, thêm đuôi đơn vị tiền */
 export const fmt = (n) => fmtK(n) + ' ' + t('units.dong')
 
+/**
+ * Số nguyên đọc từ ô nhập của user. Bỏ mọi ký tự không phải chữ số trước khi parse.
+ *
+ * `parseInt` trần cắt ở dấu chấm: `parseInt('1.650.000')` ra **1**. Mà người Việt gõ tiền có
+ * dấu phân cách nghìn là chuyện đương nhiên — app ăn nhầm 1.650.000 thành 1 đồng, im lặng,
+ * không báo gì. Mọi ô nhập tiền/số lượng phải đi qua đây.
+ */
+export const intOf = (v) => {
+  const digits = String(v == null ? '' : v).replace(/[^\d]/g, '')
+  return digits ? parseInt(digits, 10) : 0
+}
+
 /* ---------- tra cứu ---------- */
 
 export const courtOf = (db, id) => db.courts.find((c) => c.id === id) || { name: t('common.unknown'), price: 0 }
@@ -155,7 +167,7 @@ export const estSessions = (db, month) =>
 export function checkPreview(db, date, counted) {
   const month = monthOf(date || db.today)
   const systemLeft = stock(db).left
-  const diff = systemLeft - (parseInt(counted, 10) || 0)
+  const diff = systemLeft - intOf(counted)
   const est = estSessions(db, month)
   return {
     month, systemLeft, diff, est, n: est.length, done: checkOf(db, month),
@@ -317,9 +329,18 @@ export function unitPrice(db, m, g, monthKey) {
   const n = monthSessions(db, monthKey).filter((s) => s.groupId === g.id && s.status !== 'cancelled').length || 1
   const due = (db.dues || []).find((d) => d.month === monthKey && d.groupId === g.id && d.memberId === m.id)
   const fee = due ? due.amount : m.gender === 'nu' ? g.feeNu : g.feeNam
+
+  // CLB tự chốt "một buổi tính 60.000" thì dùng thẳng số đó, KHÔNG chia lại từ quỹ tháng.
+  // Không làm tròn nữa: đây là số người ta gõ vào, tự ý làm tròn là sửa số của họ.
+  const over = m.gender === 'nu' ? g.unitNu : g.unitNam
+  if (over > 0) return { n, fee, raw: over, unit: over, override: true }
+
   const raw = fee / n
   const r = cfg.money.roundTo
-  return { n, fee, raw, unit: db.club.roundUnit ? Math.round(raw / r) * r : Math.round(raw) }
+  return {
+    n, fee, raw, override: false,
+    unit: db.club.roundUnit ? Math.round(raw / r) * r : Math.round(raw),
+  }
 }
 
 /** Khoá của một dòng đối chiếu. Trùng khoá = cùng một khoản, không sinh dòng thứ hai. */
@@ -347,13 +368,14 @@ export function adjustRows(db, monthKey) {
     const row = saved
       ? { sessions: saved.sessions, unit: saved.unit, amount: saved.amount }
       : { sessions, unit: u.unit, amount: sign * u.unit * sessions }
+    // Đơn giá này là số CLB tự đặt hay app tự chia — hiện ra để không ai phải đoán.
     out.push({
       key, month: monthKey, member: m, group: g, kind, groupId: g.id, memberId: m.id,
-      total: u.n, fee: u.fee, ...row,
+      total: u.n, fee: u.fee, unitOverride: !!u.override, ...row,
       settle: saved ? saved.settle : 'cash',
       paid: saved ? !!saved.paid : false,
       paidAt: saved ? saved.paidAt : null,
-      saved: !!saved,
+      saved: !!saved, orphan: false,
     })
   }
 
@@ -363,25 +385,52 @@ export function adjustRows(db, monthKey) {
     const att = (s) => db.attendance[s.id] || {}
     const fixed = groupMembers(db, g.id, monthKey)
     const isFixed = new Set(fixed.map((m) => m.id))
+    /**
+     * Đã có khoản quỹ tháng cho ĐÚNG nhóm này chưa. Đây mới là điều kiện đúng để miễn tiền
+     * "đi thêm buổi", chứ không phải "có tên trong danh sách cố định không":
+     * người đóng trọn gói 250.000 đầu tháng rồi bị chuyển sang vãng lai giữa chừng vẫn đã trả
+     * tiền cho các buổi của tháng đó — tính thêm đơn giá buổi nữa là thu hai lần.
+     */
+    const hasDue = (mid) =>
+      (db.dues || []).some((x) => x.month === monthKey && x.groupId === g.id && x.memberId === mid)
 
     fixed.forEach((m) => {
       push(g, m, 'absent_back', sess.filter((s) => att(s)[m.id] === false).length, -1)
     })
 
-    // Người đi thêm: có ô điểm danh 'extra' ở buổi của nhóm này.
-    // Người ĐÃ cố định nhóm này thì bỏ qua, dù ô điểm danh có là 'extra' đi nữa — họ đã đóng
-    // quỹ tháng cho nhóm, tính thêm tiền đi thêm buổi là thu hai lần cùng một buổi. Hay gặp ở
-    // người cố định cả hai nhóm.
     const extras = {}
     sess.forEach((s) => {
       const a = att(s)
       Object.keys(a).forEach((mid) => {
-        if (a[mid] === 'extra' && !isFixed.has(mid)) extras[mid] = (extras[mid] || 0) + 1
+        if (a[mid] === 'extra' && !isFixed.has(mid) && !hasDue(mid)) extras[mid] = (extras[mid] || 0) + 1
       })
     })
     Object.keys(extras).forEach((mid) => {
       const m = db.members.find((x) => x.id === mid)
       if (m) push(g, m, 'extra_session', extras[mid], 1)
+    })
+  })
+
+  /**
+   * Dòng ĐÃ LƯU mà người đó không còn cố định nhóm nữa (bị chuyển sang vãng lai, bị gỡ khỏi
+   * nhóm, hoặc điểm danh bị sửa lại) vẫn phải hiện. Bỏ đi thì:
+   *   - khoản ĐÃ trả  → sổ quỹ còn dòng chi nhưng không còn gì giải thích nó, đối chiếu sổ ra
+   *                     một khoản mồ côi;
+   *   - khoản CHƯA trả → quỹ vẫn đang nợ người ta mà không còn chỗ nào nhắc.
+   * Cờ `orphan` để UI nói rõ dòng này không còn khớp danh sách cố định hiện tại.
+   */
+  const shown = new Set(out.map((r) => r.key))
+  ;(db.adjustments || []).forEach((x) => {
+    if (x.month !== monthKey || shown.has(x.key)) return
+    const m = db.members.find((y) => y.id === x.memberId)
+    const g = db.groups.find((y) => y.id === x.groupId)
+    if (!m || !g) return
+    const u = unitPrice(db, m, g, monthKey)
+    out.push({
+      key: x.key, month: monthKey, member: m, group: g, kind: x.kind,
+      groupId: x.groupId, memberId: x.memberId,
+      sessions: x.sessions, unit: x.unit, amount: x.amount, total: u.n, fee: u.fee,
+      settle: x.settle, paid: !!x.paid, paidAt: x.paidAt, saved: true, orphan: true,
     })
   })
 
@@ -395,6 +444,29 @@ export function adjustRows(db, monthKey) {
  */
 export const pendingOffset = (db, mid, month) =>
   (db.adjustments || []).filter((x) => x.memberId === mid && x.settle === 'offset_next_dues' && !x.paid && x.month < month)
+
+/**
+ * Những chỗ đang trỏ tới một thành viên. Rỗng = xoá cứng được; có = chỉ được NGƯNG HOẠT ĐỘNG.
+ *
+ * Xoá cứng người đã dính điểm danh hoặc tiền là mất lịch sử của những tháng đã chốt, và dưới DB
+ * thì khoá ngoại chặn thẳng — báo cáo cũ sẽ trỏ vào khoảng không. Trả về danh sách KEY lý do để
+ * màn hình nói rõ vướng cái gì, thay vì chỉ bảo "không xoá được".
+ */
+export function memberRefs(db, id) {
+  const why = []
+  const any = (k, cond) => { if (cond) why.push(k) }
+  any('attend', Object.keys(db.attendance || {}).some((sid) => (db.attendance[sid] || {})[id] !== undefined))
+  any('dues', (db.dues || []).some((x) => x.memberId === id))
+  any('adjust', (db.adjustments || []).some((x) => x.memberId === id))
+  any('guest', (db.sessionGuests || []).some((x) => x.invitedBy === id) ||
+    (db.guests || []).some((x) => x.invitedBy === id))
+  any('match', (db.matches || []).some((m) => (m.playerKeys || []).indexOf(id) >= 0))
+  any('payer', (db.courtBills || []).some((x) => x.payerId === id) ||
+    (db.purchases || []).some((x) => x.payerId === id))
+  any('change', (db.changes || []).some((x) => x.memberId === id))
+  any('account', !!(db.members.find((m) => m.id === id) || {}).userId)
+  return why
+}
 
 /** Số buổi còn lại của nhóm trong tháng tính từ hôm nay — dùng khi thêm người giữa tháng. */
 export const remainSessions = (db, gid, month) =>

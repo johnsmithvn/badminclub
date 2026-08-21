@@ -489,7 +489,15 @@
     "settleOffset": "{{name}}: trừ vào quỹ tháng sau, không ghi giao dịch",
     "memberAddedNow": "Đã thêm {{name}} · cố định từ {{month}}, quỹ phải thu {{amount}} — xem ở Công nợ",
     "duePartial": "Đã nhận {{amount}} của {{name}} · còn thiếu {{remain}}",
-    "needAmount": "Nhập số tiền lớn hơn 0"
+    "needAmount": "Nhập số tiền lớn hơn 0",
+    "memberSavedKept": "Đã lưu · giữ nguyên {{amount}} đã đóng của {{month}} trong sổ quỹ",
+    "memberSavedDropped": "Đã lưu · xoá {{n}} khoản quỹ {{month}} chưa đóng, không nhắc nữa",
+    "memberOff": "Đã ngưng hoạt động {{name}} — lịch sử điểm danh và tiền giữ nguyên",
+    "memberOn": "{{name}} hoạt động trở lại",
+    "memberDeleted": "Đã xoá {{name}}",
+    "memberHasRefs": "Không xoá được {{name}}: {{why}}. Dùng \"Ngưng hoạt động\" để giữ lịch sử.",
+    "needLevels": "Chọn ít nhất một trình độ để áp giá",
+    "priceBulk": "Đã áp {{amount}} cho {{n}} trình độ"
   },
   "group": {
     "allClub": "Cả CLB",
@@ -672,11 +680,30 @@
     "fWhen": "Trình độ mới áp dụng khi nào",
     "whenNow": "Áp dụng ngay",
     "whenNext": "Từ tháng sau",
-    "editGroupNote": "Muốn đổi nhóm cố định của tháng sau thì vào tab Cố định tháng sau — mỗi tháng một danh sách riêng.",
+    "editGroupNote": "Đổi nhóm áp dụng cho tháng đã chọn ở trên. Tháng khác giữ nguyên.",
     "rosterThis": "Tháng này · {{month}}",
     "rosterNext": "Tháng sau · {{month}}",
     "joinFull": "Vào giữa tháng · nhóm chưa có buổi nào nên thu trọn gói",
-    "joinPartial": "Vào giữa tháng · {{n}} buổi còn lại"
+    "joinPartial": "Vào giữa tháng · {{n}} buổi còn lại",
+    "fWhenGroup": "Đổi nhóm từ khi nào",
+    "fWhenGroupHint": "Tháng này đã đóng quỹ thì nên để tháng sau, khỏi phải xử lý khoản đã thu",
+    "groupNext": "Từ tháng sau",
+    "groupNow": "Từ tháng này",
+    "noGroupYet": "CLB chưa có nhóm cố định nào — thêm ở Cài đặt",
+    "editGroupNone": "Không chọn nhóm nào = người này thành ĐI LẺ (vãng lai). Khoản quỹ tháng của nhóm bị gỡ: chưa đóng thì xoá, đã đóng một phần thì giữ nguyên trong sổ quỹ.",
+    "keptDueNote": "Chuyển sang đi lẻ giữa chừng · giữ khoản đã đóng",
+    "deactivate": "Ngưng hoạt động",
+    "reactivate": "Cho hoạt động lại",
+    "ref": {
+      "attend": "đã điểm danh",
+      "dues": "có quỹ tháng",
+      "adjust": "có khoản đối chiếu",
+      "guest": "đã rủ khách",
+      "match": "đã đánh trận",
+      "payer": "đứng tên trả một khoản chi",
+      "change": "có yêu cầu đổi thông tin",
+      "account": "đã ghép tài khoản"
+    }
   },
   "schedules": {
     "listTitle": "Lịch tập cố định",
@@ -740,7 +767,7 @@
     "noGuestDebt": "Không có khách nào còn nợ",
     "noGuestDebtHint": "Khách chưa trả tiền buổi sẽ hiện ở đây, gộp theo từng người và theo người rủ.",
     "duesTitle": "Quỹ tháng thành viên cố định",
-    "duesSub": "Nhập số tiền đã nhận. Để trống ô số tiền = thu nốt phần còn thiếu",
+    "duesSub": "Ô số tiền điền sẵn phần còn thiếu — thu đủ thì bấm luôn, thu một phần thì sửa số",
     "duesEmpty": "Tháng này chưa sinh quỹ",
     "duesEmptyHint": "Vào Thành viên → Cố định tháng sau → bấm Chốt danh sách để sinh quỹ tháng.",
     "backTitle": "Đối chiếu buổi",
@@ -777,7 +804,9 @@
     },
     "dueRemain": "còn {{amount}}",
     "dueCollect": "Thu",
-    "dueClear": "Xoá số đã nhận"
+    "dueClear": "Xoá số đã nhận",
+    "kindOrphan": "không còn cố định",
+    "unitOwn": "CLB tự đặt"
   },
   "fund": {
     "tabMonth": "Tổng hợp tháng",
@@ -997,7 +1026,7 @@
     "moneyAlertTitle": "Quy tắc tiền",
     "moneyAlert": "Quỹ tháng thu theo nhóm và giới tính. Khách giao lưu trả theo trình độ và giới tính, giá chốt tại thời điểm buổi. Tiền sân tính theo giờ × giá sân. Tiền cầu tính theo giá bình quân toàn kho.",
     "guestPriceTitle": "Giá khách giao lưu",
-    "guestPriceSub": "Đơn vị đồng mỗi buổi",
+    "guestPriceSub": "Đơn vị đồng mỗi buổi · nhập một giá rồi chọn nhiều trình độ để áp hàng loạt",
     "colLevel": "Trình độ",
     "colMale": "Nam",
     "colFemale": "Nữ",
@@ -1055,7 +1084,16 @@
     "suggestPhone": "Trùng SĐT với tài khoản {{name}}",
     "doLink": "Ghép",
     "doInvite": "Gửi lời mời",
-    "doUnlink": "Bỏ ghép"
+    "doUnlink": "Bỏ ghép",
+    "levelsSuggest": "Dùng thang gợi ý 9 bậc",
+    "bulkPrice": "Giá một buổi",
+    "bulkWho": "Áp cho",
+    "bulkBoth": "Cả nam và nữ",
+    "bulkPick": "Chọn trình độ để áp mức giá này",
+    "bulkApply": "Áp cho {{n}} trình độ",
+    "colUnitMale": "Đơn giá 1 buổi · nam",
+    "colUnitFemale": "Đơn giá 1 buổi · nữ",
+    "unitHint": "Để trống = app tự chia quỹ tháng ÷ số buổi"
   },
   "schema": {
     "alertTitle": "Thiết kế database cho bản chạy thật",

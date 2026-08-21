@@ -153,6 +153,22 @@ lập trong từng sân**, không ai bị đẩy sang sân khác.
 trên thẻ. Dựng CLB giữa tháng thì việc đầu tiên là chốt danh sách **tháng này**, không thì không
 có `monthly_dues` nào để thu và màn Công nợ trống trơn.
 
+**Sửa thành viên** đổi được cả nhóm cố định, kèm chọn áp dụng *từ tháng này* hay *từ tháng sau*
+(mặc định tháng sau — tháng này có thể đã đóng tiền). Gỡ hết nhóm = người đó thành **đi lẻ**:
+
+| Khoản quỹ tháng của nhóm bị gỡ | Xử lý |
+| --- | --- |
+| Chưa đóng đồng nào | **xoá** — không thì bị nhắc một khoản không còn phải đóng |
+| Đã đóng một phần / đủ | **giữ nguyên** trong sổ quỹ, ghi chú lý do. Tiền đã vào quỹ thật thì không tự bốc hơi, và họ đã trả cho các buổi của tháng đó |
+
+Người đã đóng quỹ tháng cho một nhóm thì **không bao giờ** bị tính thêm tiền đi lẻ ở nhóm đó,
+kể cả sau khi chuyển sang vãng lai — điều kiện là *đã trả tiền tháng chưa*, không phải *có tên
+trong danh sách cố định không*.
+
+**Xoá thành viên**: mặc định là **ngưng hoạt động** — giữ nguyên điểm danh và tiền của các tháng
+cũ. Xoá cứng chỉ mở khi người đó chưa dính gì (chưa điểm danh, chưa có quỹ, chưa đánh trận, chưa
+ghép tài khoản).
+
 Thêm thành viên chọn *cố định từ tháng này* thì họ được ghi cố định cho **cả hai** tháng, và sinh
 luôn khoản quỹ tháng này: nhóm chưa có buổi nào thì **thu trọn gói**, đã có buổi rồi thì **thu
 theo số buổi còn lại** tính từ hôm nay.

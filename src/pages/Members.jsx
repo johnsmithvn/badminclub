@@ -1,11 +1,11 @@
 // Thành viên: danh sách · cố định tháng sau · thay đổi chờ duyệt (handoff 02 §5).
 // Nguồn ai phải đóng quỹ là roster THEO THÁNG, không phải groupIds.
 
-import { Avatar, Button, Card, DataTable, Tabs } from '#ds'
+import { Avatar, Button, Card, DataTable, IconButton, Tabs } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { addMonth, monthShort, monthTxt } from '#utils/dates.js'
-import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, rosterStatus } from '#lib/money.js'
+import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, memberRefs, rosterStatus } from '#lib/money.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -102,10 +102,20 @@ function AllMembers({ canEdit }) {
     {
       key: 'a', header: '',
       render: (r) => canEdit && (
-        <Button variant="ghost" size="sm" icon="settings-2"
-          onClick={() => a.openDialog('editMember', editMemberForm(r))}>
-          {t('common.edit')}
-        </Button>
+        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+          <Button variant="ghost" size="sm" icon="settings-2"
+            onClick={() => a.openDialog('editMember', editMemberForm(r))}>
+            {t('common.edit')}
+          </Button>
+          {/* Ngưng hoạt động giữ nguyên lịch sử; xoá cứng chỉ mở khi chưa dính gì. */}
+          <IconButton icon={r.active === false ? 'rotate-ccw' : 'user-round-minus'} size="sm" variant="ghost"
+            label={t(r.active === false ? 'members.reactivate' : 'members.deactivate')}
+            onClick={() => a.toggleMemberActive(r.id)} />
+          {!memberRefs(db, r.id).length && (
+            <IconButton icon="trash-2" size="sm" variant="ghost"
+              label={t('common.delete')} onClick={() => a.deleteMember(r.id)} />
+          )}
+        </div>
       ),
     },
   ]

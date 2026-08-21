@@ -45,6 +45,8 @@ export function toDb(raw, ctx) {
   const groups = (raw.groups || []).map((g) => ({
     id: g.id, name: g.name, short: g.short || '', weekday: g.weekday,
     feeNam: num(g.fee_male), feeNu: num(g.fee_female),
+    // Đơn giá một buổi CLB tự đặt; 0 = để app tự chia.
+    unitNam: num(g.unit_male), unitNu: num(g.unit_female),
     from: hm(g.start_time), to: hm(g.end_time), quota: g.quota, active: g.active,
     courtIds: (g.group_courts || []).map((x) => x.court_id),
   }))
@@ -245,6 +247,8 @@ export function toRows(db, ctx) {
     put('member_groups', {
       id: g.id, club_id: cid, name: g.name, short: g.short || null, weekday: g.weekday,
       fee_male: g.feeNam, fee_female: g.feeNu, start_time: g.from, end_time: g.to,
+      // Đơn giá một buổi CLB tự đặt. 0 và null đều nghĩa là "để app tự chia" → ghi null cho gọn.
+      unit_male: g.unitNam || null, unit_female: g.unitNu || null,
       quota: g.quota, active: g.active !== false,
     })
     ;(g.courtIds || []).forEach((court) => put('group_courts', { group_id: g.id, court_id: court }))

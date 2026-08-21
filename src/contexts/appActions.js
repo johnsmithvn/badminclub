@@ -7,7 +7,7 @@ import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, sessionCost,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
-  adjustRows, pendingOffset, joinDues, dueState,
+  adjustRows, pendingOffset, joinDues, dueState, intOf, memberRefs,
 } from '#lib/money.js'
 import { fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -18,6 +18,9 @@ import { t } from '#i18n'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => crypto.randomUUID()
+
+/** Các trường SỐ của một nhóm cố định — dùng để biết ô nhập nào phải đi qua intOf. */
+const GROUP_NUM = ['feeNam', 'feeNu', 'quota', 'weekday', 'unitNam', 'unitNu']
 
 export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) {
   const db = () => dbRef.current
@@ -66,7 +69,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return { ...next, ...freezeCost(d, next, date) }
       }),
       stockChecks: (d.stockChecks || []).concat([{
-        id: uid(), date, month, counted: parseInt(counted, 10) || 0,
+        id: uid(), date, month, counted: intOf(counted),
         systemLeft, diff, spread: diff ? n : 0,
       }]),
     }
@@ -238,7 +241,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return { ...x, shuttleMode: 'exact', shuttleEst: false }
       }),
     setShuttle: (sid, v) =>
-      patchSession(sid, (x) => ({ ...x, shuttleUsed: Math.max(0, parseInt(v || 0, 10) || 0), shuttleEst: false })),
+      patchSession(sid, (x) => ({ ...x, shuttleUsed: intOf(v), shuttleEst: false })),
     bumpTubes: (sid, delta) =>
       patchSession(sid, (x, d) => {
         const pt = perTube(d, x)
@@ -256,7 +259,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     setSold: (sid, i, k, v) =>
       patchSession(sid, (x, d) => {
         const rows = (x.courts || []).slice()
-        rows[i] = { ...rows[i], [k]: k === 'soldAmount' ? Math.max(0, parseInt(v || 0, 10) || 0) : v }
+        rows[i] = { ...rows[i], [k]: k === 'soldAmount' ? intOf(v) : v }
         return syncQuota(d, { ...x, courts: rows })
       }),
     toggleCourtSold: (sid, i) =>
@@ -370,7 +373,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const was = db().dues.find((y) => y.id === id)
       if (!was) return
       const st = dueState(was)
-      const add = amount === undefined ? st.remain : Math.max(0, parseInt(amount, 10) || 0)
+      const add = amount === undefined ? st.remain : intOf(amount)
       if (add <= 0) return toast(t('toast.needAmount'))
       const next = st.paid + add
       up((d) => ({ dues: d.dues.map((x) => (x.id === id ? { ...x, paidAmount: next, paidAt: d.today } : x)) }))
@@ -482,20 +485,104 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     /* ---------- thành viên ---------- */
+    /**
+     * Lưu sửa thành viên, gồm cả NHÓM CỐ ĐỊNH — trước đây phải đi đường vòng qua tab Danh sách
+     * cố định, mà tab đó lại chỉ thấy tháng sau nên coi như không sửa được.
+     *
+     * Gỡ hết nhóm = thành người đi lẻ (vãng lai). Khi đó khoản quỹ tháng của nhóm bị gỡ:
+     *   chưa đóng đồng nào → XOÁ, không thì họ bị nhắc một khoản không còn phải đóng;
+     *   đã đóng một phần   → GIỮ nguyên và ghi chú lý do. Tiền đã vào quỹ thật thì không được
+     *                        tự bốc hơi khỏi sổ, và họ đã trả cho các buổi của tháng đó rồi.
+     */
     saveMember: () => {
       const f = form()
-      up((d) => ({
-        members: d.members.map((m) => {
+      const gs = f.eGroups || []
+      const gMonth = f.eWhenGroup === 'now' ? db().month : nextMonthKey()
+      let kept = 0
+      let dropped = 0
+      up((d) => {
+        const members = d.members.map((m) => {
           if (m.id !== f.eId) return m
-          const base = { ...m, name: f.eName, phone: f.ePhone, gender: f.eGender }
+          const base = { ...m, name: f.eName, phone: f.ePhone, gender: f.eGender, groupIds: gs.slice() }
           if (f.eLevel === m.level) return base
           return f.eWhen === 'now'
             ? { ...base, level: f.eLevel, pendingLevel: null, pendingLevelFrom: null }
             : { ...base, pendingLevel: f.eLevel, pendingLevelFrom: addMonth(d.month, 1) }
-        }),
-      }))
+        })
+
+        const roster = { ...d.roster }
+        const base = roster[gMonth] || ensureRoster(d, gMonth)
+        const next = { ...base }
+        let dues = d.dues.slice()
+        const mb = members.find((m) => m.id === f.eId)
+        d.groups.forEach((g) => {
+          const want = gs.indexOf(g.id) >= 0
+          next[g.id] = { ...(next[g.id] || {}), [f.eId]: want ? 'fixed' : 'off' }
+          const row = dues.find((x) => x.month === gMonth && x.groupId === g.id && x.memberId === f.eId)
+          if (!want && row) {
+            if (dueState(row).paid > 0) {
+              kept += dueState(row).paid
+              dues = dues.map((x) => (x.id === row.id ? { ...x, note: t('members.keptDueNote') } : x))
+            } else {
+              dropped++
+              dues = dues.filter((x) => x.id !== row.id)
+            }
+          }
+          // Vào nhóm ở tháng ĐÃ chốt danh sách thì phải sinh khoản quỹ, không thì thu hụt.
+          if (want && !row && d.locked[gMonth] && mb) {
+            const jd = joinDues(d, mb, g, gMonth)
+            if (jd.amount > 0) {
+              dues = dues.concat([{
+                id: uid(), month: gMonth, groupId: g.id, memberId: f.eId, amount: jd.amount,
+                paidAmount: 0, paidAt: null, method: '',
+                note: jd.full ? t('members.joinFull') : t('members.joinPartial', { n: jd.sessions }),
+              }])
+            }
+          }
+        })
+        roster[gMonth] = next
+        return { members, roster, dues }
+      })
       upUi(() => ({ dialog: null, form: {} }))
-      toast(t('toast.memberSaved'))
+      toast(kept > 0
+        ? t('toast.memberSavedKept', { amount: fmt(kept), month: monthTxt(gMonth).toLowerCase() })
+        : dropped > 0
+          ? t('toast.memberSavedDropped', { n: dropped, month: monthTxt(gMonth).toLowerCase() })
+          : t('toast.memberSaved'))
+    },
+    /** Ngưng hoạt động: giữ nguyên toàn bộ lịch sử điểm danh và tiền, chỉ ẩn khỏi danh sách. */
+    toggleMemberActive: (id) => {
+      const was = db().members.find((m) => m.id === id)
+      if (!was) return
+      up((d) => ({ members: d.members.map((m) => (m.id === id ? { ...m, active: m.active === false } : m)) }))
+      toast(t(was.active === false ? 'toast.memberOn' : 'toast.memberOff', { name: was.name }))
+    },
+    /**
+     * Xoá cứng — CHỈ khi chưa dính điểm danh, tiền, trận nào. Dính rồi thì xoá là mất lịch sử
+     * của tháng đã chốt, và khoá ngoại dưới DB cũng chặn.
+     */
+    deleteMember: (id) => {
+      const d0 = db()
+      const m = d0.members.find((x) => x.id === id)
+      if (!m) return
+      const why = memberRefs(d0, id)
+      if (why.length) {
+        return toast(t('toast.memberHasRefs', { name: m.name, why: why.map((k) => t('members.ref.' + k)).join(', ') }))
+      }
+      up((d) => {
+        // Dọn cả bản ghi danh sách cố định, không thì khoá ngoại group_memberships chặn lúc ghi.
+        const roster = {}
+        Object.keys(d.roster || {}).forEach((month) => {
+          roster[month] = {}
+          Object.keys(d.roster[month]).forEach((gid) => {
+            const gm = { ...d.roster[month][gid] }
+            delete gm[id]
+            roster[month][gid] = gm
+          })
+        })
+        return { members: d.members.filter((x) => x.id !== id), roster }
+      })
+      toast(t('toast.memberDeleted', { name: m.name }))
     },
     createMember: () => {
       const f = form()
@@ -563,13 +650,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         else w.splice(i, 1)
         return { form: { ...u.form, weekdays: w } }
       }),
-    toggleMemberGroup: (gid) =>
+    /** Bật/tắt một nhóm trong form. `field` là 'mGroups' (thêm mới) hoặc 'eGroups' (sửa). */
+    toggleMemberGroup: (gid, field = 'mGroups') =>
       upUi((u) => {
-        const w = (u.form.mGroups || []).slice()
+        const w = (u.form[field] || []).slice()
         const i = w.indexOf(gid)
         if (i < 0) w.push(gid)
         else w.splice(i, 1)
-        return { form: { ...u.form, mGroups: w } }
+        return { form: { ...u.form, [field]: w } }
       }),
     addRow: () => {
       // CLB mới chưa có sân nào — nói rõ thay vì nổ vì đọc courts[0].
@@ -665,9 +753,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       // KHÔNG đặt tên biến là `t` — sẽ che hàm dịch t() và mọi toast dưới đây nổ TypeError.
       const ty = d0.shuttleTypes.find((x) => x.id === f.pType)
       if (!ty) return toast(t('toast.needShuttleType'))
-      const tubes = parseInt(f.pTubes || 0, 10) || 0
-      const extra = parseInt(f.pExtra || 0, 10) || 0
-      const total = parseInt(f.pTotal || 0, 10) || 0
+      const tubes = intOf(f.pTubes)
+      const extra = intOf(f.pExtra)
+      const total = intOf(f.pTotal)
       const qty = tubes * ty.perTube + extra
       if (!qty) return toast(t('toast.needQty'))
       if (!total) return toast(t('toast.needTotal'))
@@ -719,7 +807,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     /* ---------- sổ quỹ ---------- */
     createCourtBill: () => {
       const f = form()
-      const amt = parseInt(f.bAmount || 0, 10) || 0
+      const amt = intOf(f.bAmount)
       if (!amt || !(f.bVenue || '').trim()) return toast(t('toast.needVenueAmount'))
       up((d) => {
         return {
@@ -734,7 +822,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
     createLedger: () => {
       const f = form()
-      const amt = parseInt(f.lAmount || 0, 10) || 0
+      const amt = intOf(f.lAmount)
       if (!amt || !(f.lLabel || '').trim()) return toast(t('toast.needLabelAmount'))
       up((d) => {
         return {
@@ -759,6 +847,38 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      * thuật toán cân sân dùng đúng thứ tự này.
      * Chặn xoá trình độ đang có người dùng: xoá xong thì bảng giá khách và cân sân sai câm.
      */
+    /**
+     * Gán một mức giá khách cho NHIỀU trình độ cùng lúc. Thang 9 bậc là 18 ô nhập tay, mà thực
+     * tế CLB chỉ có vài mức giá — gõ từng ô vừa lâu vừa dễ lệch.
+     * `who`: 'nam' | 'nu' | 'both'.
+     */
+    applyPriceBulk: () => {
+      const f = form()
+      const levels = f.bulkLevels || []
+      const price = intOf(f.bulkPrice)
+      const who = f.bulkWho || 'both'
+      if (!levels.length) return toast(t('toast.needLevels'))
+      up((d) => ({
+        guestPrices: d.guestPrices.map((x) => {
+          if (levels.indexOf(x.level) < 0) return x
+          return {
+            ...x,
+            nam: who === 'nu' ? x.nam : price,
+            nu: who === 'nam' ? x.nu : price,
+          }
+        }),
+      }))
+      upUi((u) => ({ form: { ...u.form, bulkLevels: [] } }))
+      toast(t('toast.priceBulk', { n: levels.length, amount: fmtK(price) }))
+    },
+    toggleBulkLevel: (level) =>
+      upUi((u) => {
+        const w = (u.form.bulkLevels || []).slice()
+        const i = w.indexOf(level)
+        if (i < 0) w.push(level)
+        else w.splice(i, 1)
+        return { form: { ...u.form, bulkLevels: w } }
+      }),
     setLevels: (text) => {
       const list = String(text || '').split(',').map((x) => x.trim()).filter(Boolean)
       const next = list.filter((x, i) => list.indexOf(x) === i)
@@ -777,14 +897,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
       toast(t('toast.levelsSaved', { n: next.length }))
     },
-    setLockDay: (v) => up((d) => ({ club: { ...d.club, lockDay: Math.min(28, Math.max(1, parseInt(v || 1, 10) || 1)) } })),
+    setLockDay: (v) => up((d) => ({ club: { ...d.club, lockDay: Math.min(28, Math.max(1, intOf(v) || 1)) } })),
     setPrice: (level, gender, v) =>
       up((d) => ({
-        guestPrices: d.guestPrices.map((x) => (x.level === level ? { ...x, [gender]: parseInt(v || 0, 10) || 0 } : x)),
+        guestPrices: d.guestPrices.map((x) => (x.level === level ? { ...x, [gender]: intOf(v) } : x)),
       })),
     setCourtField: (id, k, v) =>
       up((d) => ({
-        courts: d.courts.map((c) => (c.id === id ? { ...c, [k]: k === 'price' ? parseInt(v || 0, 10) || 0 : v } : c)),
+        courts: d.courts.map((c) => (c.id === id ? { ...c, [k]: k === 'price' ? intOf(v) : v } : c)),
       })),
     addCourt: () => {
       const f = form()
@@ -793,7 +913,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         courts: d.courts.concat([{
           id: uid(), name, addr: (f.cAddr || '').trim(),
-          price: parseInt(f.cPrice || 0, 10) || 0, active: true,
+          price: intOf(f.cPrice), active: true,
         }]),
       }))
       upUi(() => ({ dialog: null, form: {} }))
@@ -807,11 +927,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         groups: d.groups.concat([{
           id: uid(), name, short: (f.grShort || '').trim() || name.slice(0, 3),
-          weekday: parseInt(f.grWeekday || 0, 10) || 0,
-          feeNam: parseInt(f.grFeeNam || 0, 10) || 0,
-          feeNu: parseInt(f.grFeeNu || 0, 10) || 0,
+          weekday: intOf(f.grWeekday),
+          feeNam: intOf(f.grFeeNam),
+          feeNu: intOf(f.grFeeNu),
           from: f.grFrom, to: f.grTo,
-          quota: parseInt(f.grQuota || 0, 10) || cfg.shuttle.quotaDefault,
+          quota: intOf(f.grQuota) || cfg.shuttle.quotaDefault,
           courtIds: f.grCourts.slice(), active: true,
         }]),
       }))
@@ -828,14 +948,18 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })),
     setGroupField: (id, k, v) =>
       up((d) => ({
-        groups: d.groups.map((g) => (g.id === id ? { ...g, [k]: typeof g[k] === 'number' ? parseInt(v || 0, 10) || 0 : v } : g)),
+        // Khoá nào là SỐ phải liệt kê tay: `typeof g[k] === 'number'` sai ngay khi giá trị đang
+        // là null (đơn giá tự đặt để trống) — lúc đó nó nhét thẳng chuỗi vào cột bigint.
+        groups: d.groups.map((g) => (g.id === id
+          ? { ...g, [k]: GROUP_NUM.indexOf(k) >= 0 ? intOf(v) : v }
+          : g)),
       })),
     setShuttleType: (id, k, v) =>
       up((d) => ({
         shuttleTypes: d.shuttleTypes.map((x) => {
           if (x.id !== id) return x
           if (k === 'name' || k === 'active') return { ...x, [k]: v }
-          return { ...x, [k]: parseInt(v || 0, 10) || 0 }
+          return { ...x, [k]: intOf(v) }
         }),
       })),
     addShuttleType: () => {
@@ -989,7 +1113,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => {
         const all = { ...(d.courtMin || {}) }
         const c = { ...(all[sid] || {}) }
-        c[ci] = Math.max(0, parseInt(v || 0, 10) || 0)
+        c[ci] = intOf(v)
         all[sid] = c
         return { courtMin: all }
       }),

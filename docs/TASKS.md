@@ -258,14 +258,53 @@ Sáu chỗ user gặp ngay khi dựng CLB thật giữa tháng. Không nằm tro
 - [x] Test: `dueState` đủ 4 nhánh kể cả đưa dư và số âm rác · sổ quỹ ghi đúng tổng đã nhận ·
       đóng thiếu 150/250 thì sổ chỉ thấy 150. Đã mutation-test.
 
-### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0010`
+### P4.5 · Cố định ↔ vãng lai + sửa/xoá thành viên — **XONG 2026-08-20** · không đụng schema
+
+- [x] **`adjustRows` đánh mất khoản đã lưu khi người đó thôi cố định.** Khoản ĐÃ trả thì sổ quỹ
+      còn dòng chi mà không còn dòng nào giải thích (đối chiếu ra khoản mồ côi); khoản CHƯA trả
+      thì quỹ vẫn nợ mà không ai nhắc. Giờ dòng đã lưu luôn hiện, kèm nhãn `không còn cố định`.
+- [x] **Thu hai lần cùng một buổi.** Guard cũ là "có trong danh sách cố định không" — lách được
+      bằng cách chuyển sang vãng lai giữa tháng. Điều kiện đúng là **đã có quỹ tháng cho nhóm đó
+      chưa**: đóng trọn gói 250.000 đầu tháng thì các buổi tháng đó đã trả rồi.
+- [x] **Sửa nhóm cố định ngay trong dialog sửa thành viên** + chọn áp dụng từ tháng này / tháng
+      sau (mặc định tháng sau). Gỡ hết nhóm = thành đi lẻ.
+- [x] Gỡ nhóm mà tháng đó **chưa đóng đồng nào** → xoá khoản quỹ treo (khỏi bị nhắc oan);
+      **đã đóng một phần** → giữ nguyên trong sổ quỹ và ghi chú lý do. Tiền đã vào quỹ thật thì
+      không được tự bốc hơi.
+- [x] Vào nhóm ở tháng ĐÃ chốt danh sách → sinh khoản quỹ bằng `joinDues`, không thì thu hụt.
+- [x] **Ngưng hoạt động** (giữ nguyên lịch sử) và **xoá cứng** (chỉ khi `memberRefs` rỗng — chưa
+      dính điểm danh, tiền, trận, tài khoản nào). Xoá cứng dọn luôn bản ghi danh sách cố định,
+      không thì khoá ngoại `group_memberships` chặn lúc ghi.
+- [x] **`intOf` cho mọi ô nhập số.** `parseInt('1.650.000')` ra **1** — 18 ô nhập tiền trong app
+      đang dính, gõ có dấu phân cách nghìn là mất tiền im lặng. Ô thu quỹ tháng điền sẵn số còn
+      thiếu.
+- [x] Test + mutation-test cả bốn: dòng mồ côi · thu hai lần · `memberRefs` · `intOf`.
+
+### P4.6 · Trình độ + giá khách + đơn giá tự đặt — migration `0010` · **XONG 2026-08-20**
+
+- [x] **CLB tạo trước khi đổi thang mặc định vẫn giữ thang cũ 4 bậc.** Thêm nút *Dùng thang gợi ý
+      9 bậc* ở Cài đặt → Chung, khỏi gõ tay. Bảng giá khách vốn đã bám `db.levels` nên tự nở ra
+      theo.
+- [x] **Gán giá khách hàng loạt.** Thang 9 bậc = 18 ô nhập tay, CLB thực tế chỉ có vài mức giá.
+      Nhập một giá → chọn nhiều trình độ → chọn nam / nữ / cả hai → Áp. Bảng chi tiết vẫn còn
+      để chỉnh lẻ.
+- [x] **`member_groups.unit_male` / `unit_female`** — đơn giá MỘT BUỔI do CLB tự chốt. Nhiều CLB
+      không chia theo `quỹ tháng ÷ số buổi` mà chốt thẳng "một buổi 60.000". Điền vào thì đối
+      chiếu buổi ưu tiên dùng nó, để trống thì app tự chia như cũ. **Không làm tròn lại** số
+      người ta gõ. Màn Đối chiếu gắn nhãn `CLB tự đặt` để không ai đi dò lại phép chia.
+- [x] **`setGroupField` nhét chuỗi vào cột số.** Nó đoán kiểu bằng `typeof g[k] === 'number'` —
+      sai ngay khi giá trị đang là `null` (đơn giá để trống), lúc đó chuỗi thô đi thẳng xuống
+      cột `bigint`. Thay bằng danh sách khoá số khai tay.
+- [x] Test + mutation-test đơn giá tự đặt.
+
+### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0011`
 
 - [ ] **L3 · Dọn dữ liệu trước.** `dbmap.js` đang ghi **tên người trả** (chuỗi tự do) vào cột
       `funded_by`. Chuyển sang `payer_member_id` rồi mới `ALTER TYPE` sang enum, không thì migration chết.
 - [ ] `funded_by` enum `fund_source` + bảng `member_payables`. `member_advance` → **không** ghi chi,
       tạo khoản phải trả; khi trả người ứng mới ghi chi.
 
-### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0011` + đổi `lib/ledger.js`
+### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0012` + đổi `lib/ledger.js`
 
 - [ ] Mỗi sự kiện ở `DATABASE.md` §3.1 ghi ngay một dòng `transactions` kèm `ref_type` + `ref_id`.
       Bỏ tick thì ghi dòng đảo chiều, không xoá cứng.

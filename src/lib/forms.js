@@ -55,9 +55,13 @@ export const memberForm = (db) => ({
 /** Trình độ gợi ý mặc định: bậc thứ hai trong thang của CLB, không có thì bậc đầu. */
 const lv1 = (db) => (db.levels || [])[1] || (db.levels || [])[0] || ''
 
-/** Form sửa thành viên. */
+/**
+ * Form sửa thành viên. `eGroups` là nhóm cố định, `eWhenGroup` quyết định áp dụng từ tháng nào —
+ * mặc định THÁNG SAU vì tháng này có thể đã đóng tiền rồi, đổi ngay là phải xử lý khoản đã thu.
+ */
 export const editMemberForm = (m) => ({
   eId: m.id, eName: m.name, ePhone: m.phone, eGender: m.gender, eLevel: m.level, eWhen: 'now',
+  eGroups: (m.groupIds || []).slice(), eWhenGroup: 'next',
 })
 
 /** Form thêm sân cho một buổi. */

@@ -32,6 +32,8 @@ const COST_STATES = ['live', 'temp', 'final']
 // Hai chiều của bảng đối chiếu và hai cách trả — khớp enum adjust_kind / settle_mode ở DB.
 const ADJUST_KINDS = ['absent_back', 'extra_session']
 const SETTLE_MODES = ['cash', 'offset_next_dues']
+// Lý do không xoá cứng được một thành viên — khớp money.js: memberRefs.
+const MEMBER_REFS = ['attend', 'dues', 'adjust', 'guest', 'match', 'payer', 'change', 'account']
 const CHECK_DUE = ['never', 'stale', 'low']
 
 const SRC = 'src'
@@ -105,6 +107,7 @@ COST_STATES.forEach((k) => need('session.costState.' + k))
 CHECK_DUE.forEach((k) => need('shuttles.due.' + k))
 ADJUST_KINDS.forEach((k) => need('debts.kind.' + k))
 SETTLE_MODES.forEach((k) => need('debts.settle.' + k))
+MEMBER_REFS.forEach((k) => need('members.ref.' + k))
 
 assert.equal(dyn.length, 0, 'key i18n ghép động không tồn tại:\n  ' + dyn.join('\n  '))
 

@@ -146,7 +146,7 @@ function Dues({ dues, canMoney }) {
                         }}>
                           <Avatar name={memberOf(db, x.memberId).name} size={22} />
                           <span style={{ ...S.label, flex: 1, minWidth: 90 }}>{memberOf(db, x.memberId).name}</span>
-                          {/* Da nhan / phai dong - hien ca hai de khong phai doan con thieu bao nhieu. */}
+                          {/* Đã nhận / phải đóng — hiện cả hai để không phải nhẩm còn thiếu bao nhiêu. */}
                           <Mono color={st.state === 'full' ? 'var(--status-delivered)' : 'var(--text-primary)'}>
                             {fmtK(st.paid) + ' / ' + fmt(st.amount)}
                           </Mono>
@@ -155,12 +155,14 @@ function Dues({ dues, canMoney }) {
                           )}
                           {canMoney && st.remain > 0 && (
                             <>
-                              {/* Bo trong o nay = thu not phan con thieu. Dien so = thu mot phan. */}
-                              <Input size="sm" mono style={{ width: 108 }}
-                                placeholder={fmtK(st.remain)} value={ui.form[key] || ''}
+                              {/* Điền sẵn số còn thiếu: thu đủ thì bấm luôn, thu một phần thì sửa
+                                  số. Số điền sẵn để THÔ (không dấu chấm) nhưng gõ có dấu chấm
+                                  cũng đọc được — xem money.js: intOf. */}
+                              <Input size="sm" mono style={{ width: 118 }}
+                                value={ui.form[key] ?? String(st.remain)}
                                 onChange={(e) => a.setF(key, e.target.value)} />
                               <Button variant="secondary" size="sm" icon="hand-coins"
-                                onClick={() => { a.payDue(x.id, ui.form[key] || undefined); a.setF(key, '') }}>
+                                onClick={() => { a.payDue(x.id, ui.form[key]); a.setF(key, undefined) }}>
                                 {t('debts.dueCollect')}
                               </Button>
                             </>
@@ -232,10 +234,16 @@ function Back({ rows, canMoney }) {
                     <span style={S.caption}>
                       {r.group.name}
                       <span style={back ? S.kindBack : S.kindExtra}>{t('debts.kind.' + r.kind)}</span>
+                      {/* Khoản đã lưu nhưng người đó không còn cố định nhóm này nữa. */}
+                      {r.orphan && <span style={S.kindOrphan}>{t('debts.kindOrphan')}</span>}
                     </span>
                     <span style={S.r}>{r.sessions}</span>
                     <span style={S.r}>{r.total}</span>
-                    <span style={S.r}>{fmt(r.unit)}</span>
+                    <span style={S.r}>
+                      {fmt(r.unit)}
+                      {/* Số CLB tự chốt, không phải app chia ra — nói rõ để không ai đi dò lại. */}
+                      {r.unitOverride && <span style={S.kindOrphan}>{t('debts.unitOwn')}</span>}
+                    </span>
                     {/* Dấu là thông tin, không phải trang trí: − quỹ trả ra, + quỹ thu về. */}
                     <span style={{
                       ...S.r, fontWeight: 600,
@@ -278,6 +286,10 @@ const S = {
   kindExtra: {
     font: '600 9px/1 var(--font-sans)', padding: '3px 6px', borderRadius: 99, marginLeft: 6,
     background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)', whiteSpace: 'nowrap',
+  },
+  kindOrphan: {
+    font: '600 9px/1 var(--font-sans)', padding: '3px 6px', borderRadius: 99, marginLeft: 6,
+    background: 'var(--status-idle-bg)', color: 'var(--status-idle-fg)', whiteSpace: 'nowrap',
   },
   row: {
     display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px',
