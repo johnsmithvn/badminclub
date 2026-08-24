@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict'
 import { seed } from './fixture.js'
 import {
-  adjustKey, adjustRows, checkDue, checkPreview, costRow, costState, courtBase, courtCost,
+  adjustKey, adjustRows, checkDue, checkPreview, closeWarnings, costDrift, costRow, costState, courtBase, courtCost,
   courtExtraCost, courtNet, estSessions, fmt, fmtK, freezeCost, groupMembers, guestDebtRows,
   dueState, duesTotal, guestPrice, homeAlerts, intOf, isPresent, joinDues, memberRefs, levelIdx, levelOf, levelStyle, payerName, playedCourts,
   pendingOffset, presentCount, quotaFor, remainSessions, sessionCost, sessionMembers, sessionOf,
-  shuttleUnit, soldTotal, spreadDiff, stock, unfrozenCost, unitPrice,
+  sGuests, shuttleUnit, soldTotal, spreadDiff, stock, unfrozenCost, unitPrice,
 } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -557,5 +557,86 @@ const fixed = {
   )),
 }
 assert.deepEqual(keysOf(fixed), [])
+
+/* ---------- chốt buổi: cảnh báo trước (closeWarnings) ---------- */
+
+const B6 = S('B6')
+const wKeys = (x, s2) => closeWarnings(x, s2).map((w) => w.key)
+// Fixture ĐÃ điểm danh B6 (6 có mặt, 1 vắng) → không nhắc gì.
+assert.deepEqual(wKeys(db, B6), [], 'buổi đã điểm danh thì im')
+assert.deepEqual(wKeys(db, S('B1')), [])
+
+// Chưa điểm danh ai: bảng rỗng.
+const noAtt = { ...db, attendance: { ...db.attendance, B6: {} } }
+assert.deepEqual(wKeys(noAtt, B6), ['noAttend'], 'chưa điểm danh ai')
+// Buổi chưa có bản ghi điểm danh nào cũng thế (B9 còn draft).
+assert.deepEqual(wKeys(db, S('B9')), ['noAttend'])
+
+// Đánh vắng TẤT CẢ cũng là chưa ai đi — số người 0, giá thành vô nghĩa.
+const allAbsent = { ...db, attendance: { ...db.attendance, B6: { M2: false, M3: false } } }
+assert.deepEqual(wKeys(allAbsent, B6), ['noAttend'])
+// Một người 'extra' (đi thêm) cũng tính là có mặt.
+const oneExtra = { ...db, attendance: { ...db.attendance, B6: { M2: 'extra' } } }
+assert.deepEqual(wKeys(oneExtra, B6), [])
+
+// Sân đánh dấu bán mà ô tiền để trống — hai ô chỏi nhau.
+const soldNoAmt = { ...B6, courts: B6.courts.map((c, i) => (i === 0 ? { ...c, sold: true, soldAmount: 0 } : c)) }
+assert.deepEqual(wKeys(db, soldNoAmt), ['soldBlank'])
+// Có tiền bán rồi thì không nhắc.
+const soldOk = { ...soldNoAmt, courts: soldNoAmt.courts.map((c) => (c.sold ? { ...c, soldAmount: 240000 } : c)) }
+assert.deepEqual(wKeys(db, soldOk), [])
+// Hai lỗi cùng lúc thì hiện cả hai, đúng thứ tự.
+assert.deepEqual(wKeys(noAtt, soldNoAmt), ['noAttend', 'soldBlank'])
+assert.deepEqual(closeWarnings(noAtt, soldNoAmt)[1], { key: 'soldBlank', n: 1 })
+assert.deepEqual(closeWarnings(db, null), [], 'không có buổi thì không throw')
+
+/* ---------- chốt buổi: cảnh báo sau (costDrift) ---------- */
+
+// Buổi chưa chốt thì không có gì để lệch.
+assert.equal(costDrift(db, B6), null)
+
+// Chốt B1 rồi so lại chính nó: không lệch.
+const frozenB1 = { ...S('B1'), ...freezeCost(db, S('B1'), '2026-08-02') }
+const dbF = { ...db, sessions: db.sessions.map((x) => (x.id === 'B1' ? frozenB1 : x)) }
+assert.equal(costDrift(dbF, frozenB1), null, 'vừa chốt xong thì không lệch')
+
+// Sửa điểm danh sau khi chốt → lệch số người.
+const lessAttend = { ...dbF, attendance: { ...dbF.attendance, B1: { M2: true } } }
+const dHeads = costDrift(lessAttend, frozenB1)
+assert.equal(dHeads.length, 1)
+assert.equal(dHeads[0].key, 'heads')
+assert.equal(dHeads[0].was, frozenB1.costHeads)
+assert.equal(dHeads[0].now, 1 + sGuests(db, 'B1').length)
+
+// Sửa số cầu sau khi chốt → lệch số cầu, và `was` suy đúng từ tiền cầu ÷ đơn giá đã lưu.
+const moreShuttle = { ...frozenB1, shuttleUsed: frozenB1.shuttleUsed + 6 }
+const dQty = costDrift({ ...dbF, sessions: dbF.sessions.map((x) => (x.id === 'B1' ? moreShuttle : x)) }, moreShuttle)
+assert.equal(dQty.length, 1)
+assert.equal(dQty[0].key, 'shuttle')
+assert.equal(dQty[0].was, S('B1').shuttleUsed)
+assert.equal(dQty[0].now, S('B1').shuttleUsed + 6)
+
+// GIÁ cầu đổi (mua đợt mới đắt hơn) mà KHÔNG ai sửa buổi → KHÔNG được cảnh báo.
+// Đây đúng là thứ đóng băng sinh ra để chống; cảnh báo ở đây là nhắc oan mỗi lần nhập kho.
+const pricier = {
+  ...dbF,
+  purchases: dbF.purchases.concat([{
+    id: 'PX', date: '2026-08-20', typeId: 'S1', tubes: 10, extra: 0, qty: 120,
+    pricePerTube: 900000, total: 9000000, payer: '', note: '',
+  }]),
+}
+assert.ok(shuttleUnit(pricier) > shuttleUnit(db), 'đơn giá cầu đã tăng thật')
+assert.equal(costDrift(pricier, frozenB1), null, 'giá đổi KHÔNG phải lệch dữ liệu buổi')
+
+// Thêm khách sau khi chốt → lệch thu khách.
+const moreGuest = {
+  ...dbF,
+  sessionGuests: dbF.sessionGuests.concat([{
+    id: 'SGX', sessionId: 'B1', guestId: dbF.guests[0].id, level: dbF.levels[0],
+    gender: 'nam', price: 70000, paid: false, invitedBy: 'M2',
+  }]),
+}
+const dRev = costDrift(moreGuest, frozenB1).map((x) => x.key).sort()
+assert.deepEqual(dRev, ['heads', 'rev'], 'thêm khách đổi cả đầu người lẫn thu khách')
 
 console.log('money check: OK')

@@ -9,7 +9,7 @@ import {
   groupMembers, groupOf, guestDebtRows, homeAlerts, isPresent, memberOf, monthSessions, sessionOf,
   shuttleUnit, stock, timeTxt,
 } from '#lib/money.js'
-import { fundBalance, monthFlow } from '#lib/ledger.js'
+import { availableBalance, monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -45,7 +45,8 @@ function Overview() {
   const totalDebt = debtors.reduce((x, r) => x + r.debt, 0)
   const flow = monthFlow(db, month)
   const st = stock(db)
-  const bal = fundBalance(db)
+  const av = availableBalance(db)
+  const bal = av.balance
   const upcoming = db.sessions.filter((s) => s.date >= db.today && s.status !== 'cancelled').slice(0, 4)
 
   // Số buổi có mặt của từng người trong tháng — chỉ tính buổi đã chốt.
@@ -63,9 +64,12 @@ function Overview() {
       <Warnings />
       <Setup />
       <div style={GRID_STAT}>
+        {/* Trang chủ đã 8 ô, không nhồi thêm ô khả dụng — nói trong caption của chính ô số dư. */}
         <StatCard label={t('home.fundBalance')} value={fmt(bal)} icon="wallet"
           tone={bal < 0 ? 'critical' : 'neutral'}
-          caption={t('home.fundCaption', { amount: fmt(db.club.opening), date: ddmy(db.club.openingDate) })} />
+          caption={av.owed > 0
+            ? t('home.fundOwedCaption', { available: fmtK(av.available), owed: fmtK(av.owed) })
+            : t('home.fundCaption', { amount: fmt(db.club.opening), date: ddmy(db.club.openingDate) })} />
         <StatCard label={t('home.guestDebt')} value={fmt(totalDebt)} icon="clock-alert" tone="warning"
           caption={t('home.guestDebtCaption', { n: debtors.length, month: monthTxt(month).toLowerCase() })} />
         <StatCard label={t('home.stock')} value={st.left} unit={t('units.shuttle')} icon="package" tone="accent"

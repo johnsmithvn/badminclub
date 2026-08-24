@@ -3,14 +3,14 @@
 
 import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Button, Card, IconButton, Input, Select, Switch } from '#ds'
+import { Alert, Button, Card, IconButton, Input, Select, Switch } from '#ds'
 import { Empty, LevelChip, Mono, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
-  costRow, costState, courtOf, courtPayMode, courtTxt, dueState, duesOf, fmt, fmtK, genderTxt,
-  groupOf, guestOf, guestPaidRev, guestPrice, levelOf, perTube, playedCourts, presentCount,
-  quotaFor, rowCost, sGuests, sessionMembers, sessionOf, soldTotal, timeTxt,
+  closeWarnings, costDrift, costRow, costState, courtOf, courtPayMode, courtTxt, dueState, duesOf,
+  fmt, fmtK, genderTxt, groupOf, guestOf, guestPaidRev, guestPrice, levelOf, perTube, playedCourts,
+  presentCount, quotaFor, rowCost, sGuests, sessionMembers, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -53,6 +53,8 @@ export default function SessionDetail() {
   // Buổi đã chốt thì c.* là số ĐÃ ĐÓNG BĂNG hôm chốt, không tính lại theo giá hôm nay.
   const c = costRow(db, s)
   const cState = costState(s)
+  const warns = closeWarnings(db, s)
+  const drift = costDrift(db, s)
 
   return (
     <>
@@ -278,8 +280,39 @@ export default function SessionDetail() {
 
               <div style={S.caption}>{t('session.costNote')}</div>
 
+              {/* Trước khi chốt: chỉ cảnh báo, KHÔNG chặn nút Chốt. */}
+              {s.status === 'open' && warns.length > 0 && (
+                <Alert tone="warning" title={t('session.closeWarnTitle')}>
+                  <div style={{ display: 'grid', gap: 3 }}>
+                    {warns.map((w) => (
+                      <span key={w.key}>{t('session.closeWarn.' + w.key, { n: w.n })}</span>
+                    ))}
+                  </div>
+                </Alert>
+              )}
+
+              {/* Sau khi chốt: số đã đóng băng mà dữ liệu buổi đổi rồi — sửa đang vô ích. */}
+              {drift && (
+                <Alert tone="warning" title={t('session.driftTitle', { date: ddmy(s.costFrozenAt) })}>
+                  <div style={{ display: 'grid', gap: 3 }}>
+                    {drift.map((d) => (
+                      <span key={d.key}>
+                        {t('session.drift.' + d.key, { was: fmtK(d.was), now: fmtK(d.now) })}
+                      </span>
+                    ))}
+                    <span style={{ marginTop: 4 }}>{t('session.driftNote')}</span>
+                  </div>
+                </Alert>
+              )}
+
               {canEdit && (
                 <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+                  {drift && canMoney && (
+                    <Button variant="primary" icon="rotate-ccw"
+                      onClick={() => a.setSessionStatus(s.id, 'closed')}>
+                      {t('session.driftBtn')}
+                    </Button>
+                  )}
                   {s.status === 'draft' && (
                     <Button variant="primary" icon="user-round-check" onClick={() => a.setSessionStatus(s.id, 'open')}>
                       {t('session.doOpen')}

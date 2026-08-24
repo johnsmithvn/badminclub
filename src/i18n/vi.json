@@ -323,6 +323,7 @@
     },
     "fundBalance": "Số dư quỹ CLB",
     "fundCaption": "Mang sang {{amount}} · {{date}}",
+    "fundOwedCaption": "Khả dụng {{available}} · đã hứa trả {{owed}}",
     "guestDebt": "Công nợ khách giao lưu",
     "guestDebtCaption": "{{n}} khách còn nợ {{month}}",
     "stock": "Tồn kho cầu",
@@ -571,6 +572,19 @@
     "guestGender": "Giới tính",
     "guestLevel": "Trình độ",
     "guestBy": "Người rủ",
+    "closeWarnTitle": "Còn treo — vẫn chốt được, chỉ nhắc cho biết",
+    "closeWarn": {
+      "noAttend": "Buổi này chưa điểm danh ai. Chốt bây giờ thì số người bằng 0 và người vắng không được hoàn tiền.",
+      "soldBlank": "{{n}} sân đánh dấu đã bán nhưng ô tiền bán để trống."
+    },
+    "driftTitle": "Số đã chốt ngày {{date}}, nhưng dữ liệu buổi đổi sau đó",
+    "drift": {
+      "heads": "Số người: chốt {{was}} → hiện {{now}}",
+      "rev": "Thu khách: chốt {{was}} → hiện {{now}}",
+      "shuttle": "Số cầu: chốt {{was}} → hiện {{now}}"
+    },
+    "driftNote": "Số tiền đang hiện là số chốt hôm đó — sửa thêm nữa cũng không làm nó đổi. Muốn cập nhật thì chốt lại.",
+    "driftBtn": "Chốt lại theo số mới",
     "guestNoLevel": "CLB chưa có thang trình độ nên không tính được giá khách. Bấm để sang Cài đặt → Chung đặt thang.",
     "guestNoPrice": "Trình độ này đang để giá 0 đ. Bấm để sang Cài đặt → Tiền đặt bảng giá khách.",
     "guestByShort": "Rủ bởi",
@@ -851,6 +865,8 @@
     "addEntry": "Ghi thu / chi",
     "balance": "Số dư quỹ",
     "balanceCaption": "Luỹ kế toàn bộ, không theo tháng",
+    "available": "Số dư khả dụng",
+    "availableCaption": "Trừ quỹ nợ thành viên {{advance}} · back chưa trả {{back}}",
     "stockValue": "Tồn kho quy tiền",
     "stockValueCaption": "{{n}} quả × {{unit}} đ/quả · giá bình quân kho",
     "monthIn": "Thu trong tháng",

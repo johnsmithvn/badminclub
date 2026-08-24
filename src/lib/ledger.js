@@ -7,7 +7,7 @@
 import { dd, monthOf, monthTxt } from '#utils/dates.js'
 import { t } from '#i18n'
 import {
-  courtCost, courtExtraCost, courtPayMode, courtTxt, dueState, fmtK,
+  advanceRows, courtCost, courtExtraCost, courtPayMode, courtTxt, dueState, fmtK,
   groupOf, guestOf, isVault, memberOf, payerName, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 
@@ -176,6 +176,27 @@ export function ledger(db) {
 
 /** Số dư luỹ kế toàn bộ, không theo tháng. */
 export const fundBalance = (db) => ledger(db).reduce((t2, r) => t2 + (r.dir === 'in' ? r.amount : -r.amount), 0)
+
+/**
+ * Số dư SỔ và số dư KHẢ DỤNG (T2). Sổ là tiền đang nằm trong két; khả dụng là phần chưa có chủ.
+ *
+ * Trừ đúng hai thứ, đều là tiền CLB đã hứa trả và sẽ rời két:
+ *  - quỹ nợ thành viên ứng tiền (P5) — khoản chi chưa vào sổ nên số dư đang cao hơn thực tế
+ *  - back tiền đã chốt, trả bằng tiền mặt, chưa trả
+ *
+ * KHÔNG trừ khách nợ hay quỹ tháng chưa đóng: đó là phải THU, tiền chưa vào chứ không sắp ra.
+ * KHÔNG trừ khoản back `offset_next_dues`: nó trừ thẳng vào quỹ tháng sau, không đồng nào rời két.
+ */
+export function availableBalance(db) {
+  const balance = fundBalance(db)
+  const advance = advanceRows(db).filter((r) => !r.repaidAt).reduce((s, r) => s + r.amount, 0)
+  // amount ÂM = quỹ nợ người (xem money.js: adjustRows) → đảo dấu để ra số phải trả.
+  const back = (db.adjustments || [])
+    .filter((x) => !x.paid && x.settle === 'cash' && x.amount < 0)
+    .reduce((s, x) => s - x.amount, 0)
+  const owed = advance + back
+  return { balance, advance, back, owed, available: balance - owed }
+}
 
 /** Thu/chi trong một tháng, KHÔNG tính dòng Số dư mang sang. */
 export function monthFlow(db, m) {

@@ -1,7 +1,7 @@
 // node src/__tests__/ledger.test.js
 import assert from 'node:assert/strict'
 import { seed } from './fixture.js'
-import { CATS, dailySummary, fundBalance, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
+import { CATS, availableBalance, dailySummary, fundBalance, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
 import { advanceRows, courtCost, courtExtraCost, isVault, soldTotal } from '#lib/money.js'
 import { monthOf } from '#utils/dates.js'
 
@@ -244,5 +244,39 @@ assert.equal(isVault(db, 'M8'), true, 'treasurer')
 assert.equal(isVault(db, 'M7'), false, 'member thường')
 assert.equal(isVault(db, 'M3'), false, 'host không phải két')
 assert.equal(isVault(db, null), true, 'không ghi người trả = quỹ trả thẳng')
+
+/* ---------- T2 · số dư sổ vs số dư khả dụng ---------- */
+
+// Fixture không nợ ai → hai số bằng nhau, không có ô nào phải hiện.
+const av0 = availableBalance(db)
+assert.equal(av0.owed, 0)
+assert.equal(av0.available, av0.balance)
+
+// Thành viên ứng 3.300.000 chưa được trả: số dư SỔ cao lên (chi chưa vào sổ), khả dụng thì không.
+const avAdv = availableBalance(byMember)
+assert.equal(avAdv.advance, 3300000)
+assert.equal(avAdv.balance, av0.balance + 3300000, 'sổ cao hơn vì khoản chi chưa ghi')
+assert.equal(avAdv.available, av0.balance, 'khả dụng đứng yên — đó mới là điểm của T2')
+
+// Trả rồi thì hết nghĩa vụ, hai số bằng nhau trở lại.
+assert.equal(availableBalance(repaid).owed, 0)
+
+// Back tiền: chỉ khoản ĐÃ CHỐT, trả tiền mặt, chưa trả mới là nghĩa vụ.
+const withBack = (adj) => ({ ...db, adjustments: adj })
+const A = (over) => ({
+  id: 'a1', key: 'k', month: '2026-08', groupId: 'G1', memberId: 'M5', kind: 'absent_back',
+  sessions: 2, unit: 40000, amount: -80000, settle: 'cash', paid: false, paidAt: null, ...over,
+})
+assert.equal(availableBalance(withBack([A()])).back, 80000, 'quỹ nợ người: amount âm → phải trả')
+assert.equal(availableBalance(withBack([A({ paid: true })])).back, 0, 'đã trả thì hết nghĩa vụ')
+assert.equal(availableBalance(withBack([A({ settle: 'offset_next_dues' })])).back, 0,
+  'trừ vào quỹ tháng sau: không đồng nào rời két')
+assert.equal(availableBalance(withBack([A({ amount: 60000 })])).back, 0,
+  'amount dương = NGƯỜI nợ quỹ, đó là phải thu chứ không phải nghĩa vụ')
+
+// Hai nguồn nghĩa vụ cộng dồn.
+const both = { ...byMember, adjustments: [A()] }
+assert.equal(availableBalance(both).owed, 3300000 + 80000)
+assert.equal(availableBalance(both).available, availableBalance(both).balance - 3380000)
 
 console.log('ledger check: OK')

@@ -609,6 +609,58 @@ export const unfrozenCost = () => ({
  */
 export const costState = (s) => (!s.costFrozenAt ? 'live' : s.shuttleEst ? 'temp' : 'final')
 
+/* ---------- chốt buổi: cảnh báo trước và sau ---------- */
+
+/** Miền giá trị hai họ key `session.closeWarn.*` và `session.drift.*` — i18n test đọc từ đây. */
+export const CLOSE_WARN_KEYS = ['noAttend', 'soldBlank']
+export const DRIFT_KEYS = ['heads', 'rev', 'shuttle']
+
+/**
+ * Việc còn treo trước khi chốt buổi. CHỈ CẢNH BÁO, không chặn: chặn thì có ngày bán sân cho CLB
+ * khác mà chưa biết họ trả bao nhiêu là không chốt được buổi, trong khi chẳng có lỗi gì.
+ *
+ * Cố ý KHÔNG nhắc: khách còn ghi nợ (nợ nằm ở màn Công nợ, chốt hay không đều hiện) · số cầu
+ * đang là định mức (CLB không đếm cầu thì định mức là bình thường, nhắc là phiền).
+ */
+export function closeWarnings(db, s) {
+  if (!s) return []
+  const out = []
+  const map = (db.attendance || {})[s.id] || {}
+  if (!Object.keys(map).some((k) => isPresent(map[k]))) out.push({ key: 'noAttend', n: 0 })
+  // Đánh dấu "đã bán" mà ô tiền để trống: hai ô đang chỏi nhau, không phải quên nhập chung chung.
+  const blank = rows(s).filter((c) => c.sold && !(c.soldAmount > 0)).length
+  if (blank) out.push({ key: 'soldBlank', n: blank })
+  return out
+}
+
+/**
+ * Buổi đã chốt mà dữ liệu buổi đổi sau đó → số đóng băng KHÔNG tự cập nhật. Đóng băng là cố ý
+ * (giá sân / giá cầu đổi không được làm đổi buổi cũ), nhưng người vừa sửa điểm danh thì không có
+ * gì báo cho họ biết là sửa vô ích. Trả `null` khi chưa chốt hoặc không lệch.
+ *
+ * CHỈ so ba thứ ĐẾM ĐƯỢC: số người · thu khách · số cầu. Ba cái này chỉ đổi khi có người sửa dữ
+ * liệu buổi. KHÔNG so tiền sân — giá sân đổi là đủ làm nó lệch mà chẳng ai sửa gì, cảnh báo oan
+ * đúng vào cái mà đóng băng sinh ra để chống.
+ */
+export function costDrift(db, s) {
+  if (!s || !s.costFrozenAt) return null
+  const out = []
+  const heads = presentCount(db, s) + sGuests(db, s.id).length
+  if (heads !== (s.costHeads || 0)) out.push({ key: 'heads', was: s.costHeads || 0, now: heads })
+
+  // Giá khách chốt ngay lúc thêm (sessionGuests.price) nên rev chỉ lệch khi thêm/bớt khách.
+  const rev = guestRev(db, s.id)
+  if (rev !== (s.costGuestRev || 0)) out.push({ key: 'rev', was: s.costGuestRev || 0, now: rev })
+
+  // Số cầu lúc chốt suy ra từ tiền cầu ÷ đơn giá đã lưu. Chưa mua đợt nào thì đơn giá 0, bỏ qua.
+  const unit = s.costShuttleUnit || 0
+  if (unit > 0) {
+    const was = Math.round((s.costShuttle || 0) / unit)
+    if ((s.shuttleUsed || 0) !== was) out.push({ key: 'shuttle', was, now: s.shuttleUsed || 0 })
+  }
+  return out.length ? out : null
+}
+
 /* ---------- màu và nhãn ---------- */
 
 /** Bảng màu trình độ, yếu → mạnh. Thang dài hơn bảng màu thì các bậc cuối dùng chung màu mạnh nhất. */

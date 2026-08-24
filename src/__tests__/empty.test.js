@@ -60,6 +60,8 @@ assert.ok(ok('groupOf ALL', () => M.groupOf(db, 'ALL')).quota > 0)
 /* ---------- tổng hợp toàn CLB ---------- */
 
 assert.equal(ok('fundBalance', () => L.fundBalance(db)), 0)
+assert.deepEqual(ok('availableBalance', () => L.availableBalance(db)),
+  { balance: 0, advance: 0, back: 0, owed: 0, available: 0 })
 // Sổ quỹ của CLB mới vẫn có đúng một dòng: quỹ mang sang (kể cả bằng 0).
 ok('ledger', () => L.ledger(db, MONTH))
 ok('ledgerGrouped', () => L.ledgerGrouped(db, MONTH))
@@ -114,6 +116,11 @@ ok('checkDue', () => M.checkDue(db))
 assert.deepEqual(ok('homeAlerts', () => M.homeAlerts(db)), [])
 assert.deepEqual(ok('advanceRows', () => M.advanceRows(db)), [])
 assert.equal(ok('isVault', () => M.isVault(db, 'không-có-ai')), false)
+assert.deepEqual(ok('closeWarnings null', () => M.closeWarnings(db, null)), [])
+assert.equal(ok('costDrift null', () => M.costDrift(db, null)), null)
+assert.deepEqual(ok('closeWarnings s0', () => M.closeWarnings(dbS, s0)).map((w) => w.key), ['noAttend'],
+  'buổi mới tạo chưa điểm danh ai — phải nhắc, không được throw')
+assert.equal(ok('costDrift s0', () => M.costDrift(dbS, s0)), null, 'chưa chốt thì không lệch')
 ok('joinDues', () => M.joinDues(db, { gender: 'nam' }, M.groupOf(db, 'ALL'), MONTH))
 ok('payerName', () => M.payerName(db, null, ''))
 assert.equal(M.intOf('1.650.000'), 1650000)

@@ -6,7 +6,7 @@ import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
 import { billsOf, courtPayMode, fmt, fmtK, payerName, shuttleUnit, stock } from '#lib/money.js'
-import { catLabel, dailySummary, fundBalance, ledgerGrouped, monthFlow } from '#lib/ledger.js'
+import { availableBalance, catLabel, dailySummary, ledgerGrouped, monthFlow } from '#lib/ledger.js'
 import { courtBillForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -16,7 +16,8 @@ export default function Fund() {
   const tab = ui.tab.fund || 'month'
   const canMoney = can(db.viewAs || 'owner', 'money')
   const flow = monthFlow(db, db.month)
-  const bal = fundBalance(db)
+  const av = availableBalance(db)
+  const bal = av.balance
   const net = flow.in - flow.out
   // Số cầu trong tủ là tiền quỹ đã trả rồi nhưng chưa dùng hết. Không hiện ra thì thủ quỹ
   // đọc số dư THẤP hơn thực tế và tưởng quỹ đang hụt.
@@ -28,6 +29,12 @@ export default function Fund() {
       <div style={GRID_STAT}>
         <StatCard label={t('fund.balance')} value={fmt(bal)} icon="wallet"
           tone={bal < 0 ? 'critical' : 'neutral'} caption={t('fund.balanceCaption')} />
+        {/* Chỉ hiện khi thật sự nợ ai: không nợ thì hai ô nói cùng một số, thêm ô là thêm nhiễu. */}
+        {av.owed > 0 && (
+          <StatCard label={t('fund.available')} value={fmt(av.available)} icon="scale"
+            tone={av.available < 0 ? 'critical' : 'warning'}
+            caption={t('fund.availableCaption', { advance: fmtK(av.advance), back: fmtK(av.back) })} />
+        )}
         <StatCard label={t('fund.stockValue')} value={fmt(st.left * unit)} icon="package" tone="accent"
           caption={t('fund.stockValueCaption', { n: st.left, unit: fmtK(unit) })} />
         <StatCard label={t('fund.monthIn')} value={fmt(flow.in)} icon="trending-up" tone="positive"

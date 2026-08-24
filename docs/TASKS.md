@@ -412,14 +412,25 @@ Hai việc dưới bắt được gần hết.
 - [x] ~~**T1 · `wallets` + `transactions.wallet_id`**~~ — **CẮT KHỎI PHẠM VI, user chốt 2026-08-24:**
       *"cái này kệ nhé không phải issue, chỉ đang quan tâm tới lịch sử minh bạch dòng tiền thôi."*
       Không tách ví / ngân hàng. Đừng bàn lại.
-- [ ] **T1b · Vai `host` không tick được "khách đã trả" — giữ lại, đây là nguyên nhân B9.**
-      Phần này KHÔNG bị cắt cùng `wallets`. **Nhưng đã đơn giản hoá 2026-08-24:** chỉ cần mở
-      quyền cho `host` tick, KHÔNG sinh khoản "host nợ quỹ" (xem luật một chiều ở P5). Tiền host
-      cầm vẫn là khách nợ tới lúc vào két.
-- [ ] **T2 · Không phân biệt số dư sổ và số dư khả dụng.** StatCard "Số dư khả dụng" cạnh "Số dư
-      quỹ CLB", caption liệt kê nghĩa vụ chưa trả. Luật người giữ quỹ làm mục này **quan trọng
-      hơn** chứ không bớt: số dư sổ là tiền trong két chủ CLB, còn tiền đang nằm ở tay thành viên
-      là khoản nợ hai chiều.
+- [x] ~~**T1b · Vai `host` không tick được "khách đã trả"**~~ — **KHÔNG CẦN LÀM. Đặc tả `07` nói
+      sai với code hiện tại**, kiểm 2026-08-24:
+      - `permissions.json` và seed `role_permissions` (`0001:151`) đều cho `host` cờ **`sessions`**
+      - RLS của `session_guests` gác bằng flag **`'sessions'`**, không phải `'money'` (`0002:408`)
+      - UI: `<Switch>` tick khách ở `SessionDetail.jsx:245` **không** có `disabled={!canMoney}`
+      - route `session` nằm trong danh sách của `host`
+
+      Tức là quản trò **đã** tick được khách đã trả, cả ở UI lẫn RLS. B9 không phải do bị chặn
+      quyền — chỉ là **quên tick**. Xử lý bằng checklist chốt buổi + màn Đối chiếu quỹ, đúng chỗ.
+- [x] **T2 · Số dư sổ vs số dư khả dụng — XONG 2026-08-24** (chờ user bấm thử).
+      `ledger.js: availableBalance(db)` trả `{balance, advance, back, owed, available}`.
+      Trừ đúng hai thứ, đều là tiền đã hứa trả và sẽ rời két: **quỹ nợ thành viên ứng tiền** (P5)
+      và **back tiền đã chốt, trả tiền mặt, chưa trả**.
+      KHÔNG trừ khách nợ / quỹ tháng chưa đóng — đó là phải THU. KHÔNG trừ back
+      `offset_next_dues` — trừ thẳng vào quỹ tháng sau, không đồng nào rời két.
+      **Sổ quỹ:** StatCard "Số dư khả dụng" cạnh "Số dư quỹ", chỉ hiện khi `owed > 0` (không nợ ai
+      thì hai ô nói cùng một số).
+      **Trang chủ:** không thêm ô — trang đã 8 ô — mà đổi caption của chính ô số dư.
+      Test + mutation-test 4 nhánh (`settle` · `paid` · chiều dấu · bỏ khoản ứng).
 - [x] **N5 / mục 8 · Tồn kho quy tiền** ở màn Sổ quỹ (`số quả còn × giá bình quân`) — user đang
       đọc quỹ **thấp hơn** thực tế vì quên số cầu trong tủ. StatCard cạnh "Số dư quỹ".
 - [ ] **Gộp 3 mức nhắc kiểm kho (`checkDue`: `never` · `stale` · `low`) còn một câu.** CLB này
