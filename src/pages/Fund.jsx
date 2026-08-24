@@ -5,7 +5,7 @@ import { Button, Card, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
-import { billsOf, courtPayMode, fmt, payerName } from '#lib/money.js'
+import { billsOf, courtPayMode, fmt, fmtK, payerName, shuttleUnit, stock } from '#lib/money.js'
 import { catLabel, dailySummary, fundBalance, ledgerGrouped, monthFlow } from '#lib/ledger.js'
 import { courtBillForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -18,12 +18,18 @@ export default function Fund() {
   const flow = monthFlow(db, db.month)
   const bal = fundBalance(db)
   const net = flow.in - flow.out
+  // Số cầu trong tủ là tiền quỹ đã trả rồi nhưng chưa dùng hết. Không hiện ra thì thủ quỹ
+  // đọc số dư THẤP hơn thực tế và tưởng quỹ đang hụt.
+  const st = stock(db)
+  const unit = shuttleUnit(db)
 
   return (
     <>
       <div style={GRID_STAT}>
         <StatCard label={t('fund.balance')} value={fmt(bal)} icon="wallet"
           tone={bal < 0 ? 'critical' : 'neutral'} caption={t('fund.balanceCaption')} />
+        <StatCard label={t('fund.stockValue')} value={fmt(st.left * unit)} icon="package" tone="accent"
+          caption={t('fund.stockValueCaption', { n: st.left, unit: fmtK(unit) })} />
         <StatCard label={t('fund.monthIn')} value={fmt(flow.in)} icon="trending-up" tone="positive"
           caption={monthTxt(db.month)} />
         <StatCard label={t('fund.monthOut')} value={fmt(flow.out)} icon="trending-down" tone="critical"

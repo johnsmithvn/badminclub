@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v0.5.0 · **Updated:** 2026-08-20
+**Version:** v0.6.0 · **Updated:** 2026-08-24
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -297,10 +297,31 @@ Sáu chỗ user gặp ngay khi dựng CLB thật giữa tháng. Không nằm tro
       cột `bigint`. Thay bằng danh sách khoá số khai tay.
 - [x] Test + mutation-test đơn giá tự đặt.
 
+### ⚖️ LUẬT NGƯỜI GIỮ QUỸ — user chốt 2026-08-24, chi phối cả P5 và P6
+
+> **Chỉ tiền đi qua tay chủ CLB mới là thu / chi. Tiền ở tay bất kỳ ai khác đều là NỢ.**
+
+Nguyên văn: *"tiền trả dòng tiền từ chủ CLB mới tính là nguồn thu chi nhé, các thành viên khác
+đều là nợ hoặc gì đó."*
+
+Hệ quả — mọi khoản sau đây **không** còn sinh dòng thu/chi ngay nữa, mà sinh khoản nợ hai chiều:
+
+| Sự kiện | Trước | Sau luật này |
+| --- | --- | --- |
+| Thành viên ứng tiền mua cầu | ghi CHI ngay | CLB **nợ** người đó · ghi CHI khi trả họ |
+| Thành viên trả hoá đơn sân | ghi CHI ngay | CLB **nợ** người đó · ghi CHI khi trả họ |
+| Quản trò thu tiền khách, giữ tiền | ghi THU ngay | người đó **nợ** quỹ · ghi THU khi nộp về |
+| Chủ CLB / thủ quỹ trực tiếp thu, chi | ghi thu/chi | **giữ nguyên** — đây là két thật |
+
+Việc này biến P5 từ "một tính năng ứng tiền" thành **mô hình chung của mọi khoản tiền không
+qua két**. Ai là "chủ CLB" theo nghĩa két tiền — vai `owner` + `treasurer` (những vai có flag
+`money`) — **chờ user xác nhận**, xem bảng cuối file.
+
 ### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0011`
 
-- [ ] **L3 · Dọn dữ liệu trước.** `dbmap.js` đang ghi **tên người trả** (chuỗi tự do) vào cột
-      `funded_by`. Chuyển sang `payer_member_id` rồi mới `ALTER TYPE` sang enum, không thì migration chết.
+- [x] ~~**L3 · Dọn dữ liệu trước.**~~ Đã làm ở `0008_payer_link.sql` cùng P3.5: tên gõ tay dồn
+      vào `note`, `dbmap.js` ghi `funded_by` = nguồn tiền, người trả sang `payer_member_id`.
+      Cột đã sạch → `ALTER TYPE` chạy được ngay.
 - [ ] `funded_by` enum `fund_source` + bảng `member_payables`. `member_advance` → **không** ghi chi,
       tạo khoản phải trả; khi trả người ứng mới ghi chi.
 
@@ -308,7 +329,15 @@ Sáu chỗ user gặp ngay khi dựng CLB thật giữa tháng. Không nằm tro
 
 - [ ] Mỗi sự kiện ở `DATABASE.md` §3.1 ghi ngay một dòng `transactions` kèm `ref_type` + `ref_id`.
       Bỏ tick thì ghi dòng đảo chiều, không xoá cứng.
-- [ ] `ledger()` chuyển thành đọc một bảng. Xoá dần các nhánh suy ra.
+- [ ] `ledger()` chuyển thành đọc một bảng. Xoá dần 5 nhánh suy ra (`dues` · `sessionGuests` ·
+      `sessions` bán sân · `sessions` sân thuê thêm · `adjustments`).
+- [ ] **CUTOFF, không backfill — user chốt 2026-08-24.** Lấy một mốc ngày: từ mốc trở đi sổ ghi
+      thật, trước mốc giữ nguyên số suy ra. Backfill là sinh ra chứng từ chưa từng tồn tại.
+- [ ] **Áp luật người giữ quỹ** (xem khối ⚖️ trên): dòng `transactions` chỉ sinh khi tiền qua két
+      chủ CLB; còn lại vào `member_payables` / khoản nợ ngược.
+- [ ] **Link hai chiều tiền ứng ↔ tiền trả nợ** — user yêu cầu 2026-08-24: transaction trả nợ
+      phải trỏ ngược về khoản ứng (`ref_type` + `ref_id`) để đọc được *"chi 3.300.000 này là trả
+      khoản Thúy ứng mua cầu ngày 05/08"*. Đây là lý do P5 phải để sẵn chỗ móc.
 - [ ] Đây là mục đã treo ở "Quyết định đang chờ user" — **đã chốt: làm, nhưng sau cùng.**
 
 ### P7 · Mục 4 · Chống sai im lặng
@@ -323,18 +352,80 @@ Hai việc dưới bắt được gần hết.
 - [ ] **Checklist trước khi chốt buổi.** Dialog liệt kê những gì còn treo, buộc xử lý: ai chưa
       điểm danh · sân đánh dấu bán mà chưa nhập tiền · số cầu đang là định mức · khách còn ghi nợ.
       Dòng cuối: *"Chốt buổi này không ghi khoản chi nào vào sổ quỹ."* Bắt: B4 · B6 · B7, xử lý luôn N1.
-- [ ] **B1 · Quên nhập hoá đơn sân tháng — 1.920.000, sai nặng nhất.** Alert đỏ ở Trang chủ khi
-      tháng có buổi `closed` mà `court_bills` tháng đó trống.
-- [ ] **B5 · Buổi huỷ không đánh `cancelled`** → `n` cao hơn thật → `unit` thấp → back trả thiếu.
+- [x] **B1 · Quên nhập hoá đơn sân tháng — 1.920.000, sai nặng nhất.** Alert đỏ ở Trang chủ khi
+      tháng có buổi `closed` mà `court_bills` tháng đó trống. **Chỉ khi `courtPayMode = 'month'`**
+      — mode `session` ghi tiền sân ngay lúc chốt buổi, nhắc hoá đơn tháng là nhắc sai.
+- [x] **B5 · Buổi huỷ không đánh `cancelled`** → `n` cao hơn thật → `unit` thấp → back trả thiếu.
       Buổi quá ngày còn `draft` thì nhắc ở Trang chủ, buộc chọn *đã đánh* hoặc *đã huỷ*.
-- [ ] **B7 · Buổi để `open` mãi** → sai tồn kho, sai back, sai tiền sân mode `session`, mất khỏi
+- [x] **B7 · Buổi để `open` mãi** → sai tồn kho, sai back, sai tiền sân mode `session`, mất khỏi
       báo cáo. Trang chủ hiện số buổi quá hạn chưa chốt.
-- [ ] **T1 · Không có khái niệm "tiền đang ở đâu".** `wallets` + `transactions.wallet_id`. Mở
-      được quyền cho vai `host` tick thu khách — hiện họ bị chặn khỏi mọi mục tiền, chính là nguyên nhân B9.
+- [x] Ba mục trên nằm chung `money.js: homeAlerts(db)` (thuần) + `Home.jsx: <Warnings/>`. B5/B7
+      quét MỌI tháng, không theo tháng ở header: buổi tháng trước quên chốt vẫn đang làm sai tồn
+      kho tháng đó. Test + mutation-test cả bốn nhánh.
+- [x] ~~**T1 · `wallets` + `transactions.wallet_id`**~~ — **CẮT KHỎI PHẠM VI, user chốt 2026-08-24:**
+      *"cái này kệ nhé không phải issue, chỉ đang quan tâm tới lịch sử minh bạch dòng tiền thôi."*
+      Không tách ví / ngân hàng. Đừng bàn lại.
+- [ ] **T1b · Vai `host` không tick được "khách đã trả" — giữ lại, đây là nguyên nhân B9.**
+      Phần này KHÔNG bị cắt cùng `wallets`. Xử lý theo luật người giữ quỹ ở P6: host tick thu
+      khách = host đang cầm tiền → sinh khoản **host nợ quỹ**, không phải dòng THU.
 - [ ] **T2 · Không phân biệt số dư sổ và số dư khả dụng.** StatCard "Số dư khả dụng" cạnh "Số dư
-      quỹ CLB", caption liệt kê nghĩa vụ chưa trả.
-- [ ] **N5 / mục 8 · Tồn kho quy tiền** ở màn Sổ quỹ (`số quả còn × giá bình quân`) — user đang
-      đọc quỹ **thấp hơn** thực tế vì quên số cầu trong tủ.
+      quỹ CLB", caption liệt kê nghĩa vụ chưa trả. Luật người giữ quỹ làm mục này **quan trọng
+      hơn** chứ không bớt: số dư sổ là tiền trong két chủ CLB, còn tiền đang nằm ở tay thành viên
+      là khoản nợ hai chiều.
+- [x] **N5 / mục 8 · Tồn kho quy tiền** ở màn Sổ quỹ (`số quả còn × giá bình quân`) — user đang
+      đọc quỹ **thấp hơn** thực tế vì quên số cầu trong tủ. StatCard cạnh "Số dư quỹ".
+
+---
+
+## Phase 10 — Khách giao lưu (đặc tả `08-khach-giao-luu.md`)
+
+> **🕐 LÀM SAU — user chốt 2026-08-24:** *"việc thiết kế khách thì cần làm sau khi hoàn thành các
+> issue đã rồi nghĩ cách thiết kế theo issue 08, cần phải thảo luận đã."*
+> Thứ tự: xong **P5 → P6 → P7** rồi mới mở lại mục này, và **thảo luận thiết kế trước khi code**
+> — phần dưới là hiện trạng đã rà, không phải kế hoạch đã duyệt.
+
+**Rà 2026-08-24.** Đợt Phase 9 chỉ bám file `07-hoi-dap-dong-tien.md`. Sáu issue **K1–K6** của
+file `08` chưa từng có mặt trong file này — không phải hoãn có lý do, là **bỏ quên**. K1 tình cờ
+đã đúng nhờ dựng schema đúng từ đầu; năm mục còn lại chưa làm.
+
+- [x] **K1 · `invited_by` xuống từng lượt — P0.** `session_guests.invited_by` có sẵn từ
+      `0001_init.sql:305`, `dbmap.js` map hai chiều, `money.js: guestDebtByInviter` đọc
+      `sg.invitedBy` trước rồi mới rơi về `guests.invitedBy`. Nợ tháng cũ không đổi chủ khi
+      tháng sau người khác rủ cùng khách đó nữa.
+      **Chưa có test khoá** — đúng do may, không có gì chặn ai đó sửa ngược lại.
+- [ ] **K2 · `collectDebt` thu quá tay — P1** (đặc tả ghi P0, hạ xuống vì lối kích hoạt nguy hiểm
+      chưa tồn tại). `appActions.js: collectDebt(gid)` set `paid = true` cho MỌI lượt của khách
+      đó trong tháng đang xem. Kịch bản đặc tả mô tả — bấm ở dòng NGƯỜI RỦ thì xoá luôn nợ lượt
+      của người rủ khác — hiện chưa xảy ra được: nút Thu chỉ có ở dòng KHÁCH
+      (`Debts.jsx:98` · `Home.jsx:208`), nơi "thu mọi lượt của khách đó" đúng ngữ nghĩa.
+      Còn lại vẫn sai: **không có dialog xác nhận**, mà `paid = true` thì không có nút hoàn tác.
+      Làm: dialog nói rõ *n lượt · tổng tiền · tên người rủ*, và nếu sau này thêm nút thu ở dòng
+      người rủ thì phải lọc theo `invitedBy`.
+- [ ] **K3 · Ô tên khách tự do → danh bạ phình — P1.** `addGuest` dedupe bằng
+      `name.toLowerCase()` khớp tuyệt đối: `Thắng` / `Thắng em` / `thắng ` thành ba bản ghi,
+      ba dòng công nợ không cộng lại được. Cả hai nhánh (nối khách cũ / tạo mới) đều xảy ra
+      **im lặng**. Làm: ô tìm trong danh bạ, so khớp sau khi bỏ dấu + hạ chữ + gộp khoảng trắng;
+      chọn chip = nối, bấm `＋` = tạo mới.
+- [ ] **K4 · Không có gì để nhận biết khách — P1.** Form không hỏi `phone` nên cột luôn rỗng;
+      chưa có `guests.note`. Làm: định danh hai lớp (có số → số là khoá; không có → tên chuẩn
+      hoá), **xin số từ buổi thứ 3** chứ không xin ngay buổi đầu, `ALTER TABLE guests ADD COLUMN
+      note text`. KHÔNG `UNIQUE(phone)`, KHÔNG lưu `sessions_count` / `last_seen` thành cột.
+- [ ] **K5 · Khách CLB tự tuyển bị gán vào tên chủ CLB — P1.** `addGuest` chặn cứng
+      `if (!f.gBy) return toast(t('toast.needGuestInviter'))`. CLB đăng tin tuyển người lạ thì
+      cách duy nhất là chọn chủ CLB → bảng "ai rủ nhiều khách nhất" thành bảng của chủ CLB và
+      nợ khách lạ treo dưới tên họ. Làm: thêm **một giá trị** `CLB tuyển` vào dropdown người rủ
+      (lưu `invited_by = NULL`). Không thêm cột `source`, không nhánh xử lý thứ hai.
+- [ ] **K6 · Không có chỗ nào nhìn thấy toàn bộ khách — P1.** Khách chỉ hiện gián tiếp ở màn
+      Công nợ và **chỉ người còn nợ**. Làm: tab **Khách giao lưu** trong màn Thành viên
+      (hiện chỉ có 3 tab: tất cả / cố định tháng sau / chờ duyệt), lọc theo trình độ + giới tính.
+- [ ] **Bung từng buổi kèm ngày ở màn Công nợ — P2.**
+- [ ] **Chuỗi tiếng Việt cứng trong `money.js:281`** — `'Chưa rõ người rủ'` viết thẳng trong `.js`,
+      vi phạm `RULES.md` §3.1. `i18n.test.js` không bắt được loại lỗi này (nó quét `t('key')` có
+      tồn tại không, không quét chữ cứng). Sửa cùng K5 vì đó chính là nhãn của nhóm `CLB tuyển`.
+
+**Đã cắt khỏi phạm vi** (đặc tả `08` §Cắt khỏi phạm vi — không bàn lại): cột `source` phân loại
+khách · `paid_amount` cho khách · `pay_mode` · xếp khách cùng sân người rủ. **Hoãn:** gộp hai
+khách trùng · chuyển khách thành thành viên.
 
 ---
 
@@ -374,6 +465,8 @@ Hai việc dưới bắt được gần hết.
 | `payerName` đi qua `memberOf` | `memberOf` trả placeholder `'—'` cho id không tìm thấy, mà `'—'` truthy nên id chết nuốt mất tên cũ đang có | tra thẳng `db.members`, không qua placeholder |
 | `courtBalance` trong test không truyền `db.levels` | test vô tình bám vào thang mặc định ở `app.json`; đổi thang mặc định là test đỏ dù logic không sai | test truyền `db.levels` như app vẫn làm, thêm case chứng minh thang đổi thì kết luận đổi |
 | `markAll` dựng bảng điểm danh rỗng rồi ghi đè | bấm "Tất cả có mặt/vắng" là hất sạch người đi thêm ra khỏi buổi | giữ bảng cũ, chỉ ghi đè người trong danh sách cố định |
+| Form thêm khách lấy chính `gLevel` làm cờ "đã khởi tạo" (`ui.form.gLevel ? ui.form : guestForm(db)`) | CLB chưa có thang trình độ → `gLevel` rỗng vĩnh viễn → nhánh luôn rơi về form mặc định: **gõ tên bị xoá từng ký tự, giá luôn 0 đ**, bấm Thêm thì `level: undefined` xuống cột NOT NULL và đồng bộ chết im lặng | gộp `{ ...guestForm(db), ...ui.form }` thay vì chọn một trong hai; chặn nút Thêm + toast khi CLB chưa có thang; cảnh báo bấm được sang Cài đặt khi giá 0 |
+| 4 chỗ `<Alert tone="critical">` — tone không tồn tại | `Alert` chỉ nhận `info/success/warning/danger`, tone lạ rơi về `info` im lặng → **thông báo lỗi đăng nhập / đăng ký / mã CLB hiện màu xanh** kèm icon ℹ. `StatCard` lại dùng đúng `critical` nên rất dễ nhầm | đổi sang `tone="danger"` ở `Clubs.jsx:178,222` · `Login.jsx:46` · `Register.jsx:100` |
 
 ---
 
@@ -381,8 +474,13 @@ Hai việc dưới bắt được gần hết.
 
 | Việc | Vì sao cần user | Chặn cái gì |
 | --- | --- | --- |
-| Chạy `npm run db:start` + `db:migrate` + `db:env > .env.local` | agent không tự cài/chạy hạ tầng trên máy user | chạy được app |
+| **Ai là "két" theo luật người giữ quỹ** — vai `owner` + `treasurer`, hay đúng một người chỉ định? | quyết định này định nghĩa cái gì là thu/chi và cái gì là nợ, sai là sai toàn bộ sổ | **P5 · P6** |
+| **Người giữ quỹ ứng tiền cho chính CLB thì tính sao** — vẫn là CHI thẳng, hay cũng thành khoản nợ? | két và người là một, ghi hai lần là nhân đôi | **P5** |
+| **Mốc cutoff của P6** — từ ngày nào sổ ghi thật | trước mốc giữ số suy ra, sau mốc đọc bảng | **P6** |
 | Chạy `npm run build` | RULES §6: agent không tự build | không ai biết bản này compile được hay chưa |
 | Có viết script kiểm RLS bằng 2 tài khoản không | script sẽ tạo tài khoản thật trên DB của user | chứng minh CLB A không đọc được CLB B |
-| Có xoá sạch DB (`npx supabase db reset`) hay giữ tài khoản cũ | mất data, phải user quyết — `docs/RULES.md` §7 | bắt đầu sạch |
 | Dữ liệu thật của CLB (Excel) | cần số quỹ mang sang + danh sách thật | nhập liệu ban đầu |
+
+**Đã chốt, không hỏi lại:** dựng + chạy DB (xong 2026-08-24) · P6 dùng **cutoff** không backfill ·
+**không** làm `wallets` (T1) · **không** thêm công tắc tắt nhắc kiểm kho · thiết kế khách (Phase 10)
+làm sau P5–P7 và phải thảo luận trước.

@@ -175,7 +175,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
           <Input label={t('clubs.fBankName')} value={f.bankName} onChange={set('bankName')} />
         </div>
 
-        {err && <Alert tone="critical">{err}</Alert>}
+        {err && <Alert tone="danger">{err}</Alert>}
         <Alert tone="info">{t('clubs.nextStep')}</Alert>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9 }}>
@@ -219,7 +219,7 @@ function JoinDialog({ onClose, join, toast }) {
           style={{ letterSpacing: '.18em', fontSize: 18 }} />
         <Input label={t('clubs.fNote')} value={note} onChange={(e) => setNote(e.target.value)}
           hint={t('clubs.fNoteHint')} />
-        {err && <Alert tone="critical">{err}</Alert>}
+        {err && <Alert tone="danger">{err}</Alert>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="primary" icon="send" loading={busy} disabled={busy} onClick={submit}>

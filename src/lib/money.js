@@ -207,6 +207,39 @@ export function checkDue(db) {
   return ''
 }
 
+/* ---------- cảnh báo sai im lặng (TASKS Phase 9 · P7 · B1 · B5 · B7) ---------- */
+
+/** Miền giá trị của họ key `home.warn.*` — i18n test đọc từ đây để thêm cảnh báo là đòi key. */
+export const WARN_KEYS = ['noBill', 'staleDraft', 'openOverdue']
+
+/**
+ * Ba chỗ sai KHÔNG tự lộ ra: không có gì để so nên không ai phát hiện.
+ * Trả mảng `{ key, tone, n, ids }` — rỗng nghĩa là không có gì để nhắc.
+ *
+ * B5/B7 quét MỌI tháng chứ không riêng tháng đang xem: buổi tháng trước quên chốt vẫn đang
+ * làm sai tồn kho và đơn giá back của tháng đó, đổi tháng ở header không làm nó đúng lên.
+ */
+export function homeAlerts(db) {
+  const out = []
+  const closed = monthSessions(db, db.month).filter((s) => s.status === 'closed')
+
+  // B1 · Trả tiền sân theo THÁNG mà tháng đã có buổi chốt thì phải có hoá đơn. Mode `session`
+  // ghi tiền sân ngay lúc chốt buổi nên không cần hoá đơn tháng — nhắc là nhắc sai.
+  if (courtPayMode(db) === 'month' && closed.length && !billsOf(db, db.month).length)
+    out.push({ key: 'noBill', tone: 'danger', n: closed.length, ids: null })
+
+  // B5 · Buổi quá ngày còn `draft`: chưa ai nói nó có đánh hay không. Buổi huỷ mà để `draft`
+  // vẫn bị đếm vào `n` → đơn giá một buổi thấp hơn thật → back trả thiếu.
+  const stale = db.sessions.filter((s) => s.status === 'draft' && s.date < db.today)
+  if (stale.length) out.push({ key: 'staleDraft', tone: 'warning', n: stale.length, ids: stale.map((s) => s.id) })
+
+  // B7 · Buổi để `open` mãi: sai tồn kho (số cầu chưa trừ), sai back, mất khỏi báo cáo.
+  const open = db.sessions.filter((s) => s.status === 'open' && s.date < db.today)
+  if (open.length) out.push({ key: 'openOverdue', tone: 'warning', n: open.length, ids: open.map((s) => s.id) })
+
+  return out
+}
+
 /* ---------- khách giao lưu ---------- */
 
 export const sGuests = (db, sid) => db.sessionGuests.filter((g) => g.sessionId === sid)

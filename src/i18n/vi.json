@@ -365,7 +365,26 @@
     "noUpcomingHint": "Mọi buổi đã diễn ra hoặc đã chốt. Tạo lịch cho kỳ tới ở Lịch tập cố định.",
     "noDebt": "Không có khách nào còn nợ",
     "noDebtHint": "Khách giao lưu chưa trả tiền sẽ hiện ở đây, gộp theo từng người.",
-    "duePartialTag": "đã đóng {{amount}}"
+    "duePartialTag": "đã đóng {{amount}}",
+    "warn": {
+      "noBill": {
+        "title": "Chưa nhập hoá đơn sân tháng này",
+        "body": "{{n}} buổi đã chốt trong {{month}} nhưng chưa có hoá đơn sân nào. Tiền sân chưa vào sổ quỹ — số dư đang cao hơn thực tế.",
+        "btn": "Nhập hoá đơn sân"
+      },
+      "staleDraft": {
+        "title": "{{n}} buổi quá ngày chưa xác nhận",
+        "body": "Buổi nháp quá ngày vẫn bị đếm là có đánh. Chọn đã đánh hay đã huỷ, không thì đơn giá một buổi tính sai và back tiền trả thiếu."
+      },
+      "openOverdue": {
+        "title": "{{n}} buổi quá hạn chưa chốt",
+        "body": "Buổi chưa chốt thì số cầu chưa trừ vào kho, tiền chưa vào sổ và buổi không hiện trong báo cáo."
+      },
+      "playedBtn": "Đã đánh",
+      "cancelBtn": "Đã huỷ",
+      "closeBtn": "Chốt buổi",
+      "more": "… và {{n}} buổi nữa"
+    }
   },
   "report": {
     "flow": "Thu chi theo tháng",
@@ -428,6 +447,7 @@
     "sessionDraft": "Đã chuyển buổi về chưa mở",
     "needGuestName": "Nhập tên khách",
     "needGuestInviter": "Chọn thành viên rủ khách này",
+    "noClubLevels": "CLB chưa có thang trình độ. Vào Cài đặt → Chung đặt thang trước khi thêm khách.",
     "guestAdded": "Đã thêm khách {{name}} · {{by}} rủ · {{price}}",
     "guestRemoved": "Đã bỏ khách khỏi buổi",
     "debtCollected": "Đã thu hết nợ {{name}}",
@@ -548,6 +568,8 @@
     "guestGender": "Giới tính",
     "guestLevel": "Trình độ",
     "guestBy": "Người rủ",
+    "guestNoLevel": "CLB chưa có thang trình độ nên không tính được giá khách. Bấm để sang Cài đặt → Chung đặt thang.",
+    "guestNoPrice": "Trình độ này đang để giá 0 đ. Bấm để sang Cài đặt → Tiền đặt bảng giá khách.",
     "guestByShort": "Rủ bởi",
     "guestPaid": "Đã trả",
     "guestDebt": "Ghi nợ",
@@ -814,6 +836,8 @@
     "addEntry": "Ghi thu / chi",
     "balance": "Số dư quỹ",
     "balanceCaption": "Luỹ kế toàn bộ, không theo tháng",
+    "stockValue": "Tồn kho quy tiền",
+    "stockValueCaption": "{{n}} quả × {{unit}} đ/quả · giá bình quân kho",
     "monthIn": "Thu trong tháng",
     "monthOut": "Chi trong tháng",
     "monthNet": "Chênh lệch tháng",

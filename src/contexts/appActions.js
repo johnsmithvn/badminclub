@@ -324,6 +324,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (!name) return toast(t('toast.needGuestName'))
       if (!f.gBy) return toast(t('toast.needGuestInviter'))
       const level = f.gLevel || db().levels[0]
+      // CLB chưa có thang trình độ: `level` undefined đi thẳng xuống cột NOT NULL và lần đồng bộ
+      // sau chết im lặng ở Supabase, khách thì đã hiện trên màn hình.
+      if (!level) return toast(t('toast.noClubLevels'))
       const gender = f.gGender || 'nam'
       up((d) => {
         let gid = (d.guests.find((x) => x.name.toLowerCase() === name.toLowerCase()) || {}).id

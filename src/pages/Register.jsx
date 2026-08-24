@@ -97,7 +97,7 @@ export default function Register() {
             options={cfg.levelsDefault.map((l) => ({ value: l, label: l }))} />
         </div>
 
-        {err && <Alert tone="critical">{err}</Alert>}
+        {err && <Alert tone="danger">{err}</Alert>}
 
         <Button type="submit" variant="primary" size="lg" block icon="user-round-plus"
           loading={busy} disabled={busy}>

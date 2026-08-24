@@ -338,25 +338,41 @@ function ExtraPicker({ s, members }) {
 
 function GuestForm() {
   const { db, ui, a } = useApp()
-  const f = ui.form && ui.form.gLevel ? ui.form : guestForm(db)
+  // GỘP mặc định với form đang gõ, KHÔNG chọn một trong hai. Guard cũ
+  // (`ui.form.gLevel ? ui.form : guestForm(db)`) lấy chính field phải khởi tạo làm cờ "đã khởi
+  // tạo": CLB chưa có thang trình độ thì `gLevel` rỗng vĩnh viễn nên nhánh luôn rơi về form
+  // mặc định — mọi ký tự gõ vào ô Tên bị vứt ngay lúc đọc lại, và giá luôn 0.
+  const f = { ...guestForm(db), ...(ui.form || {}) }
   const set = (k, v) => a.setF(k, v)
   const price = guestPrice(db, f.gLevel, f.gGender)
+  // Hai lỗi cấu hình khác nhau, đừng gộp: không có thang trình độ thì KHÔNG tính được giá
+  // (chặn); có thang mà giá 0 thì tính được, chỉ là chưa ai đặt giá (cảnh báo, vẫn cho thêm
+  // vì có CLB cho khách quen đánh miễn phí).
+  const noLevel = !f.gLevel
+  const toSettings = () => { a.go('settings'); a.setTab('settings', 'money') }
 
   return (
-    <div style={S.guestForm}>
-      <Input label={t('session.guestName')} value={f.gName || ''} onChange={(e) => set('gName', e.target.value)} />
-      <Select label={t('session.guestGender')} value={f.gGender}
-        options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
-        onChange={(e) => set('gGender', e.target.value)} />
-      <Select label={t('session.guestLevel')} value={f.gLevel}
-        options={db.levels.map((l) => ({ value: l, label: l }))}
-        onChange={(e) => set('gLevel', e.target.value)} />
-      <Select label={t('session.guestBy')} value={f.gBy || ''}
-        options={[{ value: '', label: t('common.unknown') }].concat(db.members.map((m) => ({ value: m.id, label: m.name })))}
-        onChange={(e) => set('gBy', e.target.value)} />
-      <Button variant="accent" icon="plus" onClick={() => a.addGuest()}>
-        {t('common.add') + ' · ' + fmt(price)}
-      </Button>
+    <div style={{ display: 'grid', gap: 8 }}>
+      <div style={S.guestForm}>
+        <Input label={t('session.guestName')} value={f.gName || ''} onChange={(e) => set('gName', e.target.value)} />
+        <Select label={t('session.guestGender')} value={f.gGender}
+          options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
+          onChange={(e) => set('gGender', e.target.value)} />
+        <Select label={t('session.guestLevel')} value={f.gLevel}
+          options={db.levels.map((l) => ({ value: l, label: l }))}
+          onChange={(e) => set('gLevel', e.target.value)} />
+        <Select label={t('session.guestBy')} value={f.gBy || ''}
+          options={[{ value: '', label: t('common.unknown') }].concat(db.members.map((m) => ({ value: m.id, label: m.name })))}
+          onChange={(e) => set('gBy', e.target.value)} />
+        <Button variant="accent" icon="plus" disabled={noLevel} onClick={() => a.addGuest()}>
+          {t('common.add') + (noLevel ? '' : ' · ' + fmt(price))}
+        </Button>
+      </div>
+      {(noLevel || price === 0) && (
+        <button type="button" onClick={toSettings} style={S.guestWarn}>
+          {t(noLevel ? 'session.guestNoLevel' : 'session.guestNoPrice')}
+        </button>
+      )}
     </div>
   )
 }
@@ -461,6 +477,11 @@ const S = {
   },
   soldBox: { display: 'flex', gap: 9, flexBasis: '100%', flexWrap: 'wrap' },
   guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.2fr auto', gap: 9, alignItems: 'flex-end' },
+  // Bấm được: lỗi cấu hình thì phải chỉ thẳng sang chỗ sửa, không bắt người ta đi mò.
+  guestWarn: {
+    textAlign: 'left', border: 0, padding: 0, cursor: 'pointer', background: 'transparent',
+    font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', textDecoration: 'underline',
+  },
   guestRow: {
     display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', padding: '8px 11px',
     border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',

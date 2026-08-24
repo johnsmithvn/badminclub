@@ -43,7 +43,7 @@ export default function Login() {
         <Input label={t('auth.fPassword')} type="password" value={f.password} onChange={set('password')}
           autoComplete="current-password" />
 
-        {err && <Alert tone="critical">{err}</Alert>}
+        {err && <Alert tone="danger">{err}</Alert>}
 
         <Button type="submit" variant="primary" size="lg" block icon="arrow-left"
           loading={busy} disabled={busy}>

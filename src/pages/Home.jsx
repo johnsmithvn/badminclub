@@ -1,13 +1,13 @@
 // Trang chủ: tab Tổng quan + tab Báo cáo (handoff 02 §1).
 
-import { Avatar, Button, Card, DataTable, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
+import { Alert, Avatar, Button, Card, DataTable, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
 import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, sessionColumns } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
 import {
   costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK, genderTxt,
-  groupMembers, groupOf, guestDebtRows, isPresent, memberOf, monthSessions, shuttleUnit, stock,
-  timeTxt,
+  groupMembers, groupOf, guestDebtRows, homeAlerts, isPresent, memberOf, monthSessions, sessionOf,
+  shuttleUnit, stock, timeTxt,
 } from '#lib/money.js'
 import { fundBalance, monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
@@ -60,6 +60,7 @@ function Overview() {
 
   return (
     <>
+      <Warnings />
       <Setup />
       <div style={GRID_STAT}>
         <StatCard label={t('home.fundBalance')} value={fmt(bal)} icon="wallet"
@@ -220,6 +221,71 @@ function Overview() {
               rowKey="id" onRowClick={(r) => a.openSession(r.id)} />}
       </Card>
     </>
+  )
+}
+
+/* ---------------- Cảnh báo sai im lặng (money.js: homeAlerts) ---------------- */
+
+/**
+ * Ba lỗi này không có gì để so nên không ai phát hiện — xem TASKS Phase 9 · P7.
+ * Mỗi cảnh báo phải kèm ĐƯỜNG XỬ LÝ ngay tại chỗ, báo không thôi thì cũng bị bỏ qua như cũ.
+ */
+function Warnings() {
+  const { db, a } = useApp()
+  const list = homeAlerts(db)
+  if (!list.length) return null
+
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {list.map((w) => (
+        <Alert key={w.key} tone={w.tone} title={t('home.warn.' + w.key + '.title', { n: w.n })}>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <span>{t('home.warn.' + w.key + '.body', { n: w.n, month: monthTxt(db.month).toLowerCase() })}</span>
+            {!w.ids
+              ? (
+                <div>
+                  <Button size="sm" variant="secondary" icon="landmark" onClick={() => a.go('fund')}>
+                    {t('home.warn.noBill.btn')}
+                  </Button>
+                </div>
+              )
+              : (
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {w.ids.slice(0, cfg.ui.warnSessionCount).map((id) => {
+                    const s = sessionOf(db, id)
+                    return (
+                      <div key={id} style={SS.warnRow}>
+                        <span style={SS.label}>{ddmy(s.date)}</span>
+                        <span style={{ ...SS.caption, flex: 1, ...SS.ellipsis }}>{groupOf(db, s.groupId).name}</span>
+                        {w.key === 'staleDraft' ? (
+                          <>
+                            <Button size="sm" variant="secondary" onClick={() => a.setSessionStatus(id, 'open')}>
+                              {t('home.warn.playedBtn')}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => a.setSessionStatus(id, 'cancelled')}>
+                              {t('home.warn.cancelBtn')}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button size="sm" variant="secondary" iconAfter="chevron-right"
+                            onClick={() => a.openSession(id)}>
+                            {t('home.warn.closeBtn')}
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {w.ids.length > cfg.ui.warnSessionCount && (
+                    <span style={SS.caption}>
+                      {t('home.warn.more', { n: w.ids.length - cfg.ui.warnSessionCount })}
+                    </span>
+                  )}
+                </div>
+              )}
+          </div>
+        </Alert>
+      ))}
+    </div>
   )
 }
 
@@ -459,6 +525,11 @@ const SS = {
   stepRow: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px',
     border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
+  },
+  // Nền trắng trong ruột Alert màu: dòng buổi phải đọc được trên cả tone warning lẫn danger.
+  warnRow: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 9px',
+    borderRadius: 8, background: 'var(--surface-card)',
   },
   costGrid: { display: 'grid', gridTemplateColumns: COST_COLS, gap: 8, minWidth: 900 },
   costHead: {

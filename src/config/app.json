@@ -73,6 +73,7 @@
     "topAttendCount": 7,
     "topDebtCount": 5,
     "recentSessionCount": 5,
+    "warnSessionCount": 5,
     "barChartHeight": 170,
     "barMonthCount": 4
   }

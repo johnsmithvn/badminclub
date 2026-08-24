@@ -15,6 +15,7 @@ import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import perm from '#config/permissions.json' with { type: 'json' }
 import { MODE_KEYS } from '#lib/assign.js'
+import { WARN_KEYS } from '#lib/money.js'
 import { CATS, MANUAL_CATS } from '#lib/ledger.js'
 import { SCHEMA_GROUPS } from '#data/schema.js'
 
@@ -108,6 +109,7 @@ CHECK_DUE.forEach((k) => need('shuttles.due.' + k))
 ADJUST_KINDS.forEach((k) => need('debts.kind.' + k))
 SETTLE_MODES.forEach((k) => need('debts.settle.' + k))
 MEMBER_REFS.forEach((k) => need('members.ref.' + k))
+WARN_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('home.warn.' + k + '.' + f)))
 
 assert.equal(dyn.length, 0, 'key i18n ghép động không tồn tại:\n  ' + dyn.join('\n  '))
 

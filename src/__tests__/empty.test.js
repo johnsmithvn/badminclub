@@ -110,6 +110,8 @@ assert.ok(Number.isFinite(M.costRow(dbS, s0).per), 'chi phí mỗi người ra N
 assert.ok(Number.isFinite(M.costRow(dbS, s0).subsidy))
 ok('costState', () => M.costState(s0))
 ok('checkDue', () => M.checkDue(db))
+// CLB rỗng thì không có gì để cảnh báo — nhắc "chưa nhập hoá đơn sân" ngay hôm tạo CLB là nhắc oan.
+assert.deepEqual(ok('homeAlerts', () => M.homeAlerts(db)), [])
 ok('joinDues', () => M.joinDues(db, { gender: 'nam' }, M.groupOf(db, 'ALL'), MONTH))
 ok('payerName', () => M.payerName(db, null, ''))
 assert.equal(M.intOf('1.650.000'), 1650000)
