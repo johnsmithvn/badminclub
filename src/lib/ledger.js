@@ -8,7 +8,7 @@ import { dd, monthOf, monthTxt } from '#utils/dates.js'
 import { t } from '#i18n'
 import {
   courtCost, courtExtraCost, courtPayMode, courtTxt, dueState, fmtK,
-  groupOf, guestOf, memberOf, payerName, sessionOf, soldTotal, timeTxt,
+  groupOf, guestOf, isVault, memberOf, payerName, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 
 /** Các hạng mục sổ quỹ. Dùng key, đừng dùng chữ. */
@@ -32,6 +32,20 @@ export const MANUAL_CATS = [CATS.withdraw, CATS.other, CATS.dues, CATS.guest, CA
 export const catLabel = (cat) => t('ledger.cat.' + cat)
 
 const courtName = (db, c) => (db.courts.find((x) => x.id === c.courtId) || { name: t('common.unknown') }).name
+
+/**
+ * Ngày khoản chi thật sự rời két — LUẬT NGƯỜI GIỮ QUỸ (migration 0011).
+ * Két trả thì tiền ra ngay hôm đó. Thành viên ứng thì quỹ chưa mất gì; chỉ khi CLB trả lại
+ * người ta (`repaidAt`) mới có tiền rời két. Trả về '' = chưa có dòng nào trong sổ.
+ */
+const paidOn = (db, x) => (isVault(db, x.payerId) ? x.date : x.repaidAt || '')
+
+/**
+ * Dòng chi của khoản ứng mang ngày TRẢ LẠI, không phải ngày mua — không nói rõ thì người đọc
+ * tưởng hôm đó mới đi mua cầu. Ghi luôn ngày mua gốc vào nhãn.
+ */
+const repayTag = (db, x) =>
+  isVault(db, x.payerId) ? '' : ' · ' + t('ledger.label.repay', { name: memberOf(db, x.payerId).name, date: dd(x.date) })
 
 /** Toàn bộ dòng thu chi, sắp theo ngày tăng dần. */
 export function ledger(db) {
@@ -79,15 +93,17 @@ export function ledger(db) {
     )
   } else {
     // Trả trọn tháng: ghi đúng số đã chuyển theo hoá đơn, không ghi theo buổi.
-    ;(db.courtBills || []).forEach((b) =>
+    ;(db.courtBills || []).forEach((b) => {
+      const at = paidOn(db, b)
+      if (!at) return                       // thành viên ứng, CLB chưa trả lại → quỹ chưa mất gì
       out.push({
-        id: 'cb' + b.id, date: b.date, dir: 'out', cat: CATS.court,
+        id: 'cb' + b.id, date: at, dir: 'out', cat: CATS.court,
         label: t('ledger.label.courtBill', {
           venue: b.venue, month: monthTxt(b.month).toLowerCase(), note: b.note ? ' · ' + b.note : '',
-        }),
+        }) + repayTag(db, b),
         amount: b.amount, by: payerName(db, b.payerId, b.payer),
       })
-    )
+    })
   }
 
   db.sessions.forEach((s) => {
@@ -122,16 +138,18 @@ export function ledger(db) {
     })
   }
 
-  db.purchases.filter((p) => p.total > 0).forEach((p) =>
+  db.purchases.filter((p) => p.total > 0).forEach((p) => {
+    const at = paidOn(db, p)
+    if (!at) return                         // thành viên ứng, CLB chưa trả lại → quỹ chưa mất gì
     out.push({
-      id: 'pu' + p.id, date: p.date, dir: 'out', cat: CATS.shuttle,
+      id: 'pu' + p.id, date: at, dir: 'out', cat: CATS.shuttle,
       label: t('ledger.label.shuttle', {
         type: (db.shuttleTypes.find((x) => x.id === p.typeId) || { name: '' }).name,
         tubes: p.tubes, qty: p.qty,
-      }),
+      }) + repayTag(db, p),
       amount: p.total, by: payerName(db, p.payerId, p.payer),
     })
-  )
+  })
 
   // Đối chiếu buổi — hai chiều, đọc SỐ ĐÃ LƯU chứ không tính lại từ điểm danh hiện tại.
   //   amount ÂM  → chi, quỹ trả lại người vắng

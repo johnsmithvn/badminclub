@@ -843,6 +843,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t(v === 'month' ? 'toast.payModeMonth' : 'toast.payModeSession'))
     },
 
+    /**
+     * CLB trả lại tiền cho người đã ứng — LÚC NÀY khoản chi mới vào sổ quỹ (migration 0011).
+     * Bấm lần nữa thì gỡ đánh dấu: bấm nhầm mà không lùi được thì sổ quỹ mang một dòng chi ma.
+     * Đọc trạng thái TRƯỚC khi ghi — updater của React không chạy đồng bộ, đọc trong đó thì
+     * toast báo ngược (đúng cái bug `toggleSchedule` đã dính một lần).
+     */
+    repayAdvance: (kind, id) => {
+      const key = kind === 'court' ? 'courtBills' : 'purchases'
+      const cur = (db()[key] || []).find((x) => x.id === id)
+      if (!cur) return
+      const on = !cur.repaidAt
+      up((d) => ({ [key]: d[key].map((x) => (x.id === id ? { ...x, repaidAt: on ? d.today : '' } : x)) }))
+      toast(t(on ? 'toast.advanceRepaid' : 'toast.advanceUndone'))
+    },
+
     /* ---------- cài đặt ---------- */
     setClub: (k, v) => up((d) => ({ club: { ...d.club, [k]: v } })),
     /**

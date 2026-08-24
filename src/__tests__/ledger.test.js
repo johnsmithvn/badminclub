@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { seed } from './fixture.js'
 import { CATS, dailySummary, fundBalance, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
-import { courtCost, courtExtraCost, soldTotal } from '#lib/money.js'
+import { advanceRows, courtCost, courtExtraCost, isVault, soldTotal } from '#lib/money.js'
 import { monthOf } from '#utils/dates.js'
 
 const db = seed()
@@ -190,5 +190,59 @@ sum.rows.forEach((r) => {
 assert.equal(sum.rows[sum.rows.length - 1].balance, fundBalance(db),
   'quỹ cuối tháng cuối cùng phải bằng số dư toàn bộ')
 assert.deepEqual(cats(rows.filter((r) => r.amount < 0)), [], 'không dòng nào có số tiền âm — dùng dir thay vì dấu')
+
+/* ---------- LUẬT NGƯỜI GIỮ QUỸ: thành viên ứng tiền (migration 0011) ---------- */
+
+const pu = (x) => ledger(x).filter((r) => r.id === 'puP3')       // đợt cầu 3.300.000
+const bal = (x) => fundBalance(x)
+const withP3 = (patch) => ({ ...db, purchases: db.purchases.map((p) => (p.id === 'P3' ? { ...p, ...patch } : p)) })
+
+// Fixture chưa có payerId (dữ liệu prototype cũ) → coi như quỹ trả thẳng, giữ nguyên hành vi cũ.
+assert.equal(pu(db).length, 1, 'không có người trả thì vẫn là chi của quỹ')
+assert.equal(pu(db)[0].date, '2026-08-17')
+
+// M1 Thúy là owner → két. Két trả thì tiền ra khỏi quỹ ngay hôm mua.
+const byOwner = withP3({ payerId: 'M1' })
+assert.equal(pu(byOwner)[0].date, '2026-08-17')
+assert.equal(bal(byOwner), bal(db), 'két trả: số dư y như cũ')
+
+// M8 Đạt là treasurer → cũng là két.
+assert.equal(pu(withP3({ payerId: 'M8' })).length, 1, 'thủ quỹ cũng là két')
+
+// M7 Thắng em là member thường → ứng tiền. Chưa trả lại thì KHÔNG có dòng chi nào.
+const byMember = withP3({ payerId: 'M7' })
+assert.equal(pu(byMember).length, 0, 'thành viên ứng: khoản chi chưa vào sổ')
+assert.equal(bal(byMember), bal(db) + 3300000, 'số dư CAO HƠN đúng bằng khoản đang nợ')
+
+// Trả lại rồi thì dòng chi xuất hiện, mang NGÀY TRẢ chứ không phải ngày mua.
+const repaid = withP3({ payerId: 'M7', repaidAt: '2026-08-25' })
+assert.equal(pu(repaid).length, 1)
+assert.equal(pu(repaid)[0].date, '2026-08-25', 'ngày tiền rời két, không phải ngày mua')
+assert.ok(pu(repaid)[0].label.indexOf('17/08') >= 0, 'nhãn phải nhắc ngày mua gốc, không thì đọc nhầm')
+assert.equal(bal(repaid), bal(db), 'trả xong thì số dư về đúng như quỹ tự trả')
+
+// Hoá đơn sân đi cùng một luật.
+const billMember = { ...db, courtBills: db.courtBills.map((b) => (b.id === 'SB1' ? { ...b, payerId: 'M7' } : b)) }
+assert.equal(ledger(billMember).filter((r) => r.id === 'cbSB1').length, 0, 'hoá đơn sân do thành viên ứng')
+assert.equal(bal(billMember), bal(db) + 1920000)
+
+/* ---------- danh sách khoản ứng ---------- */
+const adv = advanceRows(byMember)
+assert.equal(adv.length, 1)
+assert.equal(adv[0].kind, 'shuttle')
+assert.equal(adv[0].memberId, 'M7')
+assert.equal(adv[0].amount, 3300000)
+assert.equal(adv[0].repaidAt, '')
+assert.deepEqual(advanceRows(byOwner), [], 'két trả thì không phải khoản ứng')
+assert.equal(advanceRows(repaid)[0].repaidAt, '2026-08-25', 'đã trả vẫn còn trong danh sách, có ngày')
+assert.equal(advanceRows(db).length, 0, 'fixture gốc: không ai ứng')
+// Đợt P1 tổng 0 đ (cầu dư mang sang) — không phải khoản nợ ai.
+assert.deepEqual(advanceRows(withP3({ payerId: 'M7', total: 0 })).filter((r) => r.id === 'P3'), [])
+
+assert.equal(isVault(db, 'M1'), true, 'owner')
+assert.equal(isVault(db, 'M8'), true, 'treasurer')
+assert.equal(isVault(db, 'M7'), false, 'member thường')
+assert.equal(isVault(db, 'M3'), false, 'host không phải két')
+assert.equal(isVault(db, null), true, 'không ghi người trả = quỹ trả thẳng')
 
 console.log('ledger check: OK')

@@ -112,6 +112,8 @@ ok('costState', () => M.costState(s0))
 ok('checkDue', () => M.checkDue(db))
 // CLB rỗng thì không có gì để cảnh báo — nhắc "chưa nhập hoá đơn sân" ngay hôm tạo CLB là nhắc oan.
 assert.deepEqual(ok('homeAlerts', () => M.homeAlerts(db)), [])
+assert.deepEqual(ok('advanceRows', () => M.advanceRows(db)), [])
+assert.equal(ok('isVault', () => M.isVault(db, 'không-có-ai')), false)
 ok('joinDues', () => M.joinDues(db, { gender: 'nam' }, M.groupOf(db, 'ALL'), MONTH))
 ok('payerName', () => M.payerName(db, null, ''))
 assert.equal(M.intOf('1.650.000'), 1650000)

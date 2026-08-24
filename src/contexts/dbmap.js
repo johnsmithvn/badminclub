@@ -191,6 +191,7 @@ export function toDb(raw, ctx) {
       id: b.id, month: b.month, date: b.paid_on, venue: b.venue,
       amount: num(b.amount), payerId: b.payer_member_id || null,
       payer: b.payer || '', note: b.note || '',   // payer: chỉ còn để đọc dữ liệu cũ nhập tay
+      repaidAt: b.repaid_at || '',
     })),
     manual: (raw.manual || []).map((x) => ({
       id: x.id, date: x.date, dir: x.direction, cat: x.category, label: x.label,
@@ -201,6 +202,7 @@ export function toDb(raw, ctx) {
       qty: p.total_units, pricePerTube: num(p.price_per_tube), total: num(p.total_amount),
       // funded_by là NGUỒN TIỀN (fund / member_advance), không phải tên người — xem 0008.
       payerId: p.payer_member_id || null, fundedBy: p.funded_by || null, note: p.note || '',
+      repaidAt: p.repaid_at || '',
     })),
     stockChecks: (raw.stockChecks || []).map((s) => ({
       id: s.id, date: s.date, month: s.month, counted: s.counted,
@@ -389,7 +391,7 @@ export function toRows(db, ctx) {
   db.courtBills.forEach((b) => put('court_bills', {
     id: b.id, club_id: cid, month: b.month, paid_on: b.date, venue: b.venue,
     amount: b.amount, payer_member_id: uu(b.payerId), payer: b.payer || null,
-    note: b.note || null,
+    note: b.note || null, repaid_at: b.repaidAt || null,
   }))
 
   db.manual.forEach((x) => put('transactions', {
@@ -401,7 +403,7 @@ export function toRows(db, ctx) {
     id: p.id, club_id: cid, date: p.date, type_id: p.typeId, tubes: p.tubes,
     extra_units: p.extra, total_units: p.qty, price_per_tube: p.pricePerTube || null,
     total_amount: p.total, payer_member_id: uu(p.payerId), funded_by: p.fundedBy || null,
-    note: p.note || null,
+    note: p.note || null, repaid_at: p.repaidAt || null,
   }))
 
   ;(db.stockChecks || []).forEach((s) => put('stock_checks', {

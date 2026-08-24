@@ -3,9 +3,9 @@
 import { Alert, Avatar, Button, Card, IconButton, Input, Select, Tabs } from '#ds'
 import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { monthTxt } from '#utils/dates.js'
+import { ddmy, monthTxt } from '#utils/dates.js'
 import {
-  adjustRows, dueState, duesOf, duesTotal, fmt, fmtK, genderTxt, guestDebtByInviter,
+  adjustRows, advanceRows, dueState, duesOf, duesTotal, fmt, fmtK, genderTxt, guestDebtByInviter,
   guestDebtRows, memberOf,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
@@ -19,6 +19,8 @@ export default function Debts() {
   const guestRows = guestDebtRows(db, db.month).filter((r) => r.debt > 0)
   const dues = duesOf(db, db.month)
   const backs = adjustRows(db, db.month)
+  // Khoản ứng KHÔNG lọc theo tháng: quỹ nợ người ta từ tháng 6 thì tháng 8 vẫn còn nợ.
+  const advances = advanceRows(db)
 
   return (
     <>
@@ -28,6 +30,7 @@ export default function Debts() {
           { value: 'guest', label: t('debts.tabGuest'), count: guestRows.length },
           { value: 'dues', label: t('debts.tabDues'), count: dues.filter((x) => dueState(x).remain > 0).length },
           { value: 'back', label: t('debts.tabBack'), count: backs.filter((x) => !x.paid).length },
+          { value: 'advance', label: t('debts.tabAdvance'), count: advances.filter((x) => !x.repaidAt).length },
         ]}
         value={tab}
         onChange={(v) => a.setTab('debts', v)}
@@ -35,7 +38,63 @@ export default function Debts() {
       {tab === 'guest' && <GuestDebts rows={guestRows} canMoney={canMoney} />}
       {tab === 'dues' && <Dues dues={dues} canMoney={canMoney} />}
       {tab === 'back' && <Back rows={backs} canMoney={canMoney} />}
+      {tab === 'advance' && <Advances rows={advances} canMoney={canMoney} />}
     </>
+  )
+}
+
+/* ---------------- thành viên ứng tiền ---------------- */
+
+/**
+ * Quỹ nợ thành viên — LUẬT NGƯỜI GIỮ QUỸ. Dòng chưa trả thì khoản chi CHƯA nằm trong sổ quỹ,
+ * nên số dư quỹ đang cao hơn số tiền thật sự tiêu được đúng bằng tổng ở đây.
+ */
+function Advances({ rows, canMoney }) {
+  const { a } = useApp()
+  const owing = rows.filter((r) => !r.repaidAt)
+  const total = owing.reduce((x, r) => x + r.amount, 0)
+
+  if (!rows.length) {
+    return (
+      <Card padding="0">
+        <Empty icon="circle-check" title={t('debts.noAdvance')} hint={t('debts.noAdvanceHint')} />
+      </Card>
+    )
+  }
+
+  return (
+    <Card
+      title={t('debts.advanceTitle')}
+      subtitle={t('debts.advanceSub')}
+      icon="wallet"
+      padding="14px 16px"
+      actions={<Mono weight={600} color="var(--status-delayed)">{t('debts.advanceTotal', { amount: fmt(total) })}</Mono>}
+    >
+      <div style={{ display: 'grid', gap: 10 }}>
+        <Alert tone="info" title={t('debts.advanceAlertTitle')}>{t('debts.advanceAlert')}</Alert>
+        {rows.map((r) => (
+          <div key={r.kind + r.id} style={{ ...S.row, opacity: r.repaidAt ? 0.6 : 1 }}>
+            <Avatar name={r.name} size={30} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={S.label}>{r.name}</div>
+              <div style={S.caption}>
+                {t('debts.advanceMeta', { what: r.label, date: ddmy(r.date) })}
+                {r.repaidAt ? ' · ' + t('debts.advanceRepaidAt', { date: ddmy(r.repaidAt) }) : ''}
+              </div>
+            </div>
+            <Mono weight={600} size={14}
+              color={r.repaidAt ? 'var(--text-muted)' : 'var(--status-delayed)'}>{fmt(r.amount)}</Mono>
+            {canMoney && (
+              <Button size="sm" variant={r.repaidAt ? 'ghost' : 'secondary'}
+                icon={r.repaidAt ? 'rotate-ccw' : 'circle-check'}
+                onClick={() => a.repayAdvance(r.kind, r.id)}>
+                {r.repaidAt ? t('debts.advanceUndo') : t('debts.advanceRepay')}
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 

@@ -136,7 +136,9 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
       lại (mã CLB, gợi ý trùng SĐT) chạy được nên không chặn ai.
 - [x] ~~**RPC sinh `transactions` khi chốt buổi**~~ — đã chốt hướng: sổ quỹ lấy sự thật từ
       `transactions`, ghi tại mỗi sự kiện tiền. Chuyển thành **Phase 9 · P6**, làm sau P3–P5.
-- [ ] Trigger ghi `audit_logs` cho mọi bảng dính tiền.
+- [ ] ~~Trigger ghi `audit_logs` cho mọi bảng dính tiền.~~ **Hoãn vô thời hạn 2026-08-24:** sau P6
+      thì `transactions` đã là bản ghi bất biến có ngày, có người, có nguồn gốc — `audit_logs` ghi
+      lại gần đúng cùng thứ đó lần thứ hai. Mở lại khi thật sự cần truy vết ai sửa gì.
 - [ ] Đẩy lên Supabase cloud: đổi `VITE_SUPABASE_URL` + `ANON_KEY`, chạy migration bằng `supabase db push`
 
 ## Phase 9 — Rà dòng tiền (đợt 2026-08-20)
@@ -310,27 +312,69 @@ Hệ quả — mọi khoản sau đây **không** còn sinh dòng thu/chi ngay n
 | --- | --- | --- |
 | Thành viên ứng tiền mua cầu | ghi CHI ngay | CLB **nợ** người đó · ghi CHI khi trả họ |
 | Thành viên trả hoá đơn sân | ghi CHI ngay | CLB **nợ** người đó · ghi CHI khi trả họ |
-| Quản trò thu tiền khách, giữ tiền | ghi THU ngay | người đó **nợ** quỹ · ghi THU khi nộp về |
 | Chủ CLB / thủ quỹ trực tiếp thu, chi | ghi thu/chi | **giữ nguyên** — đây là két thật |
 
-Việc này biến P5 từ "một tính năng ứng tiền" thành **mô hình chung của mọi khoản tiền không
-qua két**. Ai là "chủ CLB" theo nghĩa két tiền — vai `owner` + `treasurer` (những vai có flag
-`money`) — **chờ user xác nhận**, xem bảng cuối file.
+**CHỈ MỘT CHIỀU — user chốt 2026-08-24.** Chiều ngược lại (quản trò thu hộ tiền khách → người đó
+nợ quỹ) **KHÔNG làm**. Nguyên văn: *"kiểu gì chủ CLB thu tiền xong mới ghi vào quỹ, nghĩa là thu
+xong của người nhận hộ rồi mới thu quỹ, bản chất vẫn là khách nợ. Không cần rườm rà phức tạp
+quá."* Tiền quản trò đang cầm cứ để nguyên là **khách nợ** cho tới lúc vào két — không sinh thêm
+loại bản ghi nào. Kéo theo: **không** cần cột "người thu" ở `session_guests`.
 
-### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0011`
+Việc này biến P5 từ "một tính năng ứng tiền" thành **mô hình chung của mọi khoản tiền không
+qua két**.
+
+**Két là ai — user chốt 2026-08-24:** mọi người có vai **`owner` hoặc `treasurer`** (tức có flag
+`money` trong `permissions.json`). Không thêm cột `treasurer_member_id`, dùng luôn ma trận quyền
+đã có: đổi thủ quỹ thì không phải sửa cấu hình nào.
+
+**Két tự ứng tiền — user chốt 2026-08-24:** ghi **CHI thẳng, KHÔNG tạo khoản nợ**. Tiền túi chủ
+CLB và tiền quỹ coi như một. Đánh đổi đã biết và chấp nhận: không đọc được chủ CLB đang bỏ ra
+bao nhiêu tiền túi.
+
+### P5 · Issue 4 + L3 · Thành viên ứng tiền — migration `0011` · **XONG 2026-08-24** (chờ user bấm thử)
 
 - [x] ~~**L3 · Dọn dữ liệu trước.**~~ Đã làm ở `0008_payer_link.sql` cùng P3.5: tên gõ tay dồn
       vào `note`, `dbmap.js` ghi `funded_by` = nguồn tiền, người trả sang `payer_member_id`.
-      Cột đã sạch → `ALTER TYPE` chạy được ngay.
-- [ ] `funded_by` enum `fund_source` + bảng `member_payables`. `member_advance` → **không** ghi chi,
-      tạo khoản phải trả; khi trả người ứng mới ghi chi.
+- [x] **`0011_advance_repaid.sql` — hai cột, không bảng mới.** `shuttle_purchases.repaid_at` +
+      `court_bills.repaid_at`. Khoản nợ CHÍNH LÀ bản ghi mua cầu / hoá đơn đã có, chỉ thiếu ngày
+      CLB trả lại người ta.
+- [x] `money.js: isVault(db, payerId)` = `can(role,'money')` — không thêm cột nào, vai đã có sẵn ở
+      `club_members.role`. `payerId` rỗng = quỹ trả thẳng, cũng là két. Id chết → `false`, thà giữ
+      một khoản nợ để người ta thấy còn hơn nuốt mất im lặng.
+- [x] `money.js: advanceRows(db)` gộp mua cầu + hoá đơn sân thành một danh sách. Không lọc theo
+      tháng: quỹ nợ từ tháng 6 thì tháng 8 vẫn còn nợ.
+- [x] `ledger.js: paidOn()` — két trả thì chi vào sổ ngày mua; thành viên ứng thì **chưa có dòng
+      nào** cho tới khi `repaidAt` có, và dòng đó mang **ngày trả**, không phải ngày mua. Nhãn
+      `ledger.label.repay` nhắc lại ngày mua gốc, không thì đọc tưởng hôm đó mới đi mua cầu.
+- [x] `appActions.js: repayAdvance(kind, id)` — bấm lại lần nữa thì gỡ đánh dấu. Đọc trạng thái
+      TRƯỚC khi ghi (bài học `toggleSchedule`).
+- [x] Tab **Quỹ nợ** ở màn Công nợ, kèm Alert giải thích vì sao khoản này chưa có trong sổ quỹ.
+- [x] Test + mutation-test 4 nhánh (`paidOn` · nhánh purchases · `isVault` · lọc két trong
+      `advanceRows`); `dbmap` khoá `repaid_at` hai chiều (chưa trả → NULL, không phải chuỗi rỗng).
+
+**Ba thứ đặc tả Issue 4 đề xuất mà KHÔNG làm** — cắt 2026-08-24, có lý do, đừng thêm lại:
+
+| Cắt | Vì sao |
+| --- | --- |
+| Bảng `member_payables` | dữ liệu đã nằm ở `shuttle_purchases` / `court_bills`; chép sang bảng thứ hai là lưu một sự thật ở hai chỗ |
+| `dir` / nợ hai chiều | chỉ còn một chiều (xem luật ⚖️) |
+| `ref_type` + `ref_id` + `settled_tx_id` | bản ghi mua cầu **chính là** nguồn gốc, không cần trỏ đi đâu. P6 cần id thì `ALTER` một dòng |
+| `ALTER TYPE funded_by → enum fund_source` | thừa — "quỹ trả hay thành viên ứng" suy ra từ `payer_member_id` + vai. Hai cột nói cùng một điều là chỗ để chỏi nhau |
+
+**Đánh đổi đã báo user:** sau P5 số dư quỹ **cao hơn** trước đúng bằng tổng khoản đang nợ — vì
+tiền đó thật sự còn trong két. Cho tới khi có T2 ("số dư khả dụng") thì phải tự nhớ trừ.
 
 ### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0012` + đổi `lib/ledger.js`
 
 - [ ] Mỗi sự kiện ở `DATABASE.md` §3.1 ghi ngay một dòng `transactions` kèm `ref_type` + `ref_id`.
-      Bỏ tick thì ghi dòng đảo chiều, không xoá cứng.
-- [ ] `ledger()` chuyển thành đọc một bảng. Xoá dần 5 nhánh suy ra (`dues` · `sessionGuests` ·
-      `sessions` bán sân · `sessions` sân thuê thêm · `adjustments`).
+- [ ] **Bỏ tick → XOÁ MỀM, không ghi dòng đảo chiều — chốt 2026-08-24.** Bỏ tick hầu hết là sửa
+      nhầm chứ không phải giao dịch hoàn tiền; ghi đảo chiều thì sổ đầy cặp +250k/−250k của người
+      bấm nhầm. Xoá mềm (`deleted_at` + ai xoá) vẫn giữ đủ lịch sử mà không rác. User đã nêu:
+      *"vụ tích nhầm gây rác có thể xảy ra, sau này có thể làm UX chặt chẽ chỗ đấy sau cũng được."*
+- [ ] `ledger()` chuyển thành đọc một bảng. Xoá dần **7 nhánh suy ra** (`dues` · `sessionGuests` ·
+      `sessions` bán sân · `sessions` sân thuê thêm · `courtBills` · `purchases` · `adjustments`).
+      Chỉ `db.manual` và số dư mang sang là dòng thật. **Đếm lại 2026-08-24 — trước ghi nhầm là 5,
+      sót `courtBills` và `purchases`, mà đó chính là hai nhánh luật người giữ quỹ đụng vào.**
 - [ ] **CUTOFF, không backfill — user chốt 2026-08-24.** Lấy một mốc ngày: từ mốc trở đi sổ ghi
       thật, trước mốc giữ nguyên số suy ra. Backfill là sinh ra chứng từ chưa từng tồn tại.
 - [ ] **Áp luật người giữ quỹ** (xem khối ⚖️ trên): dòng `transactions` chỉ sinh khi tiền qua két
@@ -345,12 +389,15 @@ qua két**. Ai là "chủ CLB" theo nghĩa két tiền — vai `owner` + `treasu
 Mười một lỗi nhóm B đều cùng một đặc điểm: **im lặng**, không có gì để so nên không ai phát hiện.
 Hai việc dưới bắt được gần hết.
 
-- [ ] **Màn "Đối chiếu quỹ" — P0 trong nhóm này.** Thủ quỹ nhập số dư NH + tiền mặt đang giữ, app
-      so với sổ và **liệt kê nghi vấn cụ thể** sắp theo mức khớp, không chỉ báo lệch. Lưu
-      `fund_reconciliations` để lần sau chỉ đối chiếu phần phát sinh.
-      Bắt: B1 · B2 · B3 · B4 · B9 · B10 · B11.
-- [ ] **Checklist trước khi chốt buổi.** Dialog liệt kê những gì còn treo, buộc xử lý: ai chưa
-      điểm danh · sân đánh dấu bán mà chưa nhập tiền · số cầu đang là định mức · khách còn ghi nợ.
+- [ ] **Màn "Đối chiếu quỹ" — P0 trong nhóm này.** Thủ quỹ nhập số tiền thật đang giữ, app so với
+      sổ và **liệt kê nghi vấn cụ thể** sắp theo mức khớp, không chỉ báo lệch.
+      Bắt: ~~B1~~ (xong ở P7 nhẹ) · ~~B2~~ (xong ở P5) · B3 · B4 · B9 · B10 · B11.
+      **KHÔNG có bảng `fund_reconciliations`** (đặc tả đề xuất, cắt 2026-08-24): đối chiếu là một
+      phép trừ, tính lại từ đầu mỗi lần cũng tức thì. Lưu lại chỉ để "lần sau đối chiếu phần phát
+      sinh" là một bảng nuôi cho một tối ưu không ai cần.
+- [ ] **Checklist trước khi chốt buổi — TỐI ĐA 3 MỤC** (thu hẹp 2026-08-24). Chỉ những thứ mất
+      tiền thật: sân đánh dấu bán mà chưa nhập tiền · khách còn ghi nợ · số cầu đang là định mức.
+      **Bỏ mục "ai chưa điểm danh"** — dài thêm một dòng là thêm một lý do để bấm Bỏ qua.
       Dòng cuối: *"Chốt buổi này không ghi khoản chi nào vào sổ quỹ."* Bắt: B4 · B6 · B7, xử lý luôn N1.
 - [x] **B1 · Quên nhập hoá đơn sân tháng — 1.920.000, sai nặng nhất.** Alert đỏ ở Trang chủ khi
       tháng có buổi `closed` mà `court_bills` tháng đó trống. **Chỉ khi `courtPayMode = 'month'`**
@@ -366,14 +413,18 @@ Hai việc dưới bắt được gần hết.
       *"cái này kệ nhé không phải issue, chỉ đang quan tâm tới lịch sử minh bạch dòng tiền thôi."*
       Không tách ví / ngân hàng. Đừng bàn lại.
 - [ ] **T1b · Vai `host` không tick được "khách đã trả" — giữ lại, đây là nguyên nhân B9.**
-      Phần này KHÔNG bị cắt cùng `wallets`. Xử lý theo luật người giữ quỹ ở P6: host tick thu
-      khách = host đang cầm tiền → sinh khoản **host nợ quỹ**, không phải dòng THU.
+      Phần này KHÔNG bị cắt cùng `wallets`. **Nhưng đã đơn giản hoá 2026-08-24:** chỉ cần mở
+      quyền cho `host` tick, KHÔNG sinh khoản "host nợ quỹ" (xem luật một chiều ở P5). Tiền host
+      cầm vẫn là khách nợ tới lúc vào két.
 - [ ] **T2 · Không phân biệt số dư sổ và số dư khả dụng.** StatCard "Số dư khả dụng" cạnh "Số dư
       quỹ CLB", caption liệt kê nghĩa vụ chưa trả. Luật người giữ quỹ làm mục này **quan trọng
       hơn** chứ không bớt: số dư sổ là tiền trong két chủ CLB, còn tiền đang nằm ở tay thành viên
       là khoản nợ hai chiều.
 - [x] **N5 / mục 8 · Tồn kho quy tiền** ở màn Sổ quỹ (`số quả còn × giá bình quân`) — user đang
       đọc quỹ **thấp hơn** thực tế vì quên số cầu trong tủ. StatCard cạnh "Số dư quỹ".
+- [ ] **Gộp 3 mức nhắc kiểm kho (`checkDue`: `never` · `stale` · `low`) còn một câu.** CLB này
+      không đếm cầu nên ba sắc thái nhắc chỉ là ba cách nói cùng một việc. Không đáng làm riêng —
+      nhặt lúc nào sửa `Shuttles.jsx` vì việc khác. Ghi 2026-08-24.
 
 ---
 
@@ -474,8 +525,6 @@ khách trùng · chuyển khách thành thành viên.
 
 | Việc | Vì sao cần user | Chặn cái gì |
 | --- | --- | --- |
-| **Ai là "két" theo luật người giữ quỹ** — vai `owner` + `treasurer`, hay đúng một người chỉ định? | quyết định này định nghĩa cái gì là thu/chi và cái gì là nợ, sai là sai toàn bộ sổ | **P5 · P6** |
-| **Người giữ quỹ ứng tiền cho chính CLB thì tính sao** — vẫn là CHI thẳng, hay cũng thành khoản nợ? | két và người là một, ghi hai lần là nhân đôi | **P5** |
 | **Mốc cutoff của P6** — từ ngày nào sổ ghi thật | trước mốc giữ số suy ra, sau mốc đọc bảng | **P6** |
 | Chạy `npm run build` | RULES §6: agent không tự build | không ai biết bản này compile được hay chưa |
 | Có viết script kiểm RLS bằng 2 tài khoản không | script sẽ tạo tài khoản thật trên DB của user | chứng minh CLB A không đọc được CLB B |
@@ -483,4 +532,5 @@ khách trùng · chuyển khách thành thành viên.
 
 **Đã chốt, không hỏi lại:** dựng + chạy DB (xong 2026-08-24) · P6 dùng **cutoff** không backfill ·
 **không** làm `wallets` (T1) · **không** thêm công tắc tắt nhắc kiểm kho · thiết kế khách (Phase 10)
-làm sau P5–P7 và phải thảo luận trước.
+làm sau P5–P7 và phải thảo luận trước · két = vai `owner` + `treasurer` · két tự ứng thì ghi CHI
+thẳng không tạo nợ.

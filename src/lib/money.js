@@ -4,6 +4,7 @@
 // Hàm ở đây thuần: nhận db (state) + tham số, không đụng React/Supabase.
 
 import { hours, monthOf, monthsBetween } from '#utils/dates.js'
+import { can } from '#lib/roles.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 
@@ -205,6 +206,38 @@ export function checkDue(db) {
   if (monthsBetween(last, month) > cfg.shuttle.checkRemindMonths) return 'stale'
   if (stock(db).left < cfg.shuttle.checkLowStock) return 'low'
   return ''
+}
+
+/* ---------- thành viên ứng tiền · LUẬT NGƯỜI GIỮ QUỸ (Issue 4) ---------- */
+
+/**
+ * Người này có phải "két" không — tiền qua tay họ mới là thu / chi thật.
+ * Két = vai có quyền `money` (owner · treasurer). `payerId` rỗng = quỹ trả thẳng, cũng là két.
+ * Id trỏ vào người không tìm thấy thì trả false: thà giữ lại một khoản nợ để người ta thấy còn
+ * hơn nuốt mất nó im lặng.
+ */
+export const isVault = (db, payerId) => !payerId || can(memberOf(db, payerId).role, 'money')
+
+/**
+ * Các khoản thành viên bỏ tiền túi trả hộ CLB. `repaidAt` rỗng = quỹ đang nợ người đó và khoản
+ * chi CHƯA vào sổ quỹ.
+ *
+ * Gộp mua cầu với hoá đơn sân làm một danh sách vì với người dùng đó là cùng một việc — ứng
+ * tiền trước. Không có bảng riêng: khoản nợ chính là bản ghi mua cầu / hoá đơn đã có.
+ */
+export function advanceRows(db) {
+  const out = []
+  const add = (kind, x, amount, label) => {
+    if (!(amount > 0) || isVault(db, x.payerId)) return
+    out.push({
+      kind, id: x.id, date: x.date, amount, label,
+      memberId: x.payerId, name: memberOf(db, x.payerId).name, repaidAt: x.repaidAt || '',
+    })
+  }
+  ;(db.courtBills || []).forEach((b) => add('court', b, b.amount, b.venue))
+  ;(db.purchases || []).forEach((p) => add('shuttle', p, p.total,
+    (db.shuttleTypes.find((x) => x.id === p.typeId) || { name: t('common.unknown') }).name))
+  return out.sort((a, b) => (a.date < b.date ? -1 : 1))
 }
 
 /* ---------- cảnh báo sai im lặng (TASKS Phase 9 · P7 · B1 · B5 · B7) ---------- */

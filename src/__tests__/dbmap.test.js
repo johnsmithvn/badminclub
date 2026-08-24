@@ -176,4 +176,25 @@ const allBack = toDb(allRaw, { clubId: 'CL1' })
 assert.equal(allBack.sessions[0].groupId, 'ALL', "group_id NULL phải đọc thành 'ALL'")
 assert.equal(toRows(allBack, backCtx).sessions[0].group_id, null, "'ALL' phải ghi xuống NULL")
 
+// `repaid_at` (0011) phải đi được cả hai chiều: đọc hụt thì mọi khoản ứng đã trả biến thành
+// đang nợ, ghi hụt thì bấm "Đã trả" xong tải lại là mất dấu.
+const advRaw = {
+  ...raw,
+  purchases: [{
+    id: 'p1', date: '2026-08-06', type_id: 's1', tubes: 1, extra_units: 0, total_units: 12,
+    price_per_tube: 320000, total_amount: 320000, payer_member_id: 'm1', funded_by: null,
+    note: null, repaid_at: '2026-08-20',
+  }],
+  courtBills: [{
+    id: 'b1', month: '2026-08', paid_on: '2026-08-01', venue: 'X', amount: 100000,
+    payer_member_id: 'm1', payer: null, note: null, repaid_at: null,
+  }],
+}
+const advBack = toDb(advRaw, { clubId: 'CL1' })
+assert.equal(advBack.purchases[0].repaidAt, '2026-08-20')
+assert.equal(advBack.courtBills[0].repaidAt, '', 'chưa trả thì đọc thành chuỗi rỗng')
+const advRows = toRows(advBack, { clubId: 'CL1', memberIds: new Set(['m1']) })
+assert.equal(advRows.shuttle_purchases[0].repaid_at, '2026-08-20')
+assert.equal(advRows.court_bills[0].repaid_at, null, 'chưa trả phải xuống NULL, không phải chuỗi rỗng')
+
 console.log('dbmap check: OK')
