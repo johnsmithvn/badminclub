@@ -29,7 +29,6 @@ const NAV = [
   { section: 'account' },
   { value: 'profile', icon: 'user-round' },
   { value: 'settings', icon: 'settings', badge: 'pendingJoins' },
-  { value: 'schema', icon: 'database' },
 ]
 
 export default function Sidebar({ route }) {

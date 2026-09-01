@@ -195,8 +195,19 @@ theo số buổi còn lại** tính từ hôm nay.
 
 ## 6. Công nợ · Sổ quỹ · Kho cầu
 
-**Công nợ** 3 tab: nợ khách gộp theo **người rủ** (để nhắc thu hộ) · nợ theo từng **khách** ·
-**quỹ tháng** thành viên cố định · **đối chiếu buổi** cuối tháng.
+**Công nợ (`/cong-no`)** tổ chức thành các tab tinh gọn và chuyên nghiệp:
+1. **Thu / Hoàn theo buổi**:
+   - Gộp chung toàn bộ khoản thu khách ngoài, hội viên đi thêm buổi và hoàn tiền cho hội viên cố định vắng mặt (`back_credits`).
+   - Gom dữ liệu theo từng người chơi: hiển thị tổng số buổi, số tiền ròng cần thu (`+`) hoặc cần trả (`−`), nút `[Thu tất cả]` / `[Trả tất cả]`.
+   - **Mở rộng xem chi tiết từng buổi (Accordion)**: ngày giờ, ca tập, sân đấu cụ thể.
+   - **Sửa số tiền trực tiếp (Inline Price Edit)**: cho phép điều chỉnh số tiền của từng buổi linh hoạt trước khi thu/hoàn.
+   - **Hai chế độ hiển thị (Toggle)**: Chuyển đổi linh hoạt giữa `[☰ Dạng Bảng]` (kế toán thẳng thớm) và `[⊞ Dạng Lưới Thẻ]` (các ô vuông block hiện đại, xóa khoảng trắng thừa).
+   - **Tìm kiếm & Sắp xếp đa năng**: Tìm kiếm tiếng Việt không dấu (theo tên người chơi, người rủ, ca, sân), lọc theo đối tượng (`Hội viên` / `Khách ngoài`), sắp xếp theo tiền nợ, tên A-Z, số buổi.
+2. **Quỹ tháng**:
+   - Thu quỹ tháng trọn gói của hội viên cố định, lọc theo từng ca/nhóm.
+   - Hỗ trợ cả 2 chế độ Bảng và Lưới thẻ, tìm kiếm thành viên/SĐT và sắp xếp theo số tiền còn thiếu/đã đóng.
+3. **Quỹ nợ (Thành viên ứng tiền)**:
+   - Theo dõi các khoản chi mà thành viên ứng tiền túi thay cho CLB (như mua cầu, trả tiền sân), hỗ trợ bấm hoàn trả khi quỹ hoàn tiền lại cho thành viên.
 
 **Đối chiếu buổi chạy hai chiều**, cùng một đơn giá, chỉ khác dấu:
 
@@ -214,28 +225,12 @@ giá khách, và không được đếm vào báo cáo "khách theo trình độ
 thái thứ ba là **Đi thêm**. Người đã cố định nhóm đó thì không bao giờ tính là đi thêm — họ đã
 đóng quỹ tháng rồi.
 
-Hai cách tất toán: **tiền mặt** (ghi một dòng sổ quỹ) hoặc **trừ vào quỹ tháng sau** (KHÔNG ghi
-giao dịch nào — tiền không đổi tay, số được cộng dấu vào `monthly_dues.amount` lúc chốt danh sách
-tháng sau).
-
-**Sổ quỹ** — 9 hạng mục, chiều thu/chi. Bảng dưới nói **nguồn sự thật hiện tại**: `ledger()`
-suy ra từ chính bản ghi gốc, `transactions` mới chỉ giữ dòng nhập tay. Đích đến là ghi thẳng vào
-`transactions` — xem `DATABASE.md` §1 luật 3 và §3.1.
-
-| Hạng mục | Chiều | Nguồn |
-| --- | --- | --- |
-| Số dư mang sang | in | `clubs.opening_balance` |
-| Quỹ tháng | in | `monthly_dues.paid` |
-| Khách giao lưu | in | `session_guests.paid` |
-| Bán sân dư | in | buổi `closed` có sân bán |
-| Tiền sân | out | `court_pay_mode='month'` → `court_bills`; `='session'` → mỗi buổi `closed` |
-| Thuê thêm sân | out | chỉ khi trả trọn tháng, buổi `closed` |
-| Mua cầu | out | `shuttle_purchases.total_amount > 0` |
-| Back cố định nghỉ | out | `back_credits.paid`, ghi ngày `month-28` |
-| Thu/chi tay | in/out | nhập tay (trích quỹ, ủng hộ, chuyển sổ Excel) |
-
-Dòng **trùng ngày + hạng mục + chiều** gộp thành một dòng cha bung ra được (20 người đóng quỹ
-cùng ngày = 1 dòng "Quỹ tháng").
+**Sổ quỹ (`/so-quy`)** — Minh bạch dòng tiền phong trào CLB:
+- **Tab mặc định là Chi tiết thu chi**: Hiển thị rành mạch từng khoản tiền thực tế: Quỹ tháng của ai, Hoá đơn tiền sân trọn tháng, Tiền mua mấy ống cầu, Sân thuê thêm lẻ của buổi nào, Hoàn tiền vắng... Các khoản cùng ngày cùng loại được gom gọn gàng, bấm để bung ra xem chi tiết.
+- **Tab Tổng kết quỹ tháng**: Báo cáo tổng kết quỹ phong trào 2 cột cực kỳ trực quan:
+  - 4 Thẻ chỉ số: `Tổng tiền thu từ anh em` (+), `Tổng chi phí hoạt động` (-), `Chênh lệch thu - chi tháng` (Báo rõ Thặng dư hay Hụt quỹ), và `Số dư quỹ hiện tại` (kèm giá trị số cầu tồn trong kho).
+  - Bảng Cân đối 2 cột: Cột trái (Các khoản thu từ anh em) & Cột phải (Các khoản chi hoạt động).
+- **Tiền sân**: CLB thanh toán trọn gói 1 lần cả tháng theo Hoá đơn tiền sân. Khi buổi tập có phát sinh sân thuê thêm ngoài giờ (`extra: true`), hệ thống tự động ghi thêm 1 dòng Chi riêng cho sân đó vào sổ quỹ.
 
 **Kho cầu**: nhập mua (nhập **tổng tiền thực trả**, app tự ra đ/quả) · tiêu thụ theo buổi
 (dấu `~` = buổi đang lấy định mức) · **kiểm kho cuối tháng**: đếm thực tế, so tồn hệ thống,
@@ -250,7 +245,7 @@ Ba luật của kiểm kho, sai một cái là hỏng số hai tháng:
    lượng nào mà kho vẫn lệch thì app **không tự sửa**, mà báo user sửa tay số quả.
 3. **Không tạo giao dịch nào**, kể cả khi hụt kho — xem `DATABASE.md` §3.1.
 
-## 7. Trang cá nhân · Cài đặt · Sơ đồ dữ liệu
+## 7. Trang cá nhân · Cài đặt
 
 **Cá nhân**: một tài khoản dùng cho mọi CLB; danh sách CLB đang tham gia, bấm để chuyển.
 

@@ -5,7 +5,7 @@ import { Alert, Badge, Button, Card, Input, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
-import { billsOf, courtPayMode, fmt, fmtK, intOf, payerName, shuttleUnit, stock } from '#lib/money.js'
+import { fmt, fmtK, intOf, payerName, shuttleUnit, stock } from '#lib/money.js'
 import { availableBalance, catLabel, dailySummary, ledgerGrouped, monthFlow, reconcile } from '#lib/ledger.js'
 import { courtBillForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -46,8 +46,6 @@ export default function Fund() {
           caption={net >= 0 ? 'Quỹ tháng này đang dư' : 'Quỹ tháng này đang hụt'} />
       </div>
 
-      <CourtBills canMoney={canMoney} />
-
       <Tabs
         variant="underline"
         items={[
@@ -61,64 +59,6 @@ export default function Fund() {
 
       {tab === 'detail' ? <Detail canMoney={canMoney} /> : tab === 'rec' ? <Reconcile /> : <MonthSummary />}
     </>
-  )
-}
-
-/* ---------------- tiền sân ---------------- */
-
-function CourtBills({ canMoney }) {
-  const { db, a } = useApp()
-  const mode = courtPayMode(db)
-  const bills = billsOf(db, db.month)
-
-  return (
-    <Card
-      title={t('fund.courtTitle')}
-      subtitle={t('fund.courtSub')}
-      icon="landmark"
-      padding="14px 16px"
-      actions={
-        <Tabs
-          variant="segmented"
-          items={[
-            { value: 'month', label: t('fund.payModeMonth') },
-            { value: 'session', label: t('fund.payModeSession') },
-          ]}
-          value={mode}
-          onChange={(v) => canMoney && a.setCourtPayMode(v)}
-        />
-      }
-    >
-      <div style={{ display: 'grid', gap: 10 }}>
-        <div style={S.caption}>{t(mode === 'month' ? 'fund.payModeMonthNote' : 'fund.payModeSessionNote')}</div>
-
-        {mode === 'month' && (
-          <>
-            {bills.length === 0
-              ? <Empty icon="landmark" title={t('fund.billEmpty')} hint={t('fund.billEmptyHint')} />
-              : bills.map((b) => (
-                  <div key={b.id} style={S.row}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={S.label}>{b.venue}</div>
-                      <Mono color="var(--text-muted)">
-                        {ddmy(b.date) + ' · ' + payerName(db, b.payerId, b.payer) + (b.note ? ' · ' + b.note : '')}
-                      </Mono>
-                    </div>
-                    <Mono weight={600} size={14} color="var(--status-incident)">{fmt(b.amount)}</Mono>
-                  </div>
-                ))}
-            {canMoney && (
-              <div>
-                <Button variant="secondary" size="sm" icon="plus"
-                  onClick={() => a.openDialog('bill', courtBillForm(db))}>
-                  {t('fund.addBill')}
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </Card>
   )
 }
 
@@ -296,9 +236,14 @@ function Detail({ canMoney }) {
             {t(allOpen ? 'fund.collapseAll' : 'fund.expandAll')}
           </Button>
           {canMoney && (
-            <Button variant="accent" size="sm" icon="plus" onClick={() => a.openDialog('ledger', ledgerForm(db))}>
-              {t('fund.addEntry')}
-            </Button>
+            <>
+              <Button variant="secondary" size="sm" icon="landmark" onClick={() => a.openDialog('bill', courtBillForm(db))}>
+                {t('fund.addBill')}
+              </Button>
+              <Button variant="accent" size="sm" icon="plus" onClick={() => a.openDialog('ledger', ledgerForm(db))}>
+                {t('fund.addEntry')}
+              </Button>
+            </>
           )}
         </div>
       }

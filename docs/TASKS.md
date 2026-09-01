@@ -776,6 +776,11 @@ Không đụng schema, không migration mới.
 | `markAll` dựng bảng điểm danh rỗng rồi ghi đè | bấm "Tất cả có mặt/vắng" là hất sạch người đi thêm ra khỏi buổi | giữ bảng cũ, chỉ ghi đè người trong danh sách cố định |
 | Form thêm khách lấy chính `gLevel` làm cờ "đã khởi tạo" (`ui.form.gLevel ? ui.form : guestForm(db)`) | CLB chưa có thang trình độ → `gLevel` rỗng vĩnh viễn → nhánh luôn rơi về form mặc định: **gõ tên bị xoá từng ký tự, giá luôn 0 đ**, bấm Thêm thì `level: undefined` xuống cột NOT NULL và đồng bộ chết im lặng | gộp `{ ...guestForm(db), ...ui.form }` thay vì chọn một trong hai; chặn nút Thêm + toast khi CLB chưa có thang; cảnh báo bấm được sang Cài đặt khi giá 0 |
 | 4 chỗ `<Alert tone="critical">` — tone không tồn tại | `Alert` chỉ nhận `info/success/warning/danger`, tone lạ rơi về `info` im lặng → **thông báo lỗi đăng nhập / đăng ký / mã CLB hiện màu xanh** kèm icon ℹ. `StatCard` lại dùng đúng `critical` nên rất dễ nhầm | đổi sang `tone="danger"` ở `Clubs.jsx:178,222` · `Login.jsx:46` · `Register.jsx:100` |
+| `UserRoundMinus` thiếu trong `ds/icons.js` | Nút xoá người đi lẻ ở `SessionDetail` tàng hình, không bấm xoá được khi thêm nhầm | Thêm `UserRoundMinus` vào `icons.js` và thay bằng `IconButton icon="trash-2"` đỏ nổi bật |
+| Điểm danh buổi kéo nhầm thành viên vắng ca khác vào và gắn tag "Không thu quỹ tháng này" | Người cố định nhóm khác (như Thúy ở ca CN) vắng mặt lại bị kéo vào điểm danh ca T6 | `sessionMembers` chỉ kéo người ngoài nhóm khi `isPresent(att)` và `rosterStatus` ưu tiên danh sách `monthly_dues` đã chốt của đúng ca |
+| Công nợ rời rạc khó theo dõi, không có tìm kiếm / sắp xếp | Khách ngoài, thành viên đi thêm và back vắng nằm tách biệt; giao diện thừa khoảng trắng | Gộp thành "Thu / Hoàn theo buổi" + "Quỹ tháng", hỗ trợ 2 chế độ xem (Bảng & Lưới ô vuông) có toggle, tìm kiếm tiếng Việt không dấu và dropdown sắp xếp |
+| Bảng "Tổng hợp tháng" ở Sổ quỹ gây khó hiểu | Gom 4 ngày đánh cầu lẻ tẻ với con số gộp thô không giải thích | Đặt "Chi tiết thu chi" làm tab mặc định, thay bảng cũ bằng Báo cáo tổng kết quỹ phong trào 2 cột rõ ràng |
+| "Sơ đồ dữ liệu" thừa thãi trong menu điều hướng người dùng | Menu kỹ thuật dev hiển thị ở Sidebar người dùng thường | Gỡ bỏ khỏi `Sidebar.jsx` |
 
 ---
 
