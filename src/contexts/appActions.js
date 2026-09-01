@@ -977,8 +977,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           sessions: d.sessions.concat(added).sort((a, b) => (a.date < b.date ? -1 : 1)),
         }
       })
-      upUi(() => ({ dialog: null, form: {} }))
-      nav('schedules')
+      upUi(() => ({ dialog: null, form: {}, tab: { ...ui().tab, settings: 'schedules' } }))
+      nav('settings')
       toast(t('toast.scheduleCreated', { n: dates.length, from: dd(dates[0]), to: dd(dates[dates.length - 1]) }))
     },
     createAdhoc: () => {

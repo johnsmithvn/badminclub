@@ -3,10 +3,10 @@
 import { Alert, Avatar, Button, Card, DataTable, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
 import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, sessionColumns } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { ddmy, monthTxt } from '#utils/dates.js'
+import { ddmy, monthOf, monthTxt } from '#utils/dates.js'
 import {
-  costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK, genderTxt,
-  groupMembers, groupOf, guestDebtRows, homeAlerts, isPresent, memberOf, monthSessions, sessionOf,
+  adjustRows, advanceRows, costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK, genderTxt,
+  groupMembers, groupOf, guestOf, homeAlerts, isPresent, memberOf, monthSessions, sessionOf,
   shuttleUnit, stock, timeTxt,
 } from '#lib/money.js'
 import { availableBalance, monthFlow } from '#lib/ledger.js'
@@ -41,37 +41,180 @@ function Overview() {
   const closed = sess.filter((s) => s.status === 'closed')
   const dues = duesOf(db, month)
   const duesPaid = dues.filter((d) => dueState(d).full)
-  const debtors = guestDebtRows(db, month).filter((r) => r.debt > 0)
+
+  // 1. Tính toán tất cả người đang nợ CLB (khách ngoài, hội viên đi thêm ca, hội viên nợ quỹ tháng)
+  const debtorMap = {}
+  ;(db.sessionGuests || []).forEach((sg) => {
+    const s = sessionOf(db, sg.sessionId)
+    if (!s || monthOf(s.date) !== month || sg.paid) return
+    const k = sg.memberId || sg.guestId
+    const who = sg.memberId ? memberOf(db, k) : guestOf(db, k)
+    if (!debtorMap[k]) {
+      debtorMap[k] = {
+        id: k,
+        name: who.name,
+        isMember: !!sg.memberId,
+        gender: who.gender || sg.gender,
+        level: who.level || sg.level,
+        debt: 0,
+        desc: [],
+      }
+    }
+    debtorMap[k].debt += sg.price
+    debtorMap[k].desc.push('Buổi ' + ddmy(s.date))
+  })
+
+  adjustRows(db, month).forEach((ar) => {
+    if (ar.paid || ar.amount <= 0) return
+    const k = ar.memberId
+    const who = ar.member
+    if (!debtorMap[k]) {
+      debtorMap[k] = {
+        id: k,
+        name: who.name,
+        isMember: true,
+        gender: who.gender,
+        level: who.level,
+        debt: 0,
+        desc: [],
+      }
+    }
+    debtorMap[k].debt += ar.amount
+    debtorMap[k].desc.push(ar.label)
+  })
+
+  dues.forEach((d) => {
+    const st = dueState(d)
+    if (st.remain <= 0) return
+    const k = d.memberId
+    const who = memberOf(db, k)
+    if (!debtorMap[k]) {
+      debtorMap[k] = {
+        id: k,
+        name: who.name,
+        isMember: true,
+        gender: who.gender,
+        level: who.level,
+        debt: 0,
+        desc: [],
+      }
+    }
+    debtorMap[k].debt += st.remain
+    debtorMap[k].desc.push('Quỹ tháng thiếu ' + fmtK(st.remain))
+  })
+
+  const debtors = Object.values(debtorMap).sort((a, b) => b.debt - a.debt)
   const totalDebt = debtors.reduce((x, r) => x + r.debt, 0)
+
+  // 2. Tính toán các chủ nợ của CLB (thành viên ứng tiền mua cầu, hoá đơn sân hoặc tiền hoàn vắng)
+  const creditorMap = {}
+  advanceRows(db).forEach((adv) => {
+    if (adv.repaidAt) return
+    const k = adv.memberId
+    if (!creditorMap[k]) {
+      creditorMap[k] = {
+        id: k,
+        name: adv.name,
+        owed: 0,
+        desc: [],
+      }
+    }
+    creditorMap[k].owed += adv.amount
+    creditorMap[k].desc.push(adv.label)
+  })
+
+  adjustRows(db, month).forEach((ar) => {
+    if (ar.paid || ar.amount >= 0) return
+    const k = ar.memberId
+    const who = ar.member
+    const amt = Math.abs(ar.amount)
+    if (!creditorMap[k]) {
+      creditorMap[k] = {
+        id: k,
+        name: who.name,
+        owed: 0,
+        desc: [],
+      }
+    }
+    creditorMap[k].owed += amt
+    creditorMap[k].desc.push('Hoàn vắng ' + ar.label)
+  })
+
+  const creditors = Object.values(creditorMap).sort((a, b) => b.owed - a.owed)
+  const totalOwed = creditors.reduce((x, r) => x + r.owed, 0)
+
   const flow = monthFlow(db, month)
   const st = stock(db)
   const av = availableBalance(db)
   const bal = av.balance
-  const upcoming = db.sessions.filter((s) => s.date >= db.today && s.status !== 'cancelled').slice(0, 4)
+
+  // 3. Buổi tới: CHỈ lấy các buổi sắp tới CHƯA CHỐT và CHƯA HUỶ
+  const upcoming = db.sessions
+    .filter((s) => s.date >= db.today && s.status !== 'cancelled' && s.status !== 'closed')
+    .slice(0, 4)
 
   // Số buổi có mặt của từng người trong tháng — chỉ tính buổi đã chốt.
   const attend = {}
   closed.forEach((s) => {
     const map = db.attendance[s.id] || {}
-    // isPresent chứ không `if (map[k])`: 'extra' cũng là có mặt, và viết rõ ra thì đọc code
-    // không phải nhớ rằng chuỗi 'extra' tình cờ truthy.
     Object.keys(map).forEach((k) => { if (isPresent(map[k])) attend[k] = (attend[k] || 0) + 1 })
   })
   const maxAtt = Math.max(1, ...Object.keys(attend).map((k) => attend[k]))
+
+  // 4. Người lôi kéo nhiều nhất (Top rủ khách giao lưu và giới thiệu thành viên)
+  const scanInviters = (filterMonth) => {
+    const map = {}
+    ;(db.sessionGuests || []).forEach((sg) => {
+      const s = sessionOf(db, sg.sessionId)
+      if (filterMonth && (!s || monthOf(s.date) !== month)) return
+      const mid = sg.invitedBy || (guestOf(db, sg.guestId) || {}).invitedBy
+      if (!mid) return
+      const member = memberOf(db, mid)
+      if (!member || !member.name) return
+      if (!map[mid]) {
+        map[mid] = { id: mid, name: member.name, count: 0, guests: new Set() }
+      }
+      map[mid].count += 1
+      const gName = (guestOf(db, sg.guestId) || {}).name || 'Khách'
+      map[mid].guests.add(gName)
+    })
+    ;(db.members || []).forEach((m) => {
+      if (!m.invitedBy) return
+      const mid = m.invitedBy
+      const member = memberOf(db, mid)
+      if (!member || !member.name) return
+      if (!map[mid]) {
+        map[mid] = { id: mid, name: member.name, count: 0, guests: new Set() }
+      }
+      map[mid].count += 1
+    })
+    return map
+  }
+
+  let inviterMap = scanInviters(true)
+  let isAllTime = false
+  if (Object.keys(inviterMap).length === 0) {
+    inviterMap = scanInviters(false)
+    isAllTime = true
+  }
+  const topInviters = Object.values(inviterMap)
+    .map((x) => ({ ...x, guestCount: x.guests.size }))
+    .sort((a, b) => b.count - a.count)
+  const maxInvites = Math.max(1, ...topInviters.map((x) => x.count))
 
   return (
     <>
       <Warnings />
       <Setup />
       <div style={GRID_STAT}>
-        {/* Trang chủ đã 8 ô, không nhồi thêm ô khả dụng — nói trong caption của chính ô số dư. */}
         <StatCard label={t('home.fundBalance')} value={fmt(bal)} icon="wallet"
           tone={bal < 0 ? 'critical' : 'neutral'}
-          caption={av.owed > 0
-            ? t('home.fundOwedCaption', { available: fmtK(av.available), owed: fmtK(av.owed) })
+          caption={totalOwed > 0
+            ? `CLB đang nợ ứng ${fmtK(totalOwed)}`
             : t('home.fundCaption', { amount: fmt(db.club.opening), date: ddmy(db.club.openingDate) })} />
-        <StatCard label={t('home.guestDebt')} value={fmt(totalDebt)} icon="clock-alert" tone="warning"
-          caption={t('home.guestDebtCaption', { n: debtors.length, month: monthTxt(month).toLowerCase() })} />
+        <StatCard label="Nợ cần thu" value={fmt(totalDebt)} icon="clock-alert"
+          tone={totalDebt > 0 ? 'warning' : 'neutral'}
+          caption={debtors.length ? `${debtors.length} người đang nợ` : 'Đã thu đủ'} />
         <StatCard label={t('home.stock')} value={st.left} unit={t('units.shuttle')} icon="package" tone="accent"
           caption={t('home.stockCaption', { bought: st.bought, used: st.used })} />
         <StatCard label={t('home.dues')} value={duesPaid.length + ' / ' + dues.length} icon="users"
@@ -179,6 +322,77 @@ function Overview() {
       </div>
 
       <div style={GRID_PAIR}>
+        <Card
+          title="Người nợ nhiều nhất"
+          subtitle={monthTxt(month) + ' · Nợ buổi & quỹ tháng'}
+          icon="clock-alert"
+          padding="16px 18px"
+          actions={
+            <Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.go('debts')}>
+              Xem tất cả
+            </Button>
+          }
+        >
+          <div style={{ display: 'grid', gap: 9 }}>
+            {debtors.slice(0, cfg.ui.topDebtCount || 5).map((r) => (
+              <div key={r.id} style={SS.debtRow}>
+                <Avatar name={r.name} size={28} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={SS.label}>{r.name}</span>
+                    <span style={{
+                      font: '600 10px var(--font-sans)', padding: '1px 6px', borderRadius: 99,
+                      background: r.isMember ? 'var(--teal-50)' : 'var(--amber-50)',
+                      color: r.isMember ? 'var(--teal-700)' : 'var(--amber-700)',
+                    }}>
+                      {r.isMember ? 'Hội viên' : 'Khách'}
+                    </span>
+                  </div>
+                  <div style={{ ...SS.caption, ...SS.ellipsis }}>
+                    {r.desc.slice(0, 2).join(' · ')}
+                  </div>
+                </div>
+                <Mono weight={600} size={14} color="var(--status-delayed)">{fmt(r.debt)}</Mono>
+                <Button variant="secondary" size="sm" icon="arrow-right"
+                  onClick={() => a.go('debts')}>Thu</Button>
+              </div>
+            ))}
+            {!debtors.length && <Empty icon="circle-check" title="Không ai còn nợ" hint="Tất cả khách và hội viên đã thanh toán đủ tiền trong tháng." />}
+          </div>
+        </Card>
+
+        <Card
+          title="Chủ nợ của CLB"
+          subtitle="CLB đang nợ nhiều nhất · Ứng tiền & hoàn vắng"
+          icon="wallet"
+          padding="16px 18px"
+          actions={
+            <Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => { a.setTab('debts', 'advance'); a.go('debts') }}>
+              Xem quỹ nợ
+            </Button>
+          }
+        >
+          <div style={{ display: 'grid', gap: 9 }}>
+            {creditors.slice(0, cfg.ui.topDebtCount || 5).map((r) => (
+              <div key={r.id} style={SS.debtRow}>
+                <Avatar name={r.name} size={28} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={SS.label}>{r.name}</span>
+                  <div style={{ ...SS.caption, ...SS.ellipsis }}>
+                    {r.desc.slice(0, 2).join(' · ')}
+                  </div>
+                </div>
+                <Mono weight={600} size={14} color="var(--status-incident)">{fmt(r.owed)}</Mono>
+                <Button variant="secondary" size="sm" icon="rotate-ccw"
+                  onClick={() => { a.setTab('debts', 'advance'); a.go('debts') }}>Hoàn</Button>
+              </div>
+            ))}
+            {!creditors.length && <Empty icon="circle-check" title="CLB không nợ ai" hint="CLB không còn khoản nợ ứng tiền hay tiền hoàn vắng nào chưa thanh toán." />}
+          </div>
+        </Card>
+      </div>
+
+      <div style={GRID_PAIR}>
         <Card title={t('home.topAttend')} subtitle={t('home.topAttendSub')} icon="trophy" padding="16px 18px">
           <div style={{ display: 'grid', gap: 10 }}>
             {Object.keys(attend).sort((x, y) => attend[y] - attend[x]).slice(0, cfg.ui.topAttendCount)
@@ -196,23 +410,34 @@ function Overview() {
           </div>
         </Card>
 
-        <Card title={t('home.topDebt')} subtitle={t('home.topDebtSub')} icon="user-round-x" padding="16px 18px">
-          <div style={{ display: 'grid', gap: 9 }}>
-            {debtors.slice(0, cfg.ui.topDebtCount).map((r) => (
-              <div key={r.guest.id} style={SS.debtRow}>
-                <Avatar name={r.guest.name} size={28} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={SS.label}>{r.guest.name}</div>
-                  <div style={SS.caption}>
-                    {t('home.topDebtMeta', { n: r.sessions, gender: genderTxt(r.guest.gender), level: r.guest.level })}
+        <Card
+          title="Người lôi kéo nhiều nhất"
+          subtitle={isAllTime ? "Đại sứ rủ rê · Toàn thời gian" : `Đại sứ rủ rê · ${monthTxt(month).toLowerCase()}`}
+          icon="user-round-plus"
+          padding="16px 18px"
+        >
+          <div style={{ display: 'grid', gap: 10 }}>
+            {topInviters.slice(0, cfg.ui.topAttendCount || 5).map((r, i) => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Mono style={{ width: 16, textAlign: 'right' }} color="var(--text-muted)">{i + 1}</Mono>
+                <Avatar name={r.name} size={26} />
+                <div style={{ flex: '0 0 105px', minWidth: 0 }}>
+                  <div style={{ ...SS.label, ...SS.ellipsis }}>{r.name}</div>
+                  <div style={{ font: '10px var(--font-sans)', color: 'var(--text-muted)' }}>
+                    {r.guestCount ? `${r.guestCount} người quen` : 'Thành viên mới'}
                   </div>
                 </div>
-                <Mono weight={600} size={14} color="var(--status-delayed)">{fmt(r.debt)}</Mono>
-                <Button variant="secondary" size="sm" icon="circle-check"
-                  onClick={() => a.collectDebt(r.guest.id)}>{t('home.collect')}</Button>
+                <Bar pct={Math.round((r.count / maxInvites) * 100)} color={i === 0 ? 'var(--amber-500)' : 'var(--teal-500)'} />
+                <Mono style={{ whiteSpace: 'nowrap' }}>{r.count} lượt</Mono>
               </div>
             ))}
-            {!debtors.length && <Empty icon="circle-check" title={t('home.noDebt')} hint={t('home.noDebtHint')} />}
+            {!topInviters.length && (
+              <Empty
+                icon="user-round-plus"
+                title="Chưa có ai rủ thêm người"
+                hint="Mỗi khi thêm khách vào buổi tập, hãy chọn người rủ để vinh danh đại sứ kéo người nhé!"
+              />
+            )}
           </div>
         </Card>
       </div>
@@ -305,7 +530,7 @@ function Setup() {
     { key: 'court', done: db.courts.length > 0, icon: 'map-pin', go: () => { a.go('settings'); a.setTab('settings', 'courts') } },
     { key: 'group', done: db.groups.length > 0, icon: 'users', go: () => { a.go('settings'); a.setTab('settings', 'groups') } },
     { key: 'member', done: db.members.filter((m) => m.active !== false).length > 1, icon: 'user-round-plus', go: () => a.go('members') },
-    { key: 'schedule', done: db.schedules.length > 0, icon: 'repeat', go: () => a.go('schedules') },
+    { key: 'schedule', done: db.schedules.length > 0, icon: 'repeat', go: () => { a.go('settings'); a.setTab('settings', 'schedules') } },
     // Bảng giá khách sinh sẵn theo thang trình độ nhưng mặc định 0 đ — không sửa thì thu khách ra 0.
     {
       key: 'price', done: db.guestPrices.some((p) => p.nam > 0 || p.nu > 0), icon: 'tags',

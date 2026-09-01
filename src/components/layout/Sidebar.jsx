@@ -21,7 +21,6 @@ const NAV = [
   { value: 'calendar', icon: 'calendar-days' },
   { value: 'sessions', icon: 'clipboard-check', badge: 'unclosedSessions' },
   { value: 'assign', icon: 'route', badge: 'assignable' },
-  { value: 'schedules', icon: 'repeat' },
   { value: 'members', icon: 'users' },
   { section: 'money' },
   { value: 'debts', icon: 'clock-alert', badge: 'debtPending', alert: 'hasDebt' },

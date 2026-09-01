@@ -10,8 +10,9 @@ import { ROLES, can, roleDesc } from '#lib/roles.js'
 import { fmtK, intOf } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
+import Schedules from './Schedules.jsx'
 
-const TABS = ['general', 'money', 'courts', 'shuttles', 'groups', 'access']
+const TABS = ['general', 'money', 'courts', 'shuttles', 'groups', 'schedules', 'access']
 
 export default function Settings() {
   const { db, ui, a } = useApp()
@@ -59,6 +60,7 @@ export default function Settings() {
       {tab === 'courts' && <Courts canEdit={canEdit} />}
       {tab === 'shuttles' && <ShuttleTab canEdit={canEdit} />}
       {tab === 'groups' && <Groups canEdit={canEdit} />}
+      {tab === 'schedules' && <Schedules canEdit={canEdit} />}
       {tab === 'access' && <Access canEdit={canEdit} pending={pending} />}
     </>
   )
@@ -346,12 +348,19 @@ function MoneyTab({ canEdit }) {
         </div>
       </Card>
 
-      {/* Thanh nút Lưu / Hủy cấp Tab - Nằm ở cuối trang */}
+      {/* Thanh nút Lưu / Hủy cấp Tab - Pin nổi ở viewport, không che nội dung khi cuộn kịch */}
       <div style={{
+        position: 'sticky',
+        bottom: 16,
+        zIndex: 30,
         display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center',
         padding: '14px 18px', background: 'var(--surface-card)', borderRadius: 12,
-        border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
-        marginTop: 6,
+        border: '1px solid ' + (isChanged ? 'var(--status-delayed)' : 'var(--border-subtle)'),
+        boxShadow: isChanged
+          ? '0 10px 30px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.12)'
+          : '0 4px 16px rgba(0, 0, 0, 0.15)',
+        marginTop: 16,
+        marginBottom: 8,
       }}>
         <span style={{ marginRight: 'auto', font: 'var(--type-caption)', color: isChanged ? 'var(--status-delayed)' : 'var(--text-muted)' }}>
           {isChanged ? '● Có thay đổi chưa lưu trên tab Biểu phí' : 'Đã đồng bộ toàn bộ biểu phí'}
@@ -567,12 +576,19 @@ function Groups({ canEdit }) {
               </div>
             ))}
 
-            {/* Thanh nút Lưu / Hủy cấp Tab - Nằm ở cuối trang */}
+            {/* Thanh nút Lưu / Hủy cấp Tab - Pin nổi ở viewport, không che nội dung khi cuộn kịch */}
             <div style={{
+              position: 'sticky',
+              bottom: 16,
+              zIndex: 30,
               display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center',
               padding: '14px 18px', background: 'var(--surface-card)', borderRadius: 12,
-              border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
-              marginTop: 6,
+              border: '1px solid ' + (isChanged ? 'var(--status-delayed)' : 'var(--border-subtle)'),
+              boxShadow: isChanged
+                ? '0 10px 30px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.12)'
+                : '0 4px 16px rgba(0, 0, 0, 0.15)',
+              marginTop: 16,
+              marginBottom: 8,
             }}>
               <span style={{ marginRight: 'auto', font: 'var(--type-caption)', color: isChanged ? 'var(--status-delayed)' : 'var(--text-muted)' }}>
                 {isChanged ? '● Có thay đổi chưa lưu trên tab Nhóm cố định' : 'Đã đồng bộ thông tin nhóm'}

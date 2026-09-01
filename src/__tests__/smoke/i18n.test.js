@@ -22,12 +22,12 @@ import { SCHEMA_GROUPS } from '#data/schema.js'
 // Miền giá trị của các họ key ghép động mà file nguồn không export ra được.
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
 // Đúng bộ mục sidebar trong Sidebar.jsx (KHÔNG phải toàn bộ route: 'session' không có ở sidebar).
-const NAV = ['home', 'calendar', 'sessions', 'assign', 'schedules', 'members',
-  'debts', 'fund', 'shuttles', 'profile', 'settings', 'schema']
+const NAV = ['home', 'calendar', 'sessions', 'assign', 'members',
+  'debts', 'fund', 'shuttles', 'profile', 'settings']
 const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
 const CHANGE_FIELDS = ['level', 'phone', 'gender', 'name']
-const SETTINGS_TABS = ['general', 'money', 'courts', 'shuttles', 'groups', 'access']
+const SETTINGS_TABS = ['general', 'money', 'courts', 'shuttles', 'groups', 'schedules', 'access']
 // Trạng thái con số giá thành (money.js: costState) và lý do nhắc kiểm kho (money.js: checkDue).
 const COST_STATES = ['live', 'temp', 'final']
 // Hai chiều của bảng đối chiếu và hai cách trả — khớp enum adjust_kind / settle_mode ở DB.
