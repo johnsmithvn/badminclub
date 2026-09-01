@@ -24,6 +24,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Giá thành buổi · đóng băng khi chốt · cảnh báo trước và sau khi chốt | `money/cost.test.js` |
 | Cảnh báo sai im lặng ở Trang chủ | `money/alerts.test.js` |
 | Sổ quỹ: dòng nào vào sổ, số dư, số dư khả dụng, gộp dòng, tổng hợp ngày | `ledger/ledger.test.js` |
+| Đối chiếu quỹ: so tiền đếm được với sổ, xếp nghi vấn theo chiều + mức khớp | `ledger/reconcile.test.js` |
 | Chia sân: slot · 5 chế độ xếp · chia đều · đếm số trận | `lib/assign.test.js` |
 | Ngày tháng, lưới lịch, sinh ngày theo thứ | `lib/dates.test.js` |
 | **Ma trận quyền** — cờ, route, "xem như", và khớp với seed trong DB | `lib/roles.test.js` |

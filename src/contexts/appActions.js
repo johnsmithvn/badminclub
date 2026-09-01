@@ -318,7 +318,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           const base = { ...x, status: st, closedAt: st === 'closed' ? d.today : x.closedAt }
           return st === 'closed'
             ? { ...base, ...freezeCost(d, base, d.today) }
-            : { ...base, ...unfrozenCost() }
+            : { ...base, ...unfrozenCost(base) }
         }),
       }))
       const key = { closed: 'sessionClosed', open: 'sessionOpened', cancelled: 'sessionCancelled' }[st] || 'sessionDraft'

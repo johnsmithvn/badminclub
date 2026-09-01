@@ -130,6 +130,8 @@ export function toDb(raw, ctx) {
       courts: rows.map((r) => ({
         courtId: r.court_id, from: hm(r.start_time), to: hm(r.end_time),
         sold: r.is_sold, soldAmount: num(r.sold_amount), soldTo: r.sold_to || '', extra: r.is_extra,
+        // Tiền dòng sân đóng băng lúc chốt buổi (0012). null = chưa chốt, rowCost tính live.
+        cost: numN(r.cost),
       })),
     }
   }).sort((a, b) => (a.date < b.date ? -1 : 1))
@@ -306,6 +308,8 @@ export function toRows(db, ctx) {
       start_time: r.from, end_time: r.to, is_extra: !!r.extra, is_sold: !!r.sold,
       sold_amount: r.soldAmount || 0, sold_to: r.soldTo || null,
       default_minutes: mins[i] == null ? null : mins[i],
+      // Buổi chưa chốt phải xuống NULL, không phải 0 — 0 là "sân này miễn phí", đọc lại là mất tiền.
+      cost: r.cost == null ? null : r.cost,
     }))
   })
 

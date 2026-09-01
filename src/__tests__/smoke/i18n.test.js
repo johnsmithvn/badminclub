@@ -16,7 +16,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 import perm from '#config/permissions.json' with { type: 'json' }
 import { MODE_KEYS } from '#lib/assign.js'
 import { CLOSE_WARN_KEYS, DRIFT_KEYS, WARN_KEYS } from '#lib/money.js'
-import { CATS, MANUAL_CATS } from '#lib/ledger.js'
+import { CATS, MANUAL_CATS, REC_KEYS } from '#lib/ledger.js'
 import { SCHEMA_GROUPS } from '#data/schema.js'
 
 // Miền giá trị của các họ key ghép động mà file nguồn không export ra được.
@@ -112,6 +112,7 @@ MEMBER_REFS.forEach((k) => need('members.ref.' + k))
 WARN_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('home.warn.' + k + '.' + f)))
 CLOSE_WARN_KEYS.forEach((k) => need('session.closeWarn.' + k))
 DRIFT_KEYS.forEach((k) => need('session.drift.' + k))
+REC_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('fund.rec.' + k + '.' + f)))
 
 assert.equal(dyn.length, 0, 'key i18n ghép động không tồn tại:\n  ' + dyn.join('\n  '))
 

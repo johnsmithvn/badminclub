@@ -35,4 +35,13 @@ assert.equal(rowCost(db, r0), 2 * 120000, '18:00→20:00 × 120.000/giờ')
 assert.equal(rowCost(db, { ...r0, from: '18:00', to: '19:30' }), 1.5 * 120000, 'nửa giờ tính đúng nửa')
 assert.equal(rowCost(db, { ...r0, courtId: 'không-có' }), 0, 'sân không tồn tại thì 0, không NaN')
 
+// Dòng đã đóng băng (0012) thì ĐỌC số đã lưu, không nhân lại giá hiện tại — kể cả khi giá sân
+// đã đổi hoặc sân đã bị xoá khỏi Cài đặt. Đây là chỗ duy nhất chặn sổ quỹ tháng cũ nhảy số.
+assert.equal(rowCost(db, { ...r0, cost: 999000 }), 999000, 'đóng băng rồi thì đọc số đã lưu')
+assert.equal(rowCost(db, { ...r0, cost: 999000, courtId: 'không-có' }), 999000,
+  'xoá sân khỏi Cài đặt không được làm bốc hơi tiền sân của buổi đã chốt')
+assert.equal(rowCost(db, { ...r0, cost: 0 }), 0, 'cost = 0 là số thật (sân xin được), không phải chưa đóng băng')
+assert.equal(courtCost(db, { ...S('B2'), courts: S('B2').courts.map((c) => ({ ...c, cost: 5000 })) }), 5000,
+  'courtCost cộng từ rowCost nên tự đứng yên theo, không cần cột đóng băng riêng')
+
 console.log('money/court check: OK')

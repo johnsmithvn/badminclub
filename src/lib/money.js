@@ -92,7 +92,13 @@ export const monthSessions = (db, m) =>
 
 const rows = (s) => (s && s.courts) || []
 
-export const rowCost = (db, c) => hours(c.from, c.to) * courtOf(db, c.courtId).price
+/**
+ * Tiền một dòng sân. Buổi đã chốt thì ĐỌC số đã đóng băng (`c.cost`), KHÔNG nhân lại giá hiện tại:
+ * chủ sân tăng giá không được làm đổi tiền sân của buổi cũ (migration 0012).
+ * Bốn hàm dưới cộng từ đúng chỗ này, nên khoá ở đây là cả bốn đứng yên cùng lúc — kể cả dòng chi
+ * tiền sân trong `lib/ledger.js`, chỗ trước đây vẫn trôi trong khi card giá thành thì không.
+ */
+export const rowCost = (db, c) => (c.cost == null ? hours(c.from, c.to) * courtOf(db, c.courtId).price : c.cost)
 /** Tổng tiền mọi dòng sân của buổi. */
 export const courtCost = (db, s) => rows(s).reduce((t, c) => t + rowCost(db, c), 0)
 /** Tiền các sân trong hoá đơn tháng (không thuê thêm). */
@@ -704,13 +710,21 @@ export function freezeCost(db, s, at) {
   return {
     costCourt: c.court, costShuttleUnit: c.unit, costShuttle: c.shuttle, costTotal: c.cost,
     costGuestRev: c.rev, costHeads: c.people, costFrozenAt: at,
+    // Đóng băng luôn TỪNG dòng sân (0012). `rowCost` đọc `cost` trước nên chốt lại lần nữa
+    // (kiểm kho cuối tháng gọi `freezeCost` lại) là idempotent, không nhân lại theo giá mới.
+    courts: (s.courts || []).map((r) => ({ ...r, cost: rowCost(db, r) })),
   }
 }
 
-/** Mở lại buổi → số quay về tính live. Xoá hẳn để không còn số cũ lảng vảng trong bản ghi. */
-export const unfrozenCost = () => ({
+/**
+ * Mở lại buổi → số quay về tính live. Xoá hẳn để không còn số cũ lảng vảng trong bản ghi.
+ * Truyền `s` để thả băng luôn từng dòng sân; gọi trần thì chỉ thả 7 số ở tầng buổi — cố ý giữ
+ * nhánh đó để gọi thiếu tham số KHÔNG hoá thành `courts: []` xoá sạch sân của buổi.
+ */
+export const unfrozenCost = (s) => ({
   costCourt: null, costShuttleUnit: null, costShuttle: null, costTotal: null,
   costGuestRev: null, costHeads: null, costFrozenAt: null,
+  ...(s ? { courts: (s.courts || []).map((r) => ({ ...r, cost: null })) } : {}),
 })
 
 /**

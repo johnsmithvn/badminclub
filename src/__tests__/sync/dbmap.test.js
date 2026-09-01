@@ -68,6 +68,20 @@ const anyRow = rows.sessions.find((r) => r.id !== 'B1')
 assert.equal(anyRow.cost_frozen_at, null)
 assert.equal(anyRow.cost_total, null)
 
+// Đóng băng TỪNG DÒNG SÂN (0012) cũng phải xuống DB thật. Không xuống thì F5 xong sổ quỹ đọc lại
+// giá sân hiện tại và dòng chi của buổi đã chốt nhảy số — đúng con bug 0012 sinh ra để chặn.
+const dRow = clone(db)
+const iRow = dRow.sessions.findIndex((x) => x.courts.length > 0)
+dRow.sessions[iRow].courts = dRow.sessions[iRow].courts.map((c) => ({ ...c, cost: 240000 }))
+const opsR = diff(rows, toRows(dRow, ctx))
+const upR = opsR.find((o) => o.table === 'session_courts')
+assert.ok(upR, 'đóng băng dòng sân phải sinh thao tác ghi session_courts')
+assert.ok(upR.rows.every((r) => r.cost === 240000), 'cột cost phải xuống DB')
+// Chưa đóng băng thì NULL, không phải 0 — 0 là "sân này 0 đồng", đọc lại là mất tiền im lặng.
+const anyCourt = rows.session_courts.find((r) => r.cost == null)
+assert.ok(anyCourt, 'buổi chưa chốt thì cost xuống NULL')
+assert.notEqual(anyCourt.cost, 0)
+
 // Xoá một khách của buổi: bảng có id ở client → xoá theo id.
 const d2 = clone(db)
 const goneId = d2.sessionGuests[0].id
@@ -133,7 +147,7 @@ const raw = {
     // Cố tình trả về ngược thứ tự: court_index phải quyết định thứ tự, không phải thứ tự trả về.
     session_courts: [
       { court_id: 'c2', court_index: 1, start_time: '20:00:00', end_time: '22:00:00', is_sold: false, is_extra: true, sold_amount: 0, default_minutes: 18 },
-      { court_id: 'c1', court_index: 0, start_time: '18:00:00', end_time: '20:00:00', is_sold: true, is_extra: false, sold_amount: 240000, sold_to: 'CLB X' },
+      { court_id: 'c1', court_index: 0, start_time: '18:00:00', end_time: '20:00:00', is_sold: true, is_extra: false, sold_amount: 240000, sold_to: 'CLB X', cost: 310000 },
     ],
     attendances: [{ member_id: 'm1', status: 'absent' }],
     session_lineups: [{ slot: 'c0t1s0', court_index: 0, player_type: 'guest', player_id: 'g1' }],
@@ -162,6 +176,10 @@ assert.equal(back.attendance.s1.m1, false, "status 'absent' phải đọc thành
 assert.deepEqual(back.sessions[0].courts.map((c) => c.courtId), ['c1', 'c2'], 'sân phải xếp theo court_index')
 assert.equal(back.sessions[0].courts[0].soldTo, 'CLB X')
 assert.equal(back.sessions[0].courts[0].from, '18:00', 'giờ phải cắt còn HH:MM')
+// Tiền sân đóng băng (0012): có số thì giữ nguyên, NULL phải về null chứ không phải 0 —
+// rowCost phân biệt hai cái đó bằng `== null`, thành 0 là buổi chưa chốt hoá ra "sân 0 đồng".
+assert.equal(back.sessions[0].courts[0].cost, 310000, 'tiền sân đã đóng băng phải đọc lại được')
+assert.equal(back.sessions[0].courts[1].cost, null, 'chưa đóng băng thì null để rowCost tính live')
 assert.deepEqual(back.courtMin.s1, { 1: 18 })
 assert.equal(back.groupMode.s1, true)
 assert.deepEqual(back.lineups.s1, { c0t1s0: 'g1' })

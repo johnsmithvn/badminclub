@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import { CATS, MANUAL_CATS, availableBalance, catLabel, dailySummary, fundBalance, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
-import { advanceRows, courtCost, courtExtraCost, isVault, soldTotal } from '#lib/money.js'
+import { advanceRows, courtCost, courtExtraCost, freezeCost, isVault, soldTotal, unfrozenCost } from '#lib/money.js'
 import { monthOf } from '#utils/dates.js'
 
 const db = seed()
@@ -67,6 +67,49 @@ assert.equal(
 )
 assert.equal(ledger(perSession).filter((r) => r.cat === CATS.courtExtra).length, 0,
   'trả từng buổi thì không tách dòng thuê thêm — đã nằm trong courtCost')
+
+/* ---------- SỔ QUỸ KHÔNG ĐƯỢC TRÔI KHI CHỦ SÂN TĂNG GIÁ (migration 0012) ----------
+ * P2 đóng băng giá thành ở tầng BUỔI, nhưng sổ quỹ ghi tiền sân bằng courtCost/courtExtraCost —
+ * hai hàm cộng từ rowCost, mà rowCost nhân giá HIỆN TẠI. Hậu quả: chủ sân tăng giá thì dòng chi
+ * của buổi đã chốt năm ngoái đổi số, trong khi card giá thành ngay cạnh nó đứng yên. Thủ quỹ đối
+ * chiếu với sao kê ngân hàng sẽ thấy lệch mà không có gì giải thích.
+ */
+const dbl = (d) => ({ ...d, courts: d.courts.map((c) => ({ ...c, price: c.price * 2 })) })
+const freezeAll = (d) => ({
+  ...d,
+  sessions: d.sessions.map((s) => (s.status === 'closed' ? { ...s, ...freezeCost(d, s, '2026-08-02') } : s)),
+})
+const courtTotal = (d) => ledger(d).filter((r) => r.cat === CATS.court).reduce((t, r) => t + r.amount, 0)
+
+// Chưa đóng băng thì trôi — hành vi cũ, giữ nguyên cho dữ liệu có sẵn (không backfill).
+assert.notEqual(courtTotal(dbl(perSession)), courtTotal(perSession),
+  'buổi chưa đóng băng vẫn theo giá sân hiện tại, đúng như cũ')
+
+// Đã chốt (đóng băng) thì đứng yên — đây là thứ 0012 mua về.
+const psFrozen = freezeAll(perSession)
+assert.equal(courtTotal(psFrozen), courtTotal(perSession), 'đóng băng không được làm lệch số đang hiện')
+assert.equal(courtTotal(dbl(psFrozen)), courtTotal(perSession),
+  'chủ sân tăng giá KHÔNG được đổi dòng chi tiền sân của buổi đã chốt')
+
+// Sân thuê thêm đi qua cùng một rowCost nên cũng phải đứng yên.
+const exFrozen = freezeAll(withExtra)
+const exTotal = (d) => ledger(d).filter((r) => r.cat === CATS.courtExtra).reduce((t, r) => t + r.amount, 0)
+assert.equal(exTotal(exFrozen), 260000)
+assert.equal(exTotal(dbl(exFrozen)), 260000, 'dòng chi sân thuê thêm của buổi đã chốt phải đứng yên')
+assert.notEqual(exTotal(dbl(withExtra)), 260000, 'buổi chưa đóng băng thì vẫn trôi')
+
+// Mở lại buổi → thả băng cả từng dòng sân, số sống lại theo giá mới.
+const thawed = {
+  ...psFrozen,
+  sessions: psFrozen.sessions.map((s) => ({ ...s, ...unfrozenCost(s) })),
+}
+assert.equal(courtTotal(dbl(thawed)), courtTotal(dbl(perSession)),
+  'mở lại buổi thì tiền sân phải sống lại theo giá mới')
+assert.notEqual(courtTotal(dbl(thawed)), courtTotal(dbl(psFrozen)),
+  'thả băng phải thật sự đổi số, không thì phép so trên vô nghĩa')
+// Thả băng gọi TRẦN (không truyền buổi) không được xoá sạch sân của buổi.
+assert.ok(psFrozen.sessions.every((s) => ({ ...s, ...unfrozenCost() }).courts.length === s.courts.length),
+  'unfrozenCost() gọi thiếu tham số không được biến courts thành mảng rỗng')
 
 /* ---------- bán sân dư ---------- */
 const sold = rows.filter((r) => r.cat === CATS.courtSold)

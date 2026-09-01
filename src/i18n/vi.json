@@ -934,7 +934,53 @@
     "fPayerHint": "Bỏ trống = quỹ CLB tự trả",
     "payerFund": "Quỹ CLB",
     "billVenueHint": "Lấy từ danh sách sân ở Cài đặt",
-    "billVenueEmpty": "Chưa khai sân nào ở Cài đặt — gõ tay tạm"
+    "billVenueEmpty": "Chưa khai sân nào ở Cài đặt — gõ tay tạm",
+    "tabRec": "Đối chiếu",
+    "rec": {
+      "title": "Đối chiếu quỹ",
+      "sub": "Đếm tiền thật đang giữ rồi so với sổ. Lệch thì app chỉ ra chỗ nghi ngờ, không bắt bạn tự dò.",
+      "counted": "Tiền thật đang giữ",
+      "countedHint": "Số dư tài khoản + tiền mặt trong ví quỹ. Không tính số cầu trong tủ.",
+      "book": "Sổ quỹ ghi",
+      "diff": "Lệch",
+      "even": "Khớp — sổ đúng bằng số bạn đếm được.",
+      "more": "Quỹ thật NHIỀU hơn sổ {{amount}} — nhiều khả năng có khoản đã thu mà chưa tick.",
+      "less": "Quỹ thật ÍT hơn sổ {{amount}} — nhiều khả năng có khoản đã chi mà chưa ghi.",
+      "empty": "Chưa gõ số đếm được. Bảng dưới là danh sách khoản còn treo, đọc trước cũng được.",
+      "suspects": "Nghi vấn, sắp theo mức khớp",
+      "match": "khớp đúng số lệch",
+      "unknown": "không ước lượng được",
+      "count": "{{n}} khoản",
+      "reset": "Xoá số đã gõ",
+      "noBill": {
+        "title": "Chưa nhập hoá đơn sân tháng {{month}}",
+        "body": "Tháng có buổi đã chốt mà chưa có hoá đơn sân nào. Tiền đã chuyển cho chủ sân nhưng sổ chưa ghi chi."
+      },
+      "dueUnticked": {
+        "title": "{{n}} khoản quỹ tháng chưa thu đủ",
+        "body": "Nếu người ta đã đưa tiền mà quên tick thì tiền đang trong két còn sổ chưa thấy."
+      },
+      "guestUnpaid": {
+        "title": "{{n}} lượt khách chưa tick đã trả",
+        "body": "Quản trò thu hộ rồi mới đưa lại là chuyện thường — lúc đó tiền đã vào két mà sổ vẫn ghi nợ."
+      },
+      "backUnpaid": {
+        "title": "{{n}} khoản back tiền chưa đánh dấu đã trả",
+        "body": "Trả tiền mặt rồi mà quên tick thì tiền đã rời két, sổ vẫn đang giữ."
+      },
+      "advanceUnpaid": {
+        "title": "{{n}} khoản thành viên ứng tiền chưa trả lại",
+        "body": "Nếu CLB đã trả lại họ mà quên đánh dấu thì tiền đã ra khỏi két, sổ chưa ghi chi."
+      },
+      "soldBlank": {
+        "title": "{{n}} buổi bán sân nhưng để trống ô tiền",
+        "body": "Khoản thu đó không có trong sổ. Số tiền chính là thứ đang thiếu nên không đoán hộ được."
+      },
+      "opening": {
+        "title": "Số dư mang sang lúc lập CLB",
+        "body": "Nhập sai con số này thì sổ lệch vĩnh viễn và không nhánh nào khác lộ ra. Kiểm khi mọi giải thích khác đã loại trừ."
+      }
+    }
   },
   "shuttles": {
     "tabBuy": "Mua cầu",

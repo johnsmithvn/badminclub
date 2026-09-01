@@ -364,7 +364,46 @@ bao nhiêu tiền túi.
 **Đánh đổi đã báo user:** sau P5 số dư quỹ **cao hơn** trước đúng bằng tổng khoản đang nợ — vì
 tiền đó thật sự còn trong két. Cho tới khi có T2 ("số dư khả dụng") thì phải tự nhớ trừ.
 
-### P6 · Issue 2 · Sổ quỹ ghi thật — migration `0012` + đổi `lib/ledger.js`
+### P6a · Sổ quỹ thôi nhảy số khi giá sân đổi — migration `0012` · **XONG 2026-09-01** (chờ user bấm thử)
+
+Rà lại 7 nhánh suy ra của `ledger()` trước khi làm P6 đầy đủ: **chỉ 2/7 nhánh thật sự trôi.** Năm
+nhánh kia (`dues` · `guest` · `courtSold` · `courtBills` · `shuttle` · `adjustments`) đều đọc số
+đã lưu sẵn trong bản ghi. Hai nhánh trôi là **`court` mode `session`** và **`courtExtra`** — cả
+hai gọi `courtCost()` / `courtExtraCost()`, cộng từ `rowCost` = số giờ × giá sân **hiện tại**.
+
+Nghĩa là phần lớn lý do tồn tại của P6 (*"số tháng đã chốt tự nhảy"*, `DATABASE.md` §1 luật 3) đã
+được P2 giải quyết từ 2026-08-20, chỉ sót đúng đường tiền sân — **cùng một lớp lỗi với L1
+(`SessionDetail`) và `copyZalo`, đã sửa hai lần ở chỗ khác, sót chỗ thứ ba này.**
+
+- [x] **`0012_court_cost_freeze.sql` — một cột, không bảng mới.** `session_courts.cost`. NULL =
+      chưa chốt, đọc giá sống.
+- [x] **Đóng băng ở tầng DÒNG, không thêm cột cho từng hàm.** Cả 5 hàm tiền sân (`rowCost` ·
+      `courtCost` · `courtBase` · `courtExtraCost` · `courtNet`) cộng từ đúng một chỗ, nên khoá
+      `rowCost` là cả 5 đứng yên cùng lúc và **`lib/ledger.js` không phải sửa dòng nào**. Cách kia
+      (thêm `cost_court_gross` + `cost_court_extra` vào `sessions`) thì mỗi hàm mới lại một cột,
+      và ba nguồn số (dòng · buổi · sổ) phải tự khớp nhau.
+- [x] `freezeCost` đóng dấu `cost` vào từng dòng sân; `rowCost` đọc `cost` trước nên **chốt lại
+      lần nữa (kiểm kho cuối tháng) là idempotent**, không ăn giá sân mới.
+- [x] `unfrozenCost(s)` thả băng cả từng dòng. Gọi trần `unfrozenCost()` vẫn chỉ thả 7 số tầng
+      buổi — cố ý, để gọi thiếu tham số KHÔNG hoá thành `courts: []` xoá sạch sân của buổi.
+- [x] `dbmap` map hai chiều; buổi chưa chốt xuống **NULL chứ không phải 0** (0 = "sân này 0 đồng").
+- [x] Test: chủ sân tăng gấp đôi giá → dòng chi tiền sân của buổi đã chốt **đứng yên**, buổi chưa
+      chốt vẫn trôi (giữ hành vi cũ, không backfill) · sân thuê thêm cũng đứng yên · mở lại buổi
+      thì số sống lại · `unfrozenCost()` trần không xoá sân. **Mutation-test 6 nhánh, cả 6 bị bắt.**
+
+**Chưa làm, cố ý:** buổi `closed` có sẵn trong DB mà `cost_frozen_at IS NULL` (dữ liệu dựng trước
+0005) vẫn trôi như cũ. Không backfill — xem mục cutoff ở P6b.
+
+### P6b · Issue 2 · Sổ quỹ ghi thật — migration `0013` + đổi `lib/ledger.js`
+
+> **Hoãn 2026-09-01 sau khi rà lại.** Sau P6a thì phần *"tiền đang sai"* đã hết; phần còn lại của
+> P6 là *"đọc sổ minh bạch hơn"*: dấu vết ai ghi lúc nào · tách từng lần thu thành từng dòng ·
+> xoá mềm khi tick nhầm · link tiền ứng ↔ tiền trả nợ. Đánh giá lại sau khi có P7 — lúc đó màn
+> Đối chiếu quỹ sẽ chỉ ra sổ còn thiếu gì thật.
+>
+> **Mốc cutoff: chưa cần quyết.** User xác nhận 2026-09-01 **chưa có dữ liệu thật** — không có
+> lịch sử nào để bảo tồn, nên khi làm P6b cứ ghi thật từ đầu. Câu hỏi cutoff chỉ có nghĩa khi sổ
+> đã chạy vài tháng.
 
 - [ ] Mỗi sự kiện ở `DATABASE.md` §3.1 ghi ngay một dòng `transactions` kèm `ref_type` + `ref_id`.
 - [ ] **Bỏ tick → XOÁ MỀM, không ghi dòng đảo chiều — chốt 2026-08-24.** Bỏ tick hầu hết là sửa
@@ -389,12 +428,33 @@ tiền đó thật sự còn trong két. Cho tới khi có T2 ("số dư khả d
 Mười một lỗi nhóm B đều cùng một đặc điểm: **im lặng**, không có gì để so nên không ai phát hiện.
 Hai việc dưới bắt được gần hết.
 
-- [ ] **Màn "Đối chiếu quỹ" — P0 trong nhóm này.** Thủ quỹ nhập số tiền thật đang giữ, app so với
-      sổ và **liệt kê nghi vấn cụ thể** sắp theo mức khớp, không chỉ báo lệch.
+- [x] **Màn "Đối chiếu quỹ" — XONG 2026-09-01** (chờ user bấm thử). Thủ quỹ gõ số tiền thật đang
+      giữ, app so với sổ và **liệt kê nghi vấn cụ thể** sắp theo mức khớp, không chỉ báo lệch.
       Bắt: ~~B1~~ (xong ở P7 nhẹ) · ~~B2~~ (xong ở P5) · B3 · B4 · B9 · B10 · B11.
       **KHÔNG có bảng `fund_reconciliations`** (đặc tả đề xuất, cắt 2026-08-24): đối chiếu là một
       phép trừ, tính lại từ đầu mỗi lần cũng tức thì. Lưu lại chỉ để "lần sau đối chiếu phần phát
-      sinh" là một bảng nuôi cho một tối ưu không ai cần.
+      sinh" là một bảng nuôi cho một tối ưu không ai cần. Không đụng schema, không migration.
+
+      Một hàm thuần `ledger.js: reconcile(db, counted)` → `{ book, counted, diff, gap, suspects }`
+      + tab **Đối chiếu** ở `Fund.jsx`. Bảy nghi vấn, sáu trong số đó tái dùng logic đã có
+      (`billsOf` · `dueState` · `availableBalance.back` · `advanceRows` · sân bán để trống ô tiền).
+
+      **`dir` là thứ làm màn này khác một danh sách chung chung.** Mỗi nghi vấn khai chiều nó giải
+      thích được: `in` = tiền đã vào két mà sổ chưa ghi thu (quên tick quỹ tháng, quên tick khách) ·
+      `out` = tiền đã rời két mà sổ chưa ghi chi (quên hoá đơn sân, đã trả back, đã trả người ứng).
+      Không có `dir` thì quỹ đang THIẾU tiền mà câu gợi ý đầu bảng lại là *"quên tick quỹ tháng"* —
+      chỉ đúng chiều ngược lại. Sắp xếp: **cùng chiều trước → gần số lệch nhất → `opening` cuối cùng.**
+
+      **`amount = null`** = biết có chuyện nhưng không quy ra tiền được (sân bán để trống chính ô
+      tiền đó; chưa từng có hoá đơn sân nào để lấy mốc). Xếp cuối *trong cùng chiều* và không bao
+      giờ được đánh dấu "khớp". Đoán 0 thay cho null thì dòng đó khớp với **mọi** độ lệch và chiếm
+      đầu bảng vĩnh viễn.
+
+      **KHÔNG cộng tồn kho quy tiền vào đây** — số cầu trong tủ không phải tiền mặt, cộng vào là
+      đối chiếu với sao kê ngân hàng lệch đúng bằng giá trị kho. Ô đó đứng riêng ở đầu màn Sổ quỹ.
+
+      `ledger/reconcile.test.js` — mutation-test 6 nhánh (chiều · null · `opening` xếp cuối ·
+      quỹ tháng lấy phần còn thiếu · `noBill` không đoán 0 · chưa gõ số ≠ đếm được 0 đồng), cả 6 bị bắt.
 - [x] **Cảnh báo quanh việc chốt buổi — XONG 2026-08-24** (chờ user bấm thử). Đặc tả muốn một
       **dialog buộc xử lý**; đã hạ xuống **cảnh báo không chặn** và tách làm hai thời điểm.
 
@@ -714,7 +774,7 @@ Không đụng schema, không migration mới.
 
 | Việc | Vì sao cần user | Chặn cái gì |
 | --- | --- | --- |
-| **Mốc cutoff của P6** — từ ngày nào sổ ghi thật | trước mốc giữ số suy ra, sau mốc đọc bảng | **P6** |
+| ~~**Mốc cutoff của P6**~~ | **Không còn chặn 2026-09-01:** chưa có dữ liệu thật nên không có lịch sử để bảo tồn — P6b ghi thật từ đầu | — |
 | Chạy `npm run build` | RULES §6: agent không tự build | không ai biết bản này compile được hay chưa |
 | Có viết script kiểm RLS bằng 2 tài khoản không | script sẽ tạo tài khoản thật trên DB của user | chứng minh CLB A không đọc được CLB B |
 | Dữ liệu thật của CLB (Excel) | cần số quỹ mang sang + danh sách thật | nhập liệu ban đầu |

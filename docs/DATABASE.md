@@ -81,7 +81,7 @@ kho. Ghi thêm chi theo từng buổi là đếm hai lần.
 | --- | --- | --- |
 | Số dư quỹ | *(đích)* `transactions` · *(hiện)* suy ra từ bản ghi gốc — xem §1 luật 3 | `ledger.js: fundBalance` |
 | Thu/chi tháng | `transactions` trong tháng, **trừ** "Số dư mang sang" | `ledger.js: monthFlow` |
-| Tiền sân của buổi | `session_courts` × `courts.price_per_hour` × số giờ | `money.js: courtNet` |
+| Tiền sân của buổi | `session_courts.cost` nếu đã chốt (0012); chưa chốt thì `courts.price_per_hour` × số giờ | `money.js: rowCost` → `courtNet` |
 | Tiền cầu của buổi | `sessions.shuttle_used` × giá bình quân toàn kho | `money.js: shuttleCost` |
 | Giá 1 quả cầu | `SUM(total_amount)/SUM(total_units)` các đợt có `total_amount > 0` | `money.js: shuttleUnit` |
 | Định mức cầu | `group.quota × số sân còn chơi / số sân không thuê thêm`, sàn 6 | `money.js: quotaFor` |
@@ -236,6 +236,7 @@ dán nguyên nội dung file migration vào và bấm Run, từng file một the
 | `0009_paid_amount.sql` | `monthly_dues.paid_amount` — ghi được trường hợp đóng thiếu. Cột `paid` GIỮ lại làm bản sao suy ra `(paid_amount >= amount)`, không drop |
 | `0010_unit_override.sql` | `member_groups.unit_male` / `unit_female` — đơn giá một buổi CLB tự chốt, ưu tiên hơn cách chia `quỹ tháng ÷ số buổi` |
 | `0011_advance_repaid.sql` | `shuttle_purchases.repaid_at` + `court_bills.repaid_at` — thành viên ứng tiền thì khoản chi chưa vào sổ quỹ cho tới ngày CLB trả lại họ (LUẬT NGƯỜI GIỮ QUỸ). Không có bảng `member_payables`: khoản nợ CHÍNH LÀ bản ghi mua cầu / hoá đơn đã có |
+| `0012_court_cost_freeze.sql` | `session_courts.cost` — đóng băng tiền TỪNG DÒNG SÂN lúc chốt buổi. `0005` đóng băng ở tầng buổi, nhưng `lib/ledger.js` ghi dòng chi tiền sân bằng `courtCost()`/`courtExtraCost()` (cộng từ `rowCost` → giá **hiện tại**) nên sổ quỹ tháng cũ vẫn nhảy số khi chủ sân tăng giá, trong khi card giá thành ngay cạnh thì không. Khoá ở `rowCost` thì cả 5 hàm tiền sân đứng yên cùng lúc, `ledger.js` không phải sửa dòng nào |
 
 ## 7. Việc còn lại trước khi chạy thật
 

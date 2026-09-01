@@ -70,8 +70,21 @@ const dbPricier = { ...db, courts: db.courts.map((c) => ({ ...c, price: c.price 
 assert.notEqual(costRow(dbPricier, b1).court, live1.court, 'buổi chưa đóng băng thì theo giá sân mới')
 assert.equal(costRow(dbPricier, frozen1).court, live1.court, 'buổi đã đóng băng giữ giá sân lúc chốt')
 
-// Mở lại buổi → quay về tính live.
-const reopened = { ...frozen1, ...unfrozenCost() }
+// Đóng băng phải chạm tới TỪNG dòng sân (0012), không chỉ 7 số ở tầng buổi: sổ quỹ ghi tiền sân
+// bằng courtCost/courtExtraCost, hai hàm đó chỉ đứng yên khi từng dòng có `cost`.
+assert.ok(frozen1.courts.every((r) => r.cost != null), 'chốt buổi phải đóng băng từng dòng sân')
+assert.equal(courtNet(dbPricier, frozen1), courtNet(db, b1), 'courtNet của buổi đã chốt phải đứng yên')
+// Chốt lại lần nữa (kiểm kho cuối tháng gọi freezeCost lại) không được nhân lại theo giá mới.
+assert.deepEqual(
+  freezeCost(dbPricier, frozen1, '2026-08-31').courts.map((r) => r.cost),
+  frozen1.courts.map((r) => r.cost),
+  'chốt lại buổi đã đóng băng phải idempotent, không ăn giá sân mới'
+)
+
+// Mở lại buổi → quay về tính live, cả tầng buổi lẫn từng dòng sân.
+const reopened = { ...frozen1, ...unfrozenCost(frozen1) }
+assert.ok(reopened.courts.every((r) => r.cost == null), 'mở lại buổi phải thả băng luôn từng dòng sân')
+assert.equal(courtNet(dbPricier, reopened), courtNet(dbPricier, b1), 'mở lại thì tiền sân theo giá mới')
 assert.equal(costRow(dbNew, reopened).cost, costRow(dbNew, b1).cost, 'mở lại buổi thì số phải sống lại')
 
 /* ---------- ba trạng thái của con số giá thành ---------- */

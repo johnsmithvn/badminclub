@@ -1,12 +1,12 @@
 // Sổ quỹ: tổng hợp theo tháng · chi tiết thu chi · hoá đơn sân (handoff 02 §5).
 // Số dư CHỈ tính từ transactions — không cộng lại từ nhiều nguồn.
 
-import { Button, Card, StatCard, Tabs } from '#ds'
+import { Alert, Badge, Button, Card, Input, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
-import { billsOf, courtPayMode, fmt, fmtK, payerName, shuttleUnit, stock } from '#lib/money.js'
-import { availableBalance, catLabel, dailySummary, ledgerGrouped, monthFlow } from '#lib/ledger.js'
+import { billsOf, courtPayMode, fmt, fmtK, intOf, payerName, shuttleUnit, stock } from '#lib/money.js'
+import { availableBalance, catLabel, dailySummary, ledgerGrouped, monthFlow, reconcile } from '#lib/ledger.js'
 import { courtBillForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -49,12 +49,16 @@ export default function Fund() {
 
       <Tabs
         variant="underline"
-        items={[{ value: 'month', label: t('fund.tabMonth') }, { value: 'detail', label: t('fund.tabDetail') }]}
+        items={[
+          { value: 'month', label: t('fund.tabMonth') },
+          { value: 'detail', label: t('fund.tabDetail') },
+          { value: 'rec', label: t('fund.tabRec') },
+        ]}
         value={tab}
         onChange={(v) => a.setTab('fund', v)}
       />
 
-      {tab === 'month' ? <MonthSummary /> : <Detail canMoney={canMoney} />}
+      {tab === 'month' ? <MonthSummary /> : tab === 'rec' ? <Reconcile /> : <Detail canMoney={canMoney} />}
     </>
   )
 }
@@ -229,6 +233,78 @@ function Detail({ canMoney }) {
               )
             })}
           </div>}
+    </Card>
+  )
+}
+
+/* ---------------- đối chiếu quỹ (Phase 9 · P7) ---------------- */
+
+/**
+ * Thủ quỹ gõ số tiền THẬT đang giữ; app so với sổ rồi liệt kê nghi vấn cụ thể.
+ * Mọi phép tính nằm ở `ledger.js: reconcile` — màn này chỉ render.
+ * Ô nhập đọc bằng `intOf` để gõ "3.387.000" có dấu chấm vẫn ra đúng số (P4.5).
+ */
+function Reconcile() {
+  const { db, ui, a } = useApp()
+  const raw = ui.form.recCounted
+  // Chưa gõ gì → truyền null để reconcile biết là "chưa đối chiếu", khác hẳn với đếm được 0 đồng.
+  const r = reconcile(db, raw == null || raw === '' ? null : intOf(raw))
+  const has = r.counted != null
+
+  return (
+    <Card title={t('fund.rec.title')} subtitle={t('fund.rec.sub')} icon="scale" padding="14px 16px">
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 14 }}>
+        <div>
+          <div style={S.caption}>{t('fund.rec.counted')}</div>
+          <Input mono style={{ width: 190 }} value={raw ?? ''}
+            onChange={(e) => a.setF('recCounted', e.target.value)} />
+          <div style={{ ...S.caption, marginTop: 4, maxWidth: 260 }}>{t('fund.rec.countedHint')}</div>
+        </div>
+        <div style={{ ...S.row, gap: 18 }}>
+          <div>
+            <div style={S.caption}>{t('fund.rec.book')}</div>
+            <Mono>{fmt(r.book)}</Mono>
+          </div>
+          <div>
+            <div style={S.caption}>{t('fund.rec.diff')}</div>
+            <Mono style={{ color: !has || r.diff === 0 ? 'var(--text-secondary)' : 'var(--status-incident)' }}>
+              {has ? (r.diff > 0 ? '+' : '') + fmt(r.diff) : '—'}
+            </Mono>
+          </div>
+        </div>
+        {has && <Button variant="ghost" size="sm" icon="x" onClick={() => a.setF('recCounted', undefined)}>
+          {t('fund.rec.reset')}
+        </Button>}
+      </div>
+
+      <Alert
+        tone={!has ? 'info' : r.diff === 0 ? 'success' : 'warning'}
+        title={!has ? t('fund.rec.empty') : r.diff === 0 ? t('fund.rec.even')
+          : t(r.diff > 0 ? 'fund.rec.more' : 'fund.rec.less', { amount: fmt(r.gap) })}
+      />
+
+      {r.suspects.length > 0 && (
+        <>
+          <Overline style={{ marginTop: 14 }}>{t('fund.rec.suspects')}</Overline>
+          <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+            {r.suspects.map((s) => (
+              <div key={s.key} style={{
+                ...S.row, alignItems: 'flex-start', flexDirection: 'column', gap: 4,
+                borderColor: s.match ? 'var(--status-incident)' : 'var(--border-subtle)',
+              }}>
+                <div style={{ display: 'flex', gap: 8, width: '100%', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <span style={{ ...S.label, flex: 1 }}>
+                    {t('fund.rec.' + s.key + '.title', { n: s.n, month: monthTxt(db.month) })}
+                  </span>
+                  <Mono>{s.amount == null ? t('fund.rec.unknown') : fmt(s.amount)}</Mono>
+                  {s.match && <Badge tone="danger">{t('fund.rec.match')}</Badge>}
+                </div>
+                <span style={S.caption}>{t('fund.rec.' + s.key + '.body')}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </Card>
   )
 }
