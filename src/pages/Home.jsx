@@ -164,11 +164,19 @@ function Overview() {
   const av = availableBalance(db)
   const bal = av.balance
 
-  // 3. Buổi tới: CHỈ lấy các buổi sắp tới CHƯA CHỐT và CHƯA HUỶ, SẮP XẾP TĂNG DẦN THEO NGÀY
-  const upcoming = db.sessions
-    .filter((s) => s.date >= db.today && s.status !== 'cancelled' && s.status !== 'closed')
+  // 3. Buổi tới: Ưu tiên các buổi sắp tới trong tháng hiện tại CHƯA CHỐT và CHƯA HUỶ
+  let upcoming = db.sessions
+    .filter((s) => s.date >= db.today && monthOf(s.date) === month && s.status !== 'cancelled' && s.status !== 'closed')
     .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
     .slice(0, 4)
+
+  // Nếu trong tháng đã hết buổi tới, mới lấy gối đầu các buổi tới của tháng sau
+  if (upcoming.length === 0) {
+    upcoming = db.sessions
+      .filter((s) => s.date >= db.today && s.status !== 'cancelled' && s.status !== 'closed')
+      .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+      .slice(0, 4)
+  }
 
   // Số buổi có mặt của từng người trong tháng — chỉ tính buổi đã chốt.
   const attend = {}
@@ -239,8 +247,12 @@ function Overview() {
           })} />
         <StatCard label={t('home.stock')} value={st.left} unit={t('units.shuttle')} icon="package" tone="accent"
           caption={t('home.stockCaption', { bought: st.bought, used: st.used })} />
-        <StatCard label={t('home.closedRatio')} value={closed.length + ' / ' + sess.length} icon="clipboard-check"
-          caption={t('home.closedCaption', { n: sess.length - closed.length })} />
+        <StatCard label={t('home.closedRatio')}
+          value={closed.length + ' / ' + sess.filter((s) => s.status !== 'cancelled').length}
+          icon="clipboard-check"
+          caption={sess.filter((s) => s.status !== 'cancelled').length - closed.length === 0
+            ? 'Đã chốt tất cả buổi'
+            : `Còn ${sess.filter((s) => s.status !== 'cancelled').length - closed.length} buổi chưa chốt`} />
       </div>
 
       <div style={GRID_PAIR}>

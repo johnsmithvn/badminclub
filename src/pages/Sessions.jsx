@@ -13,7 +13,8 @@ export default function Sessions() {
   const tab = ui.tab.sessions || 'all'
   const sess = monthSessions(db, db.month)
   const closed = sess.filter((s) => s.status === 'closed')
-  const unclosed = sess.filter((s) => s.status !== 'closed')
+  const cancelled = sess.filter((s) => s.status === 'cancelled')
+  const unclosed = sess.filter((s) => s.status === 'draft' || s.status === 'open')
 
   // Trả trọn tháng thì tiền sân lấy từ hoá đơn; trả từng buổi thì cộng các buổi đã chốt.
   const perMonth = courtPayMode(db) === 'month'
@@ -25,13 +26,26 @@ export default function Sessions() {
   const guestPaid = sess.reduce((x, s) => x + guestPaidRev(db, s.id), 0)
   const shuttleUsed = closed.reduce((x, s) => x + s.shuttleUsed, 0)
 
-  const rows = tab === 'open' ? unclosed : tab === 'closed' ? closed : sess
+  const rows = tab === 'open' ? unclosed : tab === 'closed' ? closed : tab === 'cancelled' ? cancelled : sess
+
+  const tabItems = [
+    { value: 'all', label: t('session.tabAll'), count: sess.length },
+    { value: 'open', label: t('session.tabOpen'), count: unclosed.length },
+    { value: 'closed', label: t('session.tabClosed'), count: closed.length },
+  ]
+  if (cancelled.length > 0) {
+    tabItems.push({ value: 'cancelled', label: 'Đã huỷ', count: cancelled.length })
+  }
+
+  const countCaption = cancelled.length > 0
+    ? `${closed.length} đã chốt · ${unclosed.length} chưa chốt · ${cancelled.length} đã huỷ`
+    : t('session.statCountCaption', { closed: closed.length, open: unclosed.length })
 
   return (
     <>
       <div style={{ ...GRID_STAT, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
         <StatCard label={t('session.statCount')} value={sess.length} unit={t('units.session')} icon="clipboard-check"
-          caption={t('session.statCountCaption', { closed: closed.length, open: unclosed.length })} />
+          caption={countCaption} />
         <StatCard label={t('session.statCourt')} value={fmt(courtSpent)} icon="landmark" tone="critical"
           caption={t(perMonth ? 'session.statCourtMonth' : 'session.statCourtSession')} />
         <StatCard label={t('session.statGuest')} value={fmt(guestTotal)} icon="user-round-plus" tone="positive"
@@ -47,11 +61,7 @@ export default function Sessions() {
         actions={
           <Tabs
             variant="segmented"
-            items={[
-              { value: 'all', label: t('session.tabAll'), count: sess.length },
-              { value: 'open', label: t('session.tabOpen'), count: unclosed.length },
-              { value: 'closed', label: t('session.tabClosed'), count: closed.length },
-            ]}
+            items={tabItems}
             value={tab}
             onChange={(v) => a.setTab('sessions', v)}
           />
