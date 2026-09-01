@@ -238,11 +238,13 @@ function ScheduleDialog() {
       submitIcon="repeat"
       disabled={sched ? plan.blocked.length > 0 : !dates.length}>
       <Input label={t('schedules.fName')} value={f.sName || ''} onChange={(e) => a.setF('sName', e.target.value)} />
-      {/* Nhóm khoá cứng khi sửa: buổi đã sinh giữ groupId cũ, mà đơn giá một buổi và công nợ
-          đều đếm theo groupId — đổi ở đây là lịch một đằng, tiền một nẻo. */}
+      {/* Đổi nhóm chỉ mở khi lịch còn MỀM (chưa buổi nào mở / qua ngày) — lúc đó dời được cả
+          lũ buổi sang nhóm mới. Cứng rồi thì buổi cũ rớt lại nhóm cũ, mà đơn giá một buổi và
+          công nợ đều đếm theo groupId. Chọn nhầm nhóm lúc tạo là chuyện thường, nên không
+          khoá cứng vô điều kiện — xem `lib/schedules.js: canRebind`. */}
       <Select label={t('schedules.fGroup')} value={f.sGroup || db.groups[0]?.id}
-        disabled={!!sched}
-        hint={sched ? t('schedules.groupLocked') : undefined}
+        disabled={!!sched && !plan.soft}
+        hint={sched ? t(plan.soft ? 'schedules.groupFree' : 'schedules.groupLocked') : undefined}
         options={db.groups.map((g, idx) => ({ value: g.id, label: g.name + (idx === 0 ? ' (Mặc định)' : '') }))}
         onChange={(e) => a.setF('sGroup', e.target.value)} />
 

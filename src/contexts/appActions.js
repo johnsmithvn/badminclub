@@ -13,7 +13,7 @@ import {
 import { CATS, fundBalance, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
-import { applyScheduleEdit, planScheduleEdit } from '#lib/schedules.js'
+import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -1016,6 +1016,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         keep: plan.keep.length, add: plan.add.length, remove: plan.remove.length,
         skip: plan.locked.length + plan.past.length,
       }))
+    },
+    /**
+     * XOÁ HẲN một lịch. Chỉ cho khi lịch còn mềm (`planScheduleDelete`) — còn buổi đã mở/đã
+     * chốt/đã qua ngày thì đường đúng là bấm "Tắt", không phải xoá.
+     */
+    deleteSchedule: (id) => {
+      const d0 = db()
+      const sched = (d0.schedules || []).find((x) => x.id === id)
+      if (!sched) return
+      const plan = planScheduleDelete(d0, sched)
+      if (!plan.ok) return toast(t('toast.scheduleNoDelete', { n: plan.locked.length + plan.past.length }))
+      up((d) => ({
+        schedules: d.schedules.filter((x) => x.id !== id),
+        sessions: d.sessions.filter((x) => x.scheduleId !== id),
+      }))
+      toast(t('toast.scheduleDeleted', { name: sched.name, n: plan.sessions.length }))
     },
     createAdhoc: () => {
       const f = form()

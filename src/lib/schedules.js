@@ -12,13 +12,29 @@
 //     Buổi `open` đang điểm danh dở. Cả hai chỉ ĐẾM để báo, không nằm trong add/remove.
 //  2. KHÔNG đụng buổi trong quá khứ, kể cả còn `draft`: đã qua ngày đó rồi thì nó là lịch sử,
 //     không phải kế hoạch.
-//  3. KHÔNG cho đổi `groupId` khi lịch đã sinh buổi. Buổi cũ giữ groupId cũ ⇒ lịch nói nhóm A,
-//     buổi nói nhóm B; mà `unitPrice`/`remainSessions`/`joinDues` đều đếm theo groupId.
+//  3. Đổi `groupId` CHỈ khi mọi buổi của lịch còn sửa được (chưa mở, chưa qua ngày) — lúc đó
+//     dời được cả lũ sang nhóm mới nên không có buổi nào rớt lại. Còn một buổi đã mở/đã chốt/
+//     đã qua ngày là cấm: buổi đó giữ groupId cũ ⇒ lịch nói nhóm A, buổi nói nhóm B, mà
+//     `unitPrice`/`remainSessions`/`joinDues` đều đếm theo groupId.
+//     Chọn nhầm nhóm lúc tạo là chuyện thường; khoá cứng mà không có đường lùi thì người ta
+//     kẹt với một lịch sai vĩnh viễn.
 //  4. Số buổi của một nhóm trong tháng là MẪU SỐ của đơn giá một buổi
 //     (`money.js: unitPrice` = quỹ tháng ÷ số buổi). Thêm/bớt buổi là đổi tiền back của cả
 //     nhóm trong tháng đó — nên `monthsTouched` trả về để màn hình nói thẳng ra trước khi lưu.
 
 import { genDates, monthOf } from '#utils/dates.js'
+
+/**
+ * Lý do không cho lưu → key i18n. Là hằng số EXPORT để `smoke/i18n.test.js` đòi được key:
+ * mấy key này chỉ tới màn hình qua `t(bienSo)` nên regex quét key của test không thấy chúng.
+ */
+export const BLOCK_KEYS = {
+  groupLocked: 'schedules.errGroupLocked',
+  noWeekday: 'schedules.errNoWeekday',
+  noStart: 'schedules.errNoStart',
+  range: 'schedules.errRange',
+  noCourt: 'schedules.errNoCourt',
+}
 
 /** Buổi đã mở/chốt/huỷ thì bất khả xâm phạm — chỉ đếm để báo, không bao giờ xoá. */
 const LOCKED_STATUS = ['open', 'closed', 'cancelled']
@@ -32,7 +48,26 @@ export const isLocked = (s) => LOCKED_STATUS.indexOf(s.status) >= 0
 export const isEditable = (s, today) => !isLocked(s) && s.date > today
 
 /**
- * Kế hoạch sửa. `form` = { weekdays, rows, start, end } — đúng bộ trường của dialog tạo lịch.
+ * Lịch này còn "mềm" không: chưa buổi nào mở, chốt, huỷ, hay qua ngày. Mềm thì đổi nhóm được
+ * và xoá hẳn được; cứng rồi thì chỉ sửa được phần tương lai.
+ */
+export const canRebind = (plan) => plan.locked.length === 0 && plan.past.length === 0
+
+/**
+ * Kế hoạch XOÁ HẲN một lịch. Chỉ cho khi lịch còn mềm: xoá lịch mà còn buổi đã chốt thì hoặc
+ * mất giá thành đã đóng băng, hoặc bỏ buổi lại mồ côi — mà `sessions.schedule_id` là khoá ngoại
+ * TRẦN (không cascade), nên bỏ mồ côi là Postgres 23503 và kẹt cả hàng đợi đồng bộ.
+ * Lịch đã cứng thì đường đúng là bấm "Tắt", không phải xoá.
+ */
+export function planScheduleDelete(db, sched) {
+  const mine = (db.sessions || []).filter((s) => s.scheduleId === sched.id)
+  const locked = mine.filter(isLocked)
+  const past = mine.filter((s) => !isLocked(s) && s.date <= db.today)
+  return { sessions: mine, locked, past, ok: locked.length === 0 && past.length === 0 }
+}
+
+/**
+ * Kế hoạch sửa. `form` = { weekdays, rows, start, end, sGroup } — đúng bộ trường của dialog.
  *
  * Trả về:
  *   keep     buổi giữ nguyên ngày, chỉ cập nhật sân/giờ (chỉ gồm buổi sửa được)
@@ -75,15 +110,20 @@ export function planScheduleEdit(db, sched, form) {
     if (s) months.add(monthOf(s.date))
   })
 
+  const soft = locked.length === 0 && past.length === 0
+  // Đổi nhóm là dời TẤT CẢ buổi sang nhóm mới, nên chỉ làm được khi không buổi nào rớt lại.
+  const groupTo = form.sGroup && form.sGroup !== sched.groupId ? form.sGroup : null
+
   const blocked = []
-  if (!(form.weekdays || []).length) blocked.push('schedules.errNoWeekday')
-  if (!form.start) blocked.push('schedules.errNoStart')
-  if (form.end && form.end < form.start) blocked.push('schedules.errRange')
-  if (!(form.rows || []).length) blocked.push('schedules.errNoCourt')
-  if ((form.rows || []).some((r) => !r.courtId)) blocked.push('schedules.errNoCourt')
+  if (groupTo && !soft) blocked.push(BLOCK_KEYS.groupLocked)
+  if (!(form.weekdays || []).length) blocked.push(BLOCK_KEYS.noWeekday)
+  if (!form.start) blocked.push(BLOCK_KEYS.noStart)
+  if (form.end && form.end < form.start) blocked.push(BLOCK_KEYS.range)
+  if (!(form.rows || []).length) blocked.push(BLOCK_KEYS.noCourt)
+  if ((form.rows || []).some((r) => !r.courtId)) blocked.push(BLOCK_KEYS.noCourt)
 
   return {
-    keep, add, remove, locked, past,
+    keep, add, remove, locked, past, groupTo, soft,
     monthsTouched: [...months].sort(),
     blocked,
   }
@@ -102,19 +142,23 @@ export function applyScheduleEdit(db, sched, form, plan, mkId) {
   const dropIds = new Set(plan.remove)
   const stId = (db.shuttleTypes || [])[0] ? db.shuttleTypes[0].id : null
 
+  // Đổi nhóm thì buổi phải đi theo. `plan.groupTo` chỉ khác null khi lịch còn mềm (không buổi
+  // nào đã mở / đã qua ngày), nên không có buổi nào rớt lại ở nhóm cũ.
+  const gid = plan.groupTo || sched.groupId
+
   const born = plan.add.map((date) => ({
-    id: mkId(), date, groupId: sched.groupId, status: 'draft', shuttleUsed: 0,
+    id: mkId(), date, groupId: gid, status: 'draft', shuttleUsed: 0,
     shuttleTypeId: stId, note: '', shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
     courts: rows.map((r) => ({ ...r })), scheduleId: sched.id,
   }))
 
   return {
     schedules: db.schedules.map((x) => (x.id === sched.id
-      ? { ...x, name: form.sName || x.name, weekdays: form.weekdays, rows: form.rows, start: form.start, end: form.end }
+      ? { ...x, name: form.sName || x.name, groupId: gid, weekdays: form.weekdays, rows: form.rows, start: form.start, end: form.end }
       : x)),
     sessions: db.sessions
       .filter((s) => !dropIds.has(s.id))
-      .map((s) => (keepIds.has(s.id) ? { ...s, courts: rows.map((r) => ({ ...r })) } : s))
+      .map((s) => (keepIds.has(s.id) ? { ...s, groupId: gid, courts: rows.map((r) => ({ ...r })) } : s))
       .concat(born)
       .sort((a, b) => (a.date < b.date ? -1 : 1)),
   }

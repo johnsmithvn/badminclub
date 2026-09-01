@@ -1,12 +1,13 @@
 // Lịch tập cố định: tạo một lần, sinh buổi cho cả kỳ (handoff 02 §5).
 
-import { Button, Card, DataTable } from '#ds'
+import { Button, Card, DataTable, IconButton } from '#ds'
 import { Empty, Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, ddmy } from '#utils/dates.js'
 import { courtOf, groupOf } from '#lib/money.js'
 import { editScheduleForm, scheduleForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
+import { planScheduleDelete } from '#lib/schedules.js'
 import { t } from '#i18n'
 
 export default function Schedules({ canEdit: propCanEdit }) {
@@ -46,7 +47,7 @@ export default function Schedules({ canEdit: propCanEdit }) {
     },
     {
       key: 'act', header: '', align: 'right',
-      render: (r) => canEdit && (
+      render: (r) => canEdit && ((drop) => (
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
           <Button variant="ghost" size="sm" icon="settings-2"
             onClick={() => a.openDialog('schedule', editScheduleForm(r))}>
@@ -56,8 +57,14 @@ export default function Schedules({ canEdit: propCanEdit }) {
             onClick={() => a.toggleSchedule(r.id)}>
             {t(r.active ? 'schedules.turnOff' : 'schedules.turnOn')}
           </Button>
+          {/* Chỉ mở khi lịch còn mềm. Còn buổi đã chốt thì nút mờ đi và tooltip nói vì sao —
+              disable im lặng là người ta bấm mãi không hiểu tại sao không ăn. */}
+          <span title={t(drop.ok ? 'schedules.del' : 'schedules.delBlocked')}>
+            <IconButton icon="trash-2" size="sm" variant="ghost" label={t('schedules.del')}
+              disabled={!drop.ok} onClick={() => a.deleteSchedule(r.id)} />
+          </span>
         </div>
-      ),
+      ))(planScheduleDelete(db, r)),
     },
   ]
 

@@ -25,11 +25,13 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Cảnh báo sai im lặng ở Trang chủ | `money/alerts.test.js` |
 | Sổ quỹ: dòng nào vào sổ, số dư, số dư khả dụng, gộp dòng, tổng hợp ngày | `ledger/ledger.test.js` |
 | Đối chiếu quỹ: so tiền đếm được với sổ, xếp nghi vấn theo chiều + mức khớp | `ledger/reconcile.test.js` |
+| Hoàn tác / sửa một dòng sổ quỹ: dòng nào gỡ được, gỡ ở nguồn nào | `ledger/undo.test.js` |
 | Chia sân: slot · 5 chế độ xếp · chia đều · đếm số trận | `lib/assign.test.js` |
 | Ngày tháng, lưới lịch, sinh ngày theo thứ | `lib/dates.test.js` |
 | **Ma trận quyền** — cờ, route, "xem như", và khớp với seed trong DB | `lib/roles.test.js` |
 | Giá trị mặc định của mọi dialog | `lib/forms.test.js` |
 | Lọc · tìm (bỏ dấu) · sắp xếp danh sách thành viên · trạng thái thu quỹ tháng | `lib/members.test.js` |
+| Sửa lịch cố định: buổi nào được đụng, sinh/xoá buổi, tháng bị đổi đơn giá | `lib/schedules.test.js` |
 | Map client ↔ Postgres, thứ tự ghi/xoá, `diff()` | `sync/dbmap.test.js` |
 | CLB vừa tạo (mọi bảng rỗng) không được throw / NaN / Infinity | `smoke/empty.test.js` |
 | Không sót key i18n, không có số lọt vào `vi.json` | `smoke/i18n.test.js` |

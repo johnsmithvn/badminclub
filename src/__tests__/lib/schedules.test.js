@@ -10,7 +10,7 @@
 //   4. quên báo tháng bị đổi số buổi → đơn giá một buổi đổi âm thầm, tiền back cả nhóm sai.
 
 import assert from 'node:assert/strict'
-import { applyScheduleEdit, isEditable, planScheduleEdit } from '#lib/schedules.js'
+import { applyScheduleEdit, isEditable, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 
 const TODAY = '2026-09-10'
 const SCHED = { id: 'SC1', groupId: 'G6', name: 'Oánh cầu thứ 6', weekdays: [5], rows: [], start: '2026-09-01', end: '2026-09-30' }
@@ -137,3 +137,47 @@ assert.equal(applied.sessions.find((s) => s.id === 's04').courts[0].courtId, 'C1
 assert.equal(db.sessions.length, 5, 'applyScheduleEdit mutate mảng gốc → mutate thẳng state React')
 
 console.log('schedule edit check: OK')
+
+/* ---------- ĐỔI NHÓM: chỉ khi lịch còn "mềm" ---------- */
+// Chọn nhầm nhóm lúc tạo lịch là chuyện thường. Khoá cứng mà không có đường lùi thì người ta
+// kẹt vĩnh viễn với một lịch sai — nhưng nới sai chỗ thì buổi đã chốt rớt lại ở nhóm cũ, mà
+// đơn giá một buổi và công nợ đều đếm theo groupId.
+
+// db ở trên có s04 đã CHỐT → lịch đã cứng, cấm đổi nhóm.
+const hardMove = planScheduleEdit(db, SCHED, form({ sGroup: 'GCN' }))
+assert.deepEqual(hardMove.blocked, ['schedules.errGroupLocked'],
+  'lịch đã có buổi CHỐT mà vẫn cho đổi nhóm → buổi đã chốt rớt lại nhóm cũ, đơn giá một buổi của CẢ HAI nhóm sai')
+assert.equal(hardMove.soft, false)
+
+// Lịch chưa buổi nào mở/qua ngày → mềm, đổi nhóm được.
+const softDb = {
+  ...db,
+  sessions: [mkSession('s11', '2026-09-11'), mkSession('s18', '2026-09-18')],
+}
+const softMove = planScheduleEdit(softDb, SCHED, form({ sGroup: 'GCN' }))
+assert.deepEqual(softMove.blocked, [], 'mọi buổi còn draft + tương lai thì phải cho sửa nhóm — không thì chọn nhầm là kẹt vĩnh viễn')
+assert.equal(softMove.groupTo, 'GCN')
+assert.equal(softMove.soft, true)
+
+const moved2 = applyScheduleEdit(softDb, SCHED, form({ sGroup: 'GCN' }), softMove, () => 'z')
+assert.equal(moved2.schedules.find((x) => x.id === 'SC1').groupId, 'GCN')
+moved2.sessions.filter((s) => s.scheduleId === 'SC1').forEach((s) => {
+  assert.equal(s.groupId, 'GCN',
+    'đổi nhóm mà buổi vẫn giữ groupId cũ → lịch nói nhóm A, buổi nói nhóm B, thu và back sai nhóm')
+})
+
+// Không đổi nhóm thì groupTo phải null, không được tự dời buổi đi đâu cả.
+assert.equal(planScheduleEdit(softDb, SCHED, form()).groupTo, null)
+
+/* ---------- XOÁ HẲN lịch ---------- */
+
+const dropHard = planScheduleDelete(db, SCHED)
+assert.equal(dropHard.ok, false,
+  'xoá lịch còn buổi đã chốt → mất giá thành đã đóng băng, hoặc bỏ buổi mồ côi mà sessions.schedule_id là khoá ngoại TRẦN (23503, kẹt hàng đợi đồng bộ)')
+assert.deepEqual(dropHard.locked.map((s) => s.id), ['s04'])
+
+const dropSoft = planScheduleDelete(softDb, SCHED)
+assert.equal(dropSoft.ok, true)
+assert.deepEqual(dropSoft.sessions.map((s) => s.id), ['s11', 's18'])
+
+console.log('schedule regroup + delete check: OK')
