@@ -1129,6 +1129,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({ [key]: d[key].map((x) => (x.id === id ? { ...x, repaidAt: on ? d.today : '' } : x)) }))
       toast(t(on ? 'toast.advanceRepaid' : 'toast.advanceUndone'))
     },
+    deleteAdvance: (kind, id) => {
+      const key = kind === 'court' ? 'courtBills' : 'purchases'
+      up((d) => ({ [key]: (d[key] || []).filter((x) => x.id !== id) }))
+      toast('Đã xoá khoản nợ thành công')
+    },
 
     /* ---------- cài đặt ---------- */
     setClub: (k, v) => up((d) => ({ club: { ...d.club, [k]: v } })),

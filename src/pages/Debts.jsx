@@ -662,11 +662,21 @@ function Advances({ rows, canMoney }) {
             <Mono weight={600} size={14}
               color={r.repaidAt ? 'var(--text-muted)' : 'var(--status-delayed)'}>{fmt(r.amount)}</Mono>
             {canMoney && (
-              <Button size="sm" variant={r.repaidAt ? 'ghost' : 'secondary'}
-                icon={r.repaidAt ? 'rotate-ccw' : 'circle-check'}
-                onClick={() => a.repayAdvance(r.kind, r.id)}>
-                {r.repaidAt ? t('debts.advanceUndo') : t('debts.advanceRepay')}
-              </Button>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <Button size="sm" variant={r.repaidAt ? 'ghost' : 'secondary'}
+                  icon={r.repaidAt ? 'rotate-ccw' : 'circle-check'}
+                  onClick={() => a.repayAdvance(r.kind, r.id)}>
+                  {r.repaidAt ? t('debts.advanceUndo') : t('debts.advanceRepay')}
+                </Button>
+                <IconButton
+                  size="sm"
+                  icon="trash-2"
+                  variant="ghost"
+                  label="Xoá khoản nợ này"
+                  onClick={() => a.deleteAdvance(r.kind, r.id)}
+                  style={{ color: 'var(--status-incident)' }}
+                />
+              </div>
             )}
           </div>
         ))}
