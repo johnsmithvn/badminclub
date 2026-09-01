@@ -13,6 +13,7 @@ import { availableBalance, monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
 import { Detail, FundBalanceColumns, FundOverviewCards, Reconcile } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
+import { scheduleForm } from '#lib/forms.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
 export default function Home() {
@@ -574,7 +575,7 @@ function Setup() {
     { key: 'court', done: db.courts.length > 0, icon: 'map-pin', go: () => { a.go('settings'); a.setTab('settings', 'courts') } },
     { key: 'group', done: db.groups.length > 0, icon: 'users', go: () => { a.go('settings'); a.setTab('settings', 'groups') } },
     { key: 'member', done: db.members.filter((m) => m.active !== false).length > 1, icon: 'user-round-plus', go: () => a.go('members') },
-    { key: 'schedule', done: db.schedules.length > 0, icon: 'repeat', go: () => { a.go('settings'); a.setTab('settings', 'schedules') } },
+    { key: 'schedule', done: db.schedules.length > 0, icon: 'repeat', go: () => a.openDialog('schedule', scheduleForm(db)) },
     // Bảng giá khách sinh sẵn theo thang trình độ nhưng mặc định 0 đ — không sửa thì thu khách ra 0.
     {
       key: 'price', done: db.guestPrices.some((p) => p.nam > 0 || p.nu > 0), icon: 'tags',
