@@ -749,20 +749,40 @@ function Access({ canEdit, pending }) {
                   options={ROLES.map((r) => ({ value: r.value, label: r.label }))}
                   onChange={(e) => a.setMemberRole(m.id, e.target.value)} />
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {sug && (
-                    <>
-                      <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
-                        {t('settings.suggestPhone', { name: sug.nick || sug.name })}
-                      </span>
-                      {canEdit && (
-                        <Button variant="primary" size="sm" icon="link"
-                          onClick={() => a.linkMemberUser(m.id, sug.id)}>{t('settings.doLink')}</Button>
-                      )}
-                    </>
-                  )}
                   {canEdit && user && (
                     <Button variant="ghost" size="sm" icon="unlink"
                       onClick={() => a.unlinkMember(m.id)}>{t('settings.doUnlink')}</Button>
+                  )}
+                  {canEdit && !user && (
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <Select
+                        size="sm"
+                        style={{ minWidth: 160 }}
+                        value={ui.form['link_u_' + m.id] ?? (sug ? sug.id : '')}
+                        options={[{ value: '', label: 'Chọn user để ghép...' }].concat(
+                          (db.users || []).map((u) => ({
+                            value: u.id,
+                            label: (u.name || u.phone || u.id) + (u.phone ? ` · ${u.phone}` : ''),
+                          }))
+                        )}
+                        onChange={(e) => a.setF('link_u_' + m.id, e.target.value)}
+                      />
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon="link"
+                        disabled={!(ui.form['link_u_' + m.id] ?? (sug ? sug.id : ''))}
+                        onClick={() => {
+                          const targetUid = ui.form['link_u_' + m.id] ?? (sug ? sug.id : '')
+                          if (targetUid) {
+                            a.linkMemberUser(m.id, targetUid)
+                            a.setF('link_u_' + m.id, undefined)
+                          }
+                        }}
+                      >
+                        {t('settings.doLink')}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>

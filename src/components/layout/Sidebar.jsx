@@ -47,7 +47,8 @@ export default function Sidebar({ route }) {
     navigate('/')
   }
 
-  const meName = (profile && (profile.nick || profile.name)) || t('common.unknown')
+  const currentMember = (db.members || []).find((m) => m.userId === db.currentUserId)
+  const meName = (currentMember && currentMember.name) || (profile && (profile.nick || profile.name)) || t('common.unknown')
 
   // Đếm đúng toàn bộ công nợ đang chờ xử lý ở các tab:
   // 1. Thu/hoàn theo buổi (khách chưa trả + hội viên đi thêm chưa thu/hoàn)
@@ -139,7 +140,7 @@ export default function Sidebar({ route }) {
           <Avatar name={meName} size={30} />
           <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
             <div style={S.footName}>{meName}</div>
-            <div style={S.footRole}>{t('shell.footRole', { role: roleName(role), club: clubName })}</div>
+            <div style={S.footRole}>{t('shell.footRole', { role: roleName(db.myRole || role), club: clubName })}</div>
           </div>
           <Icon name="chevron-down" size={15} style={{ color: 'rgba(255,255,255,.55)' }} />
         </button>

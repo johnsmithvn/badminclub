@@ -20,3 +20,32 @@ ON CONFLICT (role) DO UPDATE SET
 
 -- Chuyển các thành viên cũ đang gán vai host hoặc viewer về member
 UPDATE club_members SET role = 'member' WHERE role IN ('host', 'viewer');
+
+-- Cho phép thành viên tự cập nhật thông tin cá nhân của mình trong CLB
+DROP POLICY IF EXISTS cm_update_self ON club_members;
+CREATE POLICY cm_update_self ON club_members
+  FOR UPDATE
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+-- Cho phép Chủ CLB tìm kiếm tài khoản user để ghép vào bản ghi thành viên
+CREATE OR REPLACE FUNCTION public.search_users_for_club(p_club uuid, p_query text DEFAULT '')
+RETURNS TABLE (
+  id uuid, name text, nick text, phone text, gender gender, level text, email text
+)
+LANGUAGE sql STABLE
+SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT p.id, p.name, p.nick, p.phone, p.gender, p.level, p.email
+    FROM profiles p
+   WHERE has_club_perm(p_club, 'members')
+     AND (
+       p_query = '' OR
+       p.name ILIKE '%' || p_query || '%' OR
+       COALESCE(p.phone, '') ILIKE '%' || p_query || '%' OR
+       COALESCE(p.email, '') ILIKE '%' || p_query || '%' OR
+       COALESCE(p.username, '') ILIKE '%' || p_query || '%'
+     )
+   ORDER BY p.name
+   LIMIT 50;
+$$;
