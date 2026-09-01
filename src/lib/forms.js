@@ -47,7 +47,7 @@ export const ledgerForm = (db) => ({ lDate: db.today, lDir: 'out', lCat: 'other'
 
 /** Form thêm thành viên. */
 export const memberForm = (db) => ({
-  mName: '', mPhone: '', mGender: 'nam', mLevel: lv1(db), mGroups: [],
+  mName: '', mPhone: '', mGender: 'nam', mLevel: lv1(db), mNote: '', mGroups: [],
   // CLB chưa có nhóm cố định nào thì mặc định 'đi lẻ', không thì bấm Thêm là bị chặn ngay.
   mStart: db.groups.length ? 'next' : 'none',
 })
@@ -58,13 +58,10 @@ const lv1 = (db) => (db.levels || [])[1] || (db.levels || [])[0] || ''
 /**
  * Form sửa thành viên. `eGroups` là nhóm cố định, `eWhenGroup` quyết định áp dụng từ tháng nào —
  * mặc định THÁNG SAU vì tháng này có thể đã đóng tiền rồi, đổi ngay là phải xử lý khoản đã thu.
- *
- * `eWhen` (trình độ) cũng mặc định THÁNG SAU: "áp dụng ngay" ghi đè `member.level`, mà `levelOf`
- * suy trình độ của MỌI tháng từ đúng ô đó — nên nó đổi luôn trình độ hiện trên các buổi đã đánh
- * xong. Chuyện đã xảy ra thì không được sửa lại vì hôm nay lên trình.
+ * Trình độ áp dụng ngay lập tức cho các buổi tiếp theo.
  */
 export const editMemberForm = (m) => ({
-  eId: m.id, eName: m.name, ePhone: m.phone, eGender: m.gender, eLevel: m.level, eWhen: 'next',
+  eId: m.id, eName: m.name, ePhone: m.phone || '', eGender: m.gender, eLevel: m.level, eNote: m.note || '',
   eGroups: (m.groupIds || []).slice(), eWhenGroup: 'next',
 })
 

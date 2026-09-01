@@ -8,8 +8,9 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { PUBLIC_PATHS, pathOf } from '#routes'
 import { allowedRoutes, roleName } from '#lib/roles.js'
-import { guestDebtRows, monthSessions } from '#lib/money.js'
+import { adjustRows, advanceRows, duesOf, dueState, monthSessions, sessionOf } from '#lib/money.js'
 import { assignableSessions } from '#lib/assign.js'
+import { monthOf } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -23,7 +24,7 @@ const NAV = [
   { value: 'schedules', icon: 'repeat' },
   { value: 'members', icon: 'users' },
   { section: 'money' },
-  { value: 'debts', icon: 'clock-alert', badge: 'guestDebtors', alert: 'hasDebt' },
+  { value: 'debts', icon: 'clock-alert', badge: 'debtPending', alert: 'hasDebt' },
   { value: 'fund', icon: 'wallet' },
   { value: 'shuttles', icon: 'package' },
   { section: 'account' },
@@ -42,6 +43,7 @@ export default function Sidebar({ route }) {
   const clubCode = db.club.code
   const clubOptions = myClubs.map((c) => ({ value: c.id, label: c.name }))
   const clubValue = activeClub ? activeClub.id : ''
+
   const onClub = (e) => {
     setActiveClub(e.target.value)
     navigate('/')
@@ -49,14 +51,27 @@ export default function Sidebar({ route }) {
 
   const meName = (profile && (profile.nick || profile.name)) || t('common.unknown')
 
-  const debtors = guestDebtRows(db, db.month).filter((r) => r.debt > 0)
+  // Đếm đúng toàn bộ công nợ đang chờ xử lý ở các tab:
+  // 1. Thu/hoàn theo buổi (khách chưa trả + hội viên đi thêm chưa thu/hoàn)
+  const unpaidGuests = (db.sessionGuests || []).filter((sg) => {
+    const s = sessionOf(db, sg.sessionId)
+    return s && monthOf(s.date) === db.month && !sg.paid
+  }).length
+  const unpaidAdjusts = adjustRows(db, db.month).filter((r) => !r.paid).length
+  const sessionDebtsPending = unpaidGuests + unpaidAdjusts
+  // 2. Quỹ tháng còn thiếu
+  const unpaidDues = duesOf(db, db.month).filter((x) => dueState(x).remain > 0).length
+  // 3. Quỹ nợ thành viên ứng tiền
+  const unpaidAdvances = advanceRows(db).filter((x) => !x.repaidAt).length
+  const totalDebtPending = sessionDebtsPending + unpaidDues + unpaidAdvances
+
   const counts = {
     unclosedSessions: monthSessions(db, db.month).filter((s) => s.status !== 'closed').length,
     assignable: assignableSessions(db).length,
-    guestDebtors: debtors.length,
+    debtPending: totalDebtPending,
     pendingJoins: (db.joinRequests || []).length,
   }
-  const flags = { hasDebt: debtors.length > 0 }
+  const flags = { hasDebt: totalDebtPending > 0 }
 
   const built = NAV.map((it) =>
     it.section

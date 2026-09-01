@@ -420,6 +420,13 @@ function AddMemberDialog() {
           onChange={(e) => a.setF('mLevel', e.target.value)} />
       </div>
 
+      <Input
+        label="Ghi chú (Facebook, Zalo, link...)"
+        placeholder="Link Facebook, Zalo, hoặc ghi chú về thành viên..."
+        value={f.mNote || ''}
+        onChange={(e) => a.setF('mNote', e.target.value)}
+      />
+
       <div style={{ display: 'grid', gap: 6 }}>
         <Overline>{t('members.fGroups')}</Overline>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -473,13 +480,12 @@ function EditMemberDialog() {
           options={db.levels.map((l) => ({ value: l, label: l }))}
           onChange={(e) => a.setF('eLevel', e.target.value)} />
       </div>
-      <Select label={t('members.fWhen')} value={f.eWhen}
-        hint={t('members.fWhenHint')}
-        options={[
-          { value: 'now', label: t('members.whenNow') },
-          { value: 'next', label: t('members.whenNext') },
-        ]}
-        onChange={(e) => a.setF('eWhen', e.target.value)} />
+      <Input
+        label="Ghi chú (Facebook, Zalo, link...)"
+        placeholder="Link Facebook, Zalo, hoặc ghi chú về thành viên..."
+        value={f.eNote || ''}
+        onChange={(e) => a.setF('eNote', e.target.value)}
+      />
 
       {/* Nhóm cố định sửa ngay tại đây. Gỡ HẾT nhóm = thành người đi lẻ (vãng lai). */}
       <div style={{ display: 'grid', gap: 7 }}>

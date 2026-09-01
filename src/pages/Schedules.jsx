@@ -9,9 +9,9 @@ import { scheduleForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
 
-export default function Schedules() {
+export default function Schedules({ canEdit: propCanEdit }) {
   const { db, a } = useApp()
-  const canEdit = can(db.viewAs || 'owner', 'sessions')
+  const canEdit = propCanEdit !== undefined ? propCanEdit : can(db.viewAs || 'owner', 'sessions')
 
   const columns = [
     { key: 'name', header: t('schedules.colName'), render: (r) => r.name },

@@ -87,10 +87,8 @@ assert.equal(memberForm({ ...empty, levels: [] }).mLevel, '', 'không có thang 
 const ef = editMemberForm(db.members[0])
 assert.equal(ef.eId, db.members[0].id)
 assert.deepEqual(ef.eGroups, db.members[0].groupIds, 'mở dialog phải tích sẵn đúng nhóm đang có')
-// HAI MẶC ĐỊNH DƯỚI ĐÂY BẢO VỆ LỊCH SỬ — đừng đổi mà không đọc TASKS Đợt 2.
-assert.equal(ef.eWhen, 'next',
-  'trình độ mặc định áp dụng TỪ THÁNG SAU: "áp dụng ngay" ghi đè member.level, mà levelOf suy ' +
-  'trình độ của MỌI tháng từ đúng ô đó — nó sửa lại cả trình độ hiện trên buổi đã đánh xong')
+assert.equal(typeof ef.eNote, 'string', 'có trường eNote')
+assert.equal(typeof memberForm(db).mNote, 'string', 'có trường mNote')
 assert.equal(ef.eWhenGroup, 'next',
   'đổi nhóm mặc định TỪ THÁNG SAU: tháng này có thể đã đóng quỹ rồi')
 

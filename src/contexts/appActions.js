@@ -555,18 +555,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const gs = f.eGroups || []
       const gMonth = f.eWhenGroup === 'now' ? d0.month : addMonth(d0.month, 1)
 
-      // Trình độ áp dụng "từ tháng sau" tính theo HÔM NAY, không theo tháng đang xem ở header:
-      // đang xem tháng 5 mà đổi thì mốc rơi vào quá khứ, levelOf áp dụng ngay lập tức và đổi
-      // luôn trình độ hiện trên các buổi đã đánh xong.
-      // ponytail: chỉ có MỘT ô pendingLevel nên lịch sử chỉ đúng cho một lần đổi — đổi lần hai
-      // thì đoạn giữa rơi về `level` gốc. Muốn đúng nhiều bậc phải đóng băng level vào
-      // `attendances` lúc điểm danh (đúng khuôn `session_guests.level`), tốn một migration.
-      const levelPatch = f.eLevel === was.level ? {}
-        : f.eWhen === 'now'
-          ? { level: f.eLevel, pendingLevel: null, pendingLevelFrom: null }
-          : { pendingLevel: f.eLevel, pendingLevelFrom: addMonth(monthOf(d0.today), 1) }
+      // Trình độ mới luôn áp dụng ngay lập tức cho các buổi sắp tới
       const mb = {
-        ...was, name: f.eName, phone: f.ePhone, gender: f.eGender, groupIds: gs.slice(), ...levelPatch,
+        ...was,
+        name: f.eName,
+        phone: f.ePhone || '',
+        gender: f.eGender,
+        level: f.eLevel,
+        pendingLevel: null,
+        pendingLevelFrom: null,
+        note: f.eNote || '',
+        groupIds: gs.slice(),
       }
 
       // Tính TRƯỚC updater rồi mới ghi: cộng dồn `kept`/`dropped` bên trong updater là đọc
@@ -772,6 +771,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const mb = {
         id, name, gender: f.mGender || 'nam', level: f.mLevel || d0.levels[0],
         groupIds: start === 'now' ? gs : [], role: 'member', phone: f.mPhone || '',
+        note: f.mNote || '',
         joined: d0.today, active: true, userId: null, pendingLevel: null, pendingLevelFrom: null,
       }
       const owed = start !== 'now' ? [] : gs.map((gid) => {

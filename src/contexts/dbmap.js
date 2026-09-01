@@ -66,6 +66,7 @@ export function toDb(raw, ctx) {
       role: m.role, joined: m.joined_at, active: m.active, userId: m.user_id || null,
       linkedAt: dOf(m.linked_at), pendingLevel: m.pending_level || null,
       pendingLevelFrom: m.pending_level_from || null,
+      note: m.note || '',
       // Rỗng = chưa cố định ca nào (đi lẻ). Không bịa ca mặc định ở đây: migration 0002 đã
       // backfill `club_member_groups` cho người cũ, nên rỗng bây giờ là rỗng thật.
       groupIds: (m.club_member_groups || []).map((x) => x.group_id),
@@ -281,6 +282,7 @@ export function toRows(db, ctx) {
       phone: m.phone || null, gender: m.gender, level: m.level,
       pending_level: m.pendingLevel || null, pending_level_from: m.pendingLevelFrom || null,
       joined_at: m.joined, active: m.active !== false, linked_at: m.linkedAt || null,
+      note: m.note || null,
     })
     ;(m.groupIds || []).forEach((g) => put('club_member_groups', { member_id: m.id, group_id: g }))
   })

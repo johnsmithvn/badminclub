@@ -140,6 +140,36 @@ function AllMembers({ canEdit }) {
     },
     { key: 'p', header: sortHead('p', t('members.colPhone')), mono: true, muted: true, render: (r) => r.phone || t('common.unknown') },
     {
+      key: 'note', header: 'Ghi chú', width: 150,
+      render: (r) => {
+        if (!r.note) return <span style={{ color: 'var(--text-disabled)' }}>—</span>
+        const isUrl = /^https?:\/\//i.test(r.note) || /^(facebook|fb|zalo)\./i.test(r.note)
+        const href = /^https?:\/\//i.test(r.note) ? r.note : 'https://' + r.note
+        return isUrl ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              color: 'var(--teal-600)', fontSize: 12, display: 'inline-flex', alignItems: 'center',
+              gap: 4, textDecoration: 'underline', fontWeight: 500,
+            }}
+            title={r.note}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Icon name="link" size={12} />
+            <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {r.note.replace(/^https?:\/\/(www\.)?/, '')}
+            </span>
+          </a>
+        ) : (
+          <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }} title={r.note}>
+            {r.note}
+          </span>
+        )
+      },
+    },
+    {
       key: 'gr', header: sortHead('gr', t('members.colGroups')),
       render: (r) => {
         const gs = fixedGroups(db, r.id, db.month)
