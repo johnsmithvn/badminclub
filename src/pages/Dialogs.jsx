@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Alert, Button, Dialog, Icon, IconButton, Input, Select, StatusPill, Switch } from '#ds'
+import { Alert, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, StatusPill, Switch } from '#ds'
 import { Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
@@ -25,6 +25,7 @@ export default function Dialogs() {
     addMember: AddMemberDialog,
     editMember: EditMemberDialog,
     importMembers: ImportMembersDialog,
+    importSettings: ImportSettingsDialog,
     offBack: OffBackDialog,
     zalo: ZaloDialog,
   }[ui.dialog]
@@ -964,3 +965,128 @@ function ImportMembersDialog() {
   )
 }
 
+/* Nhập cài đặt của CLB khác: chọn file .json đã xuất, tick phần muốn lấy, áp vào CLB đang xem.
+   File chỉ chứa CẤU HÌNH (biểu phí · sân · loại cầu · nhóm) — không có thành viên, quỹ hay
+   giao dịch, nên nhập nhầm cũng không đụng tới tiền đã ghi. */
+
+/** Các phần chọn được trong file. `key` chính là cờ truyền cho a.applyImportedSettings(). */
+const IMPORT_PARTS = [
+  { key: 'includeClub', label: () => t('settings.ioPartClub'), meta: (d) => t('settings.ioPartClubMeta', { n: (d.club?.levels || []).length }) },
+  { key: 'includeMoney', label: () => t('settings.ioPartMoney'), meta: (d) => t('settings.ioPartMoneyMeta', { n: (d.money?.guestPrices || []).length }) },
+  { key: 'includeCourts', label: () => t('settings.ioPartCourts'), meta: (d) => nameList(d.courts) },
+  { key: 'includeShuttles', label: () => t('settings.ioPartShuttles'), meta: (d) => nameList(d.shuttleTypes) },
+  { key: 'includeGroups', label: () => t('settings.ioPartGroups'), meta: (d) => nameList(d.groups) },
+]
+
+const nameList = (list) => (list && list.length
+  ? t('settings.ioNames', { n: list.length, names: list.map((x) => x.name).join(' · ') })
+  : t('settings.ioNone'))
+
+const ALL_PARTS = Object.fromEntries(IMPORT_PARTS.map((p) => [p.key, true]))
+
+function ImportSettingsDialog() {
+  const { a } = useApp()
+  const fileRef = useRef(null)
+  const [data, setData] = useState(null)
+  const [err, setErr] = useState('')
+  const [fileName, setFileName] = useState('')
+  const [picked, setPicked] = useState(ALL_PARTS)
+
+  const fail = (msg) => { setErr(msg); setData(null) }
+
+  const onFile = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setErr('')
+    setFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      let parsed
+      try {
+        parsed = JSON.parse(ev.target.result)
+      } catch {
+        return fail(t('settings.ioErrParse'))
+      }
+      // Không có dấu nhận dạng thì đây là JSON của thứ khác — dừng ở đây, đừng đoán.
+      if (!parsed || parsed.schema !== 'badminclub_settings') return fail(t('settings.ioErrSchema'))
+      setData(parsed)
+    }
+    reader.onerror = () => fail(t('settings.ioErrRead'))
+    reader.readAsText(file)
+  }
+
+  const anyPicked = IMPORT_PARTS.some((p) => picked[p.key])
+
+  return (
+    <Dialog open title={t('settings.ioTitle')} width={620} onClose={() => a.closeDialog()}>
+      <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ font: 'var(--type-body)', color: 'var(--text-secondary)' }}>
+          {t('settings.ioDesc')}
+        </div>
+
+        <div onClick={() => fileRef.current?.click()} style={S.drop}>
+          <input
+            type="file"
+            accept=".json,application/json"
+            ref={fileRef}
+            style={{ display: 'none' }}
+            onChange={onFile}
+          />
+          <Icon name="upload" size={28} style={{ margin: '0 auto 8px', color: 'var(--teal-600)' }} />
+          <div style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>
+            {fileName || t('settings.ioPick')}
+          </div>
+          <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 4 }}>
+            {t('settings.ioPickHint')}
+          </div>
+        </div>
+
+        {err && <Alert tone="danger" title={t('settings.ioErrTitle')}>{err}</Alert>}
+
+        {data && (
+          <div style={S.parts}>
+            <Overline>
+              {t('settings.ioFrom', {
+                club: data.clubName || t('common.unknown'),
+                date: String(data.exportedAt || '').slice(0, 10),
+                v: data.version || 1,
+              })}
+            </Overline>
+            {IMPORT_PARTS.map((p) => (
+              <Checkbox
+                key={p.key}
+                label={p.label()}
+                description={p.meta(data)}
+                checked={picked[p.key]}
+                onChange={(e) => setPicked((s) => ({ ...s, [p.key]: e.target.checked }))}
+              />
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <Button variant="secondary" onClick={() => a.closeDialog()}>{t('common.cancel')}</Button>
+          <Button
+            variant="primary"
+            icon="check"
+            disabled={!data || !anyPicked}
+            onClick={() => a.applyImportedSettings(data, picked)}
+          >
+            {t('settings.ioApply')}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+const S = {
+  drop: {
+    border: '1px dashed var(--border-strong)', borderRadius: 10, padding: '22px 16px',
+    textAlign: 'center', cursor: 'pointer', background: 'var(--surface-inset)',
+  },
+  parts: {
+    display: 'grid', gap: 10, padding: 14, borderRadius: 10,
+    border: '1px solid var(--border-subtle)', background: 'var(--surface-card)',
+  },
+}

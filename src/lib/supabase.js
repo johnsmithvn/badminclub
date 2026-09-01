@@ -4,13 +4,13 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const url = import.meta.env?.VITE_SUPABASE_URL
+const anonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY
 
 /** Đã cấu hình DB chưa. false → App.jsx hiện màn hướng dẫn thay vì router. */
 export const hasSupabase = Boolean(url && anonKey)
 
-if (!hasSupabase && import.meta.env.DEV) {
+if (!hasSupabase && import.meta.env?.DEV) {
   console.warn(
     '[supabase] Chưa có VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.\n' +
     'Chạy:  npm run db:start  rồi  npm run db:env > .env.local  và khởi động lại dev server.'

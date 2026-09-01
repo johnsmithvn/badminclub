@@ -1,11 +1,12 @@
 // Sidebar: logo + mã CLB · switcher CLB · nav theo quyền · footer user.
 // Switcher CLB nằm TRONG sidebar (không ở header) để header không tràn dưới 1390px — xem DESIGN.md §5.
 
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, Icon, Select, SidebarNav } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
-import { pathOf } from '#routes'
+import { PUBLIC_PATHS, pathOf } from '#routes'
 import { allowedRoutes, roleName } from '#lib/roles.js'
 import { guestDebtRows, monthSessions } from '#lib/money.js'
 import { assignableSessions } from '#lib/assign.js'
@@ -33,8 +34,9 @@ const NAV = [
 
 export default function Sidebar({ route }) {
   const { db } = useApp()
-  const { clubs: myClubs, activeClub, setActiveClub, profile } = useAuth()
+  const { clubs: myClubs, activeClub, setActiveClub, profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const [menu, setMenu] = useState(false)
   const role = db.viewAs || 'owner'
 
   const clubName = db.club.name
@@ -106,11 +108,29 @@ export default function Sidebar({ route }) {
       </div>
 
       <div style={S.foot}>
-        <Avatar name={meName} size={30} />
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={S.footName}>{meName}</div>
-          <div style={S.footRole}>{t('shell.footRole', { role: roleName(role), club: clubName })}</div>
-        </div>
+        {/* Nền bắt click ra ngoài để đóng menu — rẻ hơn listener trên document và tự dọn theo render. */}
+        {menu && <div style={S.scrim} onClick={() => setMenu(false)} />}
+        {menu && (
+          <div style={S.menu} role="menu">
+            <button type="button" role="menuitem" style={S.item}
+              onClick={() => { setMenu(false); navigate(PUBLIC_PATHS.clubs) }}>
+              <Icon name="building-2" size={16} />{t('shell.backToClubs')}
+            </button>
+            <button type="button" role="menuitem" style={S.item} onClick={signOut}>
+              <Icon name="circle-x" size={16} />{t('auth.logout')}
+            </button>
+          </div>
+        )}
+
+        <button type="button" style={S.footBtn} onClick={() => setMenu((v) => !v)}
+          aria-haspopup="menu" aria-expanded={menu} aria-label={t('shell.userMenu')}>
+          <Avatar name={meName} size={30} />
+          <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+            <div style={S.footName}>{meName}</div>
+            <div style={S.footRole}>{t('shell.footRole', { role: roleName(role), club: clubName })}</div>
+          </div>
+          <Icon name="chevron-down" size={15} style={{ color: 'rgba(255,255,255,.55)' }} />
+        </button>
       </div>
     </nav>
   )
@@ -134,9 +154,21 @@ const S = {
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   },
   clubCode: { font: 'var(--type-mono)', color: 'rgba(255,255,255,.5)', letterSpacing: '.02em' },
-  foot: {
-    padding: '10px 12px', borderTop: '1px solid var(--border-nav)',
-    display: 'flex', alignItems: 'center', gap: 9,
+  foot: { position: 'relative', padding: '10px 12px', borderTop: '1px solid var(--border-nav)' },
+  footBtn: {
+    display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+    padding: 0, border: 0, background: 'transparent', cursor: 'pointer',
+  },
+  scrim: { position: 'fixed', inset: 0, zIndex: 1 },
+  menu: {
+    position: 'absolute', zIndex: 2, left: 12, right: 12, bottom: '100%', marginBottom: 6,
+    display: 'grid', padding: 4, borderRadius: 9, background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
+  },
+  item: {
+    display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 32,
+    padding: '0 8px', border: 0, borderRadius: 6, background: 'transparent', cursor: 'pointer',
+    font: 'var(--type-label)', color: 'var(--text-primary)', textAlign: 'left',
   },
   footName: {
     font: 'var(--type-label)', color: '#fff',

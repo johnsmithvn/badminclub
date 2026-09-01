@@ -1315,6 +1315,213 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
       toast(t('toast.typeAdded'))
     },
+    exportSettings: () => {
+      const d = db()
+      const data = {
+        schema: 'badminclub_settings',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        clubName: d.club?.name || '',
+        clubCode: d.club?.code || '',
+        club: {
+          roundUnit: !!d.club?.roundUnit,
+          lockDay: d.club?.lockDay || cfg.club.defaultLockDay,
+          seeDebtEachOther: !!d.club?.seeDebtEachOther,
+          seeFund: !!d.club?.seeFund,
+          courtPayMode: d.club?.courtPayMode || 'payer',
+          levels: d.levels || cfg.levelsDefault,
+        },
+        money: {
+          feeNam: d.groups[0]?.feeNam || 0,
+          feeNu: d.groups[0]?.feeNu || 0,
+          unitNam: d.groups[0]?.unitNam || 0,
+          unitNu: d.groups[0]?.unitNu || 0,
+          guestPrices: (d.guestPrices || []).map((p) => ({
+            level: p.level,
+            nam: p.nam || 0,
+            nu: p.nu || 0,
+          })),
+        },
+        courts: (d.courts || []).map((c) => ({
+          name: c.name,
+          addr: c.addr || '',
+          price: c.price || 0,
+          active: c.active !== false,
+        })),
+        shuttleTypes: (d.shuttleTypes || []).map((s) => ({
+          name: s.name,
+          perTube: s.perTube || cfg.shuttle.perTubeDefault,
+          pricePerTube: s.pricePerTube || 0,
+          active: s.active !== false,
+        })),
+        groups: (d.groups || []).map((g) => ({
+          name: g.name,
+          short: g.short || '',
+          weekday: g.weekday || 0,
+          feeNam: g.feeNam || 0,
+          feeNu: g.feeNu || 0,
+          unitNam: g.unitNam || 0,
+          unitNu: g.unitNu || 0,
+          from: g.from || '18:00',
+          to: g.to || '20:00',
+          quota: g.quota || cfg.shuttle.quotaDefault,
+          active: g.active !== false,
+        })),
+      }
+
+      const jsonStr = JSON.stringify(data, null, 2)
+      const blob = new Blob([jsonStr], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const aEl = document.createElement('a')
+      const fileName = `cai_dat_clb_${d.club?.code || 'badmin'}.json`
+      aEl.href = url
+      aEl.download = fileName
+      document.body.appendChild(aEl)
+      aEl.click()
+      document.body.removeChild(aEl)
+      URL.revokeObjectURL(url)
+      toast(t('toast.settingsExported', { file: fileName }))
+    },
+    applyImportedSettings: (data, opts = {}) => {
+      if (!data || data.schema !== 'badminclub_settings') {
+        return toast(t('toast.settingsBadFile'))
+      }
+
+      up((d) => {
+        const next = {}
+
+        // 1. Cài đặt chung & Levels
+        if (opts.includeClub && data.club) {
+          const clubLevels = Array.isArray(data.club.levels) && data.club.levels.length
+            ? data.club.levels
+            : d.levels
+
+          next.club = {
+            ...d.club,
+            roundUnit: data.club.roundUnit !== undefined ? !!data.club.roundUnit : d.club.roundUnit,
+            lockDay: data.club.lockDay || d.club.lockDay,
+            seeDebtEachOther: data.club.seeDebtEachOther !== undefined ? !!data.club.seeDebtEachOther : d.club.seeDebtEachOther,
+            seeFund: data.club.seeFund !== undefined ? !!data.club.seeFund : d.club.seeFund,
+            courtPayMode: data.club.courtPayMode || d.club.courtPayMode,
+            levels: clubLevels,
+          }
+          next.levels = clubLevels
+        }
+
+        // 2. Biểu phí & Giá khách giao lưu
+        if (opts.includeMoney && data.money) {
+          const activeLevels = next.levels || d.levels
+          if (Array.isArray(data.money.guestPrices)) {
+            const priceMap = {}
+            data.money.guestPrices.forEach((p) => {
+              priceMap[p.level] = { nam: intOf(p.nam), nu: intOf(p.nu) }
+            })
+            next.guestPrices = activeLevels.map((lv) => ({
+              level: lv,
+              nam: priceMap[lv]?.nam || 0,
+              nu: priceMap[lv]?.nu || 0,
+            }))
+          }
+          const feeNam = intOf(data.money.feeNam)
+          const feeNu = intOf(data.money.feeNu)
+          const unitNam = intOf(data.money.unitNam)
+          const unitNu = intOf(data.money.unitNu)
+          const currentGroups = next.groups || d.groups
+          next.groups = currentGroups.map((g) => ({
+            ...g,
+            feeNam: feeNam || g.feeNam,
+            feeNu: feeNu || g.feeNu,
+            unitNam: unitNam || g.unitNam,
+            unitNu: unitNu || g.unitNu,
+          }))
+        }
+
+        // 3. Sân bãi
+        if (opts.includeCourts && Array.isArray(data.courts) && data.courts.length) {
+          const existingCourts = (d.courts || []).slice()
+          const newCourts = []
+          data.courts.forEach((c) => {
+            const match = existingCourts.find((x) => x.name.toLowerCase() === (c.name || '').trim().toLowerCase())
+            if (match) {
+              match.addr = c.addr || match.addr
+              match.price = intOf(c.price) || match.price
+            } else {
+              newCourts.push({
+                id: uid(),
+                name: (c.name || '').trim(),
+                addr: c.addr || '',
+                price: intOf(c.price),
+                active: c.active !== false,
+              })
+            }
+          })
+          next.courts = existingCourts.concat(newCourts)
+        }
+
+        // 4. Loại cầu
+        if (opts.includeShuttles && Array.isArray(data.shuttleTypes) && data.shuttleTypes.length) {
+          const existingShuttles = (d.shuttleTypes || []).slice()
+          const newShuttles = []
+          data.shuttleTypes.forEach((s) => {
+            const match = existingShuttles.find((x) => x.name.toLowerCase() === (s.name || '').trim().toLowerCase())
+            if (match) {
+              match.perTube = intOf(s.perTube) || match.perTube
+              match.pricePerTube = intOf(s.pricePerTube) || match.pricePerTube
+            } else {
+              newShuttles.push({
+                id: uid(),
+                name: (s.name || '').trim(),
+                perTube: intOf(s.perTube) || cfg.shuttle.perTubeDefault,
+                pricePerTube: intOf(s.pricePerTube) || 0,
+                active: s.active !== false,
+              })
+            }
+          })
+          next.shuttleTypes = existingShuttles.concat(newShuttles)
+        }
+
+        // 5. Nhóm cố định
+        if (opts.includeGroups && Array.isArray(data.groups) && data.groups.length) {
+          const existingGroups = (next.groups || d.groups || []).slice()
+          const newGroups = []
+          data.groups.forEach((g) => {
+            const match = existingGroups.find((x) => x.name.toLowerCase() === (g.name || '').trim().toLowerCase())
+            if (match) {
+              match.short = g.short || match.short
+              match.from = g.from || match.from
+              match.to = g.to || match.to
+              match.quota = intOf(g.quota) || match.quota
+              match.feeNam = intOf(g.feeNam) || match.feeNam
+              match.feeNu = intOf(g.feeNu) || match.feeNu
+              match.unitNam = intOf(g.unitNam) || match.unitNam
+              match.unitNu = intOf(g.unitNu) || match.unitNu
+            } else {
+              newGroups.push({
+                id: uid(),
+                name: (g.name || '').trim(),
+                short: g.short || (g.name || '').slice(0, 3),
+                weekday: g.weekday || 0,
+                from: g.from || '18:00',
+                to: g.to || '20:00',
+                quota: intOf(g.quota) || cfg.shuttle.quotaDefault,
+                feeNam: intOf(g.feeNam) || 0,
+                feeNu: intOf(g.feeNu) || 0,
+                unitNam: intOf(g.unitNam) || 0,
+                unitNu: intOf(g.unitNu) || 0,
+                courtIds: [],
+                active: g.active !== false,
+              })
+            }
+          })
+          next.groups = existingGroups.concat(newGroups)
+        }
+
+        return next
+      })
+
+      upUi(() => ({ dialog: null }))
+      toast(t('toast.settingsImported', { club: data.clubName || t('common.unknown') }))
+    },
 
     /**
      * Thành viên tự xin đổi thông tin của mình trong CLB (handoff 01 §6).

@@ -21,16 +21,39 @@ export default function Settings() {
 
   return (
     <>
-      <Tabs
-        variant="underline"
-        items={TABS.map((k) => ({
-          value: k,
-          label: t('settings.tab' + k[0].toUpperCase() + k.slice(1)),
-          count: k === 'access' ? pending.length : undefined,
-        }))}
-        value={tab}
-        onChange={(v) => a.setTab('settings', v)}
-      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, borderBottom: '1px solid var(--border-subtle)' }}>
+        <Tabs
+          variant="underline"
+          items={TABS.map((k) => ({
+            value: k,
+            label: t('settings.tab' + k[0].toUpperCase() + k.slice(1)),
+            count: k === 'access' ? pending.length : undefined,
+          }))}
+          value={tab}
+          onChange={(v) => a.setTab('settings', v)}
+          style={{ borderBottom: 'none' }}
+        />
+        {canEdit && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="upload"
+              onClick={() => a.openDialog('importSettings', {})}
+            >
+              {t('settings.ioImport')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="download"
+              onClick={a.exportSettings}
+            >
+              {t('settings.ioExport')}
+            </Button>
+          </div>
+        )}
+      </div>
       {tab === 'general' && <General canEdit={canEdit} />}
       {tab === 'money' && <MoneyTab canEdit={canEdit} />}
       {tab === 'courts' && <Courts canEdit={canEdit} />}
@@ -323,12 +346,12 @@ function MoneyTab({ canEdit }) {
         </div>
       </Card>
 
-      {/* Thanh nút Lưu / Hủy cấp Tab */}
+      {/* Thanh nút Lưu / Hủy cấp Tab - Nằm ở cuối trang */}
       <div style={{
         display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center',
-        padding: '12px 16px', background: 'var(--surface-card)', borderRadius: 12,
+        padding: '14px 18px', background: 'var(--surface-card)', borderRadius: 12,
         border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
-        position: 'sticky', bottom: 12, zIndex: 10,
+        marginTop: 6,
       }}>
         <span style={{ marginRight: 'auto', font: 'var(--type-caption)', color: isChanged ? 'var(--status-delayed)' : 'var(--text-muted)' }}>
           {isChanged ? '● Có thay đổi chưa lưu trên tab Biểu phí' : 'Đã đồng bộ toàn bộ biểu phí'}
@@ -544,12 +567,12 @@ function Groups({ canEdit }) {
               </div>
             ))}
 
-            {/* Thanh nút Lưu / Hủy cấp Tab */}
+            {/* Thanh nút Lưu / Hủy cấp Tab - Nằm ở cuối trang */}
             <div style={{
               display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center',
-              padding: '12px 16px', background: 'var(--surface-card)', borderRadius: 12,
+              padding: '14px 18px', background: 'var(--surface-card)', borderRadius: 12,
               border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
-              position: 'sticky', bottom: 12, zIndex: 10,
+              marginTop: 6,
             }}>
               <span style={{ marginRight: 'auto', font: 'var(--type-caption)', color: isChanged ? 'var(--status-delayed)' : 'var(--text-muted)' }}>
                 {isChanged ? '● Có thay đổi chưa lưu trên tab Nhóm cố định' : 'Đã đồng bộ thông tin nhóm'}
