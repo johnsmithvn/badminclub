@@ -409,8 +409,7 @@ export function ledgerGrouped(db, month, { includeAdvances = false } = {}) {
   const map = {}
   const order = []
   allRows.forEach((r) => {
-    // Tiền sân (court) hoặc khoản ứng giữ từng dòng riêng để hiện rõ tên sân/nội dung
-    const k = (r.cat === CATS.court || r.dir === 'advance') ? r.id : r.date + '|' + r.cat + '|' + r.dir
+    const k = groupKey(r)
     if (!map[k]) {
       map[k] = { key: k, date: r.date, cat: r.cat, dir: r.dir, isAdvance: !!r.isAdvance, tooltip: r.tooltip, items: [] }
       order.push(k)
@@ -422,6 +421,18 @@ export function ledgerGrouped(db, month, { includeAdvances = false } = {}) {
     return { ...g, amount: g.items.reduce((t2, x) => t2 + x.amount, 0) }
   })
 }
+
+/**
+ * Khoá gộp một dòng sổ quỹ: cùng NGÀY + HẠNG MỤC + CHIỀU thì gộp làm một dòng, bung ra mới
+ * thấy từng khoản. Tiền sân và khoản ứng giữ riêng từng dòng để đọc được tên sân.
+ *
+ * EXPORT vì `appActions` cần đúng khoá này: ghi thêm một khoản trùng ngày+hạng mục với khoản
+ * đã có thì nó BỊ GỘP vào dòng cũ — dòng cũ đổi thành "2 dòng" và không có dòng mới nào hiện
+ * ra, người ghi tưởng bấm hụt. Action phải bung sẵn đúng nhóm vừa ghi vào. Công thức để một
+ * chỗ, không chép sang chỗ thứ hai rồi lệch.
+ */
+export const groupKey = (r) =>
+  (r.cat === CATS.court || r.dir === 'advance' ? r.id : r.date + '|' + r.cat + '|' + r.dir)
 
 /** Bảng Tổng hợp theo tháng: mỗi ngày một dòng NGÀY · THU · CHI · QUỸ luỹ kế. */
 export function dailySummary(db, month) {

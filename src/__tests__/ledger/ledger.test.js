@@ -1,7 +1,7 @@
 // node src/__tests__/ledger.test.js
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
-import { CATS, MANUAL_CATS, availableBalance, catLabel, dailySummary, fundBalance, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
+import { CATS, MANUAL_CATS, availableBalance, catLabel, dailySummary, fundBalance, groupKey, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
 import { advanceRows, courtCost, courtExtraCost, freezeCost, isVault, soldTotal, unfrozenCost } from '#lib/money.js'
 import { monthOf } from '#utils/dates.js'
 
@@ -218,6 +218,29 @@ assert.equal(new Set(grouped.map((g) => g.key)).size, grouped.length, 'key nhóm
 const duesGroup = grouped.find((g) => g.cat === CATS.dues && g.date === '2026-08-03')
 assert.ok(duesGroup && duesGroup.items.length > 1, 'nhiều người đóng cùng ngày phải gộp')
 assert.equal(duesGroup.items.length, db.dues.filter((d) => d.paidAmount > 0 && d.paidAt === '2026-08-03').length)
+
+// `groupKey` là công thức mà `appActions` phải dùng lại để bung sẵn nhóm vừa ghi vào.
+// Ghi một khoản TRÙNG ngày + hạng mục + chiều với khoản đã có thì nó chui vào dòng cũ, dòng cũ
+// đổi thành "N dòng" và màn hình KHÔNG có dòng nào mới — người ghi tưởng bấm hụt rồi ghi lại
+// lần nữa, thành hai khoản chi trùng trong sổ. Đây là bug thật đã gặp, khoá lại ở đây.
+assert.equal(
+  groupKey({ date: '2026-09-01', cat: CATS.other, dir: 'out' }),
+  groupKey({ date: '2026-09-01', cat: CATS.other, dir: 'out' }),
+  'hai khoản trùng ngày + hạng mục + chiều PHẢI cùng khoá — nếu tách khoá thì action bung nhầm nhóm'
+)
+assert.notEqual(
+  groupKey({ date: '2026-09-01', cat: CATS.other, dir: 'out' }),
+  groupKey({ date: '2026-09-01', cat: CATS.other, dir: 'in' }),
+  'thu và chi cùng ngày cùng hạng mục không được gộp chung')
+assert.notEqual(
+  groupKey({ date: '2026-09-01', cat: CATS.other, dir: 'out' }),
+  groupKey({ date: '2026-09-02', cat: CATS.other, dir: 'out' }),
+  'khác ngày không được gộp chung')
+// Tiền sân và khoản ứng giữ riêng từng dòng để còn đọc được tên sân.
+assert.equal(groupKey({ id: 'cbX', date: '2026-09-01', cat: CATS.court, dir: 'out' }), 'cbX')
+assert.equal(groupKey({ id: 'puY', date: '2026-09-01', cat: CATS.shuttle, dir: 'advance' }), 'puY')
+assert.ok(grouped.every((g) => g.key === groupKey(g.items[0])),
+  'ledgerGrouped phải dùng đúng groupKey — lệch là action bung một nhóm không tồn tại')
 
 /* ---------- tổng hợp theo ngày: quỹ luỹ kế ---------- */
 const sum = dailySummary(db, '2026-08')

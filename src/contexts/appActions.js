@@ -10,7 +10,7 @@ import {
   adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, joinDues,
   adhocCharges, chargeName, sGuestsOnly,
 } from '#lib/money.js'
-import { CATS, fundBalance, ledger, undoTarget } from '#lib/ledger.js'
+import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
@@ -1180,7 +1180,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           }]),
         }
       })
-      upUi(() => ({ dialog: null, form: {} }))
+      // Bung sẵn nhóm vừa ghi vào. Dòng sổ quỹ gộp theo ngày+hạng mục+chiều, nên ghi một khoản
+      // trùng ngày và hạng mục với khoản đã có thì nó chui vào dòng cũ, dòng cũ đổi thành
+      // "2 dòng" và MÀN HÌNH KHÔNG CÓ DÒNG NÀO MỚI — người ghi tưởng bấm hụt, ghi lại lần nữa.
+      const gk = groupKey({ date: f.lDate, cat: f.lCat, dir: f.lDir })
+      upUi((u) => ({ dialog: null, form: {}, expanded: { ...u.expanded, [gk]: true } }))
       toast(t('toast.ledgerAdded'))
     },
     /** Sửa một dòng thu/chi ghi tay. Giữ nguyên `by` — người ghi gốc là dấu vết, không phải ô nhập. */
@@ -1193,7 +1197,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           ? { ...x, date: f.lDate, dir: f.lDir, cat: f.lCat, label: f.lLabel, amount: amt }
           : x)),
       }))
-      upUi(() => ({ dialog: null, form: {} }))
+      // Sửa ngày hoặc hạng mục là dòng nhảy sang nhóm khác — bung nhóm ĐÍCH, không phải nhóm cũ.
+      upUi((u) => ({
+        dialog: null, form: {},
+        expanded: { ...u.expanded, [groupKey({ date: f.lDate, cat: f.lCat, dir: f.lDir })]: true },
+      }))
       toast(t('toast.ledgerSaved'))
     },
     setCourtPayMode: (v) => {
