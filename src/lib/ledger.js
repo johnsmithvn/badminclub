@@ -296,15 +296,55 @@ export function monthFlow(db, m) {
 }
 
 /** Gộp các dòng trùng ngày + hạng mục + chiều thành một dòng cha bung ra được. */
-export function ledgerGrouped(db, month) {
+export function ledgerGrouped(db, month, { includeAdvances = false } = {}) {
   const rowsIn = ledger(db).filter((r) => monthOf(r.date) === month).reverse()
+  const advances = []
+  if (includeAdvances) {
+    if (courtPayMode(db) === 'month') {
+      ;(db.courtBills || []).forEach((b) => {
+        if (b.month === month && !isVault(db, b.payerId) && !b.repaidAt) {
+          const payer = payerName(db, b.payerId, b.payer)
+          advances.push({
+            id: 'cb_adv_' + b.id,
+            date: b.date,
+            dir: 'advance',
+            cat: CATS.court,
+            label: b.venue + ' · trọn ' + monthTxt(b.month).toLowerCase() + (b.note ? ' · ' + b.note : ''),
+            amount: b.amount,
+            by: payer,
+            isAdvance: true,
+            tooltip: `Thành viên ${payer} chi hộ CLB (quỹ chưa hoàn trả)`,
+          })
+        }
+      })
+    }
+    ;(db.purchases || []).forEach((p) => {
+      if (monthOf(p.date) === month && !isVault(db, p.payerId) && !p.repaidAt) {
+        const payer = payerName(db, p.payerId, p.payer)
+        const typeName = (db.shuttleTypes.find((x) => x.id === p.typeId) || { name: '' }).name
+        advances.push({
+          id: 'pu_adv_' + p.id,
+          date: p.date,
+          dir: 'advance',
+          cat: CATS.shuttle,
+          label: t('ledger.label.shuttle', { type: typeName, tubes: p.tubes, qty: p.qty }),
+          amount: p.total,
+          by: payer,
+          isAdvance: true,
+          tooltip: `Thành viên ${payer} chi hộ CLB (quỹ chưa hoàn trả)`,
+        })
+      }
+    })
+  }
+
+  const allRows = rowsIn.concat(advances).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   const map = {}
   const order = []
-  rowsIn.forEach((r) => {
-    // Tiền sân (court) giữ từng dòng riêng để hiện rõ tên sân/nội dung, không gộp lại thành 1 cục
-    const k = r.cat === CATS.court ? r.id : r.date + '|' + r.cat + '|' + r.dir
+  allRows.forEach((r) => {
+    // Tiền sân (court) hoặc khoản ứng giữ từng dòng riêng để hiện rõ tên sân/nội dung
+    const k = (r.cat === CATS.court || r.dir === 'advance') ? r.id : r.date + '|' + r.cat + '|' + r.dir
     if (!map[k]) {
-      map[k] = { key: k, date: r.date, cat: r.cat, dir: r.dir, items: [] }
+      map[k] = { key: k, date: r.date, cat: r.cat, dir: r.dir, isAdvance: !!r.isAdvance, tooltip: r.tooltip, items: [] }
       order.push(k)
     }
     map[k].items.push(r)

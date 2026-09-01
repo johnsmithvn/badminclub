@@ -206,7 +206,7 @@ export function MonthSummary() {
 
 export function Detail({ canMoney }) {
   const { db, ui, a } = useApp()
-  const groups = ledgerGrouped(db, db.month)
+  const groups = ledgerGrouped(db, db.month, { includeAdvances: true })
   const allOpen = groups.length > 0 && groups.every((g) => g.items.length < 2 || ui.expanded[g.key])
 
   return (
@@ -254,16 +254,37 @@ export function Detail({ canMoney }) {
                     style={{ ...S.grid5, ...S.row4, cursor: many ? 'pointer' : 'default', alignItems: 'center' }}
                   >
                     <span style={{ color: 'var(--text-primary)' }}>{ddmy(g.date)}</span>
-                    <span style={S.catCell}>{catLabel(g.cat)}</span>
+                    <span style={S.catCell}>
+                      {catLabel(g.cat)}
+                      {g.isAdvance && (
+                        <span style={{
+                          marginLeft: 6, fontSize: 10, padding: '2px 7px', borderRadius: 99,
+                          background: 'rgba(217, 119, 6, 0.12)', color: '#b45309',
+                          fontWeight: 600, border: '1px solid rgba(217, 119, 6, 0.3)',
+                        }}>
+                          Chi hộ
+                        </span>
+                      )}
+                    </span>
                     <span style={{ font: 'var(--type-body)', color: 'var(--text-secondary)' }}>
                       {many ? t('fund.itemCount', { n: g.items.length }) : g.items[0].label}
                     </span>
-                    <span style={S.caption}>{many ? '' : g.items[0].by || ''}</span>
                     <span style={{
-                      ...S.r, fontWeight: 600,
-                      color: g.dir === 'in' ? 'var(--status-delivered)' : 'var(--status-incident)',
+                      ...S.caption,
+                      fontWeight: g.isAdvance ? 600 : 'normal',
+                      color: g.isAdvance ? '#b45309' : undefined,
                     }}>
-                      {(g.dir === 'in' ? '+' : '−') + fmt(g.amount)}
+                      {many ? '' : g.items[0].by || ''}
+                    </span>
+                    <span
+                      title={g.tooltip || (g.isAdvance ? 'Khoản chi hộ: Thành viên tự trả tiền túi, quỹ chưa hoàn tiền.' : undefined)}
+                      style={{
+                        ...S.r, fontWeight: 600,
+                        color: g.isAdvance ? '#d97706' : g.dir === 'in' ? 'var(--status-delivered)' : 'var(--status-incident)',
+                        cursor: g.tooltip || g.isAdvance ? 'help' : undefined,
+                      }}
+                    >
+                      {g.isAdvance ? `⚡ ${fmt(g.amount)}` : (g.dir === 'in' ? '+' : '−') + fmt(g.amount)}
                     </span>
                   </div>
                   {many && open && g.items.map((it) => (
@@ -271,8 +292,24 @@ export function Detail({ canMoney }) {
                       <span />
                       <span />
                       <span style={{ font: 'var(--type-body)', color: 'var(--text-secondary)' }}>{it.label}</span>
-                      <span style={S.caption}>{it.by || ''}</span>
-                      <span style={{ ...S.r, color: 'var(--text-secondary)' }}>{fmt(it.amount)}</span>
+                      <span style={{
+                        ...S.caption,
+                        fontWeight: it.isAdvance ? 600 : 'normal',
+                        color: it.isAdvance ? '#b45309' : undefined,
+                      }}>
+                        {it.by || ''}
+                      </span>
+                      <span
+                        title={it.tooltip}
+                        style={{
+                          ...S.r,
+                          color: it.isAdvance ? '#d97706' : 'var(--text-secondary)',
+                          fontWeight: it.isAdvance ? 600 : 'normal',
+                          cursor: it.tooltip ? 'help' : undefined,
+                        }}
+                      >
+                        {it.isAdvance ? `⚡ ${fmt(it.amount)}` : fmt(it.amount)}
+                      </span>
                     </div>
                   ))}
                 </div>
