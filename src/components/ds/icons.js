@@ -17,7 +17,7 @@ import {
   Minus, Package, PackageOpen, Pause, Play, Plus, Repeat, RotateCcw, Route, Scale, Search,
   Send, Settings, Settings2, Shield, ShoppingCart, Shuffle, Split, Tags, Trash2, TrendingDown,
   TrendingUp, TriangleAlert, Trophy, Truck, Undo2, Unlink, Upload, UserRound, UserRoundCheck,
-  UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X,
+  UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -83,6 +83,7 @@ export const ICONS = {
   upload: Upload,
   'user-round': UserRound,
   'user-round-check': UserRoundCheck,
+  'user-round-minus': UserRoundMinus,
   'user-round-plus': UserRoundPlus,
   'user-round-x': UserRoundX,
   users: Users,

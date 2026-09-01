@@ -73,9 +73,22 @@ export const levelOf = (m, month) =>
 
 /** Trạng thái cố định của một người trong nhóm ở một tháng: fixed | off | pending | none */
 export function rosterStatus(db, month, gid, mid) {
+  // 1. Roster của tháng có bản ghi rõ ràng cho người này (fixed / off / pending)
   const r = (db.roster[month] || {})[gid]
-  if (r) return r[mid] || 'none'
-  const m = db.members.find((x) => x.id === mid)
+  if (r && r[mid]) return r[mid]
+
+  // 2. Nếu tháng này nhóm đã có danh sách quỹ tháng đã chốt (db.dues):
+  // Người có trong quỹ tháng đó là 'fixed'; người không có là 'none'.
+  const duesList = (db.dues || []).filter((d) => d.month === month && d.groupId === gid)
+  if (duesList.length > 0) {
+    return duesList.some((d) => d.memberId === mid) ? 'fixed' : 'none'
+  }
+
+  // 3. Nếu có roster của nhóm nhưng không có tên người này
+  if (r) return 'none'
+
+  // 4. Tháng mới hoàn toàn chưa chốt danh sách: dựa vào ca cố định cấu hình trên thành viên
+  const m = (db.members || []).find((x) => x.id === mid)
   return m && (m.groupIds || []).indexOf(gid) >= 0 ? 'fixed' : 'none'
 }
 
@@ -367,7 +380,7 @@ export function sessionMembers(db, s) {
   const fixed = groupMembers(db, s.groupId, monthOf(s.date))
   const ids = new Set(fixed.map((m) => m.id))
   const a = db.attendance[s.id] || {}
-  return fixed.concat(db.members.filter((m) => !ids.has(m.id) && a[m.id] !== undefined))
+  return fixed.concat(db.members.filter((m) => !ids.has(m.id) && isPresent(a[m.id])))
 }
 
 export function presentCount(db, s) {

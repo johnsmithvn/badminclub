@@ -471,6 +471,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         : { adjustments: upsertAdjust(d, row, { settle }) }))
       toast(t(settle === 'cash' ? 'toast.settleCash' : 'toast.settleOffset', { name: row.member.name }))
     },
+    setAdjustAmount: (key, amount) => {
+      const month = key.split(':')[0]
+      const row = adjustRows(db(), month).find((x) => x.key === key)
+      if (!row || row.paid) return
+      const amt = intOf(amount)
+      const sign = row.amount < 0 ? -1 : 1
+      up((d) => ({
+        adjustments: upsertAdjust(d, row, { amount: sign * Math.abs(amt) }),
+      }))
+    },
     /**
      * Ô cố định của một người trong một ca. `'none'` KHÔNG phải một trạng thái lưu được: enum
      * `roster_state` dưới DB chỉ có ('fixed','off','pending'), còn `money.js: rosterStatus` suy

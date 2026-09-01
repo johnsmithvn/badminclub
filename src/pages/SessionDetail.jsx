@@ -167,15 +167,39 @@ export default function SessionDetail() {
                         <Switch label={charge.paid ? t('session.guestPaid') : t('session.guestDebt')}
                           checked={charge.paid} disabled={!canMoney}
                           onChange={() => a.toggleGuestPaid(charge.id)} />
+                        {extra && canEdit && (
+                          <IconButton
+                            icon="trash-2"
+                            size="sm"
+                            variant="ghost"
+                            style={{ color: 'var(--status-incident)' }}
+                            label={t('common.delete')}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              a.removeExtra(s.id, m.id)
+                            }}
+                          />
+                        )}
                       </>
                     : adhoc
                     ? <span style={{ ...S.caption, minWidth: 96, textAlign: 'right' }} />
                     : extra
-                    ? <>
+                    ? <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ ...S.caption, minWidth: 96, textAlign: 'right' }}>{t('session.extraDueTag')}</span>
-                        {canEdit && <IconButton icon="user-round-minus" size="sm" variant="ghost"
-                          label={t('common.delete')} onClick={() => a.removeExtra(s.id, m.id)} />}
-                      </>
+                        {canEdit && (
+                          <IconButton
+                            icon="trash-2"
+                            size="sm"
+                            variant="ghost"
+                            style={{ color: 'var(--status-incident)' }}
+                            label={t('common.delete')}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              a.removeExtra(s.id, m.id)
+                            }}
+                          />
+                        )}
+                      </div>
                     : <span style={{
                         font: 'var(--type-caption)', minWidth: 96, textAlign: 'right',
                         color: !due ? 'var(--text-disabled)'
