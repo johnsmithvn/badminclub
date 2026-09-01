@@ -244,7 +244,13 @@ function AllMembers({ canEdit }) {
             }} />
           {!memberRefs(db, r.id).length ? (
             <IconButton icon="trash-2" size="sm" variant="ghost"
-              label={t('common.delete')} onClick={() => a.deleteMember(r.id)} />
+              label={t('common.delete')} onClick={() => a.confirm({
+                title: `Xoá thành viên "${r.name}"?`,
+                message: `Bạn có chắc chắn muốn xoá thành viên "${r.name}" khỏi CLB?`,
+                tone: 'danger',
+                confirmText: 'Xoá thành viên',
+                onConfirm: () => a.deleteMember(r.id),
+              })} />
           ) : (
             <span
               title="Đã phát sinh lịch sử (điểm danh / tiền quỹ) — không cho phép xoá để bảo toàn sổ sách. Hãy dùng nút Inactive bên cạnh."
@@ -392,10 +398,17 @@ function AllMembers({ canEdit }) {
                 size="sm"
                 icon="user-round-minus"
                 onClick={() => {
-                  if (window.confirm(`Chuyển ${selected.length} thành viên sang trạng thái Inactive (lịch sử điểm danh và quỹ được giữ nguyên 100%)?`)) {
-                    a.deactivateMembersBulk(selected)
-                    setSelectedIds([])
-                  }
+                  a.confirm({
+                    title: 'Chuyển trạng thái Inactive?',
+                    message: `Chuyển ${selected.length} thành viên đã chọn sang trạng thái Inactive?`,
+                    desc: 'Lịch sử điểm danh và quỹ của các thành viên này được giữ nguyên 100%.',
+                    tone: 'warning',
+                    confirmText: 'Chuyển Inactive',
+                    onConfirm: () => {
+                      a.deactivateMembersBulk(selected)
+                      setSelectedIds([])
+                    },
+                  })
                 }}
               >
                 Chuyển Inactive
@@ -421,15 +434,26 @@ function AllMembers({ canEdit }) {
               onClick={() => {
                 const blocked = selected.filter((id) => memberRefs(db, id).length > 0)
                 if (blocked.length === selected.length) {
-                  return alert('Tất cả thành viên đã chọn đều đã có dữ liệu (điểm danh/quỹ). Hệ thống không cho phép xoá vĩnh viễn để bảo toàn lịch sử. Hãy bấm nút "Ngưng hoạt động (Off)" bên cạnh!')
+                  return a.alert({
+                    title: 'Không thể xoá vĩnh viễn',
+                    message: 'Tất cả thành viên đã chọn đều đã có dữ liệu (điểm danh/quỹ).',
+                    desc: 'Hệ thống không cho phép xoá vĩnh viễn để bảo toàn lịch sử sổ sách. Hãy dùng nút "Chuyển Inactive" bên cạnh.',
+                    tone: 'warning',
+                  })
                 }
                 const msg = blocked.length > 0
-                  ? `Có ${selected.length - blocked.length} người chưa có dữ liệu sẽ bị xoá. Còn ${blocked.length} người đã có dữ liệu sinh hoạt sẽ được giữ lại an toàn. Bạn có muốn tiếp tục?`
-                  : `Bạn có chắc chắn muốn xoá vĩnh viễn ${selected.length} thành viên này?`
-                if (window.confirm(msg)) {
-                  a.deleteMembersBulk(selected)
-                  setSelectedIds([])
-                }
+                  ? `Có ${selected.length - blocked.length} người chưa có dữ liệu sẽ bị xoá. Còn ${blocked.length} người đã có dữ liệu sinh hoạt sẽ được giữ lại an toàn.`
+                  : `Bạn có chắc chắn muốn xoá vĩnh viễn ${selected.length} thành viên này khỏi CLB?`
+                a.confirm({
+                  title: 'Xoá thành viên hàng loạt',
+                  message: msg,
+                  tone: 'danger',
+                  confirmText: 'Xác nhận xoá',
+                  onConfirm: () => {
+                    a.deleteMembersBulk(selected)
+                    setSelectedIds([])
+                  },
+                })
               }}
             >
               Xoá vĩnh viễn

@@ -91,7 +91,13 @@ export default function SessionDetail() {
               {t('session.copyZalo')}
             </Button>
             {canEdit && s.status !== 'cancelled' && (
-              <Button variant="ghost" size="sm" icon="circle-x" onClick={() => a.setSessionStatus(s.id, 'cancelled')}>
+              <Button variant="ghost" size="sm" icon="circle-x" onClick={() => a.confirm({
+                title: 'Huỷ buổi tập này?',
+                message: 'Buổi tập sẽ được chuyển sang trạng thái Đã huỷ.',
+                tone: 'warning',
+                confirmText: 'Huỷ buổi tập',
+                onConfirm: () => a.setSessionStatus(s.id, 'cancelled'),
+              })}>
                 {t('session.doCancel')}
               </Button>
             )}
@@ -176,7 +182,13 @@ export default function SessionDetail() {
                             label={t('common.delete')}
                             onClick={(e) => {
                               e.stopPropagation()
-                              a.removeExtra(s.id, m.id)
+                              a.confirm({
+                                title: 'Bỏ người chơi đi thêm?',
+                                message: `Bỏ "${m.name}" khỏi danh sách đi thêm của buổi này?`,
+                                tone: 'danger',
+                                confirmText: 'Bỏ người chơi',
+                                onConfirm: () => a.removeExtra(s.id, m.id),
+                              })
                             }}
                           />
                         )}
@@ -195,7 +207,13 @@ export default function SessionDetail() {
                             label={t('common.delete')}
                             onClick={(e) => {
                               e.stopPropagation()
-                              a.removeExtra(s.id, m.id)
+                              a.confirm({
+                                title: 'Bỏ người chơi đi thêm?',
+                                message: `Bỏ "${m.name}" khỏi danh sách đi thêm của buổi này?`,
+                                tone: 'danger',
+                                confirmText: 'Bỏ người chơi',
+                                onConfirm: () => a.removeExtra(s.id, m.id),
+                              })
                             }}
                           />
                         )}
@@ -255,7 +273,13 @@ export default function SessionDetail() {
                       </Button>
                       {c.extra && (
                         <IconButton icon="trash-2" size="sm" variant="ghost"
-                          label={t('common.delete')} onClick={() => a.removeSessionCourt(s.id, i)} />
+                          label={t('common.delete')} onClick={() => a.confirm({
+                            title: 'Xoá sân thuê thêm?',
+                            message: `Xoá sân "${c.from} → ${c.to}" khỏi buổi tập này?`,
+                            tone: 'danger',
+                            confirmText: 'Xoá sân',
+                            onConfirm: () => a.removeSessionCourt(s.id, i),
+                          })} />
                       )}
                     </>
                   )}
@@ -298,7 +322,13 @@ export default function SessionDetail() {
                         checked={g.paid} onChange={() => a.toggleGuestPaid(g.id)} />
                       {canEdit && (
                         <IconButton icon="trash-2" size="sm" variant="ghost"
-                          label={t('common.delete')} onClick={() => a.removeGuest(g.id)} />
+                          label={t('common.delete')} onClick={() => a.confirm({
+                            title: 'Xoá khách giao lưu?',
+                            message: `Xoá khách "${guestOf(db, g.guestId).name}" khỏi buổi tập này?`,
+                            tone: 'danger',
+                            confirmText: 'Xoá khách',
+                            onConfirm: () => a.removeGuest(g.id),
+                          })} />
                       )}
                     </div>
                   ))}
@@ -370,12 +400,24 @@ export default function SessionDetail() {
                   )}
                   {s.status === 'open' && (
                     <Button variant="primary" icon="circle-check" disabled={!canMoney}
-                      onClick={() => a.setSessionStatus(s.id, 'closed')}>
+                      onClick={() => a.confirm({
+                        title: 'Chốt buổi tập này?',
+                        message: 'Số liệu điểm danh, số lượng cầu và chi phí sẽ được đóng băng vào báo cáo.',
+                        tone: 'info',
+                        confirmText: 'Chốt buổi',
+                        onConfirm: () => a.setSessionStatus(s.id, 'closed'),
+                      })}>
                       {t('session.doClose')}
                     </Button>
                   )}
                   {(s.status === 'closed' || s.status === 'cancelled') && (
-                    <Button variant="secondary" icon="rotate-ccw" onClick={() => a.setSessionStatus(s.id, 'open')}>
+                    <Button variant="secondary" icon="rotate-ccw" onClick={() => a.confirm({
+                      title: 'Mở lại buổi tập?',
+                      message: 'Buổi tập sẽ được mở lại để chỉnh sửa điểm danh và chi phí.',
+                      tone: 'warning',
+                      confirmText: 'Mở lại buổi',
+                      onConfirm: () => a.setSessionStatus(s.id, 'open'),
+                    })}>
                       {t('session.doReopen')}
                     </Button>
                   )}

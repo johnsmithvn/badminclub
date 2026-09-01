@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { Alert, Avatar, Button, Card, Input, Select, Switch, Tabs, Tag } from '#ds'
-import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
+import { DeleteClubDialog, Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useAuth } from '#contexts/AuthContext.jsx'
 import { WD, ddmy } from '#utils/dates.js'
 import { ROLES, can, roleDesc } from '#lib/roles.js'
 import { fmtK, intOf } from '#lib/money.js'
@@ -121,6 +122,47 @@ function General({ canEdit }) {
 
         <LevelsCard canEdit={canEdit} />
       </div>
+
+      <DangerZone />
+    </>
+  )
+}
+
+/**
+ * Vùng nguy hiểm — chỉ CHỦ CLB thấy. Không gộp vào thẻ "Thông tin CLB" bên trên: nút phá sạch
+ * dữ liệu mà nằm cạnh ô sửa tên CLB là mời người ta bấm nhầm.
+ *
+ * Đọc vai từ `activeClub.role` (RPC my_clubs) chứ không đọc `db.viewAs` — `viewAs` là chế độ
+ * "xem như vai khác", chủ CLB đang xem-như-thành-viên vẫn phải là chủ CLB. Cổng thật nằm ở
+ * RPC `delete_club` dưới DB, đây chỉ là lớp tiện.
+ */
+function DangerZone() {
+  const { db, toast } = useApp()
+  const { activeClub } = useAuth()
+  const [open, setOpen] = useState(false)
+  if (!activeClub || activeClub.role !== 'owner') return null
+
+  return (
+    <>
+      <Card title={t('settings.dangerTitle')} subtitle={t('settings.dangerSub')}
+        icon="triangle-alert" padding="14px 16px">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220, font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+            {t('settings.delClubNote')}
+          </div>
+          <Button variant="danger" size="sm" icon="trash-2" onClick={() => setOpen(true)}>
+            {t('clubs.delBtn')}
+          </Button>
+        </div>
+      </Card>
+
+      {open && (
+        <DeleteClubDialog
+          club={{ id: activeClub.id, name: db.club.name, code: db.club.code }}
+          onClose={() => setOpen(false)}
+          onDone={() => toast(t('toast.clubDeleted', { name: db.club.name }))}
+        />
+      )}
     </>
   )
 }
@@ -536,9 +578,13 @@ function Groups({ canEdit }) {
                       size="sm"
                       icon="trash-2"
                       onClick={() => {
-                        if (window.confirm(`Bạn có chắc chắn muốn xoá nhóm "${g.name}"?`)) {
-                          a.deleteGroup(g.id)
-                        }
+                        a.confirm({
+                          title: `Xoá nhóm "${g.name}"?`,
+                          message: `Bạn có chắc chắn muốn xoá nhóm "${g.name}"? Các thành viên thuộc nhóm này sẽ được chuyển về nhóm mặc định.`,
+                          tone: 'danger',
+                          confirmText: 'Xoá nhóm',
+                          onConfirm: () => a.deleteGroup(g.id),
+                        })
                       }}
                     >
                       Xoá nhóm
@@ -626,10 +672,19 @@ function Access({ canEdit, pending }) {
   const lm = { code: true, phone: true, ...db.club.linkModes }
   const digits = (x) => (x || '').replace(/\D/g, '')
 
+  /**
+   * Tài khoản đã gắn vào MỘT bản ghi nào đó của CLB này. Không được hiện lại ở ô ghép:
+   * `linkMemberUser` tự bỏ ghép bản ghi cũ (một user chỉ gắn một bản ghi — `club_members`
+   * có UNIQUE (club_id, user_id)), nên chọn nhầm là ÂM THẦM cướp tài khoản của người khác,
+   * và toast chỉ báo ghép thành công chứ không nói ai vừa bị gỡ.
+   */
+  const takenUserIds = new Set(db.members.filter((m) => m.userId).map((m) => m.userId))
+  const freeUsers = (db.users || []).filter((u) => !takenUserIds.has(u.id))
+
   /** Tài khoản có SĐT trùng và CHƯA gắn vào CLB này — chỉ gợi ý, không tự ghép. */
   const suggestFor = (m) => {
     if (!lm.phone || m.userId || !digits(m.phone)) return null
-    return db.users.find((u) => digits(u.phone) === digits(m.phone) && !db.members.some((x) => x.userId === u.id)) || null
+    return freeUsers.find((u) => digits(u.phone) === digits(m.phone)) || null
   }
   const unlinked = db.members.filter((m) => !m.userId && m.active !== false)
   const linkedCount = db.members.filter((m) => m.userId).length
@@ -751,7 +806,15 @@ function Access({ canEdit, pending }) {
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
                   {canEdit && user && (
                     <Button variant="ghost" size="sm" icon="unlink"
-                      onClick={() => a.unlinkMember(m.id)}>{t('settings.doUnlink')}</Button>
+                      onClick={() => a.confirm({
+                        title: `Bỏ ghép tài khoản của "${m.name}"?`,
+                        message: `Hủy liên kết giữa tài khoản "${user.nick || user.name}" và thành viên "${m.name}"?`,
+                        tone: 'warning',
+                        confirmText: 'Bỏ ghép',
+                        onConfirm: () => a.unlinkMember(m.id),
+                      })}>
+                      {t('settings.doUnlink')}
+                    </Button>
                   )}
                   {canEdit && !user && (
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -759,8 +822,12 @@ function Access({ canEdit, pending }) {
                         size="sm"
                         style={{ minWidth: 160 }}
                         value={ui.form['link_u_' + m.id] ?? (sug ? sug.id : '')}
-                        options={[{ value: '', label: 'Chọn user để ghép...' }].concat(
-                          (db.users || []).map((u) => ({
+                        disabled={freeUsers.length === 0}
+                        options={[{
+                          value: '',
+                          label: t(freeUsers.length ? 'settings.linkPick' : 'settings.linkNoFree'),
+                        }].concat(
+                          freeUsers.map((u) => ({
                             value: u.id,
                             label: (u.name || u.phone || u.id) + (u.phone ? ` · ${u.phone}` : ''),
                           }))

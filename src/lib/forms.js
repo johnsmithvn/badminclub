@@ -17,6 +17,18 @@ export const scheduleForm = (db) => ({
   rows: defaultCourtRows(db), start: db.today, end: '',
 })
 
+/**
+ * Form SỬA lịch đã có. `eSchedId` là cờ phân biệt sửa với tạo mới — dialog dùng chung một
+ * component. `sGroup` có mặt để hiện tên nhóm, nhưng KHÔNG cho đổi: buổi đã sinh giữ groupId
+ * cũ, đổi là lịch nói nhóm A còn buổi nói nhóm B, mà đơn giá và công nợ đều đếm theo groupId.
+ */
+export const editScheduleForm = (s) => ({
+  eSchedId: s.id, sName: s.name || '', sGroup: s.groupId,
+  weekdays: (s.weekdays || []).slice(),
+  rows: (s.rows || []).map((r) => ({ ...r })),
+  start: s.start, end: s.end || '',
+})
+
 /** Form nhập kho cầu. `pLeft` = số quả còn trong tủ TRƯỚC khi nhập, để trống thì bỏ qua. */
 export const purchaseForm = (db) => ({
   pDate: db.today, pType: db.shuttleTypes[0] && db.shuttleTypes[0].id,

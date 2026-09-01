@@ -179,6 +179,54 @@ export function ledger(db) {
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
 }
 
+/**
+ * HOÀN TÁC một dòng sổ quỹ: dòng này đến từ đâu, và gỡ bằng cách nào.
+ *
+ * Sổ quỹ là bảng SUY RA, không phải bảng lưu — `ledger()` dựng dòng từ `dues`, `sessionGuests`,
+ * `courtBills`, `purchases`, `adjustments` và `manual`. Nên "hoàn tác" ở đây KHÔNG được xoá một
+ * dòng sổ (không có dòng nào để xoá), mà phải lật đúng cái cờ ở NGUỒN — y hệt bấm "Thu" rồi
+ * "Bỏ thu" ở màn Công nợ. Lật xong thì dòng tự biến khỏi sổ và số dư tự trừ lại.
+ *
+ * Trả `null` = không hoàn ở đây được. Ba nhóm rơi vào đó, cố ý:
+ *   - `opening` số dư mang sang — sửa ở Cài đặt, không phải một giao dịch;
+ *   - `ct`/`cs`/`ce` tiền sân, bán sân, sân thuê thêm — suy từ buổi ĐÃ CHỐT. Muốn đổi thì mở
+ *     lại buổi, không thì sổ quỹ nói một đằng buổi nói một nẻo;
+ *   - `cb`/`pu` mà QUỸ tự trả — dòng chi là chính khoản mua đó, gỡ nghĩa là xoá hoá đơn,
+ *     phải đi qua nút xoá riêng chứ không phải nút hoàn tác.
+ */
+export function undoTarget(db, row) {
+  if (!row) return null
+
+  // Dòng ghi tay so bằng ID ĐẦY ĐỦ và phải xét TRƯỚC khi cắt tiền tố: id của nó là uuid trần,
+  // mà uuid là chuỗi hex nên hoàn toàn có thể bắt đầu bằng "cb" hay "aj". Cắt hai ký tự đầu
+  // trước là có ngày bấm hoàn một dòng chi tay lại đi gỡ nhầm một hoá đơn sân.
+  if ((db.manual || []).some((m) => m.id === row.id)) return { kind: 'manual', id: row.id }
+
+  const tag = row.id.slice(0, 2)
+  const id = row.id.slice(2)
+
+  if (tag === 'du') {
+    const x = (db.dues || []).find((y) => y.id === id)
+    return x && dueState(x).paid > 0 ? { kind: 'due', id } : null
+  }
+  if (tag === 'sg') {
+    const x = (db.sessionGuests || []).find((y) => y.id === id)
+    return x && x.paid ? { kind: 'guest', id } : null
+  }
+  if (tag === 'aj') {
+    // settleAdjust() nhận `key`, không nhận id — khoá của một dòng đối chiếu là (tháng,nhóm,người,chiều).
+    const x = (db.adjustments || []).find((y) => y.id === id)
+    return x && x.paid && x.settle === 'cash' ? { kind: 'adjust', key: x.key } : null
+  }
+  if (tag === 'cb' || tag === 'pu') {
+    const kind = tag === 'cb' ? 'court' : 'shuttle'
+    const x = (tag === 'cb' ? db.courtBills : db.purchases || []).find((y) => y.id === id)
+    // Chỉ hoàn được khoản THÀNH VIÊN ỨNG rồi CLB đã trả lại: gỡ `repaidAt` là tiền chưa rời két.
+    return x && !isVault(db, x.payerId) && x.repaidAt ? { kind: 'advance', advKind: kind, id } : null
+  }
+  return null
+}
+
 /** Số dư luỹ kế toàn bộ, không theo tháng. */
 export const fundBalance = (db) => ledger(db).reduce((t2, r) => t2 + (r.dir === 'in' ? r.amount : -r.amount), 0)
 

@@ -163,6 +163,27 @@ export function AuthProvider({ children }) {
       return { club, list }
     },
 
+    /**
+     * Xoá CỨNG một CLB — không hồi được. Hai cổng gác nằm ở RPC `delete_club`
+     * (`0007_delete_club.sql`), KHÔNG ở đây: người gọi phải là owner đang hoạt động của chính
+     * CLB đó, và `code` phải khớp `clubs.code`. Client chỉ là lớp tiện, không phải lớp bảo vệ —
+     * `clubs` cố ý không có policy DELETE nên không có đường xoá nào khác.
+     *
+     * Bỏ chọn CLB trước khi `refresh()`: `activeClub` là giá trị DERIVE từ `clubs`, nhưng
+     * `App.jsx` gác cổng bằng `activeClubId` thô — không xoá id đó thì màn hình vẫn cố nạp một
+     * CLB không còn tồn tại và rơi vào trang lỗi.
+     *
+     * ponytail: nếu đúng lúc bấm xoá còn một thay đổi đang chờ debounce, `flushNow()` của
+     * AppContext sẽ ghi vào CLB vừa xoá và bắn một toast "đồng bộ thất bại" thừa. Chưa xử vì
+     * phải kéo `storage.reset()` lên tận đây; nâng cấp khi nào thấy nó phiền thật.
+     */
+    async deleteClub(clubId, code) {
+      if (!supabase) throw new Error(t('auth.noDb'))
+      unwrap(await supabase.rpc('delete_club', { p_club: clubId, p_code: code }))
+      if (activeClubId === clubId) setActiveClub(null)
+      return refresh(session?.user?.id)
+    },
+
     async joinByCode(code, note) {
       if (!supabase) throw new Error(t('auth.noDb'))
       const req = unwrap(await supabase.rpc('join_club_by_code', {
@@ -174,7 +195,7 @@ export function AuthProvider({ children }) {
     },
 
     refreshClubs: () => refresh(session?.user?.id),
-  }), [refresh, session, setActiveClub])
+  }), [refresh, session, setActiveClub, activeClubId])
 
   const value = useMemo(
     () => ({

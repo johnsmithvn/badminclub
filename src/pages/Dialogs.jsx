@@ -5,13 +5,14 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
 import { checkOf, checkPreview, fmtK, genderTxt, intOf, offBackSuggest } from '#lib/money.js'
 import { venueOptions } from '#lib/forms.js'
+import { planScheduleEdit } from '#lib/schedules.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
 import { generateSampleCsv, parseAndValidateMembers, validateMemberRow } from '#lib/csv.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
 export default function Dialogs() {
-  const { ui } = useApp()
+  const { ui, a } = useApp()
   const D = {
     schedule: ScheduleDialog,
     adhoc: AdhocDialog,
@@ -29,7 +30,116 @@ export default function Dialogs() {
     offBack: OffBackDialog,
     zalo: ZaloDialog,
   }[ui.dialog]
-  return D ? <D /> : null
+
+  return (
+    <>
+      {D ? <D /> : null}
+      {ui.confirm && <ConfirmDialog confirm={ui.confirm} onClose={() => a.closeConfirm()} />}
+    </>
+  )
+}
+
+function ConfirmDialog({ confirm, onClose }) {
+  const {
+    title = 'Xác nhận',
+    message,
+    desc,
+    tone = 'danger', // 'danger' | 'warning' | 'info' | 'success'
+    confirmText = 'Xác nhận',
+    cancelText = 'Huỷ',
+    icon,
+    onConfirm,
+    onCancel,
+    alertOnly = false,
+  } = confirm
+
+  const handleConfirm = () => {
+    onClose()
+    if (typeof onConfirm === 'function') onConfirm()
+  }
+
+  const handleCancel = () => {
+    onClose()
+    if (typeof onCancel === 'function') onCancel()
+  }
+
+  const toneConfig = {
+    danger: {
+      icon: icon || 'triangle-alert',
+      iconColor: 'var(--status-incident)',
+      iconBg: 'var(--status-incident-bg, rgba(239, 68, 68, 0.12))',
+      btnVariant: 'danger',
+    },
+    warning: {
+      icon: icon || 'alert-circle',
+      iconColor: '#d97706',
+      iconBg: 'rgba(217, 119, 6, 0.12)',
+      btnVariant: 'primary',
+    },
+    info: {
+      icon: icon || 'info',
+      iconColor: 'var(--navy-600)',
+      iconBg: 'var(--surface-brand-soft)',
+      btnVariant: 'primary',
+    },
+    success: {
+      icon: icon || 'circle-check',
+      iconColor: 'var(--status-delivered)',
+      iconBg: 'var(--status-delivered-bg)',
+      btnVariant: 'primary',
+    },
+  }[tone] || {
+    icon: icon || 'info',
+    iconColor: 'var(--navy-600)',
+    iconBg: 'var(--surface-brand-soft)',
+    btnVariant: 'primary',
+  }
+
+  return (
+    <Dialog open title={title} width={460} onClose={handleCancel}>
+      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: 2 }}>
+        <div style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          background: toneConfig.iconBg,
+          color: toneConfig.iconColor,
+        }}>
+          <Icon name={toneConfig.icon} size={24} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 6 }}>
+          <div style={{ font: 'var(--type-body)', color: 'var(--text-primary)', lineHeight: 1.5, wordBreak: 'break-word' }}>
+            {message}
+          </div>
+          {desc && (
+            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', lineHeight: 1.4, wordBreak: 'break-word' }}>
+              {desc}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, marginTop: 20 }}>
+        {!alertOnly && (
+          <Button variant="secondary" onClick={handleCancel}>
+            {cancelText}
+          </Button>
+        )}
+        <Button
+          variant={toneConfig.btnVariant}
+          icon={alertOnly ? undefined : (tone === 'danger' ? 'trash-2' : 'check')}
+          onClick={handleConfirm}
+          style={tone === 'danger' ? { background: 'var(--status-incident)', color: '#fff', borderColor: 'transparent' } : undefined}
+        >
+          {confirmText}
+        </Button>
+      </div>
+    </Dialog>
+  )
 }
 
 /* ---------------- helper dùng chung ---------------- */
@@ -106,17 +216,33 @@ function CourtRows() {
 
 /* ---------------- tạo lịch hàng loạt ---------------- */
 
+/**
+ * Tạo lịch VÀ sửa lịch dùng chung một hộp thoại — `f.eSchedId` là cờ phân biệt. Gộp chứ không
+ * nhân đôi: hai bản sao của cùng bộ ô nhập rồi sẽ lệch nhau, mà lệch ở đây là sinh sai buổi.
+ */
 function ScheduleDialog() {
   const { db, ui, a } = useApp()
   const f = ui.form
   const dates = genDates(f.weekdays, f.start, f.end)
+  const sched = f.eSchedId && db.schedules.find((x) => x.id === f.eSchedId)
+  // Xem trước phải tính bằng ĐÚNG hàm mà action sẽ chạy — hộp thoại hứa gì thì app làm nấy.
+  const plan = sched ? planScheduleEdit(db, sched, f) : null
 
   return (
-    <Shell title={t('schedules.dlgTitle')} desc={t('schedules.dlgDesc')} width={620}
-      onSubmit={() => a.createSchedule(dates)} submitLabel={t('common.create')} submitIcon="repeat"
-      disabled={!dates.length}>
+    <Shell
+      title={t(sched ? 'schedules.editTitle' : 'schedules.dlgTitle')}
+      desc={t(sched ? 'schedules.editDesc' : 'schedules.dlgDesc')}
+      width={620}
+      onSubmit={sched ? () => a.saveSchedule() : () => a.createSchedule(dates)}
+      submitLabel={t(sched ? 'common.save' : 'common.create')}
+      submitIcon="repeat"
+      disabled={sched ? plan.blocked.length > 0 : !dates.length}>
       <Input label={t('schedules.fName')} value={f.sName || ''} onChange={(e) => a.setF('sName', e.target.value)} />
+      {/* Nhóm khoá cứng khi sửa: buổi đã sinh giữ groupId cũ, mà đơn giá một buổi và công nợ
+          đều đếm theo groupId — đổi ở đây là lịch một đằng, tiền một nẻo. */}
       <Select label={t('schedules.fGroup')} value={f.sGroup || db.groups[0]?.id}
+        disabled={!!sched}
+        hint={sched ? t('schedules.groupLocked') : undefined}
         options={db.groups.map((g, idx) => ({ value: g.id, label: g.name + (idx === 0 ? ' (Mặc định)' : '') }))}
         onChange={(e) => a.setF('sGroup', e.target.value)} />
 
@@ -147,13 +273,44 @@ function ScheduleDialog() {
           onChange={(e) => a.setF('end', e.target.value)} />
       </div>
 
-      <Note>
-        {dates.length
-          ? t('schedules.preview', { n: dates.length, from: dd(dates[0]), to: dd(dates[dates.length - 1]) })
-          : t('schedules.previewNone')}
-        <div style={{ marginTop: 4, opacity: 0.85 }}>{t('schedules.previewSkip')}</div>
-      </Note>
+      {plan ? <EditPlan plan={plan} /> : (
+        <Note>
+          {dates.length
+            ? t('schedules.preview', { n: dates.length, from: dd(dates[0]), to: dd(dates[dates.length - 1]) })
+            : t('schedules.previewNone')}
+          <div style={{ marginTop: 4, opacity: 0.85 }}>{t('schedules.previewSkip')}</div>
+        </Note>
+      )}
     </Shell>
+  )
+}
+
+/**
+ * Xem trước kế hoạch sửa — bốn con số, nói thẳng cái gì mất cái gì còn, TRƯỚC khi bấm Lưu.
+ * Xoá một buổi là xoá cả điểm danh, trận và tiền khách đã thu của buổi đó, nên đây không phải
+ * chỗ để nói "sẽ cập nhật một số buổi".
+ */
+function EditPlan({ plan }) {
+  const skip = plan.locked.length + plan.past.length
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {plan.blocked.map((k) => <Alert key={k} tone="danger">{t(k)}</Alert>)}
+      <Note tone={plan.remove.length ? 'warn' : undefined}>
+        {t('schedules.planLine', {
+          keep: plan.keep.length, add: plan.add.length, remove: plan.remove.length,
+        })}
+        {skip > 0 && (
+          <div style={{ marginTop: 4, opacity: 0.85 }}>{t('schedules.planSkip', { n: skip })}</div>
+        )}
+      </Note>
+      {/* Đổi số buổi của một tháng là đổi MẪU SỐ của đơn giá một buổi (quỹ tháng ÷ số buổi) —
+          tiền back của cả nhóm trong tháng đó tính lại. Phải nói ra, không ai tự đoán được. */}
+      {plan.monthsTouched.length > 0 && (
+        <Alert tone="warning" title={t('schedules.monthWarnTitle')}>
+          {t('schedules.monthWarn', { months: plan.monthsTouched.map(monthTxt).join(', ') })}
+        </Alert>
+      )}
+    </div>
   )
 }
 

@@ -1,7 +1,9 @@
 // Primitive dùng chung của app, dựng trên design system. Chỉ để ở đây khi đã dùng ≥2 nơi.
 // Mọi chữ đi qua t(); mọi màu đi qua var(--*) hoặc helper của #lib/money.js.
 
-import { Icon, StatusPill } from '#ds'
+import { useState } from 'react'
+import { Alert, Button, Dialog, Icon, Input, StatusPill } from '#ds'
+import { useAuth } from '#contexts/AuthContext.jsx'
 import {
   courtNet, courtTxt, fmtK, genderTxt, groupMembers, groupOf, guestRev, levelStyle,
   presentCount, sGuestsOnly, statusMeta, timeTxt,
@@ -131,4 +133,57 @@ export function sessionColumns(db) {
     { key: 'r', header: t('sessionCol.guestRev'), align: 'right', mono: true, render: (r) => fmtK(guestRev(db, r.id)) },
     { key: 'st', header: t('sessionCol.status'), render: (r) => <SessionPill status={r.status} /> },
   ]
+}
+
+/**
+ * Hộp xác nhận XOÁ CỨNG một CLB. Dùng ở hai nơi (trang "CLB của tôi" và Cài đặt → Chung) nên
+ * để chung ở đây — hai bản sao của một hộp thoại phá dữ liệu là hai luật xác nhận rồi sẽ lệch.
+ *
+ * Bắt gõ đúng MÃ CLB chứ không phải bấm "Đồng ý": mã nằm ngay trên hộp thoại, gõ lại mất ba
+ * giây, nhưng nó buộc người bấm phải đọc xem mình đang xoá CLB nào. RPC cũng đòi đúng mã đó —
+ * ô nhập này chỉ là lớp tiện, cổng thật nằm dưới DB.
+ *
+ * `onDone` chạy SAU khi xoá xong (điều hướng đi đâu là việc của nơi gọi).
+ */
+export function DeleteClubDialog({ club, onClose, onDone }) {
+  const { deleteClub } = useAuth()
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const ok = code.trim().toUpperCase() === String(club.code || '').toUpperCase()
+
+  const submit = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      await deleteClub(club.id, code.trim())
+      if (onDone) onDone()
+    } catch (e) {
+      setErr(e.message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open title={t('clubs.delTitle')} width={520} onClose={busy ? undefined : onClose}>
+      <div style={{ display: 'grid', gap: 14 }}>
+        <Alert tone="danger" title={t('clubs.delWarnTitle')}>{t('clubs.delWarn')}</Alert>
+        <Input
+          label={t('clubs.delConfirmLabel', { code: club.code })}
+          mono
+          value={code}
+          disabled={busy}
+          onChange={(e) => setCode(e.target.value)}
+        />
+        {err && <Alert tone="danger">{err}</Alert>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9 }}>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="danger" icon="trash-2" disabled={!ok || busy} onClick={submit}>
+            {t(busy ? 'clubs.delBusy' : 'clubs.delSubmit')}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
 }

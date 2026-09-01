@@ -5,7 +5,7 @@ import { Empty, Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, ddmy } from '#utils/dates.js'
 import { courtOf, groupOf } from '#lib/money.js'
-import { scheduleForm } from '#lib/forms.js'
+import { editScheduleForm, scheduleForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
 
@@ -45,12 +45,18 @@ export default function Schedules({ canEdit: propCanEdit }) {
       ),
     },
     {
-      key: 'act', header: '',
+      key: 'act', header: '', align: 'right',
       render: (r) => canEdit && (
-        <Button variant="ghost" size="sm" icon={r.active ? 'pause' : 'play'}
-          onClick={() => a.toggleSchedule(r.id)}>
-          {t(r.active ? 'schedules.turnOff' : 'schedules.turnOn')}
-        </Button>
+        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+          <Button variant="ghost" size="sm" icon="settings-2"
+            onClick={() => a.openDialog('schedule', editScheduleForm(r))}>
+            {t('schedules.edit')}
+          </Button>
+          <Button variant="ghost" size="sm" icon={r.active ? 'pause' : 'play'}
+            onClick={() => a.toggleSchedule(r.id)}>
+            {t(r.active ? 'schedules.turnOff' : 'schedules.turnOn')}
+          </Button>
+        </div>
       ),
     },
   ]

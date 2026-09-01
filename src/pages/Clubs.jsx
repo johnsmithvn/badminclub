@@ -3,8 +3,8 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Avatar, Button, Dialog, Icon, Input, StatusPill } from '#ds'
-import { Empty, Mono, Overline } from '#ui'
+import { Alert, Avatar, Button, Dialog, Icon, IconButton, Input, StatusPill } from '#ds'
+import { DeleteClubDialog, Empty, Mono, Overline } from '#ui'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy } from '#utils/dates.js'
@@ -17,6 +17,7 @@ export default function Clubs() {
   const { toast } = useApp()
   const navigate = useNavigate()
   const [dlg, setDlg] = useState(null) // 'create' | 'join' | null
+  const [del, setDel] = useState(null) // CLB đang chờ xác nhận xoá
 
   const pending = (requests || []).filter((r) => r.status === 'pending')
   const rejected = (requests || []).filter((r) => r.status === 'rejected')
@@ -72,17 +73,26 @@ export default function Clubs() {
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
             {clubs.map((c) => (
-              <button key={c.id} type="button" onClick={() => enter(c.id)} style={S.row}>
-                <div style={S.rowIcon}><Icon name="building-2" size={20} /></div>
-                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                  <div style={S.rowName}>{c.name}</div>
-                  <Mono color="var(--text-muted)">
-                    {t('clubs.meta', { code: c.code, n: c.member_count })}
-                  </Mono>
-                </div>
+              /* Thẻ là <div>, phần bấm-để-vào là <button> con: nút Xoá không lồng được vào
+                 trong một <button> khác, mà bỏ <button> đi thì mất luôn điều hướng bàn phím. */
+              <div key={c.id} style={S.row}>
+                <button type="button" onClick={() => enter(c.id)} style={S.rowMain}>
+                  <div style={S.rowIcon}><Icon name="building-2" size={20} /></div>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    <div style={S.rowName}>{c.name}</div>
+                    <Mono color="var(--text-muted)">
+                      {t('clubs.meta', { code: c.code, n: c.member_count })}
+                    </Mono>
+                  </div>
+                </button>
                 <span style={S.rolePill}>{roleName(c.role)}</span>
+                {/* Chỉ chủ CLB. Vai lấy từ RPC my_clubs, và RPC xoá gác lại lần nữa dưới DB. */}
+                {c.role === 'owner' && (
+                  <IconButton icon="trash-2" size="sm" variant="ghost"
+                    label={t('clubs.delBtn')} onClick={() => setDel(c)} />
+                )}
                 <Icon name="chevron-right" size={18} style={{ color: 'var(--text-muted)' }} />
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -117,6 +127,13 @@ export default function Clubs() {
         )}
       </div>
 
+      {del && (
+        <DeleteClubDialog
+          club={del}
+          onClose={() => setDel(null)}
+          onDone={() => { toast(t('toast.clubDeleted', { name: del.name })); setDel(null) }}
+        />
+      )}
       {dlg === 'create' && <CreateDialog onClose={() => setDlg(null)} onDone={enter} create={createClub} toast={toast} />}
       {dlg === 'join' && <JoinDialog onClose={() => setDlg(null)} join={joinByCode} toast={toast} />}
     </div>
@@ -311,6 +328,11 @@ const S = {
     display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '14px 16px',
     background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 12,
     boxShadow: 'var(--shadow-xs)', cursor: 'pointer', font: 'inherit', textAlign: 'left',
+  },
+  rowMain: {
+    flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12,
+    padding: 0, border: 0, background: 'transparent', cursor: 'pointer',
+    font: 'inherit', textAlign: 'left', color: 'inherit',
   },
   rowIcon: {
     width: 40, height: 40, flex: '0 0 auto', borderRadius: 10, background: 'var(--surface-brand-soft)',

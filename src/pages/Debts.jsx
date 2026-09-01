@@ -673,7 +673,14 @@ function Advances({ rows, canMoney }) {
                   icon="trash-2"
                   variant="ghost"
                   label="Xoá khoản nợ này"
-                  onClick={() => a.deleteAdvance(r.kind, r.id)}
+                  onClick={() => a.confirm({
+                    title: 'Xoá khoản nợ / chi hộ này?',
+                    message: `Bạn có chắc chắn muốn xoá khoản "${r.name} · ${fmt(r.amount)}"?`,
+                    desc: 'Khoản chi hộ này sẽ bị xoá khỏi danh sách nợ của CLB.',
+                    tone: 'danger',
+                    confirmText: 'Xoá khoản nợ',
+                    onConfirm: () => a.deleteAdvance(r.kind, r.id),
+                  })}
                   style={{ color: 'var(--status-incident)' }}
                 />
               </div>

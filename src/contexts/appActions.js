@@ -10,9 +10,10 @@ import {
   adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, joinDues,
   adhocCharges, chargeName, sGuestsOnly,
 } from '#lib/money.js'
-import { CATS, fundBalance } from '#lib/ledger.js'
+import { CATS, fundBalance, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
+import { applyScheduleEdit, planScheduleEdit } from '#lib/schedules.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -129,7 +130,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
   const patchSession = (sid, fn) =>
     up((d) => ({ sessions: d.sessions.map((x) => (x.id === sid ? fn(x, d) : x)) }))
 
-  return {
+  const A = {
     /* ---------- điều hướng, tháng, tab, form ---------- */
     go: (key, id) => nav(key, id),
     openSession: (id) => {
@@ -143,6 +144,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     setF: (k, v) => upUi((u) => ({ form: { ...u.form, [k]: v } })),
     openDialog: (name, form = {}) => upUi(() => ({ dialog: name, form })),
     closeDialog: () => upUi(() => ({ dialog: null, form: {} })),
+    confirm: (options) => {
+      const c = typeof options === 'string' ? { message: options } : options
+      upUi(() => ({ confirm: c }))
+    },
+    alert: (options) => {
+      const c = typeof options === 'string'
+        ? { message: options, alertOnly: true, confirmText: 'Đóng' }
+        : { ...options, alertOnly: true, confirmText: options.okText || options.confirmText || 'Đóng' }
+      upUi(() => ({ confirm: c }))
+    },
+    closeConfirm: () => upUi(() => ({ confirm: null })),
     toggleExpand: (k) => upUi((u) => ({ expanded: { ...u.expanded, [k]: !u.expanded[k] } })),
     setAllExpanded: (map) => upUi(() => ({ expanded: map })),
     toast,
@@ -980,6 +992,31 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ dialog: null, form: {} }))
       toast(t('toast.scheduleCreated', { n: dates.length, from: dd(dates[0]), to: dd(dates[dates.length - 1]) }))
     },
+    /**
+     * SỬA một lịch đã sinh buổi. Toàn bộ luật "được đụng buổi nào" nằm ở
+     * `lib/schedules.js: planScheduleEdit` — buổi đã mở/chốt/huỷ và buổi quá khứ bất khả xâm
+     * phạm, xem chú thích đầu file đó.
+     *
+     * Kế hoạch tính LẠI ở đây từ `db()` chứ không nhận từ dialog: dialog tính để HIỆN, action
+     * tính để LÀM. Nhận bản dialog truyền xuống là có ngày người ta duyệt một bản kế hoạch
+     * còn app chạy một bản khác (state đổi giữa lúc hộp thoại đang mở).
+     */
+    saveSchedule: () => {
+      const f = form()
+      const d0 = db()
+      const sched = (d0.schedules || []).find((x) => x.id === f.eSchedId)
+      if (!sched) return
+      const plan = planScheduleEdit(d0, sched, f)
+      if (plan.blocked.length) return toast(t(plan.blocked[0]))
+
+      up((d) => applyScheduleEdit(d, sched, f, planScheduleEdit(d, sched, f), uid))
+      upUi(() => ({ dialog: null, form: {} }))
+      toast(t('toast.scheduleSaved', {
+        name: f.sName || sched.name,
+        keep: plan.keep.length, add: plan.add.length, remove: plan.remove.length,
+        skip: plan.locked.length + plan.past.length,
+      }))
+    },
     createAdhoc: () => {
       const f = form()
       if (!f.aDate) return toast(t('toast.needDate'))
@@ -1095,6 +1132,26 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ dialog: null, form: {} }))
       toast(t('toast.billAdded', { amount: fmtK(amt) }))
     },
+    /**
+     * Sửa một hoá đơn sân ĐÃ GHI. Gõ nhầm số tiền hay nhầm tháng là chuyện thường, mà cách duy
+     * nhất trước đây là xoá rồi ghi lại — xoá xong ghi lại thì mất luôn `repaidAt`, tức là mất
+     * dấu vết CLB đã trả lại người ứng hay chưa.
+     *
+     * KHÔNG đụng `repaidAt`: đó là sự kiện tiền rời két, thuộc về nút Hoàn/Trả lại, không thuộc
+     * về form sửa. Đổi người ứng thì người mới cũng thừa hưởng đúng trạng thái đã trả đó.
+     */
+    saveCourtBill: () => {
+      const f = form()
+      const amt = intOf(f.bAmount)
+      if (!amt || !(f.bVenue || '').trim()) return toast(t('toast.needVenueAmount'))
+      up((d) => ({
+        courtBills: (d.courtBills || []).map((x) => (x.id === f.eBillId
+          ? { ...x, month: f.bMonth, date: f.bDate, venue: f.bVenue, amount: amt, payerId: f.bPayer || null, note: f.bNote || '' }
+          : x)),
+      }))
+      upUi(() => ({ dialog: null, form: {} }))
+      toast(t('toast.billSaved', { amount: fmtK(amt) }))
+    },
     createLedger: () => {
       const f = form()
       const amt = intOf(f.lAmount)
@@ -1109,6 +1166,19 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
       upUi(() => ({ dialog: null, form: {} }))
       toast(t('toast.ledgerAdded'))
+    },
+    /** Sửa một dòng thu/chi ghi tay. Giữ nguyên `by` — người ghi gốc là dấu vết, không phải ô nhập. */
+    saveLedger: () => {
+      const f = form()
+      const amt = intOf(f.lAmount)
+      if (!amt || !(f.lLabel || '').trim()) return toast(t('toast.needLabelAmount'))
+      up((d) => ({
+        manual: d.manual.map((x) => (x.id === f.eLedgerId
+          ? { ...x, date: f.lDate, dir: f.lDir, cat: f.lCat, label: f.lLabel, amount: amt }
+          : x)),
+      }))
+      upUi(() => ({ dialog: null, form: {} }))
+      toast(t('toast.ledgerSaved'))
     },
     setCourtPayMode: (v) => {
       up((d) => ({ club: { ...d.club, courtPayMode: v } }))
@@ -1768,4 +1838,33 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
   }
 
+  /**
+   * HOÀN TÁC một dòng sổ quỹ — giống hệt bấm "Thu" rồi "Bỏ thu" ở màn Công nợ.
+   *
+   * Sổ quỹ là bảng SUY RA (`lib/ledger.js: ledger`), không có dòng nào để xoá. Nên hoàn tác =
+   * lật đúng cái cờ ở NGUỒN, rồi dòng tự biến khỏi sổ và số dư tự trừ lại. Nguồn nào ứng với
+   * dòng nào là việc của `undoTarget` — hàm thuần, có test.
+   *
+   * Gọi LẠI đúng các action mà màn Công nợ / Kho cầu vẫn dùng chứ không viết luồng gỡ thứ hai:
+   * hai đường gỡ cho cùng một khoản tiền rồi sẽ lệch nhau, mà lệch ở đây là lệch số dư quỹ.
+   * Vì thế `makeActions` trả về `A` chứ không trả literal — cần gọi được action anh em.
+   */
+  A.undoLedgerRow = (rowId) => {
+    const d0 = db()
+    const tg = undoTarget(d0, ledger(d0).find((r) => r.id === rowId))
+    if (!tg) return toast(t('toast.ledgerNoUndo'))
+    if (tg.kind === 'manual') {
+      up((d) => ({ manual: d.manual.filter((m) => m.id !== tg.id) }))
+      return toast(t('toast.ledgerRemoved'))
+    }
+    if (tg.kind === 'due') return A.clearDue(tg.id)
+    if (tg.kind === 'guest') {
+      A.toggleGuestPaid(tg.id)
+      return toast(t('toast.guestUnpaid'))
+    }
+    if (tg.kind === 'adjust') return A.settleAdjust(tg.key)
+    return A.repayAdvance(tg.advKind, tg.id)
+  }
+
+  return A
 }
