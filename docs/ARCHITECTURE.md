@@ -20,7 +20,7 @@ Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả 
 | Chữ và hằng số | `src/i18n/vi.json` + `src/config/*.json` | xem `docs/RULES.md` §3 |
 | Dữ liệu | **Supabase** (Postgres + Auth + RLS), local qua Docker | không còn chế độ dữ liệu mẫu: thiếu `.env.local` là app không chạy. Xem §6 |
 | Lint | ESLint 9 + `react-hooks` | bắt lỗi hook thật |
-| Test | `node:assert/strict`, không framework | theo `docs/RULES.md` §5 |
+| Test | `node --test` + `node:assert/strict`, không framework | runner sẵn có của Node, tự tìm `*.test.js`; xem `docs/RULES.md` §5 |
 
 **Dependency runtime: đúng 4** — `react`, `react-dom`, `react-router-dom`, `lucide-react`.
 Không thêm dependency UI nào khác (không Tailwind, không MUI, không styled-components).
@@ -58,7 +58,7 @@ src/
   routes/index.js     bảng route key ↔ URL
   styles/             index.css + tokens/*.css
   utils/dates.js      ngày, tháng, giờ thập phân, lưới lịch
-  __tests__/          test cho lib/ và utils/
+  __tests__/          test: lib · money · ledger · sync · smoke (xem __tests__/README.md)
 supabase/migrations/   SQL cho bản chạy thật
 docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
 ```
@@ -185,7 +185,7 @@ Ba chế độ ghi, khai báo ở `TABLES` trong `dbmap.js`:
 | `key` | dòng con có khoá tự nhiên (`session_id` + `member_id`…) | `upsert onConflict`, dọn dòng thừa bằng `scope` + `child` |
 | `scope` | dòng con không có khoá ổn định, tập nhỏ (`schedule_slots`, `match_players`…) | scope nào đổi thì xoá sạch scope đó rồi ghi lại |
 
-Hai bất biến bắt buộc, có test khoá ở `src/__tests__/dbmap.test.js`:
+Hai bất biến bắt buộc, có test khoá ở `src/__tests__/sync/dbmap.test.js`:
 
 1. **`db` không đổi ⇒ `diff()` rỗng.** Sai chỗ này là mỗi lần bấm phím ghi lại cả CLB.
 2. **Ảnh chụp dựng bằng chính `toRows()`**, không dựng từ dòng đọc về. Nhờ vậy `load` và `save`
@@ -206,8 +206,9 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 
 | Không làm | Vì | Làm khi nào |
 | --- | --- | --- |
-| Đăng nhập / Supabase Auth | chưa có project, và `viewAs` đủ để dựng và kiểm 5 vai | ngay khi có Supabase |
-| i18n | tiếng Việt là ngôn ngữ gốc, handoff chốt nguyên văn copy | khi có ngôn ngữ thứ hai |
+| ~~Đăng nhập / Supabase Auth~~ | — | ✅ **đã làm** ở Phase 7: đăng ký · đăng nhập bằng email/username/SĐT · CLB của tôi · gác cổng |
+| ~~i18n~~ | — | ✅ **đã làm** ở Phase 0: `src/i18n/vi.json`, thêm ngôn ngữ chỉ cần một file mới |
+| Mời vào CLB qua SĐT | phần NHẬN cần gửi tin thật, chưa có kinh phí | làm thành module riêng; bảng `club_invites` đã chờ sẵn |
 | Bản mobile riêng cho vai `member` | desktop console là ưu tiên 1 của chủ quỹ | handoff `02` §Responsive đã chốt 3 màn cần làm trước |
 | `notifications` / Zalo OA / `audit_logs` | giai đoạn 2 trong handoff `03` | bảng đã có sẵn trong SQL |
 | Code-split theo route | 13 màn, bundle 110 KB gzip là chấp nhận được | khi bundle vượt ~300 KB gzip |

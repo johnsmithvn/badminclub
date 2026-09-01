@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v0.7.0 · **Updated:** 2026-08-31
+**Version:** v0.9.0 · **Updated:** 2026-08-31
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -559,6 +559,113 @@ Kết quả đợt đọc code đối chiếu logic. Tám mục, **không đụn
       đồng bộ như cũ — đợt này chỉ gỡ nguyên nhân hay gặp nhất. Đã đặt `ponytail:` ở
       `storage.js: flush()` kèm hai đường nâng cấp (reload đè state, hoặc ảnh chụp từng phần).
       Mở lại khi gặp ca thứ hai.
+
+---
+
+## Đợt 2 — Dọn nốt danh sách rà code · **XONG 2026-08-31** (chờ user bấm thử)
+
+Không đụng schema, không migration mới.
+
+- [x] **Ba updater không thuần — StrictMode đang bật.** `ARCHITECTURE.md` §4 quy ước 1 cấm đọc
+      state trong updater rồi gây side effect ở đó; ba chỗ vi phạm chính nó.
+      `saveMember` cộng `kept`/`dropped` bên trong updater → dev gọi hai lần → toast báo **gấp
+      đôi** số tiền giữ lại. `createAdhoc` sinh `newId` trong updater rồi `nav()` theo nó.
+      `createMember` đọc `db()` **sau** `up()` rồi mò `members[length - 1]` — mà `dbRef` chỉ cập
+      nhật ở `useLayoutEffect` nên đó là state CŨ, số tiền in ra là của người trước đó.
+      Sửa chung một cách: **tính trước, ghi sau**. Tách `money.js: regroupDues(db, member,
+      groupIds, month)` thuần (xoá / giữ / sinh khoản quỹ khi đổi nhóm cố định) — cùng khuôn với
+      `lockDues`. Test 6 nhánh + mutation-test.
+- [x] **"Từ tháng sau" lấy mốc từ tháng ở HEADER.** `approveChange` và `saveMember` đặt
+      `pendingLevelFrom = addMonth(d.month, 1)`; đang xem tháng 5 mà duyệt đổi trình độ thì mốc
+      rơi vào quá khứ → `levelOf` áp dụng NGAY và đổi luôn trình độ hiện trên buổi đã đánh xong.
+      Lấy từ `monthOf(d.today)`.
+      Kèm: **mặc định của ô "Trình độ mới áp dụng khi nào" đổi từ *Áp dụng ngay* sang *Từ tháng
+      sau*** (`forms.js: editMemberForm`). *Áp dụng ngay* ghi đè `member.level`, mà `levelOf` suy
+      trình độ của MỌI tháng từ đúng ô đó — nó là đường mặc định dẫn thẳng vào việc sửa lại quá
+      khứ. Hai nhãn nói rõ hệ quả: *"sửa cả buổi cũ"* / *"giữ nguyên buổi cũ"*.
+      **Tiền KHÔNG dính:** mọi công thức (`unitPrice`, `lockDues`, `joinDues`) tính theo **giới
+      tính**, không theo trình độ; giá khách thì đã đóng băng vào từng lượt `session_guests`.
+      **ponytail:** chỉ có MỘT ô `pendingLevel` nên lịch sử chỉ đúng cho một lần đổi — đổi lần
+      hai thì đoạn giữa rơi về `level` gốc. Muốn đúng nhiều bậc phải đóng băng `level` vào
+      `attendances` lúc điểm danh (đúng khuôn `session_guests.level`), tốn một migration cho một
+      cái chip. Chưa đáng.
+- [x] **Ba chỗ số trộn nguồn / dựa vào thứ tự mảng.**
+      `SessionDetail` lấy `c.rev - paid` — `rev` ĐÓNG BĂNG, `paid` sống → thêm khách sau khi chốt
+      ra "khách còn nợ" **âm**; giờ nợ tính live hoàn toàn, lệch giữa hai số đã có `costDrift` lo.
+      `Shuttles` lấy "lần kiểm gần nhất" = phần tử cuối mảng chưa sắp (`load()` không `ORDER BY`
+      bảng nào) và guard `(db.stockChecks || [])[db.stockChecks.length - 1]` vô nghĩa — `.length`
+      vẫn nổ nếu mảng chưa có; giờ sắp theo tháng như `checkDue` vẫn làm.
+      `Home` bảng "Tỷ lệ đi tập" dùng `=== true` nên bỏ `'extra'`, trong khi tab Tổng quan cùng
+      trang dùng `isPresent` — hai ô đếm cùng một việc ra hai số.
+- [x] **Khách trùng khoá khi chia sân.** `assign.js: sessionPlayers` lấy `sg.guestId` làm khoá
+      người chơi; thêm cùng một khách hai lượt trong một buổi → hai người **cùng khoá** → `place()`
+      gộp thành một ô, `matchStats` đếm gấp đôi. **Chặn nguyên nhân thay vì đổi khoá:** một khách
+      chỉ có một lượt mỗi buổi, `addGuest` giờ từ chối lượt thứ hai kèm toast. Đổi khoá sang
+      `session_guests.id` thì phải đổi luôn ý nghĩa cột `player_id` ở ba bảng — đắt hơn nhiều mà
+      chẳng mở ra tính năng nào. Tiện thể `addGuest` cũng tra khách và sinh id **trước** updater.
+- [x] **Năm chỗ tài liệu nói sai** (`DATABASE.md` §1 luật 3 · §6 thiếu `0011` · §8 mục 3/4/T1 ·
+      `ARCHITECTURE.md` §7 Auth + i18n). Đã sửa cùng đợt vì đọc doc sai là code sai theo.
+
+**Không làm, có lý do:** count ở tab "Tất cả" vẫn đếm người đang hoạt động dù bộ lọc con có thể
+đang hiện người đã ngưng — cho số nhảy theo bộ lọc thì khó đọc hơn là để yên.
+
+---
+
+## Đợt 3 — Rà bug + tổ chức lại test · **XONG 2026-08-31** (chờ user bấm thử)
+
+Không đụng schema, không migration mới.
+
+### Bug tìm được khi đọc lại code
+
+- [x] **Vai `member` kéo được người trên màn Chia sân → kẹt cả hàng đợi đồng bộ.** RLS của
+      `session_lineups` · `session_court_groups` · `matches` · `match_players` đều gác bằng cờ
+      **`assign`** (`0002_auth_rls.sql:409`), nhưng `permissions.json` cho `member` **route**
+      `assign` (đúng handoff: 3 màn mobile của thành viên) mà **không có cờ** đó — và
+      `Assign.jsx` **không gác một hành động nào**, `grep can(` ra 0 kết quả.
+      Thành viên thường kéo một người → Supabase từ chối → `flush()` ném lỗi → ảnh chụp không
+      cập nhật → op hỏng phát lại mãi, mọi thay đổi sau đó không xuống được DB, màn hình vẫn
+      báo đã lưu. Chặn ở **tầng action** (12 hành động) chứ không ở màn hình, để mọi lối vào đều
+      dính; báo bằng toast, không disable im lặng.
+      Rà luôn 11 cặp `vai:route` còn lại — bảy chỗ kia (`treasurer:settings`, `host:members`,
+      `viewer:fund`…) đều đã gác đúng. Chỉ Chia sân hở.
+- [x] **CLB chưa có sân, bấm "Buổi đột xuất" ở header → cùng một kiểu kẹt.**
+      `defaultCourtRows` trả `courtId: ''` khi CLB chưa có sân, mà `session_courts.court_id` là
+      `uuid NOT NULL REFERENCES courts(id)` → Postgres 22P02. Đây là thao tác một CLB mới toanh
+      chạm vào **đầu tiên**. `createAdhoc` giờ chặn trước bằng toast chỉ đường sang Cài đặt.
+- [x] **Ô nhập quỹ mang sang lúc tạo CLB vẫn dùng `parseInt` trần.**
+      `AuthContext: createClub` — `parseInt('1.650.000')` ra **1**. 18 ô nhập tiền khác đã dọn ở
+      P4.5 nhưng ô này nằm ngoài `appActions` nên bị bỏ sót, và nó là con số theo suốt mọi báo
+      cáo về sau. Chuyển sang `intOf`; `lockDay` kẹp luôn về 1–28 như `setLockDay` vẫn làm.
+- [x] **`fixture.js` thiếu `club.levels`** trong khi `toDb` LUÔN đặt trường đó — test đang chạy
+      trên một hình dữ liệu không bao giờ tồn tại lúc chạy thật.
+
+### Tổ chức lại test
+
+- [x] **Bỏ chuỗi `node a && node b && …` trong `package.json`**, chuyển sang runner sẵn có của
+      Node: `node --test "src/**/*.test.js"`. Tự tìm file, **không phải khai báo file mới ở đâu
+      cả** — luật "wire mọi test vào package.json" ở `RULES.md` §5 đã gỡ.
+- [x] **Tách `money.test.js` (744 dòng, 35 mục, 282 assert) thành 8 file theo CHỦ ĐỀ TIỀN**:
+      `format` · `court` · `shuttle` · `guest` · `member` · `dues` · `cost` · `alerts`.
+      Tách theo việc chứ không theo tên hàm — quỹ tháng → đơn giá → đối chiếu là **một chuỗi**
+      nên để chung `dues.test.js`. Đếm assert trước và sau: **282 → 282**, không rơi mục nào.
+- [x] **Xếp thư mục theo tầng**: `lib/` (logic thuần) · `money/` · `ledger/` · `sync/` ·
+      `smoke/` (bất biến quét toàn repo). Thêm `src/__tests__/README.md` — bảng tra "muốn kiểm
+      X thì vào file nào" + luật đặt test mới.
+- [x] **`lib/roles.test.js` — MỚI, trước đó ma trận quyền có 0 test.** Gồm một phép so mà không
+      chỗ nào khác làm: **`permissions.json` với seed `role_permissions` trong `0001_init.sql`**
+      — hai nguồn của cùng một sự thật, lệch nhau thì UI mở ra thứ RLS từ chối.
+      Cộng bất biến khoá đúng con bug ở trên: vai vào được một route mà thiếu cờ ghi thì cặp
+      `vai:route` đó **phải** nằm trong danh sách đã-rà-tay `READ_ONLY_OK`.
+- [x] **`lib/forms.test.js` — MỚI, trước đó 14 hàm mặc định dialog có 0 test.** Khoá hai mặc
+      định bảo vệ lịch sử (`eWhen` / `eWhenGroup` = *từ tháng sau*) và khoá luật "CLB rỗng không
+      được sinh giá trị rác" — chính chỗ đẻ ra con bug `courtId: ''`.
+- [x] Bù nốt các export chưa từng được nhắc tới: `rowCost` · `checkOf` · `guestPaidRev` ·
+      `savedAdjust` · `genderTxt` · `SHUTTLE_UNIT_FALLBACK` · `catLabel` · `MANUAL_CATS` ·
+      `ASSIGN_MODES` · `modeToast` · `clubRow`.
+      **141/143 export của `lib` + `utils` + `dbmap` giờ có mặt trong test (99%)** — còn `WD` /
+      `WD_FULL` là hằng nhãn thứ, không có gì để khoá.
+
+**16 file test, `npm test` xanh.** Vẫn KHÔNG có framework: `node:assert/strict` thuần.
 
 ---
 

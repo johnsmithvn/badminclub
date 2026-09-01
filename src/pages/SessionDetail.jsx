@@ -9,7 +9,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
   closeWarnings, costDrift, costRow, costState, courtOf, courtPayMode, courtTxt, dueState, duesOf,
-  fmt, fmtK, genderTxt, groupOf, guestOf, guestPaidRev, guestPrice, levelOf, perTube, playedCourts,
+  fmt, fmtK, genderTxt, groupOf, guestOf, guestPaidRev, guestPrice, guestRev, levelOf, perTube, playedCourts,
   presentCount, quotaFor, rowCost, sGuests, sessionMembers, sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
@@ -46,6 +46,10 @@ export default function SessionDetail() {
   const guests = sGuests(db, s.id)
   const dues = duesOf(db, month)
 
+  // Thu khách có HAI con số khác nhau, đừng trộn: `c.rev` là số ĐÓNG BĂNG lúc chốt (thuộc giá
+  // thành), còn đã-thu / còn-nợ là công nợ, luôn sống. Lấy `c.rev - paid` thì thêm một khách sau
+  // khi chốt là ra "khách còn nợ" ÂM. Lệch giữa hai số đã có `costDrift` lo cảnh báo.
+  const revLive = guestRev(db, s.id)
   const paid = guestPaidRev(db, s.id)
   const sold = soldTotal(s)
   // Giá thành buổi — CÙNG hàm với bảng "Giá thành từng buổi" ở Báo cáo, không viết lại công thức.
@@ -269,7 +273,7 @@ export default function SessionDetail() {
                   hint={t('session.sumSoldHint')} color="var(--status-delivered)" />}
                 <SumRow label={t('session.sumGuest')} value={fmt(c.rev)} />
                 <SumRow label={t('session.sumGuestPaid')} value={fmt(paid)} color="var(--status-delivered)" />
-                <SumRow label={t('session.sumGuestDebt')} value={fmt(c.rev - paid)} color="var(--status-delayed)" />
+                <SumRow label={t('session.sumGuestDebt')} value={fmt(revLive - paid)} color="var(--status-delayed)" />
                 <div style={S.sumDivider} />
                 <SumRow label={t('session.sumCost')} value={fmt(c.cost)} strong />
                 <SumRow label={t('session.sumPerHead')} value={fmt(c.per)}

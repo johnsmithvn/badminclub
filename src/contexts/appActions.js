@@ -7,7 +7,7 @@ import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
-  adjustRows, lockDues, joinDues, dueState, intOf, memberRefs,
+  adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, joinDues,
 } from '#lib/money.js'
 import { CATS, fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -76,7 +76,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
   }
   const upUi = (fn) => setUi((u) => ({ ...u, ...fn(u) }))
   const myRole = () => db().viewAs || 'owner'
-  const nextMonthKey = () => addMonth(db().month, 1)
+
+  /**
+   * Chia sân ghi xuống `session_lineups` · `session_court_groups` · `matches` · `match_players`,
+   * mà RLS gác cả bốn bằng cờ `assign` (`0002_auth_rls.sql:409`). Vai `member` CÓ route `assign`
+   * (handoff: 3 màn mobile của thành viên) nhưng KHÔNG có cờ đó.
+   *
+   * Không chặn ở đây thì: member kéo một người → Supabase từ chối → `flush()` ném lỗi → ảnh chụp
+   * đồng bộ không cập nhật → op hỏng phát lại mãi và **cả hàng đợi kẹt**, trong khi màn hình vẫn
+   * báo đã lưu. Chặn bằng toast, không disable im lặng (ARCHITECTURE §4 quy ước 2).
+   */
+  const canAssign = () => {
+    if (can(myRole(), 'assign')) return true
+    toast(t('toast.noAssignPerm'))
+    return false
+  }
 
   /** Danh sách cố định của một tháng, suy từ groupIds nếu tháng đó chưa có bản ghi riêng. */
   const ensureRoster = (d, month) => {
@@ -322,23 +336,29 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       // sau chết im lặng ở Supabase, khách thì đã hiện trên màn hình.
       if (!level) return toast(t('toast.noClubLevels'))
       const gender = f.gGender || 'nam'
-      up((d) => {
-        let gid = (d.guests.find((x) => x.name.toLowerCase() === name.toLowerCase()) || {}).id
-        let guests = d.guests
-        if (!gid) {
-          gid = uid()
-          guests = d.guests.concat([{ id: gid, name, gender, level, invitedBy: f.gBy, phone: '' }])
-        } else {
-          guests = d.guests.map((x) => (x.id === gid ? { ...x, invitedBy: f.gBy } : x))
-        }
-        return {
-          guests,
-          sessionGuests: d.sessionGuests.concat([{
-            id: uid(), sessionId: d.sessionId, guestId: gid, level, gender,
-            price: guestPrice(d, level, gender), paid: !!f.gPaid, invitedBy: f.gBy,
-          }]),
-        }
-      })
+      const d0 = db()
+
+      // Tra khách và sinh id TRƯỚC updater — cần biết `gid` để chặn trùng, và sinh id trong
+      // updater thì StrictMode gọi hai lần ra hai id khác nhau.
+      const old = d0.guests.find((x) => x.name.toLowerCase() === name.toLowerCase())
+      const gid = old ? old.id : uid()
+
+      // Một khách chỉ có MỘT lượt trong một buổi. Thêm hai lượt thì tiền vẫn đúng nhưng chia
+      // sân hỏng: `assign.js: sessionPlayers` lấy `guestId` làm khoá người chơi, hai lượt cùng
+      // khoá nên chỉ đứng được một ô, và `matchStats` đếm số trận gấp đôi cho khách đó.
+      if (sGuests(d0, d0.sessionId).some((x) => x.guestId === gid)) {
+        return toast(t('toast.guestDup', { name: old ? old.name : name }))
+      }
+
+      up((d) => ({
+        guests: old
+          ? d.guests.map((x) => (x.id === gid ? { ...x, invitedBy: f.gBy } : x))
+          : d.guests.concat([{ id: gid, name, gender, level, invitedBy: f.gBy, phone: '' }]),
+        sessionGuests: d.sessionGuests.concat([{
+          id: uid(), sessionId: d.sessionId, guestId: gid, level, gender,
+          price: guestPrice(d, level, gender), paid: !!f.gPaid, invitedBy: f.gBy,
+        }]),
+      }))
       upUi((u) => ({ form: { ...u.form, gName: '' } }))
       toast(t('toast.guestAdded', { name, by: memberOf(db(), f.gBy).name, price: fmt(guestPrice(db(), level, gender)) }))
     },
@@ -455,7 +475,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             if (m.id !== c.memberId) return m
             if (c.field === 'phone') return { ...m, phone: c.to }
             if (c.effective === 'now') return { ...m, level: c.to, pendingLevel: null, pendingLevelFrom: null }
-            return { ...m, pendingLevel: c.to, pendingLevelFrom: addMonth(d.month, 1) }
+            // Mốc lấy từ HÔM NAY, không phải tháng đang chọn ở header: duyệt trong lúc xem
+            // tháng cũ thì mốc rơi vào quá khứ và trình độ mới áp dụng ngay, đổi luôn cái
+            // hiện trên các buổi đã đánh xong.
+            return { ...m, pendingLevel: c.to, pendingLevelFrom: addMonth(monthOf(d.today), 1) }
           })
         }
         return { members, changes: d.changes.map((x) => (x.id === id ? { ...x, status: ok ? 'approved' : 'rejected' } : x)) }
@@ -475,52 +498,41 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      */
     saveMember: () => {
       const f = form()
+      const d0 = db()
+      const was = d0.members.find((m) => m.id === f.eId)
+      if (!was) return
       const gs = f.eGroups || []
-      const gMonth = f.eWhenGroup === 'now' ? db().month : nextMonthKey()
-      let kept = 0
-      let dropped = 0
-      up((d) => {
-        const members = d.members.map((m) => {
-          if (m.id !== f.eId) return m
-          const base = { ...m, name: f.eName, phone: f.ePhone, gender: f.eGender, groupIds: gs.slice() }
-          if (f.eLevel === m.level) return base
-          return f.eWhen === 'now'
-            ? { ...base, level: f.eLevel, pendingLevel: null, pendingLevelFrom: null }
-            : { ...base, pendingLevel: f.eLevel, pendingLevelFrom: addMonth(d.month, 1) }
-        })
+      const gMonth = f.eWhenGroup === 'now' ? d0.month : addMonth(d0.month, 1)
 
+      // Trình độ áp dụng "từ tháng sau" tính theo HÔM NAY, không theo tháng đang xem ở header:
+      // đang xem tháng 5 mà đổi thì mốc rơi vào quá khứ, levelOf áp dụng ngay lập tức và đổi
+      // luôn trình độ hiện trên các buổi đã đánh xong.
+      // ponytail: chỉ có MỘT ô pendingLevel nên lịch sử chỉ đúng cho một lần đổi — đổi lần hai
+      // thì đoạn giữa rơi về `level` gốc. Muốn đúng nhiều bậc phải đóng băng level vào
+      // `attendances` lúc điểm danh (đúng khuôn `session_guests.level`), tốn một migration.
+      const levelPatch = f.eLevel === was.level ? {}
+        : f.eWhen === 'now'
+          ? { level: f.eLevel, pendingLevel: null, pendingLevelFrom: null }
+          : { pendingLevel: f.eLevel, pendingLevelFrom: addMonth(monthOf(d0.today), 1) }
+      const mb = {
+        ...was, name: f.eName, phone: f.ePhone, gender: f.eGender, groupIds: gs.slice(), ...levelPatch,
+      }
+
+      // Tính TRƯỚC updater rồi mới ghi: cộng dồn `kept`/`dropped` bên trong updater là đọc
+      // state rồi gây side effect ở đó — React 19 StrictMode gọi updater hai lần và toast báo
+      // gấp đôi số tiền (xem ARCHITECTURE §4 quy ước 1).
+      const { dues, add, kept, dropped } = regroupDues(d0, mb, gs, gMonth)
+      const rows = add.map((r) => ({ id: uid(), ...r }))
+
+      up((d) => {
         const roster = { ...d.roster }
         const base = roster[gMonth] || ensureRoster(d, gMonth)
         const next = { ...base }
-        let dues = d.dues.slice()
-        const mb = members.find((m) => m.id === f.eId)
         d.groups.forEach((g) => {
-          const want = gs.indexOf(g.id) >= 0
-          next[g.id] = { ...(next[g.id] || {}), [f.eId]: want ? 'fixed' : 'off' }
-          const row = dues.find((x) => x.month === gMonth && x.groupId === g.id && x.memberId === f.eId)
-          if (!want && row) {
-            if (dueState(row).paid > 0) {
-              kept += dueState(row).paid
-              dues = dues.map((x) => (x.id === row.id ? { ...x, note: t('members.keptDueNote') } : x))
-            } else {
-              dropped++
-              dues = dues.filter((x) => x.id !== row.id)
-            }
-          }
-          // Vào nhóm ở tháng ĐÃ chốt danh sách thì phải sinh khoản quỹ, không thì thu hụt.
-          if (want && !row && d.locked[gMonth] && mb) {
-            const jd = joinDues(d, mb, g, gMonth)
-            if (jd.amount > 0) {
-              dues = dues.concat([{
-                id: uid(), month: gMonth, groupId: g.id, memberId: f.eId, amount: jd.amount,
-                paidAmount: 0, paidAt: null, method: '',
-                note: jd.full ? t('members.joinFull') : t('members.joinPartial', { n: jd.sessions }),
-              }])
-            }
-          }
+          next[g.id] = { ...(next[g.id] || {}), [f.eId]: gs.indexOf(g.id) >= 0 ? 'fixed' : 'off' }
         })
         roster[gMonth] = next
-        return { members, roster, dues }
+        return { members: d.members.map((m) => (m.id === f.eId ? mb : m)), roster, dues: dues.concat(rows) }
       })
       upUi(() => ({ dialog: null, form: {} }))
       toast(kept > 0
@@ -595,50 +607,58 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
     createMember: () => {
       const f = form()
+      const d0 = db()
       const name = (f.mName || '').trim()
       if (!name) return toast(t('toast.needMemberName'))
       const start = f.mStart || 'next'
       const gs = f.mGroups || []
       if (start !== 'none' && !gs.length) return toast(t('toast.needGroup'))
-      const nextM = nextMonthKey()
+      const nextM = addMonth(d0.month, 1)
+
+      // Sinh id và tính khoản thu TRƯỚC updater. Trước đây toast đọc `db()` SAU `up()` rồi mò
+      // `members[length - 1]` — mà `db()` lúc đó vẫn là state cũ (dbRef chỉ cập nhật ở
+      // useLayoutEffect), nên số tiền in ra là của NGƯỜI TRƯỚC ĐÓ hoặc 0.
+      const id = uid()
+      const mb = {
+        id, name, gender: f.mGender || 'nam', level: f.mLevel || d0.levels[0],
+        groupIds: start === 'now' ? gs : [], role: 'member', phone: f.mPhone || '',
+        joined: d0.today, active: true, userId: null, pendingLevel: null, pendingLevelFrom: null,
+      }
+      const owed = start !== 'now' ? [] : gs.map((gid) => {
+        const g = d0.groups.find((x) => x.id === gid)
+        const jd = g ? joinDues(d0, mb, g, d0.month) : { amount: 0 }
+        return { gid, jd }
+      }).filter((x) => x.jd.amount > 0)
+
       up((d) => {
-        const id = uid()
-        const mb = {
-          id, name, gender: f.mGender || 'nam', level: f.mLevel || d.levels[0],
-          groupIds: start === 'now' ? gs : [], role: 'member', phone: f.mPhone || '',
-          joined: d.today, active: true, userId: null, pendingLevel: null, pendingLevelFrom: null,
-        }
-        const dues = d.dues.slice()
         const roster = { ...d.roster }
         const fix = (month, gid) => {
           const base = roster[month] || ensureRoster(d, month)
           roster[month] = { ...base, [gid]: { ...(base[gid] || {}), [id]: 'fixed' } }
         }
         gs.forEach((gid) => {
-          const g = d.groups.find((x) => x.id === gid)
           fix(nextM, gid)
-          if (start !== 'now') return
           // Vào từ THÁNG NÀY thì phải cố định cả tháng này, không thì người mới không hiện ở
           // màn điểm danh và không ai chấm công cho họ được.
-          fix(d.month, gid)
-          const jd = joinDues(d, mb, g, d.month)
-          if (jd.amount <= 0) return
-          dues.push({
+          if (start === 'now') fix(d.month, gid)
+        })
+        return {
+          roster,
+          members: d.members.concat([mb]),
+          dues: d.dues.concat(owed.map(({ gid, jd }) => ({
             id: uid(), month: d.month, groupId: gid, memberId: id, amount: jd.amount,
             paidAmount: 0, paidAt: null, method: '',
             note: jd.full ? t('members.joinFull') : t('members.joinPartial', { n: jd.sessions }),
-          })
-        })
-        return { dues, roster, members: d.members.concat([mb]) }
+          }))),
+        }
       })
       upUi(() => ({ dialog: null, form: {} }))
-      const owed = db().dues.filter((x) => x.month === db().month && x.memberId === (db().members[db().members.length - 1] || {}).id)
       toast(start === 'next'
         ? t('toast.memberAddedNext', { name, month: monthTxt(nextM).toLowerCase() })
         : start === 'now'
           ? t('toast.memberAddedNow', {
-              name, month: monthTxt(db().month).toLowerCase(),
-              amount: fmtK(owed.reduce((x, y) => x + y.amount, 0)),
+              name, month: monthTxt(d0.month).toLowerCase(),
+              amount: fmtK(owed.reduce((x, y) => x + y.jd.amount, 0)),
             })
           : t('toast.memberAdded', { name }))
     },
@@ -728,9 +748,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     createAdhoc: () => {
       const f = form()
       if (!f.aDate) return toast(t('toast.needDate'))
-      let newId = ''
+      // CLB chưa có sân nào thì `defaultCourtRows` trả `courtId: ''`, mà `session_courts.court_id`
+      // là `uuid NOT NULL REFERENCES courts(id)` — chuỗi rỗng xuống đó là Postgres 22P02, và vì
+      // ảnh chụp đồng bộ chỉ cập nhật khi MỌI op xong nên cả hàng đợi kẹt lại. Nút "Buổi đột xuất"
+      // nằm ở header nên đây là thao tác một CLB mới toanh chạm vào đầu tiên.
+      if (!db().courts.length) return toast(t('toast.needCourtFirst'))
+      if ((f.rows || []).some((r) => !r.courtId)) return toast(t('toast.needCourtFirst'))
+      // Sinh id TRƯỚC updater: StrictMode gọi updater hai lần, gán biến ngoài ở trong đó thì
+      // biến giữ id của lần gọi này còn state giữ id của lần gọi kia — nav() trỏ vào buổi
+      // không tồn tại.
+      const newId = uid()
       up((d) => {
-        newId = uid()
         return {
           sessionId: newId,
           sessions: d.sessions.concat([{
@@ -1026,7 +1054,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     setAsnMode: (v) => upUi(() => ({ asnMode: v })),
     pickPlayer: (key) => upUi((u) => ({ picked: u.picked === key ? null : key })),
     place: (sid, slot, key) => {
-      if (!key) return
+      if (!key || !canAssign()) return
       up((d) => {
         const lineups = { ...(d.lineups || {}) }
         const before = lineups[sid] || {}
@@ -1051,7 +1079,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const k = ((db().lineups || {})[sid] || {})[slot]
       if (k) upUi(() => ({ picked: k }))
     },
-    clearSlot: (sid, slot) =>
+    clearSlot: (sid, slot) => canAssign() &&
       up((d) => {
         const lineups = { ...(d.lineups || {}) }
         const lu = { ...(lineups[sid] || {}) }
@@ -1059,7 +1087,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         lineups[sid] = lu
         return { lineups }
       }),
-    removeFromCourt: (sid, key) =>
+    removeFromCourt: (sid, key) => canAssign() &&
       up((d) => {
         const lineups = { ...(d.lineups || {}) }
         lineups[sid] = removePlayer(lineups[sid] || {}, key)
@@ -1070,7 +1098,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return { lineups, courtGroups: cgAll }
       }),
     assignToCourt: (sid, key, ci) => {
-      if (!key) return
+      if (!key || !canAssign()) return
       up((d) => {
         const cgAll = { ...(d.courtGroups || {}) }
         const cg = { ...(cgAll[sid] || {}) }
@@ -1085,11 +1113,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ picked: null }))
     },
     toggleGroupMode: (sid) => {
+      if (!canAssign()) return
       const on = !!(db().groupMode || {})[sid]
       up((d) => ({ groupMode: { ...(d.groupMode || {}), [sid]: !on } }))
       toast(t(on ? 'toast.groupModeOff' : 'toast.groupModeOn'))
     },
     autoSplitCourts: (sid) => {
+      if (!canAssign()) return
       const d0 = db()
       const s = sessionOf(d0, sid)
       if (!s) return
@@ -1106,6 +1136,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('toast.courtsSplit', { n: ps.length, courts: idxs.length }))
     },
     clearLineup: (sid) => {
+      if (!canAssign()) return
       up((d) => ({
         lineups: { ...(d.lineups || {}), [sid]: {} },
         courtGroups: { ...(d.courtGroups || {}), [sid]: {} },
@@ -1114,6 +1145,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('toast.lineupCleared'))
     },
     arrange: (sid, mode) => {
+      if (!canAssign()) return
       const d0 = db()
       const s = sessionOf(d0, sid)
       if (!s) return
@@ -1133,7 +1165,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     /* ---------- bấm giờ và ghi trận ---------- */
-    setCourtMin: (sid, ci, v) =>
+    setCourtMin: (sid, ci, v) => canAssign() &&
       up((d) => {
         const all = { ...(d.courtMin || {}) }
         const c = { ...(all[sid] || {}) }
@@ -1142,6 +1174,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return { courtMin: all }
       }),
     startCourt: (sid, ci) => {
+      if (!canAssign()) return
       const on = !!((db().playing || {})[sid] || {})[ci]
       up((d) => {
         const all = { ...(d.playing || {}) }
@@ -1153,6 +1186,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t(on ? 'toast.clockStopped' : 'toast.clockStarted'))
     },
     finishCourt: (sid, ci, minutes) => {
+      if (!canAssign()) return
       const d0 = db()
       const lu = (d0.lineups || {})[sid] || {}
       const keys = courtSlotIds(ci).map((sl) => lu[sl]).filter(Boolean)
@@ -1177,6 +1211,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('toast.matchSaved', { n: keys.length, min: minutes }))
     },
     undoMatch: (sid) => {
+      if (!canAssign()) return
       const list = (db().matches || []).filter((x) => x.sessionId === sid)
       if (!list.length) return toast(t('toast.noMatch'))
       const last = list[list.length - 1]

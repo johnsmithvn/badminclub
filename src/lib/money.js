@@ -592,6 +592,51 @@ export function joinDues(db, m, g, month) {
 }
 
 /**
+ * ĐỔI NHÓM CỐ ĐỊNH của một người — tính lại quỹ tháng của tháng bị ảnh hưởng. Thuần: trả về
+ * mảng `dues` mới, các dòng cần THÊM (chưa có `id`, action tự gắn), và hai con số để bắn toast.
+ *
+ *   gỡ nhóm · chưa đóng đồng nào  → XOÁ khoản, không thì bị nhắc một khoản không còn phải đóng
+ *   gỡ nhóm · đã đóng một phần    → GIỮ nguyên trong sổ quỹ + ghi chú lý do. Tiền đã vào quỹ
+ *                                   thật thì không được tự bốc hơi, và họ đã trả cho các buổi
+ *                                   của tháng đó rồi
+ *   vào nhóm · tháng ĐÃ chốt      → sinh khoản bằng joinDues, không thì thu hụt
+ *
+ * `member` phải là bản ghi SAU khi sửa: đổi giới tính cùng lúc thì tiền phải theo giá mới.
+ */
+export function regroupDues(db, member, groupIds, month) {
+  const want = new Set(groupIds || [])
+  const locked = !!(db.locked || {})[month]
+  let dues = (db.dues || []).slice()
+  const add = []
+  let kept = 0
+  let dropped = 0
+
+  ;(db.groups || []).forEach((g) => {
+    const row = dues.find((x) => x.month === month && x.groupId === g.id && x.memberId === member.id)
+    if (!want.has(g.id)) {
+      if (!row) return
+      if (dueState(row).paid > 0) {
+        kept += dueState(row).paid
+        dues = dues.map((x) => (x.id === row.id ? { ...x, note: t('members.keptDueNote') } : x))
+      } else {
+        dropped++
+        dues = dues.filter((x) => x.id !== row.id)
+      }
+      return
+    }
+    if (row || !locked) return
+    const jd = joinDues(db, member, g, month)
+    if (jd.amount <= 0) return
+    add.push({
+      month, groupId: g.id, memberId: member.id, amount: jd.amount,
+      paidAmount: 0, paidAt: null, method: '',
+      note: jd.full ? t('members.joinFull') : t('members.joinPartial', { n: jd.sessions }),
+    })
+  })
+  return { dues, add, kept, dropped }
+}
+
+/**
  * Ngưng hoạt động một người ĐANG cố định và ĐÃ đóng tiền tháng này thì quỹ đang giữ tiền của
  * những buổi họ sẽ không đánh nữa. `joinDues` chạy ngược: đơn giá × số buổi còn lại.
  *

@@ -1,6 +1,6 @@
 # RULES.md — Quản lý CLB cầu lông
 
-**Version:** v6.4.0 · **Updated:** 2026-08-20
+**Version:** v6.5.0 · **Updated:** 2026-08-31
 
 Quy tắc hiện hành cho human developer và coding agent. `CLAUDE.md` là entrypoint ngắn; file này là
 policy chi tiết. Lịch sử rule cũ nằm trong git/CHANGELOG, không lặp ở đây.
@@ -101,7 +101,7 @@ src/
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/*.css
   utils/               helper chung không dính nghiệp vụ (dates)
-  __tests__/           test cho lib/ và utils/
+  __tests__/           test — xem README.md trong đó để biết file nào ở đâu
 ```
 
 **Luật phân lớp** (vi phạm là bug kiến trúc, không phải style):
@@ -123,8 +123,15 @@ Chạy được ở cả Vite và `node` chạy test — **cấm** thêm alias r
 ## 5. Test
 
 - Logic nghiệp vụ không tầm thường (date math, chain/cascade, tiền, thuật toán xếp sân) phải có
-  test trong `src/__tests__/`, chạy bằng `node` thuần với `node:assert/strict`, không framework.
-- Wire mọi file test mới vào script `test` của `package.json`.
+  test trong `src/__tests__/`, chạy bằng `node:assert/strict`, không framework.
+- `npm test` = `node --test "src/**/*.test.js"` — runner sẵn có của Node, tự tìm mọi file
+  `*.test.js`. **Không phải khai báo file mới ở đâu cả.** Đặt đúng thư mục theo bản đồ ở
+  `src/__tests__/README.md` là đủ; đặt sai thư mục thì vẫn chạy nhưng người sau không tìm ra.
+- Chạy một file khi đang sửa: `node src/__tests__/money/dues.test.js`.
+- Thông điệp của mỗi `assert` phải nói **vì sao sai là tốn tiền**, không chỉ nói "sai" — đó là
+  chỗ người sau đọc để hiểu luật nghiệp vụ.
+- Viết xong phải **mutation-test**: tắt nhánh logic vừa khoá, chạy lại, phải ĐỎ. Test không bắt
+  được lỗi nào chỉ là dòng chữ trang trí.
 - **Test fail thì DỪNG** và báo user trước khi sửa test hoặc sửa logic. Không tự chọn cái nào dễ
   sửa hơn. User quyết định bên nào sai.
 

@@ -368,7 +368,9 @@ function Report() {
     const gSess = closed.filter((s) => s.groupId === g.id)
     if (!gSess.length) return
     groupMembers(db, g.id, month).forEach((m) => {
-      const went = gSess.filter((s) => (db.attendance[s.id] || {})[m.id] === true).length
+      // isPresent chứ không `=== true`: 'extra' cũng là có mặt. Tab Tổng quan cùng trang đã
+      // dùng isPresent — hai ô đếm cùng một việc mà ra hai số là chỗ không ai tin nổi con nào.
+      const went = gSess.filter((s) => isPresent((db.attendance[s.id] || {})[m.id])).length
       rows.push({ key: g.id + m.id, name: m.name, went, total: gSess.length, pct: Math.round((went / gSess.length) * 100) })
     })
   })

@@ -486,6 +486,7 @@ function EditMemberDialog() {
           onChange={(e) => a.setF('eLevel', e.target.value)} />
       </div>
       <Select label={t('members.fWhen')} value={f.eWhen}
+        hint={t('members.fWhenHint')}
         options={[
           { value: 'now', label: t('members.whenNow') },
           { value: 'next', label: t('members.whenNext') },

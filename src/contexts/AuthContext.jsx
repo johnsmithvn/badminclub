@@ -4,7 +4,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { hasSupabase, supabase, unwrap } from '#supabase'
+import { intOf } from '#lib/money.js'
 import { t } from '#i18n'
+import cfg from '#config/app.json' with { type: 'json' }
 
 const Ctx = createContext(null)
 
@@ -144,11 +146,15 @@ export function AuthProvider({ children }) {
 
     async createClub(form) {
       if (!supabase) throw new Error(t('auth.noDb'))
+      // intOf chứ KHÔNG parseInt: `parseInt('1.650.000')` ra **1**. Đây là ô nhập tiền cuối cùng
+      // trong app còn dùng parseInt trần — 18 ô kia đã dọn ở P4.5, ô này nằm ngoài `appActions`
+      // nên bị bỏ sót. Gõ quỹ mang sang có dấu phân cách nghìn là mất tiền im lặng ngay từ lúc
+      // tạo CLB, và số dư sai đó theo suốt mọi báo cáo về sau.
       const club = unwrap(await supabase.rpc('create_club', {
         p_name: form.name,
-        p_opening_balance: parseInt(form.opening || 0, 10) || 0,
+        p_opening_balance: intOf(form.opening),
         p_opening_date: form.openingDate,
-        p_lock_day: parseInt(form.lockDay || 25, 10) || 25,
+        p_lock_day: Math.min(28, Math.max(1, intOf(form.lockDay) || cfg.club.defaultLockDay)),
         p_bank_holder: form.bankHolder || null,
         p_bank_no: form.bankNo || null,
         p_bank_name: form.bankName || null,

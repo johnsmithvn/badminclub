@@ -268,6 +268,9 @@ export function seed() {
     bank: { holder: 'LE THI THUY ANH', no: '8804505982', bank: 'BIDV - PGD Cầu Dền' },
     seeDebtEachOther: false, seeFund: true, roundUnit: true, lockDay: 25, courtPayMode: 'month',
     linkModes: { code: true, invite: true, phone: true },
+    // toDb LUÔN đặt club.levels — fixture phải cùng hình, không thì test chạy trên dữ liệu
+    // không bao giờ tồn tại lúc chạy thật.
+    levels: LEVELS,
   }
   const club2 = {
     id: 'CL2', name: 'Cầu lông Yên Phong', code: 'YP42K9', opening: 1200000, openingDate: '2026-08-01',
@@ -275,6 +278,7 @@ export function seed() {
     bank: { holder: 'DO QUANG HUY', no: '0331000455112', bank: 'Vietcombank - Yên Phong' },
     seeDebtEachOther: false, seeFund: true, roundUnit: true, lockDay: 25, courtPayMode: 'session',
     linkModes: { code: true, invite: false, phone: false },
+    levels: LEVELS,
   }
   const d1 = club1Data()
 

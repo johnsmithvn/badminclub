@@ -7,8 +7,8 @@
 //   3. Mọi bảng toRows() sinh ra phải có trong TABLES, không thì âm thầm không đồng bộ.
 
 import assert from 'node:assert/strict'
-import { TABLES, diff, toDb, toRows } from '#contexts/dbmap.js'
-import { seed } from './fixture.js'
+import { TABLES, clubRow, diff, toDb, toRows } from '#contexts/dbmap.js'
+import { seed } from '../fixture.js'
 
 const db = seed()
 const ctx = { clubId: 'CL1', memberIds: new Set(db.members.map((m) => m.id)) }
@@ -230,5 +230,21 @@ assert.equal(advBack.courtBills[0].repaidAt, '', 'chưa trả thì đọc thành
 const advRows = toRows(advBack, { clubId: 'CL1', memberIds: new Set(['m1']) })
 assert.equal(advRows.shuttle_purchases[0].repaid_at, '2026-08-20')
 assert.equal(advRows.court_bills[0].repaid_at, null, 'chưa trả phải xuống NULL, không phải chuỗi rỗng')
+
+/* ---------- bảng `clubs`: cập nhật, không insert ---------- */
+// `clubRow` đi đường RIÊNG trong storage.js (một dòng, `update` chứ không `upsert`) nên nó KHÔNG
+// nằm trong TABLES và không được `diff()` kiểm. Sai ở đây thì cấu hình CLB im lặng không lưu.
+const cr = clubRow(db)
+assert.ok(!('id' in cr), 'không ghi id: RPC create_club đã tạo dòng, đây chỉ là update')
+assert.ok(!('code' in cr), 'mã CLB do server sinh, client không được ghi đè')
+assert.equal(cr.opening_balance, db.club.opening)
+assert.equal(cr.court_pay_mode, db.club.courtPayMode)
+assert.equal(cr.allow_code_join, db.club.linkModes.code)
+assert.deepEqual(cr.levels, db.club.levels, 'thang trình độ là dữ liệu của từng CLB')
+// Chuỗi rỗng phải xuống NULL, không phải '' — cột text nullable đọc lại thành '' thì diff nhảy mãi.
+const bare = clubRow({ club: { ...db.club, openingBy: '', bank: { holder: '', no: '', bank: '' }, levels: [] } })
+assert.equal(bare.opening_by, null)
+assert.equal(bare.bank_holder, null)
+assert.ok(bare.levels.length > 0, 'thang rỗng phải rơi về thang mặc định, không ghi mảng rỗng xuống DB')
 
 console.log('dbmap check: OK')

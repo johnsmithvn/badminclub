@@ -58,9 +58,13 @@ const lv1 = (db) => (db.levels || [])[1] || (db.levels || [])[0] || ''
 /**
  * Form sửa thành viên. `eGroups` là nhóm cố định, `eWhenGroup` quyết định áp dụng từ tháng nào —
  * mặc định THÁNG SAU vì tháng này có thể đã đóng tiền rồi, đổi ngay là phải xử lý khoản đã thu.
+ *
+ * `eWhen` (trình độ) cũng mặc định THÁNG SAU: "áp dụng ngay" ghi đè `member.level`, mà `levelOf`
+ * suy trình độ của MỌI tháng từ đúng ô đó — nên nó đổi luôn trình độ hiện trên các buổi đã đánh
+ * xong. Chuyện đã xảy ra thì không được sửa lại vì hôm nay lên trình.
  */
 export const editMemberForm = (m) => ({
-  eId: m.id, eName: m.name, ePhone: m.phone, eGender: m.gender, eLevel: m.level, eWhen: 'now',
+  eId: m.id, eName: m.name, ePhone: m.phone, eGender: m.gender, eLevel: m.level, eWhen: 'next',
   eGroups: (m.groupIds || []).slice(), eWhenGroup: 'next',
 })
 

@@ -1,7 +1,7 @@
 // node src/__tests__/ledger.test.js
 import assert from 'node:assert/strict'
-import { seed } from './fixture.js'
-import { CATS, availableBalance, dailySummary, fundBalance, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
+import { seed } from '../fixture.js'
+import { CATS, MANUAL_CATS, availableBalance, catLabel, dailySummary, fundBalance, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
 import { advanceRows, courtCost, courtExtraCost, isVault, soldTotal } from '#lib/money.js'
 import { monthOf } from '#utils/dates.js'
 
@@ -278,5 +278,16 @@ assert.equal(availableBalance(withBack([A({ amount: 60000 })])).back, 0,
 const both = { ...byMember, adjustments: [A()] }
 assert.equal(availableBalance(both).owed, 3300000 + 80000)
 assert.equal(availableBalance(both).available, availableBalance(both).balance - 3380000)
+
+/* ---------- nhãn hạng mục ---------- */
+// `cat` lưu là KEY ổn định; đổi câu chữ hay đổi ngôn ngữ KHÔNG được làm đổi dữ liệu đã ghi
+// (RULES §3.3). Mọi key trong CATS phải có nhãn, không thì sổ quỹ hiện thẳng 'ledger.cat.back'.
+Object.values(CATS).forEach((c) => {
+  assert.ok(catLabel(c) && !catLabel(c).includes('ledger.cat.'), 'thiếu nhãn i18n cho hạng mục ' + c)
+})
+assert.ok(MANUAL_CATS.every((c) => Object.values(CATS).includes(c)),
+  'hạng mục ghi tay phải nằm trong CATS')
+assert.ok(MANUAL_CATS.includes(CATS.back),
+  'phải ghi tay được khoản back: người đã ngưng hoạt động không còn sinh dòng đối chiếu nào')
 
 console.log('ledger check: OK')

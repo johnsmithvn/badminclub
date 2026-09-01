@@ -19,7 +19,9 @@ localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
    > `monthly_dues` + `session_guests` + `court_bills` + `shuttle_purchases` + `back_credits` rồi
    > dựng bảng tại chỗ mỗi lần mở màn hình; `transactions` chỉ giữ dòng nhập tay
    > (`ref_type='manual'`). Đích đến là **ghi**: mỗi sự kiện tiền ở §3.1 viết ngay một dòng
-   > `transactions` kèm `ref_type`+`ref_id`. Bỏ tick thì ghi dòng đảo chiều, không xoá cứng.
+   > `transactions` kèm `ref_type`+`ref_id`. Bỏ tick thì **XOÁ MỀM** (`deleted_at` + ai xoá),
+   > **không** ghi dòng đảo chiều — chốt lại 2026-08-24: bỏ tick hầu hết là sửa nhầm chứ không
+   > phải hoàn tiền, ghi đảo chiều thì sổ đầy cặp +250k/−250k của người bấm nhầm.
    > Lý do phải đổi: cách suy ra làm **số liệu tháng đã chốt tự nhảy** khi sửa cấu hình (đổi quỹ
    > nhóm từ 250k lên 280k là tháng 6, tháng 7 tính lại theo giá mới), không sửa được một dòng
    > sai, và không biết ai ghi lúc nào. Xem `TASKS.md` Phase 9 · Issue 2.
@@ -144,7 +146,7 @@ Hai chỗ dễ hiểu sai nhất:
 ## 4. Chỗ state client khác Postgres
 
 State `db` của client dùng shape gọn của prototype. Bảng dưới là map ĐANG DÙNG — cài đặt thật ở
-`src/contexts/dbmap.js`, có test khoá ở `src/__tests__/dbmap.test.js`.
+`src/contexts/dbmap.js`, có test khoá ở `src/__tests__/sync/dbmap.test.js`.
 
 | Trong `db` (client) | Bảng Postgres | Khác biệt cần xử lý |
 | --- | --- | --- |
@@ -233,6 +235,7 @@ dán nguyên nội dung file migration vào và bấm Run, từng file một the
 | `0008_payer_link.sql` | `court_bills.payer_member_id`; dồn tên gõ tay trong `shuttle_purchases.funded_by` vào `note` để cột đó trả lại đúng nghĩa nguồn tiền (dọn trước cho P5) |
 | `0009_paid_amount.sql` | `monthly_dues.paid_amount` — ghi được trường hợp đóng thiếu. Cột `paid` GIỮ lại làm bản sao suy ra `(paid_amount >= amount)`, không drop |
 | `0010_unit_override.sql` | `member_groups.unit_male` / `unit_female` — đơn giá một buổi CLB tự chốt, ưu tiên hơn cách chia `quỹ tháng ÷ số buổi` |
+| `0011_advance_repaid.sql` | `shuttle_purchases.repaid_at` + `court_bills.repaid_at` — thành viên ứng tiền thì khoản chi chưa vào sổ quỹ cho tới ngày CLB trả lại họ (LUẬT NGƯỜI GIỮ QUỸ). Không có bảng `member_payables`: khoản nợ CHÍNH LÀ bản ghi mua cầu / hoá đơn đã có |
 
 ## 7. Việc còn lại trước khi chạy thật
 
@@ -248,19 +251,19 @@ dán nguyên nội dung file migration vào và bấm Run, từng file một the
 
 ## 8. Thay đổi schema đang chờ — đã chốt hướng, chưa apply
 
-Bảy thay đổi dưới đây là kết luận của đợt rà dòng tiền. Mỗi mục là một migration riêng, làm theo
-thứ tự ở `TASKS.md` Phase 9. **Chưa cái nào được apply** — cột nào chưa có thì code chưa được đọc.
+Kết luận của đợt rà dòng tiền, mỗi mục một migration riêng, theo thứ tự ở `TASKS.md` Phase 9.
+**Chỉ còn đúng mục 2 chưa làm** — và nó đang chờ user chốt mốc cutoff.
 
 | # | Thay đổi | Vì sao |
 | --- | --- | --- |
-| — | **Đã apply: mục 5 và 6** (`0005_cost_freeze.sql`) · **mục 1** (`0007_member_adjustments.sql`) | |
+| — | **Đã apply:** mục 5 + 6 (`0005`) · mục 1 (`0007`) · mục 3 (`0009`) · mục 4 (`0011`, bản đã cắt) | |
 | ~~5~~ | ✅ `sessions` thêm `cost_court` · `cost_shuttle_unit` · `cost_shuttle` · `cost_total` · `cost_guest_rev` · `cost_heads` · `cost_frozen_at` | Giá thành đang tính live từ giá **hiện tại**. Mua thêm một đợt cầu giá khác là mọi buổi quá khứ đổi số. Chốt buổi phải đóng băng. |
 | ~~6~~ | ✅ `stock_checks` thêm `UNIQUE (club_id, month)` | Mỗi tháng chỉ một lần kiểm kho. |
 | ~~1~~ | ✅ Bảng `member_adjustments` + `attend_state` thêm `'extra'` + enum `settle_mode('cash','offset_next_dues')` | Back tiền hiện chỉ chạy **một chiều**. Người cố định nhóm khác đi thêm một buổi không có chỗ thu — hiện phải nhét vào `session_guests` với giá khách, sai cả tiền lẫn báo cáo. |
-| 3 | `monthly_dues` thêm `paid_amount bigint`, bỏ `paid` | `paid` boolean không ghi được "đóng trước 150k/250k": tick thì thừa 100k, không tick thì thiếu 150k. |
-| 4 | `funded_by` → enum `fund_source('fund','member_advance')` + bảng `member_payables` | Thành viên ứng tiền mua cầu bị ghi chi ngay → quỹ giảm trong khi tiền chưa ra, và không ai nhớ phải trả người ứng. **Dọn dữ liệu trước:** `dbmap` đang ghi tên người trả (chuỗi tự do) vào chính cột `funded_by` — phải chuyển sang `payer_member_id` rồi mới `ALTER TYPE`. |
+| ~~3~~ | ✅ `monthly_dues` thêm `paid_amount bigint` (`0009`). Cột `paid` **GIỮ** làm bản sao suy ra `(paid_amount >= amount)`, không drop | `paid` boolean không ghi được "đóng trước 150k/250k": tick thì thừa 100k, không tick thì thiếu 150k. |
+| ~~4~~ | ✅ Làm bằng **hai cột `repaid_at`** (`0011`), KHÔNG có bảng `member_payables` và KHÔNG `ALTER TYPE funded_by` — cắt 2026-08-24: khoản nợ chính là bản ghi mua cầu / hoá đơn đã có, chép sang bảng thứ hai là lưu một sự thật ở hai chỗ. Dọn dữ liệu đã làm ở `0008`. |
 | 2 | `transactions` thành nguồn ghi thật (xem §1 luật 3) | Làm **sau cùng**: các mục 1/3/4 đổi chính tập sự kiện sinh tiền, viết tầng ghi trước là viết lại hai lần. |
-| T1 | Enum `wallet_kind` + bảng `wallets` + `transactions.wallet_id` | Sổ quỹ coi quỹ là một túi duy nhất. Thực tế tiền nằm ở tài khoản NH, túi thủ quỹ, túi quản trò thu tại sân chưa chuyển, tiền thành viên ứng chưa hoàn. Vì thiếu khái niệm này nên vai `host` bị chặn khỏi mục tiền và không ai tick "khách đã trả". |
+| ~~T1~~ | ❌ **CẮT KHỎI PHẠM VI, user chốt 2026-08-24:** không tách ví / ngân hàng. Nguyên văn: *"cái này kệ nhé không phải issue, chỉ đang quan tâm tới lịch sử minh bạch dòng tiền thôi."* Đừng bàn lại. |
 
 Ba cờ trạng thái của một con số giá thành sau khi có mục 5 + 6:
 

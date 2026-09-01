@@ -1,9 +1,8 @@
 // node src/__tests__/assign.test.js
 import assert from 'node:assert/strict'
-import { seed } from './fixture.js'
+import { seed } from '../fixture.js'
 import {
-  activeCourtIdxs, arrange, assignableSessions, autoSplit, courtBalance, courtSlotIds,
-  fairness, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx, slotIds,
+  ASSIGN_MODES, MODE_KEYS, activeCourtIdxs, arrange, assignableSessions, autoSplit, courtBalance, courtSlotIds, fairness, matchStats, modeToast, place, removePlayer, sessionPlayers, slotCourtIdx, slotIds,
 } from '#lib/assign.js'
 import { levelIdx } from '#lib/money.js'
 
@@ -199,5 +198,17 @@ evenStats[players[1].key] = { n: 5, min: 100 }
 const warn = fairness(players, evenStats)
 assert.equal(warn.tone, 'warn')
 assert.match(warn.text, /nhiều nhất 5 trận, ít nhất 2 trận/)
+
+/* ---------- năm chế độ xếp: nhãn phải đủ ---------- */
+// `asnMode` lưu KEY; nhãn và câu toast lấy từ i18n theo key. Thiếu một key là nút hiện thẳng
+// chuỗi 'assign.modes.balance.label' trên màn hình mà không ai báo.
+assert.deepEqual(ASSIGN_MODES.map((x) => x.value), MODE_KEYS, 'đủ và đúng thứ tự 5 chế độ')
+ASSIGN_MODES.forEach((x) => {
+  assert.ok(x.label && !x.label.includes('assign.modes.'), 'thiếu nhãn cho chế độ ' + x.value)
+  assert.ok(x.desc && !x.desc.includes('assign.modes.'), 'thiếu mô tả cho chế độ ' + x.value)
+})
+MODE_KEYS.forEach((k) => {
+  assert.ok(modeToast(k) && !modeToast(k).includes('assign.modes.'), 'thiếu câu toast cho chế độ ' + k)
+})
 
 console.log('assign check: OK')

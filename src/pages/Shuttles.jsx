@@ -64,7 +64,11 @@ function StockCheck({ canMoney }) {
   const { db, a } = useApp()
   const st = stock(db)
   const est = estSessions(db, db.month)
-  const last = (db.stockChecks || [])[db.stockChecks.length - 1]
+  // Theo THÁNG chứ không lấy phần tử cuối mảng: load() không ORDER BY bảng nào, thứ tự trả về
+  // là thứ tự Postgres thích. `checkDue` đã sắp đúng, chỗ này thì chưa.
+  // Guard cũ `(db.stockChecks || [])[db.stockChecks.length - 1]` cũng vô nghĩa: `|| []` che
+  // được phép truy cập nhưng `.length` vẫn nổ nếu mảng chưa có.
+  const last = (db.stockChecks || []).slice().sort((a, b) => (a.month < b.month ? -1 : 1)).pop() || null
 
   return (
     <Card
