@@ -203,6 +203,9 @@ FROM transactions WHERE club_id = $1;
 
 ## 6. Chạy migration
 
+**Chỉ còn MỘT file: `supabase/migrations/0001_init.sql`.** Gộp 12 file cũ ngày 2026-09-01 — xem
+§6.1 bên dưới để biết vì sao và mất gì.
+
 Lần đầu `supabase start` sẽ tự chạy hết `supabase/migrations/`. DB local đã dựng rồi thì áp bản mới:
 
 ```bash
@@ -210,7 +213,7 @@ npm run db:migrate
 ```
 
 **Trên Supabase cloud** (project đang chạy thật) thì không có `db:migrate` — user mở **SQL editor**,
-dán nguyên nội dung file migration vào và bấm Run, từng file một theo đúng thứ tự số.
+dán nguyên nội dung file vào và bấm Run.
 
 > **Vì thế mọi migration PHẢI chạy lại được nhiều lần.** Dán tay thì lỡ chạy hai lần, hoặc chạy
 > nửa chừng gặp lỗi rồi sửa và chạy lại cả file, là chuyện bình thường. Dùng
@@ -220,28 +223,47 @@ dán nguyên nội dung file migration vào và bấm Run, từng file một the
 > `column ... already exists` và không ai biết phần còn lại của file đã chạy chưa.
 
 > **CẤM `supabase db reset`**, `DROP DATABASE`, `DROP SCHEMA ... CASCADE`, `TRUNCATE`,
-> `DELETE FROM ... WHERE true` — xem `docs/RULES.md` §7. Cập nhật schema bằng file migration mới
-> (`000N_*.sql`), không sửa file cũ đã chạy.
+> `DELETE FROM ... WHERE true` — xem `docs/RULES.md` §7.
 
-| File | Nội dung |
-| --- | --- |
-| `0001_init.sql` | 30 bảng + enum + index |
-| `0002_auth_rls.sql` | trigger tạo profile, RPC đăng nhập/tạo CLB/duyệt vào CLB, RLS toàn bộ |
-| `0003_levels_and_client_sync.sql` | trình độ theo từng CLB (bỏ enum `skill_level`), `club_member_groups`, `sessions.group_mode`, `session_courts.default_minutes`, `transactions.payer_name`, RPC `club_pending_requests` |
-| `0004_fix_gen_club_code.sql` | **Sửa lỗi chặn tạo CLB.** `gen_club_code()` khai biến plpgsql tên `code` trùng cột `clubs.code` → `create_club` trả 400 `column reference "code" is ambiguous`. Thân plpgsql chỉ là text lúc `CREATE` nên lỗi không lộ khi apply, chỉ lộ khi có người bấm tạo CLB |
-| `0005_cost_freeze.sql` | `sessions.cost_*` (7 cột) đóng băng giá thành lúc chốt buổi + `stock_checks UNIQUE (club_id, month)` |
-| `0006_grants.sql` | **Sửa lỗi chặn nạp dữ liệu.** 0002 chỉ bật RLS + tạo policy, không `GRANT` bảng nào → `permission denied for table clubs`, select bảng trả 403 trong khi RPC vẫn 200. Cấp quyền bảng cho `authenticated` + default privileges cho bảng thêm sau |
-| `0007_member_adjustments.sql` | Đối chiếu buổi hai chiều: `attend_state` thêm `'extra'`, enum `adjust_kind` + `settle_mode`, bảng `member_adjustments` (ghi đủ số, không chỉ cờ `paid` như `back_credits`), chuyển dữ liệu cũ sang. `back_credits` giữ nguyên, app thôi đọc |
-| `0008_payer_link.sql` | `court_bills.payer_member_id`; dồn tên gõ tay trong `shuttle_purchases.funded_by` vào `note` để cột đó trả lại đúng nghĩa nguồn tiền (dọn trước cho P5) |
-| `0009_paid_amount.sql` | `monthly_dues.paid_amount` — ghi được trường hợp đóng thiếu. Cột `paid` GIỮ lại làm bản sao suy ra `(paid_amount >= amount)`, không drop |
-| `0010_unit_override.sql` | `member_groups.unit_male` / `unit_female` — đơn giá một buổi CLB tự chốt, ưu tiên hơn cách chia `quỹ tháng ÷ số buổi` |
-| `0011_advance_repaid.sql` | `shuttle_purchases.repaid_at` + `court_bills.repaid_at` — thành viên ứng tiền thì khoản chi chưa vào sổ quỹ cho tới ngày CLB trả lại họ (LUẬT NGƯỜI GIỮ QUỸ). Không có bảng `member_payables`: khoản nợ CHÍNH LÀ bản ghi mua cầu / hoá đơn đã có |
-| `0012_court_cost_freeze.sql` | `session_courts.cost` — đóng băng tiền TỪNG DÒNG SÂN lúc chốt buổi. `0005` đóng băng ở tầng buổi, nhưng `lib/ledger.js` ghi dòng chi tiền sân bằng `courtCost()`/`courtExtraCost()` (cộng từ `rowCost` → giá **hiện tại**) nên sổ quỹ tháng cũ vẫn nhảy số khi chủ sân tăng giá, trong khi card giá thành ngay cạnh thì không. Khoá ở `rowCost` thì cả 5 hàm tiền sân đứng yên cùng lúc, `ledger.js` không phải sửa dòng nào |
+**Từ đây trở đi, DB đã có dữ liệu thật thì thêm file mới (`0002_*.sql`), KHÔNG sửa `0001`.**
+Gộp lại được lần này chỉ vì chưa có dữ liệu nào để mất. Lần sau thì không.
+
+### 6.1 Gộp 12 file thành một — 2026-09-01
+
+`0001_init.sql` là **hình cuối cùng** của schema, không phải lịch sử: những gì `0003` sửa của
+`0001`, `0004` và `0006` vá của `0002` đã áp thẳng vào. Lịch sử nằm trong git.
+
+**Cách kiểm chứng đã làm** (không phải nhìn bằng mắt): dựng hai Postgres 17 sạch trong container
+dùng một lần — một cái chạy 12 file gốc theo thứ tự, một cái chạy file gộp — rồi so **920 dòng**
+kê khai `cột · kiểu · nullable · default · enum · constraint · index · policy · RLS · grant`.
+Khớp tuyệt đối. So thêm 14 hàm + trigger bằng md5 của `pg_get_functiondef`: **13/14 giống hệt**,
+cái còn lại (`handle_new_user`) chỉ khác một dòng comment. Chạy lại file 3 lần: schema không đổi.
+
+**Kết quả:** 38 bảng · 126 policy · 14 RPC · 1 trigger.
+
+**Ba bài học đã nướng vào file, đừng làm lại:**
+
+| Bẫy | Triệu chứng | Chốt chặn trong file |
+| --- | --- | --- |
+| Biến plpgsql trùng tên cột | `create_club` trả 400 `column reference "code" is ambiguous` → **không tạo được CLB nào**. Thân plpgsql chỉ là text lúc `CREATE` nên apply migration KHÔNG lộ lỗi, chỉ lộ khi có người bấm tạo CLB | `gen_club_code()` dùng biến `v_code` |
+| Bật RLS mà quên `GRANT` | `permission denied for table clubs`, select bảng trả 403 trong khi RPC vẫn 200. Local không lộ (Supabase local có sẵn default privileges), chỉ lộ trên cloud | khối GRANT cuối file + `ALTER DEFAULT PRIVILEGES` |
+| Enum cho trình độ | Postgres không cho xoá / đổi thứ tự giá trị enum, mà CLB cần cả hai | `clubs.levels text[]`, KHÔNG có type `skill_level` |
+
+Ba câu tự kiểm nằm ở cuối `0001_init.sql` — chạy sau khi apply, cả ba phải trả 0 dòng: bảng thiếu
+GRANT · bảng chưa bật RLS · bảng bật RLS mà trống policy (bật rồi mà không có policy = khoá sạch,
+không ai đọc được gì).
 
 ## 7. Việc còn lại trước khi chạy thật
 
 - [x] RLS trên mọi bảng: user chỉ thấy CLB mình là `club_members`.
-- [ ] Kiểm RLS bằng hai tài khoản khác CLB (chưa thử bằng tay).
+- [x] **Kiểm RLS bằng hai tài khoản khác CLB — ĐẠT 2026-09-01.** Chạy trên Postgres 17 sạch với
+      schema gộp: tạo 2 tài khoản qua trigger `handle_new_user`, mỗi người một CLB, rồi đóng vai
+      B (`SET ROLE authenticated` + `request.jwt.claim.sub`).
+      **Đọc:** B thấy 1 CLB (của mình), 1 thành viên, **0** giao dịch / quỹ tháng / sân của A, và
+      không đọc được cả `profiles` của A.
+      **Ghi:** chèn giao dịch và thêm sân vào CLB A đều bị `new row violates row-level security
+      policy`; `UPDATE` số dư, `DELETE` giao dịch, tự phong `owner` ở CLB A đều trả **0 dòng**.
+      Dữ liệu CLB A nguyên vẹn sau mọi phép thử.
 - [ ] Kiểm cờ quyền **server-side** theo `role_permissions` — hiện `has_club_perm` đã có, nhưng
       chưa rà từng bảng bằng test.
 - [ ] Trigger ghi `audit_logs` cho mọi bảng dính tiền.

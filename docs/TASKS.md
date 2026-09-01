@@ -120,10 +120,19 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
       mà regex không thấy và màn hình sẽ hiện thẳng chuỗi `nav.shuttles`. Cộng luật: giá trị trong
       `vi.json` chỉ được là chuỗi / mảng chuỗi / object lồng — số lọt vào là hằng số đặt sai chỗ
 - [ ] **User chạy `npm run db:migrate` (hoặc `db reset`), `npm run build`, rồi bấm thử 13 màn trên DB thật** ← việc tiếp theo
-- [ ] **Kiểm RLS bằng 2 tài khoản khác CLB.** Policy đã viết đủ cho 30 bảng nhưng CHƯA được
-      chứng minh. Sai chỗ này thì CLB A đọc được tiền của CLB B — nặng hơn mọi mục dưới.
-      Cách làm đã bàn: script node ký 2 tài khoản qua anon key, tạo 2 CLB, assert A không
-      đọc/ghi được gì của B. Cần Supabase local đang chạy. **Chờ user duyệt.**
+- [x] **Kiểm RLS bằng 2 tài khoản khác CLB — ĐẠT 2026-09-01.** Không cần script node và không
+      đụng DB của user: dựng Postgres 17 sạch trong container dùng một lần, áp schema, tạo 2 tài
+      khoản qua trigger `handle_new_user`, mỗi người một CLB, rồi đóng vai B bằng
+      `SET ROLE authenticated` + `request.jwt.claim.sub`.
+      B thấy **0** dòng của A ở mọi bảng (kể cả `profiles`); chèn giao dịch / thêm sân vào CLB A
+      bị `new row violates row-level security policy`; `UPDATE` · `DELETE` · tự phong `owner`
+      đều trả **0 dòng**. Chi tiết ở `DATABASE.md` §7.
+
+- [x] **Gộp 12 migration thành một `0001_init.sql` — 2026-09-01.** Chưa có dữ liệu thật nên gộp
+      được; user chốt dựng lại sạch. Kiểm chứng bằng cách chạy song song hai DB (12 file gốc vs
+      file gộp) rồi so 920 dòng kê khai schema + md5 của 14 hàm — khớp tuyệt đối, khác đúng một
+      dòng comment. File chạy lại nhiều lần không đổi gì. Xem `DATABASE.md` §6.1.
+      **Từ đây DB có dữ liệu thật thì thêm file mới, không sửa `0001`.**
 
 ### Cố ý hoãn — có lý do, không phải quên
 
@@ -776,7 +785,7 @@ Không đụng schema, không migration mới.
 | --- | --- | --- |
 | ~~**Mốc cutoff của P6**~~ | **Không còn chặn 2026-09-01:** chưa có dữ liệu thật nên không có lịch sử để bảo tồn — P6b ghi thật từ đầu | — |
 | Chạy `npm run build` | RULES §6: agent không tự build | không ai biết bản này compile được hay chưa |
-| Có viết script kiểm RLS bằng 2 tài khoản không | script sẽ tạo tài khoản thật trên DB của user | chứng minh CLB A không đọc được CLB B |
+| ~~Script kiểm RLS bằng 2 tài khoản~~ | **Xong 2026-09-01** — làm trên container dùng một lần, không đụng DB của user | — |
 | Dữ liệu thật của CLB (Excel) | cần số quỹ mang sang + danh sách thật | nhập liệu ban đầu |
 
 **Đã chốt, không hỏi lại:** dựng + chạy DB (xong 2026-08-24) · P6 dùng **cutoff** không backfill ·

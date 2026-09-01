@@ -157,28 +157,82 @@ function CreateDialog({ onClose, onDone, create, toast }) {
   }
 
   return (
-    <Dialog open title={t('clubs.createTitle')} description={t('clubs.createSub')} width={560} onClose={onClose}>
-      <div style={{ display: 'grid', gap: 12 }}>
-        <Input label={t('clubs.fName')} value={f.name} onChange={set('name')} autoFocus />
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 10 }}>
-          <Input label={t('clubs.fOpening')} mono suffix={t('units.dong')} value={f.opening} onChange={set('opening')} />
-          <Input label={t('clubs.fOpeningDate')} type="date" mono value={f.openingDate} onChange={set('openingDate')} />
-          <Input label={t('clubs.fLockDay')} mono value={f.lockDay} onChange={set('lockDay')} />
-        </div>
-        <div style={S.hint}>{t('clubs.fOpeningHint')}</div>
+    <Dialog open title={t('clubs.createTitle')} description={t('clubs.createSub')} width={580} onClose={onClose}>
+      <div style={{ display: 'grid', gap: 14 }}>
+        <Input
+          label={t('clubs.fName')}
+          placeholder="Ví dụ: CLB Cầu Lông Ba Đình"
+          value={f.name}
+          onChange={set('name')}
+          autoFocus
+        />
 
-        <Overline style={{ marginTop: 4 }}>{t('clubs.bankSection')}</Overline>
-        <div style={S.hint}>{t('clubs.bankHint')}</div>
-        <Input label={t('clubs.fBankHolder')} value={f.bankHolder} onChange={set('bankHolder')} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 10 }}>
-          <Input label={t('clubs.fBankNo')} mono value={f.bankNo} onChange={set('bankNo')} />
-          <Input label={t('clubs.fBankName')} value={f.bankName} onChange={set('bankName')} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Input
+            label={t('clubs.fOpening')}
+            mono
+            suffix={t('units.dong')}
+            value={f.opening}
+            onChange={set('opening')}
+            hint={t('clubs.fOpeningHint')}
+          />
+          <Input
+            label={t('clubs.fOpeningDate')}
+            type="date"
+            mono
+            value={f.openingDate}
+            onChange={set('openingDate')}
+            hint="Ngày bắt đầu tính thu chi"
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
+          <Input
+            label={t('clubs.fLockDay')}
+            mono
+            suffix="hàng tháng"
+            value={f.lockDay}
+            onChange={set('lockDay')}
+            hint="Khoá danh sách tháng sau (mặc định 25)"
+          />
+          <div style={S.lockTip}>
+            <Icon name="calendar-clock" size={16} style={{ color: 'var(--teal-600)', flexShrink: 0, marginTop: 2 }} />
+            <span>Sau ngày này, danh sách cố định tháng mới sẽ chốt và tự động sinh quỹ tháng.</span>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 2, display: 'grid', gap: 4 }}>
+          <Overline>{t('clubs.bankSection')}</Overline>
+          <div style={S.hint}>{t('clubs.bankHint')}</div>
+        </div>
+
+        <Input
+          label={t('clubs.fBankHolder')}
+          placeholder="Ví dụ: NGUYỄN VĂN A"
+          value={f.bankHolder}
+          onChange={set('bankHolder')}
+        />
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Input
+            label={t('clubs.fBankNo')}
+            mono
+            placeholder="Số tài khoản"
+            value={f.bankNo}
+            onChange={set('bankNo')}
+          />
+          <Input
+            label={t('clubs.fBankName')}
+            placeholder="Ví dụ: MB Bank, Vietcombank..."
+            value={f.bankName}
+            onChange={set('bankName')}
+          />
         </div>
 
         {err && <Alert tone="danger">{err}</Alert>}
         <Alert tone="info">{t('clubs.nextStep')}</Alert>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="primary" icon="plus" loading={busy} disabled={busy} onClick={submit}>
             {t('clubs.create')}
@@ -269,4 +323,10 @@ const S = {
   },
   hint: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
   note: { font: 'var(--type-caption)', color: 'var(--text-muted)', paddingTop: 2 },
+  lockTip: {
+    display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px',
+    borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+    font: 'var(--type-caption)', color: 'var(--text-secondary)', lineHeight: 1.45,
+    marginTop: 22,
+  },
 }
