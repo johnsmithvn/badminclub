@@ -798,28 +798,34 @@ function ImportMembersDialog() {
                     <th style={{ padding: '8px 8px', width: 120 }}>Số điện thoại</th>
                     <th style={{ padding: '8px 8px', width: 85 }}>Giới tính *</th>
                     <th style={{ padding: '8px 8px', width: 105 }}>Trình độ *</th>
-                    <th style={{ padding: '8px 8px', width: 140 }}>Nhóm cố định</th>
+                    <th style={{ padding: '8px 8px', minWidth: 160 }}>Nhóm cố định</th>
                     <th style={{ padding: '8px 8px', width: 40, textAlign: 'center' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, idx) => {
                     const isErr = r.status === 'error'
+                    const isWarn = r.status === 'warn'
+                    const rowBg = isErr
+                      ? 'var(--surface-danger-soft)'
+                      : isWarn
+                        ? 'var(--surface-warning-soft)'
+                        : 'transparent'
                     return (
                       <tr key={r.id} style={{
                         borderBottom: '1px solid var(--border-subtle)',
-                        background: isErr ? 'var(--surface-brand-soft)' : 'transparent',
+                        background: rowBg,
                       }}>
                         <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{idx + 1}</td>
                         <td style={{ padding: '6px 8px' }}>
                           <input
                             type="text"
                             value={r.name}
-                            placeholder="Nhập họ tên..."
+                            placeholder="Nhập tên..."
                             onChange={(e) => updateRowField(r.id, 'name', e.target.value)}
                             style={{
                               width: '100%', padding: '6px 8px', borderRadius: 6,
-                              border: isErr ? '1px solid var(--red-600)' : '1px solid var(--border-default)',
+                              border: `1px solid ${isErr ? 'var(--status-incident)' : 'var(--border-default)'}`,
                               background: 'var(--field-bg)', font: 'var(--type-label)',
                               color: 'var(--text-primary)', outline: 0, boxSizing: 'border-box',
                             }}
@@ -868,20 +874,44 @@ function ImportMembersDialog() {
                           </select>
                         </td>
                         <td style={{ padding: '6px 8px' }}>
-                          <select
-                            value={r.groupId}
-                            onChange={(e) => updateRowField(r.id, 'groupId', e.target.value)}
-                            style={{
-                              width: '100%', padding: '6px 4px', borderRadius: 6,
-                              border: '1px solid var(--border-default)', background: 'var(--field-bg)',
-                              font: 'var(--type-caption)', color: 'var(--text-primary)', outline: 0,
-                            }}
-                          >
-                            <option value="">-- Mặc định ({db.groups[0]?.name || 'Cố định'}) --</option>
-                            {db.groups.map((g) => (
-                              <option key={g.id} value={g.id}>{g.name}</option>
-                            ))}
-                          </select>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {db.groups.map((g) => {
+                              const gids = Array.isArray(r.groupIds) ? r.groupIds : (r.groupId ? [r.groupId] : [])
+                              const checked = gids.includes(g.id)
+                              return (
+                                <label
+                                  key={g.id}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                                    padding: '3px 7px', borderRadius: 6,
+                                    background: checked ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
+                                    border: `1px solid ${checked ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+                                    cursor: 'pointer', font: 'var(--type-caption)',
+                                    userSelect: 'none',
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    style={{ cursor: 'pointer', margin: 0 }}
+                                    onChange={() => {
+                                      const nextGids = checked ? gids.filter((x) => x !== g.id) : gids.concat([g.id])
+                                      updateRowField(r.id, 'groupIds', nextGids)
+                                      updateRowField(r.id, 'groupId', nextGids[0] || '')
+                                    }}
+                                  />
+                                  <span style={{ fontWeight: checked ? 600 : 400, color: checked ? 'var(--teal-700)' : 'var(--text-secondary)' }}>
+                                    {g.short || g.name}
+                                  </span>
+                                </label>
+                              )
+                            })}
+                            {(!r.groupIds || r.groupIds.length === 0) && !r.groupId && (
+                              <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', fontSize: 11, fontStyle: 'italic' }}>
+                                Đi lẻ
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                           <IconButton

@@ -688,7 +688,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       valid.forEach((row) => {
         const id = uid()
-        const gs = row.groupId ? [row.groupId] : defGid ? [defGid] : []
+        const gs = Array.isArray(row.groupIds)
+          ? row.groupIds
+          : (row.groupId ? [row.groupId] : (defGid ? [defGid] : []))
         const mb = {
           id,
           name: row.name,

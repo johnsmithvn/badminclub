@@ -194,11 +194,40 @@ export function normalizeLevel(val, levels = []) {
   return levels[0] || 'TB-'
 }
 
-/** Khớp nhóm cố định với danh sách groups của CLB. */
+/** Khớp nhóm cố định với danh sách groups của CLB (hỗ trợ 1 nhóm, nhiều nhóm hoặc không cố định). */
 export function normalizeGroup(val, groups = []) {
-  if (!val) return { groupId: null, groupName: '' }
+  if (!val) return { groupId: null, groupIds: [], groupName: '' }
   const clean = String(val).trim()
   const normClean = normHeader(clean)
+
+  if (['khong', 'dile', 'le', 'none', 'khongcodinh', 'vanglai'].includes(normClean)) {
+    return { groupId: null, groupIds: [], groupName: '' }
+  }
+
+  // Tách các nhóm bằng dấu phẩy, chấm phẩy, dấu cộng
+  const parts = clean.split(/[,;+/]+/).map((s) => s.trim()).filter(Boolean)
+  const matched = []
+
+  parts.forEach((p) => {
+    const normP = normHeader(p)
+    const g = groups.find((x) =>
+      x.id === p ||
+      normHeader(x.name) === normP ||
+      (x.short && normHeader(x.short) === normP) ||
+      normHeader(x.name).includes(normP)
+    )
+    if (g && !matched.some((m) => m.id === g.id)) {
+      matched.push(g)
+    }
+  })
+
+  if (matched.length > 0) {
+    return {
+      groupId: matched[0].id,
+      groupIds: matched.map((m) => m.id),
+      groupName: matched.map((m) => m.short || m.name).join(' + '),
+    }
+  }
 
   const found = groups.find((g) =>
     g.id === clean ||
@@ -207,9 +236,9 @@ export function normalizeGroup(val, groups = []) {
   )
 
   if (found) {
-    return { groupId: found.id, groupName: found.short || found.name }
+    return { groupId: found.id, groupIds: [found.id], groupName: found.short || found.name }
   }
-  return { groupId: null, groupName: clean }
+  return { groupId: null, groupIds: [], groupName: clean }
 }
 
 /**
@@ -278,7 +307,7 @@ export function parseAndValidateMembers(csvText, clubLevels = [], clubGroups = [
     const rawLevel = row[3] || ''
     const rawGroup = row[4] || ''
 
-    const { groupId, groupName } = normalizeGroup(rawGroup, clubGroups)
+    const { groupId, groupIds, groupName } = normalizeGroup(rawGroup, clubGroups)
 
     const baseRow = {
       id: 'row_' + idx,
@@ -287,6 +316,7 @@ export function parseAndValidateMembers(csvText, clubLevels = [], clubGroups = [
       gender: normalizeGender(rawGender),
       level: normalizeLevel(rawLevel, clubLevels),
       groupId: groupId || '',
+      groupIds: groupIds || (groupId ? [groupId] : []),
       groupName: groupName || '',
     }
 
