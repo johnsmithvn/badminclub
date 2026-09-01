@@ -1,17 +1,16 @@
-// Header: tên trang + mô tả · chọn tháng · nút hành động (theo quyền) · dải "Xem như: <vai>".
+// Header: tên trang + mô tả · chọn tháng · nút hành động (theo quyền).
 
-import { Button, Icon, IconButton, Select } from '#ds'
+import { Button, IconButton } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { pageOf } from '#routes'
-import { ROLES, can, roleDesc, viewAsOptions } from '#lib/roles.js'
+import { can } from '#lib/roles.js'
 import { monthTxt } from '#utils/dates.js'
 import { adhocForm, scheduleForm } from '#lib/forms.js'
 import { t } from '#i18n'
 
 export default function AppHeader({ route }) {
   const { db, a } = useApp()
-  const role = db.viewAs || 'owner'
-  const allowed = viewAsOptions(db.myRole)
+  const role = db.myRole || db.viewAs || 'owner'
   const page = pageOf(route)
 
   return (
@@ -43,16 +42,6 @@ export default function AppHeader({ route }) {
           </>
         )}
       </div>
-
-      {/* Dải nhắc quyền — luôn hiện, chứa cả select Xem như để header trên không bị tràn. */}
-      <div style={S.roleBar}>
-        <Icon name="shield" size={16} />
-        <Select size="sm" style={{ width: 188 }}
-          options={ROLES.filter((r) => allowed.indexOf(r.value) >= 0)
-            .map((r) => ({ value: r.value, label: t('roles.viewAsPrefix') + r.label }))}
-          value={role} onChange={(e) => a.setViewAs(e.target.value)} />
-        <span style={S.roleNote}>{roleDesc(role)}</span>
-      </div>
     </header>
   )
 }
@@ -79,10 +68,4 @@ const S = {
     border: '1px solid var(--border-subtle)', borderRadius: 6,
   },
   monthLabel: { font: '600 13px/1 var(--font-mono)', color: 'var(--text-primary)', minWidth: 78, textAlign: 'center' },
-  roleBar: {
-    flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 10px',
-    padding: '8px 10px', borderRadius: 8, background: 'var(--surface-brand-soft)',
-    border: '1px solid var(--border-subtle)',
-  },
-  roleNote: { flex: 1, minWidth: 200, font: 'var(--type-caption)', color: 'var(--navy-700)' },
 }
