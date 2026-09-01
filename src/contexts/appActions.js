@@ -610,12 +610,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const d0 = db()
       const name = (f.mName || '').trim()
       if (!name) return toast(t('toast.needMemberName'))
-      const start = f.mStart || 'next'
-      let gs = (f.mGroups || []).slice()
-      if (gs.length === 0 && d0.groups.length > 0) {
-        gs = [d0.groups[0].id]
-      }
-      if (start !== 'none' && !gs.length) return toast(t('toast.needGroup'))
+      // Không chọn ca nào = chưa cố định (đi lẻ). KHÔNG tự gán về ca đầu tiên: người mới đến
+      // chơi thử mà bị gán cố định thì tháng sau `lockDues` đẻ ra một khoản quỹ không ai yêu
+      // cầu, và không có gì trên màn hình nói cho họ biết.
+      const gs = (f.mGroups || []).slice()
+      const start = gs.length ? f.mStart || 'next' : 'none'
       const nextM = addMonth(d0.month, 1)
 
       // Sinh id và tính khoản thu TRƯỚC updater. Trước đây toast đọc `db()` SAU `up()` rồi mò
@@ -1076,18 +1075,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const def = d0.groups[0] || {}
       const name = (f.grName || '').trim()
       if (!name) return toast(t('toast.needGroupName'))
-      if (!(f.grCourts || []).length) return toast(t('toast.needGroupCourt'))
       up((d) => ({
         groups: d.groups.concat([{
           id: uid(), name, short: (f.grShort || '').trim() || name.slice(0, 3),
-          weekday: intOf(f.grWeekday),
-          feeNam: f.grFeeNam ? intOf(f.grFeeNam) : (def.feeNam || 0),
-          feeNu: f.grFeeNu ? intOf(f.grFeeNu) : (def.feeNu || 0),
+          weekday: 0,
+          feeNam: def.feeNam || 0,
+          feeNu: def.feeNu || 0,
           unitNam: def.unitNam || 0,
           unitNu: def.unitNu || 0,
-          from: f.grFrom, to: f.grTo,
+          from: f.grFrom || '18:00', to: f.grTo || '20:00',
           quota: intOf(f.grQuota) || cfg.shuttle.quotaDefault,
-          courtIds: f.grCourts.slice(), active: true,
+          courtIds: [], active: true,
         }]),
       }))
       upUi(() => ({ dialog: null, form: {} }))
@@ -1119,20 +1117,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (hasSessions || hasSchedules) {
         return toast(t('toast.groupInUse') || 'Không thể xoá nhóm đã có lịch hoặc buổi tập')
       }
-      const defId = d0.groups[0].id
       up((d) => ({
         groups: d.groups.filter((g) => g.id !== id),
-        members: d.members.map((m) => {
-          const filtered = (m.groupIds || []).filter((g) => g !== id)
-          return {
-            ...m,
-            groupIds: filtered.length > 0 ? filtered : [defId],
-          }
-        }),
+        // Hết ca thì thành đi lẻ. KHÔNG đá sang ca mặc định: đó là gán cố định thay cho user,
+        // và tháng sau sẽ thu quỹ của một ca họ chưa bao giờ chọn.
+        members: d.members.map((m) => ({ ...m, groupIds: (m.groupIds || []).filter((g) => g !== id) })),
       }))
       toast(t('toast.groupDeleted') || 'Đã xoá nhóm')
     },
-    saveGeneralFees: ({ feeNam, feeNu, unitNam, unitNu }) => {
+    saveMoneyTab: ({ feeNam, feeNu, unitNam, unitNu, guestPrices }) => {
       up((d) => ({
         groups: d.groups.map((g) => ({
           ...g,
@@ -1141,8 +1134,26 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           unitNam: intOf(unitNam),
           unitNu: intOf(unitNu),
         })),
+        guestPrices: guestPrices ? guestPrices.map((x) => ({
+          level: x.level,
+          nam: intOf(x.nam),
+          nu: intOf(x.nu),
+        })) : d.guestPrices,
       }))
       toast(t('toast.pricingSaved'))
+    },
+    saveGroupsTab: (groupsList) => {
+      up((d) => ({
+        groups: groupsList.map((g) => ({
+          ...g,
+          name: (g.name || '').trim(),
+          short: (g.short || '').trim() || (g.name || '').slice(0, 3),
+          from: g.from || '18:00',
+          to: g.to || '20:00',
+          quota: intOf(g.quota) || cfg.shuttle.quotaDefault,
+        })),
+      }))
+      toast(t('toast.groupsSaved'))
     },
     setShuttleType: (id, k, v) =>
       up((d) => ({

@@ -382,10 +382,7 @@ function NewGroupDialog() {
         <Input label={t('settings.fGroupName')} value={f.grName || ''} onChange={(e) => a.setF('grName', e.target.value)} />
         <Input label={t('settings.fGroupShort')} value={f.grShort || ''} onChange={(e) => a.setF('grShort', e.target.value)} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        <Select label={t('settings.fGroupWeekday')} value={String(f.grWeekday)}
-          options={WD.map((w, i) => ({ value: String(i), label: w }))}
-          onChange={(e) => a.setF('grWeekday', e.target.value)} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Input label={t('settings.fGroupFrom')} mono value={f.grFrom || ''} onChange={(e) => a.setF('grFrom', e.target.value)} />
         <Input label={t('settings.fGroupTo')} mono value={f.grTo || ''} onChange={(e) => a.setF('grTo', e.target.value)} />
       </div>
@@ -399,22 +396,6 @@ function NewGroupDialog() {
         </span>
         <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={f.grQuota || ''}
           style={{ width: 110 }} onChange={(e) => a.setF('grQuota', e.target.value)} />
-      </div>
-      <div style={{ display: 'grid', gap: 6 }}>
-        <Overline>{t('settings.fGroupCourts')}</Overline>
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {db.courts.map((c) => {
-            const on = picked.indexOf(c.id) >= 0
-            return (
-              <button key={c.id} type="button" onClick={() => toggle(c.id)} style={{
-                padding: '7px 12px', borderRadius: 99, border: '1px solid',
-                borderColor: on ? 'var(--teal-500)' : 'var(--border-subtle)',
-                background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
-                color: 'var(--text-primary)', font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
-              }}>{c.name}</button>
-            )
-          })}
-        </div>
       </div>
       <Note tone="warn">
         Lưu ý: Sau khi tạo nhóm mới, bạn cần vào trang Thành viên để gán thành viên vào nhóm này thì mới phát sinh quỹ tháng và điểm danh theo lịch của nhóm này.
@@ -448,8 +429,8 @@ function AddMemberDialog() {
       <div style={{ display: 'grid', gap: 6 }}>
         <Overline>{t('members.fGroups')}</Overline>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {db.groups.map((g, idx) => {
-            const on = (f.mGroups || []).indexOf(g.id) >= 0 || ((!f.mGroups || f.mGroups.length === 0) && idx === 0)
+          {db.groups.map((g) => {
+            const on = (f.mGroups || []).indexOf(g.id) >= 0
             return (
               <button key={g.id} type="button" onClick={() => a.toggleMemberGroup(g.id)} style={{
                 padding: '7px 12px', borderRadius: 99, border: '1px solid',
@@ -457,13 +438,13 @@ function AddMemberDialog() {
                 background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
                 color: 'var(--text-primary)', font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
               }}>
-                {g.name} {idx === 0 ? '(Mặc định)' : ''}
+                {g.name}
               </button>
             )
           })}
         </div>
         <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-          Nếu không chọn nhóm nào, thành viên sẽ tự động thuộc nhóm mặc định.
+          {t('members.addGroupNone')}
         </div>
       </div>
 

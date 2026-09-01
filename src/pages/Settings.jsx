@@ -7,7 +7,7 @@ import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, ddmy } from '#utils/dates.js'
 import { ROLES, can, roleDesc } from '#lib/roles.js'
-import { fmtK } from '#lib/money.js'
+import { fmtK, intOf } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -135,7 +135,7 @@ const Toggle = ({ label, note, checked, onChange, disabled }) => (
 
 /* ---------------- Biểu phí (Cố định & Khách) ---------------- */
 
-function GeneralFeeCard({ canEdit }) {
+function MoneyTab({ canEdit }) {
   const { db, a } = useApp()
   const def = db.groups[0] || {}
 
@@ -143,187 +143,214 @@ function GeneralFeeCard({ canEdit }) {
   const [feeNu, setFeeNu] = useState(String(def.feeNu ?? ''))
   const [unitNam, setUnitNam] = useState(String(def.unitNam ?? ''))
   const [unitNu, setUnitNu] = useState(String(def.unitNu ?? ''))
+  const [guestPrices, setGuestPrices] = useState(db.guestPrices)
+
+  const [bulkPrice, setBulkPrice] = useState('')
+  const [bulkWho, setBulkWho] = useState('both')
+  const [bulkLevels, setBulkLevels] = useState([])
 
   useEffect(() => {
     setFeeNam(String(def.feeNam ?? ''))
     setFeeNu(String(def.feeNu ?? ''))
     setUnitNam(String(def.unitNam ?? ''))
     setUnitNu(String(def.unitNu ?? ''))
-  }, [def.feeNam, def.feeNu, def.unitNam, def.unitNu])
+    setGuestPrices(db.guestPrices)
+  }, [def.feeNam, def.feeNu, def.unitNam, def.unitNu, db.guestPrices])
 
   const isChanged =
     feeNam !== String(def.feeNam ?? '') ||
     feeNu !== String(def.feeNu ?? '') ||
     unitNam !== String(def.unitNam ?? '') ||
-    unitNu !== String(def.unitNu ?? '')
+    unitNu !== String(def.unitNu ?? '') ||
+    JSON.stringify(guestPrices) !== JSON.stringify(db.guestPrices)
 
   const handleCancel = () => {
     setFeeNam(String(def.feeNam ?? ''))
     setFeeNu(String(def.feeNu ?? ''))
     setUnitNam(String(def.unitNam ?? ''))
     setUnitNu(String(def.unitNu ?? ''))
+    setGuestPrices(db.guestPrices)
+    setBulkLevels([])
+    setBulkPrice('')
   }
 
   const handleSave = () => {
-    a.saveGeneralFees({
+    a.saveMoneyTab({
       feeNam,
       feeNu,
       unitNam,
       unitNu,
+      guestPrices,
     })
   }
 
-  return (
-    <Card title={t('settings.generalFeeTitle')} subtitle={t('settings.generalFeeSub')} icon="banknote" padding="14px 16px">
-      <div style={{ display: 'grid', gap: 14 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Input
-            label={t('settings.feeMale')}
-            mono
-            suffix={t('units.dong')}
-            value={feeNam}
-            disabled={!canEdit}
-            onChange={(e) => setFeeNam(e.target.value)}
-          />
-          <Input
-            label={t('settings.feeFemale')}
-            mono
-            suffix={t('units.dong')}
-            value={feeNu}
-            disabled={!canEdit}
-            onChange={(e) => setFeeNu(e.target.value)}
-          />
-        </div>
+  const setPrice = (level, gender, val) => {
+    setGuestPrices((prev) => prev.map((p) => (p.level === level ? { ...p, [gender]: intOf(val) } : p)))
+  }
 
-        <div style={{ display: 'grid', gap: 8 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Input
-              label={t('settings.unitMale')}
-              mono
-              suffix={t('units.dong')}
-              value={unitNam}
-              disabled={!canEdit}
-              onChange={(e) => setUnitNam(e.target.value)}
-            />
-            <Input
-              label={t('settings.unitFemale')}
-              mono
-              suffix={t('units.dong')}
-              value={unitNu}
-              disabled={!canEdit}
-              onChange={(e) => setUnitNu(e.target.value)}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <div style={S.caption}>{t('settings.unitNote')}</div>
-            {((db.guestPrices.find((p) => p.nam > 0)?.nam || 0) > 0 || (db.guestPrices.find((p) => p.nu > 0)?.nu || 0) > 0) && (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="sparkles"
-                disabled={!canEdit}
-                onClick={() => {
-                  const gNam = db.guestPrices.find((p) => p.nam > 0)?.nam || 0
-                  const gNu = db.guestPrices.find((p) => p.nu > 0)?.nu || 0
-                  if (gNam) setUnitNam(String(gNam))
-                  if (gNu) setUnitNu(String(gNu))
-                }}
-              >
-                Lấy theo giá vãng lai
-              </Button>
-            )}
-          </div>
-        </div>
+  const toggleBulkLevel = (lv) => {
+    setBulkLevels((prev) => (prev.indexOf(lv) >= 0 ? prev.filter((x) => x !== lv) : prev.concat([lv])))
+  }
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 4 }}>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="rotate-ccw"
-            disabled={!canEdit || !isChanged}
-            onClick={handleCancel}
-          >
-            {t('common.cancel')}
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            icon="check"
-            disabled={!canEdit || !isChanged}
-            onClick={handleSave}
-          >
-            {t('common.save')}
-          </Button>
-        </div>
-      </div>
-    </Card>
-  )
-}
+  const applyBulk = () => {
+    const pr = intOf(bulkPrice)
+    setGuestPrices((prev) => prev.map((p) => {
+      if (bulkLevels.indexOf(p.level) < 0) return p
+      return {
+        ...p,
+        nam: bulkWho === 'both' || bulkWho === 'nam' ? pr : p.nam,
+        nu: bulkWho === 'both' || bulkWho === 'nu' ? pr : p.nu,
+      }
+    }))
+    setBulkLevels([])
+  }
 
-function MoneyTab({ canEdit }) {
-  const { db, a } = useApp()
+  const sampleNam = guestPrices.find((p) => p.nam > 0)?.nam || 0
+  const sampleNu = guestPrices.find((p) => p.nu > 0)?.nu || 0
+
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <GeneralFeeCard canEdit={canEdit} />
+      {/* 1. Phí thành viên cố định */}
+      <Card title={t('settings.generalFeeTitle')} subtitle={t('settings.generalFeeSub')} icon="banknote" padding="14px 16px">
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Input
+              label={t('settings.feeMale')}
+              mono
+              suffix={t('units.dong')}
+              value={feeNam}
+              disabled={!canEdit}
+              onChange={(e) => setFeeNam(e.target.value)}
+            />
+            <Input
+              label={t('settings.feeFemale')}
+              mono
+              suffix={t('units.dong')}
+              value={feeNu}
+              disabled={!canEdit}
+              onChange={(e) => setFeeNu(e.target.value)}
+            />
+          </div>
 
+          <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Input
+                label={t('settings.unitMale')}
+                mono
+                suffix={t('units.dong')}
+                value={unitNam}
+                disabled={!canEdit}
+                onChange={(e) => setUnitNam(e.target.value)}
+              />
+              <Input
+                label={t('settings.unitFemale')}
+                mono
+                suffix={t('units.dong')}
+                value={unitNu}
+                disabled={!canEdit}
+                onChange={(e) => setUnitNu(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div style={S.caption}>{t('settings.unitNote')}</div>
+              {(sampleNam > 0 || sampleNu > 0) && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="sparkles"
+                  disabled={!canEdit}
+                  onClick={() => {
+                    if (sampleNam) setUnitNam(String(sampleNam))
+                    if (sampleNu) setUnitNu(String(sampleNu))
+                  }}
+                >
+                  Lấy theo giá vãng lai
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* 2. Giá khách giao lưu */}
       <Card title={t('settings.guestPriceTitle')} subtitle={t('settings.guestPriceSub')} icon="tags" padding="14px 16px">
-        <div style={{ display: 'grid', gap: 10 }}>
-          {canEdit && <BulkPrice />}
+        <div style={{ display: 'grid', gap: 12 }}>
+          {canEdit && (
+            <div style={S.bulkBox}>
+              <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <Input label={t('settings.bulkPrice')} mono suffix={t('units.dong')} style={{ width: 150 }}
+                  value={bulkPrice} onChange={(e) => setBulkPrice(e.target.value)} />
+                <Select label={t('settings.bulkWho')} style={{ width: 150 }} value={bulkWho}
+                  options={[
+                    { value: 'both', label: t('settings.bulkBoth') },
+                    { value: 'nam', label: t('gender.nam') },
+                    { value: 'nu', label: t('gender.nu') },
+                  ]}
+                  onChange={(e) => setBulkWho(e.target.value)} />
+                <Button variant="accent" size="sm" icon="check" disabled={!bulkLevels.length}
+                  onClick={applyBulk}>
+                  {t('settings.bulkApply', { n: bulkLevels.length })}
+                </Button>
+              </div>
+              <div style={{ display: 'grid', gap: 5 }}>
+                <Overline>{t('settings.bulkPick')}</Overline>
+                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                  {db.levels.map((l) => (
+                    <button key={l} type="button" onClick={() => toggleBulkLevel(l)}
+                      style={{ ...S.pick, ...(bulkLevels.indexOf(l) >= 0 ? S.pickOn : null) }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ ...S.priceGrid, ...S.headRow }}>
             <span>{t('settings.colLevel')}</span>
             <span>{t('settings.colMale')}</span>
             <span>{t('settings.colFemale')}</span>
           </div>
-          {db.guestPrices.map((p) => (
+          {guestPrices.map((p) => (
             <div key={p.level} style={S.priceGrid}>
               <span style={S.label}>{p.level}</span>
               <Input mono suffix={t('units.dong')} value={String(p.nam)} disabled={!canEdit}
-                onChange={(e) => a.setPrice(p.level, 'nam', e.target.value)} />
+                onChange={(e) => setPrice(p.level, 'nam', e.target.value)} />
               <Input mono suffix={t('units.dong')} value={String(p.nu)} disabled={!canEdit}
-                onChange={(e) => a.setPrice(p.level, 'nu', e.target.value)} />
+                onChange={(e) => setPrice(p.level, 'nu', e.target.value)} />
             </div>
           ))}
         </div>
       </Card>
-    </div>
-  )
-}
 
-/**
- * Gán một mức giá cho nhiều trình độ cùng lúc. Thang 9 bậc = 18 ô nhập, mà CLB thực tế chỉ có
- * vài mức giá — gõ từng ô vừa lâu vừa dễ lệch một ô mà không ai phát hiện.
- */
-function BulkPrice() {
-  const { db, ui, a } = useApp()
-  const picked = ui.form.bulkLevels || []
-
-  return (
-    <div style={S.bulkBox}>
-      <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <Input label={t('settings.bulkPrice')} mono suffix={t('units.dong')} style={{ width: 150 }}
-          value={String(ui.form.bulkPrice ?? '')} onChange={(e) => a.setF('bulkPrice', e.target.value)} />
-        <Select label={t('settings.bulkWho')} style={{ width: 150 }} value={ui.form.bulkWho || 'both'}
-          options={[
-            { value: 'both', label: t('settings.bulkBoth') },
-            { value: 'nam', label: t('gender.nam') },
-            { value: 'nu', label: t('gender.nu') },
-          ]}
-          onChange={(e) => a.setF('bulkWho', e.target.value)} />
-        <Button variant="accent" size="sm" icon="check" disabled={!picked.length}
-          onClick={() => a.applyPriceBulk()}>
-          {t('settings.bulkApply', { n: picked.length })}
+      {/* Thanh nút Lưu / Hủy cấp Tab */}
+      <div style={{
+        display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center',
+        padding: '12px 16px', background: 'var(--surface-card)', borderRadius: 12,
+        border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
+        position: 'sticky', bottom: 12, zIndex: 10,
+      }}>
+        <span style={{ marginRight: 'auto', font: 'var(--type-caption)', color: isChanged ? 'var(--status-delayed)' : 'var(--text-muted)' }}>
+          {isChanged ? '● Có thay đổi chưa lưu trên tab Biểu phí' : 'Đã đồng bộ toàn bộ biểu phí'}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="rotate-ccw"
+          disabled={!canEdit || !isChanged}
+          onClick={handleCancel}
+        >
+          {t('common.cancel')}
         </Button>
-      </div>
-      <div style={{ display: 'grid', gap: 5 }}>
-        <Overline>{t('settings.bulkPick')}</Overline>
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {db.levels.map((l) => (
-            <button key={l} type="button" onClick={() => a.toggleBulkLevel(l)}
-              style={{ ...S.pick, ...(picked.indexOf(l) >= 0 ? S.pickOn : null) }}>
-              {l}
-            </button>
-          ))}
-        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          icon="check"
+          disabled={!canEdit || !isChanged}
+          onClick={handleSave}
+        >
+          {t('common.save')}
+        </Button>
       </div>
     </div>
   )
@@ -429,17 +456,38 @@ function ShuttleTab({ canEdit }) {
 function Groups({ canEdit }) {
   const { db, a } = useApp()
   const noCourt = db.courts.length === 0
+
+  const [draft, setDraft] = useState(db.groups)
+
+  useEffect(() => {
+    setDraft(db.groups)
+  }, [db.groups])
+
+  const isChanged = JSON.stringify(draft) !== JSON.stringify(db.groups)
+
+  const updateGroup = (id, field, value) => {
+    setDraft((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)))
+  }
+
+  const handleCancel = () => {
+    setDraft(db.groups)
+  }
+
+  const handleSave = () => {
+    a.saveGroupsTab(draft)
+  }
+
   return (
     <Card title={t('settings.groupsTitle')} subtitle={t('settings.groupsSub')} icon="users" padding="14px 16px"
       actions={canEdit && (
         <Button variant="secondary" size="sm" icon="plus" disabled={noCourt}
           onClick={() => a.openDialog('newGroup', groupForm(db))}>{t('settings.addGroup')}</Button>
       )}>
-      {db.groups.length === 0
+      {draft.length === 0
         ? <Empty icon="users" title={t('settings.noGroup')}
             hint={noCourt ? t('settings.noCourtFirst') : t('settings.noGroupHint')} />
         : <div style={{ display: 'grid', gap: 14 }}>
-            {db.groups.map((g, idx) => (
+            {draft.map((g, idx) => (
               <div key={g.id} style={S.groupBox}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -466,19 +514,17 @@ function Groups({ canEdit }) {
                   )}
                 </div>
 
-                <div style={S.groupRow}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 10 }}>
                   <Input label={t('settings.fGroupName')} value={g.name} disabled={!canEdit}
-                    onChange={(e) => a.setGroupField(g.id, 'name', e.target.value)} />
+                    onChange={(e) => updateGroup(g.id, 'name', e.target.value)} />
                   <Input label={t('settings.fGroupShort')} value={g.short || ''} disabled={!canEdit}
-                    onChange={(e) => a.setGroupField(g.id, 'short', e.target.value)} />
-                  <Select label={t('settings.fGroupWeekday')} value={String(g.weekday)} disabled={!canEdit}
-                    options={WD.map((w, i) => ({ value: String(i), label: w }))}
-                    onChange={(e) => a.setGroupField(g.id, 'weekday', e.target.value)} />
+                    onChange={(e) => updateGroup(g.id, 'short', e.target.value)} />
                   <Input label={t('settings.fGroupFrom')} mono value={g.from} disabled={!canEdit}
-                    onChange={(e) => a.setGroupField(g.id, 'from', e.target.value)} />
+                    onChange={(e) => updateGroup(g.id, 'from', e.target.value)} />
                   <Input label={t('settings.fGroupTo')} mono value={g.to} disabled={!canEdit}
-                    onChange={(e) => a.setGroupField(g.id, 'to', e.target.value)} />
+                    onChange={(e) => updateGroup(g.id, 'to', e.target.value)} />
                 </div>
+
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '10px 14px', borderRadius: 8, background: 'var(--surface-inset)',
@@ -495,20 +541,38 @@ function Groups({ canEdit }) {
                   </div>
                   <span style={{ color: 'var(--text-muted)' }}>Định mức: {g.quota || 24} quả</span>
                 </div>
-                <div style={{ display: 'grid', gap: 6 }}>
-                  <Overline>{t('settings.fGroupCourts')}</Overline>
-                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                    {db.courts.map((c) => (
-                      <button key={c.id} type="button" disabled={!canEdit}
-                        onClick={() => a.toggleGroupCourt(g.id, c.id)}
-                        style={{ ...S.pick, ...((g.courtIds || []).indexOf(c.id) >= 0 ? S.pickOn : null) }}>
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             ))}
+
+            {/* Thanh nút Lưu / Hủy cấp Tab */}
+            <div style={{
+              display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center',
+              padding: '12px 16px', background: 'var(--surface-card)', borderRadius: 12,
+              border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
+              position: 'sticky', bottom: 12, zIndex: 10,
+            }}>
+              <span style={{ marginRight: 'auto', font: 'var(--type-caption)', color: isChanged ? 'var(--status-delayed)' : 'var(--text-muted)' }}>
+                {isChanged ? '● Có thay đổi chưa lưu trên tab Nhóm cố định' : 'Đã đồng bộ thông tin nhóm'}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="rotate-ccw"
+                disabled={!canEdit || !isChanged}
+                onClick={handleCancel}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon="check"
+                disabled={!canEdit || !isChanged}
+                onClick={handleSave}
+              >
+                {t('common.save')}
+              </Button>
+            </div>
           </div>}
     </Card>
   )

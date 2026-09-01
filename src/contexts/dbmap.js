@@ -60,16 +60,15 @@ export function toDb(raw, ctx) {
     }]
   }
 
-  const defaultGroupId = groups[0].id
-
   const members = (raw.members || []).map((m) => {
-    const rawGids = (m.club_member_groups || []).map((x) => x.group_id)
     return {
       id: m.id, name: m.name, phone: m.phone || '', gender: m.gender, level: m.level,
       role: m.role, joined: m.joined_at, active: m.active, userId: m.user_id || null,
       linkedAt: dOf(m.linked_at), pendingLevel: m.pending_level || null,
       pendingLevelFrom: m.pending_level_from || null,
-      groupIds: rawGids.length > 0 ? rawGids : [defaultGroupId],
+      // Rỗng = chưa cố định ca nào (đi lẻ). Không bịa ca mặc định ở đây: migration 0002 đã
+      // backfill `club_member_groups` cho người cũ, nên rỗng bây giờ là rỗng thật.
+      groupIds: (m.club_member_groups || []).map((x) => x.group_id),
     }
   })
 
