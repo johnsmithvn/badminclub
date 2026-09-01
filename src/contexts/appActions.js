@@ -729,6 +729,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         toast(`Đã gán ${memberIds.length} thành viên vào: ${gNames}`)
       }
     },
+    deactivateMembersBulk: (ids) => {
+      const idSet = new Set(ids)
+      up((d) => ({
+        members: d.members.map((m) => (idSet.has(m.id) ? { ...m, active: false } : m)),
+      }))
+      toast(`Đã chuyển ${ids.length} thành viên sang trạng thái Ngưng hoạt động (lịch sử giữ nguyên)`)
+    },
+    reactivateMembersBulk: (ids) => {
+      const idSet = new Set(ids)
+      up((d) => ({
+        members: d.members.map((m) => (idSet.has(m.id) ? { ...m, active: true } : m)),
+      }))
+      toast(`Đã cho ${ids.length} thành viên hoạt động trở lại`)
+    },
     createMember: () => {
       const f = form()
       const d0 = db()

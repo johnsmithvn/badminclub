@@ -137,6 +137,32 @@ function AllMembers({ canEdit }) {
       },
     },
     {
+      key: 'st', header: 'Trạng thái', width: 95,
+      render: (r) => (
+        r.active === false ? (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '2px 8px', borderRadius: 99,
+            background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+            font: '600 11px var(--font-sans)', color: 'var(--text-muted)',
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-disabled)' }} />
+            Inactive
+          </span>
+        ) : (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '2px 8px', borderRadius: 99,
+            background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)',
+            font: '600 11px var(--font-sans)', color: 'var(--teal-700)',
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-delivered)' }} />
+            Active
+          </span>
+        )
+      ),
+    },
+    {
       key: 'a', header: '',
       render: (r) => canEdit && (
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
@@ -144,21 +170,29 @@ function AllMembers({ canEdit }) {
             onClick={() => a.openDialog('editMember', editMemberForm(r))}>
             {t('common.edit')}
           </Button>
-          {/* Ngưng hoạt động giữ nguyên lịch sử; xoá cứng chỉ mở khi chưa dính gì. */}
+          {/* Ngưng hoạt động (Inactive) giữ nguyên lịch sử; xoá cứng chỉ mở khi chưa dính gì. */}
           <IconButton icon={r.active === false ? 'rotate-ccw' : 'user-round-minus'} size="sm" variant="ghost"
-            label={t(r.active === false ? 'members.reactivate' : 'members.deactivate')}
+            label={r.active === false ? 'Kích hoạt lại (Active)' : 'Chuyển Inactive (Ngưng hoạt động)'}
             onClick={() => {
               if (r.active === false) return a.reactivate(r.id)
-              // Đang cố định mà đã đóng tiền tháng này thì quỹ đang giữ tiền của những buổi
-              // người ta sẽ không đánh nữa — hỏi một câu, không tự quyết hộ.
               const s = offBackSuggest(db, r.id)
               return s
                 ? a.openDialog('offBack', { obId: r.id, obAmount: String(s.amount || '') })
                 : a.deactivate(r.id, 0)
             }} />
-          {!memberRefs(db, r.id).length && (
+          {!memberRefs(db, r.id).length ? (
             <IconButton icon="trash-2" size="sm" variant="ghost"
               label={t('common.delete')} onClick={() => a.deleteMember(r.id)} />
+          ) : (
+            <span
+              title="Đã phát sinh lịch sử (điểm danh / tiền quỹ) — không cho phép xoá để bảo toàn sổ sách. Hãy dùng nút Inactive bên cạnh."
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                opacity: 0.4, cursor: 'not-allowed',
+              }}
+            >
+              <IconButton icon="lock" size="sm" variant="ghost" disabled label="Đã có lịch sử sinh hoạt" />
+            </span>
           )}
         </div>
       ),
@@ -177,8 +211,8 @@ function AllMembers({ canEdit }) {
             <Tabs
               variant="segmented"
               items={[
-                { value: 'on', label: t('members.stateOn') },
-                { value: 'off', label: t('members.stateOff'), count: off.length },
+                { value: 'on', label: 'Active' },
+                { value: 'off', label: 'Inactive', count: off.length },
               ]}
               value={ui.tab.mstate || 'on'}
               onChange={(v) => a.setTab('mstate', v)}
@@ -256,18 +290,53 @@ function AllMembers({ canEdit }) {
               Bỏ cố định (Đi lẻ)
             </Button>
 
+            {!showOff ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="user-round-minus"
+                onClick={() => {
+                  if (window.confirm(`Chuyển ${selectedIds.length} thành viên sang trạng thái Inactive (lịch sử điểm danh và quỹ được giữ nguyên 100%)?`)) {
+                    a.deactivateMembersBulk(selectedIds)
+                    setSelectedIds([])
+                  }
+                }}
+              >
+                Chuyển Inactive
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="rotate-ccw"
+                onClick={() => {
+                  a.reactivateMembersBulk(selectedIds)
+                  setSelectedIds([])
+                }}
+              >
+                Kích hoạt Active
+              </Button>
+            )}
+
             <Button
               variant="danger"
               size="sm"
               icon="trash-2"
               onClick={() => {
-                if (window.confirm(`Bạn có chắc chắn muốn xoá ${selectedIds.length} thành viên đã chọn?`)) {
+                const blocked = selectedIds.filter((id) => memberRefs(db, id).length > 0)
+                if (blocked.length === selectedIds.length) {
+                  return alert('Tất cả thành viên đã chọn đều đã có dữ liệu (điểm danh/quỹ). Hệ thống không cho phép xoá vĩnh viễn để bảo toàn lịch sử. Hãy bấm nút "Ngưng hoạt động (Off)" bên cạnh!')
+                }
+                const msg = blocked.length > 0
+                  ? `Có ${selectedIds.length - blocked.length} người chưa có dữ liệu sẽ bị xoá. Còn ${blocked.length} người đã có dữ liệu sinh hoạt sẽ được giữ lại an toàn. Bạn có muốn tiếp tục?`
+                  : `Bạn có chắc chắn muốn xoá vĩnh viễn ${selectedIds.length} thành viên này?`
+                if (window.confirm(msg)) {
                   a.deleteMembersBulk(selectedIds)
                   setSelectedIds([])
                 }
               }}
             >
-              Xoá {selectedIds.length} người
+              Xoá vĩnh viễn
             </Button>
           </div>
         </div>
