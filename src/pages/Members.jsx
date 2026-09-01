@@ -1,12 +1,13 @@
 // Thành viên: danh sách · cố định tháng sau · thay đổi chờ duyệt (handoff 02 §5).
 // Nguồn ai phải đóng quỹ là roster THEO THÁNG, không phải groupIds.
 
-import { useState } from 'react'
-import { Avatar, Button, Card, DataTable, IconButton, Tabs } from '#ds'
+import { useMemo, useState } from 'react'
+import { Avatar, Button, Card, DataTable, Icon, IconButton, SearchField, Select, Tabs } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { addMonth, monthShort, monthTxt } from '#utils/dates.js'
 import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, memberRefs, offBackSuggest, rosterStatus } from '#lib/money.js'
+import { FILTER0, duesStatusOf, filterMembers, fixedGroups, hasFilter, nextSort, sortMembers } from '#lib/members.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -46,18 +47,47 @@ export default function Members() {
 function AllMembers({ canEdit }) {
   const { db, ui, a } = useApp()
   const [selectedIds, setSelectedIds] = useState([])
+  const [flt, setFlt] = useState(FILTER0)
+  const [sort, setSort] = useState({})
+  const setF = (k, v) => setFlt((s) => ({ ...s, [k]: v }))
 
   const off = db.members.filter((m) => m.active === false)
   const showOff = off.length > 0 && (ui.tab.mstate || 'on') === 'off'
-  const rows = showOff ? off : db.members.filter((m) => m.active !== false)
+  const base = showOff ? off : db.members.filter((m) => m.active !== false)
   const dues = duesOf(db, db.month)
 
-  const isAllSelected = rows.length > 0 && selectedIds.length === rows.length
-  const isSomeSelected = selectedIds.length > 0 && selectedIds.length < rows.length
+  const rows = useMemo(
+    () => sortMembers(db, filterMembers(db, base, flt, db.month), sort, db.month),
+    [db, base, flt, sort]
+  )
+
+  // Chọn xong rồi mới lọc thì trong `selectedIds` còn id đã bị ẩn. Mọi thao tác hàng loạt
+  // chạy trên `selected` (đã cắt về những dòng ĐANG thấy) — không thì bấm "Xoá vĩnh viễn"
+  // xoá cả người không hiện trên màn hình, và không có gì nói cho người bấm biết.
+  const visible = new Set(rows.map((r) => r.id))
+  const selected = selectedIds.filter((id) => visible.has(id))
+
+  const isAllSelected = rows.length > 0 && selected.length === rows.length
+  const isSomeSelected = selected.length > 0 && selected.length < rows.length
 
   const toggleSelectAll = () => {
     if (isAllSelected) setSelectedIds([])
     else setSelectedIds(rows.map((r) => r.id))
+  }
+
+  /** Tiêu đề bấm được. `header` của DataTable nhận node nên không phải sửa DS (file sinh ra). */
+  const sortHead = (key, label) => {
+    const on = sort.key === key
+    return (
+      <button type="button" onClick={() => setSort(nextSort(sort, key))} style={S.sortBtn}>
+        {label}
+        {/* Không có icon chevron-up trong bảng icon — xoay chevron-down 180° cho chiều xuôi. */}
+        <Icon name="chevron-down" size={12} style={{
+          opacity: on ? 1 : 0.25,
+          transform: on && sort.dir === 'asc' ? 'rotate(180deg)' : 'none',
+        }} />
+      </button>
+    )
   }
 
   const toggleSelectOne = (id) => {
@@ -86,7 +116,7 @@ function AllMembers({ canEdit }) {
       ),
     }] : []),
     {
-      key: 'n', header: t('members.colName'),
+      key: 'n', header: sortHead('n', t('members.colName')),
       render: (r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Avatar name={r.name} size={26} />
@@ -94,9 +124,9 @@ function AllMembers({ canEdit }) {
         </div>
       ),
     },
-    { key: 'g', header: t('members.colGender'), render: (r) => genderTxt(r.gender) },
+    { key: 'g', header: sortHead('g', t('members.colGender')), render: (r) => genderTxt(r.gender) },
     {
-      key: 'l', header: t('members.colLevel'),
+      key: 'l', header: sortHead('l', t('members.colLevel')),
       render: (r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <LevelChip level={r.level} levels={db.levels} />
@@ -108,28 +138,30 @@ function AllMembers({ canEdit }) {
         </div>
       ),
     },
-    { key: 'p', header: t('members.colPhone'), mono: true, muted: true, render: (r) => r.phone || t('common.unknown') },
+    { key: 'p', header: sortHead('p', t('members.colPhone')), mono: true, muted: true, render: (r) => r.phone || t('common.unknown') },
     {
-      key: 'gr', header: t('members.colGroups'),
+      key: 'gr', header: sortHead('gr', t('members.colGroups')),
       render: (r) => {
-        const gs = db.groups.filter((g) => rosterStatus(db, db.month, g.id, r.id) === 'fixed')
+        const gs = fixedGroups(db, r.id, db.month)
         return gs.length
           ? gs.map((g) => g.short || g.name).join(', ')
           : <span style={{ color: 'var(--text-muted)' }}>{t('members.noGroup')}</span>
       },
     },
     {
-      key: 'd', header: t('members.colDues'), align: 'right',
+      key: 'd', header: sortHead('d', t('members.colDues')), align: 'right',
       render: (r) => {
-        const mine = dues.filter((x) => x.memberId === r.id)
-        if (!mine.length) return <span style={{ color: 'var(--text-disabled)' }}>{t('members.duesNone')}</span>
-        const unpaid = mine.filter((x) => dueState(x).remain > 0)
+        // Cùng hàm với bộ lọc "trạng thái thu" — lọc ra một tập mà cột tô màu theo tập khác
+        // là kiểu sai không ai nhìn ra cho tới lúc đi đòi nhầm người.
+        const st = duesStatusOf(db, r.id, db.month)
+        if (st === 'none') return <span style={{ color: 'var(--text-disabled)' }}>{t('members.duesNone')}</span>
+        const unpaid = dues.filter((x) => x.memberId === r.id && dueState(x).remain > 0)
         return (
           <span style={{
             font: 'var(--type-label)',
-            color: unpaid.length ? 'var(--status-delayed)' : 'var(--status-delivered)',
+            color: st === 'unpaid' ? 'var(--status-delayed)' : 'var(--status-delivered)',
           }}>
-            {unpaid.length
+            {st === 'unpaid'
               ? t('members.duesUnpaid') + ' · ' + fmt(duesTotal(unpaid).remain)
               : t('members.duesPaid')}
           </span>
@@ -202,7 +234,7 @@ function AllMembers({ canEdit }) {
   return (
     <Card
       title={t('members.listTitle')}
-      subtitle={t(showOff ? 'members.listSubOff' : 'members.listSub', { n: rows.length })}
+      subtitle={t(showOff ? 'members.listSubOff' : 'members.listSub', { n: base.length })}
       icon="users"
       padding="0"
       actions={
@@ -233,7 +265,41 @@ function AllMembers({ canEdit }) {
         </div>
       }
     >
-      {canEdit && selectedIds.length > 0 && (
+      <div style={S.fltBar}>
+        {/* SearchField không có size 'sm' — ép cao 32px cho khớp các Select bên cạnh. */}
+        <SearchField
+          width={260} style={{ height: 32 }} placeholder={t('members.searchPh')}
+          value={flt.q} onChange={(e) => setF('q', e.target.value)} onClear={() => setF('q', '')} />
+        <Select size="sm" value={flt.gender} onChange={(e) => setF('gender', e.target.value)}
+          options={[{ value: '', label: t('members.fltAllGender') }]
+            .concat(cfg.genders.map((g) => ({ value: g, label: genderTxt(g) })))} />
+        <Select size="sm" value={flt.level} onChange={(e) => setF('level', e.target.value)}
+          options={[{ value: '', label: t('members.fltAllLevel') }]
+            .concat(db.levels.map((l) => ({ value: l, label: l })))} />
+        <Select size="sm" value={flt.group} onChange={(e) => setF('group', e.target.value)}
+          options={[{ value: '', label: t('members.fltAllGroup') }]
+            .concat(db.groups.map((g) => ({ value: g.id, label: g.name })))
+            .concat([{ value: 'none', label: t('members.noGroup') }])} />
+        <Select size="sm" value={flt.dues} onChange={(e) => setF('dues', e.target.value)}
+          options={[
+            { value: '', label: t('members.fltAllDues') },
+            { value: 'unpaid', label: t('members.duesUnpaid') },
+            { value: 'paid', label: t('members.duesPaid') },
+            { value: 'none', label: t('members.duesNone') },
+          ]} />
+        {hasFilter(flt) && (
+          <>
+            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+              {t('members.fltCount', { n: rows.length, all: base.length })}
+            </span>
+            <Button variant="ghost" size="sm" icon="eraser" onClick={() => setFlt(FILTER0)}>
+              {t('members.fltClear')}
+            </Button>
+          </>
+        )}
+      </div>
+
+      {canEdit && selected.length > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 16px', background: 'var(--surface-brand-soft)',
@@ -241,7 +307,7 @@ function AllMembers({ canEdit }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--navy-800)' }}>
-              Đã chọn {selectedIds.length} / {rows.length} người
+              Đã chọn {selected.length} / {rows.length} người
             </span>
             <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
               Bỏ chọn
@@ -256,7 +322,7 @@ function AllMembers({ canEdit }) {
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  a.setMembersGroupsBulk(selectedIds, [g.id])
+                  a.setMembersGroupsBulk(selected, [g.id])
                   setSelectedIds([])
                 }}
               >
@@ -268,7 +334,7 @@ function AllMembers({ canEdit }) {
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  a.setMembersGroupsBulk(selectedIds, db.groups.map((g) => g.id))
+                  a.setMembersGroupsBulk(selected, db.groups.map((g) => g.id))
                   setSelectedIds([])
                 }}
               >
@@ -283,7 +349,7 @@ function AllMembers({ canEdit }) {
               size="sm"
               icon="user-minus"
               onClick={() => {
-                a.setMembersGroupsBulk(selectedIds, [])
+                a.setMembersGroupsBulk(selected, [])
                 setSelectedIds([])
               }}
             >
@@ -296,8 +362,8 @@ function AllMembers({ canEdit }) {
                 size="sm"
                 icon="user-round-minus"
                 onClick={() => {
-                  if (window.confirm(`Chuyển ${selectedIds.length} thành viên sang trạng thái Inactive (lịch sử điểm danh và quỹ được giữ nguyên 100%)?`)) {
-                    a.deactivateMembersBulk(selectedIds)
+                  if (window.confirm(`Chuyển ${selected.length} thành viên sang trạng thái Inactive (lịch sử điểm danh và quỹ được giữ nguyên 100%)?`)) {
+                    a.deactivateMembersBulk(selected)
                     setSelectedIds([])
                   }
                 }}
@@ -310,7 +376,7 @@ function AllMembers({ canEdit }) {
                 size="sm"
                 icon="rotate-ccw"
                 onClick={() => {
-                  a.reactivateMembersBulk(selectedIds)
+                  a.reactivateMembersBulk(selected)
                   setSelectedIds([])
                 }}
               >
@@ -323,15 +389,15 @@ function AllMembers({ canEdit }) {
               size="sm"
               icon="trash-2"
               onClick={() => {
-                const blocked = selectedIds.filter((id) => memberRefs(db, id).length > 0)
-                if (blocked.length === selectedIds.length) {
+                const blocked = selected.filter((id) => memberRefs(db, id).length > 0)
+                if (blocked.length === selected.length) {
                   return alert('Tất cả thành viên đã chọn đều đã có dữ liệu (điểm danh/quỹ). Hệ thống không cho phép xoá vĩnh viễn để bảo toàn lịch sử. Hãy bấm nút "Ngưng hoạt động (Off)" bên cạnh!')
                 }
                 const msg = blocked.length > 0
-                  ? `Có ${selectedIds.length - blocked.length} người chưa có dữ liệu sẽ bị xoá. Còn ${blocked.length} người đã có dữ liệu sinh hoạt sẽ được giữ lại an toàn. Bạn có muốn tiếp tục?`
-                  : `Bạn có chắc chắn muốn xoá vĩnh viễn ${selectedIds.length} thành viên này?`
+                  ? `Có ${selected.length - blocked.length} người chưa có dữ liệu sẽ bị xoá. Còn ${blocked.length} người đã có dữ liệu sinh hoạt sẽ được giữ lại an toàn. Bạn có muốn tiếp tục?`
+                  : `Bạn có chắc chắn muốn xoá vĩnh viễn ${selected.length} thành viên này?`
                 if (window.confirm(msg)) {
-                  a.deleteMembersBulk(selectedIds)
+                  a.deleteMembersBulk(selected)
                   setSelectedIds([])
                 }
               }}
@@ -342,7 +408,9 @@ function AllMembers({ canEdit }) {
         </div>
       )}
       {rows.length === 0
-        ? <Empty icon="users" title={t('members.empty')} hint={t('members.emptyHint')} />
+        ? (hasFilter(flt)
+            ? <Empty icon="search" title={t('members.fltEmpty')} hint={t('members.fltEmptyHint')} />
+            : <Empty icon="users" title={t('members.empty')} hint={t('members.emptyHint')} />)
         : <DataTable columns={columns} rows={rows} rowKey="id" />}
     </Card>
   )
@@ -510,4 +578,14 @@ const S = {
     border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
   },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
+  // Nút trong <th>: nuốt hết style của header rồi kế thừa lại font/màu của chính <th>.
+  sortBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0,
+    border: 0, background: 'transparent', cursor: 'pointer',
+    font: 'inherit', color: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit',
+  },
+  fltBar: {
+    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+    padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)',
+  },
 }

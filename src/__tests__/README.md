@@ -29,6 +29,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Ngày tháng, lưới lịch, sinh ngày theo thứ | `lib/dates.test.js` |
 | **Ma trận quyền** — cờ, route, "xem như", và khớp với seed trong DB | `lib/roles.test.js` |
 | Giá trị mặc định của mọi dialog | `lib/forms.test.js` |
+| Lọc · tìm (bỏ dấu) · sắp xếp danh sách thành viên · trạng thái thu quỹ tháng | `lib/members.test.js` |
 | Map client ↔ Postgres, thứ tự ghi/xoá, `diff()` | `sync/dbmap.test.js` |
 | CLB vừa tạo (mọi bảng rỗng) không được throw / NaN / Infinity | `smoke/empty.test.js` |
 | Không sót key i18n, không có số lọt vào `vi.json` | `smoke/i18n.test.js` |

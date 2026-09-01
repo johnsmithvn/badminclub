@@ -308,7 +308,7 @@ function Back({ rows, canMoney }) {
                       ...S.r, fontWeight: 600,
                       color: back ? 'var(--status-incident)' : 'var(--status-delivered)',
                     }}>
-                      {(back ? '−' : '+') + fmt(Math.abs(r.amount))}
+                      {back ? `Trả: −${fmt(Math.abs(r.amount))}` : `Thu: +${fmt(Math.abs(r.amount))}`}
                     </span>
                     <span>
                       <Select size="sm" disabled={!canMoney || r.paid} value={r.settle}
