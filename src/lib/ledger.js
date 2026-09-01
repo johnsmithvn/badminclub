@@ -301,7 +301,8 @@ export function ledgerGrouped(db, month) {
   const map = {}
   const order = []
   rowsIn.forEach((r) => {
-    const k = r.date + '|' + r.cat + '|' + r.dir
+    // Tiền sân (court) giữ từng dòng riêng để hiện rõ tên sân/nội dung, không gộp lại thành 1 cục
+    const k = r.cat === CATS.court ? r.id : r.date + '|' + r.cat + '|' + r.dir
     if (!map[k]) {
       map[k] = { key: k, date: r.date, cat: r.cat, dir: r.dir, items: [] }
       order.push(k)

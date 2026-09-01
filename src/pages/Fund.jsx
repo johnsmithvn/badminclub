@@ -19,31 +19,38 @@ export default function Fund() {
   const av = availableBalance(db)
   const bal = av.balance
   const net = flow.in - flow.out
-  // Số cầu trong tủ là tiền quỹ đã trả rồi nhưng chưa dùng hết. Không hiện ra thì thủ quỹ
-  // đọc số dư THẤP hơn thực tế và tưởng quỹ đang hụt.
-  const st = stock(db)
-  const unit = shuttleUnit(db)
 
   return (
     <>
       <div style={GRID_STAT}>
-        <StatCard label={t('fund.balance')} value={fmt(bal)} icon="wallet"
-          tone={bal < 0 ? 'critical' : 'neutral'} caption={t('fund.balanceCaption')} />
-        {/* Chỉ hiện khi thật sự nợ ai: không nợ thì hai ô nói cùng một số, thêm ô là thêm nhiễu. */}
-        {av.owed > 0 && (
-          <StatCard label={t('fund.available')} value={fmt(av.available)} icon="scale"
-            tone={av.available < 0 ? 'critical' : 'warning'}
-            caption={t('fund.availableCaption', { advance: fmtK(av.advance), back: fmtK(av.back) })} />
-        )}
-        <StatCard label={t('fund.stockValue')} value={fmt(st.left * unit)} icon="package" tone="accent"
-          caption={t('fund.stockValueCaption', { n: st.left, unit: fmtK(unit) })} />
-        <StatCard label={t('fund.monthIn')} value={fmt(flow.in)} icon="trending-up" tone="positive"
-          caption={monthTxt(db.month)} />
-        <StatCard label={t('fund.monthOut')} value={fmt(flow.out)} icon="trending-down" tone="critical"
-          caption={monthTxt(db.month)} />
-        <StatCard label="Chênh lệch tháng" value={(net >= 0 ? '+' : '') + fmt(net)} icon="scale"
+        <StatCard
+          label="Số dư quỹ hiện tại"
+          value={fmt(bal)}
+          icon="wallet"
+          tone={bal < 0 ? 'critical' : 'neutral'}
+          caption="Tiền thực tế đang có trong két/quỹ"
+        />
+        <StatCard
+          label="Thu trong tháng"
+          value={fmt(flow.in)}
+          icon="trending-up"
+          tone="positive"
+          caption={monthTxt(db.month)}
+        />
+        <StatCard
+          label="Chi trong tháng"
+          value={fmt(flow.out)}
+          icon="trending-down"
+          tone="critical"
+          caption={monthTxt(db.month)}
+        />
+        <StatCard
+          label="Thu − Chi tháng này"
+          value={(net >= 0 ? '+' : '') + fmt(net)}
+          icon="scale"
           tone={net >= 0 ? 'positive' : 'critical'}
-          caption={net >= 0 ? 'Quỹ tháng này đang dư' : 'Quỹ tháng này đang hụt'} />
+          caption={net >= 0 ? 'Thu nhiều hơn chi' : 'Chi vượt quá thu'}
+        />
       </div>
 
       <Tabs
