@@ -50,6 +50,8 @@ export default function Home() {
 
 function Overview() {
   const { db, a } = useApp()
+  const canMoney = can(db.viewAs || 'owner', 'money')
+  const canSessions = can(db.viewAs || 'owner', 'sessions')
   const month = db.month
   const sess = monthSessions(db, month)
   const closed = sess.filter((s) => s.status === 'closed')
@@ -162,9 +164,10 @@ function Overview() {
   const av = availableBalance(db)
   const bal = av.balance
 
-  // 3. Buổi tới: CHỈ lấy các buổi sắp tới CHƯA CHỐT và CHƯA HUỶ
+  // 3. Buổi tới: CHỈ lấy các buổi sắp tới CHƯA CHỐT và CHƯA HUỶ, SẮP XẾP TĂNG DẦN THEO NGÀY
   const upcoming = db.sessions
     .filter((s) => s.date >= db.today && s.status !== 'cancelled' && s.status !== 'closed')
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
     .slice(0, 4)
 
   // Số buổi có mặt của từng người trong tháng — chỉ tính buổi đã chốt.
@@ -250,20 +253,26 @@ function Overview() {
                     <DayBox iso={s.date} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={SS.label}>{groupOf(db, s.groupId).name}</div>
-                      <Mono color="var(--text-muted)">{timeTxt(s) + ' · ' + courtTxt(db, s)}</Mono>
+                      <Mono color="var(--text-muted)">{ddmy(s.date) + ' · ' + timeTxt(s) + ' · ' + courtTxt(db, s)}</Mono>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <Mono weight={600} color="var(--text-primary)">{fmt(courtCost(db, s))}</Mono>
                       <div style={SS.caption}>{t('home.courtCostLabel')}</div>
                     </div>
-                    <Button size="sm" icon="user-round-check"
-                      variant={s.status === 'draft' ? 'secondary' : 'accent'}
-                      onClick={() => {
-                        if (s.status === 'draft') a.setSessionStatus(s.id, 'open')
-                        a.openSession(s.id)
-                      }}>
-                      {s.status === 'draft' ? t('home.openSession') : t('home.markAttend')}
-                    </Button>
+                    {canSessions ? (
+                      <Button size="sm" icon="user-round-check"
+                        variant={s.status === 'draft' ? 'secondary' : 'accent'}
+                        onClick={() => {
+                          if (s.status === 'draft') a.setSessionStatus(s.id, 'open')
+                          a.openSession(s.id)
+                        }}>
+                        {s.status === 'draft' ? t('home.openSession') : t('home.markAttend')}
+                      </Button>
+                    ) : (
+                      <Button size="sm" icon="eye" variant="ghost" onClick={() => a.openSession(s.id)}>
+                        Xem buổi
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>}
@@ -311,8 +320,10 @@ function Overview() {
                       <Mono color="var(--status-delayed)">{fmt(st.remain)}</Mono>
                       {st.paid > 0 && <span style={SS.caption}>{t('home.duePartialTag', { amount: fmtK(st.paid) })}</span>}
                       {/* Nút này thu NỐT phần còn thiếu; thu một phần thì vào Công nợ. */}
-                      <IconButton icon="check" size="sm" variant="ghost"
-                        label={t('home.markPaid')} onClick={() => a.payDue(d.id)} />
+                      {canMoney && (
+                        <IconButton icon="check" size="sm" variant="ghost"
+                          label={t('home.markPaid')} onClick={() => a.payDue(d.id)} />
+                      )}
                     </div>
                   )
                 })}
@@ -355,8 +366,10 @@ function Overview() {
                   </div>
                 </div>
                 <Mono weight={600} size={14} color="var(--status-delayed)">{fmt(r.debt)}</Mono>
-                <Button variant="secondary" size="sm" icon="arrow-right"
-                  onClick={() => a.go('debts')}>Thu</Button>
+                {canMoney && (
+                  <Button variant="secondary" size="sm" icon="arrow-right"
+                    onClick={() => a.go('debts')}>Thu</Button>
+                )}
               </div>
             ))}
             {!debtors.length && <Empty icon="circle-check" title="Không ai còn nợ" hint="Tất cả khách và hội viên đã thanh toán đủ tiền trong tháng." />}
@@ -385,8 +398,10 @@ function Overview() {
                   </div>
                 </div>
                 <Mono weight={600} size={14} color="var(--status-incident)">{fmt(r.owed)}</Mono>
-                <Button variant="secondary" size="sm" icon="rotate-ccw"
-                  onClick={() => { a.setTab('debts', 'advance'); a.go('debts') }}>Hoàn</Button>
+                {canMoney && (
+                  <Button variant="secondary" size="sm" icon="rotate-ccw"
+                    onClick={() => { a.setTab('debts', 'advance'); a.go('debts') }}>Hoàn</Button>
+                )}
               </div>
             ))}
             {!creditors.length && <Empty icon="circle-check" title="CLB không nợ ai" hint="CLB không còn khoản nợ ứng tiền hay tiền hoàn vắng nào chưa thanh toán." />}
@@ -538,6 +553,7 @@ function Warnings() {
  */
 function Setup() {
   const { db, a } = useApp()
+  if (!can(db.viewAs || 'owner', 'settings')) return null
   const steps = [
     { key: 'court', done: db.courts.length > 0, icon: 'map-pin', go: () => { a.go('settings'); a.setTab('settings', 'courts') } },
     { key: 'group', done: db.groups.length > 0, icon: 'users', go: () => { a.go('settings'); a.setTab('settings', 'groups') } },

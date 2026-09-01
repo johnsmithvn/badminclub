@@ -150,23 +150,15 @@
   "roles": {
     "owner": {
       "label": "Chủ CLB",
-      "desc": "Toàn quyền: tiền, thành viên, cài đặt."
+      "desc": "Toàn quyền: vận hành, tiền quỹ, thành viên, cài đặt."
     },
     "treasurer": {
       "label": "Thủ quỹ",
-      "desc": "Sửa được tiền (quỹ, công nợ, kho cầu) — không sửa thành viên."
-    },
-    "host": {
-      "label": "Quản trò",
-      "desc": "Điểm danh, chốt buổi, chia sân — không xem sửa tiền."
+      "desc": "Toàn quyền thu chi, điểm danh, chia sân — không sửa thành viên & cài đặt."
     },
     "member": {
       "label": "Thành viên",
-      "desc": "Chỉ xem phần của mình và buổi mình tham gia."
-    },
-    "viewer": {
-      "label": "Chỉ xem",
-      "desc": "Xem toàn bộ, không sửa gì."
+      "desc": "Xem toàn bộ hoạt động của CLB, không thao tác sửa đổi."
     },
     "viewAsPrefix": "Xem như: "
   },

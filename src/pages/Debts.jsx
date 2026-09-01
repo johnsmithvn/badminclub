@@ -481,17 +481,24 @@ function SessionDebts({ canMoney }) {
                                   </span>
                                 </td>
                                 <td style={{ ...S.td, textAlign: 'right' }}>
-                                  <Button
-                                    size="sm"
-                                    variant={item.paid ? 'ghost' : 'secondary'}
-                                    disabled={!canMoney}
-                                    icon={item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins'}
-                                    onClick={() => handleSettleItem(item)}
-                                  >
-                                    {item.paid
-                                      ? (item.isRefund ? 'Đã trả' : 'Đã thu')
-                                      : (item.isRefund ? 'Bấm để Trả' : 'Bấm để Thu')}
-                                  </Button>
+                                  {canMoney ? (
+                                    <Button
+                                      size="sm"
+                                      variant={item.paid ? 'ghost' : 'secondary'}
+                                      icon={item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins'}
+                                      onClick={() => handleSettleItem(item)}
+                                    >
+                                      {item.paid
+                                        ? (item.isRefund ? 'Đã trả' : 'Đã thu')
+                                        : (item.isRefund ? 'Bấm để Trả' : 'Bấm để Thu')}
+                                    </Button>
+                                  ) : (
+                                    <span style={item.paid ? S.pillPaid : S.pillUnpaid}>
+                                      {item.paid
+                                        ? (item.isRefund ? 'Đã trả' : 'Đã thu')
+                                        : (item.isRefund ? 'Chưa trả' : 'Chưa thu')}
+                                    </span>
+                                  )}
                                 </td>
                               </tr>
                             )
@@ -577,15 +584,20 @@ function SessionDebts({ canMoney }) {
                             style={{ width: 95, textAlign: 'right' }}
                             suffix="đ"
                           />
-                          <Button
-                            size="sm"
-                            variant={item.paid ? 'ghost' : 'secondary'}
-                            disabled={!canMoney}
-                            icon={item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins'}
-                            onClick={() => handleSettleItem(item)}
-                          >
-                            {item.paid ? (item.isRefund ? 'Đã trả' : 'Đã thu') : (item.isRefund ? 'Trả' : 'Thu')}
-                          </Button>
+                          {canMoney ? (
+                            <Button
+                              size="sm"
+                              variant={item.paid ? 'ghost' : 'secondary'}
+                              icon={item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins'}
+                              onClick={() => handleSettleItem(item)}
+                            >
+                              {item.paid ? (item.isRefund ? 'Đã trả' : 'Đã thu') : (item.isRefund ? 'Trả' : 'Thu')}
+                            </Button>
+                          ) : (
+                            <span style={item.paid ? S.pillPaid : S.pillUnpaid}>
+                              {item.paid ? (item.isRefund ? 'Đã trả' : 'Đã thu') : (item.isRefund ? 'Chưa trả' : 'Chưa thu')}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )

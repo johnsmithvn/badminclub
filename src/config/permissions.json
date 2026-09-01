@@ -1,18 +1,14 @@
 {
-  "_note": "Ma trận quyền — tương ứng bảng role_permissions trong DB (seed cứng, app không cho sửa). Nhãn và mô tả vai nằm ở src/i18n/<locale>.json. routes: null = vào được tất cả.",
-  "order": ["owner", "treasurer", "host", "member", "viewer"],
+  "_note": "Ma trận quyền: 3 vai trò — Chủ CLB (owner), Thủ quỹ (treasurer), Thành viên (member). routes: null = vào được tất cả để xem.",
+  "order": ["owner", "treasurer", "member"],
   "flags": {
     "owner": ["money", "members", "sessions", "assign", "settings", "viewAll"],
-    "treasurer": ["money", "viewAll"],
-    "host": ["sessions", "assign", "viewAll"],
-    "member": [],
-    "viewer": ["viewAll"]
+    "treasurer": ["money", "sessions", "assign", "viewAll"],
+    "member": ["viewAll"]
   },
   "routes": {
     "owner": null,
-    "treasurer": ["home", "calendar", "sessions", "session", "debts", "fund", "shuttles", "profile", "settings", "schema"],
-    "host": ["home", "calendar", "sessions", "session", "assign", "schedules", "members", "profile"],
-    "member": ["home", "calendar", "assign", "fund", "profile"],
-    "viewer": ["home", "calendar", "sessions", "session", "fund", "debts", "shuttles", "profile"]
+    "treasurer": null,
+    "member": null
   }
 }

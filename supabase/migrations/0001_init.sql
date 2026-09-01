@@ -210,10 +210,8 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 );
 INSERT INTO role_permissions VALUES
   ('owner',     true,  true,  true,  true,  true,  true),
-  ('treasurer', true,  false, false, false, false, true),
-  ('host',      false, false, true,  true,  false, true),
-  ('member',    false, false, false, false, false, false),
-  ('viewer',    false, false, false, false, false, true)
+  ('treasurer', true,  false, true,  true,  false, true),
+  ('member',    false, false, false, false, false, true)
 ON CONFLICT (role) DO NOTHING;
 
 /* ============ NHÓM CỐ ĐỊNH, DANH SÁCH THEO THÁNG ============ */

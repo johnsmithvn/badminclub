@@ -59,14 +59,16 @@ export const Bar = ({ pct, color = 'var(--navy-500)', height = 8 }) => (
   </div>
 )
 
-/** Khối ngày 52px (buổi tới, dòng lịch). */
+/** Khối ngày 56px (buổi tới, dòng lịch) hiển thị ngày/tháng rõ ràng. */
 export const DayBox = ({ iso }) => (
   <div style={{
-    width: 52, flex: '0 0 auto', textAlign: 'center', padding: '5px 0',
+    width: 56, flex: '0 0 auto', textAlign: 'center', padding: '5px 2px',
     borderRadius: 8, background: 'var(--surface-brand-soft)',
   }}>
-    <div style={{ font: '700 17px/1 var(--font-display)', color: 'var(--navy-700)' }}>{iso.slice(8, 10)}</div>
-    <Overline style={{ color: 'var(--navy-600)' }}>{wd(iso)}</Overline>
+    <div style={{ font: '700 16px/1 var(--font-display)', color: 'var(--navy-700)' }}>
+      {iso.slice(8, 10)}<span style={{ fontSize: 11, fontWeight: 500, color: 'var(--navy-500)' }}>/{iso.slice(5, 7)}</span>
+    </div>
+    <Overline style={{ color: 'var(--navy-600)', marginTop: 2 }}>{wd(iso)}</Overline>
   </div>
 )
 
