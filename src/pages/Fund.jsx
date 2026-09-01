@@ -1,13 +1,13 @@
 // Sổ quỹ: tổng hợp theo tháng · chi tiết thu chi · hoá đơn sân (handoff 02 §5).
 // Số dư CHỈ tính từ transactions — không cộng lại từ nhiều nguồn.
 
-import { Alert, Badge, Button, Card, Input, StatCard, Tabs } from '#ds'
+import { Alert, Badge, Button, Card, IconButton, Input, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
 import { fmt, fmtK, intOf, payerName, shuttleUnit, stock } from '#lib/money.js'
-import { availableBalance, catLabel, dailySummary, ledgerGrouped, monthFlow, reconcile } from '#lib/ledger.js'
-import { courtBillForm, ledgerForm } from '#lib/forms.js'
+import { availableBalance, catLabel, dailySummary, editTarget, ledgerGrouped, monthFlow, reconcile, undoTarget } from '#lib/ledger.js'
+import { courtBillForm, editBillForm, editLedgerForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
 
@@ -243,6 +243,7 @@ export function Detail({ canMoney }) {
               <span>{t('fund.colLabel')}</span>
               <span>{t('fund.colBy')}</span>
               <span style={S.r}>{t('fund.colAmount')}</span>
+              <span />
             </div>
             {groups.map((g) => {
               const many = g.items.length > 1
@@ -286,6 +287,9 @@ export function Detail({ canMoney }) {
                     >
                       {g.isAdvance ? `⚡ ${fmt(g.amount)}` : (g.dir === 'in' ? '+' : '−') + fmt(g.amount)}
                     </span>
+                    {/* Dòng gộp nhiều mục không có nút: mỗi mục một nguồn khác nhau, gộp lại
+                        thì không biết đang hoàn cái nào. Bung ra rồi thao tác từng mục. */}
+                    {many ? <span /> : <RowActions row={g.items[0]} canMoney={canMoney} />}
                   </div>
                   {many && open && g.items.map((it) => (
                     <div key={it.id} style={{ ...S.grid5, ...S.row4, background: 'var(--surface-inset)' }}>
@@ -310,6 +314,7 @@ export function Detail({ canMoney }) {
                       >
                         {it.isAdvance ? `⚡ ${fmt(it.amount)}` : fmt(it.amount)}
                       </span>
+                      <RowActions row={it} canMoney={canMoney} />
                     </div>
                   ))}
                 </div>
@@ -317,6 +322,40 @@ export function Detail({ canMoney }) {
             })}
           </div>}
     </Card>
+  )
+}
+
+/**
+ * Nút của một dòng sổ quỹ. Sổ quỹ là bảng SUY RA nên KHÔNG có nút xoá dòng: hoàn tác là lật
+ * cờ ở nguồn (`ledger.js: undoTarget`), y hệt bấm "Thu" rồi "Bỏ thu" bên màn Công nợ.
+ *
+ * Sửa và hoàn tác là hai tập khác nhau, cố ý: hoá đơn sân do quỹ tự trả thì SỬA được nhưng
+ * không hoàn được (dòng chi chính là hoá đơn đó); còn quỹ tháng đã thu thì hoàn được nhưng
+ * không sửa ở đây (sửa số tiền phải qua màn Công nợ, nơi có cả phần còn thiếu).
+ */
+function RowActions({ row, canMoney }) {
+  const { db, a } = useApp()
+  if (!canMoney) return <span />
+  const undo = undoTarget(db, row)
+  const edit = editTarget(db, row)
+  if (!undo && !edit) return <span />
+
+  const open = (e, fn) => { e.stopPropagation(); fn() }
+  return (
+    <span style={{ display: 'flex', gap: 2, justifyContent: 'flex-end', alignItems: 'center' }}>
+      {edit && (
+        <IconButton icon="settings-2" size="sm" variant="ghost" label={t('fund.editRow')}
+          onClick={(e) => open(e, () => (edit.kind === 'bill'
+            ? a.openDialog('bill', editBillForm(db.courtBills.find((x) => x.id === edit.id)))
+            : a.openDialog('ledger', editLedgerForm(db.manual.find((x) => x.id === edit.id)))))} />
+      )}
+      {undo && (
+        <span title={t('fund.undoHint')}>
+          <IconButton icon="undo-2" size="sm" variant="ghost" label={t('fund.undo')}
+            onClick={(e) => open(e, () => a.undoLedgerRow(row.id))} />
+        </span>
+      )}
+    </span>
   )
 }
 
@@ -394,7 +433,7 @@ export function Reconcile() {
 
 const S = {
   grid4: { display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.1fr', gap: 8, minWidth: 620 },
-  grid5: { display: 'grid', gridTemplateColumns: '1fr 1.1fr 2.4fr 1.1fr 1.1fr', gap: 8, minWidth: 860 },
+  grid5: { display: 'grid', gridTemplateColumns: '1fr 1.1fr 2.4fr 1.1fr 1.1fr 92px', gap: 8, minWidth: 940 },
   head: {
     padding: '10px 18px', background: 'var(--surface-inset)', borderBottom: '1px solid var(--border-subtle)',
     font: 'var(--type-overline)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)',
