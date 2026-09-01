@@ -296,10 +296,6 @@ export function seed() {
       { id: 'JR1', clubId: 'CL1', userId: 'U4', code: '8NJHE8', at: '2026-08-18', status: 'pending',
         note: 'Bạn của Mai rủ vào nhóm Chủ nhật' },
     ],
-    invites: [
-      { id: 'IV1', clubId: 'CL1', memberId: 'M3', phone: d1.members.find((x) => x.id === 'M3').phone,
-        at: '2026-08-17', status: 'sent' },
-    ],
     levels: LEVELS,
     month: '2026-08',
     today: '2026-08-19',

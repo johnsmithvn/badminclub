@@ -26,8 +26,12 @@ export const CATS = {
   other: 'other',
 }
 
-/** Hạng mục người dùng được chọn khi ghi thu/chi tay. */
-export const MANUAL_CATS = [CATS.withdraw, CATS.other, CATS.dues, CATS.guest, CATS.court, CATS.shuttle]
+/**
+ * Hạng mục người dùng được chọn khi ghi thu/chi tay.
+ * `back` có mặt vì trả lại tiền cho người ngưng giữa tháng đi qua đây (không phải qua bảng
+ * đối chiếu): người đó không còn cố định nữa nên `adjustRows` không sinh dòng cho họ.
+ */
+export const MANUAL_CATS = [CATS.withdraw, CATS.other, CATS.dues, CATS.guest, CATS.court, CATS.shuttle, CATS.back]
 
 export const catLabel = (cat) => t('ledger.cat.' + cat)
 

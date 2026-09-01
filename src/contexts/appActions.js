@@ -5,11 +5,11 @@ import { addMonth, dd, ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
-  perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, sessionCost,
+  perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
-  adjustRows, pendingOffset, joinDues, dueState, intOf, memberRefs,
+  adjustRows, lockDues, joinDues, dueState, intOf, memberRefs,
 } from '#lib/money.js'
-import { fundBalance } from '#lib/ledger.js'
+import { CATS, fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { supabase, unwrap } from '#supabase'
@@ -145,15 +145,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({ members: d.members.map((m) => (m.id === mid ? { ...m, userId: null } : m)) }))
       toast(t('toast.unlinked'))
     },
-    sendInvite: (mid) => {
-      const m = memberOf(db(), mid)
-      up((d) => ({
-        invites: (d.invites || []).concat([
-          { id: uid(), clubId: d.clubId, memberId: mid, phone: m.phone, at: d.today, status: 'sent', token: uid() },
-        ]),
-      }))
-      toast(t('toast.inviteSent', { phone: m.phone, name: m.name }))
-    },
+    // Mời qua SĐT đã gỡ khỏi client: phần TẠO bản ghi chạy được nhưng phần NHẬN (mở link →
+    // tạo tài khoản → tự ghép) chưa có, nên nút chỉ hứa suông. Bảng `club_invites` và cột
+    // `clubs.allow_invite` giữ nguyên dưới DB, chờ làm thành một module riêng có gửi tin thật.
     // Hai hành động dưới KHÔNG đi qua đồng bộ ngầm: người xin vào chưa phải thành viên nên
     // client không có quyền ghi thẳng. Gọi RPC (SECURITY DEFINER) rồi nạp lại CLB.
     approveJoin: async (rid, mid) => {
@@ -439,33 +433,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // ponytail: bỏ chốt chỉ tắt cờ, KHÔNG hoàn lại các khoản đã trừ vào quỹ tháng này.
         // Đúng như hành vi cũ (dues sinh ra vẫn ở lại). Cần hoàn thì phải có bước huỷ riêng.
         if (d.locked[month]) return { locked: { ...d.locked, [month]: false } }
-        const dues = d.dues.slice()
-        const used = []            // khoản đối chiếu đã tiêu vào tháng này
-        const seen = new Set()     // một người ở hai nhóm chỉ được trừ MỘT lần
-        d.groups.forEach((g) => {
-          const r = (d.roster[month] || {})[g.id] || {}
-          Object.keys(r).forEach((mid) => {
-            if (r[mid] !== 'fixed') return
-            if (dues.some((x) => x.month === month && x.groupId === g.id && x.memberId === mid)) return
-            const mb = d.members.find((x) => x.id === mid)
-            if (!mb) return
-            const base = mb.gender === 'nu' ? g.feeNu : g.feeNam
-            // Khoản tháng trước xin "trừ vào quỹ tháng sau" — dấu cộng thẳng vào là đúng:
-            // âm (quỹ nợ người) thì đóng ít đi, dương (người nợ quỹ) thì đóng thêm.
-            const pend = seen.has(mid) ? [] : pendingOffset(d, mid, month)
-            seen.add(mid)
-            pend.forEach((x) => used.push(x.key))
-            const off = pend.reduce((x, y) => x + y.amount, 0)
-            dues.push({
-              id: uid(), month, groupId: g.id, memberId: mid,
-              amount: Math.max(0, base + off), paidAmount: 0, paidAt: null, method: '',
-              note: off ? t('debts.offsetNote', { amount: fmtK(Math.abs(off)) }) : '',
-            })
-          })
-        })
-        const adjustments = (d.adjustments || []).map((x) =>
-          used.indexOf(x.key) < 0 ? x : { ...x, paid: true, paidAt: month + '-01' })
-        return { dues, adjustments, locked: { ...d.locked, [month]: true } }
+        // Công thức nằm ở money.js: lockDues — đây là chỗ sinh ra toàn bộ tiền phải thu của
+        // một tháng, phải test được bằng node chứ không chỉ bấm thử.
+        const { rows, used } = lockDues(d, month)
+        return {
+          dues: d.dues.concat(rows.map((r) => ({ id: uid(), ...r }))),
+          adjustments: (d.adjustments || []).map((x) =>
+            used.indexOf(x.key) < 0 ? x : { ...x, paid: true, paidAt: month + '-01' }),
+          locked: { ...d.locked, [month]: true },
+        }
       })
       toast(wasLocked ? t('toast.rosterUnlocked') : t('toast.rosterLocked', { month: monthTxt(month).toLowerCase() }))
     },
@@ -553,12 +529,42 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           ? t('toast.memberSavedDropped', { n: dropped, month: monthTxt(gMonth).toLowerCase() })
           : t('toast.memberSaved'))
     },
-    /** Ngưng hoạt động: giữ nguyên toàn bộ lịch sử điểm danh và tiền, chỉ ẩn khỏi danh sách. */
-    toggleMemberActive: (id) => {
+    /**
+     * Ngưng hoạt động: giữ nguyên toàn bộ lịch sử điểm danh và tiền, chỉ ẩn khỏi danh sách.
+     *
+     * `back` > 0 thì ghi thêm một dòng chi "Back cố định nghỉ" vào sổ quỹ. Phải ghi ở đây chứ
+     * không qua bảng đối chiếu: người đã ngưng thì `adjustRows` không sinh dòng cho họ nữa
+     * (nó lọc qua `groupMembers`, mà `groupMembers` bỏ người `active === false`).
+     * Trả bao nhiêu, hay không trả, là thoả thuận của CLB — app chỉ gợi ý số.
+     */
+    deactivate: (id, back) => {
       const was = db().members.find((m) => m.id === id)
       if (!was) return
-      up((d) => ({ members: d.members.map((m) => (m.id === id ? { ...m, active: m.active === false } : m)) }))
-      toast(t(was.active === false ? 'toast.memberOn' : 'toast.memberOff', { name: was.name }))
+      const amount = intOf(back)
+      up((d) => ({
+        members: d.members.map((m) => (m.id === id ? { ...m, active: false } : m)),
+        manual: amount > 0
+          ? d.manual.concat([{
+              id: uid(), date: d.today, dir: 'out', cat: CATS.back,
+              label: t('members.offBackLabel', { name: was.name, month: monthTxt(d.month).toLowerCase() }),
+              amount, by: memberOf(d, (d.members.find((m) => m.userId === d.currentUserId) || {}).id).name,
+            }])
+          : d.manual,
+      }))
+      upUi(() => ({ dialog: null, form: {} }))
+      toast(amount > 0
+        ? t('toast.memberOffBack', { name: was.name, amount: fmt(amount) })
+        : t('toast.memberOff', { name: was.name }))
+    },
+    /**
+     * Cho hoạt động lại. KHÔNG đụng tiền: khoản back đã ghi lúc ngưng là giao dịch thật,
+     * người ta quay lại thì thu lại bằng một dòng thu tay, không xoá lịch sử.
+     */
+    reactivate: (id) => {
+      const was = db().members.find((m) => m.id === id)
+      if (!was) return
+      up((d) => ({ members: d.members.map((m) => (m.id === id ? { ...m, active: true } : m)) }))
+      toast(t('toast.memberOn', { name: was.name }))
     },
     /**
      * Xoá cứng — CHỈ khi chưa dính điểm danh, tiền, trận nào. Dính rồi thì xoá là mất lịch sử
@@ -1198,7 +1204,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           (by ? ' — ' + memberOf(d0, by).name + ' rủ' : '') + ': ' + fmt(x.price) + (x.paid ? ' — đã trả' : ' — ghi nợ'))
       })
       L.push('')
-      L.push('Chi phí buổi: ' + fmt(sessionCost(d0, s)) + ' (sân + ' + s.shuttleUsed + ' quả cầu)')
+      // costRow chứ không sessionCost: buổi đã chốt thì đọc số ĐÃ ĐÓNG BĂNG, đúng bằng số
+      // đang hiện trên card buổi và bảng Báo cáo. Tính lại là báo cáo gửi lên nhóm nói một
+      // đằng, màn hình nói một nẻo, ngay khi giá cầu hay giá sân đổi.
+      L.push('Chi phí buổi: ' + fmt(costRow(d0, s).cost) + ' (sân + ' + s.shuttleUsed + ' quả cầu)')
       L.push('Thu từ khách: ' + fmt(guestRev(d0, sid)))
       L.push('Quỹ CLB hiện tại: ' + fmt(fundBalance(d0)))
       const bk = d0.club.bank

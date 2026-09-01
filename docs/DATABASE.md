@@ -1,6 +1,6 @@
 # DATABASE.md
 
-**Version:** v0.2.0 · **Updated:** 2026-08-20
+**Version:** v0.3.0 · **Updated:** 2026-08-31
 
 Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql).
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
@@ -121,7 +121,15 @@ ngày của CLB.
 | Tick đã thu người đi thêm (amount DƯƠNG) | **có** | in | `extra` | `paid_at`, mặc định ngày 28 |
 | Chọn "trừ vào quỹ tháng sau" | không | | | cộng dấu vào `monthly_dues.amount` tháng sau — tiền không đổi tay lần nào |
 | Đánh dấu "đi thêm" ở điểm danh | không | | | sinh khoản phải thu ở bảng đối chiếu |
-| Ghi thu / chi tay | **có** | in/out | `withdraw` · `other` | user chọn |
+| Ngưng hoạt động, chọn **trả lại tiền** | **có** | out | `back` | ngày bấm · dòng `ref_type='manual'` |
+| Ngưng hoạt động, chọn **chỉ ngưng** | không | | | quỹ giữ lại phần buổi chưa đánh |
+| Ghi thu / chi tay | **có** | in/out | `withdraw` · `other` · `back` · … | user chọn (xem `MANUAL_CATS`) |
+
+Vì sao ngưng hoạt động lại ghi sổ bằng dòng **nhập tay** chứ không qua bảng đối chiếu:
+`money.js: adjustRows` dựng danh sách từ `groupMembers`, mà `groupMembers` bỏ người
+`active === false` — người vừa ngưng không còn sinh dòng đối chiếu nào để mà tick. Số tiền do
+người dùng chốt (app chỉ gợi ý `đơn giá × số buổi còn lại`), nên nó là một quyết định chi thật,
+đúng chỗ của `transactions`.
 
 Hai chỗ dễ hiểu sai nhất:
 

@@ -4,7 +4,8 @@ import { seed } from './fixture.js'
 import {
   adjustKey, adjustRows, checkDue, checkPreview, closeWarnings, costDrift, costRow, costState, courtBase, courtCost,
   courtExtraCost, courtNet, estSessions, fmt, fmtK, freezeCost, groupMembers, guestDebtRows,
-  dueState, duesTotal, guestPrice, homeAlerts, intOf, isPresent, joinDues, memberRefs, levelIdx, levelOf, levelStyle, payerName, playedCourts,
+  dueState, duesTotal, guestPrice, homeAlerts, intOf, isPresent, joinDues, lockDues, memberRefs,
+  levelIdx, levelOf, levelStyle, offBackSuggest, payerName, playedCourts,
   pendingOffset, presentCount, quotaFor, remainSessions, sessionCost, sessionMembers, sessionOf,
   sGuests, shuttleUnit, soldTotal, spreadDiff, stock, unfrozenCost, unitPrice,
 } from '#lib/money.js'
@@ -638,5 +639,64 @@ const moreGuest = {
 }
 const dRev = costDrift(moreGuest, frozenB1).map((x) => x.key).sort()
 assert.deepEqual(dRev, ['heads', 'rev'], 'thêm khách đổi cả đầu người lẫn thu khách')
+
+/* ---------- chốt danh sách tháng: lockDues ---------- */
+// Hàm sinh ra TOÀN BỘ tiền phải thu của một tháng. Trước đây nằm trong appActions nên không
+// test được bằng node — mà đây là chỗ sai một dòng thì cả CLB thu nhầm.
+
+const SEP = '2026-09'
+const fixedCount = Object.keys(db.roster[SEP]).reduce(
+  (n, gid) => n + Object.keys(db.roster[SEP][gid]).filter((mid) => db.roster[SEP][gid][mid] === 'fixed').length, 0)
+
+const lk = lockDues(db, SEP)
+assert.equal(lk.rows.length, fixedCount, 'chỉ sinh khoản cho người fixed, bỏ off và pending')
+assert.ok(lk.rows.every((r) => r.month === SEP && r.paidAmount === 0 && r.amount > 0))
+assert.ok(!lk.rows.some((r) => r.memberId === 'M5' && r.groupId === 'G1'), 'M5 để off thì không thu')
+assert.ok(!lk.rows.some((r) => r.memberId === 'M17'), 'M17 mới xin (pending) thì chưa thu')
+// Tháng đã có dues rồi thì chốt lại không đẻ thêm — bỏ chốt rồi chốt lại là chuyện thường.
+assert.deepEqual(lockDues(db, '2026-08').rows, [], 'tháng đã có khoản thu thì không sinh trùng')
+
+// NGƯNG HOẠT ĐỘNG thì thôi thu. Người đã ngưng biến mất khỏi mọi màn (đâu đâu cũng lọc
+// `active !== false`) nên cũng không có cách nào gỡ họ khỏi danh sách cố định — không chặn ở
+// đây thì tháng nào chốt danh sách cũng đẻ thêm một khoản nợ cho người đã nghỉ, mãi mãi.
+const dOff = { ...db, members: db.members.map((m) => (m.id === 'M1' ? { ...m, active: false } : m)) }
+const lkOff = lockDues(dOff, SEP)
+assert.equal(lkOff.rows.length, fixedCount - 1, 'người đã ngưng không được sinh thêm khoản thu')
+assert.ok(!lkOff.rows.some((r) => r.memberId === 'M1'))
+
+// Khoản "trừ vào quỹ tháng sau" cộng THẲNG dấu vào số phải đóng, và một người ở hai nhóm
+// chỉ được trừ MỘT lần (M2 cố định cả G1 lẫn G2).
+const offKey = adjustKey('2026-08', 'G1', 'M2', 'absent_back')
+const dAdj = {
+  ...db,
+  adjustments: [{
+    id: 'AJX', key: offKey, month: '2026-08', groupId: 'G1', memberId: 'M2', kind: 'absent_back',
+    sessions: 2, unit: 30000, amount: -60000, settle: 'offset_next_dues', paid: false, paidAt: null,
+  }],
+}
+const lkAdj = lockDues(dAdj, SEP)
+const m2Rows = lkAdj.rows.filter((r) => r.memberId === 'M2')
+const m2Base = lk.rows.filter((r) => r.memberId === 'M2').reduce((s, r) => s + r.amount, 0)
+assert.equal(m2Rows.reduce((s, r) => s + r.amount, 0), m2Base - 60000, 'khoản âm phải làm đóng ÍT đi đúng 60.000')
+assert.deepEqual(lkAdj.used, [offKey], 'khoản đã tiêu phải được đánh dấu đúng một lần dù người đó ở hai nhóm')
+assert.equal(m2Rows.filter((r) => r.note).length, 1, 'chỉ một dòng mang ghi chú đã trừ')
+
+/* ---------- gợi ý back tiền khi ngưng hoạt động: offBackSuggest ---------- */
+
+const sug1 = offBackSuggest(db, 'M1')
+assert.ok(sug1, 'M1 đang cố định G1 và đã đóng quỹ tháng 8 → phải hỏi')
+assert.equal(sug1.name, 'Thúy')
+assert.equal(sug1.sessions, remainSessions(db, 'G1', '2026-08'))
+assert.equal(sug1.amount, unitPrice(db, db.members[0], db.groups[0], '2026-08').unit * sug1.sessions)
+
+// Chưa đóng đồng nào thì không có gì để trả lại — hiện hộp thoại là hỏi thừa.
+assert.equal(offBackSuggest(db, 'M5'), null, 'M5 chưa đóng quỹ tháng 8 → ngưng thẳng, không hỏi')
+assert.equal(offBackSuggest(db, 'M17'), null, 'không cố định nhóm nào → không hỏi')
+assert.equal(offBackSuggest(db, 'ZZZ'), null, 'id không tồn tại → null, không throw')
+
+// Cố định hai nhóm thì cộng cả hai, và nói rõ là hai nhóm nào.
+const sug2 = offBackSuggest(db, 'M2')
+assert.ok(sug2.groups.includes(db.groups[0].name) && sug2.groups.includes(db.groups[1].name))
+assert.equal(sug2.sessions, remainSessions(db, 'G1', '2026-08') + remainSessions(db, 'G2', '2026-08'))
 
 console.log('money check: OK')

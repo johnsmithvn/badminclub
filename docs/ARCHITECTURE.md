@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Quản lý CLB cầu lông
 
-**Version:** v0.1.0 · **Updated:** 2026-08-19
+**Version:** v0.2.0 · **Updated:** 2026-08-31
 
 Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả nghiệp vụ gốc nằm trong bộ handoff
 (`design_handoff_clb_cau_long/01..06`) — không lặp lại ở đây; chỗ nào cần thì trỏ sang.
@@ -89,20 +89,28 @@ Lý do: mọi con số phải giải thích được nguồn gốc, tiền phả
 
 `contexts/AppContext.jsx` giữ hai thứ tách nhau:
 
-**`db`** — dữ liệu nghiệp vụ, **có** persist:
-`users, clubs, club, clubId, clubStore, currentUserId, viewAs, joinRequests, invites,`
-`courts, groups, members, guests, sessions, attendance, sessionGuests, dues, guestPrices,`
-`shuttleTypes, schedules, purchases, stockChecks, courtBills, manual, backPaid, roster,`
-`locked, changes, lineups, matches, playing, courtMin, courtGroups, groupMode, seq,`
-`sessionId, month, today`
+**`db`** — dữ liệu nghiệp vụ của MỘT CLB, đồng bộ ngầm xuống Supabase (không còn persist
+localStorage). Đúng những khoá `dbmap.toDb()` sinh ra:
+`club, levels, courts, groups, members, guests, schedules, sessions, attendance, sessionGuests,`
+`lineups, courtGroups, groupMode, courtMin, matches, roster, locked, adjustments, guestPrices,`
+`shuttleTypes, dues, courtBills, manual, purchases, stockChecks, changes, users, joinRequests,`
+`playing`
+cộng `clubId, today, month` do `load()` gắn và `currentUserId, myRole, viewAs, sessionId` do
+`reload()` gắn.
+
+Không có `clubStore` · `seq` · `backPaid` · `invites` — bốn khoá này đã bỏ: nhiều CLB trong bộ
+nhớ (xem dưới), bộ đếm id thay bằng `crypto.randomUUID()`, `back_credits` thay bằng
+`member_adjustments` (migration 0007), mời qua SĐT gỡ khỏi client (xem `TASKS.md` Đợt 1).
 
 **`ui`** — trạng thái màn hình, **không** persist:
 `tab, dialog, form, toast, picked, expanded, assignId, asnMode`
 (route không nằm ở đây — React Router giữ, đọc bằng `useLocation()` + `keyOfPath()`)
 
 Vì sao `lineups` / `playing` / `matches` nằm ở `db`: `matches` là bản ghi thật (số trận từng
-người); `lineups` và `playing` cần sống qua F5 để hai người điều phối cùng thấy — handoff `05`
-nói rõ bản thật nên lưu server và bật realtime theo `session_id`.
+người) và `lineups` cần sống qua F5 để hai người điều phối cùng thấy — handoff `05` nói rõ bản
+thật nên lưu server và bật realtime theo `session_id`. Riêng `playing` (đồng hồ đang chạy)
+**không** xuống DB: `toDb` luôn trả `playing: {}`, mất khi F5. Cần nhiều người cùng thấy thì
+thêm `sessions.timer_started_at` — xem `DATABASE.md` §4.
 
 Vì sao `today` **không** dùng bản đã lưu: `load()` luôn ghi đè `today` bằng đồng hồ thật, nếu
 không thì "buổi sắp tới" và "buổi xếp được" sẽ đứng yên ở ngày cũ.
@@ -113,8 +121,8 @@ Mọi bảng nghiệp vụ thuộc về một CLB. Client giữ dữ liệu củ
 `activeClubId` nằm ở `AuthContext` (persist trong localStorage, chỉ đúng cái id đó). Đổi CLB →
 `AppContext` đẩy nốt thay đổi đang chờ, quên ảnh chụp đồng bộ, rồi `load(clubId)` lại từ đầu.
 
-Không có `clubStore`: giữ nhiều CLB trong bộ nhớ chỉ để đổi nhanh không đáng đổi lấy nguy cơ
-ghi lẫn dữ liệu giữa hai CLB.
+Giữ nhiều CLB trong bộ nhớ chỉ để đổi nhanh không đáng đổi lấy nguy cơ ghi lẫn dữ liệu giữa
+hai CLB — đó là lý do bỏ `clubStore`.
 
 ---
 

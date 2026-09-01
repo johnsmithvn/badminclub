@@ -512,6 +512,44 @@ export const pendingOffset = (db, mid, month) =>
   (db.adjustments || []).filter((x) => x.memberId === mid && x.settle === 'offset_next_dues' && !x.paid && x.month < month)
 
 /**
+ * CHỐT DANH SÁCH THÁNG — sinh ra toàn bộ tiền phải thu của một tháng. Thuần: trả về các dòng
+ * quỹ tháng cần thêm (chưa có `id`, action tự gắn) và danh sách khoá đối chiếu đã tiêu vào đó.
+ *
+ * Ba luật gói trong đây:
+ *  - chỉ người `fixed` của tháng đó, và mỗi người mỗi nhóm chỉ một khoản;
+ *  - khoản tháng trước xin "trừ vào quỹ tháng sau" cộng THẲNG dấu vào số phải đóng — âm thì
+ *    đóng ít đi, dương thì đóng thêm; một người ở hai nhóm chỉ được trừ MỘT lần;
+ *  - người đã NGƯNG HOẠT ĐỘNG thì thôi thu. Họ không còn hiện ở màn nào nữa (mọi danh sách
+ *    lọc `active !== false`) nên cũng không có cách nào gỡ khỏi danh sách cố định — không
+ *    chặn ở đây thì tháng nào chốt danh sách cũng đẻ thêm một khoản nợ cho người đã nghỉ.
+ */
+export function lockDues(db, month) {
+  const rows = []
+  const used = []
+  const seen = new Set()   // một người ở hai nhóm chỉ tiêu khoản đối chiếu một lần
+  ;(db.groups || []).forEach((g) => {
+    const r = ((db.roster || {})[month] || {})[g.id] || {}
+    Object.keys(r).forEach((mid) => {
+      if (r[mid] !== 'fixed') return
+      if ((db.dues || []).some((x) => x.month === month && x.groupId === g.id && x.memberId === mid)) return
+      const mb = (db.members || []).find((x) => x.id === mid)
+      if (!mb || mb.active === false) return
+      const base = mb.gender === 'nu' ? g.feeNu : g.feeNam
+      const pend = seen.has(mid) ? [] : pendingOffset(db, mid, month)
+      seen.add(mid)
+      pend.forEach((x) => used.push(x.key))
+      const off = pend.reduce((x, y) => x + y.amount, 0)
+      rows.push({
+        month, groupId: g.id, memberId: mid,
+        amount: Math.max(0, (base || 0) + off), paidAmount: 0, paidAt: null, method: '',
+        note: off ? t('debts.offsetNote', { amount: fmtK(Math.abs(off)) }) : '',
+      })
+    })
+  })
+  return { rows, used }
+}
+
+/**
  * Những chỗ đang trỏ tới một thành viên. Rỗng = xoá cứng được; có = chỉ được NGƯNG HOẠT ĐỘNG.
  *
  * Xoá cứng người đã dính điểm danh hoặc tiền là mất lịch sử của những tháng đã chốt, và dưới DB
@@ -551,6 +589,35 @@ export function joinDues(db, m, g, month) {
   if (!all.length) return { full: true, sessions: 0, amount: m.gender === 'nu' ? g.feeNu : g.feeNam }
   const sessions = remainSessions(db, g.id, month)
   return { full: false, sessions, amount: unitPrice(db, m, g, month).unit * sessions }
+}
+
+/**
+ * Ngưng hoạt động một người ĐANG cố định và ĐÃ đóng tiền tháng này thì quỹ đang giữ tiền của
+ * những buổi họ sẽ không đánh nữa. `joinDues` chạy ngược: đơn giá × số buổi còn lại.
+ *
+ * Trả `null` = ngưng thẳng, không hỏi gì. Chưa đóng đồng nào cũng trả `null`: không có tiền
+ * nào để trả lại thì hiện hộp thoại là hỏi thừa.
+ *
+ * Chỉ GỢI Ý số tiền — người dùng sửa đè hoặc bỏ qua. Cố ý không tự ghi: back hay không là
+ * thoả thuận của CLB, không phải phép tính.
+ */
+export function offBackSuggest(db, id) {
+  const m = (db.members || []).find((x) => x.id === id)
+  if (!m) return null
+  const month = db.month
+  const groups = []
+  let sessions = 0
+  let amount = 0
+  ;(db.groups || []).forEach((g) => {
+    if (rosterStatus(db, month, g.id, id) !== 'fixed') return
+    const due = (db.dues || []).find((d) => d.month === month && d.groupId === g.id && d.memberId === id)
+    if (!due || dueState(due).paid <= 0) return
+    const n = remainSessions(db, g.id, month)
+    groups.push(g.name)
+    sessions += n
+    amount += unitPrice(db, m, g, month).unit * n
+  })
+  return groups.length ? { name: m.name, groups: groups.join(', '), sessions, amount } : null
 }
 
 /* ---------- giá thành từng buổi · TẦNG B ---------- */

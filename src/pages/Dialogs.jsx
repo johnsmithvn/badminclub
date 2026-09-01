@@ -5,7 +5,7 @@ import { Button, Dialog, Input, Select, Switch } from '#ds'
 import { Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
-import { checkOf, checkPreview, fmtK, genderTxt, intOf } from '#lib/money.js'
+import { checkOf, checkPreview, fmtK, genderTxt, intOf, offBackSuggest } from '#lib/money.js'
 import { venueOptions } from '#lib/forms.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
 import { t } from '#i18n'
@@ -25,6 +25,7 @@ export default function Dialogs() {
     ledger: LedgerDialog,
     addMember: AddMemberDialog,
     editMember: EditMemberDialog,
+    offBack: OffBackDialog,
     zalo: ZaloDialog,
   }[ui.dialog]
   return D ? <D /> : null
@@ -523,6 +524,46 @@ function EditMemberDialog() {
       <Note tone={(f.eGroups || []).length ? undefined : 'warn'}>
         {(f.eGroups || []).length ? t('members.editGroupNote') : t('members.editGroupNone')}
       </Note>
+    </Shell>
+  )
+}
+
+/* ---------------- ngưng hoạt động: có trả lại tiền không ---------------- */
+
+/**
+ * Người đang cố định mà đã đóng quỹ tháng này thì quỹ đang giữ tiền của những buổi họ sẽ
+ * không đánh nữa. Hỏi đúng một lần ở đây, và KHÔNG chặn: bỏ qua thì vẫn ngưng được, cuối
+ * tháng đổi ý vẫn ghi tay được một dòng chi hạng mục "Back cố định nghỉ" ở Sổ quỹ.
+ *
+ * Ba lối ra khác nhau, cố ý không gộp: Huỷ = không ngưng · Chỉ ngưng = ngưng, không trả ·
+ * Ngưng và trả = ngưng, ghi một dòng chi.
+ */
+function OffBackDialog() {
+  const { db, ui, a } = useApp()
+  const f = ui.form
+  const s = offBackSuggest(db, f.obId)
+  if (!s) return null
+
+  return (
+    <Shell
+      title={t('members.offBackTitle', { name: s.name })}
+      desc={t('members.offBackDesc', { groups: s.groups, n: s.sessions })}
+      width={520}
+      submitLabel={t('members.offBackDo')}
+      submitIcon="banknote"
+      disabled={intOf(f.obAmount) <= 0}
+      onSubmit={() => a.deactivate(f.obId, f.obAmount)}
+    >
+      <Input label={t('members.offBackAmount')} mono suffix={t('units.dong')}
+        value={f.obAmount || ''}
+        hint={t('members.offBackHint', { amount: fmtK(s.amount), n: s.sessions })}
+        onChange={(e) => a.setF('obAmount', e.target.value)} />
+      <Note>{t('members.offBackNote')}</Note>
+      <div>
+        <Button variant="secondary" icon="user-round-minus" onClick={() => a.deactivate(f.obId, 0)}>
+          {t('members.offBackSkip')}
+        </Button>
+      </div>
     </Shell>
   )
 }

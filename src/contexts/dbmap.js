@@ -134,6 +134,10 @@ export function toDb(raw, ctx) {
     }
   }).sort((a, b) => (a.date < b.date ? -1 : 1))
 
+  // Thứ tự thời gian, không phải thứ tự Postgres trả về: "Bỏ trận vừa ghi" lấy phần tử cuối
+  // mảng, mà load() không ORDER BY bảng nào cả — sau F5 là xoá nhầm một trận bất kỳ.
+  matches.sort((a, b) => a.at - b.at)
+
   const roster = {}
   ;(raw.rosterRows || []).forEach((r) => {
     const m = roster[r.month] || (roster[r.month] = {})
@@ -220,10 +224,6 @@ export function toDb(raw, ctx) {
       id: r.id, clubId: ctx.clubId, userId: r.user_id, at: dOf(r.created_at),
       status: 'pending', note: r.note || '', code: club.code,
     })),
-    invites: (raw.invites || []).map((i) => ({
-      id: i.id, clubId: ctx.clubId, memberId: i.member_id, phone: i.phone,
-      at: dOf(i.sent_at), status: i.status,
-    })),
     playing: {},
   }
 }
@@ -265,11 +265,6 @@ export function toRows(db, ctx) {
     })
     ;(m.groupIds || []).forEach((g) => put('club_member_groups', { member_id: m.id, group_id: g }))
   })
-
-  ;(db.invites || []).forEach((i) => put('club_invites', {
-    id: i.id, club_id: cid, member_id: i.memberId, phone: i.phone,
-    token: i.token || i.id, status: i.status, sent_at: i.at,
-  }))
 
   db.guests.forEach((g) => put('guests', {
     id: g.id, club_id: cid, name: g.name, gender: g.gender, level: g.level,
@@ -456,7 +451,8 @@ export const TABLES = [
   { table: 'group_courts', mode: 'scope', scope: ['group_id'] },
   { table: 'club_members', mode: 'id' },
   { table: 'club_member_groups', mode: 'scope', scope: ['member_id'] },
-  { table: 'club_invites', mode: 'id' },
+  // `club_invites` cố ý KHÔNG có ở đây: mời qua SĐT đã gỡ khỏi client (cần module riêng, có
+  // gửi tin thật). Bảng và cột `clubs.allow_invite` giữ nguyên dưới DB, chờ module đó.
   { table: 'guests', mode: 'id' },
   { table: 'shuttle_types', mode: 'id' },
   { table: 'schedules', mode: 'id' },
@@ -494,6 +490,12 @@ const scopeKey = (spec, row) => spec.scope.map((c) => row[c]).join(' ')
  */
 export function diff(prev, next) {
   const ops = []
+  // Xoá dòng CHA phải chạy sau khi con của nó đã đi — ngược hẳn với thứ tự ghi. Gom riêng
+  // rồi đảo ngược ở cuối: `club_members` đứng thứ 4 trong TABLES còn `group_memberships`
+  // thứ 19, xoá theo thứ tự khai báo là Postgres chặn bằng khoá ngoại (23503) và cả hàng đợi
+  // đồng bộ kẹt ở đó. Chỉ `delIds` mới xoá dòng cha; `delScope` toàn rơi vào bảng lá nên giữ
+  // nguyên chỗ, tách khỏi `upsert` đi kèm là mode 'scope' xoá mất đúng dòng vừa ghi.
+  const gone = []
   TABLES.forEach((spec) => {
     const a = prev[spec.table] || []
     const b = next[spec.table] || []
@@ -508,9 +510,9 @@ export function diff(prev, next) {
       const ma = byId(a)
       const mb = byId(b)
       const write = b.filter((r) => JSON.stringify(ma.get(r.id)) !== JSON.stringify(r))
-      const gone = a.filter((r) => !mb.has(r.id)).map((r) => r.id)
+      const dead = a.filter((r) => !mb.has(r.id)).map((r) => r.id)
       if (write.length) ops.push({ table: spec.table, op: 'upsert', rows: write, conflict: 'id' })
-      if (gone.length) ops.push({ table: spec.table, op: 'delIds', ids: gone })
+      if (dead.length) gone.push({ table: spec.table, op: 'delIds', ids: dead })
       return
     }
 
@@ -551,5 +553,5 @@ export function diff(prev, next) {
       }
     })
   })
-  return ops
+  return ops.concat(gone.reverse())
 }

@@ -38,7 +38,7 @@ export async function load(clubId) {
   const [
     club, courts, groups, members, guests, shuttleTypes, schedules, sessions,
     dues, adjustments, courtBills, manual, purchases, stockChecks, guestPrices,
-    locks, rosterRows, changes, invites, joinRequests,
+    locks, rosterRows, changes, joinRequests,
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
@@ -60,7 +60,6 @@ export async function load(clubId) {
       .eq('member_groups.club_id', clubId),
     supabase.from('member_changes').select('*, club_members!inner(club_id)')
       .eq('club_members.club_id', clubId),
-    of('club_invites'),
     supabase.rpc('club_pending_requests', { p_club: clubId }),
   ])
 
@@ -109,7 +108,6 @@ export async function load(clubId) {
     locks: unwrap(locks),
     rosterRows: unwrap(rosterRows),
     changes: unwrap(changes),
-    invites: unwrap(invites),
     joinRequests: requests,
     users,
   }
@@ -172,6 +170,10 @@ async function flush() {
 
     // Chỉ ghi nhận ảnh chụp mới khi TẤT CẢ thao tác đã xong. Lỗi giữa chừng thì lần sau
     // diff lại từ ảnh chụp cũ và làm lại — mọi thao tác đều lặp lại được (upsert / delete).
+    // ponytail: lỗi TẠM (mạng) thì làm lại là đúng, nhưng lỗi CỐ ĐỊNH (khoá ngoại, RLS chặn)
+    // thì op hỏng nằm lại trong diff mãi và mọi thay đổi sau nó cũng không xuống được DB —
+    // màn hình vẫn báo đã lưu. Nâng cấp khi cần: hoặc reload() đè state khi lỗi không phải
+    // lỗi mạng, hoặc ghi nhận ảnh chụp từng phần theo op đã chạy xong.
     if (mine()) synced.rows = rows
   } catch (e) {
     console.error('[storage] đồng bộ thất bại', e)

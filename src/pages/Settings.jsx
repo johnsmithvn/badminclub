@@ -4,7 +4,7 @@ import { Alert, Avatar, Button, Card, Input, Select, Switch, Tabs } from '#ds'
 import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
-import { WD, dd, ddmy } from '#utils/dates.js'
+import { WD, ddmy } from '#utils/dates.js'
 import { ROLES, can, roleDesc } from '#lib/roles.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -367,7 +367,9 @@ function Groups({ canEdit }) {
 
 function Access({ canEdit, pending }) {
   const { db, ui, a } = useApp()
-  const lm = { code: true, invite: true, phone: true, ...db.club.linkModes }
+  // `invite` cố ý không đọc nữa: mời qua SĐT đã gỡ khỏi client, chờ module riêng có gửi tin
+  // thật. Cột `clubs.allow_invite` vẫn nằm dưới DB.
+  const lm = { code: true, phone: true, ...db.club.linkModes }
   const digits = (x) => (x || '').replace(/\D/g, '')
 
   /** Tài khoản có SĐT trùng và CHƯA gắn vào CLB này — chỉ gợi ý, không tự ghép. */
@@ -375,9 +377,6 @@ function Access({ canEdit, pending }) {
     if (!lm.phone || m.userId || !digits(m.phone)) return null
     return db.users.find((u) => digits(u.phone) === digits(m.phone) && !db.members.some((x) => x.userId === u.id)) || null
   }
-  const inviteOf = (mid) =>
-    (db.invites || []).filter((i) => i.clubId === db.clubId && i.memberId === mid).slice(-1)[0] || null
-
   const unlinked = db.members.filter((m) => !m.userId && m.active !== false)
   const linkedCount = db.members.filter((m) => m.userId).length
 
@@ -390,7 +389,11 @@ function Access({ canEdit, pending }) {
           : <div style={{ display: 'grid', gap: 12 }}>
               {pending.map((r) => {
                 const u = db.users.find((x) => x.id === r.userId) || {}
-                const pick = ui.form['join_' + r.id] || ''
+                // Bản ghi tay trùng SĐT — chọn sẵn để bấm nhầm "Tạo thành viên mới" không còn
+                // là lối dễ đi nhất. Tạo mới ở đây là sinh ra người thứ hai cùng một con
+                // người: hai dòng cùng chạy song song, và GỘP LẠI thì app chưa làm được.
+                const dup = unlinked.find((m) => digits(m.phone) && digits(m.phone) === digits(u.phone))
+                const pick = ui.form['join_' + r.id] ?? (dup ? dup.id : '')
                 return (
                   <div key={r.id} style={{ display: 'grid', gap: 9, padding: '11px 12px', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -404,18 +407,27 @@ function Access({ canEdit, pending }) {
                       </div>
                     </div>
                     {canEdit && (
-                      <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <Select size="sm" style={{ width: 240 }} value={pick}
-                          options={[{ value: '', label: t('settings.joinPickMember') }].concat(
-                            unlinked.map((m) => ({ value: m.id, label: m.name + ' · ' + (m.phone || '') }))
-                          )}
-                          onChange={(e) => a.setF('join_' + r.id, e.target.value)} />
-                        <Button variant="primary" size="sm" icon="link"
-                          onClick={() => a.approveJoin(r.id, pick)}>{t('settings.joinLink')}</Button>
-                        <Button variant="secondary" size="sm" icon="user-round-plus"
-                          onClick={() => a.approveJoin(r.id, null)}>{t('settings.joinCreate')}</Button>
-                        <Button variant="ghost" size="sm" icon="circle-x"
-                          onClick={() => a.rejectJoin(r.id)}>{t('settings.joinReject')}</Button>
+                      <div style={{ display: 'grid', gap: 7 }}>
+                        {dup && (
+                          <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
+                            {t('settings.joinDupWarn', { name: dup.name })}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <Select size="sm" style={{ width: 240 }} value={pick}
+                            options={[{ value: '', label: t('settings.joinPickMember') }].concat(
+                              unlinked.map((m) => ({ value: m.id, label: m.name + ' · ' + (m.phone || '') }))
+                            )}
+                            onChange={(e) => a.setF('join_' + r.id, e.target.value)} />
+                          {/* Chưa chọn ai mà bấm Ghép thì RPC nhận p_member_id = null và tạo
+                              người mới — nút nói một đằng làm một nẻo. Khoá lại. */}
+                          <Button variant="primary" size="sm" icon="link" disabled={!pick}
+                            onClick={() => a.approveJoin(r.id, pick)}>{t('settings.joinLink')}</Button>
+                          <Button variant="ghost" size="sm" icon="user-round-plus"
+                            onClick={() => a.approveJoin(r.id, null)}>{t('settings.joinCreate')}</Button>
+                          <Button variant="ghost" size="sm" icon="circle-x"
+                            onClick={() => a.rejectJoin(r.id)}>{t('settings.joinReject')}</Button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -429,8 +441,6 @@ function Access({ canEdit, pending }) {
           <div style={{ display: 'grid', gap: 14 }}>
             <Toggle label={t('settings.modeCode')} note={t('settings.modeCodeNote', { code: db.club.code })}
               checked={lm.code} disabled={!canEdit} onChange={() => a.toggleLinkMode('code')} />
-            <Toggle label={t('settings.modeInvite')} note={t('settings.modeInviteNote')}
-              checked={lm.invite} disabled={!canEdit} onChange={() => a.toggleLinkMode('invite')} />
             <Toggle label={t('settings.modePhone')} note={t('settings.modePhoneNote')}
               checked={lm.phone} disabled={!canEdit} onChange={() => a.toggleLinkMode('phone')} />
           </div>
@@ -464,7 +474,6 @@ function Access({ canEdit, pending }) {
           </div>
           {db.members.filter((m) => m.active !== false).map((m) => {
             const user = m.userId && db.users.find((u) => u.id === m.userId)
-            const inv = inviteOf(m.id)
             const sug = suggestFor(m)
             return (
               <div key={m.id} style={{ ...S.accGrid, ...S.accRow }}>
@@ -478,13 +487,9 @@ function Access({ canEdit, pending }) {
                     ? <span style={{ ...S.pill, background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)' }}>
                         {t('settings.accLinked', { name: user.nick || user.name })}
                       </span>
-                    : inv && lm.invite
-                      ? <span style={{ ...S.pill, background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)' }}>
-                          {t('settings.accInvited', { date: dd(inv.at) })}
-                        </span>
-                      : <span style={{ ...S.pill, background: 'var(--status-idle-bg)', color: 'var(--status-idle-fg)' }}>
-                          {t('settings.accNone')}
-                        </span>}
+                    : <span style={{ ...S.pill, background: 'var(--status-idle-bg)', color: 'var(--status-idle-fg)' }}>
+                        {t('settings.accNone')}
+                      </span>}
                 </span>
                 <Select size="sm" value={m.role} disabled={!canEdit}
                   options={ROLES.map((r) => ({ value: r.value, label: r.label }))}
@@ -500,10 +505,6 @@ function Access({ canEdit, pending }) {
                           onClick={() => a.linkMemberUser(m.id, sug.id)}>{t('settings.doLink')}</Button>
                       )}
                     </>
-                  )}
-                  {canEdit && !user && lm.invite && !sug && (
-                    <Button variant="secondary" size="sm" icon="send"
-                      onClick={() => a.sendInvite(m.id)}>{t('settings.doInvite')}</Button>
                   )}
                   {canEdit && user && (
                     <Button variant="ghost" size="sm" icon="unlink"

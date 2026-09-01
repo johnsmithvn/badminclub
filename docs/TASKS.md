@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v0.6.0 · **Updated:** 2026-08-24
+**Version:** v0.7.0 · **Updated:** 2026-08-31
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -395,10 +395,30 @@ Hai việc dưới bắt được gần hết.
       **KHÔNG có bảng `fund_reconciliations`** (đặc tả đề xuất, cắt 2026-08-24): đối chiếu là một
       phép trừ, tính lại từ đầu mỗi lần cũng tức thì. Lưu lại chỉ để "lần sau đối chiếu phần phát
       sinh" là một bảng nuôi cho một tối ưu không ai cần.
-- [ ] **Checklist trước khi chốt buổi — TỐI ĐA 3 MỤC** (thu hẹp 2026-08-24). Chỉ những thứ mất
-      tiền thật: sân đánh dấu bán mà chưa nhập tiền · khách còn ghi nợ · số cầu đang là định mức.
-      **Bỏ mục "ai chưa điểm danh"** — dài thêm một dòng là thêm một lý do để bấm Bỏ qua.
-      Dòng cuối: *"Chốt buổi này không ghi khoản chi nào vào sổ quỹ."* Bắt: B4 · B6 · B7, xử lý luôn N1.
+- [x] **Cảnh báo quanh việc chốt buổi — XONG 2026-08-24** (chờ user bấm thử). Đặc tả muốn một
+      **dialog buộc xử lý**; đã hạ xuống **cảnh báo không chặn** và tách làm hai thời điểm.
+
+      **Trước khi chốt** (`money.js: closeWarnings`, buổi `open`) — 2 mục:
+      chưa điểm danh ai · sân đánh dấu bán mà ô tiền để trống (hai ô chỏi nhau).
+      KHÔNG chặn nút Chốt: chặn thì có ngày bán sân cho CLB khác mà chưa biết họ trả bao nhiêu là
+      không chốt được buổi, trong khi chẳng có lỗi gì.
+
+      **Bỏ khỏi checklist, user chỉ ra là thừa:**
+      - *khách còn ghi nợ* — nợ khách lọc theo THÁNG của buổi, chốt hay không đều hiện nguyên ở
+        màn Công nợ. Nguyên văn user: *"bản chất việc khách nợ trả hay chưa nó nằm trong công nợ
+        mà, chốt hay không ảnh hưởng gì"*. Đúng.
+      - *số cầu đang là định mức* — CLB không đếm cầu, định mức là bình thường, nhắc là phiền.
+
+      **Sau khi chốt** (`money.js: costDrift`) — **mục này KHÔNG có trong đặc tả**, tìm ra khi user
+      hỏi "sửa được sau khi chốt không". Chốt buổi đóng băng 7 con số; sửa điểm danh / khách / số
+      cầu sau đó thì **số tiền không đổi theo và không có gì báo** — sửa vô ích mà tưởng đã xong.
+      Cảnh báo liệt kê từng thứ lệch (`chốt X → hiện Y`) + nút **Chốt lại theo số mới**.
+
+      Chỉ so **ba thứ đếm được**: số người · thu khách · số cầu. **KHÔNG so tiền sân** — giá sân
+      đổi là đủ làm nó lệch mà chẳng ai sửa gì, cảnh báo ở đó là nhắc oan đúng vào cái mà đóng
+      băng sinh ra để chống. Có test khoá: mua đợt cầu đắt gấp 3 → `costDrift` vẫn trả `null`.
+
+      Test + mutation-test 5 nhánh, cả 5 bị bắt. Bắt: B4 · B6, xử lý luôn N1.
 - [x] **B1 · Quên nhập hoá đơn sân tháng — 1.920.000, sai nặng nhất.** Alert đỏ ở Trang chủ khi
       tháng có buổi `closed` mà `court_bills` tháng đó trống. **Chỉ khi `courtPayMode = 'month'`**
       — mode `session` ghi tiền sân ngay lúc chốt buổi, nhắc hoá đơn tháng là nhắc sai.
@@ -488,6 +508,57 @@ file `08` chưa từng có mặt trong file này — không phải hoãn có lý
 **Đã cắt khỏi phạm vi** (đặc tả `08` §Cắt khỏi phạm vi — không bàn lại): cột `source` phân loại
 khách · `paid_amount` cho khách · `pay_mode` · xếp khách cùng sân người rủ. **Hoãn:** gộp hai
 khách trùng · chuyển khách thành thành viên.
+
+---
+
+## Đợt 1 — Sửa mất dữ liệu + luồng thành viên · **XONG 2026-08-31** (chờ user bấm thử)
+
+Kết quả đợt đọc code đối chiếu logic. Tám mục, **không đụng schema**, không migration mới.
+
+- [x] **Xoá thành viên làm kẹt CẢ hàng đợi đồng bộ.** `diff()` phát op theo thứ tự mảng `TABLES`
+      (cha trước con) — đúng cho INSERT, **ngược cho DELETE**. `club_members` đứng thứ 4,
+      `group_memberships` thứ 19, mà cột đó `REFERENCES club_members(id)` **không CASCADE** →
+      Postgres trả 23503. Vì `storage.js` chỉ cập nhật ảnh chụp khi MỌI op xong, op hỏng nằm lại
+      trong diff mãi: **từ đó mọi thay đổi đều không xuống được DB** trong khi màn hình vẫn báo
+      đã lưu. Sửa: gom `delIds` ra riêng, phát sau cùng theo **thứ tự ngược**. `delScope` giữ
+      nguyên chỗ — 11 bảng mode `key`/`scope` đều là bảng lá, tách khỏi `upsert` đi kèm là mode
+      `scope` xoá mất đúng dòng vừa ghi. Có test khoá + mutation-test.
+      **Cố ý KHÔNG thêm `roster` vào `memberRefs`:** `deleteMember` đã dọn roster ở tầng state,
+      nó chỉ hỏng vì thứ tự — thêm guard là chặn oan thao tác hợp lệ.
+- [x] **"Ngưng hoạt động" là cửa một chiều.** Cả 8 chỗ liệt kê thành viên đều lọc
+      `active !== false` nên người đã ngưng không hiện ở đâu; nút "Cho hoạt động lại" viết sẵn
+      trong cột hành động là **code chết**, bấm nhầm chỉ sửa được bằng SQL. Thêm bộ lọc
+      *Đang hoạt động / Đã ngưng* ở tab Tất cả, chỉ hiện khi thật sự có người đã ngưng.
+- [x] **Người đã ngưng vẫn bị sinh quỹ tháng, mãi mãi.** `lockRoster` không kiểm `active`, mà
+      tab Danh sách cố định cũng lọc active nên **không có cách nào gỡ họ khỏi danh sách**. Tách
+      `money.js: lockDues(db, month)` thành hàm thuần (nó sinh ra TOÀN BỘ tiền phải thu của một
+      tháng mà trước giờ không có test nào) + guard `active === false`. Test 5 nhánh.
+- [x] **Hộp thoại back tiền khi ngưng giữa tháng.** Người đang cố định và ĐÃ đóng quỹ tháng này
+      thì quỹ đang giữ tiền của những buổi họ sẽ không đánh nữa, mà `adjustRows` lọc qua
+      `groupMembers` nên thôi sinh dòng cho họ. `money.js: offBackSuggest` gợi ý
+      `đơn giá × số buổi còn lại`; ghi thẳng một dòng `db.manual` hạng mục `back`.
+      Ba lối ra cố ý không gộp: **Huỷ** = không ngưng · **Chỉ ngưng** · **Ngưng và trả lại**.
+      `MANUAL_CATS` thêm `back` để cuối tháng đổi ý vẫn ghi tay được.
+- [x] **Gỡ mời qua SĐT khỏi client.** Phần TẠO chạy được nhưng phần NHẬN (mở link → tạo tài
+      khoản → tự ghép) chưa từng tồn tại — `accepted_user_id` không có consumer nào trong `src/`.
+      Bỏ action, nút, pill, toggle, `db.invites`, `club_invites` khỏi `TABLES` + `storage.js`.
+      **Giữ nguyên bảng và cột `clubs.allow_invite` dưới DB**, chờ module invite riêng.
+- [x] **Chặn tạo bản ghi trùng ở màn duyệt vào CLB.** Bấm nhầm "Tạo thành viên mới" thay vì
+      "Ghép" là sinh ra người thứ hai cùng một con người, mà **GỘP hai bản ghi thì app chưa làm
+      được** (16 cột trỏ tới `club_members`, 4 UNIQUE chặn ngang, và `storage.js` ghi từng dòng
+      không transaction → merge bắt buộc là RPC, để thành module riêng). Chọn sẵn bản ghi trùng
+      SĐT, cảnh báo một dòng, hạ "Tạo mới" xuống ghost. Kèm một bẫy khác: bấm **Ghép** khi chưa
+      chọn ai thì RPC nhận `p_member_id = null` và **tạo mới** — nút nói một đằng làm một nẻo,
+      giờ khoá lại khi chưa chọn.
+- [x] **`undoMatch` xoá nhầm trận sau F5.** `storage.js` không `.order()` bảng nào và `toDb`
+      không sort `matches`, mà "Bỏ trận vừa ghi" lấy phần tử cuối mảng. Sort theo `at`. Có test.
+- [x] **Báo cáo Zalo in giá thành LIVE.** `copyZalo` gọi `sessionCost` thay vì `costRow` → buổi
+      đã chốt thì báo cáo gửi lên nhóm nói một số, màn hình nói số khác ngay khi giá cầu/giá sân
+      đổi. Đúng lỗi L1/P2 đã sửa ở hai màn kia, sót màn này.
+- [ ] **Trần đã biết, chưa sửa:** một op lỗi CỐ ĐỊNH (khoá ngoại, RLS chặn) vẫn làm kẹt hàng đợi
+      đồng bộ như cũ — đợt này chỉ gỡ nguyên nhân hay gặp nhất. Đã đặt `ponytail:` ở
+      `storage.js: flush()` kèm hai đường nâng cấp (reload đè state, hoặc ảnh chụp từng phần).
+      Mở lại khi gặp ca thứ hai.
 
 ---
 

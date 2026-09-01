@@ -5,7 +5,7 @@ import { Avatar, Button, Card, DataTable, IconButton, Tabs } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { addMonth, monthShort, monthTxt } from '#utils/dates.js'
-import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, memberRefs, rosterStatus } from '#lib/money.js'
+import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, memberRefs, offBackSuggest, rosterStatus } from '#lib/money.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -43,8 +43,12 @@ export default function Members() {
 /* ---------------- tab Tất cả ---------------- */
 
 function AllMembers({ canEdit }) {
-  const { db, a } = useApp()
-  const active = db.members.filter((m) => m.active !== false)
+  const { db, ui, a } = useApp()
+  // Người đã ngưng phải xem được, không thì nút "Cho hoạt động lại" là nút không ai bấm tới
+  // và bấm nhầm Ngưng là chỉ sửa được bằng SQL. Chỉ hiện bộ lọc khi thật sự có người đã ngưng.
+  const off = db.members.filter((m) => m.active === false)
+  const showOff = off.length > 0 && (ui.tab.mstate || 'on') === 'off'
+  const rows = showOff ? off : db.members.filter((m) => m.active !== false)
   const dues = duesOf(db, db.month)
 
   const columns = [
@@ -110,7 +114,15 @@ function AllMembers({ canEdit }) {
           {/* Ngưng hoạt động giữ nguyên lịch sử; xoá cứng chỉ mở khi chưa dính gì. */}
           <IconButton icon={r.active === false ? 'rotate-ccw' : 'user-round-minus'} size="sm" variant="ghost"
             label={t(r.active === false ? 'members.reactivate' : 'members.deactivate')}
-            onClick={() => a.toggleMemberActive(r.id)} />
+            onClick={() => {
+              if (r.active === false) return a.reactivate(r.id)
+              // Đang cố định mà đã đóng tiền tháng này thì quỹ đang giữ tiền của những buổi
+              // người ta sẽ không đánh nữa — hỏi một câu, không tự quyết hộ.
+              const s = offBackSuggest(db, r.id)
+              return s
+                ? a.openDialog('offBack', { obId: r.id, obAmount: String(s.amount || '') })
+                : a.deactivate(r.id, 0)
+            }} />
           {!memberRefs(db, r.id).length && (
             <IconButton icon="trash-2" size="sm" variant="ghost"
               label={t('common.delete')} onClick={() => a.deleteMember(r.id)} />
@@ -123,19 +135,34 @@ function AllMembers({ canEdit }) {
   return (
     <Card
       title={t('members.listTitle')}
-      subtitle={t('members.listSub', { n: active.length })}
+      subtitle={t(showOff ? 'members.listSubOff' : 'members.listSub', { n: rows.length })}
       icon="users"
       padding="0"
-      actions={canEdit && (
-        <Button variant="primary" size="sm" icon="user-round-plus"
-          onClick={() => a.openDialog('addMember', memberForm(db))}>
-          {t('members.addMember')}
-        </Button>
-      )}
+      actions={
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {off.length > 0 && (
+            <Tabs
+              variant="segmented"
+              items={[
+                { value: 'on', label: t('members.stateOn') },
+                { value: 'off', label: t('members.stateOff'), count: off.length },
+              ]}
+              value={ui.tab.mstate || 'on'}
+              onChange={(v) => a.setTab('mstate', v)}
+            />
+          )}
+          {canEdit && (
+            <Button variant="primary" size="sm" icon="user-round-plus"
+              onClick={() => a.openDialog('addMember', memberForm(db))}>
+              {t('members.addMember')}
+            </Button>
+          )}
+        </div>
+      }
     >
-      {active.length === 0
+      {rows.length === 0
         ? <Empty icon="users" title={t('members.empty')} hint={t('members.emptyHint')} />
-        : <DataTable columns={columns} rows={active} rowKey="id" />}
+        : <DataTable columns={columns} rows={rows} rowKey="id" />}
     </Card>
   )
 }

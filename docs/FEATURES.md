@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v0.2.0 · **Updated:** 2026-08-20
+**Version:** v0.3.0 · **Updated:** 2026-08-31
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -169,6 +169,17 @@ trong danh sách cố định không*.
 cũ. Xoá cứng chỉ mở khi người đó chưa dính gì (chưa điểm danh, chưa có quỹ, chưa đánh trận, chưa
 ghép tài khoản).
 
+Ngưng hoạt động là thao tác **đảo lại được**: tab Tất cả có bộ lọc *Đang hoạt động / Đã ngưng*,
+tự hiện khi CLB có người đã ngưng. Người đã ngưng **không** bị sinh quỹ tháng mới nữa khi chốt
+danh sách — nhưng khoản đã sinh trước đó thì giữ nguyên, tiền đã vào sổ không tự bốc hơi.
+
+**Ngưng người đang cố định mà đã đóng quỹ tháng này** → app hỏi một câu: quỹ đang giữ tiền của
+những buổi họ sẽ không đánh nữa, có trả lại không? Số gợi ý là `đơn giá một buổi × số buổi còn
+lại`, sửa được. Ba lối ra tách bạch — *Huỷ* (không ngưng) · *Chỉ ngưng, không trả* · *Ngưng và
+trả lại*. Chọn trả thì ghi thẳng một dòng chi hạng mục **Back cố định nghỉ** vào sổ quỹ, không
+đi qua bảng đối chiếu (người đã ngưng không còn sinh dòng đối chiếu). Bỏ qua bây giờ thì cuối
+tháng đổi ý vẫn ghi tay được ở Sổ quỹ → Ghi thu/chi, cùng hạng mục đó.
+
 Thêm thành viên chọn *cố định từ tháng này* thì họ được ghi cố định cho **cả hai** tháng, và sinh
 luôn khoản quỹ tháng này: nhóm chưa có buổi nào thì **thu trọn gói**, đã có buổi rồi thì **thu
 theo số buổi còn lại** tính từ hôm nay.
@@ -245,13 +256,24 @@ Ba luật của kiểm kho, sai một cái là hỏng số hai tháng:
 
 **Cài đặt** 6 tab: Chung · Cách chia tiền · Sân · Cầu · Nhóm cố định · **Tài khoản & quyền**.
 
-Tab *Tài khoản & quyền* — **ba cách cho người mới vào**, bật/tắt độc lập:
+Tab *Tài khoản & quyền* — **hai cách cho người mới vào**, bật/tắt độc lập:
 
 | Cách | Cờ | Luồng |
 | --- | --- | --- |
 | Mã CLB | `allow_code_join` | người mới nhập mã → yêu cầu chờ → chủ CLB **Ghép vào** bản ghi cũ / **Tạo thành viên mới** / **Từ chối** |
-| Lời mời | `allow_invite` | chủ CLB gửi tới SĐT của bản ghi → ai tạo tài khoản từ link thì **tự ghép** |
 | Trùng SĐT | `allow_phone_suggest` | so **chỉ chữ số**, gợi ý màu amber + nút Ghép. **Không bao giờ tự ghép** |
+
+**Ghép, không phải tạo mới.** Bấm *Tạo thành viên mới* cho người đã có bản ghi tay là sinh ra
+**hai** bản ghi cùng một con người, cả hai cùng chạy song song — và **gộp lại thì app chưa làm
+được** (16 cột trỏ tới `club_members`, 4 ràng buộc UNIQUE chặn ngang, và tầng đồng bộ ghi từng
+dòng không transaction nên merge bắt buộc phải là RPC). Vì thế màn duyệt **chọn sẵn** bản ghi
+trùng SĐT, cảnh báo một dòng, và hạ *Tạo mới* xuống nút phụ. Chưa chọn ai thì nút **Ghép** bị
+khoá — RPC nhận `p_member_id = null` là nó tạo người mới, nút sẽ nói một đằng làm một nẻo.
+
+**Mời qua SĐT đã gỡ khỏi client** (`allow_invite`): phần tạo bản ghi chạy được nhưng phần nhận
+(mở link → tạo tài khoản → tự ghép) chưa từng tồn tại, nên nút chỉ hứa suông. Bảng
+`club_invites` và cột `clubs.allow_invite` giữ nguyên dưới DB, chờ làm thành module riêng có
+gửi tin thật.
 
 **Sơ đồ dữ liệu**: trang tài liệu sống trong app, liệt kê bảng/cột. Giữ lại ở bản thật.
 

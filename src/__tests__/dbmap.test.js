@@ -87,6 +87,25 @@ assert.deepEqual(del3.scope, { session_id: s3.id })
 assert.deepEqual(del3.keep, [0], 'chỉ giữ lại sân index 0')
 assert.equal(del3.child, 'court_index')
 
+// XOÁ MỘT THÀNH VIÊN: dòng con phải đi TRƯỚC dòng cha.
+// `club_members` đứng thứ 4 trong TABLES còn `group_memberships` thứ 19. Ghi theo thứ tự khai
+// báo là đúng cho INSERT nhưng ngược hẳn cho DELETE: Postgres chặn bằng khoá ngoại (23503),
+// và vì storage.js chỉ cập nhật ảnh chụp khi MỌI op xong nên op hỏng nằm lại trong diff mãi —
+// cả hàng đợi đồng bộ kẹt ở đó trong khi màn hình vẫn báo đã lưu.
+const dDel = clone(db)
+const delId = Object.keys(dDel.roster[Object.keys(dDel.roster)[0]][db.groups[0].id])[0]
+dDel.members = dDel.members.filter((m) => m.id !== delId)
+Object.keys(dDel.roster).forEach((mo) => {
+  Object.keys(dDel.roster[mo]).forEach((gid) => { delete dDel.roster[mo][gid][delId] })
+})
+const opsDel = diff(rows, toRows(dDel, ctx))
+const iParent = opsDel.findIndex((o) => o.table === 'club_members' && o.op === 'delIds')
+const iChild = opsDel.findIndex((o) => o.table === 'group_memberships' && o.op === 'delScope')
+assert.ok(iParent >= 0, 'xoá thành viên phải sinh delIds trên club_members')
+assert.ok(iChild >= 0, 'xoá thành viên phải dọn cả group_memberships')
+assert.ok(iChild < iParent, 'phải xoá group_memberships TRƯỚC club_members, không thì khoá ngoại chặn')
+assert.deepEqual(opsDel[iParent].ids, [delId])
+
 // Thêm một trình độ: bảng giá khách phải nở thêm 2 dòng (nam + nữ), không đụng bảng nào khác.
 const d4 = clone(db)
 d4.levels = d4.levels.concat(['TB+'])
@@ -148,6 +167,21 @@ assert.equal(back.groupMode.s1, true)
 assert.deepEqual(back.lineups.s1, { c0t1s0: 'g1' })
 assert.deepEqual(back.courtGroups.s1, { m1: 1 })
 assert.deepEqual(back.matches[0].playerKeys, ['m1', 'g1'], 'người chơi phải xếp theo team 0 trước')
+
+// Trận phải về theo thứ tự thời gian: "Bỏ trận vừa ghi" lấy phần tử CUỐI mảng, mà load()
+// không ORDER BY bảng nào — trả về thứ tự nào là may thứ tự đó, sau F5 là xoá nhầm trận khác.
+const mtRaw = {
+  ...raw,
+  sessions: [{
+    ...raw.sessions[0],
+    matches: [
+      { id: 'mtB', court_index: 0, minutes: 20, ended_at: '2026-08-09T15:00:00Z', match_players: [] },
+      { id: 'mtA', court_index: 0, minutes: 20, ended_at: '2026-08-09T13:00:00Z', match_players: [] },
+    ],
+  }],
+}
+assert.deepEqual(toDb(mtRaw, { clubId: 'CL1' }).matches.map((m) => m.id), ['mtA', 'mtB'],
+  'matches phải sắp theo thời gian kết thúc, không theo thứ tự Postgres trả về')
 assert.deepEqual(back.roster, { '2026-09': { gr1: { m1: 'off' } } })
 assert.deepEqual(back.locked, { '2026-08': true })
 assert.deepEqual(back.adjustments, [{
