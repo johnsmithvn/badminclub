@@ -611,7 +611,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const name = (f.mName || '').trim()
       if (!name) return toast(t('toast.needMemberName'))
       const start = f.mStart || 'next'
-      const gs = f.mGroups || []
+      let gs = (f.mGroups || []).slice()
+      if (gs.length === 0 && d0.groups.length > 0) {
+        gs = [d0.groups[0].id]
+      }
       if (start !== 'none' && !gs.length) return toast(t('toast.needGroup'))
       const nextM = addMonth(d0.month, 1)
 
@@ -798,19 +801,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }),
     createSchedule: (dates) => {
       const f = form()
-      if (!f.sGroup) return toast(t('toast.needGroupFirst'))
+      const d0 = db()
+      const sGroup = f.sGroup || (d0.groups.length > 0 ? d0.groups[0].id : '')
+      if (!sGroup) return toast(t('toast.needGroupFirst'))
       if (!dates.length) return toast(t('toast.needWeekday'))
       up((d) => {
         const scId = uid()
         const rows = (f.rows || []).map((r) => ({ ...r, sold: false, soldAmount: 0, soldTo: '', extra: false }))
         const stId = d.shuttleTypes[0] ? d.shuttleTypes[0].id : null
         const exist = {}
-        d.sessions.forEach((x) => { exist[x.date + '|' + f.sGroup] = true })
+        d.sessions.forEach((x) => { exist[x.date + '|' + sGroup] = true })
         const added = []
         dates.forEach((dt) => {
-          if (exist[dt + '|' + f.sGroup]) return
+          if (exist[dt + '|' + sGroup]) return
           added.push({
-            id: uid(), date: dt, groupId: f.sGroup, status: 'draft', shuttleUsed: 0,
+            id: uid(), date: dt, groupId: sGroup, status: 'draft', shuttleUsed: 0,
             shuttleTypeId: stId, note: '', shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
             courts: rows.map((r) => ({ ...r })), scheduleId: scId,
           })
@@ -976,6 +981,18 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
     /* ---------- cài đặt ---------- */
     setClub: (k, v) => up((d) => ({ club: { ...d.club, [k]: v } })),
+    toggleMultiGroup: (enabled) => {
+      up((d) => ({ club: { ...d.club, multiGroup: !!enabled } }))
+      toast(t(enabled ? 'toast.multiGroupEnabled' : 'toast.multiGroupDisabled'))
+    },
+    setDefaultGroupDues: (k, v) =>
+      up((d) => {
+        if (!d.groups || d.groups.length === 0) return {}
+        const defGid = d.groups[0].id
+        return {
+          groups: d.groups.map((g) => (g.id === defGid ? { ...g, [k]: intOf(v) } : g)),
+        }
+      }),
     /**
      * Thang trình độ của CLB. Nhập một chuỗi "yếu, ..., mạnh" — THỨ TỰ chính là thứ tự mạnh dần,
      * thuật toán cân sân dùng đúng thứ tự này.
@@ -1055,6 +1072,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
     addGroup: () => {
       const f = form()
+      const d0 = db()
+      const def = d0.groups[0] || {}
       const name = (f.grName || '').trim()
       if (!name) return toast(t('toast.needGroupName'))
       if (!(f.grCourts || []).length) return toast(t('toast.needGroupCourt'))
@@ -1062,8 +1081,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         groups: d.groups.concat([{
           id: uid(), name, short: (f.grShort || '').trim() || name.slice(0, 3),
           weekday: intOf(f.grWeekday),
-          feeNam: intOf(f.grFeeNam),
-          feeNu: intOf(f.grFeeNu),
+          feeNam: f.grFeeNam ? intOf(f.grFeeNam) : (def.feeNam || 0),
+          feeNu: f.grFeeNu ? intOf(f.grFeeNu) : (def.feeNu || 0),
+          unitNam: def.unitNam || 0,
+          unitNu: def.unitNu || 0,
           from: f.grFrom, to: f.grTo,
           quota: intOf(f.grQuota) || cfg.shuttle.quotaDefault,
           courtIds: f.grCourts.slice(), active: true,
@@ -1088,6 +1109,41 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           ? { ...g, [k]: GROUP_NUM.indexOf(k) >= 0 ? intOf(v) : v }
           : g)),
       })),
+    deleteGroup: (id) => {
+      const d0 = db()
+      if (d0.groups.length <= 1 || d0.groups[0]?.id === id) {
+        return toast(t('toast.defaultGroupCannotDelete') || 'Nhóm mặc định không thể xoá')
+      }
+      const hasSessions = (d0.sessions || []).some((s) => s.groupId === id)
+      const hasSchedules = (d0.schedules || []).some((s) => s.groupId === id)
+      if (hasSessions || hasSchedules) {
+        return toast(t('toast.groupInUse') || 'Không thể xoá nhóm đã có lịch hoặc buổi tập')
+      }
+      const defId = d0.groups[0].id
+      up((d) => ({
+        groups: d.groups.filter((g) => g.id !== id),
+        members: d.members.map((m) => {
+          const filtered = (m.groupIds || []).filter((g) => g !== id)
+          return {
+            ...m,
+            groupIds: filtered.length > 0 ? filtered : [defId],
+          }
+        }),
+      }))
+      toast(t('toast.groupDeleted') || 'Đã xoá nhóm')
+    },
+    saveGeneralFees: ({ feeNam, feeNu, unitNam, unitNu }) => {
+      up((d) => ({
+        groups: d.groups.map((g) => ({
+          ...g,
+          feeNam: intOf(feeNam),
+          feeNu: intOf(feeNu),
+          unitNam: intOf(unitNam),
+          unitNu: intOf(unitNu),
+        })),
+      }))
+      toast(t('toast.pricingSaved'))
+    },
     setShuttleType: (id, k, v) =>
       up((d) => ({
         shuttleTypes: d.shuttleTypes.map((x) => {

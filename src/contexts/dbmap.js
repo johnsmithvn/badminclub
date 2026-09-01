@@ -42,7 +42,7 @@ export function toDb(raw, ctx) {
     id: c.id, name: c.name, addr: c.address || '', price: num(c.price_per_hour), active: c.active,
   }))
 
-  const groups = (raw.groups || []).map((g) => ({
+  let groups = (raw.groups || []).map((g) => ({
     id: g.id, name: g.name, short: g.short || '', weekday: g.weekday,
     feeNam: num(g.fee_male), feeNu: num(g.fee_female),
     // Đơn giá một buổi CLB tự đặt; 0 = để app tự chia.
@@ -51,13 +51,27 @@ export function toDb(raw, ctx) {
     courtIds: (g.group_courts || []).map((x) => x.court_id),
   }))
 
-  const members = (raw.members || []).map((m) => ({
-    id: m.id, name: m.name, phone: m.phone || '', gender: m.gender, level: m.level,
-    role: m.role, joined: m.joined_at, active: m.active, userId: m.user_id || null,
-    linkedAt: dOf(m.linked_at), pendingLevel: m.pending_level || null,
-    pendingLevelFrom: m.pending_level_from || null,
-    groupIds: (m.club_member_groups || []).map((x) => x.group_id),
-  }))
+  if (groups.length === 0) {
+    groups = [{
+      id: crypto.randomUUID(), name: 'Cố định', short: 'CĐ', weekday: 0,
+      feeNam: 0, feeNu: 0, unitNam: 0, unitNu: 0,
+      from: '18:00', to: '20:00', quota: 24, active: true,
+      courtIds: [],
+    }]
+  }
+
+  const defaultGroupId = groups[0].id
+
+  const members = (raw.members || []).map((m) => {
+    const rawGids = (m.club_member_groups || []).map((x) => x.group_id)
+    return {
+      id: m.id, name: m.name, phone: m.phone || '', gender: m.gender, level: m.level,
+      role: m.role, joined: m.joined_at, active: m.active, userId: m.user_id || null,
+      linkedAt: dOf(m.linked_at), pendingLevel: m.pending_level || null,
+      pendingLevelFrom: m.pending_level_from || null,
+      groupIds: rawGids.length > 0 ? rawGids : [defaultGroupId],
+    }
+  })
 
   const guests = (raw.guests || []).map((g) => ({
     id: g.id, name: g.name, gender: g.gender, level: g.level,
@@ -175,6 +189,7 @@ export function toDb(raw, ctx) {
       bank: { holder: club.bank_holder || '', no: club.bank_no || '', bank: club.bank_name || '' },
       seeDebtEachOther: club.see_debt_each_other, seeFund: club.see_fund,
       roundUnit: club.round_unit, lockDay: club.lock_day, courtPayMode: club.court_pay_mode,
+      multiGroup: !!club.multi_group,
       linkModes: { code: club.allow_code_join, invite: club.allow_invite, phone: club.allow_phone_suggest },
       levels,
     },
@@ -433,6 +448,7 @@ export function clubRow(db) {
     opening_by: c.openingBy || null,
     bank_holder: c.bank.holder || null, bank_no: c.bank.no || null, bank_name: c.bank.bank || null,
     court_pay_mode: c.courtPayMode, lock_day: c.lockDay, round_unit: !!c.roundUnit,
+    multi_group: !!c.multiGroup,
     see_debt_each_other: !!c.seeDebtEachOther, see_fund: !!c.seeFund,
     allow_code_join: !!c.linkModes.code, allow_invite: !!c.linkModes.invite,
     allow_phone_suggest: !!c.linkModes.phone,

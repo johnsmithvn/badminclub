@@ -1,11 +1,13 @@
 // Cài đặt: Chung · Cách chia tiền · Sân · Cầu · Nhóm cố định · Tài khoản & quyền (handoff 02 §7).
 
-import { Alert, Avatar, Button, Card, Input, Select, Switch, Tabs } from '#ds'
+import { useState, useEffect } from 'react'
+import { Alert, Avatar, Button, Card, Input, Select, Switch, Tabs, Tag } from '#ds'
 import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, ddmy } from '#utils/dates.js'
 import { ROLES, can, roleDesc } from '#lib/roles.js'
+import { fmtK } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -131,13 +133,139 @@ const Toggle = ({ label, note, checked, onChange, disabled }) => (
   </div>
 )
 
-/* ---------------- Cách chia tiền ---------------- */
+/* ---------------- Biểu phí (Cố định & Khách) ---------------- */
+
+function GeneralFeeCard({ canEdit }) {
+  const { db, a } = useApp()
+  const def = db.groups[0] || {}
+
+  const [feeNam, setFeeNam] = useState(String(def.feeNam ?? ''))
+  const [feeNu, setFeeNu] = useState(String(def.feeNu ?? ''))
+  const [unitNam, setUnitNam] = useState(String(def.unitNam ?? ''))
+  const [unitNu, setUnitNu] = useState(String(def.unitNu ?? ''))
+
+  useEffect(() => {
+    setFeeNam(String(def.feeNam ?? ''))
+    setFeeNu(String(def.feeNu ?? ''))
+    setUnitNam(String(def.unitNam ?? ''))
+    setUnitNu(String(def.unitNu ?? ''))
+  }, [def.feeNam, def.feeNu, def.unitNam, def.unitNu])
+
+  const isChanged =
+    feeNam !== String(def.feeNam ?? '') ||
+    feeNu !== String(def.feeNu ?? '') ||
+    unitNam !== String(def.unitNam ?? '') ||
+    unitNu !== String(def.unitNu ?? '')
+
+  const handleCancel = () => {
+    setFeeNam(String(def.feeNam ?? ''))
+    setFeeNu(String(def.feeNu ?? ''))
+    setUnitNam(String(def.unitNam ?? ''))
+    setUnitNu(String(def.unitNu ?? ''))
+  }
+
+  const handleSave = () => {
+    a.saveGeneralFees({
+      feeNam,
+      feeNu,
+      unitNam,
+      unitNu,
+    })
+  }
+
+  return (
+    <Card title={t('settings.generalFeeTitle')} subtitle={t('settings.generalFeeSub')} icon="banknote" padding="14px 16px">
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Input
+            label={t('settings.feeMale')}
+            mono
+            suffix={t('units.dong')}
+            value={feeNam}
+            disabled={!canEdit}
+            onChange={(e) => setFeeNam(e.target.value)}
+          />
+          <Input
+            label={t('settings.feeFemale')}
+            mono
+            suffix={t('units.dong')}
+            value={feeNu}
+            disabled={!canEdit}
+            onChange={(e) => setFeeNu(e.target.value)}
+          />
+        </div>
+
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Input
+              label={t('settings.unitMale')}
+              mono
+              suffix={t('units.dong')}
+              value={unitNam}
+              disabled={!canEdit}
+              onChange={(e) => setUnitNam(e.target.value)}
+            />
+            <Input
+              label={t('settings.unitFemale')}
+              mono
+              suffix={t('units.dong')}
+              value={unitNu}
+              disabled={!canEdit}
+              onChange={(e) => setUnitNu(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <div style={S.caption}>{t('settings.unitNote')}</div>
+            {((db.guestPrices.find((p) => p.nam > 0)?.nam || 0) > 0 || (db.guestPrices.find((p) => p.nu > 0)?.nu || 0) > 0) && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="sparkles"
+                disabled={!canEdit}
+                onClick={() => {
+                  const gNam = db.guestPrices.find((p) => p.nam > 0)?.nam || 0
+                  const gNu = db.guestPrices.find((p) => p.nu > 0)?.nu || 0
+                  if (gNam) setUnitNam(String(gNam))
+                  if (gNu) setUnitNu(String(gNu))
+                }}
+              >
+                Lấy theo giá vãng lai
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 4 }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="rotate-ccw"
+            disabled={!canEdit || !isChanged}
+            onClick={handleCancel}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon="check"
+            disabled={!canEdit || !isChanged}
+            onClick={handleSave}
+          >
+            {t('common.save')}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
 
 function MoneyTab({ canEdit }) {
   const { db, a } = useApp()
   return (
-    <>
-      <Alert tone="info" title={t('settings.moneyAlertTitle')}>{t('settings.moneyAlert')}</Alert>
+    <div style={{ display: 'grid', gap: 16 }}>
+      <GeneralFeeCard canEdit={canEdit} />
+
       <Card title={t('settings.guestPriceTitle')} subtitle={t('settings.guestPriceSub')} icon="tags" padding="14px 16px">
         <div style={{ display: 'grid', gap: 10 }}>
           {canEdit && <BulkPrice />}
@@ -157,7 +285,7 @@ function MoneyTab({ canEdit }) {
           ))}
         </div>
       </Card>
-    </>
+    </div>
   )
 }
 
@@ -311,8 +439,33 @@ function Groups({ canEdit }) {
         ? <Empty icon="users" title={t('settings.noGroup')}
             hint={noCourt ? t('settings.noCourtFirst') : t('settings.noGroupHint')} />
         : <div style={{ display: 'grid', gap: 14 }}>
-            {db.groups.map((g) => (
+            {db.groups.map((g, idx) => (
               <div key={g.id} style={S.groupBox}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {g.name || 'Nhóm #' + (idx + 1)}
+                    </span>
+                    {idx === 0 && (
+                      <Tag tone="info" size="sm">Nhóm mặc định (Không xoá)</Tag>
+                    )}
+                  </div>
+                  {canEdit && idx > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon="trash-2"
+                      onClick={() => {
+                        if (window.confirm(`Bạn có chắc chắn muốn xoá nhóm "${g.name}"?`)) {
+                          a.deleteGroup(g.id)
+                        }
+                      }}
+                    >
+                      Xoá nhóm
+                    </Button>
+                  )}
+                </div>
+
                 <div style={S.groupRow}>
                   <Input label={t('settings.fGroupName')} value={g.name} disabled={!canEdit}
                     onChange={(e) => a.setGroupField(g.id, 'name', e.target.value)} />
@@ -326,23 +479,21 @@ function Groups({ canEdit }) {
                   <Input label={t('settings.fGroupTo')} mono value={g.to} disabled={!canEdit}
                     onChange={(e) => a.setGroupField(g.id, 'to', e.target.value)} />
                 </div>
-                <div style={S.groupRow}>
-                  <Input label={t('settings.colFeeMale')} mono suffix={t('units.dong')} value={String(g.feeNam)}
-                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'feeNam', e.target.value)} />
-                  <Input label={t('settings.colFeeFemale')} mono suffix={t('units.dong')} value={String(g.feeNu)}
-                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'feeNu', e.target.value)} />
-                  <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={String(g.quota)}
-                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'quota', e.target.value)} />
-                </div>
-                {/* Đơn giá một buổi CLB tự chốt. Để trống thì app tự chia quỹ tháng ÷ số buổi. */}
-                <div style={S.groupRow}>
-                  <Input label={t('settings.colUnitMale')} mono suffix={t('units.dong')}
-                    hint={t('settings.unitHint')} value={String(g.unitNam || '')}
-                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'unitNam', e.target.value)} />
-                  <Input label={t('settings.colUnitFemale')} mono suffix={t('units.dong')}
-                    hint={t('settings.unitHint')} value={String(g.unitNu || '')}
-                    disabled={!canEdit} onChange={(e) => a.setGroupField(g.id, 'unitNu', e.target.value)} />
-                  <span />
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px', borderRadius: 8, background: 'var(--surface-inset)',
+                  font: 'var(--type-caption)', color: 'var(--text-secondary)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <Tag tone="accent" size="sm">{t('settings.pricingGeneral')}</Tag>
+                    <span>
+                      Quỹ: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(g.feeNam)}đ</strong> (Nam) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(g.feeNu)}đ</strong> (Nữ)
+                      {g.unitNam > 0 || g.unitNu > 0
+                        ? ` · Back: ${fmtK(g.unitNam)}đ (Nam) / ${fmtK(g.unitNu)}đ (Nữ)`
+                        : ` · Back: Theo giá vãng lai`}
+                    </span>
+                  </div>
+                  <span style={{ color: 'var(--text-muted)' }}>Định mức: {g.quota || 24} quả</span>
                 </div>
                 <div style={{ display: 'grid', gap: 6 }}>
                   <Overline>{t('settings.fGroupCourts')}</Overline>

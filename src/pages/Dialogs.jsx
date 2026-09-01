@@ -115,8 +115,8 @@ function ScheduleDialog() {
       onSubmit={() => a.createSchedule(dates)} submitLabel={t('common.create')} submitIcon="repeat"
       disabled={!dates.length}>
       <Input label={t('schedules.fName')} value={f.sName || ''} onChange={(e) => a.setF('sName', e.target.value)} />
-      <Select label={t('schedules.fGroup')} value={f.sGroup}
-        options={db.groups.map((g) => ({ value: g.id, label: g.name }))}
+      <Select label={t('schedules.fGroup')} value={f.sGroup || db.groups[0]?.id}
+        options={db.groups.map((g, idx) => ({ value: g.id, label: g.name + (idx === 0 ? ' (Mặc định)' : '') }))}
         onChange={(e) => a.setF('sGroup', e.target.value)} />
 
       <div style={{ display: 'grid', gap: 6 }}>
@@ -389,11 +389,16 @@ function NewGroupDialog() {
         <Input label={t('settings.fGroupFrom')} mono value={f.grFrom || ''} onChange={(e) => a.setF('grFrom', e.target.value)} />
         <Input label={t('settings.fGroupTo')} mono value={f.grTo || ''} onChange={(e) => a.setF('grTo', e.target.value)} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        <Input label={t('settings.colFeeMale')} mono value={f.grFeeNam || ''} onChange={(e) => a.setF('grFeeNam', e.target.value)} />
-        <Input label={t('settings.colFeeFemale')} mono value={f.grFeeNu || ''} onChange={(e) => a.setF('grFeeNu', e.target.value)} />
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 12px', borderRadius: 8, background: 'var(--surface-inset)',
+        font: 'var(--type-caption)', color: 'var(--text-secondary)',
+      }}>
+        <span>
+          Biểu phí áp dụng: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNam || 0)}đ</strong> (Nam) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNu || 0)}đ</strong> (Nữ)
+        </span>
         <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={f.grQuota || ''}
-          onChange={(e) => a.setF('grQuota', e.target.value)} />
+          style={{ width: 110 }} onChange={(e) => a.setF('grQuota', e.target.value)} />
       </div>
       <div style={{ display: 'grid', gap: 6 }}>
         <Overline>{t('settings.fGroupCourts')}</Overline>
@@ -411,6 +416,9 @@ function NewGroupDialog() {
           })}
         </div>
       </div>
+      <Note tone="warn">
+        Lưu ý: Sau khi tạo nhóm mới, bạn cần vào trang Thành viên để gán thành viên vào nhóm này thì mới phát sinh quỹ tháng và điểm danh theo lịch của nhóm này.
+      </Note>
       <Note>{t('settings.dlgGroupNote')}</Note>
     </Shell>
   )
@@ -440,17 +448,22 @@ function AddMemberDialog() {
       <div style={{ display: 'grid', gap: 6 }}>
         <Overline>{t('members.fGroups')}</Overline>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {db.groups.map((g) => {
-            const on = (f.mGroups || []).indexOf(g.id) >= 0
+          {db.groups.map((g, idx) => {
+            const on = (f.mGroups || []).indexOf(g.id) >= 0 || ((!f.mGroups || f.mGroups.length === 0) && idx === 0)
             return (
               <button key={g.id} type="button" onClick={() => a.toggleMemberGroup(g.id)} style={{
                 padding: '7px 12px', borderRadius: 99, border: '1px solid',
                 borderColor: on ? 'var(--teal-500)' : 'var(--border-subtle)',
                 background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
                 color: 'var(--text-primary)', font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
-              }}>{g.name}</button>
+              }}>
+                {g.name} {idx === 0 ? '(Mặc định)' : ''}
+              </button>
             )
           })}
+        </div>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+          Nếu không chọn nhóm nào, thành viên sẽ tự động thuộc nhóm mặc định.
         </div>
       </div>
 
@@ -890,7 +903,7 @@ function ImportMembersDialog() {
                               font: 'var(--type-caption)', color: 'var(--text-primary)', outline: 0,
                             }}
                           >
-                            <option value="">-- Không cố định --</option>
+                            <option value="">-- Mặc định ({db.groups[0]?.name || 'Cố định'}) --</option>
                             {db.groups.map((g) => (
                               <option key={g.id} value={g.id}>{g.name}</option>
                             ))}
