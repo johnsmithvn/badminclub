@@ -240,11 +240,18 @@ export function editTarget(db, row) {
   if (!row) return null
   // Cùng bẫy với undoTarget: id dòng ghi tay là uuid trần, hex nên bắt đầu bằng "cb" được.
   if ((db.manual || []).some((m) => m.id === row.id)) return { kind: 'manual', id: row.id }
-  if (row.id.slice(0, 2) === 'cb') {
-    const id = row.id.slice(2)
-    return (db.courtBills || []).some((x) => x.id === id) ? { kind: 'bill', id } : null
-  }
-  return null
+
+  // `ledgerGrouped` tự sinh dòng "Chi hộ" cho khoản ứng CHƯA hoàn, id là 'cb_adv_<id>' —
+  // những dòng đó KHÔNG có trong `ledger()`. Phải bóc tiền tố dài trước tiền tố ngắn, không thì
+  // slice(2) ra '_adv_CB9', tra không thấy, và hoá đơn sân do thành viên ứng mất luôn nút Sửa.
+  // Mà đó đúng là hoá đơn ghi tay: gõ nhầm số tiền thì chỉ còn cách xoá rồi ghi lại.
+  const id = row.id.startsWith('cb_adv_') ? row.id.slice(7)
+    : row.id.slice(0, 2) === 'cb' ? row.id.slice(2)
+      : null
+  // 'pu_adv_' (đợt mua cầu ứng) cố ý KHÔNG nhận: chưa có form sửa đợt mua, trả kind 'bill' là
+  // mở nhầm hộp thoại hoá đơn sân với một id không tồn tại.
+  if (id === null) return null
+  return (db.courtBills || []).some((x) => x.id === id) ? { kind: 'bill', id } : null
 }
 
 /** Số dư luỹ kế toàn bộ, không theo tháng. */

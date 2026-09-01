@@ -181,3 +181,38 @@ assert.equal(dropSoft.ok, true)
 assert.deepEqual(dropSoft.sessions.map((s) => s.id), ['s11', 's18'])
 
 console.log('schedule regroup + delete check: OK')
+
+/* ---------- BUG: lịch MỞ VÔ HẠN (end rỗng) ---------- */
+// Bảng lịch có nhãn "openEnded" cho lịch không đặt ngày kết thúc, nên `end: ''` là trạng thái
+// hợp lệ. Nhưng `genDates(wd, start, '')` trả RỖNG (nó lấy e = start). Không chặn thì:
+// `wantSet` rỗng ⇒ MỌI buổi draft tương lai rơi vào `remove`, `blocked` rỗng ⇒ nút Lưu vẫn bật.
+// Mở hộp thoại Sửa rồi bấm Lưu là xoá sạch buổi tương lai của lịch đó, kèm điểm danh và tiền
+// khách đã thu của từng buổi.
+const OPEN = { ...SCHED, end: '' }
+const dbOpen = {
+  ...db,
+  schedules: [OPEN],
+  sessions: ['2026-09-11', '2026-09-18', '2026-09-25', '2026-10-02'].map((d, i) => mkSession('o' + i, d)),
+}
+const openPlan = planScheduleEdit(dbOpen, OPEN, form({ end: '' }))
+assert.deepEqual(openPlan.blocked, ['schedules.errNoEnd'],
+  'thiếu ngày kết thúc mà vẫn cho lưu → genDates trả rỗng, bấm Lưu là xoá sạch buổi tương lai của lịch')
+assert.deepEqual(planScheduleEdit(db, SCHED, form()).blocked, [], 'có ngày kết thúc thì không được chặn oan')
+
+/* ---------- BUG: dời nhóm mà không cảnh báo tháng bị đổi đơn giá ---------- */
+// Dời một lịch sang nhóm khác là rút TOÀN BỘ buổi ra khỏi nhóm cũ và bơm vào nhóm mới. Số buổi
+// trong tháng của CẢ HAI nhóm đều đổi, mà số buổi chính là MẪU SỐ của `money.js: unitPrice`
+// (quỹ tháng ÷ số buổi). Không báo thì tiền back của cả hai nhóm đổi âm thầm — đúng loại sai
+// mà không màn nào lộ ra.
+const softAll = {
+  ...db,
+  sessions: ['2026-09-11', '2026-09-18', '2026-09-25', '2026-10-02'].map((d, i) => mkSession('g' + i, d)),
+}
+const SCHED_OCT = { ...SCHED, end: '2026-10-02' }
+const movePlan = planScheduleEdit(softAll, SCHED_OCT, form({ sGroup: 'GCN', end: '2026-10-02' }))
+assert.deepEqual(movePlan.add, [], 'ca kiểm này phải KHÔNG thêm/bớt buổi nào, chỉ dời nhóm')
+assert.deepEqual(movePlan.remove, [])
+assert.deepEqual(movePlan.monthsTouched, ['2026-09', '2026-10'],
+  'dời nhóm mà không báo tháng nào → đơn giá một buổi của CẢ HAI nhóm đổi âm thầm, tiền back sai mà không màn nào lộ ra')
+// Không dời nhóm thì không được báo oan.
+assert.deepEqual(planScheduleEdit(softAll, SCHED_OCT, form({ end: '2026-10-02' })).monthsTouched, [])

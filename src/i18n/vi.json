@@ -843,6 +843,7 @@
     "errGroupLocked": "Không đổi được nhóm: lịch đã có buổi đã mở, đã chốt hoặc đã qua ngày. Những buổi đó sẽ rớt lại nhóm cũ.",
     "errNoWeekday": "Chọn ít nhất một thứ trong tuần",
     "errNoStart": "Chọn ngày bắt đầu",
+    "errNoEnd": "Chọn ngày kết thúc. Không có ngày kết thúc thì không tính được lịch mới, và lưu sẽ xóa hết buổi tương lai.",
     "errRange": "Ngày kết thúc phải sau ngày bắt đầu",
     "errNoCourt": "Mỗi dòng sân phải chọn một sân"
   },

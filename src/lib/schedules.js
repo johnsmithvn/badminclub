@@ -32,6 +32,7 @@ export const BLOCK_KEYS = {
   groupLocked: 'schedules.errGroupLocked',
   noWeekday: 'schedules.errNoWeekday',
   noStart: 'schedules.errNoStart',
+  noEnd: 'schedules.errNoEnd',
   range: 'schedules.errRange',
   noCourt: 'schedules.errNoCourt',
 }
@@ -102,6 +103,10 @@ export function planScheduleEdit(db, sched, form) {
   const had = new Set(mine.map((s) => s.date))
   const add = wanted.filter((d) => !had.has(d) && d > today)
 
+  const soft = locked.length === 0 && past.length === 0
+  // Đổi nhóm là dời TẤT CẢ buổi sang nhóm mới, nên chỉ làm được khi không buổi nào rớt lại.
+  const groupTo = form.sGroup && form.sGroup !== sched.groupId ? form.sGroup : null
+
   // Đổi số buổi của tháng nào thì đơn giá một buổi của tháng đó đổi theo.
   const months = new Set()
   add.forEach((d) => months.add(monthOf(d)))
@@ -109,15 +114,20 @@ export function planScheduleEdit(db, sched, form) {
     const s = mine.find((x) => x.id === id)
     if (s) months.add(monthOf(s.date))
   })
-
-  const soft = locked.length === 0 && past.length === 0
-  // Đổi nhóm là dời TẤT CẢ buổi sang nhóm mới, nên chỉ làm được khi không buổi nào rớt lại.
-  const groupTo = form.sGroup && form.sGroup !== sched.groupId ? form.sGroup : null
+  // Dời nhóm cũng là đổi số buổi — rút hết buổi khỏi nhóm cũ và bơm sang nhóm mới, nên đơn giá
+  // một buổi của CẢ HAI nhóm đổi trong mọi tháng có buổi bị dời. Thiếu dòng này thì đổi nhóm
+  // trôi qua im lặng: `add`/`remove` đều rỗng nên không có gì báo, mà tiền back thì đã sai.
+  if (groupTo) keep.forEach((s) => months.add(monthOf(s.date)))
 
   const blocked = []
   if (groupTo && !soft) blocked.push(BLOCK_KEYS.groupLocked)
   if (!(form.weekdays || []).length) blocked.push(BLOCK_KEYS.noWeekday)
   if (!form.start) blocked.push(BLOCK_KEYS.noStart)
+  // Bảng lịch có nhãn "mở vô hạn" cho lịch không đặt ngày kết thúc, nên `end` rỗng là trạng thái
+  // hợp lệ — nhưng `genDates(wd, start, '')` trả RỖNG (nó lấy e = start). Không chặn ở đây thì
+  // `wantSet` rỗng ⇒ mọi buổi draft tương lai rơi vào `remove` và nút Lưu vẫn bật: mở hộp thoại
+  // Sửa rồi bấm Lưu là xoá sạch buổi tương lai, kèm điểm danh và tiền khách của từng buổi.
+  if (!form.end) blocked.push(BLOCK_KEYS.noEnd)
   if (form.end && form.end < form.start) blocked.push(BLOCK_KEYS.range)
   if (!(form.rows || []).length) blocked.push(BLOCK_KEYS.noCourt)
   if ((form.rows || []).some((r) => !r.courtId)) blocked.push(BLOCK_KEYS.noCourt)

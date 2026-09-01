@@ -110,3 +110,22 @@ assert.deepEqual(
 assert.equal(editTarget(db, row('cbKHONGCO')), null)
 
 console.log('ledger edit target check: OK')
+
+/* ---------- BUG: dòng "Chi hộ" không sửa được ---------- */
+// `ledgerGrouped` tự sinh dòng ứng chưa hoàn với id 'cb_adv_<id>' / 'pu_adv_<id>' (chúng KHÔNG
+// nằm trong ledger()). Cắt hai ký tự đầu ra 'cb' rồi slice(2) thì được '_adv_CB2' — tra không
+// thấy nên trả null, tức là hoá đơn sân do thành viên ứng KHÔNG có nút Sửa. Mà đó đúng là
+// hoá đơn ghi tay: gõ nhầm số tiền thì chỉ còn cách xoá rồi ghi lại, mất luôn người ứng.
+assert.deepEqual(editTarget(db, row('cb_adv_CB2')), { kind: 'bill', id: 'CB2' },
+  'dòng "Chi hộ" phải sửa được — nó chính là hoá đơn sân ghi tay, chỉ khác là quỹ chưa hoàn tiền')
+assert.equal(undoTarget(db, row('cb_adv_CB2')), null,
+  'nhưng KHÔNG hoàn tác được: quỹ chưa trả lại người ứng nên trong sổ chưa có dòng chi nào')
+assert.equal(editTarget(db, row('cb_adv_KHONGCO')), null)
+// Đợt mua cầu ứng chưa hoàn: chưa có form sửa nên phải trả null. Fixture cố tình có MỘT hoá đơn
+// sân trùng id với đợt mua, để bắt đúng lỗi "bóc tiền tố xong tra bừa vào courtBills" — không có
+// dòng này thì mọi cách bóc sai đều trả null vì tra không thấy, và test không bắt được gì.
+const dbCollide = { ...db, courtBills: db.courtBills.concat([{ id: 'PU1', payerId: 'M1', repaidAt: '' }]) }
+assert.equal(editTarget(dbCollide, row('pu_adv_PU1')), null,
+  'dòng ứng MUA CẦU bị hiểu thành hoá đơn sân → bấm Sửa mở hộp thoại hoá đơn sân với dữ liệu của đợt mua cầu')
+assert.deepEqual(editTarget(dbCollide, row('cb_adv_PU1')), { kind: 'bill', id: 'PU1' },
+  'nhưng dòng ứng TIỀN SÂN cùng id đó thì vẫn phải sửa được — chứng minh guard chặn theo tiền tố, không phải chặn bừa')
