@@ -8,7 +8,8 @@ import { dd, monthOf, monthTxt } from '#utils/dates.js'
 import { t } from '#i18n'
 import {
   advanceRows, billsOf, courtCost, courtExtraCost, courtPayMode, courtTxt, dueState, fmtK,
-  groupOf, guestOf, isVault, memberOf, monthSessions, payerName, sessionOf, soldTotal, timeTxt,
+  chargeName, groupOf, isVault, memberOf, monthSessions, payerName, sessionOf, soldTotal,
+  timeTxt,
 } from '#lib/money.js'
 
 /** Các hạng mục sổ quỹ. Dùng key, đừng dùng chữ. */
@@ -81,7 +82,7 @@ export function ledger(db) {
     if (!s) return
     out.push({
       id: 'sg' + g.id, date: s.date, dir: 'in', cat: CATS.guest,
-      label: t('ledger.label.guest', { name: guestOf(db, g.guestId).name, date: dd(s.date) }),
+      label: t('ledger.label.guest', { name: chargeName(db, g), date: dd(s.date) }),
       amount: g.price, by: t('ledger.by.payNow'),
     })
   })

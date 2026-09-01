@@ -1,6 +1,7 @@
 // Thành viên: danh sách · cố định tháng sau · thay đổi chờ duyệt (handoff 02 §5).
 // Nguồn ai phải đóng quỹ là roster THEO THÁNG, không phải groupIds.
 
+import { useState } from 'react'
 import { Avatar, Button, Card, DataTable, IconButton, Tabs } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -44,14 +45,46 @@ export default function Members() {
 
 function AllMembers({ canEdit }) {
   const { db, ui, a } = useApp()
-  // Người đã ngưng phải xem được, không thì nút "Cho hoạt động lại" là nút không ai bấm tới
-  // và bấm nhầm Ngưng là chỉ sửa được bằng SQL. Chỉ hiện bộ lọc khi thật sự có người đã ngưng.
+  const [selectedIds, setSelectedIds] = useState([])
+
   const off = db.members.filter((m) => m.active === false)
   const showOff = off.length > 0 && (ui.tab.mstate || 'on') === 'off'
   const rows = showOff ? off : db.members.filter((m) => m.active !== false)
   const dues = duesOf(db, db.month)
 
+  const isAllSelected = rows.length > 0 && selectedIds.length === rows.length
+  const isSomeSelected = selectedIds.length > 0 && selectedIds.length < rows.length
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) setSelectedIds([])
+    else setSelectedIds(rows.map((r) => r.id))
+  }
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.concat([id])))
+  }
+
   const columns = [
+    ...(canEdit ? [{
+      key: 'sel', width: 42, align: 'center',
+      header: (
+        <input
+          type="checkbox"
+          checked={isAllSelected}
+          ref={(el) => { if (el) el.indeterminate = isSomeSelected }}
+          onChange={toggleSelectAll}
+          style={{ cursor: 'pointer', margin: 0 }}
+        />
+      ),
+      render: (r) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(r.id)}
+          onChange={() => toggleSelectOne(r.id)}
+          style={{ cursor: 'pointer', margin: 0 }}
+        />
+      ),
+    }] : []),
     {
       key: 'n', header: t('members.colName'),
       render: (r) => (
@@ -166,6 +199,79 @@ function AllMembers({ canEdit }) {
         </div>
       }
     >
+      {canEdit && selectedIds.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 16px', background: 'var(--surface-brand-soft)',
+          borderBottom: '1px solid var(--teal-500)', flexWrap: 'wrap', gap: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--navy-800)' }}>
+              Đã chọn {selectedIds.length} / {rows.length} người
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+              Bỏ chọn
+            </Button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>Gán ca:</span>
+            {db.groups.map((g) => (
+              <Button
+                key={g.id}
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  a.setMembersGroupsBulk(selectedIds, [g.id])
+                  setSelectedIds([])
+                }}
+              >
+                {g.short || g.name}
+              </Button>
+            ))}
+            {db.groups.length > 1 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  a.setMembersGroupsBulk(selectedIds, db.groups.map((g) => g.id))
+                  setSelectedIds([])
+                }}
+              >
+                Cả {db.groups.length} ca
+              </Button>
+            )}
+
+            <div style={{ width: 1, height: 18, background: 'var(--border-default)', margin: '0 4px' }} />
+
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="user-minus"
+              onClick={() => {
+                a.setMembersGroupsBulk(selectedIds, [])
+                setSelectedIds([])
+              }}
+            >
+              Bỏ cố định (Đi lẻ)
+            </Button>
+
+            <Button
+              variant="danger"
+              size="sm"
+              icon="trash-2"
+              onClick={() => {
+                if (window.confirm(`Bạn có chắc chắn muốn xoá ${selectedIds.length} thành viên đã chọn?`)) {
+                  a.deleteMembersBulk(selectedIds)
+                  setSelectedIds([])
+                }
+              }}
+            >
+              Xoá {selectedIds.length} người
+            </Button>
+          </div>
+        </div>
+      )}
       {rows.length === 0
         ? <Empty icon="users" title={t('members.empty')} hint={t('members.emptyHint')} />
         : <DataTable columns={columns} rows={rows} rowKey="id" />}

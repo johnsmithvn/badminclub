@@ -35,7 +35,7 @@ export const SCHEMA_GROUPS = [
     tables: [
       { name: 'attendances', fields: [f('id', 'uuid', 'PK'), f('session_id', 'uuid', 'FK'), f('member_id', 'uuid', 'FK'), f('status', 'enum'), f('marked_at', 'timestamptz'), f('marked_by', 'uuid', 'FK')] },
       { name: 'guests', fields: [f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('name', 'text'), f('gender', 'enum'), f('level', 'enum'), f('phone', 'text'), f('invited_by', 'uuid', 'FK')] },
-      { name: 'session_guests', fields: [f('id', 'uuid', 'PK'), f('session_id', 'uuid', 'FK'), f('guest_id', 'uuid', 'FK'), f('level', 'enum'), f('gender', 'enum'), f('price', 'bigint'), f('invited_by', 'uuid', 'FK'), f('paid', 'bool'), f('paid_at', 'timestamptz')] },
+      { name: 'session_guests', fields: [f('id', 'uuid', 'PK'), f('session_id', 'uuid', 'FK'), f('guest_id', 'uuid', 'FK'), f('member_id', 'uuid', 'FK'), f('level', 'enum'), f('gender', 'enum'), f('price', 'bigint'), f('invited_by', 'uuid', 'FK'), f('paid', 'bool'), f('paid_at', 'timestamptz')] },
       { name: 'guest_price_rules', fields: [f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('level', 'enum'), f('gender', 'enum'), f('price', 'bigint'), f('effective_from', 'date')] },
     ],
   },

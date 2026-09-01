@@ -282,6 +282,22 @@ export function homeAlerts(db) {
 /* ---------- khách giao lưu ---------- */
 
 export const sGuests = (db, sid) => db.sessionGuests.filter((g) => g.sessionId === sid)
+
+/**
+ * Một dòng `sessionGuests` là MỘT LƯỢT TRẢ TIỀN trong một buổi. Người đó là khách ngoài CLB
+ * (`guestId`) hoặc thành viên đi buổi đột xuất (`memberId`) — đúng một trong hai, xem CHECK
+ * `session_guests_who_chk` ở migration 0003.
+ */
+export const isMemberCharge = (sg) => !!sg.memberId
+export const chargeName = (db, sg) =>
+  (sg.memberId ? memberOf(db, sg.memberId).name : guestOf(db, sg.guestId).name)
+
+/**
+ * KHÁCH ngoài CLB của một buổi — bỏ dòng thu của thành viên. Mọi chỗ ĐẾM ĐẦU NGƯỜI hoặc liệt
+ * kê khách phải đi qua đây: thành viên đã được `presentCount` đếm qua bảng điểm danh rồi, cộng
+ * cả dòng thu của họ nữa là một người hoá hai.
+ */
+export const sGuestsOnly = (db, sid) => sGuests(db, sid).filter((g) => !isMemberCharge(g))
 export const guestRev = (db, sid) => sGuests(db, sid).reduce((t, g) => t + g.price, 0)
 export const guestPaidRev = (db, sid) => sGuests(db, sid).filter((g) => g.paid).reduce((t, g) => t + g.price, 0)
 
@@ -298,8 +314,16 @@ export function guestDebtRows(db, monthKey) {
   db.sessionGuests.forEach((sg) => {
     const s = sessionOf(db, sg.sessionId)
     if (!s || monthOf(s.date) !== monthKey) return
-    const k = sg.guestId
-    if (!map[k]) map[k] = { guest: guestOf(db, k), sessions: 0, debt: 0, paidAmt: 0, rows: [] }
+    // Thành viên nợ tiền buổi đột xuất cũng phải hiện ở đây, không thì khoản nợ chỉ nhìn thấy
+    // khi mở đúng buổi đó ra — nợ mà không màn nào nhắc thì không ai đi đòi.
+    const k = sg.memberId || sg.guestId
+    if (!map[k]) {
+      const who = sg.memberId ? memberOf(db, k) : guestOf(db, k)
+      map[k] = {
+        guest: { id: k, name: who.name, gender: who.gender || sg.gender, level: who.level || sg.level },
+        sessions: 0, debt: 0, paidAmt: 0, rows: [],
+      }
+    }
     map[k].sessions++
     map[k].rows.push(sg)
     if (sg.paid) map[k].paidAmt += sg.price
@@ -314,6 +338,9 @@ export function guestDebtByInviter(db, monthKey) {
   db.sessionGuests.forEach((sg) => {
     const s = sessionOf(db, sg.sessionId)
     if (!s || monthOf(s.date) !== monthKey) return
+    // Màn này để nhắc người RỦ khách đi thu hộ. Thành viên tự đi buổi đột xuất thì không ai rủ,
+    // gom họ vào rổ "chưa rõ người rủ" chỉ tạo nhiễu.
+    if (isMemberCharge(sg)) return
     const mid = sg.invitedBy || guestOf(db, sg.guestId).invitedBy || ''
     const k = mid || 'none'
     if (!map[k]) {
@@ -350,6 +377,46 @@ export function presentCount(db, s) {
 export function absentCount(db, s) {
   const a = db.attendance[s.id] || {}
   return groupMembers(db, s.groupId, monthOf(s.date)).filter((m) => a[m.id] === false).length
+}
+
+/** Đầu người thật của một buổi: thành viên có mặt + khách ngoài CLB. Nguồn DUY NHẤT để đếm. */
+export const headCount = (db, s) => presentCount(db, s) + sGuestsOnly(db, s.id).length
+
+/** Buổi ngoài lịch cố định — không nằm trong gói quỹ tháng của ai. */
+export const isAdhoc = (s) => !!s && !s.scheduleId
+
+/**
+ * BUỔI ĐỘT XUẤT: ai có mặt thì trả theo GIÁ GIAO LƯU, y như khách — buổi này không nằm trong
+ * gói quỹ tháng của ai nên không ai được đánh miễn phí. Thuần: trả về việc phải làm với
+ * `db.sessionGuests` sau khi bảng điểm danh đổi. Action gắn `id`, giống `lockDues`.
+ *
+ *   add     người vừa được đánh CÓ MẶT mà chưa có dòng thu — giá lấy từ bảng giá khách theo
+ *           trình độ + giới tính, rồi ĐÓNG BĂNG (sửa bảng giá sau không làm đổi buổi cũ)
+ *   remove  người bị bỏ điểm danh mà CHƯA THU. Đã thu thì giữ: tiền vào quỹ rồi, bỏ tick điểm
+ *           danh không được làm nó bốc hơi khỏi sổ.
+ *
+ * Buổi của lịch cố định trả về rỗng — người cố định đã đóng trọn gói tháng, thu nữa là thu hai lần.
+ */
+export function adhocCharges(db, s, att) {
+  if (!isAdhoc(s)) return { add: [], remove: [] }
+  const rows = sGuests(db, s.id).filter(isMemberCharge)
+  const had = new Set(rows.map((g) => g.memberId))
+  const month = monthOf(s.date)
+  const present = Object.keys(att || {})
+    .filter((mid) => isPresent(att[mid]))
+    .map((mid) => (db.members || []).find((m) => m.id === mid))
+    .filter(Boolean)
+  const want = new Set(present.map((m) => m.id))
+  return {
+    add: present.filter((m) => !had.has(m.id)).map((m) => {
+      const level = levelOf(m, month)
+      return {
+        sessionId: s.id, memberId: m.id, guestId: null, level, gender: m.gender,
+        price: guestPrice(db, level, m.gender), paid: false, invitedBy: '',
+      }
+    }),
+    remove: rows.filter((g) => !want.has(g.memberId) && !g.paid).map((g) => g.id),
+  }
 }
 
 /* ---------- quỹ tháng và back tiền ---------- */
@@ -692,7 +759,7 @@ export function costRow(db, s) {
       unit: s.costShuttleUnit || 0, per: cost / (people || 1), subsidy: cost - rev, frozen: true,
     }
   }
-  const people = presentCount(db, s) + sGuests(db, s.id).length
+  const people = headCount(db, s)
   const unit = shuttleUnit(db)
   const court = courtNet(db, s)
   const shuttle = (s.shuttleUsed || 0) * unit
@@ -771,7 +838,7 @@ export function closeWarnings(db, s) {
 export function costDrift(db, s) {
   if (!s || !s.costFrozenAt) return null
   const out = []
-  const heads = presentCount(db, s) + sGuests(db, s.id).length
+  const heads = headCount(db, s)
   if (heads !== (s.costHeads || 0)) out.push({ key: 'heads', was: s.costHeads || 0, now: heads })
 
   // Giá khách chốt ngay lúc thêm (sessionGuests.price) nên rev chỉ lệch khi thêm/bớt khách.

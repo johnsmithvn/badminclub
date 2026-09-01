@@ -117,8 +117,11 @@ export function toDb(raw, ctx) {
 
     if (s.group_mode) groupMode[s.id] = true
 
+    // Một dòng = MỘT LƯỢT TRẢ TIỀN. `guest_id` = khách ngoài CLB; `member_id` = thành viên đi
+    // buổi đột xuất (migration 0003). Đúng một trong hai có giá trị.
     ;(s.session_guests || []).forEach((g) => sessionGuests.push({
-      id: g.id, sessionId: s.id, guestId: g.guest_id, level: g.level, gender: g.gender,
+      id: g.id, sessionId: s.id, guestId: g.guest_id || null, memberId: g.member_id || null,
+      level: g.level, gender: g.gender,
       price: num(g.price), paid: g.paid, invitedBy: g.invited_by || '',
     }))
 
@@ -336,7 +339,8 @@ export function toRows(db, ctx) {
   })
 
   db.sessionGuests.forEach((g) => put('session_guests', {
-    id: g.id, session_id: g.sessionId, guest_id: g.guestId, level: g.level, gender: g.gender,
+    id: g.id, session_id: g.sessionId, guest_id: uu(g.guestId), member_id: uu(g.memberId),
+    level: g.level, gender: g.gender,
     price: g.price, invited_by: uu(g.invitedBy), paid: !!g.paid,
   }))
 

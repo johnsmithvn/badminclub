@@ -8,6 +8,7 @@ import {
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
   adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, joinDues,
+  adhocCharges, chargeName, sGuestsOnly,
 } from '#lib/money.js'
 import { CATS, fundBalance } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -101,6 +102,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       d.members.filter((m) => (m.groupIds || []).indexOf(g.id) >= 0).forEach((m) => { r[g.id][m.id] = 'fixed' })
     })
     return r
+  }
+
+  /**
+   * Buổi ĐỘT XUẤT: đồng bộ dòng thu theo giá giao lưu với bảng điểm danh vừa đổi. Gọi từ MỌI
+   * đường sửa điểm danh (toggleAtt · addExtra · removeExtra · markAll) — sót một đường là có
+   * người đánh mà không có dòng tiền, và không màn nào lộ ra chuyện đó.
+   * Công thức thuần nằm ở `money.js: adhocCharges`; đây chỉ gắn `id`.
+   */
+  const withAdhocCharges = (d, sid, att) => {
+    const { add, remove } = adhocCharges(d, sessionOf(d, sid), att)
+    if (!add.length && !remove.length) return {}
+    return {
+      sessionGuests: d.sessionGuests
+        .filter((g) => remove.indexOf(g.id) < 0)
+        .concat(add.map((r) => ({ id: uid(), ...r }))),
+    }
   }
 
   /** Buổi đang ở chế độ định mức thì cập nhật lại số cầu khi số sân đổi. */
@@ -207,19 +224,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         if (m[mid] === 'extra') return {}
         m[mid] = m[mid] === true ? false : true
         a[sid] = m
-        return { attendance: a }
+        return { attendance: a, ...withAdhocCharges(d, sid, m) }
       }),
     /** Thêm người đi thêm: thành viên nhóm khác hôm nay có đánh. Sinh khoản THU ở đối chiếu. */
     addExtra: (sid, mid) => {
       if (!mid) return toast(t('toast.needMember'))
-      up((d) => ({ attendance: { ...d.attendance, [sid]: { ...(d.attendance[sid] || {}), [mid]: 'extra' } } }))
+      up((d) => {
+        const m = { ...(d.attendance[sid] || {}), [mid]: 'extra' }
+        return { attendance: { ...d.attendance, [sid]: m }, ...withAdhocCharges(d, sid, m) }
+      })
       toast(t('toast.extraAdded', { name: memberOf(db(), mid).name }))
     },
     removeExtra: (sid, mid) => {
       up((d) => {
         const m = { ...(d.attendance[sid] || {}) }
         delete m[mid]
-        return { attendance: { ...d.attendance, [sid]: m } }
+        return { attendance: { ...d.attendance, [sid]: m }, ...withAdhocCharges(d, sid, m) }
       })
       toast(t('toast.extraRemoved'))
     },
@@ -232,7 +252,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         const m = { ...(a[sid] || {}) }
         groupMembers(d, s.groupId, monthOf(s.date)).forEach((x) => { m[x.id] = val })
         a[sid] = m
-        return { attendance: a }
+        return { attendance: a, ...withAdhocCharges(d, sid, m) }
       })
       toast(t(val ? 'toast.allPresent' : 'toast.allAbsent'))
     },
@@ -364,20 +384,33 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
     toggleGuestPaid: (id) =>
       up((d) => ({ sessionGuests: d.sessionGuests.map((g) => (g.id === id ? { ...g, paid: !g.paid } : g)) })),
+    /**
+     * Sửa đè giá một lượt thu. Bảng giá theo trình độ chỉ là GỢI Ý — CLB miễn cho người mới,
+     * lấy rẻ người nhà, thu thêm người đến muộn… đều là chuyện thường. Đã thu rồi thì khoá:
+     * sửa số sau khi tiền vào quỹ là sổ quỹ lệch mà không có dòng nào giải thích.
+     */
+    setChargePrice: (id, v) =>
+      up((d) => ({
+        sessionGuests: d.sessionGuests.map((g) => (g.id === id && !g.paid ? { ...g, price: intOf(v) } : g)),
+      })),
     removeGuest: (id) => {
       up((d) => ({ sessionGuests: d.sessionGuests.filter((g) => g.id !== id) }))
       toast(t('toast.guestRemoved'))
     },
     setGuestInviter: (sgId, mid) =>
       up((d) => ({ sessionGuests: d.sessionGuests.map((x) => (x.id === sgId ? { ...x, invitedBy: mid } : x)) })),
-    collectDebt: (gid) => {
+    /** `id` là guestId (khách) hoặc memberId (thành viên đi buổi đột xuất) — xem `guestDebtRows`. */
+    collectDebt: (id) => {
+      const d0 = db()
+      const row = d0.sessionGuests.find((g) => g.guestId === id || g.memberId === id)
       up((d) => ({
         sessionGuests: d.sessionGuests.map((g) => {
           const ss = sessionOf(d, g.sessionId)
-          return g.guestId === gid && ss && monthOf(ss.date) === d.month ? { ...g, paid: true } : g
+          const mine = g.guestId === id || g.memberId === id
+          return mine && ss && monthOf(ss.date) === d.month ? { ...g, paid: true } : g
         }),
       }))
-      toast(t('toast.debtCollected', { name: guestOf(db(), gid).name }))
+      toast(t('toast.debtCollected', { name: row ? chargeName(d0, row) : guestOf(d0, id).name }))
     },
 
     /* ---------- quỹ tháng, back tiền, danh sách cố định ---------- */
@@ -612,6 +645,89 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return { members: d.members.filter((x) => x.id !== id), roster }
       })
       toast(t('toast.memberDeleted', { name: m.name }))
+    },
+    deleteMembersBulk: (ids) => {
+      const d0 = db()
+      const toDel = []
+      const blocked = []
+      ids.forEach((id) => {
+        const m = d0.members.find((x) => x.id === id)
+        if (!m) return
+        const why = memberRefs(d0, id)
+        if (why.length) blocked.push(m.name)
+        else toDel.push(id)
+      })
+
+      if (!toDel.length) {
+        return toast('Không thể xoá vì tất cả thành viên đã chọn đều đã có dữ liệu tham gia/tiền quỹ.')
+      }
+
+      const idSet = new Set(toDel)
+      up((d) => {
+        const roster = {}
+        Object.keys(d.roster || {}).forEach((month) => {
+          roster[month] = {}
+          Object.keys(d.roster[month]).forEach((gid) => {
+            const gm = { ...d.roster[month][gid] }
+            toDel.forEach((id) => delete gm[id])
+            roster[month][gid] = gm
+          })
+        })
+        return { members: d.members.filter((x) => !idSet.has(x.id)), roster }
+      })
+
+      if (blocked.length) {
+        toast(`Đã xoá ${toDel.length} thành viên. Bỏ qua ${blocked.length} người do đã có dữ liệu: ${blocked.join(', ')}`)
+      } else {
+        toast(`Đã xoá ${toDel.length} thành viên đã chọn`)
+      }
+    },
+    setMembersGroupsBulk: (memberIds, groupIds) => {
+      const d0 = db()
+      const gs = groupIds || []
+      const month = d0.month
+      const nextM = addMonth(month, 1)
+
+      let duesAccum = (d0.dues || []).slice()
+      const newDuesRows = []
+
+      const targetMembers = d0.members.filter((m) => memberIds.includes(m.id))
+      targetMembers.forEach((mb) => {
+        const updatedMb = { ...mb, groupIds: gs.slice() }
+        const { dues, add } = regroupDues({ ...d0, dues: duesAccum }, updatedMb, gs, month)
+        duesAccum = dues
+        add.forEach((r) => newDuesRows.push({ id: uid(), ...r }))
+      })
+
+      up((d) => {
+        const roster = { ...d.roster }
+        ;[month, nextM].forEach((mKey) => {
+          const base = roster[mKey] || ensureRoster(d, mKey)
+          const next = { ...base }
+          d.groups.forEach((g) => {
+            const gm = { ...(next[g.id] || {}) }
+            memberIds.forEach((id) => {
+              gm[id] = gs.indexOf(g.id) >= 0 ? 'fixed' : 'off'
+            })
+            next[g.id] = gm
+          })
+          roster[mKey] = next
+        })
+
+        const idSet = new Set(memberIds)
+        return {
+          members: d.members.map((m) => (idSet.has(m.id) ? { ...m, groupIds: gs.slice() } : m)),
+          roster,
+          dues: duesAccum.concat(newDuesRows),
+        }
+      })
+
+      if (gs.length === 0) {
+        toast(`Đã chuyển ${memberIds.length} thành viên sang Không cố định (đi lẻ)`)
+      } else {
+        const gNames = d0.groups.filter((g) => gs.includes(g.id)).map((g) => g.short || g.name).join(' + ')
+        toast(`Đã gán ${memberIds.length} thành viên vào: ${gNames}`)
+      }
     },
     createMember: () => {
       const f = form()
@@ -1387,7 +1503,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const s = sessionOf(d0, sid)
       if (!s) return
       const g = groupOf(d0, s.groupId)
-      const gl = sGuests(d0, sid)
+      const gl = sGuestsOnly(d0, sid)
       const L = []
       L.push('🏸 ' + d0.club.name.toUpperCase() + ' · BUỔI ' + ddmy(s.date) + ' (' + wd(s.date) + ')')
       L.push('Sân: ' + courtTxt(d0, s) + ' · ' + timeTxt(s))

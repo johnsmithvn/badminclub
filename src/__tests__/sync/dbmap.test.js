@@ -284,4 +284,39 @@ assert.ok(
   'ô đặt về none phải BIẾN MẤT khỏi rows để diff sinh delScope xoá dòng cũ'
 )
 
+/* ---------- session_guests: lượt trả tiền của KHÁCH hoặc của THÀNH VIÊN ---------- */
+// migration 0003: CHECK `session_guests_who_chk` đòi ĐÚNG MỘT trong guest_id / member_id có giá
+// trị. Map sai là Postgres chặn và cả hàng đợi đồng bộ kẹt lại — mọi thay đổi sau đó im lặng
+// không lưu, trong khi màn hình vẫn hiện đúng.
+const chargeDb = {
+  ...db,
+  sessionGuests: db.sessionGuests.concat([{
+    // guestId '' chứ không null: đúng quy ước "rỗng = không có" mà repo dùng khắp nơi
+    // (invitedBy: ''). `uu()` phải ép nó về NULL, không thì '' xuống cột uuid là 22P02.
+    id: 'SGM9', sessionId: 'B1', memberId: 'M1', guestId: '',
+    level: 'TB-', gender: 'nu', price: 60000, paid: false, invitedBy: '',
+  }]),
+}
+const sgRows = toRows(chargeDb, ctx).session_guests
+const mine = sgRows.find((r) => r.id === 'SGM9')
+assert.equal(mine.member_id, 'M1')
+assert.equal(mine.guest_id, null, 'dòng của thành viên phải để guest_id NULL, không phải chuỗi rỗng')
+const theirs = sgRows.find((r) => r.id === 'SG1')
+assert.equal(theirs.member_id, null, 'dòng của khách phải để member_id NULL')
+assert.equal(theirs.guest_id, 'K1')
+
+// Chiều đọc: quên map member_id là sau khi tải lại, dòng thu của thành viên hoá thành một khách
+// vô danh — bị đếm thêm một đầu người và mất tên trong sổ quỹ.
+const sgBack = toDb({
+  sessions: [{
+    id: 'B1', date: '2026-08-02', status: 'closed', group_id: 'G1',
+    session_guests: [{
+      id: 'SGM9', guest_id: null, member_id: 'M1', level: 'TB-', gender: 'nu',
+      price: 60000, paid: false, invited_by: null,
+    }],
+  }],
+}, { clubId: 'CL1' })
+assert.equal(sgBack.sessionGuests[0].memberId, 'M1')
+assert.equal(sgBack.sessionGuests[0].guestId, null)
+
 console.log('dbmap check: OK')

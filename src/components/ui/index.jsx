@@ -4,7 +4,7 @@
 import { Icon, StatusPill } from '#ds'
 import {
   courtNet, courtTxt, fmtK, genderTxt, groupMembers, groupOf, guestRev, levelStyle,
-  presentCount, sGuests, statusMeta, timeTxt,
+  presentCount, sGuestsOnly, statusMeta, timeTxt,
 } from '#lib/money.js'
 import { dd, monthOf, wd } from '#utils/dates.js'
 import { t } from '#i18n'
@@ -117,7 +117,7 @@ export function sessionColumns(db) {
     },
     {
       key: 'k', header: t('sessionCol.guest'), align: 'right', mono: true,
-      render: (r) => sGuests(db, r.id).length || t('common.unknown'),
+      render: (r) => sGuestsOnly(db, r.id).length || t('common.unknown'),
     },
     {
       key: 's', header: t('sessionCol.shuttle'), align: 'right', mono: true,

@@ -7,7 +7,7 @@ import { Empty, LevelChip, Mono, Overline, playerMeta } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { elapsedMin, useClock } from '#hooks/useClock.js'
 import { dd, wd } from '#utils/dates.js'
-import { courtOf, groupOf, presentCount, sGuests } from '#lib/money.js'
+import { courtOf, groupOf, headCount } from '#lib/money.js'
 import {
   ASSIGN_MODES, activeCourtIdxs, assignableSessions, courtBalance, courtSlotIds,
   fairness, matchStats, sessionPlayers, slotIds,
@@ -91,8 +91,7 @@ export default function Assign() {
                 font: 'var(--type-caption)',
                 color: on ? 'rgba(255,255,255,.7)' : 'var(--text-muted)',
               }}>
-                {groupOf(db, x.groupId).name + ' · ' +
-                  (presentCount(db, x) + sGuests(db, x.id).length) + ' ' + t('units.people')}
+                {groupOf(db, x.groupId).name + ' · ' + headCount(db, x) + ' ' + t('units.people')}
               </span>
             </button>
           )

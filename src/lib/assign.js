@@ -3,7 +3,7 @@
 // Toàn bộ hàm ở đây thuần: nhận dữ liệu, trả dữ liệu mới, không setState.
 
 import { monthOf } from '#utils/dates.js'
-import { isPresent, levelIdx, levelOf, sGuests, sessionMembers } from '#lib/money.js'
+import { isPresent, levelIdx, levelOf, sGuestsOnly, sessionMembers } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 
@@ -36,7 +36,9 @@ export function sessionPlayers(db, s) {
   const mem = sessionMembers(db, s)
     .filter((m) => isPresent(att[m.id]))
     .map((m) => ({ key: m.id, name: m.name, level: levelOf(m, month), gender: m.gender, guest: false }))
-  const gs = sGuests(db, s.id).map((sg) => {
+  // sGuestsOnly: thành viên đi buổi đột xuất đã có mặt trong `mem` qua bảng điểm danh. Lấy cả
+  // dòng thu của họ nữa là họ đứng được hai ô trên sân cùng lúc, và matchStats đếm gấp đôi.
+  const gs = sGuestsOnly(db, s.id).map((sg) => {
     const g = db.guests.find((x) => x.id === sg.guestId) || { name: '—' }
     return { key: sg.guestId, name: g.name, level: sg.level, gender: sg.gender, guest: true }
   })

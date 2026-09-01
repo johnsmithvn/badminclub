@@ -10,7 +10,8 @@ import { ddmy, wd } from '#utils/dates.js'
 import {
   closeWarnings, costDrift, costRow, costState, courtOf, courtPayMode, courtTxt, dueState, duesOf,
   fmt, fmtK, genderTxt, groupOf, guestOf, guestPaidRev, guestPrice, guestRev, levelOf, perTube, playedCourts,
-  presentCount, quotaFor, rowCost, sGuests, sessionMembers, sessionOf, soldTotal, timeTxt,
+  isAdhoc, isMemberCharge, presentCount, quotaFor, rowCost, sGuests, sGuestsOnly, sessionMembers,
+  sessionOf, soldTotal, timeTxt,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -43,7 +44,11 @@ export default function SessionDetail() {
   // của nhóm, không phải giá khách — họ là người nhà, xem tab Đối chiếu ở Công nợ.
   const members = sessionMembers(db, s)
   const att = db.attendance[s.id] || {}
-  const guests = sGuests(db, s.id)
+  // Khối "Khách giao lưu" chỉ liệt kê khách NGOÀI CLB. Dòng thu của thành viên đi buổi đột xuất
+  // nằm trong bảng điểm danh, ngay cạnh tên họ — không tách ra hai chỗ cho cùng một người.
+  const guests = sGuestsOnly(db, s.id)
+  const adhoc = isAdhoc(s)
+  const charges = sGuests(db, s.id).filter(isMemberCharge)
   const dues = duesOf(db, month)
 
   // Thu khách có HAI con số khác nhau, đừng trộn: `c.rev` là số ĐÓNG BĂNG lúc chốt (thuộc giá
@@ -112,11 +117,14 @@ export default function SessionDetail() {
             <Mono color="var(--text-muted)">
               {t('session.attendCount', { present: presentCount(db, s), total: members.length })}
             </Mono>
+            {adhoc && <Alert tone="info">{t('session.adhocChargeNote')}</Alert>}
             {members.length === 0 && <Empty icon="users" title={t('members.emptyGroup')} hint={t('members.emptyGroupHint')} />}
             {members.map((m) => {
               const state = att[m.id]
               const extra = state === 'extra'
               const due = dues.find((d) => d.memberId === m.id && d.groupId === s.groupId)
+              // Buổi đột xuất: dòng thu sinh theo điểm danh (money.js: adhocCharges).
+              const charge = adhoc ? charges.find((c) => c.memberId === m.id) : null
               return (
                 <div key={m.id} style={{
                   ...S.attRow,
@@ -148,7 +156,21 @@ export default function SessionDetail() {
                           : state === false ? t('attend.absent') : t('attend.unmarked')}
                     </span>
                   </button>
-                  {extra
+                  {charge
+                    ? <>
+                        <Input size="sm" mono style={{ width: 108, textAlign: 'right' }}
+                          aria-label={t('session.chargePrice')}
+                          suffix={t('units.dong')}
+                          value={String(charge.price)}
+                          disabled={!canEdit || charge.paid}
+                          onChange={(e) => a.setChargePrice(charge.id, e.target.value)} />
+                        <Switch label={charge.paid ? t('session.guestPaid') : t('session.guestDebt')}
+                          checked={charge.paid} disabled={!canMoney}
+                          onChange={() => a.toggleGuestPaid(charge.id)} />
+                      </>
+                    : adhoc
+                    ? <span style={{ ...S.caption, minWidth: 96, textAlign: 'right' }} />
+                    : extra
                     ? <>
                         <span style={{ ...S.caption, minWidth: 96, textAlign: 'right' }}>{t('session.extraDueTag')}</span>
                         {canEdit && <IconButton icon="user-round-minus" size="sm" variant="ghost"
