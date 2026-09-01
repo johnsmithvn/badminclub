@@ -568,11 +568,11 @@ function Groups({ canEdit }) {
                     <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
                       {g.name || 'Nhóm #' + (idx + 1)}
                     </span>
-                    {idx === 0 && (
-                      <Tag tone="info" size="sm">Nhóm mặc định (Không xoá)</Tag>
-                    )}
                   </div>
-                  {canEdit && idx > 0 && (
+                  {/* Không còn "nhóm mặc định không xoá": đó là luật theo VỊ TRÍ trong mảng, mà
+                      nhập cài đặt từ CLB khác là thứ tự đổi và người ta kẹt với một nhóm rác.
+                      Chặn hay không giờ do `groupRefs` quyết theo dữ liệu thật. */}
+                  {canEdit && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -580,7 +580,7 @@ function Groups({ canEdit }) {
                       onClick={() => {
                         a.confirm({
                           title: `Xoá nhóm "${g.name}"?`,
-                          message: `Bạn có chắc chắn muốn xoá nhóm "${g.name}"? Các thành viên thuộc nhóm này sẽ được chuyển về nhóm mặc định.`,
+                          message: t('settings.groupDelMsg', { name: g.name }),
                           tone: 'danger',
                           confirmText: 'Xoá nhóm',
                           onConfirm: () => a.deleteGroup(g.id),
@@ -602,6 +602,10 @@ function Groups({ canEdit }) {
                   <Input label={t('settings.fGroupTo')} mono value={g.to} disabled={!canEdit}
                     onChange={(e) => updateGroup(g.id, 'to', e.target.value)} />
                 </div>
+                {/* Nói thẳng hai ô giờ trên chỉ là giá trị điền sẵn. Trước đây chúng đứng ngang
+                    hàng với biểu phí nên trông như nhóm cũng định nghĩa lịch — mà buổi tập lấy
+                    giờ từ `schedule_slots`, sửa ở đây không đụng buổi nào. */}
+                <div style={S.caption}>{t('settings.groupTimeNote')}</div>
 
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',

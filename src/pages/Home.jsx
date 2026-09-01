@@ -1,15 +1,15 @@
 // Trang chủ: tab Tổng quan + tab Báo cáo (handoff 02 §1).
 
 import { Alert, Avatar, Button, Card, DataTable, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
-import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, sessionColumns } from '#ui'
+import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, monthTxt } from '#utils/dates.js'
 import {
-  adjustRows, advanceRows, costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK, genderTxt,
+  adjustRows, advanceRows, costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
   groupMembers, groupOf, guestOf, homeAlerts, isPresent, memberOf, monthSessions, sessionOf,
-  shuttleUnit, stock, timeTxt,
+  stock, timeTxt,
 } from '#lib/money.js'
-import { availableBalance, monthFlow } from '#lib/ledger.js'
+import { monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
 import { Detail, FundBalanceColumns, FundOverviewCards, Reconcile } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
@@ -158,12 +158,8 @@ function Overview() {
   })
 
   const creditors = Object.values(creditorMap).sort((a, b) => b.owed - a.owed)
-  const totalOwed = creditors.reduce((x, r) => x + r.owed, 0)
 
-  const flow = monthFlow(db, month)
   const st = stock(db)
-  const av = availableBalance(db)
-  const bal = av.balance
 
   // 3. Buổi tới: Ưu tiên các buổi sắp tới trong tháng hiện tại CHƯA CHỐT và CHƯA HUỶ
   let upcoming = db.sessions

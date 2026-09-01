@@ -36,6 +36,8 @@ const ADJUST_KINDS = ['absent_back', 'extra_session']
 const SETTLE_MODES = ['cash', 'offset_next_dues']
 // Lý do không xoá cứng được một thành viên — khớp money.js: memberRefs.
 const MEMBER_REFS = ['attend', 'dues', 'adjust', 'guest', 'match', 'payer', 'change', 'account']
+// Lý do không xoá được một NHÓM — khớp money.js: groupRefs.
+const GROUP_REFS = ['session', 'schedule', 'dues', 'adjust', 'roster']
 const CHECK_DUE = ['never', 'stale', 'low']
 
 const SRC = 'src'
@@ -110,6 +112,7 @@ CHECK_DUE.forEach((k) => need('shuttles.due.' + k))
 ADJUST_KINDS.forEach((k) => need('debts.kind.' + k))
 SETTLE_MODES.forEach((k) => need('debts.settle.' + k))
 MEMBER_REFS.forEach((k) => need('members.ref.' + k))
+GROUP_REFS.forEach((k) => need('settings.groupRef.' + k))
 WARN_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('home.warn.' + k + '.' + f)))
 CLOSE_WARN_KEYS.forEach((k) => need('session.closeWarn.' + k))
 DRIFT_KEYS.forEach((k) => need('session.drift.' + k))

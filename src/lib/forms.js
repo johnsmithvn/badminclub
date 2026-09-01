@@ -1,7 +1,11 @@
 // Giá trị mặc định cho các form/dialog. Để ở đây để header, dialog và trang dùng chung một nguồn.
 
 
-/** Một dòng sân mặc định: sân đầu tiên của CLB, giờ của nhóm đầu tiên. */
+/**
+ * Một dòng sân mặc định để ĐIỀN SẴN ô nhập: sân đầu tiên của CLB, giờ của nhóm đầu tiên.
+ * Giờ của nhóm KHÔNG phải giờ của buổi — buổi giữ giờ riêng trong `session_courts`. Đây chỉ là
+ * gợi ý cho đỡ phải gõ, sửa giờ nhóm về sau không đụng buổi nào.
+ */
 export function defaultCourtRows(db) {
   const g = db.groups[0]
   const c = db.courts[0]
@@ -102,7 +106,7 @@ export const courtForm = () => ({ cName: '', cAddr: '', cPrice: '' })
 export const groupForm = (db) => {
   const g = db.groups[0]
   return {
-    grName: '', grShort: '', grWeekday: 0,
+    grName: '', grShort: '',
     grFrom: g ? g.from : '18:00', grTo: g ? g.to : '20:00',
     grFeeNam: '', grFeeNu: '', grQuota: String(g ? g.quota : ''),
     grCourts: db.courts.length === 1 ? [db.courts[0].id] : [],

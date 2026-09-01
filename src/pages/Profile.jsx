@@ -7,7 +7,6 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { supabase } from '#supabase'
 import { ddmy } from '#utils/dates.js'
-import { genderTxt } from '#lib/money.js'
 import { roleName } from '#lib/roles.js'
 import { t } from '#i18n'
 

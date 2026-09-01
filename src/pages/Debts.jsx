@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Alert, Avatar, Button, Card, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
 import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
+import { ddmy, monthOf, wd } from '#utils/dates.js'
 import {
   adjustRows, advanceRows, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
   genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, sessionOf, timeTxt,

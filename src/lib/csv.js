@@ -244,7 +244,7 @@ export function normalizeGroup(val, groups = []) {
 /**
  * Kiểm tra tính hợp lệ của 1 dòng thành viên (dùng cho cả lúc parse và lúc user chỉnh sửa trực tiếp).
  */
-export function validateMemberRow(r, clubLevels = [], phoneMap = new Map()) {
+export function validateMemberRow(r, _clubLevels = [], phoneMap = new Map()) {
   const name = (r.name || '').trim()
   const cleanPhone = (r.phone || '').replace(/\s+/g, '')
   const phoneDigits = cleanPhone.replace(/\D/g, '')

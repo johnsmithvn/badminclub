@@ -30,6 +30,14 @@ const db = {
   sessionId: null,
 }
 
+// CLB chưa có nhóm nào là trạng thái HỢP LỆ (0008): ai chưa thuộc nhóm nào thì tính đi lẻ.
+// `dbmap` từng bịa ra một nhóm "Cố định" với uuid MỚI mỗi lần nạp khi DB trả về 0 nhóm — xoá
+// nhóm xong, reload là nó mọc lại với id khác, rồi `storage: save` ghi ngược xuống DB thành
+// nhóm ma. Nó cũng che luôn cả bài test này: cả file dưới đây tưởng là đang chạy trên CLB
+// rỗng, thật ra vẫn có một nhóm. Khoá lại ở đây.
+assert.deepEqual(db.groups, [],
+  'dbmap bịa ra nhóm mặc định khi CLB chưa có nhóm → xoá nhóm xong reload là nó mọc lại với id khác, và cả bộ test "CLB rỗng" dưới đây chạy trên dữ liệu không rỗng')
+
 /** Không được ra NaN / Infinity: mấy giá trị đó chảy thẳng vào ô tiền trên màn hình. */
 const finite = (v, label) => {
   if (typeof v === 'number') {

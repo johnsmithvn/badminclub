@@ -43,7 +43,7 @@ export function toDb(raw, ctx) {
   }))
 
   let groups = (raw.groups || []).map((g) => ({
-    id: g.id, name: g.name, short: g.short || '', weekday: g.weekday,
+    id: g.id, name: g.name, short: g.short || '',
     feeNam: num(g.fee_male), feeNu: num(g.fee_female),
     // Đơn giá một buổi CLB tự đặt; 0 = để app tự chia.
     unitNam: num(g.unit_male), unitNu: num(g.unit_female),
@@ -51,14 +51,10 @@ export function toDb(raw, ctx) {
     courtIds: (g.group_courts || []).map((x) => x.court_id),
   }))
 
-  if (groups.length === 0) {
-    groups = [{
-      id: crypto.randomUUID(), name: 'Cố định', short: 'CĐ', weekday: 0,
-      feeNam: 0, feeNu: 0, unitNam: 0, unitNu: 0,
-      from: '18:00', to: '20:00', quota: 24, active: true,
-      courtIds: [],
-    }]
-  }
+  // KHÔNG bịa nhóm mặc định khi CLB chưa có nhóm nào. Trước đây chỗ này sinh một nhóm "Cố định"
+  // với `crypto.randomUUID()` mới mỗi lần nạp — xoá nhóm xong, reload là nó mọc lại với id khác,
+  // rồi `storage.js: save` ghi ngược xuống DB thành một nhóm ma. Không có nhóm là trạng thái
+  // HỢP LỆ từ 0008: ai chưa thuộc nhóm nào thì tính đi lẻ.
 
   const members = (raw.members || []).map((m) => {
     return {
@@ -267,7 +263,9 @@ export function toRows(db, ctx) {
 
   db.groups.forEach((g) => {
     put('member_groups', {
-      id: g.id, club_id: cid, name: g.name, short: g.short || null, weekday: g.weekday,
+      // `member_groups.weekday` là cột NOT NULL không có DEFAULT nên vẫn phải ghi, nhưng client
+      // đã bỏ hẳn khái niệm này: thứ trong tuần nằm ở `schedules.weekdays[]`. Ghi 0 và quên nó đi.
+      id: g.id, club_id: cid, name: g.name, short: g.short || null, weekday: 0,
       fee_male: g.feeNam, fee_female: g.feeNu, start_time: g.from, end_time: g.to,
       // Đơn giá một buổi CLB tự đặt. 0 và null đều nghĩa là "để app tự chia" → ghi null cho gọn.
       unit_male: g.unitNam || null, unit_female: g.unitNu || null,

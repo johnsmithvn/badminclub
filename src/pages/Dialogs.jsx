@@ -227,6 +227,9 @@ function ScheduleDialog() {
   const sched = f.eSchedId && db.schedules.find((x) => x.id === f.eSchedId)
   // Xem trước phải tính bằng ĐÚNG hàm mà action sẽ chạy — hộp thoại hứa gì thì app làm nấy.
   const plan = sched ? planScheduleEdit(db, sched, f) : null
+  // Lịch tập BẮT BUỘC thuộc một nhóm: quỹ tháng, đơn giá một buổi và công nợ đều đếm theo
+  // groupId. CLB chưa khai nhóm nào thì chặn ở đây và chỉ đường, đừng để bấm Tạo rồi mới báo.
+  const noGroup = !db.groups.length
 
   return (
     <Shell
@@ -236,7 +239,10 @@ function ScheduleDialog() {
       onSubmit={sched ? () => a.saveSchedule() : () => a.createSchedule(dates)}
       submitLabel={t(sched ? 'common.save' : 'common.create')}
       submitIcon="repeat"
-      disabled={sched ? plan.blocked.length > 0 : !dates.length}>
+      disabled={noGroup || (sched ? plan.blocked.length > 0 : !dates.length)}>
+      {noGroup && (
+        <Alert tone="danger" title={t('schedules.noGroupTitle')}>{t('schedules.noGroup')}</Alert>
+      )}
       <Input label={t('schedules.fName')} value={f.sName || ''} onChange={(e) => a.setF('sName', e.target.value)} />
       {/* Đổi nhóm chỉ mở khi lịch còn MỀM (chưa buổi nào mở / qua ngày) — lúc đó dời được cả
           lũ buổi sang nhóm mới. Cứng rồi thì buổi cũ rớt lại nhóm cũ, mà đơn giá một buổi và
@@ -530,9 +536,6 @@ function NewCourtDialog() {
 function NewGroupDialog() {
   const { db, ui, a } = useApp()
   const f = ui.form
-  const picked = f.grCourts || []
-  const toggle = (cid) =>
-    a.setF('grCourts', picked.indexOf(cid) >= 0 ? picked.filter((x) => x !== cid) : picked.concat([cid]))
 
   return (
     <Shell title={t('settings.dlgGroupTitle')} desc={t('settings.dlgGroupDesc')} width={520}

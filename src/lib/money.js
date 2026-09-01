@@ -658,6 +658,32 @@ export function memberRefs(db, id) {
   return why
 }
 
+/**
+ * Vì sao KHÔNG xoá cứng được một nhóm cố định — cùng khuôn với `memberRefs`.
+ *
+ * Mọi khoá ngoại trỏ về `member_groups` đều là REFERENCES TRẦN (không cascade): `monthly_dues`,
+ * `member_adjustments`, `back_credits`, `group_memberships`, `group_courts`, `sessions`,
+ * `schedules`. Xoá nhóm còn dòng nào trong số đó là Postgres 23503 — mà theo `storage.js: flush`
+ * thì op hỏng nằm lại trong hàng đợi MÃI, mọi thay đổi sau nó không xuống được DB, trong khi
+ * màn hình vẫn báo đã lưu. Nên phải chặn ở client TRƯỚC, và nói rõ vướng cái gì.
+ *
+ * `club_member_groups` cố ý không có ở đây: nó CASCADE theo nhóm, gỡ người khỏi nhóm là chuyện
+ * bình thường chứ không phải lịch sử cần giữ.
+ */
+export function groupRefs(db, gid) {
+  const why = []
+  const any = (k, cond) => { if (cond) why.push(k) }
+  any('session', (db.sessions || []).some((x) => x.groupId === gid))
+  any('schedule', (db.schedules || []).some((x) => x.groupId === gid))
+  any('dues', (db.dues || []).some((x) => x.groupId === gid))
+  any('adjust', (db.adjustments || []).some((x) => x.groupId === gid))
+  any('roster', Object.keys(db.roster || {}).some((mo) => {
+    const g = (db.roster[mo] || {})[gid]
+    return !!g && Object.keys(g).length > 0
+  }))
+  return why
+}
+
 /** Số buổi còn lại của nhóm trong tháng tính từ hôm nay — dùng khi thêm người giữa tháng. */
 export const remainSessions = (db, gid, month) =>
   monthSessions(db, month).filter((x) => x.groupId === gid && x.date >= db.today && x.status !== 'cancelled').length

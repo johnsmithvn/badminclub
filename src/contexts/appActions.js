@@ -7,7 +7,7 @@ import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
-  adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, joinDues,
+  adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, joinDues,
   adhocCharges, chargeName, sGuestsOnly,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
@@ -22,7 +22,7 @@ import { t } from '#i18n'
 const uid = () => crypto.randomUUID()
 
 /** Các trường SỐ của một nhóm cố định — dùng để biết ô nhập nào phải đi qua intOf. */
-const GROUP_NUM = ['feeNam', 'feeNu', 'quota', 'weekday', 'unitNam', 'unitNu']
+const GROUP_NUM = ['feeNam', 'feeNu', 'quota', 'unitNam', 'unitNu']
 
 export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) {
   const db = () => dbRef.current
@@ -1329,7 +1329,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         groups: d.groups.concat([{
           id: uid(), name, short: (f.grShort || '').trim() || name.slice(0, 3),
-          weekday: 0,
           feeNam: def.feeNam || 0,
           feeNu: def.feeNu || 0,
           unitNam: def.unitNam || 0,
@@ -1358,15 +1357,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           ? { ...g, [k]: GROUP_NUM.indexOf(k) >= 0 ? intOf(v) : v }
           : g)),
       })),
+    /**
+     * Xoá một nhóm cố định. Chặn theo DỮ LIỆU (`money.js: groupRefs`), không theo vị trí.
+     *
+     * Luật cũ chặn `groups[0]` là "nhóm mặc định không xoá" — mà `groups[0]` chỉ là nhóm đứng
+     * đầu mảng, không phải một cờ thật. Nhập cài đặt từ CLB khác xong là thứ tự đổi, và người
+     * ta không xoá nổi một nhóm rác dù nó chẳng dính gì. Luật cũ cũng chỉ kiểm buổi + lịch,
+     * bỏ lọt quỹ tháng / đối chiếu / danh sách cố định — mà mấy bảng đó đều trỏ về
+     * `member_groups` bằng khoá ngoại TRẦN, xoá là 23503 và kẹt cả hàng đợi đồng bộ.
+     */
     deleteGroup: (id) => {
       const d0 = db()
-      if (d0.groups.length <= 1 || d0.groups[0]?.id === id) {
-        return toast(t('toast.defaultGroupCannotDelete') || 'Nhóm mặc định không thể xoá')
-      }
-      const hasSessions = (d0.sessions || []).some((s) => s.groupId === id)
-      const hasSchedules = (d0.schedules || []).some((s) => s.groupId === id)
-      if (hasSessions || hasSchedules) {
-        return toast(t('toast.groupInUse') || 'Không thể xoá nhóm đã có lịch hoặc buổi tập')
+      const why = groupRefs(d0, id)
+      if (why.length) {
+        return toast(t('toast.groupInUse', {
+          why: why.map((k) => t('settings.groupRef.' + k)).join(', '),
+        }))
       }
       up((d) => ({
         groups: d.groups.filter((g) => g.id !== id),
@@ -1374,7 +1380,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // và tháng sau sẽ thu quỹ của một ca họ chưa bao giờ chọn.
         members: d.members.map((m) => ({ ...m, groupIds: (m.groupIds || []).filter((g) => g !== id) })),
       }))
-      toast(t('toast.groupDeleted') || 'Đã xoá nhóm')
+      toast(t('toast.groupDeleted'))
     },
     saveMoneyTab: ({ feeNam, feeNu, unitNam, unitNu, guestPrices }) => {
       up((d) => ({
@@ -1394,7 +1400,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('toast.pricingSaved'))
     },
     saveGroupsTab: (groupsList) => {
-      up((d) => ({
+      up(() => ({
         groups: groupsList.map((g) => ({
           ...g,
           name: (g.name || '').trim(),
@@ -1465,7 +1471,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         groups: (d.groups || []).map((g) => ({
           name: g.name,
           short: g.short || '',
-          weekday: g.weekday || 0,
           feeNam: g.feeNam || 0,
           feeNu: g.feeNu || 0,
           unitNam: g.unitNam || 0,
@@ -1608,7 +1613,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
                 id: uid(),
                 name: (g.name || '').trim(),
                 short: g.short || (g.name || '').slice(0, 3),
-                weekday: g.weekday || 0,
                 from: g.from || '18:00',
                 to: g.to || '20:00',
                 quota: intOf(g.quota) || cfg.shuttle.quotaDefault,
