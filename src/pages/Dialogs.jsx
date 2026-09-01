@@ -159,20 +159,13 @@ function ScheduleDialog() {
 /* ---------------- buổi đột xuất ---------------- */
 
 function AdhocDialog() {
-  const { db, ui, a } = useApp()
+  const { ui, a } = useApp()
   const f = ui.form
   return (
     <Shell title={t('adhoc.dlgTitle')} desc={t('adhoc.dlgDesc')} width={560}
       onSubmit={() => a.createAdhoc()} submitLabel={t('common.create')} submitIcon="calendar-plus">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Input label={t('adhoc.fDate')} type="date" mono value={f.aDate || ''}
-          onChange={(e) => a.setF('aDate', e.target.value)} />
-        <Select label={t('adhoc.fGroup')} value={f.aGroup}
-          options={[{ value: 'ALL', label: t('adhoc.allClub') }].concat(
-            db.groups.map((g) => ({ value: g.id, label: g.name }))
-          )}
-          onChange={(e) => a.setF('aGroup', e.target.value)} />
-      </div>
+      <Input label={t('adhoc.fDate')} type="date" mono value={f.aDate || ''}
+        onChange={(e) => a.setF('aDate', e.target.value)} />
       <CourtRows />
     </Shell>
   )

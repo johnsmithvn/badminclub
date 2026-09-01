@@ -375,9 +375,14 @@ export function toRows(db, ctx) {
     const byGroup = db.roster[month] || {}
     Object.keys(byGroup).forEach((gid) => {
       const m = byGroup[gid] || {}
-      Object.keys(m).forEach((mid) => put('group_memberships', {
-        month, group_id: gid, member_id: mid, state: m[mid],
-      }))
+      Object.keys(m).forEach((mid) => {
+        // Chỉ ba giá trị của enum `roster_state` được xuống DB. 'none' (money.js: rosterStatus)
+        // nghĩa là KHÔNG có bản ghi — bỏ qua ở đây thì `diff` sinh delScope và dòng cũ bị xoá,
+        // đúng ý. Lọt xuống là 22P02, và vì ảnh chụp đồng bộ chỉ cập nhật khi MỌI op xong nên
+        // cả hàng đợi kẹt lại: không mất tiền, nhưng mọi thay đổi sau đó im lặng không lưu.
+        if (cfg.rosterStates.indexOf(m[mid]) < 0) return
+        put('group_memberships', { month, group_id: gid, member_id: mid, state: m[mid] })
+      })
     })
   })
 

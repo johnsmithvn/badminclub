@@ -38,7 +38,6 @@ assert.equal(defaultCourtRows(empty)[0].from, '18:00', 'không có nhóm thì r�
 /* ---------- form buổi và lịch ---------- */
 
 assert.equal(adhocForm(db).aDate, db.today, 'buổi đột xuất mặc định là HÔM NAY')
-assert.equal(adhocForm(db).aGroup, 'ALL', "mặc định là buổi của toàn CLB — 'ALL' map xuống group_id NULL")
 assert.equal(scheduleForm(db).sGroup, db.groups[0].id)
 assert.deepEqual(scheduleForm(db).weekdays, [], 'không chọn sẵn thứ nào — chọn hộ là sinh buổi người ta không muốn')
 assert.equal(scheduleForm(db).start, db.today)

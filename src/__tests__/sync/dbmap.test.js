@@ -7,6 +7,7 @@
 //   3. Mọi bảng toRows() sinh ra phải có trong TABLES, không thì âm thầm không đồng bộ.
 
 import assert from 'node:assert/strict'
+import cfg from '#config/app.json' with { type: 'json' }
 import { TABLES, clubRow, diff, toDb, toRows } from '#contexts/dbmap.js'
 import { seed } from '../fixture.js'
 
@@ -264,5 +265,23 @@ const bare = clubRow({ club: { ...db.club, openingBy: '', bank: { holder: '', no
 assert.equal(bare.opening_by, null)
 assert.equal(bare.bank_holder, null)
 assert.ok(bare.levels.length > 0, 'thang rỗng phải rơi về thang mặc định, không ghi mảng rỗng xuống DB')
+
+/* ---------- enum roster_state: 'none' là sentinel client, không được xuống DB ---------- */
+// `roster_state` chỉ có ('fixed','off','pending'). Ghi 'none' xuống là Postgres 22P02, và vì
+// ảnh chụp đồng bộ chỉ cập nhật khi MỌI op xong nên cả hàng đợi đồng bộ kẹt lại — màn hình vẫn
+// hiện thay đổi nên người dùng không biết là từ đó về sau KHÔNG có gì được lưu nữa.
+const gid0 = db.groups[0].id
+const mid0 = db.members[0].id
+const dirty = { ...db, roster: { ...db.roster, '2026-08': { [gid0]: { [mid0]: 'none' } } } }
+const dirtyRows = toRows(dirty, ctx)
+assert.ok(
+  (dirtyRows.group_memberships || []).every((r) => cfg.rosterStates.indexOf(r.state) >= 0),
+  "trạng thái ngoài enum lọt xuống group_memberships.state là kẹt cả hàng đợi đồng bộ"
+)
+assert.ok(
+  !(dirtyRows.group_memberships || []).some((r) =>
+    r.month === '2026-08' && r.member_id === mid0 && r.group_id === gid0),
+  'ô đặt về none phải BIẾN MẤT khỏi rows để diff sinh delScope xoá dòng cũ'
+)
 
 console.log('dbmap check: OK')

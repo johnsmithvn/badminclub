@@ -27,6 +27,21 @@ const g2 = db.groups.find((g) => g.id === 'G2')
 assert.equal(unitPrice(dbNoRound, { gender: 'nam' }, g2, '2026-08').n, 4)
 assert.equal(unitPrice(dbNoRound, { gender: 'nam' }, g2, '2026-08').unit, 62500)
 assert.equal(unitPrice(db, { gender: 'nam' }, g2, '2026-08').unit, 63000, 'roundUnit làm tròn 62.500 → 63.000')
+// Buổi đột xuất ('ALL' → group_id NULL) KHÔNG được đếm vào số buổi của ca cố định. Đếm nhầm
+// là mẫu số tăng, đơn giá một buổi tụt, và tiền back cho MỌI người vắng của ca đó trả thiếu —
+// không ai sửa gì mà số vẫn đổi. `createAdhoc` luôn ghi 'ALL' chính là để giữ luật này.
+const dbAdhoc = {
+  ...db,
+  sessions: db.sessions.concat([{
+    id: 'ADHOC1', date: '2026-08-12', groupId: 'ALL', status: 'closed',
+    shuttleUsed: 0, shuttleTypeId: 'S1', note: '', courts: [], scheduleId: null,
+  }]),
+}
+assert.equal(unitPrice(dbAdhoc, { gender: 'nam' }, g1, '2026-08').n, 5,
+  'thêm một buổi đột xuất mà mẫu số đổi = tiền back của cả ca CN trả thiếu')
+assert.equal(unitPrice(dbAdhoc, { gender: 'nam' }, g1, '2026-08').unit, 50000,
+  'đơn giá một buổi phải đứng yên ở 50.000')
+
 // tháng không có buổi nào → mẫu số tối thiểu 1, không chia cho 0
 assert.equal(unitPrice(db, { gender: 'nam' }, g1, '2030-01').n, 1)
 assert.equal(unitPrice(db, { gender: 'nam' }, g1, '2030-01').unit, 250000)

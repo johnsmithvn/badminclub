@@ -9,7 +9,7 @@ export function defaultCourtRows(db) {
 }
 
 /** Form tạo buổi đột xuất. */
-export const adhocForm = (db) => ({ aDate: db.today, aGroup: 'ALL', rows: defaultCourtRows(db) })
+export const adhocForm = (db) => ({ aDate: db.today, rows: defaultCourtRows(db) })
 
 /** Form tạo lịch tập hàng loạt. */
 export const scheduleForm = (db) => ({

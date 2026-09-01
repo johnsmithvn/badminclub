@@ -817,9 +817,7 @@
   "adhoc": {
     "dlgTitle": "Buổi đột xuất",
     "dlgDesc": "Một buổi lẻ ngoài lịch cố định — mở điểm danh ngay",
-    "fDate": "Ngày",
-    "fGroup": "Nhóm",
-    "allClub": "Cả CLB"
+    "fDate": "Ngày"
   },
   "addCourt": {
     "dlgTitle": "Thêm sân cho buổi này",

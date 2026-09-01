@@ -438,12 +438,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         : { adjustments: upsertAdjust(d, row, { settle }) }))
       toast(t(settle === 'cash' ? 'toast.settleCash' : 'toast.settleOffset', { name: row.member.name }))
     },
+    /**
+     * Ô cố định của một người trong một ca. `'none'` KHÔNG phải một trạng thái lưu được: enum
+     * `roster_state` dưới DB chỉ có ('fixed','off','pending'), còn `money.js: rosterStatus` suy
+     * ra 'none' từ chỗ KHÔNG CÓ bản ghi. Nên 'none' phải XOÁ ô, không phải ghi chuỗi 'none' —
+     * ghi xuống là Postgres 22P02 và cả hàng đợi đồng bộ kẹt lại, trong khi màn hình vẫn hiện
+     * thay đổi nên không ai biết là chưa lưu.
+     */
     setRoster: (month, gid, mid, val) =>
       up((d) => {
         const all = { ...d.roster }
         const base = d.roster[month] || ensureRoster(d, month)
         const gm = { ...(base[gid] || {}) }
-        gm[mid] = val
+        if (cfg.rosterStates.indexOf(val) < 0) delete gm[mid]
+        else gm[mid] = val
         all[month] = { ...base, [gid]: gm }
         return { roster: all }
       }),
@@ -848,7 +856,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return {
           sessionId: newId,
           sessions: d.sessions.concat([{
-            id: newId, date: f.aDate, groupId: f.aGroup, status: 'open', shuttleUsed: 0,
+            // LUÔN 'ALL' (→ group_id NULL). Gán buổi đột xuất vào một ca cố định thì
+            // `unitPrice` đếm nó vào số buổi của ca đó, đơn giá một buổi tụt xuống, và tiền
+            // back cho người vắng của CẢ ca giảm theo — không ai sửa gì mà tiền vẫn đổi.
+            id: newId, date: f.aDate, groupId: 'ALL', status: 'open', shuttleUsed: 0,
             shuttleTypeId: d.shuttleTypes[0] ? d.shuttleTypes[0].id : null,
             note: 'Buổi đột xuất', shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
             courts: (f.rows || []).map((r) => ({ ...r, sold: false, soldAmount: 0, soldTo: '', extra: false })),
