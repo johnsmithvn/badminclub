@@ -93,3 +93,22 @@ assert.equal(undoTarget(db, row('cbCB3')), null,
 assert.equal(undoTarget(db, null), null)
 
 console.log('ledger undo check: OK')
+
+/* ---------- editTarget: SỬA khác HOÀN TÁC ---------- */
+
+import { editTarget } from '#lib/ledger.js'
+
+assert.deepEqual(editTarget(db, row('cbCB3')), { kind: 'bill', id: 'CB3' },
+  'hoá đơn QUỸ tự trả không hoàn tác được nhưng PHẢI sửa được — không thì gõ nhầm số tiền chỉ còn cách xoá rồi ghi lại, mất luôn dấu vết đã trả lại người ứng')
+assert.deepEqual(editTarget(db, row('cbCB1')), { kind: 'bill', id: 'CB1' })
+assert.deepEqual(
+  editTarget(db, row('cb7f1e20-0000-4000-8000-000000000001')),
+  { kind: 'manual', id: 'cb7f1e20-0000-4000-8000-000000000001' },
+  'dòng ghi tay có uuid bắt đầu bằng "cb" bị nhận nhầm thành hoá đơn sân → bấm Sửa mở nhầm hoá đơn của người khác')
+;['duD1', 'sgSG1', 'ajAJ1', 'puPU1', 'open', 'ctS1', 'csS1', 'ceS1'].forEach((id) => {
+  assert.equal(editTarget(db, row(id)), null,
+    id + ' không phải dòng ghi tay — sửa ở sổ quỹ là để sổ và nguồn nói hai số khác nhau')
+})
+assert.equal(editTarget(db, row('cbKHONGCO')), null)
+
+console.log('ledger edit target check: OK')

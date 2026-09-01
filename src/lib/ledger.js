@@ -227,6 +227,26 @@ export function undoTarget(db, row) {
   return null
 }
 
+/**
+ * Dòng sổ quỹ nào SỬA được. Khác `undoTarget`: hoá đơn sân do QUỸ tự trả không hoàn tác được
+ * (dòng chi chính là hoá đơn đó) nhưng vẫn phải sửa được — gõ nhầm số tiền hay nhầm tháng là
+ * chuyện thường, mà đường duy nhất trước đây là xoá rồi ghi lại, làm mất luôn dấu vết
+ * `repaidAt` đã trả lại người ứng hay chưa.
+ *
+ * Chỉ hai loại GHI TAY sửa được. Mọi dòng còn lại suy ra từ chỗ khác — sửa ở đây là để sổ quỹ
+ * và nguồn nói hai số khác nhau.
+ */
+export function editTarget(db, row) {
+  if (!row) return null
+  // Cùng bẫy với undoTarget: id dòng ghi tay là uuid trần, hex nên bắt đầu bằng "cb" được.
+  if ((db.manual || []).some((m) => m.id === row.id)) return { kind: 'manual', id: row.id }
+  if (row.id.slice(0, 2) === 'cb') {
+    const id = row.id.slice(2)
+    return (db.courtBills || []).some((x) => x.id === id) ? { kind: 'bill', id } : null
+  }
+  return null
+}
+
 /** Số dư luỹ kế toàn bộ, không theo tháng. */
 export const fundBalance = (db) => ledger(db).reduce((t2, r) => t2 + (r.dir === 'in' ? r.amount : -r.amount), 0)
 
