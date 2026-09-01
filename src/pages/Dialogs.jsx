@@ -450,8 +450,11 @@ function BillDialog() {
   const f = ui.form
   const venues = venueOptions(db)
   return (
-    <Shell title={t('fund.billDlgTitle')} desc={t('fund.billDlgDesc')}
-      onSubmit={() => a.createCourtBill()} submitLabel={t('common.save')} submitIcon="landmark">
+    <Shell
+      title={t(f.eBillId ? 'fund.billEditTitle' : 'fund.billDlgTitle')}
+      desc={t(f.eBillId ? 'fund.billEditDesc' : 'fund.billDlgDesc')}
+      onSubmit={() => (f.eBillId ? a.saveCourtBill() : a.createCourtBill())}
+      submitLabel={t('common.save')} submitIcon="landmark">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Input label={t('fund.billDate')} type="date" mono value={f.bDate || ''}
           onChange={(e) => a.setF('bDate', e.target.value)} />
@@ -482,8 +485,11 @@ function LedgerDialog() {
   const { ui, a } = useApp()
   const f = ui.form
   return (
-    <Shell title={t('fund.dlgTitle')} desc={t('fund.dlgDesc')}
-      onSubmit={() => a.createLedger()} submitLabel={t('common.save')} submitIcon="wallet">
+    <Shell
+      title={t(f.eLedgerId ? 'fund.dlgEditTitle' : 'fund.dlgTitle')}
+      desc={t('fund.dlgDesc')}
+      onSubmit={() => (f.eLedgerId ? a.saveLedger() : a.createLedger())}
+      submitLabel={t('common.save')} submitIcon="wallet">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: 10 }}>
         <Input label={t('fund.fDate')} type="date" mono value={f.lDate || ''}
           onChange={(e) => a.setF('lDate', e.target.value)} />

@@ -8,7 +8,7 @@
 //   3. cho hoàn khoản QUỸ tự trả → tưởng đã gỡ mà thật ra hoá đơn vẫn nằm đó.
 
 import assert from 'node:assert/strict'
-import { undoTarget } from '#lib/ledger.js'
+import { editTarget, undoTarget } from '#lib/ledger.js'
 
 // Két = payerId rỗng (money.js: isVault). 'M1' là một thành viên đã ứng tiền.
 const db = {
@@ -95,8 +95,6 @@ assert.equal(undoTarget(db, null), null)
 console.log('ledger undo check: OK')
 
 /* ---------- editTarget: SỬA khác HOÀN TÁC ---------- */
-
-import { editTarget } from '#lib/ledger.js'
 
 assert.deepEqual(editTarget(db, row('cbCB3')), { kind: 'bill', id: 'CB3' },
   'hoá đơn QUỸ tự trả không hoàn tác được nhưng PHẢI sửa được — không thì gõ nhầm số tiền chỉ còn cách xoá rồi ghi lại, mất luôn dấu vết đã trả lại người ứng')

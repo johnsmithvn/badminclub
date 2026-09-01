@@ -57,6 +57,18 @@ export const courtBillForm = (db) => ({
 /** Form ghi thu/chi tay vào sổ quỹ. */
 export const ledgerForm = (db) => ({ lDate: db.today, lDir: 'out', lCat: 'other', lLabel: '', lAmount: '' })
 
+/** Form SỬA một hoá đơn sân đã ghi. `eBillId` là cờ phân biệt sửa với ghi mới. */
+export const editBillForm = (b) => ({
+  eBillId: b.id, bDate: b.date, bMonth: b.month, bVenue: b.venue,
+  bAmount: String(b.amount ?? ''), bPayer: b.payerId || '', bNote: b.note || '',
+})
+
+/** Form SỬA một dòng thu/chi ghi tay. `eLedgerId` là cờ phân biệt sửa với ghi mới. */
+export const editLedgerForm = (m) => ({
+  eLedgerId: m.id, lDate: m.date, lDir: m.dir, lCat: m.cat,
+  lLabel: m.label, lAmount: String(m.amount ?? ''),
+})
+
 /** Form thêm thành viên. */
 export const memberForm = (db) => ({
   mName: '', mPhone: '', mGender: 'nam', mLevel: lv1(db), mNote: '', mGroups: [],
