@@ -248,6 +248,7 @@ cái còn lại (`handle_new_user`) chỉ khác một dòng comment. Chạy lạ
 | Biến plpgsql trùng tên cột | `create_club` trả 400 `column reference "code" is ambiguous` → **không tạo được CLB nào**. Thân plpgsql chỉ là text lúc `CREATE` nên apply migration KHÔNG lộ lỗi, chỉ lộ khi có người bấm tạo CLB | `gen_club_code()` dùng biến `v_code` |
 | Bật RLS mà quên `GRANT` | `permission denied for table clubs`, select bảng trả 403 trong khi RPC vẫn 200. Local không lộ (Supabase local có sẵn default privileges), chỉ lộ trên cloud | khối GRANT cuối file + `ALTER DEFAULT PRIVILEGES` |
 | Enum cho trình độ | Postgres không cho xoá / đổi thứ tự giá trị enum, mà CLB cần cả hai | `clubs.levels text[]`, KHÔNG có type `skill_level` |
+| Tài khoản mồ côi (có `auth.users`, không có `profiles`) | `create_club` trả `null value in column "name" of relation "club_members"` — **không tạo được CLB nào**. Xảy ra với mọi tài khoản đăng ký TRƯỚC khi schema được dựng (hoặc dựng lại), vì trigger chỉ chạy lúc INSERT `auth.users` | khối backfill sau trigger + guard `me.id IS NULL` trong `create_club` và `approve_join_request`, báo lỗi tiếng Việt |
 
 Ba câu tự kiểm nằm ở cuối `0001_init.sql` — chạy sau khi apply, cả ba phải trả 0 dòng: bảng thiếu
 GRANT · bảng chưa bật RLS · bảng bật RLS mà trống policy (bật rồi mà không có policy = khoá sạch,

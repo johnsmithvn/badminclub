@@ -712,6 +712,30 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+/* VÁ TÀI KHOẢN MỒ CÔI — tài khoản có trong auth.users mà KHÔNG có dòng profiles.
+ *
+ * Trigger trên chỉ chạy lúc INSERT vào auth.users. Tài khoản đăng ký TRƯỚC khi schema này được
+ * dựng (hoặc dựng lại) thì không ai sinh profile cho nó. Hậu quả: `create_club` đọc ra `me` rỗng
+ * → `COALESCE(me.nick, me.name)` NULL → đâm vào `club_members.name NOT NULL`, người dùng đọc
+ * được nguyên văn lỗi Postgres và không hiểu gì.
+ *
+ * Chạy lại vô hại: `NOT EXISTS` lọc hết người đã có profile. `ON CONFLICT DO NOTHING` phòng
+ * trường hợp username/email/phone đụng nhau — người đó sẽ bị bỏ qua và `create_club` báo lỗi
+ * tiếng Việt chỉ đường, thay vì tạo ra một profile sai danh tính. */
+INSERT INTO public.profiles (id, username, email, phone, name, nick, gender, level)
+SELECT u.id,
+       COALESCE(NULLIF(u.raw_user_meta_data->>'username', ''), split_part(u.email, '@', 1)),
+       u.email,
+       NULLIF(u.raw_user_meta_data->>'phone', ''),
+       COALESCE(NULLIF(u.raw_user_meta_data->>'name', ''), split_part(u.email, '@', 1)),
+       NULLIF(u.raw_user_meta_data->>'nick', ''),
+       (NULLIF(u.raw_user_meta_data->>'gender', ''))::gender,
+       NULLIF(u.raw_user_meta_data->>'level', '')
+  FROM auth.users u
+ WHERE u.email IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id)
+ON CONFLICT DO NOTHING;
+
 /* ==================== ĐĂNG NHẬP BẰNG EMAIL / USERNAME / SĐT ==================== */
 
 -- Client chưa đăng nhập nên không đọc được profiles (RLS). Hàm này SECURITY DEFINER,
@@ -835,6 +859,11 @@ BEGIN
   IF length(coalesce(trim(p_name), '')) < 2 THEN RAISE EXCEPTION 'Tên CLB quá ngắn'; END IF;
 
   SELECT * INTO me FROM profiles WHERE id = auth.uid();
+  -- Không có profile thì `me` toàn NULL, và câu INSERT dưới sẽ chết ở `club_members.name NOT NULL`
+  -- với một câu lỗi Postgres thô mà người dùng không hiểu. Báo bằng tiếng Việt và chỉ đường.
+  IF me.id IS NULL THEN
+    RAISE EXCEPTION 'Tài khoản này chưa có hồ sơ. Đăng xuất rồi đăng nhập lại; nếu vẫn lỗi thì chạy lại migration hoặc đăng ký tài khoản mới.';
+  END IF;
 
   INSERT INTO clubs (name, code, opening_balance, opening_date, opening_by,
                      lock_day, bank_holder, bank_no, bank_name)
@@ -901,6 +930,11 @@ BEGIN
 
   SELECT * INTO u FROM profiles WHERE id = req.user_id;
   SELECT * INTO c FROM clubs WHERE id = req.club_id;
+  -- Cùng bẫy với create_club: profile mồ côi thì nhánh "tạo thành viên mới" dưới sẽ ghi
+  -- name = NULL và chết ở ràng buộc NOT NULL. Nhánh "ghép vào bản ghi có sẵn" thì không sao.
+  IF u.id IS NULL AND p_member_id IS NULL THEN
+    RAISE EXCEPTION 'Người xin vào chưa có hồ sơ. Ghép họ vào một bản ghi thành viên có sẵn, hoặc bảo họ đăng nhập lại một lượt.';
+  END IF;
 
   IF p_member_id IS NOT NULL THEN
     -- Một user chỉ gắn 1 bản ghi trong 1 CLB: bỏ ghép bản ghi cũ trước.

@@ -1,13 +1,12 @@
-// Tất cả dialog của app, mount một lần ở AppLayout. ui.dialog quyết định cái nào mở.
-// Form nằm ở ui.form; giá trị mặc định ở #lib/forms.js.
-
-import { Button, Dialog, Input, Select, Switch } from '#ds'
+import { useMemo, useRef, useState } from 'react'
+import { Alert, Button, Dialog, Icon, IconButton, Input, Select, StatusPill, Switch } from '#ds'
 import { Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
 import { checkOf, checkPreview, fmtK, genderTxt, intOf, offBackSuggest } from '#lib/money.js'
 import { venueOptions } from '#lib/forms.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
+import { generateSampleCsv, parseAndValidateMembers, validateMemberRow } from '#lib/csv.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -25,6 +24,7 @@ export default function Dialogs() {
     ledger: LedgerDialog,
     addMember: AddMemberDialog,
     editMember: EditMemberDialog,
+    importMembers: ImportMembersDialog,
     offBack: OffBackDialog,
     zalo: ZaloDialog,
   }[ui.dialog]
@@ -590,3 +590,360 @@ function ZaloDialog() {
     </Shell>
   )
 }
+
+/* ---------------- nhập thành viên từ file CSV ---------------- */
+
+function ImportMembersDialog() {
+  const { db, a } = useApp()
+  const fileInputRef = useRef(null)
+  const [csvText, setCsvText] = useState('')
+  const [fileName, setFileName] = useState('')
+  const [activeTab, setActiveTab] = useState('file') // 'file' | 'paste'
+  const [start, setStart] = useState('next') // 'next' | 'now' | 'none'
+  const [dragOver, setDragOver] = useState(false)
+  const [rows, setRows] = useState([])
+  const [headerError, setHeaderError] = useState(null)
+
+  // Map số điện thoại thành viên hiện có để cảnh báo trùng
+  const phoneMap = useMemo(() => {
+    const m = new Map()
+    db.members.forEach((mem) => {
+      if (mem.phone) m.set(mem.phone.replace(/\D/g, ''), mem.name)
+    })
+    return m
+  }, [db.members])
+
+  // Khi csvText thay đổi -> parse lần đầu và đưa vào state rows
+  const handleParse = (text) => {
+    setCsvText(text)
+    if (!text.trim()) {
+      setRows([])
+      setHeaderError(null)
+      return
+    }
+    const res = parseAndValidateMembers(text, db.levels, db.groups, db.members)
+    setHeaderError(res.headerError)
+    setRows(res.rows)
+  }
+
+  // Chỉnh sửa từng trường của 1 dòng trực tiếp trên bảng mapping
+  const updateRowField = (rowId, field, value) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== rowId) return r
+        const updated = { ...r, [field]: value }
+        return validateMemberRow(updated, db.levels, phoneMap)
+      })
+    )
+  }
+
+  // Xoá 1 dòng khỏi bảng mapping
+  const removeRow = (rowId) => {
+    setRows((prev) => prev.filter((r) => r.id !== rowId))
+  }
+
+  const handleDownloadTemplate = () => {
+    const content = generateSampleCsv(db.levels, db.groups)
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `mau_thanh_vien_${db.clubId || 'clb'}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0]
+    if (!file) return
+    setFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      handleParse(evt.target.result || '')
+    }
+    reader.readAsText(file, 'utf-8')
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files && e.dataTransfer.files[0]
+    if (!file) return
+    setFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      handleParse(evt.target.result || '')
+    }
+    reader.readAsText(file, 'utf-8')
+  }
+
+  // Kiểm tra số lượng hợp lệ và lỗi
+  const errorCount = rows.filter((r) => r.status === 'error').length
+  const warnCount = rows.filter((r) => r.status === 'warn').length
+  const validCount = rows.filter((r) => r.status === 'valid').length
+  const canSave = rows.length > 0 && errorCount === 0 && !headerError
+
+  const handleSubmit = () => {
+    if (!canSave) return
+    a.importMembers(rows, { start })
+  }
+
+  return (
+    <Dialog open title={t('members.dlgImportTitle')} description={t('members.dlgImportDesc')} width={780} onClose={() => a.closeDialog()}>
+      <div style={{ display: 'grid', gap: 14 }}>
+        {/* Tải file mẫu chuẩn */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-brand-soft)', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, font: 'var(--type-caption)', color: 'var(--navy-700)' }}>
+            <Icon name="file-spreadsheet" size={16} />
+            <span>Mẫu CSV chuẩn 5 cột: <strong>Họ và tên · Số điện thoại · Giới tính · Trình độ · Nhóm cố định</strong></span>
+          </div>
+          <Button variant="ghost" size="sm" icon="download" onClick={handleDownloadTemplate}>
+            {t('members.downloadTemplate')}
+          </Button>
+        </div>
+
+        {/* Tab chọn cách nạp dữ liệu */}
+        <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 6 }}>
+          <Button
+            variant={activeTab === 'file' ? 'secondary' : 'ghost'}
+            size="sm"
+            icon="upload"
+            onClick={() => setActiveTab('file')}
+          >
+            Tải file lên
+          </Button>
+          <Button
+            variant={activeTab === 'paste' ? 'secondary' : 'ghost'}
+            size="sm"
+            icon="clipboard-check"
+            onClick={() => setActiveTab('paste')}
+          >
+            Dán văn bản
+          </Button>
+        </div>
+
+        {activeTab === 'file' ? (
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            style={{
+              padding: '22px 16px', borderRadius: 10, border: '2px dashed',
+              borderColor: dragOver ? 'var(--teal-500)' : 'var(--border-default)',
+              background: dragOver ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
+              textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s ease',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+            }}
+          >
+            <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleFileChange} />
+            <Icon name="upload" size={26} style={{ color: 'var(--teal-600)' }} />
+            <div style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>
+              {fileName ? `File đã nạp: ${fileName}` : t('members.importDropText') + ' ' + t('members.importChooseFile')}
+            </div>
+            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+              File CSV phải giữ nguyên đúng 5 tên cột theo file mẫu của hệ thống
+            </div>
+          </div>
+        ) : (
+          <div>
+            <textarea
+              rows={4}
+              placeholder={t('members.importPastePlaceholder')}
+              value={csvText}
+              onChange={(e) => { setFileName(''); handleParse(e.target.value) }}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 8,
+                border: '1px solid var(--border-default)', background: 'var(--field-bg)',
+                font: 'var(--type-mono)', fontSize: 13, color: 'var(--text-primary)',
+                resize: 'vertical', outline: 0, boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
+
+        {/* Cảnh báo nếu sai tiêu đề cột */}
+        {headerError && (
+          <Alert tone="danger">
+            {headerError}
+          </Alert>
+        )}
+
+        {/* Bảng mapping và xem/chỉnh sửa trực tiếp */}
+        {rows.length > 0 && !headerError && (
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>
+                Bảng xem và chỉnh sửa trực tiếp ({rows.length} người)
+              </div>
+              <div style={{ display: 'flex', gap: 10, font: 'var(--type-caption)' }}>
+                <span style={{ color: 'var(--status-delivered)' }}>
+                  ✓ {validCount} hợp lệ
+                </span>
+                {warnCount > 0 && (
+                  <span style={{ color: 'var(--status-delayed)' }}>
+                    ⚠️ {warnCount} trùng SĐT
+                  </span>
+                )}
+                {errorCount > 0 && (
+                  <span style={{ color: 'var(--status-incident)', fontWeight: 600 }}>
+                    ✗ {errorCount} thiếu trường bắt buộc
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {errorCount > 0 && (
+              <Alert tone="danger">
+                Có {errorCount} dòng thiếu thông tin bắt buộc (Họ và tên). Vui lòng nhập trực tiếp trên bảng hoặc bấm biểu tượng thùng rác để xoá dòng trước khi lưu.
+              </Alert>
+            )}
+
+            <div style={{
+              maxHeight: 280, overflowY: 'auto', border: '1px solid var(--border-subtle)',
+              borderRadius: 8, background: 'var(--surface-card)',
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--type-caption)' }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface-inset)', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>
+                    <th style={{ padding: '8px 8px', width: 28 }}>#</th>
+                    <th style={{ padding: '8px 8px', width: 170 }}>Họ và tên *</th>
+                    <th style={{ padding: '8px 8px', width: 120 }}>Số điện thoại</th>
+                    <th style={{ padding: '8px 8px', width: 85 }}>Giới tính *</th>
+                    <th style={{ padding: '8px 8px', width: 105 }}>Trình độ *</th>
+                    <th style={{ padding: '8px 8px', width: 140 }}>Nhóm cố định</th>
+                    <th style={{ padding: '8px 8px', width: 40, textAlign: 'center' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, idx) => {
+                    const isErr = r.status === 'error'
+                    return (
+                      <tr key={r.id} style={{
+                        borderBottom: '1px solid var(--border-subtle)',
+                        background: isErr ? 'var(--surface-brand-soft)' : 'transparent',
+                      }}>
+                        <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="text"
+                            value={r.name}
+                            placeholder="Nhập họ tên..."
+                            onChange={(e) => updateRowField(r.id, 'name', e.target.value)}
+                            style={{
+                              width: '100%', padding: '6px 8px', borderRadius: 6,
+                              border: isErr ? '1px solid var(--red-600)' : '1px solid var(--border-default)',
+                              background: 'var(--field-bg)', font: 'var(--type-label)',
+                              color: 'var(--text-primary)', outline: 0, boxSizing: 'border-box',
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="text"
+                            value={r.phone}
+                            placeholder="SĐT..."
+                            onChange={(e) => updateRowField(r.id, 'phone', e.target.value)}
+                            style={{
+                              width: '100%', padding: '6px 8px', borderRadius: 6,
+                              border: '1px solid var(--border-default)', background: 'var(--field-bg)',
+                              font: 'var(--type-mono)', color: 'var(--text-primary)', outline: 0, boxSizing: 'border-box',
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <select
+                            value={r.gender}
+                            onChange={(e) => updateRowField(r.id, 'gender', e.target.value)}
+                            style={{
+                              width: '100%', padding: '6px 4px', borderRadius: 6,
+                              border: '1px solid var(--border-default)', background: 'var(--field-bg)',
+                              font: 'var(--type-caption)', color: 'var(--text-primary)', outline: 0,
+                            }}
+                          >
+                            <option value="nam">Nam</option>
+                            <option value="nu">Nữ</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <select
+                            value={r.level}
+                            onChange={(e) => updateRowField(r.id, 'level', e.target.value)}
+                            style={{
+                              width: '100%', padding: '6px 4px', borderRadius: 6,
+                              border: '1px solid var(--border-default)', background: 'var(--field-bg)',
+                              font: 'var(--type-caption)', color: 'var(--text-primary)', outline: 0,
+                            }}
+                          >
+                            {db.levels.map((lvl) => (
+                              <option key={lvl} value={lvl}>{lvl}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <select
+                            value={r.groupId}
+                            onChange={(e) => updateRowField(r.id, 'groupId', e.target.value)}
+                            style={{
+                              width: '100%', padding: '6px 4px', borderRadius: 6,
+                              border: '1px solid var(--border-default)', background: 'var(--field-bg)',
+                              font: 'var(--type-caption)', color: 'var(--text-primary)', outline: 0,
+                            }}
+                          >
+                            <option value="">-- Không cố định --</option>
+                            {db.groups.map((g) => (
+                              <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                          <IconButton
+                            icon="trash-2"
+                            size="sm"
+                            variant="ghost"
+                            label="Xoá dòng này"
+                            onClick={() => removeRow(r.id)}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Tuỳ chọn bắt đầu cố định từ khi nào */}
+            <div style={{ maxWidth: 300 }}>
+              <Select
+                label={t('members.importStartOption')}
+                value={start}
+                options={[
+                  { value: 'next', label: t('members.startNext') },
+                  { value: 'now', label: t('members.startNow') },
+                  { value: 'none', label: t('members.startNone') },
+                ]}
+                onChange={(e) => setStart(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Nút thao tác */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+          <Button variant="secondary" onClick={() => a.closeDialog()}>{t('common.cancel')}</Button>
+          <Button
+            variant="primary"
+            icon="user-round-plus"
+            disabled={!canSave}
+            onClick={handleSubmit}
+          >
+            {rows.length > 0
+              ? t('members.importSubmit', { n: rows.length })
+              : 'Lưu danh sách'}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+

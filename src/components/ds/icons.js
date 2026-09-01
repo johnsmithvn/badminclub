@@ -12,12 +12,12 @@
 import {
   ArrowLeft, Banknote, Building2, Calculator, CalendarClock, CalendarDays, CalendarPlus,
   ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, CirclePause,
-  CircleX, ClipboardCheck, ClockAlert, Database, Ellipsis, Eraser, History, Inbox, Info,
-  Landmark, Layers, LayoutDashboard, Link, List, LoaderCircle, MapPin, Minus, Package,
-  PackageOpen, Pause, Play, Plus, Repeat, RotateCcw, Route, Scale, Search, Send, Settings,
-  Settings2, Shield, ShoppingCart, Shuffle, Split, Tags, Trash2, TrendingDown, TrendingUp,
-  TriangleAlert, Trophy, Truck, Undo2, Unlink, UserRound, UserRoundCheck, UserRoundPlus,
-  UserRoundX, Users, Volleyball, Wallet, WandSparkles, X,
+  CircleX, ClipboardCheck, ClockAlert, Database, Download, Ellipsis, Eraser, FileSpreadsheet,
+  History, Inbox, Info, Landmark, Layers, LayoutDashboard, Link, List, LoaderCircle, MapPin,
+  Minus, Package, PackageOpen, Pause, Play, Plus, Repeat, RotateCcw, Route, Scale, Search,
+  Send, Settings, Settings2, Shield, ShoppingCart, Shuffle, Split, Tags, Trash2, TrendingDown,
+  TrendingUp, TriangleAlert, Trophy, Truck, Undo2, Unlink, Upload, UserRound, UserRoundCheck,
+  UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -39,8 +39,10 @@ export const ICONS = {
   'clipboard-check': ClipboardCheck,
   'clock-alert': ClockAlert,
   database: Database,
+  download: Download,
   ellipsis: Ellipsis,
   eraser: Eraser,
+  'file-spreadsheet': FileSpreadsheet,
   history: History,
   inbox: Inbox,
   info: Info,
@@ -78,6 +80,7 @@ export const ICONS = {
   truck: Truck,
   'undo-2': Undo2,
   unlink: Unlink,
+  upload: Upload,
   'user-round': UserRound,
   'user-round-check': UserRoundCheck,
   'user-round-plus': UserRoundPlus,

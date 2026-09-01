@@ -152,10 +152,16 @@ function AllMembers({ canEdit }) {
             />
           )}
           {canEdit && (
-            <Button variant="primary" size="sm" icon="user-round-plus"
-              onClick={() => a.openDialog('addMember', memberForm(db))}>
-              {t('members.addMember')}
-            </Button>
+            <>
+              <Button variant="secondary" size="sm" icon="file-spreadsheet"
+                onClick={() => a.openDialog('importMembers', {})}>
+                {t('members.importCsv')}
+              </Button>
+              <Button variant="primary" size="sm" icon="user-round-plus"
+                onClick={() => a.openDialog('addMember', memberForm(db))}>
+                {t('members.addMember')}
+              </Button>
+            </>
           )}
         </div>
       }

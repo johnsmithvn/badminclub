@@ -663,6 +663,88 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           : t('toast.memberAdded', { name }))
     },
 
+    importMembers: (parsedRows, options = {}) => {
+      const valid = (parsedRows || []).filter((r) => r.status !== 'error' && r.name)
+      if (!valid.length) return toast(t('toast.noValidMembersToImport'))
+
+      const d0 = db()
+      const start = options.start || 'next'
+      const defGid = options.defaultGroupId || null
+      const nextM = addMonth(d0.month, 1)
+
+      const newMembers = []
+      const newDues = []
+      const fixMap = []
+
+      valid.forEach((row) => {
+        const id = uid()
+        const gs = row.groupId ? [row.groupId] : defGid ? [defGid] : []
+        const mb = {
+          id,
+          name: row.name,
+          gender: row.gender || 'nam',
+          level: row.level || d0.levels[0],
+          groupIds: start === 'now' ? gs : [],
+          role: 'member',
+          phone: row.phone || '',
+          joined: d0.today,
+          active: true,
+          userId: null,
+          pendingLevel: null,
+          pendingLevelFrom: null,
+        }
+        newMembers.push(mb)
+
+        if (start === 'now' && gs.length) {
+          gs.forEach((gid) => {
+            const g = d0.groups.find((x) => x.id === gid)
+            const jd = g ? joinDues(d0, mb, g, d0.month) : { amount: 0 }
+            if (jd && jd.amount > 0) {
+              newDues.push({
+                id: uid(),
+                month: d0.month,
+                groupId: gid,
+                memberId: id,
+                amount: jd.amount,
+                paidAmount: 0,
+                paidAt: null,
+                method: '',
+                note: jd.full ? t('members.joinFull') : t('members.joinPartial', { n: jd.sessions }),
+              })
+            }
+          })
+        }
+
+        if (start !== 'none' && gs.length) {
+          fixMap.push({ id, gs })
+        }
+      })
+
+      up((d) => {
+        const roster = { ...d.roster }
+        const fix = (month, gid, mid) => {
+          const base = roster[month] || ensureRoster(d, month)
+          roster[month] = { ...base, [gid]: { ...(base[gid] || {}), [mid]: 'fixed' } }
+        }
+
+        fixMap.forEach(({ id, gs }) => {
+          gs.forEach((gid) => {
+            fix(nextM, gid, id)
+            if (start === 'now') fix(d.month, gid, id)
+          })
+        })
+
+        return {
+          roster,
+          members: d.members.concat(newMembers),
+          dues: d.dues.concat(newDues),
+        }
+      })
+
+      upUi(() => ({ dialog: null, form: {} }))
+      toast(t('toast.membersImported', { n: newMembers.length }))
+    },
+
     /* ---------- lịch cố định và buổi ---------- */
     toggleSchedule: (id) => {
       // Đọc TRƯỚC khi ghi: db() sau up() vẫn là state cũ (React chưa render lại).
