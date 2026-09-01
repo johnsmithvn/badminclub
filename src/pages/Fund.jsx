@@ -15,44 +15,9 @@ export default function Fund() {
   const { db, ui, a } = useApp()
   const tab = ui.tab.fund || 'detail'
   const canMoney = can(db.viewAs || 'owner', 'money')
-  const flow = monthFlow(db, db.month)
-  const av = availableBalance(db)
-  const bal = av.balance
-  const net = flow.in - flow.out
 
   return (
     <>
-      <div style={GRID_STAT}>
-        <StatCard
-          label="Số dư quỹ hiện tại"
-          value={fmt(bal)}
-          icon="wallet"
-          tone={bal < 0 ? 'critical' : 'neutral'}
-          caption="Tiền thực tế đang có trong két/quỹ"
-        />
-        <StatCard
-          label="Thu trong tháng"
-          value={fmt(flow.in)}
-          icon="trending-up"
-          tone="positive"
-          caption={monthTxt(db.month)}
-        />
-        <StatCard
-          label="Chi trong tháng"
-          value={fmt(flow.out)}
-          icon="trending-down"
-          tone="critical"
-          caption={monthTxt(db.month)}
-        />
-        <StatCard
-          label="Thu − Chi tháng này"
-          value={(net >= 0 ? '+' : '') + fmt(net)}
-          icon="scale"
-          tone={net >= 0 ? 'positive' : 'critical'}
-          caption={net >= 0 ? 'Thu nhiều hơn chi' : 'Chi vượt quá thu'}
-        />
-      </div>
-
       <Tabs
         variant="underline"
         items={[
@@ -69,11 +34,9 @@ export default function Fund() {
   )
 }
 
-/* ---------------- tổng hợp theo tháng ---------------- */
-
 /* ---------------- TỔNG KẾT QUỸ THÁNG (BÁO CÁO PHONG TRÀO) ---------------- */
 
-function MonthSummary() {
+export function FundOverviewCards() {
   const { db } = useApp()
   const flow = monthFlow(db, db.month)
   const net = flow.in - flow.out
@@ -82,10 +45,144 @@ function MonthSummary() {
   const st = stock(db)
   const unit = shuttleUnit(db)
 
-  // Nhóm các giao dịch trong tháng
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+      <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Tổng tiền thu từ anh em</div>
+        <div style={{ font: 'var(--type-h2)', color: 'var(--status-delivered)', marginTop: 4 }}>
+          +{fmt(flow.in)}
+        </div>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
+          Quỹ tháng & khách vãng lai
+        </div>
+      </div>
+
+      <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Tổng chi phí hoạt động</div>
+        <div style={{ font: 'var(--type-h2)', color: 'var(--status-incident)', marginTop: 4 }}>
+          −{fmt(flow.out)}
+        </div>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
+          Tiền sân, mua cầu, hoàn vắng
+        </div>
+      </div>
+
+      <div style={{
+        padding: '14px 16px', borderRadius: 12,
+        background: net >= 0 ? 'var(--surface-accent-soft)' : 'var(--status-delayed-bg)',
+        border: `1px solid ${net >= 0 ? 'var(--teal-500)' : 'var(--status-delayed)'}`,
+        boxShadow: 'var(--shadow-sm)',
+      }}>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Chênh lệch thu - chi tháng này</div>
+        <div style={{ font: 'var(--type-h2)', color: net >= 0 ? 'var(--status-delivered)' : 'var(--status-delayed)', marginTop: 4 }}>
+          {(net >= 0 ? '+' : '') + fmt(net)}
+        </div>
+        <div style={{ font: 'var(--type-caption)', fontWeight: 600, color: net >= 0 ? 'var(--teal-800)' : 'var(--status-delayed)', marginTop: 2 }}>
+          {net >= 0 ? '● Tháng này đang thặng dư quỹ' : '▲ Tháng này đang bị hụt quỹ'}
+        </div>
+      </div>
+
+      <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface-sunken)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Số dư quỹ hiện tại</div>
+        <div style={{ font: 'var(--type-h2)', color: 'var(--text-primary)', marginTop: 4 }}>
+          {fmt(bal)}
+        </div>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
+          Kho cầu: {st.left} quả ({fmt(st.left * unit)})
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function FundBalanceColumns() {
+  const { db } = useApp()
+  const flow = monthFlow(db, db.month)
   const groups = ledgerGrouped(db, db.month)
   const inGroups = groups.filter((g) => g.dir === 'in' && g.cat !== 'opening')
   const outGroups = groups.filter((g) => g.dir === 'out')
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+      {/* Cột Thu */}
+      <Card title="Các khoản thu từ anh em (+)" icon="trending-up" padding="0">
+        <div style={{ display: 'grid' }}>
+          {inGroups.length === 0 ? (
+            <div style={{ padding: 16, font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center' }}>
+              Chưa phát sinh khoản thu nào trong tháng.
+            </div>
+          ) : (
+            inGroups.map((g) => (
+              <div key={g.key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)',
+              }}>
+                <div>
+                  <div style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {catLabel(g.cat)}
+                  </div>
+                  <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+                    {g.items.length} giao dịch
+                  </div>
+                </div>
+                <Mono size={14} weight={600} color="var(--status-delivered)">
+                  +{fmt(g.amount)}
+                </Mono>
+              </div>
+            ))
+          )}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 14px', background: 'var(--surface-sunken)', fontWeight: 700,
+          }}>
+            <span>TỔNG CỘNG THU</span>
+            <Mono size={15} color="var(--status-delivered)">+{fmt(flow.in)}</Mono>
+          </div>
+        </div>
+      </Card>
+
+      {/* Cột Chi */}
+      <Card title="Các khoản chi hoạt động (-)" icon="trending-down" padding="0">
+        <div style={{ display: 'grid' }}>
+          {outGroups.length === 0 ? (
+            <div style={{ padding: 16, font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center' }}>
+              Chưa phát sinh khoản chi nào trong tháng.
+            </div>
+          ) : (
+            outGroups.map((g) => (
+              <div key={g.key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)',
+              }}>
+                <div>
+                  <div style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {catLabel(g.cat)}
+                  </div>
+                  <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+                    {g.items.length} giao dịch
+                  </div>
+                </div>
+                <Mono size={14} weight={600} color="var(--status-incident)">
+                  −{fmt(g.amount)}
+                </Mono>
+              </div>
+            ))
+          )}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 14px', background: 'var(--surface-sunken)', fontWeight: 700,
+          }}>
+            <span>TỔNG CỘNG CHI</span>
+            <Mono size={15} color="var(--status-incident)">−{fmt(flow.out)}</Mono>
+          </div>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+export function MonthSummary() {
+  const { db } = useApp()
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -96,136 +193,18 @@ function MonthSummary() {
         icon="scale"
         padding="16px"
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-          <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)' }}>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Tổng tiền thu từ anh em</div>
-            <div style={{ font: 'var(--type-h2)', color: 'var(--status-delivered)', marginTop: 4 }}>
-              +{fmt(flow.in)}
-            </div>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-              Quỹ tháng & khách vãng lai
-            </div>
-          </div>
-
-          <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Tổng chi phí hoạt động</div>
-            <div style={{ font: 'var(--type-h2)', color: 'var(--status-incident)', marginTop: 4 }}>
-              −{fmt(flow.out)}
-            </div>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-              Tiền sân, mua cầu, hoàn vắng
-            </div>
-          </div>
-
-          <div style={{
-            padding: '12px 14px', borderRadius: 10,
-            background: net >= 0 ? 'var(--surface-accent-soft)' : 'var(--status-delayed-bg)',
-            border: `1px solid ${net >= 0 ? 'var(--teal-500)' : 'var(--status-delayed)'}`,
-          }}>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Chênh lệch thu - chi tháng này</div>
-            <div style={{ font: 'var(--type-h2)', color: net >= 0 ? 'var(--status-delivered)' : 'var(--status-delayed)', marginTop: 4 }}>
-              {(net >= 0 ? '+' : '') + fmt(net)}
-            </div>
-            <div style={{ font: 'var(--type-caption)', fontWeight: 600, color: net >= 0 ? 'var(--teal-800)' : 'var(--status-delayed)', marginTop: 2 }}>
-              {net >= 0 ? '● Tháng này đang thặng dư quỹ' : '▲ Tháng này đang bị hụt quỹ'}
-            </div>
-          </div>
-
-          <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--surface-sunken)', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Số dư quỹ hiện tại</div>
-            <div style={{ font: 'var(--type-h2)', color: 'var(--text-primary)', marginTop: 4 }}>
-              {fmt(bal)}
-            </div>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-              Kho cầu: {st.left} quả ({fmt(st.left * unit)})
-            </div>
-          </div>
-        </div>
+        <FundOverviewCards />
       </Card>
 
       {/* 2. Bảng cân đối Thu - Chi 2 cột */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
-        {/* Cột Thu */}
-        <Card title="Các khoản thu từ anh em (+)" icon="trending-up" padding="0">
-          <div style={{ display: 'grid' }}>
-            {inGroups.length === 0 ? (
-              <div style={{ padding: 16, font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center' }}>
-                Chưa phát sinh khoản thu nào trong tháng.
-              </div>
-            ) : (
-              inGroups.map((g) => (
-                <div key={g.key} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)',
-                }}>
-                  <div>
-                    <div style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {catLabel(g.cat)}
-                    </div>
-                    <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-                      {g.items.length} giao dịch
-                    </div>
-                  </div>
-                  <Mono size={14} weight={600} color="var(--status-delivered)">
-                    +{fmt(g.amount)}
-                  </Mono>
-                </div>
-              ))
-            )}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '12px 14px', background: 'var(--surface-sunken)', fontWeight: 700,
-            }}>
-              <span>TỔNG CỘNG THU</span>
-              <Mono size={15} color="var(--status-delivered)">+{fmt(flow.in)}</Mono>
-            </div>
-          </div>
-        </Card>
-
-        {/* Cột Chi */}
-        <Card title="Các khoản chi hoạt động (-)" icon="trending-down" padding="0">
-          <div style={{ display: 'grid' }}>
-            {outGroups.length === 0 ? (
-              <div style={{ padding: 16, font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center' }}>
-                Chưa phát sinh khoản chi nào trong tháng.
-              </div>
-            ) : (
-              outGroups.map((g) => (
-                <div key={g.key} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)',
-                }}>
-                  <div>
-                    <div style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {catLabel(g.cat)}
-                    </div>
-                    <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-                      {g.items.length} giao dịch
-                    </div>
-                  </div>
-                  <Mono size={14} weight={600} color="var(--status-incident)">
-                    −{fmt(g.amount)}
-                  </Mono>
-                </div>
-              ))
-            )}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '12px 14px', background: 'var(--surface-sunken)', fontWeight: 700,
-            }}>
-              <span>TỔNG CỘNG CHI</span>
-              <Mono size={15} color="var(--status-incident)">−{fmt(flow.out)}</Mono>
-            </div>
-          </div>
-        </Card>
-      </div>
+      <FundBalanceColumns />
     </div>
   )
 }
 
 /* ---------------- chi tiết thu chi ---------------- */
 
-function Detail({ canMoney }) {
+export function Detail({ canMoney }) {
   const { db, ui, a } = useApp()
   const groups = ledgerGrouped(db, db.month)
   const allOpen = groups.length > 0 && groups.every((g) => g.items.length < 2 || ui.expanded[g.key])
@@ -311,7 +290,7 @@ function Detail({ canMoney }) {
  * Mọi phép tính nằm ở `ledger.js: reconcile` — màn này chỉ render.
  * Ô nhập đọc bằng `intOf` để gõ "3.387.000" có dấu chấm vẫn ra đúng số (P4.5).
  */
-function Reconcile() {
+export function Reconcile() {
   const { db, ui, a } = useApp()
   const raw = ui.form.recCounted
   // Chưa gõ gì → truyền null để reconcile biết là "chưa đối chiếu", khác hẳn với đếm được 0 đồng.

@@ -11,23 +11,37 @@ import {
 } from '#lib/money.js'
 import { availableBalance, monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
+import { Detail, FundBalanceColumns, FundOverviewCards, Reconcile } from '#pages/Fund.jsx'
+import { can } from '#lib/roles.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
 export default function Home() {
-  const { ui, a } = useApp()
+  const { db, ui, a } = useApp()
   const tab = ui.tab.home || 'overview'
+  const canMoney = can(db.viewAs || 'owner', 'money')
+
   return (
     <>
       <Tabs
         variant="underline"
         items={[
-          { value: 'overview', label: t('home.tabs.overview') },
-          { value: 'report', label: t('home.tabs.report') },
+          { value: 'overview', label: 'Tổng quan' },
+          { value: 'transactions', label: 'Chi tiết thu chi' },
+          { value: 'report', label: 'Báo cáo tháng' },
+          { value: 'rec', label: 'Đối chiếu quỹ' },
         ]}
         value={tab}
         onChange={(v) => a.setTab('home', v)}
       />
-      {tab === 'overview' ? <Overview /> : <Report />}
+      {tab === 'overview' ? (
+        <Overview />
+      ) : tab === 'transactions' ? (
+        <Detail canMoney={canMoney} />
+      ) : tab === 'rec' ? (
+        <Reconcile />
+      ) : (
+        <Report />
+      )}
     </>
   )
 }
@@ -206,34 +220,22 @@ function Overview() {
     <>
       <Warnings />
       <Setup />
-      <div style={GRID_STAT}>
-        <StatCard label={t('home.fundBalance')} value={fmt(bal)} icon="wallet"
-          tone={bal < 0 ? 'critical' : 'neutral'}
-          caption={totalOwed > 0
-            ? `CLB đang nợ ứng ${fmtK(totalOwed)}`
-            : t('home.fundCaption', { amount: fmt(db.club.opening), date: ddmy(db.club.openingDate) })} />
+      {/* 4 thẻ tài chính chuẩn từ Sổ quỹ */}
+      <FundOverviewCards />
+
+      {/* 4 chỉ số vận hành CLB */}
+      <div style={{ ...GRID_STAT, marginTop: 12 }}>
         <StatCard label="Nợ cần thu" value={fmt(totalDebt)} icon="clock-alert"
           tone={totalDebt > 0 ? 'warning' : 'neutral'}
           caption={debtors.length ? `${debtors.length} người đang nợ` : 'Đã thu đủ'} />
-        <StatCard label={t('home.stock')} value={st.left} unit={t('units.shuttle')} icon="package" tone="accent"
-          caption={t('home.stockCaption', { bought: st.bought, used: st.used })} />
         <StatCard label={t('home.dues')} value={duesPaid.length + ' / ' + dues.length} icon="users"
           tone={dues.length && duesPaid.length === dues.length ? 'positive' : 'warning'}
           caption={t('home.duesCaption', {
             paid: fmtK(duesTotal(dues).paid),
             total: fmtK(duesTotal(dues).amount),
           })} />
-      </div>
-
-      <div style={GRID_STAT}>
-        <StatCard label={t('home.monthIn')} value={fmt(flow.in)} icon="trending-up" tone="positive"
-          caption={t('home.monthInCaption')} />
-        <StatCard label={t('home.monthOut')} value={fmt(flow.out)} icon="trending-down" tone="critical"
-          caption={t('home.monthOutCaption')} />
-        <StatCard label={t('home.avgShuttle')}
-          value={closed.length ? Math.round(closed.reduce((x, s) => x + s.shuttleUsed, 0) / closed.length) : 0}
-          unit={t('units.shuttlePerSession')} icon="package-open"
-          caption={t('home.avgShuttleCaption', { unit: fmtK(shuttleUnit(db)) })} />
+        <StatCard label={t('home.stock')} value={st.left} unit={t('units.shuttle')} icon="package" tone="accent"
+          caption={t('home.stockCaption', { bought: st.bought, used: st.used })} />
         <StatCard label={t('home.closedRatio')} value={closed.length + ' / ' + sess.length} icon="clipboard-check"
           caption={t('home.closedCaption', { n: sess.length - closed.length })} />
       </div>
@@ -442,13 +444,23 @@ function Overview() {
         </Card>
       </div>
 
-      <Card title={t('home.recent')} subtitle={t('home.recentSub')} icon="history" padding="0">
-        {sess.length === 0
-          ? <Empty icon="calendar-days" title={t('home.noSession')} hint={t('home.noSessionHint')} />
-          : <DataTable columns={sessionColumns(db)}
-              rows={sess.slice().reverse().slice(0, cfg.ui.recentSessionCount)}
-              rowKey="id" onRowClick={(r) => a.openSession(r.id)} />}
-      </Card>
+      {/* Section Tổng kết thu chi 2 cột từ Sổ quỹ */}
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <div style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>
+              Tổng kết thu chi {monthTxt(month).toLowerCase()}
+            </div>
+            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+              Báo cáo chi tiết các khoản thu từ anh em và chi phí vận hành thực tế của CLB
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.setTab('home', 'transactions')}>
+            Xem chi tiết thu chi
+          </Button>
+        </div>
+        <FundBalanceColumns />
+      </div>
     </>
   )
 }
@@ -473,7 +485,7 @@ function Warnings() {
             {!w.ids
               ? (
                 <div>
-                  <Button size="sm" variant="secondary" icon="landmark" onClick={() => a.go('fund')}>
+                  <Button size="sm" variant="secondary" icon="landmark" onClick={() => a.setTab('home', 'transactions')}>
                     {t('home.warn.noBill.btn')}
                   </Button>
                 </div>
