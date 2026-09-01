@@ -264,27 +264,31 @@ function Overview() {
                   <div key={s.id} style={SS.upRow}>
                     <DayBox iso={s.date} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={SS.label}>{groupOf(db, s.groupId).name}</div>
-                      <Mono color="var(--text-muted)">{ddmy(s.date) + ' · ' + timeTxt(s) + ' · ' + courtTxt(db, s)}</Mono>
+                      <div style={{ ...SS.label, ...SS.ellipsis }}>{groupOf(db, s.groupId).name}</div>
+                      <div style={{ ...SS.ellipsis, font: 'var(--type-mono)', color: 'var(--text-muted)', fontSize: 12 }}>
+                        {timeTxt(s) + ' · ' + courtTxt(db, s)}
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap' }}>
                       <Mono weight={600} color="var(--text-primary)">{fmt(courtCost(db, s))}</Mono>
                       <div style={SS.caption}>{t('home.courtCostLabel')}</div>
                     </div>
-                    {canSessions ? (
-                      <Button size="sm" icon="user-round-check"
-                        variant={s.status === 'draft' ? 'secondary' : 'accent'}
-                        onClick={() => {
-                          if (s.status === 'draft') a.setSessionStatus(s.id, 'open')
-                          a.openSession(s.id)
-                        }}>
-                        {s.status === 'draft' ? t('home.openSession') : t('home.markAttend')}
-                      </Button>
-                    ) : (
-                      <Button size="sm" icon="eye" variant="ghost" onClick={() => a.openSession(s.id)}>
-                        Xem buổi
-                      </Button>
-                    )}
+                    <div style={{ flexShrink: 0 }}>
+                      {canSessions ? (
+                        <Button size="sm" icon="user-round-check"
+                          variant={s.status === 'draft' ? 'secondary' : 'accent'}
+                          onClick={() => {
+                            if (s.status === 'draft') a.setSessionStatus(s.id, 'open')
+                            a.openSession(s.id)
+                          }}>
+                          {s.status === 'draft' ? t('home.openSession') : t('home.markAttend')}
+                        </Button>
+                      ) : (
+                        <Button size="sm" icon="eye" variant="ghost" onClick={() => a.openSession(s.id)}>
+                          Xem buổi
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>}
@@ -777,7 +781,7 @@ const SS = {
     temp: { ...COST_TAG, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' },
   },
   upRow: {
-    display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px',
+    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
     borderTop: '1px solid var(--border-subtle)',
   },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
