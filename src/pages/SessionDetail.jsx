@@ -66,6 +66,11 @@ export default function SessionDetail() {
   const warns = closeWarnings(db, s)
   const drift = costDrift(db, s)
 
+  const allSold = (s.courts || []).length > 0 && (s.courts || []).every((court) => court.sold)
+  const isCancelled = s.status === 'cancelled'
+  const isClosed = s.status === 'closed'
+  const isInactive = allSold || isCancelled
+
   return (
     <>
       <div>
@@ -212,7 +217,7 @@ export default function SessionDetail() {
           subtitle={t('session.attendSub')}
           icon="user-round-check"
           padding="14px 16px"
-          actions={canEdit && (
+          actions={canEdit && !isInactive && !isClosed && (
             <div style={{ display: 'flex', gap: 6 }}>
               <Button variant="secondary" size="sm" onClick={() => a.markAll(s.id, true)}>{t('session.allPresent')}</Button>
               <Button variant="ghost" size="sm" onClick={() => a.markAll(s.id, false)}>{t('session.allAbsent')}</Button>
@@ -220,6 +225,8 @@ export default function SessionDetail() {
           )}
         >
           <div style={{ display: 'grid', gap: 7 }}>
+            {isCancelled && <Alert tone="danger">{t('session.cancelledNotice')}</Alert>}
+            {allSold && <Alert tone="warning">{t('session.allSoldNotice')}</Alert>}
             <Mono color="var(--text-muted)">
               {t('session.attendCount', { present: presentCount(db, s), total: members.length })}
             </Mono>
@@ -234,17 +241,18 @@ export default function SessionDetail() {
               return (
                 <div key={m.id} style={{
                   ...S.attRow,
-                  background: state === true ? 'var(--surface-accent-soft)'
+                  background: allSold ? 'var(--surface-sunken)' : state === true ? 'var(--surface-accent-soft)'
                     : extra ? 'var(--status-scheduled-bg)'
                       : state === false ? 'var(--surface-sunken)' : 'var(--surface-card)',
-                  borderColor: state === true ? 'var(--teal-500)'
+                  borderColor: allSold ? 'var(--border-subtle)' : state === true ? 'var(--teal-500)'
                     : extra ? 'var(--status-scheduled-fg)' : 'var(--border-subtle)',
+                  opacity: isInactive ? 0.75 : 1,
                 }}>
-                  <button type="button" disabled={!canEdit || extra}
+                  <button type="button" disabled={!canEdit || extra || isInactive || isClosed}
                     onClick={() => a.toggleAtt(s.id, m.id)}
                     style={{
                       ...S.attBtn,
-                      cursor: canEdit && !extra ? 'pointer' : 'default',
+                      cursor: canEdit && !extra && !isInactive && !isClosed ? 'pointer' : 'default',
                     }}>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                       <div style={S.label}>{m.name}</div>
@@ -253,11 +261,11 @@ export default function SessionDetail() {
                     <LevelChip level={levelOf(m, month)} levels={db.levels} />
                     <span style={{
                       font: 'var(--type-label)', minWidth: 74, textAlign: 'right',
-                      color: state === true ? 'var(--status-transit)'
+                      color: allSold ? 'var(--text-muted)' : state === true ? 'var(--status-transit)'
                         : extra ? 'var(--status-scheduled-fg)'
                           : state === false ? 'var(--text-muted)' : 'var(--text-disabled)',
                     }}>
-                      {extra ? t('attend.extra')
+                      {allSold ? t('attend.absent') : extra ? t('attend.extra')
                         : state === true ? t('attend.present')
                           : state === false ? t('attend.absent') : t('attend.unmarked')}
                     </span>
@@ -332,7 +340,7 @@ export default function SessionDetail() {
                 </div>
               )
             })}
-            {canEdit && <ExtraPicker s={s} members={members} />}
+            {canEdit && !isInactive && !isClosed && <ExtraPicker s={s} members={members} />}
           </div>
         </Card>
 
@@ -417,12 +425,14 @@ export default function SessionDetail() {
           </Card>
 
           <Card title={t('session.guestsTitle')} subtitle={t('session.guestsSub')} icon="user-round-plus" padding="14px 16px">
-            {canEdit && <GuestForm s={s} />}
+            {isCancelled && <Alert tone="danger">{t('session.cancelledGuestNotice')}</Alert>}
+            {allSold && <Alert tone="warning">{t('session.allSoldGuestNotice')}</Alert>}
+            {canEdit && !isInactive && !isClosed && <GuestForm s={s} />}
             <div style={{ display: 'grid', gap: 8, marginTop: guests.length ? 12 : 0 }}>
               {guests.length === 0
                 ? <Empty icon="user-round-plus" title={t('session.guestEmpty')} hint={t('session.guestEmptyHint')} />
                 : guests.map((g) => (
-                    <div key={g.id} style={S.guestRow}>
+                    <div key={g.id} style={{ ...S.guestRow, opacity: isInactive ? 0.75 : 1 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={S.label}>{guestOf(db, g.guestId).name}</div>
                         <div style={S.caption}>{genderTxt(g.gender) + ' · ' + g.level}</div>
@@ -440,13 +450,14 @@ export default function SessionDetail() {
                         }))}
                         levels={db.levels}
                         clearable
+                        disabled={!canEdit || isInactive || isClosed}
                         value={g.invitedBy || ''}
                         onChange={(val) => a.setGuestInviter(g.id, val)}
                       />
                       <Mono weight={600} color="var(--text-primary)">{fmt(g.price)}</Mono>
                       <Switch label={g.paid ? t('session.guestPaid') : t('session.guestDebt')}
-                        checked={g.paid} onChange={() => a.toggleGuestPaid(g.id)} />
-                      {canEdit && (
+                        checked={g.paid} disabled={!canMoney || isInactive || isClosed} onChange={() => a.toggleGuestPaid(g.id)} />
+                      {canEdit && !isInactive && !isClosed && (
                         <div style={{ display: 'flex', gap: 2 }}>
                           <IconButton
                             icon="pencil"
@@ -478,7 +489,7 @@ export default function SessionDetail() {
           <Card title={t('session.costTitle')} subtitle={t('session.costSub')} icon="calculator" padding="14px 16px"
             actions={<span style={S.costTag[cState]}>{t('session.costState.' + cState)}</span>}>
             <div style={{ display: 'grid', gap: 12 }}>
-              <ShuttleBox s={s} canEdit={canEdit} />
+              <ShuttleBox s={s} canEdit={canEdit && !isInactive && !isClosed} />
 
               <div style={S.sumBox}>
                 <SumRow label={t('session.sumCourt')} value={fmt(c.court)}
@@ -607,7 +618,7 @@ function ExtraPicker({ s, members }) {
         disabled={count === 0}
         onClick={handleAdd}
       >
-        {count > 1 ? `+ Thêm ${count} người đi lẻ` : t('session.extraAdd')}
+        {count > 1 ? t('session.extraAddMany', { n: count }) : t('session.extraAdd')}
       </Button>
     </div>
   )
@@ -698,7 +709,9 @@ function GuestForm({ s }) {
                       <LevelChip level={g.level} levels={db.levels} />
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{genderTxt(g.gender)}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {gs.sessionCount > 0 ? `${gs.sessionCount} buổi · ${lastDate}` : 'Chưa có buổi'}
+                        {gs.sessionCount > 0
+                          ? t('session.guestSessionMeta', { n: gs.sessionCount, date: lastDate })
+                          : t('session.guestNoSession')}
                       </span>
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -761,7 +774,7 @@ function GuestForm({ s }) {
         >
           {noLevel
             ? t('common.add')
-            : (f.gHasCompanion ? `2 bạn · ${fmt(totalPrice)}` : fmt(totalPrice))}
+            : (f.gHasCompanion ? t('session.addTwoGuests', { amount: fmt(totalPrice) }) : fmt(totalPrice))}
         </Button>
       </div>
 
@@ -778,7 +791,7 @@ function GuestForm({ s }) {
               const checked = e.target.checked
               set('gHasCompanion', checked)
               if (checked && !f.gCompanionName && f.gName) {
-                set('gCompanionName', `Bạn ${f.gName.trim()}`)
+                set('gCompanionName', t('session.companionDefault', { name: f.gName.trim() }))
               }
             }}
             style={{ cursor: 'pointer', accentColor: 'var(--teal-600)' }}
@@ -795,7 +808,7 @@ function GuestForm({ s }) {
           onClick={() => setShowExtra(!showExtra)}
         >
           <Icon name={showExtra ? 'chevron-up' : 'plus'} size={12} />
-          <span>{showExtra ? 'Thu gọn thông tin liên hệ' : 'Thêm SĐT / Link FB / Ghi chú cho khách'}</span>
+          <span>{t(showExtra ? 'session.extraLess' : 'session.extraMore')}</span>
         </button>
       </div>
 
@@ -812,7 +825,7 @@ function GuestForm({ s }) {
         }}>
           <Input
             label={t('session.companionName')}
-            placeholder={`Bạn ${(f.gName || '').trim() || '...'}`}
+            placeholder={t('session.companionDefault', { name: (f.gName || '').trim() || '...' })}
             value={f.gCompanionName || ''}
             onChange={(e) => set('gCompanionName', e.target.value)}
           />
@@ -834,13 +847,13 @@ function GuestForm({ s }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 9 }}>
           <Input
             label={t('members.guestPhone')}
-            placeholder="0912... hoặc SĐT liên lạc"
+            placeholder={t('session.phGuestPhone2')}
             value={f.gPhone || ''}
             onChange={(e) => set('gPhone', e.target.value)}
           />
           <Input
             label={t('members.guestNote')}
-            placeholder="Ghi chú: link FB, tay trái, bạn ai..."
+            placeholder={t('session.phGuestNote2')}
             value={f.gNote || ''}
             onChange={(e) => set('gNote', e.target.value)}
           />

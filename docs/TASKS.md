@@ -800,7 +800,7 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
 - [x] **Mời qua SĐT: KHÔNG LÀM** — user chốt 2026-09-02, gỡ khỏi mọi kế hoạch. Phần nhận phải gửi
       SMS thật, tốn tiền. Đường vào CLB duy nhất là **mã CLB**. Bảng `club_invites` và cột
       `clubs.allow_invite` để nguyên dưới DB (không đụng schema), client không đọc.
-- [x] **Trường Link Google Maps / Bản đồ vị trí sân (`courts.map_url`) — migration `0011_court_map_url`**:
+- [x] **Trường Link Google Maps / Bản đồ vị trí sân (`courts.map_url`) — migration `0012_court_map_url`**:
       Bổ sung cột `map_url text` vào bảng `courts`, hỗ trợ nhập link Google Maps trong hộp thoại
       Thêm/Sửa sân ở Cài đặt và sao lưu JSON settings. Hiển thị nút "Bản đồ" với icon `map-pin`
       ở tab Sân và chi tiết buổi tập (`SessionDetail`).
@@ -839,6 +839,38 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
 - [ ] **Chưa làm: GỘP hai bản ghi cùng một người** (bấm nhầm "Tạo thành viên mới"). Vẫn như cũ:
       16 cột trỏ tới `club_members`, 4 UNIQUE, sync ghi từng dòng không transaction → phải là RPC
       riêng. Đợt này chỉ làm cho việc đó ÍT xảy ra hơn, không sửa được ca đã lỡ.
+
+---
+
+## Đợt dọn i18n — gỡ chữ cứng + khoá luật · **XONG 2026-09-02**
+
+Không đụng schema, không migration, không đổi một dòng logic nào — chỉ đổi chỗ CHỨA chữ.
+
+- [x] **323 dòng code còn chữ tiếng Việt viết cứng → `vi.json`** (≈200 key mới). Phân bố: `Debts.jsx` 85 ·
+      `Settings.jsx` 35 · `Dialogs.jsx` 33 · `Home.jsx` 31 · `Members.jsx` 27 · `SessionDetail.jsx` 26 ·
+      `appActions.js` 24 · `Fund.jsx` 22 · `csv.js` 17 · `Clubs.jsx` 8 · còn lại lẻ ở `SearchSelect` ·
+      `Sidebar` · `ui/index` · `ledger.js` · `money.js` · `Sessions.jsx`.
+      Gốc: các đợt dựng lại màn Công nợ / Cài đặt / Sổ quỹ viết thẳng nhãn vào JSX. Phase 0 vẫn
+      khai *"không còn chữ cứng trong .jsx"* suốt thời gian đó — **doc nói dối, không ai kiểm được.**
+- [x] **Báo cáo Zalo (`copyZalo`) tách ra họ key `zalo.*`** — 13 dòng ghép chuỗi, là văn bản người
+      dùng dán thẳng vào nhóm Zalo chứ không phải log.
+- [x] **Hộp thoại nhập CSV thôi chép tay danh sách cột.** `Dialogs.jsx` in lại 5 + 2 tên cột bằng
+      chữ cứng, lệch với `csv.js` lúc nào không biết; giờ render thẳng từ `TEMPLATE_HEADERS` /
+      `OPTIONAL_HEADERS`. Một nguồn sự thật, sửa cột là hai chỗ đổi cùng lúc.
+- [x] **Dấu `// i18n-ok` — cửa lách luật DUY NHẤT, phải kèm lý do** (`RULES.md` §3.1). Dùng đúng
+      3 chỗ: tên cột file CSV (hợp đồng định dạng — dịch là từ chối hàng loạt file cũ) · nội dung
+      file CSV mẫu · regex bỏ dấu `.replace(/đ/g,'d')` trong các hàm chuẩn hoá tìm kiếm.
+- [x] **`smoke/i18n.test.js` gác thêm CHIỀU NGƯỢC LẠI.** Test cũ chỉ hỏi *"key đang dùng có tồn
+      tại không"* — viết thẳng `'Đã xoá thành viên'` vào JSX thì chẳng key nào thiếu, test vẫn
+      xanh. Cách bắt: chữ tiếng Việt luôn có dấu (tách ra bằng NFD) hoặc chữ `đ`, còn cú pháp JS
+      thì không bao giờ — nên quét dấu trên dòng code đã cắt comment là đủ, không cần parse.
+      Mutation-test 3 nhánh: chuỗi cứng bị bắt · `i18n-ok` được tha · comment được tha.
+- [x] Dọn nốt hai chỗ chép lại chữ đã có key: `ledger.js` ghép tay nhãn hoá đơn sân trong khi
+      `ledger.label.courtBill` nằm sẵn đó, và `SessionDetail` fallback `t('settings.openMap') || 'Bản đồ'`
+      — `t()` không bao giờ trả rỗng nên nhánh `||` là code chết.
+
+**Đánh đổi:** ~200 key mới làm `vi.json` phình lên. Đổi lại là đổi câu chữ ở MỘT chỗ, và thêm
+`en.json` không phải đụng màn hình nào — đúng cái `RULES.md` §3.1 hứa từ đầu.
 
 ---
 

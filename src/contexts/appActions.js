@@ -443,7 +443,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }
 
       // Thông tin người đi kèm (nếu có)
-      const compName = hasCompanion ? ((f.gCompanionName || '').trim() || ('Bạn ' + finalName)) : ''
+      const compName = hasCompanion ? ((f.gCompanionName || '').trim() || t('session.companionDefault', { name: finalName })) : ''
       const compGender = hasCompanion ? (f.gCompanionGender || 'nu') : 'nu'
       const compLevel = hasCompanion ? (f.gCompanionLevel || level) : level
       const compGid = hasCompanion ? uid() : null

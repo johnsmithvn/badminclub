@@ -427,7 +427,7 @@ export function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
     >
       <div style={{ display: 'grid', gap: 12, padding: '4px 0' }}>
         <Input label={t('session.guestName')} value={name} onChange={(e) => setName(e.target.value)} />
-        <Input label={t('members.guestPhone')} placeholder="0912... hoặc link FB / Zalo" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <Input label={t('members.guestPhone')} placeholder={t('members.phGuestPhone')} value={phone} onChange={(e) => setPhone(e.target.value)} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <GenderSegment
             label={t('session.guestGender')}
@@ -441,7 +441,7 @@ export function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
             onChange={(e) => setLevel(e.target.value)}
           />
         </div>
-        <Input label={t('members.guestNote')} placeholder="Ghi chú thêm: link FB, tay trái, bạn Mai..." value={note} onChange={(e) => setNote(e.target.value)} />
+        <Input label={t('members.guestNote')} placeholder={t('members.phGuestNote')} value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
     </Dialog>
   )

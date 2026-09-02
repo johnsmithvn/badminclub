@@ -89,6 +89,46 @@ const walk = (node, path) => {
 }
 walk(vi, '')
 
+/* ---------- CHIỀU NGƯỢC LẠI: chữ cứng còn sót trong code ---------- */
+// Phần trên chỉ hỏi "key đang dùng có tồn tại không". Nó KHÔNG bắt được lỗi ngược lại: viết
+// thẳng 'Đã xoá thành viên' vào .jsx thì chẳng key nào thiếu, test vẫn xanh, và luật RULES §3.1
+// vỡ trong im lặng. Đó đúng là chuyện đã xảy ra — đợt dựng lại màn Công nợ / Cài đặt / Sổ quỹ
+// để lại 279 chuỗi cứng mà bộ test cũ không hé một lời, trong khi header file này vẫn khai
+// "không chữ cứng trong .jsx".
+//
+// Cách bắt: chữ tiếng Việt LUÔN có dấu thanh / dấu mũ (tách ra được bằng NFD) hoặc chữ đ.
+// Định danh và cú pháp JS thì không bao giờ có. Nên quét dấu trên dòng code thật là đủ, không
+// cần parse.
+//
+// Ba ngoại lệ, đúng theo §3.1:
+//   · comment — cắt trước khi quét
+//   · `console.*` và `throw new Error(...)` — chữ dành cho developer, không ai dùng thấy
+//   · dấu `i18n-ok` cuối dòng — chuỗi tiếng Việt là DỮ LIỆU chứ không phải nhãn: tên cột của
+//     file CSV (hợp đồng định dạng, dịch là từ chối file cũ), nội dung file mẫu, regex bỏ dấu.
+//     Đặt dấu này phải kèm lý do; nó là cửa duy nhất để lách luật nên đừng rải bừa.
+const hasVi = (s) => /[̀-ͯ]/.test(s.normalize('NFD')) || /[đĐ]/.test(s)
+
+const hard = []
+files(SRC).forEach((p) => {
+  const raw = readFileSync(p, 'utf8').split(/\r?\n/)
+  // Comment khối xoá theo ký tự (giữ nguyên số dòng), comment dòng cắt phần đuôi. `[^:]` phía
+  // trước `//` để không cắt nhầm 'https://...'.
+  const code = readFileSync(p, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .split(/\r?\n/)
+    .map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1'))
+  code.forEach((line, i) => {
+    if (raw[i].includes('i18n-ok')) return
+    if (/console\.|new Error\(/.test(line)) return
+    if (hasVi(line)) hard.push(p + ':' + (i + 1) + '  ' + line.trim().slice(0, 90))
+  })
+})
+
+assert.equal(hard.length, 0,
+  'chữ cứng trong code — phải chuyển sang vi.json rồi gọi t(\'key\') (RULES §3.1).\n' +
+  'Chuỗi cứng thì đổi ngôn ngữ không tới được, và sửa câu chữ phải đi lục từng file:\n  ' +
+  hard.join('\n  '))
+
 /* ---------- key GHÉP ĐỘNG: liệt kê tay vì regex trên không thấy được ---------- */
 // Đây là chỗ thiếu key mà không ai phát hiện: t('nav.' + p.key) thiếu một route thì sidebar
 // hiện thẳng chuỗi "nav.shuttles". Miền giá trị của từng họ key lấy từ config / hằng số thật,

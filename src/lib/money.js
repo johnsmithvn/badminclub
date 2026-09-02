@@ -185,12 +185,13 @@ export function perTube(db, s) {
   return (type && type.perTube) || cfg.shuttle.perTubeDefault
 }
 
-/** Định mức cầu của buổi, giảm theo số sân CLB còn thực chơi. Sàn 6 quả. */
 export function quotaFor(db, s) {
   const g = groupOf(db, s.groupId)
   const base = g.quota || 24
   const total = rows(s).filter((c) => !c.extra).length || (g.courtIds || []).length || 1
-  return Math.max(cfg.shuttle.quotaMin, Math.round((base * (playedCourts(s) || 1)) / total))
+  const played = playedCourts(s)
+  if (rows(s).length > 0 && played === 0) return 0
+  return Math.max(cfg.shuttle.quotaMin, Math.round((base * (played || 1)) / total))
 }
 
 export const shuttleCost = (db, s) => (s.shuttleUsed || 0) * shuttleUnit(db)
@@ -398,8 +399,8 @@ export function guestDebtByInviter(db, monthKey) {
 export function normalizeText(str) {
   return String(str || '')
     .toLowerCase()
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'd')
+    .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá chữ để tìm kiếm / dedupe, không phải chữ hiện ra
+    .replace(/Đ/g, 'd') // i18n-ok
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
@@ -470,6 +471,7 @@ export function sessionMembers(db, s) {
 }
 
 export function presentCount(db, s) {
+  if (!s || s.status === 'cancelled' || (rows(s).length > 0 && playedCourts(s) === 0)) return 0
   const a = db.attendance[s.id] || {}
   return sessionMembers(db, s).filter((m) => isPresent(a[m.id])).length
 }
@@ -634,7 +636,10 @@ export function adjustRows(db, monthKey) {
 
     fixed.forEach((m) => {
       if (g.hasRefund !== false && g.unitNam !== -1) {
-        push(g, m, 'absent_back', sess.filter((s) => att(s)[m.id] === false).length, -1)
+        push(g, m, 'absent_back', sess.filter((s) => {
+          if (rows(s).length > 0 && playedCourts(s) === 0) return true
+          return att(s)[m.id] === false
+        }).length, -1)
       }
     })
 

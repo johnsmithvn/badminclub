@@ -764,7 +764,20 @@
     "searchSolo": "Tìm thành viên đi lẻ...",
     "guestByNone": "Tự đến / Vãng lai",
     "tabCancelled": "Đã huỷ",
-    "statCountCancelled": "{{closed}} đã chốt · {{open}} chưa chốt · {{cancelled}} đã huỷ"
+    "statCountCancelled": "{{closed}} đã chốt · {{open}} chưa chốt · {{cancelled}} đã huỷ",
+    "cancelledNotice": "Buổi tập đã bị huỷ — không diễn ra hoạt động tập.",
+    "allSoldNotice": "Toàn bộ sân của buổi này đã được bán — CLB không sinh hoạt buổi này (tự động tính hoàn tiền vắng cho thành viên nếu có chính sách).",
+    "allSoldGuestNotice": "Đã bán hết sân — không thể thêm khách giao lưu cho buổi này.",
+    "cancelledGuestNotice": "Buổi tập đã huỷ — không thể thêm khách giao lưu.",
+    "companionDefault": "Bạn {{name}}",
+    "extraAddMany": "+ Thêm {{n}} người đi lẻ",
+    "guestSessionMeta": "{{n}} buổi · {{date}}",
+    "guestNoSession": "Chưa có buổi",
+    "addTwoGuests": "2 bạn · {{amount}}",
+    "extraLess": "Thu gọn thông tin liên hệ",
+    "extraMore": "Thêm SĐT / Link FB / Ghi chú cho khách",
+    "phGuestPhone2": "0912... hoặc SĐT liên lạc",
+    "phGuestNote2": "Ghi chú: link FB, tay trái, bạn ai..."
   },
   "sessionCol": {
     "date": "Ngày",
@@ -991,7 +1004,9 @@
     "bulkDelAllMsg": "Bạn có chắc chắn muốn xoá vĩnh viễn {{n}} thành viên này khỏi CLB?",
     "bulkDelTitle": "Xoá thành viên hàng loạt",
     "bulkDelOk": "Xác nhận xoá",
-    "bulkDel": "Xoá vĩnh viễn"
+    "bulkDel": "Xoá vĩnh viễn",
+    "phGuestPhone": "0912... hoặc link FB / Zalo",
+    "phGuestNote": "Ghi chú thêm: link FB, tay trái, bạn Mai..."
   },
   "schedules": {
     "listTitle": "Lịch tập cố định",
@@ -1431,7 +1446,7 @@
     "refundCustomNote": "Nhập số tiền cố định muốn hoàn lại cho mỗi buổi vắng mặt.",
     "unitMale": "Tiền hoàn 1 buổi (Nam)",
     "unitFemale": "Tiền hoàn 1 buổi (Nữ)",
-    "unitFromGuest": "Lấy theo giá giao lưu",
+    "unitFromGuest": "Lấy theo giá vãng lai",
     "unitNote": "Để trống (0 đ): Hệ thống tự động tính tiền hoàn theo Giá khách vãng lai tương ứng với trình độ của thành viên đó.",
     "pricingGeneral": "Áp dụng theo Biểu phí CLB",
     "clubTitle": "Thông tin CLB",
@@ -1608,7 +1623,6 @@
     "ioNames": "{{n}} mục: {{names}}",
     "ioNone": "File không có mục nào",
     "ioApply": "Áp cài đặt",
-    "unitFromGuest": "Lấy theo giá vãng lai",
     "bulkAll": "Chọn tất cả",
     "bulkClear": "Bỏ chọn",
     "dirtyPricing": "● Có thay đổi chưa lưu trên tab Biểu phí",

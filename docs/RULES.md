@@ -44,8 +44,15 @@ một blocker mà user phải quyết định.
 - Thiếu key thì `t()` trả về chính key và `console.warn` ở DEV — **không** im lặng trả rỗng.
 - Thêm ngôn ngữ: tạo `src/i18n/en.json` cùng bộ key, thêm vào `LOCALES` trong `src/i18n/index.js`.
   Không cần sửa màn hình nào.
-- Ngoại lệ duy nhất được viết chữ trực tiếp: comment trong code, `console.warn`, và message của
+- Ngoại lệ được viết chữ trực tiếp: comment trong code, `console.warn`, và message của
   `throw new Error` dành cho developer.
+- Ngoại lệ thứ tư, phải khai bằng dấu **`// i18n-ok`** cuối dòng kèm lý do: chuỗi tiếng Việt là
+  **dữ liệu**, không phải nhãn — tên cột của file CSV (hợp đồng định dạng: dịch theo locale là từ
+  chối hàng loạt file người dùng đang có), nội dung file mẫu, regex bỏ dấu (`.replace(/đ/g,'d')`).
+  Đây là cửa duy nhất để lách luật; `smoke/i18n.test.js` tin tuyệt đối vào dấu này nên đừng rải bừa.
+- `smoke/i18n.test.js` gác **cả hai chiều**: key đang dùng phải tồn tại trong `vi.json`, VÀ không
+  dòng code nào còn dấu tiếng Việt. Trước 2026-09-02 nó chỉ gác chiều thứ nhất — đợt dựng lại màn
+  Công nợ / Cài đặt / Sổ quỹ để lại 323 dòng chữ cứng mà test vẫn xanh.
 
 ### 3.2 Hằng số và cấu hình → `src/config/*.json`
 

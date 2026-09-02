@@ -38,7 +38,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Map client ↔ Postgres, thứ tự ghi/xoá, `diff()` | `sync/dbmap.test.js` |
 | Lỗi đồng bộ nào thử lại được, lỗi nào phải nạp lại DB | `sync/fatal.test.js` |
 | CLB vừa tạo (mọi bảng rỗng) không được throw / NaN / Infinity | `smoke/empty.test.js` |
-| Không sót key i18n, không có số lọt vào `vi.json` | `smoke/i18n.test.js` |
+| Không sót key i18n, không còn chữ cứng trong code, không có số lọt vào `vi.json` | `smoke/i18n.test.js` |
 
 `fixture.js` — bộ dữ liệu cố định (2 CLB, tháng 08/2026) mọi file dùng chung. App **không**
 import nó; dữ liệu thật nằm ở Supabase.
