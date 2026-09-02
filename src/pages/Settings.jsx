@@ -16,6 +16,9 @@ import Schedules from './Schedules.jsx'
 
 const TABS = ['general', 'money', 'courts', 'groups', 'schedules', 'access']
 
+/** Khớp CHECK `clubs_debt_banner_chk` ở migration 0019. Thêm kiểu mới phải sửa cả hai. */
+const DEBT_BANNERS = ['slim', 'alert', 'bar', 'off']
+
 export default function Settings() {
   const { db, ui, a } = useApp()
   const tab = ui.tab.settings || 'general'
@@ -116,6 +119,18 @@ function General({ canEdit }) {
               disabled={!canEdit} onChange={() => a.setClub('seeFund', !c.seeFund)} />
             <Toggle label={t('settings.roundUnit')} note={t('settings.roundUnitNote')} checked={!!c.roundUnit}
               disabled={!canEdit} onChange={() => a.setClub('roundUnit', !c.roundUnit)} />
+            {/* Kiểu nhắc nợ là cài đặt CHUNG của CLB: cùng một CLB mà mỗi người thấy một kiểu
+                thì lúc hỏi nhau "cái banner đỏ ở đâu" không ai trả lời được. */}
+            <div style={{ display: 'grid', gap: 4 }}>
+              <Select
+                label={t('settings.debtBanner')}
+                value={c.debtBanner || 'slim'}
+                disabled={!canEdit}
+                options={DEBT_BANNERS.map((k) => ({ value: k, label: t('settings.debtBannerOpt.' + k) }))}
+                onChange={(e) => a.setClub('debtBanner', e.target.value)}
+              />
+              <div style={S.caption}>{t('settings.debtBannerNote')}</div>
+            </div>
           </div>
         </Card>
       </div>

@@ -703,6 +703,19 @@ export function openSessions(db) {
     .map((s) => {
       const att = db.attendance[s.id] || {}
       const seen = new Set()
+      const gMembers = groupMembers(db, s.groupId, monthOf(s.date))
+      const fixedIds = new Set(gMembers.map((m) => m.id))
+
+      // 1. Thành viên cố định của nhóm đã nhận đi (att === true)
+      const fixedGoing = gMembers.filter((m) => att[m.id] === true).length
+      // 2. Thành viên nhóm khác đi thêm hôm nay (att === 'extra' hoặc không thuộc fixedIds mà isPresent)
+      const extraGoing = Object.keys(att).filter((k) => !fixedIds.has(k) && isPresent(att[k])).length
+      // 3. Khách giao lưu ngoài CLB
+      const guests = sGuestsOnly(db, s.id).length
+      // 4. Tổng tất cả người tham gia
+      const totalGoing = fixedGoing + extraGoing + guests
+      const roster = gMembers.length
+
       return {
         id: s.id,
         date: s.date,
@@ -710,8 +723,12 @@ export function openSessions(db) {
         time: timeTxt(s),
         courtTxt: courtTxt(db, s),
         courtCount: rows(s).length,
-        going: Object.keys(att).filter((k) => isPresent(att[k])).length + sGuestsOnly(db, s.id).length,
-        roster: groupMembers(db, s.groupId, monthOf(s.date)).length,
+        fixedGoing,
+        extraGoing,
+        guests,
+        totalGoing,
+        going: totalGoing,
+        roster,
         // Một buổi có thể đặt hai khung giờ trên CÙNG một sân — lọc trùng, không ai cần hai
         // nút chỉ đường tới cùng một địa chỉ.
         places: rows(s)
@@ -823,6 +840,27 @@ export function pendingClaims(db, monthKey) {
     byMember[x.memberId].total += x.amount
   })
   return Object.values(byMember).sort((a, b) => b.total - a.total)
+}
+
+/**
+ * Tóm tắt công nợ của chính mình — đủ cho cả ba kiểu banner ở Trang chủ mà không cái nào phải
+ * tự đếm lại. Ba banner đếm khác nhau một con số là ba màn hình nói ba số khác nhau về cùng
+ * một khoản tiền.
+ *
+ * `waiting` = đã khai, đang chờ thủ quỹ duyệt · `open` = chưa khai, bấm trả được.
+ * `total` gồm CẢ khoản đang chờ duyệt: người ta vẫn đang nợ cho tới lúc được duyệt.
+ */
+export function myDebtSummary(db) {
+  const items = myDebts(db, db.month)
+  const open = items.filter((x) => !x.claimedAt)
+  const waiting = items.filter((x) => x.claimedAt)
+  return {
+    items,
+    open,
+    waiting,
+    total: debtSum(items),
+    openTotal: debtSum(open),
+  }
 }
 
 /** Tổng tiền và tổng số khoản đang chờ duyệt của một danh sách `myDebts()`. */

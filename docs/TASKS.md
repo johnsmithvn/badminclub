@@ -856,6 +856,9 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
       - Tăng độ tương phản badge số đếm trên `Tabs` (font bold, nền nổi, viền rõ ràng khi active/inactive) để không còn bị mờ.
       - Thêm hàm thuần `myDebtCounts` và `clubDebtCounts` trong `lib/money.js`: khi xem ở vai `member` (hoặc không có quyền `money`), badge Công nợ ở Sidebar và các tab trong màn Công nợ chỉ đếm các khoản nợ của CHÍNH THÀNH VIÊN ĐÓ (khoản phải trả + khoản được trả); khi ở vai Thủ quỹ/Chủ CLB thì đếm toàn CLB.
       - Nổi bật các con số tổng tiền (Cần thu, Cần hoàn, Còn thiếu, Quỹ nợ) với badge màu sắc trực quan.
+- [x] **Bóc tách số người đi ở banner Buổi đang mở (`Home.jsx: OpenNow`, `money.js: openSessions`) — 2026-09-02**:
+      - Tách riêng `fixedGoing / roster` (chỉ đếm thành viên cố định của ca), `extraGoing` (thành viên đi thêm), và `guests` (khách ngoài CLB).
+      - Hiển thị cấu trúc rõ ràng: `[Tổng X người] · X/Y cố định · X đi thêm · X khách`.
 
 ### Đợt dọn C — migration `0011_level_history`
 
