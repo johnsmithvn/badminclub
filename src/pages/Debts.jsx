@@ -7,8 +7,8 @@ import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, wd } from '#utils/dates.js'
 import {
-  adjustRows, advanceRows, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
-  genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, myMember, pendingClaims,
+  adjustRows, advanceRows, clubDebtCounts, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
+  genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, myDebtCounts, myMember, pendingClaims,
   sessionOf, timeTxt,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
@@ -65,28 +65,20 @@ export default function Debts() {
   const dues = duesOf(db, db.month)
   const advances = advanceRows(db)
   const pending = canMoney ? pendingClaims(db, db.month) : []
-
-  // Đếm số người / lượt chưa thanh toán của tab theo buổi
-  const unpaidGuests = (db.sessionGuests || []).filter((sg) => {
-    const s = sessionOf(db, sg.sessionId)
-    return s && monthOf(s.date) === db.month && !sg.paid
-  }).length
-
-  const unpaidAdjusts = adjustRows(db, db.month).filter((r) => !r.paid).length
-  const totalSessionPending = unpaidGuests + unpaidAdjusts
+  const counts = canMoney ? clubDebtCounts(db, db.month) : myDebtCounts(db, db.month)
 
   return (
     <>
       <Tabs
         variant="underline"
         items={[
-          { value: 'sessions', label: t('debts.tabSessions'), count: totalSessionPending },
-          { value: 'dues', label: t('debts.tabDues'), count: dues.filter((x) => dueState(x).remain > 0).length },
-          { value: 'advance', label: t('debts.tabAdvance'), count: advances.filter((x) => !x.repaidAt).length },
+          { value: 'sessions', label: t('debts.tabSessions'), count: counts.sessions },
+          { value: 'dues', label: t('debts.tabDues'), count: counts.dues },
+          { value: 'advance', label: t('debts.tabAdvance'), count: counts.advance },
         ].concat(canMoney ? [{
           value: 'pending',
           label: t('debts.tabPending'),
-          count: pending.reduce((n, g) => n + g.items.length, 0),
+          count: counts.pending,
         }] : [])}
         value={tab}
         onChange={(v) => a.setTab('debts', v)}
@@ -454,14 +446,28 @@ function SessionDebts({ canMoney }) {
             />
           </div>
 
-          {/* Tổng tiền */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <Mono weight={600} color="var(--status-delivered)">
+          {/* Tổng tiền nổi bật */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{
+              font: '700 12.5px/1 var(--font-sans)',
+              color: 'var(--status-delivered-fg)',
+              background: 'var(--status-delivered-bg)',
+              border: '1px solid rgba(14,138,85,0.3)',
+              padding: '4px 10px',
+              borderRadius: 6,
+            }}>
               {t('debts.needCollect', { amount: fmt(totalDue) })}
-            </Mono>
-            <Mono weight={600} color="var(--status-incident)">
+            </span>
+            <span style={{
+              font: '700 12.5px/1 var(--font-sans)',
+              color: 'var(--status-incident-fg)',
+              background: 'var(--status-incident-bg)',
+              border: '1px solid rgba(196,43,28,0.3)',
+              padding: '4px 10px',
+              borderRadius: 6,
+            }}>
               {t('debts.needRefund', { amount: fmt(totalRefund) })}
-            </Mono>
+            </span>
           </div>
         </div>
       }
@@ -995,7 +1001,18 @@ function Advances({ rows, canMoney }) {
       subtitle={t('debts.advanceSub')}
       icon="wallet"
       padding="14px 16px"
-      actions={<Mono weight={600} color="var(--status-delayed)">{t('debts.advanceTotal', { amount: fmt(total) })}</Mono>}
+      actions={
+        <span style={{
+          font: '700 12.5px/1 var(--font-sans)',
+          color: total > 0 ? 'var(--status-delayed-fg)' : 'var(--status-delivered-fg)',
+          background: total > 0 ? 'var(--status-delayed-bg)' : 'var(--status-delivered-bg)',
+          border: `1px solid ${total > 0 ? 'rgba(178,106,0,0.35)' : 'rgba(14,138,85,0.3)'}`,
+          padding: '4px 10px',
+          borderRadius: 6,
+        }}>
+          {t('debts.advanceTotal', { amount: fmt(total) })}
+        </span>
+      }
     >
       <div style={{ display: 'grid', gap: 10 }}>
         <Alert tone="info" title={t('debts.advanceAlertTitle')}>{t('debts.advanceAlert')}</Alert>
@@ -1139,9 +1156,16 @@ function Dues({ dues, canMoney }) {
             />
           </div>
 
-          <Mono weight={600} color={missing ? 'var(--status-delayed)' : 'var(--status-delivered)'}>
+          <span style={{
+            font: '700 12.5px/1 var(--font-sans)',
+            color: missing ? 'var(--status-delayed-fg)' : 'var(--status-delivered-fg)',
+            background: missing ? 'var(--status-delayed-bg)' : 'var(--status-delivered-bg)',
+            border: `1px solid ${missing ? 'rgba(178,106,0,0.35)' : 'rgba(14,138,85,0.3)'}`,
+            padding: '4px 10px',
+            borderRadius: 6,
+          }}>
             {missing ? t('debts.totalDues', { amount: fmt(missing) }) : t('common.enough')}
-          </Mono>
+          </span>
         </div>
       }
     >
