@@ -30,17 +30,21 @@ const Mono = ({ children, size, weight, color, style }) => (
  *
  * Khoản ĐANG CHỜ DUYỆT hiện ra nhưng không tích được: đã khai rồi, khai lại là chuyển tiền hai lần.
  */
-function MyDebtDialog({ preselect, onClose }) {
+function MyDebtDialog({ onClose }) {
   const { db } = useApp()
   const sum = myDebtSummary(db)
   const [filter, setFilter] = useState('all')
-  const [picked, setPicked] = useState(
-    () => (preselect ? Object.fromEntries(sum.open.map((x) => [x.key, true])) : {}))
+  // Mở ra là tích sẵn TẤT CẢ khoản khai được: trả hết là việc thường, trả lẻ mới là ngoại lệ.
+  // Bắt người ta tự tick 10 ô để làm việc thường nhất là bắt sai chiều.
+  const [picked, setPicked] = useState(() => Object.fromEntries(sum.open.map((x) => [x.key, true])))
   const [pay, setPay] = useState(null)
 
   const list = filter === 'open' ? sum.open : filter === 'waiting' ? sum.waiting : sum.items
   const chosen = sum.open.filter((x) => picked[x.key])
   const chosenTotal = chosen.reduce((n, x) => n + x.amount, 0)
+  const allPicked = sum.open.length > 0 && chosen.length === sum.open.length
+  const toggleAll = () =>
+    setPicked(allPicked ? {} : Object.fromEntries(sum.open.map((x) => [x.key, true])))
 
   const CHIPS = [
     { key: 'all', label: t('home.debt.fAll', { n: sum.items.length }) },
@@ -56,38 +60,33 @@ function MyDebtDialog({ preselect, onClose }) {
         title={t('home.debt.dlgTitle')}
         onClose={onClose}
         footer={
-          <div style={{ width: '100%', display: 'grid', gap: 10 }}>
-            {chosen.length > 0 && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-                padding: '10px 14px', borderRadius: 10, background: 'var(--navy-800)',
-              }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)' }}>
-                    {t('home.debt.picked', { n: chosen.length, m: sum.open.length })}
-                  </div>
-                  <Mono size={17} weight={700} color="#fff">{fmt(chosenTotal)}</Mono>
-                </div>
-                <Button variant="ghost" size="sm" style={{ color: 'rgba(255,255,255,0.85)' }}
-                  onClick={() => setPicked({})}>
-                  {t('home.debt.clear')}
-                </Button>
-                <Button variant="primary" size="sm" icon="banknote" onClick={() => setPay(chosen)}>
-                  {t('home.debt.payPicked')}
-                </Button>
+          // Thanh này LUÔN hiện, kể cả khi chưa tích gì: nó cũng là chỗ nói "đã chọn mấy khoản,
+          // bao nhiêu tiền". Ẩn đi rồi hiện lại làm popup nhảy cao thấp mỗi lần tick một ô.
+          // Không có nút Đóng — header đã có dấu ×, hai đường làm cùng một việc là thừa.
+          <div style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            padding: '10px 14px', borderRadius: 10, background: 'var(--navy-800)',
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)' }}>
+                {t('home.debt.picked', { n: chosen.length, m: sum.open.length })}
               </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="secondary" onClick={onClose}>{t('common.close')}</Button>
+              <Mono size={17} weight={700} color="#fff">{fmt(chosenTotal)}</Mono>
             </div>
+            <Button variant="ghost" size="sm" disabled={!chosen.length}
+              style={{ color: 'rgba(255,255,255,0.85)' }}
+              onClick={() => setPicked({})}>
+              {t('home.debt.clear')}
+            </Button>
+            <Button variant="primary" size="sm" icon="banknote"
+              disabled={!chosen.length} onClick={() => setPay(chosen)}>
+              {t('home.debt.payPicked')}
+            </Button>
           </div>
         }
       >
         <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-              {t('home.debt.dlgSub')}
-            </span>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Mono size={16} weight={700} color="var(--status-incident)">{fmt(sum.total)}</Mono>
           </div>
 
@@ -110,48 +109,63 @@ function MyDebtDialog({ preselect, onClose }) {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gap: 4, maxHeight: 320, overflowY: 'auto' }}>
-            {list.length === 0 && (
-              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                {t('home.debt.empty')}
-              </div>
-            )}
-            {list.map((x) => {
-              const waiting = Boolean(x.claimedAt)
-              return (
-                <div key={x.key} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                  borderRadius: 8, background: 'var(--surface-inset)',
-                  border: '1px solid var(--border-subtle)', opacity: waiting ? 0.75 : 1,
-                }}>
-                  {waiting ? (
-                    <Icon name="clock-alert" size={15} style={{ color: 'var(--status-scheduled)' }} />
-                  ) : (
+          <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px',
+              background: 'var(--surface-inset)', borderBottom: '1px solid var(--border-subtle)',
+              font: 'var(--type-overline)', textTransform: 'uppercase',
+              letterSpacing: 'var(--tracking-caps)', color: 'var(--text-muted)',
+            }}>
+              <Checkbox checked={allPicked} disabled={!sum.open.length} onChange={toggleAll} />
+              <span style={{ flex: 1, minWidth: 0 }}>{t('home.debt.colDebt')}</span>
+              <span>{t('home.debt.colAmount')}</span>
+            </div>
+
+            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+              {list.length === 0 && (
+                <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  {t('home.debt.empty')}
+                </div>
+              )}
+              {list.map((x, i) => {
+                const waiting = Boolean(x.claimedAt)
+                return (
+                  <div key={x.key} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+                    borderTop: i === 0 ? 0 : '1px solid var(--border-subtle)',
+                    background: 'var(--surface-card)',
+                  }}>
+                    {/* Khoản đã khai vẫn hiện ô tick nhưng KHOÁ: khai lại là chuyển tiền hai lần. */}
                     <Checkbox
                       checked={!!picked[x.key]}
+                      disabled={waiting}
                       onChange={(e) => setPicked((p) => ({ ...p, [x.key]: e.target.checked }))}
                     />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {x.label}
-                      {waiting && (
-                        <span style={{
-                          marginLeft: 6, padding: '1px 6px', borderRadius: 99, fontSize: 10, fontWeight: 700,
-                          background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)',
-                        }}>
-                          {t('debts.waitApprove')}
-                        </span>
-                      )}
+                    <span style={{
+                      width: 7, height: 7, borderRadius: 99, flexShrink: 0,
+                      background: waiting ? 'var(--status-scheduled)' : 'var(--status-delayed)',
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {x.label}
+                        {waiting && (
+                          <span style={{
+                            marginLeft: 6, padding: '1px 6px', borderRadius: 99, fontSize: 10, fontWeight: 700,
+                            background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)',
+                          }}>
+                            {t('debts.waitApprove')}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                        {ddmy(x.date)}{x.sub ? ' · ' + x.sub : ''}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
-                      {ddmy(x.date)}{x.sub ? ' · ' + x.sub : ''}
-                    </div>
+                    <Mono weight={700}>{fmt(x.amount)}</Mono>
                   </div>
-                  <Mono weight={700}>{fmt(x.amount)}</Mono>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
       </Dialog>
@@ -306,14 +320,15 @@ export function MyDebtPanel({ place = 'overview' }) {
 
   return (
     <>
-      {style === 'slim' && <SlimBanner sum={sum} onOpen={() => setOpen('list')} />}
+      {style === 'slim' && <SlimBanner sum={sum} onOpen={() => setOpen(true)} />}
       {style === 'alert' && (
-        <AlertBanner sum={sum} onOpen={() => setOpen('list')} onPayAll={() => setOpen('all')} />
+        // `Trả tất cả` và `Xem chi tiết` mở cùng một popup: popup vốn đã tích sẵn tất cả.
+        <AlertBanner sum={sum} onOpen={() => setOpen(true)} onPayAll={() => setOpen(true)} />
       )}
       {style === 'bar' && (
-        <BarBanner sum={sum} onOpen={() => setOpen('list')} onHide={() => setHidden(true)} />
+        <BarBanner sum={sum} onOpen={() => setOpen(true)} onHide={() => setHidden(true)} />
       )}
-      {open && <MyDebtDialog preselect={open === 'all'} onClose={() => setOpen(null)} />}
+      {open && <MyDebtDialog onClose={() => setOpen(false)} />}
     </>
   )
 }
