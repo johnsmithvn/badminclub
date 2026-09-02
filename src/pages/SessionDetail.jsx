@@ -1,7 +1,7 @@
 // Chi tiết buổi: điểm danh · sân buổi này · khách giao lưu · chốt tiền (handoff 02 §3).
 // Nút "Chốt buổi" là hành động primary DUY NHẤT của trang.
 
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
 import { Empty, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
@@ -10,8 +10,8 @@ import { ddmy, wd } from '#utils/dates.js'
 import {
   closeWarnings, costDrift, costRow, costState, courtOf, courtPayMode, courtTxt, dueState, duesOf,
   fmt, fmtK, genderTxt, groupOf, guestOf, guestPaidRev, guestPrice, guestRev, levelOf, perTube, playedCourts,
-  isAdhoc, isMemberCharge, presentCount, quotaFor, rowCost, sGuests, sGuestsOnly, sessionMembers,
-  sessionOf, soldTotal, timeTxt,
+  isAdhoc, isMemberCharge, memberOf, presentCount, quotaFor, rowCost, sGuests, sGuestsOnly, sessionMembers,
+  sessionOf, soldTotal, timeTxt, normalizeText, guestStats,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -558,18 +558,37 @@ function ExtraPicker({ s, members }) {
 
 function GuestForm({ s }) {
   const { db, ui, a } = useApp()
-  // GỘP mặc định với form đang gõ, KHÔNG chọn một trong hai. Guard cũ
-  // (`ui.form.gLevel ? ui.form : guestForm(db)`) lấy chính field phải khởi tạo làm cờ "đã khởi
-  // tạo": CLB chưa có thang trình độ thì `gLevel` rỗng vĩnh viễn nên nhánh luôn rơi về form
-  // mặc định — mọi ký tự gõ vào ô Tên bị vứt ngay lúc đọc lại, và giá luôn 0.
+  const [open, setOpen] = useState(false)
   const f = { ...guestForm(db), ...(ui.form || {}) }
   const set = (k, v) => a.setF(k, v)
   const price = guestPrice(db, f.gLevel, f.gGender)
-  // Hai lỗi cấu hình khác nhau, đừng gộp: không có thang trình độ thì KHÔNG tính được giá
-  // (chặn); có thang mà giá 0 thì tính được, chỉ là chưa ai đặt giá (cảnh báo, vẫn cho thêm
-  // vì có CLB cho khách quen đánh miễn phí).
   const noLevel = !f.gLevel
   const toSettings = () => { a.go('settings'); a.setTab('settings', 'money') }
+
+  const selectedGuest = f.gGuestId ? db.guests.find((g) => g.id === f.gGuestId) : null
+  const stats = selectedGuest ? guestStats(db, selectedGuest.id) : null
+
+  // Gợi ý danh bạ khách
+  const matchingGuests = useMemo(() => {
+    const q = normalizeText(f.gName || '')
+    if (!q) return db.guests.slice(0, 8)
+    return db.guests.filter((g) => {
+      const n = normalizeText(g.name)
+      const p = (g.phone || '').replace(/\D/g, '')
+      return n.includes(q) || (p && p.includes(q))
+    }).slice(0, 8)
+  }, [db.guests, f.gName])
+
+  const selectGuest = (g) => {
+    set('gGuestId', g.id)
+    set('gName', g.name)
+    set('gGender', g.gender)
+    set('gLevel', g.level)
+    set('gPhone', g.phone || '')
+    set('gNote', g.note || '')
+    if (g.invitedBy) set('gBy', g.invitedBy)
+    setOpen(false)
+  }
 
   const memberOptions = db.members.filter((m) => m.active !== false).map((m) => ({
     value: m.id,
@@ -579,29 +598,111 @@ function GuestForm({ s }) {
   }))
 
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div style={{ display: 'grid', gap: 10 }}>
       <div style={S.guestForm}>
-        <Input label={t('session.guestName')} value={f.gName || ''} onChange={(e) => set('gName', e.target.value)} />
-        <Select label={t('session.guestGender')} value={f.gGender}
+        {/* Ô Tìm / Nhập tên khách với Autocomplete */}
+        <div style={{ position: 'relative' }}>
+          <Input
+            label={t('session.guestName')}
+            placeholder={t('session.guestSearchPlaceholder')}
+            value={f.gName || ''}
+            onChange={(e) => {
+              set('gName', e.target.value)
+              set('gGuestId', '')
+              setOpen(true)
+            }}
+            onFocus={() => setOpen(true)}
+          />
+          {open && matchingGuests.length > 0 && (
+            <div style={S.guestDropdown}>
+              {matchingGuests.map((g) => {
+                const gs = guestStats(db, g.id)
+                const lastDate = gs.lastSession ? ddmy(gs.lastSession.date) : ''
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    style={S.guestOption}
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      selectGuest(g)
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600 }}>{g.name}</span>
+                      <LevelChip level={g.level} levels={db.levels} />
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{genderTxt(g.gender)}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {gs.sessionCount > 0 ? `${gs.sessionCount} buổi · ${lastDate}` : 'Chưa có buổi'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {g.phone ? g.phone : t('members.guestNoPhone')}
+                      {g.invitedBy ? ` · ${t('session.guestByShort')} ${memberOf(db, g.invitedBy).name}` : ''}
+                      {g.note ? ` · ${g.note}` : ''}
+                    </div>
+                  </button>
+                )
+              })}
+              {f.gName && (
+                <button
+                  type="button"
+                  style={{ ...S.guestOption, color: 'var(--accent)', fontWeight: 600 }}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    set('gGuestId', '')
+                    setOpen(false)
+                  }}
+                >
+                  {t('session.guestAddNew', { name: f.gName })}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <Select
+          label={t('session.guestGender')}
+          value={f.gGender}
           options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
-          onChange={(e) => set('gGender', e.target.value)} />
-        <Select label={t('session.guestLevel')} value={f.gLevel}
+          onChange={(e) => set('gGender', e.target.value)}
+        />
+        <Select
+          label={t('session.guestLevel')}
+          value={f.gLevel}
           options={db.levels.map((l) => ({ value: l, label: l }))}
-          onChange={(e) => set('gLevel', e.target.value)} />
+          onChange={(e) => set('gLevel', e.target.value)}
+        />
         <SearchSelect
           label={t('session.guestBy')}
           value={f.gBy || ''}
-          placeholder={t('session.guestByNone')}
+          placeholder={t('debts.clubRecruited')}
           searchPlaceholder={t('session.searchMember')}
           options={memberOptions}
           levels={db.levels}
           clearable
           onChange={(val) => set('gBy', val)}
         />
-        <Button variant="accent" icon="plus" disabled={noLevel} onClick={() => a.addGuest()}>
+        <Button variant="accent" icon="plus" disabled={noLevel} onClick={() => { setOpen(false); a.addGuest() }}>
           {t('common.add') + (noLevel ? '' : ' · ' + fmt(price))}
         </Button>
       </div>
+
+      {/* Dòng nhắc SĐT nếu khách quen (>= 3 buổi) chưa có SĐT */}
+      {selectedGuest && stats && stats.sessionCount >= 3 && !selectedGuest.phone && (
+        <div style={S.phonePrompt}>
+          <Icon name="phone" size={14} style={{ color: 'var(--status-delayed-fg)' }} />
+          <span>{t('session.guestPhonePrompt', { name: selectedGuest.name, n: stats.sessionCount })}</span>
+          <input
+            type="text"
+            placeholder={t('session.guestPhone')}
+            value={f.gPhone || ''}
+            onChange={(e) => set('gPhone', e.target.value)}
+            style={S.miniInput}
+          />
+        </div>
+      )}
+
       {(noLevel || price === 0) && (
         <button type="button" onClick={toSettings} style={S.guestWarn}>
           {t(noLevel ? 'session.guestNoLevel' : 'session.guestNoPrice')}
@@ -711,6 +812,25 @@ const S = {
   },
   soldBox: { display: 'flex', gap: 9, flexBasis: '100%', flexWrap: 'wrap' },
   guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.2fr auto', gap: 9, alignItems: 'flex-end' },
+  guestDropdown: {
+    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+    background: 'var(--surface-overlay, #fff)', border: '1px solid var(--border-subtle)',
+    borderRadius: 8, boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1))',
+    maxHeight: 240, overflowY: 'auto', marginTop: 4, display: 'grid',
+  },
+  guestOption: {
+    display: 'grid', gap: 2, padding: '8px 12px', border: 0, borderBottom: '1px solid var(--border-subtle)',
+    background: 'transparent', textAlign: 'left', cursor: 'pointer', font: 'inherit',
+  },
+  phonePrompt: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+    background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+    borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', flexWrap: 'wrap',
+  },
+  miniInput: {
+    padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-card)', font: 'inherit', fontSize: 13, width: 140,
+  },
   // Bấm được: lỗi cấu hình thì phải chỉ thẳng sang chỗ sửa, không bắt người ta đi mò.
   guestWarn: {
     textAlign: 'left', border: 0, padding: 0, cursor: 'pointer', background: 'transparent',

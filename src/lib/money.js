@@ -382,16 +382,74 @@ export function guestDebtByInviter(db, monthKey) {
     // Màn này để nhắc người RỦ khách đi thu hộ. Thành viên tự đi buổi đột xuất thì không ai rủ,
     // gom họ vào rổ "chưa rõ người rủ" chỉ tạo nhiễu.
     if (isMemberCharge(sg)) return
-    const mid = sg.invitedBy || guestOf(db, sg.guestId).invitedBy || ''
+    const mid = sg.invitedBy !== undefined ? (sg.invitedBy || '') : (guestOf(db, sg.guestId).invitedBy || '')
     const k = mid || 'none'
     if (!map[k]) {
-      map[k] = { mid, name: mid ? memberOf(db, mid).name : t('debts.inviterUnknown'), guests: 0, debt: 0, paid: 0 }
+      map[k] = { mid, name: mid ? memberOf(db, mid).name : t('debts.clubRecruited'), guests: 0, debt: 0, paid: 0 }
     }
     map[k].guests++
     if (sg.paid) map[k].paid += sg.price
     else map[k].debt += sg.price
   })
   return Object.keys(map).map((k) => map[k]).sort((a, b) => b.debt - a.debt)
+}
+
+/** Chuẩn hoá chuỗi văn bản (bỏ dấu tiếng Việt, hạ chữ thường, gộp khoảng trắng) để tìm kiếm và dedupe. */
+export function normalizeText(str) {
+  return String(str || '')
+    .toLowerCase()
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+/**
+ * Thống kê hoạt động của một khách giao lưu (tính động từ sessionGuests, không lưu cột thừa).
+ */
+export function guestStats(db, guestId) {
+  const rows = (db.sessionGuests || []).filter((sg) => sg.guestId === guestId)
+  let totalPaid = 0
+  let totalDebt = 0
+  const sessionList = []
+  const inviterCountMap = {}
+
+  rows.forEach((sg) => {
+    if (sg.paid) totalPaid += (sg.price || 0)
+    else totalDebt += (sg.price || 0)
+
+    const ss = sessionOf(db, sg.sessionId)
+    if (ss) sessionList.push(ss)
+
+    const inv = sg.invitedBy || null
+    const invKey = inv || 'club'
+    inviterCountMap[invKey] = (inviterCountMap[invKey] || 0) + 1
+  })
+
+  sessionList.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+  const lastSession = sessionList[0] || null
+  const sessionCount = rows.length
+  const isRegular = sessionCount >= 3
+
+  const inviters = Object.keys(inviterCountMap).map((k) => ({
+    mid: k === 'club' ? null : k,
+    name: k === 'club' ? t('debts.clubRecruited') : memberOf(db, k).name,
+    count: inviterCountMap[k],
+  })).sort((a, b) => b.count - a.count)
+
+  const topInviter = inviters[0] || null
+
+  return {
+    sessionCount,
+    lastSession,
+    totalPaid,
+    totalDebt,
+    isRegular,
+    topInviter,
+    inviters,
+  }
 }
 
 /* ---------- điểm danh ---------- */

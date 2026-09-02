@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import {
   guestPaidRev, guestRev, sGuests, sGuestsOnly, headCount, adhocCharges, sessionOf, costRow,
-  guestDebtRows, guestPrice,
+  guestDebtRows, guestPrice, normalizeText, guestStats, guestDebtByInviter,
 } from '#lib/money.js'
 
 const db = seed()
@@ -95,5 +95,34 @@ assert.equal(headCount(withRow, adhoc), 1, 'M1 có mặt + có dòng thu vẫn l
 assert.equal(costRow(withRow, adhoc).people, 1,
   'chi phí mỗi người chia cho đúng 1 — đếm thành 2 là con số quyết định tăng quỹ sai một nửa')
 assert.equal(guestRev(withRow, 'ADH1'), 60000, 'thu của thành viên vẫn là tiền vào của buổi đó')
+
+/* ---------- chuẩn hoá tên khách (normalizeText) ---------- */
+assert.equal(normalizeText('  Thắng  '), 'thang')
+assert.equal(normalizeText('Thắng em'), 'thang em')
+assert.equal(normalizeText('Đạt'), 'dat')
+assert.equal(normalizeText('THẮNG'), 'thang')
+assert.equal(normalizeText(''), '')
+
+/* ---------- thống kê khách (guestStats) ---------- */
+const stK1 = guestStats(db, 'K1')
+assert.equal(stK1.sessionCount, 4, 'K1 tham gia 4 buổi')
+assert.equal(stK1.isRegular, true, 'từ 3 buổi là khách quen')
+assert.ok(stK1.totalPaid >= 0)
+assert.ok(stK1.totalDebt >= 0)
+
+/* ---------- nợ theo người rủ & CLB tuyển ---------- */
+const invRows = guestDebtByInviter(db, '2026-08')
+assert.ok(invRows.length > 0)
+const clubGuestDb = {
+  ...db,
+  sessionGuests: db.sessionGuests.concat([{
+    id: 'SG_CLUB', sessionId: 'B1', guestId: 'K1', memberId: null,
+    level: 'Newbie', gender: 'nu', price: 50000, paid: false, invitedBy: null,
+  }]),
+}
+const invClub = guestDebtByInviter(clubGuestDb, '2026-08')
+const clubRec = invClub.find((r) => r.mid === '')
+assert.ok(clubRec, 'có nhóm CLB tuyển')
+assert.equal(clubRec.name, 'CLB tuyển')
 
 console.log('money/guest check: OK')

@@ -2,16 +2,16 @@
   "locale": "vi",
   "timezone": "Asia/Ho_Chi_Minh",
   "levelsDefault": [
-    "Newbie",
     "Y",
     "Y+",
+    "TBY-",
     "TBY",
     "TBY+",
     "TB-",
     "TB",
     "TB+",
     "TBK",
-    "K"
+    "Khá"
   ],
   "genders": [
     "nam",

@@ -1,7 +1,7 @@
 // Công nợ: Thu / Hoàn theo buổi (Table & Grid) · Quỹ tháng (Table & Grid) · Quỹ nợ.
 
 import { useState } from 'react'
-import { Alert, Avatar, Button, Card, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
+import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
 import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, wd } from '#utils/dates.js'
@@ -68,6 +68,7 @@ function SessionDebts({ canMoney }) {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState('unpaid-desc')
   const [typeFilter, setTypeFilter] = useState('') // '' | 'member' | 'guest'
+  const [confirmCollect, setConfirmCollect] = useState(null)
 
   // Map người chơi
   const peopleMap = {}
@@ -258,6 +259,10 @@ function SessionDebts({ canMoney }) {
   }
 
   const handleSettleAll = (person) => {
+    setConfirmCollect(person)
+  }
+
+  const executeSettleAll = (person) => {
     const guestItems = person.items.filter((x) => x.type === 'guest' && !x.paid)
     if (guestItems.length > 0) {
       a.collectDebt(person.id)
@@ -628,6 +633,50 @@ function SessionDebts({ canMoney }) {
             )
           })}
         </div>
+      )}
+
+      {/* Dialog xác nhận thu nợ / hoàn tiền */}
+      {confirmCollect && (
+        <Dialog
+          open
+          onClose={() => setConfirmCollect(null)}
+          title={t('debts.collectDebtConfirmTitle')}
+          actions={
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%' }}>
+              <Button variant="secondary" onClick={() => setConfirmCollect(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="accent"
+                onClick={() => {
+                  executeSettleAll(confirmCollect)
+                  setConfirmCollect(null)
+                }}
+              >
+                {t('debts.collectDebtConfirmBtn', { amount: fmt(confirmCollect.unpaidDue) })}
+              </Button>
+            </div>
+          }
+        >
+          <div style={{ display: 'grid', gap: 12, fontSize: 14 }}>
+            <p style={{ margin: 0 }}>
+              {t('debts.collectDebtConfirmDesc', {
+                name: confirmCollect.name,
+                count: confirmCollect.unpaidCount,
+                month: db.month,
+                amount: fmt(confirmCollect.unpaidDue),
+              })}
+            </p>
+            <div style={{ padding: '8px 12px', background: 'var(--surface-inset)', borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+              {confirmCollect.items.filter((x) => !x.paid).map((it) => (
+                <div key={it.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span>{ddmy(it.date)} · {it.typeLabel}</span>
+                  <Mono>{fmt(it.price)}</Mono>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Dialog>
       )}
     </Card>
   )

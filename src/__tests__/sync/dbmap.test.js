@@ -325,4 +325,21 @@ const sgBack = toDb({
 assert.equal(sgBack.sessionGuests[0].memberId, 'M1')
 assert.equal(sgBack.sessionGuests[0].guestId, null)
 
+/* ---------- guests: map hai chiều name, phone, note, invited_by ---------- */
+const guestDb = {
+  ...db,
+  guests: [{ id: 'G_NOTE', name: 'Đức Anh', gender: 'nam', level: 'TB', phone: '0912345678', note: 'tay trái', invitedBy: '' }],
+}
+const gRows = toRows(guestDb, ctx).guests
+const gRow = gRows.find((r) => r.id === 'G_NOTE')
+assert.equal(gRow.note, 'tay trái')
+assert.equal(gRow.phone, '0912345678')
+assert.equal(gRow.invited_by, null)
+
+const gBack = toDb({
+  guests: [{ id: 'G_NOTE', name: 'Đức Anh', gender: 'nam', level: 'TB', phone: '0912345678', note: 'tay trái', invited_by: null }],
+}, { clubId: 'CL1' })
+assert.equal(gBack.guests[0].note, 'tay trái')
+assert.equal(gBack.guests[0].phone, '0912345678')
+
 console.log('dbmap check: OK')

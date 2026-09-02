@@ -198,6 +198,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0011_level_history.sql` | Bảng `member_levels` lưu lịch sử mốc trình độ nhiều lần đổi, `create_club` nhận thang trình độ `p_levels`, dọn RPC chết. |
 | `0012_court_map_url.sql` | Thêm cột `map_url` cho bảng `courts` lưu link Google Maps / bản đồ vị trí sân. |
 | `0013_find_member_candidate.sql` | RPC `find_member_candidate(club, email)`: tra MỘT tài khoản theo email CHÍNH XÁC để ghép vào bản ghi thành viên. Chỉ trả `id` + tên hiển thị, gác `has_club_perm(club,'members')`. Cố ý không tìm gần đúng — bản `search_users_for_club` cũ (0006, đã xoá ở 0011) cho `ILIKE '%q%'` và query rỗng trả 50 profile đầu của toàn app. |
+| `0014_guest_notes_and_levels.sql` | Thêm cột `note` cho bảng `guests`, chuẩn hoá 10 bậc trình độ mặc định của CLB (`Y`, `Y+`, `TBY-`, `TBY`, `TBY+`, `TB-`, `TB`, `TB+`, `TBK`, `Khá`). |
 
 ---
 

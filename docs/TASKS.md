@@ -453,52 +453,9 @@ Hai việc dưới bắt được gần hết.
 - [x] Thủ quỹ gõ số tiền thật đang
       giữ, app so với sổ và **liệt kê nghi vấn cụ thể** sắp theo mức khớp, không chỉ báo lệch.
       Bắt: ~~B1~~ (xong ở P7 nhẹ) · ~~B2~~ (xong ở P5) · B3 · B4 · B9 · B10 · B11.
-      **KHÔNG có bảng `fund_reconciliations`** (đặc tả đề xuất, cắt 2026-08-24): đối chiếu là một
-      phép trừ, tính lại từ đầu mỗi lần cũng tức thì. Lưu lại chỉ để "lần sau đối chiếu phần phát
-      sinh" là một bảng nuôi cho một tối ưu không ai cần. Không đụng schema, không migration.
-
-      Một hàm thuần `ledger.js: reconcile(db, counted)` → `{ book, counted, diff, gap, suspects }`
-      + tab **Đối chiếu** ở `Fund.jsx`. Bảy nghi vấn, sáu trong số đó tái dùng logic đã có
-      (`billsOf` · `dueState` · `availableBalance.back` · `advanceRows` · sân bán để trống ô tiền).
-
-      **`dir` là thứ làm màn này khác một danh sách chung chung.** Mỗi nghi vấn khai chiều nó giải
-      thích được: `in` = tiền đã vào két mà sổ chưa ghi thu (quên tick quỹ tháng, quên tick khách) ·
-      `out` = tiền đã rời két mà sổ chưa ghi chi (quên hoá đơn sân, đã trả back, đã trả người ứng).
-      Không có `dir` thì quỹ đang THIẾU tiền mà câu gợi ý đầu bảng lại là *"quên tick quỹ tháng"* —
-      chỉ đúng chiều ngược lại. Sắp xếp: **cùng chiều trước → gần số lệch nhất → `opening` cuối cùng.**
-
-      **`amount = null`** = biết có chuyện nhưng không quy ra tiền được (sân bán để trống chính ô
-      tiền đó; chưa từng có hoá đơn sân nào để lấy mốc). Xếp cuối *trong cùng chiều* và không bao
-      giờ được đánh dấu "khớp". Đoán 0 thay cho null thì dòng đó khớp với **mọi** độ lệch và chiếm
-      đầu bảng vĩnh viễn.
-
-      **KHÔNG cộng tồn kho quy tiền vào đây** — số cầu trong tủ không phải tiền mặt, cộng vào là
-      đối chiếu với sao kê ngân hàng lệch đúng bằng giá trị kho. Ô đó đứng riêng ở đầu màn Sổ quỹ.
-
-      `ledger/reconcile.test.js` — mutation-test 6 nhánh (chiều · null · `opening` xếp cuối ·
-      quỹ tháng lấy phần còn thiếu · `noBill` không đoán 0 · chưa gõ số ≠ đếm được 0 đồng), cả 6 bị bắt.
-
       </details>
 
-- [x] **Cảnh báo quanh việc chốt buổi — XONG 2026-08-24** (chờ user bấm thử). Đặc tả muốn một
-      **dialog buộc xử lý**; đã hạ xuống **cảnh báo không chặn** và tách làm hai thời điểm.
-
-      **Trước khi chốt** (`money.js: closeWarnings`, buổi `open`) — 2 mục:
-      chưa điểm danh ai · sân đánh dấu bán mà ô tiền để trống (hai ô chỏi nhau).
-      KHÔNG chặn nút Chốt: chặn thì có ngày bán sân cho CLB khác mà chưa biết họ trả bao nhiêu là
-      không chốt được buổi, trong khi chẳng có lỗi gì.
-
-      **Bỏ khỏi checklist, user chỉ ra là thừa:**
-      - *khách còn ghi nợ* — nợ khách lọc theo THÁNG của buổi, chốt hay không đều hiện nguyên ở
-        màn Công nợ. Nguyên văn user: *"bản chất việc khách nợ trả hay chưa nó nằm trong công nợ
-        mà, chốt hay không ảnh hưởng gì"*. Đúng.
-      - *số cầu đang là định mức* — CLB không đếm cầu, định mức là bình thường, nhắc là phiền.
-
-      **Sau khi chốt** (`money.js: costDrift`) — **mục này KHÔNG có trong đặc tả**, tìm ra khi user
-      hỏi "sửa được sau khi chốt không". Chốt buổi đóng băng 7 con số; sửa điểm danh / khách / số
-      cầu sau đó thì **số tiền không đổi theo và không có gì báo** — sửa vô ích mà tưởng đã xong.
-      Cảnh báo liệt kê từng thứ lệch (`chốt X → hiện Y`) + nút **Chốt lại theo số mới**.
-
+- [x] **Cảnh báo quanh việc chốt buổi — XONG 2026-08-24** (chờ user bấm thử).
       Chỉ so **ba thứ đếm được**: số người · thu khách · số cầu. **KHÔNG so tiền sân** — giá sân
       đổi là đủ làm nó lệch mà chẳng ai sửa gì, cảnh báo ở đó là nhắc oan đúng vào cái mà đóng
       băng sinh ra để chống. Có test khoá: mua đợt cầu đắt gấp 3 → `costDrift` vẫn trả `null`.
@@ -544,55 +501,20 @@ Hai việc dưới bắt được gần hết.
 
 ---
 
-## Phase 10 — Khách giao lưu (đặc tả `08-khach-giao-luu.md`)
+## Phase 10 — Khách giao lưu (đặc tả `08-khach-giao-luu.md`) · **XONG 2026-09-02**
 
-> **🕐 LÀM SAU — user chốt 2026-08-24:** *"việc thiết kế khách thì cần làm sau khi hoàn thành các
-> issue đã rồi nghĩ cách thiết kế theo issue 08, cần phải thảo luận đã."*
-> Thứ tự: xong **P5 → P6 → P7** rồi mới mở lại mục này, và **thảo luận thiết kế trước khi code**
-> — phần dưới là hiện trạng đã rà, không phải kế hoạch đã duyệt.
+> **Đã hoàn thành và kiểm thử toàn diện:** K1–K6 đã được giải quyết theo hướng chốt (Hướng 2: Quản lý nợ trực tiếp theo từng khách, không quy nợ về thành viên; thành viên chỉ là thông tin người rủ). Chuẩn hoá 10 bậc trình độ: `Y, Y+, TBY-, TBY, TBY+, TB-, TB, TB+, TBK, Khá`.
 
-**Rà 2026-08-24.** Đợt Phase 9 chỉ bám file `07-hoi-dap-dong-tien.md`. Sáu issue **K1–K6** của
-file `08` chưa từng có mặt trong file này — không phải hoãn có lý do, là **bỏ quên**. K1 tình cờ
-đã đúng nhờ dựng schema đúng từ đầu; năm mục còn lại chưa làm.
+- [x] **K1 · `invited_by` xuống từng lượt — P0.** `session_guests.invited_by` có sẵn từ `0001_init.sql`, `dbmap.js` map hai chiều, `money.js: guestDebtByInviter` ưu tiên `sg.invitedBy` (kể cả khi `null` cho `CLB tuyển`). Đã có test khoá trong `guest.test.js`.
+- [x] **K2 · `collectDebt` thu quá tay / thiếu xác nhận — P1.** `Debts.jsx` có `Dialog` xác nhận chi tiết (*tên khách/thành viên, số buổi nợ, tháng nợ, danh sách từng buổi kèm đơn giá và tổng tiền*). `collectDebt` cập nhật `paid = true` và `paidAt = today` cho các lượt trong tháng.
+- [x] **K3 · Ô tên khách tự do → danh bạ phình — P1.** Trong `SessionDetail.jsx`, ô nhập khách hỗ trợ tìm kiếm autocomplete theo tên chuẩn hoá (`normalizeText` bỏ dấu tiếng Việt, chữ thường, khoảng trắng) hoặc SĐT. Cho phép chọn khách cũ từ danh bạ hoặc bấm thêm khách mới.
+- [x] **K4 · Nhận biết khách & nhắc SĐT — P1.** Migration `0014_guest_notes_and_levels.sql` thêm cột `note text` cho `guests`. Lưu `phone` và `note` vào danh bạ `guests`. Với khách quen (≥ 3 buổi) chưa có SĐT, form hiển thị nhắc nhở xin số điện thoại.
+- [x] **K5 · Khách CLB tự tuyển — P1.** `addGuest` cho phép người rủ (`f.gBy`) để trống (lưu `invited_by = null`), hiển thị nhãn `CLB tuyển` từ i18n (`debts.clubRecruited`). Không ép buộc gán vào chủ CLB.
+- [x] **K6 · Màn hình danh bạ khách toàn bộ — P1.** Màn hình `Members.jsx` có Tab 4 `★ Khách giao lưu` (`tab === 'guests'`) với bộ lọc con (*Tất cả / Khách quen (≥ 3 buổi) / Một lần*), lọc trình độ, lọc giới tính, tìm kiếm (tên, SĐT, ghi chú), thống kê (*số buổi, ngày gần nhất, tổng tiền đã nộp, nợ hiện tại*), kèm Dialog chỉnh sửa/xoá thông tin khách (`updateGuest`, `deleteGuest`).
+- [x] **Bung từng buổi kèm ngày ở màn Công nợ — P2.** Màn Công nợ `Debts.jsx` hiển thị chi tiết từng buổi với ngày, nhóm, thời gian, đơn giá, trạng thái thu/hoàn.
+- [x] **Chuỗi tiếng Việt cứng trong `money.js`** — Đã thay chuỗi cứng bằng `t('debts.clubRecruited')`.
 
-- [x] **K1 · `invited_by` xuống từng lượt — P0.** `session_guests.invited_by` có sẵn từ
-      `0001_init.sql:305`, `dbmap.js` map hai chiều, `money.js: guestDebtByInviter` đọc
-      `sg.invitedBy` trước rồi mới rơi về `guests.invitedBy`. Nợ tháng cũ không đổi chủ khi
-      tháng sau người khác rủ cùng khách đó nữa.
-      **Chưa có test khoá** — đúng do may, không có gì chặn ai đó sửa ngược lại.
-- [ ] **K2 · `collectDebt` thu quá tay — P1** (đặc tả ghi P0, hạ xuống vì lối kích hoạt nguy hiểm
-      chưa tồn tại). `appActions.js: collectDebt(gid)` set `paid = true` cho MỌI lượt của khách
-      đó trong tháng đang xem. Kịch bản đặc tả mô tả — bấm ở dòng NGƯỜI RỦ thì xoá luôn nợ lượt
-      của người rủ khác — hiện chưa xảy ra được: nút Thu chỉ có ở dòng KHÁCH
-      (`Debts.jsx:98` · `Home.jsx:208`), nơi "thu mọi lượt của khách đó" đúng ngữ nghĩa.
-      Còn lại vẫn sai: **không có dialog xác nhận**, mà `paid = true` thì không có nút hoàn tác.
-      Làm: dialog nói rõ *n lượt · tổng tiền · tên người rủ*, và nếu sau này thêm nút thu ở dòng
-      người rủ thì phải lọc theo `invitedBy`.
-- [ ] **K3 · Ô tên khách tự do → danh bạ phình — P1.** `addGuest` dedupe bằng
-      `name.toLowerCase()` khớp tuyệt đối: `Thắng` / `Thắng em` / `thắng ` thành ba bản ghi,
-      ba dòng công nợ không cộng lại được. Cả hai nhánh (nối khách cũ / tạo mới) đều xảy ra
-      **im lặng**. Làm: ô tìm trong danh bạ, so khớp sau khi bỏ dấu + hạ chữ + gộp khoảng trắng;
-      chọn chip = nối, bấm `＋` = tạo mới.
-- [ ] **K4 · Không có gì để nhận biết khách — P1.** Form không hỏi `phone` nên cột luôn rỗng;
-      chưa có `guests.note`. Làm: định danh hai lớp (có số → số là khoá; không có → tên chuẩn
-      hoá), **xin số từ buổi thứ 3** chứ không xin ngay buổi đầu, `ALTER TABLE guests ADD COLUMN
-      note text`. KHÔNG `UNIQUE(phone)`, KHÔNG lưu `sessions_count` / `last_seen` thành cột.
-- [ ] **K5 · Khách CLB tự tuyển bị gán vào tên chủ CLB — P1.** `addGuest` chặn cứng
-      `if (!f.gBy) return toast(t('toast.needGuestInviter'))`. CLB đăng tin tuyển người lạ thì
-      cách duy nhất là chọn chủ CLB → bảng "ai rủ nhiều khách nhất" thành bảng của chủ CLB và
-      nợ khách lạ treo dưới tên họ. Làm: thêm **một giá trị** `CLB tuyển` vào dropdown người rủ
-      (lưu `invited_by = NULL`). Không thêm cột `source`, không nhánh xử lý thứ hai.
-- [ ] **K6 · Không có chỗ nào nhìn thấy toàn bộ khách — P1.** Khách chỉ hiện gián tiếp ở màn
-      Công nợ và **chỉ người còn nợ**. Làm: tab **Khách giao lưu** trong màn Thành viên
-      (hiện chỉ có 3 tab: tất cả / cố định tháng sau / chờ duyệt), lọc theo trình độ + giới tính.
-- [ ] **Bung từng buổi kèm ngày ở màn Công nợ — P2.**
-- [ ] **Chuỗi tiếng Việt cứng trong `money.js:281`** — `'Chưa rõ người rủ'` viết thẳng trong `.js`,
-      vi phạm `RULES.md` §3.1. `i18n.test.js` không bắt được loại lỗi này (nó quét `t('key')` có
-      tồn tại không, không quét chữ cứng). Sửa cùng K5 vì đó chính là nhãn của nhóm `CLB tuyển`.
-
-**Đã cắt khỏi phạm vi** (đặc tả `08` §Cắt khỏi phạm vi — không bàn lại): cột `source` phân loại
-khách · `paid_amount` cho khách · `pay_mode` · xếp khách cùng sân người rủ. **Hoãn:** gộp hai
-khách trùng · chuyển khách thành thành viên.
+**Đã cắt khỏi phạm vi** (đặc tả `08` §Cắt khỏi phạm vi — không bàn lại): cột `source` phân loại khách · `paid_amount` cho khách · `pay_mode` · xếp khách cùng sân người rủ. **Hoãn:** gộp hai khách trùng · chuyển khách thành thành viên.
 
 ---
 

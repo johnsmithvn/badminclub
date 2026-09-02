@@ -117,5 +117,5 @@ export const groupForm = (db) => {
 
 /** Form thêm khách giao lưu. */
 export const guestForm = (db) => ({
-  gName: '', gGender: 'nam', gLevel: lv1(db), gBy: '', gPaid: false,
+  gGuestId: '', gName: '', gGender: 'nam', gLevel: lv1(db), gBy: '', gPhone: '', gNote: '', gPaid: false, gUpdateGuestLevel: true,
 })

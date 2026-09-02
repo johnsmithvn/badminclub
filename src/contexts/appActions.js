@@ -8,7 +8,7 @@ import {
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
   adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
-  adhocCharges, chargeName, sGuestsOnly,
+  adhocCharges, chargeName, sGuestsOnly, normalizeText,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -421,41 +421,111 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     addGuest: () => {
       const f = form()
       const name = (f.gName || '').trim()
-      if (!name) return toast(t('toast.needGuestName'))
-      if (!f.gBy) return toast(t('toast.needGuestInviter'))
+      if (!name && !f.gGuestId) return toast(t('toast.needGuestName'))
       const level = f.gLevel || db().levels[0]
-      // CLB chưa có thang trình độ: `level` undefined đi thẳng xuống cột NOT NULL và lần đồng bộ
-      // sau chết im lặng ở Supabase, khách thì đã hiện trên màn hình.
       if (!level) return toast(t('toast.noClubLevels'))
       const gender = f.gGender || 'nam'
+      const inviterId = f.gBy || null
+      const phone = (f.gPhone || '').trim()
+      const note = (f.gNote || '').trim()
       const d0 = db()
 
-      // Tra khách và sinh id TRƯỚC updater — cần biết `gid` để chặn trùng, và sinh id trong
-      // updater thì StrictMode gọi hai lần ra hai id khác nhau.
-      const old = d0.guests.find((x) => x.name.toLowerCase() === name.toLowerCase())
+      // Tra khách theo ID (nếu chọn từ danh sách) hoặc theo tên chuẩn hoá (nếu gõ)
+      const old = f.gGuestId
+        ? d0.guests.find((x) => x.id === f.gGuestId)
+        : d0.guests.find((x) => normalizeText(x.name) === normalizeText(name))
       const gid = old ? old.id : uid()
+      const finalName = old ? old.name : name
 
-      // Một khách chỉ có MỘT lượt trong một buổi. Thêm hai lượt thì tiền vẫn đúng nhưng chia
-      // sân hỏng: `assign.js: sessionPlayers` lấy `guestId` làm khoá người chơi, hai lượt cùng
-      // khoá nên chỉ đứng được một ô, và `matchStats` đếm số trận gấp đôi cho khách đó.
       if (sGuests(d0, d0.sessionId).some((x) => x.guestId === gid)) {
-        return toast(t('toast.guestDup', { name: old ? old.name : name }))
+        return toast(t('toast.guestDup', { name: finalName }))
       }
 
-      up((d) => ({
-        guests: old
-          ? d.guests.map((x) => (x.id === gid ? { ...x, invitedBy: f.gBy } : x))
-          : d.guests.concat([{ id: gid, name, gender, level, invitedBy: f.gBy, phone: '' }]),
-        sessionGuests: d.sessionGuests.concat([{
-          id: uid(), sessionId: d.sessionId, guestId: gid, level, gender,
-          price: guestPrice(d, level, gender), paid: !!f.gPaid, invitedBy: f.gBy,
-        }]),
+      up((d) => {
+        let nextGuests
+        if (old) {
+          nextGuests = d.guests.map((x) => {
+            if (x.id !== gid) return x
+            return {
+              ...x,
+              invitedBy: inviterId !== null ? inviterId : x.invitedBy,
+              phone: phone || x.phone || '',
+              note: note || x.note || '',
+              level: f.gUpdateGuestLevel ? level : x.level,
+              gender: f.gUpdateGuestLevel ? gender : x.gender,
+            }
+          })
+        } else {
+          nextGuests = d.guests.concat([{
+            id: gid,
+            name: finalName,
+            gender,
+            level,
+            invitedBy: inviterId,
+            phone,
+            note,
+          }])
+        }
+
+        return {
+          guests: nextGuests,
+          sessionGuests: d.sessionGuests.concat([{
+            id: uid(),
+            sessionId: d.sessionId,
+            guestId: gid,
+            level,
+            gender,
+            price: guestPrice(d, level, gender),
+            paid: !!f.gPaid,
+            paidAt: f.gPaid ? d.today : null,
+            invitedBy: inviterId,
+          }]),
+        }
+      })
+
+      upUi((u) => ({
+        form: {
+          ...u.form,
+          gGuestId: '',
+          gName: '',
+          gPhone: '',
+          gNote: '',
+          gBy: '',
+        },
       }))
-      upUi((u) => ({ form: { ...u.form, gName: '' } }))
-      toast(t('toast.guestAdded', { name, by: memberOf(db(), f.gBy).name, price: fmt(guestPrice(db(), level, gender)) }))
+
+      const inviterName = inviterId ? memberOf(db(), inviterId).name : t('debts.clubRecruited')
+      toast(t('toast.guestAdded', {
+        name: finalName,
+        by: inviterName,
+        price: fmt(guestPrice(db(), level, gender)),
+      }))
+    },
+    updateGuest: (gid, patch) => {
+      const was = db().guests.find((x) => x.id === gid)
+      if (!was) return
+      up((d) => ({
+        guests: d.guests.map((x) => (x.id === gid ? { ...x, ...patch } : x)),
+      }))
+      toast(t('toast.guestUpdated', { name: patch.name || was.name }))
+    },
+    deleteGuest: (gid) => {
+      const d0 = db()
+      const was = d0.guests.find((x) => x.id === gid)
+      if (!was) return
+      const used = d0.sessionGuests.some((sg) => sg.guestId === gid)
+      if (used) {
+        return toast(t('toast.guestInUse'))
+      }
+      up((d) => ({
+        guests: d.guests.filter((x) => x.id !== gid),
+      }))
+      toast(t('toast.guestDeleted', { name: was.name }))
     },
     toggleGuestPaid: (id) =>
-      up((d) => ({ sessionGuests: d.sessionGuests.map((g) => (g.id === id ? { ...g, paid: !g.paid } : g)) })),
+      up((d) => ({
+        sessionGuests: d.sessionGuests.map((g) => (g.id === id ? { ...g, paid: !g.paid, paidAt: !g.paid ? d.today : null } : g)),
+      })),
     /**
      * Sửa đè giá một lượt thu. Bảng giá theo trình độ chỉ là GỢI Ý — CLB miễn cho người mới,
      * lấy rẻ người nhà, thu thêm người đến muộn… đều là chuyện thường. Đã thu rồi thì khoá:
@@ -479,7 +549,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         sessionGuests: d.sessionGuests.map((g) => {
           const ss = sessionOf(d, g.sessionId)
           const mine = g.guestId === id || g.memberId === id
-          return mine && ss && monthOf(ss.date) === d.month ? { ...g, paid: true } : g
+          return mine && ss && monthOf(ss.date) === d.month ? { ...g, paid: true, paidAt: g.paidAt || d.today } : g
         }),
       }))
       toast(t('toast.debtCollected', { name: row ? chargeName(d0, row) : guestOf(d0, id).name }))

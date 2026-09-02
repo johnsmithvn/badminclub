@@ -81,7 +81,7 @@ export function toDb(raw, ctx) {
 
   const guests = (raw.guests || []).map((g) => ({
     id: g.id, name: g.name, gender: g.gender, level: g.level,
-    phone: g.phone || '', invitedBy: g.invited_by || '',
+    phone: g.phone || '', invitedBy: g.invited_by || '', note: g.note || '',
   }))
 
   const schedules = (raw.schedules || []).map((s) => ({
@@ -303,7 +303,7 @@ export function toRows(db, ctx) {
 
   db.guests.forEach((g) => put('guests', {
     id: g.id, club_id: cid, name: g.name, gender: g.gender, level: g.level,
-    phone: g.phone || null, invited_by: uu(g.invitedBy),
+    phone: g.phone || null, invited_by: uu(g.invitedBy), note: g.note || null,
   }))
 
   db.shuttleTypes.forEach((s) => put('shuttle_types', {

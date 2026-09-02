@@ -2,11 +2,11 @@
 // Nguồn ai phải đóng quỹ là roster THEO THÁNG, không phải groupIds.
 
 import { useMemo, useState } from 'react'
-import { Avatar, Button, Card, DataTable, Icon, IconButton, SearchField, Select, Tabs } from '#ds'
+import { Avatar, Button, Card, DataTable, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { addMonth, monthShort, monthTxt } from '#utils/dates.js'
-import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberRefs, nextLevelStep, offBackSuggest, rosterStatus } from '#lib/money.js'
+import { addMonth, ddmy, monthShort, monthTxt } from '#utils/dates.js'
+import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberRefs, nextLevelStep, offBackSuggest, rosterStatus, guestStats, normalizeText } from '#lib/money.js'
 import { FILTER0, duesStatusOf, filterMembers, fixedGroups, hasFilter, nextSort, sortMembers } from '#lib/members.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -31,6 +31,7 @@ export default function Members() {
           { value: 'all', label: t('members.tabAll'), count: db.members.filter((m) => m.active !== false).length },
           { value: 'next', label: t('members.tabNext') },
           { value: 'pending', label: t('members.tabPending'), count: pendingChanges.length },
+          { value: 'guests', label: t('members.tabGuests'), count: (db.guests || []).length },
         ]}
         value={tab}
         onChange={(v) => a.setTab('members', v)}
@@ -38,6 +39,7 @@ export default function Members() {
       {tab === 'all' && <AllMembers canEdit={canEdit} />}
       {tab === 'next' && <NextMonth month={rosterM} canEdit={canEdit} />}
       {tab === 'pending' && <Pending canEdit={canEdit} />}
+      {tab === 'guests' && <GuestMembers canEdit={canEdit} />}
     </>
   )
 }
@@ -639,6 +641,231 @@ function Pending({ canEdit }) {
             })}
       </div>
     </Card>
+  )
+}
+
+/* ---------------- tab Khách giao lưu ---------------- */
+
+function GuestMembers({ canEdit }) {
+  const { db, a } = useApp()
+  const [subTab, setSubTab] = useState('all') // 'all' | 'regular' | 'once'
+  const [levelFlt, setLevelFlt] = useState('')
+  const [genderFlt, setGenderFlt] = useState('')
+  const [search, setSearch] = useState('')
+  const [editingGuest, setEditingGuest] = useState(null)
+
+  const guests = useMemo(() => db.guests || [], [db.guests])
+
+  // Đếm số lượng
+  const regularCount = guests.filter((g) => guestStats(db, g.id).isRegular).length
+  const onceCount = guests.filter((g) => guestStats(db, g.id).sessionCount === 1).length
+
+  const filteredGuests = useMemo(() => {
+    return guests.filter((g) => {
+      const stats = guestStats(db, g.id)
+      if (subTab === 'regular' && !stats.isRegular) return false
+      if (subTab === 'once' && stats.sessionCount !== 1) return false
+      if (levelFlt && g.level !== levelFlt) return false
+      if (genderFlt && g.gender !== genderFlt) return false
+      if (search) {
+        const q = normalizeText(search)
+        const nameNorm = normalizeText(g.name)
+        const phoneNorm = (g.phone || '').replace(/\D/g, '')
+        const noteNorm = normalizeText(g.note || '')
+        if (!nameNorm.includes(q) && !phoneNorm.includes(q) && !noteNorm.includes(q)) {
+          return false
+        }
+      }
+      return true
+    })
+  }, [guests, db, subTab, levelFlt, genderFlt, search])
+
+  const levelOptions = [{ value: '', label: t('members.fltAllLevel') }].concat(
+    db.levels.map((l) => ({ value: l, label: l }))
+  )
+  const genderOptions = [
+    { value: '', label: t('members.fltAllGender') },
+    { value: 'nam', label: genderTxt('nam') },
+    { value: 'nu', label: genderTxt('nu') },
+  ]
+
+  return (
+    <>
+      <Card padding="0">
+        <div style={S.fltBar}>
+          <Tabs
+            variant="segmented"
+            items={[
+              { value: 'all', label: t('members.guestSubAll'), count: guests.length },
+              { value: 'regular', label: t('members.guestSubRegular'), count: regularCount },
+              { value: 'once', label: t('members.guestSubOnce'), count: onceCount },
+            ]}
+            value={subTab}
+            onChange={(v) => setSubTab(v)}
+          />
+
+          <Select
+            options={levelOptions}
+            value={levelFlt}
+            onChange={(e) => setLevelFlt(e.target.value)}
+          />
+
+          <Select
+            options={genderOptions}
+            value={genderFlt}
+            onChange={(e) => setGenderFlt(e.target.value)}
+          />
+
+          <SearchField
+            placeholder={t('members.guestSearchPlaceholder')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ flex: 1, minWidth: 200 }}
+          />
+        </div>
+
+        {filteredGuests.length === 0 ? (
+          <Empty icon="users" title={t('members.guestEmpty')} hint={t('members.guestEmptyHint')} />
+        ) : (
+          <div style={{ display: 'grid' }}>
+            {filteredGuests.map((g) => {
+              const stats = guestStats(db, g.id)
+              const lastDate = stats.lastSession ? ddmy(stats.lastSession.date) : '—'
+              const topInviterName = stats.topInviter ? stats.topInviter.name : (g.invitedBy ? memberOf(db, g.invitedBy).name : t('debts.clubRecruited'))
+              return (
+                <div key={g.id} style={{ ...S.row, borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0, padding: '12px 16px' }}>
+                  <Avatar name={g.name} size={36} />
+                  <div style={{ flex: 1.5, minWidth: 150 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ font: 'var(--type-label)', fontWeight: 600 }}>{g.name}</span>
+                      <LevelChip level={g.level} levels={db.levels} />
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{genderTxt(g.gender)}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {g.phone ? (
+                        <span>{g.phone}</span>
+                      ) : (
+                        <span style={{ fontStyle: 'italic' }}>{t('members.guestNoPhone')}</span>
+                      )}
+                      {g.note && <span style={{ marginLeft: 6 }}>· {g.note}</span>}
+                    </div>
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 120, fontSize: 13 }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{t('members.guestInvitedBy')}</div>
+                    <div style={{ fontWeight: 500 }}>{topInviterName}</div>
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 100, fontSize: 13 }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{t('members.colGuestSessions')}</div>
+                    <div>
+                      {t('members.guestSessionsCount', { n: stats.sessionCount })}
+                      {stats.lastSession && (
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>({lastDate})</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 110, fontSize: 13 }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{t('members.colGuestPaid')}</div>
+                    <Mono weight={600} color="var(--status-delivered)">{fmt(stats.totalPaid)}</Mono>
+                    {stats.totalDebt > 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--status-incident)' }}>
+                        {t('members.guestCurrentDebt', { amount: fmt(stats.totalDebt) })}
+                      </div>
+                    )}
+                  </div>
+
+                  {canEdit && (
+                    <div>
+                      <IconButton
+                        icon="pencil"
+                        size="sm"
+                        variant="ghost"
+                        label={t('common.edit')}
+                        onClick={() => setEditingGuest({ ...g })}
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Dialog sửa thông tin khách */}
+      {editingGuest && (
+        <EditGuestDialog
+          guest={editingGuest}
+          levels={db.levels}
+          onClose={() => setEditingGuest(null)}
+          onSave={(patch) => {
+            a.updateGuest(editingGuest.id, patch)
+            setEditingGuest(null)
+          }}
+          onDelete={() => {
+            a.deleteGuest(editingGuest.id)
+            setEditingGuest(null)
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
+  const [name, setName] = useState(guest.name || '')
+  const [phone, setPhone] = useState(guest.phone || '')
+  const [gender, setGender] = useState(guest.gender || 'nam')
+  const [level, setLevel] = useState(guest.level || levels[0])
+  const [note, setNote] = useState(guest.note || '')
+
+  return (
+    <Dialog
+      open
+      title={t('members.guestEditTitle')}
+      description={t('members.guestEditDesc')}
+      onClose={onClose}
+      actions={
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+          <Button variant="danger" icon="trash" onClick={onDelete}>
+            {t('common.delete')}
+          </Button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="secondary" onClick={onClose}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => onSave({ name: name.trim(), phone: phone.trim(), gender, level, note: note.trim() })}
+            >
+              {t('common.save')}
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div style={{ display: 'grid', gap: 12, padding: '4px 0' }}>
+        <Input label={t('session.guestName')} value={name} onChange={(e) => setName(e.target.value)} />
+        <Input label={t('members.guestPhone')} value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <Select
+            label={t('session.guestGender')}
+            value={gender}
+            options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
+            onChange={(e) => setGender(e.target.value)}
+          />
+          <Select
+            label={t('session.guestLevel')}
+            value={level}
+            options={levels.map((l) => ({ value: l, label: l }))}
+            onChange={(e) => setLevel(e.target.value)}
+          />
+        </div>
+        <Input label={t('members.guestNote')} value={note} onChange={(e) => setNote(e.target.value)} />
+      </div>
+    </Dialog>
   )
 }
 
