@@ -88,12 +88,24 @@ export function SearchSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
+  const [placement, setPlacement] = useState('bottom')
+
   const toggleOpen = () => {
     if (disabled) return
     setIsOpen((prev) => {
       if (!prev) {
         setSearch('')
         setVisibleCount(30)
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect()
+          const spaceBelow = window.innerHeight - rect.bottom
+          const spaceAbove = rect.top
+          if (spaceBelow < 260 && spaceAbove > 200) {
+            setPlacement('top')
+          } else {
+            setPlacement('bottom')
+          }
+        }
       }
       return !prev
     })
@@ -261,8 +273,9 @@ export function SearchSelect({
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
+            ...(placement === 'top'
+              ? { bottom: 'calc(100% + 4px)', left: 0 }
+              : { top: 'calc(100% + 4px)', left: 0 }),
             zIndex: 100,
             width: menuWidth || '100%',
             minWidth: 240,

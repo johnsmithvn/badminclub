@@ -340,7 +340,7 @@ function MoneyTab({ canEdit }) {
                     if (sampleNu) setUnitNu(String(sampleNu))
                   }}
                 >
-                  Lấy theo giá vãng lai
+                  {t('settings.unitFromGuest')}
                 </Button>
               )}
             </div>
@@ -371,10 +371,10 @@ function MoneyTab({ canEdit }) {
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <Button variant="ghost" size="sm" onClick={() => setBulkLevels(db.levels)}>
-                    Chọn tất cả
+                    {t('settings.bulkAll')}
                   </Button>
                   <Button variant="ghost" size="sm" disabled={!bulkLevels.length} onClick={() => setBulkLevels([])}>
-                    Bỏ chọn
+                    {t('settings.bulkClear')}
                   </Button>
                 </div>
               </div>
@@ -422,7 +422,7 @@ function MoneyTab({ canEdit }) {
                   size="sm"
                   mono
                   suffix={t('units.dong')}
-                  placeholder="Nữ"
+                  placeholder={t('gender.nu')}
                   value={String(p.nu)}
                   disabled={!canEdit}
                   onChange={(e) => setPrice(p.level, 'nu', e.target.value)}
@@ -448,7 +448,7 @@ function MoneyTab({ canEdit }) {
         marginBottom: 8,
       }}>
         <span style={{ marginRight: 'auto', font: 'var(--type-caption)', color: isChanged ? 'var(--status-delayed)' : 'var(--text-muted)' }}>
-          {isChanged ? '● Có thay đổi chưa lưu trên tab Biểu phí' : 'Đã đồng bộ toàn bộ biểu phí'}
+          {t(isChanged ? 'settings.dirtyPricing' : 'settings.syncedPricing')}
         </span>
         <Button
           variant="ghost"
@@ -512,7 +512,7 @@ function CourtsAndShuttles({ canEdit }) {
                   size="sm"
                   value={c.name}
                   disabled={!canEdit}
-                  placeholder="Tên sân..."
+                  placeholder={t('settings.phCourtName')}
                   style={{ fontWeight: 600 }}
                   onChange={(e) => a.setCourtField(c.id, 'name', e.target.value)}
                 />
@@ -520,7 +520,7 @@ function CourtsAndShuttles({ canEdit }) {
                   size="sm"
                   value={c.addr || ''}
                   disabled={!canEdit}
-                  placeholder="Địa chỉ sân..."
+                  placeholder={t('settings.phCourtAddr')}
                   onChange={(e) => a.setCourtField(c.id, 'addr', e.target.value)}
                 />
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -543,7 +543,7 @@ function CourtsAndShuttles({ canEdit }) {
                         border: '1px solid var(--border-subtle)', background: 'var(--surface-brand-soft)',
                         color: 'var(--teal-600)', flexShrink: 0, textDecoration: 'none',
                       }}
-                      title="Mở Google Maps"
+                      title={t('settings.openMapTitle')}
                     >
                       <Icon name="map-pin" size={14} />
                     </a>
@@ -552,7 +552,7 @@ function CourtsAndShuttles({ canEdit }) {
                 <Input
                   size="sm"
                   mono
-                  suffix="đ/h"
+                  suffix={t('units.dongPerHour')}
                   value={String(c.price)}
                   disabled={!canEdit}
                   onChange={(e) => a.setCourtField(c.id, 'price', e.target.value)}
@@ -570,8 +570,8 @@ function CourtsAndShuttles({ canEdit }) {
 
       {/* 2. Loại cầu & Định mức cầu */}
       <Card
-        title="Loại cầu & Định mức"
-        subtitle="Quản lý các loại cầu và số lượng ước tính mỗi buổi"
+        title={t('settings.typesQuotaTitle')}
+        subtitle={t('settings.typesQuotaSub')}
         icon="package-open"
         padding="14px 16px"
         actions={canEdit && (
@@ -588,20 +588,20 @@ function CourtsAndShuttles({ canEdit }) {
           ) : (
             <div style={{ display: 'grid', gap: 8, overflowX: 'auto' }}>
               <div style={{ ...S.typeGrid, ...S.headRow }}>
-                <span>Loại cầu</span>
-                <span>Quả/ống</span>
-                <span>Giá tham chiếu</span>
-                <span>Dùng</span>
+                <span>{t('settings.colType')}</span>
+                <span>{t('settings.hPerTube')}</span>
+                <span>{t('settings.hRefPrice')}</span>
+                <span>{t('settings.hUse')}</span>
                 <span />
               </div>
               {db.shuttleTypes.map((x) => (
                 <div key={x.id} style={S.typeGrid}>
-                  <Input size="sm" value={x.name} disabled={!canEdit} placeholder="Tên loại..."
+                  <Input size="sm" value={x.name} disabled={!canEdit} placeholder={t('settings.phTypeName')}
                     onChange={(e) => a.setShuttleType(x.id, 'name', e.target.value)} />
-                  <Input size="sm" mono suffix="quả" value={String(x.perTube)} disabled={!canEdit}
+                  <Input size="sm" mono suffix={t('units.shuttle')} value={String(x.perTube)} disabled={!canEdit}
                     placeholder="12"
                     onChange={(e) => a.setShuttleType(x.id, 'perTube', e.target.value)} />
-                  <Input size="sm" mono suffix="đ" value={String(x.pricePerTube || 0)} disabled={!canEdit}
+                  <Input size="sm" mono suffix={t('units.dong')} value={String(x.pricePerTube || 0)} disabled={!canEdit}
                     placeholder="0"
                     onChange={(e) => a.setShuttleType(x.id, 'pricePerTube', e.target.value)} />
                   <Switch checked={x.active !== false} disabled={!canEdit}
@@ -614,10 +614,10 @@ function CourtsAndShuttles({ canEdit }) {
                       style={{ color: 'var(--status-incident)', padding: 0 }}
                       label={t('common.delete')}
                       onClick={() => a.confirm({
-                        title: `Xoá loại cầu "${x.name}"?`,
-                        message: 'Nếu loại cầu này chưa có lịch sử nhập kho, hệ thống sẽ xoá hẳn. Nếu đã có lịch sử mua, hệ thống sẽ chuyển sang trạng thái Ngừng dùng.',
+                        title: t('settings.typeDelTitle', { name: x.name }),
+                        message: t('settings.typeDelMsg'),
                         tone: 'danger',
-                        confirmText: 'Xoá loại cầu',
+                        confirmText: t('settings.typeDelOk'),
                         onConfirm: () => a.deleteShuttleType(x.id),
                       })}
                     />
@@ -647,10 +647,10 @@ function CourtsAndShuttles({ canEdit }) {
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>{g.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                          {avg === null ? 'Chưa có buổi' : `TB: ${avg} quả`}
+                          {avg === null ? t('settings.quotaNone') : t('settings.quotaAvg', { avg })}
                         </div>
                       </div>
-                      <Input size="sm" mono suffix="quả" value={String(g.quota)} disabled={!canEdit}
+                      <Input size="sm" mono suffix={t('units.shuttle')} value={String(g.quota)} disabled={!canEdit}
                         style={{ width: 85 }}
                         onChange={(e) => a.setGroupField(g.id, 'quota', e.target.value)} />
                     </div>
@@ -706,7 +706,7 @@ function Groups({ canEdit }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {g.name || 'Nhóm #' + (idx + 1)}
+                      {g.name || t('settings.groupNo', { n: idx + 1 })}
                     </span>
                   </div>
                   {/* Không còn "nhóm mặc định không xoá": đó là luật theo VỊ TRÍ trong mảng, mà
@@ -719,15 +719,15 @@ function Groups({ canEdit }) {
                       icon="trash-2"
                       onClick={() => {
                         a.confirm({
-                          title: `Xoá nhóm "${g.name}"?`,
+                          title: t('settings.groupDelTitle', { name: g.name }),
                           message: t('settings.groupDelMsg', { name: g.name }),
                           tone: 'danger',
-                          confirmText: 'Xoá nhóm',
+                          confirmText: t('settings.groupDel'),
                           onConfirm: () => a.deleteGroup(g.id),
                         })
                       }}
                     >
-                      Xoá nhóm
+                      {t('settings.groupDel')}
                     </Button>
                   )}
                 </div>
@@ -755,13 +755,17 @@ function Groups({ canEdit }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <Tag tone="accent" size="sm">{t('settings.pricingGeneral')}</Tag>
                     <span>
-                      Quỹ: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(g.feeNam)}đ</strong> (Nam) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(g.feeNu)}đ</strong> (Nữ)
+                      {t('settings.groupFeeLabel')}: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(g.feeNam)}{t('units.dong')}</strong> ({t('gender.nam')}) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(g.feeNu)}{t('units.dong')}</strong> ({t('gender.nu')})
+                      {' · '}
                       {g.unitNam > 0 || g.unitNu > 0
-                        ? ` · Back: ${fmtK(g.unitNam)}đ (Nam) / ${fmtK(g.unitNu)}đ (Nữ)`
-                        : ` · Back: Theo giá vãng lai`}
+                        ? t('settings.groupBackUnit', {
+                          male: fmtK(g.unitNam) + t('units.dong'),
+                          female: fmtK(g.unitNu) + t('units.dong'),
+                        })
+                        : t('settings.groupBackGuest')}
                     </span>
                   </div>
-                  <span style={{ color: 'var(--text-muted)' }}>Định mức: {g.quota || 24} quả</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{t('settings.groupQuota', { n: g.quota || 24 })}</span>
                 </div>
               </div>
             ))}
@@ -781,7 +785,7 @@ function Groups({ canEdit }) {
               marginBottom: 8,
             }}>
               <span style={{ marginRight: 'auto', font: 'var(--type-caption)', color: isChanged ? 'var(--status-delayed)' : 'var(--text-muted)' }}>
-                {isChanged ? '● Có thay đổi chưa lưu trên tab Nhóm cố định' : 'Đã đồng bộ thông tin nhóm'}
+                {t(isChanged ? 'settings.dirtyGroups' : 'settings.syncedGroups')}
               </span>
               <Button
                 variant="ghost"
@@ -1075,10 +1079,10 @@ function Access({ canEdit, pending }) {
                   {canEdit && user && (
                     <Button variant="ghost" size="sm" icon="unlink"
                       onClick={() => a.confirm({
-                        title: `Bỏ ghép tài khoản của "${m.name}"?`,
-                        message: `Hủy liên kết giữa tài khoản "${user.nick || user.name}" và thành viên "${m.name}"?`,
+                        title: t('settings.unlinkTitle', { name: m.name }),
+                        message: t('settings.unlinkMsg', { account: user.nick || user.name, name: m.name }),
                         tone: 'warning',
-                        confirmText: 'Bỏ ghép',
+                        confirmText: t('settings.doUnlink'),
                         onConfirm: () => a.unlinkMember(m.id),
                       })}>
                       {t('settings.doUnlink')}

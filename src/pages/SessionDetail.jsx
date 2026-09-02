@@ -127,10 +127,10 @@ export default function SessionDetail() {
                       padding: '0 16px',
                     }}
                     onClick={() => a.confirm({
-                      title: 'Chốt buổi tập này?',
-                      message: 'Số liệu điểm danh, số lượng cầu và chi phí sẽ được đóng băng vào báo cáo.',
+                      title: t('session.closeTitle'),
+                      message: t('session.closeMsg'),
                       tone: 'info',
-                      confirmText: 'Chốt buổi',
+                      confirmText: t('session.closeOk'),
                       onConfirm: () => a.setSessionStatus(s.id, 'closed'),
                     })}>
                     {t('session.doClose')}
@@ -138,10 +138,10 @@ export default function SessionDetail() {
                 )}
                 {(s.status === 'closed' || s.status === 'cancelled') && (
                   <Button variant="secondary" icon="rotate-ccw" onClick={() => a.confirm({
-                    title: 'Mở lại buổi tập?',
-                    message: 'Buổi tập sẽ được mở lại để chỉnh sửa điểm danh và chi phí.',
+                    title: t('session.reopenTitle'),
+                    message: t('session.reopenMsg'),
                     tone: 'warning',
-                    confirmText: 'Mở lại buổi',
+                    confirmText: t('session.reopenOk'),
                     onConfirm: () => a.setSessionStatus(s.id, 'open'),
                   })}>
                     {t('session.doReopen')}
@@ -155,10 +155,10 @@ export default function SessionDetail() {
             </Button>
             {canEdit && s.status !== 'cancelled' && (
               <Button variant="ghost" size="sm" icon="circle-x" onClick={() => a.confirm({
-                title: 'Huỷ buổi tập này?',
-                message: 'Buổi tập sẽ được chuyển sang trạng thái Đã huỷ.',
+                title: t('session.cancelTitle'),
+                message: t('session.cancelMsg'),
                 tone: 'warning',
-                confirmText: 'Huỷ buổi tập',
+                confirmText: t('session.cancelOk'),
                 onConfirm: () => a.setSessionStatus(s.id, 'cancelled'),
               })}>
                 {t('session.doCancel')}
@@ -268,10 +268,10 @@ export default function SessionDetail() {
                             onClick={(e) => {
                               e.stopPropagation()
                               a.confirm({
-                                title: 'Bỏ người chơi đi thêm?',
-                                message: `Bỏ "${m.name}" khỏi danh sách đi thêm của buổi này?`,
+                                title: t('session.dropExtraTitle'),
+                                message: t('session.dropExtraMsg', { name: m.name }),
                                 tone: 'danger',
-                                confirmText: 'Bỏ người chơi',
+                                confirmText: t('session.dropExtraOk'),
                                 onConfirm: () => a.removeExtra(s.id, m.id),
                               })
                             }}
@@ -293,10 +293,10 @@ export default function SessionDetail() {
                             onClick={(e) => {
                               e.stopPropagation()
                               a.confirm({
-                                title: 'Bỏ người chơi đi thêm?',
-                                message: `Bỏ "${m.name}" khỏi danh sách đi thêm của buổi này?`,
+                                title: t('session.dropExtraTitle'),
+                                message: t('session.dropExtraMsg', { name: m.name }),
                                 tone: 'danger',
-                                confirmText: 'Bỏ người chơi',
+                                confirmText: t('session.dropExtraOk'),
                                 onConfirm: () => a.removeExtra(s.id, m.id),
                               })
                             }}
@@ -351,10 +351,10 @@ export default function SessionDetail() {
                             color: 'var(--teal-600)', fontSize: 12, textDecoration: 'none',
                             padding: '2px 6px', borderRadius: 4, background: 'var(--surface-brand-soft)',
                           }}
-                          title="Mở liên kết bản đồ vị trí sân"
+                          title={t('session.mapTitle')}
                         >
                           <Icon name="map-pin" size={12} />
-                          <span>{t('settings.openMap') || 'Bản đồ'}</span>
+                          <span>{t('settings.openMap')}</span>
                         </a>
                       )}
                       {c.extra && <span style={S.tagAmber}>{t('session.extraBadge')}</span>}
@@ -375,10 +375,10 @@ export default function SessionDetail() {
                       {c.extra && (
                         <IconButton icon="trash-2" size="sm" variant="ghost"
                           label={t('common.delete')} onClick={() => a.confirm({
-                            title: 'Xoá sân thuê thêm?',
-                            message: `Xoá sân "${c.from} → ${c.to}" khỏi buổi tập này?`,
+                            title: t('session.delCourtTitle'),
+                            message: t('session.delCourtMsg', { from: c.from, to: c.to }),
                             tone: 'danger',
-                            confirmText: 'Xoá sân',
+                            confirmText: t('session.delCourtOk'),
                             onConfirm: () => a.removeSessionCourt(s.id, i),
                           })} />
                       )}
@@ -417,16 +417,15 @@ export default function SessionDetail() {
                         style={{ width: 140 }}
                         menuWidth={240}
                         placeholder={t('session.guestByShort')}
-                        searchPlaceholder="Tìm người trong CLB..."
-                        options={[{ value: '', label: t('session.guestByShort') }].concat(
-                          db.members.filter((m) => m.active !== false).map((m) => ({
-                            value: m.id,
-                            label: m.name,
-                            level: levelOf(m, s.date.slice(0, 7)),
-                            sub: m.phone || undefined,
-                          }))
-                        )}
+                        searchPlaceholder={t('session.searchMember')}
+                        options={db.members.filter((m) => m.active !== false).map((m) => ({
+                          value: m.id,
+                          label: m.name,
+                          level: levelOf(m, s.date.slice(0, 7)),
+                          sub: m.phone || undefined,
+                        }))}
                         levels={db.levels}
+                        clearable
                         value={g.invitedBy || ''}
                         onChange={(val) => a.setGuestInviter(g.id, val)}
                       />
@@ -436,10 +435,10 @@ export default function SessionDetail() {
                       {canEdit && (
                         <IconButton icon="trash-2" size="sm" variant="ghost"
                           label={t('common.delete')} onClick={() => a.confirm({
-                            title: 'Xoá khách giao lưu?',
-                            message: `Xoá khách "${guestOf(db, g.guestId).name}" khỏi buổi tập này?`,
+                            title: t('session.delGuestTitle'),
+                            message: t('session.delGuestMsg', { name: guestOf(db, g.guestId).name }),
                             tone: 'danger',
-                            confirmText: 'Xoá khách',
+                            confirmText: t('session.delGuestOk'),
                             onConfirm: () => a.removeGuest(g.id),
                           })} />
                       )}
@@ -533,7 +532,7 @@ function ExtraPicker({ s, members }) {
         menuWidth={280}
         value={ui.form.exMember || ''}
         placeholder={t('session.extraPick')}
-        searchPlaceholder="Tìm thành viên đi lẻ..."
+        searchPlaceholder={t('session.searchSolo')}
         options={extraOptions}
         levels={db.levels}
         clearable
@@ -572,14 +571,12 @@ function GuestForm({ s }) {
   const noLevel = !f.gLevel
   const toSettings = () => { a.go('settings'); a.setTab('settings', 'money') }
 
-  const memberOptions = [{ value: '', label: t('common.unknown') }].concat(
-    db.members.filter((m) => m.active !== false).map((m) => ({
-      value: m.id,
-      label: m.name,
-      level: levelOf(m, (s?.date || new Date().toISOString()).slice(0, 7)),
-      sub: m.phone || undefined,
-    }))
-  )
+  const memberOptions = db.members.filter((m) => m.active !== false).map((m) => ({
+    value: m.id,
+    label: m.name,
+    level: levelOf(m, (s?.date || new Date().toISOString()).slice(0, 7)),
+    sub: m.phone || undefined,
+  }))
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
@@ -594,8 +591,8 @@ function GuestForm({ s }) {
         <SearchSelect
           label={t('session.guestBy')}
           value={f.gBy || ''}
-          placeholder={t('common.unknown')}
-          searchPlaceholder="Tìm người trong CLB..."
+          placeholder={t('session.guestByNone')}
+          searchPlaceholder={t('session.searchMember')}
           options={memberOptions}
           levels={db.levels}
           clearable

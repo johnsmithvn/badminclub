@@ -7,7 +7,9 @@ import { checkOf, checkPreview, fmtK, genderTxt, intOf, offBackSuggest } from '#
 import { venueOptions } from '#lib/forms.js'
 import { planScheduleEdit } from '#lib/schedules.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
-import { generateSampleCsv, parseAndValidateMembers, validateMemberRow } from '#lib/csv.js'
+import {
+  OPTIONAL_HEADERS, TEMPLATE_HEADERS, generateSampleCsv, parseAndValidateMembers, validateMemberRow,
+} from '#lib/csv.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -41,12 +43,12 @@ export default function Dialogs() {
 
 function ConfirmDialog({ confirm, onClose }) {
   const {
-    title = 'Xác nhận',
+    title = t('common.confirm'),
     message,
     desc,
     tone = 'danger', // 'danger' | 'warning' | 'info' | 'success'
-    confirmText = 'Xác nhận',
-    cancelText = 'Huỷ',
+    confirmText = t('common.confirm'),
+    cancelText = t('common.cancel'),
     icon,
     onConfirm,
     onCancel,
@@ -346,7 +348,7 @@ function AddCourtDialog() {
     <Shell title={t('addCourt.dlgTitle')} desc={t('addCourt.dlgDesc')}
       onSubmit={() => a.addSessionCourt()} submitLabel={t('common.add')} submitIcon="plus">
       <Select label={t('addCourt.fCourt')} value={f.acCourt}
-        options={db.courts.map((c) => ({ value: c.id, label: c.name + ' · ' + fmtK(c.price) + ' đ/h' }))}
+        options={db.courts.map((c) => ({ value: c.id, label: c.name + ' · ' + fmtK(c.price) + ' ' + t('units.dongPerHour') }))}
         onChange={(e) => a.setF('acCourt', e.target.value)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Input label={t('addCourt.fFrom')} type="time" mono value={f.acFrom || ''}
@@ -381,7 +383,7 @@ function PurchaseDialog() {
         <Input label={t('shuttles.fDate')} type="date" mono value={f.pDate || ''}
           onChange={(e) => a.setF('pDate', e.target.value)} />
         <Select label={t('shuttles.fType')} value={f.pType}
-          options={db.shuttleTypes.map((x) => ({ value: x.id, label: x.name + ' · ' + x.perTube + ' quả/ống' }))}
+          options={db.shuttleTypes.map((x) => ({ value: x.id, label: x.name + ' · ' + x.perTube + ' ' + t('units.shuttlePerTube') }))}
           onChange={(e) => a.setF('pType', e.target.value)} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.3fr', gap: 10 }}>
@@ -561,13 +563,13 @@ function NewGroupDialog() {
         font: 'var(--type-caption)', color: 'var(--text-secondary)',
       }}>
         <span>
-          Biểu phí áp dụng: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNam || 0)}đ</strong> (Nam) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNu || 0)}đ</strong> (Nữ)
+          {t('settings.groupFeeApplied')}: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNam || 0)}{t('units.dong')}</strong> ({t('gender.nam')}) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNu || 0)}{t('units.dong')}</strong> ({t('gender.nu')})
         </span>
         <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={f.grQuota || ''}
           style={{ width: 110 }} onChange={(e) => a.setF('grQuota', e.target.value)} />
       </div>
       <Note tone="warn">
-        Lưu ý: Sau khi tạo nhóm mới, bạn cần vào trang Thành viên để gán thành viên vào nhóm này thì mới phát sinh quỹ tháng và điểm danh theo lịch của nhóm này.
+        {t('settings.dlgGroupWarn')}
       </Note>
       <Note>{t('settings.dlgGroupNote')}</Note>
     </Shell>
@@ -604,8 +606,8 @@ function AddMemberDialog() {
       </div>
 
       <Input
-        label="Ghi chú (Facebook, Zalo, link...)"
-        placeholder="Link Facebook, Zalo, hoặc ghi chú về thành viên..."
+        label={t('members.fNote')}
+        placeholder={t('members.phNote')}
         value={f.mNote || ''}
         onChange={(e) => a.setF('mNote', e.target.value)}
       />
@@ -668,8 +670,8 @@ function EditMemberDialog() {
           onChange={(e) => a.setF('eLevel', e.target.value)} />
       </div>
       <Input
-        label="Ghi chú (Facebook, Zalo, link...)"
-        placeholder="Link Facebook, Zalo, hoặc ghi chú về thành viên..."
+        label={t('members.fNote')}
+        placeholder={t('members.phNote')}
         value={f.eNote || ''}
         onChange={(e) => a.setF('eNote', e.target.value)}
       />
@@ -877,8 +879,8 @@ function ImportMembersDialog() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, font: 'var(--type-caption)', color: 'var(--navy-700)' }}>
             <Icon name="file-spreadsheet" size={16} />
             <span>
-              Mẫu CSV chuẩn 5 cột: <strong>Họ và tên · Số điện thoại · Giới tính · Trình độ · Nhóm cố định</strong>
-              {' — thêm được ở cuối: '}<strong>Tên đầy đủ · Email</strong>
+              {t('members.importTplHead', { n: TEMPLATE_HEADERS.length })}: <strong>{TEMPLATE_HEADERS.join(' · ')}</strong>
+              {' — ' + t('members.importTplMore') + ': '}<strong>{OPTIONAL_HEADERS.join(' · ')}</strong>
             </span>
           </div>
           <Button variant="ghost" size="sm" icon="download" onClick={handleDownloadTemplate}>
@@ -894,7 +896,7 @@ function ImportMembersDialog() {
             icon="upload"
             onClick={() => setActiveTab('file')}
           >
-            Tải file lên
+            {t('members.importTabFile')}
           </Button>
           <Button
             variant={activeTab === 'paste' ? 'secondary' : 'ghost'}
@@ -902,7 +904,7 @@ function ImportMembersDialog() {
             icon="clipboard-check"
             onClick={() => setActiveTab('paste')}
           >
-            Dán văn bản
+            {t('members.importTabPaste')}
           </Button>
         </div>
 
@@ -923,10 +925,10 @@ function ImportMembersDialog() {
             <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleFileChange} />
             <Icon name="upload" size={26} style={{ color: 'var(--teal-600)' }} />
             <div style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>
-              {fileName ? `File đã nạp: ${fileName}` : t('members.importDropText') + ' ' + t('members.importChooseFile')}
+              {fileName ? t('members.importLoaded', { name: fileName }) : t('members.importDropText') + ' ' + t('members.importChooseFile')}
             </div>
             <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-              File CSV phải giữ nguyên đúng 5 tên cột theo file mẫu của hệ thống
+              {t('members.importHeaderNote', { n: TEMPLATE_HEADERS.length })}
             </div>
           </div>
         ) : (
@@ -958,20 +960,20 @@ function ImportMembersDialog() {
           <div style={{ display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <div style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>
-                Bảng xem và chỉnh sửa trực tiếp ({rows.length} người)
+                {t('members.importEditTitle', { n: rows.length })}
               </div>
               <div style={{ display: 'flex', gap: 10, font: 'var(--type-caption)' }}>
                 <span style={{ color: 'var(--status-delivered)' }}>
-                  ✓ {validCount} hợp lệ
+                  {t('members.importValid', { n: validCount })}
                 </span>
                 {warnCount > 0 && (
                   <span style={{ color: 'var(--status-delayed)' }}>
-                    ⚠️ {warnCount} trùng SĐT
+                    {t('members.importWarnDup', { n: warnCount })}
                   </span>
                 )}
                 {errorCount > 0 && (
                   <span style={{ color: 'var(--status-incident)', fontWeight: 600 }}>
-                    ✗ {errorCount} thiếu trường bắt buộc
+                    {t('members.importErrCount', { n: errorCount })}
                   </span>
                 )}
               </div>
@@ -979,7 +981,7 @@ function ImportMembersDialog() {
 
             {errorCount > 0 && (
               <Alert tone="danger">
-                Có {errorCount} dòng thiếu thông tin bắt buộc (Họ và tên). Vui lòng nhập trực tiếp trên bảng hoặc bấm biểu tượng thùng rác để xoá dòng trước khi lưu.
+                {t('members.importErrAlert', { n: errorCount })}
               </Alert>
             )}
 
@@ -991,11 +993,11 @@ function ImportMembersDialog() {
                 <thead>
                   <tr style={{ background: 'var(--surface-inset)', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>
                     <th style={{ padding: '8px 8px', width: 28 }}>#</th>
-                    <th style={{ padding: '8px 8px', width: 170 }}>Họ và tên *</th>
-                    <th style={{ padding: '8px 8px', width: 120 }}>Số điện thoại</th>
-                    <th style={{ padding: '8px 8px', width: 85 }}>Giới tính *</th>
-                    <th style={{ padding: '8px 8px', width: 105 }}>Trình độ *</th>
-                    <th style={{ padding: '8px 8px', minWidth: 160 }}>Nhóm cố định</th>
+                    <th style={{ padding: '8px 8px', width: 170 }}>{t('members.importColName')}</th>
+                    <th style={{ padding: '8px 8px', width: 120 }}>{t('members.importColPhone')}</th>
+                    <th style={{ padding: '8px 8px', width: 85 }}>{t('members.importColGender')}</th>
+                    <th style={{ padding: '8px 8px', width: 105 }}>{t('members.importColLevel')}</th>
+                    <th style={{ padding: '8px 8px', minWidth: 160 }}>{t('members.colGroups')}</th>
                     <th style={{ padding: '8px 8px', width: 40, textAlign: 'center' }}></th>
                   </tr>
                 </thead>
@@ -1018,7 +1020,7 @@ function ImportMembersDialog() {
                           <input
                             type="text"
                             value={r.name}
-                            placeholder="Nhập tên..."
+                            placeholder={t('members.phName')}
                             onChange={(e) => updateRowField(r.id, 'name', e.target.value)}
                             style={{
                               width: '100%', padding: '6px 8px', borderRadius: 6,
@@ -1039,7 +1041,7 @@ function ImportMembersDialog() {
                           <input
                             type="text"
                             value={r.phone}
-                            placeholder="SĐT..."
+                            placeholder={t('members.phPhone')}
                             onChange={(e) => updateRowField(r.id, 'phone', e.target.value)}
                             style={{
                               width: '100%', padding: '6px 8px', borderRadius: 6,
@@ -1059,7 +1061,7 @@ function ImportMembersDialog() {
                             }}
                           >
                             <option value="nam">Nam</option>
-                            <option value="nu">Nữ</option>
+                            <option value="nu">{t('gender.nu')}</option>
                           </select>
                         </td>
                         <td style={{ padding: '6px 8px' }}>
@@ -1112,7 +1114,7 @@ function ImportMembersDialog() {
                             })}
                             {(!r.groupIds || r.groupIds.length === 0) && !r.groupId && (
                               <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', fontSize: 11, fontStyle: 'italic' }}>
-                                Đi lẻ
+                                {t('members.soloShort')}
                               </span>
                             )}
                           </div>
@@ -1122,7 +1124,7 @@ function ImportMembersDialog() {
                             icon="trash-2"
                             size="sm"
                             variant="ghost"
-                            label="Xoá dòng này"
+                            label={t('members.importDelRow')}
                             onClick={() => removeRow(r.id)}
                           />
                         </td>
@@ -1160,7 +1162,7 @@ function ImportMembersDialog() {
           >
             {rows.length > 0
               ? t('members.importSubmit', { n: rows.length })
-              : 'Lưu danh sách'}
+              : t('members.importSave')}
           </Button>
         </div>
       </div>

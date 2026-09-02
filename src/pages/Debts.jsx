@@ -43,7 +43,7 @@ export default function Debts() {
       <Tabs
         variant="underline"
         items={[
-          { value: 'sessions', label: 'Thu / Hoàn theo buổi', count: totalSessionPending },
+          { value: 'sessions', label: t('debts.tabSessions'), count: totalSessionPending },
           { value: 'dues', label: t('debts.tabDues'), count: dues.filter((x) => dueState(x).remain > 0).length },
           { value: 'advance', label: t('debts.tabAdvance'), count: advances.filter((x) => !x.repaidAt).length },
         ]}
@@ -84,7 +84,7 @@ function SessionDebts({ canMoney }) {
     if (!peopleMap[personId]) {
       peopleMap[personId] = {
         id: personId,
-        name: who.name || 'Khách',
+        name: who.name || t('debts.guestFallback'),
         gender: who.gender || sg.gender,
         level: who.level || sg.level,
         isMember,
@@ -98,12 +98,12 @@ function SessionDebts({ canMoney }) {
       key: `sg:${sg.id}`,
       sgId: sg.id,
       type: 'guest',
-      typeLabel: isMember ? 'Đi buổi đột xuất' : 'Khách giao lưu',
+      typeLabel: t(isMember ? 'debts.typeAdhoc' : 'debts.typeGuest'),
       isRefund: false,
       date: s.date,
       sessionId: s.id,
       timeVenue: `${timeTxt(s)} · ${courtTxt(db, s)}`,
-      groupName: group?.name || 'Buổi đột xuất',
+      groupName: group?.name || t('debts.adhocGroup'),
       price: sg.price,
       paid: !!sg.paid,
       canEdit: !sg.paid,
@@ -146,7 +146,7 @@ function SessionDebts({ canMoney }) {
           key: `adj:${r.key}:${s.id}`,
           adjustKey: r.key,
           type: r.kind,
-          typeLabel: r.kind === 'absent_back' ? 'Vắng ca cố định' : 'Đi thêm ca cố định',
+          typeLabel: t(r.kind === 'absent_back' ? 'debts.typeAbsentGroup' : 'debts.typeExtraGroup'),
           isRefund,
           date: s.date,
           sessionId: s.id,
@@ -163,7 +163,7 @@ function SessionDebts({ canMoney }) {
         key: `adj:${r.key}`,
         adjustKey: r.key,
         type: r.kind,
-        typeLabel: r.kind === 'absent_back' ? 'Vắng buổi' : 'Đi thêm buổi',
+        typeLabel: t(r.kind === 'absent_back' ? 'debts.typeAbsent' : 'debts.typeExtra'),
         isRefund,
         date: db.today,
         sessionId: null,
@@ -273,8 +273,8 @@ function SessionDebts({ canMoney }) {
 
   return (
     <Card
-      title="Công nợ theo buổi"
-      subtitle="Gộp khách ngoài, hội viên đi thêm và hoàn tiền vắng — có thể xem dạng Bảng hoặc Lưới ô vuông"
+      title={t('debts.sTitle')}
+      subtitle={t('debts.sSub')}
       icon="receipt"
       padding="0"
       actions={
@@ -283,9 +283,9 @@ function SessionDebts({ canMoney }) {
           <Tabs
             variant="segmented"
             items={[
-              { value: 'unpaid', label: 'Chưa thu / trả' },
-              { value: 'all', label: 'Tất cả' },
-              { value: 'paid', label: 'Đã xong' },
+              { value: 'unpaid', label: t('debts.fUnpaid') },
+              { value: 'all', label: t('common.all') },
+              { value: 'paid', label: t('debts.fDone') },
             ]}
             value={filter}
             onChange={(v) => setFilter(v)}
@@ -297,14 +297,14 @@ function SessionDebts({ canMoney }) {
               icon="list"
               size="sm"
               variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              label="Dạng Bảng"
+              label={t('debts.viewTable')}
               onClick={() => setViewMode('table')}
             />
             <IconButton
               icon="layout-grid"
               size="sm"
               variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              label="Dạng Lưới Thẻ"
+              label={t('debts.viewGrid')}
               onClick={() => setViewMode('grid')}
             />
           </div>
@@ -312,10 +312,10 @@ function SessionDebts({ canMoney }) {
           {/* Tổng tiền */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <Mono weight={600} color="var(--status-delivered)">
-              Quỹ cần thu: {fmt(totalDue)}
+              {t('debts.needCollect', { amount: fmt(totalDue) })}
             </Mono>
             <Mono weight={600} color="var(--status-incident)">
-              Quỹ cần trả: {fmt(totalRefund)}
+              {t('debts.needRefund', { amount: fmt(totalRefund) })}
             </Mono>
           </div>
         </div>
@@ -326,7 +326,7 @@ function SessionDebts({ canMoney }) {
         <SearchField
           width={250}
           style={{ height: 32 }}
-          placeholder="Tìm theo tên người, người rủ, ca..."
+          placeholder={t('debts.searchSession')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
@@ -336,9 +336,9 @@ function SessionDebts({ canMoney }) {
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
           options={[
-            { value: '', label: 'Tất cả đối tượng' },
-            { value: 'member', label: 'Chỉ hội viên' },
-            { value: 'guest', label: 'Chỉ khách ngoài' },
+            { value: '', label: t('debts.whoAll') },
+            { value: 'member', label: t('debts.whoMember') },
+            { value: 'guest', label: t('debts.whoGuest') },
           ]}
         />
         <Select
@@ -346,17 +346,17 @@ function SessionDebts({ canMoney }) {
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value)}
           options={[
-            { value: 'unpaid-desc', label: 'Sắp xếp: Chưa thu / trả nhiều nhất' },
-            { value: 'unpaid-asc', label: 'Sắp xếp: Chưa thu / trả ít nhất' },
-            { value: 'name-asc', label: 'Sắp xếp: Tên A → Z' },
-            { value: 'name-desc', label: 'Sắp xếp: Tên Z → A' },
-            { value: 'count-desc', label: 'Sắp xếp: Số buổi nhiều nhất' },
+            { value: 'unpaid-desc', label: t('debts.sortUnpaidDesc') },
+            { value: 'unpaid-asc', label: t('debts.sortUnpaidAsc') },
+            { value: 'name-asc', label: t('debts.sortNameAsc') },
+            { value: 'name-desc', label: t('debts.sortNameDesc') },
+            { value: 'count-desc', label: t('debts.sortCountDesc') },
           ]}
         />
       </div>
 
       {filteredPeople.length === 0 ? (
-        <Empty icon="circle-check" title="Không có công nợ buổi nào" hint="Tất cả các buổi giao lưu, đi thêm và vắng mặt trong tháng đều đã được thanh toán xong." />
+        <Empty icon="circle-check" title={t('debts.sEmpty')} hint={t('debts.sEmptyHint')} />
       ) : viewMode === 'table' ? (
         <div style={{ display: 'grid' }}>
           {filteredPeople.map((p) => {
@@ -378,7 +378,7 @@ function SessionDebts({ canMoney }) {
                       icon={isExp ? 'chevron-down' : 'chevron-right'}
                       size="sm"
                       variant="ghost"
-                      label={isExp ? 'Thu gọn' : 'Mở rộng'}
+                      label={t(isExp ? 'debts.collapse' : 'debts.expand')}
                       onClick={(e) => { e.stopPropagation(); toggleExpand(p.id) }}
                     />
                     <Avatar name={p.name} size={30} />
@@ -388,14 +388,17 @@ function SessionDebts({ canMoney }) {
                           {p.name}
                         </span>
                         <span style={p.isMember ? S.tagMember : S.tagGuest}>
-                          {p.isMember ? 'Hội viên' : 'Khách ngoài'}
+                          {t(p.isMember ? 'debts.tagMember' : 'debts.tagGuest')}
                         </span>
                         {inviter && (
-                          <span style={S.tagInviter}>Rủ bởi {inviter}</span>
+                          <span style={S.tagInviter}>{t('debts.tagInviter', { name: inviter })}</span>
                         )}
                       </div>
                       <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-                        {p.totalCount} buổi ({p.unpaidCount > 0 ? `${p.unpaidCount} chưa thanh toán` : 'Đã xong'})
+                        {t('debts.personMeta', {
+                          n: p.totalCount,
+                          state: p.unpaidCount > 0 ? t('debts.unpaidCount', { n: p.unpaidCount }) : t('debts.fDone'),
+                        })}
                       </div>
                     </div>
                   </div>
@@ -404,17 +407,17 @@ function SessionDebts({ canMoney }) {
                     <div style={{ textAlign: 'right' }}>
                       {p.unpaidDue > 0 && (
                         <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--status-delivered)' }}>
-                          Thu: +{fmt(p.unpaidDue)}
+                          {t('debts.sumCollect', { amount: fmt(p.unpaidDue) })}
                         </div>
                       )}
                       {p.unpaidRefund > 0 && (
                         <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--status-incident)' }}>
-                          Trả: −{fmt(p.unpaidRefund)}
+                          {t('debts.sumRefund', { amount: fmt(p.unpaidRefund) })}
                         </div>
                       )}
                       {!p.hasUnpaid && (
                         <div style={{ font: 'var(--type-caption)', fontWeight: 600, color: 'var(--status-delivered)' }}>
-                          ✓ Đã xong
+                          {t('debts.allDone')}
                         </div>
                       )}
                     </div>
@@ -425,7 +428,7 @@ function SessionDebts({ canMoney }) {
                         icon={p.unpaidRefund > 0 && p.unpaidDue === 0 ? 'send' : 'circle-check'}
                         onClick={() => handleSettleAll(p)}
                       >
-                        {p.unpaidRefund > 0 && p.unpaidDue === 0 ? 'Trả tất cả' : 'Thu tất cả'}
+                        {t(p.unpaidRefund > 0 && p.unpaidDue === 0 ? 'debts.payAll' : 'debts.collectAll')}
                       </Button>
                     )}
                   </div>
@@ -437,11 +440,11 @@ function SessionDebts({ canMoney }) {
                       <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--type-label)' }}>
                         <thead>
                           <tr style={S.subTableHead}>
-                            <th style={S.th}>Buổi tập & Sân</th>
-                            <th style={S.th}>Phân loại</th>
-                            <th style={{ ...S.th, textAlign: 'right' }}>Số tiền (sửa được)</th>
-                            <th style={{ ...S.th, textAlign: 'center' }}>Trạng thái</th>
-                            <th style={{ ...S.th, textAlign: 'right' }}>Thao tác</th>
+                            <th style={S.th}>{t('debts.colSession')}</th>
+                            <th style={S.th}>{t('debts.colKind')}</th>
+                            <th style={{ ...S.th, textAlign: 'right' }}>{t('debts.colAmountEdit')}</th>
+                            <th style={{ ...S.th, textAlign: 'center' }}>{t('debts.colState')}</th>
+                            <th style={{ ...S.th, textAlign: 'right' }}>{t('debts.colAction')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -472,12 +475,14 @@ function SessionDebts({ canMoney }) {
                                     onChange={(e) => handlePriceChange(item.key, e.target.value)}
                                     onBlur={() => handlePriceBlur(item)}
                                     style={{ width: 105, textAlign: 'right', display: 'inline-block' }}
-                                    suffix="đ"
+                                    suffix={t('units.dong')}
                                   />
                                 </td>
                                 <td style={{ ...S.td, textAlign: 'center' }}>
                                   <span style={item.paid ? S.pillPaid : S.pillUnpaid}>
-                                    {item.paid ? (item.isRefund ? 'Đã trả' : 'Đã thu') : (item.isRefund ? 'Chưa trả' : 'Chưa thu')}
+                                    {t(item.paid
+                                      ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
+                                      : (item.isRefund ? 'debts.unpaidRefund' : 'debts.unpaidCollect'))}
                                   </span>
                                 </td>
                                 <td style={{ ...S.td, textAlign: 'right' }}>
@@ -488,15 +493,15 @@ function SessionDebts({ canMoney }) {
                                       icon={item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins'}
                                       onClick={() => handleSettleItem(item)}
                                     >
-                                      {item.paid
-                                        ? (item.isRefund ? 'Đã trả' : 'Đã thu')
-                                        : (item.isRefund ? 'Bấm để Trả' : 'Bấm để Thu')}
+                                      {t(item.paid
+                                        ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
+                                        : (item.isRefund ? 'debts.tapRefund' : 'debts.tapCollect'))}
                                     </Button>
                                   ) : (
                                     <span style={item.paid ? S.pillPaid : S.pillUnpaid}>
-                                      {item.paid
-                                        ? (item.isRefund ? 'Đã trả' : 'Đã thu')
-                                        : (item.isRefund ? 'Chưa trả' : 'Chưa thu')}
+                                      {t(item.paid
+                                        ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
+                                        : (item.isRefund ? 'debts.unpaidRefund' : 'debts.unpaidCollect'))}
                                     </span>
                                   )}
                                 </td>
@@ -528,9 +533,9 @@ function SessionDebts({ canMoney }) {
                       </div>
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 2 }}>
                         <span style={p.isMember ? S.tagMember : S.tagGuest}>
-                          {p.isMember ? 'Hội viên' : 'Khách ngoài'}
+                          {t(p.isMember ? 'debts.tagMember' : 'debts.tagGuest')}
                         </span>
-                        {inviter && <span style={S.tagInviter}>{inviter} rủ</span>}
+                        {inviter && <span style={S.tagInviter}>{t('debts.tagInviterShort', { name: inviter })}</span>}
                       </div>
                     </div>
                   </div>
@@ -548,7 +553,7 @@ function SessionDebts({ canMoney }) {
                     )}
                     {!p.hasUnpaid && (
                       <span style={{ font: 'var(--type-caption)', fontWeight: 600, color: 'var(--status-delivered)' }}>
-                        ✓ Đã xong
+                        {t('debts.allDone')}
                       </span>
                     )}
                   </div>
@@ -582,7 +587,7 @@ function SessionDebts({ canMoney }) {
                             onChange={(e) => handlePriceChange(item.key, e.target.value)}
                             onBlur={() => handlePriceBlur(item)}
                             style={{ width: 95, textAlign: 'right' }}
-                            suffix="đ"
+                            suffix={t('units.dong')}
                           />
                           {canMoney ? (
                             <Button
@@ -591,11 +596,15 @@ function SessionDebts({ canMoney }) {
                               icon={item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins'}
                               onClick={() => handleSettleItem(item)}
                             >
-                              {item.paid ? (item.isRefund ? 'Đã trả' : 'Đã thu') : (item.isRefund ? 'Trả' : 'Thu')}
+                              {t(item.paid
+                                ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
+                                : (item.isRefund ? 'debts.doRefund' : 'debts.doCollect'))}
                             </Button>
                           ) : (
                             <span style={item.paid ? S.pillPaid : S.pillUnpaid}>
-                              {item.paid ? (item.isRefund ? 'Đã trả' : 'Đã thu') : (item.isRefund ? 'Chưa trả' : 'Chưa thu')}
+                              {t(item.paid
+                                      ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
+                                      : (item.isRefund ? 'debts.unpaidRefund' : 'debts.unpaidCollect'))}
                             </span>
                           )}
                         </div>
@@ -612,7 +621,7 @@ function SessionDebts({ canMoney }) {
                     onClick={() => handleSettleAll(p)}
                     style={{ width: '100%', marginTop: 'auto' }}
                   >
-                    {p.unpaidRefund > 0 && p.unpaidDue === 0 ? 'Hoàn trả tất cả' : 'Thu tất cả'}
+                    {t(p.unpaidRefund > 0 && p.unpaidDue === 0 ? 'debts.refundAll' : 'debts.collectAll')}
                   </Button>
                 )}
               </div>
@@ -672,13 +681,13 @@ function Advances({ rows, canMoney }) {
                   size="sm"
                   icon="trash-2"
                   variant="ghost"
-                  label="Xoá khoản nợ này"
+                  label={t('debts.del')}
                   onClick={() => a.confirm({
-                    title: 'Xoá khoản nợ / chi hộ này?',
-                    message: `Bạn có chắc chắn muốn xoá khoản "${r.name} · ${fmt(r.amount)}"?`,
-                    desc: 'Khoản chi hộ này sẽ bị xoá khỏi danh sách nợ của CLB.',
+                    title: t('debts.delTitle'),
+                    message: t('debts.delMsg', { what: r.name + ' · ' + fmt(r.amount) }),
+                    desc: t('debts.delDesc'),
                     tone: 'danger',
-                    confirmText: 'Xoá khoản nợ',
+                    confirmText: t('debts.delOk'),
                     onConfirm: () => a.deleteAdvance(r.kind, r.id),
                   })}
                   style={{ color: 'var(--status-incident)' }}
@@ -744,14 +753,14 @@ function Dues({ dues, canMoney }) {
   return (
     <Card
       title={t('debts.duesTitle')}
-      subtitle="Thu quỹ tháng trọn gói của hội viên cố định — hỗ trợ xem dạng Bảng kế toán hoặc Lưới ô vuông"
+      subtitle={t('debts.duesSub')}
       icon="banknote"
       padding="0"
       actions={
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <Tabs
             variant="segmented"
-            items={[{ value: 'ALL', label: 'Tất cả các ca' }].concat(
+            items={[{ value: 'ALL', label: t('debts.allGroups') }].concat(
               db.groups.map((g) => ({ value: g.id, label: g.name }))
             )}
             value={selectedGroup}
@@ -763,14 +772,14 @@ function Dues({ dues, canMoney }) {
               icon="list"
               size="sm"
               variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              label="Dạng Bảng"
+              label={t('debts.viewTable')}
               onClick={() => setViewMode('table')}
             />
             <IconButton
               icon="layout-grid"
               size="sm"
               variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              label="Dạng Lưới Thẻ"
+              label={t('debts.viewGrid')}
               onClick={() => setViewMode('grid')}
             />
           </div>
@@ -786,7 +795,7 @@ function Dues({ dues, canMoney }) {
         <SearchField
           width={250}
           style={{ height: 32 }}
-          placeholder="Tìm theo tên thành viên, số điện thoại..."
+          placeholder={t('debts.searchMember')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
@@ -796,9 +805,9 @@ function Dues({ dues, canMoney }) {
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           options={[
-            { value: '', label: 'Tất cả trạng thái đóng' },
-            { value: 'unpaid', label: 'Chỉ người còn thiếu' },
-            { value: 'paid', label: 'Đã đóng đủ' },
+            { value: '', label: t('debts.dueAll') },
+            { value: 'unpaid', label: t('debts.dueShort') },
+            { value: 'paid', label: t('debts.dueFull') },
           ]}
         />
         <Select
@@ -806,12 +815,12 @@ function Dues({ dues, canMoney }) {
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value)}
           options={[
-            { value: 'remain-desc', label: 'Sắp xếp: Còn thiếu nhiều nhất' },
-            { value: 'remain-asc', label: 'Sắp xếp: Còn thiếu ít nhất' },
-            { value: 'name-asc', label: 'Sắp xếp: Tên A → Z' },
-            { value: 'name-desc', label: 'Sắp xếp: Tên Z → A' },
-            { value: 'paid-desc', label: 'Sắp xếp: Đã đóng nhiều nhất' },
-            { value: 'amount-desc', label: 'Sắp xếp: Mức quỹ cao nhất' },
+            { value: 'remain-desc', label: t('debts.sortRemainDesc') },
+            { value: 'remain-asc', label: t('debts.sortRemainAsc') },
+            { value: 'name-asc', label: t('debts.sortNameAsc') },
+            { value: 'name-desc', label: t('debts.sortNameDesc') },
+            { value: 'paid-desc', label: t('debts.sortPaidDesc') },
+            { value: 'amount-desc', label: t('debts.sortAmountDesc') },
           ]}
         />
       </div>
@@ -822,13 +831,13 @@ function Dues({ dues, canMoney }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--type-label)' }}>
             <thead>
               <tr style={S.subTableHead}>
-                <th style={S.th}>Thành viên</th>
-                <th style={S.th}>Ca cố định</th>
-                <th style={{ ...S.th, textAlign: 'right' }}>Mức quỹ</th>
-                <th style={{ ...S.th, textAlign: 'right' }}>Đã đóng</th>
-                <th style={{ ...S.th, textAlign: 'right' }}>Còn thiếu</th>
-                <th style={{ ...S.th, textAlign: 'center' }}>Trạng thái</th>
-                <th style={{ ...S.th, textAlign: 'right' }}>Thao tác</th>
+                <th style={S.th}>{t('debts.colMember')}</th>
+                <th style={S.th}>{t('debts.colGroup')}</th>
+                <th style={{ ...S.th, textAlign: 'right' }}>{t('debts.colDue')}</th>
+                <th style={{ ...S.th, textAlign: 'right' }}>{t('debts.colPaid')}</th>
+                <th style={{ ...S.th, textAlign: 'right' }}>{t('debts.colRemain')}</th>
+                <th style={{ ...S.th, textAlign: 'center' }}>{t('debts.colState')}</th>
+                <th style={{ ...S.th, textAlign: 'right' }}>{t('debts.colAction')}</th>
               </tr>
             </thead>
             <tbody>
@@ -871,7 +880,7 @@ function Dues({ dues, canMoney }) {
                     </td>
                     <td style={{ ...S.td, textAlign: 'center' }}>
                       <span style={st.state === 'full' ? S.pillPaid : st.state === 'partial' ? S.pillPartial : S.pillUnpaid}>
-                        {st.state === 'full' ? '● Đã đóng đủ' : st.state === 'partial' ? '◐ Đóng một phần' : '▲ Chưa đóng'}
+                        {t(st.state === 'full' ? 'debts.stFull' : st.state === 'partial' ? 'debts.stPartial' : 'debts.stNone')}
                       </span>
                     </td>
                     <td style={S.td}>
@@ -884,7 +893,7 @@ function Dues({ dues, canMoney }) {
                               style={{ width: 100, textAlign: 'right' }}
                               value={ui.form[key] ?? String(st.remain)}
                               onChange={(e) => a.setF(key, e.target.value)}
-                              suffix="đ"
+                              suffix={t('units.dong')}
                             />
                             <Button
                               variant="secondary"
@@ -892,7 +901,7 @@ function Dues({ dues, canMoney }) {
                               icon="hand-coins"
                               onClick={() => { a.payDue(x.id, ui.form[key]); a.setF(key, undefined) }}
                             >
-                              Thu tiền
+                              {t('debts.collectMoney')}
                             </Button>
                           </>
                         )}
@@ -944,14 +953,14 @@ function Dues({ dues, canMoney }) {
                   </div>
 
                   <span style={st.state === 'full' ? S.pillPaid : st.state === 'partial' ? S.pillPartial : S.pillUnpaid}>
-                    {st.state === 'full' ? '● Đã đủ' : st.state === 'partial' ? '◐ 1 phần' : '▲ Thiếu'}
+                    {t(st.state === 'full' ? 'debts.stFullShort' : st.state === 'partial' ? 'debts.stPartialShort' : 'debts.stNoneShort')}
                   </span>
                 </div>
 
                 <div style={{ height: 1, background: 'var(--border-subtle)' }} />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>Đã đóng / Mức quỹ:</span>
+                  <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('debts.paidOverDue')}</span>
                   <Mono size={14} weight={600} color={st.state === 'full' ? 'var(--status-delivered)' : 'var(--text-primary)'}>
                     {fmtK(st.paid)} / {fmt(st.amount)}
                   </Mono>
@@ -959,7 +968,7 @@ function Dues({ dues, canMoney }) {
 
                 {st.remain > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>Còn thiếu:</span>
+                    <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>{t('debts.remainLabel')}</span>
                     <Mono size={14} weight={700} color="var(--status-delayed)">
                       {fmt(st.remain)}
                     </Mono>
@@ -975,7 +984,7 @@ function Dues({ dues, canMoney }) {
                         style={{ flex: 1, textAlign: 'right' }}
                         value={ui.form[key] ?? String(st.remain)}
                         onChange={(e) => a.setF(key, e.target.value)}
-                        suffix="đ"
+                        suffix={t('units.dong')}
                       />
                       <Button
                         variant="secondary"
@@ -983,7 +992,7 @@ function Dues({ dues, canMoney }) {
                         icon="hand-coins"
                         onClick={() => { a.payDue(x.id, ui.form[key]); a.setF(key, undefined) }}
                       >
-                        Thu
+                        {t('debts.doCollect')}
                       </Button>
                     </div>
                   )}
@@ -995,7 +1004,7 @@ function Dues({ dues, canMoney }) {
                         icon="rotate-ccw"
                         onClick={() => a.clearDue(x.id)}
                       >
-                        Huỷ đánh dấu
+                        {t('debts.undoMark')}
                       </Button>
                     </div>
                   )}

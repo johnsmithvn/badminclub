@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Avatar, Icon, Select, SidebarNav } from '#ds'
+import { Avatar, Icon, SidebarNav } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { PUBLIC_PATHS, pathOf } from '#routes'
@@ -35,17 +35,12 @@ export default function Sidebar({ route }) {
   const { clubs: myClubs, activeClub, setActiveClub, profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [menu, setMenu] = useState(false)
+  const [clubMenu, setClubMenu] = useState(false)
   const role = db.viewAs || 'owner'
 
   const clubName = db.club.name
   const clubCode = db.club.code
-  const clubOptions = myClubs.map((c) => ({ value: c.id, label: c.name }))
   const clubValue = activeClub ? activeClub.id : ''
-
-  const onClub = (e) => {
-    setActiveClub(e.target.value)
-    navigate('/')
-  }
 
   const currentMember = (db.members || []).find((m) => m.userId === db.currentUserId)
   const meName = (currentMember && currentMember.name) || (profile && (profile.nick || profile.name)) || t('common.unknown')
@@ -93,22 +88,109 @@ export default function Sidebar({ route }) {
 
   return (
     <nav style={S.nav}>
-      <div style={S.head}>
-        <div style={S.logo}><Icon name="volleyball" size={18} /></div>
-        <div style={{ minWidth: 0 }}>
-          <div style={S.clubName}>{clubName}</div>
-          <div style={S.clubCode}>{t('shell.clubPrefix') + clubCode}</div>
-        </div>
-      </div>
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          style={{
+            ...S.head,
+            width: '100%',
+            border: 'none',
+            borderBottom: '1px solid var(--border-nav)',
+            background: clubMenu ? 'rgba(255,255,255,0.06)' : 'transparent',
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'background 0.15s ease',
+          }}
+          onClick={() => setClubMenu((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={clubMenu}
+        >
+          <div style={S.logo}><Icon name="volleyball" size={18} /></div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={S.clubName}>{clubName}</div>
+            <div style={S.clubCode}>{t('shell.clubPrefix') + clubCode}</div>
+          </div>
+          <Icon
+            name="chevrons-up-down"
+            size={16}
+            style={{
+              color: 'rgba(255,255,255,.5)',
+              transform: clubMenu ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s ease',
+              flexShrink: 0,
+            }}
+          />
+        </button>
 
-      <div style={{ padding: '10px 12px 2px' }}>
-        <Select
-          size="sm"
-          options={clubOptions}
-          value={clubValue}
-          onChange={onClub}
-          style={{ background: 'rgba(255,255,255,.10)', borderColor: 'rgba(255,255,255,.22)', color: '#fff' }}
-        />
+        {clubMenu && <div style={S.scrim} onClick={() => setClubMenu(false)} />}
+        {clubMenu && (
+          <div style={S.clubPopover} role="menu">
+            <div style={S.clubPopoverHeader}>
+              CLB của bạn
+            </div>
+            <div style={{ display: 'grid', gap: 2, maxHeight: 220, overflowY: 'auto' }}>
+              {myClubs.map((c) => {
+                const isCurrent = c.id === clubValue
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    role="menuitem"
+                    style={{
+                      ...S.clubItem,
+                      background: isCurrent ? 'var(--surface-accent-soft)' : 'transparent',
+                      color: isCurrent ? 'var(--teal-700)' : 'var(--text-primary)',
+                      fontWeight: isCurrent ? 600 : 400,
+                    }}
+                    onClick={() => {
+                      setClubMenu(false)
+                      if (!isCurrent) {
+                        setActiveClub(c.id)
+                        navigate('/')
+                      }
+                    }}
+                  >
+                    <div style={{
+                      width: 24, height: 24, borderRadius: 6,
+                      background: isCurrent ? 'var(--teal-500)' : 'var(--surface-sunken)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: isCurrent ? '#04302C' : 'var(--text-secondary)',
+                      fontSize: 11, fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {c.name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                      <div style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {c.name}
+                      </div>
+                      {c.code && (
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                          {c.code}
+                        </div>
+                      )}
+                    </div>
+                    {isCurrent && <Icon name="check" size={15} style={{ color: 'var(--teal-600)', flexShrink: 0 }} />}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+            <button
+              type="button"
+              role="menuitem"
+              style={S.clubItem}
+              onClick={() => {
+                setClubMenu(false)
+                navigate(PUBLIC_PATHS.clubs)
+              }}
+            >
+              <Icon name="grid-plus" size={15} style={{ color: 'var(--text-muted)' }} />
+              <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+                {t('shell.backToClubs')}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={{ padding: '8px 10px 8px 6px', flex: 1, overflowY: 'auto' }}>
@@ -182,6 +264,22 @@ const S = {
     display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 32,
     padding: '0 8px', border: 0, borderRadius: 6, background: 'transparent', cursor: 'pointer',
     font: 'var(--type-label)', color: 'var(--text-primary)', textAlign: 'left',
+  },
+  clubPopover: {
+    position: 'absolute', zIndex: 10, left: 10, right: 10, top: 'calc(100% + 4px)',
+    display: 'grid', padding: 6, borderRadius: 10, background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.1)',
+  },
+  clubPopoverHeader: {
+    padding: '4px 8px 6px',
+    font: 'var(--type-overline)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)',
+    color: 'var(--text-muted)', fontSize: 10,
+  },
+  clubItem: {
+    display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 36,
+    padding: '6px 8px', border: 0, borderRadius: 6, background: 'transparent', cursor: 'pointer',
+    textAlign: 'left', font: 'var(--type-label)',
   },
   footName: {
     font: 'var(--type-label)', color: '#fff',

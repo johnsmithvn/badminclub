@@ -26,9 +26,9 @@ export default function Home() {
       <Tabs
         variant="underline"
         items={[
-          { value: 'overview', label: 'Tổng quan' },
-          { value: 'transactions', label: 'Chi tiết thu chi' },
-          { value: 'report', label: 'Báo cáo tháng' },
+          { value: 'overview', label: t('home.tabs.overview') },
+          { value: 'transactions', label: t('home.tabTransactions') },
+          { value: 'report', label: t('home.tabReport') },
         ]}
         value={tab}
         onChange={(v) => a.setTab('home', v)}
@@ -75,7 +75,7 @@ function Overview() {
       }
     }
     debtorMap[k].debt += sg.price
-    debtorMap[k].desc.push('Buổi ' + ddmy(s.date))
+    debtorMap[k].desc.push(t('home.descSession', { date: ddmy(s.date) }))
   })
 
   adjustRows(db, month).forEach((ar) => {
@@ -114,7 +114,7 @@ function Overview() {
       }
     }
     debtorMap[k].debt += st.remain
-    debtorMap[k].desc.push('Quỹ tháng thiếu ' + fmtK(st.remain))
+    debtorMap[k].desc.push(t('home.descDuesShort', { amount: fmtK(st.remain) }))
   })
 
   const debtors = Object.values(debtorMap).sort((a, b) => b.debt - a.debt)
@@ -151,7 +151,7 @@ function Overview() {
       }
     }
     creditorMap[k].owed += amt
-    creditorMap[k].desc.push('Hoàn vắng ' + ar.label)
+    creditorMap[k].desc.push(t('home.descBack', { what: ar.label }))
   })
 
   const creditors = Object.values(creditorMap).sort((a, b) => b.owed - a.owed)
@@ -194,7 +194,7 @@ function Overview() {
         map[mid] = { id: mid, name: member.name, count: 0, guests: new Set() }
       }
       map[mid].count += 1
-      const gName = (guestOf(db, sg.guestId) || {}).name || 'Khách'
+      const gName = (guestOf(db, sg.guestId) || {}).name || t('debts.guestFallback')
       map[mid].guests.add(gName)
     })
     ;(db.members || []).forEach((m) => {
@@ -230,9 +230,9 @@ function Overview() {
 
       {/* 4 chỉ số vận hành CLB */}
       <div style={{ ...GRID_STAT, marginTop: 12 }}>
-        <StatCard label="Nợ cần thu" value={fmt(totalDebt)} icon="clock-alert"
+        <StatCard label={t('home.debtToCollect')} value={fmt(totalDebt)} icon="clock-alert"
           tone={totalDebt > 0 ? 'warning' : 'neutral'}
-          caption={debtors.length ? `${debtors.length} người đang nợ` : 'Đã thu đủ'} />
+          caption={debtors.length ? t('home.debtorCount', { n: debtors.length }) : t('home.debtAllPaid')} />
         <StatCard label={t('home.dues')} value={duesPaid.length + ' / ' + dues.length} icon="users"
           tone={dues.length && duesPaid.length === dues.length ? 'positive' : 'warning'}
           caption={t('home.duesCaption', {
@@ -245,8 +245,8 @@ function Overview() {
           value={closed.length + ' / ' + sess.filter((s) => s.status !== 'cancelled').length}
           icon="clipboard-check"
           caption={sess.filter((s) => s.status !== 'cancelled').length - closed.length === 0
-            ? 'Đã chốt tất cả buổi'
-            : `Còn ${sess.filter((s) => s.status !== 'cancelled').length - closed.length} buổi chưa chốt`} />
+            ? t('home.allClosed')
+            : t('home.openLeft', { n: sess.filter((s) => s.status !== 'cancelled').length - closed.length })} />
       </div>
 
       <div style={GRID_PAIR}>
@@ -310,7 +310,7 @@ function Overview() {
                         </Button>
                       ) : (
                         <Button size="sm" icon="eye" variant="ghost" onClick={() => a.openSession(s.id)}>
-                          Xem buổi
+                          {t('home.viewSession')}
                         </Button>
                       )}
                     </div>
@@ -377,13 +377,13 @@ function Overview() {
 
       <div style={GRID_PAIR}>
         <Card
-          title="Người nợ nhiều nhất"
-          subtitle={monthTxt(month) + ' · Nợ buổi & quỹ tháng'}
+          title={t('home.topDebtorTitle')}
+          subtitle={t('home.topDebtorSub', { month: monthTxt(month) })}
           icon="clock-alert"
           padding="16px 18px"
           actions={
             <Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.go('debts')}>
-              Xem tất cả
+              {t('home.viewAll')}
             </Button>
           }
         >
@@ -399,7 +399,7 @@ function Overview() {
                       background: r.isMember ? 'var(--teal-50)' : 'var(--amber-50)',
                       color: r.isMember ? 'var(--teal-700)' : 'var(--amber-700)',
                     }}>
-                      {r.isMember ? 'Hội viên' : 'Khách'}
+                      {t(r.isMember ? 'home.tagMember' : 'home.tagGuest')}
                     </span>
                   </div>
                   <div style={{ ...SS.caption, ...SS.ellipsis }}>
@@ -413,18 +413,18 @@ function Overview() {
                 )}
               </div>
             ))}
-            {!debtors.length && <Empty icon="circle-check" title="Không ai còn nợ" hint="Tất cả khách và hội viên đã thanh toán đủ tiền trong tháng." />}
+            {!debtors.length && <Empty icon="circle-check" title={t('home.noDebtor')} hint={t('home.noDebtorHint')} />}
           </div>
         </Card>
 
         <Card
-          title="Chủ nợ của CLB"
-          subtitle="CLB đang nợ nhiều nhất · Ứng tiền & hoàn vắng"
+          title={t('home.creditorTitle')}
+          subtitle={t('home.creditorSub')}
           icon="wallet"
           padding="16px 18px"
           actions={
             <Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => { a.setTab('debts', 'advance'); a.go('debts') }}>
-              Xem quỹ nợ
+              {t('home.viewAdvance')}
             </Button>
           }
         >
@@ -441,11 +441,11 @@ function Overview() {
                 <Mono weight={600} size={14} color="var(--status-incident)">{fmt(r.owed)}</Mono>
                 {canMoney && (
                   <Button variant="secondary" size="sm" icon="rotate-ccw"
-                    onClick={() => { a.setTab('debts', 'advance'); a.go('debts') }}>Hoàn</Button>
+                    onClick={() => { a.setTab('debts', 'advance'); a.go('debts') }}>{t('home.repay')}</Button>
                 )}
               </div>
             ))}
-            {!creditors.length && <Empty icon="circle-check" title="CLB không nợ ai" hint="CLB không còn khoản nợ ứng tiền hay tiền hoàn vắng nào chưa thanh toán." />}
+            {!creditors.length && <Empty icon="circle-check" title={t('home.noCreditor')} hint={t('home.noCreditorHint')} />}
           </div>
         </Card>
       </div>
@@ -469,8 +469,10 @@ function Overview() {
         </Card>
 
         <Card
-          title="Người lôi kéo nhiều nhất"
-          subtitle={isAllTime ? "Đại sứ rủ rê · Toàn thời gian" : `Đại sứ rủ rê · ${monthTxt(month).toLowerCase()}`}
+          title={t('home.topInviterTitle')}
+          subtitle={isAllTime
+            ? t('home.topInviterAll')
+            : t('home.topInviterMonth', { month: monthTxt(month).toLowerCase() })}
           icon="user-round-plus"
           padding="16px 18px"
         >
@@ -482,18 +484,18 @@ function Overview() {
                 <div style={{ flex: '0 0 105px', minWidth: 0 }}>
                   <div style={{ ...SS.label, ...SS.ellipsis }}>{r.name}</div>
                   <div style={{ font: '10px var(--font-sans)', color: 'var(--text-muted)' }}>
-                    {r.guestCount ? `${r.guestCount} người quen` : 'Thành viên mới'}
+                    {r.guestCount ? t('home.inviterKnown', { n: r.guestCount }) : t('home.inviterNew')}
                   </div>
                 </div>
                 <Bar pct={Math.round((r.count / maxInvites) * 100)} color={i === 0 ? 'var(--amber-500)' : 'var(--teal-500)'} />
-                <Mono style={{ whiteSpace: 'nowrap' }}>{r.count} lượt</Mono>
+                <Mono style={{ whiteSpace: 'nowrap' }}>{t('home.inviterTimes', { n: r.count })}</Mono>
               </div>
             ))}
             {!topInviters.length && (
               <Empty
                 icon="user-round-plus"
-                title="Chưa có ai rủ thêm người"
-                hint="Mỗi khi thêm khách vào buổi tập, hãy chọn người rủ để vinh danh đại sứ kéo người nhé!"
+                title={t('home.noInviter')}
+                hint={t('home.noInviterHint')}
               />
             )}
           </div>
@@ -505,14 +507,14 @@ function Overview() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
           <div>
             <div style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>
-              Tổng kết thu chi {monthTxt(month).toLowerCase()}
+              {t('home.summaryTitle', { month: monthTxt(month).toLowerCase() })}
             </div>
             <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-              Báo cáo chi tiết các khoản thu từ anh em và chi phí vận hành thực tế của CLB
+              {t('home.summarySub')}
             </div>
           </div>
           <Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.setTab('home', 'transactions')}>
-            Xem chi tiết thu chi
+            {t('home.viewLedger')}
           </Button>
         </div>
         <FundBalanceColumns />

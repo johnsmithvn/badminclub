@@ -137,7 +137,7 @@ function Card({
       borderRadius: 'var(--radius-card)',
       boxShadow: elevation === 'none' ? 'none' : `var(--shadow-${elevation})`,
       borderTop: accent ? `3px solid ${accent}` : undefined,
-      overflow: 'hidden',
+      overflow: style?.overflow || 'visible',
       ...style
     }
   }, rest), (title || actions) && /*#__PURE__*/React.createElement("header", {

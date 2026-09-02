@@ -151,7 +151,7 @@ function AllMembers({ canEdit }) {
     },
     { key: 'p', header: sortHead('p', t('members.colPhone')), mono: true, muted: true, render: (r) => r.phone || t('common.unknown') },
     {
-      key: 'note', header: 'Ghi chú', width: 150,
+      key: 'note', header: t('members.colNote'), width: 150,
       render: (r) => {
         if (!r.note) return <span style={{ color: 'var(--text-disabled)' }}>—</span>
         const isUrl = /^https?:\/\//i.test(r.note) || /^(facebook|fb|zalo)\./i.test(r.note)
@@ -210,7 +210,7 @@ function AllMembers({ canEdit }) {
       },
     },
     {
-      key: 'st', header: 'Trạng thái', width: 95,
+      key: 'st', header: t('members.colState'), width: 95,
       render: (r) => (
         r.active === false ? (
           <span style={{
@@ -245,7 +245,7 @@ function AllMembers({ canEdit }) {
           </Button>
           {/* Ngưng hoạt động (Inactive) giữ nguyên lịch sử; xoá cứng chỉ mở khi chưa dính gì. */}
           <IconButton icon={r.active === false ? 'rotate-ccw' : 'user-round-minus'} size="sm" variant="ghost"
-            label={r.active === false ? 'Kích hoạt lại (Active)' : 'Chuyển Inactive (Ngưng hoạt động)'}
+            label={t(r.active === false ? 'members.toActive' : 'members.toInactive')}
             onClick={() => {
               if (r.active === false) return a.reactivate(r.id)
               const s = offBackSuggest(db, r.id)
@@ -256,21 +256,21 @@ function AllMembers({ canEdit }) {
           {!memberRefs(db, r.id).length ? (
             <IconButton icon="trash-2" size="sm" variant="ghost"
               label={t('common.delete')} onClick={() => a.confirm({
-                title: `Xoá thành viên "${r.name}"?`,
-                message: `Bạn có chắc chắn muốn xoá thành viên "${r.name}" khỏi CLB?`,
+                title: t('members.delTitle', { name: r.name }),
+                message: t('members.delMsg', { name: r.name }),
                 tone: 'danger',
-                confirmText: 'Xoá thành viên',
+                confirmText: t('members.delOk'),
                 onConfirm: () => a.deleteMember(r.id),
               })} />
           ) : (
             <span
-              title="Đã phát sinh lịch sử (điểm danh / tiền quỹ) — không cho phép xoá để bảo toàn sổ sách. Hãy dùng nút Inactive bên cạnh."
+              title={t('members.delBlocked')}
               style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 opacity: 0.4, cursor: 'not-allowed',
               }}
             >
-              <IconButton icon="lock" size="sm" variant="ghost" disabled label="Đã có lịch sử sinh hoạt" />
+              <IconButton icon="lock" size="sm" variant="ghost" disabled label={t('members.delBlockedShort')} />
             </span>
           )}
         </div>
@@ -354,15 +354,15 @@ function AllMembers({ canEdit }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--navy-800)' }}>
-              Đã chọn {selected.length} / {rows.length} người
+              {t('members.bulkSelected', { n: selected.length, total: rows.length })}
             </span>
             <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
-              Bỏ chọn
+              {t('members.bulkClear')}
             </Button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>Gán ca:</span>
+            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('members.bulkAssign')}</span>
             {db.groups.map((g) => (
               <Button
                 key={g.id}
@@ -385,7 +385,7 @@ function AllMembers({ canEdit }) {
                   setSelectedIds([])
                 }}
               >
-                Cả {db.groups.length} ca
+                {t('members.bulkAllGroups', { n: db.groups.length })}
               </Button>
             )}
 
@@ -400,7 +400,7 @@ function AllMembers({ canEdit }) {
                 setSelectedIds([])
               }}
             >
-              Bỏ cố định (Đi lẻ)
+              {t('members.bulkNoGroup')}
             </Button>
 
             {!showOff ? (
@@ -410,11 +410,11 @@ function AllMembers({ canEdit }) {
                 icon="user-round-minus"
                 onClick={() => {
                   a.confirm({
-                    title: 'Chuyển trạng thái Inactive?',
-                    message: `Chuyển ${selected.length} thành viên đã chọn sang trạng thái Inactive?`,
-                    desc: 'Lịch sử điểm danh và quỹ của các thành viên này được giữ nguyên 100%.',
+                    title: t('members.bulkOffTitle'),
+                    message: t('members.bulkOffMsg', { n: selected.length }),
+                    desc: t('members.bulkOffDesc'),
                     tone: 'warning',
-                    confirmText: 'Chuyển Inactive',
+                    confirmText: t('members.bulkOff'),
                     onConfirm: () => {
                       a.deactivateMembersBulk(selected)
                       setSelectedIds([])
@@ -422,7 +422,7 @@ function AllMembers({ canEdit }) {
                   })
                 }}
               >
-                Chuyển Inactive
+                {t('members.bulkOff')}
               </Button>
             ) : (
               <Button
@@ -434,7 +434,7 @@ function AllMembers({ canEdit }) {
                   setSelectedIds([])
                 }}
               >
-                Kích hoạt Active
+                {t('members.bulkOn')}
               </Button>
             )}
 
@@ -446,20 +446,20 @@ function AllMembers({ canEdit }) {
                 const blocked = selected.filter((id) => memberRefs(db, id).length > 0)
                 if (blocked.length === selected.length) {
                   return a.alert({
-                    title: 'Không thể xoá vĩnh viễn',
-                    message: 'Tất cả thành viên đã chọn đều đã có dữ liệu (điểm danh/quỹ).',
-                    desc: 'Hệ thống không cho phép xoá vĩnh viễn để bảo toàn lịch sử sổ sách. Hãy dùng nút "Chuyển Inactive" bên cạnh.',
+                    title: t('members.bulkDelNoneTitle'),
+                    message: t('members.bulkDelNoneMsg'),
+                    desc: t('members.bulkDelNoneDesc'),
                     tone: 'warning',
                   })
                 }
                 const msg = blocked.length > 0
-                  ? `Có ${selected.length - blocked.length} người chưa có dữ liệu sẽ bị xoá. Còn ${blocked.length} người đã có dữ liệu sinh hoạt sẽ được giữ lại an toàn.`
-                  : `Bạn có chắc chắn muốn xoá vĩnh viễn ${selected.length} thành viên này khỏi CLB?`
+                  ? t('members.bulkDelSomeMsg', { n: selected.length - blocked.length, kept: blocked.length })
+                  : t('members.bulkDelAllMsg', { n: selected.length })
                 a.confirm({
-                  title: 'Xoá thành viên hàng loạt',
+                  title: t('members.bulkDelTitle'),
                   message: msg,
                   tone: 'danger',
-                  confirmText: 'Xác nhận xoá',
+                  confirmText: t('members.bulkDelOk'),
                   onConfirm: () => {
                     a.deleteMembersBulk(selected)
                     setSelectedIds([])
@@ -467,7 +467,7 @@ function AllMembers({ canEdit }) {
                 })
               }}
             >
-              Xoá vĩnh viễn
+              {t('members.bulkDel')}
             </Button>
           </div>
         </div>
