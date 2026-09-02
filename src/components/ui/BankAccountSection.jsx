@@ -1,8 +1,9 @@
 import { useId, useMemo, useRef, useState } from 'react'
-import { Button, Card, Icon, Input, Select } from '#ds'
-import { banks, findBank, getVietQrUrl } from '#utils/vietqr.js'
+import { Button, Card, Icon, Input } from '#ds'
+import { banks, findBank, getVietQrUrl, parseVietQr, scanQrCodeFromImage } from '#utils/vietqr.js'
 import { uploadImage } from '#utils/image.js'
 import { QrModal } from '#components/ui/QrModal.jsx'
+import { SearchSelect } from '#components/ui/SearchSelect.jsx'
 import { t } from '#i18n'
 
 const Overline = ({ children, style }) => (
@@ -38,32 +39,30 @@ export function BankAccountSection({
   subtitle,
   card = true,
 }) {
-  const fileRef = useRef(null)
-  const [showModal, setShowModal] = useState(false)
+  const [showQrModal, setShowQrModal] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const uploadInputId = useId()
+  const fileRef = useRef(null)
+  const fileId = useId()
 
-  // Tìm ngân hàng hiện tại
-  const currentBank = useMemo(() => findBank(bankName), [bankName])
+  const detectedBank = useMemo(() => findBank(bankName), [bankName])
 
-  // Sinh mã VietQR tự động nếu có đủ ngân hàng và STK
-  const autoQrUrl = useMemo(() => {
-    if (!currentBank || !bankNo) return null
+  // Sinh link VietQR tự động khi có đủ ngân hàng và STK
+  const autoVietQrUrl = useMemo(() => {
+    if (!bankNo) return ''
+    const bankCode = detectedBank ? detectedBank.bin : bankName
     return getVietQrUrl({
-      bankCode: currentBank.bin,
+      bankCode,
       accountNo: bankNo,
       accountHolder: bankHolder,
     })
-  }, [currentBank, bankNo, bankHolder])
+  }, [detectedBank, bankName, bankNo, bankHolder])
 
-  // QR hiển thị ưu tiên ảnh upload riêng, nếu không có thì dùng VietQR tự động
-  const displayQrUrl = qrUrl || autoQrUrl
+  // Ưu tiên QR riêng nếu user upload, nếu không thì dùng mã VietQR tự động
+  const effectiveQrUrl = qrUrl || autoVietQrUrl
 
   const handleBankChange = (val) => {
-    const b = findBank(val)
-    const newName = b ? b.shortName : val
     if (onChange) {
-      onChange({ bankHolder, bankNo, bankName: newName, qrUrl })
+      onChange({ bankHolder, bankNo, bankName: val, qrUrl })
     }
   }
 
@@ -84,9 +83,34 @@ export function BankAccountSection({
     if (!file) return
     setUploading(true)
     try {
+      // 1. Quét và giải mã thông tin từ ảnh QR nếu là mã VietQR chuẩn
+      let nextHolder = bankHolder
+      let nextNo = bankNo
+      let nextBank = bankName
+
+      try {
+        const qrRaw = await scanQrCodeFromImage(file)
+        if (qrRaw) {
+          const parsed = parseVietQr(qrRaw)
+          if (parsed) {
+            if (parsed.bankHolder) nextHolder = parsed.bankHolder
+            if (parsed.bankNo) nextNo = parsed.bankNo
+            if (parsed.bankName) nextBank = parsed.bankName
+          }
+        }
+      } catch {
+        // Quét QR lỗi thì vẫn tiếp tục upload ảnh
+      }
+
+      // 2. Nén và tải ảnh lên Storage
       const url = await uploadImage(file, { folder: 'qrcodes', maxWidth: 800, maxHeight: 800, quality: 0.85 })
       if (onChange) {
-        onChange({ bankHolder, bankNo, bankName, qrUrl: url })
+        onChange({
+          bankHolder: nextHolder,
+          bankNo: nextNo,
+          bankName: nextBank,
+          qrUrl: url,
+        })
       }
     } catch {
       // Bỏ qua lỗi
@@ -103,11 +127,12 @@ export function BankAccountSection({
   }
 
   const bankOptions = useMemo(() => {
-    const list = banks.map((b) => ({
+    return banks.map((b) => ({
       value: b.shortName,
-      label: `${b.shortName} (${b.code}) — ${b.name}`,
+      label: `${b.shortName} (${b.code})`,
+      sub: b.name,
+      icon: 'building-2',
     }))
-    return [{ value: '', label: t('bank.selectPrompt') }].concat(list)
   }, [])
 
   const content = (
@@ -115,11 +140,13 @@ export function BankAccountSection({
       {canEdit ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
           <div style={{ display: 'grid', gap: 10 }}>
-            <Select
+            <SearchSelect
               label={t('settings.fBankName')}
+              placeholder={t('bank.selectPrompt')}
               value={bankName || ''}
               options={bankOptions}
-              onChange={(e) => handleBankChange(e.target.value)}
+              onChange={(val) => handleBankChange(val || '')}
+              clearable
             />
             <Input
               label={t('settings.fBankNo')}
@@ -148,7 +175,7 @@ export function BankAccountSection({
             background: 'var(--surface-inset)',
             border: '1px solid var(--border-subtle)',
           }}>
-            {displayQrUrl ? (
+            {effectiveQrUrl ? (
               <div
                 style={{
                   position: 'relative',
@@ -163,12 +190,12 @@ export function BankAccountSection({
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
-                onClick={() => setShowModal(true)}
+                onClick={() => setShowQrModal(true)}
                 title={t('bank.clickToEnlarge')}
               >
                 <img
-                  src={displayQrUrl}
-                  alt="QR Code"
+                  src={effectiveQrUrl}
+                  alt={t('bank.qrTitle')}
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
                 <span style={{
@@ -196,7 +223,7 @@ export function BankAccountSection({
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
               <input
                 ref={fileRef}
-                id={uploadInputId}
+                id={fileId}
                 type="file"
                 accept="image/*"
                 style={{ display: 'none' }}
@@ -226,7 +253,7 @@ export function BankAccountSection({
         </div>
       ) : (
         /* Chế độ chỉ đọc (Read-only view) */
-        <div style={{ display: 'grid', gridTemplateColumns: displayQrUrl ? '1fr 140px' : '1fr', gap: 14, alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: effectiveQrUrl ? '1fr 140px' : '1fr', gap: 14, alignItems: 'center' }}>
           <div style={{ display: 'grid', gap: 8 }}>
             <div style={{ display: 'grid', gap: 2 }}>
               <Overline>{t('settings.fBankHolder')}</Overline>
@@ -248,7 +275,7 @@ export function BankAccountSection({
             </div>
           </div>
 
-          {displayQrUrl && (
+          {effectiveQrUrl && (
             <div
               style={{
                 width: 120,
@@ -263,12 +290,12 @@ export function BankAccountSection({
                 justifyContent: 'center',
                 margin: '0 auto',
               }}
-              onClick={() => setShowModal(true)}
+              onClick={() => setShowQrModal(true)}
               title={t('bank.clickToEnlarge')}
             >
               <img
-                src={displayQrUrl}
-                alt="QR Code"
+                src={effectiveQrUrl}
+                alt={t('bank.qrTitle')}
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             </div>
@@ -277,14 +304,14 @@ export function BankAccountSection({
       )}
 
       {/* Modal phóng to QR */}
-      {showModal && displayQrUrl && (
+      {showQrModal && effectiveQrUrl && (
         <QrModal
           title={title || t('bank.qrTitle')}
-          qrUrl={displayQrUrl}
+          qrUrl={effectiveQrUrl}
           bankName={bankName}
           accountNo={bankNo}
           accountHolder={bankHolder}
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowQrModal(false)}
         />
       )}
     </div>
