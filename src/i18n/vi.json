@@ -415,6 +415,8 @@
     "clubDeleted": "Đã xóa CLB {{name}} và toàn bộ dữ liệu của CLB đó.",
     "scheduleSaved": "Đã lưu lịch {{name}} · giữ {{keep}} buổi, thêm {{add}}, xóa {{remove}}. Giữ nguyên {{skip}} buổi đã mở hoặc đã qua ngày.",
     "scheduleDeleted": "Đã xóa lịch {{name}} và {{n}} buổi chưa mở của nó. Buổi đã chốt không bị đụng.",
+    "sessionDeleted": "Đã xóa hẳn buổi {{date}} khỏi lịch.",
+    "sessionHasRefs": "Chưa xóa hẳn được buổi này: đã có {{why}}. Xóa là mất luôn những thứ đó. Dùng nút Hủy buổi để gỡ khỏi tiền nong mà vẫn giữ lịch sử.",
     "scheduleNoDelete": "Không xóa được: lịch này còn {{n}} buổi đã mở, đã chốt hoặc đã qua ngày. Bấm Tắt để dừng sinh buổi mới.",
     "billSaved": "Đã sửa hóa đơn sân · {{amount}}. Số dư quỹ tính lại theo số mới.",
     "ledgerSaved": "Đã sửa dòng thu/chi ghi tay. Số dư quỹ tính lại theo số mới.",
@@ -434,7 +436,7 @@
     "needGroupCourt": "Chọn ít nhất một sân cho nhóm.",
     "needGroupFirst": "CLB chưa có nhóm cố định nào. Vào Cài đặt → Nhóm cố định để thêm trước.",
     "needCourtFirst": "CLB chưa có sân nào. Vào Cài đặt → Sân để thêm trước.",
-    "groupInUse": "Chưa xóa được nhóm này: còn {{why}}. Gỡ những thứ đó trước, hoặc để nhóm lại và bỏ gán thành viên.",
+    "groupInUse": "Chưa xóa được nhóm này: còn {{why}}. Gỡ những thứ đó trước rồi xóa lại.",
     "groupDeleted": "Đã xóa nhóm. Ai đang cố định nhóm này thành đi lẻ, tháng sau không sinh quỹ tháng cho họ nữa.",
     "pricingSaved": "Đã lưu thay đổi biểu phí.",
     "groupsSaved": "Đã lưu thông tin các nhóm cố định.",
@@ -543,6 +545,17 @@
     "allClubShort": "CLB"
   },
   "session": {
+    "ref": {
+      "attend": "bảng điểm danh",
+      "guest": "khách giao lưu đã ghi",
+      "match": "trận đã ghi",
+      "closed": "buổi đã chốt"
+    },
+    "note": "Ghi chú",
+    "notePh": "Sân đổi giờ, ai đó mượn sân, lý do huỷ…",
+    "delTitle": "Xóa hẳn buổi tập này?",
+    "doDelete": "Xóa hẳn",
+    "delMsg": "Xóa hẳn buổi {{date}} khỏi lịch. Chỉ làm được khi buổi chưa có điểm danh, khách hay trận nào. Muốn giữ lịch sử thì bấm Hủy buổi thay vì xóa.",
     "noCourt": "chưa gán sân",
     "courtPrefix": "Sân ",
     "soldMark": "(đã bán)",
@@ -1143,9 +1156,11 @@
     "noClubHint": "Nhập mã CLB do chủ CLB cung cấp để xin vào, hoặc nhận lời mời qua SĐT."
   },
   "settings": {
+    "groupHistoryLocked": "Nhóm này đã có lịch sử ({{why}}) nên không xóa được nữa — xóa là mọi dòng tiền cũ trong sổ quỹ mất tên nhóm. Đổi tên nhóm cho đúng ý nghĩa mới, hoặc để nguyên.",
     "groupDelMsg": "Xóa nhóm \"{{name}}\"? Ai đang cố định nhóm này sẽ thành đi lẻ — họ trả theo giá khách từng buổi, không đóng quỹ tháng nữa. Không tự gán sang nhóm khác.",
     "groupRef": {
-      "session": "buổi tập đã sinh",
+      "session": "buổi chưa mở ở tương lai",
+      "history": "buổi đã mở hoặc đã qua ngày",
       "schedule": "lịch tập cố định",
       "dues": "khoản quỹ tháng đã sinh",
       "adjust": "dòng đối chiếu buổi",
@@ -1225,7 +1240,7 @@
     "fGroupName": "Tên nhóm",
     "fGroupShort": "Viết tắt",
     "fGroupWeekday": "Thứ",
-    "groupTimeNote": "Chỉ để điền sẵn ô giờ khi tạo lịch hoặc buổi đột xuất. Buổi đã có giữ giờ riêng — sửa ở đây không đụng buổi nào.",
+    "groupTimeNote": "Điền sẵn ô giờ khi tạo lịch cho nhóm này — chọn nhóm trong hộp thoại là giờ tự nhảy theo. Buổi đã sinh giữ giờ riêng, sửa ở đây không đụng buổi nào.",
     "fGroupFrom": "Giờ bắt đầu mặc định",
     "fGroupTo": "Giờ kết thúc mặc định",
     "fGroupCourts": "Sân của nhóm",

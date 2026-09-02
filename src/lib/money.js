@@ -673,7 +673,18 @@ export function memberRefs(db, id) {
 export function groupRefs(db, gid) {
   const why = []
   const any = (k, cond) => { if (cond) why.push(k) }
-  any('session', (db.sessions || []).some((x) => x.groupId === gid))
+
+  // Tách buổi làm HAI lý do, vì hai loại này khác nhau về bản chất:
+  //   history — buổi đã mở / đã chốt / đã qua ngày. Chặn VĨNH VIỄN, không có đường gỡ: xoá
+  //             nhóm là mọi dòng tiền lịch sử mất nhãn (`ledger` đọc `groupOf(db, s.groupId)`)
+  //             và khoá ngoại trần của `sessions.group_id` nổ 23503.
+  //   session — buổi chưa mở, còn ở tương lai. Chặn TẠM: xoá lịch và buổi đó là gỡ được.
+  // Gộp hai cái làm một thì người dùng ngồi gỡ mãi một thứ không bao giờ gỡ nổi, mà app không
+  // nói ra là vô vọng.
+  const mine = (db.sessions || []).filter((x) => x.groupId === gid)
+  const isHistory = (x) => x.status !== 'draft' || x.date <= db.today
+  any('history', mine.some(isHistory))
+  any('session', mine.some((x) => !isHistory(x)))
   any('schedule', (db.schedules || []).some((x) => x.groupId === gid))
   any('dues', (db.dues || []).some((x) => x.groupId === gid))
   any('adjust', (db.adjustments || []).some((x) => x.groupId === gid))
@@ -681,6 +692,28 @@ export function groupRefs(db, gid) {
     const g = (db.roster[mo] || {})[gid]
     return !!g && Object.keys(g).length > 0
   }))
+  return why
+}
+
+/**
+ * Vì sao KHÔNG xoá cứng được một buổi — cùng khuôn `memberRefs` / `groupRefs`.
+ *
+ * `sessions` có SÁU bảng con `ON DELETE CASCADE` (attendances · session_courts · session_guests ·
+ * session_lineups · session_court_groups · matches → match_players). Xoá cứng là mất sạch, âm
+ * thầm, trong đó có TIỀN KHÁCH ĐÃ THU của buổi đó — dòng thu biến khỏi sổ quỹ mà không ai
+ * hoàn tiền cho khách.
+ *
+ * Nên xoá cứng CHỈ dành cho buổi chưa ai chạm vào. Buổi đã có dấu vết thì dùng HUỶ
+ * (`status: 'cancelled'`): mọi công thức tiền đã loại buổi huỷ sẵn rồi (`unitPrice`,
+ * `remainSessions`, `joinDues`), mà lịch sử vẫn còn nguyên và bỏ huỷ lại được.
+ */
+export function sessionRefs(db, sid) {
+  const why = []
+  const any = (k, cond) => { if (cond) why.push(k) }
+  any('attend', Object.keys((db.attendance || {})[sid] || {}).length > 0)
+  any('guest', (db.sessionGuests || []).some((g) => g.sessionId === sid))
+  any('match', (db.matches || []).some((m) => m.sessionId === sid))
+  any('closed', !!(db.sessions || []).find((s) => s.id === sid && (s.status === 'closed' || s.costFrozenAt)))
   return why
 }
 

@@ -251,8 +251,8 @@ function ScheduleDialog() {
       <Select label={t('schedules.fGroup')} value={f.sGroup || db.groups[0]?.id}
         disabled={!!sched && !plan.soft}
         hint={sched ? t(plan.soft ? 'schedules.groupFree' : 'schedules.groupLocked') : undefined}
-        options={db.groups.map((g, idx) => ({ value: g.id, label: g.name + (idx === 0 ? ' (Mặc định)' : '') }))}
-        onChange={(e) => a.setF('sGroup', e.target.value)} />
+        options={db.groups.map((g) => ({ value: g.id, label: g.name }))}
+        onChange={(e) => a.setScheduleGroup(e.target.value)} />
 
       <div style={{ display: 'grid', gap: 6 }}>
         <Overline>{t('schedules.fWeekdays')}</Overline>

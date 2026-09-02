@@ -7,7 +7,7 @@ import {
   courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
-  adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, joinDues,
+  adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
   adhocCharges, chargeName, sGuestsOnly,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
@@ -329,6 +329,29 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ dialog: null, form: {} }))
       toast(t('toast.courtAdded'))
     },
+    /** Ghi chú của một buổi. Cột `sessions.note` có sẵn dưới DB và đã map hai chiều từ lâu,
+     *  chỉ là chưa có ô nhập nào. */
+    setSessionNote: (sid, v) => patchSession(sid, (x) => ({ ...x, note: v })),
+
+    /**
+     * XOÁ CỨNG một buổi — chỉ khi chưa ai chạm vào (`money.js: sessionRefs`). Sáu bảng con
+     * cascade theo `sessions`, nên xoá buổi đã có dấu vết là mất điểm danh, trận và tiền khách
+     * đã thu, âm thầm. Có dấu vết thì dùng Huỷ.
+     */
+    deleteSession: (sid) => {
+      const d0 = db()
+      const was = sessionOf(d0, sid)
+      if (!was) return
+      const why = sessionRefs(d0, sid)
+      if (why.length) {
+        return toast(t('toast.sessionHasRefs', {
+          why: why.map((k) => t('session.ref.' + k)).join(', '),
+        }))
+      }
+      up((d) => ({ sessions: d.sessions.filter((x) => x.id !== sid) }))
+      toast(t('toast.sessionDeleted', { date: dd(was.date) }))
+    },
+
     removeSessionCourt: (sid, i) =>
       patchSession(sid, (x, d) => {
         const rows = (x.courts || []).slice()
@@ -934,19 +957,47 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         else w.splice(i, 1)
         return { form: { ...u.form, [field]: w } }
       }),
+    /**
+     * Đổi nhóm trong hộp thoại tạo lịch → kéo luôn giờ mặc định của nhóm đó xuống các dòng sân.
+     *
+     * Trước đây `defaultCourtRows` chỉ đọc `db.groups[0]` MỘT LẦN lúc mở hộp thoại, nên tạo
+     * lịch cho "Ca chủ nhật" lại điền giờ của "Ca thứ 6" (nhóm đứng đầu mảng) — và đổi nhóm
+     * xong giờ vẫn đứng im. Hai ô "giờ mặc định" của nhóm vì thế trông như vô dụng: chúng có
+     * dữ liệu đúng nhưng không bao giờ tới được đúng chỗ.
+     *
+     * Chỉ đụng dòng sân đang có, KHÔNG đụng buổi nào đã sinh — giờ của buổi nằm ở `session_courts`.
+     */
+    setScheduleGroup: (gid) =>
+      upUi((u) => {
+        const g = db().groups.find((x) => x.id === gid)
+        if (!g) return { form: { ...u.form, sGroup: gid } }
+        return {
+          form: {
+            ...u.form,
+            sGroup: gid,
+            rows: (u.form.rows || []).map((r) => ({ ...r, from: g.from || r.from, to: g.to || r.to })),
+          },
+        }
+      }),
     addRow: () => {
       // CLB mới chưa có sân nào — nói rõ thay vì nổ vì đọc courts[0].
       const c = db().courts[0]
       if (!c) return toast(t('toast.needCourtFirst'))
-      const g = db().groups[0]
-      upUi((u) => ({
-        form: {
-          ...u.form,
-          rows: (u.form.rows || []).concat([
-            { courtId: c.id, from: g ? g.from : '18:00', to: g ? g.to : '20:00' },
-          ]),
-        },
-      }))
+      upUi((u) => {
+        // Giờ lấy theo nhóm ĐANG CHỌN trong form, không phải `groups[0]`. Đọc groups[0] là
+        // thêm dòng sân thứ hai cho lịch Ca chủ nhật lại điền giờ của Ca thứ 6 — cùng đúng
+        // cái lỗi mà `setScheduleGroup` vừa vá cho dòng đầu.
+        const gs = db().groups
+        const g = gs.find((x) => x.id === u.form.sGroup) || gs[0]
+        return {
+          form: {
+            ...u.form,
+            rows: (u.form.rows || []).concat([
+              { courtId: c.id, from: (g && g.from) || '18:00', to: (g && g.to) || '20:00' },
+            ]),
+          },
+        }
+      })
     },
     delRow: (i) =>
       upUi((u) => {
@@ -1370,9 +1421,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const d0 = db()
       const why = groupRefs(d0, id)
       if (why.length) {
-        return toast(t('toast.groupInUse', {
-          why: why.map((k) => t('settings.groupRef.' + k)).join(', '),
-        }))
+        const txt = why.map((k) => t('settings.groupRef.' + k)).join(', ')
+        // Có lịch sử = chặn VĨNH VIỄN, nói thẳng ra. Gộp chung với "gỡ đi rồi xoá lại" là để
+        // người ta ngồi gỡ mãi một thứ không bao giờ gỡ nổi.
+        return toast(t(why.indexOf('history') >= 0 ? 'toast.groupHistoryLocked' : 'toast.groupInUse', { why: txt }))
       }
       up((d) => ({
         groups: d.groups.filter((g) => g.id !== id),

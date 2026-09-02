@@ -2,9 +2,10 @@
 
 
 /**
- * Một dòng sân mặc định để ĐIỀN SẴN ô nhập: sân đầu tiên của CLB, giờ của nhóm đầu tiên.
- * Giờ của nhóm KHÔNG phải giờ của buổi — buổi giữ giờ riêng trong `session_courts`. Đây chỉ là
- * gợi ý cho đỡ phải gõ, sửa giờ nhóm về sau không đụng buổi nào.
+ * Một dòng sân mặc định để ĐIỀN SẴN ô nhập: sân đầu tiên của CLB, giờ của nhóm đang chọn.
+ * Đổi nhóm trong hộp thoại thì giờ đi theo — xem `appActions: setScheduleGroup`.
+ * Giờ của nhóm KHÔNG phải giờ của buổi: buổi giữ giờ riêng trong `session_courts`, sửa giờ
+ * nhóm về sau không đụng buổi nào đã sinh.
  */
 export function defaultCourtRows(db) {
   const g = db.groups[0]

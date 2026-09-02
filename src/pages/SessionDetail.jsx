@@ -101,7 +101,29 @@ export default function SessionDetail() {
                 {t('session.doCancel')}
               </Button>
             )}
+            {/* Xoá HẲN chỉ mở khi chưa ai chạm vào buổi (`money.js: sessionRefs`). Sáu bảng con
+                cascade theo `sessions` — xoá buổi đã có dấu vết là mất điểm danh, trận và tiền
+                khách đã thu. Có dấu vết thì dùng Huỷ ở nút bên cạnh. */}
+            {canEdit && (
+              <Button variant="ghost" size="sm" icon="trash-2" onClick={() => a.confirm({
+                title: t('session.delTitle'),
+                message: t('session.delMsg', { date: ddmy(s.date) }),
+                tone: 'danger',
+                confirmText: t('session.doDelete'),
+                onConfirm: () => a.deleteSession(s.id),
+              })}>
+                {t('session.doDelete')}
+              </Button>
+            )}
           </div>
+        </div>
+
+        {/* Ghi chú của buổi. Cột `sessions.note` có sẵn dưới DB và map hai chiều từ lâu, chỉ là
+            chưa bao giờ có ô nhập. Lưu ngay khi gõ, không có nút Lưu riêng. */}
+        <div style={{ marginTop: 12 }}>
+          <Input label={t('session.note')} placeholder={t('session.notePh')}
+            value={s.note || ''} disabled={!canEdit}
+            onChange={(e) => a.setSessionNote(s.id, e.target.value)} />
         </div>
       </Card>
 
