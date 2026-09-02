@@ -695,65 +695,98 @@ export function myMember(db) {
 }
 
 /**
- * Các khoản CHÍNH MÌNH còn nợ CLB trong tháng, gộp cả ba nguồn về một danh sách phẳng.
+ * Dựng danh sách khoản NGƯỜI NỢ QUỸ trong tháng, gộp cả ba nguồn về một hình phẳng.
+ *
+ * Một hàm cho cả hai màn vì đây là cùng một câu hỏi "khoản nào đang treo": Trang chủ hỏi của
+ * riêng tôi, tab Chờ duyệt hỏi của mọi người đã khai. Tách đôi thì hai bên trôi khỏi nhau và
+ * một hôm nào đó cùng một khoản hiện ở màn này mà không hiện ở màn kia.
  *
  * CHỈ chiều NGƯỜI NỢ QUỸ. Khoản quỹ nợ lại (hoàn tiền vắng, `amount < 0`) không nằm ở đây:
- * đó là tiền chảy ngược, thành viên không đi trả cái đó, và hiện nút "Trả" lên là mời người
- * ta chuyển tiền cho khoản đáng lẽ được nhận.
+ * tiền chảy ngược, thành viên không đi trả cái đó.
  *
- * Cố ý KHÔNG đi qua khối gộp-theo-người của màn Công nợ: khối đó tách một dòng đối chiếu
- * thành nhiều dòng theo từng buổi để thủ quỹ soi, mà `id` thì vẫn là một — người tự khai sẽ
- * thấy cùng một khoản nằm ba dòng. Ở đây một khoản là một dòng, đúng cái người ta đi chuyển.
+ * Cố ý KHÔNG đi qua khối gộp-theo-người của màn Công nợ: khối đó tách một dòng đối chiếu thành
+ * nhiều dòng theo từng buổi để thủ quỹ soi, mà `id` thì vẫn là một.
  *
- * `claimedAt` khác null = đã khai, đang chờ duyệt. Xem migration 0018.
+ * @param {object} opts
+ * @param {string} [opts.memberId] chỉ lấy khoản của một người
+ * @param {boolean} [opts.claimedOnly] chỉ lấy khoản ĐÃ KHAI, đang chờ duyệt
  */
-export function myDebts(db, monthKey) {
-  const me = myMember(db)
-  if (!me) return []
+export function debtRows(db, monthKey, { memberId = null, claimedOnly = false } = {}) {
   const out = []
+  const mine = (id) => !memberId || id === memberId
+  const take = (claimedAt) => !claimedOnly || Boolean(claimedAt)
+  const who = (id) => memberOf(db, id)
 
   // 1. Quỹ tháng — chỉ phần CÒN THIẾU, vì đóng thiếu vẫn là còn nợ.
-  duesOf(db, monthKey)
-    .filter((d) => d.memberId === me.id)
-    .forEach((d) => {
-      const st = dueState(d)
-      if (st.remain <= 0) return
-      out.push({
-        kind: 'dues', id: d.id, key: 'dues:' + d.id,
-        label: t('debts.myKind.dues'),
-        sub: groupOf(db, d.groupId).name || '',
-        date: d.month + '-01', amount: st.remain,
-        claimedAt: d.claimedAt || null,
-      })
+  duesOf(db, monthKey).forEach((d) => {
+    if (!mine(d.memberId) || !take(d.claimedAt)) return
+    const st = dueState(d)
+    if (st.remain <= 0) return
+    out.push({
+      kind: 'dues', id: d.id, key: 'dues:' + d.id,
+      memberId: d.memberId, name: who(d.memberId).name,
+      label: t('debts.myKind.dues'),
+      sub: groupOf(db, d.groupId).name || '',
+      date: d.month + '-01', amount: st.remain,
+      claimedAt: d.claimedAt || null,
     })
+  })
 
   // 2. Đối chiếu buổi (đi thêm ca cố định). `id` rỗng = khoản chưa từng ghi xuống DB, không
   // khai được — RPC khoá theo id thật, khai một khoản chưa tồn tại là ném lỗi vô nghĩa.
-  adjustRows(db, monthKey)
-    .filter((r) => r.memberId === me.id && r.amount > 0 && !r.paid && r.id)
-    .forEach((r) => out.push({
+  adjustRows(db, monthKey).forEach((r) => {
+    if (!mine(r.memberId) || !take(r.claimedAt)) return
+    if (r.amount <= 0 || r.paid || !r.id) return
+    out.push({
       kind: 'adjust', id: r.id, key: 'adj:' + r.id,
+      memberId: r.memberId, name: r.member ? r.member.name : who(r.memberId).name,
       label: t('debts.myKind.adjust'),
       sub: (r.group && r.group.name) || '',
       date: r.month + '-28', amount: r.amount,
       claimedAt: r.claimedAt || null,
-    }))
+    })
+  })
 
   // 3. Buổi đi đột xuất (dòng thu của THÀNH VIÊN trong session_guests).
-  ;(db.sessionGuests || [])
-    .filter((g) => g.memberId === me.id && !g.paid)
-    .forEach((g) => {
-      const s = sessionOf(db, g.sessionId)
-      if (!s || monthOf(s.date) !== monthKey) return
-      out.push({
-        kind: 'guest', id: g.id, key: 'sg:' + g.id,
-        label: t('debts.myKind.guest'),
-        sub: courtTxt(db, s), date: s.date, amount: g.price,
-        claimedAt: g.claimedAt || null,
-      })
+  ;(db.sessionGuests || []).forEach((g) => {
+    if (!g.memberId || g.paid || !mine(g.memberId) || !take(g.claimedAt)) return
+    const ss = sessionOf(db, g.sessionId)
+    if (!ss || monthOf(ss.date) !== monthKey) return
+    out.push({
+      kind: 'guest', id: g.id, key: 'sg:' + g.id,
+      memberId: g.memberId, name: who(g.memberId).name,
+      label: t('debts.myKind.guest'),
+      sub: courtTxt(db, ss), date: ss.date, amount: g.price,
+      claimedAt: g.claimedAt || null,
     })
+  })
 
   return out.sort((a, b) => (a.date < b.date ? -1 : 1))
+}
+
+/** Khoản CHÍNH NGƯỜI ĐANG ĐĂNG NHẬP còn nợ. Rỗng khi tài khoản chưa ghép vào CLB nào. */
+export function myDebts(db, monthKey) {
+  const me = myMember(db)
+  return me ? debtRows(db, monthKey, { memberId: me.id }) : []
+}
+
+/**
+ * Mọi khoản đã khai đang chờ người giữ quỹ duyệt, gộp theo NGƯỜI.
+ * Đây là danh sách của tab Chờ duyệt — việc cần làm ngay, tách khỏi bảng công nợ dài.
+ */
+export function pendingClaims(db, monthKey) {
+  const byMember = {}
+  debtRows(db, monthKey, { claimedOnly: true }).forEach((x) => {
+    if (!byMember[x.memberId]) {
+      const m = memberOf(db, x.memberId)
+      byMember[x.memberId] = {
+        memberId: x.memberId, name: x.name, avatarUrl: m.avatarUrl || '', items: [], total: 0,
+      }
+    }
+    byMember[x.memberId].items.push(x)
+    byMember[x.memberId].total += x.amount
+  })
+  return Object.values(byMember).sort((a, b) => b.total - a.total)
 }
 
 /** Tổng tiền và tổng số khoản đang chờ duyệt của một danh sách `myDebts()`. */

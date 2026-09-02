@@ -8,7 +8,8 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, wd } from '#utils/dates.js'
 import {
   adjustRows, advanceRows, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
-  genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, myMember, sessionOf, timeTxt,
+  genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, myMember, pendingClaims,
+  sessionOf, timeTxt,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -33,12 +34,10 @@ const norm = (s) =>
 const actionLabel = (item) =>
   t(item.paid
     ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
-    : item.claimedAt
-      ? 'debts.approveClaim'
-      : (item.isRefund ? 'debts.tapRefund' : 'debts.tapCollect'))
+    : (item.isRefund ? 'debts.tapRefund' : 'debts.tapCollect'))
 
 actionLabel.icon = (item) =>
-  (item.paid ? 'circle-check' : item.claimedAt ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins')
+  (item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins')
 
 const stateLabel = (item) =>
   t(item.paid
@@ -56,11 +55,14 @@ const stateStyle = (item) => (item.paid ? S.pillPaid : item.claimedAt ? S.pillWa
 export default function Debts() {
   const { db, ui, a } = useApp()
   const rawTab = ui.tab.debts || 'sessions'
-  const tab = rawTab === 'guest' || rawTab === 'back' ? 'sessions' : rawTab
+  const tab = rawTab === 'guest' || rawTab === 'back' ? 'sessions'
+    : (rawTab === 'pending' && !canMoney) ? 'sessions'
+    : rawTab
   const canMoney = can(db.viewAs || 'owner', 'money')
 
   const dues = duesOf(db, db.month)
   const advances = advanceRows(db)
+  const pending = canMoney ? pendingClaims(db, db.month) : []
 
   // Đếm số người / lượt chưa thanh toán của tab theo buổi
   const unpaidGuests = (db.sessionGuests || []).filter((sg) => {
@@ -79,13 +81,18 @@ export default function Debts() {
           { value: 'sessions', label: t('debts.tabSessions'), count: totalSessionPending },
           { value: 'dues', label: t('debts.tabDues'), count: dues.filter((x) => dueState(x).remain > 0).length },
           { value: 'advance', label: t('debts.tabAdvance'), count: advances.filter((x) => !x.repaidAt).length },
-        ]}
+        ].concat(canMoney ? [{
+          value: 'pending',
+          label: t('debts.tabPending'),
+          count: pending.reduce((n, g) => n + g.items.length, 0),
+        }] : [])}
         value={tab}
         onChange={(v) => a.setTab('debts', v)}
       />
       {tab === 'sessions' && <SessionDebts canMoney={canMoney} />}
       {tab === 'dues' && <Dues dues={dues} canMoney={canMoney} />}
       {tab === 'advance' && <Advances rows={advances} canMoney={canMoney} />}
+      {tab === 'pending' && canMoney && <PendingClaims groups={pending} />}
     </>
   )
 }
@@ -642,16 +649,13 @@ function SessionDebts({ canMoney }) {
                                   </span>
                                 </td>
                                 <td style={{ ...S.td, textAlign: 'right' }}>
-                                  {canMoney && item.claimedAt && !item.paid && item.claimRef && (
-                                    <IconButton
-                                      icon="circle-x"
-                                      size="sm"
-                                      variant="ghost"
-                                      label={t('debts.rejectClaim')}
-                                      onClick={() => a.rejectClaim(item.claimRef)}
-                                    />
-                                  )}
                                   {canMoney ? (
+                                    item.claimedAt && !item.paid ? (
+                                      <Button size="sm" variant="ghost" icon="arrow-right"
+                                        onClick={() => a.setTab('debts', 'pending')}>
+                                        {t('debts.goPending')}
+                                      </Button>
+                                    ) : (
                                     <Button
                                       size="sm"
                                       variant={item.paid ? 'ghost' : 'secondary'}
@@ -660,6 +664,7 @@ function SessionDebts({ canMoney }) {
                                     >
                                       {actionLabel(item)}
                                     </Button>
+                                    )
                                   ) : (
                                     <span style={stateStyle(item)}>
                                       {stateLabel(item)}
@@ -761,16 +766,13 @@ function SessionDebts({ canMoney }) {
                             style={{ width: 95, textAlign: 'right' }}
                             suffix={t('units.dong')}
                           />
-                          {canMoney && item.claimedAt && !item.paid && item.claimRef && (
-                            <IconButton
-                              icon="circle-x"
-                              size="sm"
-                              variant="ghost"
-                              label={t('debts.rejectClaim')}
-                              onClick={() => a.rejectClaim(item.claimRef)}
-                            />
-                          )}
                           {canMoney ? (
+                            item.claimedAt && !item.paid ? (
+                              <Button size="sm" variant="ghost" icon="arrow-right"
+                                onClick={() => a.setTab('debts', 'pending')}>
+                                {t('debts.goPending')}
+                              </Button>
+                            ) : (
                             <Button
                               size="sm"
                               variant={item.paid ? 'ghost' : 'secondary'}
@@ -781,6 +783,7 @@ function SessionDebts({ canMoney }) {
                                 ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
                                 : (item.isRefund ? 'debts.doRefund' : 'debts.doCollect'))}
                             </Button>
+                            )
                           ) : (
                             <span style={stateStyle(item)}>
                               {stateLabel(item)}
@@ -881,6 +884,95 @@ function SessionDebts({ canMoney }) {
 
 /* ---------------- THÀNH VIÊN ỨNG TIỀN (QUỸ NỢ) ---------------- */
 
+/* ---------------- Chờ duyệt ---------------- */
+
+/**
+ * Việc cần làm NGAY: ai đã báo chuyển tiền và đang chờ xác nhận.
+ *
+ * Tách khỏi hai bảng công nợ vì đây là câu hỏi khác — "ai đang chờ tôi", không phải "ai còn
+ * nợ". Danh sách nợ dài hàng chục dòng, khoản chờ duyệt thì vài cái và gấp; trộn vào nhau là
+ * bỏ sót. Duyệt / từ chối CHỈ ở đây: một khoản có hai đường xử lý là hai chỗ phải sửa khi
+ * luật đổi, và là hai chỗ để lệch nhau.
+ *
+ * Duyệt = gọi ĐÚNG action tick đang có của từng loại. Không có đường ghi tiền mới nào.
+ */
+function PendingClaims({ groups }) {
+  const { db, a } = useApp()
+
+  const approve = (x) => {
+    if (x.kind === 'dues') return a.payDue(x.id, undefined)
+    if (x.kind === 'guest') return a.toggleGuestPaid(x.id)
+    // `settleAdjust` khoá theo `key` ghép, không phải id — tra ngược lại từ bảng đối chiếu.
+    const row = adjustRows(db, db.month).find((r) => r.id === x.id)
+    if (row) a.settleAdjust(row.key)
+  }
+
+  if (!groups.length) {
+    return (
+      <Card padding="0">
+        <Empty icon="circle-check" title={t('debts.pendingEmpty')} hint={t('debts.pendingEmptyHint')} />
+      </Card>
+    )
+  }
+
+  return (
+    <Card
+      title={t('debts.pendingTitle')}
+      subtitle={t('debts.pendingSub')}
+      icon="clock-alert"
+      padding="14px 16px"
+    >
+      <div style={{ display: 'grid', gap: 12 }}>
+        {groups.map((g) => (
+          <div key={g.memberId} style={{
+            border: '1px solid var(--border-subtle)', borderRadius: 10,
+            padding: 12, display: 'grid', gap: 8, background: 'var(--surface-card)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <Avatar name={g.name} src={g.avatarUrl} size={30} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={S.label}>{g.name}</div>
+                <div style={S.caption}>{t('debts.pendingCount', { n: g.items.length })}</div>
+              </div>
+              <Mono weight={700} size={14} color="var(--status-scheduled)">{fmt(g.total)}</Mono>
+              <Button
+                size="sm" variant="primary" icon="circle-check"
+                onClick={() => g.items.forEach(approve)}
+              >
+                {t('debts.approveAll')}
+              </Button>
+            </div>
+
+            {g.items.map((x) => (
+              <div key={x.key} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                borderRadius: 8, background: 'var(--surface-inset)',
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={S.label}>{x.label}</div>
+                  <div style={S.caption}>
+                    {ddmy(x.date)}{x.sub ? ' · ' + x.sub : ''}
+                    {x.claimedAt ? ' · ' + t('debts.claimedOn', { date: ddmy(String(x.claimedAt).slice(0, 10)) }) : ''}
+                  </div>
+                </div>
+                <Mono weight={600}>{fmt(x.amount)}</Mono>
+                <IconButton
+                  icon="circle-x" size="sm" variant="ghost"
+                  label={t('debts.rejectClaim')}
+                  onClick={() => a.rejectClaim({ kind: x.kind, id: x.id })}
+                />
+                <Button size="sm" variant="secondary" icon="circle-check" onClick={() => approve(x)}>
+                  {t('debts.approveClaim')}
+                </Button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
 function Advances({ rows, canMoney }) {
   const { db, a } = useApp()
   const [refundTarget, setRefundTarget] = useState(null)
@@ -962,6 +1054,10 @@ function Advances({ rows, canMoney }) {
 
 function Dues({ dues, canMoney }) {
   const { db, ui, a } = useApp()
+  // Thành viên thường không có canMoney nên mọi nút thu đều ẩn. Ngoại lệ duy nhất: khoản quỹ
+  // tháng của CHÍNH HỌ — bấm để tự khai đã chuyển, không phải để tick đã thu.
+  const me = myMember(db)
+  const [payMine, setPayMine] = useState(null)
   const [selectedGroup, setSelectedGroup] = useState('ALL')
   const [viewMode, setViewMode] = useState('table') // 'table' | 'grid'
   const [search, setSearch] = useState('')
@@ -1145,39 +1241,41 @@ function Dues({ dues, canMoney }) {
                     <td style={S.td}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                         {canMoney && st.remain > 0 && (
-                          <>
+                          dueWaiting(x, st) ? (
+                            <Button size="sm" variant="ghost" icon="arrow-right"
+                              onClick={() => a.setTab('debts', 'pending')}>
+                              {t('debts.goPending')}
+                            </Button>
+                          ) : (
+                            <>
                             <Input
                               size="sm"
                               mono
-                              disabled={dueWaiting(x, st)}
                               style={{ width: 100, textAlign: 'right' }}
-                              value={dueWaiting(x, st) ? String(st.remain) : (ui.form[key] ?? String(st.remain))}
+                              value={ui.form[key] ?? String(st.remain)}
                               onChange={(e) => a.setF(key, e.target.value)}
                               suffix={t('units.dong')}
                             />
-                            {dueWaiting(x, st) && (
-                              <IconButton
-                                icon="circle-x"
-                                size="sm"
-                                variant="ghost"
-                                label={t('debts.rejectClaim')}
-                                onClick={() => a.rejectClaim({ kind: 'dues', id: x.id })}
-                              />
-                            )}
                             <Button
                               variant="secondary"
                               size="sm"
-                              icon={dueWaiting(x, st) ? 'circle-check' : 'hand-coins'}
-                              onClick={() => {
-                                // Đang chờ duyệt thì duyệt ĐÚNG số còn thiếu (payDue tự lấy khi
-                                // amount undefined) — luồng tự khai không cho sửa số tiền.
-                                a.payDue(x.id, dueWaiting(x, st) ? undefined : ui.form[key])
-                                a.setF(key, undefined)
-                              }}
+                              icon="hand-coins"
+                              onClick={() => { a.payDue(x.id, ui.form[key]); a.setF(key, undefined) }}
                             >
-                              {dueWaiting(x, st) ? t('debts.approveClaim') : t('debts.collectMoney')}
+                              {t('debts.collectMoney')}
                             </Button>
-                          </>
+                            </>
+                          )
+                        )}
+                        {!canMoney && me && x.memberId === me.id && st.remain > 0 && !x.claimedAt && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            icon="banknote"
+                            onClick={() => setPayMine([{ kind: 'dues', id: x.id, amount: st.remain }])}
+                          >
+                            {t('debts.payMine', { amount: fmt(st.remain) })}
+                          </Button>
                         )}
                         {canMoney && st.paid > 0 && (
                           <IconButton
@@ -1252,36 +1350,42 @@ function Dues({ dues, canMoney }) {
                 <div style={{ marginTop: 'auto', paddingTop: 4 }}>
                   {canMoney && st.remain > 0 && (
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <Input
-                        size="sm"
-                        mono
-                        disabled={dueWaiting(x, st)}
-                        style={{ flex: 1, textAlign: 'right' }}
-                        value={dueWaiting(x, st) ? String(st.remain) : (ui.form[key] ?? String(st.remain))}
-                        onChange={(e) => a.setF(key, e.target.value)}
-                        suffix={t('units.dong')}
-                      />
-                      {dueWaiting(x, st) && (
-                        <IconButton
-                          icon="circle-x"
+                      {dueWaiting(x, st) ? (
+                        <Button size="sm" variant="ghost" icon="arrow-right"
+                          onClick={() => a.setTab('debts', 'pending')}>
+                          {t('debts.goPending')}
+                        </Button>
+                      ) : (
+                        <>
+                        <Input
                           size="sm"
-                          variant="ghost"
-                          label={t('debts.rejectClaim')}
-                          onClick={() => a.rejectClaim({ kind: 'dues', id: x.id })}
+                          mono
+                          style={{ flex: 1, textAlign: 'right' }}
+                          value={ui.form[key] ?? String(st.remain)}
+                          onChange={(e) => a.setF(key, e.target.value)}
+                          suffix={t('units.dong')}
                         />
-                      )}
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        icon={dueWaiting(x, st) ? 'circle-check' : 'hand-coins'}
-                        onClick={() => {
-                          a.payDue(x.id, dueWaiting(x, st) ? undefined : ui.form[key])
-                          a.setF(key, undefined)
-                        }}
-                      >
-                        {dueWaiting(x, st) ? t('debts.approveClaim') : t('debts.doCollect')}
-                      </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon="hand-coins"
+                          onClick={() => { a.payDue(x.id, ui.form[key]); a.setF(key, undefined) }}
+                        >
+                          {t('debts.doCollect')}
+                        </Button>
+                      </>
+                    )}
                     </div>
+                  )}
+                  {!canMoney && me && x.memberId === me.id && st.remain > 0 && !x.claimedAt && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon="banknote"
+                      onClick={() => setPayMine([{ kind: 'dues', id: x.id, amount: st.remain }])}
+                    >
+                      {t('debts.payMine', { amount: fmt(st.remain) })}
+                    </Button>
                   )}
                   {canMoney && st.paid > 0 && st.remain === 0 && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -1300,6 +1404,9 @@ function Dues({ dues, canMoney }) {
             )
           })}
         </div>
+      )}
+      {payMine && (
+        <PayDebtsDialog items={payMine} memo={me.name} onClose={() => setPayMine(null)} />
       )}
     </Card>
   )
