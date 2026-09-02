@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { Avatar, Button, Card, DataTable, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
 import { EditGuestDialog, Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { addMonth, ddmy, monthShort, monthTxt } from '#utils/dates.js'
+import { ddmy, monthTxt } from '#utils/dates.js'
 import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberRefs, nextLevelStep, offBackSuggest, rosterStatus, guestStats, normalizeText } from '#lib/money.js'
 import { FILTER0, duesStatusOf, filterMembers, fixedGroups, hasFilter, nextSort, sortMembers } from '#lib/members.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
@@ -19,10 +19,7 @@ export default function Members() {
   const role = db.viewAs || 'owner'
   const canEdit = can(role, 'members')
   const canEditGuest = can(role, 'members') || can(role, 'sessions')
-  // Chốt danh sách được cho CẢ tháng đang xem, không chỉ tháng sau. Dựng CLB giữa tháng thì
-  // việc đầu tiên phải làm là chốt danh sách THÁNG NÀY để có quỹ tháng mà thu.
-  const rosterWhen = ui.tab.roster || 'next'
-  const rosterM = rosterWhen === 'this' ? db.month : addMonth(db.month, 1)
+  const rosterM = db.month
   const pendingChanges = db.changes.filter((c) => c.status === 'pending')
 
   return (
@@ -32,16 +29,16 @@ export default function Members() {
         items={[
           { value: 'all', label: t('members.tabAll'), count: db.members.filter((m) => m.active !== false).length },
           { value: 'next', label: t('members.tabNext') },
-          { value: 'pending', label: t('members.tabPending'), count: pendingChanges.length },
           { value: 'guests', label: t('members.tabGuests'), count: (db.guests || []).length },
+          { value: 'pending', label: t('members.tabPending'), count: pendingChanges.length },
         ]}
         value={tab}
         onChange={(v) => a.setTab('members', v)}
       />
       {tab === 'all' && <AllMembers canEdit={canEdit} />}
       {tab === 'next' && <NextMonth month={rosterM} canEdit={canEdit} />}
-      {tab === 'pending' && <Pending canEdit={canEdit} />}
       {tab === 'guests' && <GuestMembers canEdit={canEditGuest} />}
+      {tab === 'pending' && <Pending canEdit={canEdit} />}
     </>
   )
 }
@@ -488,11 +485,19 @@ function AllMembers({ canEdit }) {
 /* ---------------- tab Cố định tháng sau ---------------- */
 
 function NextMonth({ month, canEdit }) {
-  const { db, ui, a } = useApp()
+  const { db, a } = useApp()
   const locked = !!db.locked[month]
   const day = parseInt(db.today.slice(8, 10), 10)
   const lockDay = db.club.lockDay || cfg.club.defaultLockDay
   const daysLeft = lockDay - day
+
+  const pendingRows = []
+  db.groups.forEach((g) => {
+    const r = (db.roster[month] || {})[g.id] || {}
+    Object.keys(r).forEach((mid) => {
+      if (r[mid] === 'pending') pendingRows.push({ g, m: memberOf(db, mid), mid })
+    })
+  })
 
   return (
     <>
@@ -502,23 +507,16 @@ function NextMonth({ month, canEdit }) {
         icon="calendar-days"
         padding="14px 16px"
         actions={
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Tabs
-              variant="segmented"
-              items={[
-                { value: 'this', label: t('members.rosterThis', { month: monthShort(db.month) }) },
-                { value: 'next', label: t('members.rosterNext', { month: monthShort(addMonth(db.month, 1)) }) },
-              ]}
-              value={ui.tab.roster || 'next'}
-              onChange={(v) => a.setTab('roster', v)}
-            />
-            {canEdit && (
-              <Button variant={locked ? 'secondary' : 'primary'} size="sm" icon={locked ? 'rotate-ccw' : 'check'}
-                onClick={() => a.lockRoster(month)}>
-                {t(locked ? 'members.unlock' : 'members.lockNow')}
-              </Button>
-            )}
-          </div>
+          canEdit && (
+            <Button
+              variant={locked ? 'secondary' : 'primary'}
+              size="sm"
+              icon={locked ? 'rotate-ccw' : 'check'}
+              onClick={() => a.lockRoster(month)}
+            >
+              {t(locked ? 'members.unlock' : 'members.lockNow')}
+            </Button>
+          )
         }
       >
         <div style={{ display: 'grid', gap: 12 }}>
@@ -530,8 +528,7 @@ function NextMonth({ month, canEdit }) {
                 : t('members.lockPassed', { day: lockDay })}
           </div>
 
-          {/* CLB chưa có nhóm nào là trạng thái hợp lệ (không còn nhóm mặc định). Không chặn ở
-              đây thì cả tab chỉ còn khoảng trắng, người dùng không biết mình thiếu gì. */}
+          {/* CLB chưa có nhóm nào */}
           {db.groups.length === 0 && (
             <Empty icon="users" title={t('members.noGroupTitle')} hint={t('members.noGroupHint')} />
           )}
@@ -568,20 +565,10 @@ function NextMonth({ month, canEdit }) {
         </div>
       </Card>
 
-      <Card title={t('members.registerTitle')} subtitle={t('members.registerSub')} icon="user-round-plus" padding="14px 16px">
-        <div style={{ display: 'grid', gap: 8 }}>
-          {(() => {
-            const rows = []
-            db.groups.forEach((g) => {
-              const r = (db.roster[month] || {})[g.id] || {}
-              Object.keys(r).forEach((mid) => {
-                if (r[mid] === 'pending') rows.push({ g, m: memberOf(db, mid), mid })
-              })
-            })
-            if (!rows.length) {
-              return <Empty icon="circle-check" title={t('members.registerEmpty')} hint={t('members.registerEmptyHint')} />
-            }
-            return rows.map((x) => (
+      {pendingRows.length > 0 && (
+        <Card title={t('members.registerTitle')} subtitle={t('members.registerSub')} icon="user-round-plus" padding="14px 16px">
+          <div style={{ display: 'grid', gap: 8 }}>
+            {pendingRows.map((x) => (
               <div key={x.g.id + x.mid} style={S.row}>
                 <Avatar name={x.m.name} size={30} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -597,10 +584,10 @@ function NextMonth({ month, canEdit }) {
                   </>
                 )}
               </div>
-            ))
-          })()}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
+      )}
     </>
   )
 }
@@ -796,6 +783,19 @@ function GuestMembers({ canEdit }) {
                       >
                         {t('common.edit')}
                       </Button>
+                      <IconButton
+                        icon="trash-2"
+                        size="sm"
+                        variant="ghost"
+                        label={t('common.delete')}
+                        onClick={() => a.confirm({
+                          title: t('session.delGuestTitle'),
+                          message: t('session.delGuestMsg', { name: g.name }),
+                          tone: 'danger',
+                          confirmText: t('session.delGuestOk'),
+                          onConfirm: () => a.deleteGuest(g.id),
+                        })}
+                      />
                     </div>
                   )}
                 </div>
@@ -816,8 +816,16 @@ function GuestMembers({ canEdit }) {
             setEditingGuest(null)
           }}
           onDelete={() => {
-            a.deleteGuest(editingGuest.id)
-            setEditingGuest(null)
+            a.confirm({
+              title: t('session.delGuestTitle'),
+              message: t('session.delGuestMsg', { name: editingGuest.name }),
+              tone: 'danger',
+              confirmText: t('session.delGuestOk'),
+              onConfirm: () => {
+                a.deleteGuest(editingGuest.id)
+                setEditingGuest(null)
+              },
+            })
           }}
         />
       )}

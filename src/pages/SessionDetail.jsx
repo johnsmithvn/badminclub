@@ -116,26 +116,40 @@ export default function SessionDetail() {
                   </Button>
                 )}
                 {s.status === 'open' && (
-                  <Button
-                    variant="primary"
-                    icon="circle-check"
-                    disabled={!canMoney}
-                    style={{
-                      background: !canMoney ? undefined : 'linear-gradient(135deg, #0d5e3a 0%, #00875a 100%)',
-                      borderColor: !canMoney ? undefined : '#00875a',
-                      boxShadow: !canMoney ? undefined : '0 2px 12px rgba(0, 135, 90, 0.45)',
-                      fontWeight: 700,
-                      padding: '0 16px',
-                    }}
-                    onClick={() => a.confirm({
-                      title: t('session.closeTitle'),
-                      message: t('session.closeMsg'),
-                      tone: 'info',
-                      confirmText: t('session.closeOk'),
-                      onConfirm: () => a.setSessionStatus(s.id, 'closed'),
-                    })}>
-                    {t('session.doClose')}
-                  </Button>
+                  <>
+                    <Button
+                      variant="primary"
+                      icon="circle-check"
+                      disabled={!canMoney}
+                      style={{
+                        background: !canMoney ? undefined : 'linear-gradient(135deg, #0d5e3a 0%, #00875a 100%)',
+                        borderColor: !canMoney ? undefined : '#00875a',
+                        boxShadow: !canMoney ? undefined : '0 2px 12px rgba(0, 135, 90, 0.45)',
+                        fontWeight: 700,
+                        padding: '0 16px',
+                      }}
+                      onClick={() => a.confirm({
+                        title: t('session.closeTitle'),
+                        message: t('session.closeMsg'),
+                        tone: 'info',
+                        confirmText: t('session.closeOk'),
+                        onConfirm: () => a.setSessionStatus(s.id, 'closed'),
+                      })}>
+                      {t('session.doClose')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      icon="undo-2"
+                      onClick={() => a.confirm({
+                        title: t('session.revertDraftTitle'),
+                        message: t('session.revertDraftMsg'),
+                        tone: 'info',
+                        confirmText: t('session.revertDraftOk'),
+                        onConfirm: () => a.setSessionStatus(s.id, 'draft'),
+                      })}>
+                      {t('session.doRevertDraft')}
+                    </Button>
+                  </>
                 )}
                 {(s.status === 'closed' || s.status === 'cancelled') && (
                   <Button variant="secondary" icon="rotate-ccw" onClick={() => a.confirm({
@@ -415,7 +429,6 @@ export default function SessionDetail() {
                       </div>
                       <SearchSelect
                         size="sm"
-                        style={{ width: 140 }}
                         menuWidth={240}
                         placeholder={t('session.guestByShort')}
                         searchPlaceholder={t('session.searchMember')}
@@ -526,8 +539,16 @@ export default function SessionDetail() {
             setEditingGuest(null)
           }}
           onDelete={() => {
-            a.deleteGuest(editingGuest.id)
-            setEditingGuest(null)
+            a.confirm({
+              title: t('session.delGuestTitle'),
+              message: t('session.delGuestMsg', { name: editingGuest.name }),
+              tone: 'danger',
+              confirmText: t('session.delGuestOk'),
+              onConfirm: () => {
+                a.deleteGuest(editingGuest.id)
+                setEditingGuest(null)
+              },
+            })
           }}
         />
       )}
@@ -726,8 +747,21 @@ function GuestForm({ s }) {
           clearable
           onChange={(val) => set('gBy', val)}
         />
-        <Button variant="accent" icon="plus" disabled={noLevel} onClick={() => { setOpen(false); a.addGuest() }}>
-          {(f.gHasCompanion ? t('session.guestAddTwo') : t('common.add')) + (noLevel ? '' : ' · ' + fmt(totalPrice))}
+        <Button
+          variant="primary"
+          icon="plus"
+          disabled={noLevel}
+          style={{
+            whiteSpace: 'nowrap',
+            fontWeight: 600,
+            minWidth: 90,
+            justifyContent: 'center',
+          }}
+          onClick={() => { setOpen(false); a.addGuest() }}
+        >
+          {noLevel
+            ? t('common.add')
+            : (f.gHasCompanion ? `2 bạn · ${fmt(totalPrice)}` : fmt(totalPrice))}
         </Button>
       </div>
 
@@ -962,8 +996,14 @@ const S = {
     font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', textDecoration: 'underline',
   },
   guestRow: {
-    display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', padding: '8px 11px',
-    border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(120px, 1.2fr) minmax(130px, 1.2fr) auto auto auto',
+    gap: 12,
+    alignItems: 'center',
+    padding: '8px 12px',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 8,
+    background: 'var(--surface-card)',
   },
   sumBox: { display: 'grid', gap: 7, padding: '12px 14px', borderRadius: 8, background: 'var(--surface-inset)' },
   sumDivider: { height: 1, background: 'var(--border-subtle)', margin: '3px 0' },

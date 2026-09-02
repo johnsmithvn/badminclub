@@ -565,12 +565,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const d0 = db()
       const was = d0.guests.find((x) => x.id === gid)
       if (!was) return
-      const used = d0.sessionGuests.some((sg) => sg.guestId === gid)
-      if (used) {
+      const sgs = (d0.sessionGuests || []).filter((sg) => sg.guestId === gid)
+      const hasPaid = sgs.some((sg) => sg.paid)
+      if (hasPaid) {
         return toast(t('toast.guestInUse'))
       }
       up((d) => ({
-        guests: d.guests.filter((x) => x.id !== gid),
+        guests: d.guests.filter((x) => x.id !== gid && x.companionOf !== gid),
+        sessionGuests: d.sessionGuests.filter((sg) => sg.guestId !== gid),
       }))
       toast(t('toast.guestDeleted', { name: was.name }))
     },

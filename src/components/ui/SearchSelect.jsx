@@ -302,7 +302,13 @@ export function SearchSelect({
 
         {/* Single select: Hiển thị giá trị đã chọn khi không đang gõ search */}
         {!multiple && singleSelectedOption && !search && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            minWidth: 0,
+            overflow: 'hidden',
+          }}>
             {singleSelectedOption.level && (
               <LevelChip level={singleSelectedOption.level} levels={levels || singleSelectedOption.levels} />
             )}
@@ -312,15 +318,12 @@ export function SearchSelect({
                 color: 'var(--text-primary)',
                 fontWeight: 500,
                 whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               {singleSelectedOption.label}
             </span>
-            {singleSelectedOption.sub && (
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                ({singleSelectedOption.sub})
-              </span>
-            )}
           </div>
         )}
 
