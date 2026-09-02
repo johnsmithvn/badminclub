@@ -58,6 +58,20 @@ export function getVietQrUrl({ bankCode, accountNo, accountHolder = '', amount, 
 }
 
 /**
+ * CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF) — đúng thuật toán EMVCo dùng cho tag 63.
+ */
+function crc16(str) {
+  let crc = 0xffff
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8
+    for (let b = 0; b < 8; b++) {
+      crc = (crc & 0x8000) ? (((crc << 1) ^ 0x1021) & 0xffff) : ((crc << 1) & 0xffff)
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0')
+}
+
+/**
  * Bóc tách thông tin tài khoản ngân hàng từ chuỗi mã VietQR (chuẩn EMVCo / Napas 247).
  * @param {string} rawText Chuỗi payload đọc từ mã QR
  * @returns {object|null} { bankName, bankCode, bankBin, bankNo, bankHolder, amount, memo }
@@ -94,7 +108,14 @@ export function parseVietQr(rawText) {
     }
   }
 
-  // 2. Phân tích chuỗi chuẩn EMVCo (TLVs: Tag 2 ký tự, Length 2 ký tự, Value)
+  // 2. Kiểm CRC trước khi bóc tách. Payload EMVCo LUÔN kết thúc bằng tag 63 (`6304` + 4 hex).
+  // Thiếu hoặc sai checksum nghĩa là ảnh QR hỏng / không phải VietQR — trả null còn hơn trả về
+  // một số tài khoản đọc nhầm rồi để người dùng chuyển tiền vào đó.
+  const crcAt = text.lastIndexOf('6304')
+  if (crcAt === -1 || crcAt + 8 !== text.length) return null
+  if (crc16(text.slice(0, crcAt + 4)) !== text.slice(crcAt + 4).toUpperCase()) return null
+
+  // 3. Phân tích chuỗi chuẩn EMVCo (TLVs: Tag 2 ký tự, Length 2 ký tự, Value)
   // Tag 38: Merchant Account Information (VietQR Napas)
   // Tag 54: Amount
   // Tag 59: Merchant Name (Tên chủ TK)

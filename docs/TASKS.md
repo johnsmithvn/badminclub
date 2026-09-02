@@ -68,13 +68,11 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 
 - [x] Dialog: tạo lịch hàng loạt · buổi đột xuất · thêm sân · nhập kho · kiểm kho · hoá đơn sân ·
       ghi thu/chi · thêm/sửa thành viên · báo cáo Zalo
-- [x] `npm test` xanh — 7 bộ: dates · money · ledger · assign · dbmap · empty · i18n
+- [x] `npm test` xanh — 26 file test: lib/ (9) · money/ (11) · ledger/ (2) · sync/ (2) · smoke/ (2)
 - [x] `npm run lint` sạch
 - [x] Audit icon: 0 icon thiếu (kể cả icon component TDMS tự dùng bên trong)
-- [ ] `npm run build` — **CHƯA ai chạy sau khi nối DB.** Lần chạy được ghi nhận là ở phiên dựng
-      UI với dữ liệu mẫu, từ đó code đã đổi gần hết tầng dữ liệu. Lint đã parse hết JSX nên lỗi
-      cú pháp thì không còn, nhưng đó không phải bằng chứng build pass
-- [ ] Smoke test lại 13 màn — bản cũ chạy trên dữ liệu mẫu, giờ không còn chế độ đó nữa
+- [x] `npm run build` — **PASS 2026-09-02.** User đã chạy và xác nhận.
+- [x] Smoke test 13 màn — **XONG 2026-09-02.** User đã test với dữ liệu thật qua Excel, thang trình độ đã đổi đúng.
 
 ## Phase 7 — Supabase
 
@@ -119,7 +117,7 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
       `settings.tab*` `sessionState.*` `gender.*` `rosterState.*` `schema.group*`) — loại thiếu key
       mà regex không thấy và màn hình sẽ hiện thẳng chuỗi `nav.shuttles`. Cộng luật: giá trị trong
       `vi.json` chỉ được là chuỗi / mảng chuỗi / object lồng — số lọt vào là hằng số đặt sai chỗ
-- [ ] **User chạy `npm run db:migrate` (hoặc `db reset`), `npm run build`, rồi bấm thử 13 màn trên DB thật** ← việc tiếp theo
+- [x] **User chạy `npm run build` + test 13 màn trên DB thật — XONG 2026-09-02.** Build pass, dữ liệu thật từ Excel, thang trình độ đã đổi đúng.
 - [x] **Kiểm RLS bằng 2 tài khoản khác CLB — ĐẠT 2026-09-01.** Không cần script node và không
       đụng DB của user: dựng Postgres 17 sạch trong container dùng một lần, áp schema, tạo 2 tài
       khoản qua trigger `handle_new_user`, mỗi người một CLB, rồi đóng vai B bằng
@@ -518,7 +516,27 @@ Hai việc dưới bắt được gần hết.
 
 ---
 
+## Phase 11 — Avatar + Thông tin ngân hàng / QR — migration `0015` + `0016` · **XONG 2026-09-02**
+
+- [x] **`0015_avatar_and_bank_info.sql`** — thêm `avatar_url`, `bank_qr_url`, `bank_accounts` (jsonb)
+      cho `clubs`; thêm `avatar_url`, `qr_url`, `bank_accounts`, `bank_holder`, `bank_no`, `bank_name`
+      cho `profiles` và `club_members`. Cập nhật `approve_join_request` nhận thêm 6 trường mới khi
+      ghép tài khoản (`avatarUrl`, `qrUrl`, `bankHolder`, `bankNo`, `bankName`, `bankAccounts`).
+- [x] **`0016_storage_bucket.sql`** — bucket `club-assets` (public, 2MB/file, image only).
+      RLS: mọi người đọc được, authenticated upload + update.
+- [x] **`AvatarUpload` component** (`src/components/ui/AvatarUpload.jsx`) — upload ảnh đại diện
+      cho CLB, profile, thành viên qua Supabase Storage.
+- [x] **`BankAccountSection` component** (`src/components/ui/BankAccountSection.jsx`) — quản lý
+      danh sách tài khoản ngân hàng + thông tin chủ TK / số TK / tên ngân hàng.
+- [x] **`QrModal` component** (`src/components/ui/QrModal.jsx`) — xem / quét ảnh QR chuyển khoản.
+- [x] **`jsqr` dependency** — quét mã QR từ ảnh (client-side, không gọi API bên ngoài).
+- [x] **`vietqr.test.js`** — test cho tính năng VietQR.
+- [x] **`companion_guest.test.js`** — test khách giao lưu đi cùng.
+
+---
+
 ## Đợt 1 — Sửa mất dữ liệu + luồng thành viên · **XONG 2026-08-31** (chờ user bấm thử)
+
 
 Kết quả đợt đọc code đối chiếu logic. Tám mục, **không đụng schema**, không migration mới.
 
@@ -879,8 +897,8 @@ Không đụng schema, không migration, không đổi một dòng logic nào �
 | Việc | Vì sao cần user | Chặn cái gì |
 | --- | --- | --- |
 | ~~**Mốc cutoff của P6**~~ | **Không còn chặn 2026-09-01:** chưa có dữ liệu thật nên không có lịch sử để bảo tồn — P6b ghi thật từ đầu | — |
-| Chạy `npm run build` | RULES §6: agent không tự build | không ai biết bản này compile được hay chưa |
-| ~~Script kiểm RLS bằng 2 tài khoản~~ | **Xong 2026-09-01** — làm trên container dùng một lần, không đụng DB của user | — |
+| ~~Chạy `npm run build`~~ | **Xong 2026-09-02** — build pass | — |
+| ~~Script kiểm RLS bằng 2 tài khoản~~ | **Xong 2026-09-01** | — |
 | Dữ liệu thật của CLB (Excel) | cần số quỹ mang sang + danh sách thật | nhập liệu ban đầu |
 
 **Đã chốt, không hỏi lại:** dựng + chạy DB (xong 2026-08-24) · P6 dùng **cutoff** không backfill ·

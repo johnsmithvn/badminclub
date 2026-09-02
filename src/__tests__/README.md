@@ -39,6 +39,8 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Lỗi đồng bộ nào thử lại được, lỗi nào phải nạp lại DB | `sync/fatal.test.js` |
 | CLB vừa tạo (mọi bảng rỗng) không được throw / NaN / Infinity | `smoke/empty.test.js` |
 | Không sót key i18n, không còn chữ cứng trong code, không có số lọt vào `vi.json` | `smoke/i18n.test.js` |
+| Sinh link VietQR, parse thông tin ngân hàng từ QR | `lib/vietqr.test.js` |
+| Khách giao lưu đi cùng: logic đồng hành, gom nhóm | `money/companion_guest.test.js` |
 
 `fixture.js` — bộ dữ liệu cố định (2 CLB, tháng 08/2026) mọi file dùng chung. App **không**
 import nó; dữ liệu thật nằm ở Supabase.

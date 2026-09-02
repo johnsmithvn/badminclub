@@ -45,7 +45,7 @@ const emvcoPayload =
   '5916NGUYEN MINH TUNG' +
   '6215' +
     '0811QUY THANG 9' +
-  '6304A1B2'
+  '6304D6F8' // CRC-16/CCITT-FALSE thật của phần payload phía trên
 
 const parsedEmvco = parseVietQr(emvcoPayload)
 assert.ok(parsedEmvco)
@@ -54,5 +54,9 @@ assert.equal(parsedEmvco.bankNo, '0327279292')
 assert.equal(parsedEmvco.bankHolder, 'NGUYEN MINH TUNG')
 assert.equal(parsedEmvco.amount, 250000)
 assert.equal(parsedEmvco.memo, 'QUY THANG 9')
+
+// 5. Sai CRC phải bị từ chối — không được trả về số tài khoản đọc nhầm
+assert.equal(parseVietQr(emvcoPayload.slice(0, -4) + 'A1B2'), null, 'CRC sai phải trả null')
+assert.equal(parseVietQr(emvcoPayload.slice(0, -8)), null, 'thiếu tag CRC phải trả null')
 
 console.log('vietqr parse & generator check: OK')

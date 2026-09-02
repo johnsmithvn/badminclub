@@ -103,7 +103,7 @@ src/
   data/                schema.js (mô tả schema cho trang Sơ đồ dữ liệu)
   hooks/               hook dùng chung (useClock…)
   i18n/                index.js + <locale>.json
-  lib/                 logic nghiệp vụ THUẦN: money · ledger · assign · roles · members · schedules · csv · forms
+  lib/                 logic nghiệp vụ THUẦN: money · ledger · assign · roles · members · schedules · csv · forms · supabase
   pages/               1 file 1 màn hình
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/*.css

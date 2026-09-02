@@ -29,7 +29,6 @@ const formOf = (p) => ({
   gender: p.gender || cfg.genders[0],
   level: p.level || '',
   avatarUrl: p.avatar_url || p.avatarUrl || '',
-  qrUrl: p.qr_url || p.qrUrl || '',
   bankHolder: p.bank_holder || p.bankHolder || '',
   bankNo: p.bank_no || p.bankNo || '',
   bankName: p.bank_name || p.bankName || '',
@@ -65,7 +64,6 @@ export default function Account() {
         gender: form.gender,
         level: form.level || null,
         avatar_url: form.avatarUrl || null,
-        qr_url: form.qrUrl || null,
         bank_holder: form.bankHolder || null,
         bank_no: form.bankNo || null,
         bank_name: form.bankName || null,
@@ -150,10 +148,9 @@ export default function Account() {
                   bankHolder={form.bankHolder}
                   bankNo={form.bankNo}
                   bankName={form.bankName}
-                  qrUrl={form.qrUrl}
                   canEdit
-                  onChange={({ bankHolder, bankNo, bankName, qrUrl }) => {
-                    setForm((f) => ({ ...f, bankHolder, bankNo, bankName, qrUrl }))
+                  onChange={({ bankHolder, bankNo, bankName }) => {
+                    setForm((f) => ({ ...f, bankHolder, bankNo, bankName }))
                   }}
                 />
               </div>

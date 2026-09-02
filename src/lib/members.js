@@ -22,6 +22,10 @@ export const digits = (x) => String(x || '').replace(/\D/g, '')
  * chấp nhận (`0009_profile_merge.sql`, `0010_member_email.sql`) — thêm trường ở một bên mà quên
  * bên kia thì ô tick hiện ra nhưng bấm xong không có gì đổi, và không ai biết vì sao.
  *
+ * ponytail: 'qrUrl' để lại chỉ để ghép DỮ LIỆU CŨ (cột qr_url vẫn còn hàng cũ). App không
+ * hiển thị ảnh QR đã lưu nữa — QR luôn sinh từ số tài khoản. Bỏ hẳn trường này khi
+ * đã dọn cột qr_url trong DB.
+ *
  * `role` KHÔNG có ở đây và sẽ không bao giờ có: vai trò là dữ liệu của CLB.
  */
 export const MERGE_FIELDS = [

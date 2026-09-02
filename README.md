@@ -99,8 +99,8 @@ npx supabase db reset
 
 ## Stack
 
-React 19 · Vite 8 · React Router 7 · Supabase · JavaScript thuần · lucide-react · ESLint 9.
-Design system **TDMS** trích từ bộ handoff (29 component). 5 dependency runtime.
+React 19 · Vite 8 · React Router 7 · Supabase · JavaScript thuần · lucide-react · jsqr · ESLint 9.
+Design system **TDMS** trích từ bộ handoff (29 component). 6 dependency runtime.
 
 ## Cấu trúc
 
@@ -122,8 +122,8 @@ src/
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/
   utils/               dates.js
-  __tests__/           24 bộ test cho lib/ · utils/ · sync/ · smoke/ + fixture.js (dữ liệu test, app KHÔNG import)
-supabase/               config.toml · migrations/ (0001..0010)
+  __tests__/           26 file test cho lib/ · money/ · ledger/ · sync/ · smoke/ + fixture.js (dữ liệu test, app KHÔNG import)
+supabase/               config.toml · migrations/ (0001..0016)
 docs/                   RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS
 DESIGN.md
 ```
@@ -157,3 +157,5 @@ Chi tiết: [docs/RULES.md](docs/RULES.md).
 Đã xong: schema + RLS + RPC, đăng ký bằng email/đăng nhập, màn CLB, phê duyệt ghép 6 trường chọn lọc, **cả 13 màn trong CLB đọc ghi thẳng Supabase** qua `contexts/storage.js` + `contexts/dbmap.js`, tách biệt Hồ sơ tài khoản (`/tai-khoan`) và Hồ sơ CLB (`/ca-nhan`), thành viên tự đổi tên hiển thị / tên đầy đủ trong CLB (`0010_member_email.sql`), hệ thống 3 vai trò, chế độ 1 nhóm / nhiều nhóm (`multi_group`), nhập danh sách thành viên bằng file CSV (`src/lib/csv.js`), sao lưu/nhập cấu hình CLB (`Settings Export / Import`), công nợ đa năng (Bảng/Lưới thẻ, sửa giá inline, quỹ nợ ứng tiền) và Báo cáo tổng kết quỹ phong trào 2 cột ở Sổ quỹ.
 
 Còn lại: realtime cho chia sân, RPC sinh `transactions` khi chốt buổi, `audit_logs`, rồi đẩy lên Supabase cloud. Xem `docs/TASKS.md`.
+
+`npm run build` đã pass (2026-09-02). Smoke test với dữ liệu thật qua Excel đã xong. Thang trình độ đã đổi đúng.

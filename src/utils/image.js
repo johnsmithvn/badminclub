@@ -114,7 +114,7 @@ export function compressImage(file, { maxWidth = 600, maxHeight = 600, quality =
  *
  * @param {File} file
  * @param {object} [options]
- * @param {string} [options.folder='avatars'] Thư mục phân loại: 'avatars' | 'qrcodes'
+ * @param {string} [options.folder='avatars'] Thư mục phân loại (hiện chỉ còn 'avatars')
  * @param {number} [options.maxWidth=400]
  * @param {number} [options.maxHeight=400]
  * @param {number} [options.quality=0.85]
@@ -129,9 +129,10 @@ export async function uploadImage(file, { folder = 'avatars', maxWidth = 400, ma
       const randomId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10)
       const fileName = `${folder}/${Date.now()}_${randomId}.${ext}`
 
+      // KHÔNG `upsert`: tên file đã ngẫu nhiên + timestamp nên không bao giờ trùng thật, còn
+      // bật lên thì một INSERT hợp lệ ghi đè được object của người khác (xem migration 0017).
       const { data, error } = await supabase.storage.from('club-assets').upload(fileName, blob, {
         contentType: blob.type || 'image/webp',
-        upsert: true,
       })
 
       if (!error && data?.path) {

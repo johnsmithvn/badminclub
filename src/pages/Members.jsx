@@ -242,7 +242,7 @@ function AllMembers({ canEdit }) {
       key: 'a', header: '',
       render: (r) => (
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
-          {(r.qrUrl || (r.bankName && r.bankNo)) && (
+          {(r.bankName && r.bankNo) && (
             <IconButton
               icon="qr-code"
               size="sm"
@@ -495,7 +495,7 @@ function AllMembers({ canEdit }) {
       {qrMember && (
         <QrModal
           title={t('bank.qrTitle') + ' · ' + qrMember.name}
-          qrUrl={qrMember.qrUrl || getVietQrUrl({
+          qrUrl={getVietQrUrl({
             bankCode: (findBank(qrMember.bankName) || {}).bin || qrMember.bankName,
             accountNo: qrMember.bankNo,
             accountHolder: qrMember.bankHolder || qrMember.fullName || qrMember.name,

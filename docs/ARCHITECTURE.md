@@ -22,7 +22,7 @@ Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả 
 | Lint | ESLint 9 + `react-hooks` | bắt lỗi hook thật |
 | Test | `node --test` + `node:assert/strict`, không framework | runner sẵn có của Node, tự tìm `*.test.js`; xem `docs/RULES.md` §5 |
 
-**Dependency runtime: đúng 5** — `@supabase/supabase-js`, `lucide-react`, `react`, `react-dom`, `react-router-dom`.
+**Dependency runtime: đúng 6** — `@supabase/supabase-js`, `jsqr`, `lucide-react`, `react`, `react-dom`, `react-router-dom`.
 Không thêm dependency UI nào khác (không Tailwind, không MUI, không styled-components).
 
 ---
@@ -38,7 +38,7 @@ src/
   components/
     ds/               DESIGN SYSTEM TDMS — trích từ handoff, KHÔNG sửa tay (icons.js + index.js)
     layout/           AppLayout · Sidebar · AppHeader · ToastHost · AuthLayout
-    ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar…
+    ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar, AvatarUpload, BankAccountSection, QrModal, SearchSelect…
   config/             app.json (hằng số) · permissions.json (ma trận quyền)
   contexts/
     AuthContext.jsx   phiên đăng nhập, profile, danh sách CLB của tôi, activeClubId
@@ -71,8 +71,8 @@ src/
   routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
   styles/             index.css + tokens/*.css
   utils/dates.js      ngày, tháng, giờ thập phân, lưới lịch
-  __tests__/          35 bộ test: lib/ · money/ · ledger/ · sync/ · smoke/ (xem __tests__/README.md)
-supabase/migrations/   SQL cho bản chạy thật (0001..0013)
+  __tests__/          26 file test: lib/ (9) · money/ (11) · ledger/ (2) · sync/ (2) · smoke/ (2) (xem __tests__/README.md)
+supabase/migrations/   SQL cho bản chạy thật (0001..0016)
 docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
 ```
 

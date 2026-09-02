@@ -268,8 +268,19 @@ trình độ áp dụng từ tháng sau.
   - Mã CLB (`allow_code_join`): người mới nhập mã → yêu cầu chờ → chủ CLB **Ghép vào** bản ghi cũ / **Tạo thành viên mới** / **Từ chối**.
   - Trùng SĐT (`allow_phone_suggest`): so chỉ chữ số, gợi ý màu amber + nút Ghép. Không bao giờ tự ghép.
   - **Chọn 6 trường ghi đè khi ghép**: tên hiển thị, tên đầy đủ, SĐT, email, giới tính, trình độ. Mặc định không tick gì để bảo vệ tính toàn vẹn của CLB.
+  - Khi ghép còn có thể chọn chuyển **Avatar** và **thông tin ngân hàng / QR** từ hồ sơ tài khoản sang hồ sơ CLB (0015).
 
 **Sơ đồ dữ liệu**: trang tài liệu sống trong app, liệt kê bảng/cột theo schema Postgres thật.
+
+**Avatar & Ảnh đại diện** (`AvatarUpload`):
+- Upload ảnh đại diện cho CLB, hồ sơ tài khoản, và hồ sơ thành viên trong CLB.
+- Ảnh lưu trên Supabase Storage (bucket `club-assets`, giới hạn 2MB, chỉ image).
+- Hiển thị ở Sidebar (logo CLB), Hồ sơ tài khoản, Hồ sơ CLB, và danh sách thành viên.
+
+**Thông tin ngân hàng & QR** (`BankAccountSection` + `QrModal`):
+- CLB và thành viên đều có thể lưu **danh sách tài khoản ngân hàng** (chủ TK, số TK, tên NH) và **ảnh QR chuyển khoản**.
+- `QrModal`: xem ảnh QR phóng to, quét mã QR từ ảnh bằng `jsqr` (client-side).
+- Dùng cho: thu quỹ tháng (hiện QR chủ CLB), hoàn tiền thành viên (hiện QR người nhận).
 
 **UI Component: SearchSelect (Combobox có tìm kiếm & Lazy Load)**:
 - Component chọn thông minh tái sử dụng (`src/components/ui/SearchSelect.jsx`), thay thế hoàn toàn các thẻ `<select>` native dài lê thê khi chọn thành viên/người chơi.

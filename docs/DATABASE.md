@@ -2,7 +2,7 @@
 
 **Version:** v0.4.0 · **Updated:** 2026-09-02
 
-Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0013`.
+Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0016`.
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
 localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
@@ -178,6 +178,13 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `courtBills[].payerId` · `purchases[].payerId` | `payer_member_id` | trỏ về bản ghi thành viên |
 | `club.levels` / `db.levels` | `clubs.levels text[]` | thứ tự mảng = thứ tự mạnh dần |
 | `guestPrices[{level,nam,nu}]` | `guest_price_rules` | 1 dòng client → 2 dòng DB (nam + nữ); `effective_from` = `clubs.opening_date` |
+| `club.avatarUrl` | `clubs.avatar_url` | URL ảnh đại diện / logo CLB (0015) |
+| `club.bankQrUrl` | `clubs.bank_qr_url` | URL ảnh QR nhận tiền quỹ CLB (0015) |
+| `club.bankAccounts` | `clubs.bank_accounts jsonb` | Danh sách tài khoản ngân hàng CLB (0015) |
+| `members[].avatarUrl` | `club_members.avatar_url` | Ảnh đại diện thành viên (0015) |
+| `members[].qrUrl` | `club_members.qr_url` | Ảnh QR nhận tiền hoàn (0015) |
+| `members[].bankHolder` · `bankNo` · `bankName` | `club_members.bank_holder` · `bank_no` · `bank_name` | Thông tin ngân hàng thành viên (0015) |
+| `members[].bankAccounts` | `club_members.bank_accounts jsonb` | Danh sách tài khoản ngân hàng thành viên (0015) |
 
 ---
 
@@ -199,6 +206,8 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0012_court_map_url.sql` | Thêm cột `map_url` cho bảng `courts` lưu link Google Maps / bản đồ vị trí sân. |
 | `0013_find_member_candidate.sql` | RPC `find_member_candidate(club, email)`: tra MỘT tài khoản theo email CHÍNH XÁC để ghép vào bản ghi thành viên. Chỉ trả `id` + tên hiển thị, gác `has_club_perm(club,'members')`. Cố ý không tìm gần đúng — bản `search_users_for_club` cũ (0006, đã xoá ở 0011) cho `ILIKE '%q%'` và query rỗng trả 50 profile đầu của toàn app. |
 | `0014_guest_notes_and_levels.sql` | Thêm cột `note` cho bảng `guests`, chuẩn hoá 10 bậc trình độ mặc định của CLB (`Y`, `Y+`, `TBY-`, `TBY`, `TBY+`, `TB-`, `TB`, `TB+`, `TBK`, `Khá`). |
+| `0015_avatar_and_bank_info.sql` | Avatar + thông tin ngân hàng / QR cho `clubs`, `profiles`, `club_members`. Cập nhật `approve_join_request` nhận thêm trường `avatarUrl`, `qrUrl`, `bankHolder`, `bankNo`, `bankName`, `bankAccounts` khi ghép tài khoản. |
+| `0016_storage_bucket.sql` | Tạo public bucket `club-assets` (Supabase Storage, 2MB/file, image only). RLS: public read, authenticated upload + update. |
 
 ---
 

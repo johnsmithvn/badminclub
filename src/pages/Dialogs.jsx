@@ -658,13 +658,11 @@ function AddMemberDialog() {
           bankHolder={f.mBankHolder || ''}
           bankNo={f.mBankNo || ''}
           bankName={f.mBankName || ''}
-          qrUrl={f.mQrUrl || ''}
           canEdit
-          onChange={({ bankHolder, bankNo, bankName, qrUrl }) => {
+          onChange={({ bankHolder, bankNo, bankName }) => {
             a.setF('mBankHolder', bankHolder)
             a.setF('mBankNo', bankNo)
             a.setF('mBankName', bankName)
-            a.setF('mQrUrl', qrUrl)
           }}
         />
       </div>
@@ -752,13 +750,11 @@ function EditMemberDialog() {
           bankHolder={f.eBankHolder || ''}
           bankNo={f.eBankNo || ''}
           bankName={f.eBankName || ''}
-          qrUrl={f.eQrUrl || ''}
           canEdit
-          onChange={({ bankHolder, bankNo, bankName, qrUrl }) => {
+          onChange={({ bankHolder, bankNo, bankName }) => {
             a.setF('eBankHolder', bankHolder)
             a.setF('eBankNo', bankNo)
             a.setF('eBankName', bankName)
-            a.setF('eQrUrl', qrUrl)
           }}
         />
       </div>

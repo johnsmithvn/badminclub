@@ -1,7 +1,6 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { Button, Card, Dialog, Icon, Input } from '#ds'
 import { banks, findBank, getVietQrUrl, parseVietQr, scanQrCodeFromImage } from '#utils/vietqr.js'
-import { uploadImage } from '#utils/image.js'
 import { QrModal } from '#components/ui/QrModal.jsx'
 import { SearchSelect } from '#components/ui/SearchSelect.jsx'
 import { t } from '#i18n'
@@ -32,7 +31,6 @@ export function BankAccountSection({
   bankHolder = '',
   bankNo = '',
   bankName = '',
-  qrUrl = '',
   canEdit = true,
   onChange,
   title,
@@ -40,7 +38,8 @@ export function BankAccountSection({
   card = true,
 }) {
   const [showQrModal, setShowQrModal] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanErr, setScanErr] = useState(false)
   const [pendingScan, setPendingScan] = useState(null)
   const fileRef = useRef(null)
   const fileId = useId()
@@ -58,71 +57,48 @@ export function BankAccountSection({
     })
   }, [detectedBank, bankName, bankNo, bankHolder])
 
-  // Ưu tiên QR riêng nếu user upload, nếu không thì dùng mã VietQR tự động
-  const effectiveQrUrl = qrUrl || autoVietQrUrl
-
   const handleBankChange = (val) => {
     if (onChange) {
-      onChange({ bankHolder, bankNo, bankName: val, qrUrl })
+      onChange({ bankHolder, bankNo, bankName: val })
     }
   }
 
   const handleHolderChange = (val) => {
     if (onChange) {
-      onChange({ bankHolder: val.toUpperCase(), bankNo, bankName, qrUrl })
+      onChange({ bankHolder: val.toUpperCase(), bankNo, bankName })
     }
   }
 
   const handleNoChange = (val) => {
     if (onChange) {
-      onChange({ bankHolder, bankNo: val.replace(/\s+/g, ''), bankName, qrUrl })
+      onChange({ bankHolder, bankNo: val.replace(/\s+/g, ''), bankName })
     }
   }
 
-  const handleCustomQrUpload = async (e) => {
+  // Ảnh QR CHỈ để đọc thông tin rồi điền vào form — không tải lên Storage, không lưu vào DB.
+  // Mã QR hiển thị luôn được sinh lại từ ngân hàng + số tài khoản (xem `autoVietQrUrl`), nên
+  // không có ảnh rác tích trong bucket và cũng không có đường ghi đè QR nhận tiền của người khác.
+  const handleScanQr = async (e) => {
     const file = e.target.files && e.target.files[0]
     if (!file) return
-    setUploading(true)
+    setScanning(true)
+    setScanErr(false)
     try {
-      // 1. Quét và giải mã thông tin từ ảnh QR nếu là mã VietQR chuẩn
-      let parsedInfo = null
-      try {
-        const qrRaw = await scanQrCodeFromImage(file)
-        if (qrRaw) {
-          parsedInfo = parseVietQr(qrRaw)
-        }
-      } catch {
-        // Quét QR lỗi thì bỏ qua
-      }
-
-      // 2. Nén và tải ảnh lên Storage
-      const url = await uploadImage(file, { folder: 'qrcodes', maxWidth: 800, maxHeight: 800, quality: 0.85 })
-
-      // 3. Nếu đọc được thông tin từ QR, hiện popup hỏi người dùng có muốn áp dụng không
-      if (parsedInfo && (parsedInfo.bankNo || parsedInfo.bankName)) {
+      const qrRaw = await scanQrCodeFromImage(file)
+      const parsed = qrRaw ? parseVietQr(qrRaw) : null
+      if (parsed && (parsed.bankNo || parsed.bankName)) {
         setPendingScan({
-          url,
-          parsed: {
-            bankName: parsedInfo.bankName || '',
-            bankNo: parsedInfo.bankNo || '',
-            bankHolder: parsedInfo.bankHolder || '', // Rỗng để xoá tên cũ nếu QR không có tên
-          },
+          bankName: parsed.bankName || '',
+          bankNo: parsed.bankNo || '',
+          bankHolder: parsed.bankHolder || '',
         })
       } else {
-        // Nếu không quét được thông tin, chỉ lưu ảnh QR và giữ nguyên các ô text
-        if (onChange) {
-          onChange({
-            bankHolder,
-            bankNo,
-            bankName,
-            qrUrl: url,
-          })
-        }
+        setScanErr(true)
       }
     } catch {
-      // Bỏ qua lỗi
+      setScanErr(true)
     } finally {
-      setUploading(false)
+      setScanning(false)
       if (fileRef.current) fileRef.current.value = ''
     }
   }
@@ -131,23 +107,11 @@ export function BankAccountSection({
     if (!pendingScan) return
     if (onChange) {
       onChange({
-        bankName: pendingScan.parsed.bankName || bankName,
-        bankNo: pendingScan.parsed.bankNo || bankNo,
-        bankHolder: pendingScan.parsed.bankHolder || '', // Clear tên cũ nếu QR không chứa tên
-        qrUrl: pendingScan.url,
-      })
-    }
-    setPendingScan(null)
-  }
-
-  const keepImageOnly = () => {
-    if (!pendingScan) return
-    if (onChange) {
-      onChange({
-        bankHolder,
-        bankNo,
-        bankName,
-        qrUrl: pendingScan.url,
+        bankName: pendingScan.bankName || bankName,
+        bankNo: pendingScan.bankNo || bankNo,
+        // QR không kèm tên thì XOÁ tên cũ. Giữ tên của chủ tài khoản trước bên cạnh số tài
+        // khoản mới là kiểu sai lệch khiến người ta yên tâm chuyển nhầm.
+        bankHolder: pendingScan.bankHolder || '',
       })
     }
     setPendingScan(null)
@@ -155,12 +119,6 @@ export function BankAccountSection({
 
   const cancelPendingScan = () => {
     setPendingScan(null)
-  }
-
-  const handleRemoveCustomQr = () => {
-    if (onChange) {
-      onChange({ bankHolder, bankNo, bankName, qrUrl: '' })
-    }
   }
 
   const bankOptions = useMemo(() => {
@@ -212,7 +170,7 @@ export function BankAccountSection({
             background: 'var(--surface-inset)',
             border: '1px solid var(--border-subtle)',
           }}>
-            {effectiveQrUrl ? (
+            {autoVietQrUrl ? (
               <div
                 style={{
                   position: 'relative',
@@ -231,7 +189,7 @@ export function BankAccountSection({
                 title={t('bank.clickToEnlarge')}
               >
                 <img
-                  src={effectiveQrUrl}
+                  src={autoVietQrUrl}
                   alt={t('bank.qrTitle')}
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
@@ -257,40 +215,35 @@ export function BankAccountSection({
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ display: 'grid', gap: 6, justifyItems: 'center' }}>
               <input
                 ref={fileRef}
                 id={fileId}
                 type="file"
                 accept="image/*"
                 style={{ display: 'none' }}
-                onChange={handleCustomQrUpload}
+                onChange={handleScanQr}
               />
               <Button
                 variant="secondary"
                 size="sm"
-                icon="upload"
-                disabled={uploading}
+                icon="scan-line"
+                disabled={scanning}
                 onClick={() => fileRef.current && fileRef.current.click()}
               >
-                {qrUrl ? t('bank.changeCustomQr') : t('bank.uploadCustomQr')}
+                {t('bank.scanToFill')}
               </Button>
-              {qrUrl && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  style={{ color: 'var(--status-incident)' }}
-                  onClick={handleRemoveCustomQr}
-                >
-                  {t('bank.useAutoQr')}
-                </Button>
+              {scanErr && (
+                <div style={{ fontSize: 11.5, color: 'var(--status-incident)', textAlign: 'center' }}>
+                  {t('bank.scanFailed')}
+                </div>
               )}
             </div>
           </div>
         </div>
       ) : (
         /* Chế độ chỉ đọc (Read-only view) */
-        <div style={{ display: 'grid', gridTemplateColumns: effectiveQrUrl ? '1fr 140px' : '1fr', gap: 14, alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: autoVietQrUrl ? '1fr 140px' : '1fr', gap: 14, alignItems: 'center' }}>
           <div style={{ display: 'grid', gap: 8 }}>
             <div style={{ display: 'grid', gap: 2 }}>
               <Overline>{t('settings.fBankHolder')}</Overline>
@@ -312,7 +265,7 @@ export function BankAccountSection({
             </div>
           </div>
 
-          {effectiveQrUrl && (
+          {autoVietQrUrl && (
             <div
               style={{
                 width: 120,
@@ -331,7 +284,7 @@ export function BankAccountSection({
               title={t('bank.clickToEnlarge')}
             >
               <img
-                src={effectiveQrUrl}
+                src={autoVietQrUrl}
                 alt={t('bank.qrTitle')}
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
@@ -341,10 +294,10 @@ export function BankAccountSection({
       )}
 
       {/* Modal phóng to QR */}
-      {showQrModal && effectiveQrUrl && (
+      {showQrModal && autoVietQrUrl && (
         <QrModal
           title={title || t('bank.qrTitle')}
-          qrUrl={effectiveQrUrl}
+          qrUrl={autoVietQrUrl}
           bankName={bankName}
           accountNo={bankNo}
           accountHolder={bankHolder}
@@ -362,9 +315,6 @@ export function BankAccountSection({
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%', flexWrap: 'wrap' }}>
               <Button variant="secondary" onClick={cancelPendingScan}>
                 {t('common.cancel')}
-              </Button>
-              <Button variant="ghost" onClick={keepImageOnly}>
-                {t('bank.confirmKeepImageOnly')}
               </Button>
               <Button variant="primary" icon="check" onClick={applyPendingScan}>
                 {t('bank.confirmApply')}
@@ -385,19 +335,19 @@ export function BankAccountSection({
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>{t('settings.fBankName')}:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {pendingScan.parsed.bankName || t('common.unknown')}
+                  {pendingScan.bankName || t('common.unknown')}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>{t('settings.fBankNo')}:</span>
                 <Mono weight={600} color="var(--navy-700)">
-                  {pendingScan.parsed.bankNo || t('common.unknown')}
+                  {pendingScan.bankNo || t('common.unknown')}
                 </Mono>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>{t('settings.fBankHolder')}:</span>
-                <span style={{ fontWeight: 600, color: pendingScan.parsed.bankHolder ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  {pendingScan.parsed.bankHolder || t('bank.noHolderInQr')}
+                <span style={{ fontWeight: 600, color: pendingScan.bankHolder ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {pendingScan.bankHolder || t('bank.noHolderInQr')}
                 </span>
               </div>
             </div>

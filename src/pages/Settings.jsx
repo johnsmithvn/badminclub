@@ -125,11 +125,9 @@ function General({ canEdit }) {
           bankHolder={bank.holder || ''}
           bankNo={bank.no || ''}
           bankName={bank.bank || ''}
-          qrUrl={c.bankQrUrl || ''}
           canEdit={canEdit}
-          onChange={({ bankHolder, bankNo, bankName, qrUrl }) => {
+          onChange={({ bankHolder, bankNo, bankName }) => {
             a.setClub('bank', { holder: bankHolder, no: bankNo, bank: bankName })
-            a.setClub('bankQrUrl', qrUrl)
           }}
         />
 

@@ -96,7 +96,6 @@ function SessionDebts({ canMoney }) {
         gender: who.gender || sg.gender,
         level: who.level || sg.level,
         avatarUrl: who.avatarUrl || '',
-        qrUrl: who.qrUrl || '',
         bankHolder: who.bankHolder || '',
         bankNo: who.bankNo || '',
         bankName: who.bankName || '',
@@ -136,7 +135,6 @@ function SessionDebts({ canMoney }) {
         gender: mb.gender,
         level: mb.level,
         avatarUrl: mb.avatarUrl || '',
-        qrUrl: mb.qrUrl || '',
         bankHolder: mb.bankHolder || '',
         bankNo: mb.bankNo || '',
         bankName: mb.bankName || '',
@@ -410,7 +408,7 @@ function SessionDebts({ canMoney }) {
                         <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
                           {p.name}
                         </span>
-                        {(p.qrUrl || (p.bankName && p.bankNo)) && (
+                        {(p.bankName && p.bankNo) && (
                           <IconButton
                             icon="qr-code"
                             size="sm"
@@ -567,7 +565,7 @@ function SessionDebts({ canMoney }) {
                         <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {p.name}
                         </div>
-                        {(p.qrUrl || (p.bankName && p.bankNo)) && (
+                        {(p.bankName && p.bankNo) && (
                           <IconButton
                             icon="qr-code"
                             size="sm"
@@ -723,7 +721,7 @@ function SessionDebts({ canMoney }) {
       {qrTarget && (
         <QrModal
           title={t('bank.qrTitle') + ' · ' + qrTarget.name}
-          qrUrl={qrTarget.qrUrl || getVietQrUrl({
+          qrUrl={getVietQrUrl({
             bankCode: (findBank(qrTarget.bankName) || {}).bin || qrTarget.bankName,
             accountNo: qrTarget.bankNo,
             accountHolder: qrTarget.bankHolder || qrTarget.name,
