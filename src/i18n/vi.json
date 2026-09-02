@@ -1822,7 +1822,12 @@
     "useAutoQr": "Dùng mã VietQR tự động",
     "viewQr": "Xem mã QR",
     "amount": "Số tiền",
-    "memo": "Nội dung"
+    "memo": "Nội dung",
+    "confirmScanTitle": "Phát hiện thông tin tài khoản từ mã QR",
+    "confirmScanDesc": "Hệ thống tìm thấy thông tin chuyển khoản từ ảnh bạn vừa tải lên. Bạn có muốn áp dụng vào form không?",
+    "confirmApply": "Áp dụng thông tin này",
+    "confirmKeepImageOnly": "Chỉ giữ ảnh QR (không đổi thông tin)",
+    "noHolderInQr": "(Không có tên trong mã QR — vui lòng nhập tay)"
   },
   "csv": {
     "errEmpty": "File CSV rỗng hoặc không có dòng tiêu đề.",

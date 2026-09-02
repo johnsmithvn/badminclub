@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, useState } from 'react'
-import { Button, Card, Icon, Input } from '#ds'
+import { Button, Card, Dialog, Icon, Input } from '#ds'
 import { banks, findBank, getVietQrUrl, parseVietQr, scanQrCodeFromImage } from '#utils/vietqr.js'
 import { uploadImage } from '#utils/image.js'
 import { QrModal } from '#components/ui/QrModal.jsx'
@@ -41,6 +41,7 @@ export function BankAccountSection({
 }) {
   const [showQrModal, setShowQrModal] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [pendingScan, setPendingScan] = useState(null)
   const fileRef = useRef(null)
   const fileId = useId()
 
@@ -84,33 +85,39 @@ export function BankAccountSection({
     setUploading(true)
     try {
       // 1. Quét và giải mã thông tin từ ảnh QR nếu là mã VietQR chuẩn
-      let nextHolder = bankHolder
-      let nextNo = bankNo
-      let nextBank = bankName
-
+      let parsedInfo = null
       try {
         const qrRaw = await scanQrCodeFromImage(file)
         if (qrRaw) {
-          const parsed = parseVietQr(qrRaw)
-          if (parsed) {
-            if (parsed.bankHolder) nextHolder = parsed.bankHolder
-            if (parsed.bankNo) nextNo = parsed.bankNo
-            if (parsed.bankName) nextBank = parsed.bankName
-          }
+          parsedInfo = parseVietQr(qrRaw)
         }
       } catch {
-        // Quét QR lỗi thì vẫn tiếp tục upload ảnh
+        // Quét QR lỗi thì bỏ qua
       }
 
       // 2. Nén và tải ảnh lên Storage
       const url = await uploadImage(file, { folder: 'qrcodes', maxWidth: 800, maxHeight: 800, quality: 0.85 })
-      if (onChange) {
-        onChange({
-          bankHolder: nextHolder,
-          bankNo: nextNo,
-          bankName: nextBank,
-          qrUrl: url,
+
+      // 3. Nếu đọc được thông tin từ QR, hiện popup hỏi người dùng có muốn áp dụng không
+      if (parsedInfo && (parsedInfo.bankNo || parsedInfo.bankName)) {
+        setPendingScan({
+          url,
+          parsed: {
+            bankName: parsedInfo.bankName || '',
+            bankNo: parsedInfo.bankNo || '',
+            bankHolder: parsedInfo.bankHolder || '', // Rỗng để xoá tên cũ nếu QR không có tên
+          },
         })
+      } else {
+        // Nếu không quét được thông tin, chỉ lưu ảnh QR và giữ nguyên các ô text
+        if (onChange) {
+          onChange({
+            bankHolder,
+            bankNo,
+            bankName,
+            qrUrl: url,
+          })
+        }
       }
     } catch {
       // Bỏ qua lỗi
@@ -118,6 +125,36 @@ export function BankAccountSection({
       setUploading(false)
       if (fileRef.current) fileRef.current.value = ''
     }
+  }
+
+  const applyPendingScan = () => {
+    if (!pendingScan) return
+    if (onChange) {
+      onChange({
+        bankName: pendingScan.parsed.bankName || bankName,
+        bankNo: pendingScan.parsed.bankNo || bankNo,
+        bankHolder: pendingScan.parsed.bankHolder || '', // Clear tên cũ nếu QR không chứa tên
+        qrUrl: pendingScan.url,
+      })
+    }
+    setPendingScan(null)
+  }
+
+  const keepImageOnly = () => {
+    if (!pendingScan) return
+    if (onChange) {
+      onChange({
+        bankHolder,
+        bankNo,
+        bankName,
+        qrUrl: pendingScan.url,
+      })
+    }
+    setPendingScan(null)
+  }
+
+  const cancelPendingScan = () => {
+    setPendingScan(null)
   }
 
   const handleRemoveCustomQr = () => {
@@ -313,6 +350,59 @@ export function BankAccountSection({
           accountHolder={bankHolder}
           onClose={() => setShowQrModal(false)}
         />
+      )}
+
+      {/* Dialog xác nhận áp dụng thông tin quét từ ảnh QR */}
+      {pendingScan && (
+        <Dialog
+          open
+          title={t('bank.confirmScanTitle')}
+          onClose={cancelPendingScan}
+          actions={
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%', flexWrap: 'wrap' }}>
+              <Button variant="secondary" onClick={cancelPendingScan}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="ghost" onClick={keepImageOnly}>
+                {t('bank.confirmKeepImageOnly')}
+              </Button>
+              <Button variant="primary" icon="check" onClick={applyPendingScan}>
+                {t('bank.confirmApply')}
+              </Button>
+            </div>
+          }
+        >
+          <div style={{ display: 'grid', gap: 12, fontSize: 13.5 }}>
+            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+              {t('bank.confirmScanDesc')}
+            </p>
+
+            <div style={{
+              display: 'grid', gap: 8, padding: '12px 14px',
+              background: 'var(--surface-inset)', borderRadius: 8,
+              border: '1px solid var(--border-subtle)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('settings.fBankName')}:</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {pendingScan.parsed.bankName || t('common.unknown')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('settings.fBankNo')}:</span>
+                <Mono weight={600} color="var(--navy-700)">
+                  {pendingScan.parsed.bankNo || t('common.unknown')}
+                </Mono>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('settings.fBankHolder')}:</span>
+                <span style={{ fontWeight: 600, color: pendingScan.parsed.bankHolder ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {pendingScan.parsed.bankHolder || t('bank.noHolderInQr')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Dialog>
       )}
     </div>
   )
