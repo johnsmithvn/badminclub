@@ -55,10 +55,12 @@ const stateStyle = (item) => (item.paid ? S.pillPaid : item.claimedAt ? S.pillWa
 export default function Debts() {
   const { db, ui, a } = useApp()
   const rawTab = ui.tab.debts || 'sessions'
+  // `canMoney` PHẢI đứng trước `tab`: `tab` đọc nó. Để sau là TDZ — "Cannot access before
+  // initialization" ngay lúc render, và minify đổi tên biến nên log không nói được là biến nào.
+  const canMoney = can(db.viewAs || 'owner', 'money')
   const tab = rawTab === 'guest' || rawTab === 'back' ? 'sessions'
     : (rawTab === 'pending' && !canMoney) ? 'sessions'
     : rawTab
-  const canMoney = can(db.viewAs || 'owner', 'money')
 
   const dues = duesOf(db, db.month)
   const advances = advanceRows(db)
