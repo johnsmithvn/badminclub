@@ -761,7 +761,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const gs = f.eGroups || []
       const gMonth = f.eWhenGroup === 'now' ? d0.month : addMonth(d0.month, 1)
 
-      // Trình độ mới luôn áp dụng ngay lập tức cho các buổi sắp tới
       const mb = {
         ...was,
         name: f.eName,
@@ -770,6 +769,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         email: (f.eEmail || '').trim(),
         gender: f.eGender,
         level: f.eLevel,
+        avatarUrl: f.eAvatarUrl !== undefined ? f.eAvatarUrl : (was.avatarUrl || ''),
+        qrUrl: f.eQrUrl !== undefined ? f.eQrUrl : (was.qrUrl || ''),
+        bankHolder: f.eBankHolder !== undefined ? f.eBankHolder : (was.bankHolder || ''),
+        bankNo: f.eBankNo !== undefined ? f.eBankNo : (was.bankNo || ''),
+        bankName: f.eBankName !== undefined ? f.eBankName : (was.bankName || ''),
+        bankAccounts: f.eBankAccounts || was.bankAccounts || [],
         // Chủ CLB sửa thẳng = áp dụng ngay cho mọi tháng → lịch sử mốc cũ phải đi theo, không
         // thì tháng sau trình độ tự nhảy về mốc cũ mà không ai hiểu vì sao.
         levelHistory: f.eLevel === was.level ? (was.levelHistory || []) : [],
@@ -983,6 +988,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         id, name, gender: f.mGender || 'nam', level: f.mLevel || d0.levels[0],
         groupIds: start === 'now' ? gs : [], role: 'member', phone: f.mPhone || '',
         fullName: (f.mFull || '').trim(), email: (f.mEmail || '').trim(),
+        avatarUrl: f.mAvatarUrl || '',
+        qrUrl: f.mQrUrl || '',
+        bankHolder: f.mBankHolder || '',
+        bankNo: f.mBankNo || '',
+        bankName: f.mBankName || '',
+        bankAccounts: f.mBankAccounts || [],
         note: f.mNote || '',
         joined: d0.today, active: true, userId: null, levelHistory: [],
         pendingLevel: null, pendingLevelFrom: null,

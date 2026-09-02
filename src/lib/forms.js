@@ -76,7 +76,9 @@ export const editLedgerForm = (m) => ({
 
 /** Form thêm thành viên. */
 export const memberForm = (db) => ({
-  mName: '', mFull: '', mPhone: '', mEmail: '', mGender: 'nam', mLevel: lv1(db), mNote: '', mGroups: [],
+  mName: '', mFull: '', mPhone: '', mEmail: '', mGender: 'nam', mLevel: lv1(db), mNote: '',
+  mAvatarUrl: '', mQrUrl: '', mBankHolder: '', mBankNo: '', mBankName: '', mBankAccounts: [],
+  mGroups: [],
   // CLB chưa có nhóm cố định nào thì mặc định 'đi lẻ', không thì bấm Thêm là bị chặn ngay.
   mStart: db.groups.length ? 'next' : 'none',
 })
@@ -92,6 +94,9 @@ const lv1 = (db) => (db.levels || [])[1] || (db.levels || [])[0] || ''
 export const editMemberForm = (m) => ({
   eId: m.id, eName: m.name, eFull: m.fullName || '', ePhone: m.phone || '', eEmail: m.email || '',
   eGender: m.gender, eLevel: m.level, eNote: m.note || '',
+  eAvatarUrl: m.avatarUrl || '', eQrUrl: m.qrUrl || '',
+  eBankHolder: m.bankHolder || '', eBankNo: m.bankNo || '', eBankName: m.bankName || '',
+  eBankAccounts: (m.bankAccounts || []).slice(),
   eGroups: (m.groupIds || []).slice(), eWhenGroup: 'next',
 })
 

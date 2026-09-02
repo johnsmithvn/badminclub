@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Alert, Avatar, Button, Card, Checkbox, Icon, IconButton, Input, Select, Switch, Tabs, Tag } from '#ds'
-import { DeleteClubDialog, Empty, GRID_PAIR, LevelChip, Mono, Overline } from '#ui'
+import { AvatarUpload, BankAccountSection, DeleteClubDialog, Empty, GRID_PAIR, LevelChip, Mono, Overline } from '#ui'
 import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
@@ -78,9 +78,21 @@ function General({ canEdit }) {
     <>
       <div style={GRID_PAIR}>
         <Card title={t('settings.clubTitle')} subtitle={t('settings.clubSub')} icon="building-2" padding="14px 16px">
-          <div style={{ display: 'grid', gap: 12 }}>
-            <Input label={t('settings.fClubName')} value={c.name} disabled={!canEdit}
-              onChange={(e) => a.setClub('name', e.target.value)} />
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <AvatarUpload
+                name={c.name}
+                value={c.avatarUrl || ''}
+                size={64}
+                disabled={!canEdit}
+                onChange={(url) => a.setClub('avatarUrl', url)}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Input label={t('settings.fClubName')} value={c.name} disabled={!canEdit}
+                  onChange={(e) => a.setClub('name', e.target.value)} />
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gap: 4 }}>
               <Overline>{t('settings.fClubCode')}</Overline>
               <div style={S.codeBox}>
@@ -109,16 +121,17 @@ function General({ canEdit }) {
       </div>
 
       <div style={GRID_PAIR}>
-        <Card title={t('settings.bankTitle')} subtitle={t('settings.bankSub')} icon="landmark" padding="14px 16px">
-          <div style={{ display: 'grid', gap: '9px 12px', gridTemplateColumns: '120px 1fr', alignItems: 'center' }}>
-            <Overline>{t('settings.fBankHolder')}</Overline>
-            <Mono color="var(--text-primary)">{bank.holder || t('common.unknown')}</Mono>
-            <Overline>{t('settings.fBankNo')}</Overline>
-            <Mono color="var(--text-primary)">{bank.no || t('common.unknown')}</Mono>
-            <Overline>{t('settings.fBankName')}</Overline>
-            <Mono color="var(--text-primary)">{bank.bank || t('common.unknown')}</Mono>
-          </div>
-        </Card>
+        <BankAccountSection
+          bankHolder={bank.holder || ''}
+          bankNo={bank.no || ''}
+          bankName={bank.bank || ''}
+          qrUrl={c.bankQrUrl || ''}
+          canEdit={canEdit}
+          onChange={({ bankHolder, bankNo, bankName, qrUrl }) => {
+            a.setClub('bank', { holder: bankHolder, no: bankNo, bank: bankName })
+            a.setClub('bankQrUrl', qrUrl)
+          }}
+        />
 
         <LevelsCard canEdit={canEdit} />
       </div>
@@ -981,7 +994,7 @@ function JoinRow({ r, canEdit, unlinked }) {
               {rows.map((x) => (
                 <div key={x.field} style={S.mergeRow}>
                   <Checkbox
-                    label={t('members.changeField.' + x.field)}
+                    label={t('settings.mergeField.' + x.field) || t('members.changeField.' + x.field) || x.field}
                     checked={ticked.indexOf(x.field) >= 0 && !x.block}
                     disabled={!!x.block}
                     onChange={() => toggle(x.field)}
@@ -1005,7 +1018,13 @@ function JoinRow({ r, canEdit, unlinked }) {
 }
 
 /** Giới tính lưu bằng KEY ('nam' / 'nu'), bảng so sánh phải in ra chữ người đọc được. */
-const showVal = (field, v) => (field === 'gender' && v ? genderTxt(v) : v)
+const showVal = (field, v) => {
+  if (!v) return ''
+  if (field === 'gender') return genderTxt(v)
+  if (field === 'avatarUrl') return t('settings.mergeField.avatarUrl')
+  if (field === 'qrUrl') return t('settings.mergeField.qrUrl')
+  return v
+}
 
 function Access({ canEdit, pending }) {
   const { db, ui, a } = useApp()

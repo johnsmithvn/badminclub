@@ -448,3 +448,6 @@ export function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
 }
 
 export { SearchSelect } from './SearchSelect.jsx'
+export { AvatarUpload } from './AvatarUpload.jsx'
+export { BankAccountSection } from './BankAccountSection.jsx'
+export { QrModal } from './QrModal.jsx'

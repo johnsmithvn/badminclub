@@ -21,7 +21,12 @@
     "searchQuick": "Tìm kiếm nhanh...",
     "clearPick": "Xoá chọn",
     "noResult": "Không tìm thấy kết quả nào",
-    "showingOf": "Đang hiển thị {{n}}/{{total}} kết quả (cuộn để xem tiếp)"
+    "showingOf": "Đang hiển thị {{n}}/{{total}} kết quả (cuộn để xem tiếp)",
+    "uploadAvatar": "Tải ảnh đại diện",
+    "changeAvatar": "Đổi ảnh đại diện",
+    "removeAvatar": "Xoá ảnh",
+    "copied": "Đã sao chép",
+    "imageError": "Lỗi xử lý ảnh"
   },
   "units": {
     "dong": "đ",
@@ -893,7 +898,12 @@
       "email": "Email",
       "gender": "Giới tính",
       "name": "Tên hiển thị",
-      "fullName": "Tên đầy đủ"
+      "fullName": "Tên đầy đủ",
+      "avatarUrl": "Ảnh đại diện",
+      "qrUrl": "Mã QR thanh toán",
+      "bankHolder": "Tên chủ tài khoản",
+      "bankNo": "Số tài khoản ngân hàng",
+      "bankName": "Tên ngân hàng"
     },
     "changeNow": "áp dụng ngay",
     "changeNext": "áp dụng từ tháng sau",
@@ -1431,6 +1441,19 @@
       "same": "Đã giống nhau",
       "offScale": "Không có trong thang trình độ của CLB"
     },
+    "mergeField": {
+      "name": "Tên hiển thị",
+      "fullName": "Họ và tên đầy đủ",
+      "phone": "Số điện thoại",
+      "email": "Email liên hệ",
+      "gender": "Giới tính",
+      "level": "Trình độ",
+      "avatarUrl": "Ảnh đại diện (Avatar)",
+      "qrUrl": "Mã QR thanh toán",
+      "bankHolder": "Tên chủ tài khoản",
+      "bankNo": "Số tài khoản ngân hàng",
+      "bankName": "Tên ngân hàng"
+    },
     "feeNoGroupTitle": "CLB chưa có nhóm nào",
     "feeNoGroup": "Quỹ tháng thu theo NHÓM, nên chưa có nhóm thì không đặt được mức quỹ — gõ vào đây cũng không lưu. Vào tab Nhóm & mức thu tạo một nhóm trước. Giá khách giao lưu bên dưới thì vẫn lưu bình thường.",
     "generalFeeTitle": "Mức phí thành viên cố định",
@@ -1786,6 +1809,20 @@
     "guestRev": "Thu từ khách: {{amount}}",
     "balance": "Quỹ CLB hiện tại: {{amount}}",
     "bank": "CK: {{holder}} · {{no}} · {{bank}}"
+  },
+  "bank": {
+    "qrTitle": "Mã QR chuyển khoản",
+    "copyNo": "Sao chép số tài khoản",
+    "noQr": "Chưa có mã QR",
+    "selectPrompt": "— Chọn ngân hàng / ví điện tử —",
+    "clickToEnlarge": "Bấm để phóng to mã QR",
+    "qrAutoHint": "Nhập ngân hàng & số tài khoản để tự động sinh mã VietQR",
+    "uploadCustomQr": "Tải ảnh QR riêng",
+    "changeCustomQr": "Đổi ảnh QR riêng",
+    "useAutoQr": "Dùng mã VietQR tự động",
+    "viewQr": "Xem mã QR",
+    "amount": "Số tiền",
+    "memo": "Nội dung"
   },
   "csv": {
     "errEmpty": "File CSV rỗng hoặc không có dòng tiêu đề.",

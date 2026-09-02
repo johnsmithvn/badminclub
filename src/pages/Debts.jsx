@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
-import { Empty, GRID_PAIR, Mono, Overline } from '#ui'
+import { Empty, GRID_PAIR, Mono, Overline, QrModal } from '#ui'
+import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, wd } from '#utils/dates.js'
 import {
@@ -69,6 +70,7 @@ function SessionDebts({ canMoney }) {
   const [sortKey, setSortKey] = useState('unpaid-desc')
   const [typeFilter, setTypeFilter] = useState('') // '' | 'member' | 'guest'
   const [confirmCollect, setConfirmCollect] = useState(null)
+  const [qrTarget, setQrTarget] = useState(null)
 
   // Map người chơi
   const peopleMap = {}
@@ -93,6 +95,11 @@ function SessionDebts({ canMoney }) {
         name: who.name || t('debts.guestFallback'),
         gender: who.gender || sg.gender,
         level: who.level || sg.level,
+        avatarUrl: who.avatarUrl || '',
+        qrUrl: who.qrUrl || '',
+        bankHolder: who.bankHolder || '',
+        bankNo: who.bankNo || '',
+        bankName: who.bankName || '',
         isMember,
         invitedBy: sg.invitedBy || who.invitedBy || '',
         items: [],
@@ -128,6 +135,11 @@ function SessionDebts({ canMoney }) {
         name: mb.name,
         gender: mb.gender,
         level: mb.level,
+        avatarUrl: mb.avatarUrl || '',
+        qrUrl: mb.qrUrl || '',
+        bankHolder: mb.bankHolder || '',
+        bankNo: mb.bankNo || '',
+        bankName: mb.bankName || '',
         isMember: true,
         invitedBy: '',
         items: [],
@@ -392,12 +404,24 @@ function SessionDebts({ canMoney }) {
                       label={t(isExp ? 'debts.collapse' : 'debts.expand')}
                       onClick={(e) => { e.stopPropagation(); toggleExpand(p.id) }}
                     />
-                    <Avatar name={p.name} size={30} />
+                    <Avatar name={p.name} src={p.avatarUrl} size={30} />
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
                           {p.name}
                         </span>
+                        {(p.qrUrl || (p.bankName && p.bankNo)) && (
+                          <IconButton
+                            icon="qr-code"
+                            size="sm"
+                            variant="ghost"
+                            label={t('bank.viewQr')}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setQrTarget(p)
+                            }}
+                          />
+                        )}
                         <span style={p.isMember ? S.tagMember : S.tagGuest}>
                           {t(p.isMember ? 'debts.tagMember' : 'debts.tagGuest')}
                         </span>
@@ -537,10 +561,21 @@ function SessionDebts({ canMoney }) {
               <div key={p.id} style={S.personCard}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                    <Avatar name={p.name} size={34} />
+                    <Avatar name={p.name} src={p.avatarUrl} size={34} />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {p.name}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {p.name}
+                        </div>
+                        {(p.qrUrl || (p.bankName && p.bankNo)) && (
+                          <IconButton
+                            icon="qr-code"
+                            size="sm"
+                            variant="ghost"
+                            label={t('bank.viewQr')}
+                            onClick={() => setQrTarget(p)}
+                          />
+                        )}
                       </div>
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 2 }}>
                         <span style={p.isMember ? S.tagMember : S.tagGuest}>
@@ -683,6 +718,23 @@ function SessionDebts({ canMoney }) {
             </div>
           </div>
         </Dialog>
+      )}
+
+      {qrTarget && (
+        <QrModal
+          title={t('bank.qrTitle') + ' · ' + qrTarget.name}
+          qrUrl={qrTarget.qrUrl || getVietQrUrl({
+            bankCode: (findBank(qrTarget.bankName) || {}).bin || qrTarget.bankName,
+            accountNo: qrTarget.bankNo,
+            accountHolder: qrTarget.bankHolder || qrTarget.name,
+            amount: qrTarget.unpaidRefund > 0 ? qrTarget.unpaidRefund : (qrTarget.unpaidDue > 0 ? qrTarget.unpaidDue : undefined),
+          })}
+          bankName={qrTarget.bankName}
+          accountNo={qrTarget.bankNo}
+          accountHolder={qrTarget.bankHolder || qrTarget.name}
+          amount={qrTarget.unpaidRefund > 0 ? fmt(qrTarget.unpaidRefund) : (qrTarget.unpaidDue > 0 ? fmt(qrTarget.unpaidDue) : undefined)}
+          onClose={() => setQrTarget(null)}
+        />
       )}
     </Card>
   )

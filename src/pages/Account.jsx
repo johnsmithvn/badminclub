@@ -20,12 +20,19 @@ import { ddmy } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
+import { AvatarUpload, BankAccountSection } from '#ui'
+
 const formOf = (p) => ({
   name: p.name || '',
   nick: p.nick || '',
   phone: p.phone || '',
   gender: p.gender || cfg.genders[0],
   level: p.level || '',
+  avatarUrl: p.avatar_url || p.avatarUrl || '',
+  qrUrl: p.qr_url || p.qrUrl || '',
+  bankHolder: p.bank_holder || p.bankHolder || '',
+  bankNo: p.bank_no || p.bankNo || '',
+  bankName: p.bank_name || p.bankName || '',
 })
 
 export default function Account() {
@@ -57,6 +64,11 @@ export default function Account() {
         phone: form.phone.trim() || null,
         gender: form.gender,
         level: form.level || null,
+        avatar_url: form.avatarUrl || null,
+        qr_url: form.qrUrl || null,
+        bank_holder: form.bankHolder || null,
+        bank_no: form.bankNo || null,
+        bank_name: form.bankName || null,
       })
       toast(t('account.saved'))
     } catch (e) {
@@ -85,7 +97,12 @@ export default function Account() {
           <Card title={t('account.formTitle')} subtitle={t('account.formSub')} icon="user-round" padding="18px">
             <div style={{ display: 'grid', gap: 14 }}>
               <div style={S.idRow}>
-                <Avatar name={form.nick || form.name || profile.name} size={48} />
+                <AvatarUpload
+                  name={form.nick || form.name || profile.name}
+                  value={form.avatarUrl}
+                  size={54}
+                  onChange={(url) => setForm((f) => ({ ...f, avatarUrl: url }))}
+                />
                 <div style={{ minWidth: 0, display: 'grid', gap: 3 }}>
                   {/* Email LÀ tên đăng nhập (0010) — `username` vẫn còn dưới DB cho tài khoản
                       cũ đăng nhập, nhưng không còn là thứ người dùng phải nhớ nên không hiện. */}
@@ -126,7 +143,22 @@ export default function Account() {
                 <span>{t('account.clubNote')}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              {/* Thông tin tài khoản ngân hàng & QR nhận tiền */}
+              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 14 }}>
+                <BankAccountSection
+                  card={false}
+                  bankHolder={form.bankHolder}
+                  bankNo={form.bankNo}
+                  bankName={form.bankName}
+                  qrUrl={form.qrUrl}
+                  canEdit
+                  onChange={({ bankHolder, bankNo, bankName, qrUrl }) => {
+                    setForm((f) => ({ ...f, bankHolder, bankNo, bankName, qrUrl }))
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                 <Button variant="primary" icon="circle-check" disabled={saving} onClick={save}>
                   {saving ? t('account.saving') : t('common.save')}
                 </Button>

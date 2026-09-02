@@ -105,7 +105,11 @@ export default function Sidebar({ route }) {
           aria-haspopup="menu"
           aria-expanded={clubMenu}
         >
-          <div style={S.logo}><Icon name="volleyball" size={18} /></div>
+          {db.club.avatarUrl ? (
+            <Avatar name={clubName} src={db.club.avatarUrl} size={30} square style={{ flexShrink: 0 }} />
+          ) : (
+            <div style={S.logo}><Icon name="volleyball" size={18} /></div>
+          )}
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={S.clubName}>{clubName}</div>
             <div style={S.clubCode}>{t('shell.clubPrefix') + clubCode}</div>
@@ -219,7 +223,7 @@ export default function Sidebar({ route }) {
 
         <button type="button" style={S.footBtn} onClick={() => setMenu((v) => !v)}
           aria-haspopup="menu" aria-expanded={menu} aria-label={t('shell.userMenu')}>
-          <Avatar name={meName} size={30} />
+          <Avatar name={meName} src={(currentMember && currentMember.avatarUrl) || (profile && (profile.avatar_url || profile.avatarUrl))} size={30} />
           <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
             <div style={S.footName}>{meName}</div>
             <div style={S.footRole}>{t('shell.footRole', { role: roleName(db.myRole || role), club: clubName })}</div>

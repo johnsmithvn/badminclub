@@ -3,7 +3,8 @@
 
 import { useMemo, useState } from 'react'
 import { Avatar, Button, Card, DataTable, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
-import { EditGuestDialog, Empty, LevelChip, Mono, Overline } from '#ui'
+import { EditGuestDialog, Empty, LevelChip, Mono, Overline, QrModal } from '#ui'
+import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
 import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberRefs, nextLevelStep, offBackSuggest, rosterStatus, guestStats, normalizeText } from '#lib/money.js'
@@ -50,6 +51,7 @@ function AllMembers({ canEdit }) {
   const [selectedIds, setSelectedIds] = useState([])
   const [flt, setFlt] = useState(FILTER0)
   const [sort, setSort] = useState({})
+  const [qrMember, setQrMember] = useState(null)
   const setF = (k, v) => setFlt((s) => ({ ...s, [k]: v }))
 
   const off = db.members.filter((m) => m.active === false)
@@ -120,7 +122,7 @@ function AllMembers({ canEdit }) {
       key: 'n', header: sortHead('n', t('members.colName')),
       render: (r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Avatar name={r.name} size={26} />
+          <Avatar name={r.name} src={r.avatarUrl} size={26} />
           {/* `name` là TÊN HIỂN THỊ — cái nằm trên mọi bảng điểm danh và dòng tiền. `fullName`
               chỉ để đối chiếu nên đứng dưới, cỡ caption, không thay chỗ của tên hiển thị. */}
           <div style={{ minWidth: 0 }}>
@@ -238,12 +240,23 @@ function AllMembers({ canEdit }) {
     },
     {
       key: 'a', header: '',
-      render: (r) => canEdit && (
-        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-          <Button variant="ghost" size="sm" icon="settings-2"
-            onClick={() => a.openDialog('editMember', editMemberForm(r))}>
-            {t('common.edit')}
-          </Button>
+      render: (r) => (
+        <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
+          {(r.qrUrl || (r.bankName && r.bankNo)) && (
+            <IconButton
+              icon="qr-code"
+              size="sm"
+              variant="ghost"
+              label={t('bank.viewQr')}
+              onClick={() => setQrMember(r)}
+            />
+          )}
+          {canEdit && (
+            <Button variant="ghost" size="sm" icon="settings-2"
+              onClick={() => a.openDialog('editMember', editMemberForm(r))}>
+              {t('common.edit')}
+            </Button>
+          )}
           {/* Ngưng hoạt động (Inactive) giữ nguyên lịch sử; xoá cứng chỉ mở khi chưa dính gì. */}
           <IconButton icon={r.active === false ? 'rotate-ccw' : 'user-round-minus'} size="sm" variant="ghost"
             label={t(r.active === false ? 'members.toActive' : 'members.toInactive')}
@@ -478,6 +491,21 @@ function AllMembers({ canEdit }) {
             ? <Empty icon="search" title={t('members.fltEmpty')} hint={t('members.fltEmptyHint')} />
             : <Empty icon="users" title={t('members.empty')} hint={t('members.emptyHint')} />)
         : <DataTable columns={columns} rows={rows} rowKey="id" />}
+
+      {qrMember && (
+        <QrModal
+          title={t('bank.qrTitle') + ' · ' + qrMember.name}
+          qrUrl={qrMember.qrUrl || getVietQrUrl({
+            bankCode: (findBank(qrMember.bankName) || {}).bin || qrMember.bankName,
+            accountNo: qrMember.bankNo,
+            accountHolder: qrMember.bankHolder || qrMember.fullName || qrMember.name,
+          })}
+          bankName={qrMember.bankName}
+          accountNo={qrMember.bankNo}
+          accountHolder={qrMember.bankHolder || qrMember.fullName || qrMember.name}
+          onClose={() => setQrMember(null)}
+        />
+      )}
     </Card>
   )
 }

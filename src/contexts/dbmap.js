@@ -68,6 +68,9 @@ export function toDb(raw, ctx) {
     return {
       id: m.id, name: m.name, fullName: m.full_name || '',
       phone: m.phone || '', email: m.email || '', gender: m.gender, level: m.level,
+      avatarUrl: m.avatar_url || '', qrUrl: m.qr_url || '',
+      bankHolder: m.bank_holder || '', bankNo: m.bank_no || '', bankName: m.bank_name || '',
+      bankAccounts: m.bank_accounts || [],
       role: m.role, joined: m.joined_at, active: m.active, userId: m.user_id || null,
       linkedAt: dOf(m.linked_at), pendingLevel: m.pending_level || null,
       pendingLevelFrom: m.pending_level_from || null,
@@ -193,6 +196,9 @@ export function toDb(raw, ctx) {
   return {
     club: {
       id: club.id, name: club.name, code: club.code,
+      avatarUrl: club.avatar_url || '',
+      bankQrUrl: club.bank_qr_url || '',
+      bankAccounts: club.bank_accounts || [],
       opening: num(club.opening_balance), openingDate: club.opening_date,
       openingBy: club.opening_by || '',
       bank: { holder: club.bank_holder || '', no: club.bank_no || '', bank: club.bank_name || '' },
@@ -244,7 +250,9 @@ export function toDb(raw, ctx) {
     })),
     users: (raw.users || []).map((u) => ({
       id: u.id, name: u.name, nick: u.nick || u.name, phone: u.phone || '',
-      email: u.email || '',
+      email: u.email || '', avatarUrl: u.avatar_url || '', qrUrl: u.qr_url || '',
+      bankHolder: u.bank_holder || '', bankNo: u.bank_no || '', bankName: u.bank_name || '',
+      bankAccounts: u.bank_accounts || [],
       gender: u.gender || '', level: u.level || '', since: dOf(u.created_at),
     })),
     joinRequests: (raw.joinRequests || []).map((r) => ({
@@ -291,6 +299,9 @@ export function toRows(db, ctx) {
       id: m.id, club_id: cid, user_id: uu(m.userId), role: m.role, name: m.name,
       full_name: m.fullName || null,
       phone: m.phone || null, email: m.email || null, gender: m.gender, level: m.level,
+      avatar_url: m.avatarUrl || null, qr_url: m.qrUrl || null,
+      bank_holder: m.bankHolder || null, bank_no: m.bankNo || null, bank_name: m.bankName || null,
+      bank_accounts: m.bankAccounts && m.bankAccounts.length ? m.bankAccounts : null,
       pending_level: m.pendingLevel || null, pending_level_from: m.pendingLevelFrom || null,
       joined_at: m.joined, active: m.active !== false, linked_at: m.linkedAt || null,
       note: m.note || null,
@@ -470,7 +481,10 @@ export function clubRow(db) {
   return {
     name: c.name, opening_balance: c.opening, opening_date: c.openingDate,
     opening_by: c.openingBy || null,
+    avatar_url: c.avatarUrl || null,
+    bank_qr_url: c.bankQrUrl || null,
     bank_holder: c.bank.holder || null, bank_no: c.bank.no || null, bank_name: c.bank.bank || null,
+    bank_accounts: c.bankAccounts && c.bankAccounts.length ? c.bankAccounts : null,
     court_pay_mode: c.courtPayMode, lock_day: c.lockDay, round_unit: !!c.roundUnit,
     multi_group: !!c.multiGroup,
     see_debt_each_other: !!c.seeDebtEachOther, see_fund: !!c.seeFund,

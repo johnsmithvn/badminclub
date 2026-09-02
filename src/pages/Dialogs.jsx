@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { Alert, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, StatusPill, Switch } from '#ds'
-import { Mono, Overline } from '#ui'
+import { AvatarUpload, BankAccountSection, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
 import { checkOf, checkPreview, fmtK, genderTxt, intOf, offBackSuggest } from '#lib/money.js'
@@ -584,18 +584,27 @@ function AddMemberDialog() {
   return (
     <Shell title={t('members.dlgAddTitle')} desc={t('members.dlgAddDesc')}
       onSubmit={() => a.createMember()} submitLabel={t('common.add')} submitIcon="user-round-plus">
-      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 10 }}>
-        <Input label={t('members.fName')} value={f.mName || ''} onChange={(e) => a.setF('mName', e.target.value)} />
-        <Input label={t('members.fPhone')} mono value={f.mPhone || ''} onChange={(e) => a.setF('mPhone', e.target.value)} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <AvatarUpload
+          name={f.mName || ''}
+          value={f.mAvatarUrl || ''}
+          size={56}
+          onChange={(url) => a.setF('mAvatarUrl', url)}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Input label={t('members.fName')} value={f.mName || ''} onChange={(e) => a.setF('mName', e.target.value)} />
+        </div>
       </div>
-      {/* Email của SỔ CLB, không phải email đăng nhập: không bắt buộc, không cần trùng với tài
-          khoản nào. Xem `0010_member_email.sql`. */}
-      {/* Hai tên: `mName` là TÊN HIỂN THỊ (nằm trên mọi bảng điểm danh và dòng tiền), `mFull`
-          chỉ để đối chiếu, hiện nhỏ bên dưới. */}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Input label={t('members.fPhone')} mono value={f.mPhone || ''} onChange={(e) => a.setF('mPhone', e.target.value)} />
+        <Input label={t('members.fEmail')} hint={t('members.fEmailHint')}
+          value={f.mEmail || ''} onChange={(e) => a.setF('mEmail', e.target.value)} />
+      </div>
+
       <Input label={t('members.fFull')} hint={t('members.fFullHint')}
         value={f.mFull || ''} onChange={(e) => a.setF('mFull', e.target.value)} />
-      <Input label={t('members.fEmail')} hint={t('members.fEmailHint')}
-        value={f.mEmail || ''} onChange={(e) => a.setF('mEmail', e.target.value)} />
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Select label={t('members.fGender')} value={f.mGender}
           options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
@@ -641,6 +650,24 @@ function AddMemberDialog() {
           { value: 'none', label: t('members.startNone') },
         ]}
         onChange={(e) => a.setF('mStart', e.target.value)} />
+
+      {/* Thông tin tài khoản ngân hàng & QR nhận tiền */}
+      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+        <BankAccountSection
+          card={false}
+          bankHolder={f.mBankHolder || ''}
+          bankNo={f.mBankNo || ''}
+          bankName={f.mBankName || ''}
+          qrUrl={f.mQrUrl || ''}
+          canEdit
+          onChange={({ bankHolder, bankNo, bankName, qrUrl }) => {
+            a.setF('mBankHolder', bankHolder)
+            a.setF('mBankNo', bankNo)
+            a.setF('mBankName', bankName)
+            a.setF('mQrUrl', qrUrl)
+          }}
+        />
+      </div>
     </Shell>
   )
 }
@@ -653,14 +680,27 @@ function EditMemberDialog() {
   return (
     <Shell title={t('members.dlgEditTitle')}
       onSubmit={() => a.saveMember()} submitLabel={t('common.save')}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 10 }}>
-        <Input label={t('members.fName')} value={f.eName || ''} onChange={(e) => a.setF('eName', e.target.value)} />
-        <Input label={t('members.fPhone')} mono value={f.ePhone || ''} onChange={(e) => a.setF('ePhone', e.target.value)} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <AvatarUpload
+          name={f.eName || ''}
+          value={f.eAvatarUrl || ''}
+          size={56}
+          onChange={(url) => a.setF('eAvatarUrl', url)}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Input label={t('members.fName')} value={f.eName || ''} onChange={(e) => a.setF('eName', e.target.value)} />
+        </div>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Input label={t('members.fPhone')} mono value={f.ePhone || ''} onChange={(e) => a.setF('ePhone', e.target.value)} />
+        <Input label={t('members.fEmail')} hint={t('members.fEmailHint')}
+          value={f.eEmail || ''} onChange={(e) => a.setF('eEmail', e.target.value)} />
+      </div>
+
       <Input label={t('members.fFull')} hint={t('members.fFullHint')}
         value={f.eFull || ''} onChange={(e) => a.setF('eFull', e.target.value)} />
-      <Input label={t('members.fEmail')} hint={t('members.fEmailHint')}
-        value={f.eEmail || ''} onChange={(e) => a.setF('eEmail', e.target.value)} />
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Select label={t('members.fGender')} value={f.eGender}
           options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
@@ -704,6 +744,24 @@ function EditMemberDialog() {
           { value: 'now', label: t('members.groupNow') },
         ]}
         onChange={(e) => a.setF('eWhenGroup', e.target.value)} />
+
+      {/* Thông tin tài khoản ngân hàng & QR nhận tiền */}
+      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+        <BankAccountSection
+          card={false}
+          bankHolder={f.eBankHolder || ''}
+          bankNo={f.eBankNo || ''}
+          bankName={f.eBankName || ''}
+          qrUrl={f.eQrUrl || ''}
+          canEdit
+          onChange={({ bankHolder, bankNo, bankName, qrUrl }) => {
+            a.setF('eBankHolder', bankHolder)
+            a.setF('eBankNo', bankNo)
+            a.setF('eBankName', bankName)
+            a.setF('eQrUrl', qrUrl)
+          }}
+        />
+      </div>
 
       <Note tone={(f.eGroups || []).length ? undefined : 'warn'}>
         {(f.eGroups || []).length ? t('members.editGroupNote') : t('members.editGroupNone')}

@@ -202,6 +202,17 @@ assert.equal(rowOf(off, 'level').block, 'offScale',
 assert.equal(rowOf(rows, 'fullName').block, '',
   'bên CLB trống mà tài khoản có thì phải cho ghép — đó chính là lúc bảng này có ích nhất')
 
+// Ghép Avatar và QR, Thông tin ngân hàng
+const withBank = mergeRows(
+  { ...mem, avatarUrl: '', qrUrl: '', bankNo: '' },
+  { ...usr, avatarUrl: 'data:image/webp;base64,...', qrUrl: 'data:image/webp;base64,...', bankHolder: 'NGUYEN THI THUY', bankNo: '0912345678', bankName: 'MB Bank' },
+  db.levels,
+)
+assert.equal(rowOf(withBank, 'avatarUrl').block, '', 'Tài khoản có avatar mới thì phải cho phép ghép')
+assert.equal(rowOf(withBank, 'qrUrl').block, '', 'Tài khoản có mã QR mới thì phải cho phép ghép')
+assert.equal(rowOf(withBank, 'bankNo').block, '', 'Tài khoản có STK mới thì phải cho phép ghép')
+assert.equal(rowOf(withBank, 'bankNo').to, '0912345678')
+
 // Hồ sơ tài khoản bỏ trống: ghi đè là XOÁ dữ liệu CLB đang có.
 const empty = mergeRows(mem, { name: 'Nguyễn Thị Thuý', nick: 'Thúy' }, db.levels)
 assert.equal(rowOf(empty, 'phone').block, 'empty',
@@ -210,6 +221,8 @@ assert.equal(rowOf(empty, 'level').block, 'empty',
   'tài khoản chưa có trình độ mà cho ghi đè là club_members.level thành rỗng, mà cột đó NOT NULL')
 assert.equal(rowOf(empty, 'email').block, 'empty',
   'tài khoản chưa có email thì không được xoá email chủ CLB đã nhập tay vào sổ')
+assert.equal(rowOf(empty, 'avatarUrl').block, 'empty')
+assert.equal(rowOf(empty, 'qrUrl').block, 'empty')
 
 // Bản ghi rỗng / hồ sơ rỗng không được throw: màn duyệt render trước khi người duyệt chọn ai.
 assert.equal(mergeRows(null, null, db.levels).length, MERGE_FIELDS.length,

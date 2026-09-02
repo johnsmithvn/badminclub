@@ -24,7 +24,10 @@ export const digits = (x) => String(x || '').replace(/\D/g, '')
  *
  * `role` KHÔNG có ở đây và sẽ không bao giờ có: vai trò là dữ liệu của CLB.
  */
-export const MERGE_FIELDS = ['name', 'fullName', 'phone', 'email', 'gender', 'level']
+export const MERGE_FIELDS = [
+  'name', 'fullName', 'phone', 'email', 'gender', 'level',
+  'avatarUrl', 'qrUrl', 'bankHolder', 'bankNo', 'bankName',
+]
 
 /**
  * Giá trị của một trường trong hồ sơ tài khoản.
@@ -32,8 +35,17 @@ export const MERGE_FIELDS = ['name', 'fullName', 'phone', 'email', 'gender', 'le
  * Hai tên, đừng lẫn: `name` là TÊN HIỂN THỊ (lấy `nick`, cái cả app gọi nhau), `fullName` là tên
  * đầy đủ (lấy `profiles.name`). Ghép nhầm chiều là mọi bảng điểm danh đổi sang tên khai sinh.
  */
-const userValue = (user, field) =>
-  (field === 'name' ? user.nick || user.name : field === 'fullName' ? user.name : user[field]) || ''
+const userValue = (user, field) => {
+  if (!user) return ''
+  if (field === 'name') return user.nick || user.name || ''
+  if (field === 'fullName') return user.name || ''
+  if (field === 'avatarUrl') return user.avatarUrl || user.avatar_url || ''
+  if (field === 'qrUrl') return user.qrUrl || user.qr_url || ''
+  if (field === 'bankHolder') return user.bankHolder || user.bank_holder || ''
+  if (field === 'bankNo') return user.bankNo || user.bank_no || ''
+  if (field === 'bankName') return user.bankName || user.bank_name || ''
+  return user[field] || ''
+}
 
 /**
  * So từng trường giữa bản ghi thành viên và hồ sơ tài khoản → dữ liệu cho bảng chọn ghi đè.
@@ -41,21 +53,22 @@ const userValue = (user, field) =>
  * `block` là LÝ DO không cho tick, rỗng = ghép được:
  *   'empty'    hồ sơ tài khoản bỏ trống trường đó — ghi đè là xoá mất dữ liệu CLB đang có;
  *   'same'     hai bên đã giống nhau, tick cũng không đổi gì;
- *   'offScale' trình độ không thuộc thang của CLB này. Thang là dữ liệu RIÊNG từng CLB
- *              (RULES §3.4): lấy 'TB+' của CLB khác đè vào CLB chỉ có 4 bậc thì
- *              `levels.indexOf(level)` ra -1 — cột trình độ sắp sai, thuật toán cân sân đọc sai
- *              bậc, không màn nào lộ ra. RPC cũng bỏ qua trường này, hai bên phải cùng một luật.
- *
- * SĐT so theo chữ số ("0912 345 678" và "0912345678" là cùng một số) và email so không phân
- * biệt hoa/thường — hỏi người duyệt có muốn ghi đè hai thứ đó hay không là hỏi thừa.
+ *   'offScale' trình độ không thuộc thang của CLB này.
  */
 export function mergeRows(member, user, levels) {
   const m = member || {}
   const u = user || {}
   return MERGE_FIELDS.map((field) => {
-    const from = String(m[field] || '')
+    const from = String(
+      field === 'avatarUrl' ? (m.avatarUrl || m.avatar_url || '')
+      : field === 'qrUrl' ? (m.qrUrl || m.qr_url || '')
+      : field === 'bankHolder' ? (m.bankHolder || m.bank_holder || '')
+      : field === 'bankNo' ? (m.bankNo || m.bank_no || '')
+      : field === 'bankName' ? (m.bankName || m.bank_name || '')
+      : (m[field] || '')
+    )
     const to = String(userValue(u, field))
-    // SĐT so theo chữ số, email so không phân biệt hoa/thường (cột `citext` dưới DB cũng vậy).
+    // SĐT so theo chữ số, email so không phân biệt hoa/thường.
     const same = field === 'phone' ? digits(from) === digits(to)
       : field === 'email' ? from.trim().toLowerCase() === to.trim().toLowerCase()
       : from.trim() === to.trim()
