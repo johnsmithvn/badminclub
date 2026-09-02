@@ -165,3 +165,23 @@ assert.equal(gM1.total, gM1.items.reduce((n, x) => n + x.amount, 0),
 assert.equal(pendingClaims(multi, M).length, 2, 'vẫn chỉ hai người, không tách thành ba dòng')
 
 console.log('pendingClaims gộp theo người: OK')
+
+/* ---------- myDebtCounts vs clubDebtCounts ---------- */
+
+import { clubDebtCounts, myDebtCounts } from '#lib/money.js'
+
+const clubCounts = clubDebtCounts(base, M)
+assert.equal(typeof clubCounts.total, 'number')
+assert.equal(clubCounts.total, clubCounts.sessions + clubCounts.dues + clubCounts.advance)
+
+const memberCounts = myDebtCounts(base, M)
+assert.equal(typeof memberCounts.total, 'number')
+assert.equal(memberCounts.total, memberCounts.sessions + memberCounts.dues + memberCounts.advance)
+// Member U1 (M1) đã đóng đủ trong base fixture nên nợ cá nhân <= tổng CLB
+assert.equal(memberCounts.total <= clubCounts.total, true, 'nợ của 1 member không thể nhiều hơn nợ toàn CLB')
+
+const customMemberCounts = myDebtCounts(unpaidDues, M, 'M1')
+assert.equal(customMemberCounts.dues, 1, 'M1 có 1 khoản quỹ tháng chưa đóng')
+
+console.log('myDebtCounts & clubDebtCounts check: OK')
+

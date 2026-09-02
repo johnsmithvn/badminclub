@@ -624,7 +624,6 @@ function MyDebts() {
       {payList && (
         <PayDebtsDialog
           items={payList}
-          memo={me.name}
           onClose={() => { setPicked({}); setPayList(null) }}
         />
       )}

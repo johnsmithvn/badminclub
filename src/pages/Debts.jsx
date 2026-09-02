@@ -867,7 +867,7 @@ function SessionDebts({ canMoney }) {
       <RefundConfirm target={refundTarget} onClose={() => setRefundTarget(null)} />
 
       {payMine && (
-        <PayDebtsDialog items={payMine} memo={me.name} onClose={() => setPayMine(null)} />
+        <PayDebtsDialog items={payMine} onClose={() => setPayMine(null)} />
       )}
 
       {qrTarget && (
@@ -1432,7 +1432,7 @@ function Dues({ dues, canMoney }) {
         </div>
       )}
       {payMine && (
-        <PayDebtsDialog items={payMine} memo={me.name} onClose={() => setPayMine(null)} />
+        <PayDebtsDialog items={payMine} onClose={() => setPayMine(null)} />
       )}
     </Card>
   )
