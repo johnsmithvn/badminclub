@@ -158,7 +158,10 @@ export default function Account() {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                <Button variant="secondary" onClick={() => navigate('/clb')}>
+                  {t('common.cancel')}
+                </Button>
                 <Button variant="primary" icon="circle-check" disabled={saving} onClick={save}>
                   {saving ? t('account.saving') : t('common.save')}
                 </Button>
