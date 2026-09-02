@@ -1,9 +1,27 @@
 import { useId, useMemo, useRef, useState } from 'react'
-import { Button, Card, Icon, Input, Mono, Overline, Select } from '#ds'
+import { Button, Card, Icon, Input, Select } from '#ds'
 import { banks, findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { uploadImage } from '#utils/image.js'
 import { QrModal } from '#components/ui/QrModal.jsx'
 import { t } from '#i18n'
+
+const Overline = ({ children, style }) => (
+  <div style={{
+    font: 'var(--type-overline)', textTransform: 'uppercase',
+    letterSpacing: 'var(--tracking-caps)', color: 'var(--text-muted)', ...style,
+  }}>
+    {children}
+  </div>
+)
+
+const Mono = ({ children, color, weight, size, style }) => (
+  <span style={{
+    font: `${weight || 400} ${size || 13}px/1.2 var(--font-mono)`,
+    color: color || 'inherit', letterSpacing: '-0.01em', ...style,
+  }}>
+    {children}
+  </span>
+)
 
 /**
  * Component quản lý thông tin tài khoản chuyển khoản & mã QR chuẩn.

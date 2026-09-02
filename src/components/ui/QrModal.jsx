@@ -1,6 +1,15 @@
 import { useState } from 'react'
-import { Button, Dialog, Icon, Mono } from '#ds'
+import { Button, Dialog, Icon } from '#ds'
 import { t } from '#i18n'
+
+const Mono = ({ children, color, weight, size, style }) => (
+  <span style={{
+    font: `${weight || 400} ${size || 13}px/1.2 var(--font-mono)`,
+    color: color || 'inherit', letterSpacing: '-0.01em', ...style,
+  }}>
+    {children}
+  </span>
+)
 
 /**
  * Modal hiển thị phóng to mã QR thanh toán kèm thông tin tài khoản và nút Copy nhanh.
