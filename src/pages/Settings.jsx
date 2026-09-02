@@ -205,6 +205,10 @@ const Toggle = ({ label, note, checked, onChange, disabled }) => (
 function MoneyTab({ canEdit }) {
   const { db, a } = useApp()
   const def = db.groups[0] || {}
+  // Quỹ tháng nằm TRÊN nhóm (`member_groups.fee_male/female`). Không có nhóm nào thì
+  // `saveMoneyTab` map qua mảng rỗng — gõ số vào rồi bấm Lưu là mất hút, không báo gì.
+  // Giá khách vẫn lưu được vì nó thuộc CLB, nên chỉ khoá phần quỹ tháng.
+  const noGroup = db.groups.length === 0
 
   const [feeNam, setFeeNam] = useState(String(def.feeNam ?? ''))
   const [feeNu, setFeeNu] = useState(String(def.feeNu ?? ''))
@@ -280,13 +284,18 @@ function MoneyTab({ canEdit }) {
       {/* 1. Phí thành viên cố định */}
       <Card title={t('settings.generalFeeTitle')} subtitle={t('settings.generalFeeSub')} icon="banknote" padding="14px 16px">
         <div style={{ display: 'grid', gap: 14 }}>
+          {/* Không có nhóm thì `saveMoneyTab` map qua mảng rỗng — gõ số rồi bấm Lưu là mất hút,
+              không báo gì. Nói ra và khoá ô nhập, đừng để người ta gõ vào chỗ không lưu được. */}
+          {noGroup && (
+            <Alert tone="warning" title={t('settings.feeNoGroupTitle')}>{t('settings.feeNoGroup')}</Alert>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Input
               label={t('settings.feeMale')}
               mono
               suffix={t('units.dong')}
               value={feeNam}
-              disabled={!canEdit}
+              disabled={!canEdit || noGroup}
               onChange={(e) => setFeeNam(e.target.value)}
             />
             <Input
@@ -294,7 +303,7 @@ function MoneyTab({ canEdit }) {
               mono
               suffix={t('units.dong')}
               value={feeNu}
-              disabled={!canEdit}
+              disabled={!canEdit || noGroup}
               onChange={(e) => setFeeNu(e.target.value)}
             />
           </div>
@@ -306,7 +315,7 @@ function MoneyTab({ canEdit }) {
                 mono
                 suffix={t('units.dong')}
                 value={unitNam}
-                disabled={!canEdit}
+                disabled={!canEdit || noGroup}
                 onChange={(e) => setUnitNam(e.target.value)}
               />
               <Input
@@ -314,7 +323,7 @@ function MoneyTab({ canEdit }) {
                 mono
                 suffix={t('units.dong')}
                 value={unitNu}
-                disabled={!canEdit}
+                disabled={!canEdit || noGroup}
                 onChange={(e) => setUnitNu(e.target.value)}
               />
             </div>
@@ -924,7 +933,34 @@ function Access({ canEdit, pending }) {
    * và toast chỉ báo ghép thành công chứ không nói ai vừa bị gỡ.
    */
   const takenUserIds = new Set(db.members.filter((m) => m.userId).map((m) => m.userId))
+
+  // Tài khoản tra được bằng email (RPC `find_member_candidate`, 0013). Gộp thẳng vào danh sách
+  // chọn của MỌI dòng thay vì làm một luồng ghép riêng: người dùng vẫn bấm đúng nút Ghép cũ,
+  // và chỉ có một đường ghép duy nhất trong code.
+  const [found, setFound] = useState([])
+  const [lookupEmail, setLookupEmail] = useState('')
+  const [lookupErr, setLookupErr] = useState('')
+  const [looking, setLooking] = useState(false)
+
+  const lookup = async () => {
+    setLookupErr('')
+    setLooking(true)
+    try {
+      const r = await a.findMemberCandidate(lookupEmail)
+      if (!r) setLookupErr(t('settings.lookupNone'))
+      else if (r.alreadyInClub) setLookupErr(t('settings.lookupTaken', { name: r.name }))
+      else {
+        setFound((prev) => (prev.some((x) => x.id === r.id) ? prev : prev.concat([{ ...r, email: lookupEmail.trim() }])))
+        setLookupEmail('')
+      }
+    } catch (e) {
+      setLookupErr(e.message)
+    }
+    setLooking(false)
+  }
+
   const freeUsers = (db.users || []).filter((u) => !takenUserIds.has(u.id))
+    .concat(found.filter((u) => !takenUserIds.has(u.id) && !(db.users || []).some((x) => x.id === u.id)))
 
   /** Tài khoản có SĐT trùng và CHƯA gắn vào CLB này — chỉ gợi ý, không tự ghép. */
   const suggestFor = (m) => {
@@ -979,11 +1015,36 @@ function Access({ canEdit, pending }) {
         icon="users"
         padding="0"
       >
-        {linkDeadEnd && (
-          <div style={{ padding: '12px 14px 0' }}>
-            <Alert tone="info" title={t('settings.linkNoFree')}>
-              {t('settings.linkHint', { code: db.club.code })}
-            </Alert>
+        {canEdit && (
+          <div style={{ padding: '12px 14px 0', display: 'grid', gap: 8 }}>
+            {linkDeadEnd && (
+              <Alert tone="info" title={t('settings.linkNoFree')}>
+                {t('settings.linkHint', { code: db.club.code })}
+              </Alert>
+            )}
+            {/* Tra theo email CHÍNH XÁC. Tìm thấy thì tài khoản đó vào danh sách chọn của mọi
+                dòng bên dưới — ghép vẫn bằng nút Ghép cũ, không đẻ luồng ghép thứ hai. */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <Input
+                label={t('settings.lookupLabel')}
+                hint={t('settings.lookupHint')}
+                placeholder="ten@email.com"
+                style={{ minWidth: 260 }}
+                value={lookupEmail}
+                onChange={(e) => setLookupEmail(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') lookup() }}
+              />
+              <Button variant="secondary" icon="search" disabled={!lookupEmail.trim() || looking}
+                onClick={lookup}>
+                {t(looking ? 'settings.lookupBusy' : 'settings.lookupDo')}
+              </Button>
+            </div>
+            {lookupErr && <Alert tone="warning">{lookupErr}</Alert>}
+            {found.length > 0 && (
+              <Alert tone="success" title={t('settings.lookupFound')}>
+                {t('settings.lookupFoundHint', { names: found.map((u) => u.name).join(', ') })}
+              </Alert>
+            )}
           </div>
         )}
         <div style={{ display: 'grid', overflowX: 'auto' }}>

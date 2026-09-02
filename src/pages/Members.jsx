@@ -526,6 +526,11 @@ function NextMonth({ month, canEdit }) {
                 : t('members.lockPassed', { day: lockDay })}
           </div>
 
+          {/* CLB chưa có nhóm nào là trạng thái hợp lệ (không còn nhóm mặc định). Không chặn ở
+              đây thì cả tab chỉ còn khoảng trắng, người dùng không biết mình thiếu gì. */}
+          {db.groups.length === 0 && (
+            <Empty icon="users" title={t('members.noGroupTitle')} hint={t('members.noGroupHint')} />
+          )}
           {db.groups.map((g) => (
             <div key={g.id} style={{ display: 'grid', gap: 7 }}>
               <Overline>{g.name}</Overline>

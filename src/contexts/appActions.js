@@ -184,6 +184,23 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const u = db().users.find((x) => x.id === uid)
       toast(t('toast.linked', { name: memberOf(db(), mid).name, account: u ? u.name : uid }))
     },
+    /**
+     * Tra một tài khoản theo email CHÍNH XÁC để ghép. Đi qua RPC `find_member_candidate`
+     * (0013) vì RLS giấu `profiles`: client không đọc được tài khoản chưa dính tới CLB này.
+     *
+     * Trả `{ id, name, alreadyInClub }` hoặc `null`. Cố ý KHÔNG tự ghép — người bấm phải nhìn
+     * tên rồi tự xác nhận, vì ghép sai là gán lịch sử điểm danh và tiền của người này sang
+     * tài khoản người khác.
+     */
+    findMemberCandidate: async (email) => {
+      const q = (email || '').trim()
+      if (!q) return null
+      const rows = unwrap(await supabase.rpc('find_member_candidate', {
+        p_club: db().clubId, p_email: q,
+      }))
+      const r = (rows || [])[0]
+      return r ? { id: r.id, name: r.name, alreadyInClub: !!r.already_in_club } : null
+    },
     unlinkMember: (mid) => {
       up((d) => ({ members: d.members.map((m) => (m.id === mid ? { ...m, userId: null } : m)) }))
       toast(t('toast.unlinked'))

@@ -305,3 +305,5 @@ export function DeleteClubDialog({ club, onClose, onDone }) {
     </Dialog>
   )
 }
+
+export { SearchSelect } from './SearchSelect.jsx'

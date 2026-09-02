@@ -148,13 +148,32 @@ export function setSyncErrorHandler(fn) { onError = fn }
 export function setSyncFatalHandler(fn) { onFatal = fn }
 
 /**
+ * Mã lỗi Postgres/PostgREST mà thử lại CÓ ăn thua — chờ một nhịp là qua.
+ * Xếp nhầm cái nào vào đây là op hỏng kẹt lại trong hàng đợi mãi (xem `flush`); xếp nhầm ra
+ * ngoài thì người dùng mất thay đổi vừa gõ chỉ vì DB bận một giây.
+ */
+const RETRY_CODES = new Set([
+  '40001', // serialization_failure — hai giao dịch đụng nhau, chạy lại là xong
+  '40P01', // deadlock_detected
+  '55P03', // lock_not_available
+  '57014', // query_canceled — statement timeout
+  '53300', // too_many_connections
+  '08000', '08003', '08006', // connection exception
+  'PGRST301', // JWT hết hạn — supabase-js tự làm mới token rồi lần sau đi được
+])
+
+/**
  * Lỗi này thử lại có ăn thua không?
  *
- * Postgres/PostgREST trả về `code` ('23503' khoá ngoại, '42501' RLS chặn, 'PGRST…' schema cache):
- * dữ liệu hoặc quyền sai, chờ bao lâu cũng thế. Mất mạng thì `fetch` ném TypeError trần, không
- * có `code` — cái đó tự khỏi.
+ * Mất mạng thì `fetch` ném TypeError TRẦN, không có `code` — cái đó tự khỏi, cứ để lần save sau
+ * làm lại. Có `code` nghĩa là Postgres/PostgREST đã trả lời hẳn hoi: '23503' khoá ngoại,
+ * '42501' RLS chặn, '42703' thiếu cột, 'PGRST…' schema cache — dữ liệu hoặc lược đồ sai, chờ
+ * bao lâu cũng thế, phải nạp lại từ DB thì hàng đợi mới thông.
+ *
+ * TRỪ nhóm `RETRY_CODES`: chúng cũng có `code` nhưng là sự cố nhất thời của DB, không phải lỗi
+ * dữ liệu. Coi chúng là chí mạng thì mỗi lần DB bận một nhịp là người dùng mất thay đổi vừa gõ.
  */
-const isFatal = (e) => Boolean(e && e.code)
+export const isFatal = (e) => Boolean(e && e.code) && !RETRY_CODES.has(e.code)
 
 /** Hẹn giờ đẩy thay đổi xuống DB. Gọi liên tục cũng chỉ ghi một lần sau debounce. */
 export function save(db) {

@@ -271,6 +271,11 @@ trình độ áp dụng từ tháng sau.
 
 **Sơ đồ dữ liệu**: trang tài liệu sống trong app, liệt kê bảng/cột theo schema Postgres thật.
 
+**UI Component: SearchSelect (Combobox có tìm kiếm & Lazy Load)**:
+- Component chọn thông minh tái sử dụng (`src/components/ui/SearchSelect.jsx`), thay thế hoàn toàn các thẻ `<select>` native dài lê thê khi chọn thành viên/người chơi.
+- Tích hợp ô tìm kiếm tiếng Việt không dấu (gõ tên, SĐT, trình độ), huy hiệu trình độ màu (`LevelChip`), đóng mở popup mượt mà, và tự động lazy-load theo từng đợt 30 dòng khi cuộn danh sách lớn.
+- Áp dụng tại: Chọn thành viên đi lẻ hôm nay (`ExtraPicker`), Chọn người rủ khách giao lưu (`GuestForm` & danh sách khách).
+
 ---
 
 ## 8. Trạng thái rỗng, chặn, tải
@@ -280,3 +285,4 @@ trình độ áp dụng từ tháng sau.
 - **Chặn hành động** (sai vai, thiếu dữ liệu) → **toast giải thích**, không disable im lặng:
   *"Vai này không được sửa thành viên"*, *"Sân này chưa có ai"*, *"Chọn bản ghi thành viên để ghép"*.
 - **Tải** → skeleton hình dạng giống nội dung, không spinner.
+

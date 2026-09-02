@@ -4,7 +4,7 @@
 import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
-import { Empty, LevelChip, Mono, Overline, SessionPill } from '#ui'
+import { Empty, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
@@ -402,7 +402,7 @@ export default function SessionDetail() {
           </Card>
 
           <Card title={t('session.guestsTitle')} subtitle={t('session.guestsSub')} icon="user-round-plus" padding="14px 16px">
-            {canEdit && <GuestForm />}
+            {canEdit && <GuestForm s={s} />}
             <div style={{ display: 'grid', gap: 8, marginTop: guests.length ? 12 : 0 }}>
               {guests.length === 0
                 ? <Empty icon="user-round-plus" title={t('session.guestEmpty')} hint={t('session.guestEmptyHint')} />
@@ -412,12 +412,24 @@ export default function SessionDetail() {
                         <div style={S.label}>{guestOf(db, g.guestId).name}</div>
                         <div style={S.caption}>{genderTxt(g.gender) + ' · ' + g.level}</div>
                       </div>
-                      <Select size="sm" style={{ width: 136 }}
+                      <SearchSelect
+                        size="sm"
+                        style={{ width: 140 }}
+                        menuWidth={240}
+                        placeholder={t('session.guestByShort')}
+                        searchPlaceholder="Tìm người trong CLB..."
                         options={[{ value: '', label: t('session.guestByShort') }].concat(
-                          db.members.map((m) => ({ value: m.id, label: m.name }))
+                          db.members.filter((m) => m.active !== false).map((m) => ({
+                            value: m.id,
+                            label: m.name,
+                            level: levelOf(m, s.date.slice(0, 7)),
+                            sub: m.phone || undefined,
+                          }))
                         )}
+                        levels={db.levels}
                         value={g.invitedBy || ''}
-                        onChange={(e) => a.setGuestInviter(g.id, e.target.value)} />
+                        onChange={(val) => a.setGuestInviter(g.id, val)}
+                      />
                       <Mono weight={600} color="var(--text-primary)">{fmt(g.price)}</Mono>
                       <Switch label={g.paid ? t('session.guestPaid') : t('session.guestDebt')}
                         checked={g.paid} onChange={() => a.toggleGuestPaid(g.id)} />
@@ -506,15 +518,37 @@ function ExtraPicker({ s, members }) {
   const rest = db.members.filter((m) => m.active !== false && !inSession.has(m.id))
   if (!rest.length) return null
 
+  const extraOptions = rest.map((m) => ({
+    value: m.id,
+    label: m.name,
+    level: levelOf(m, s.date.slice(0, 7)),
+    sub: m.phone || undefined,
+  }))
+
   return (
     <div style={S.extraBox}>
-      <Select size="sm" style={{ flex: 1, minWidth: 160 }}
+      <SearchSelect
+        size="sm"
+        style={{ flex: 1, minWidth: 200 }}
+        menuWidth={280}
         value={ui.form.exMember || ''}
-        options={[{ value: '', label: t('session.extraPick') }]
-          .concat(rest.map((m) => ({ value: m.id, label: m.name + ' · ' + levelOf(m, s.date.slice(0, 7)) })))}
-        onChange={(e) => a.setF('exMember', e.target.value)} />
-      <Button variant="secondary" size="sm" icon="user-round-plus"
-        onClick={() => { a.addExtra(s.id, ui.form.exMember); a.setF('exMember', '') }}>
+        placeholder={t('session.extraPick')}
+        searchPlaceholder="Tìm thành viên đi lẻ..."
+        options={extraOptions}
+        levels={db.levels}
+        clearable
+        onChange={(val) => a.setF('exMember', val)}
+      />
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="user-round-plus"
+        disabled={!ui.form.exMember}
+        onClick={() => {
+          a.addExtra(s.id, ui.form.exMember)
+          a.setF('exMember', '')
+        }}
+      >
         {t('session.extraAdd')}
       </Button>
     </div>
@@ -523,7 +557,7 @@ function ExtraPicker({ s, members }) {
 
 /* ---------------- form thêm khách ---------------- */
 
-function GuestForm() {
+function GuestForm({ s }) {
   const { db, ui, a } = useApp()
   // GỘP mặc định với form đang gõ, KHÔNG chọn một trong hai. Guard cũ
   // (`ui.form.gLevel ? ui.form : guestForm(db)`) lấy chính field phải khởi tạo làm cờ "đã khởi
@@ -538,6 +572,15 @@ function GuestForm() {
   const noLevel = !f.gLevel
   const toSettings = () => { a.go('settings'); a.setTab('settings', 'money') }
 
+  const memberOptions = [{ value: '', label: t('common.unknown') }].concat(
+    db.members.filter((m) => m.active !== false).map((m) => ({
+      value: m.id,
+      label: m.name,
+      level: levelOf(m, (s?.date || new Date().toISOString()).slice(0, 7)),
+      sub: m.phone || undefined,
+    }))
+  )
+
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <div style={S.guestForm}>
@@ -548,9 +591,16 @@ function GuestForm() {
         <Select label={t('session.guestLevel')} value={f.gLevel}
           options={db.levels.map((l) => ({ value: l, label: l }))}
           onChange={(e) => set('gLevel', e.target.value)} />
-        <Select label={t('session.guestBy')} value={f.gBy || ''}
-          options={[{ value: '', label: t('common.unknown') }].concat(db.members.map((m) => ({ value: m.id, label: m.name })))}
-          onChange={(e) => set('gBy', e.target.value)} />
+        <SearchSelect
+          label={t('session.guestBy')}
+          value={f.gBy || ''}
+          placeholder={t('common.unknown')}
+          searchPlaceholder="Tìm người trong CLB..."
+          options={memberOptions}
+          levels={db.levels}
+          clearable
+          onChange={(val) => set('gBy', val)}
+        />
         <Button variant="accent" icon="plus" disabled={noLevel} onClick={() => a.addGuest()}>
           {t('common.add') + (noLevel ? '' : ' · ' + fmt(price))}
         </Button>
