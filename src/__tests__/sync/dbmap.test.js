@@ -342,4 +342,69 @@ const gBack = toDb({
 assert.equal(gBack.guests[0].note, 'tay trái')
 assert.equal(gBack.guests[0].phone, '0912345678')
 
+/* ---------- claimed_at: thành viên tự khai đã chuyển tiền (migration 0018) ---------- */
+// Ba bảng nợ, mỗi bảng một cột `claimed_at`. Quên map MỘT bảng ở MỘT chiều là khoản đó khai
+// xong không lưu, hoặc lưu rồi mà màn hình không biết — người ta chuyển tiền rồi vẫn thấy nợ.
+
+const CLAIM = '2026-08-20T10:00:00Z'
+
+const claimBack = toDb({
+  club: {},
+  dues: [{
+    id: 'D_C', month: '2026-08', group_id: 'G1', member_id: 'M1',
+    amount: 250000, paid_amount: 0, paid_at: null, claimed_at: CLAIM,
+  }],
+  adjustments: [{
+    id: 'AJ_C', month: '2026-08', group_id: 'G1', member_id: 'M1', kind: 'extra_session',
+    sessions: 1, unit_price: 50000, amount: 50000, settle: 'cash',
+    paid: false, paid_at: null, claimed_at: CLAIM,
+  }],
+  sessions: [{
+    id: 'S_C', date: '2026-08-10', group_id: 'G1', status: 'closed', shuttle_used: 0,
+    session_guests: [{
+      id: 'SG_C', guest_id: null, member_id: 'M1', level: 'TB', gender: 'nam',
+      price: 70000, paid: false, claimed_at: CLAIM,
+    }],
+  }],
+}, { clubId: 'CL1' })
+
+assert.equal(claimBack.dues[0].claimedAt, CLAIM,
+  'quỹ tháng: mất claimed_at xuống client thì màn hình không phân biệt được "chưa khai" với '
+  + '"đang chờ duyệt", người ta khai lại và chuyển tiền lần hai')
+assert.equal(claimBack.adjustments[0].claimedAt, CLAIM, 'đối chiếu buổi: mất claimed_at')
+assert.equal(claimBack.sessionGuests[0].claimedAt, CLAIM, 'buổi đi lẻ: mất claimed_at')
+
+// Chưa khai thì phải là null, KHÔNG được undefined: undefined lọt xuống PostgREST là bỏ qua
+// cột, tức là từ chối (đặt lại NULL) không bao giờ ghi được xuống DB.
+const noClaim = toDb({
+  club: {},
+  dues: [{ id: 'D_N', month: '2026-08', group_id: 'G1', member_id: 'M1', amount: 1, paid_amount: 0 }],
+}, { clubId: 'CL1' })
+assert.equal(noClaim.dues[0].claimedAt, null, 'chưa khai phải là null, không phải undefined')
+
+const claimRows = toRows({
+  ...db,
+  dues: [{ id: 'D_C', month: '2026-08', groupId: 'G1', memberId: 'M1', amount: 250000, paidAmount: 0, claimedAt: CLAIM }],
+  adjustments: [{ id: 'AJ_C', key: '2026-08:G1:M1:extra_session', month: '2026-08', groupId: 'G1', memberId: 'M1', kind: 'extra_session', sessions: 1, unit: 50000, amount: 50000, settle: 'cash', paid: false, paidAt: null, claimedAt: CLAIM }],
+}, ctx)
+
+assert.equal(claimRows.monthly_dues.find((r) => r.id === 'D_C').claimed_at, CLAIM,
+  'quỹ tháng: không ghi claimed_at lên DB thì khai xong reload là mất, người ta khai lại mãi')
+assert.equal(claimRows.member_adjustments.find((r) => r.id === 'AJ_C').claimed_at, CLAIM,
+  'đối chiếu buổi: không ghi claimed_at lên DB')
+
+const sgRow = toRows({
+  ...db,
+  sessionGuests: [{ id: 'SG_C', sessionId: db.sessions[0].id, guestId: null, memberId: 'M1', level: 'TB', gender: 'nam', price: 70000, paid: false, claimedAt: CLAIM }],
+}, ctx).session_guests.find((r) => r.id === 'SG_C')
+assert.equal(sgRow.claimed_at, CLAIM, 'buổi đi lẻ: không ghi claimed_at lên DB')
+
+/* ---------- debt_banner: kiểu nhắc nợ của CLB (migration 0019) ---------- */
+
+assert.equal(toDb({ club: { debt_banner: 'alert' } }, { clubId: 'CL1' }).club.debtBanner, 'alert')
+assert.equal(toDb({ club: {} }, { clubId: 'CL1' }).club.debtBanner, 'slim',
+  'CLB dựng trước 0019 chưa có cột thì phải rơi về "slim", không được undefined')
+assert.equal(clubRow({ ...db, club: { ...db.club, debtBanner: 'bar' } }).debt_banner, 'bar',
+  'không ghi debt_banner lên DB thì chủ CLB đổi kiểu banner xong reload là mất')
+
 console.log('dbmap check: OK')

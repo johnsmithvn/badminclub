@@ -36,6 +36,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Sửa lịch cố định: buổi nào được đụng, sinh/xoá buổi, tháng bị đổi đơn giá | `lib/schedules.test.js` |
 | Đọc / sinh CSV thành viên, RFC 4180, phát hiện cột, validate & cảnh báo trùng | `lib/csv.test.js` |
 | Sao lưu & khôi phục cài đặt CLB dạng file JSON | `lib/settings_export.test.js` |
+| **Icon gọi ra có thật không** · `<Dialog>` dùng đúng prop `footer` · hằng client khớp CHECK ở DB | `smoke/ds.test.js` |
 | Map client ↔ Postgres, thứ tự ghi/xoá, `diff()` | `sync/dbmap.test.js` |
 | Lỗi đồng bộ nào thử lại được, lỗi nào phải nạp lại DB | `sync/fatal.test.js` |
 | CLB vừa tạo (mọi bảng rỗng) không được throw / NaN / Infinity | `smoke/empty.test.js` |

@@ -3,7 +3,9 @@
 
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
-import { myDebts, myMember, openSessions, pendingClaims } from '#lib/money.js'
+import {
+  debtRows, debtSum, myDebtSummary, myDebts, myMember, openSessions, pendingClaims,
+} from '#lib/money.js'
 
 const base = seed()
 const M = '2026-08'
@@ -221,3 +223,61 @@ if (sid) {
 }
 
 console.log('openSessions check: OK')
+
+/* ---------- myDebtSummary: nguồn chung của cả ba kiểu banner ---------- */
+// Ba banner đọc CÙNG một tóm tắt. Đếm lệch một con số là ba màn hình nói ba số khác nhau về
+// cùng một khoản tiền, và người dùng không biết tin cái nào.
+
+const mixed = {
+  ...base,
+  dues: base.dues.map((d) => (d.id === d1.id
+    ? { ...d, paidAmount: 0, paidAt: null, claimedAt: '2026-08-20T10:00:00Z' } : d)),
+  sessionGuests: (base.sessionGuests || []).concat([{
+    id: 'SG_S', sessionId: 'B1', guestId: null, memberId: 'M1',
+    level: 'TB', gender: 'nam', price: 70000, paid: false, invitedBy: '', claimedAt: null,
+  }]),
+}
+
+const sum = myDebtSummary(mixed)
+assert.equal(sum.items.length, sum.open.length + sum.waiting.length,
+  'mỗi khoản phải nằm ĐÚNG một nhóm: hụt là banner báo thiếu, đúp là báo thừa')
+assert.equal(sum.waiting.every((x) => x.claimedAt), true, 'nhóm chờ duyệt chỉ chứa khoản đã khai')
+assert.equal(sum.open.every((x) => !x.claimedAt), true, 'nhóm chưa khai không được lẫn khoản đã khai')
+assert.equal(sum.total, debtSum(sum.items))
+assert.equal(sum.openTotal, debtSum(sum.open))
+
+// `total` PHẢI gồm cả khoản đang chờ duyệt: chưa được thủ quỹ xác nhận thì vẫn đang nợ.
+// Trừ ra là banner báo hết nợ trong khi tiền chưa ai xác nhận nhận được.
+assert.equal(sum.total > sum.openTotal, true,
+  'total phải lớn hơn openTotal khi có khoản chờ duyệt — bằng nhau là đã trừ mất khoản đó')
+assert.equal(sum.total, sum.openTotal + debtSum(sum.waiting))
+
+// Chưa ghép tài khoản: mọi số về 0, không throw.
+const none = myDebtSummary({ ...base, currentUserId: null })
+assert.deepEqual([none.items, none.open, none.waiting], [[], [], []])
+assert.equal(none.total, 0)
+assert.equal(debtSum([]), 0, 'danh sách rỗng phải ra 0, không NaN')
+
+/* ---------- debtRows: một hàm, hai màn ---------- */
+// myDebts và pendingClaims dùng chung hàm này. Tách đôi thì sớm muộn cùng một khoản hiện ở
+// màn này mà không hiện ở màn kia.
+
+const meId = myMember(mixed).id
+assert.deepEqual(
+  debtRows(mixed, M, { memberId: meId }).map((x) => x.key),
+  myDebts(mixed, M).map((x) => x.key),
+  'myDebts phải đúng bằng debtRows lọc theo chính mình')
+
+const onlyClaimed = debtRows(mixed, M, { claimedOnly: true })
+assert.equal(onlyClaimed.every((x) => x.claimedAt), true)
+assert.equal(onlyClaimed.length <= debtRows(mixed, M, {}).length, true)
+
+// Mọi dòng phải mang đủ khoá để RPC gọi được và UI hiện được.
+debtRows(mixed, M, {}).forEach((x) => {
+  assert.ok(x.kind && x.id, 'thiếu kind/id thì RPC claim_payments không khai được khoản này')
+  assert.ok(x.key, 'thiếu key thì React trùng key, tick ô này nhảy ô kia')
+  assert.ok(x.memberId && x.name, 'thiếu tên thì tab Chờ duyệt không biết của ai')
+  assert.equal(x.amount > 0, true, 'chỉ chiều NGƯỜI NỢ QUỸ mới được vào danh sách')
+})
+
+console.log('myDebtSummary & debtRows check: OK')

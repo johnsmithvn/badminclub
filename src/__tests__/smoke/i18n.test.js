@@ -171,5 +171,36 @@ Object.values(BLOCK_KEYS).forEach(need)
 
 assert.equal(dyn.length, 0, 'key i18n ghép động không tồn tại:\n  ' + dyn.join('\n  '))
 
+
+/* ---------- KHÓA TRÙNG trong vi.json ---------- */
+// JSON trùng key thì cái SAU đè cái TRƯỚC, im lặng tuyệt đối: không lỗi parse, không cảnh báo,
+// `import vi from 'vi.json'` chỉ thấy giá trị cuối. Đã dính thật: thêm `bank.memo` là một
+// object mẫu nội dung chuyển khoản, trong khi `bank.memo` đã có sẵn là nhãn "Nội dung" —
+// object mới bị nuốt sạch, t('bank.memo.all') trả về chính cái key.
+//
+// JSON.parse của Node không báo trùng nên phải soát trên văn bản gốc.
+
+const rawJson = readFileSync('src/i18n/vi.json', 'utf8')
+const rootSeen = new Set()
+const dupPath = []
+const stack = []
+// Tach dong bang ma ky tu, khong dung regex: chuoi escape hay bi mangle khi truyen file.
+rawJson.split(String.fromCharCode(10)).forEach((line) => {
+  const key = (line.match(/^\s*"([^"]+)"\s*:/) || [])[1]
+  const depth = (line.match(/^\s*/) || [''])[0].length
+  while (stack.length && stack[stack.length - 1].depth >= depth) stack.pop()
+  if (!key) return
+  const parent = stack.length ? stack[stack.length - 1] : null
+  const bag = parent ? parent.seen : rootSeen
+  const full = (parent ? parent.path + '.' : '') + key
+  if (bag.has(key)) dupPath.push(full)
+  bag.add(key)
+  if (/\{\s*$/.test(line)) stack.push({ depth, path: full, seen: new Set() })
+})
+
+assert.equal(dupPath.length, 0,
+  'vi.json có key TRÙNG — cái sau đè cái trước mà không báo gì, nhánh trước biến mất: '
+  + dupPath.join(', '))
+
 console.log('i18n check: OK · ' + found.size + ' key dùng thẳng + ' +
   'các họ key ghép động (nav · roles · assign.modes · ledger.cat · setup.step …)')
