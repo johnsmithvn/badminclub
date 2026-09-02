@@ -385,7 +385,7 @@ export function guestDebtByInviter(db, monthKey) {
     const mid = sg.invitedBy || guestOf(db, sg.guestId).invitedBy || ''
     const k = mid || 'none'
     if (!map[k]) {
-      map[k] = { mid, name: mid ? memberOf(db, mid).name : 'Chưa rõ người rủ', guests: 0, debt: 0, paid: 0 }
+      map[k] = { mid, name: mid ? memberOf(db, mid).name : t('debts.inviterUnknown'), guests: 0, debt: 0, paid: 0 }
     }
     map[k].guests++
     if (sg.paid) map[k].paid += sg.price

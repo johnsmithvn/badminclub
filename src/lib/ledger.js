@@ -301,11 +301,15 @@ export function ledgerGrouped(db, month, { includeAdvances = false } = {}) {
             date: b.date,
             dir: 'advance',
             cat: CATS.court,
-            label: b.venue + ' · trọn ' + monthTxt(b.month).toLowerCase() + (b.note ? ' · ' + b.note : ''),
+            label: t('ledger.label.courtBill', {
+              venue: b.venue,
+              month: monthTxt(b.month).toLowerCase(),
+              note: b.note ? ' · ' + b.note : '',
+            }),
             amount: b.amount,
             by: payer,
             isAdvance: true,
-            tooltip: `Thành viên ${payer} chi hộ CLB (quỹ chưa hoàn trả)`,
+            tooltip: t('ledger.advanceTip', { name: payer }),
           })
         }
       })
@@ -323,7 +327,7 @@ export function ledgerGrouped(db, month, { includeAdvances = false } = {}) {
           amount: p.total,
           by: payer,
           isAdvance: true,
-          tooltip: `Thành viên ${payer} chi hộ CLB (quỹ chưa hoàn trả)`,
+          tooltip: t('ledger.advanceTip', { name: payer }),
         })
       }
     })

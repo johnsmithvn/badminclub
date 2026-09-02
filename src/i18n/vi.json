@@ -16,7 +16,12 @@
     "prevMonth": "Tháng trước",
     "nextMonth": "Tháng sau",
     "copy": "Copy lại",
-    "notYet": "Chưa có"
+    "notYet": "Chưa có",
+    "pick": "Chọn...",
+    "searchQuick": "Tìm kiếm nhanh...",
+    "clearPick": "Xoá chọn",
+    "noResult": "Không tìm thấy kết quả nào",
+    "showingOf": "Đang hiển thị {{n}}/{{total}} kết quả (cuộn để xem tiếp)"
   },
   "units": {
     "dong": "đ",
@@ -170,7 +175,8 @@
     "bulkSchedule": "Tạo lịch hàng loạt",
     "footRole": "{{role}} · {{club}}",
     "backToClubs": "CLB của tôi",
-    "userMenu": "Tài khoản của tôi"
+    "userMenu": "Tài khoản của tôi",
+    "myClubs": "CLB của bạn"
   },
   "sync": {
     "loading": "Đang nạp dữ liệu CLB…",
@@ -244,7 +250,8 @@
     "by": {
       "payNow": "Trả ngay",
       "transfer": "Chuyển khoản"
-    }
+    },
+    "advanceTip": "Thành viên {{name}} chi hộ CLB (quỹ chưa hoàn trả)"
   },
   "assign": {
     "modes": {
@@ -578,7 +585,17 @@
     "memberDeleted": "Đã xoá {{name}}",
     "memberHasRefs": "Không xoá được {{name}}: {{why}}. Dùng \"Ngưng hoạt động\" để giữ lịch sử.",
     "needLevels": "Chọn ít nhất một trình độ để áp giá",
-    "priceBulk": "Đã áp {{amount}} cho {{n}} trình độ"
+    "priceBulk": "Đã áp {{amount}} cho {{n}} trình độ",
+    "bulkDelNone": "Không thể xoá vì tất cả thành viên đã chọn đều đã có dữ liệu tham gia/tiền quỹ.",
+    "bulkDelSome": "Đã xoá {{n}} thành viên. Bỏ qua {{skipped}} người do đã có dữ liệu: {{names}}",
+    "bulkDelOk": "Đã xoá {{n}} thành viên đã chọn",
+    "bulkNoGroup": "Đã chuyển {{n}} thành viên sang Không cố định (đi lẻ)",
+    "bulkGroup": "Đã gán {{n}} thành viên vào: {{groups}}",
+    "bulkOff": "Đã chuyển {{n}} thành viên sang trạng thái Ngưng hoạt động (lịch sử giữ nguyên)",
+    "bulkOn": "Đã cho {{n}} thành viên hoạt động trở lại",
+    "debtDeleted": "Đã xoá khoản nợ thành công",
+    "typeArchived": "Loại cầu này đã có lịch sử nhập kho — đã chuyển sang trạng thái Ngừng dùng thay vì xoá để không hỏng sổ sách.",
+    "typeDeleted": "Đã xoá loại cầu \"{{name}}\""
   },
   "group": {
     "allClub": "Cả CLB",
@@ -725,7 +742,9 @@
     "delGuestOk": "Xoá khách",
     "searchMember": "Tìm người trong CLB...",
     "searchSolo": "Tìm thành viên đi lẻ...",
-    "guestByNone": "Tự đến / Vãng lai"
+    "guestByNone": "Tự đến / Vãng lai",
+    "tabCancelled": "Đã huỷ",
+    "statCountCancelled": "{{closed}} đã chốt · {{open}} chưa chốt · {{cancelled}} đã huỷ"
   },
   "sessionCol": {
     "date": "Ngày",
@@ -736,7 +755,8 @@
     "shuttle": "Cầu",
     "court": "Tiền sân",
     "guestRev": "Thu khách",
-    "status": "Trạng thái"
+    "status": "Trạng thái",
+    "shuttleUsed": "{{n}} quả{{est}}"
   },
   "calendar": {
     "title": "Lịch tháng {{month}}",
@@ -978,12 +998,14 @@
     "errNoStart": "Chọn ngày bắt đầu",
     "errNoEnd": "Chọn ngày kết thúc. Không có ngày kết thúc thì không tính được lịch mới, và lưu sẽ xóa hết buổi tương lai.",
     "errRange": "Ngày kết thúc phải sau ngày bắt đầu",
-    "errNoCourt": "Mỗi dòng sân phải chọn một sân"
+    "errNoCourt": "Mỗi dòng sân phải chọn một sân",
+    "autoName": "Lịch {{group}}"
   },
   "adhoc": {
     "dlgTitle": "Buổi đột xuất",
     "dlgDesc": "Một buổi lẻ ngoài lịch cố định — mở điểm danh ngay",
-    "fDate": "Ngày"
+    "fDate": "Ngày",
+    "noteDefault": "Buổi đột xuất"
   },
   "addCourt": {
     "dlgTitle": "Thêm sân cho buổi này",
@@ -1104,7 +1126,8 @@
     "settle": {
       "cash": "Tiền mặt",
       "offset_next_dues": "Trừ quỹ tháng sau"
-    }
+    },
+    "inviterUnknown": "Chưa rõ người rủ"
   },
   "fund": {
     "undo": "Hoàn tác",
@@ -1173,7 +1196,29 @@
     "fPayerHint": "Bỏ trống = quỹ CLB tự trả",
     "payerFund": "Quỹ CLB",
     "billVenueHint": "Lấy từ danh sách sân ở Cài đặt",
-    "billVenueEmpty": "Chưa khai sân nào ở Cài đặt — gõ tay tạm"
+    "billVenueEmpty": "Chưa khai sân nào ở Cài đặt — gõ tay tạm",
+    "tabDetail2": "Chi tiết thu chi",
+    "tabMonth2": "Tổng kết quỹ tháng",
+    "colTotalIn": "Tổng tiền thu từ anh em",
+    "colTotalInSub": "Quỹ tháng & khách vãng lai",
+    "colTotalOut": "Tổng chi phí hoạt động",
+    "colTotalOutSub": "Tiền sân, mua cầu, hoàn vắng",
+    "colNet": "Chênh lệch thu - chi tháng này",
+    "netUp": "● Tháng này đang thặng dư quỹ",
+    "netDown": "▲ Tháng này đang bị hụt quỹ",
+    "colBalanceNow": "Số dư quỹ hiện tại",
+    "stockLine": "Kho cầu: {{n}} quả ({{amount}})",
+    "inTitle": "Các khoản thu từ anh em (+)",
+    "inEmpty": "Chưa phát sinh khoản thu nào trong tháng.",
+    "outTitle": "Các khoản chi hoạt động (-)",
+    "outEmpty": "Chưa phát sinh khoản chi nào trong tháng.",
+    "txCount": "{{n}} giao dịch",
+    "totalIn": "TỔNG CỘNG THU",
+    "totalOut": "TỔNG CỘNG CHI",
+    "monthSumTitle": "Tổng kết quỹ tháng {{month}}",
+    "monthSumSub": "Báo cáo thu tiền anh em đóng và các khoản chi thuê sân, mua cầu thực tế của CLB",
+    "advanceTag": "Chi hộ",
+    "advanceTip": "Khoản chi hộ: Thành viên tự trả tiền túi, quỹ chưa hoàn tiền."
   },
   "shuttles": {
     "tabBuy": "Mua cầu",
@@ -1646,6 +1691,36 @@
     "fNoteHint": "Ví dụ: bạn của Mai, xin vào nhóm Chủ nhật",
     "joinedToast": "Đã gửi yêu cầu vào {{name}} — chờ chủ CLB duyệt",
     "errCode": "Mã CLB phải đủ 8 ký tự",
-    "approveHere": "Chủ CLB duyệt yêu cầu ở Cài đặt → Tài khoản & quyền"
+    "approveHere": "Chủ CLB duyệt yêu cầu ở Cài đặt → Tài khoản & quyền",
+    "phName": "Ví dụ: CLB Cầu Lông Ba Đình",
+    "openingDateHint": "Ngày bắt đầu tính thu chi",
+    "lockDaySuffix": "hàng tháng",
+    "lockDayHint": "Khoá danh sách tháng sau (mặc định 25)",
+    "lockDayNote": "Sau ngày này, danh sách cố định tháng mới sẽ chốt và tự động sinh quỹ tháng.",
+    "phBankHolder": "Ví dụ: NGUYỄN VĂN A",
+    "phBankNo": "Số tài khoản",
+    "phBankName": "Ví dụ: MB Bank, Vietcombank..."
+  },
+  "zalo": {
+    "head": "🏸 {{club}} · BUỔI {{date}} ({{wd}})",
+    "court": "Sân: {{court}} · {{time}}",
+    "attend": "Điểm danh: {{n}}/{{total}} thành viên {{group}}",
+    "shuttleCourt": "Cầu dùng: {{n}} quả · Tiền sân: {{amount}}",
+    "guestsHead": "KHÁCH GIAO LƯU ({{n}} người) — {{amount}}",
+    "guestLine": "· {{name}} ({{gender}}/{{level}}){{by}}: {{amount}}{{paid}}",
+    "guestBy": " — {{name}} rủ",
+    "guestPaid": " — đã trả",
+    "guestDebt": " — ghi nợ",
+    "cost": "Chi phí buổi: {{amount}} (sân + {{n}} quả cầu)",
+    "guestRev": "Thu từ khách: {{amount}}",
+    "balance": "Quỹ CLB hiện tại: {{amount}}",
+    "bank": "CK: {{holder}} · {{no}} · {{bank}}"
+  },
+  "csv": {
+    "errEmpty": "File CSV rỗng hoặc không có dòng tiêu đề.",
+    "errHeader": "Tên cột không đúng mẫu template. Yêu cầu chuẩn {{n}} cột: {{cols}}",
+    "errHeaderMore": ". Có thể thêm ở CUỐI {{n}} cột không bắt buộc: {{cols}}",
+    "errNoName": "Bắt buộc điền họ tên",
+    "errDupPhone": "Trùng SĐT với {{name}}"
   }
 }

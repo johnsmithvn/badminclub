@@ -34,11 +34,15 @@ export default function Sessions() {
     { value: 'closed', label: t('session.tabClosed'), count: closed.length },
   ]
   if (cancelled.length > 0) {
-    tabItems.push({ value: 'cancelled', label: 'Đã huỷ', count: cancelled.length })
+    tabItems.push({ value: 'cancelled', label: t('session.tabCancelled'), count: cancelled.length })
   }
 
   const countCaption = cancelled.length > 0
-    ? `${closed.length} đã chốt · ${unclosed.length} chưa chốt · ${cancelled.length} đã huỷ`
+    ? t('session.statCountCancelled', {
+      closed: closed.length,
+      open: unclosed.length,
+      cancelled: cancelled.length,
+    })
     : t('session.statCountCaption', { closed: closed.length, open: unclosed.length })
 
   return (

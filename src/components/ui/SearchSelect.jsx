@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { Icon } from '#ds'
 import { LevelChip } from './index.jsx'
+import { t } from '#i18n'
 
 /**
  * Chuẩn hoá chuỗi tiếng Việt để tìm kiếm không dấu, không phân biệt hoa thường.
@@ -11,7 +12,7 @@ function normalizeStr(str) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
+    .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá chữ để tìm kiếm, không phải chữ hiện ra
     .trim()
 }
 
@@ -35,8 +36,8 @@ export function SearchSelect({
   options = [],
   value = '',
   onChange,
-  placeholder = 'Chọn...',
-  searchPlaceholder = 'Tìm kiếm nhanh...',
+  placeholder = t('common.pick'),
+  searchPlaceholder = t('common.searchQuick'),
   label,
   size = 'md',
   disabled = false,
@@ -251,7 +252,7 @@ export function SearchSelect({
                 alignItems: 'center',
                 color: 'var(--text-muted)',
               }}
-              title="Xoá chọn"
+              title={t('common.clearPick')}
             >
               <Icon name="x" size={13} />
             </button>
@@ -366,7 +367,7 @@ export function SearchSelect({
                   color: 'var(--text-muted)',
                 }}
               >
-                Không tìm thấy kết quả nào
+                {t('common.noResult')}
               </div>
             ) : (
               visibleItems.map((opt) => {
@@ -432,7 +433,7 @@ export function SearchSelect({
 
             {filteredOptions.length > visibleCount && (
               <div style={{ padding: '6px', textAlign: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
-                Đang hiển thị {visibleCount}/{filteredOptions.length} kết quả (cuộn để xem tiếp)
+                {t('common.showingOf', { n: visibleCount, total: filteredOptions.length })}
               </div>
             )}
           </div>

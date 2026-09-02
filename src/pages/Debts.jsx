@@ -17,7 +17,7 @@ const norm = (s) =>
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
+    .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá chữ để tìm kiếm, không phải chữ hiện ra
     .trim()
 
 export default function Debts() {

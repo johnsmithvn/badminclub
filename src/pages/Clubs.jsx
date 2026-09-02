@@ -177,7 +177,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
       <div style={{ display: 'grid', gap: 14 }}>
         <Input
           label={t('clubs.fName')}
-          placeholder="Ví dụ: CLB Cầu Lông Ba Đình"
+          placeholder={t('clubs.phName')}
           value={f.name}
           onChange={set('name')}
           autoFocus
@@ -198,7 +198,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
             mono
             value={f.openingDate}
             onChange={set('openingDate')}
-            hint="Ngày bắt đầu tính thu chi"
+            hint={t('clubs.openingDateHint')}
           />
         </div>
 
@@ -206,14 +206,14 @@ function CreateDialog({ onClose, onDone, create, toast }) {
           <Input
             label={t('clubs.fLockDay')}
             mono
-            suffix="hàng tháng"
+            suffix={t('clubs.lockDaySuffix')}
             value={f.lockDay}
             onChange={set('lockDay')}
-            hint="Khoá danh sách tháng sau (mặc định 25)"
+            hint={t('clubs.lockDayHint')}
           />
           <div style={S.lockTip}>
             <Icon name="calendar-clock" size={16} style={{ color: 'var(--teal-600)', flexShrink: 0, marginTop: 2 }} />
-            <span>Sau ngày này, danh sách cố định tháng mới sẽ chốt và tự động sinh quỹ tháng.</span>
+            <span>{t('clubs.lockDayNote')}</span>
           </div>
         </div>
 
@@ -224,7 +224,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
 
         <Input
           label={t('clubs.fBankHolder')}
-          placeholder="Ví dụ: NGUYỄN VĂN A"
+          placeholder={t('clubs.phBankHolder')}
           value={f.bankHolder}
           onChange={set('bankHolder')}
         />
@@ -233,13 +233,13 @@ function CreateDialog({ onClose, onDone, create, toast }) {
           <Input
             label={t('clubs.fBankNo')}
             mono
-            placeholder="Số tài khoản"
+            placeholder={t('clubs.phBankNo')}
             value={f.bankNo}
             onChange={set('bankNo')}
           />
           <Input
             label={t('clubs.fBankName')}
-            placeholder="Ví dụ: MB Bank, Vietcombank..."
+            placeholder={t('clubs.phBankName')}
             value={f.bankName}
             onChange={set('bankName')}
           />

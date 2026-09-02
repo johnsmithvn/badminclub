@@ -150,8 +150,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
     alert: (options) => {
       const c = typeof options === 'string'
-        ? { message: options, alertOnly: true, confirmText: 'Đóng' }
-        : { ...options, alertOnly: true, confirmText: options.okText || options.confirmText || 'Đóng' }
+        ? { message: options, alertOnly: true, confirmText: t('common.close') }
+        : { ...options, alertOnly: true, confirmText: options.okText || options.confirmText || t('common.close') }
       upUi(() => ({ confirm: c }))
     },
     closeConfirm: () => upUi(() => ({ confirm: null })),
@@ -753,7 +753,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
 
       if (!toDel.length) {
-        return toast('Không thể xoá vì tất cả thành viên đã chọn đều đã có dữ liệu tham gia/tiền quỹ.')
+        return toast(t('toast.bulkDelNone'))
       }
 
       const idSet = new Set(toDel)
@@ -771,9 +771,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
 
       if (blocked.length) {
-        toast(`Đã xoá ${toDel.length} thành viên. Bỏ qua ${blocked.length} người do đã có dữ liệu: ${blocked.join(', ')}`)
+        toast(t('toast.bulkDelSome', { n: toDel.length, skipped: blocked.length, names: blocked.join(', ') }))
       } else {
-        toast(`Đã xoá ${toDel.length} thành viên đã chọn`)
+        toast(t('toast.bulkDelOk', { n: toDel.length }))
       }
     },
     setMembersGroupsBulk: (memberIds, groupIds) => {
@@ -817,10 +817,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
 
       if (gs.length === 0) {
-        toast(`Đã chuyển ${memberIds.length} thành viên sang Không cố định (đi lẻ)`)
+        toast(t('toast.bulkNoGroup', { n: memberIds.length }))
       } else {
         const gNames = d0.groups.filter((g) => gs.includes(g.id)).map((g) => g.short || g.name).join(' + ')
-        toast(`Đã gán ${memberIds.length} thành viên vào: ${gNames}`)
+        toast(t('toast.bulkGroup', { n: memberIds.length, groups: gNames }))
       }
     },
     deactivateMembersBulk: (ids) => {
@@ -828,14 +828,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         members: d.members.map((m) => (idSet.has(m.id) ? { ...m, active: false } : m)),
       }))
-      toast(`Đã chuyển ${ids.length} thành viên sang trạng thái Ngưng hoạt động (lịch sử giữ nguyên)`)
+      toast(t('toast.bulkOff', { n: ids.length }))
     },
     reactivateMembersBulk: (ids) => {
       const idSet = new Set(ids)
       up((d) => ({
         members: d.members.map((m) => (idSet.has(m.id) ? { ...m, active: true } : m)),
       }))
-      toast(`Đã cho ${ids.length} thành viên hoạt động trở lại`)
+      toast(t('toast.bulkOn', { n: ids.length }))
     },
     createMember: () => {
       const f = form()
@@ -1089,7 +1089,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
         return {
           schedules: d.schedules.concat([{
-            id: scId, name: f.sName || 'Lịch ' + groupOf(d, f.sGroup).short, groupId: f.sGroup,
+            id: scId, name: f.sName || t('schedules.autoName', { group: groupOf(d, f.sGroup).short }), groupId: f.sGroup,
             weekdays: f.weekdays, rows: f.rows, start: f.start, end: f.end, active: true,
           }]),
           sessions: d.sessions.concat(added).sort((a, b) => (a.date < b.date ? -1 : 1)),
@@ -1161,7 +1161,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             // back cho người vắng của CẢ ca giảm theo — không ai sửa gì mà tiền vẫn đổi.
             id: newId, date: f.aDate, groupId: 'ALL', status: 'open', shuttleUsed: 0,
             shuttleTypeId: d.shuttleTypes[0] ? d.shuttleTypes[0].id : null,
-            note: 'Buổi đột xuất', shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
+            note: t('adhoc.noteDefault'), shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
             courts: (f.rows || []).map((r) => ({ ...r, sold: false, soldAmount: 0, soldTo: '', extra: false })),
             scheduleId: null,
           }]).sort((a, b) => (a.date < b.date ? -1 : 1)),
@@ -1332,7 +1332,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     deleteAdvance: (kind, id) => {
       const key = kind === 'court' ? 'courtBills' : 'purchases'
       up((d) => ({ [key]: (d[key] || []).filter((x) => x.id !== id) }))
-      toast('Đã xoá khoản nợ thành công')
+      toast(t('toast.debtDeleted'))
     },
 
     /* ---------- cài đặt ---------- */
@@ -1549,7 +1549,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (!type) return
       const isUsed = (d.purchases || []).some((p) => p.typeId === id)
       if (isUsed) {
-        toast('Loại cầu này đã có lịch sử nhập kho — đã chuyển sang trạng thái Ngừng dùng thay vì xoá để không hỏng sổ sách.')
+        toast(t('toast.typeArchived'))
         up((prev) => ({
           shuttleTypes: prev.shuttleTypes.map((x) => (x.id === id ? { ...x, active: false } : x)),
         }))
@@ -1558,7 +1558,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((prev) => ({
         shuttleTypes: prev.shuttleTypes.filter((x) => x.id !== id),
       }))
-      toast('Đã xoá loại cầu "' + type.name + '"')
+      toast(t('toast.typeDeleted', { name: type.name }))
     },
     exportSettings: () => {
       const d = db()
@@ -2001,26 +2001,36 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const g = groupOf(d0, s.groupId)
       const gl = sGuestsOnly(d0, sid)
       const L = []
-      L.push('🏸 ' + d0.club.name.toUpperCase() + ' · BUỔI ' + ddmy(s.date) + ' (' + wd(s.date) + ')')
-      L.push('Sân: ' + courtTxt(d0, s) + ' · ' + timeTxt(s))
-      L.push('Điểm danh: ' + presentCount(d0, s) + '/' + groupMembers(d0, s.groupId, monthOf(s.date)).length + ' thành viên ' + g.name)
-      L.push('Cầu dùng: ' + s.shuttleUsed + ' quả · Tiền sân: ' + fmt(courtCost(d0, s)))
+      L.push(t('zalo.head', { club: d0.club.name.toUpperCase(), date: ddmy(s.date), wd: wd(s.date) }))
+      L.push(t('zalo.court', { court: courtTxt(d0, s), time: timeTxt(s) }))
+      L.push(t('zalo.attend', {
+        n: presentCount(d0, s),
+        total: groupMembers(d0, s.groupId, monthOf(s.date)).length,
+        group: g.name,
+      }))
+      L.push(t('zalo.shuttleCourt', { n: s.shuttleUsed, amount: fmt(courtCost(d0, s)) }))
       L.push('')
-      L.push('KHÁCH GIAO LƯU (' + gl.length + ' người) — ' + fmt(guestRev(d0, sid)))
+      L.push(t('zalo.guestsHead', { n: gl.length, amount: fmt(guestRev(d0, sid)) }))
       gl.forEach((x) => {
         const by = x.invitedBy || guestOf(d0, x.guestId).invitedBy
-        L.push('· ' + guestOf(d0, x.guestId).name + ' (' + (x.gender === 'nu' ? 'Nữ' : 'Nam') + '/' + x.level + ')' +
-          (by ? ' — ' + memberOf(d0, by).name + ' rủ' : '') + ': ' + fmt(x.price) + (x.paid ? ' — đã trả' : ' — ghi nợ'))
+        L.push(t('zalo.guestLine', {
+          name: guestOf(d0, x.guestId).name,
+          gender: t(x.gender === 'nu' ? 'gender.nu' : 'gender.nam'),
+          level: x.level,
+          by: by ? t('zalo.guestBy', { name: memberOf(d0, by).name }) : '',
+          amount: fmt(x.price),
+          paid: t(x.paid ? 'zalo.guestPaid' : 'zalo.guestDebt'),
+        }))
       })
       L.push('')
       // costRow chứ không sessionCost: buổi đã chốt thì đọc số ĐÃ ĐÓNG BĂNG, đúng bằng số
       // đang hiện trên card buổi và bảng Báo cáo. Tính lại là báo cáo gửi lên nhóm nói một
       // đằng, màn hình nói một nẻo, ngay khi giá cầu hay giá sân đổi.
-      L.push('Chi phí buổi: ' + fmt(costRow(d0, s).cost) + ' (sân + ' + s.shuttleUsed + ' quả cầu)')
-      L.push('Thu từ khách: ' + fmt(guestRev(d0, sid)))
-      L.push('Quỹ CLB hiện tại: ' + fmt(fundBalance(d0)))
+      L.push(t('zalo.cost', { amount: fmt(costRow(d0, s).cost), n: s.shuttleUsed }))
+      L.push(t('zalo.guestRev', { amount: fmt(guestRev(d0, sid)) }))
+      L.push(t('zalo.balance', { amount: fmt(fundBalance(d0)) }))
       const bk = d0.club.bank
-      L.push('CK: ' + bk.holder + ' · ' + bk.no + ' · ' + bk.bank)
+      L.push(t('zalo.bank', { holder: bk.holder, no: bk.no, bank: bk.bank }))
       const txt = L.join('\n')
       upUi(() => ({ dialog: 'zalo', form: { zaloText: txt } }))
       try {

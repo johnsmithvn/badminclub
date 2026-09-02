@@ -21,8 +21,8 @@ export default function Fund() {
       <Tabs
         variant="underline"
         items={[
-          { value: 'detail', label: 'Chi tiết thu chi' },
-          { value: 'month', label: 'Tổng kết quỹ tháng' },
+          { value: 'detail', label: t('fund.tabDetail2') },
+          { value: 'month', label: t('fund.tabMonth2') },
         ]}
         value={tab}
         onChange={(v) => a.setTab('fund', v)}
@@ -47,22 +47,22 @@ export function FundOverviewCards() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
       <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Tổng tiền thu từ anh em</div>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>{t('fund.colTotalIn')}</div>
         <div style={{ font: 'var(--type-h2)', color: 'var(--status-delivered)', marginTop: 4 }}>
           +{fmt(flow.in)}
         </div>
         <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-          Quỹ tháng & khách vãng lai
+          {t('fund.colTotalInSub')}
         </div>
       </div>
 
       <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Tổng chi phí hoạt động</div>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>{t('fund.colTotalOut')}</div>
         <div style={{ font: 'var(--type-h2)', color: 'var(--status-incident)', marginTop: 4 }}>
           −{fmt(flow.out)}
         </div>
         <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-          Tiền sân, mua cầu, hoàn vắng
+          {t('fund.colTotalOutSub')}
         </div>
       </div>
 
@@ -72,22 +72,22 @@ export function FundOverviewCards() {
         border: `1px solid ${net >= 0 ? 'var(--teal-500)' : 'var(--status-delayed)'}`,
         boxShadow: 'var(--shadow-sm)',
       }}>
-        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Chênh lệch thu - chi tháng này</div>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>{t('fund.colNet')}</div>
         <div style={{ font: 'var(--type-h2)', color: net >= 0 ? 'var(--status-delivered)' : 'var(--status-delayed)', marginTop: 4 }}>
           {(net >= 0 ? '+' : '') + fmt(net)}
         </div>
         <div style={{ font: 'var(--type-caption)', fontWeight: 600, color: net >= 0 ? 'var(--teal-800)' : 'var(--status-delayed)', marginTop: 2 }}>
-          {net >= 0 ? '● Tháng này đang thặng dư quỹ' : '▲ Tháng này đang bị hụt quỹ'}
+          {t(net >= 0 ? 'fund.netUp' : 'fund.netDown')}
         </div>
       </div>
 
       <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface-sunken)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Số dư quỹ hiện tại</div>
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>{t('fund.colBalanceNow')}</div>
         <div style={{ font: 'var(--type-h2)', color: 'var(--text-primary)', marginTop: 4 }}>
           {fmt(bal)}
         </div>
         <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-          Kho cầu: {st.left} quả ({fmt(st.left * unit)})
+          {t('fund.stockLine', { n: st.left, amount: fmt(st.left * unit) })}
         </div>
       </div>
     </div>
@@ -104,11 +104,11 @@ export function FundBalanceColumns() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
       {/* Cột Thu */}
-      <Card title="Các khoản thu từ anh em (+)" icon="trending-up" padding="0">
+      <Card title={t('fund.inTitle')} icon="trending-up" padding="0">
         <div style={{ display: 'grid' }}>
           {inGroups.length === 0 ? (
             <div style={{ padding: 16, font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center' }}>
-              Chưa phát sinh khoản thu nào trong tháng.
+              {t('fund.inEmpty')}
             </div>
           ) : (
             inGroups.map((g) => (
@@ -121,7 +121,7 @@ export function FundBalanceColumns() {
                     {catLabel(g.cat)}
                   </div>
                   <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-                    {g.items.length} giao dịch
+                    {t('fund.txCount', { n: g.items.length })}
                   </div>
                 </div>
                 <Mono size={14} weight={600} color="var(--status-delivered)">
@@ -134,18 +134,18 @@ export function FundBalanceColumns() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 14px', background: 'var(--surface-sunken)', fontWeight: 700,
           }}>
-            <span>TỔNG CỘNG THU</span>
+            <span>{t('fund.totalIn')}</span>
             <Mono size={15} color="var(--status-delivered)">+{fmt(flow.in)}</Mono>
           </div>
         </div>
       </Card>
 
       {/* Cột Chi */}
-      <Card title="Các khoản chi hoạt động (-)" icon="trending-down" padding="0">
+      <Card title={t('fund.outTitle')} icon="trending-down" padding="0">
         <div style={{ display: 'grid' }}>
           {outGroups.length === 0 ? (
             <div style={{ padding: 16, font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center' }}>
-              Chưa phát sinh khoản chi nào trong tháng.
+              {t('fund.outEmpty')}
             </div>
           ) : (
             outGroups.map((g) => (
@@ -158,7 +158,7 @@ export function FundBalanceColumns() {
                     {catLabel(g.cat)}
                   </div>
                   <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-                    {g.items.length} giao dịch
+                    {t('fund.txCount', { n: g.items.length })}
                   </div>
                 </div>
                 <Mono size={14} weight={600} color="var(--status-incident)">
@@ -171,7 +171,7 @@ export function FundBalanceColumns() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 14px', background: 'var(--surface-sunken)', fontWeight: 700,
           }}>
-            <span>TỔNG CỘNG CHI</span>
+            <span>{t('fund.totalOut')}</span>
             <Mono size={15} color="var(--status-incident)">−{fmt(flow.out)}</Mono>
           </div>
         </div>
@@ -187,8 +187,8 @@ export function MonthSummary() {
     <div style={{ display: 'grid', gap: 14 }}>
       {/* 1. Thẻ Tóm tắt Thặng dư / Hụt quỹ tháng */}
       <Card
-        title={`Tổng kết quỹ tháng ${monthTxt(db.month)}`}
-        subtitle="Báo cáo thu tiền anh em đóng và các khoản chi thuê sân, mua cầu thực tế của CLB"
+        title={t('fund.monthSumTitle', { month: monthTxt(db.month) })}
+        subtitle={t('fund.monthSumSub')}
         icon="scale"
         padding="16px"
       >
@@ -262,7 +262,7 @@ export function Detail({ canMoney }) {
                           background: 'rgba(217, 119, 6, 0.12)', color: '#b45309',
                           fontWeight: 600, border: '1px solid rgba(217, 119, 6, 0.3)',
                         }}>
-                          Chi hộ
+                          {t('fund.advanceTag')}
                         </span>
                       )}
                     </span>
@@ -277,7 +277,7 @@ export function Detail({ canMoney }) {
                       {many ? '' : (g.items[0].by && g.items[0].by !== '—' ? g.items[0].by : t('fund.payerFund'))}
                     </span>
                     <span
-                      title={g.tooltip || (g.isAdvance ? 'Khoản chi hộ: Thành viên tự trả tiền túi, quỹ chưa hoàn tiền.' : undefined)}
+                      title={g.tooltip || (g.isAdvance ? t('fund.advanceTip') : undefined)}
                       style={{
                         ...S.r, fontWeight: 600,
                         color: g.isAdvance ? '#d97706' : g.dir === 'in' ? 'var(--status-delivered)' : 'var(--status-incident)',

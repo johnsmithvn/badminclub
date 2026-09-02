@@ -1,6 +1,8 @@
 // Xử lý đọc và sinh dữ liệu CSV cho danh sách thành viên.
 // Hỗ trợ RFC 4180, dấu phẩy/chấm phẩy/tab, UTF-8 BOM, nhận diện cột linh hoạt.
 
+import { t } from '#i18n'
+
 /**
  * Phân tích chuỗi CSV thô thành mảng các mảng chuỗi string[][].
  * Tự động loại bỏ BOM UTF-8 và nhận diện dấu phân cách (phẩy, chấm phẩy, tab).
@@ -93,19 +95,21 @@ export function parseCsvRows(text) {
 export function normHeader(h) {
   return String(h || '')
     .toLowerCase()
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'd')
+    .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá tên cột để so khớp, không phải chữ hiện ra
+    .replace(/Đ/g, 'd') // i18n-ok
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]/g, '')
 }
 
+// i18n-ok: đây là HỢP ĐỒNG ĐỊNH DẠNG FILE, không phải chữ trên màn hình. Mọi file CSV người
+// dùng đang có mang đúng những tên cột này; dịch chúng theo locale là từ chối hàng loạt file cũ.
 export const TEMPLATE_HEADERS = [
-  'Họ và tên',
-  'Số điện thoại',
-  'Giới tính',
-  'Trình độ',
-  'Nhóm cố định',
+  'Họ và tên', // i18n-ok
+  'Số điện thoại', // i18n-ok
+  'Giới tính', // i18n-ok
+  'Trình độ', // i18n-ok
+  'Nhóm cố định', // i18n-ok
 ]
 
 /**
@@ -117,8 +121,9 @@ export const TEMPLATE_HEADERS = [
  *
  * "Họ và tên" ở cột 1 là TÊN HIỂN THỊ (`club_members.name`) — giữ nguyên nghĩa cũ, đừng đổi.
  */
+// i18n-ok: cùng lý do TEMPLATE_HEADERS — tên cột trong file, không phải nhãn UI.
 export const OPTIONAL_HEADERS = [
-  'Tên đầy đủ',
+  'Tên đầy đủ', // i18n-ok
   'Email',
 ]
 
@@ -128,7 +133,7 @@ export const OPTIONAL_HEADERS = [
  */
 export function validateHeaders(headerRow) {
   if (!headerRow || headerRow.length === 0) {
-    return { ok: false, error: 'File CSV rỗng hoặc không có dòng tiêu đề.' }
+    return { ok: false, error: t('csv.errEmpty') }
   }
 
   const expectedNorms = TEMPLATE_HEADERS.map(normHeader)
@@ -144,8 +149,8 @@ export function validateHeaders(headerRow) {
   if (!baseOk || !extraOk) {
     return {
       ok: false,
-      error: `Tên cột không đúng mẫu template. Yêu cầu chuẩn ${TEMPLATE_HEADERS.length} cột: ${TEMPLATE_HEADERS.join(' · ')}`
-        + `. Có thể thêm ở CUỐI 2 cột không bắt buộc: ${OPTIONAL_HEADERS.join(' · ')}`,
+      error: t('csv.errHeader', { n: TEMPLATE_HEADERS.length, cols: TEMPLATE_HEADERS.join(' · ') })
+        + t('csv.errHeaderMore', { n: OPTIONAL_HEADERS.length, cols: OPTIONAL_HEADERS.join(' · ') }),
     }
   }
 
@@ -272,10 +277,10 @@ export function validateMemberRow(r, _clubLevels = [], phoneMap = new Map()) {
 
   if (!name || name.length < 2) {
     status = 'error'
-    message = 'Bắt buộc điền họ tên'
+    message = t('csv.errNoName')
   } else if (phoneDigits && phoneMap.has(phoneDigits) && phoneMap.get(phoneDigits) !== r.id) {
     status = 'warn'
-    message = `Trùng SĐT với ${phoneMap.get(phoneDigits)}`
+    message = t('csv.errDupPhone', { name: phoneMap.get(phoneDigits) })
   }
 
   return {
@@ -369,17 +374,18 @@ export function parseAndValidateMembers(csvText, clubLevels = [], clubGroups = [
 /** Sinh chuỗi CSV mẫu đính kèm UTF-8 BOM. */
 export function generateSampleCsv(levels = [], groups = []) {
   const g1 = groups[0] ? (groups[0].short || groups[0].name) : 'T3-T5'
-  const g2 = groups[1] ? (groups[1].short || groups[1].name) : 'Chủ nhật'
+  const g2 = groups[1] ? (groups[1].short || groups[1].name) : 'Chủ nhật' // i18n-ok
   const l1 = levels[0] || 'Newbie'
   const l2 = levels[1] || 'TB-'
   const l3 = levels[2] || 'TB'
 
   // File mẫu in cả hai cột tuỳ chọn để người dùng biết là có — bỏ hai cột đó đi vẫn nhập được.
+  // i18n-ok (3 dòng dưới): nội dung MẪU của file CSV, đi kèm TEMPLATE_HEADERS ở trên.
   const lines = [
     TEMPLATE_HEADERS.join(',') + ',' + OPTIONAL_HEADERS.join(','),
-    `Nguyễn Văn An,0912345678,Nam,${l2},${g1},Nguyễn Văn An,an@example.com`,
-    `Trần Thị Bích,0987654321,Nữ,${l1},${g2},Trần Thị Bích,`,
-    `Lê Hoàng Minh,0903112233,Nam,${l3},,,`,
+    `Nguyễn Văn An,0912345678,Nam,${l2},${g1},Nguyễn Văn An,an@example.com`, // i18n-ok
+    `Trần Thị Bích,0987654321,Nữ,${l1},${g2},Trần Thị Bích,`, // i18n-ok
+    `Lê Hoàng Minh,0903112233,Nam,${l3},,,`, // i18n-ok
   ]
 
   return '\uFEFF' + lines.join('\r\n')

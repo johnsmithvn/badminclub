@@ -126,7 +126,7 @@ export default function Sidebar({ route }) {
         {clubMenu && (
           <div style={S.clubPopover} role="menu">
             <div style={S.clubPopoverHeader}>
-              CLB của bạn
+              {t('shell.myClubs')}
             </div>
             <div style={{ display: 'grid', gap: 2, maxHeight: 220, overflowY: 'auto' }}>
               {myClubs.map((c) => {

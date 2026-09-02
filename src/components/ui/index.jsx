@@ -222,7 +222,7 @@ export function sessionColumns(db) {
             color: 'var(--navy-700)',
             border: '1px solid rgba(14, 165, 233, 0.25)',
           }}>
-            {r.shuttleUsed} quả{r.shuttleEst ? ' ~' : ''}
+            {t('sessionCol.shuttleUsed', { n: r.shuttleUsed, est: r.shuttleEst ? ' ~' : '' })}
           </span>
         )
       },

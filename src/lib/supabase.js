@@ -12,8 +12,8 @@ export const hasSupabase = Boolean(url && anonKey)
 
 if (!hasSupabase && import.meta.env?.DEV) {
   console.warn(
-    '[supabase] Chưa có VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.\n' +
-    'Chạy:  npm run db:start  rồi  npm run db:env > .env.local  và khởi động lại dev server.'
+    '[supabase] Chưa có VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.\n' + // i18n-ok: cảnh báo cho dev
+    'Chạy:  npm run db:start  rồi  npm run db:env > .env.local  và khởi động lại dev server.' // i18n-ok
   )
 }
 
