@@ -71,7 +71,7 @@ src/
   routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
   styles/             index.css + tokens/*.css
   utils/dates.js      ngày, tháng, giờ thập phân, lưới lịch
-  __tests__/          36 bộ test: lib/ · money/ · ledger/ · sync/ · smoke/ (xem __tests__/README.md)
+  __tests__/          35 bộ test: lib/ · money/ · ledger/ · sync/ · smoke/ (xem __tests__/README.md)
 supabase/migrations/   SQL cho bản chạy thật (0001..0013)
 docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
 ```

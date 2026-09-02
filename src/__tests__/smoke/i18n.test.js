@@ -16,7 +16,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 import perm from '#config/permissions.json' with { type: 'json' }
 import { MODE_KEYS } from '#lib/assign.js'
 import { CLOSE_WARN_KEYS, DRIFT_KEYS, WARN_KEYS } from '#lib/money.js'
-import { CATS, MANUAL_CATS, REC_KEYS } from '#lib/ledger.js'
+import { CATS, MANUAL_CATS } from '#lib/ledger.js'
 import { BLOCK_KEYS } from '#lib/schedules.js'
 import { MERGE_FIELDS } from '#lib/members.js'
 import { SCHEMA_GROUPS } from '#data/schema.js'
@@ -124,7 +124,6 @@ GROUP_REFS.forEach((k) => need('settings.groupRef.' + k))
 WARN_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('home.warn.' + k + '.' + f)))
 CLOSE_WARN_KEYS.forEach((k) => need('session.closeWarn.' + k))
 DRIFT_KEYS.forEach((k) => need('session.drift.' + k))
-REC_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('fund.rec.' + k + '.' + f)))
 // Lý do chặn lưu khi sửa lịch + hai cặp nhãn chọn theo điều kiện — đều tới màn hình qua
 // `t(bienSo)` nên regex quét key ở trên không thấy.
 Object.values(BLOCK_KEYS).forEach(need)

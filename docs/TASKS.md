@@ -437,7 +437,20 @@ Nghĩa là phần lớn lý do tồn tại của P6 (*"số tháng đã chốt t
 Mười một lỗi nhóm B đều cùng một đặc điểm: **im lặng**, không có gì để so nên không ai phát hiện.
 Hai việc dưới bắt được gần hết.
 
-- [x] **Màn "Đối chiếu quỹ" — XONG 2026-09-01** (chờ user bấm thử). Thủ quỹ gõ số tiền thật đang
+- [~] **Màn "Đối chiếu quỹ" — ĐÃ GỠ 2026-09-01 (user quyết).** Giữ lại phần mô tả dưới đây làm
+      hồ sơ, nhưng `ledger.js: reconcile`, `Fund.jsx: Reconcile`, `ledger/reconcile.test.js`
+      và khối i18n `fund.rec.*` đều đã xoá; hai tab "Đối chiếu quỹ" ở Trang chủ và Sổ quỹ
+      cũng gỡ theo.
+      **Vì sao gỡ:** màn này không PHÁT HIỆN gì — nó chỉ liệt kê các con số có thể giải thích
+      chênh lệch giữa tiền đếm được và sổ. Mọi con số đó đã xem được ở chỗ khác (Thành viên →
+      cột Quỹ tháng + bộ lọc "Chưa đóng", Công nợ, Sổ quỹ, Cài đặt). Giá trị thật của nó chỉ
+      xuất hiện khi CLB GIỮ TIỀN MẶT và có người ngồi đếm; CLB thu qua chuyển khoản thì "tiền
+      thật đang giữ" chính là số dư ngân hàng, không cần màn này.
+      Cần lại thì lấy trong git — đừng viết lại từ đầu.
+
+      <details><summary>Mô tả cũ</summary>
+
+- [x] Thủ quỹ gõ số tiền thật đang
       giữ, app so với sổ và **liệt kê nghi vấn cụ thể** sắp theo mức khớp, không chỉ báo lệch.
       Bắt: ~~B1~~ (xong ở P7 nhẹ) · ~~B2~~ (xong ở P5) · B3 · B4 · B9 · B10 · B11.
       **KHÔNG có bảng `fund_reconciliations`** (đặc tả đề xuất, cắt 2026-08-24): đối chiếu là một
@@ -464,6 +477,9 @@ Hai việc dưới bắt được gần hết.
 
       `ledger/reconcile.test.js` — mutation-test 6 nhánh (chiều · null · `opening` xếp cuối ·
       quỹ tháng lấy phần còn thiếu · `noBill` không đoán 0 · chưa gõ số ≠ đếm được 0 đồng), cả 6 bị bắt.
+
+      </details>
+
 - [x] **Cảnh báo quanh việc chốt buổi — XONG 2026-08-24** (chờ user bấm thử). Đặc tả muốn một
       **dialog buộc xử lý**; đã hạ xuống **cảnh báo không chặn** và tách làm hai thời điểm.
 

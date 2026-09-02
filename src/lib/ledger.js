@@ -7,8 +7,8 @@
 import { dd, monthOf, monthTxt } from '#utils/dates.js'
 import { t } from '#i18n'
 import {
-  advanceRows, billsOf, courtCost, courtExtraCost, courtPayMode, courtTxt, dueState, fmtK,
-  chargeName, groupOf, isVault, memberOf, monthSessions, payerName, sessionOf, soldTotal,
+  advanceRows, courtCost, courtExtraCost, courtPayMode, courtTxt, dueState, fmtK,
+  chargeName, groupOf, isVault, memberOf, payerName, sessionOf, soldTotal,
   timeTxt,
 } from '#lib/money.js'
 
@@ -58,7 +58,7 @@ export function ledger(db) {
 
   out.push({
     id: 'open', date: db.club.openingDate, dir: 'in', cat: CATS.opening,
-    label: t('ledger.label.opening'), amount: db.club.opening, by: db.club.openingBy || '',
+    label: t('ledger.label.opening'), amount: db.club.opening, by: db.club.openingBy || t('fund.payerFund'),
   })
 
   // Ghi đúng số ĐÃ NHẬN, không phải số phải đóng: đóng thiếu thì sổ quỹ chỉ được thấy phần
@@ -174,7 +174,7 @@ export function ledger(db) {
     })
   })
 
-  db.manual.forEach((m) => out.push({ ...m }))
+  db.manual.forEach((m) => out.push({ ...m, by: m.by || t('fund.payerFund') }))
 
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
 }
@@ -276,89 +276,6 @@ export function availableBalance(db) {
     .reduce((s, x) => s - x.amount, 0)
   const owed = advance + back
   return { balance, advance, back, owed, available: balance - owed }
-}
-
-/* ---------- đối chiếu quỹ (TASKS Phase 9 · P7) ---------- */
-
-/** Miền giá trị của họ key `fund.rec.*` — i18n test đọc từ đây để thêm nghi vấn là đòi key. */
-export const REC_KEYS = ['noBill', 'dueUnticked', 'guestUnpaid', 'backUnpaid', 'advanceUnpaid', 'soldBlank', 'opening']
-
-/**
- * Đối chiếu quỹ. Thủ quỹ gõ số tiền THẬT đang giữ; app so với sổ và liệt kê **nghi vấn cụ thể**,
- * không chỉ báo lệch — mười một lỗi nhóm B đều im lặng, không có gì để so nên không ai phát hiện.
- *
- * `dir` là chiều nghi vấn đó **giải thích được**, đọc theo hướng tiền thật so với sổ:
- *   'in'  tiền đã vào két mà sổ chưa ghi thu  → giải thích được **đếm NHIỀU hơn sổ**
- *   'out' tiền đã rời két mà sổ chưa ghi chi  → giải thích được **đếm ÍT hơn sổ**
- * Không có `dir` thì nghi vấn nào cũng bị đẩy lên đầu bảng bất kể chiều, và câu gợi ý đầu tiên
- * thường là câu vô nghĩa ("quên tick quỹ tháng" trong khi quỹ đang THIẾU tiền).
- *
- * `amount = null` = biết có chuyện nhưng không ước lượng được thành tiền (sân bán để trống ô tiền,
- * chưa từng có hoá đơn sân nào để lấy làm mốc) — xếp cuối, đừng giả vờ khớp.
- *
- * KHÔNG tính tồn kho quy tiền vào đây: số cầu trong tủ không phải tiền mặt, cộng vào là đối chiếu
- * với sao kê ngân hàng lệch đúng bằng giá trị kho. Ô đó đứng riêng ở đầu màn Sổ quỹ.
- * KHÔNG có bảng `fund_reconciliations` (cắt 2026-08-24): đối chiếu là một phép trừ, tính lại từ
- * đầu mỗi lần cũng tức thì — lưu lại chỉ để "lần sau đối chiếu phần phát sinh" là nuôi một bảng
- * cho một tối ưu không ai cần.
- */
-export function reconcile(db, counted) {
-  const av = availableBalance(db)
-  const book = av.balance
-  const has = Number.isFinite(counted)
-  const diff = has ? counted - book : 0
-  const gap = Math.abs(diff)
-  const out = []
-  const add = (key, dir, amount, n, ids) => { if (n > 0) out.push({ key, dir, amount, n, ids: ids || null }) }
-
-  // B1 · Quên nhập hoá đơn sân tháng — tiền đã chuyển cho chủ sân, sổ chưa ghi chi.
-  // Mốc ước lượng lấy hoá đơn gần nhất; chưa từng có hoá đơn nào thì để null chứ không đoán 0.
-  if (courtPayMode(db) === 'month') {
-    const closed = monthSessions(db, db.month).filter((s) => s.status === 'closed')
-    if (closed.length && !billsOf(db, db.month).length) {
-      const prev = (db.courtBills || []).slice().sort((a, b) => (a.month < b.month ? 1 : -1))[0]
-      add('noBill', 'out', prev ? prev.amount : null, 1, null)
-    }
-  }
-
-  // B3 · Đã cầm tiền quỹ tháng nhưng quên tick: tiền trong két, sổ chưa thấy.
-  // Quét MỌI tháng như số dư — quỹ tháng 6 quên tick vẫn đang làm sổ sai hôm nay.
-  const remain = (db.dues || []).reduce((s, d) => s + dueState(d).remain, 0)
-  add('dueUnticked', 'in', remain, (db.dues || []).filter((d) => dueState(d).remain > 0).length, null)
-
-  // B9 · Quên tick khách đã trả — hay xảy ra nhất vì quản trò thu hộ rồi mới đưa lại.
-  const unpaidG = (db.sessionGuests || []).filter((g) => !g.paid)
-  add('guestUnpaid', 'in', unpaidG.reduce((s, g) => s + g.price, 0), unpaidG.length, null)
-
-  // B10 · Đã trả back tiền mặt nhưng quên tick → tiền đã rời két, sổ vẫn đang giữ.
-  add('backUnpaid', 'out', av.back,
-    (db.adjustments || []).filter((x) => !x.paid && x.settle === 'cash' && x.amount < 0).length, null)
-
-  // P5 · Đã trả lại người ứng tiền nhưng quên đánh dấu — cùng cơ chế với B10.
-  const owedRows = advanceRows(db).filter((r) => !r.repaidAt)
-  add('advanceUnpaid', 'out', av.advance, owedRows.length, null)
-
-  // B4 · Sân đánh dấu đã bán mà ô tiền để trống, ở buổi ĐÃ CHỐT: khoản thu đó không có trong sổ.
-  // Số tiền chính là thứ đang thiếu nên không ước lượng được — để null.
-  const blank = (db.sessions || []).filter((s) => s.status === 'closed'
-    && (s.courts || []).some((c) => c.sold && !(c.soldAmount > 0)))
-  add('soldBlank', 'in', null, blank.length, blank.map((s) => s.id))
-
-  // B11 · Số dư mang sang nhập sai lúc onboard thì lệch VĨNH VIỄN và không nhánh nào khác lộ ra.
-  // Luôn xếp cuối: nó là thứ kiểm khi mọi giải thích khác đã loại trừ.
-  add('opening', null, db.club.opening || 0, 1, null)
-
-  // Sắp theo MỨC KHỚP: cùng chiều trước, rồi tới gần số lệch nhất. Chưa gõ số đếm thì xếp theo
-  // tiền giảm dần — lúc đó bảng này là một checklist, không phải một lời giải thích.
-  const rank = (s) => [
-    s.key === 'opening' ? 2 : s.dir && has && diff !== 0 && s.dir !== (diff > 0 ? 'in' : 'out') ? 1 : 0,
-    s.amount == null ? Number.MAX_SAFE_INTEGER : has ? Math.abs(s.amount - gap) : -s.amount,
-  ]
-  const suspects = out
-    .map((s) => ({ ...s, match: has && gap > 0 && s.amount === gap }))
-    .sort((a, b) => { const x = rank(a), y = rank(b); return x[0] - y[0] || x[1] - y[1] })
-
-  return { book, counted: has ? counted : null, diff, gap, suspects }
 }
 
 /** Thu/chi trong một tháng, KHÔNG tính dòng Số dư mang sang. */

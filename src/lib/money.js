@@ -46,9 +46,9 @@ export const memberOf = (db, id) => db.members.find((m) => m.id === id) || { nam
  */
 export const payerName = (db, payerId, legacy) => {
   // Tra thẳng, KHÔNG qua memberOf: memberOf trả placeholder '—' cho id không tìm thấy, mà '—'
-  // là chuỗi truthy nên id chết sẽ nuốt mất cái tên cũ đang có.
+  // là chuỗi truthy nên id chết sẽ nuốt mất cái tên cũ đang có. Bỏ trống hoặc quỹ tự trả = Quỹ CLB.
   const m = payerId ? db.members.find((x) => x.id === payerId) : null
-  return (m && m.name) || legacy || t('common.unknown')
+  return (m && m.name) || legacy || t('fund.payerFund')
 }
 export const guestOf = (db, id) => db.guests.find((g) => g.id === id) || { name: t('common.unknown') }
 export const sessionOf = (db, id) => db.sessions.find((s) => s.id === id)

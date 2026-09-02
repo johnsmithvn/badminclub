@@ -11,7 +11,7 @@ import {
 } from '#lib/money.js'
 import { monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
-import { Detail, FundBalanceColumns, FundOverviewCards, Reconcile } from '#pages/Fund.jsx'
+import { Detail, FundBalanceColumns, FundOverviewCards } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
 import { scheduleForm } from '#lib/forms.js'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -29,7 +29,6 @@ export default function Home() {
           { value: 'overview', label: 'Tổng quan' },
           { value: 'transactions', label: 'Chi tiết thu chi' },
           { value: 'report', label: 'Báo cáo tháng' },
-          { value: 'rec', label: 'Đối chiếu quỹ' },
         ]}
         value={tab}
         onChange={(v) => a.setTab('home', v)}
@@ -38,8 +37,6 @@ export default function Home() {
         <Overview />
       ) : tab === 'transactions' ? (
         <Detail canMoney={canMoney} />
-      ) : tab === 'rec' ? (
-        <Reconcile />
       ) : (
         <Report />
       )}

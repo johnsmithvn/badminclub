@@ -26,7 +26,6 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Xoá nhóm: chặn tạm (có buổi tương lai) vs chặn vĩnh viễn (dính lịch sử tiền) | `money/group_delete.test.js` |
 | Xoá buổi: điều kiện an toàn, dọn buổi chưa phát sinh chi phí | `money/session_delete.test.js` |
 | Sổ quỹ: dòng nào vào sổ, số dư, số dư khả dụng, gộp dòng, tổng hợp ngày | `ledger/ledger.test.js` |
-| Đối chiếu quỹ: so tiền đếm được với sổ, xếp nghi vấn theo chiều + mức khớp | `ledger/reconcile.test.js` |
 | Hoàn tác / sửa một dòng sổ quỹ: dòng nào gỡ được, gỡ ở nguồn nào | `ledger/undo.test.js` |
 | Chia sân: slot · 5 chế độ xếp · chia đều · đếm số trận | `lib/assign.test.js` |
 | Ngày tháng, lưới lịch, sinh ngày theo thứ | `lib/dates.test.js` |
