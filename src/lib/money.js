@@ -793,6 +793,54 @@ export function pendingClaims(db, monthKey) {
 export const debtSum = (items) => items.reduce((n, x) => n + x.amount, 0)
 
 /**
+ * Đếm số lượng các khoản nợ / hoàn của MỘT thành viên (hoặc tài khoản đang đăng nhập).
+ * Bao gồm cả chiều PHẢI TRẢ (quỹ tháng, đi thêm, khách mình rủ) và ĐƯỢC TRẢ (hoàn tiền vắng, tiền ứng).
+ */
+export function myDebtCounts(db, monthKey, memberId) {
+  const mid = memberId || (myMember(db) && myMember(db).id)
+  if (!mid) return { sessions: 0, dues: 0, advance: 0, total: 0 }
+
+  const dues = duesOf(db, monthKey).filter((x) => x.memberId === mid && dueState(x).remain > 0).length
+  const guests = (db.sessionGuests || []).filter((sg) => {
+    const s = sessionOf(db, sg.sessionId)
+    return s && monthOf(s.date) === monthKey && !sg.paid && (sg.memberId === mid || sg.invitedBy === mid)
+  }).length
+  const adjusts = adjustRows(db, monthKey).filter((r) => r.memberId === mid && !r.paid).length
+  const sessions = guests + adjusts
+  const advance = advanceRows(db).filter((x) => x.memberId === mid && !x.repaidAt).length
+
+  return {
+    sessions,
+    dues,
+    advance,
+    total: sessions + dues + advance,
+  }
+}
+
+/**
+ * Đếm số lượng toàn bộ công nợ của CLB trong tháng.
+ */
+export function clubDebtCounts(db, monthKey) {
+  const unpaidGuests = (db.sessionGuests || []).filter((sg) => {
+    const s = sessionOf(db, sg.sessionId)
+    return s && monthOf(s.date) === monthKey && !sg.paid
+  }).length
+  const unpaidAdjusts = adjustRows(db, monthKey).filter((r) => !r.paid).length
+  const sessions = unpaidGuests + unpaidAdjusts
+  const dues = duesOf(db, monthKey).filter((x) => dueState(x).remain > 0).length
+  const advance = advanceRows(db).filter((x) => !x.repaidAt).length
+  const pending = pendingClaims(db, monthKey).reduce((n, g) => n + g.items.length, 0)
+
+  return {
+    sessions,
+    dues,
+    advance,
+    pending,
+    total: sessions + dues + advance,
+  }
+}
+
+/**
  * Khoản đối chiếu còn treo của một người, đã chọn "trừ vào quỹ tháng sau" mà chưa xử lý.
  * Dấu cộng thẳng vào `monthly_dues.amount`: âm thì tháng sau đóng ít đi, dương thì đóng thêm.
  */

@@ -2170,11 +2170,20 @@ function Tabs({
       size: 15
     }), t.label, t.count != null && /*#__PURE__*/React.createElement("span", {
       style: {
-        font: '600 var(--text-2xs)/1 var(--font-sans)',
-        color: active ? 'var(--navy-700)' : 'var(--text-muted)',
-        background: active ? 'var(--navy-100)' : 'var(--surface-sunken)',
+        font: '700 11px/1.2 var(--font-sans)',
+        color: active
+          ? (t.count > 0 ? '#fff' : 'var(--navy-800)')
+          : (t.count > 0 ? 'var(--navy-900)' : 'var(--text-secondary)'),
+        background: active
+          ? (t.count > 0 ? 'var(--teal-600)' : 'var(--navy-100)')
+          : (t.count > 0 ? 'var(--navy-100)' : 'var(--surface-sunken)'),
+        border: `1px solid ${active ? (t.count > 0 ? 'var(--teal-700)' : 'var(--navy-200)') : (t.count > 0 ? 'var(--navy-300)' : 'var(--border-subtle)')}`,
         borderRadius: 'var(--radius-chip)',
-        padding: '3px 6px'
+        padding: '2px 7px',
+        minWidth: 18,
+        textAlign: 'center',
+        boxShadow: t.count > 0 && !active ? '0 1px 2px rgba(13,43,94,0.08)' : 'none',
+        transition: 'var(--transition-control)',
       }
     }, t.count));
   }));

@@ -7,8 +7,8 @@ import { Avatar, Icon, SidebarNav } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { PUBLIC_PATHS, pathOf } from '#routes'
-import { allowedRoutes, roleName } from '#lib/roles.js'
-import { adjustRows, advanceRows, duesOf, dueState, monthSessions, sessionOf } from '#lib/money.js'
+import { allowedRoutes, roleName, can } from '#lib/roles.js'
+import { adjustRows, advanceRows, clubDebtCounts, duesOf, dueState, monthSessions, myDebtCounts, sessionOf } from '#lib/money.js'
 import { assignableSessions } from '#lib/assign.js'
 import { monthOf } from '#utils/dates.js'
 import { t } from '#i18n'
@@ -45,19 +45,9 @@ export default function Sidebar({ route }) {
   const currentMember = (db.members || []).find((m) => m.userId === db.currentUserId)
   const meName = (currentMember && currentMember.name) || (profile && (profile.nick || profile.name)) || t('common.unknown')
 
-  // Đếm đúng toàn bộ công nợ đang chờ xử lý ở các tab:
-  // 1. Thu/hoàn theo buổi (khách chưa trả + hội viên đi thêm chưa thu/hoàn)
-  const unpaidGuests = (db.sessionGuests || []).filter((sg) => {
-    const s = sessionOf(db, sg.sessionId)
-    return s && monthOf(s.date) === db.month && !sg.paid
-  }).length
-  const unpaidAdjusts = adjustRows(db, db.month).filter((r) => !r.paid).length
-  const sessionDebtsPending = unpaidGuests + unpaidAdjusts
-  // 2. Quỹ tháng còn thiếu
-  const unpaidDues = duesOf(db, db.month).filter((x) => dueState(x).remain > 0).length
-  // 3. Quỹ nợ thành viên ứng tiền
-  const unpaidAdvances = advanceRows(db).filter((x) => !x.repaidAt).length
-  const totalDebtPending = sessionDebtsPending + unpaidDues + unpaidAdvances
+  const canMoney = can(role, 'money')
+  const debtCounts = canMoney ? clubDebtCounts(db, db.month) : myDebtCounts(db, db.month)
+  const totalDebtPending = debtCounts.total
 
   const counts = {
     unclosedSessions: monthSessions(db, db.month).filter((s) => s.status !== 'closed').length,
