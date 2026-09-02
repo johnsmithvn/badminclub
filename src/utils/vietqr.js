@@ -1,4 +1,5 @@
 // Tiện ích sinh mã VietQR chuẩn, tra cứu thông tin ngân hàng và bóc tách dữ liệu từ ảnh QR.
+import jsQR from 'jsqr'
 import banks from '#config/banks.json' with { type: 'json' }
 
 export { banks }
@@ -174,7 +175,7 @@ export function parseVietQr(rawText) {
 
 /**
  * Quét và giải mã mã QR trực tiếp từ file ảnh trên trình duyệt.
- * Sử dụng BarcodeDetector API tích hợp sẵn của trình duyệt.
+ * Dùng jsQR chạy trên Canvas context của trình duyệt (hoạt động 100% trên mọi trình duyệt).
  *
  * @param {File|Blob} file
  * @returns {Promise<string|null>} Chuỗi raw payload đọc được từ QR
@@ -182,35 +183,74 @@ export function parseVietQr(rawText) {
 export async function scanQrCodeFromImage(file) {
   if (!file) return null
 
-  // 1. Kiểm tra BarcodeDetector API (Chrome, Edge, Safari 17+, Android)
+  // 1. Quét bằng jsQR trên Canvas
+  try {
+    const rawData = await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onerror = () => resolve(null)
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onerror = () => resolve(null)
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas')
+            const ctx = canvas.getContext('2d', { willReadFrequently: true })
+            canvas.width = img.width
+            canvas.height = img.height
+            ctx.drawImage(img, 0, 0, img.width, img.height)
+            const imgData = ctx.getImageData(0, 0, img.width, img.height)
+            const code = jsQR(imgData.data, imgData.width, imgData.height, {
+              inversionAttempts: 'attemptBoth',
+            })
+            if (code && code.data) {
+              return resolve(code.data)
+            }
+
+            // Thử quét với các kích thước chuẩn để tăng độ nhạy
+            const targets = [800, 1200, 600, 400]
+            for (const targetSize of targets) {
+              if (Math.max(img.width, img.height) !== targetSize) {
+                const ratio = targetSize / Math.max(img.width, img.height)
+                const w = Math.round(img.width * ratio)
+                const h = Math.round(img.height * ratio)
+                canvas.width = w
+                canvas.height = h
+                ctx.drawImage(img, 0, 0, w, h)
+                const scaledData = ctx.getImageData(0, 0, w, h)
+                const scaledCode = jsQR(scaledData.data, scaledData.width, scaledData.height, {
+                  inversionAttempts: 'attemptBoth',
+                })
+                if (scaledCode && scaledCode.data) {
+                  return resolve(scaledCode.data)
+                }
+              }
+            }
+          } catch {
+            // Bỏ qua
+          }
+          resolve(null)
+        }
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
+    })
+
+    if (rawData) return rawData
+  } catch {
+    // Bỏ qua
+  }
+
+  // 2. Fallback sang BarcodeDetector nếu có
   if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
     try {
       const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
-      let imageSource = null
-
-      if (typeof createImageBitmap === 'function') {
-        try {
-          imageSource = await createImageBitmap(file)
-        } catch {
-          // Bỏ qua
-        }
-      }
-
-      if (!imageSource) {
-        imageSource = await new Promise((resolve, reject) => {
-          const img = new Image()
-          img.onload = () => resolve(img)
-          img.onerror = reject
-          img.src = URL.createObjectURL(file)
-        })
-      }
-
-      const barcodes = await detector.detect(imageSource)
+      const imgBitmap = await createImageBitmap(file)
+      const barcodes = await detector.detect(imgBitmap)
       if (barcodes && barcodes.length > 0) {
         return barcodes[0].rawValue || null
       }
     } catch {
-      // Bỏ qua nếu trình duyệt không hỗ trợ detector
+      // Bỏ qua
     }
   }
 
