@@ -615,6 +615,8 @@ export function adjustRows(db, monthKey) {
       settle: saved ? saved.settle : 'cash',
       paid: saved ? !!saved.paid : false,
       paidAt: saved ? saved.paidAt : null,
+      id: saved ? saved.id : null,
+      claimedAt: saved ? saved.claimedAt : null,
       saved: !!saved, orphan: false,
     })
   }
@@ -675,13 +677,87 @@ export function adjustRows(db, monthKey) {
       key: x.key, month: monthKey, member: m, group: g, kind: x.kind,
       groupId: x.groupId, memberId: x.memberId,
       sessions: x.sessions, unit: x.unit, amount: x.amount, total: u.n, fee: u.fee,
-      settle: x.settle, paid: !!x.paid, paidAt: x.paidAt, saved: true, orphan: true,
+      settle: x.settle, paid: !!x.paid, paidAt: x.paidAt,
+      id: x.id, claimedAt: x.claimedAt || null, saved: true, orphan: true,
     })
   })
 
   // Khoản to nhất lên trước, không phân biệt chiều.
   return out.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
 }
+
+/* ---------- công nợ của CHÍNH NGƯỜI ĐANG ĐĂNG NHẬP ---------- */
+
+/** Bản ghi thành viên gắn với tài khoản đang đăng nhập. null = tài khoản chưa được ghép. */
+export function myMember(db) {
+  if (!db || !db.currentUserId) return null
+  return (db.members || []).find((m) => m.userId === db.currentUserId && m.active !== false) || null
+}
+
+/**
+ * Các khoản CHÍNH MÌNH còn nợ CLB trong tháng, gộp cả ba nguồn về một danh sách phẳng.
+ *
+ * CHỈ chiều NGƯỜI NỢ QUỸ. Khoản quỹ nợ lại (hoàn tiền vắng, `amount < 0`) không nằm ở đây:
+ * đó là tiền chảy ngược, thành viên không đi trả cái đó, và hiện nút "Trả" lên là mời người
+ * ta chuyển tiền cho khoản đáng lẽ được nhận.
+ *
+ * Cố ý KHÔNG đi qua khối gộp-theo-người của màn Công nợ: khối đó tách một dòng đối chiếu
+ * thành nhiều dòng theo từng buổi để thủ quỹ soi, mà `id` thì vẫn là một — người tự khai sẽ
+ * thấy cùng một khoản nằm ba dòng. Ở đây một khoản là một dòng, đúng cái người ta đi chuyển.
+ *
+ * `claimedAt` khác null = đã khai, đang chờ duyệt. Xem migration 0018.
+ */
+export function myDebts(db, monthKey) {
+  const me = myMember(db)
+  if (!me) return []
+  const out = []
+
+  // 1. Quỹ tháng — chỉ phần CÒN THIẾU, vì đóng thiếu vẫn là còn nợ.
+  duesOf(db, monthKey)
+    .filter((d) => d.memberId === me.id)
+    .forEach((d) => {
+      const st = dueState(d)
+      if (st.remain <= 0) return
+      out.push({
+        kind: 'dues', id: d.id, key: 'dues:' + d.id,
+        label: t('debts.myKind.dues'),
+        sub: groupOf(db, d.groupId).name || '',
+        date: d.month + '-01', amount: st.remain,
+        claimedAt: d.claimedAt || null,
+      })
+    })
+
+  // 2. Đối chiếu buổi (đi thêm ca cố định). `id` rỗng = khoản chưa từng ghi xuống DB, không
+  // khai được — RPC khoá theo id thật, khai một khoản chưa tồn tại là ném lỗi vô nghĩa.
+  adjustRows(db, monthKey)
+    .filter((r) => r.memberId === me.id && r.amount > 0 && !r.paid && r.id)
+    .forEach((r) => out.push({
+      kind: 'adjust', id: r.id, key: 'adj:' + r.id,
+      label: t('debts.myKind.adjust'),
+      sub: (r.group && r.group.name) || '',
+      date: r.month + '-28', amount: r.amount,
+      claimedAt: r.claimedAt || null,
+    }))
+
+  // 3. Buổi đi đột xuất (dòng thu của THÀNH VIÊN trong session_guests).
+  ;(db.sessionGuests || [])
+    .filter((g) => g.memberId === me.id && !g.paid)
+    .forEach((g) => {
+      const s = sessionOf(db, g.sessionId)
+      if (!s || monthOf(s.date) !== monthKey) return
+      out.push({
+        kind: 'guest', id: g.id, key: 'sg:' + g.id,
+        label: t('debts.myKind.guest'),
+        sub: courtTxt(db, s), date: s.date, amount: g.price,
+        claimedAt: g.claimedAt || null,
+      })
+    })
+
+  return out.sort((a, b) => (a.date < b.date ? -1 : 1))
+}
+
+/** Tổng tiền và tổng số khoản đang chờ duyệt của một danh sách `myDebts()`. */
+export const debtSum = (items) => items.reduce((n, x) => n + x.amount, 0)
 
 /**
  * Khoản đối chiếu còn treo của một người, đã chọn "trừ vào quỹ tháng sau" mà chưa xử lý.

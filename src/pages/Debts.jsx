@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
-import { Empty, GRID_PAIR, Mono, Overline, QrModal } from '#ui'
+import { Empty, GRID_PAIR, Mono, Overline, PayDebtsDialog, QrModal } from '#ui'
 import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, wd } from '#utils/dates.js'
 import {
   adjustRows, advanceRows, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
-  genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, sessionOf, timeTxt,
+  genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, myMember, sessionOf, timeTxt,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
@@ -20,6 +20,34 @@ const norm = (s) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá chữ để tìm kiếm, không phải chữ hiện ra
     .trim()
+
+/**
+ * Nhãn + màu trạng thái một khoản. Ba trạng thái chứ không phải hai kể từ migration 0018:
+ * đã trả · ĐANG CHỜ DUYỆT (thành viên tự khai đã chuyển) · chưa trả.
+ */
+/**
+ * Nhãn + icon của NÚT hành động. Khoản đang chờ duyệt vẫn dùng đúng nút tick cũ (bấm là bật
+ * `paid`, sổ quỹ tự có dòng thu) — nhưng phải nói là DUYỆT, không phải "Bấm để Thu": người
+ * bấm cần biết mình đang xác nhận lời khai của thành viên chứ không phải vừa cầm tiền mặt.
+ */
+const actionLabel = (item) =>
+  t(item.paid
+    ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
+    : item.claimedAt
+      ? 'debts.approveClaim'
+      : (item.isRefund ? 'debts.tapRefund' : 'debts.tapCollect'))
+
+actionLabel.icon = (item) =>
+  (item.paid ? 'circle-check' : item.claimedAt ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins')
+
+const stateLabel = (item) =>
+  t(item.paid
+    ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
+    : item.claimedAt
+      ? 'debts.waitApprove'
+      : (item.isRefund ? 'debts.unpaidRefund' : 'debts.unpaidCollect'))
+
+const stateStyle = (item) => (item.paid ? S.pillPaid : item.claimedAt ? S.pillWait : S.pillUnpaid)
 
 export default function Debts() {
   const { db, ui, a } = useApp()
@@ -60,6 +88,39 @@ export default function Debts() {
 
 /* ---------------- THU / HOÀN THEO BUỔI (TABLE & GRID) ---------------- */
 
+/**
+ * Xác nhận TRẢ TIỀN RA cho thành viên (hoàn tiền vắng · trả khoản họ đã ứng).
+ *
+ * Chiều ngược với luồng thành viên tự khai: ở đây hiện QR + tài khoản của CHÍNH NGƯỜI NHẬN
+ * để người giữ quỹ quét, chuyển, rồi mới ghi sổ. KHÔNG có bước duyệt — người bấm nút cũng
+ * chính là người cầm tiền, không có ai thứ hai để xác nhận.
+ *
+ * Người nhận chưa điền tài khoản thì QrModal tự hiện "chưa có mã QR"; nút xác nhận vẫn bấm
+ * được vì trả tiền mặt là chuyện thường.
+ */
+function RefundConfirm({ target, onClose }) {
+  if (!target) return null
+  const { name, bankHolder, bankNo, bankName, amount, run } = target
+  return (
+    <QrModal
+      title={t('debts.refundQrTitle', { name })}
+      qrUrl={getVietQrUrl({
+        bankCode: (findBank(bankName) || {}).bin || bankName,
+        accountNo: bankNo,
+        accountHolder: bankHolder || name,
+        amount,
+      })}
+      bankName={bankName}
+      accountNo={bankNo}
+      accountHolder={bankHolder || name}
+      amount={fmt(amount)}
+      confirmLabel={t('debts.refundConfirm')}
+      onConfirm={() => { run(); onClose() }}
+      onClose={onClose}
+    />
+  )
+}
+
 function SessionDebts({ canMoney }) {
   const { db, a } = useApp()
   const [expanded, setExpanded] = useState({})
@@ -71,6 +132,26 @@ function SessionDebts({ canMoney }) {
   const [typeFilter, setTypeFilter] = useState('') // '' | 'member' | 'guest'
   const [confirmCollect, setConfirmCollect] = useState(null)
   const [qrTarget, setQrTarget] = useState(null)
+  const [payMine, setPayMine] = useState(null)
+  const [refundTarget, setRefundTarget] = useState(null)
+  const me = myMember(db)
+
+  /**
+   * Các khoản của một người mà THÀNH VIÊN tự khai được: còn nợ, chưa khai, có id thật, và
+   * đúng chiều người-nợ-quỹ. Gộp theo `kind:id` vì một dòng đối chiếu bị tách thành nhiều
+   * dòng theo từng buổi để thủ quỹ soi — gửi trùng id lên RPC là vô nghĩa, còn cộng dồn
+   * `price` mới ra đúng số tiền phải chuyển.
+   */
+  const claimable = (p) => {
+    const byRef = {}
+    p.unpaidItems.forEach((x) => {
+      if (x.isRefund || x.claimedAt || !x.claimRef) return
+      const k = x.claimRef.kind + ':' + x.claimRef.id
+      if (!byRef[k]) byRef[k] = { ...x.claimRef, amount: 0 }
+      byRef[k].amount += x.price
+    })
+    return Object.values(byRef)
+  }
 
   // Map người chơi
   const peopleMap = {}
@@ -119,7 +200,9 @@ function SessionDebts({ canMoney }) {
       groupName: group?.name || t('debts.adhocGroup'),
       price: sg.price,
       paid: !!sg.paid,
-      canEdit: !sg.paid,
+      claimedAt: sg.claimedAt || null,
+      claimRef: { kind: 'guest', id: sg.id },
+      canEdit: !sg.paid && !sg.claimedAt,
     })
   })
 
@@ -172,7 +255,9 @@ function SessionDebts({ canMoney }) {
           price: unitPrice,
           paid: !!r.paid,
           settle: r.settle,
-          canEdit: !r.paid,
+          claimedAt: r.claimedAt || null,
+          claimRef: r.id ? { kind: 'adjust', id: r.id } : null,
+          canEdit: !r.paid && !r.claimedAt,
         })
       })
     } else {
@@ -189,7 +274,9 @@ function SessionDebts({ canMoney }) {
         price: Math.abs(r.amount),
         paid: !!r.paid,
         settle: r.settle,
-        canEdit: !r.paid,
+        claimedAt: r.claimedAt || null,
+        claimRef: r.id ? { kind: 'adjust', id: r.id } : null,
+        canEdit: !r.paid && !r.claimedAt,
       })
     }
   })
@@ -266,7 +353,7 @@ function SessionDebts({ canMoney }) {
     }
   }
 
-  const handleSettleItem = (item) => {
+  const doSettleItem = (item) => {
     if (item.type === 'guest') {
       a.toggleGuestPaid(item.sgId)
     } else if (item.adjustKey) {
@@ -274,7 +361,31 @@ function SessionDebts({ canMoney }) {
     }
   }
 
+  // Tiền ĐI RA thì phải qua bước xem QR của người nhận đã. Tiền ĐI VÀO giữ nguyên đường cũ:
+  // người giữ quỹ cầm tiền mặt tại sân, bấm một nhát là xong.
+  const handleSettleItem = (item, person) => {
+    if (item.isRefund && !item.paid && person) {
+      setRefundTarget({
+        name: person.name,
+        bankHolder: person.bankHolder, bankNo: person.bankNo, bankName: person.bankName,
+        amount: item.price,
+        run: () => doSettleItem(item),
+      })
+      return
+    }
+    doSettleItem(item)
+  }
+
   const handleSettleAll = (person) => {
+    if (person.unpaidRefund > 0 && person.unpaidDue === 0) {
+      setRefundTarget({
+        name: person.name,
+        bankHolder: person.bankHolder, bankNo: person.bankNo, bankName: person.bankName,
+        amount: person.unpaidRefund,
+        run: () => executeSettleAll(person),
+      })
+      return
+    }
     setConfirmCollect(person)
   }
 
@@ -464,6 +575,16 @@ function SessionDebts({ canMoney }) {
                         {t(p.unpaidRefund > 0 && p.unpaidDue === 0 ? 'debts.payAll' : 'debts.collectAll')}
                       </Button>
                     )}
+                    {!canMoney && me && p.id === me.id && claimable(p).length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon="banknote"
+                        onClick={() => setPayMine(claimable(p))}
+                      >
+                        {t('debts.payMine', { amount: fmt(claimable(p).reduce((n, x) => n + x.amount, 0)) })}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -503,7 +624,7 @@ function SessionDebts({ canMoney }) {
                                   <Input
                                     size="sm"
                                     mono
-                                    disabled={!canMoney || item.paid}
+                                    disabled={!canMoney || item.paid || !!item.claimedAt}
                                     value={currentPrice}
                                     onChange={(e) => handlePriceChange(item.key, e.target.value)}
                                     onBlur={() => handlePriceBlur(item)}
@@ -512,29 +633,32 @@ function SessionDebts({ canMoney }) {
                                   />
                                 </td>
                                 <td style={{ ...S.td, textAlign: 'center' }}>
-                                  <span style={item.paid ? S.pillPaid : S.pillUnpaid}>
-                                    {t(item.paid
-                                      ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
-                                      : (item.isRefund ? 'debts.unpaidRefund' : 'debts.unpaidCollect'))}
+                                  <span style={stateStyle(item)}>
+                                    {stateLabel(item)}
                                   </span>
                                 </td>
                                 <td style={{ ...S.td, textAlign: 'right' }}>
+                                  {canMoney && item.claimedAt && !item.paid && item.claimRef && (
+                                    <IconButton
+                                      icon="circle-x"
+                                      size="sm"
+                                      variant="ghost"
+                                      label={t('debts.rejectClaim')}
+                                      onClick={() => a.rejectClaim(item.claimRef)}
+                                    />
+                                  )}
                                   {canMoney ? (
                                     <Button
                                       size="sm"
                                       variant={item.paid ? 'ghost' : 'secondary'}
-                                      icon={item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins'}
-                                      onClick={() => handleSettleItem(item)}
+                                      icon={actionLabel.icon(item)}
+                                      onClick={() => handleSettleItem(item, p)}
                                     >
-                                      {t(item.paid
-                                        ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
-                                        : (item.isRefund ? 'debts.tapRefund' : 'debts.tapCollect'))}
+                                      {actionLabel(item)}
                                     </Button>
                                   ) : (
-                                    <span style={item.paid ? S.pillPaid : S.pillUnpaid}>
-                                      {t(item.paid
-                                        ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
-                                        : (item.isRefund ? 'debts.unpaidRefund' : 'debts.unpaidCollect'))}
+                                    <span style={stateStyle(item)}>
+                                      {stateLabel(item)}
                                     </span>
                                   )}
                                 </td>
@@ -626,29 +750,36 @@ function SessionDebts({ canMoney }) {
                           <Input
                             size="sm"
                             mono
-                            disabled={!canMoney || item.paid}
+                            disabled={!canMoney || item.paid || !!item.claimedAt}
                             value={currentPrice}
                             onChange={(e) => handlePriceChange(item.key, e.target.value)}
                             onBlur={() => handlePriceBlur(item)}
                             style={{ width: 95, textAlign: 'right' }}
                             suffix={t('units.dong')}
                           />
+                          {canMoney && item.claimedAt && !item.paid && item.claimRef && (
+                            <IconButton
+                              icon="circle-x"
+                              size="sm"
+                              variant="ghost"
+                              label={t('debts.rejectClaim')}
+                              onClick={() => a.rejectClaim(item.claimRef)}
+                            />
+                          )}
                           {canMoney ? (
                             <Button
                               size="sm"
                               variant={item.paid ? 'ghost' : 'secondary'}
-                              icon={item.paid ? 'circle-check' : item.isRefund ? 'send' : 'hand-coins'}
-                              onClick={() => handleSettleItem(item)}
+                              icon={actionLabel.icon(item)}
+                              onClick={() => handleSettleItem(item, p)}
                             >
                               {t(item.paid
                                 ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
                                 : (item.isRefund ? 'debts.doRefund' : 'debts.doCollect'))}
                             </Button>
                           ) : (
-                            <span style={item.paid ? S.pillPaid : S.pillUnpaid}>
-                              {t(item.paid
-                                      ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
-                                      : (item.isRefund ? 'debts.unpaidRefund' : 'debts.unpaidCollect'))}
+                            <span style={stateStyle(item)}>
+                              {stateLabel(item)}
                             </span>
                           )}
                         </div>
@@ -718,6 +849,12 @@ function SessionDebts({ canMoney }) {
         </Dialog>
       )}
 
+      <RefundConfirm target={refundTarget} onClose={() => setRefundTarget(null)} />
+
+      {payMine && (
+        <PayDebtsDialog items={payMine} memo={me.name} onClose={() => setPayMine(null)} />
+      )}
+
       {qrTarget && (
         <QrModal
           title={t('bank.qrTitle') + ' · ' + qrTarget.name}
@@ -741,7 +878,8 @@ function SessionDebts({ canMoney }) {
 /* ---------------- THÀNH VIÊN ỨNG TIỀN (QUỸ NỢ) ---------------- */
 
 function Advances({ rows, canMoney }) {
-  const { a } = useApp()
+  const { db, a } = useApp()
+  const [refundTarget, setRefundTarget] = useState(null)
   const owing = rows.filter((r) => !r.repaidAt)
   const total = owing.reduce((x, r) => x + r.amount, 0)
 
@@ -763,6 +901,7 @@ function Advances({ rows, canMoney }) {
     >
       <div style={{ display: 'grid', gap: 10 }}>
         <Alert tone="info" title={t('debts.advanceAlertTitle')}>{t('debts.advanceAlert')}</Alert>
+        <RefundConfirm target={refundTarget} onClose={() => setRefundTarget(null)} />
         {rows.map((r) => (
           <div key={r.kind + r.id} style={{ ...S.row, opacity: r.repaidAt ? 0.6 : 1 }}>
             <Avatar name={r.name} size={30} />
@@ -779,7 +918,16 @@ function Advances({ rows, canMoney }) {
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <Button size="sm" variant={r.repaidAt ? 'ghost' : 'secondary'}
                   icon={r.repaidAt ? 'rotate-ccw' : 'circle-check'}
-                  onClick={() => a.repayAdvance(r.kind, r.id)}>
+                  onClick={() => {
+                    if (r.repaidAt) return a.repayAdvance(r.kind, r.id)
+                    const mb = memberOf(db, r.memberId)
+                    return setRefundTarget({
+                      name: r.name,
+                      bankHolder: mb.bankHolder, bankNo: mb.bankNo, bankName: mb.bankName,
+                      amount: r.amount,
+                      run: () => a.repayAdvance(r.kind, r.id),
+                    })
+                  }}>
                   {r.repaidAt ? t('debts.advanceUndo') : t('debts.advanceRepay')}
                 </Button>
                 <IconButton
@@ -1164,6 +1312,11 @@ const S = {
   pillUnpaid: {
     padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600,
     background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)',
+    display: 'inline-block', whiteSpace: 'nowrap',
+  },
+  pillWait: {
+    padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+    background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)',
     display: 'inline-block', whiteSpace: 'nowrap',
   },
   pillPartial: {

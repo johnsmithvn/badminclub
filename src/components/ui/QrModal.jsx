@@ -13,8 +13,14 @@ const Mono = ({ children, color, weight, size, style }) => (
 
 /**
  * Modal hiển thị phóng to mã QR thanh toán kèm thông tin tài khoản và nút Copy nhanh.
+ *
+ * Truyền `onConfirm` thì có thêm nút xác nhận — dùng cho luồng thành viên tự khai đã chuyển
+ * tiền. Không truyền thì modal chỉ để xem, đúng như mọi chỗ đang gọi.
  */
-export function QrModal({ title, qrUrl, bankName, accountNo, accountHolder, amount, memo, onClose }) {
+export function QrModal({
+  title, qrUrl, bankName, accountNo, accountHolder, amount, memo, onClose,
+  onConfirm, confirmLabel, confirming,
+}) {
   const [copied, setCopied] = useState(false)
 
   const copyAccountNo = () => {
@@ -34,9 +40,18 @@ export function QrModal({ title, qrUrl, bankName, accountNo, accountHolder, amou
           <Button variant="secondary" icon={copied ? 'check' : 'copy'} onClick={copyAccountNo}>
             {copied ? t('common.copied') : t('bank.copyNo')}
           </Button>
-          <Button variant="primary" onClick={onClose}>
-            {t('common.close')}
-          </Button>
+          {onConfirm ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="secondary" onClick={onClose}>{t('common.close')}</Button>
+              <Button variant="primary" icon="circle-check" disabled={confirming} onClick={onConfirm}>
+                {confirmLabel || t('common.confirm')}
+              </Button>
+            </div>
+          ) : (
+            <Button variant="primary" onClick={onClose}>
+              {t('common.close')}
+            </Button>
+          )}
         </div>
       }
     >

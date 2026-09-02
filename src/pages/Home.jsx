@@ -1,12 +1,14 @@
 // Trang chủ: tab Tổng quan + tab Báo cáo (handoff 02 §1).
 
-import { Alert, Avatar, Button, Card, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
-import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, SessionPill } from '#ui'
+import { useState } from 'react'
+import { Alert, Avatar, Button, Card, Checkbox, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
+import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, PayDebtsDialog, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, monthTxt } from '#utils/dates.js'
 import {
   adjustRows, advanceRows, costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
-  groupMembers, groupOf, guestOf, homeAlerts, isPresent, memberOf, monthSessions, sessionOf,
+  groupMembers, groupOf, guestOf, homeAlerts, isPresent, memberOf, monthSessions, myDebts,
+  myMember, sessionOf,
   stock, timeTxt,
 } from '#lib/money.js'
 import { monthFlow } from '#lib/ledger.js'
@@ -224,6 +226,7 @@ function Overview() {
   return (
     <>
       <Warnings />
+      <MyDebts />
       <Setup />
       {/* 4 thẻ tài chính chuẩn từ Sổ quỹ */}
       <FundOverviewCards />
@@ -519,6 +522,112 @@ function Overview() {
         </div>
         <FundBalanceColumns />
       </div>
+    </>
+  )
+}
+
+/* ---------------- Công nợ của tôi (thành viên đã ghép tài khoản) ---------------- */
+
+/**
+ * Thành viên tự xem khoản mình còn nợ và khai đã chuyển tiền. Ẩn hoàn toàn khi tài khoản
+ * chưa ghép vào bản ghi thành viên nào, hoặc tháng này không nợ đồng nào — không ai cần một
+ * cái thẻ báo "bạn không nợ gì".
+ *
+ * Khai xong KHÔNG tự trừ nợ: khoản chuyển sang "chờ duyệt" cho tới khi người giữ quỹ xác nhận.
+ * Bị từ chối thì `claimed_at` về NULL và khoản hiện lại ở nhóm trên. Xem migration 0018.
+ */
+function MyDebts() {
+  const { db } = useApp()
+  const [picked, setPicked] = useState({})
+  const [payList, setPayList] = useState(null)
+
+  const me = myMember(db)
+  const items = me ? myDebts(db, db.month) : []
+  if (!items.length) return null
+
+  const open = items.filter((x) => !x.claimedAt)
+  const waiting = items.filter((x) => x.claimedAt)
+  const chosen = open.filter((x) => picked[x.key])
+  const bank = (db.club && db.club.bank) || {}
+  const hasBank = Boolean(bank.no && bank.bank)
+  const total = (list) => list.reduce((n, x) => n + x.amount, 0)
+
+  const row = (x, canPick) => (
+    <div key={x.key} style={SS.debtRow}>
+      {canPick ? (
+        <Checkbox
+          checked={!!picked[x.key]}
+          onChange={(e) => setPicked((p) => ({ ...p, [x.key]: e.target.checked }))}
+        />
+      ) : (
+        <Icon name="clock-alert" size={15} style={{ color: 'var(--status-delayed)' }} />
+      )}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
+          {x.label}
+        </div>
+        <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+          {ddmy(x.date)}{x.sub ? ' · ' + x.sub : ''}
+        </div>
+      </div>
+      <Mono weight={700} color={canPick ? 'var(--status-incident)' : 'var(--text-muted)'}>
+        {fmt(x.amount)}
+      </Mono>
+    </div>
+  )
+
+  return (
+    <>
+      <Card
+        title={t('home.myDebt.title')}
+        subtitle={t('home.myDebt.sub', { n: items.length, amount: fmt(total(items)) })}
+        icon="wallet"
+        padding="14px 16px"
+      >
+        <div style={{ display: 'grid', gap: 10 }}>
+          {waiting.length > 0 && (
+            <div style={{ display: 'grid', gap: 6 }}>
+              <Overline>{t('home.myDebt.waiting', { n: waiting.length })}</Overline>
+              {waiting.map((x) => row(x, false))}
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                {t('home.myDebt.waitingHint')}
+              </div>
+            </div>
+          )}
+
+          {open.length > 0 && (
+            <div style={{ display: 'grid', gap: 6 }}>
+              {waiting.length > 0 && <Overline>{t('home.myDebt.open')}</Overline>}
+              {open.map((x) => row(x, true))}
+
+              {!hasBank ? (
+                <Alert tone="warning" title={t('home.myDebt.noBank')} />
+              ) : (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <Button
+                    variant="secondary" size="sm" icon="send"
+                    disabled={!chosen.length}
+                    onClick={() => setPayList(chosen)}
+                  >
+                    {t('home.myDebt.payPicked', { n: chosen.length, amount: fmt(total(chosen)) })}
+                  </Button>
+                  <Button variant="primary" size="sm" icon="banknote" onClick={() => setPayList(open)}>
+                    {t('home.myDebt.payAll', { amount: fmt(total(open)) })}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {payList && (
+        <PayDebtsDialog
+          items={payList}
+          memo={me.name}
+          onClose={() => { setPicked({}); setPayList(null) }}
+        />
+      )}
     </>
   )
 }

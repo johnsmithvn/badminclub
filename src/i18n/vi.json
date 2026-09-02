@@ -400,6 +400,18 @@
     "descSession": "Buổi {{date}}",
     "descDuesShort": "Quỹ tháng thiếu {{amount}}",
     "descBack": "Hoàn vắng {{what}}",
+    "myDebt": {
+      "title": "Công nợ của tôi",
+      "sub": "{{n}} khoản · {{amount}}",
+      "waiting": "Chờ duyệt ({{n}})",
+      "waitingHint": "Chủ CLB hoặc thủ quỹ sẽ xác nhận khi nhận được tiền. Bị từ chối thì khoản nợ hiện lại ở trên.",
+      "open": "Chưa khai",
+      "payPicked": "Trả {{n}} khoản đã chọn · {{amount}}",
+      "payAll": "Trả tất cả · {{amount}}",
+      "confirmSent": "Tôi đã chuyển",
+      "noBank": "CLB chưa có tài khoản nhận tiền — báo chủ CLB điền ở Cài đặt",
+      "qrTitle": "Chuyển tiền cho CLB"
+    },
     "debtToCollect": "Nợ cần thu",
     "debtorCount": "{{n}} người đang nợ",
     "debtAllPaid": "Đã thu đủ",
@@ -521,6 +533,9 @@
     "guestDup": "{{name}} đã có trong buổi này rồi — mỗi khách chỉ một lượt mỗi buổi",
     "guestRemoved": "Đã bỏ khách khỏi buổi",
     "debtCollected": "Đã thu hết nợ {{name}}",
+    "claimSent": "Đã gửi khai báo {{n}} khoản, chờ duyệt",
+    "claimNothing": "Không khoản nào khai được — có thể vừa được duyệt hoặc đã khai rồi",
+    "claimRejected": "Đã từ chối, khoản nợ hiện lại cho thành viên",
     "duePaid": "Đã nhận {{amount}} của {{name}} — đủ quỹ tháng",
     "dueUnpaid": "Đã bỏ đánh dấu đóng quỹ {{name}}",
     "backPaid": "Đã đánh dấu trả back",
@@ -1084,6 +1099,17 @@
     "fTo": "Đến giờ"
   },
   "debts": {
+    "payMine": "Trả nợ của tôi · {{amount}}",
+    "refundQrTitle": "Trả tiền cho {{name}}",
+    "refundConfirm": "Xác nhận đã chuyển",
+    "approveClaim": "Duyệt đã nhận",
+    "waitApprove": "Chờ duyệt",
+    "rejectClaim": "Từ chối khai báo đã chuyển",
+    "myKind": {
+      "dues": "Quỹ tháng",
+      "adjust": "Đi thêm buổi",
+      "guest": "Buổi đi lẻ"
+    },
     "tabSessions": "Thu / Hoàn theo buổi",
     "tabDues": "Quỹ tháng",
     "tabAdvance": "Quỹ nợ",

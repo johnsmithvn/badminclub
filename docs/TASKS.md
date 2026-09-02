@@ -697,6 +697,27 @@ Không đụng schema, không migration mới.
 ## Phase 8 — Sau đó (đã có bảng, chưa cần code)
 
 - [ ] Nhắc điểm danh / đóng quỹ / nợ (`notifications`)
+- [ ] **Thông báo cho hai luồng thanh toán — gắn nợ sau khi dựng xong 0018 (2026-09-02).**
+      Bảng `notifications` ĐÃ CÓ từ `0001_init.sql` (`member_id`, `kind`, `channel`, `payload`,
+      `status`) và app chưa dùng. Chỉ cần nới `CHECK (channel IN ('push','zalo'))` thêm `'inapp'`.
+
+      **Luồng 1 — tiền VÀO (thành viên tự khai, có duyệt).** Báo khi chủ CLB / thủ quỹ
+      duyệt hoặc từ chối.
+      · Duyệt — dựng lại được bất cứ lúc nào: `paid = true AND claimed_at IS NOT NULL` chính là
+        dấu "khoản này do thành viên tự khai rồi được duyệt" — cố ý giữ `claimed_at` khi duyệt
+        chính là để dành cho việc này.
+      · **Từ chối — KHÔNG dựng lại được.** Nó đặt `claimed_at = NULL`, sau đó không phân biệt
+        được "vừa bị từ chối" với "chưa khai bao giờ". Dòng `notifications` **phải ghi ngay tại
+        thời điểm từ chối**, không backfill được. Điểm móc: `appActions.js: rejectClaim()` — một
+        hàm duy nhất, cố ý không rải `claimedAt: null` trong JSX.
+
+      **Luồng 2 — tiền RA (CLB trả / hoàn, không có duyệt).** Báo khi quỹ đã chuyển tiền
+      cho thành viên. Điểm móc: `Debts.jsx: RefundConfirm` → `run()` (gọi `settleAdjust` /
+      `repayAdvance`). Luồng này không thêm cột nào, trạng thái nằm sẵn ở `paid_at` / `repaid_at`
+      nên dựng lại được — không gấp như nhánh từ chối ở trên.
+
+      **Chưa có realtime** ([Phase 8] cùng danh sách này): hiện phải F5 mới thấy. Thông báo
+      cần realtime hoặc polling — quyết ở lúc đó, không ảnh hưởng schema.
 - [ ] Zalo OA (`zalo_links`) — hiện tại chỉ có "copy báo cáo Zalo" dạng text
 - [ ] Bản mobile cho vai `member`: 3 màn Trang chủ · Chia sân · Cá nhân (density Driver App)
 

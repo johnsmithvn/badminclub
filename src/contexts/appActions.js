@@ -576,6 +576,49 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
       toast(t('toast.guestDeleted', { name: was.name }))
     },
+    /* ---------- thành viên tự khai đã chuyển tiền (migration 0018) ---------- */
+
+    /**
+     * Gửi khai báo cho N khoản của CHÍNH MÌNH. Đi qua RPC chứ không qua đồng bộ diff: RLS chỉ
+     * cho thành viên thường ĐỌC ba bảng nợ, và mở quyền ghi cho họ thì phải chặn cột `paid`
+     * bằng trigger trên cả ba bảng — hàm chỉ chạm đúng một cột rẻ hơn hẳn.
+     *
+     * RPC trả về SỐ DÒNG khai được, có thể nhỏ hơn số gửi lên (khoản vừa được thủ quỹ tick,
+     * hoặc đã khai ở thiết bị khác). Nói ra thay vì báo thành công khống.
+     */
+    claimPayments: async (items) => {
+      const list = (items || []).filter((x) => x && x.kind && x.id)
+      if (!list.length) return
+      try {
+        const n = unwrap(await supabase.rpc('claim_payments', {
+          p_club: db().clubId,
+          p_items: list.map((x) => ({ kind: x.kind, id: x.id })),
+        }))
+        await reload()
+        toast(n > 0 ? t('toast.claimSent', { n }) : t('toast.claimNothing'))
+      } catch (e) {
+        const m = String(e.message || '')
+        toast(/claim_payments|schema cache/i.test(m) ? t('sync.needMigrate') : m)
+      }
+    },
+
+    /**
+     * Từ chối: xoá `claimed_at`, khoản nợ hiện lại cho thành viên.
+     *
+     * Đây là thao tác XOÁ DẤU VẾT — sau khi chạy thì không phân biệt được "vừa bị từ chối"
+     * với "chưa khai bao giờ". Khi làm thông báo, dòng `notifications` phải ghi NGAY TẠI ĐÂY;
+     * không dựng lại được từ DB về sau.
+     */
+    rejectClaim: ({ kind, id }) => {
+      const clear = (x) => (x.id === id ? { ...x, claimedAt: null } : x)
+      up((d) => (
+        kind === 'dues' ? { dues: d.dues.map(clear) }
+        : kind === 'guest' ? { sessionGuests: d.sessionGuests.map(clear) }
+        : { adjustments: (d.adjustments || []).map(clear) }
+      ))
+      toast(t('toast.claimRejected'))
+    },
+
     toggleGuestPaid: (id) =>
       up((d) => ({
         sessionGuests: d.sessionGuests.map((g) => (g.id === id ? { ...g, paid: !g.paid, paidAt: !g.paid ? d.today : null } : g)),
@@ -584,10 +627,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      * Sửa đè giá một lượt thu. Bảng giá theo trình độ chỉ là GỢI Ý — CLB miễn cho người mới,
      * lấy rẻ người nhà, thu thêm người đến muộn… đều là chuyện thường. Đã thu rồi thì khoá:
      * sửa số sau khi tiền vào quỹ là sổ quỹ lệch mà không có dòng nào giải thích.
+     *
+     * ĐANG CHỜ DUYỆT cũng khoá: người ta đã chuyển đúng số cũ rồi, sửa lúc này là duyệt xong
+     * thì sổ ghi một số mà tài khoản nhận một số khác.
      */
     setChargePrice: (id, v) =>
       up((d) => ({
-        sessionGuests: d.sessionGuests.map((g) => (g.id === id && !g.paid ? { ...g, price: intOf(v) } : g)),
+        sessionGuests: d.sessionGuests.map((g) =>
+          (g.id === id && !g.paid && !g.claimedAt ? { ...g, price: intOf(v) } : g)),
       })),
     removeGuest: (id) => {
       up((d) => ({ sessionGuests: d.sessionGuests.filter((g) => g.id !== id) }))

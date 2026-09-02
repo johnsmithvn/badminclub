@@ -133,6 +133,7 @@ export function toDb(raw, ctx) {
       id: g.id, sessionId: s.id, guestId: g.guest_id || null, memberId: g.member_id || null,
       level: g.level, gender: g.gender,
       price: num(g.price), paid: g.paid, invitedBy: g.invited_by || '',
+      claimedAt: g.claimed_at || null,
     }))
 
     ;(s.matches || []).forEach((mt) => matches.push({
@@ -183,6 +184,7 @@ export function toDb(raw, ctx) {
     month: x.month, groupId: x.group_id, memberId: x.member_id, kind: x.kind,
     sessions: x.sessions, unit: num(x.unit_price), amount: num(x.amount),
     settle: x.settle, paid: !!x.paid, paidAt: x.paid_at || null,
+    claimedAt: x.claimed_at || null,
   }))
 
   // Một dòng giá / trình độ, hai cột nam-nữ — đúng hình mà màn Cài đặt đang dùng.
@@ -221,6 +223,7 @@ export function toDb(raw, ctx) {
       id: d.id, month: d.month, groupId: d.group_id, memberId: d.member_id,
       // `paid_amount` là nguồn sự thật; cột `paid` chỉ còn là bản sao suy ra (xem 0009).
       amount: num(d.amount), paidAmount: num(d.paid_amount), paidAt: d.paid_at || null,
+      claimedAt: d.claimed_at || null,
       method: d.method || '', note: d.note || '',
     })),
     courtBills: (raw.courtBills || []).map((b) => ({
@@ -369,6 +372,7 @@ export function toRows(db, ctx) {
     id: g.id, session_id: g.sessionId, guest_id: uu(g.guestId), member_id: uu(g.memberId),
     level: g.level, gender: g.gender,
     price: g.price, invited_by: uu(g.invitedBy), paid: !!g.paid,
+    claimed_at: g.claimedAt || null,
   }))
 
   Object.keys(db.lineups || {}).forEach((sid) => {
@@ -427,6 +431,7 @@ export function toRows(db, ctx) {
     // `paid` là cột DEPRECATED, ghi lại như bản sao suy ra để nó không nói dối với báo cáo SQL cũ.
     paid: (d.paidAmount || 0) >= d.amount,
     paid_at: d.paidAt || null, method: d.method || null, note: d.note || null,
+    claimed_at: d.claimedAt || null,
   }))
 
   // Ghi ĐỦ số, không chỉ cờ `paid` như bảng back_credits cũ: khoản đã chốt phải đọc được
@@ -435,6 +440,7 @@ export function toRows(db, ctx) {
     id: x.id, club_id: cid, month: x.month, group_id: x.groupId, member_id: x.memberId,
     kind: x.kind, sessions: x.sessions || 0, unit_price: x.unit || 0, amount: x.amount || 0,
     settle: x.settle || 'cash', paid: !!x.paid, paid_at: x.paidAt || null,
+    claimed_at: x.claimedAt || null,
   }))
 
   db.courtBills.forEach((b) => put('court_bills', {

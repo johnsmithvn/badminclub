@@ -212,7 +212,7 @@ assert.deepEqual(back.locked, { '2026-08': true })
 assert.deepEqual(back.adjustments, [{
   id: 'aj1', key: '2026-08:gr1:m1:absent_back', month: '2026-08', groupId: 'gr1', memberId: 'm1',
   kind: 'absent_back', sessions: 2, unit: 40000, amount: -80000, settle: 'cash',
-  paid: true, paidAt: '2026-08-28',
+  paid: true, paidAt: '2026-08-28', claimedAt: null,
 }], 'bảng đối chiếu phải mang ĐỦ số xuống client, không chỉ cờ paid như back_credits cũ')
 assert.deepEqual(back.guestPrices, [
   { level: 'Y', nam: 0, nu: 50000 },
