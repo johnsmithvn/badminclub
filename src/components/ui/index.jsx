@@ -327,6 +327,70 @@ export function DeleteClubDialog({ club, onClose, onDone }) {
   )
 }
 
+export function GenderSegment({ label, value, onChange, style }) {
+  const isMale = value === 'nam'
+  return (
+    <div style={{ display: 'grid', gap: 4, ...style }}>
+      {label && (
+        <label style={{
+          font: 'var(--type-label)', color: 'var(--text-secondary)',
+          fontSize: 12, display: 'block',
+        }}>
+          {label}
+        </label>
+      )}
+      <div style={{
+        display: 'flex',
+        background: 'var(--surface-sunken)',
+        padding: 3,
+        borderRadius: 8,
+        border: '1px solid var(--border-subtle)',
+        height: 38,
+        boxSizing: 'border-box',
+      }}>
+        <button
+          type="button"
+          style={{
+            flex: 1,
+            border: 0,
+            borderRadius: 6,
+            padding: '0 8px',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            background: isMale ? 'var(--surface-card)' : 'transparent',
+            color: isMale ? 'var(--navy-700)' : 'var(--text-muted)',
+            boxShadow: isMale ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+          }}
+          onClick={() => onChange('nam')}
+        >
+          {genderTxt('nam')}
+        </button>
+        <button
+          type="button"
+          style={{
+            flex: 1,
+            border: 0,
+            borderRadius: 6,
+            padding: '0 8px',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            background: !isMale ? 'var(--surface-card)' : 'transparent',
+            color: !isMale ? '#db2777' : 'var(--text-muted)',
+            boxShadow: !isMale ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+          }}
+          onClick={() => onChange('nu')}
+        >
+          {genderTxt('nu')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
   const [name, setName] = useState(guest.name || '')
   const [phone, setPhone] = useState(guest.phone || '')
@@ -365,11 +429,10 @@ export function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
         <Input label={t('session.guestName')} value={name} onChange={(e) => setName(e.target.value)} />
         <Input label={t('members.guestPhone')} placeholder="0912... hoặc link FB / Zalo" value={phone} onChange={(e) => setPhone(e.target.value)} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Select
+          <GenderSegment
             label={t('session.guestGender')}
             value={gender}
-            options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
-            onChange={(e) => setGender(e.target.value)}
+            onChange={(val) => setGender(val)}
           />
           <Select
             label={t('session.guestLevel')}

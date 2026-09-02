@@ -122,6 +122,8 @@ const clubGuestDb = {
 }
 const invClub = guestDebtByInviter(clubGuestDb, '2026-08')
 const clubRec = invClub.find((r) => r.mid === '')
+assert.ok(clubRec, 'có nhóm CLB tuyển')
+assert.equal(clubRec.name, 'CLB tuyển')
 /* ---------- người đi kèm (+1 companion) & headCount ---------- */
 const companionDb = {
   ...db,

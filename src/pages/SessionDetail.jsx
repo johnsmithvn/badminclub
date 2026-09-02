@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
-import { EditGuestDialog, Empty, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
+import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
@@ -555,31 +555,38 @@ function ExtraPicker({ s, members }) {
     sub: m.phone || undefined,
   }))
 
+  const raw = ui.form.exMember
+  const selectedMembers = Array.isArray(raw) ? raw : (raw ? [raw] : [])
+  const count = selectedMembers.length
+
+  const handleAdd = () => {
+    selectedMembers.forEach((mid) => a.addExtra(s.id, mid))
+    a.setF('exMember', [])
+  }
+
   return (
     <div style={S.extraBox}>
       <SearchSelect
+        multiple
         size="sm"
         style={{ flex: 1, minWidth: 200 }}
         menuWidth={280}
-        value={ui.form.exMember || ''}
+        value={selectedMembers}
         placeholder={t('session.extraPick')}
         searchPlaceholder={t('session.searchSolo')}
         options={extraOptions}
         levels={db.levels}
         clearable
-        onChange={(val) => a.setF('exMember', val)}
+        onChange={(vals) => a.setF('exMember', vals)}
       />
       <Button
         variant="secondary"
         size="sm"
         icon="user-round-plus"
-        disabled={!ui.form.exMember}
-        onClick={() => {
-          a.addExtra(s.id, ui.form.exMember)
-          a.setF('exMember', '')
-        }}
+        disabled={count === 0}
+        onClick={handleAdd}
       >
-        {t('session.extraAdd')}
+        {count > 1 ? `+ Thêm ${count} người đi lẻ` : t('session.extraAdd')}
       </Button>
     </div>
   )
@@ -697,11 +704,10 @@ function GuestForm({ s }) {
           )}
         </div>
 
-        <Select
+        <GenderSegment
           label={t('session.guestGender')}
-          value={f.gGender}
-          options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
-          onChange={(e) => set('gGender', e.target.value)}
+          value={f.gGender || 'nam'}
+          onChange={(val) => set('gGender', val)}
         />
         <Select
           label={t('session.guestLevel')}
@@ -775,11 +781,10 @@ function GuestForm({ s }) {
             value={f.gCompanionName || ''}
             onChange={(e) => set('gCompanionName', e.target.value)}
           />
-          <Select
+          <GenderSegment
             label={t('session.guestGender')}
             value={f.gCompanionGender || 'nu'}
-            options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
-            onChange={(e) => set('gCompanionGender', e.target.value)}
+            onChange={(val) => set('gCompanionGender', val)}
           />
           <Select
             label={t('session.guestLevel')}

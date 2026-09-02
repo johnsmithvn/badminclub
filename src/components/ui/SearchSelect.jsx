@@ -12,30 +12,33 @@ function normalizeStr(str) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá chữ để tìm kiếm, không phải chữ hiện ra
+    .replace(/đ/g, 'd')
     .trim()
 }
 
 /**
- * Dropdown chọn có tìm kiếm (Combobox / Searchable Select) có lazy load.
+ * Combobox / Searchable Select & Tag Multi-Select trực tiếp.
  *
  * Props:
  * - `options`: Array<{ value, label, sub?, level?, levels?, icon? }>
- * - `value`: giá trị đang chọn
- * - `onChange`: (value: string, option: object) => void
+ * - `value`: giá trị đang chọn (string hoặc Array<string> nếu multiple)
+ * - `onChange`: (value, optionOrOptions) => void
+ * - `multiple`: boolean (cho phép chọn nhiều dưới dạng tag chip)
  * - `placeholder`: chữ gợi ý khi chưa chọn
- * - `searchPlaceholder`: chữ gợi ý trong ô tìm kiếm
+ * - `searchPlaceholder`: chữ gợi ý khi tìm kiếm
  * - `label`: nhãn phía trên dropdown
  * - `size`: 'sm' (32px) | 'md' (38px)
  * - `disabled`: vô hiệu hoá
- * - `clearable`: cho phép xoá chọn về ''
+ * - `clearable`: cho phép xoá chọn
  * - `style`: style của container
- * - `menuWidth`: độ rộng tối thiểu của menu dropdown (mặc định 100%, tối thiểu 220px)
+ * - `menuWidth`: độ rộng menu dropdown
+ * - `levels`: thang trình độ truyền vào LevelChip
  */
 export function SearchSelect({
   options = [],
   value = '',
   onChange,
+  multiple = false,
   placeholder = t('common.pick'),
   searchPlaceholder = t('common.searchQuick'),
   label,
@@ -49,14 +52,29 @@ export function SearchSelect({
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [visibleCount, setVisibleCount] = useState(30)
+  const [placement, setPlacement] = useState('bottom')
+
   const containerRef = useRef(null)
-  const searchInputRef = useRef(null)
+  const inputRef = useRef(null)
   const listRef = useRef(null)
 
-  // Tìm option hiện tại
-  const selectedOption = useMemo(() => {
-    return options.find((o) => String(o.value) === String(value)) || null
-  }, [options, value])
+  // Danh sách các ID đang chọn (chuẩn hoá thành Array)
+  const selectedValues = useMemo(() => {
+    if (multiple) {
+      if (Array.isArray(value)) return value.map(String)
+      if (typeof value === 'string' && value.trim()) return value.split(',').map((s) => s.trim())
+      return []
+    }
+    return value ? [String(value)] : []
+  }, [value, multiple])
+
+  // Danh sách các options đang chọn
+  const selectedOptions = useMemo(() => {
+    const valSet = new Set(selectedValues)
+    return options.filter((o) => valSet.has(String(o.value)))
+  }, [options, selectedValues])
+
+  const singleSelectedOption = !multiple ? selectedOptions[0] || null : null
 
   // Lọc options theo từ khoá tìm kiếm
   const filteredOptions = useMemo(() => {
@@ -70,57 +88,115 @@ export function SearchSelect({
     })
   }, [options, search])
 
-  // Focus ô tìm kiếm khi mở
-  useEffect(() => {
-    if (isOpen && searchInputRef.current) {
-      searchInputRef.current.focus()
-    }
-  }, [isOpen])
-
   // Đóng khi click ngoài
   useEffect(() => {
     if (!isOpen) return
     const handleClickOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setIsOpen(false)
+        setSearch('')
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
-  const [placement, setPlacement] = useState('bottom')
-
-  const toggleOpen = () => {
-    if (disabled) return
-    setIsOpen((prev) => {
-      if (!prev) {
-        setSearch('')
-        setVisibleCount(30)
-        if (containerRef.current) {
-          const rect = containerRef.current.getBoundingClientRect()
-          const spaceBelow = window.innerHeight - rect.bottom
-          const spaceAbove = rect.top
-          if (spaceBelow < 260 && spaceAbove > 200) {
-            setPlacement('top')
-          } else {
-            setPlacement('bottom')
-          }
-        }
+  const checkPlacement = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      if (spaceBelow < 260 && spaceAbove > 200) {
+        setPlacement('top')
+      } else {
+        setPlacement('bottom')
       }
-      return !prev
-    })
+    }
+  }
+
+  const handleContainerClick = () => {
+    if (disabled) return
+    if (!isOpen) {
+      checkPlacement()
+      setIsOpen(true)
+      setVisibleCount(30)
+    }
+    if (inputRef.current) {
+      inputRef.current.focus()
+    }
   }
 
   const handleSearchChange = (e) => {
-    setSearch(e.target.value)
+    const val = e.target.value
+    setSearch(val)
+    if (!isOpen) {
+      checkPlacement()
+      setIsOpen(true)
+    }
     setVisibleCount(30)
     if (listRef.current) {
       listRef.current.scrollTop = 0
     }
   }
 
-  // Xử lý lazy scroll
+  const handleKeyDown = (e) => {
+    if (disabled) return
+    if (e.key === 'Escape') {
+      setIsOpen(false)
+      setSearch('')
+      e.stopPropagation()
+    } else if (e.key === 'Backspace' && !search && multiple && selectedValues.length > 0) {
+      // Xoá tag cuối cùng khi bấm Backspace ở ô tìm kiếm rỗng
+      const next = selectedValues.slice(0, -1)
+      const nextOpts = options.filter((o) => next.includes(String(o.value)))
+      onChange?.(next, nextOpts)
+    } else if (e.key === 'ArrowDown') {
+      if (!isOpen) {
+        checkPlacement()
+        setIsOpen(true)
+      }
+    }
+  }
+
+  const handleSelect = (opt) => {
+    if (disabled || opt.disabled) return
+    if (multiple) {
+      const isAlready = selectedValues.includes(String(opt.value))
+      const next = isAlready
+        ? selectedValues.filter((v) => v !== String(opt.value))
+        : [...selectedValues, String(opt.value)]
+      const nextOpts = options.filter((o) => next.includes(String(o.value)))
+      onChange?.(next, nextOpts)
+      setSearch('')
+      if (inputRef.current) inputRef.current.focus()
+    } else {
+      onChange?.(opt.value, opt)
+      setSearch('')
+      setIsOpen(false)
+    }
+  }
+
+  const handleRemoveTag = (e, valToRemove) => {
+    e.stopPropagation()
+    if (disabled) return
+    if (multiple) {
+      const next = selectedValues.filter((v) => v !== String(valToRemove))
+      const nextOpts = options.filter((o) => next.includes(String(o.value)))
+      onChange?.(next, nextOpts)
+    } else {
+      onChange?.('', null)
+    }
+    if (inputRef.current) inputRef.current.focus()
+  }
+
+  const handleClear = (e) => {
+    e.stopPropagation()
+    if (disabled) return
+    onChange?.(multiple ? [] : '', multiple ? [] : null)
+    setSearch('')
+    if (inputRef.current) inputRef.current.focus()
+  }
+
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target
     if (scrollHeight - scrollTop - clientHeight < 40) {
@@ -128,20 +204,9 @@ export function SearchSelect({
     }
   }
 
-  const handleSelect = (opt) => {
-    if (disabled || opt.disabled) return
-    onChange?.(opt.value, opt)
-    setIsOpen(false)
-  }
-
-  const handleClear = (e) => {
-    e.stopPropagation()
-    if (disabled) return
-    onChange?.('', null)
-  }
-
-  const h = size === 'sm' ? 32 : 'var(--target-web, 38px)'
+  const minH = size === 'sm' ? 32 : 38
   const visibleItems = filteredOptions.slice(0, visibleCount)
+  const showClear = clearable && !disabled && (selectedValues.length > 0 || search.length > 0)
 
   return (
     <div
@@ -160,6 +225,7 @@ export function SearchSelect({
           style={{
             font: 'var(--type-label)',
             color: 'var(--text-secondary)',
+            fontSize: 12,
             userSelect: 'none',
           }}
         >
@@ -167,78 +233,127 @@ export function SearchSelect({
         </label>
       )}
 
-      {/* Nút bấm hiển thị dropdown */}
+      {/* Input container trực tiếp có hiển thị Tags */}
       <div
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        onClick={toggleOpen}
-        onKeyDown={(e) => {
-          if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault()
-            toggleOpen()
-          } else if (e.key === 'Escape') {
-            setIsOpen(false)
-          }
-        }}
+        onClick={handleContainerClick}
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 6,
-          height: h,
-          padding: '0 10px',
-          background: disabled ? 'var(--field-bg-disabled)' : 'var(--field-bg)',
-          border: `1px solid ${isOpen ? 'var(--border-focus-color)' : 'var(--field-border)'}`,
-          borderRadius: 'var(--radius-control)',
-          boxShadow: isOpen ? 'var(--ring-focus)' : 'none',
-          cursor: disabled ? 'not-allowed' : 'pointer',
+          flexWrap: multiple ? 'wrap' : 'nowrap',
+          gap: 4,
+          minHeight: minH,
+          padding: multiple ? '3px 8px' : '0 10px',
+          background: disabled ? 'var(--field-bg-disabled)' : 'var(--field-bg, #fff)',
+          border: `1px solid ${isOpen ? 'var(--border-focus-color, #0284c7)' : 'var(--field-border, #cbd5e1)'}`,
+          borderRadius: 'var(--radius-control, 8px)',
+          boxShadow: isOpen ? 'var(--ring-focus, 0 0 0 3px rgba(2, 132, 199, 0.15))' : 'none',
+          cursor: disabled ? 'not-allowed' : 'text',
           opacity: disabled ? 0.65 : 1,
           transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-          userSelect: 'none',
           boxSizing: 'border-box',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-          {selectedOption ? (
-            <>
-              {selectedOption.level && (
-                <LevelChip level={selectedOption.level} levels={levels || selectedOption.levels} />
+        {/* Render danh sách tags (cho multi-select) */}
+        {multiple &&
+          selectedOptions.map((opt) => (
+            <span
+              key={String(opt.value)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '2px 7px',
+                borderRadius: 99,
+                background: 'var(--surface-brand-soft, #e0f2fe)',
+                color: 'var(--teal-800, #0369a1)',
+                border: '1px solid var(--teal-200, #bae6fd)',
+                fontSize: size === 'sm' ? 11 : 12,
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                lineHeight: 1.3,
+                animation: 'fadeIn 0.12s ease',
+              }}
+            >
+              {opt.level && <LevelChip level={opt.level} levels={levels || opt.levels} />}
+              <span>{opt.label}</span>
+              {!disabled && (
+                <button
+                  type="button"
+                  onClick={(e) => handleRemoveTag(e, opt.value)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--teal-700, #0284c7)',
+                    borderRadius: '50%',
+                    marginLeft: 2,
+                  }}
+                  title={t('common.delete')}
+                >
+                  <Icon name="x" size={11} />
+                </button>
               )}
-              <span
-                style={{
-                  fontSize: size === 'sm' ? 12 : 13,
-                  color: 'var(--text-primary)',
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {selectedOption.label}
-              </span>
-              {selectedOption.sub && (
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  ({selectedOption.sub})
-                </span>
-              )}
-            </>
-          ) : (
+            </span>
+          ))}
+
+        {/* Single select: Hiển thị giá trị đã chọn khi không đang gõ search */}
+        {!multiple && singleSelectedOption && !search && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            {singleSelectedOption.level && (
+              <LevelChip level={singleSelectedOption.level} levels={levels || singleSelectedOption.levels} />
+            )}
             <span
               style={{
                 fontSize: size === 'sm' ? 12 : 13,
-                color: 'var(--text-muted)',
+                color: 'var(--text-primary)',
+                fontWeight: 500,
                 whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
               }}
             >
-              {placeholder}
+              {singleSelectedOption.label}
             </span>
-          )}
-        </div>
+            {singleSelectedOption.sub && (
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                ({singleSelectedOption.sub})
+              </span>
+            )}
+          </div>
+        )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          {clearable && selectedOption && !disabled && (
+        {/* Ô gõ tìm kiếm trực tiếp tại input */}
+        <input
+          ref={inputRef}
+          type="text"
+          value={search}
+          disabled={disabled}
+          onChange={handleSearchChange}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            selectedValues.length === 0 || (multiple && search.length === 0)
+              ? (isOpen ? searchPlaceholder : placeholder)
+              : ''
+          }
+          style={{
+            border: 'none',
+            background: 'transparent',
+            outline: 'none',
+            font: 'inherit',
+            fontSize: size === 'sm' ? 12 : 13,
+            color: 'var(--text-primary)',
+            padding: 0,
+            minWidth: 50,
+            flex: 1,
+            cursor: disabled ? 'not-allowed' : 'text',
+          }}
+        />
+
+        {/* Nút Clear & Chevron Icon */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', flexShrink: 0 }}>
+          {showClear && (
             <button
               type="button"
               onClick={handleClear}
@@ -290,68 +405,12 @@ export function SearchSelect({
             animation: 'fadeIn 0.15s ease',
           }}
         >
-          {/* Ô tìm kiếm */}
-          <div
-            style={{
-              padding: '7px 8px',
-              borderBottom: '1px solid var(--border-subtle)',
-              background: 'var(--surface-card)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '4px 8px',
-                borderRadius: 6,
-                background: 'var(--surface-inset)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <Icon name="search" size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-              <input
-                ref={searchInputRef}
-                value={search}
-                placeholder={searchPlaceholder}
-                onChange={handleSearchChange}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  outline: 'none',
-                  width: '100%',
-                  fontSize: 12,
-                  fontFamily: 'var(--font-sans)',
-                  color: 'var(--text-primary)',
-                  padding: 0,
-                }}
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <Icon name="x" size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Danh sách options (có lazy load khi cuộn) */}
+          {/* Danh sách options (lazy load khi cuộn) */}
           <div
             ref={listRef}
             onScroll={handleScroll}
             style={{
-              maxHeight: 220,
+              maxHeight: 230,
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
@@ -371,7 +430,7 @@ export function SearchSelect({
               </div>
             ) : (
               visibleItems.map((opt) => {
-                const isSelected = String(opt.value) === String(value)
+                const isSelected = selectedValues.includes(String(opt.value))
                 return (
                   <div
                     key={String(opt.value)}
@@ -385,14 +444,14 @@ export function SearchSelect({
                       gap: 8,
                       padding: '7px 9px',
                       borderRadius: 6,
-                      background: isSelected ? 'var(--surface-accent-soft)' : 'transparent',
+                      background: isSelected ? 'var(--surface-accent-soft, #f0fdfa)' : 'transparent',
                       cursor: opt.disabled ? 'not-allowed' : 'pointer',
                       opacity: opt.disabled ? 0.5 : 1,
                       transition: 'background 0.12s ease',
                     }}
                     onMouseEnter={(e) => {
                       if (!isSelected && !opt.disabled) {
-                        e.currentTarget.style.background = 'var(--surface-inset)'
+                        e.currentTarget.style.background = 'var(--surface-inset, #f8fafc)'
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -402,14 +461,12 @@ export function SearchSelect({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                      {opt.level && (
-                        <LevelChip level={opt.level} levels={levels || opt.levels} />
-                      )}
+                      {opt.level && <LevelChip level={opt.level} levels={levels || opt.levels} />}
                       <span
                         style={{
                           fontSize: 12.5,
                           fontWeight: isSelected ? 600 : 400,
-                          color: isSelected ? 'var(--teal-700)' : 'var(--text-primary)',
+                          color: isSelected ? 'var(--teal-700, #0f766e)' : 'var(--text-primary)',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
