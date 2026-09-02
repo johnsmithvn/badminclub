@@ -466,42 +466,47 @@ function MoneyTab({ canEdit }) {
 
 /* ---------------- Sân & Cầu ---------------- */
 
+/* ---------------- Sân & Cầu ---------------- */
+
 function CourtsAndShuttles({ canEdit }) {
   const { db, a } = useApp()
   // So định mức với số cầu thực tế của các buổi đã chốt KHÔNG còn cờ ước lượng.
   const real = db.sessions.filter((s) => s.status === 'closed' && !s.shuttleEst)
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      {/* 1. Sân bãi */}
-      <Card title={t('settings.courtsTitle')} subtitle={t('settings.courtsSub')} icon="map-pin" padding="14px 16px"
+    <div style={GRID_PAIR}>
+      {/* Cột 1: Sân bãi & Giá thuê */}
+      <Card
+        title={t('settings.courtsTitle')}
+        subtitle={t('settings.courtsSub')}
+        icon="map-pin"
+        padding="14px 16px"
         actions={canEdit && (
           <Button variant="secondary" size="sm" icon="plus"
-            onClick={() => a.openDialog('newCourt', courtForm())}>{t('settings.addCourt')}</Button>
-        )}>
-        {db.courts.length === 0
-          ? <Empty icon="map-pin" title={t('settings.noCourt')} hint={t('settings.noCourtHint')} />
-          : <div style={{ display: 'grid', gap: 10 }}>
-              <div style={{ ...S.courtGrid, ...S.headRow }}>
-                <span>{t('settings.colCourt')}</span>
-                <span>{t('settings.colAddress')}</span>
-                <span>{t('settings.colMapUrl')}</span>
-                <span>{t('settings.colPrice')}</span>
-                <span>{t('settings.colActive')}</span>
-              </div>
-              {db.courts.map((c) => (
-                <div key={c.id} style={S.courtGrid}>
-                  <Input value={c.name} disabled={!canEdit}
-                    onChange={(e) => a.setCourtField(c.id, 'name', e.target.value)} />
-                  <Input value={c.addr || ''} disabled={!canEdit} placeholder="Địa chỉ sân..."
-                    onChange={(e) => a.setCourtField(c.id, 'addr', e.target.value)} />
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            onClick={() => a.openDialog('newCourt', courtForm())}>
+            {t('settings.addCourt')}
+          </Button>
+        )}
+      >
+        {db.courts.length === 0 ? (
+          <Empty icon="map-pin" title={t('settings.noCourt')} hint={t('settings.noCourtHint')} />
+        ) : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {db.courts.map((c) => (
+              <div key={c.id} style={{
+                display: 'grid', gap: 8, padding: '10px 12px',
+                background: 'var(--surface-inset)', borderRadius: 8,
+                border: '1px solid var(--border-subtle)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                     <Input
-                      value={c.mapUrl || ''}
+                      size="sm"
+                      value={c.name}
                       disabled={!canEdit}
-                      placeholder="https://maps.app.goo.gl/..."
-                      style={{ flex: 1 }}
-                      onChange={(e) => a.setCourtField(c.id, 'mapUrl', e.target.value)}
+                      placeholder="Tên sân..."
+                      style={{ fontWeight: 600 }}
+                      onChange={(e) => a.setCourtField(c.id, 'name', e.target.value)}
                     />
                     {c.mapUrl && (
                       <a
@@ -514,43 +519,90 @@ function CourtsAndShuttles({ canEdit }) {
                           border: '1px solid var(--border-subtle)', background: 'var(--surface-brand-soft)',
                           color: 'var(--teal-600)', flexShrink: 0, textDecoration: 'none',
                         }}
-                        title="Mở liên kết bản đồ"
+                        title="Mở Google Maps"
                       >
-                        <Icon name="map-pin" size={15} />
+                        <Icon name="map-pin" size={14} />
                       </a>
                     )}
                   </div>
-                  <Input mono suffix={t('units.dong')} value={String(c.price)} disabled={!canEdit}
-                    onChange={(e) => a.setCourtField(c.id, 'price', e.target.value)} />
-                  <Switch checked={c.active !== false} disabled={!canEdit}
-                    onChange={() => a.setCourtField(c.id, 'active', c.active === false)} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <Input
+                      size="sm"
+                      mono
+                      suffix="đ/h"
+                      value={String(c.price)}
+                      disabled={!canEdit}
+                      style={{ width: 105 }}
+                      onChange={(e) => a.setCourtField(c.id, 'price', e.target.value)}
+                    />
+                    <Switch
+                      checked={c.active !== false}
+                      disabled={!canEdit}
+                      onChange={() => a.setCourtField(c.id, 'active', c.active === false)}
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <Input
+                    size="sm"
+                    value={c.addr || ''}
+                    disabled={!canEdit}
+                    placeholder="Địa chỉ sân..."
+                    onChange={(e) => a.setCourtField(c.id, 'addr', e.target.value)}
+                  />
+                  <Input
+                    size="sm"
+                    value={c.mapUrl || ''}
+                    disabled={!canEdit}
+                    placeholder="Link Google Maps..."
+                    onChange={(e) => a.setCourtField(c.id, 'mapUrl', e.target.value)}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
-      {/* 2. Loại cầu */}
-      <Card title={t('settings.typesTitle')} subtitle={t('settings.typesSub')} icon="package-open" padding="14px 16px"
+      {/* Cột 2: Loại cầu & Định mức cầu */}
+      <Card
+        title="Loại cầu & Định mức"
+        subtitle="Quản lý các loại cầu và số lượng ước tính mỗi buổi"
+        icon="package-open"
+        padding="14px 16px"
         actions={canEdit && (
           <Button variant="secondary" size="sm" icon="plus"
-            onClick={() => a.addShuttleType()}>{t('settings.addType')}</Button>
-        )}>
-        {db.shuttleTypes.length === 0
-          ? <Empty icon="package-open" title={t('settings.noType')} hint={t('settings.noTypeHint')} />
-          : <div style={{ display: 'grid', gap: 10 }}>
-              <div style={{ ...S.typeGrid, ...S.headRow }}>
-                <span>{t('settings.colType')}</span>
-                <span>{t('settings.colPerTube')}</span>
-                <span>{t('settings.colRefPrice')}</span>
-                <span>{t('settings.colActive')}</span>
+            onClick={() => a.addShuttleType()}>
+            {t('settings.addType')}
+          </Button>
+        )}
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          {/* Bảng các loại cầu */}
+          {db.shuttleTypes.length === 0 ? (
+            <Empty icon="package-open" title={t('settings.noType')} hint={t('settings.noTypeHint')} />
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 80px 105px 44px 30px', gap: 6, ...S.headRow }}>
+                <span>Loại cầu</span>
+                <span>Quả/ống</span>
+                <span>Giá tham chiếu</span>
+                <span>Dùng</span>
                 <span />
               </div>
               {db.shuttleTypes.map((x) => (
-                <div key={x.id} style={S.typeGrid}>
-                  <Input value={x.name} disabled={!canEdit} onChange={(e) => a.setShuttleType(x.id, 'name', e.target.value)} />
-                  <Input mono suffix={t('units.shuttle')} value={String(x.perTube)} disabled={!canEdit}
+                <div key={x.id} style={{
+                  display: 'grid', gridTemplateColumns: '1.2fr 80px 105px 44px 30px', gap: 6,
+                  alignItems: 'center', padding: '6px 10px',
+                  background: 'var(--surface-inset)', borderRadius: 8, border: '1px solid var(--border-subtle)',
+                }}>
+                  <Input size="sm" value={x.name} disabled={!canEdit} placeholder="Tên loại..."
+                    onChange={(e) => a.setShuttleType(x.id, 'name', e.target.value)} />
+                  <Input size="sm" mono suffix="q" value={String(x.perTube)} disabled={!canEdit}
+                    placeholder="12"
                     onChange={(e) => a.setShuttleType(x.id, 'perTube', e.target.value)} />
-                  <Input mono suffix={t('units.dong')} value={String(x.pricePerTube || 0)} disabled={!canEdit}
+                  <Input size="sm" mono suffix="đ" value={String(x.pricePerTube || 0)} disabled={!canEdit}
+                    placeholder="0"
                     onChange={(e) => a.setShuttleType(x.id, 'pricePerTube', e.target.value)} />
                   <Switch checked={x.active !== false} disabled={!canEdit}
                     onChange={() => a.setShuttleType(x.id, 'active', x.active === false)} />
@@ -559,7 +611,7 @@ function CourtsAndShuttles({ canEdit }) {
                       icon="trash-2"
                       size="sm"
                       variant="ghost"
-                      style={{ color: 'var(--status-incident)' }}
+                      style={{ color: 'var(--status-incident)', padding: 0 }}
                       label={t('common.delete')}
                       onClick={() => a.confirm({
                         title: `Xoá loại cầu "${x.name}"?`,
@@ -573,39 +625,42 @@ function CourtsAndShuttles({ canEdit }) {
                 </div>
               ))}
               <div style={S.caption}>{t('settings.typesNote')}</div>
-            </div>}
-      </Card>
+            </div>
+          )}
 
-      {/* 3. Định mức cầu mỗi ca/buổi */}
-      {db.groups.length > 0 && (
-        <Card title={t('settings.quotaTitle')} subtitle={t('settings.quotaSub')} icon="package" padding="14px 16px">
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: 12,
-          }}>
-            {db.groups.map((g) => {
-              const mine = real.filter((s) => s.groupId === g.id)
-              const avg = mine.length ? Math.round(mine.reduce((x, s) => x + s.shuttleUsed, 0) / mine.length) : null
-              return (
-                <div key={g.id} style={{
-                  display: 'grid', gap: 6, padding: '10px 14px', borderRadius: 8,
-                  background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>{g.name}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {avg === null ? t('settings.quotaNoData') : t('settings.quotaCompare', { avg })}
-                    </span>
-                  </div>
-                  <Input mono suffix={t('units.shuttle')} value={String(g.quota)} disabled={!canEdit}
-                    onChange={(e) => a.setGroupField(g.id, 'quota', e.target.value)} />
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-      )}
+          {/* Định mức cầu mỗi buổi */}
+          {db.groups.length > 0 && (
+            <div style={{ display: 'grid', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Overline>{t('settings.quotaTitle')}</Overline>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('settings.quotaSub')}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+                {db.groups.map((g) => {
+                  const mine = real.filter((s) => s.groupId === g.id)
+                  const avg = mine.length ? Math.round(mine.reduce((x, s) => x + s.shuttleUsed, 0) / mine.length) : null
+                  return (
+                    <div key={g.id} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                      padding: '8px 10px', borderRadius: 6, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-primary)' }}>{g.name}</div>
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                          {avg === null ? 'Chưa có buổi' : `TB: ${avg} quả`}
+                        </div>
+                      </div>
+                      <Input size="sm" mono suffix="quả" value={String(g.quota)} disabled={!canEdit}
+                        style={{ width: 80 }}
+                        onChange={(e) => a.setGroupField(g.id, 'quota', e.target.value)} />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   )
 }
@@ -877,6 +932,10 @@ function Access({ canEdit, pending }) {
     return freeUsers.find((u) => digits(u.phone) === digits(m.phone)) || null
   }
   const unlinked = db.members.filter((m) => !m.userId && m.active !== false)
+  // Ngõ cụt hay gặp: còn người chưa ghép nhưng không có tài khoản nào chờ ghép. `db.users` chỉ
+  // gồm người ĐÃ ghép + người ĐANG XIN VÀO (storage.js), nên không có yêu cầu nào là ô chọn
+  // rỗng. Báo rỗng không thôi thì người dùng đứng hình — phải chỉ luôn đường đi tiếp.
+  const linkDeadEnd = unlinked.length > 0 && freeUsers.length === 0
   const linkedCount = db.members.filter((m) => m.userId).length
 
   return (
@@ -920,6 +979,13 @@ function Access({ canEdit, pending }) {
         icon="users"
         padding="0"
       >
+        {linkDeadEnd && (
+          <div style={{ padding: '12px 14px 0' }}>
+            <Alert tone="info" title={t('settings.linkNoFree')}>
+              {t('settings.linkHint', { code: db.club.code })}
+            </Alert>
+          </div>
+        )}
         <div style={{ display: 'grid', overflowX: 'auto' }}>
           <div style={{ ...S.accGrid, ...S.accHead }}>
             <span>{t('settings.colMember')}</span>
@@ -977,9 +1043,12 @@ function Access({ canEdit, pending }) {
                           value: '',
                           label: t(freeUsers.length ? 'settings.linkPick' : 'settings.linkNoFree'),
                         }].concat(
+                          // Hiện EMAIL cạnh tên: `db.users` toàn người có tài khoản thật, mà tên
+                          // trong CLB thì trùng nhau như cơm bữa. Không có email thì không cách
+                          // nào biết đang ghép đúng người hay không.
                           freeUsers.map((u) => ({
                             value: u.id,
-                            label: (u.name || u.phone || u.id) + (u.phone ? ` · ${u.phone}` : ''),
+                            label: [u.name || u.id, u.email, u.phone].filter(Boolean).join(' · '),
                           }))
                         )}
                         onChange={(e) => a.setF('link_u_' + m.id, e.target.value)}
@@ -988,6 +1057,7 @@ function Access({ canEdit, pending }) {
                         variant="primary"
                         size="sm"
                         icon="link"
+                        title={freeUsers.length === 0 ? t('settings.linkHint', { code: db.club.code }) : undefined}
                         disabled={!(ui.form['link_u_' + m.id] ?? (sug ? sug.id : ''))}
                         onClick={() => {
                           const targetUid = ui.form['link_u_' + m.id] ?? (sug ? sug.id : '')
