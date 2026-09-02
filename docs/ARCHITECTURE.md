@@ -237,7 +237,7 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 | Tách 2 hồ sơ & Ghép chọn lọc | ✅ **Đã làm** | Hồ sơ tài khoản (`profiles`) vs Hồ sơ CLB (`club_members`), ghép 6 trường chọn lọc (0009/0010) |
 | Thành viên tự đổi tên | ✅ **Đã làm** | Policy `cm_update_self_name` + trigger guard chỉ cho đổi `name` và `full_name` (0010) |
 | CSV Import & JSON Settings | ✅ **Đã làm** | Nhập/xuất danh sách thành viên bằng CSV (`src/lib/csv.js`), backup/restore cài đặt CLB |
-| Mời vào CLB qua SĐT | Chưa làm | Phần NHẬN cần gửi tin thật, chưa có kinh phí; bảng `club_invites` đã chờ sẵn |
+| Mời vào CLB qua SĐT | **KHÔNG LÀM** (user chốt 2026-09-02) | Phần NHẬN phải gửi SMS thật — tốn tiền, không làm. Người mới vào bằng **mã CLB**. Bảng `club_invites` và cột `clubs.allow_invite` để nguyên dưới DB (xoá schema là việc riêng, phải xin phép), client không đọc |
 | Bản mobile riêng cho vai `member` | Đang chờ | Desktop console là ưu tiên 1; 3 màn ưu tiên: Trang chủ · Chia sân · Cá nhân |
 | `notifications` / Zalo OA / `audit_logs` | Giai đoạn 2 | Bảng đã có sẵn trong SQL |
 | Realtime cho chia sân | Giai đoạn 2 | Realtime channel theo `session_id` cho `session_lineups` + `matches` |

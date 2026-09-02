@@ -892,6 +892,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         const mb = {
           id,
           name: row.name,
+          fullName: (row.fullName || '').trim(),
+          email: (row.email || '').trim(),
           gender: row.gender || 'nam',
           level: row.level || d0.levels[0],
           groupIds: start === 'now' ? gs : [],

@@ -876,7 +876,10 @@ function ImportMembersDialog() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-brand-soft)', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, font: 'var(--type-caption)', color: 'var(--navy-700)' }}>
             <Icon name="file-spreadsheet" size={16} />
-            <span>Mẫu CSV chuẩn 5 cột: <strong>Họ và tên · Số điện thoại · Giới tính · Trình độ · Nhóm cố định</strong></span>
+            <span>
+              Mẫu CSV chuẩn 5 cột: <strong>Họ và tên · Số điện thoại · Giới tính · Trình độ · Nhóm cố định</strong>
+              {' — thêm được ở cuối: '}<strong>Tên đầy đủ · Email</strong>
+            </span>
           </div>
           <Button variant="ghost" size="sm" icon="download" onClick={handleDownloadTemplate}>
             {t('members.downloadTemplate')}
@@ -1024,6 +1027,13 @@ function ImportMembersDialog() {
                               color: 'var(--text-primary)', outline: 0, boxSizing: 'border-box',
                             }}
                           />
+                          {/* Hai cột tuỳ chọn hiện ở đây thay vì thành cột riêng: dialog chỉ rộng
+                              780px, thêm hai cột nữa là bảng bóp nát. Sửa được sau ở màn Thành viên. */}
+                          {(r.fullName || r.email) && (
+                            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', paddingTop: 3 }}>
+                              {[r.fullName, r.email].filter(Boolean).join(' · ')}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '6px 8px' }}>
                           <input

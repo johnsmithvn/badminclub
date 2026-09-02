@@ -88,12 +88,17 @@ export function duesStatusOf(db, mid, month) {
 
 /**
  * `f.group`: id một nhóm · 'none' = đi lẻ (không cố định nhóm nào) · '' = không lọc.
- * `f.dues`: paid | unpaid | none | ''. `f.q` tìm trong tên VÀ số điện thoại.
+ * `f.dues`: paid | unpaid | none | ''.
+ *
+ * `f.q` soi CẢ BỐN chỗ nhận diện một con người: tên hiển thị · tên đầy đủ · SĐT · email. Bỏ sót
+ * một chỗ là người thu tiền gõ đúng thứ mình đang cầm (tên trên giấy chuyển khoản, email trong
+ * tin nhắn) mà màn hình trả về rỗng — rồi tạo thêm một bản ghi trùng cho người đã có.
  */
 export function filterMembers(db, rows, f, month) {
   const q = norm(f.q)
+  const hit = (m) => [m.name, m.fullName, m.phone, m.email].some((v) => norm(v).indexOf(q) >= 0)
   return rows.filter((m) => {
-    if (q && norm(m.name).indexOf(q) < 0 && norm(m.phone).indexOf(q) < 0) return false
+    if (q && !hit(m)) return false
     if (f.gender && m.gender !== f.gender) return false
     if (f.level && m.level !== f.level) return false
     if (f.dues && duesStatusOf(db, m.id, month) !== f.dues) return false

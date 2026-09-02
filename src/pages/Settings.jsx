@@ -877,7 +877,10 @@ function Access({ canEdit, pending }) {
               <div key={m.id} style={{ ...S.accGrid, ...S.accRow }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                   <Avatar name={m.name} size={26} />
-                  <span style={S.label}>{m.name}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={S.label}>{m.name}</div>
+                    {m.fullName && <div style={S.caption}>{m.fullName}</div>}
+                  </div>
                 </div>
                 <Mono color="var(--text-muted)">{m.phone || t('common.unknown')}</Mono>
                 <span>

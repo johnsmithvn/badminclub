@@ -846,6 +846,22 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
       client, thay `username` bằng `email` ở mọi chỗ hiển thị, thêm ô *Tên gọi* vào form đăng ký
       để cặp tên khớp nhau ngay từ đầu.
 - [x] **Thêm bậc `K` (Khá) vào `app.json → levelsDefault`** — thang gợi ý, không đụng CLB nào.
+
+### Dọn nốt sau khi hai tên + email đã chạy — không đụng schema
+
+- [x] **Tìm kiếm thành viên soi cả `fullName` và `email`.** Vừa thêm hai trường mà `filterMembers`
+      chỉ soi tên hiển thị + SĐT thì hai trường đó vô hình: người thu tiền cầm giấy chuyển khoản
+      ghi tên khai sinh, gõ vào ra rỗng, rồi tạo thêm một bản ghi trùng. Test + mutation-test.
+- [x] **Import CSV nhận hai cột TUỲ CHỌN ở cuối** — `Tên đầy đủ` · `Email`. Cố ý không chèn vào
+      giữa: mọi file người dùng đang có đều theo đúng 5 cột cũ, đổi thứ tự là từ chối hàng loạt.
+      Đọc theo TÊN cột chứ không theo vị trí (đảo hai cột đó vẫn đúng), cột dư lạ vẫn bị chặn.
+      File mẫu in cả 7 cột. Bảng xem trước không thêm cột mới (dialog chỉ rộng 780px) mà hiện hai
+      giá trị đó nhỏ dưới ô tên. 4 test mới.
+- [x] **Bảng Cài đặt → Tài khoản & quyền hiện tên đầy đủ** nhỏ dưới tên hiển thị, đúng như màn
+      Thành viên và Hồ sơ.
+- [x] **Mời qua SĐT: KHÔNG LÀM** — user chốt 2026-09-02, gỡ khỏi mọi kế hoạch. Phần nhận phải gửi
+      SMS thật, tốn tiền. Đường vào CLB duy nhất là **mã CLB**. Bảng `club_invites` và cột
+      `clubs.allow_invite` để nguyên dưới DB (không đụng schema), client không đọc.
 - [x] **Trường Link Google Maps / Bản đồ vị trí sân (`courts.map_url`) — migration `0011_court_map_url`**:
       Bổ sung cột `map_url text` vào bảng `courts`, hỗ trợ nhập link Google Maps trong hộp thoại
       Thêm/Sửa sân ở Cài đặt và sao lưu JSON settings. Hiển thị nút "Bản đồ" với icon `map-pin`

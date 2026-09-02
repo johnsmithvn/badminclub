@@ -109,6 +109,20 @@ export const TEMPLATE_HEADERS = [
 ]
 
 /**
+ * Hai cột THÊM, không bắt buộc, chỉ được đứng SAU 5 cột chuẩn.
+ *
+ * Cố ý không chèn vào giữa: mọi file CSV người dùng đang có đều theo đúng thứ tự 5 cột trên, đổi
+ * thứ tự là những file đó bị từ chối hàng loạt mà không ai hiểu vì sao. Thêm ở cuối thì file cũ
+ * chạy y như trước, file mới mang thêm được hai trường.
+ *
+ * "Họ và tên" ở cột 1 là TÊN HIỂN THỊ (`club_members.name`) — giữ nguyên nghĩa cũ, đừng đổi.
+ */
+export const OPTIONAL_HEADERS = [
+  'Tên đầy đủ',
+  'Email',
+]
+
+/**
  * Kiểm tra header có khớp chuẩn template hay không.
  * Trả về { ok: true } hoặc { ok: false, error: '...' }
  */
@@ -119,15 +133,19 @@ export function validateHeaders(headerRow) {
 
   const expectedNorms = TEMPLATE_HEADERS.map(normHeader)
   const actualNorms = headerRow.map(normHeader)
+  const optionalNorms = OPTIONAL_HEADERS.map(normHeader)
 
-  const isMatch =
-    expectedNorms.length === actualNorms.length &&
-    expectedNorms.every((exp, i) => exp === actualNorms[i])
+  // 5 cột đầu phải khớp đúng thứ tự; thiếu cột thì `actualNorms[i]` là undefined → không khớp.
+  const baseOk = expectedNorms.every((exp, i) => exp === actualNorms[i])
+  // Cột dư chỉ được là cột tuỳ chọn, mỗi loại một lần.
+  const extra = actualNorms.slice(expectedNorms.length)
+  const extraOk = extra.every((h, i) => optionalNorms.includes(h) && extra.indexOf(h) === i)
 
-  if (!isMatch) {
+  if (!baseOk || !extraOk) {
     return {
       ok: false,
-      error: `Tên cột không đúng mẫu template. Yêu cầu chuẩn ${TEMPLATE_HEADERS.length} cột: ${TEMPLATE_HEADERS.join(' · ')}`,
+      error: `Tên cột không đúng mẫu template. Yêu cầu chuẩn ${TEMPLATE_HEADERS.length} cột: ${TEMPLATE_HEADERS.join(' · ')}`
+        + `. Có thể thêm ở CUỐI 2 cột không bắt buộc: ${OPTIONAL_HEADERS.join(' · ')}`,
     }
   }
 
@@ -300,6 +318,12 @@ export function parseAndValidateMembers(csvText, clubLevels = [], clubGroups = [
   let warnCount = 0
   let errorCount = 0
 
+  // Hai cột tuỳ chọn tra theo TÊN chứ không theo vị trí: người dùng có thể đưa vào một cột, hai
+  // cột, hoặc đảo thứ tự giữa chúng — `validateHeaders` đã chặn mọi tên lạ trước khi tới đây.
+  const optIdx = (label) => header.findIndex((h) => normHeader(h) === normHeader(label))
+  const fullIdx = optIdx(OPTIONAL_HEADERS[0])
+  const emailIdx = optIdx(OPTIONAL_HEADERS[1])
+
   const parsed = dataRows.map((row, idx) => {
     const rawName = row[0] || ''
     const rawPhone = row[1] || ''
@@ -312,6 +336,8 @@ export function parseAndValidateMembers(csvText, clubLevels = [], clubGroups = [
     const baseRow = {
       id: 'row_' + idx,
       name: rawName,
+      fullName: fullIdx >= 0 ? String(row[fullIdx] || '').trim() : '',
+      email: emailIdx >= 0 ? String(row[emailIdx] || '').trim() : '',
       phone: rawPhone,
       gender: normalizeGender(rawGender),
       level: normalizeLevel(rawLevel, clubLevels),
@@ -348,11 +374,12 @@ export function generateSampleCsv(levels = [], groups = []) {
   const l2 = levels[1] || 'TB-'
   const l3 = levels[2] || 'TB'
 
+  // File mẫu in cả hai cột tuỳ chọn để người dùng biết là có — bỏ hai cột đó đi vẫn nhập được.
   const lines = [
-    'Họ và tên,Số điện thoại,Giới tính,Trình độ,Nhóm cố định',
-    `Nguyễn Văn An,0912345678,Nam,${l2},${g1}`,
-    `Trần Thị Bích,0987654321,Nữ,${l1},${g2}`,
-    `Lê Hoàng Minh,0903112233,Nam,${l3},`,
+    TEMPLATE_HEADERS.join(',') + ',' + OPTIONAL_HEADERS.join(','),
+    `Nguyễn Văn An,0912345678,Nam,${l2},${g1},Nguyễn Văn An,an@example.com`,
+    `Trần Thị Bích,0987654321,Nữ,${l1},${g2},Trần Thị Bích,`,
+    `Lê Hoàng Minh,0903112233,Nam,${l3},,,`,
   ]
 
   return '\uFEFF' + lines.join('\r\n')

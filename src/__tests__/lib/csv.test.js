@@ -82,6 +82,39 @@ test('validateHeaders — ép chuẩn 5 cột template', () => {
 
   const wrongCol = ['Họ và tên', 'Số điện thoại', 'Giới tính', 'Trình độ', 'Địa chỉ']
   assert.equal(validateHeaders(wrongCol).ok, false)
+
+  // Hai cột tuỳ chọn chỉ được đứng SAU 5 cột chuẩn. File cũ 5 cột phải chạy y như trước —
+  // chèn cột mới vào giữa là từ chối hàng loạt file người dùng đang có.
+  const withOptional = [...okHeader, 'Tên đầy đủ', 'Email']
+  assert.equal(validateHeaders(withOptional).ok, true)
+  assert.equal(validateHeaders([...okHeader, 'Email']).ok, true, 'thêm một cột tuỳ chọn thôi cũng phải nhận')
+
+  assert.equal(validateHeaders([...okHeader, 'Địa chỉ']).ok, false,
+    'cột dư mà không phải cột tuỳ chọn thì vẫn phải chặn — không thì file sai mẫu lọt vào và cột bị đọc nhầm')
+  assert.equal(validateHeaders([...okHeader, 'Email', 'Email']).ok, false,
+    'cùng một cột tuỳ chọn hai lần thì không biết lấy cột nào')
+})
+
+test('parseAndValidateMembers — đọc hai cột tuỳ chọn theo TÊN, không theo vị trí', () => {
+  const csv = `Họ và tên,Số điện thoại,Giới tính,Trình độ,Nhóm cố định,Email,Tên đầy đủ
+Thúy,0327279292,Nữ,TB,,thuy@gmail.com,Nguyễn Thị Thuý`
+
+  const res = parseAndValidateMembers(csv, ['Newbie', 'TB'], [], [])
+  assert.equal(res.headerError, null)
+  assert.equal(res.rows[0].fullName, 'Nguyễn Thị Thuý',
+    'đảo thứ tự hai cột tuỳ chọn mà đọc theo vị trí là email chui vào ô tên đầy đủ và ngược lại')
+  assert.equal(res.rows[0].email, 'thuy@gmail.com')
+  assert.equal(res.rows[0].name, 'Thúy', 'cột 1 vẫn là TÊN HIỂN THỊ, hai cột thêm không được đụng vào')
+})
+
+test('parseAndValidateMembers — file 5 cột cũ vẫn chạy, hai trường mới rỗng', () => {
+  const csv = `Họ và tên,Số điện thoại,Giới tính,Trình độ,Nhóm cố định
+Thúy,0327279292,Nữ,TB,`
+
+  const res = parseAndValidateMembers(csv, ['Newbie', 'TB'], [], [])
+  assert.equal(res.headerError, null, 'file CSV người dùng đang có phải nhập được y như trước')
+  assert.equal(res.rows[0].fullName, '')
+  assert.equal(res.rows[0].email, '')
 })
 
 test('parseAndValidateMembers — kiểm tra cảnh báo trùng và lỗi thiếu tên với template chuẩn', () => {

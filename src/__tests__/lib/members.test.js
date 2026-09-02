@@ -24,7 +24,7 @@ const db = {
     { id: 'GCN', name: 'Ca chủ nhật', short: 'CN' },
   ],
   members: [
-    { id: 'm1', name: 'Thúy', gender: 'nu', level: 'TBY', phone: '0327 279 292' },
+    { id: 'm1', name: 'Thúy', fullName: 'Nguyễn Thị Thuý', email: 'Thuy@Gmail.com', gender: 'nu', level: 'TBY', phone: '0327 279 292' },
     { id: 'm2', name: 'Vân Anh', gender: 'nu', level: 'TB+', phone: '0912345678' },
     { id: 'm3', name: 'Đạt', gender: 'nam', level: 'TB-', phone: '' },
     { id: 'm4', name: 'Khải', gender: 'nam', level: 'Newbie', phone: '0900000001' },
@@ -64,6 +64,12 @@ assert.deepEqual(names(filterMembers(db, all, f({ q: 'vananh' }), MONTH)), ['Vâ
 
 assert.deepEqual(names(filterMembers(db, all, f({ q: '0327279292' }), MONTH)), ['Thúy'],
   'SĐT trong DB lưu có dấu cách mà tìm bằng số liền không ra → không tra được người từ tin nhắn chuyển khoản')
+
+assert.deepEqual(names(filterMembers(db, all, f({ q: 'nguyen thi thuy' }), MONTH)), ['Thúy'],
+  'tìm phải soi cả TÊN ĐẦY ĐỦ — người thu tiền cầm giấy chuyển khoản ghi tên khai sinh, gõ vào ra rỗng là họ tạo thêm một bản ghi trùng cho người đã có')
+
+assert.deepEqual(names(filterMembers(db, all, f({ q: 'thuy@gmail.com' }), MONTH)), ['Thúy'],
+  'tìm phải soi cả EMAIL, và không phân biệt hoa/thường — email trong sổ CLB lưu sao thì gõ sao cũng phải ra')
 
 assert.deepEqual(filterMembers(db, all, f({ q: 'khong-co-ai' }), MONTH), [],
   'không khớp gì thì phải rỗng, không được trả cả danh sách')
