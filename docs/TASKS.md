@@ -852,6 +852,10 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
       Khi buổi đã mở (`open`): Không hiển thị nút "Mở lại buổi" (chỉ hiển thị cho buổi đã hủy `cancelled`).
 - [x] **Tích hợp `SearchSelect` vào màn Cài đặt → Tài khoản & quyền (`Settings.jsx`) — 2026-09-02**:
       Thay thế `<select>` native ở khối Yêu cầu vào CLB (`JoinRow`) và ghép tài khoản thủ công (`Access`) bằng component `SearchSelect` có tìm kiếm tên/SĐT/trình độ không dấu, huy hiệu trình độ màu sắc và lazy loading.
+- [x] **Nổi bật con số các Tab & Tính số đếm Công nợ theo vai Member (`Sidebar.jsx`, `Debts.jsx`, `Tabs.jsx`) — 2026-09-02**:
+      - Tăng độ tương phản badge số đếm trên `Tabs` (font bold, nền nổi, viền rõ ràng khi active/inactive) để không còn bị mờ.
+      - Thêm hàm thuần `myDebtCounts` và `clubDebtCounts` trong `lib/money.js`: khi xem ở vai `member` (hoặc không có quyền `money`), badge Công nợ ở Sidebar và các tab trong màn Công nợ chỉ đếm các khoản nợ của CHÍNH THÀNH VIÊN ĐÓ (khoản phải trả + khoản được trả); khi ở vai Thủ quỹ/Chủ CLB thì đếm toàn CLB.
+      - Nổi bật các con số tổng tiền (Cần thu, Cần hoàn, Còn thiếu, Quỹ nợ) với badge màu sắc trực quan.
 
 ### Đợt dọn C — migration `0011_level_history`
 

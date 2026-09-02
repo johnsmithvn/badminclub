@@ -8,9 +8,8 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { PUBLIC_PATHS, pathOf } from '#routes'
 import { allowedRoutes, roleName, can } from '#lib/roles.js'
-import { adjustRows, advanceRows, clubDebtCounts, duesOf, dueState, monthSessions, myDebtCounts, sessionOf } from '#lib/money.js'
+import { clubDebtCounts, monthSessions, myDebtCounts } from '#lib/money.js'
 import { assignableSessions } from '#lib/assign.js'
-import { monthOf } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 

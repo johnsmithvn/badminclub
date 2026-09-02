@@ -1847,6 +1847,13 @@
   },
   "bank": {
     "qrTitle": "Mã QR chuyển khoản",
+    "claimMemo": {
+      "all": "TAT TOAN HET NO {{d}}",
+      "some": "TRA {{n}} KHOAN {{d}}",
+      "dues": "QUY THANG {{m}} {{d}}",
+      "adjust": "DI THEM BUOI {{d}}",
+      "guest": "BUOI LE NGAY {{d}}"
+    },
     "copyNo": "Sao chép số tài khoản",
     "noQr": "Chưa có mã QR",
     "selectPrompt": "— Chọn ngân hàng / ví điện tử —",

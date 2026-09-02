@@ -36,15 +36,15 @@ function memoOf(picked, open, db) {
   if (picked.length > 1) {
     // Trả hết những gì đang treo thì nói hẳn là tất toán — thủ quỹ khỏi cộng tay từng khoản.
     return picked.length >= open.length
-      ? t('bank.memo.all', { d })
-      : t('bank.memo.some', { n: picked.length, d })
+      ? t('bank.claimMemo.all', { d })
+      : t('bank.claimMemo.some', { n: picked.length, d })
   }
   const x = picked[0]
   if (!x) return ''
-  if (x.kind === 'dues') return t('bank.memo.dues', { m: String(x.date).slice(5, 7), d })
+  if (x.kind === 'dues') return t('bank.claimMemo.dues', { m: String(x.date).slice(5, 7), d })
   // Buổi lẻ lấy NGÀY BUỔI chứ không phải ngày chuyển: đó mới là thứ đối chiếu được với lịch.
-  if (x.kind === 'guest') return t('bank.memo.guest', { d: dm(x.date) })
-  return t('bank.memo.adjust', { d })
+  if (x.kind === 'guest') return t('bank.claimMemo.guest', { d: dm(x.date) })
+  return t('bank.claimMemo.adjust', { d })
 }
 
 export function PayDebtsDialog({ items, onClose }) {
