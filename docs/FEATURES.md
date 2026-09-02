@@ -245,9 +245,20 @@ Ba luật của kiểm kho, sai một cái là hỏng số hai tháng:
    lượng nào mà kho vẫn lệch thì app **không tự sửa**, mà báo user sửa tay số quả.
 3. **Không tạo giao dịch nào**, kể cả khi hụt kho — xem `DATABASE.md` §3.1.
 
-## 7. Trang cá nhân · Cài đặt
+## 7. Hồ sơ · Cài đặt
 
-**Cá nhân**: một tài khoản dùng cho mọi CLB; danh sách CLB đang tham gia, bấm để chuyển.
+**Hai màn hồ sơ, hai bảng khác nhau** — đừng gộp lại:
+
+| Màn | Ở đâu | Sửa bảng | Sửa được gì |
+| --- | --- | --- | --- |
+| **Hồ sơ tài khoản** | `/tai-khoan`, **ngoài** CLB | `profiles` | tên · biệt danh · SĐT · giới tính · trình độ gợi ý. `username` / `email` chỉ đọc |
+| **Hồ sơ của tôi** | `/ca-nhan`, **trong** CLB | `club_members` | chỉ XEM. Đổi SĐT / trình độ thì gửi yêu cầu, chủ CLB duyệt |
+
+Sửa hồ sơ tài khoản **không** đổi gì trong CLB nào, và ngược lại: bản ghi trong CLB là bản sao
+độc lập — đó là cái tên nằm trên mọi bảng điểm danh và mọi dòng tiền cũ. Thành viên cũng không
+tự sửa `level` của mình được: `levelOf` suy trình độ của MỌI tháng từ ô đó, nên tự sửa là sửa lại
+cả buổi đã chốt. Yêu cầu đổi đi qua `member_changes` — SĐT áp dụng ngay khi duyệt, trình độ áp
+dụng từ tháng sau.
 
 **Cài đặt** 6 tab: Chung · Cách chia tiền · Sân · Cầu · Nhóm cố định · **Tài khoản & quyền**.
 
@@ -264,6 +275,13 @@ Tab *Tài khoản & quyền* — **hai cách cho người mới vào**, bật/t�
 dòng không transaction nên merge bắt buộc phải là RPC). Vì thế màn duyệt **chọn sẵn** bản ghi
 trùng SĐT, cảnh báo một dòng, và hạ *Tạo mới* xuống nút phụ. Chưa chọn ai thì nút **Ghép** bị
 khoá — RPC nhận `p_member_id = null` là nó tạo người mới, nút sẽ nói một đằng làm một nẻo.
+
+**Chọn trường ghi đè khi ghép.** Chọn xong bản ghi thì hiện bảng 4 trường (tên · SĐT · giới tính
+· trình độ): mỗi dòng in *CLB đang có → sẽ thành*, tick trường nào thì lấy trường đó từ hồ sơ tài
+khoản. **Mặc định không tick gì** — ghép chỉ gắn tài khoản, dữ liệu CLB giữ nguyên. Trường không
+ghép được thì khoá lại kèm lý do: hồ sơ tài khoản để trống · đã giống nhau · trình độ không có
+trong thang của CLB (`lib/members.js: mergeRows`, và RPC gác lại đúng ba luật đó). Ghi đè xong
+**không có đường lùi** — bản ghi CLB là bản sao độc lập, bỏ ghép cũng không trả lại giá trị cũ.
 
 **Mời qua SĐT đã gỡ khỏi client** (`allow_invite`): phần tạo bản ghi chạy được nhưng phần nhận
 (mở link → tạo tài khoản → tự ghép) chưa từng tồn tại, nên nút chỉ hứa suông. Bảng

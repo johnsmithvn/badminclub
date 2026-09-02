@@ -193,21 +193,41 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     // `clubs.allow_invite` giữ nguyên dưới DB, chờ làm thành một module riêng có gửi tin thật.
     // Hai hành động dưới KHÔNG đi qua đồng bộ ngầm: người xin vào chưa phải thành viên nên
     // client không có quyền ghi thẳng. Gọi RPC (SECURITY DEFINER) rồi nạp lại CLB.
-    approveJoin: async (rid, mid) => {
+    /**
+     * `fields`: các trường (`lib/members.js: MERGE_FIELDS`) chủ CLB tick để lấy từ hồ sơ tài
+     * khoản đè lên bản ghi thành viên. Rỗng = chỉ gắn tài khoản, giữ nguyên dữ liệu CLB đang
+     * dùng để tính tiền — đó là mặc định, và là hành vi trước 0009.
+     *
+     * Chỉ có nghĩa khi GHÉP (`mid` khác rỗng). Nhánh tạo mới lấy trọn hồ sơ vì không có dữ
+     * liệu cũ nào để giữ; RPC bỏ qua `p_fields` ở nhánh đó.
+     */
+    approveJoin: async (rid, mid, fields) => {
       const d0 = db()
       const req = (d0.joinRequests || []).find((r) => r.id === rid)
       if (!req) return
       const u = d0.users.find((x) => x.id === req.userId)
       const name = mid ? memberOf(d0, mid).name : ''
+      const take = mid ? (fields || []) : []
       try {
-        unwrap(await supabase.rpc('approve_join_request', { p_request: rid, p_member_id: mid || null }))
+        unwrap(await supabase.rpc('approve_join_request', {
+          p_request: rid, p_member_id: mid || null, p_fields: take,
+        }))
       } catch (e) {
-        return toast(e.message)
+        // DB chưa apply 0009 thì hàm 3 tham số không tồn tại và PostgREST trả nguyên văn
+        // "Could not find the function public.approve_join_request(...) in the schema cache" —
+        // câu đó không nói cho ai biết phải làm gì.
+        const m = String(e.message || '')
+        return toast(/approve_join_request|schema cache/i.test(m) ? t('sync.needMigrate') : m)
       }
       await reload()
-      toast(mid
-        ? t('toast.linked', { name, account: u ? u.name : '' })
-        : t('toast.memberCreatedFromUser', { account: u ? u.name : '' }))
+      if (!mid) return toast(t('toast.memberCreatedFromUser', { account: u ? u.name : '' }))
+      // Ghi đè trường nào phải nói ra: đó là dữ liệu CLB vừa bị thay, và không có đường lùi.
+      toast(take.length
+        ? t('toast.linkedFields', {
+            name, account: u ? u.name : '',
+            fields: take.map((f) => t('members.changeField.' + f)).join(', '),
+          })
+        : t('toast.linked', { name, account: u ? u.name : '' }))
     },
     rejectJoin: async (rid) => {
       try {

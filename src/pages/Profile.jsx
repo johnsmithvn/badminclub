@@ -1,254 +1,194 @@
-// Trang cá nhân: chỉnh sửa thông tin cá nhân trực tiếp + thông tin thành viên trong CLB + danh sách CLB.
+// Hồ sơ TRONG CLB đang xem — bảng `club_members`. Màn này KHÔNG sửa hồ sơ tài khoản
+// (`profiles`); cái đó ở `/tai-khoan` (`Account.jsx`), ngoài CLB.
+//
+// Vì sao chỉ xem chứ không sửa thẳng:
+//   · `level` là dữ liệu tính tiền và xếp sân. `money.js: levelOf` suy trình độ của MỌI tháng
+//     từ đúng ô `member.level`, nên tự sửa nó là sửa lại cả những buổi đã chốt xong. Đường đúng
+//     là xin đổi → `member_changes` → chủ CLB duyệt, và trình độ áp dụng TỪ THÁNG SAU.
+//   · `role` không nằm trong tầm tay chủ nhân bản ghi. Từ 0009, RLS cũng không cho thành viên
+//     thường UPDATE `club_members` nữa — ghi thẳng từ đây sẽ bị DB từ chối, không phải chỉ là
+//     quy ước của client.
 
-import { useState, useEffect } from 'react'
-import { Avatar, Button, Card, Input, Select } from '#ds'
-import { Empty, LevelChip, Mono, Overline } from '#ui'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Avatar, Button, Card, Icon, Input, Select } from '#ds'
+import { Empty, LevelChip, Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
-import { supabase } from '#supabase'
-import { ddmy } from '#utils/dates.js'
+import { genderTxt } from '#lib/money.js'
 import { roleName } from '#lib/roles.js'
+import { ddmy } from '#utils/dates.js'
+import { PUBLIC_PATHS } from '#routes'
 import { t } from '#i18n'
 
 export default function Profile() {
   const { db, a } = useApp()
-  const { profile, clubs: myClubs, setActiveClub, refresh } = useAuth()
+  const { clubs: myClubs, setActiveClub } = useAuth()
+  const navigate = useNavigate()
 
-  // Tìm bản ghi thành viên của tài khoản này trong CLB hiện tại
-  const currentMember = (db.members || []).find((m) => m.userId === db.currentUserId)
-
-  // State form chỉnh sửa trực tiếp
-  const [form, setForm] = useState({
-    name: '',
-    nick: '',
-    phone: '',
-    gender: 'nam',
-    level: 'TB',
-  })
-  const [saving, setSaving] = useState(false)
-
-  // Đồng bộ dữ liệu ban đầu
-  useEffect(() => {
-    if (profile) {
-      setForm({
-        name: (currentMember && currentMember.name) || profile.name || '',
-        nick: profile.nick || '',
-        phone: (currentMember && currentMember.phone) || profile.phone || '',
-        gender: (currentMember && currentMember.gender) || profile.gender || 'nam',
-        level: (currentMember && currentMember.level) || profile.level || (db.levels && db.levels[0]) || 'TB',
-      })
-    }
-  }, [profile, currentMember, db.levels])
-
-  const handleSave = async (e) => {
-    if (e) e.preventDefault()
-    if (!form.name.trim()) return a.toast('Vui lòng nhập họ và tên')
-    setSaving(true)
-
-    try {
-      // 1. Cập nhật bảng profiles trong Supabase
-      if (supabase && profile?.id) {
-        const { error: pErr } = await supabase.from('profiles').update({
-          name: form.name.trim(),
-          nick: form.nick.trim() || null,
-          phone: form.phone.trim() || null,
-          gender: form.gender,
-          level: form.level,
-        }).eq('id', profile.id)
-        if (pErr) throw pErr
-      }
-
-      // 2. Cập nhật bản ghi club_members của thành viên trong CLB này nếu đã ghép
-      if (currentMember) {
-        a.up((d) => ({
-          members: d.members.map((m) =>
-            m.id === currentMember.id
-              ? {
-                  ...m,
-                  name: form.name.trim(),
-                  phone: form.phone.trim(),
-                  gender: form.gender,
-                  level: form.level,
-                }
-              : m
-          ),
-        }))
-
-        if (supabase) {
-          const { error: mErr } = await supabase.from('club_members').update({
-            name: form.name.trim(),
-            phone: form.phone.trim(),
-            gender: form.gender,
-            level: form.level,
-          }).eq('id', currentMember.id)
-          if (mErr) console.warn('[profile] cập nhật club_members:', mErr.message)
-        }
-      }
-
-      // 3. Tải lại profile từ Supabase
-      if (refresh && profile?.id) {
-        await refresh(profile.id)
-      }
-
-      a.toast('Đã cập nhật thông tin cá nhân thành công!')
-    } catch (err) {
-      a.toast(err.message || 'Lỗi khi lưu thông tin')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Danh sách các ca cố định thành viên đang tham gia
-  const myGroups = currentMember
-    ? (db.groups || []).filter((g) => (currentMember.groupIds || []).includes(g.id))
-    : []
+  const me = (db.members || []).find((m) => m.userId === db.currentUserId) || null
+  const myGroups = me ? (db.groups || []).filter((g) => (me.groupIds || []).includes(g.id)) : []
+  const pending = me ? (db.changes || []).filter((c) => c.status === 'pending' && c.memberId === me.id) : []
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(330px,1fr))', gap: 16, alignItems: 'start' }}>
-      {/* 1. Form chỉnh sửa thông tin cá nhân */}
-      <Card title="Hồ sơ cá nhân" subtitle="Chỉnh sửa thông tin tài khoản và hiển thị trong CLB" icon="user-round" padding="18px">
-        <form onSubmit={handleSave} style={{ display: 'grid', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 10, borderBottom: '1px solid var(--border-subtle)' }}>
-            <Avatar name={form.name || profile?.name || 'U'} size={52} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>{form.name || 'Người dùng'}</div>
-              <Mono color="var(--text-muted)">
-                {profile?.created_at ? ddmy(String(profile.created_at).slice(0, 10)) : 'Tài khoản thành viên'}
-              </Mono>
-            </div>
-          </div>
-
-          <Input
-            label="Họ và tên"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Nhập họ và tên..."
-          />
-
-          <Input
-            label="Biệt danh / Tên gọi thường dùng"
-            value={form.nick}
-            onChange={(e) => setForm({ ...form, nick: e.target.value })}
-            placeholder="Ví dụ: Thắng Còi, Mai Anh..."
-          />
-
-          <Input
-            label="Số điện thoại"
-            mono
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="Nhập số điện thoại..."
-          />
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <Select
-              label="Giới tính"
-              value={form.gender}
-              options={[
-                { value: 'nam', label: 'Nam' },
-                { value: 'nu', label: 'Nữ' },
-              ]}
-              onChange={(e) => setForm({ ...form, gender: e.target.value })}
-            />
-
-            <Select
-              label="Trình độ"
-              value={form.level}
-              options={(db.levels || ['Y', 'TB-', 'TB', 'TB+', 'K']).map((l) => ({ value: l, label: l }))}
-              onChange={(e) => setForm({ ...form, level: e.target.value })}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-            <Button variant="primary" type="submit" icon="circle-check" disabled={saving}>
-              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-            </Button>
-          </div>
-        </form>
-      </Card>
-
-      {/* 2. Thông tin trong CLB hiện tại */}
-      <Card title="Vai trò & Tham gia trong CLB" subtitle={db.club.name} icon="shield" padding="16px 18px">
-        <div style={{ display: 'grid', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--surface-sunken)', borderRadius: 8 }}>
-            <span style={{ font: 'var(--type-label)', fontWeight: 600 }}>Vai trò của bạn</span>
-            <span style={S.rolePill}>{roleName(currentMember?.role || db.myRole || 'member')}</span>
-          </div>
-
-          <div style={{ display: 'grid', gap: 6 }}>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>Tình trạng liên kết bản ghi thành viên:</div>
-            {currentMember ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, font: 'var(--type-label)', color: 'var(--status-delivered)' }}>
-                <span>✓ Đã liên kết với thành viên <b>{currentMember.name}</b></span>
+      {/* 1. Bản ghi thành viên trong CLB này */}
+      <Card title={t('profile.meTitle')} subtitle={db.club.name} icon="user-round" padding="16px 18px">
+        {!me
+          ? <Empty icon="unlink" title={t('profile.changeNoMember')} hint={t('profile.changeNoMemberHint')} />
+          : <div style={{ display: 'grid', gap: 13 }}>
+              <div style={S.idRow}>
+                <Avatar name={me.name} size={46} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={S.h3}>{me.name}</div>
+                  <Mono color="var(--text-muted)">{me.phone || t('common.notYet')}</Mono>
+                </div>
+                <div style={{ flex: 1 }} />
+                <span style={S.rolePill}>{roleName(me.role)}</span>
               </div>
-            ) : (
-              <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
-                ⚠️ Tài khoản chưa được ghép vào bản ghi thành viên nào trong CLB này. Vui lòng liên hệ Chủ CLB để ghép bản ghi.
-              </div>
-            )}
-          </div>
 
-          <div style={{ display: 'grid', gap: 6 }}>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>Các ca cố định tham gia:</div>
-            {myGroups.length === 0 ? (
-              <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>Chưa cố định ca nào (đang đi lẻ)</div>
-            ) : (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {myGroups.map((g) => (
-                  <span key={g.id} style={{
-                    font: '600 11px var(--font-sans)', padding: '3px 8px', borderRadius: 6,
-                    background: 'var(--teal-50)', color: 'var(--teal-700)',
-                  }}>
-                    {g.name}
+              <Row label={t('auth.fGender')}>{genderTxt(me.gender)}</Row>
+              <Row label={t('auth.fLevel')}>
+                <LevelChip level={me.level} levels={db.levels} />
+                {me.pendingLevel && (
+                  <span style={S.caption}>
+                    {t('profile.levelPending', { level: me.pendingLevel, month: me.pendingLevelFrom })}
                   </span>
-                ))}
+                )}
+              </Row>
+              <Row label={t('profile.fJoined')}><Mono>{ddmy(me.joined)}</Mono></Row>
+              <Row label={t('profile.fGroups')}>
+                {myGroups.length === 0
+                  ? <span style={S.caption}>{t('profile.groupsNone')}</span>
+                  : myGroups.map((g) => <span key={g.id} style={S.groupPill}>{g.name}</span>)}
+              </Row>
+
+              <div style={S.note}>
+                <Icon name="info" size={14} />
+                <span>{t('profile.snapshotNote')}</span>
               </div>
-            )}
-          </div>
-        </div>
+            </div>}
       </Card>
 
-      {/* 3. Danh sách CLB đang tham gia */}
-      <Card title={t('profile.clubsTitle')} subtitle={t('profile.clubsSub')} icon="building-2" padding="14px">
-        {myClubs.length === 0
-          ? <Empty icon="building-2" title={t('profile.noClub')} hint={t('profile.noClubHint')} />
-          : <div style={{ display: 'grid', gap: 8 }}>
-              {myClubs.map((c) => {
+      {/* 2. Xin đổi thông tin trong CLB — chủ CLB duyệt */}
+      <ChangeCard me={me} pending={pending} db={db} a={a} />
+
+      {/* 3. Hồ sơ tài khoản + danh sách CLB */}
+      <Card title={t('profile.accountTitle')} subtitle={t('profile.accountSub')} icon="building-2" padding="14px">
+        <div style={{ display: 'grid', gap: 10 }}>
+          <Button variant="secondary" icon="user-round-cog" onClick={() => navigate(PUBLIC_PATHS.account)}>
+            {t('profile.accountBtn')}
+          </Button>
+          <span style={S.caption}>{t('profile.accountNote')}</span>
+
+          {myClubs.length === 0
+            ? <Empty icon="building-2" title={t('profile.noClub')} hint={t('profile.noClubHint')} />
+            : myClubs.map((c) => {
                 const here = c.id === db.clubId
                 return (
                   <button key={c.id} type="button" onClick={() => setActiveClub(c.id)} style={{
-                    ...S.clubRow,
-                    borderColor: here ? 'var(--navy-700)' : 'var(--border-subtle)',
+                    ...S.clubRow, borderColor: here ? 'var(--navy-700)' : 'var(--border-subtle)',
                   }}>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                      <div style={S.value}>{c.name}</div>
-                      <Mono color="var(--text-muted)">
-                        {t('profile.clubMeta', { code: c.code, n: c.member_count })}
-                      </Mono>
+                      <div style={S.label}>{c.name}</div>
+                      <Mono color="var(--text-muted)">{t('profile.clubMeta', { code: c.code, n: c.member_count })}</Mono>
                     </div>
                     <span style={S.rolePill}>{roleName(c.role)}</span>
-                    {here && (
-                      <span style={{ font: 'var(--type-caption)', color: 'var(--status-delivered)' }}>
-                        {t('profile.viewing')}
-                      </span>
-                    )}
+                    {here && <span style={{ font: 'var(--type-caption)', color: 'var(--status-delivered)' }}>{t('profile.viewing')}</span>}
                   </button>
                 )
               })}
-            </div>}
+        </div>
       </Card>
     </div>
   )
 }
 
+/* ---------------- xin đổi thông tin ---------------- */
+
+/**
+ * Hai trường thôi, đúng bộ mà `appActions.requestChange` + `approveChange` xử lý được:
+ * SĐT (duyệt xong áp dụng ngay) và trình độ (áp dụng từ tháng sau). Thêm ô ở đây mà không thêm
+ * nhánh ở `approveChange` thì yêu cầu gửi đi rồi duyệt xong không có gì đổi.
+ */
+function ChangeCard({ me, pending, db, a }) {
+  const [level, setLevel] = useState('')
+  const [phone, setPhone] = useState('')
+
+  if (!me) return null
+
+  return (
+    <Card title={t('profile.changeTitle')} subtitle={t('profile.changeSub')} icon="settings-2" padding="16px 18px">
+      <div style={{ display: 'grid', gap: 13 }}>
+        {pending.length > 0 && (
+          <div style={S.pendingBox}>
+            {pending.map((c) => (
+              <div key={c.id}>
+                {t('profile.changePending', { field: t('members.changeField.' + c.field), to: c.to })}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gap: 6 }}>
+          <Select label={t('profile.changeLevel')} value={level} onChange={(e) => setLevel(e.target.value)}
+            options={[{ value: '', label: t('profile.changePick') }]
+              .concat((db.levels || []).map((l) => ({ value: l, label: l })))} />
+          <Button variant="secondary" size="sm" icon="send" disabled={!level}
+            onClick={() => { a.requestChange('level', level); setLevel('') }}>
+            {t('profile.changeSend')}
+          </Button>
+        </div>
+
+        <div style={{ display: 'grid', gap: 6 }}>
+          <Input label={t('profile.changePhone')} mono value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Button variant="secondary" size="sm" icon="send" disabled={!phone.trim()}
+            onClick={() => { a.requestChange('phone', phone); setPhone('') }}>
+            {t('profile.changeSend')}
+          </Button>
+        </div>
+
+        <span style={S.caption}>{t('profile.changeNote')}</span>
+      </div>
+    </Card>
+  )
+}
+
+const Row = ({ label, children }) => (
+  <div style={S.row}>
+    <span style={S.rowLabel}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{children}</div>
+  </div>
+)
+
 const S = {
-  value: { font: 'var(--type-label)', color: 'var(--text-primary)' },
+  h3: { font: 'var(--type-h3)', color: 'var(--text-primary)' },
+  label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
+  caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
+  idRow: {
+    display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+    paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)',
+  },
+  row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' },
+  rowLabel: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
+  rolePill: {
+    font: '600 10px/1 var(--font-sans)', padding: '5px 9px', borderRadius: 99, whiteSpace: 'nowrap',
+    background: 'var(--surface-brand-soft)', color: 'var(--navy-700)',
+  },
+  groupPill: {
+    font: '600 11px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 6,
+    background: 'var(--surface-accent-soft)', color: 'var(--teal-700)',
+  },
   clubRow: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8,
     border: '1px solid', background: 'var(--surface-card)', cursor: 'pointer', font: 'inherit',
   },
-  rolePill: {
-    font: '600 10px/1 var(--font-sans)', padding: '5px 9px', borderRadius: 99, whiteSpace: 'nowrap',
-    background: 'var(--surface-brand-soft)', color: 'var(--navy-700)',
+  note: {
+    display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 11px', borderRadius: 8,
+    background: 'var(--surface-brand-soft)', color: 'var(--navy-700)', font: 'var(--type-caption)',
+  },
+  pendingBox: {
+    display: 'grid', gap: 4, padding: '9px 11px', borderRadius: 8,
+    background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)', font: 'var(--type-caption)',
   },
 }

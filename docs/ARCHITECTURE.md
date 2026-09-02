@@ -22,7 +22,7 @@ Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả 
 | Lint | ESLint 9 + `react-hooks` | bắt lỗi hook thật |
 | Test | `node --test` + `node:assert/strict`, không framework | runner sẵn có của Node, tự tìm `*.test.js`; xem `docs/RULES.md` §5 |
 
-**Dependency runtime: đúng 4** — `react`, `react-dom`, `react-router-dom`, `lucide-react`.
+**Dependency runtime: đúng 5** — `@supabase/supabase-js`, `lucide-react`, `react`, `react-dom`, `react-router-dom`.
 Không thêm dependency UI nào khác (không Tailwind, không MUI, không styled-components).
 
 ---
@@ -148,7 +148,7 @@ Ba quy ước:
 Route key (xem `routes/index.js`) là một trong: `home sessions session assign schedules calendar members debts fund
 shuttles profile settings schema`.
 
-Quyền lấy từ `lib/roles.js` + `config/permissions.json` (5 vai, xem handoff `01` §5):
+Quyền lấy từ `lib/roles.js` + `config/permissions.json` (3 vai: `owner`, `treasurer`, `member`):
 
 - Sidebar **ẩn** mục không được phép; section rỗng cũng ẩn.
 - Route không được phép → `effRoute()` fallback về `home`, **không** hiện trang lỗi.

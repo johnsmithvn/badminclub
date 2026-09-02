@@ -3,7 +3,7 @@
 Web app quản lý một hoặc nhiều câu lạc bộ cầu lông sinh hoạt định kỳ: lịch tập cố định → điểm danh
 từng buổi → khách giao lưu → chốt tiền buổi → quỹ tháng, công nợ, back tiền → kho cầu → báo cáo.
 Kèm module **Chia sân** (kéo thả, xếp thông minh, bấm giờ, đếm số trận) và hệ **tài khoản – nhiều
-CLB – phân quyền 5 vai**.
+CLB – phân quyền 3 vai (Chủ CLB, Thủ quỹ, Thành viên)**.
 
 Bài toán gốc: CLB đang quản lý bằng Excel + Zalo. Người dùng chính là chủ quỹ, làm việc trên điện
 thoại/laptop ngay tại sân. Vì vậy: **không ai phải nhập thứ mà app tự suy ra được**, và **mọi con
@@ -61,7 +61,7 @@ thật của CLB bạn, app không bịa hộ.
 
 ### Muốn xoá sạch DB làm lại từ đầu
 
-Lệnh dưới **xoá toàn bộ dữ liệu** (tài khoản, CLB, buổi, tiền) rồi chạy lại 3 migration từ đầu.
+Lệnh dưới **xoá toàn bộ dữ liệu** (tài khoản, CLB, buổi, tiền) rồi chạy lại toàn bộ migration từ đầu.
 Không hoàn lại được:
 
 ```bash
@@ -82,7 +82,7 @@ npx supabase db reset
 | `npm run dev` | dev server tại http://localhost:5173 |
 | `npm run build` | build production vào `dist/` |
 | `npm run preview` | xem thử bản build |
-| `npm test` | test logic tiền / sổ quỹ / chia sân / ngày tháng / map ↔ Postgres |
+| `npm test` | test logic tiền / sổ quỹ / chia sân / ngày tháng / CSV / map ↔ Postgres |
 | `npm run lint` | ESLint |
 | `npm run db:start` · `db:stop` · `db:status` | quản lý Supabase local |
 | `npm run db:migrate` | áp migration còn thiếu lên DB đang chạy (không xoá data) |
@@ -116,13 +116,13 @@ src/
   data/                schema.js
   hooks/               useClock.js
   i18n/                index.js · vi.json            ← MỌI chữ
-  lib/                 money · ledger · assign · roles · forms  (THUẦN, test được)
+  lib/                 money · ledger · assign · roles · forms · csv · schedules (THUẦN, test được)
   pages/               13 màn trong CLB + Login · Register · Clubs + Dialogs
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/
   utils/               dates.js
   __tests__/           test cho lib/ · utils/ · dbmap + fixture.js (dữ liệu test, app KHÔNG import)
-supabase/               config.toml · migrations/0001_init.sql · 0002_auth_rls.sql · 0003_levels_and_client_sync.sql
+supabase/               config.toml · migrations/ (0001..0008)
 docs/                   RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS
 DESIGN.md
 ```
@@ -153,9 +153,9 @@ Chi tiết: [docs/RULES.md](docs/RULES.md).
 
 ## Đang làm tiếp
 
-Đã xong: schema + RLS + RPC, đăng ký/đăng nhập, màn CLB, phê duyệt, và **cả 13 màn trong CLB đọc
-ghi thẳng Supabase** qua `contexts/storage.js` + `contexts/dbmap.js` (đồng bộ ngầm theo từng dòng
-— xem `docs/ARCHITECTURE.md` §6).
+Đã xong: schema + RLS + RPC, đăng ký/đăng nhập, màn CLB, phê duyệt, **cả 13 màn trong CLB đọc
+ghi thẳng Supabase** qua `contexts/storage.js` + `contexts/dbmap.js`, hệ thống 3 vai trò, chế độ
+1 nhóm / nhiều nhóm (`multi_group`), nhập danh sách thành viên bằng file CSV (`src/lib/csv.js`),
+sao lưu/nhập cấu hình CLB (`Settings Export / Import`), theo dõi quỹ nợ ứng tiền và xóa CLB an toàn.
 
-Còn lại: kiểm RLS bằng hai tài khoản khác CLB, realtime cho chia sân, RPC sinh `transactions` khi
-chốt buổi, `audit_logs`, rồi đẩy lên Supabase cloud. Xem `docs/TASKS.md` Phase 7.
+Còn lại: realtime cho chia sân, RPC sinh `transactions` khi chốt buổi, `audit_logs`, rồi đẩy lên Supabase cloud. Xem `docs/TASKS.md`.

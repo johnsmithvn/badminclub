@@ -138,6 +138,30 @@ export function AuthProvider({ children }) {
       await supabase.auth.signOut()
     },
 
+    /**
+     * Sửa hồ sơ TÀI KHOẢN (`profiles`). Chỉ ghi đúng bảng đó.
+     *
+     * KHÔNG đụng `club_members`: hồ sơ trong mỗi CLB là bản sao độc lập, không phải khung nhìn
+     * của hồ sơ tài khoản. Đổi tên ở đây mà lan sang CLB là sửa lại tên trên mọi bảng điểm danh,
+     * mọi dòng tiền cũ của người đó — muốn đổi thì xin qua màn Hồ sơ trong CLB (`member_changes`,
+     * chủ CLB duyệt).
+     *
+     * `phone` là cột UNIQUE và cũng là một cách đăng nhập (`resolve_login`), nên trùng số là
+     * Postgres trả 23505 với câu tiếng Anh thô — dịch ở đây, đúng khuôn `signUpUnwrap`.
+     */
+    async updateProfile(patch) {
+      if (!supabase) throw new Error(t('auth.noDb'))
+      const uid = session && session.user ? session.user.id : null
+      if (!uid) throw new Error(t('auth.errNoAccount'))
+      const { error } = await supabase.from('profiles').update(patch).eq('id', uid)
+      if (error) {
+        const m = String(error.message || '')
+        if (/duplicate key|unique constraint/i.test(m)) throw new Error(t('auth.errUniqueTaken'))
+        throw new Error(m)
+      }
+      await refresh(uid)
+    },
+
     /** Kiểm username còn trống — gọi khi blur ô username lúc đăng ký. */
     async usernameAvailable(username) {
       if (!supabase || !username || username.length < 3) return null

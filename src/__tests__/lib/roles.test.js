@@ -1,4 +1,4 @@
-// node --test — Ma trận quyền 5 vai: cờ · route · "xem như".
+// node --test — Ma trận quyền 3 vai: cờ · route · "xem như".
 // Bản đồ đầy đủ: src/__tests__/README.md
 //
 // Vì sao đáng test dù chỉ là tra bảng: ma trận này tồn tại ở HAI NƠI — `src/config/permissions.json`

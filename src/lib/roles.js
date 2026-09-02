@@ -1,4 +1,4 @@
-// Năm vai và quyền. Ma trận nằm ở src/config/permissions.json (tương ứng bảng role_permissions
+// Ba vai và quyền (owner, treasurer, member). Ma trận nằm ở src/config/permissions.json (tương ứng bảng role_permissions
 // trong DB), nhãn và mô tả nằm ở src/i18n/<locale>.json. File này chỉ tra cứu.
 // Ẩn UI chỉ là lớp thứ hai — backend PHẢI kiểm lại quyền.
 

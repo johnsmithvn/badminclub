@@ -1,14 +1,15 @@
 // Cài đặt: Chung · Cách chia tiền · Sân · Cầu · Nhóm cố định · Tài khoản & quyền (handoff 02 §7).
 
 import { useState, useEffect } from 'react'
-import { Alert, Avatar, Button, Card, Input, Select, Switch, Tabs, Tag } from '#ds'
+import { Alert, Avatar, Button, Card, Checkbox, Input, Select, Switch, Tabs, Tag } from '#ds'
 import { DeleteClubDialog, Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { WD, ddmy } from '#utils/dates.js'
 import { ROLES, can, roleDesc } from '#lib/roles.js'
-import { fmtK, intOf } from '#lib/money.js'
+import { fmtK, genderTxt, intOf } from '#lib/money.js'
+import { digits, mergeRows } from '#lib/members.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 import Schedules from './Schedules.jsx'
@@ -669,12 +670,113 @@ function Groups({ canEdit }) {
 
 /* ---------------- Tài khoản & quyền ---------------- */
 
+/**
+ * MỘT yêu cầu vào CLB đang chờ duyệt, kèm bảng chọn trường ghi đè.
+ *
+ * Hai bảng, không phải một: `profiles` là hồ sơ TÀI KHOẢN (một cái cho mọi CLB), `club_members`
+ * là hồ sơ TRONG CLB này. Ghép chỉ gắn `user_id` — thông tin CLB đang có KHÔNG tự đổi theo hồ sơ
+ * tài khoản, vì đó chính là thứ mọi bảng điểm danh, mọi dòng tiền cũ đang gọi tên. Muốn lấy
+ * sang thì tick từng trường, và mặc định KHÔNG tick gì.
+ *
+ * Ghi đè xong không có đường lùi: bản ghi CLB là bản sao độc lập, gỡ ghép cũng không trả lại
+ * giá trị cũ. Vì thế mỗi dòng in rõ "CLB đang có → sẽ thành", và trường không ghép được thì
+ * khoá lại kèm lý do thay vì lặng lẽ bỏ qua (`lib/members.js: mergeRows`).
+ */
+function JoinRow({ r, canEdit, unlinked }) {
+  const { db, ui, a } = useApp()
+  const u = db.users.find((x) => x.id === r.userId) || {}
+  // Bản ghi tay trùng SĐT — chọn sẵn để bấm nhầm "Tạo thành viên mới" không còn là lối dễ đi
+  // nhất. Tạo mới ở đây là sinh ra người thứ hai cùng một con người: hai dòng cùng chạy song
+  // song, và GỘP LẠI thì app chưa làm được.
+  const dup = unlinked.find((m) => digits(m.phone) && digits(m.phone) === digits(u.phone))
+  const pick = ui.form['join_' + r.id] ?? (dup ? dup.id : '')
+  const target = unlinked.find((m) => m.id === pick) || null
+  const rows = target ? mergeRows(target, u, db.levels) : []
+  const ticked = ui.form['jf_' + r.id] || []
+  // Lọc lại theo `rows` chứ không tin thẳng ô đã tick: đổi sang bản ghi khác thì một trường
+  // đang tick có thể thành 'same' hoặc 'offScale', gửi đi là RPC bỏ qua trong im lặng còn toast
+  // vẫn khoe đã ghi đè.
+  const take = rows.filter((x) => !x.block && ticked.indexOf(x.field) >= 0).map((x) => x.field)
+
+  // Đổi bản ghi đích thì xoá sạch ô đã tick: giá trị "sẽ thành" vừa đổi hết, giữ tick cũ là
+  // ghi đè lên một người khác với lựa chọn dành cho người trước.
+  const setPick = (id) => { a.setF('join_' + r.id, id); a.setF('jf_' + r.id, []) }
+  const toggle = (field) => a.setF('jf_' + r.id,
+    ticked.indexOf(field) >= 0 ? ticked.filter((x) => x !== field) : ticked.concat([field]))
+
+  return (
+    <div style={{ display: 'grid', gap: 9, padding: '11px 12px', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Avatar name={u.name || ''} size={34} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={S.label}>{u.name}</div>
+          <Mono color="var(--text-muted)">
+            {t('settings.joinMeta', { phone: u.phone, code: r.code, date: ddmy(r.at) })}
+          </Mono>
+          {r.note && <div style={S.caption}>{r.note}</div>}
+        </div>
+      </div>
+      {canEdit && (
+        <div style={{ display: 'grid', gap: 7 }}>
+          {dup && (
+            <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
+              {t('settings.joinDupWarn', { name: dup.name })}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Select size="sm" style={{ width: 240 }} value={pick}
+              options={[{ value: '', label: t('settings.joinPickMember') }].concat(
+                unlinked.map((m) => ({ value: m.id, label: m.name + ' · ' + (m.phone || '') }))
+              )}
+              onChange={(e) => setPick(e.target.value)} />
+            {/* Chưa chọn ai mà bấm Ghép thì RPC nhận p_member_id = null và tạo người mới —
+                nút nói một đằng làm một nẻo. Khoá lại. */}
+            <Button variant="primary" size="sm" icon="link" disabled={!pick}
+              onClick={() => a.approveJoin(r.id, pick, take)}>{t('settings.joinLink')}</Button>
+            <Button variant="ghost" size="sm" icon="user-round-plus"
+              onClick={() => a.approveJoin(r.id, null)}>{t('settings.joinCreate')}</Button>
+            <Button variant="ghost" size="sm" icon="circle-x"
+              onClick={() => a.rejectJoin(r.id)}>{t('settings.joinReject')}</Button>
+          </div>
+
+          {target && (
+            <div style={S.mergeBox}>
+              <Overline>{t('settings.mergeTitle')}</Overline>
+              <div style={S.caption}>{t('settings.mergeHint')}</div>
+              {rows.map((x) => (
+                <div key={x.field} style={S.mergeRow}>
+                  <Checkbox
+                    label={t('members.changeField.' + x.field)}
+                    checked={ticked.indexOf(x.field) >= 0 && !x.block}
+                    disabled={!!x.block}
+                    onChange={() => toggle(x.field)}
+                  />
+                  {x.block
+                    ? <span style={S.caption}>{t('settings.mergeBlock.' + x.block)}</span>
+                    : <Mono color="var(--text-muted)">
+                        {t('settings.mergeArrow', {
+                          from: showVal(x.field, x.from) || t('common.notYet'),
+                          to: showVal(x.field, x.to),
+                        })}
+                      </Mono>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Giới tính lưu bằng KEY ('nam' / 'nu'), bảng so sánh phải in ra chữ người đọc được. */
+const showVal = (field, v) => (field === 'gender' && v ? genderTxt(v) : v)
+
 function Access({ canEdit, pending }) {
   const { db, ui, a } = useApp()
   // `invite` cố ý không đọc nữa: mời qua SĐT đã gỡ khỏi client, chờ module riêng có gửi tin
   // thật. Cột `clubs.allow_invite` vẫn nằm dưới DB.
   const lm = { code: true, phone: true, ...db.club.linkModes }
-  const digits = (x) => (x || '').replace(/\D/g, '')
 
   /**
    * Tài khoản đã gắn vào MỘT bản ghi nào đó của CLB này. Không được hiện lại ở ô ghép:
@@ -700,52 +802,9 @@ function Access({ canEdit, pending }) {
           ? <Empty icon="circle-check" title={t('settings.joinEmpty')}
               hint={t('settings.joinEmptyHint', { code: db.club.code })} />
           : <div style={{ display: 'grid', gap: 12 }}>
-              {pending.map((r) => {
-                const u = db.users.find((x) => x.id === r.userId) || {}
-                // Bản ghi tay trùng SĐT — chọn sẵn để bấm nhầm "Tạo thành viên mới" không còn
-                // là lối dễ đi nhất. Tạo mới ở đây là sinh ra người thứ hai cùng một con
-                // người: hai dòng cùng chạy song song, và GỘP LẠI thì app chưa làm được.
-                const dup = unlinked.find((m) => digits(m.phone) && digits(m.phone) === digits(u.phone))
-                const pick = ui.form['join_' + r.id] ?? (dup ? dup.id : '')
-                return (
-                  <div key={r.id} style={{ display: 'grid', gap: 9, padding: '11px 12px', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Avatar name={u.name || ''} size={34} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={S.label}>{u.name}</div>
-                        <Mono color="var(--text-muted)">
-                          {t('settings.joinMeta', { phone: u.phone, code: r.code, date: ddmy(r.at) })}
-                        </Mono>
-                        {r.note && <div style={S.caption}>{r.note}</div>}
-                      </div>
-                    </div>
-                    {canEdit && (
-                      <div style={{ display: 'grid', gap: 7 }}>
-                        {dup && (
-                          <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
-                            {t('settings.joinDupWarn', { name: dup.name })}
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <Select size="sm" style={{ width: 240 }} value={pick}
-                            options={[{ value: '', label: t('settings.joinPickMember') }].concat(
-                              unlinked.map((m) => ({ value: m.id, label: m.name + ' · ' + (m.phone || '') }))
-                            )}
-                            onChange={(e) => a.setF('join_' + r.id, e.target.value)} />
-                          {/* Chưa chọn ai mà bấm Ghép thì RPC nhận p_member_id = null và tạo
-                              người mới — nút nói một đằng làm một nẻo. Khoá lại. */}
-                          <Button variant="primary" size="sm" icon="link" disabled={!pick}
-                            onClick={() => a.approveJoin(r.id, pick)}>{t('settings.joinLink')}</Button>
-                          <Button variant="ghost" size="sm" icon="user-round-plus"
-                            onClick={() => a.approveJoin(r.id, null)}>{t('settings.joinCreate')}</Button>
-                          <Button variant="ghost" size="sm" icon="circle-x"
-                            onClick={() => a.rejectJoin(r.id)}>{t('settings.joinReject')}</Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+              {pending.map((r) => (
+                <JoinRow key={r.id} r={r} canEdit={canEdit} unlinked={unlinked} />
+              ))}
             </div>}
       </Card>
 
@@ -883,6 +942,14 @@ const S = {
   priceGrid: { display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 10, alignItems: 'center' },
   courtGrid: { display: 'grid', gridTemplateColumns: '1.2fr 1.4fr 1fr 70px', gap: 10, alignItems: 'center' },
   groupBox: { display: 'grid', gap: 8, padding: '11px 13px', borderRadius: 8, background: 'var(--surface-inset)' },
+  mergeBox: {
+    display: 'grid', gap: 7, padding: '10px 12px', borderRadius: 8,
+    background: 'var(--surface-inset)', border: '1px dashed var(--border-subtle)',
+  },
+  mergeRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 10, flexWrap: 'wrap',
+  },
   groupRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 },
   pick: {
     padding: '7px 12px', borderRadius: 99, border: '1px solid var(--border-subtle)',

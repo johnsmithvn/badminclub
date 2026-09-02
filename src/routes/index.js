@@ -9,8 +9,16 @@ export const ROUTE_KEYS = [
   'debts', 'fund', 'shuttles', 'profile', 'settings', 'schema',
 ]
 
-/** Route ngoài app — không cần CLB. */
-export const PUBLIC_PATHS = { login: '/dang-nhap', register: '/dang-ky', clubs: '/clb' }
+/**
+ * Route ngoài app — không cần CLB.
+ *
+ * `account` là hồ sơ TÀI KHOẢN (`profiles`), cố ý nằm ngoài CLB: một tài khoản dùng cho mọi
+ * CLB, sửa nó không được đòi phải vào một CLB nào trước. Hồ sơ TRONG một CLB
+ * (`club_members`) là màn khác — route `profile` bên dưới.
+ */
+export const PUBLIC_PATHS = {
+  login: '/dang-nhap', register: '/dang-ky', clubs: '/clb', account: '/tai-khoan',
+}
 
 const PATHS = {
   home: '/',

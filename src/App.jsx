@@ -15,6 +15,7 @@ import { PAGES, PUBLIC_PATHS, keyOfPath } from '#routes'
 import { allowedRoutes } from '#lib/roles.js'
 import { hasSupabase } from '#supabase'
 import { t } from '#i18n'
+import Account from '#pages/Account.jsx'
 import Assign from '#pages/Assign.jsx'
 import Calendar from '#pages/Calendar.jsx'
 import Clubs from '#pages/Clubs.jsx'
@@ -65,6 +66,9 @@ export default function App() {
   return (
     <Routes>
       <Route path={PUBLIC_PATHS.clubs} element={<Clubs />} />
+      {/* Hồ sơ TÀI KHOẢN: ngoài CLB, không cần chọn CLB nào trước. Hồ sơ TRONG một CLB là
+          route 'profile' (/ca-nhan) nằm trong AppLayout. */}
+      <Route path={PUBLIC_PATHS.account} element={<Account />} />
       <Route path={PUBLIC_PATHS.login} element={<Navigate to="/" replace />} />
       <Route path={PUBLIC_PATHS.register} element={<Navigate to="/" replace />} />
       <Route path="*" element={<InClub />} />

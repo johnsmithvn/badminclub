@@ -784,6 +784,51 @@ Không đụng schema, không migration mới.
 
 ---
 
+## Đợt 4 — Tách hồ sơ tài khoản khỏi hồ sơ CLB + ghép có chọn trường — migration `0009_profile_merge`
+
+Trước đợt này màn `/ca-nhan` sửa **cả hai** bảng trong một form, và ghép tài khoản thì không copy
+trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài khoản sang).
+
+- [x] **`a.up` không tồn tại — Trang cá nhân lưu là lỗi, mỗi lần.** `Profile.jsx` gọi `a.up(...)`
+      nhưng `up` là hàm cục bộ trong `makeActions`, không nằm trong object `A` trả về. Người đã
+      ghép bản ghi (gần như mọi người) bấm Lưu: `profiles` update xong → TypeError → `club_members`
+      **không** được ghi, không `refresh()`, toast hiện nguyên văn `a.up is not a function`. Hai
+      bảng lệch nhau ngay từ lần bấm đầu tiên. Màn đó nay chỉ đọc, không còn `up`.
+- [x] **Leo thang quyền: thành viên tự đặt `role = 'owner'`.** Policy `cm_update_self` (0006) chỉ
+      kiểm `user_id = auth.uid()`, không giới hạn cột — một lệnh PostgREST là xong, `active` và
+      `joined_at` cũng vậy. **Gỡ hẳn policy**: đường hợp lệ để thành viên sửa thông tin của mình
+      là `member_changes` (`mc_ins` đã cho chính chủ ghi) rồi chủ CLB duyệt. Cố ý KHÔNG thay bằng
+      trigger chặn cột — RLS không còn cho họ UPDATE dòng nào, thêm trigger là gác cửa đã khoá.
+- [x] **Tách hai màn hồ sơ.** `/tai-khoan` (`Account.jsx`, NGOÀI CLB) sửa `profiles`;
+      `/ca-nhan` (`Profile.jsx`, trong CLB) chỉ XEM `club_members` + gửi yêu cầu đổi qua
+      `requestChange`. Trước đó `requestChange` **không còn consumer nào** — tab "Yêu cầu đổi
+      thông tin" ở Members vĩnh viễn rỗng, còn bộ key `profile.change*` thì mồ côi. Nút "Hồ sơ" ở
+      màn CLB thôi nhảy đại vào CLB đầu tiên (`enterProfile`) để mở được trang hồ sơ.
+- [x] **Ghép có chọn trường.** `approve_join_request` nhận thêm `p_fields`; màn duyệt hiện bảng 4
+      trường (tên · SĐT · giới tính · trình độ) in *CLB đang có → sẽ thành*, **mặc định không tick
+      gì**. Ba lý do khoá ô tick nằm ở hàm thuần `lib/members.js: mergeRows` và RPC gác lại đúng
+      ba luật đó: hồ sơ tài khoản để trống · đã giống nhau · trình độ ngoài thang CLB. `role`
+      không bao giờ nằm trong `p_fields`. Test 8 assert + mutation-test 2 nhánh.
+      **`DROP FUNCTION` trước khi tạo bản 3 tham số:** `CREATE OR REPLACE` với số tham số khác là
+      tạo hàm NẠP CHỒNG, hai hàm cùng tên thì PostgREST không chọn được cái nào và nút Ghép chết.
+- [x] **`create_club` gác trình độ theo thang CLB.** `COALESCE(me.level, levels[1])` lấy thẳng
+      trình độ trong hồ sơ tài khoản, mà CLB mới dùng thang mặc định của DB → owner có level ngoài
+      thang ngay từ dòng đầu, `levels.indexOf()` ra -1: cột trình độ sắp sai, cân sân đọc sai bậc.
+      `approve_join_request` đã gác từ 0001, chỗ này bị sót.
+- [ ] **Trần đã biết, chưa sửa:** `linkMemberUser` (ghép từ bảng Tài khoản & quyền, không qua RPC)
+      vẫn đổi hai dòng trong CÙNG một câu upsert — gán `user_id` mới và bỏ ghép dòng cũ. Thứ tự
+      phụ thuộc thứ tự mảng `db.members`, chạm UNIQUE `(club_id, user_id)` là kẹt hàng đợi đồng bộ.
+      UI hiện chỉ cho chọn tài khoản CHƯA gắn bản ghi nào nên chưa nổ. Mở lại khi gặp ca thật.
+- [ ] **Trần thứ hai:** `clubs.levels` mặc định của DB (`Newbie · TBY · TB- · TB`) KHÁC
+      `app.json → levelsDefault` (9 bậc) mà màn đăng ký dùng. Chọn 'Y+' lúc đăng ký rồi tạo CLB
+      thì `create_club` hạ về `levels[1]` — đúng luật mới, nhưng im lặng. Sửa cho khớp là đổi
+      hành vi của mọi CLB tạo mới, để user quyết.
+- [ ] **Chưa làm: GỘP hai bản ghi cùng một người** (bấm nhầm "Tạo thành viên mới"). Vẫn như cũ:
+      16 cột trỏ tới `club_members`, 4 UNIQUE, sync ghi từng dòng không transaction → phải là RPC
+      riêng. Đợt này chỉ làm cho việc đó ÍT xảy ra hơn, không sửa được ca đã lỡ.
+
+---
+
 ## Quyết định đang chờ user
 
 | Việc | Vì sao cần user | Chặn cái gì |

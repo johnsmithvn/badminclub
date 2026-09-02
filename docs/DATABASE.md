@@ -41,15 +41,37 @@ localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
 | Bảng | Là gì | Ghi chú |
 | --- | --- | --- |
-| `users` | tài khoản đăng nhập, SĐT là danh tính | một người một tài khoản, dùng cho mọi CLB |
+| `profiles` | hồ sơ **tài khoản**, gắn 1-1 với `auth.users` | một người một tài khoản, dùng cho mọi CLB |
 | `clubs` | một CLB, có mã 8 ký tự | quỹ mở đầu, cấu hình, 3 công tắc ghép tài khoản |
-| `club_members` | bản ghi thành viên **trong một CLB** | `user_id` **có thể NULL** = chủ CLB tạo tay |
+| `club_members` | hồ sơ **trong một CLB** | `user_id` **có thể NULL** = chủ CLB tạo tay |
 
 `user_id IS NULL` là **trạng thái bình thường**, không phải dữ liệu lỗi: người đó vẫn điểm danh,
-vẫn tính quỹ, vẫn chia sân. Một `user` có thể là `club_member` ở nhiều CLB **với vai khác nhau**.
+vẫn tính quỹ, vẫn chia sân. Một tài khoản có thể là `club_member` ở nhiều CLB **với vai khác nhau**.
+
+### Hai hồ sơ, hai vòng đời — đừng gộp làm một
+
+`profiles` và `club_members` có mấy cột trùng tên (`name` · `phone` · `gender` · `level`) nhưng
+**không phải một cái là khung nhìn của cái kia**. `club_members` là **bản sao tại thời điểm ghi**:
+
+- Ghép tài khoản chỉ gắn `user_id` + `linked_at`. Mặc định **không** copy trường nào.
+- Muốn lấy sang thì chủ CLB **tick từng trường** ở màn duyệt → `approve_join_request(p_request,
+  p_member_id, p_fields)`. `role` không bao giờ nằm trong `p_fields`; `level` chỉ ghi khi thuộc
+  `clubs.levels` của CLB đó.
+- Sau khi ghép, hai bên sống độc lập: đổi tên trong hồ sơ tài khoản **không** đổi tên trong CLB,
+  và ngược lại. Bỏ ghép hay rời CLB thì bản ghi CLB **giữ nguyên** mọi giá trị.
+
+Lý do không đồng bộ hai chiều: `club_members.name` là cái tên nằm trên mọi bảng điểm danh và mọi
+dòng tiền cũ; `club_members.level` là đầu vào của giá khách và thuật toán cân sân. Cho hồ sơ tài
+khoản ghi đè tự động là sửa lại quá khứ của một CLB từ một màn hình nằm ngoài CLB đó.
+
+**Ai sửa được gì:** hồ sơ tài khoản → chính chủ, ở `/tai-khoan` (policy `profiles_update_self`).
+Hồ sơ trong CLB → người có cờ quyền `members` (policy `cm_update`); thành viên thường **không có
+policy UPDATE nào** trên `club_members` (0009 gỡ `cm_update_self` — nó không giới hạn cột nên tự
+đặt `role = 'owner'` được), họ xin đổi qua `member_changes` rồi chủ CLB duyệt.
 
 `UNIQUE (club_id, user_id)` bảo đảm một tài khoản chỉ gắn 1 bản ghi trong 1 CLB. Ghép user vào
-bản ghi B khi đang ở bản ghi A → A tự bị bỏ ghép (`actions.js: linkMemberUser`).
+bản ghi B khi đang ở bản ghi A → A tự bị bỏ ghép (`appActions.js: linkMemberUser`,
+`approve_join_request`).
 
 **Bỏ ghép** = xoá `user_id`, **giữ nguyên** bản ghi và toàn bộ lịch sử điểm danh/tiền.
 

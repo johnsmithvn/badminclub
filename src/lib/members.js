@@ -11,6 +11,56 @@ import { dueState, rosterStatus } from '#lib/money.js'
 // "Thuy" tìm ra "Thúy", "0327 279 292" tìm ra "0327279292". Đừng viết lại phép này lần hai.
 import { normHeader as norm } from '#lib/csv.js'
 
+/** Chỉ giữ chữ số. SĐT "0327 279 292" và "0327279292" là cùng một số. */
+export const digits = (x) => String(x || '').replace(/\D/g, '')
+
+/* ==================== Ghép hồ sơ tài khoản vào bản ghi thành viên ==================== */
+
+/**
+ * Bốn trường có thể lấy từ hồ sơ TÀI KHOẢN (`profiles`) đè lên hồ sơ THÀNH VIÊN
+ * (`club_members`) lúc chủ CLB duyệt ghép. Khớp đúng `p_fields` mà RPC `approve_join_request`
+ * chấp nhận (`0009_profile_merge.sql`) — thêm trường ở một bên mà quên bên kia thì ô tick hiện
+ * ra nhưng bấm xong không có gì đổi, và không ai biết vì sao.
+ *
+ * `role` KHÔNG có ở đây và sẽ không bao giờ có: vai trò là dữ liệu của CLB.
+ */
+export const MERGE_FIELDS = ['name', 'phone', 'gender', 'level']
+
+/** Giá trị của một trường trong hồ sơ tài khoản. Tên hiển thị ưu tiên `nick` — cả app gọi nhau bằng nick. */
+const userValue = (user, field) =>
+  (field === 'name' ? user.nick || user.name : user[field]) || ''
+
+/**
+ * So từng trường giữa bản ghi thành viên và hồ sơ tài khoản → dữ liệu cho bảng chọn ghi đè.
+ *
+ * `block` là LÝ DO không cho tick, rỗng = ghép được:
+ *   'empty'    hồ sơ tài khoản bỏ trống trường đó — ghi đè là xoá mất dữ liệu CLB đang có;
+ *   'same'     hai bên đã giống nhau, tick cũng không đổi gì;
+ *   'offScale' trình độ không thuộc thang của CLB này. Thang là dữ liệu RIÊNG từng CLB
+ *              (RULES §3.4): lấy 'TB+' của CLB khác đè vào CLB chỉ có 4 bậc thì
+ *              `levels.indexOf(level)` ra -1 — cột trình độ sắp sai, thuật toán cân sân đọc sai
+ *              bậc, không màn nào lộ ra. RPC cũng bỏ qua trường này, hai bên phải cùng một luật.
+ *
+ * SĐT so theo chữ số: "0912 345 678" và "0912345678" là cùng một số, hỏi người duyệt có muốn
+ * ghi đè hay không là hỏi thừa.
+ */
+export function mergeRows(member, user, levels) {
+  const m = member || {}
+  const u = user || {}
+  return MERGE_FIELDS.map((field) => {
+    const from = String(m[field] || '')
+    const to = String(userValue(u, field))
+    const same = field === 'phone'
+      ? digits(from) === digits(to)
+      : from.trim() === to.trim()
+    let block = ''
+    if (!to.trim()) block = 'empty'
+    else if (same) block = 'same'
+    else if (field === 'level' && (levels || []).indexOf(to) < 0) block = 'offScale'
+    return { field, from, to, block }
+  })
+}
+
 /** Không lọc gì. Màn hình dùng làm state khởi tạo và để biết khi nào hiện nút xoá lọc. */
 export const FILTER0 = { q: '', gender: '', level: '', group: '', dues: '' }
 

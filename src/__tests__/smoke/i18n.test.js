@@ -18,6 +18,7 @@ import { MODE_KEYS } from '#lib/assign.js'
 import { CLOSE_WARN_KEYS, DRIFT_KEYS, WARN_KEYS } from '#lib/money.js'
 import { CATS, MANUAL_CATS, REC_KEYS } from '#lib/ledger.js'
 import { BLOCK_KEYS } from '#lib/schedules.js'
+import { MERGE_FIELDS } from '#lib/members.js'
 import { SCHEMA_GROUPS } from '#data/schema.js'
 
 // Miền giá trị của các họ key ghép động mà file nguồn không export ra được.
@@ -28,6 +29,8 @@ const NAV = ['home', 'calendar', 'sessions', 'assign', 'members',
 const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
 const CHANGE_FIELDS = ['level', 'phone', 'gender', 'name']
+// Lý do một trường KHÔNG ghép được ở màn duyệt vào CLB — khớp `members.js: mergeRows().block`.
+const MERGE_BLOCKS = ['empty', 'same', 'offScale']
 const SETTINGS_TABS = ['general', 'money', 'courts', 'shuttles', 'groups', 'schedules', 'access']
 // Trạng thái con số giá thành (money.js: costState) và lý do nhắc kiểm kho (money.js: checkDue).
 const COST_STATES = ['live', 'temp', 'final']
@@ -105,6 +108,10 @@ cfg.shuttleModes.forEach((m) => need('session.shuttleMode' + cap(m)))
 perm.order.forEach((r) => { need('roles.' + r + '.label'); need('roles.' + r + '.desc') })
 SETUP_STEPS.forEach((s) => ['title', 'hint', 'btn'].forEach((f) => need('setup.step.' + s + '.' + f)))
 CHANGE_FIELDS.forEach((f) => need('members.changeField.' + f))
+// Bảng chọn trường ghi đè lúc ghép tài khoản dùng CHUNG nhãn với màn duyệt đổi thông tin —
+// thêm trường vào MERGE_FIELDS mà quên nhãn thì ô tick hiện ra chuỗi "members.changeField.x".
+MERGE_FIELDS.forEach((f) => need('members.changeField.' + f))
+MERGE_BLOCKS.forEach((k) => need('settings.mergeBlock.' + k))
 SCHEMA_GROUPS.forEach((g) => need('schema.group' + g.groupKey))
 SETTINGS_TABS.forEach((k) => need('settings.tab' + cap(k)))
 COST_STATES.forEach((k) => need('session.costState.' + k))

@@ -9,6 +9,7 @@ import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy } from '#utils/dates.js'
 import { roleName } from '#lib/roles.js'
+import { PUBLIC_PATHS } from '#routes'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -46,7 +47,10 @@ export default function Clubs() {
             </div>
           </div>
         )}
-        <Button variant="secondary" size="sm" icon="user-round" onClick={() => enterProfile(navigate, clubs, setActiveClub)}>
+        {/* Hồ sơ TÀI KHOẢN nằm ngoài CLB (`/tai-khoan`). Trước đây nút này phải nhảy đại vào
+            CLB đầu tiên mới mở được trang hồ sơ — sửa một tài khoản không được đòi phải chọn
+            CLB, và cái sửa được ở trong CLB là bản ghi thành viên, không phải tài khoản. */}
+        <Button variant="secondary" size="sm" icon="user-round" onClick={() => navigate(PUBLIC_PATHS.account)}>
           {t('auth.profileBtn')}
         </Button>
         <Button variant="ghost" size="sm" icon="circle-x" onClick={signOut}>{t('auth.logout')}</Button>
@@ -141,11 +145,6 @@ export default function Clubs() {
 }
 
 /** Vào Trang cá nhân: cần một CLB đang chọn để AppLayout render được. */
-function enterProfile(navigate, clubs, setActiveClub) {
-  if (clubs.length) setActiveClub(clubs[0].id)
-  navigate('/ca-nhan')
-}
-
 /* ---------------- tạo CLB ---------------- */
 
 function CreateDialog({ onClose, onDone, create, toast }) {

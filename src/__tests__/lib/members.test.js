@@ -9,7 +9,8 @@
 
 import assert from 'node:assert/strict'
 import {
-  FILTER0, duesStatusOf, filterMembers, fixedGroups, hasFilter, nextSort, sortMembers,
+  FILTER0, MERGE_FIELDS, duesStatusOf, filterMembers, fixedGroups, hasFilter, mergeRows,
+  nextSort, sortMembers,
 } from '#lib/members.js'
 
 const MONTH = '2026-09'
@@ -144,5 +145,53 @@ assert.deepEqual(nextSort({ key: 'n', dir: 'asc' }, 'p'), { key: 'p', dir: 'asc'
 
 assert.deepEqual(fixedGroups(db, 'm2', MONTH).map((g) => g.short), ['T6', 'CN'])
 assert.deepEqual(fixedGroups(db, 'm4', MONTH), [])
+
+/* ---------- ghép hồ sơ tài khoản vào bản ghi thành viên ---------- */
+//
+// Đây là màn duyệt người mới vào CLB. Tick nhầm một ô là ghi đè dữ liệu CLB đang dùng để tính
+// tiền và xếp sân, mà không có đường lùi: `club_members` là bản sao độc lập, không phải khung
+// nhìn của `profiles`, nên gỡ ghép cũng không lấy lại được giá trị cũ.
+
+const rowOf = (rows, field) => rows.find((r) => r.field === field)
+
+// Bản ghi tay chủ CLB đã nhập, và hồ sơ tài khoản của người xin vào.
+const mem = { name: 'Thuý (SĐT chị Lan)', phone: '0327 279 292', gender: 'nu', level: 'TBY' }
+const usr = { name: 'Nguyễn Thị Thuý', nick: 'Thúy', phone: '0327279292', gender: 'nu', level: 'TB' }
+
+const rows = mergeRows(mem, usr, db.levels)
+
+assert.deepEqual(rows.map((r) => r.field), MERGE_FIELDS,
+  'bảng chọn phải liệt kê ĐÚNG bộ trường mà RPC approve_join_request nhận — thừa một ô là tick xong không có gì đổi, thiếu một ô là không ghép được thứ người duyệt đang nhìn')
+
+assert.equal(rowOf(rows, 'name').to, 'Thúy',
+  'tên hiển thị phải ưu tiên nick: cả app gọi nhau bằng nick, ghi đè bằng tên khai sinh là mọi bảng điểm danh đổi tên một lượt')
+
+assert.equal(rowOf(rows, 'phone').block, 'same',
+  'SĐT phải so theo CHỮ SỐ — "0327 279 292" và "0327279292" là một số, bày ra ô tick là hỏi thừa và mời người ta bấm nhầm')
+
+assert.equal(rowOf(rows, 'gender').block, 'same',
+  'hai bên giống nhau thì không được mở ô tick: mỗi ô mở ra là một lần có thể bấm nhầm')
+
+assert.equal(rowOf(rows, 'level').block, '',
+  'trình độ khác nhau và THUỘC thang CLB thì phải cho ghép — đây là lý do chính người ta mở bảng này')
+
+// Trình độ ngoài thang: 'TBK' không có trong db.levels của CLB này.
+const off = mergeRows(mem, { ...usr, level: 'TBK' }, db.levels)
+assert.equal(rowOf(off, 'level').block, 'offScale',
+  'trình độ ngoài thang CLB mà cho ghép là levels.indexOf() ra -1: cột trình độ sắp sai và thuật toán cân sân đọc sai bậc, không màn nào lộ ra')
+
+// Hồ sơ tài khoản bỏ trống: ghi đè là XOÁ dữ liệu CLB đang có.
+const empty = mergeRows(mem, { name: 'Nguyễn Thị Thuý', nick: 'Thúy' }, db.levels)
+assert.equal(rowOf(empty, 'phone').block, 'empty',
+  'tài khoản chưa có SĐT mà cho ghi đè là xoá mất SĐT chủ CLB đã nhập tay — mất luôn đường đòi tiền')
+assert.equal(rowOf(empty, 'level').block, 'empty',
+  'tài khoản chưa có trình độ mà cho ghi đè là club_members.level thành rỗng, mà cột đó NOT NULL')
+
+// Bản ghi rỗng / hồ sơ rỗng không được throw: màn duyệt render trước khi người duyệt chọn ai.
+assert.equal(mergeRows(null, null, db.levels).length, MERGE_FIELDS.length,
+  'thiếu bản ghi hoặc thiếu hồ sơ thì trả bảng đầy đủ với block, KHÔNG được throw giữa lúc render màn duyệt')
+assert.ok(mergeRows(null, null, db.levels).every((r) => r.block === 'empty'))
+
+console.log('members merge check: OK')
 
 console.log('members filter/sort check: OK')

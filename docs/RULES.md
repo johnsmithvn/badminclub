@@ -51,8 +51,8 @@ một blocker mà user phải quyết định.
 
 - Số nghiệp vụ (`quotaMin`, `defaultMinutes`, `roundTo`, `shuttleUnitFallback`, `toastMs`,
   ngưỡng cân trình độ…) nằm ở `src/config/app.json`. **Cấm** số ma thuật trong logic.
-- Ma trận quyền 5 vai nằm ở `src/config/permissions.json` — tương ứng bảng `role_permissions`
-  trong DB, app không cho sửa.
+- Ma trận quyền 3 vai (`owner`, `treasurer`, `member`) nằm ở `src/config/permissions.json`
+  — tương ứng bảng `role_permissions` trong DB, app không cho sửa.
 - Danh sách enum (`genders`, `sessionStates`, `shuttleModes`…) lấy từ config, không viết lại
   mảng ở nhiều file. **Ngoại lệ:** `levels` là dữ liệu của từng CLB (`db.levels`), `app.json`
   chỉ giữ `levelsDefault` cho CLB mới — xem §3.4.

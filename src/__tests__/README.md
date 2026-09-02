@@ -23,15 +23,19 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | **Quỹ tháng → đơn giá một buổi → đối chiếu buổi** (một chuỗi, để chung) | `money/dues.test.js` |
 | Giá thành buổi · đóng băng khi chốt · cảnh báo trước và sau khi chốt | `money/cost.test.js` |
 | Cảnh báo sai im lặng ở Trang chủ | `money/alerts.test.js` |
+| Xoá nhóm: chặn tạm (có buổi tương lai) vs chặn vĩnh viễn (dính lịch sử tiền) | `money/group_delete.test.js` |
+| Xoá buổi: điều kiện an toàn, dọn buổi chưa phát sinh chi phí | `money/session_delete.test.js` |
 | Sổ quỹ: dòng nào vào sổ, số dư, số dư khả dụng, gộp dòng, tổng hợp ngày | `ledger/ledger.test.js` |
 | Đối chiếu quỹ: so tiền đếm được với sổ, xếp nghi vấn theo chiều + mức khớp | `ledger/reconcile.test.js` |
 | Hoàn tác / sửa một dòng sổ quỹ: dòng nào gỡ được, gỡ ở nguồn nào | `ledger/undo.test.js` |
 | Chia sân: slot · 5 chế độ xếp · chia đều · đếm số trận | `lib/assign.test.js` |
 | Ngày tháng, lưới lịch, sinh ngày theo thứ | `lib/dates.test.js` |
-| **Ma trận quyền** — cờ, route, "xem như", và khớp với seed trong DB | `lib/roles.test.js` |
+| **Ma trận quyền 3 vai** — cờ, route, "xem như", và khớp với seed trong DB | `lib/roles.test.js` |
 | Giá trị mặc định của mọi dialog | `lib/forms.test.js` |
 | Lọc · tìm (bỏ dấu) · sắp xếp danh sách thành viên · trạng thái thu quỹ tháng | `lib/members.test.js` |
 | Sửa lịch cố định: buổi nào được đụng, sinh/xoá buổi, tháng bị đổi đơn giá | `lib/schedules.test.js` |
+| Đọc / sinh CSV thành viên, RFC 4180, phát hiện cột, validate & cảnh báo trùng | `lib/csv.test.js` |
+| Sao lưu & khôi phục cài đặt CLB dạng file JSON | `lib/settings_export.test.js` |
 | Map client ↔ Postgres, thứ tự ghi/xoá, `diff()` | `sync/dbmap.test.js` |
 | CLB vừa tạo (mọi bảng rỗng) không được throw / NaN / Infinity | `smoke/empty.test.js` |
 | Không sót key i18n, không có số lọt vào `vi.json` | `smoke/i18n.test.js` |

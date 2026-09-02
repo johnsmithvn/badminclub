@@ -163,18 +163,7 @@ For architecture decisions, historical context, previous bugs, conventions, and 
 - If a significant architectural decision or important bug fix is made, save it to Engram.
 - Do not save trivial implementation details.
 
-### Engram usage rules
-
-- **Write memory ONLY through the MCP tool `mem_save`. Never use `engram save` from the CLI/terminal.**
-  A CLI save does not get a project key: `engram projects list` stays empty and the default
-  `mem_search` (scoped to the project) will not find it. Verified 2026-07-27 — the orphan
-  observation had to be re-saved via MCP and soft-deleted.
-- This repo's Engram project key is **`web_challenge`**, detected from the git remote
-  (`github.com/johnsmithvn/Web_challenge.git`) — not from the folder name `Web_Update`.
-- Use the `engram` CLI only for admin commands missing from the `--tools=agent` profile:
-  `engram delete`, `engram stats`, `engram projects list`, `engram doctor`.
-
----
+---
 
 # 🚨 CẤM TUYỆT ĐỐI: XOÁ / RESET DATABASE
 
