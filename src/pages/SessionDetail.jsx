@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
-import { Empty, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
+import { EditGuestDialog, Empty, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
@@ -21,6 +21,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 export default function SessionDetail() {
   const { db, a } = useApp()
   const { id } = useParams()
+  const [editingGuest, setEditingGuest] = useState(null)
   const sid = id || db.sessionId
   const s = sessionOf(db, sid)
 
@@ -433,14 +434,28 @@ export default function SessionDetail() {
                       <Switch label={g.paid ? t('session.guestPaid') : t('session.guestDebt')}
                         checked={g.paid} onChange={() => a.toggleGuestPaid(g.id)} />
                       {canEdit && (
-                        <IconButton icon="trash-2" size="sm" variant="ghost"
-                          label={t('common.delete')} onClick={() => a.confirm({
-                            title: t('session.delGuestTitle'),
-                            message: t('session.delGuestMsg', { name: guestOf(db, g.guestId).name }),
-                            tone: 'danger',
-                            confirmText: t('session.delGuestOk'),
-                            onConfirm: () => a.removeGuest(g.id),
-                          })} />
+                        <div style={{ display: 'flex', gap: 2 }}>
+                          <IconButton
+                            icon="pencil"
+                            size="sm"
+                            variant="ghost"
+                            label={t('common.edit')}
+                            onClick={() => setEditingGuest(guestOf(db, g.guestId))}
+                          />
+                          <IconButton
+                            icon="trash-2"
+                            size="sm"
+                            variant="ghost"
+                            label={t('common.delete')}
+                            onClick={() => a.confirm({
+                              title: t('session.delGuestTitle'),
+                              message: t('session.delGuestMsg', { name: guestOf(db, g.guestId).name }),
+                              tone: 'danger',
+                              confirmText: t('session.delGuestOk'),
+                              onConfirm: () => a.removeGuest(g.id),
+                            })}
+                          />
+                        </div>
                       )}
                     </div>
                   ))}
@@ -500,6 +515,22 @@ export default function SessionDetail() {
           </Card>
         </div>
       </div>
+
+      {editingGuest && (
+        <EditGuestDialog
+          guest={editingGuest}
+          levels={db.levels}
+          onClose={() => setEditingGuest(null)}
+          onSave={(patch) => {
+            a.updateGuest(editingGuest.id, patch)
+            setEditingGuest(null)
+          }}
+          onDelete={() => {
+            a.deleteGuest(editingGuest.id)
+            setEditingGuest(null)
+          }}
+        />
+      )}
     </>
   )
 }
@@ -559,6 +590,7 @@ function ExtraPicker({ s, members }) {
 function GuestForm({ s }) {
   const { db, ui, a } = useApp()
   const [open, setOpen] = useState(false)
+  const [showExtra, setShowExtra] = useState(false)
   const f = { ...guestForm(db), ...(ui.form || {}) }
   const set = (k, v) => a.setF(k, v)
   const price = guestPrice(db, f.gLevel, f.gGender)
@@ -688,8 +720,40 @@ function GuestForm({ s }) {
         </Button>
       </div>
 
+      {/* Tuỳ chọn mở rộng thêm SĐT / Link FB / Ghi chú cho khách */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button
+          type="button"
+          style={{
+            border: 0, background: 'none', padding: 0, cursor: 'pointer',
+            fontSize: 12, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4,
+          }}
+          onClick={() => setShowExtra(!showExtra)}
+        >
+          <Icon name={showExtra ? 'chevron-up' : 'plus'} size={12} />
+          <span>{showExtra ? 'Thu gọn thông tin liên hệ' : '＋ Thêm SĐT / Link FB / Ghi chú cho khách'}</span>
+        </button>
+      </div>
+
+      {(showExtra || f.gPhone || f.gNote) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 9 }}>
+          <Input
+            label={t('members.guestPhone')}
+            placeholder="0912... hoặc SĐT liên lạc"
+            value={f.gPhone || ''}
+            onChange={(e) => set('gPhone', e.target.value)}
+          />
+          <Input
+            label={t('members.guestNote')}
+            placeholder="Ghi chú: link FB, tay trái, bạn ai..."
+            value={f.gNote || ''}
+            onChange={(e) => set('gNote', e.target.value)}
+          />
+        </div>
+      )}
+
       {/* Dòng nhắc SĐT nếu khách quen (>= 3 buổi) chưa có SĐT */}
-      {selectedGuest && stats && stats.sessionCount >= 3 && !selectedGuest.phone && (
+      {selectedGuest && stats && stats.sessionCount >= 3 && !selectedGuest.phone && !showExtra && !f.gPhone && (
         <div style={S.phonePrompt}>
           <Icon name="phone" size={14} style={{ color: 'var(--status-delayed-fg)' }} />
           <span>{t('session.guestPhonePrompt', { name: selectedGuest.name, n: stats.sessionCount })}</span>

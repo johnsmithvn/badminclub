@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react'
 import { Avatar, Button, Card, DataTable, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
-import { Empty, LevelChip, Mono, Overline } from '#ui'
+import { EditGuestDialog, Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { addMonth, ddmy, monthShort, monthTxt } from '#utils/dates.js'
 import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberRefs, nextLevelStep, offBackSuggest, rosterStatus, guestStats, normalizeText } from '#lib/money.js'
@@ -811,61 +811,6 @@ function GuestMembers({ canEdit }) {
         />
       )}
     </>
-  )
-}
-
-function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
-  const [name, setName] = useState(guest.name || '')
-  const [phone, setPhone] = useState(guest.phone || '')
-  const [gender, setGender] = useState(guest.gender || 'nam')
-  const [level, setLevel] = useState(guest.level || levels[0])
-  const [note, setNote] = useState(guest.note || '')
-
-  return (
-    <Dialog
-      open
-      title={t('members.guestEditTitle')}
-      description={t('members.guestEditDesc')}
-      onClose={onClose}
-      actions={
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-          <Button variant="danger" icon="trash" onClick={onDelete}>
-            {t('common.delete')}
-          </Button>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" onClick={onClose}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => onSave({ name: name.trim(), phone: phone.trim(), gender, level, note: note.trim() })}
-            >
-              {t('common.save')}
-            </Button>
-          </div>
-        </div>
-      }
-    >
-      <div style={{ display: 'grid', gap: 12, padding: '4px 0' }}>
-        <Input label={t('session.guestName')} value={name} onChange={(e) => setName(e.target.value)} />
-        <Input label={t('members.guestPhone')} value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Select
-            label={t('session.guestGender')}
-            value={gender}
-            options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
-            onChange={(e) => setGender(e.target.value)}
-          />
-          <Select
-            label={t('session.guestLevel')}
-            value={level}
-            options={levels.map((l) => ({ value: l, label: l }))}
-            onChange={(e) => setLevel(e.target.value)}
-          />
-        </div>
-        <Input label={t('members.guestNote')} value={note} onChange={(e) => setNote(e.target.value)} />
-      </div>
-    </Dialog>
   )
 }
 
