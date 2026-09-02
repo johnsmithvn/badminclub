@@ -686,6 +686,42 @@ export function adjustRows(db, monthKey) {
   return out.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
 }
 
+/* ---------- buổi đang mở ---------- */
+
+/**
+ * Buổi ĐANG MỞ (`status = 'open'`) từ hôm nay trở đi, kèm sẵn mọi thứ để dựng banner nhắc
+ * thành viên: giờ, sân, số người đã nhận đi, và link bản đồ của từng sân.
+ *
+ * CỐ Ý không dùng `presentCount`: hàm đó trả 0 khi buổi có sân mà chưa đánh phút nào — đúng
+ * cho buổi đã chốt, nhưng buổi SẮP diễn ra thì luôn rơi vào đó và ra 0 người.
+ */
+export function openSessions(db) {
+  if (!db || !db.sessions) return []
+  return db.sessions
+    .filter((s) => s.status === 'open' && s.date >= db.today)
+    .sort((a, b) => a.date.localeCompare(b.date) || String(a.start || '').localeCompare(String(b.start || '')))
+    .map((s) => {
+      const att = db.attendance[s.id] || {}
+      const seen = new Set()
+      return {
+        id: s.id,
+        date: s.date,
+        group: groupOf(db, s.groupId).name || '',
+        time: timeTxt(s),
+        courtTxt: courtTxt(db, s),
+        courtCount: rows(s).length,
+        going: Object.keys(att).filter((k) => isPresent(att[k])).length + sGuestsOnly(db, s.id).length,
+        roster: groupMembers(db, s.groupId, monthOf(s.date)).length,
+        // Một buổi có thể đặt hai khung giờ trên CÙNG một sân — lọc trùng, không ai cần hai
+        // nút chỉ đường tới cùng một địa chỉ.
+        places: rows(s)
+          .map((c) => courtOf(db, c.courtId))
+          .filter((c) => (seen.has(c.id) ? false : seen.add(c.id) || true))
+          .map((c) => ({ id: c.id, name: c.name, mapUrl: c.mapUrl || '' })),
+      }
+    })
+}
+
 /* ---------- công nợ của CHÍNH NGƯỜI ĐANG ĐĂNG NHẬP ---------- */
 
 /** Bản ghi thành viên gắn với tài khoản đang đăng nhập. null = tài khoản chưa được ghép. */

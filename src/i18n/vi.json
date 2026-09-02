@@ -371,6 +371,8 @@
     "noGroupHint": "Quỹ tháng thu theo nhóm. Vào Cài đặt → Nhóm cố định để thêm.",
     "noSession": "Chưa có buổi nào trong tháng này",
     "noSessionHint": "Bấm Tạo lịch hàng loạt để sinh buổi cho cả kỳ, hoặc Buổi đột xuất cho một buổi lẻ.",
+    "allOpen": "Tất cả buổi sắp tới đều đang mở",
+    "allOpenHint": "Xem ở banner xanh đầu trang — không có buổi nào khác đang chờ mở.",
     "noUpcoming": "Không còn buổi nào phía trước",
     "noUpcomingHint": "Mọi buổi đã diễn ra hoặc đã chốt. Tạo lịch cho kỳ tới ở Lịch tập cố định.",
     "noDebt": "Không có khách nào còn nợ",
@@ -400,6 +402,13 @@
     "descSession": "Buổi {{date}}",
     "descDuesShort": "Quỹ tháng thiếu {{amount}}",
     "descBack": "Hoàn vắng {{what}}",
+    "openNow": {
+      "badge": "ĐANG MỞ",
+      "going": "{{n}} người đã nhận đi",
+      "roster": " / {{n}} cố định",
+      "map": "Chỉ đường · {{name}}",
+      "go": "Xem buổi tập"
+    },
     "myDebt": {
       "title": "Công nợ của tôi",
       "sub": "{{n}} khoản · {{amount}}",

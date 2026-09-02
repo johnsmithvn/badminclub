@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
-import { myDebts, myMember, pendingClaims } from '#lib/money.js'
+import { myDebts, myMember, openSessions, pendingClaims } from '#lib/money.js'
 
 const base = seed()
 const M = '2026-08'
@@ -185,3 +185,39 @@ assert.equal(customMemberCounts.dues, 1, 'M1 có 1 khoản quỹ tháng chưa đ
 
 console.log('myDebtCounts & clubDebtCounts check: OK')
 
+
+/* ---------- banner "sân đang mở" ở Trang chủ ---------- */
+
+const openList = openSessions(base)
+assert.equal(openList.every((s) => s.id), true, 'mỗi buổi phải mang id để bấm vào mở được')
+
+// Chỉ buổi `open`, và chỉ từ hôm nay trở đi.
+const stats = { open: 0, other: 0 }
+base.sessions.forEach((s) => { stats[s.status === 'open' && s.date >= base.today ? 'open' : 'other']++ })
+assert.equal(openList.length, stats.open,
+  'banner chỉ được liệt kê buổi đang MỞ từ hôm nay — lọt buổi đã chốt là mời người ta tới sân đã tan')
+
+const draftDb = { ...base, sessions: base.sessions.map((s) => ({ ...s, status: 'draft' })) }
+assert.deepEqual(openSessions(draftDb), [], 'chưa mở buổi nào thì banner phải rỗng, không hiện khống')
+
+const closedDb = { ...base, sessions: base.sessions.map((s) => ({ ...s, status: 'closed' })) }
+assert.deepEqual(openSessions(closedDb), [], 'buổi đã chốt không phải buổi đang mở')
+
+// Buổi mở nhưng ở QUÁ KHỨ: không nhắc nữa, người ta không đi ngược thời gian được.
+const past = {
+  ...base,
+  sessions: [{ ...base.sessions[0], id: 'PAST1', date: '2020-01-01', status: 'open' }],
+}
+assert.deepEqual(openSessions(past), [], 'buổi mở đã qua ngày thì thôi nhắc')
+
+// Số người đã nhận đi KHÔNG được dùng presentCount: hàm đó trả 0 khi buổi chưa đánh phút nào,
+// tức là mọi buổi sắp diễn ra đều ra 0 người và banner nói dối.
+const sid = base.sessions.find((s) => (base.attendance[s.id] || {}) && Object.keys(base.attendance[s.id] || {}).length)
+if (sid) {
+  const marked = Object.values(base.attendance[sid.id]).filter((v) => v === true || v === 'extra').length
+  const one = openSessions({ ...base, sessions: [{ ...sid, status: 'open', date: base.today }] })[0]
+  assert.equal(one.going >= marked, true,
+    'đếm thiếu người đã điểm danh thì banner báo ít hơn thực tế, chủ sân xếp sân sai')
+}
+
+console.log('openSessions check: OK')

@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { Alert, Avatar, Button, Card, Checkbox, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
 import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, PayDebtsDialog, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { ddmy, monthOf, monthTxt } from '#utils/dates.js'
+import { ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import {
   adjustRows, advanceRows, costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
   groupMembers, groupOf, guestOf, homeAlerts, isPresent, memberOf, monthSessions, myDebts,
-  myMember, sessionOf,
+  myMember, openSessions, sessionOf,
   stock, timeTxt,
 } from '#lib/money.js'
 import { monthFlow } from '#lib/ledger.js'
@@ -160,19 +160,19 @@ function Overview() {
 
   const st = stock(db)
 
-  // 3. Buổi tới: Ưu tiên các buổi sắp tới trong tháng hiện tại CHƯA CHỐT và CHƯA HUỶ
-  let upcoming = db.sessions
-    .filter((s) => s.date >= db.today && monthOf(s.date) === month && s.status !== 'cancelled' && s.status !== 'closed')
+  // 3. Buổi tới: Ưu tiên các buổi sắp tới trong tháng hiện tại CHƯA CHỐT và CHƯA HUỶ.
+  // LOẠI buổi đang mở: chúng đã nằm trên banner `OpenNow` ở đầu trang. Một buổi hiện hai chỗ
+  // thì người ta phải tự đối chiếu xem có phải cùng một buổi không, và đó là việc của máy.
+  const openIds = new Set(openSessions(db).map((s) => s.id))
+  const pickUpcoming = (sameMonth) => db.sessions
+    .filter((s) => s.date >= db.today && s.status !== 'cancelled' && s.status !== 'closed'
+      && !openIds.has(s.id) && (!sameMonth || monthOf(s.date) === month))
     .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
     .slice(0, 4)
 
   // Nếu trong tháng đã hết buổi tới, mới lấy gối đầu các buổi tới của tháng sau
-  if (upcoming.length === 0) {
-    upcoming = db.sessions
-      .filter((s) => s.date >= db.today && s.status !== 'cancelled' && s.status !== 'closed')
-      .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
-      .slice(0, 4)
-  }
+  let upcoming = pickUpcoming(true)
+  if (upcoming.length === 0) upcoming = pickUpcoming(false)
 
   // Số buổi có mặt của từng người trong tháng — chỉ tính buổi đã chốt.
   const attend = {}
@@ -227,6 +227,7 @@ function Overview() {
     <>
       <Warnings />
       <MyDebts />
+      <OpenNow />
       <Setup />
       {/* 4 thẻ tài chính chuẩn từ Sổ quỹ */}
       <FundOverviewCards />
@@ -255,7 +256,11 @@ function Overview() {
       <div style={GRID_PAIR}>
         <Card title={t('home.upcoming')} subtitle={t('home.upcomingSub')} icon="calendar-clock" padding="0">
           {upcoming.length === 0
-            ? <Empty icon="calendar-days" title={t('home.noUpcoming')} hint={t('home.noUpcomingHint')} />
+            ? <Empty
+                icon={openIds.size ? 'play' : 'calendar-days'}
+                title={t(openIds.size ? 'home.allOpen' : 'home.noUpcoming')}
+                hint={t(openIds.size ? 'home.allOpenHint' : 'home.noUpcomingHint')}
+              />
             : <div style={{ display: 'grid', minWidth: 0, width: '100%' }}>
                 {upcoming.map((s) => (
                   <div key={s.id} style={SS.upRow}>
@@ -523,6 +528,106 @@ function Overview() {
         <FundBalanceColumns />
       </div>
     </>
+  )
+}
+
+/* ---------------- Sân đang mở ---------------- */
+
+/**
+ * Banner nhắc: CLB đang có buổi mở, vào xem ngay. Ẩn hoàn toàn khi không có buổi nào `open` —
+ * một tấm banner báo "không có gì" thì mọi người học cách lờ nó đi, và lần có thật cũng lờ nốt.
+ *
+ * Bấm vào thẻ là mở thẳng buổi đó. Nút chỉ đường phải `stopPropagation`, không thì bấm map lại
+ * nhảy sang màn buổi tập.
+ */
+function OpenNow() {
+  const { db, a } = useApp()
+  const list = openSessions(db)
+  if (!list.length) return null
+
+  return (
+    <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+      {list.map((s) => (
+        <div
+          key={s.id}
+          role="button"
+          tabIndex={0}
+          onClick={() => a.openSession(s.id)}
+          onKeyDown={(e) => { if (e.key === 'Enter') a.openSession(s.id) }}
+          style={{
+            cursor: 'pointer',
+            borderRadius: 'var(--radius-card)',
+            border: '1px solid var(--status-delivered)',
+            borderLeft: '4px solid var(--status-delivered)',
+            background: 'linear-gradient(135deg, var(--status-delivered-bg) 0%, var(--surface-card) 60%)',
+            padding: '12px 14px',
+            display: 'grid',
+            gap: 8,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '2px 8px', borderRadius: 99,
+              background: 'var(--status-delivered)', color: '#fff',
+              font: '700 10.5px/1 var(--font-sans)', letterSpacing: 'var(--tracking-caps)',
+            }}>
+              <Icon name="play" size={10} />
+              {t('home.openNow.badge')}
+            </span>
+            <span style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {s.group}
+            </span>
+            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+              {wd(s.date)} · {ddmy(s.date)}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 12.5 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Icon name="clock-alert" size={13} style={{ color: 'var(--teal-600)' }} />
+              <Mono weight={700}>{s.time}</Mono>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--text-secondary)' }}>
+              <Icon name="map-pin" size={13} style={{ color: 'var(--teal-600)' }} />
+              {s.courtTxt}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--text-secondary)' }}>
+              <Icon name="users" size={13} style={{ color: 'var(--teal-600)' }} />
+              {t('home.openNow.going', { n: s.going })}
+              {s.roster > 0 && (
+                <span style={{ color: 'var(--text-muted)' }}>{t('home.openNow.roster', { n: s.roster })}</span>
+              )}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {s.places.filter((p) => p.mapUrl).map((p) => (
+              <a
+                key={p.id}
+                href={p.mapUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '4px 10px', borderRadius: 99, textDecoration: 'none',
+                  border: '1px solid var(--border-subtle)', background: 'var(--surface-card)',
+                  color: 'var(--teal-700)', font: '600 11.5px/1 var(--font-sans)',
+                }}
+              >
+                <Icon name="map-pin" size={11} />
+                {t('home.openNow.map', { name: p.name })}
+              </a>
+            ))}
+            <Button size="sm" variant="secondary" icon="arrow-right"
+              onClick={(e) => { e.stopPropagation(); a.openSession(s.id) }}>
+              {t('home.openNow.go')}
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
