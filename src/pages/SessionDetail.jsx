@@ -594,6 +594,10 @@ function GuestForm({ s }) {
   const f = { ...guestForm(db), ...(ui.form || {}) }
   const set = (k, v) => a.setF(k, v)
   const price = guestPrice(db, f.gLevel, f.gGender)
+  const companionPrice = f.gHasCompanion
+    ? guestPrice(db, f.gCompanionLevel || f.gLevel, f.gCompanionGender || 'nu')
+    : 0
+  const totalPrice = price + companionPrice
   const noLevel = !f.gLevel
   const toSettings = () => { a.go('settings'); a.setTab('settings', 'money') }
 
@@ -716,12 +720,31 @@ function GuestForm({ s }) {
           onChange={(val) => set('gBy', val)}
         />
         <Button variant="accent" icon="plus" disabled={noLevel} onClick={() => { setOpen(false); a.addGuest() }}>
-          {t('common.add') + (noLevel ? '' : ' · ' + fmt(price))}
+          {(f.gHasCompanion ? t('session.guestAddTwo') : t('common.add')) + (noLevel ? '' : ' · ' + fmt(totalPrice))}
         </Button>
       </div>
 
-      {/* Tuỳ chọn mở rộng thêm SĐT / Link FB / Ghi chú cho khách */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Tuỳ chọn +1 người đi kèm & Mở rộng SĐT/Note */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <label style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+          fontSize: 12.5, fontWeight: 600, color: f.gHasCompanion ? 'var(--teal-700)' : 'var(--text-secondary)',
+        }}>
+          <input
+            type="checkbox"
+            checked={!!f.gHasCompanion}
+            onChange={(e) => {
+              const checked = e.target.checked
+              set('gHasCompanion', checked)
+              if (checked && !f.gCompanionName && f.gName) {
+                set('gCompanionName', `Bạn ${f.gName.trim()}`)
+              }
+            }}
+            style={{ cursor: 'pointer', accentColor: 'var(--teal-600)' }}
+          />
+          <span>{t('session.guestAddCompanion')}</span>
+        </label>
+
         <button
           type="button"
           style={{
@@ -731,9 +754,41 @@ function GuestForm({ s }) {
           onClick={() => setShowExtra(!showExtra)}
         >
           <Icon name={showExtra ? 'chevron-up' : 'plus'} size={12} />
-          <span>{showExtra ? 'Thu gọn thông tin liên hệ' : '＋ Thêm SĐT / Link FB / Ghi chú cho khách'}</span>
+          <span>{showExtra ? 'Thu gọn thông tin liên hệ' : '＋ SĐT / Link FB / Ghi chú'}</span>
         </button>
       </div>
+
+      {/* Form người đi kèm */}
+      {f.gHasCompanion && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1.5fr 1fr 1fr',
+          gap: 10,
+          padding: '10px 12px',
+          borderRadius: 8,
+          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, rgba(14, 165, 233, 0.08) 100%)',
+          border: '1px solid rgba(2, 132, 199, 0.25)',
+        }}>
+          <Input
+            label={t('session.companionName')}
+            placeholder={`Bạn ${(f.gName || '').trim() || '...'}`}
+            value={f.gCompanionName || ''}
+            onChange={(e) => set('gCompanionName', e.target.value)}
+          />
+          <Select
+            label={t('session.guestGender')}
+            value={f.gCompanionGender || 'nu'}
+            options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
+            onChange={(e) => set('gCompanionGender', e.target.value)}
+          />
+          <Select
+            label={t('session.guestLevel')}
+            value={f.gCompanionLevel || f.gLevel || db.levels[0]}
+            options={db.levels.map((l) => ({ value: l, label: l }))}
+            onChange={(e) => set('gCompanionLevel', e.target.value)}
+          />
+        </div>
+      )}
 
       {(showExtra || f.gPhone || f.gNote) && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 9 }}>

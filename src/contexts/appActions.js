@@ -428,6 +428,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const inviterId = f.gBy || null
       const phone = (f.gPhone || '').trim()
       const note = (f.gNote || '').trim()
+      const hasCompanion = !!f.gHasCompanion
       const d0 = db()
 
       // Tra khách theo ID (nếu chọn từ danh sách) hoặc theo tên chuẩn hoá (nếu gõ)
@@ -441,10 +442,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return toast(t('toast.guestDup', { name: finalName }))
       }
 
+      // Thông tin người đi kèm (nếu có)
+      const compName = hasCompanion ? ((f.gCompanionName || '').trim() || ('Bạn ' + finalName)) : ''
+      const compGender = hasCompanion ? (f.gCompanionGender || 'nu') : 'nu'
+      const compLevel = hasCompanion ? (f.gCompanionLevel || level) : level
+      const compGid = hasCompanion ? uid() : null
+
       up((d) => {
-        let nextGuests
+        let nextGuests = d.guests.slice()
         if (old) {
-          nextGuests = d.guests.map((x) => {
+          nextGuests = nextGuests.map((x) => {
             if (x.id !== gid) return x
             return {
               ...x,
@@ -456,7 +463,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             }
           })
         } else {
-          nextGuests = d.guests.concat([{
+          nextGuests.push({
             id: gid,
             name: finalName,
             gender,
@@ -464,22 +471,52 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             invitedBy: inviterId,
             phone,
             note,
-          }])
+          })
+        }
+
+        if (hasCompanion && compGid) {
+          nextGuests.push({
+            id: compGid,
+            name: compName,
+            gender: compGender,
+            level: compLevel,
+            invitedBy: inviterId,
+            phone: '',
+            note: t('session.companionTag', { name: finalName }),
+            companionOf: gid,
+          })
+        }
+
+        const newSessionGuests = [{
+          id: uid(),
+          sessionId: d.sessionId,
+          guestId: gid,
+          level,
+          gender,
+          price: guestPrice(d, level, gender),
+          paid: !!f.gPaid,
+          paidAt: f.gPaid ? d.today : null,
+          invitedBy: inviterId,
+        }]
+
+        if (hasCompanion && compGid) {
+          newSessionGuests.push({
+            id: uid(),
+            sessionId: d.sessionId,
+            guestId: compGid,
+            level: compLevel,
+            gender: compGender,
+            price: guestPrice(d, compLevel, compGender),
+            paid: !!f.gPaid,
+            paidAt: f.gPaid ? d.today : null,
+            invitedBy: inviterId,
+            companionOf: gid,
+          })
         }
 
         return {
           guests: nextGuests,
-          sessionGuests: d.sessionGuests.concat([{
-            id: uid(),
-            sessionId: d.sessionId,
-            guestId: gid,
-            level,
-            gender,
-            price: guestPrice(d, level, gender),
-            paid: !!f.gPaid,
-            paidAt: f.gPaid ? d.today : null,
-            invitedBy: inviterId,
-          }]),
+          sessionGuests: d.sessionGuests.concat(newSessionGuests),
         }
       })
 
@@ -491,15 +528,30 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           gPhone: '',
           gNote: '',
           gBy: '',
+          gHasCompanion: false,
+          gCompanionName: '',
+          gCompanionGender: 'nu',
+          gCompanionLevel: db().levels[0] || 'Y',
         },
       }))
 
       const inviterName = inviterId ? memberOf(db(), inviterId).name : t('debts.clubRecruited')
-      toast(t('toast.guestAdded', {
-        name: finalName,
-        by: inviterName,
-        price: fmt(guestPrice(db(), level, gender)),
-      }))
+      if (hasCompanion) {
+        const p1 = guestPrice(db(), level, gender)
+        const p2 = guestPrice(db(), compLevel, compGender)
+        toast(t('toast.guestAddedTwo', {
+          name: finalName,
+          companion: compName,
+          by: inviterName,
+          price: fmt(p1 + p2),
+        }))
+      } else {
+        toast(t('toast.guestAdded', {
+          name: finalName,
+          by: inviterName,
+          price: fmt(guestPrice(db(), level, gender)),
+        }))
+      }
     },
     updateGuest: (gid, patch) => {
       const was = db().guests.find((x) => x.id === gid)
@@ -545,10 +597,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     collectDebt: (id) => {
       const d0 = db()
       const row = d0.sessionGuests.find((g) => g.guestId === id || g.memberId === id)
+      // Tìm các ID khách đi kèm của người này
+      const companionIds = new Set(d0.guests.filter((g) => g.companionOf === id).map((g) => g.id))
       up((d) => ({
         sessionGuests: d.sessionGuests.map((g) => {
           const ss = sessionOf(d, g.sessionId)
-          const mine = g.guestId === id || g.memberId === id
+          const mine = g.guestId === id || g.memberId === id || companionIds.has(g.guestId) || g.companionOf === id
           return mine && ss && monthOf(ss.date) === d.month ? { ...g, paid: true, paidAt: g.paidAt || d.today } : g
         }),
       }))

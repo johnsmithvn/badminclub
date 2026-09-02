@@ -78,8 +78,13 @@ function SessionDebts({ canMoney }) {
     const s = sessionOf(db, sg.sessionId)
     if (!s || monthOf(s.date) !== db.month) return
     const isMember = !!sg.memberId
-    const personId = sg.memberId || sg.guestId
+    let personId = sg.memberId || sg.guestId
     if (!personId) return
+
+    const rawGuest = !isMember ? (db.guests || []).find((g) => g.id === personId) : null
+    if (rawGuest && rawGuest.companionOf && (db.guests || []).some((g) => g.id === rawGuest.companionOf)) {
+      personId = rawGuest.companionOf
+    }
 
     const who = isMember ? memberOf(db, personId) : guestOf(db, personId)
     if (!peopleMap[personId]) {
@@ -95,11 +100,12 @@ function SessionDebts({ canMoney }) {
     }
 
     const group = groupOf(db, s.groupId)
+    const slotDesc = rawGuest && rawGuest.id !== personId ? ` (${rawGuest.name})` : ''
     peopleMap[personId].items.push({
       key: `sg:${sg.id}`,
       sgId: sg.id,
       type: 'guest',
-      typeLabel: t(isMember ? 'debts.typeAdhoc' : 'debts.typeGuest'),
+      typeLabel: t(isMember ? 'debts.typeAdhoc' : 'debts.typeGuest') + slotDesc,
       isRefund: false,
       date: s.date,
       sessionId: s.id,

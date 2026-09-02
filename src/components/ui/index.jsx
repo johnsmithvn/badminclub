@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Alert, Button, Dialog, Icon, Input, Select, StatusPill } from '#ds'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import {
-  courtNet, courtTxt, fmtK, genderTxt, groupMembers, groupOf, guestRev, levelStyle,
+  courtNet, courtTxt, fmtK, genderTxt, groupMembers, groupOf, guestRev, headCount, levelStyle,
   presentCount, sGuestsOnly, statusMeta, timeTxt,
 } from '#lib/money.js'
 import { dd, monthOf, wd } from '#utils/dates.js'
@@ -206,6 +206,27 @@ export function sessionColumns(db) {
             border: '1px solid rgba(245, 158, 11, 0.28)',
           }}>
             +{gCount}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'h', header: t('sessionCol.totalPeople'), align: 'right', mono: true,
+      render: (r) => {
+        if (r.status !== 'closed' && r.status !== 'open') {
+          return <span style={{ color: 'var(--text-muted)' }}>—</span>
+        }
+        const total = headCount(db, r)
+        if (!total) return <span style={{ color: 'var(--text-muted)' }}>—</span>
+        return (
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12,
+            padding: '2px 8px', borderRadius: 99,
+            background: 'rgba(99, 102, 241, 0.12)',
+            color: '#4338ca',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+          }}>
+            {total}
           </span>
         )
       },

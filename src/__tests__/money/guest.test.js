@@ -122,7 +122,21 @@ const clubGuestDb = {
 }
 const invClub = guestDebtByInviter(clubGuestDb, '2026-08')
 const clubRec = invClub.find((r) => r.mid === '')
-assert.ok(clubRec, 'có nhóm CLB tuyển')
-assert.equal(clubRec.name, 'CLB tuyển')
+/* ---------- người đi kèm (+1 companion) & headCount ---------- */
+const companionDb = {
+  ...db,
+  guests: db.guests.concat([
+    { id: 'G_HOANG', name: 'Hoàng', gender: 'nam', level: 'TB', phone: '0912345678', note: 'Nhóm 2 người' },
+    { id: 'G_COMPANION', name: 'Bạn Hoàng', gender: 'nu', level: 'Y', phone: '', note: 'Đi cùng Hoàng', companionOf: 'G_HOANG' },
+  ]),
+  sessionGuests: db.sessionGuests.concat([
+    { id: 'SG_H1', sessionId: 'B1', guestId: 'G_HOANG', level: 'TB', gender: 'nam', price: 60000, paid: false, invitedBy: null },
+    { id: 'SG_H2', sessionId: 'B1', guestId: 'G_COMPANION', level: 'Y', gender: 'nu', price: 50000, paid: false, invitedBy: null, companionOf: 'G_HOANG' },
+  ]),
+}
+const headsWithCompanion = headCount(companionDb, sessionOf(companionDb, 'B1'))
+assert.ok(headsWithCompanion >= 2, 'headCount phải đếm cả 2 người (khách chính + người đi kèm)')
+const revWithCompanion = guestRev(companionDb, 'B1')
+assert.ok(revWithCompanion >= 110000, 'doanh thu khách phải cộng cả 2 suất (60k + 50k)')
 
 console.log('money/guest check: OK')

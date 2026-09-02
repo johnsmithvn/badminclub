@@ -16,7 +16,9 @@ import cfg from '#config/app.json' with { type: 'json' }
 export default function Members() {
   const { db, ui, a } = useApp()
   const tab = ui.tab.members || 'all'
-  const canEdit = can(db.viewAs || 'owner', 'members')
+  const role = db.viewAs || 'owner'
+  const canEdit = can(role, 'members')
+  const canEditGuest = can(role, 'members') || can(role, 'sessions')
   // Chốt danh sách được cho CẢ tháng đang xem, không chỉ tháng sau. Dựng CLB giữa tháng thì
   // việc đầu tiên phải làm là chốt danh sách THÁNG NÀY để có quỹ tháng mà thu.
   const rosterWhen = ui.tab.roster || 'next'
@@ -39,7 +41,7 @@ export default function Members() {
       {tab === 'all' && <AllMembers canEdit={canEdit} />}
       {tab === 'next' && <NextMonth month={rosterM} canEdit={canEdit} />}
       {tab === 'pending' && <Pending canEdit={canEdit} />}
-      {tab === 'guests' && <GuestMembers canEdit={canEdit} />}
+      {tab === 'guests' && <GuestMembers canEdit={canEditGuest} />}
     </>
   )
 }
@@ -736,10 +738,18 @@ function GuestMembers({ canEdit }) {
                 <div key={g.id} style={{ ...S.row, borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0, padding: '12px 16px' }}>
                   <Avatar name={g.name} size={36} />
                   <div style={{ flex: 1.5, minWidth: 150 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ font: 'var(--type-label)', fontWeight: 600 }}>{g.name}</span>
                       <LevelChip level={g.level} levels={db.levels} />
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{genderTxt(g.gender)}</span>
+                      {g.companionOf && (
+                        <span style={{
+                          fontSize: 11, padding: '2px 6px', borderRadius: 4,
+                          background: 'var(--surface-brand-soft)', color: 'var(--teal-700)', fontWeight: 500,
+                        }}>
+                          {t('members.companionBadge', { name: (db.guests.find((x) => x.id === g.companionOf) || {}).name || '' })}
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                       {g.phone ? (
@@ -777,14 +787,15 @@ function GuestMembers({ canEdit }) {
                   </div>
 
                   {canEdit && (
-                    <div>
-                      <IconButton
-                        icon="pencil"
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <Button
+                        variant="secondary"
                         size="sm"
-                        variant="ghost"
-                        label={t('common.edit')}
+                        icon="pencil"
                         onClick={() => setEditingGuest({ ...g })}
-                      />
+                      >
+                        {t('common.edit')}
+                      </Button>
                     </div>
                   )}
                 </div>
