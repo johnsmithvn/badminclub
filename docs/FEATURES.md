@@ -117,6 +117,11 @@ cùng gọi `money.js: costRow`, không màn nào tự viết lại công thức
 
 Nút chốt buổi là hành động primary **duy nhất** của trang.
 
+**Khóa thao tác khi buổi đã chốt (`closed`):**
+- Ẩn các nút: **Mở lại buổi**, **Hủy buổi**, **Xóa hẳn**.
+- Vô hiệu hóa / ẩn các thao tác sửa đổi: Thêm sân, Bán sân / Hủy bán, Xóa sân phụ trội, ô Ghi chú buổi.
+- Nút "Mở lại buổi" chỉ hiển thị với buổi đã hủy (`cancelled`).
+
 ## 4. Chia sân (`/chia-san`)
 
 Chỉ hiện buổi: `date >= hôm nay` **và** `status = 'open'` **và** có ≥1 người Có mặt.
@@ -285,7 +290,7 @@ trình độ áp dụng từ tháng sau.
 **UI Component: SearchSelect (Combobox có tìm kiếm & Lazy Load)**:
 - Component chọn thông minh tái sử dụng (`src/components/ui/SearchSelect.jsx`), thay thế hoàn toàn các thẻ `<select>` native dài lê thê khi chọn thành viên/người chơi.
 - Tích hợp ô tìm kiếm tiếng Việt không dấu (gõ tên, SĐT, trình độ), huy hiệu trình độ màu (`LevelChip`), đóng mở popup mượt mà, và tự động lazy-load theo từng đợt 30 dòng khi cuộn danh sách lớn.
-- Áp dụng tại: Chọn thành viên đi lẻ hôm nay (`ExtraPicker`), Chọn người rủ khách giao lưu (`GuestForm` & danh sách khách).
+- Áp dụng tại: Chọn thành viên đi lẻ hôm nay (`ExtraPicker`), Chọn người rủ khách giao lưu (`GuestForm` & danh sách khách), Chọn thành viên để ghép trong Yêu cầu vào CLB (`JoinRow`), và Ghép tài khoản thủ công trong Cài đặt (`Access`).
 
 ---
 

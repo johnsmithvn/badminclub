@@ -156,7 +156,7 @@ export default function SessionDetail() {
                     </Button>
                   </>
                 )}
-                {(s.status === 'closed' || s.status === 'cancelled') && (
+                {s.status === 'cancelled' && (
                   <Button variant="secondary" icon="rotate-ccw" onClick={() => a.confirm({
                     title: t('session.reopenTitle'),
                     message: t('session.reopenMsg'),
@@ -173,7 +173,7 @@ export default function SessionDetail() {
             <Button variant="secondary" size="sm" icon="send" onClick={() => a.copyZalo(s.id)}>
               {t('session.copyZalo')}
             </Button>
-            {canEdit && s.status !== 'cancelled' && (
+            {canEdit && s.status !== 'cancelled' && s.status !== 'closed' && (
               <Button variant="ghost" size="sm" icon="circle-x" onClick={() => a.confirm({
                 title: t('session.cancelTitle'),
                 message: t('session.cancelMsg'),
@@ -184,10 +184,8 @@ export default function SessionDetail() {
                 {t('session.doCancel')}
               </Button>
             )}
-            {/* Xoá HẲN chỉ mở khi chưa ai chạm vào buổi (`money.js: sessionRefs`). Sáu bảng con
-                cascade theo `sessions` — xoá buổi đã có dấu vết là mất điểm danh, trận và tiền
-                khách đã thu. Có dấu vết thì dùng Huỷ ở nút bên cạnh. */}
-            {canEdit && (
+            {/* Xoá HẲN chỉ mở khi chưa chốt và có quyền sửa */}
+            {canEdit && s.status !== 'closed' && (
               <Button variant="ghost" size="sm" icon="trash-2" onClick={() => a.confirm({
                 title: t('session.delTitle'),
                 message: t('session.delMsg', { date: ddmy(s.date) }),
@@ -201,11 +199,10 @@ export default function SessionDetail() {
           </div>
         </div>
 
-        {/* Ghi chú của buổi. Cột `sessions.note` có sẵn dưới DB và map hai chiều từ lâu, chỉ là
-            chưa bao giờ có ô nhập. Lưu ngay khi gõ, không có nút Lưu riêng. */}
+        {/* Ghi chú của buổi. Vô hiệu hóa khi buổi đã chốt. */}
         <div style={{ marginTop: 12 }}>
           <Input label={t('session.note')} placeholder={t('session.notePh')}
-            value={s.note || ''} disabled={!canEdit}
+            value={s.note || ''} disabled={!canEdit || isClosed}
             onChange={(e) => a.setSessionNote(s.id, e.target.value)} />
         </div>
       </Card>
@@ -351,7 +348,7 @@ export default function SessionDetail() {
             subtitle={t('session.courtsSub')}
             icon="map-pin"
             padding="14px 16px"
-            actions={canEdit && (
+            actions={canEdit && !isClosed && (
               <Button variant="secondary" size="sm" icon="plus"
                 onClick={() => a.openDialog('addcourt', addCourtForm(db, s))}>
                 {t('session.addCourt')}
@@ -389,7 +386,7 @@ export default function SessionDetail() {
                     style={c.sold ? { textDecoration: 'line-through' } : undefined}>
                     {fmt(rowCost(db, c))}
                   </Mono>
-                  {canEdit && (
+                  {canEdit && !isClosed && (
                     <>
                       <Button variant={c.sold ? 'ghost' : 'secondary'} size="sm"
                         onClick={() => a.toggleCourtSold(s.id, i)}>
@@ -410,10 +407,10 @@ export default function SessionDetail() {
                   {c.sold && (
                     <div style={S.soldBox}>
                       <Input label={t('session.soldAmount')} mono suffix={t('units.dong')}
-                        value={String(c.soldAmount || 0)} disabled={!canEdit}
+                        value={String(c.soldAmount || 0)} disabled={!canEdit || isClosed}
                         onChange={(e) => a.setSold(s.id, i, 'soldAmount', e.target.value)}
                         style={{ width: 140 }} />
-                      <Input label={t('session.soldTo')} value={c.soldTo || ''} disabled={!canEdit}
+                      <Input label={t('session.soldTo')} value={c.soldTo || ''} disabled={!canEdit || isClosed}
                         onChange={(e) => a.setSold(s.id, i, 'soldTo', e.target.value)}
                         style={{ width: 170 }} />
                     </div>

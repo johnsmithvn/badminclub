@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { Alert, Avatar, Button, Card, Checkbox, Icon, IconButton, Input, Select, Switch, Tabs, Tag } from '#ds'
-import { AvatarUpload, BankAccountSection, DeleteClubDialog, Empty, GRID_PAIR, LevelChip, Mono, Overline } from '#ui'
+import { AvatarUpload, BankAccountSection, DeleteClubDialog, Empty, GRID_PAIR, LevelChip, Mono, Overline, SearchSelect } from '#ui'
 import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { WD, ddmy } from '#utils/dates.js'
 import { ROLES, can, roleDesc } from '#lib/roles.js'
-import { fmtK, genderTxt, intOf } from '#lib/money.js'
+import { fmtK, genderTxt, intOf, levelOf } from '#lib/money.js'
 import { digits, mergeRows } from '#lib/members.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -970,11 +970,22 @@ function JoinRow({ r, canEdit, unlinked }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Select size="sm" style={{ width: 240 }} value={pick}
-              options={[{ value: '', label: t('settings.joinPickMember') }].concat(
-                unlinked.map((m) => ({ value: m.id, label: m.name + ' · ' + (m.phone || '') }))
-              )}
-              onChange={(e) => setPick(e.target.value)} />
+            <SearchSelect
+              size="sm"
+              style={{ width: 260 }}
+              menuWidth={300}
+              placeholder={t('settings.joinPickMember')}
+              options={unlinked.map((m) => ({
+                value: m.id,
+                label: m.name,
+                sub: m.phone || undefined,
+                level: levelOf(m, db.month),
+              }))}
+              levels={db.levels}
+              clearable
+              value={pick}
+              onChange={(val) => setPick(val || '')}
+            />
             {/* Chưa chọn ai mà bấm Ghép thì RPC nhận p_member_id = null và tạo người mới —
                 nút nói một đằng làm một nẻo. Khoá lại. */}
             <Button variant="primary" size="sm" icon="link" disabled={!pick}
@@ -1199,24 +1210,20 @@ function Access({ canEdit, pending }) {
                   )}
                   {canEdit && !user && (
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <Select
+                      <SearchSelect
                         size="sm"
-                        style={{ minWidth: 160 }}
-                        value={ui.form['link_u_' + m.id] ?? (sug ? sug.id : '')}
+                        style={{ minWidth: 220 }}
+                        menuWidth={300}
+                        placeholder={t(freeUsers.length ? 'settings.linkPick' : 'settings.linkNoFree')}
                         disabled={freeUsers.length === 0}
-                        options={[{
-                          value: '',
-                          label: t(freeUsers.length ? 'settings.linkPick' : 'settings.linkNoFree'),
-                        }].concat(
-                          // Hiện EMAIL cạnh tên: `db.users` toàn người có tài khoản thật, mà tên
-                          // trong CLB thì trùng nhau như cơm bữa. Không có email thì không cách
-                          // nào biết đang ghép đúng người hay không.
-                          freeUsers.map((u) => ({
-                            value: u.id,
-                            label: [u.name || u.id, u.email, u.phone].filter(Boolean).join(' · '),
-                          }))
-                        )}
-                        onChange={(e) => a.setF('link_u_' + m.id, e.target.value)}
+                        options={freeUsers.map((u) => ({
+                          value: u.id,
+                          label: u.name || u.nick || u.id,
+                          sub: [u.email, u.phone].filter(Boolean).join(' · ') || undefined,
+                        }))}
+                        clearable
+                        value={ui.form['link_u_' + m.id] ?? (sug ? sug.id : '')}
+                        onChange={(val) => a.setF('link_u_' + m.id, val || '')}
                       />
                       <Button
                         variant="primary"

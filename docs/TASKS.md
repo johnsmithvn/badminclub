@@ -847,6 +847,12 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
       và `boxSizing: 'border-box'` cho container dòng `SS.upRow`, kết hợp `textOverflow: 'ellipsis'`
       để tên sân dài không đẩy bay cột tiền sân và nút Mở điểm danh ra ngoài thẻ card.
 
+- [x] **Khóa và ẩn các action nguy hiểm khi buổi đã chốt / mở (`SessionDetail.jsx`) — 2026-09-02**:
+      Khi buổi đã chốt (`closed`): Ẩn các nút "Hủy buổi", "Xóa hẳn", "Mở lại buổi"; ẩn/khóa nút "Thêm sân cho buổi này", "Bán sân / Hủy bán", xóa sân phụ trội, và vô hiệu hóa ô Ghi chú buổi.
+      Khi buổi đã mở (`open`): Không hiển thị nút "Mở lại buổi" (chỉ hiển thị cho buổi đã hủy `cancelled`).
+- [x] **Tích hợp `SearchSelect` vào màn Cài đặt → Tài khoản & quyền (`Settings.jsx`) — 2026-09-02**:
+      Thay thế `<select>` native ở khối Yêu cầu vào CLB (`JoinRow`) và ghép tài khoản thủ công (`Access`) bằng component `SearchSelect` có tìm kiếm tên/SĐT/trình độ không dấu, huy hiệu trình độ màu sắc và lazy loading.
+
 ### Đợt dọn C — migration `0011_level_history`
 
 - [x] **C6 · Lịch sử trình độ nhiều mốc.** Một ô `pending_level` chỉ giữ được MỘT lần đổi: duyệt
