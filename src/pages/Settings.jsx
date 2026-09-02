@@ -475,16 +475,14 @@ function MoneyTab({ canEdit }) {
 
 /* ---------------- Sân & Cầu ---------------- */
 
-/* ---------------- Sân & Cầu ---------------- */
-
 function CourtsAndShuttles({ canEdit }) {
   const { db, a } = useApp()
   // So định mức với số cầu thực tế của các buổi đã chốt KHÔNG còn cờ ước lượng.
   const real = db.sessions.filter((s) => s.status === 'closed' && !s.shuttleEst)
 
   return (
-    <div style={GRID_PAIR}>
-      {/* Cột 1: Sân bãi & Giá thuê */}
+    <div style={{ display: 'grid', gap: 16 }}>
+      {/* 1. Sân bãi & Giá thuê */}
       <Card
         title={t('settings.courtsTitle')}
         subtitle={t('settings.courtsSub')}
@@ -500,80 +498,77 @@ function CourtsAndShuttles({ canEdit }) {
         {db.courts.length === 0 ? (
           <Empty icon="map-pin" title={t('settings.noCourt')} hint={t('settings.noCourtHint')} />
         ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gap: 10, overflowX: 'auto' }}>
+            <div style={{ ...S.courtGrid, ...S.headRow }}>
+              <span>{t('settings.colCourt')}</span>
+              <span>{t('settings.colAddress')}</span>
+              <span>{t('settings.colMapUrl')}</span>
+              <span>{t('settings.colPrice')}</span>
+              <span>{t('settings.colActive')}</span>
+            </div>
             {db.courts.map((c) => (
-              <div key={c.id} style={{
-                display: 'grid', gap: 8, padding: '10px 12px',
-                background: 'var(--surface-inset)', borderRadius: 8,
-                border: '1px solid var(--border-subtle)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                    <Input
-                      size="sm"
-                      value={c.name}
-                      disabled={!canEdit}
-                      placeholder="Tên sân..."
-                      style={{ fontWeight: 600 }}
-                      onChange={(e) => a.setCourtField(c.id, 'name', e.target.value)}
-                    />
-                    {c.mapUrl && (
-                      <a
-                        href={c.mapUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          width: 32, height: 32, borderRadius: 6,
-                          border: '1px solid var(--border-subtle)', background: 'var(--surface-brand-soft)',
-                          color: 'var(--teal-600)', flexShrink: 0, textDecoration: 'none',
-                        }}
-                        title="Mở Google Maps"
-                      >
-                        <Icon name="map-pin" size={14} />
-                      </a>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <Input
-                      size="sm"
-                      mono
-                      suffix="đ/h"
-                      value={String(c.price)}
-                      disabled={!canEdit}
-                      style={{ width: 105 }}
-                      onChange={(e) => a.setCourtField(c.id, 'price', e.target.value)}
-                    />
-                    <Switch
-                      checked={c.active !== false}
-                      disabled={!canEdit}
-                      onChange={() => a.setCourtField(c.id, 'active', c.active === false)}
-                    />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <Input
-                    size="sm"
-                    value={c.addr || ''}
-                    disabled={!canEdit}
-                    placeholder="Địa chỉ sân..."
-                    onChange={(e) => a.setCourtField(c.id, 'addr', e.target.value)}
-                  />
+              <div key={c.id} style={S.courtGrid}>
+                <Input
+                  size="sm"
+                  value={c.name}
+                  disabled={!canEdit}
+                  placeholder="Tên sân..."
+                  style={{ fontWeight: 600 }}
+                  onChange={(e) => a.setCourtField(c.id, 'name', e.target.value)}
+                />
+                <Input
+                  size="sm"
+                  value={c.addr || ''}
+                  disabled={!canEdit}
+                  placeholder="Địa chỉ sân..."
+                  onChange={(e) => a.setCourtField(c.id, 'addr', e.target.value)}
+                />
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <Input
                     size="sm"
                     value={c.mapUrl || ''}
                     disabled={!canEdit}
-                    placeholder="Link Google Maps..."
+                    placeholder="https://maps.app.goo.gl/..."
+                    style={{ flex: 1 }}
                     onChange={(e) => a.setCourtField(c.id, 'mapUrl', e.target.value)}
                   />
+                  {c.mapUrl && (
+                    <a
+                      href={c.mapUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: 30, height: 30, borderRadius: 6,
+                        border: '1px solid var(--border-subtle)', background: 'var(--surface-brand-soft)',
+                        color: 'var(--teal-600)', flexShrink: 0, textDecoration: 'none',
+                      }}
+                      title="Mở Google Maps"
+                    >
+                      <Icon name="map-pin" size={14} />
+                    </a>
+                  )}
                 </div>
+                <Input
+                  size="sm"
+                  mono
+                  suffix="đ/h"
+                  value={String(c.price)}
+                  disabled={!canEdit}
+                  onChange={(e) => a.setCourtField(c.id, 'price', e.target.value)}
+                />
+                <Switch
+                  checked={c.active !== false}
+                  disabled={!canEdit}
+                  onChange={() => a.setCourtField(c.id, 'active', c.active === false)}
+                />
               </div>
             ))}
           </div>
         )}
       </Card>
 
-      {/* Cột 2: Loại cầu & Định mức cầu */}
+      {/* 2. Loại cầu & Định mức cầu */}
       <Card
         title="Loại cầu & Định mức"
         subtitle="Quản lý các loại cầu và số lượng ước tính mỗi buổi"
@@ -591,8 +586,8 @@ function CourtsAndShuttles({ canEdit }) {
           {db.shuttleTypes.length === 0 ? (
             <Empty icon="package-open" title={t('settings.noType')} hint={t('settings.noTypeHint')} />
           ) : (
-            <div style={{ display: 'grid', gap: 8 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 80px 105px 44px 30px', gap: 6, ...S.headRow }}>
+            <div style={{ display: 'grid', gap: 8, overflowX: 'auto' }}>
+              <div style={{ ...S.typeGrid, ...S.headRow }}>
                 <span>Loại cầu</span>
                 <span>Quả/ống</span>
                 <span>Giá tham chiếu</span>
@@ -600,14 +595,10 @@ function CourtsAndShuttles({ canEdit }) {
                 <span />
               </div>
               {db.shuttleTypes.map((x) => (
-                <div key={x.id} style={{
-                  display: 'grid', gridTemplateColumns: '1.2fr 80px 105px 44px 30px', gap: 6,
-                  alignItems: 'center', padding: '6px 10px',
-                  background: 'var(--surface-inset)', borderRadius: 8, border: '1px solid var(--border-subtle)',
-                }}>
+                <div key={x.id} style={S.typeGrid}>
                   <Input size="sm" value={x.name} disabled={!canEdit} placeholder="Tên loại..."
                     onChange={(e) => a.setShuttleType(x.id, 'name', e.target.value)} />
-                  <Input size="sm" mono suffix="q" value={String(x.perTube)} disabled={!canEdit}
+                  <Input size="sm" mono suffix="quả" value={String(x.perTube)} disabled={!canEdit}
                     placeholder="12"
                     onChange={(e) => a.setShuttleType(x.id, 'perTube', e.target.value)} />
                   <Input size="sm" mono suffix="đ" value={String(x.pricePerTube || 0)} disabled={!canEdit}
@@ -644,23 +635,23 @@ function CourtsAndShuttles({ canEdit }) {
                 <Overline>{t('settings.quotaTitle')}</Overline>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('settings.quotaSub')}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
                 {db.groups.map((g) => {
                   const mine = real.filter((s) => s.groupId === g.id)
                   const avg = mine.length ? Math.round(mine.reduce((x, s) => x + s.shuttleUsed, 0) / mine.length) : null
                   return (
                     <div key={g.id} style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                      padding: '8px 10px', borderRadius: 6, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+                      padding: '8px 12px', borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
                     }}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-primary)' }}>{g.name}</div>
-                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>{g.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                           {avg === null ? 'Chưa có buổi' : `TB: ${avg} quả`}
                         </div>
                       </div>
                       <Input size="sm" mono suffix="quả" value={String(g.quota)} disabled={!canEdit}
-                        style={{ width: 80 }}
+                        style={{ width: 85 }}
                         onChange={(e) => a.setGroupField(g.id, 'quota', e.target.value)} />
                     </div>
                   )
@@ -1158,7 +1149,7 @@ const S = {
     background: 'var(--surface-inset)', border: '1px dashed var(--border-subtle)',
   },
   priceGrid: { display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 10, alignItems: 'center' },
-  courtGrid: { display: 'grid', gridTemplateColumns: '1.2fr 1.3fr 1.3fr 1fr 70px', gap: 10, alignItems: 'center' },
+  courtGrid: { display: 'grid', gridTemplateColumns: '1.3fr 1.6fr 1.5fr 120px 60px', gap: 10, alignItems: 'center' },
   groupBox: { display: 'grid', gap: 8, padding: '11px 13px', borderRadius: 8, background: 'var(--surface-inset)' },
   mergeBox: {
     display: 'grid', gap: 7, padding: '10px 12px', borderRadius: 8,
@@ -1175,7 +1166,7 @@ const S = {
     font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
   },
   pickOn: { borderColor: 'var(--teal-500)', background: 'var(--surface-accent-soft)' },
-  typeGrid: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.2fr 60px 36px', gap: 8, alignItems: 'center' },
+  typeGrid: { display: 'grid', gridTemplateColumns: '1.4fr 120px 140px 60px 36px', gap: 10, alignItems: 'center' },
   rolePill: {
     font: '600 10px/1 var(--font-sans)', padding: '6px 9px', borderRadius: 99, whiteSpace: 'nowrap',
     background: 'var(--surface-brand-soft)', color: 'var(--navy-700)', textAlign: 'center',

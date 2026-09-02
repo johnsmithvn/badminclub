@@ -2,7 +2,7 @@
 
 **Version:** v0.4.0 · **Updated:** 2026-09-02
 
-Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0010`.
+Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0013`.
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
 localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
@@ -192,11 +192,12 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0005_add_member_note.sql` | Thêm cột `note` vào `club_members`. |
 | `0006_simplify_roles.sql` | Tinh gọn 3 vai trò người dùng (`owner`, `treasurer`, `member`). |
 | `0007_delete_club.sql` | Hỗ trợ tính năng xoá CLB an toàn kèm dọn dẹp các ràng buộc liên quan. |
-| `0008_no_default_group.sql` | Loại bỏ sinh nhóm cố định mặc định tự động để tránh nhóm ma. |
+| `0008_no_default_group.sql` | **Chỉ còn một lệnh dọn**: `DROP` bản `create_club` 7 tham số. Mục đích gốc (bỏ sinh nhóm mặc định) đã nằm trong `create_club` của 0011; để lại bản 7 tham số là có hai overload và PostgREST không chọn nổi hàm nào. |
 | `0009_profile_merge.sql` | Tách biệt hồ sơ tài khoản và hồ sơ CLB, duyệt ghép có chọn lọc trường, thêm `monthly_dues.paid_amount`. |
 | `0010_member_email.sql` | Bổ sung `email` & `full_name` cho `club_members`, policy `cm_update_self_name` + trigger guard cho thành viên tự đổi tên, đăng ký bằng email tự sinh username. |
 | `0011_level_history.sql` | Bảng `member_levels` lưu lịch sử mốc trình độ nhiều lần đổi, `create_club` nhận thang trình độ `p_levels`, dọn RPC chết. |
 | `0012_court_map_url.sql` | Thêm cột `map_url` cho bảng `courts` lưu link Google Maps / bản đồ vị trí sân. |
+| `0013_find_member_candidate.sql` | RPC `find_member_candidate(club, email)`: tra MỘT tài khoản theo email CHÍNH XÁC để ghép vào bản ghi thành viên. Chỉ trả `id` + tên hiển thị, gác `has_club_perm(club,'members')`. Cố ý không tìm gần đúng — bản `search_users_for_club` cũ (0006, đã xoá ở 0011) cho `ILIKE '%q%'` và query rỗng trả 50 profile đầu của toàn app. |
 
 ---
 

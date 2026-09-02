@@ -37,6 +37,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Đọc / sinh CSV thành viên, RFC 4180, phát hiện cột, validate & cảnh báo trùng | `lib/csv.test.js` |
 | Sao lưu & khôi phục cài đặt CLB dạng file JSON | `lib/settings_export.test.js` |
 | Map client ↔ Postgres, thứ tự ghi/xoá, `diff()` | `sync/dbmap.test.js` |
+| Lỗi đồng bộ nào thử lại được, lỗi nào phải nạp lại DB | `sync/fatal.test.js` |
 | CLB vừa tạo (mọi bảng rỗng) không được throw / NaN / Infinity | `smoke/empty.test.js` |
 | Không sót key i18n, không có số lọt vào `vi.json` | `smoke/i18n.test.js` |
 

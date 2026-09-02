@@ -57,7 +57,7 @@ src/
     members.js        lọc/tìm/sắp xếp thành viên, chọn trường ghép tài khoản (0009/0010)
     money.js          mọi công thức tiền + tra cứu + màu/nhãn trạng thái + đối chiếu
     roles.js          tra cứu ma trận quyền 3 vai
-    schedules.js      sinh/xoá buổi từ lịch cố định, kiểm tra xung đột
+    schedules.js      kế hoạch SỬA/XOÁ lịch cố định: buổi nào được đụng, tháng nào đổi đơn giá
     supabase.js       khởi tạo client Supabase từ biến môi trường
   pages/              1 file 1 màn hình, chỉ render + gọi actions
     Account.jsx       hồ sơ tài khoản (profiles, NGOÀI CLB)
@@ -71,8 +71,8 @@ src/
   routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
   styles/             index.css + tokens/*.css
   utils/dates.js      ngày, tháng, giờ thập phân, lưới lịch
-  __tests__/          24 bộ test: lib/ · money/ · ledger/ · sync/ · smoke/ (xem __tests__/README.md)
-supabase/migrations/   SQL cho bản chạy thật (0001..0010)
+  __tests__/          36 bộ test: lib/ · money/ · ledger/ · sync/ · smoke/ (xem __tests__/README.md)
+supabase/migrations/   SQL cho bản chạy thật (0001..0013)
 docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
 ```
 
