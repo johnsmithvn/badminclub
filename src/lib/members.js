@@ -6,7 +6,7 @@
 //   2. cột "Quỹ tháng" và bộ lọc "trạng thái đóng" phải đọc CÙNG một hàm, không thì lọc
 //      "Chưa đóng" ra một tập, còn cột lại tô màu theo tập khác.
 
-import { dueState, rosterStatus } from '#lib/money.js'
+import { dueState, levelOf, rosterStatus } from '#lib/money.js'
 // Cùng phép chuẩn hoá với lúc đọc tiêu đề CSV: bỏ dấu, bỏ khoảng trắng, hạ chữ thường.
 // "Thuy" tìm ra "Thúy", "0327 279 292" tìm ra "0327279292". Đừng viết lại phép này lần hai.
 import { normHeader as norm } from '#lib/csv.js'
@@ -100,7 +100,7 @@ export function filterMembers(db, rows, f, month) {
   return rows.filter((m) => {
     if (q && !hit(m)) return false
     if (f.gender && m.gender !== f.gender) return false
-    if (f.level && m.level !== f.level) return false
+    if (f.level && levelOf(m, month) !== f.level) return false
     if (f.dues && duesStatusOf(db, m.id, month) !== f.dues) return false
     if (f.group) {
       const gs = fixedGroups(db, m.id, month)
@@ -123,7 +123,7 @@ const DUES_ORDER = { unpaid: 0, none: 1, paid: 2 }
 const KEY = {
   n: (db, m) => norm(m.name),
   g: (db, m) => (m.gender === 'nu' ? 1 : 0),
-  l: (db, m) => (db.levels || []).indexOf(m.level),
+  l: (db, m, month) => (db.levels || []).indexOf(levelOf(m, month)),
   p: (db, m) => norm(m.phone),
   gr: (db, m, month) => fixedGroups(db, m.id, month).map((g) => g.short || g.name).join(','),
   d: (db, m, month) => DUES_ORDER[duesStatusOf(db, m.id, month)],

@@ -57,6 +57,13 @@ export function toDb(raw, ctx) {
   // rồi `storage.js: save` ghi ngược xuống DB thành một nhóm ma. Không có nhóm là trạng thái
   // HỢP LỆ từ 0008: ai chưa thuộc nhóm nào thì tính đi lẻ.
 
+  // Mốc trình độ gom theo người, sắp xuôi thời gian — `levelOf` chỉ cần tìm mốc lớn nhất <= tháng.
+  const levelsBy = {}
+  ;(raw.levelRows || []).forEach((r) => {
+    ;(levelsBy[r.member_id] = levelsBy[r.member_id] || []).push({ from: r.from_month, level: r.level })
+  })
+  Object.values(levelsBy).forEach((list) => list.sort((a, b) => (a.from < b.from ? -1 : 1)))
+
   const members = (raw.members || []).map((m) => {
     return {
       id: m.id, name: m.name, fullName: m.full_name || '',
@@ -65,6 +72,7 @@ export function toDb(raw, ctx) {
       linkedAt: dOf(m.linked_at), pendingLevel: m.pending_level || null,
       pendingLevelFrom: m.pending_level_from || null,
       note: m.note || '',
+      levelHistory: levelsBy[m.id] || [],
       // Rỗng = chưa cố định ca nào (đi lẻ). Không bịa ca mặc định ở đây: migration 0002 đã
       // backfill `club_member_groups` cho người cũ, nên rỗng bây giờ là rỗng thật.
       groupIds: (m.club_member_groups || []).map((x) => x.group_id),
@@ -288,6 +296,9 @@ export function toRows(db, ctx) {
       note: m.note || null,
     })
     ;(m.groupIds || []).forEach((g) => put('club_member_groups', { member_id: m.id, group_id: g }))
+    ;(m.levelHistory || []).forEach((h) => put('member_levels', {
+      member_id: m.id, from_month: h.from, level: h.level,
+    }))
   })
 
   db.guests.forEach((g) => put('guests', {
@@ -484,6 +495,9 @@ export const TABLES = [
   { table: 'group_courts', mode: 'scope', scope: ['group_id'] },
   { table: 'club_members', mode: 'id' },
   { table: 'club_member_groups', mode: 'scope', scope: ['member_id'] },
+  // Mode 'scope': mốc trình độ không có id ở client, và một người chỉ có vài mốc — xoá sạch của
+  // người nào vừa đổi rồi ghi lại, đúng khuôn `club_member_groups`.
+  { table: 'member_levels', mode: 'scope', scope: ['member_id'] },
   // `club_invites` cố ý KHÔNG có ở đây: mời qua SĐT đã gỡ khỏi client (cần module riêng, có
   // gửi tin thật). Bảng và cột `clubs.allow_invite` giữ nguyên dưới DB, chờ module đó.
   { table: 'guests', mode: 'id' },

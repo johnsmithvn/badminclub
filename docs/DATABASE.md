@@ -53,6 +53,11 @@ cái kia**. `club_members` là **bản sao tại thời điểm ghi**. Cặp c�
 | `gender` · `level` | `gender` · `level` | `level` bên CLB phải thuộc `clubs.levels` của CLB đó |
 | — | `role` | **chỉ** của CLB (`owner`, `treasurer`, `member`), hồ sơ tài khoản không bao giờ đụng tới |
 
+**Trình độ theo tháng.** `club_members.level` là bậc GỐC; mỗi lần duyệt đổi "từ tháng sau" ghi
+thêm một dòng vào `member_levels (member_id, from_month, level)`. `money.js: levelOf(m, month)`
+lấy mốc lớn nhất còn `<= month`, không có mốc nào thì dùng `level`. Cột `pending_level` /
+`pending_level_from` **không còn dùng** từ 0011 (đã backfill sang bảng mới, giữ lại cho dữ liệu cũ).
+
 - Ghép tài khoản chỉ gắn `user_id` + `linked_at`. Mặc định **không** copy trường nào.
 - Muốn lấy sang thì chủ CLB **tick từng trường trong 6 trường** ở màn duyệt → `approve_join_request(p_request, p_member_id, p_fields)` (`name`, `fullName`, `phone`, `email`, `gender`, `level`). `role` không bao giờ nằm trong `p_fields`; `level` chỉ ghi khi thuộc `clubs.levels` của CLB đó.
 - Sau khi ghép, hai bên sống độc lập: đổi tên trong hồ sơ tài khoản **không** đổi tên trong CLB, và ngược lại. Bỏ ghép hay rời CLB thì bản ghi CLB **giữ nguyên** mọi giá trị.

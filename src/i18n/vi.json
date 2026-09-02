@@ -174,7 +174,8 @@
     "loading": "Đang nạp dữ liệu CLB…",
     "loadFailed": "Không nạp được dữ liệu CLB: {{msg}}",
     "needMigrate": "Cơ sở dữ liệu thiếu bản cập nhật mới nhất. Chạy: npm run db:migrate",
-    "failed": "Chưa lưu được xuống máy chủ: {{msg}}. Thay đổi vẫn còn trên màn hình, sẽ thử lại."
+    "failed": "Chưa lưu được xuống máy chủ: {{msg}}. Thay đổi vẫn còn trên màn hình, sẽ thử lại.",
+    "fatal": "Máy chủ từ chối thay đổi vừa rồi ({{msg}}). Màn hình đã nạp lại đúng dữ liệu đang có — làm lại thao tác đó, đừng làm tiếp lên số cũ."
   },
   "setup": {
     "cardTitle": "CLB mới — bốn bước để dùng được",

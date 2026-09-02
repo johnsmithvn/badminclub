@@ -178,6 +178,10 @@ export function AuthProvider({ children }) {
         p_bank_holder: form.bankHolder || null,
         p_bank_no: form.bankNo || null,
         p_bank_name: form.bankName || null,
+        // Thang trình độ khởi tạo. Không truyền thì DB dùng default 4 bậc của cột `clubs.levels`,
+        // trong khi màn đăng ký cho chọn trong `levelsDefault` — chọn 'Y+' rồi tạo CLB là
+        // `create_club` hạ về bậc thấp nhất trong im lặng vì 'Y+' không có trong thang kia.
+        p_levels: cfg.levelsDefault,
       }))
       const list = await refresh(session?.user?.id)
       return { club, list }

@@ -4,9 +4,7 @@
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import {
-  SHUTTLE_UNIT_FALLBACK, genderTxt,
-  fmt, fmtK, intOf, levelIdx, levelOf, levelStyle,
-  payerName,
+  SHUTTLE_UNIT_FALLBACK, fmt, fmtK, genderTxt, intOf, levelIdx, levelOf, levelStyle, nextLevelStep, payerName,
 } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -42,12 +40,52 @@ assert.notDeepEqual(levelStyle('a', scale), levelStyle('f', scale), 'yếu nhấ
 assert.deepEqual(levelStyle('a', scale), levelStyle('Newbie'), 'bậc đầu thang nào cũng cùng một màu')
 assert.deepEqual(levelStyle('lạ hoắc', scale), levelStyle('a', scale), 'bậc không có trong thang thì về màu đầu')
 
-// levelOf tôn trọng thay đổi đang chờ áp dụng
+// levelOf tôn trọng thay đổi đang chờ áp dụng (mô hình CŨ, DB chưa chạy 0011 thì vẫn phải đúng)
 const m = { level: 'TBY', pendingLevel: 'TB-', pendingLevelFrom: '2026-09' }
 assert.equal(levelOf(m, '2026-08'), 'TBY', 'tháng trước mốc thì giữ trình độ cũ')
 assert.equal(levelOf(m, '2026-09'), 'TB-', 'đúng tháng mốc thì đổi')
 assert.equal(levelOf(m, '2026-10'), 'TB-')
 assert.equal(levelOf({ level: 'TB' }, '2026-09'), 'TB', 'không có pending thì dùng level')
+
+/* ---------- lịch sử trình độ: ĐỔI NHIỀU LẦN thì đoạn giữa phải đúng ---------- */
+//
+// Đây là lý do bảng `member_levels` tồn tại. Một ô `pendingLevel` chỉ giữ được MỘT lần đổi:
+// duyệt lần thứ hai là ghi đè lần thứ nhất, và những tháng nằm giữa hai lần đổi rơi về `level`
+// gốc. Sai đó không hiện trên màn nào — nó đi thẳng vào giá khách của người đi lẻ
+// (`adhocCharges` gọi `levelOf`) và vào cách cân sân của các buổi trong đoạn giữa.
+
+const hai = {
+  level: 'Newbie',
+  levelHistory: [
+    { from: '2026-03', level: 'TBY' },
+    { from: '2026-06', level: 'TB' },
+  ],
+}
+assert.equal(levelOf(hai, '2026-02'), 'Newbie', 'trước mốc đầu tiên thì vẫn là trình độ gốc')
+assert.equal(levelOf(hai, '2026-03'), 'TBY', 'đúng tháng mốc thì áp dụng ngay tháng đó')
+assert.equal(levelOf(hai, '2026-04'), 'TBY',
+  'ĐOẠN GIỮA hai lần đổi phải giữ bậc của lần đổi thứ nhất — rơi về Newbie ở đây là tính sai giá khách và cân sân của mọi buổi tháng 4, 5')
+assert.equal(levelOf(hai, '2026-05'), 'TBY')
+assert.equal(levelOf(hai, '2026-06'), 'TB', 'từ mốc thứ hai trở đi là bậc mới')
+assert.equal(levelOf(hai, '2026-12'), 'TB', 'sau mốc cuối thì giữ bậc cuối, không quay về gốc')
+
+// Mốc ghi lộn xộn (client thêm mốc mới vào cuối mảng) vẫn phải ra đúng: hàm tìm mốc LỚN NHẤT
+// còn <= tháng, không phải phần tử cuối mảng.
+const loanXon = { level: 'Newbie', levelHistory: [{ from: '2026-06', level: 'TB' }, { from: '2026-03', level: 'TBY' }] }
+assert.equal(levelOf(loanXon, '2026-04'), 'TBY', 'không được lấy phần tử cuối mảng làm mốc đang áp dụng')
+assert.equal(levelOf(loanXon, '2026-07'), 'TB',
+  'hai mốc cùng <= tháng hỏi thì phải lấy mốc MỚI NHẤT, không phải mốc gặp sau cùng khi duyệt mảng')
+
+// Có lịch sử thì ô chờ cũ KHÔNG được xen vào: 0011 đã backfill ô đó thành một mốc, đọc cả hai
+// là tính hai lần cùng một lần đổi.
+const caHai = { level: 'Newbie', pendingLevel: 'TB+', pendingLevelFrom: '2026-01', levelHistory: [{ from: '2026-03', level: 'TBY' }] }
+assert.equal(levelOf(caHai, '2026-02'), 'Newbie', 'có lịch sử rồi thì ô chờ cũ hết hiệu lực')
+
+assert.deepEqual(nextLevelStep(hai, '2026-04'), { from: '2026-06', level: 'TB' },
+  'màn hình phải chỉ ra mốc SẮP TỚI gần nhất, không phải mốc đã qua')
+assert.equal(nextLevelStep(hai, '2026-06'), null, 'hết mốc tương lai thì không hiện gì')
+assert.deepEqual(nextLevelStep(m, '2026-08'), { from: '2026-09', level: 'TB-' },
+  'bản ghi kiểu cũ (chưa backfill) vẫn phải hiện được mốc đang chờ')
 
 /* ---------- đọc số từ ô nhập: dấu phân cách nghìn KHÔNG được ăn mất tiền ---------- */
 

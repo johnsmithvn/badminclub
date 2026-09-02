@@ -4,7 +4,7 @@
 // Route KHÔNG nằm ở đây — React Router giữ.
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { flushNow, load, reset, save, setSyncErrorHandler } from '#contexts/storage.js'
+import { flushNow, load, reset, save, setSyncErrorHandler, setSyncFatalHandler } from '#contexts/storage.js'
 import { makeActions } from '#contexts/appActions.js'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { t } from '#i18n'
@@ -88,6 +88,13 @@ export function StoreProvider({ children }) {
       toastTimer.current = setTimeout(() => setUi((u) => ({ ...u, toast: null })), cfg.toastMs)
     }
     setSyncErrorHandler((e) => toast(t('sync.failed', { msg: e.message })))
+    // Lỗi không tự khỏi (khoá ngoại, RLS chặn): nạp lại CLB từ DB để hàng đợi thông trở lại.
+    // Thay đổi vừa rồi mất — nhưng nó vốn đã không xuống được DB, và giữ lại trên màn hình thì
+    // chặn mọi thay đổi sau nó mà không báo gì. Toast nói rõ để người dùng làm lại.
+    setSyncFatalHandler((e) => {
+      toast(t('sync.fatal', { msg: e.message }))
+      reload()
+    })
     // makeActions chỉ GIỮ ref trong closure, đọc trong event handler (sau commit), không đọc lúc render.
     return { toast, navRef, a: makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) }
   }, [reload])

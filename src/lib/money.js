@@ -68,8 +68,36 @@ export function groupOf(db, id) {
 export const levelIdx = (l, levels) => Math.max(0, (levels && levels.length ? levels : LEVELS).indexOf(l))
 
 /** Trình độ hiệu lực trong một tháng — tôn trọng thay đổi đang chờ áp dụng. */
-export const levelOf = (m, month) =>
-  m.pendingLevel && month >= m.pendingLevelFrom ? m.pendingLevel : m.level
+export function levelOf(m, month) {
+  // Mốc LỚN NHẤT còn <= tháng đang hỏi. Đổi trình độ nhiều lần thì đoạn giữa hai lần đổi vẫn
+  // đúng — một ô `pendingLevel` không làm được: lần đổi thứ hai ghi đè lần thứ nhất và đoạn
+  // giữa rơi về `level` gốc, sai lặng lẽ ở giá khách và ở cách cân sân của các buổi trong đoạn đó.
+  const hist = m.levelHistory || []
+  let best = null
+  hist.forEach((h) => {
+    if (h.from <= month && (!best || h.from > best.from)) best = h
+  })
+  if (best) return best.level
+  // Tương thích ngược, và CHỈ khi chưa có mốc nào: DB chưa chạy 0011 thì dữ liệu vẫn nằm ở ô chờ
+  // cũ. Có lịch sử rồi mà còn đọc ô đó là đọc hai lần cùng một lần đổi — 0011 đã backfill nó
+  // thành một mốc, nên ô cũ chỉ còn là bản sao mồ côi.
+  if (!hist.length && m.pendingLevel && month >= m.pendingLevelFrom) return m.pendingLevel
+  return m.level
+}
+
+/** Mốc đổi trình độ gần nhất còn ở TƯƠNG LAI (để màn hình hiện "chờ lên X từ tháng Y"). */
+export function nextLevelStep(m, month) {
+  const hist = m.levelHistory || []
+  let next = null
+  hist.forEach((h) => {
+    if (h.from > month && (!next || h.from < next.from)) next = h
+  })
+  if (next) return next
+  if (!hist.length && m.pendingLevel && m.pendingLevelFrom > month) {
+    return { from: m.pendingLevelFrom, level: m.pendingLevel }
+  }
+  return null
+}
 
 /** Trạng thái cố định của một người trong nhóm ở một tháng: fixed | off | pending | none */
 export function rosterStatus(db, month, gid, mid) {

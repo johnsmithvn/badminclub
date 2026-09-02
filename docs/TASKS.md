@@ -870,6 +870,28 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
       và `boxSizing: 'border-box'` cho container dòng `SS.upRow`, kết hợp `textOverflow: 'ellipsis'`
       để tên sân dài không đẩy bay cột tiền sân và nút Mở điểm danh ra ngoài thẻ card.
 
+### Đợt dọn C — migration `0011_level_history`
+
+- [x] **C6 · Lịch sử trình độ nhiều mốc.** Một ô `pending_level` chỉ giữ được MỘT lần đổi: duyệt
+      lần hai là ghi đè lần một, đoạn giữa rơi về `level` gốc — sai lặng lẽ ở giá khách của người
+      đi lẻ và ở cách cân sân của các buổi trong đoạn đó. Bảng `member_levels` + `levelOf` lấy mốc
+      lớn nhất `<= month`. Cột cũ backfill sang bảng mới, giữ lại, client thôi đọc/ghi.
+      Kèm hai chỗ trước giờ đọc `m.level` trần nên nói khác cột hiển thị: bộ lọc trình độ và
+      thứ tự sắp cột trình độ ở màn Thành viên giờ cùng đi qua `levelOf`.
+      **Test bắt được một lỗi ngay khi viết:** bản ghi vừa có lịch sử vừa còn ô chờ cũ thì ô cũ
+      xen vào và trả sai — `levelOf` chỉ được rơi về ô chờ khi CHƯA có mốc nào. 12 assert +
+      mutation-test 2 nhánh.
+- [x] **C3 · CLB mới lấy thang trình độ từ `app.json`.** `create_club` nhận `p_levels`; trước đây
+      DB dùng default 4 bậc trong khi màn đăng ký cho chọn trong 10 bậc, chọn 'Y+' rồi tạo CLB là
+      bị hạ về bậc thấp nhất trong im lặng. CLB đang chạy không bị đụng.
+- [x] **C5 · DROP `search_users_for_club`** — tạo ở 0006, chưa từng có consumer. Cần lại thì lấy
+      trong git.
+- [x] **C4 · Lỗi đồng bộ không tự khỏi thì thôi kẹt hàng đợi.** `unwrap` giữ `code` của
+      Postgres/PostgREST (lỗi mạng không có code); `storage.js` phân biệt hai loại; lỗi cố định
+      thì AppContext nạp lại CLB từ DB + toast nói rõ "làm lại thao tác đó". Mất đúng thay đổi vừa
+      hỏng — nhưng nó vốn đã không xuống được DB, còn giữ lại thì chặn mọi thay đổi SAU nó mà
+      không báo gì. Đây là `ponytail:` đặt từ đợt 1, giờ gỡ.
+
 - [ ] **Trần thứ hai:** `clubs.levels` mặc định của DB (`Newbie · TBY · TB- · TB`) KHÁC
       `app.json → levelsDefault` (9 bậc) mà màn đăng ký dùng. Chọn 'Y+' lúc đăng ký rồi tạo CLB
       thì `create_club` hạ về `levels[1]` — đúng luật mới, nhưng im lặng. Sửa cho khớp là đổi

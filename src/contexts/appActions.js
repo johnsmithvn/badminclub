@@ -580,11 +580,19 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           members = d.members.map((m) => {
             if (m.id !== c.memberId) return m
             if (c.field === 'phone') return { ...m, phone: c.to }
-            if (c.effective === 'now') return { ...m, level: c.to, pendingLevel: null, pendingLevelFrom: null }
+            // "Áp dụng ngay" = trình độ của người này LÀ c.to, kể cả buổi cũ → xoá sạch mốc,
+            // không thì một mốc quá khứ vẫn thắng `level` và duyệt xong không thấy gì đổi.
+            if (c.effective === 'now') {
+              return { ...m, level: c.to, levelHistory: [], pendingLevel: null, pendingLevelFrom: null }
+            }
             // Mốc lấy từ HÔM NAY, không phải tháng đang chọn ở header: duyệt trong lúc xem
             // tháng cũ thì mốc rơi vào quá khứ và trình độ mới áp dụng ngay, đổi luôn cái
             // hiện trên các buổi đã đánh xong.
-            return { ...m, pendingLevel: c.to, pendingLevelFrom: addMonth(monthOf(d.today), 1) }
+            const from = addMonth(monthOf(d.today), 1)
+            // Thêm MỘT mốc, giữ các mốc cũ: đổi lần thứ hai không được xoá lịch sử lần thứ nhất,
+            // không thì đoạn giữa hai lần đổi rơi về `level` gốc (đó là lỗi của mô hình cũ).
+            const hist = (m.levelHistory || []).filter((h) => h.from !== from).concat([{ from, level: c.to }])
+            return { ...m, levelHistory: hist, pendingLevel: null, pendingLevelFrom: null }
           })
         }
         return { members, changes: d.changes.map((x) => (x.id === id ? { ...x, status: ok ? 'approved' : 'rejected' } : x)) }
@@ -619,6 +627,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         email: (f.eEmail || '').trim(),
         gender: f.eGender,
         level: f.eLevel,
+        // Chủ CLB sửa thẳng = áp dụng ngay cho mọi tháng → lịch sử mốc cũ phải đi theo, không
+        // thì tháng sau trình độ tự nhảy về mốc cũ mà không ai hiểu vì sao.
+        levelHistory: f.eLevel === was.level ? (was.levelHistory || []) : [],
         pendingLevel: null,
         pendingLevelFrom: null,
         note: f.eNote || '',
@@ -830,7 +841,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         groupIds: start === 'now' ? gs : [], role: 'member', phone: f.mPhone || '',
         fullName: (f.mFull || '').trim(), email: (f.mEmail || '').trim(),
         note: f.mNote || '',
-        joined: d0.today, active: true, userId: null, pendingLevel: null, pendingLevelFrom: null,
+        joined: d0.today, active: true, userId: null, levelHistory: [],
+        pendingLevel: null, pendingLevelFrom: null,
       }
       const owed = start !== 'now' ? [] : gs.map((gid) => {
         const g = d0.groups.find((x) => x.id === gid)
@@ -902,6 +914,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           joined: d0.today,
           active: true,
           userId: null,
+          levelHistory: [],
           pendingLevel: null,
           pendingLevelFrom: null,
         }
@@ -1362,7 +1375,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (next.length < 2) return toast(t('toast.levelsTooFew'))
       const d0 = db()
       const used = new Set()
-      d0.members.forEach((m) => { used.add(m.level); if (m.pendingLevel) used.add(m.pendingLevel) })
+      d0.members.forEach((m) => {
+        used.add(m.level)
+        if (m.pendingLevel) used.add(m.pendingLevel)
+        // Bậc chỉ còn trong lịch sử vẫn ĐANG được dùng: xoá nó khỏi thang là các buổi cũ đọc ra
+        // một bậc không tồn tại, `levels.indexOf()` ra -1 và cân sân sai lặng lẽ.
+        ;(m.levelHistory || []).forEach((h) => used.add(h.level))
+      })
       d0.guests.forEach((g) => used.add(g.level))
       d0.sessionGuests.forEach((g) => used.add(g.level))
       const lost = [...used].filter((l) => l && next.indexOf(l) < 0)

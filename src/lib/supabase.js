@@ -23,8 +23,19 @@ export const supabase = hasSupabase
     })
   : null
 
-/** Ném lỗi của Supabase thành Error thường để action bắt và bắn toast. */
+/**
+ * Ném lỗi của Supabase thành Error thường để action bắt và bắn toast.
+ *
+ * GIỮ `code`: Postgres/PostgREST luôn kèm mã ('23503' khoá ngoại, '42501' RLS chặn, 'PGRST…'),
+ * còn lỗi mạng thì không có mã nào. `storage.js` dựa đúng vào đó để biết thao tác này thử lại
+ * được hay hỏng vĩnh viễn — nuốt mất `code` là mất luôn cách phân biệt.
+ */
 export function unwrap({ data, error }) {
-  if (error) throw new Error(error.message)
+  if (error) {
+    const e = new Error(error.message)
+    if (error.code) e.code = error.code
+    if (error.details) e.details = error.details
+    throw e
+  }
   return data
 }

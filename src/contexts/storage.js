@@ -38,7 +38,7 @@ export async function load(clubId) {
   const [
     club, courts, groups, members, guests, shuttleTypes, schedules, sessions,
     dues, adjustments, courtBills, manual, purchases, stockChecks, guestPrices,
-    locks, rosterRows, changes, joinRequests,
+    locks, rosterRows, changes, levelRows, joinRequests,
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
@@ -59,6 +59,9 @@ export async function load(clubId) {
     supabase.from('group_memberships').select('*, member_groups!inner(club_id)')
       .eq('member_groups.club_id', clubId),
     supabase.from('member_changes').select('*, club_members!inner(club_id)')
+      .eq('club_members.club_id', clubId),
+    // Bảng con không có `club_id` → join lên cha để lọc, đúng khuôn `group_memberships`.
+    supabase.from('member_levels').select('*, club_members!inner(club_id)')
       .eq('club_members.club_id', clubId),
     supabase.rpc('club_pending_requests', { p_club: clubId }),
   ])
@@ -108,6 +111,8 @@ export async function load(clubId) {
     locks: unwrap(locks),
     rosterRows: unwrap(rosterRows),
     changes: unwrap(changes),
+    // DB chưa chạy 0011 thì bảng chưa có: coi như chưa ai đổi trình độ, `levelOf` rơi về ô chờ cũ.
+    levelRows: levelRows.error ? [] : (levelRows.data || []),
     joinRequests: requests,
     users,
   }
@@ -129,9 +134,27 @@ let timer = null
 let pending = null
 let running = false
 let onError = null
+let onFatal = null
 
 /** Nơi báo lỗi đồng bộ ra UI (AppContext gắn vào). */
 export function setSyncErrorHandler(fn) { onError = fn }
+
+/**
+ * Nơi xử lý lỗi KHÔNG TỰ KHỎI (AppContext gắn vào — nó nạp lại CLB từ DB).
+ *
+ * Phải tách khỏi `onError` vì hai loại lỗi cần hai cách xử lý ngược nhau: lỗi mạng thì để yên,
+ * lần save sau làm lại là xong; lỗi cố định thì làm lại bao nhiêu lần cũng hỏng.
+ */
+export function setSyncFatalHandler(fn) { onFatal = fn }
+
+/**
+ * Lỗi này thử lại có ăn thua không?
+ *
+ * Postgres/PostgREST trả về `code` ('23503' khoá ngoại, '42501' RLS chặn, 'PGRST…' schema cache):
+ * dữ liệu hoặc quyền sai, chờ bao lâu cũng thế. Mất mạng thì `fetch` ném TypeError trần, không
+ * có `code` — cái đó tự khỏi.
+ */
+const isFatal = (e) => Boolean(e && e.code)
 
 /** Hẹn giờ đẩy thay đổi xuống DB. Gọi liên tục cũng chỉ ghi một lần sau debounce. */
 export function save(db) {
@@ -178,6 +201,10 @@ async function flush() {
   } catch (e) {
     console.error('[storage] đồng bộ thất bại', e)
     if (onError) onError(e)
+    // Lỗi cố định mà cứ để đó thì op hỏng nằm lại trong diff MÃI, và mọi thay đổi sau nó cũng
+    // không xuống được DB trong khi màn hình vẫn báo đã lưu — im lặng, không ai biết. Nhường
+    // cho AppContext nạp lại từ DB: mất đúng thay đổi vừa hỏng, đổi lấy việc màn hình nói thật.
+    if (isFatal(e) && onFatal) onFatal(e)
   } finally {
     running = false
     if (pending) flush()

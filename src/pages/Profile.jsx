@@ -16,7 +16,7 @@ import { Avatar, Button, Card, Icon, Input, Select } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
-import { genderTxt } from '#lib/money.js'
+import { genderTxt, nextLevelStep } from '#lib/money.js'
 import { roleName } from '#lib/roles.js'
 import { ddmy } from '#utils/dates.js'
 import { PUBLIC_PATHS } from '#routes'
@@ -122,9 +122,12 @@ function MeCard({ me, myGroups, db, a }) {
             <Row label={t('auth.fGender')}>{genderTxt(me.gender)}</Row>
             <Row label={t('auth.fLevel')}>
               <LevelChip level={me.level} levels={db.levels} />
-              {me.pendingLevel && (
+              {nextLevelStep(me, db.month) && (
                 <span style={S.caption}>
-                  {t('profile.levelPending', { level: me.pendingLevel, month: me.pendingLevelFrom })}
+                  {t('profile.levelPending', {
+                    level: nextLevelStep(me, db.month).level,
+                    month: nextLevelStep(me, db.month).from,
+                  })}
                 </span>
               )}
             </Row>

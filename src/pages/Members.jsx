@@ -6,7 +6,7 @@ import { Avatar, Button, Card, DataTable, Icon, IconButton, SearchField, Select,
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { addMonth, monthShort, monthTxt } from '#utils/dates.js'
-import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, memberRefs, offBackSuggest, rosterStatus } from '#lib/money.js'
+import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberRefs, nextLevelStep, offBackSuggest, rosterStatus } from '#lib/money.js'
 import { FILTER0, duesStatusOf, filterMembers, fixedGroups, hasFilter, nextSort, sortMembers } from '#lib/members.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -136,10 +136,14 @@ function AllMembers({ canEdit }) {
       key: 'l', header: sortHead('l', t('members.colLevel')),
       render: (r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <LevelChip level={r.level} levels={db.levels} />
-          {r.pendingLevel && (
+          {/* Trình độ của THÁNG ĐANG XEM, không phải ô `level` gốc: có mốc đổi trong quá khứ
+              thì hai cái đó khác nhau, và cột phải nói cùng một thứ với bộ lọc + thứ tự sắp. */}
+          <LevelChip level={levelOf(r, db.month)} levels={db.levels} />
+          {nextLevelStep(r, db.month) && (
             <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
-              {t('members.pendingLevel', { level: r.pendingLevel, month: r.pendingLevelFrom })}
+              {t('members.pendingLevel', {
+                level: nextLevelStep(r, db.month).level, month: nextLevelStep(r, db.month).from,
+              })}
             </span>
           )}
         </div>
