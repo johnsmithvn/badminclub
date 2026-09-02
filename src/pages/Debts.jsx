@@ -47,6 +47,10 @@ const stateLabel = (item) =>
       ? 'debts.waitApprove'
       : (item.isRefund ? 'debts.unpaidRefund' : 'debts.unpaidCollect'))
 
+/** Quỹ tháng: đang chờ duyệt thì đè lên nhãn "Chưa đóng" — chưa đóng và đã báo chuyển là
+ *  hai việc khác nhau, để nguyên là người giữ quỹ thu lại lần hai. */
+const dueWaiting = (x, st) => Boolean(x.claimedAt) && st.remain > 0
+
 const stateStyle = (item) => (item.paid ? S.pillPaid : item.claimedAt ? S.pillWait : S.pillUnpaid)
 
 export default function Debts() {
@@ -1132,8 +1136,10 @@ function Dues({ dues, canMoney }) {
                       </Mono>
                     </td>
                     <td style={{ ...S.td, textAlign: 'center' }}>
-                      <span style={st.state === 'full' ? S.pillPaid : st.state === 'partial' ? S.pillPartial : S.pillUnpaid}>
-                        {t(st.state === 'full' ? 'debts.stFull' : st.state === 'partial' ? 'debts.stPartial' : 'debts.stNone')}
+                      <span style={dueWaiting(x, st) ? S.pillWait
+                        : st.state === 'full' ? S.pillPaid : st.state === 'partial' ? S.pillPartial : S.pillUnpaid}>
+                        {dueWaiting(x, st) ? t('debts.waitApprove')
+                          : t(st.state === 'full' ? 'debts.stFull' : st.state === 'partial' ? 'debts.stPartial' : 'debts.stNone')}
                       </span>
                     </td>
                     <td style={S.td}>
@@ -1143,18 +1149,33 @@ function Dues({ dues, canMoney }) {
                             <Input
                               size="sm"
                               mono
+                              disabled={dueWaiting(x, st)}
                               style={{ width: 100, textAlign: 'right' }}
-                              value={ui.form[key] ?? String(st.remain)}
+                              value={dueWaiting(x, st) ? String(st.remain) : (ui.form[key] ?? String(st.remain))}
                               onChange={(e) => a.setF(key, e.target.value)}
                               suffix={t('units.dong')}
                             />
+                            {dueWaiting(x, st) && (
+                              <IconButton
+                                icon="circle-x"
+                                size="sm"
+                                variant="ghost"
+                                label={t('debts.rejectClaim')}
+                                onClick={() => a.rejectClaim({ kind: 'dues', id: x.id })}
+                              />
+                            )}
                             <Button
                               variant="secondary"
                               size="sm"
-                              icon="hand-coins"
-                              onClick={() => { a.payDue(x.id, ui.form[key]); a.setF(key, undefined) }}
+                              icon={dueWaiting(x, st) ? 'circle-check' : 'hand-coins'}
+                              onClick={() => {
+                                // Đang chờ duyệt thì duyệt ĐÚNG số còn thiếu (payDue tự lấy khi
+                                // amount undefined) — luồng tự khai không cho sửa số tiền.
+                                a.payDue(x.id, dueWaiting(x, st) ? undefined : ui.form[key])
+                                a.setF(key, undefined)
+                              }}
                             >
-                              {t('debts.collectMoney')}
+                              {dueWaiting(x, st) ? t('debts.approveClaim') : t('debts.collectMoney')}
                             </Button>
                           </>
                         )}
@@ -1234,18 +1255,31 @@ function Dues({ dues, canMoney }) {
                       <Input
                         size="sm"
                         mono
+                        disabled={dueWaiting(x, st)}
                         style={{ flex: 1, textAlign: 'right' }}
-                        value={ui.form[key] ?? String(st.remain)}
+                        value={dueWaiting(x, st) ? String(st.remain) : (ui.form[key] ?? String(st.remain))}
                         onChange={(e) => a.setF(key, e.target.value)}
                         suffix={t('units.dong')}
                       />
+                      {dueWaiting(x, st) && (
+                        <IconButton
+                          icon="circle-x"
+                          size="sm"
+                          variant="ghost"
+                          label={t('debts.rejectClaim')}
+                          onClick={() => a.rejectClaim({ kind: 'dues', id: x.id })}
+                        />
+                      )}
                       <Button
                         variant="secondary"
                         size="sm"
-                        icon="hand-coins"
-                        onClick={() => { a.payDue(x.id, ui.form[key]); a.setF(key, undefined) }}
+                        icon={dueWaiting(x, st) ? 'circle-check' : 'hand-coins'}
+                        onClick={() => {
+                          a.payDue(x.id, dueWaiting(x, st) ? undefined : ui.form[key])
+                          a.setF(key, undefined)
+                        }}
                       >
-                        {t('debts.doCollect')}
+                        {dueWaiting(x, st) ? t('debts.approveClaim') : t('debts.doCollect')}
                       </Button>
                     </div>
                   )}

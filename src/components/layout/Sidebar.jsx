@@ -188,7 +188,7 @@ export default function Sidebar({ route }) {
                 navigate(PUBLIC_PATHS.clubs)
               }}
             >
-              <Icon name="grid-plus" size={15} style={{ color: 'var(--text-muted)' }} />
+              <Icon name="layout-grid" size={15} style={{ color: 'var(--text-muted)' }} />
               <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
                 {t('shell.backToClubs')}
               </span>

@@ -407,7 +407,7 @@ export function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
           {onDelete ? (
-            <Button variant="danger" icon="trash" onClick={onDelete}>
+            <Button variant="danger" icon="trash-2" onClick={onDelete}>
               {t('common.delete')}
             </Button>
           ) : <div />}

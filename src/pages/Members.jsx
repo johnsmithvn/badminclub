@@ -408,7 +408,7 @@ function AllMembers({ canEdit }) {
             <Button
               variant="ghost"
               size="sm"
-              icon="user-minus"
+              icon="user-round-minus"
               onClick={() => {
                 a.setMembersGroupsBulk(selected, [])
                 setSelectedIds([])
