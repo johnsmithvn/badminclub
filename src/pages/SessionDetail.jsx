@@ -630,6 +630,7 @@ function GuestForm({ s }) {
     set('gPhone', g.phone || '')
     set('gNote', g.note || '')
     if (g.invitedBy) set('gBy', g.invitedBy)
+    setShowExtra(Boolean(g.phone || g.note))
     setOpen(false)
   }
 
@@ -760,7 +761,7 @@ function GuestForm({ s }) {
           onClick={() => setShowExtra(!showExtra)}
         >
           <Icon name={showExtra ? 'chevron-up' : 'plus'} size={12} />
-          <span>{showExtra ? 'Thu gọn thông tin liên hệ' : '＋ SĐT / Link FB / Ghi chú'}</span>
+          <span>{showExtra ? 'Thu gọn thông tin liên hệ' : 'Thêm SĐT / Link FB / Ghi chú cho khách'}</span>
         </button>
       </div>
 
@@ -795,7 +796,7 @@ function GuestForm({ s }) {
         </div>
       )}
 
-      {(showExtra || f.gPhone || f.gNote) && (
+      {showExtra && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 9 }}>
           <Input
             label={t('members.guestPhone')}
@@ -935,7 +936,7 @@ const S = {
     border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
   },
   soldBox: { display: 'flex', gap: 9, flexBasis: '100%', flexWrap: 'wrap' },
-  guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.2fr auto', gap: 9, alignItems: 'flex-end' },
+  guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 110px 95px minmax(180px, 1.6fr) auto', gap: 9, alignItems: 'flex-end' },
   guestDropdown: {
     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
     background: 'var(--surface-overlay, #fff)', border: '1px solid var(--border-subtle)',

@@ -205,41 +205,59 @@ const Toggle = ({ label, note, checked, onChange, disabled }) => (
 function MoneyTab({ canEdit }) {
   const { db, a } = useApp()
   const def = db.groups[0] || {}
-  // Quỹ tháng nằm TRÊN nhóm (`member_groups.fee_male/female`). Không có nhóm nào thì
-  // `saveMoneyTab` map qua mảng rỗng — gõ số vào rồi bấm Lưu là mất hút, không báo gì.
-  // Giá khách vẫn lưu được vì nó thuộc CLB, nên chỉ khoá phần quỹ tháng.
   const noGroup = db.groups.length === 0
 
-  const [feeNam, setFeeNam] = useState(String(def.feeNam ?? ''))
-  const [feeNu, setFeeNu] = useState(String(def.feeNu ?? ''))
-  const [unitNam, setUnitNam] = useState(String(def.unitNam ?? ''))
-  const [unitNu, setUnitNu] = useState(String(def.unitNu ?? ''))
-  const [guestPrices, setGuestPrices] = useState(db.guestPrices)
+  // 1. Quỹ tháng cố định
+  const [hasMonthlyFee, setHasMonthlyFee] = useState(Boolean(intOf(def.feeNam) > 0 || intOf(def.feeNu) > 0))
+  const [feeNam, setFeeNam] = useState(String(def.feeNam || ''))
+  const [feeNu, setFeeNu] = useState(String(def.feeNu || ''))
 
+  // 2. Hoàn tiền khi vắng mặt (Back tiền)
+  const [hasRefund, setHasRefund] = useState(def.hasRefund !== false && def.unitNam !== -1)
+  const [customRefundUnit, setCustomRefundUnit] = useState(Boolean(intOf(def.unitNam) > 0 || intOf(def.unitNu) > 0))
+  const [unitNam, setUnitNam] = useState(String(def.unitNam > 0 ? def.unitNam : ''))
+  const [unitNu, setUnitNu] = useState(String(def.unitNu > 0 ? def.unitNu : ''))
+
+  const [guestPrices, setGuestPrices] = useState(db.guestPrices)
   const [bulkPrice, setBulkPrice] = useState('')
   const [bulkWho, setBulkWho] = useState('both')
   const [bulkLevels, setBulkLevels] = useState([])
 
   useEffect(() => {
-    setFeeNam(String(def.feeNam ?? ''))
-    setFeeNu(String(def.feeNu ?? ''))
-    setUnitNam(String(def.unitNam ?? ''))
-    setUnitNu(String(def.unitNu ?? ''))
+    const isFee = Boolean(intOf(def.feeNam) > 0 || intOf(def.feeNu) > 0)
+    setHasMonthlyFee(isFee)
+    setFeeNam(String(def.feeNam || ''))
+    setFeeNu(String(def.feeNu || ''))
+
+    const isRef = def.hasRefund !== false && def.unitNam !== -1
+    const isCustom = Boolean(intOf(def.unitNam) > 0 || intOf(def.unitNu) > 0)
+    setHasRefund(isRef)
+    setCustomRefundUnit(isCustom)
+    setUnitNam(String(def.unitNam > 0 ? def.unitNam : ''))
+    setUnitNu(String(def.unitNu > 0 ? def.unitNu : ''))
+
     setGuestPrices(db.guestPrices)
-  }, [def.feeNam, def.feeNu, def.unitNam, def.unitNu, db.guestPrices])
+  }, [def.feeNam, def.feeNu, def.unitNam, def.unitNu, def.hasRefund, db.guestPrices])
+
+  const curHasMonthlyFee = Boolean(intOf(def.feeNam) > 0 || intOf(def.feeNu) > 0)
+  const curHasRefund = def.hasRefund !== false && def.unitNam !== -1
+  const curCustomRefundUnit = Boolean(intOf(def.unitNam) > 0 || intOf(def.unitNu) > 0)
 
   const isChanged =
-    feeNam !== String(def.feeNam ?? '') ||
-    feeNu !== String(def.feeNu ?? '') ||
-    unitNam !== String(def.unitNam ?? '') ||
-    unitNu !== String(def.unitNu ?? '') ||
+    hasMonthlyFee !== curHasMonthlyFee ||
+    (hasMonthlyFee && (feeNam !== String(def.feeNam || '') || feeNu !== String(def.feeNu || ''))) ||
+    hasRefund !== curHasRefund ||
+    (hasRefund && (customRefundUnit !== curCustomRefundUnit || (customRefundUnit && (unitNam !== String(def.unitNam > 0 ? def.unitNam : '') || unitNu !== String(def.unitNu > 0 ? def.unitNu : ''))))) ||
     JSON.stringify(guestPrices) !== JSON.stringify(db.guestPrices)
 
   const handleCancel = () => {
-    setFeeNam(String(def.feeNam ?? ''))
-    setFeeNu(String(def.feeNu ?? ''))
-    setUnitNam(String(def.unitNam ?? ''))
-    setUnitNu(String(def.unitNu ?? ''))
+    setHasMonthlyFee(curHasMonthlyFee)
+    setFeeNam(String(def.feeNam || ''))
+    setFeeNu(String(def.feeNu || ''))
+    setHasRefund(curHasRefund)
+    setCustomRefundUnit(curCustomRefundUnit)
+    setUnitNam(String(def.unitNam > 0 ? def.unitNam : ''))
+    setUnitNu(String(def.unitNu > 0 ? def.unitNu : ''))
     setGuestPrices(db.guestPrices)
     setBulkLevels([])
     setBulkPrice('')
@@ -247,10 +265,11 @@ function MoneyTab({ canEdit }) {
 
   const handleSave = () => {
     a.saveMoneyTab({
-      feeNam,
-      feeNu,
-      unitNam,
-      unitNu,
+      feeNam: hasMonthlyFee ? feeNam : 0,
+      feeNu: hasMonthlyFee ? feeNu : 0,
+      hasRefund,
+      unitNam: hasRefund ? (customRefundUnit ? unitNam : 0) : -1,
+      unitNu: hasRefund ? (customRefundUnit ? unitNu : 0) : -1,
       guestPrices,
     })
   }
@@ -282,68 +301,141 @@ function MoneyTab({ canEdit }) {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {/* 1. Phí thành viên cố định */}
-      <Card title={t('settings.generalFeeTitle')} subtitle={t('settings.generalFeeSub')} icon="banknote" padding="14px 16px">
-        <div style={{ display: 'grid', gap: 14 }}>
-          {/* Không có nhóm thì `saveMoneyTab` map qua mảng rỗng — gõ số rồi bấm Lưu là mất hút,
-              không báo gì. Nói ra và khoá ô nhập, đừng để người ta gõ vào chỗ không lưu được. */}
+      <Card title={t('settings.generalFeeTitle')} subtitle={t('settings.generalFeeSub')} icon="banknote" padding="16px 18px">
+        <div style={{ display: 'grid', gap: 16 }}>
           {noGroup && (
             <Alert tone="warning" title={t('settings.feeNoGroupTitle')}>{t('settings.feeNoGroup')}</Alert>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Input
-              label={t('settings.feeMale')}
-              mono
-              suffix={t('units.dong')}
-              value={feeNam}
+
+          {/* Block 1: Thu quỹ tháng cố định */}
+          <div style={{ display: 'grid', gap: 10 }}>
+            <Toggle
+              label={t('settings.toggleFixedFee')}
+              note={t('settings.toggleFixedFeeNote')}
+              checked={hasMonthlyFee}
               disabled={!canEdit || noGroup}
-              onChange={(e) => setFeeNam(e.target.value)}
+              onChange={(e) => {
+                const checked = e.target.checked
+                setHasMonthlyFee(checked)
+                if (checked && !feeNam && !feeNu) {
+                  setFeeNam('250000')
+                  setFeeNu('200000')
+                }
+              }}
             />
-            <Input
-              label={t('settings.feeFemale')}
-              mono
-              suffix={t('units.dong')}
-              value={feeNu}
-              disabled={!canEdit || noGroup}
-              onChange={(e) => setFeeNu(e.target.value)}
-            />
+
+            {hasMonthlyFee && (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 12,
+                padding: '12px 14px',
+                borderRadius: 8,
+                background: 'var(--surface-inset)',
+                border: '1px solid var(--border-subtle)',
+                animation: 'fadeIn 0.15s ease',
+              }}>
+                <Input
+                  label={t('settings.feeMale')}
+                  mono
+                  suffix={t('units.dong')}
+                  placeholder="250000"
+                  value={feeNam}
+                  disabled={!canEdit || noGroup}
+                  onChange={(e) => setFeeNam(e.target.value)}
+                />
+                <Input
+                  label={t('settings.feeFemale')}
+                  mono
+                  suffix={t('units.dong')}
+                  placeholder="200000"
+                  value={feeNu}
+                  disabled={!canEdit || noGroup}
+                  onChange={(e) => setFeeNu(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
-          <div style={{ display: 'grid', gap: 8 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Input
-                label={t('settings.unitMale')}
-                mono
-                suffix={t('units.dong')}
-                value={unitNam}
-                disabled={!canEdit || noGroup}
-                onChange={(e) => setUnitNam(e.target.value)}
-              />
-              <Input
-                label={t('settings.unitFemale')}
-                mono
-                suffix={t('units.dong')}
-                value={unitNu}
-                disabled={!canEdit || noGroup}
-                onChange={(e) => setUnitNu(e.target.value)}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <div style={S.caption}>{t('settings.unitNote')}</div>
-              {(sampleNam > 0 || sampleNu > 0) && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon="sparkles"
-                  disabled={!canEdit}
-                  onClick={() => {
-                    if (sampleNam) setUnitNam(String(sampleNam))
-                    if (sampleNu) setUnitNu(String(sampleNu))
+          <div style={{ height: 1, background: 'var(--border-subtle)' }} />
+
+          {/* Block 2: Hoàn tiền khi vắng mặt (Back tiền) */}
+          <div style={{ display: 'grid', gap: 10 }}>
+            <Toggle
+              label={t('settings.toggleRefund')}
+              note={t('settings.toggleRefundNote')}
+              checked={hasRefund}
+              disabled={!canEdit || noGroup}
+              onChange={(e) => setHasRefund(e.target.checked)}
+            />
+
+            {hasRefund && (
+              <div style={{
+                display: 'grid',
+                gap: 12,
+                padding: '12px 14px',
+                borderRadius: 8,
+                background: 'var(--surface-inset)',
+                border: '1px solid var(--border-subtle)',
+                animation: 'fadeIn 0.15s ease',
+              }}>
+                <Toggle
+                  label={t('settings.toggleCustomRefund')}
+                  note={customRefundUnit ? t('settings.refundCustomNote') : t('settings.refundAutoNote')}
+                  checked={customRefundUnit}
+                  disabled={!canEdit || noGroup}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    setCustomRefundUnit(checked)
+                    if (checked && !unitNam && !unitNu) {
+                      setUnitNam('50000')
+                      setUnitNu('45000')
+                    }
                   }}
-                >
-                  {t('settings.unitFromGuest')}
-                </Button>
-              )}
-            </div>
+                />
+
+                {customRefundUnit && (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <Input
+                        label={t('settings.unitMale')}
+                        mono
+                        suffix={t('units.dong')}
+                        placeholder="50000"
+                        value={unitNam}
+                        disabled={!canEdit || noGroup}
+                        onChange={(e) => setUnitNam(e.target.value)}
+                      />
+                      <Input
+                        label={t('settings.unitFemale')}
+                        mono
+                        suffix={t('units.dong')}
+                        placeholder="45000"
+                        value={unitNu}
+                        disabled={!canEdit || noGroup}
+                        onChange={(e) => setUnitNu(e.target.value)}
+                      />
+                    </div>
+                    {(sampleNam > 0 || sampleNu > 0) && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon="sparkles"
+                          disabled={!canEdit}
+                          onClick={() => {
+                            if (sampleNam) setUnitNam(String(sampleNam))
+                            if (sampleNu) setUnitNu(String(sampleNu))
+                          }}
+                        >
+                          {t('settings.unitFromGuest')}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Card>

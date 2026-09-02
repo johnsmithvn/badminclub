@@ -633,7 +633,9 @@ export function adjustRows(db, monthKey) {
       (db.dues || []).some((x) => x.month === monthKey && x.groupId === g.id && x.memberId === mid)
 
     fixed.forEach((m) => {
-      push(g, m, 'absent_back', sess.filter((s) => att(s)[m.id] === false).length, -1)
+      if (g.hasRefund !== false && g.unitNam !== -1) {
+        push(g, m, 'absent_back', sess.filter((s) => att(s)[m.id] === false).length, -1)
+      }
     })
 
     const extras = {}

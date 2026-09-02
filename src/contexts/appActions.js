@@ -1620,12 +1620,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
       toast(t('toast.groupDeleted'))
     },
-    saveMoneyTab: ({ feeNam, feeNu, unitNam, unitNu, guestPrices }) => {
+    saveMoneyTab: ({ feeNam, feeNu, hasRefund, unitNam, unitNu, guestPrices }) => {
       up((d) => ({
         groups: d.groups.map((g) => ({
           ...g,
           feeNam: intOf(feeNam),
           feeNu: intOf(feeNu),
+          hasRefund: hasRefund !== undefined ? hasRefund : g.hasRefund,
           unitNam: intOf(unitNam),
           unitNu: intOf(unitNu),
         })),
