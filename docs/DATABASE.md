@@ -184,6 +184,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `members[].avatarUrl` | `club_members.avatar_url` | Ảnh đại diện thành viên (0015) |
 | `members[].qrUrl` | `club_members.qr_url` | Ảnh QR nhận tiền hoàn (0015) |
 | `members[].bankHolder` · `bankNo` · `bankName` | `club_members.bank_holder` · `bank_no` · `bank_name` | Thông tin ngân hàng thành viên (0015) |
+| `club.debtBanner` | `clubs.debt_banner` | Kiểu banner nhắc nợ (0019). Danh sách giá trị lặp lại ở `Settings.jsx: DEBT_BANNERS` — đổi một bên là DB trả 23514 |
 | `dues[].claimedAt` · `adjustments[].claimedAt` · `sessionGuests[].claimedAt` | cột `claimed_at` của ba bảng | Khác null = thành viên đã khai đã chuyển tiền, chờ duyệt (0018). Duyệt = bật `paid` và GIỮ `claimed_at`; từ chối = đặt lại NULL |
 | `members[].bankAccounts` | `club_members.bank_accounts jsonb` | Danh sách tài khoản ngân hàng thành viên (0015) |
 
@@ -211,6 +212,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0016_storage_bucket.sql` | Tạo public bucket `club-assets` (Supabase Storage, 2MB/file, image only). RLS: public read, authenticated upload + update. |
 | `0017_storage_owner_policy.sql` | Siết quyền ghi bucket `club-assets`: UPDATE/DELETE chỉ cho `owner = auth.uid()` thay vì mọi tài khoản đã đăng nhập. Client bỏ `upsert`. |
 | `0018_payment_claims.sql` | Thành viên tự khai đã chuyển tiền: cột `claimed_at` cho `monthly_dues` · `member_adjustments` · `session_guests`, kèm RPC `claim_payments`. **Không có bảng mới** — ba bảng đã tự giữ cờ `paid` của mình. |
+| `0019_debt_banner_style.sql` | `clubs.debt_banner` (`slim` · `alert` · `bar` · `off`) — kiểu banner nhắc công nợ hiện cho THÀNH VIÊN ở Trang chủ. Cài đặt của CLB, áp cho mọi thành viên. Cả ba kiểu mở cùng một popup chi tiết. |
 
 ---
 

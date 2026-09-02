@@ -698,6 +698,8 @@
     "allPresent": "Tất cả có mặt",
     "allAbsent": "Tất cả vắng",
     "attendCount": "{{present}} có mặt / {{total}} người",
+    "attendSummary": "Tổng {{total}} người",
+    "guestCountTag": "{{n}} khách",
     "dueUnpaidTag": "Chưa đóng quỹ",
     "duePaidTag": "Đã đóng quỹ",
     "noDueTag": "Không thu quỹ tháng này",

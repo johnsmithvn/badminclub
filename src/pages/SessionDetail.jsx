@@ -9,7 +9,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
   closeWarnings, costDrift, costRow, costState, courtOf, courtPayMode, courtTxt, dueState, duesOf,
-  fmt, fmtK, genderTxt, groupOf, guestOf, guestPaidRev, guestPrice, guestRev, levelOf, perTube, playedCourts,
+  fmt, fmtK, genderTxt, groupOf, guestOf, guestPaidRev, guestPrice, guestRev, headCount, levelOf, perTube, playedCourts,
   isAdhoc, isMemberCharge, memberOf, presentCount, quotaFor, rowCost, sGuests, sGuestsOnly, sessionMembers,
   sessionOf, soldTotal, timeTxt, normalizeText, guestStats,
 } from '#lib/money.js'
@@ -224,9 +224,32 @@ export default function SessionDetail() {
           <div style={{ display: 'grid', gap: 7 }}>
             {isCancelled && <Alert tone="danger">{t('session.cancelledNotice')}</Alert>}
             {allSold && <Alert tone="warning">{t('session.allSoldNotice')}</Alert>}
-            <Mono color="var(--text-muted)">
-              {t('session.attendCount', { present: presentCount(db, s), total: members.length })}
-            </Mono>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+              <span style={{
+                font: '700 11.5px/1 var(--font-sans)',
+                color: 'var(--teal-700)',
+                background: 'var(--teal-50)',
+                padding: '3px 8px',
+                borderRadius: 4,
+                border: '1px solid var(--teal-200)',
+              }}>
+                {t('session.attendSummary', { total: headCount(db, s) })}
+              </span>
+              <span style={{ font: '600 12px/1 var(--font-sans)', color: 'var(--text-secondary)' }}>
+                {t('session.attendCount', { present: presentCount(db, s), total: members.length })}
+              </span>
+              {guests.length > 0 && (
+                <span style={{
+                  font: '700 11.5px/1 var(--font-sans)',
+                  color: 'var(--amber-700)',
+                  background: 'var(--amber-100)',
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                }}>
+                  {t('session.guestCountTag', { n: guests.length })}
+                </span>
+              )}
+            </div>
             {adhoc && <Alert tone="info">{t('session.adhocChargeNote')}</Alert>}
             {members.length === 0 && <Empty icon="users" title={t('members.emptyGroup')} hint={t('members.emptyGroupHint')} />}
             {members.map((m) => {
