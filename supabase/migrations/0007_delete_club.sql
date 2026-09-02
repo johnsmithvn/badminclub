@@ -107,6 +107,10 @@ GRANT EXECUTE ON FUNCTION public.delete_club(uuid, text) TO authenticated;
 
 COMMIT;
 
+-- PostgREST cache danh sách hàm. Không có dòng này thì `supabase.rpc('delete_club')` trả 404
+-- cho tới lần reload cache tiếp theo, và lỗi đó trông y như "chưa chạy migration".
+NOTIFY pgrst, 'reload schema';
+
 /* ---------- KIỂM LẠI SAU KHI CHẠY ----------
    Câu này phải trả về 0 dòng — bảng nào có club_id mà hàm trên chưa đụng tới:
 
