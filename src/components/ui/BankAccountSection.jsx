@@ -1,7 +1,7 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { Button, Card, Icon, Input, Mono, Overline, Select } from '#ds'
 import { banks, findBank, getVietQrUrl } from '#utils/vietqr.js'
-import { compressImage } from '#utils/image.js'
+import { uploadImage } from '#utils/image.js'
 import { QrModal } from '#components/ui/QrModal.jsx'
 import { t } from '#i18n'
 
@@ -66,9 +66,9 @@ export function BankAccountSection({
     if (!file) return
     setUploading(true)
     try {
-      const dataUrl = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.85 })
+      const url = await uploadImage(file, { folder: 'qrcodes', maxWidth: 800, maxHeight: 800, quality: 0.85 })
       if (onChange) {
-        onChange({ bankHolder, bankNo, bankName, qrUrl: dataUrl })
+        onChange({ bankHolder, bankNo, bankName, qrUrl: url })
       }
     } catch {
       // Bỏ qua lỗi

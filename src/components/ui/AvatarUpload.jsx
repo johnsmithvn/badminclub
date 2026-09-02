@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Avatar, Button, Icon } from '#ds'
-import { compressImage } from '#utils/image.js'
+import { uploadImage } from '#utils/image.js'
 import { t } from '#i18n'
 
 /**
@@ -25,8 +25,8 @@ export function AvatarUpload({ name = '', value = '', size = 64, disabled = fals
     setLoading(true)
     setErr('')
     try {
-      const dataUrl = await compressImage(file, { maxWidth: 400, maxHeight: 400, quality: 0.85 })
-      onChange(dataUrl)
+      const url = await uploadImage(file, { folder: 'avatars', maxWidth: 400, maxHeight: 400, quality: 0.85 })
+      onChange(url)
     } catch (error) {
       setErr(error.message || t('common.imageError'))
     } finally {
