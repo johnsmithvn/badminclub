@@ -195,7 +195,8 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0008_no_default_group.sql` | Loại bỏ sinh nhóm cố định mặc định tự động để tránh nhóm ma. |
 | `0009_profile_merge.sql` | Tách biệt hồ sơ tài khoản và hồ sơ CLB, duyệt ghép có chọn lọc trường, thêm `monthly_dues.paid_amount`. |
 | `0010_member_email.sql` | Bổ sung `email` & `full_name` cho `club_members`, policy `cm_update_self_name` + trigger guard cho thành viên tự đổi tên, đăng ký bằng email tự sinh username. |
-| `0011_court_map_url.sql` | Thêm cột `map_url` cho bảng `courts` lưu link Google Maps / bản đồ vị trí sân. |
+| `0011_level_history.sql` | Bảng `member_levels` lưu lịch sử mốc trình độ nhiều lần đổi, `create_club` nhận thang trình độ `p_levels`, dọn RPC chết. |
+| `0012_court_map_url.sql` | Thêm cột `map_url` cho bảng `courts` lưu link Google Maps / bản đồ vị trí sân. |
 
 ---
 

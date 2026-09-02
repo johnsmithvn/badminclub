@@ -107,30 +107,148 @@ export const playerMeta = (p, matches) =>
  */
 export function sessionColumns(db) {
   return [
-    { key: 'd', header: t('sessionCol.date'), mono: true, width: 96, render: (r) => dateLabel(r.date) },
-    { key: 'g', header: t('sessionCol.group'), render: (r) => groupOf(db, r.groupId).name },
     {
-      key: 't', header: t('sessionCol.time'), mono: true, muted: true,
-      render: (r) => timeTxt(r) + ' · ' + courtTxt(db, r),
+      key: 'd', header: t('sessionCol.date'), width: 105,
+      render: (r) => {
+        const isSunday = wd(r.date) === 'CN'
+        return (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
+              {dd(r.date)}
+            </span>
+            <span style={{
+              font: '700 11px/1 var(--font-sans)',
+              padding: '3px 6px',
+              borderRadius: 4,
+              background: isSunday ? 'rgba(239, 68, 68, 0.12)' : 'var(--surface-brand-soft)',
+              color: isSunday ? '#dc2626' : 'var(--navy-700)',
+              border: `1px solid ${isSunday ? 'rgba(239, 68, 68, 0.25)' : 'rgba(30, 58, 138, 0.15)'}`,
+            }}>
+              {wd(r.date)}
+            </span>
+          </div>
+        )
+      },
+    },
+    {
+      key: 'g', header: t('sessionCol.group'),
+      render: (r) => {
+        const grp = groupOf(db, r.groupId)
+        return (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '3px 9px', borderRadius: 6,
+            background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(14, 165, 233, 0.12) 100%)',
+            border: '1px solid rgba(2, 132, 199, 0.22)',
+            color: 'var(--teal-700)', fontWeight: 600, fontSize: 12,
+            whiteSpace: 'nowrap',
+          }}>
+            <Icon name="users" size={12} style={{ color: 'var(--teal-600)' }} />
+            <span>{grp.name}</span>
+          </span>
+        )
+      },
+    },
+    {
+      key: 't', header: t('sessionCol.time'),
+      render: (r) => (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700,
+            color: 'var(--navy-700)', padding: '2px 7px', borderRadius: 4,
+            background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+            whiteSpace: 'nowrap',
+          }}>
+            {timeTxt(r)}
+          </span>
+          <span style={{
+            fontSize: 12, color: 'var(--text-secondary)',
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+          }}>
+            <Icon name="map-pin" size={12} style={{ color: 'var(--teal-600)', flexShrink: 0 }} />
+            <span style={{ fontWeight: 500 }}>{courtTxt(db, r)}</span>
+          </span>
+        </div>
+      ),
     },
     {
       key: 'a', header: t('sessionCol.attend'), align: 'right', mono: true,
-      render: (r) => (r.status === 'closed' || r.status === 'open'
-        ? presentCount(db, r) + '/' + groupMembers(db, r.groupId, monthOf(r.date)).length
-        : t('common.unknown')),
+      render: (r) => {
+        if (r.status !== 'closed' && r.status !== 'open') {
+          return <span style={{ color: 'var(--text-muted)' }}>—</span>
+        }
+        const p = presentCount(db, r)
+        const tot = groupMembers(db, r.groupId, monthOf(r.date)).length
+        return (
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12,
+            padding: '2px 8px', borderRadius: 99,
+            background: p > 0 ? 'rgba(16, 185, 129, 0.12)' : 'var(--surface-inset)',
+            color: p > 0 ? '#047857' : 'var(--text-muted)',
+            border: `1px solid ${p > 0 ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-subtle)'}`,
+          }}>
+            {p}/{tot}
+          </span>
+        )
+      },
     },
     {
       key: 'k', header: t('sessionCol.guest'), align: 'right', mono: true,
-      render: (r) => sGuestsOnly(db, r.id).length || t('common.unknown'),
+      render: (r) => {
+        const gCount = sGuestsOnly(db, r.id).length
+        if (!gCount) return <span style={{ color: 'var(--text-muted)' }}>—</span>
+        return (
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12,
+            padding: '2px 8px', borderRadius: 99,
+            background: 'rgba(245, 158, 11, 0.12)',
+            color: '#b45309',
+            border: '1px solid rgba(245, 158, 11, 0.28)',
+          }}>
+            +{gCount}
+          </span>
+        )
+      },
     },
     {
       key: 's', header: t('sessionCol.shuttle'), align: 'right', mono: true,
-      render: (r) => (r.shuttleUsed
-        ? r.shuttleUsed + ' ' + t('units.shuttle') + (r.shuttleEst ? ' ~' : '')
-        : t('common.unknown')),
+      render: (r) => {
+        if (!r.shuttleUsed) return <span style={{ color: 'var(--text-muted)' }}>—</span>
+        return (
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 12,
+            padding: '2px 8px', borderRadius: 99,
+            background: 'rgba(14, 165, 233, 0.1)',
+            color: 'var(--navy-700)',
+            border: '1px solid rgba(14, 165, 233, 0.25)',
+          }}>
+            {r.shuttleUsed} quả{r.shuttleEst ? ' ~' : ''}
+          </span>
+        )
+      },
     },
-    { key: 'c', header: t('sessionCol.court'), align: 'right', mono: true, render: (r) => fmtK(courtNet(db, r)) },
-    { key: 'r', header: t('sessionCol.guestRev'), align: 'right', mono: true, render: (r) => fmtK(guestRev(db, r.id)) },
+    {
+      key: 'c', header: t('sessionCol.court'), align: 'right', mono: true,
+      render: (r) => (
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12.5, color: 'var(--text-primary)' }}>
+          {fmtK(courtNet(db, r))}
+        </span>
+      ),
+    },
+    {
+      key: 'r', header: t('sessionCol.guestRev'), align: 'right', mono: true,
+      render: (r) => {
+        const rev = guestRev(db, r.id)
+        if (rev > 0) {
+          return (
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12.5, color: '#059669' }}>
+              +{fmtK(rev)}
+            </span>
+          )
+        }
+        return <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>0</span>
+      },
+    },
     { key: 'st', header: t('sessionCol.status'), render: (r) => <SessionPill status={r.status} /> },
   ]
 }

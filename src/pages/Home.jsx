@@ -1,7 +1,7 @@
 // Trang chủ: tab Tổng quan + tab Báo cáo (handoff 02 §1).
 
-import { Alert, Avatar, Button, Card, DataTable, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
-import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline } from '#ui'
+import { Alert, Avatar, Button, Card, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
+import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, monthTxt } from '#utils/dates.js'
 import {
@@ -260,12 +260,41 @@ function Overview() {
                 {upcoming.map((s) => (
                   <div key={s.id} style={SS.upRow}>
                     <DayBox iso={s.date} />
-                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                      <div style={{ ...SS.label, ...SS.ellipsis }}>{groupOf(db, s.groupId).name}</div>
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'grid', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '2px 7px', borderRadius: 4,
+                          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(14, 165, 233, 0.12) 100%)',
+                          border: '1px solid rgba(2, 132, 199, 0.2)',
+                          color: 'var(--navy-800)', fontWeight: 600, fontSize: 12,
+                        }}>
+                          <Icon name="users" size={11} style={{ color: 'var(--teal-600)' }} />
+                          <span>{groupOf(db, s.groupId).name}</span>
+                        </span>
+                        <SessionPill status={s.status} size="sm" />
+                      </div>
                       <div
                         title={timeTxt(s) + ' · ' + courtTxt(db, s)}
-                        style={{ ...SS.ellipsis, font: 'var(--type-mono)', color: 'var(--text-muted)', fontSize: 12 }}>
-                        {timeTxt(s) + ' · ' + courtTxt(db, s)}
+                        style={{
+                          ...SS.ellipsis,
+                          fontFamily: 'var(--font-sans)',
+                          color: 'var(--text-secondary)',
+                          fontSize: 12,
+                          display: 'flex', alignItems: 'center', gap: 6,
+                        }}>
+                        <span style={{
+                          fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11.5,
+                          color: 'var(--navy-700)', padding: '1px 5px', borderRadius: 3,
+                          background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+                        }}>
+                          {timeTxt(s)}
+                        </span>
+                        <span style={{ color: 'var(--text-muted)' }}>·</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <Icon name="map-pin" size={11} style={{ color: 'var(--teal-600)', flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{courtTxt(db, s)}</span>
+                        </span>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap' }}>

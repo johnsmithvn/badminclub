@@ -1,4 +1,4 @@
--- Migration 0011: Thêm cột map_url cho bảng courts (đường dẫn Google Maps / link vị trí sân).
+-- Migration 0012: Thêm cột map_url cho bảng courts (đường dẫn Google Maps / link vị trí sân).
 -- Hỗ trợ lưu URL bản đồ và mở liên kết trực tiếp trên giao diện.
 
 ALTER TABLE courts ADD COLUMN IF NOT EXISTS map_url text;

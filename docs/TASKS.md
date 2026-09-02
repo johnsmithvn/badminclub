@@ -891,6 +891,8 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
       thì AppContext nạp lại CLB từ DB + toast nói rõ "làm lại thao tác đó". Mất đúng thay đổi vừa
       hỏng — nhưng nó vốn đã không xuống được DB, còn giữ lại thì chặn mọi thay đổi SAU nó mà
       không báo gì. Đây là `ponytail:` đặt từ đợt 1, giờ gỡ.
+- [x] **Migration `0012_court_map_url`**: Thêm cột `map_url text` cho bảng `courts` hỗ trợ link Google Maps, mở bản đồ trực tiếp.
+- [x] **Highlight trực quan bảng Danh sách buổi (`sessionColumns`) & Card Buổi tới**: Thiết kế lại toàn bộ các cột với badge màu sắc phân biệt rõ ràng (Thứ/Ngày, Nhóm ca có icon, Giờ & Sân nổi bật, Điểm danh xanh lá, Khách màu cam, Cầu màu cyan, Tiền sân & Thu khách rõ ràng).
 
 - [ ] **Trần thứ hai:** `clubs.levels` mặc định của DB (`Newbie · TBY · TB- · TB`) KHÁC
       `app.json → levelsDefault` (9 bậc) mà màn đăng ký dùng. Chọn 'Y+' lúc đăng ký rồi tạo CLB
