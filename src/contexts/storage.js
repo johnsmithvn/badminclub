@@ -84,7 +84,7 @@ export async function load(clubId) {
     if (seen.has(r.user_id)) return
     seen.add(r.user_id)
     users.push({
-      id: r.user_id, name: r.name, nick: r.nick, phone: r.phone,
+      id: r.user_id, name: r.name, nick: r.nick, phone: r.phone, email: r.email,
       gender: r.gender, level: r.level, created_at: r.created_at,
     })
   })

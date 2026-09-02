@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v0.3.0 · **Updated:** 2026-08-31
+**Version:** v0.4.0 · **Updated:** 2026-09-02
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -30,7 +30,7 @@ nhập liệu **bắt buộc** theo dây phụ thuộc:
 | --- | --- | --- |
 | 1. Sân | Cài đặt → Sân | Nhóm cố định phải chỉ ra đánh ở sân nào; tiền sân từng buổi tính từ giá giờ |
 | 2. Nhóm cố định | Cài đặt → Nhóm cố định | Quỹ tháng, định mức cầu và lịch tập đều tính theo nhóm |
-| 3. Thành viên | Thành viên → Thêm thành viên | Không cần họ có tài khoản; ghép sau ở Cài đặt |
+| 3. Thành viên | Thành viên → Thêm thành viên (hoặc Nhập CSV) | Không cần họ có tài khoản; ghép sau ở Cài đặt |
 | 4. Lịch tập cố định | Lịch tập cố định | Sinh sẵn buổi cho cả kỳ |
 | 5. Giá khách giao lưu | Cài đặt → Cách chia tiền | Mặc định 0 đ — không sửa thì thu khách ra 0 |
 
@@ -49,7 +49,7 @@ Buổi (open)  →  điểm danh · thêm khách giao lưu
       ↓  Chốt tiền buổi
 Buổi (closed)  →  vào sổ quỹ và mọi thống kê
       ↓  Cuối tháng
-Kiểm kho cầu  →  Back tiền người nghỉ  →  Chốt danh sách tháng sau (ngày lock_day = 25)
+Kiểm kho cầu  →  Back tiền người nghỉ / Thu đi thêm  →  Chốt danh sách tháng sau (ngày lock_day = 25)
 ```
 
 Trạng thái buổi: `draft` (Chưa mở) · `open` (Đã mở) · `closed` (Đã chốt) · `cancelled` (Đã hủy).
@@ -78,7 +78,7 @@ Chỉ hiện **thành viên cố định của nhóm trong tháng đó** (`roste
 
 | Ai | Thêm ở đâu | Trả bao nhiêu | Vào báo cáo nào |
 | --- | --- | --- | --- |
-| **Thành viên CLB**, không cố định nhóm đó | khối Điểm danh → *Thêm người đi lẻ* | **đơn giá một buổi** của nhóm | Công nợ → Đối chiếu buổi |
+| **Thành viên CLB**, không cố định nhóm đó | khối Điểm danh → *Thêm người đi lẻ* | **đơn giá một buổi** của nhóm | Công nợ → Thu / Hoàn theo buổi |
 | **Người ngoài CLB** (vãng lai) | khối Khách giao lưu | **bảng giá khách** theo trình độ × giới tính | Khách theo trình độ · số lượt khách |
 
 Nhét thành viên vào danh sách khách là sai cả ba: sai người, thu vượt (giá khách > đơn giá buổi),
@@ -136,7 +136,7 @@ Thao tác: kéo thả · bấm chọn người rồi bấm ô · kéo về danh 
 | Ghép cùng trình độ một sân | trình độ giảm dần | cắt từng 4 người liền nhau vào từng sân |
 | Random hoàn toàn | Fisher–Yates | tuần tự |
 
-Thứ tự trình độ: `Newbie < TBY < TB- < TB`.
+Thứ tự trình độ: `Newbie < TBY < TB- < TB` (hoặc theo cấu hình CLB).
 Số trận đọc từ `matchStats` — **chỉ tính trong buổi đó**, không tính lịch sử buổi trước.
 
 **"Cố định người theo sân"** (chỉ khi ≥2 sân): mỗi sân một roster riêng; mọi lệnh xếp chạy **độc
@@ -184,20 +184,22 @@ Thêm thành viên chọn *cố định từ tháng này* thì họ được ghi
 luôn khoản quỹ tháng này: nhóm chưa có buổi nào thì **thu trọn gói**, đã có buổi rồi thì **thu
 theo số buổi còn lại** tính từ hôm nay.
 
+**Nhập / Xuất danh sách thành viên bằng CSV (`src/lib/csv.js`):**
+- Hỗ trợ tải file CSV mẫu chuẩn UTF-8 kèm BOM hiển thị tốt trong Excel.
+- Tự động nhận diện header cột linh hoạt, chuẩn hóa giới tính/trình độ/nhóm.
+- Kiểm tra tính hợp lệ và cảnh báo trùng tên/SĐT trước khi nhập hàng loạt.
 
 - **Lịch tháng**: lưới tháng, chip buổi theo màu trạng thái, bấm mở buổi.
 - **Lịch cố định**: tạo một lần → sinh buổi cả kỳ. Không sinh trùng (đã có buổi cùng ngày + nhóm thì bỏ qua).
 - **Thành viên**: danh sách + 2 hàng chờ duyệt:
   - *Đăng ký cố định tháng sau* — trạng thái theo tháng: `fixed` / `off` / `pending`.
   - *Thay đổi thông tin* — **đổi trình độ áp dụng từ tháng sau**, **đổi SĐT áp dụng ngay**.
-- Thêm người **giữa tháng** với lựa chọn "cố định từ bây giờ" → sinh quỹ tháng theo
-  `đơn giá × số buổi còn lại`, ghi chú *"Vào giữa tháng · N buổi còn lại"*.
 
 ## 6. Công nợ · Sổ quỹ · Kho cầu
 
 **Công nợ (`/cong-no`)** tổ chức thành các tab tinh gọn và chuyên nghiệp:
 1. **Thu / Hoàn theo buổi**:
-   - Gộp chung toàn bộ khoản thu khách ngoài, hội viên đi thêm buổi và hoàn tiền cho hội viên cố định vắng mặt (`back_credits`).
+   - Gộp chung toàn bộ khoản thu khách ngoài, hội viên đi thêm buổi và hoàn tiền cho hội viên cố định vắng mặt (`member_adjustments`).
    - Gom dữ liệu theo từng người chơi: hiển thị tổng số buổi, số tiền ròng cần thu (`+`) hoặc cần trả (`−`), nút `[Thu tất cả]` / `[Trả tất cả]`.
    - **Mở rộng xem chi tiết từng buổi (Accordion)**: ngày giờ, ca tập, sân đấu cụ thể.
    - **Sửa số tiền trực tiếp (Inline Price Edit)**: cho phép điều chỉnh số tiền của từng buổi linh hoạt trước khi thu/hoàn.
@@ -220,11 +222,6 @@ theo số buổi còn lại** tính từ hôm nay.
 không đọc cấu hình nhóm hiện tại — sửa quỹ nhóm giữa chừng thì người đã đóng giá cũ phải được
 đối chiếu theo giá cũ.
 
-Người đi thêm **không phải khách giao lưu**: họ trả theo đơn giá buổi của nhóm chứ không theo bảng
-giá khách, và không được đếm vào báo cáo "khách theo trình độ". Đánh dấu ở màn điểm danh, trạng
-thái thứ ba là **Đi thêm**. Người đã cố định nhóm đó thì không bao giờ tính là đi thêm — họ đã
-đóng quỹ tháng rồi.
-
 **Sổ quỹ (`/so-quy`)** — Minh bạch dòng tiền phong trào CLB:
 - **Tab mặc định là Chi tiết thu chi**: Hiển thị rành mạch từng khoản tiền thực tế: Quỹ tháng của ai, Hoá đơn tiền sân trọn tháng, Tiền mua mấy ống cầu, Sân thuê thêm lẻ của buổi nào, Hoàn tiền vắng... Các khoản cùng ngày cùng loại được gom gọn gàng, bấm để bung ra xem chi tiết.
 - **Tab Tổng kết quỹ tháng**: Báo cáo tổng kết quỹ phong trào 2 cột cực kỳ trực quan:
@@ -239,10 +236,8 @@ buổi cuối để tổng khớp tuyệt đối.
 
 Ba luật của kiểm kho, sai một cái là hỏng số hai tháng:
 
-1. **Tháng chia lệch lấy từ ngày kiểm**, không phải tháng đang chọn ở header. Kiểm ngày 31/08
-   trong lúc header đang ở tháng 09 thì phần lệch của tháng 8 chui vào các buổi tháng 9.
-2. **Chỉ sửa buổi còn cờ ước lượng.** Buổi đã đếm tay (`exact`) là số thật. Không còn buổi ước
-   lượng nào mà kho vẫn lệch thì app **không tự sửa**, mà báo user sửa tay số quả.
+1. **Tháng chia lệch lấy từ ngày kiểm**, không phải tháng đang chọn ở header.
+2. **Chỉ sửa buổi còn cờ ước lượng.** Buổi đã đếm tay (`exact`) là số thật.
 3. **Không tạo giao dịch nào**, kể cả khi hụt kho — xem `DATABASE.md` §3.1.
 
 ## 7. Hồ sơ · Cài đặt
@@ -251,44 +246,28 @@ Ba luật của kiểm kho, sai một cái là hỏng số hai tháng:
 
 | Màn | Ở đâu | Sửa bảng | Sửa được gì |
 | --- | --- | --- | --- |
-| **Hồ sơ tài khoản** | `/tai-khoan`, **ngoài** CLB | `profiles` | tên · biệt danh · SĐT · giới tính · trình độ gợi ý. `username` / `email` chỉ đọc |
-| **Hồ sơ của tôi** | `/ca-nhan`, **trong** CLB | `club_members` | chỉ XEM. Đổi SĐT / trình độ thì gửi yêu cầu, chủ CLB duyệt |
+| **Hồ sơ tài khoản** | `/tai-khoan`, **ngoài** CLB | `profiles` | tên đầy đủ · tên gọi · SĐT · giới tính · trình độ gợi ý. `email` chỉ đọc — nó là tên đăng nhập |
+| **Hồ sơ của tôi** | `/ca-nhan`, **trong** CLB | `club_members` | tự đổi **tên hiển thị** và **tên đầy đủ**. SĐT / trình độ thì gửi yêu cầu, chủ CLB duyệt |
+
+**Hai tên, ở cả hai nơi.** Tài khoản có *tên đầy đủ* + *tên gọi*; trong CLB có *tên đầy đủ* +
+*tên hiển thị* — từng cặp tương ứng nhau. Tên hiển thị là cái nằm trên bảng điểm danh, bảng chia
+tiền và báo cáo Zalo; tên đầy đủ chỉ hiện nhỏ bên dưới ở màn Thành viên và Hồ sơ, không thay chỗ
+của tên hiển thị ở đâu cả. **Email trong CLB** cũng là cột riêng, không bắt buộc, không phải email
+đăng nhập.
 
 Sửa hồ sơ tài khoản **không** đổi gì trong CLB nào, và ngược lại: bản ghi trong CLB là bản sao
 độc lập — đó là cái tên nằm trên mọi bảng điểm danh và mọi dòng tiền cũ. Thành viên cũng không
-tự sửa `level` của mình được: `levelOf` suy trình độ của MỌI tháng từ ô đó, nên tự sửa là sửa lại
-cả buổi đã chốt. Yêu cầu đổi đi qua `member_changes` — SĐT áp dụng ngay khi duyệt, trình độ áp
-dụng từ tháng sau.
+tự sửa `level` của mình được. Yêu cầu đổi đi qua `member_changes` — SĐT áp dụng ngay khi duyệt,
+trình độ áp dụng từ tháng sau.
 
 **Cài đặt** 6 tab: Chung · Cách chia tiền · Sân · Cầu · Nhóm cố định · **Tài khoản & quyền**.
+- **Tab Chung**: Sửa tên CLB, quỹ mở đầu, ngày khoá sổ, thang trình độ của CLB, sao lưu cấu hình CLB (`Settings Export / Import` dạng file JSON).
+- **Tab Tài khoản & quyền**:
+  - Mã CLB (`allow_code_join`): người mới nhập mã → yêu cầu chờ → chủ CLB **Ghép vào** bản ghi cũ / **Tạo thành viên mới** / **Từ chối**.
+  - Trùng SĐT (`allow_phone_suggest`): so chỉ chữ số, gợi ý màu amber + nút Ghép. Không bao giờ tự ghép.
+  - **Chọn 6 trường ghi đè khi ghép**: tên hiển thị, tên đầy đủ, SĐT, email, giới tính, trình độ. Mặc định không tick gì để bảo vệ tính toàn vẹn của CLB.
 
-Tab *Tài khoản & quyền* — **hai cách cho người mới vào**, bật/tắt độc lập:
-
-| Cách | Cờ | Luồng |
-| --- | --- | --- |
-| Mã CLB | `allow_code_join` | người mới nhập mã → yêu cầu chờ → chủ CLB **Ghép vào** bản ghi cũ / **Tạo thành viên mới** / **Từ chối** |
-| Trùng SĐT | `allow_phone_suggest` | so **chỉ chữ số**, gợi ý màu amber + nút Ghép. **Không bao giờ tự ghép** |
-
-**Ghép, không phải tạo mới.** Bấm *Tạo thành viên mới* cho người đã có bản ghi tay là sinh ra
-**hai** bản ghi cùng một con người, cả hai cùng chạy song song — và **gộp lại thì app chưa làm
-được** (16 cột trỏ tới `club_members`, 4 ràng buộc UNIQUE chặn ngang, và tầng đồng bộ ghi từng
-dòng không transaction nên merge bắt buộc phải là RPC). Vì thế màn duyệt **chọn sẵn** bản ghi
-trùng SĐT, cảnh báo một dòng, và hạ *Tạo mới* xuống nút phụ. Chưa chọn ai thì nút **Ghép** bị
-khoá — RPC nhận `p_member_id = null` là nó tạo người mới, nút sẽ nói một đằng làm một nẻo.
-
-**Chọn trường ghi đè khi ghép.** Chọn xong bản ghi thì hiện bảng 4 trường (tên · SĐT · giới tính
-· trình độ): mỗi dòng in *CLB đang có → sẽ thành*, tick trường nào thì lấy trường đó từ hồ sơ tài
-khoản. **Mặc định không tick gì** — ghép chỉ gắn tài khoản, dữ liệu CLB giữ nguyên. Trường không
-ghép được thì khoá lại kèm lý do: hồ sơ tài khoản để trống · đã giống nhau · trình độ không có
-trong thang của CLB (`lib/members.js: mergeRows`, và RPC gác lại đúng ba luật đó). Ghi đè xong
-**không có đường lùi** — bản ghi CLB là bản sao độc lập, bỏ ghép cũng không trả lại giá trị cũ.
-
-**Mời qua SĐT đã gỡ khỏi client** (`allow_invite`): phần tạo bản ghi chạy được nhưng phần nhận
-(mở link → tạo tài khoản → tự ghép) chưa từng tồn tại, nên nút chỉ hứa suông. Bảng
-`club_invites` và cột `clubs.allow_invite` giữ nguyên dưới DB, chờ làm thành module riêng có
-gửi tin thật.
-
-**Sơ đồ dữ liệu**: trang tài liệu sống trong app, liệt kê bảng/cột. Giữ lại ở bản thật.
+**Sơ đồ dữ liệu**: trang tài liệu sống trong app, liệt kê bảng/cột theo schema Postgres thật.
 
 ---
 

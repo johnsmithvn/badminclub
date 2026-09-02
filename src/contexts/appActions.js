@@ -614,7 +614,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const mb = {
         ...was,
         name: f.eName,
+        fullName: (f.eFull || '').trim(),
         phone: f.ePhone || '',
+        email: (f.eEmail || '').trim(),
         gender: f.eGender,
         level: f.eLevel,
         pendingLevel: null,
@@ -826,6 +828,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const mb = {
         id, name, gender: f.mGender || 'nam', level: f.mLevel || d0.levels[0],
         groupIds: start === 'now' ? gs : [], role: 'member', phone: f.mPhone || '',
+        fullName: (f.mFull || '').trim(), email: (f.mEmail || '').trim(),
         note: f.mNote || '',
         joined: d0.today, active: true, userId: null, pendingLevel: null, pendingLevelFrom: null,
       }
@@ -1705,6 +1708,35 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       upUi(() => ({ dialog: null }))
       toast(t('toast.settingsImported', { club: data.clubName || t('common.unknown') }))
+    },
+
+    /**
+     * Tự đổi TÊN của mình trong CLB — không cần ai duyệt. Chỉ hai cột `name` (tên hiển thị) và
+     * `full_name`; trình độ / SĐT / vai vẫn phải xin qua `requestChange`, và trigger
+     * `cm_guard_self_update` (0010) chặn mọi cột khác ngay dưới DB, không tin client.
+     *
+     * KHÔNG đi qua đồng bộ ngầm như các action khác: `storage.js` ghi bằng upsert, mà upsert là
+     * `INSERT ... ON CONFLICT` nên Postgres đòi cả policy INSERT — thành viên thường không có,
+     * op sẽ hỏng VĨNH VIỄN và kẹt luôn hàng đợi (xem `ponytail:` ở `storage.js: flush`). Vì thế
+     * ghi thẳng bằng `.update()` rồi `reload()` để dựng lại ảnh chụp — đúng khuôn `approveJoin`.
+     */
+    renameMe: async (name, fullName) => {
+      const d0 = db()
+      const me = d0.members.find((m) => m.userId === d0.currentUserId)
+      if (!me) return toast(t('toast.noMemberRecord'))
+      const nm = String(name || '').trim()
+      if (!nm) return toast(t('toast.needMemberName'))
+      const full = String(fullName || '').trim()
+      if (nm === me.name && full === (me.fullName || '')) return toast(t('toast.changeSame'))
+      try {
+        unwrap(await supabase.from('club_members')
+          .update({ name: nm, full_name: full || null })
+          .eq('id', me.id))
+      } catch (e) {
+        return toast(e.message)
+      }
+      await reload()
+      toast(t('toast.renamedMe', { name: nm }))
     },
 
     /**

@@ -1,4 +1,5 @@
-// Đăng ký: email + tên đăng nhập + mật khẩu BẮT BUỘC; SĐT không bắt buộc.
+// Đăng ký: email + mật khẩu BẮT BUỘC. EMAIL LÀ TÊN ĐĂNG NHẬP — form không hỏi username nữa,
+// `profiles.username` do trigger `handle_new_user` tự sinh từ phần trước dấu @ (0010).
 // Không gửi email xác thực, không OTP — tạo xong là vào được luôn.
 
 import { useState } from 'react'
@@ -11,36 +12,24 @@ import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
 const EMPTY = {
-  email: '', username: '', password: '', password2: '',
-  name: '', phone: '', gender: 'nam', level: cfg.levelsDefault[1],
+  email: '', password: '', password2: '',
+  name: '', nick: '', phone: '', gender: 'nam', level: cfg.levelsDefault[1],
 }
 
 export default function Register() {
-  const { signUp, usernameAvailable } = useAuth()
+  const { signUp } = useAuth()
   const navigate = useNavigate()
   const [f, setF] = useState(EMPTY)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
-  const [uname, setUname] = useState(null) // null chưa kiểm · true trống · false đã có
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }))
-
-  const checkUsername = async () => {
-    setUname(null)
-    const v = f.username.trim()
-    if (v.length < 3) return
-    try {
-      setUname(await usernameAvailable(v))
-    } catch { /* không kiểm được thì thôi, submit sẽ báo */ }
-  }
 
   const submit = async (e) => {
     e.preventDefault()
     setErr('')
-    if (!f.email.trim() || !f.username.trim() || !f.password) return setErr(t('auth.errRequired'))
+    if (!f.email.trim() || !f.password) return setErr(t('auth.errRequired'))
     if (f.password.length < 6) return setErr(t('auth.errPasswordShort'))
     if (f.password !== f.password2) return setErr(t('auth.errPasswordMismatch'))
-    // Đã biết chắc username bị chiếm thì chặn tại chỗ, khỏi để DB nổ ra lỗi khó đọc.
-    if (uname === false) return setErr(t('auth.usernameTaken'))
 
     setBusy(true)
     try {
@@ -63,21 +52,6 @@ export default function Register() {
         <Input label={t('auth.fEmail')} type="email" value={f.email} onChange={set('email')}
           autoComplete="email" autoFocus />
 
-        <div style={{ display: 'grid', gap: 4 }}>
-          <Input label={t('auth.fUsername')} value={f.username} onChange={set('username')}
-            onBlur={checkUsername} autoComplete="username" hint={t('auth.usernameRule')} />
-          {uname === true && (
-            <span style={{ font: 'var(--type-caption)', color: 'var(--status-delivered)' }}>
-              {t('auth.usernameFree')}
-            </span>
-          )}
-          {uname === false && (
-            <span style={{ font: 'var(--type-caption)', color: 'var(--status-incident)' }}>
-              {t('auth.usernameTaken')}
-            </span>
-          )}
-        </div>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Input label={t('auth.fPassword')} type="password" value={f.password} onChange={set('password')}
             autoComplete="new-password" />
@@ -88,6 +62,10 @@ export default function Register() {
         <div style={S.divider}>{t('auth.optional')}</div>
 
         <Input label={t('auth.fName')} value={f.name} onChange={set('name')} autoComplete="name" />
+        {/* Tên gọi = tên hiển thị. Vào CLB thì `club_members.name` lấy từ đây, `full_name` lấy
+            từ ô Tên đầy đủ ở trên — hai tên khớp nhau giữa tài khoản và CLB. */}
+        <Input label={t('auth.fNick')} value={f.nick} onChange={set('nick')}
+          hint={t('auth.fNickHint')} />
         <Input label={t('auth.fPhone')} mono value={f.phone} onChange={set('phone')}
           autoComplete="tel" hint={t('auth.fPhoneOptional')} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

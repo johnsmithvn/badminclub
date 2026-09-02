@@ -1,6 +1,6 @@
 # DESIGN.md
 
-**Version:** v0.1.0 · **Updated:** 2026-08-19
+**Version:** v0.3.0 · **Updated:** 2026-09-02
 
 Hệ thiết kế của app là **TDMS**, lấy nguyên từ handoff. **Không hard-code màu/chữ/khoảng cách mới**
 — mọi giá trị đi qua `var(--*)`. Đọc file này trước khi sửa bất cứ thứ gì thuộc UI/CSS/layout.
@@ -9,16 +9,16 @@ Hệ thiết kế của app là **TDMS**, lấy nguyên từ handoff. **Không h
 
 ## 1. Nạp design system
 
-`src/main.jsx` import đúng một file: `./ds/styles.css` (nó `@import` 10 file token theo thứ tự).
-Component import từ `src/ds/index.js`:
+`src/main.jsx` import đúng một file: `#styles/index.css` (nó `@import` 10 file token theo thứ tự trong `styles/tokens/`).
+Component import từ `#ds` (hoặc `src/components/ds/index.js`):
 
 ```jsx
-import { Card, StatCard, DataTable, Button, Select, Switch, Tabs, Alert, Dialog } from '../ds/index.js'
+import { Card, StatCard, DataTable, Button, Select, Switch, Tabs, Alert, Dialog } from '#ds'
 ```
 
-> `src/ds/index.js` là **file sinh ra** từ `_ds_bundle.js` của handoff. **Đừng sửa tay.**
+> `src/components/ds/index.js` là **file sinh ra** từ `_ds_bundle.js` của handoff. **Đừng sửa tay.**
 > Hai chỗ đã cố ý can thiệp, có ghi chú trong file: (1) xoá block `Icon` bản CDN,
-> (2) ghi đè `__ds_scope.Icon` bằng `lucide-react`. Nếu regenerate thì phải làm lại hai chỗ đó.
+> (2) ghi đè `__ds_scope.Icon` bằng `lucide-react` (`src/components/ds/icons.js`). Nếu regenerate thì phải làm lại hai chỗ đó.
 
 ## 2. Màu
 

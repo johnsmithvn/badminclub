@@ -17,18 +17,23 @@ export const digits = (x) => String(x || '').replace(/\D/g, '')
 /* ==================== Ghép hồ sơ tài khoản vào bản ghi thành viên ==================== */
 
 /**
- * Bốn trường có thể lấy từ hồ sơ TÀI KHOẢN (`profiles`) đè lên hồ sơ THÀNH VIÊN
+ * Các trường có thể lấy từ hồ sơ TÀI KHOẢN (`profiles`) đè lên hồ sơ THÀNH VIÊN
  * (`club_members`) lúc chủ CLB duyệt ghép. Khớp đúng `p_fields` mà RPC `approve_join_request`
- * chấp nhận (`0009_profile_merge.sql`) — thêm trường ở một bên mà quên bên kia thì ô tick hiện
- * ra nhưng bấm xong không có gì đổi, và không ai biết vì sao.
+ * chấp nhận (`0009_profile_merge.sql`, `0010_member_email.sql`) — thêm trường ở một bên mà quên
+ * bên kia thì ô tick hiện ra nhưng bấm xong không có gì đổi, và không ai biết vì sao.
  *
  * `role` KHÔNG có ở đây và sẽ không bao giờ có: vai trò là dữ liệu của CLB.
  */
-export const MERGE_FIELDS = ['name', 'phone', 'gender', 'level']
+export const MERGE_FIELDS = ['name', 'fullName', 'phone', 'email', 'gender', 'level']
 
-/** Giá trị của một trường trong hồ sơ tài khoản. Tên hiển thị ưu tiên `nick` — cả app gọi nhau bằng nick. */
+/**
+ * Giá trị của một trường trong hồ sơ tài khoản.
+ *
+ * Hai tên, đừng lẫn: `name` là TÊN HIỂN THỊ (lấy `nick`, cái cả app gọi nhau), `fullName` là tên
+ * đầy đủ (lấy `profiles.name`). Ghép nhầm chiều là mọi bảng điểm danh đổi sang tên khai sinh.
+ */
 const userValue = (user, field) =>
-  (field === 'name' ? user.nick || user.name : user[field]) || ''
+  (field === 'name' ? user.nick || user.name : field === 'fullName' ? user.name : user[field]) || ''
 
 /**
  * So từng trường giữa bản ghi thành viên và hồ sơ tài khoản → dữ liệu cho bảng chọn ghi đè.
@@ -41,8 +46,8 @@ const userValue = (user, field) =>
  *              `levels.indexOf(level)` ra -1 — cột trình độ sắp sai, thuật toán cân sân đọc sai
  *              bậc, không màn nào lộ ra. RPC cũng bỏ qua trường này, hai bên phải cùng một luật.
  *
- * SĐT so theo chữ số: "0912 345 678" và "0912345678" là cùng một số, hỏi người duyệt có muốn
- * ghi đè hay không là hỏi thừa.
+ * SĐT so theo chữ số ("0912 345 678" và "0912345678" là cùng một số) và email so không phân
+ * biệt hoa/thường — hỏi người duyệt có muốn ghi đè hai thứ đó hay không là hỏi thừa.
  */
 export function mergeRows(member, user, levels) {
   const m = member || {}
@@ -50,8 +55,9 @@ export function mergeRows(member, user, levels) {
   return MERGE_FIELDS.map((field) => {
     const from = String(m[field] || '')
     const to = String(userValue(u, field))
-    const same = field === 'phone'
-      ? digits(from) === digits(to)
+    // SĐT so theo chữ số, email so không phân biệt hoa/thường (cột `citext` dưới DB cũng vậy).
+    const same = field === 'phone' ? digits(from) === digits(to)
+      : field === 'email' ? from.trim().toLowerCase() === to.trim().toLowerCase()
       : from.trim() === to.trim()
     let block = ''
     if (!to.trim()) block = 'empty'

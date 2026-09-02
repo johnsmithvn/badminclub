@@ -132,7 +132,9 @@ edge case) — not simple CRUD wiring:
 - Extract the logic into PURE functions (no Supabase, no React) so it's testable without
   mocking. Code that calls Supabase/hooks stays untested by this suite — manual test on
   Supabase per existing convention (see `npm test` comment in RULES.md).
-- Wire every new test file into the `test` script in `package.json`.
+- `npm test` runs Node's built-in test runner (`node --test "src/**/*.test.js"`), which automatically
+  finds all `*.test.js` files — no need to manually wire test files into `package.json`.
+- Place test files in the appropriate folder under `src/__tests__/` according to `src/__tests__/README.md`.
 - Run `npm test` after finishing any change to logic covered by these tests.
 - **If a test fails: stop.** Report the failure to the user before changing either the test or
   the logic — don't silently pick whichever is more convenient to "fix". The user decides which
@@ -163,7 +165,7 @@ For architecture decisions, historical context, previous bugs, conventions, and 
 - If a significant architectural decision or important bug fix is made, save it to Engram.
 - Do not save trivial implementation details.
 
----
+---
 
 # 🚨 CẤM TUYỆT ĐỐI: XOÁ / RESET DATABASE
 

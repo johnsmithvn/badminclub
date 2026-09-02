@@ -1,18 +1,19 @@
 // Hồ sơ TRONG CLB đang xem — bảng `club_members`. Màn này KHÔNG sửa hồ sơ tài khoản
 // (`profiles`); cái đó ở `/tai-khoan` (`Account.jsx`), ngoài CLB.
 //
-// Vì sao chỉ xem chứ không sửa thẳng:
+// Sửa được gì, không sửa được gì — ranh giới nằm dưới DB, không phải quy ước của client:
+//   · TÊN (hiển thị + đầy đủ): tự đổi, không cần duyệt. Policy `cm_update_self_name` + trigger
+//     `cm_guard_self_update` (0010) cho đúng hai cột đó, mọi cột khác trigger chặn.
 //   · `level` là dữ liệu tính tiền và xếp sân. `money.js: levelOf` suy trình độ của MỌI tháng
 //     từ đúng ô `member.level`, nên tự sửa nó là sửa lại cả những buổi đã chốt xong. Đường đúng
 //     là xin đổi → `member_changes` → chủ CLB duyệt, và trình độ áp dụng TỪ THÁNG SAU.
-//   · `role` không nằm trong tầm tay chủ nhân bản ghi. Từ 0009, RLS cũng không cho thành viên
-//     thường UPDATE `club_members` nữa — ghi thẳng từ đây sẽ bị DB từ chối, không phải chỉ là
-//     quy ước của client.
+//   · `phone` chủ CLB dùng để đối chiếu chuyển khoản và gợi ý ghép tài khoản → cũng phải duyệt.
+//   · `role` không nằm trong tầm tay chủ nhân bản ghi, không bao giờ.
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, Button, Card, Icon, Input, Select } from '#ds'
-import { Empty, LevelChip, Mono } from '#ui'
+import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { genderTxt } from '#lib/money.js'
@@ -33,42 +34,7 @@ export default function Profile() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(330px,1fr))', gap: 16, alignItems: 'start' }}>
       {/* 1. Bản ghi thành viên trong CLB này */}
-      <Card title={t('profile.meTitle')} subtitle={db.club.name} icon="user-round" padding="16px 18px">
-        {!me
-          ? <Empty icon="unlink" title={t('profile.changeNoMember')} hint={t('profile.changeNoMemberHint')} />
-          : <div style={{ display: 'grid', gap: 13 }}>
-              <div style={S.idRow}>
-                <Avatar name={me.name} size={46} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={S.h3}>{me.name}</div>
-                  <Mono color="var(--text-muted)">{me.phone || t('common.notYet')}</Mono>
-                </div>
-                <div style={{ flex: 1 }} />
-                <span style={S.rolePill}>{roleName(me.role)}</span>
-              </div>
-
-              <Row label={t('auth.fGender')}>{genderTxt(me.gender)}</Row>
-              <Row label={t('auth.fLevel')}>
-                <LevelChip level={me.level} levels={db.levels} />
-                {me.pendingLevel && (
-                  <span style={S.caption}>
-                    {t('profile.levelPending', { level: me.pendingLevel, month: me.pendingLevelFrom })}
-                  </span>
-                )}
-              </Row>
-              <Row label={t('profile.fJoined')}><Mono>{ddmy(me.joined)}</Mono></Row>
-              <Row label={t('profile.fGroups')}>
-                {myGroups.length === 0
-                  ? <span style={S.caption}>{t('profile.groupsNone')}</span>
-                  : myGroups.map((g) => <span key={g.id} style={S.groupPill}>{g.name}</span>)}
-              </Row>
-
-              <div style={S.note}>
-                <Icon name="info" size={14} />
-                <span>{t('profile.snapshotNote')}</span>
-              </div>
-            </div>}
-      </Card>
+      <MeCard me={me} myGroups={myGroups} db={db} a={a} />
 
       {/* 2. Xin đổi thông tin trong CLB — chủ CLB duyệt */}
       <ChangeCard me={me} pending={pending} db={db} a={a} />
@@ -101,6 +67,94 @@ export default function Profile() {
         </div>
       </Card>
     </div>
+  )
+}
+
+/* ---------------- bản ghi của tôi + đổi tên ---------------- */
+
+/**
+ * Hai tên, và chỉ hai tên này là tự sửa được:
+ *   · TÊN HIỂN THỊ (`name`) — cái nằm trên bảng điểm danh, bảng chia tiền, báo cáo Zalo;
+ *   · TÊN ĐẦY ĐỦ (`full_name`) — chỉ để đối chiếu, hiện nhỏ bên dưới, không thay tên hiển thị
+ *     ở bất cứ đâu.
+ *
+ * `a.renameMe` ghi thẳng DB rồi `reload()` chứ không đi qua đồng bộ ngầm — lý do nằm ở chính
+ * action đó (upsert cần policy INSERT mà thành viên thường không có).
+ */
+function MeCard({ me, myGroups, db, a }) {
+  const [loadedFor, setLoadedFor] = useState(null)
+  const [name, setName] = useState('')
+  const [full, setFull] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  // Nạp một lần cho mỗi bản ghi, không dùng effect: `me` là phần tử của `db.members` nên đổi
+  // tham chiếu mỗi lần đồng bộ, effect sẽ hất mất chữ đang gõ dở.
+  if (me && loadedFor !== me.id) {
+    setLoadedFor(me.id)
+    setName(me.name)
+    setFull(me.fullName || '')
+  }
+
+  const dirty = me && (name.trim() !== me.name || full.trim() !== (me.fullName || ''))
+  const save = async () => {
+    setSaving(true)
+    await a.renameMe(name, full)
+    setSaving(false)
+  }
+
+  return (
+    <Card title={t('profile.meTitle')} subtitle={db.club.name} icon="user-round" padding="16px 18px">
+      {!me
+        ? <Empty icon="unlink" title={t('profile.changeNoMember')} hint={t('profile.changeNoMemberHint')} />
+        : <div style={{ display: 'grid', gap: 13 }}>
+            <div style={S.idRow}>
+              <Avatar name={me.name} size={46} />
+              <div style={{ minWidth: 0 }}>
+                <div style={S.h3}>{me.name}</div>
+                {me.fullName && <div style={S.caption}>{me.fullName}</div>}
+                <Mono color="var(--text-muted)">{me.phone || t('common.notYet')}</Mono>
+              </div>
+              <div style={{ flex: 1 }} />
+              <span style={S.rolePill}>{roleName(me.role)}</span>
+            </div>
+
+            {me.email && <Row label={t('members.fEmail')}><Mono>{me.email}</Mono></Row>}
+            <Row label={t('auth.fGender')}>{genderTxt(me.gender)}</Row>
+            <Row label={t('auth.fLevel')}>
+              <LevelChip level={me.level} levels={db.levels} />
+              {me.pendingLevel && (
+                <span style={S.caption}>
+                  {t('profile.levelPending', { level: me.pendingLevel, month: me.pendingLevelFrom })}
+                </span>
+              )}
+            </Row>
+            <Row label={t('profile.fJoined')}><Mono>{ddmy(me.joined)}</Mono></Row>
+            <Row label={t('profile.fGroups')}>
+              {myGroups.length === 0
+                ? <span style={S.caption}>{t('profile.groupsNone')}</span>
+                : myGroups.map((g) => <span key={g.id} style={S.groupPill}>{g.name}</span>)}
+            </Row>
+
+            <div style={{ display: 'grid', gap: 9, paddingTop: 11, borderTop: '1px solid var(--border-subtle)' }}>
+              <Overline>{t('profile.renameTitle')}</Overline>
+              <Input label={t('profile.fDisplayName')} hint={t('profile.fDisplayNameHint')}
+                value={name} onChange={(e) => setName(e.target.value)} />
+              <Input label={t('members.fFull')} hint={t('members.fFullHint')}
+                value={full} onChange={(e) => setFull(e.target.value)} />
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button variant="secondary" size="sm" icon="circle-check"
+                  disabled={saving || !dirty || !name.trim()} onClick={save}>
+                  {saving ? t('account.saving') : t('common.save')}
+                </Button>
+              </div>
+            </div>
+
+            <div style={S.note}>
+              <Icon name="info" size={14} />
+              <span>{t('profile.snapshotNote')}</span>
+            </div>
+          </div>}
+    </Card>
   )
 }
 

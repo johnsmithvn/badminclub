@@ -1,6 +1,6 @@
 # RULES.md — Quản lý CLB cầu lông
 
-**Version:** v6.5.0 · **Updated:** 2026-08-31
+**Version:** v6.6.0 · **Updated:** 2026-09-02
 
 Quy tắc hiện hành cho human developer và coding agent. `CLAUDE.md` là entrypoint ngắn; file này là
 policy chi tiết. Lịch sử rule cũ nằm trong git/CHANGELOG, không lặp ở đây.

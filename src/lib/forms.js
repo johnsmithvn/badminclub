@@ -76,7 +76,7 @@ export const editLedgerForm = (m) => ({
 
 /** Form thêm thành viên. */
 export const memberForm = (db) => ({
-  mName: '', mPhone: '', mGender: 'nam', mLevel: lv1(db), mNote: '', mGroups: [],
+  mName: '', mFull: '', mPhone: '', mEmail: '', mGender: 'nam', mLevel: lv1(db), mNote: '', mGroups: [],
   // CLB chưa có nhóm cố định nào thì mặc định 'đi lẻ', không thì bấm Thêm là bị chặn ngay.
   mStart: db.groups.length ? 'next' : 'none',
 })
@@ -90,7 +90,8 @@ const lv1 = (db) => (db.levels || [])[1] || (db.levels || [])[0] || ''
  * Trình độ áp dụng ngay lập tức cho các buổi tiếp theo.
  */
 export const editMemberForm = (m) => ({
-  eId: m.id, eName: m.name, ePhone: m.phone || '', eGender: m.gender, eLevel: m.level, eNote: m.note || '',
+  eId: m.id, eName: m.name, eFull: m.fullName || '', ePhone: m.phone || '', eEmail: m.email || '',
+  eGender: m.gender, eLevel: m.level, eNote: m.note || '',
   eGroups: (m.groupIds || []).slice(), eWhenGroup: 'next',
 })
 

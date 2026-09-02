@@ -58,7 +58,8 @@ export function toDb(raw, ctx) {
 
   const members = (raw.members || []).map((m) => {
     return {
-      id: m.id, name: m.name, phone: m.phone || '', gender: m.gender, level: m.level,
+      id: m.id, name: m.name, fullName: m.full_name || '',
+      phone: m.phone || '', email: m.email || '', gender: m.gender, level: m.level,
       role: m.role, joined: m.joined_at, active: m.active, userId: m.user_id || null,
       linkedAt: dOf(m.linked_at), pendingLevel: m.pending_level || null,
       pendingLevelFrom: m.pending_level_from || null,
@@ -234,6 +235,7 @@ export function toDb(raw, ctx) {
     })),
     users: (raw.users || []).map((u) => ({
       id: u.id, name: u.name, nick: u.nick || u.name, phone: u.phone || '',
+      email: u.email || '',
       gender: u.gender || '', level: u.level || '', since: dOf(u.created_at),
     })),
     joinRequests: (raw.joinRequests || []).map((r) => ({
@@ -277,7 +279,8 @@ export function toRows(db, ctx) {
   db.members.forEach((m) => {
     put('club_members', {
       id: m.id, club_id: cid, user_id: uu(m.userId), role: m.role, name: m.name,
-      phone: m.phone || null, gender: m.gender, level: m.level,
+      full_name: m.fullName || null,
+      phone: m.phone || null, email: m.email || null, gender: m.gender, level: m.level,
       pending_level: m.pendingLevel || null, pending_level_from: m.pendingLevelFrom || null,
       joined_at: m.joined, active: m.active !== false, linked_at: m.linkedAt || null,
       note: m.note || null,

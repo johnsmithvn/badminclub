@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v0.9.0 · **Updated:** 2026-08-31
+**Version:** v1.0.0 · **Updated:** 2026-09-02
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -734,7 +734,7 @@ Không đụng schema, không migration mới.
       **141/143 export của `lib` + `utils` + `dbmap` giờ có mặt trong test (99%)** — còn `WD` /
       `WD_FULL` là hằng nhãn thứ, không có gì để khoá.
 
-**16 file test, `npm test` xanh.** Vẫn KHÔNG có framework: `node:assert/strict` thuần.
+**24 file test (33 subtests), `npm test` xanh.** Vẫn KHÔNG có framework: `node:assert/strict` thuần.
 
 ---
 
@@ -819,6 +819,34 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
       vẫn đổi hai dòng trong CÙNG một câu upsert — gán `user_id` mới và bỏ ghép dòng cũ. Thứ tự
       phụ thuộc thứ tự mảng `db.members`, chạm UNIQUE `(club_id, user_id)` là kẹt hàng đợi đồng bộ.
       UI hiện chỉ cho chọn tài khoản CHƯA gắn bản ghi nào nên chưa nổ. Mở lại khi gặp ca thật.
+### Bổ sung cùng đợt — migration `0010_member_email`
+
+- [x] **Hai tên trong CLB.** `club_members.full_name` (không bắt buộc) + `name` giữ vai trò TÊN
+      HIỂN THỊ — khớp cặp `profiles.name` / `profiles.nick`. Không màn nào phải đổi cách đọc:
+      mọi chỗ vẫn dùng `name`, tên đầy đủ chỉ hiện nhỏ bên dưới ở Thành viên và Hồ sơ.
+- [x] **`club_members.email`** — không bắt buộc, không UNIQUE, không phải email đăng nhập.
+      Có mặt ở form thêm/sửa thành viên và trong bảng chọn trường khi ghép.
+      **Kèm một lỗ hổng của chính tính năng đó:** hồ sơ người đang xin vào chỉ đến từ RPC
+      `club_pending_requests` (họ chưa phải thành viên nên `profiles_same_club` không cho đọc),
+      mà RPC đó không trả `email` → ô tick Email luôn hiện "Hồ sơ tài khoản để trống". Đã thêm
+      cột vào RPC (phải `DROP FUNCTION` trước: đổi cột của `RETURNS TABLE` thì `CREATE OR
+      REPLACE` báo "cannot change return type").
+- [x] **Thành viên tự đổi tên của mình trong CLB**, không cần duyệt. Policy
+      `cm_update_self_name` + trigger `cm_guard_self_update` cho đúng `name` và `full_name`;
+      trigger so bằng `to_jsonb(NEW) - 'name' - 'full_name'` chứ không liệt kê từng cột, nên cột
+      thêm sau này tự động bị chặn thay vì lọt.
+      **Không đi qua đồng bộ ngầm:** `storage.js` ghi bằng upsert = `INSERT ... ON CONFLICT`, mà
+      Postgres đòi cả policy INSERT cho hàng đề xuất — thành viên thường không có, op sẽ hỏng
+      VĨNH VIỄN và kẹt hàng đợi. `a.renameMe` ghi thẳng `.update()` rồi `reload()`, đúng khuôn
+      `approveJoin`.
+- [x] **Đăng ký bằng email, bỏ ô tên đăng nhập.** `profiles.username` giữ nguyên (tài khoản cũ
+      dùng, `resolve_login` vẫn nhận) nhưng do `handle_new_user` tự sinh từ phần trước dấu @,
+      thêm số đuôi khi trùng — không tự sinh thì `abc@gmail.com` và `abc@yahoo.com` đụng UNIQUE
+      và người thứ hai đọc một câu lỗi về thứ họ chưa từng nhập. Gỡ `usernameAvailable` khỏi
+      client, thay `username` bằng `email` ở mọi chỗ hiển thị, thêm ô *Tên gọi* vào form đăng ký
+      để cặp tên khớp nhau ngay từ đầu.
+- [x] **Thêm bậc `K` (Khá) vào `app.json → levelsDefault`** — thang gợi ý, không đụng CLB nào.
+
 - [ ] **Trần thứ hai:** `clubs.levels` mặc định của DB (`Newbie · TBY · TB- · TB`) KHÁC
       `app.json → levelsDefault` (9 bậc) mà màn đăng ký dùng. Chọn 'Y+' lúc đăng ký rồi tạo CLB
       thì `create_club` hạ về `levels[1]` — đúng luật mới, nhưng im lặng. Sửa cho khớp là đổi

@@ -43,7 +43,7 @@ export default function Clubs() {
             <Avatar name={meName} size={28} />
             <div style={{ minWidth: 0 }}>
               <div style={S.meName}>{meName}</div>
-              <Mono color="var(--text-muted)">{profile.username}</Mono>
+              <Mono color="var(--text-muted)">{profile.email}</Mono>
             </div>
           </div>
         )}

@@ -579,6 +579,14 @@ function AddMemberDialog() {
         <Input label={t('members.fName')} value={f.mName || ''} onChange={(e) => a.setF('mName', e.target.value)} />
         <Input label={t('members.fPhone')} mono value={f.mPhone || ''} onChange={(e) => a.setF('mPhone', e.target.value)} />
       </div>
+      {/* Email của SỔ CLB, không phải email đăng nhập: không bắt buộc, không cần trùng với tài
+          khoản nào. Xem `0010_member_email.sql`. */}
+      {/* Hai tên: `mName` là TÊN HIỂN THỊ (nằm trên mọi bảng điểm danh và dòng tiền), `mFull`
+          chỉ để đối chiếu, hiện nhỏ bên dưới. */}
+      <Input label={t('members.fFull')} hint={t('members.fFullHint')}
+        value={f.mFull || ''} onChange={(e) => a.setF('mFull', e.target.value)} />
+      <Input label={t('members.fEmail')} hint={t('members.fEmailHint')}
+        value={f.mEmail || ''} onChange={(e) => a.setF('mEmail', e.target.value)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Select label={t('members.fGender')} value={f.mGender}
           options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
@@ -640,6 +648,10 @@ function EditMemberDialog() {
         <Input label={t('members.fName')} value={f.eName || ''} onChange={(e) => a.setF('eName', e.target.value)} />
         <Input label={t('members.fPhone')} mono value={f.ePhone || ''} onChange={(e) => a.setF('ePhone', e.target.value)} />
       </div>
+      <Input label={t('members.fFull')} hint={t('members.fFullHint')}
+        value={f.eFull || ''} onChange={(e) => a.setF('eFull', e.target.value)} />
+      <Input label={t('members.fEmail')} hint={t('members.fEmailHint')}
+        value={f.eEmail || ''} onChange={(e) => a.setF('eEmail', e.target.value)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Select label={t('members.fGender')} value={f.eGender}
           options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}

@@ -3,11 +3,11 @@
 //
 // Ranh giới của màn này, đừng xoá dòng nào:
 //   · Chỉ ghi `profiles`. KHÔNG đụng `club_members` của bất kỳ CLB nào — hồ sơ trong mỗi CLB là
-//     BẢN SAO độc lập, được sửa qua màn Hồ sơ trong CLB (`Profile.jsx` → `member_changes`, chủ
-//     CLB duyệt). Đổi tên ở đây mà lan sang CLB là sửa lại tên trên mọi bảng điểm danh và mọi
-//     dòng tiền cũ của người đó.
-//   · `username` và `email` chỉ hiện để đối chiếu: đổi email phải qua Supabase Auth (gửi thư
-//     xác nhận), đổi username thì mọi người đang nhớ tên đăng nhập cũ. Chưa làm, không giả vờ.
+//     BẢN SAO độc lập, sửa ở màn Hồ sơ trong CLB (`Profile.jsx`: tên thì tự đổi, trình độ và SĐT
+//     thì xin qua `member_changes`). Đổi tên ở đây mà lan sang CLB là sửa lại tên trên mọi bảng
+//     điểm danh và mọi dòng tiền cũ của người đó.
+//   · `email` chỉ hiện để đối chiếu, KHÔNG đổi được: nó là tên đăng nhập và là danh tính bên
+//     Supabase Auth, đổi phải qua luồng xác nhận thư riêng. Chưa làm, không giả vờ.
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -87,8 +87,9 @@ export default function Account() {
               <div style={S.idRow}>
                 <Avatar name={form.nick || form.name || profile.name} size={48} />
                 <div style={{ minWidth: 0, display: 'grid', gap: 3 }}>
-                  <Mono>{profile.username}</Mono>
-                  <Mono color="var(--text-muted)">{profile.email}</Mono>
+                  {/* Email LÀ tên đăng nhập (0010) — `username` vẫn còn dưới DB cho tài khoản
+                      cũ đăng nhập, nhưng không còn là thứ người dùng phải nhớ nên không hiện. */}
+                  <Mono>{profile.email}</Mono>
                   {profile.created_at && (
                     <span style={S.caption}>
                       {t('profile.since', { date: ddmy(String(profile.created_at).slice(0, 10)) })}

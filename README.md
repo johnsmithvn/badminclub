@@ -91,10 +91,11 @@ npx supabase db reset
 
 ### Đăng nhập / đăng ký
 
-- Đăng ký **bắt buộc**: email, tên đăng nhập, mật khẩu. SĐT **không bắt buộc**.
+- Đăng ký **bắt buộc**: email, mật khẩu. Tên gọi, tên đầy đủ, SĐT **không bắt buộc**. Email chính là tên đăng nhập; `profiles.username` được tự động sinh ngầm từ phần trước dấu @.
 - Đăng nhập bằng **email hoặc tên đăng nhập hoặc SĐT** (nếu đã điền) + mật khẩu.
 - **Không** gửi email xác thực, **không** OTP — chưa cần chi phí SMS/SMTP. Bật sau ở `supabase/config.toml`.
-- Phê duyệt người xin vào CLB nằm ở **Cài đặt → Tài khoản & quyền** của từng CLB, không phải màn riêng.
+- Quản lý hồ sơ tài khoản dùng chung mọi CLB tại `/tai-khoan` (ngoài CLB).
+- Phê duyệt người xin vào CLB nằm ở **Cài đặt → Tài khoản & quyền** của từng CLB (chọn lọc 6 trường khi ghép).
 
 ## Stack
 
@@ -116,13 +117,13 @@ src/
   data/                schema.js
   hooks/               useClock.js
   i18n/                index.js · vi.json            ← MỌI chữ
-  lib/                 money · ledger · assign · roles · forms · csv · schedules (THUẦN, test được)
-  pages/               13 màn trong CLB + Login · Register · Clubs + Dialogs
+  lib/                 assign · csv · forms · ledger · members · money · roles · schedules · supabase (THUẦN, test được)
+  pages/               13 màn trong CLB + Account · Clubs · Login · Register + Dialogs
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/
   utils/               dates.js
-  __tests__/           test cho lib/ · utils/ · dbmap + fixture.js (dữ liệu test, app KHÔNG import)
-supabase/               config.toml · migrations/ (0001..0008)
+  __tests__/           24 bộ test cho lib/ · utils/ · sync/ · smoke/ + fixture.js (dữ liệu test, app KHÔNG import)
+supabase/               config.toml · migrations/ (0001..0010)
 docs/                   RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS
 DESIGN.md
 ```
@@ -153,9 +154,6 @@ Chi tiết: [docs/RULES.md](docs/RULES.md).
 
 ## Đang làm tiếp
 
-Đã xong: schema + RLS + RPC, đăng ký/đăng nhập, màn CLB, phê duyệt, **cả 13 màn trong CLB đọc
-ghi thẳng Supabase** qua `contexts/storage.js` + `contexts/dbmap.js`, hệ thống 3 vai trò, chế độ
-1 nhóm / nhiều nhóm (`multi_group`), nhập danh sách thành viên bằng file CSV (`src/lib/csv.js`),
-sao lưu/nhập cấu hình CLB (`Settings Export / Import`), theo dõi quỹ nợ ứng tiền và xóa CLB an toàn.
+Đã xong: schema + RLS + RPC, đăng ký bằng email/đăng nhập, màn CLB, phê duyệt ghép 6 trường chọn lọc, **cả 13 màn trong CLB đọc ghi thẳng Supabase** qua `contexts/storage.js` + `contexts/dbmap.js`, tách biệt Hồ sơ tài khoản (`/tai-khoan`) và Hồ sơ CLB (`/ca-nhan`), thành viên tự đổi tên hiển thị / tên đầy đủ trong CLB (`0010_member_email.sql`), hệ thống 3 vai trò, chế độ 1 nhóm / nhiều nhóm (`multi_group`), nhập danh sách thành viên bằng file CSV (`src/lib/csv.js`), sao lưu/nhập cấu hình CLB (`Settings Export / Import`), công nợ đa năng (Bảng/Lưới thẻ, sửa giá inline, quỹ nợ ứng tiền) và Báo cáo tổng kết quỹ phong trào 2 cột ở Sổ quỹ.
 
 Còn lại: realtime cho chia sân, RPC sinh `transactions` khi chốt buổi, `audit_logs`, rồi đẩy lên Supabase cloud. Xem `docs/TASKS.md`.

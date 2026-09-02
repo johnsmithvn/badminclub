@@ -155,8 +155,14 @@ assert.deepEqual(fixedGroups(db, 'm4', MONTH), [])
 const rowOf = (rows, field) => rows.find((r) => r.field === field)
 
 // Bản ghi tay chủ CLB đã nhập, và hồ sơ tài khoản của người xin vào.
-const mem = { name: 'Thuý (SĐT chị Lan)', phone: '0327 279 292', gender: 'nu', level: 'TBY' }
-const usr = { name: 'Nguyễn Thị Thuý', nick: 'Thúy', phone: '0327279292', gender: 'nu', level: 'TB' }
+const mem = {
+  name: 'Thuý (SĐT chị Lan)', fullName: '', phone: '0327 279 292',
+  email: 'THUY@GMAIL.COM', gender: 'nu', level: 'TBY',
+}
+const usr = {
+  name: 'Nguyễn Thị Thuý', nick: 'Thúy', phone: '0327279292',
+  email: 'thuy@gmail.com', gender: 'nu', level: 'TB',
+}
 
 const rows = mergeRows(mem, usr, db.levels)
 
@@ -165,6 +171,12 @@ assert.deepEqual(rows.map((r) => r.field), MERGE_FIELDS,
 
 assert.equal(rowOf(rows, 'name').to, 'Thúy',
   'tên hiển thị phải ưu tiên nick: cả app gọi nhau bằng nick, ghi đè bằng tên khai sinh là mọi bảng điểm danh đổi tên một lượt')
+
+assert.equal(rowOf(rows, 'fullName').to, 'Nguyễn Thị Thuý',
+  'TÊN ĐẦY ĐỦ phải lấy profiles.name còn TÊN HIỂN THỊ lấy nick — ghép nhầm chiều là mọi bảng điểm danh đổi sang tên khai sinh, còn ô tên đầy đủ thì đọng biệt danh')
+
+assert.equal(rowOf(rows, 'email').block, 'same',
+  'email so không phân biệt hoa/thường (cột citext dưới DB cũng vậy) — bày ra ô tick cho hai chuỗi cùng một hộp thư là hỏi thừa')
 
 assert.equal(rowOf(rows, 'phone').block, 'same',
   'SĐT phải so theo CHỮ SỐ — "0327 279 292" và "0327279292" là một số, bày ra ô tick là hỏi thừa và mời người ta bấm nhầm')
@@ -180,12 +192,18 @@ const off = mergeRows(mem, { ...usr, level: 'TBK' }, db.levels)
 assert.equal(rowOf(off, 'level').block, 'offScale',
   'trình độ ngoài thang CLB mà cho ghép là levels.indexOf() ra -1: cột trình độ sắp sai và thuật toán cân sân đọc sai bậc, không màn nào lộ ra')
 
+// Bản ghi CLB chưa có tên đầy đủ → vẫn ghép được (ô trống bên CLB không phải lý do khoá).
+assert.equal(rowOf(rows, 'fullName').block, '',
+  'bên CLB trống mà tài khoản có thì phải cho ghép — đó chính là lúc bảng này có ích nhất')
+
 // Hồ sơ tài khoản bỏ trống: ghi đè là XOÁ dữ liệu CLB đang có.
 const empty = mergeRows(mem, { name: 'Nguyễn Thị Thuý', nick: 'Thúy' }, db.levels)
 assert.equal(rowOf(empty, 'phone').block, 'empty',
   'tài khoản chưa có SĐT mà cho ghi đè là xoá mất SĐT chủ CLB đã nhập tay — mất luôn đường đòi tiền')
 assert.equal(rowOf(empty, 'level').block, 'empty',
   'tài khoản chưa có trình độ mà cho ghi đè là club_members.level thành rỗng, mà cột đó NOT NULL')
+assert.equal(rowOf(empty, 'email').block, 'empty',
+  'tài khoản chưa có email thì không được xoá email chủ CLB đã nhập tay vào sổ')
 
 // Bản ghi rỗng / hồ sơ rỗng không được throw: màn duyệt render trước khi người duyệt chọn ai.
 assert.equal(mergeRows(null, null, db.levels).length, MERGE_FIELDS.length,

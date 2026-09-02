@@ -95,20 +95,22 @@ export function AuthProvider({ children }) {
 
   const api = useMemo(() => ({
     /**
-     * Đăng ký: email + username + mật khẩu bắt buộc; phone không bắt buộc.
-     * Trùng email / username / SĐT đều bị chặn ở DB (`profiles` có UNIQUE cả ba cột), nhưng
-     * username và SĐT nổ trong trigger `handle_new_user` nên Postgres chỉ trả một câu chung —
-     * không nói được cột nào. Dịch ra tiếng Việt ở đây thay vì để user đọc lỗi thô.
+     * Đăng ký: email + mật khẩu bắt buộc; phần còn lại không bắt buộc.
+     *
+     * KHÔNG gửi `username` nữa — email là tên đăng nhập, `profiles.username` do trigger
+     * `handle_new_user` tự sinh (0010). Trùng email / SĐT vẫn bị chặn ở DB (`profiles` có UNIQUE
+     * cả hai cột) và SĐT nổ trong trigger nên Postgres chỉ trả một câu chung — dịch ra tiếng
+     * Việt ở đây thay vì để user đọc lỗi thô.
      */
-    async signUp({ email, username, password, name, phone, gender, level }) {
+    async signUp({ email, password, name, nick, phone, gender, level }) {
       if (!supabase) throw new Error(t('auth.noDb'))
       const data = signUpUnwrap(await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
           data: {
-            username: username.trim(),
-            name: (name || '').trim() || username.trim(),
+            name: (name || '').trim() || email.trim().split('@')[0],
+            nick: (nick || '').trim(),
             phone: (phone || '').replace(/\s/g, ''),
             gender: gender || '',
             level: level || '',
@@ -160,12 +162,6 @@ export function AuthProvider({ children }) {
         throw new Error(m)
       }
       await refresh(uid)
-    },
-
-    /** Kiểm username còn trống — gọi khi blur ô username lúc đăng ký. */
-    async usernameAvailable(username) {
-      if (!supabase || !username || username.length < 3) return null
-      return unwrap(await supabase.rpc('username_available', { p_username: username.trim() }))
     },
 
     async createClub(form) {

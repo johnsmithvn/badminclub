@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Quản lý CLB cầu lông
 
-**Version:** v0.2.0 · **Updated:** 2026-08-31
+**Version:** v0.4.0 · **Updated:** 2026-09-02
 
 Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả nghiệp vụ gốc nằm trong bộ handoff
 (`design_handoff_clb_cau_long/01..06`) — không lặp lại ở đây; chỗ nào cần thì trỏ sang.
@@ -13,7 +13,7 @@ Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả 
 | --- | --- | --- |
 | Build | **Vite 8** | Rolldown, build nhanh; đồng bộ với dự án khác của team |
 | UI | **React 19.2**, JavaScript thuần (`.jsx`) | prototype handoff là JS; test chạy file `.js` bằng `node` trực tiếp nên thêm TypeScript là thêm bước build cho test. DS bundle không dùng `defaultProps`/`propTypes` nên React 19 chạy được nguyên trạng |
-| Router | **React Router 7** | URL thật (`/buoi-tap/B5`) chia sẻ và deep-link được, nút back của browser đúng |
+| Router | **React Router 7** | URL thật (`/buoi-tap/B5`, `/tai-khoan`) chia sẻ và deep-link được, nút back của browser đúng |
 | Design system | **TDMS trích từ handoff** → `src/components/ds/` | `_ds_bundle.js` đã có 29 component React build sẵn đúng thiết kế. Trích lại rẻ hơn và khớp hơn viết lại |
 | Icon | **lucide-react** + bảng static `ds/icons.js` | bundled, chạy offline. Giữ đúng bộ icon Lucide mà handoff `06` đã chốt |
 | State | **không lib** — 1 Context + 2 `useState` | đúng hình dạng prototype (một cây state), không cần Redux/Zustand |
@@ -33,11 +33,11 @@ Không thêm dependency UI nào khác (không Tailwind, không MUI, không style
 index.html            jsconfig.json (alias cho editor)   vercel.json
 public/favicon.svg
 src/
-  main.jsx            mount React + BrowserRouter + StoreProvider
+  main.jsx            mount React + BrowserRouter + AuthProvider + StoreProvider
   App.jsx             đăng ký route, gác quyền, đưa navigate cho actions
   components/
-    ds/               DESIGN SYSTEM TDMS — trích từ handoff, KHÔNG sửa tay
-    layout/           AppLayout · Sidebar · AppHeader · ToastHost
+    ds/               DESIGN SYSTEM TDMS — trích từ handoff, KHÔNG sửa tay (icons.js + index.js)
+    layout/           AppLayout · Sidebar · AppHeader · ToastHost · AuthLayout
     ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar…
   config/             app.json (hằng số) · permissions.json (ma trận quyền)
   contexts/
@@ -45,21 +45,34 @@ src/
     AppContext.jsx    db + ui state của MỘT CLB, Context
     appActions.js     MỌI hành động ghi dữ liệu (một chỗ duy nhất)
     storage.js        ĐIỂM CHẠM MẠNG DUY NHẤT: load(clubId) / save(db)
-    dbmap.js          map thuần client ↔ 30 bảng Postgres + diff()
+    dbmap.js          map thuần client ↔ 30+ bảng Postgres + diff()
   data/schema.js      mô tả schema để render trang Sơ đồ dữ liệu
   hooks/useClock.js   đồng hồ bấm giờ sân
   i18n/               index.js (hàm t) + vi.json (toàn bộ chữ)
   lib/                LOGIC THUẦN — không React, không I/O, test bằng node
-    money.js          mọi công thức tiền + tra cứu + màu/nhãn trạng thái
-    ledger.js         sổ quỹ (ledger, số dư, gộp dòng, tổng hợp ngày)
     assign.js         chia sân: slot, 5 chế độ xếp, chia đều, số trận
-    roles.js          tra cứu ma trận quyền
+    csv.js            đọc/sinh CSV thành viên, RFC 4180, validate, phát hiện cột
+    forms.js          giá trị mặc định an toàn cho các dialog
+    ledger.js         sổ quỹ (ledger, số dư, gộp dòng, tổng hợp ngày, hoàn tác)
+    members.js        lọc/tìm/sắp xếp thành viên, chọn trường ghép tài khoản (0009/0010)
+    money.js          mọi công thức tiền + tra cứu + màu/nhãn trạng thái + đối chiếu
+    roles.js          tra cứu ma trận quyền 3 vai
+    schedules.js      sinh/xoá buổi từ lịch cố định, kiểm tra xung đột
+    supabase.js       khởi tạo client Supabase từ biến môi trường
   pages/              1 file 1 màn hình, chỉ render + gọi actions
-  routes/index.js     bảng route key ↔ URL
+    Account.jsx       hồ sơ tài khoản (profiles, NGOÀI CLB)
+    Clubs.jsx         danh sách CLB, tạo CLB, tham gia bằng mã
+    Login.jsx         đăng nhập (email / username / SĐT)
+    Register.jsx      đăng ký (email + mật khẩu, auto-username, tên gọi)
+    Dialogs.jsx       host toàn bộ dialog nhập liệu của app
+    Home.jsx · Calendar.jsx · Sessions.jsx · SessionDetail.jsx · Assign.jsx
+    Schedules.jsx · Members.jsx · Debts.jsx · Fund.jsx · Shuttles.jsx
+    Profile.jsx · Settings.jsx · Schema.jsx
+  routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
   styles/             index.css + tokens/*.css
   utils/dates.js      ngày, tháng, giờ thập phân, lưới lịch
-  __tests__/          test: lib · money · ledger · sync · smoke (xem __tests__/README.md)
-supabase/migrations/   SQL cho bản chạy thật
+  __tests__/          24 bộ test: lib/ · money/ · ledger/ · sync/ · smoke/ (xem __tests__/README.md)
+supabase/migrations/   SQL cho bản chạy thật (0001..0010)
 docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
 ```
 
@@ -85,6 +98,8 @@ Chữ tiếng Việt **không** được viết trong `.jsx`.
 Lý do: mọi con số phải giải thích được nguồn gốc, tiền phải test được mà không cần render UI, và
 đổi câu chữ hay thêm ngôn ngữ không được phải sửa 13 màn hình.
 
+---
+
 ## 3. Hai cây state
 
 `contexts/AppContext.jsx` giữ hai thứ tách nhau:
@@ -97,6 +112,10 @@ localStorage). Đúng những khoá `dbmap.toDb()` sinh ra:
 `playing`
 cộng `clubId, today, month` do `load()` gắn và `currentUserId, myRole, viewAs, sessionId` do
 `reload()` gắn.
+
+- `members[i]` có thêm `fullName`, `email`, `note`, `linkedAt`, `pendingLevel`, `pendingLevelFrom`.
+- `adjustments` thay cho `back_credits` (migration 0007).
+- `dues[i]` có `paidAmount` (migration 0009).
 
 Không có `clubStore` · `seq` · `backPaid` · `invites` — bốn khoá này đã bỏ: nhiều CLB trong bộ
 nhớ (xem dưới), bộ đếm id thay bằng `crypto.randomUUID()`, `back_credits` thay bằng
@@ -145,8 +164,14 @@ Ba quy ước:
 
 ## 5. Route và quyền
 
-Route key (xem `routes/index.js`) là một trong: `home sessions session assign schedules calendar members debts fund
-shuttles profile settings schema`.
+**Route công khai / Ngoài CLB (`PUBLIC_PATHS`):**
+- `/dang-nhap` (`Login`)
+- `/dang-ky` (`Register`)
+- `/clb` (`Clubs` — chọn CLB, tạo CLB, nhập mã tham gia)
+- `/tai-khoan` (`Account` — quản lý hồ sơ tài khoản `profiles` dùng chung)
+
+**Route trong CLB (13 màn hình trong `AppLayout`):**
+Route key (xem `routes/index.js`) là một trong: `home sessions session assign schedules calendar members debts fund shuttles profile settings schema`.
 
 Quyền lấy từ `lib/roles.js` + `config/permissions.json` (3 vai: `owner`, `treasurer`, `member`):
 
@@ -163,7 +188,7 @@ tự nâng quyền thì UI mở ra nhưng RLS ở Supabase vẫn chặn, ngườ
 
 ## 6. Đồng bộ với Supabase
 
-`contexts/storage.js` là **điểm chạm mạng duy nhất**. Hai hàm:
+`contexts/storage.js` là **điểm chạm mạng duy nhất** cho việc tải và lưu dữ liệu nền. Hai hàm:
 
 | Hàm | Việc |
 | --- | --- |
@@ -191,8 +216,9 @@ Hai bất biến bắt buộc, có test khoá ở `src/__tests__/sync/dbmap.test
 2. **Ảnh chụp dựng bằng chính `toRows()`**, không dựng từ dòng đọc về. Nhờ vậy `load` và `save`
    luôn cùng một hàm map; lệch nhau thì lộ ngay ở lần save đầu chứ không âm thầm xoá dòng.
 
-Hai hành động **không** đi qua đồng bộ ngầm mà gọi RPC rồi `reload()`: `approveJoin` và
-`rejectJoin` — người xin vào CLB chưa phải thành viên nên client không có quyền ghi thẳng.
+**Các hành động đặc biệt ghi trực tiếp DB rồi `reload()`:**
+1. `approveJoin` và `rejectJoin`: người xin vào chưa phải thành viên nên client không có quyền ghi thẳng.
+2. `renameMe` (`a.renameMe`): thành viên tự đổi tên hiển thị / tên đầy đủ qua `.update()` trực tiếp với policy `cm_update_self_name` + trigger guard (0010), do sync ngầm dùng upsert đòi quyền INSERT mà thành viên thường không có.
 
 Điều cần giữ: **tiền lưu `bigint` VND, không lưu số đã làm tròn**; ngày buổi lưu `date`, tháng
 lưu `char(7)`.
@@ -202,13 +228,16 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 
 ---
 
-## 7. Điều đã cố tình không làm
+## 7. Điều đã hoàn thành & việc tiếp theo
 
-| Không làm | Vì | Làm khi nào |
+| Hạng mục | Trạng thái | Ghi chú |
 | --- | --- | --- |
-| ~~Đăng nhập / Supabase Auth~~ | — | ✅ **đã làm** ở Phase 7: đăng ký · đăng nhập bằng email/username/SĐT · CLB của tôi · gác cổng |
-| ~~i18n~~ | — | ✅ **đã làm** ở Phase 0: `src/i18n/vi.json`, thêm ngôn ngữ chỉ cần một file mới |
-| Mời vào CLB qua SĐT | phần NHẬN cần gửi tin thật, chưa có kinh phí | làm thành module riêng; bảng `club_invites` đã chờ sẵn |
-| Bản mobile riêng cho vai `member` | desktop console là ưu tiên 1 của chủ quỹ | handoff `02` §Responsive đã chốt 3 màn cần làm trước |
-| `notifications` / Zalo OA / `audit_logs` | giai đoạn 2 trong handoff `03` | bảng đã có sẵn trong SQL |
-| Code-split theo route | 13 màn, bundle 110 KB gzip là chấp nhận được | khi bundle vượt ~300 KB gzip |
+| Đăng ký / Supabase Auth | ✅ **Đã làm** | Đăng ký bằng email (auto-username) · đăng nhập email/username/SĐT · quản lý hồ sơ tại `/tai-khoan` |
+| i18n & Config | ✅ **Đã làm** | `src/i18n/vi.json`, `src/config/*.json`, hỗ trợ đa ngôn ngữ không sửa UI |
+| Tách 2 hồ sơ & Ghép chọn lọc | ✅ **Đã làm** | Hồ sơ tài khoản (`profiles`) vs Hồ sơ CLB (`club_members`), ghép 6 trường chọn lọc (0009/0010) |
+| Thành viên tự đổi tên | ✅ **Đã làm** | Policy `cm_update_self_name` + trigger guard chỉ cho đổi `name` và `full_name` (0010) |
+| CSV Import & JSON Settings | ✅ **Đã làm** | Nhập/xuất danh sách thành viên bằng CSV (`src/lib/csv.js`), backup/restore cài đặt CLB |
+| Mời vào CLB qua SĐT | Chưa làm | Phần NHẬN cần gửi tin thật, chưa có kinh phí; bảng `club_invites` đã chờ sẵn |
+| Bản mobile riêng cho vai `member` | Đang chờ | Desktop console là ưu tiên 1; 3 màn ưu tiên: Trang chủ · Chia sân · Cá nhân |
+| `notifications` / Zalo OA / `audit_logs` | Giai đoạn 2 | Bảng đã có sẵn trong SQL |
+| Realtime cho chia sân | Giai đoạn 2 | Realtime channel theo `session_id` cho `session_lineups` + `matches` |

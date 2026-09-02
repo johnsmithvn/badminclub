@@ -120,7 +120,14 @@ function AllMembers({ canEdit }) {
       render: (r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Avatar name={r.name} size={26} />
-          <span style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>{r.name}</span>
+          {/* `name` là TÊN HIỂN THỊ — cái nằm trên mọi bảng điểm danh và dòng tiền. `fullName`
+              chỉ để đối chiếu nên đứng dưới, cỡ caption, không thay chỗ của tên hiển thị. */}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>{r.name}</div>
+            {r.fullName && (
+              <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{r.fullName}</div>
+            )}
+          </div>
         </div>
       ),
     },
