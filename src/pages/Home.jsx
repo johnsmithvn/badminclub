@@ -256,13 +256,15 @@ function Overview() {
         <Card title={t('home.upcoming')} subtitle={t('home.upcomingSub')} icon="calendar-clock" padding="0">
           {upcoming.length === 0
             ? <Empty icon="calendar-days" title={t('home.noUpcoming')} hint={t('home.noUpcomingHint')} />
-            : <div style={{ display: 'grid' }}>
+            : <div style={{ display: 'grid', minWidth: 0, width: '100%' }}>
                 {upcoming.map((s) => (
                   <div key={s.id} style={SS.upRow}>
                     <DayBox iso={s.date} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                       <div style={{ ...SS.label, ...SS.ellipsis }}>{groupOf(db, s.groupId).name}</div>
-                      <div style={{ ...SS.ellipsis, font: 'var(--type-mono)', color: 'var(--text-muted)', fontSize: 12 }}>
+                      <div
+                        title={timeTxt(s) + ' · ' + courtTxt(db, s)}
+                        style={{ ...SS.ellipsis, font: 'var(--type-mono)', color: 'var(--text-muted)', fontSize: 12 }}>
                         {timeTxt(s) + ' · ' + courtTxt(db, s)}
                       </div>
                     </div>
@@ -780,6 +782,7 @@ const SS = {
   upRow: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
     borderTop: '1px solid var(--border-subtle)',
+    minWidth: 0, width: '100%', boxSizing: 'border-box',
   },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },

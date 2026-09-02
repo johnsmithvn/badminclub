@@ -39,7 +39,8 @@ export function toDb(raw, ctx) {
   const levels = club.levels && club.levels.length ? club.levels : cfg.levelsDefault
 
   const courts = (raw.courts || []).map((c) => ({
-    id: c.id, name: c.name, addr: c.address || '', price: num(c.price_per_hour), active: c.active,
+    id: c.id, name: c.name, addr: c.address || '', mapUrl: c.map_url || '',
+    price: num(c.price_per_hour), active: c.active,
   }))
 
   let groups = (raw.groups || []).map((g) => ({
@@ -260,6 +261,7 @@ export function toRows(db, ctx) {
 
   db.courts.forEach((c) => put('courts', {
     id: c.id, club_id: cid, name: c.name, address: c.addr || null,
+    map_url: c.mapUrl || null,
     price_per_hour: c.price, active: c.active !== false,
   }))
 

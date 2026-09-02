@@ -79,7 +79,7 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
       ],
     },
     courts: [
-      { name: 'Sân Nguyễn Xiển', addr: 'Hạ Đình', price: 140000, active: true },
+      { name: 'Sân Nguyễn Xiển', addr: 'Hạ Đình', mapUrl: 'https://maps.app.goo.gl/xyz', price: 140000, active: true },
     ],
     shuttleTypes: [
       { name: 'Ba Sao', perTube: 12, pricePerTube: 220000, active: true },
@@ -105,9 +105,11 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
   // Kiểm tra giá khách
   assert.equal(currentDb.guestPrices.find((p) => p.level === 'TB')?.nam, 85000)
 
-  // Kiểm tra sân bãi (giữ sân cũ, thêm sân mới)
+  // Kiểm tra sân bãi (giữ sân cũ, thêm sân mới có mapUrl)
   assert.equal(currentDb.courts.length, 2)
-  assert.ok(currentDb.courts.some((c) => c.name === 'Sân Nguyễn Xiển'))
+  const nxCourt = currentDb.courts.find((c) => c.name === 'Sân Nguyễn Xiển')
+  assert.ok(nxCourt)
+  assert.equal(nxCourt.mapUrl, 'https://maps.app.goo.gl/xyz')
 
   // Kiểm tra loại cầu (giữ loại cũ, thêm loại mới)
   assert.equal(currentDb.shuttleTypes.length, 2)

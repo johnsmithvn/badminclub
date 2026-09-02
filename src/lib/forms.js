@@ -102,7 +102,7 @@ export const addCourtForm = (db, s) => {
 }
 
 /** Form thêm sân của CLB (không phải thêm sân cho một buổi — cái đó là addCourtForm). */
-export const courtForm = () => ({ cName: '', cAddr: '', cPrice: '' })
+export const courtForm = () => ({ cName: '', cAddr: '', cMapUrl: '', cPrice: '' })
 
 /** Form thêm nhóm cố định. Giờ và định mức lấy theo nhóm đã có, không có thì mặc định. */
 export const groupForm = (db) => {

@@ -157,6 +157,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `adjustments[]` | `member_adjustments` | `key` = `month:groupId:memberId:kind`, thay cho `back_credits` cũ |
 | `members[].fullName` | `club_members.full_name` | Tên đầy đủ trong sổ CLB (0010) |
 | `members[].email` | `club_members.email` | Email liên lạc trong sổ CLB (0010) |
+| `courts[].mapUrl` | `courts.map_url` | Link Google Maps / Bản đồ vị trí sân (0011) |
 | `members[].note` | `club_members.note` | Ghi chú thành viên (0005) |
 | `lineups[sessionId][slot] = playerKey` | `session_lineups` | `playerKey` là member id **hoặc** guest id → cần `player_type` |
 | `courtGroups[sessionId][playerKey] = courtIdx` | `session_court_groups` | như trên |
@@ -189,6 +190,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0008_no_default_group.sql` | Loại bỏ sinh nhóm cố định mặc định tự động để tránh nhóm ma. |
 | `0009_profile_merge.sql` | Tách biệt hồ sơ tài khoản và hồ sơ CLB, duyệt ghép có chọn lọc trường, thêm `monthly_dues.paid_amount`. |
 | `0010_member_email.sql` | Bổ sung `email` & `full_name` cho `club_members`, policy `cm_update_self_name` + trigger guard cho thành viên tự đổi tên, đăng ký bằng email tự sinh username. |
+| `0011_court_map_url.sql` | Thêm cột `map_url` cho bảng `courts` lưu link Google Maps / bản đồ vị trí sân. |
 
 ---
 

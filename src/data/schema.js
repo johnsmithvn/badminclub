@@ -78,7 +78,7 @@ export const SCHEMA_GROUPS = [
         name: 'courts',
         fields: [
           f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('name', 'text'),
-          f('address', 'text'), f('price_per_hour', 'bigint'), f('active', 'bool'),
+          f('address', 'text null'), f('map_url', 'text null'), f('price_per_hour', 'bigint'), f('active', 'bool'),
         ],
       },
       {

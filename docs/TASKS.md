@@ -846,6 +846,13 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
       client, thay `username` bằng `email` ở mọi chỗ hiển thị, thêm ô *Tên gọi* vào form đăng ký
       để cặp tên khớp nhau ngay từ đầu.
 - [x] **Thêm bậc `K` (Khá) vào `app.json → levelsDefault`** — thang gợi ý, không đụng CLB nào.
+- [x] **Trường Link Google Maps / Bản đồ vị trí sân (`courts.map_url`) — migration `0011_court_map_url`**:
+      Bổ sung cột `map_url text` vào bảng `courts`, hỗ trợ nhập link Google Maps trong hộp thoại
+      Thêm/Sửa sân ở Cài đặt và sao lưu JSON settings. Hiển thị nút "Bản đồ" với icon `map-pin`
+      ở tab Sân và chi tiết buổi tập (`SessionDetail`).
+- [x] **Sửa lỗi tràn layout khi tên sân dài ở Trang chủ (`Home.jsx: Buổi tới`)**: Đặt `minWidth: 0, width: '100%'`
+      và `boxSizing: 'border-box'` cho container dòng `SS.upRow`, kết hợp `textOverflow: 'ellipsis'`
+      để tên sân dài không đẩy bay cột tiền sân và nút Mở điểm danh ra ngoài thẻ card.
 
 - [ ] **Trần thứ hai:** `clubs.levels` mặc định của DB (`Newbie · TBY · TB- · TB`) KHÁC
       `app.json → levelsDefault` (9 bậc) mà màn đăng ký dùng. Chọn 'Y+' lúc đăng ký rồi tạo CLB

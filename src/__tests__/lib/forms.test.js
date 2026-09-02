@@ -105,7 +105,7 @@ assert.equal(guestForm({ ...empty, levels: [] }).gLevel, '',
 
 /* ---------- form cấu hình ---------- */
 
-assert.deepEqual(courtForm(), { cName: '', cAddr: '', cPrice: '' })
+assert.deepEqual(courtForm(), { cName: '', cAddr: '', cMapUrl: '', cPrice: '' })
 assert.deepEqual(groupForm(db).grCourts, [], 'CLB nhiều sân thì không chọn hộ sân nào')
 assert.deepEqual(groupForm({ ...empty, courts: [db.courts[0]] }).grCourts, [db.courts[0].id],
   'CLB đúng một sân thì chọn sẵn — không có lựa chọn nào khác để mà phân vân')

@@ -1388,6 +1388,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         courts: d.courts.concat([{
           id: uid(), name, addr: (f.cAddr || '').trim(),
+          mapUrl: (f.cMapUrl || '').trim(),
           price: intOf(f.cPrice), active: true,
         }]),
       }))
@@ -1534,6 +1535,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         courts: (d.courts || []).map((c) => ({
           name: c.name,
           addr: c.addr || '',
+          mapUrl: c.mapUrl || '',
           price: c.price || 0,
           active: c.active !== false,
         })),
@@ -1632,12 +1634,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             const match = existingCourts.find((x) => x.name.toLowerCase() === (c.name || '').trim().toLowerCase())
             if (match) {
               match.addr = c.addr || match.addr
+              match.mapUrl = c.mapUrl || match.mapUrl
               match.price = intOf(c.price) || match.price
             } else {
               newCourts.push({
                 id: uid(),
                 name: (c.name || '').trim(),
                 addr: c.addr || '',
+                mapUrl: c.mapUrl || '',
                 price: intOf(c.price),
                 active: c.active !== false,
               })

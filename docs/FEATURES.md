@@ -262,6 +262,7 @@ trình độ áp dụng từ tháng sau.
 
 **Cài đặt** 6 tab: Chung · Cách chia tiền · Sân · Cầu · Nhóm cố định · **Tài khoản & quyền**.
 - **Tab Chung**: Sửa tên CLB, quỹ mở đầu, ngày khoá sổ, thang trình độ của CLB, sao lưu cấu hình CLB (`Settings Export / Import` dạng file JSON).
+- **Tab Sân**: Quản lý danh sách sân, địa chỉ, giá/giờ và **Link Google Maps / Bản đồ** (`map_url`). Hỗ trợ mở liên kết bản đồ trực tiếp trên màn hình Cài đặt và chi tiết buổi tập (`SessionDetail`). Xử lý chống tràn layout trên toàn bộ app khi tên sân hoặc địa chỉ sân dài.
 - **Tab Tài khoản & quyền**:
   - Mã CLB (`allow_code_join`): người mới nhập mã → yêu cầu chờ → chủ CLB **Ghép vào** bản ghi cũ / **Tạo thành viên mới** / **Từ chối**.
   - Trùng SĐT (`allow_phone_suggest`): so chỉ chữ số, gợi ý màu amber + nút Ghép. Không bao giờ tự ghép.

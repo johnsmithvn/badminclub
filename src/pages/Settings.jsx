@@ -1,7 +1,7 @@
 // Cài đặt: Chung · Cách chia tiền · Sân · Cầu · Nhóm cố định · Tài khoản & quyền (handoff 02 §7).
 
 import { useState, useEffect } from 'react'
-import { Alert, Avatar, Button, Card, Checkbox, Input, Select, Switch, Tabs, Tag } from '#ds'
+import { Alert, Avatar, Button, Card, Checkbox, Icon, Input, Select, Switch, Tabs, Tag } from '#ds'
 import { DeleteClubDialog, Empty, GRID_PAIR, Mono, Overline } from '#ui'
 import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -447,6 +447,7 @@ function Courts({ canEdit }) {
             <div style={{ ...S.courtGrid, ...S.headRow }}>
               <span>{t('settings.colCourt')}</span>
               <span>{t('settings.colAddress')}</span>
+              <span>{t('settings.colMapUrl')}</span>
               <span>{t('settings.colPrice')}</span>
               <span>{t('settings.colActive')}</span>
             </div>
@@ -454,8 +455,33 @@ function Courts({ canEdit }) {
               <div key={c.id} style={S.courtGrid}>
                 <Input value={c.name} disabled={!canEdit}
                   onChange={(e) => a.setCourtField(c.id, 'name', e.target.value)} />
-                <Input value={c.addr || ''} disabled={!canEdit}
+                <Input value={c.addr || ''} disabled={!canEdit} placeholder="Địa chỉ sân..."
                   onChange={(e) => a.setCourtField(c.id, 'addr', e.target.value)} />
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <Input
+                    value={c.mapUrl || ''}
+                    disabled={!canEdit}
+                    placeholder="https://maps.app.goo.gl/..."
+                    style={{ flex: 1 }}
+                    onChange={(e) => a.setCourtField(c.id, 'mapUrl', e.target.value)}
+                  />
+                  {c.mapUrl && (
+                    <a
+                      href={c.mapUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: 32, height: 32, borderRadius: 6,
+                        border: '1px solid var(--border-subtle)', background: 'var(--surface-brand-soft)',
+                        color: 'var(--teal-600)', flexShrink: 0, textDecoration: 'none',
+                      }}
+                      title="Mở liên kết bản đồ"
+                    >
+                      <Icon name="map-pin" size={15} />
+                    </a>
+                  )}
+                </div>
                 <Input mono suffix={t('units.dong')} value={String(c.price)} disabled={!canEdit}
                   onChange={(e) => a.setCourtField(c.id, 'price', e.target.value)} />
                 <Switch checked={c.active !== false} disabled={!canEdit}
@@ -940,7 +966,7 @@ const S = {
     background: 'var(--surface-inset)', border: '1px dashed var(--border-subtle)',
   },
   priceGrid: { display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 10, alignItems: 'center' },
-  courtGrid: { display: 'grid', gridTemplateColumns: '1.2fr 1.4fr 1fr 70px', gap: 10, alignItems: 'center' },
+  courtGrid: { display: 'grid', gridTemplateColumns: '1.2fr 1.3fr 1.3fr 1fr 70px', gap: 10, alignItems: 'center' },
   groupBox: { display: 'grid', gap: 8, padding: '11px 13px', borderRadius: 8, background: 'var(--surface-inset)' },
   mergeBox: {
     display: 'grid', gap: 7, padding: '10px 12px', borderRadius: 8,

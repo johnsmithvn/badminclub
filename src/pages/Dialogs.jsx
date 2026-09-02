@@ -525,6 +525,13 @@ function NewCourtDialog() {
       onSubmit={() => a.addCourt()} submitLabel={t('common.add')} submitIcon="plus">
       <Input label={t('settings.fCourtName')} value={f.cName || ''} onChange={(e) => a.setF('cName', e.target.value)} />
       <Input label={t('settings.fCourtAddr')} value={f.cAddr || ''} onChange={(e) => a.setF('cAddr', e.target.value)} />
+      <Input
+        label={t('settings.fCourtMapUrl')}
+        placeholder="https://maps.app.goo.gl/..."
+        hint={t('settings.fCourtMapUrlHint')}
+        value={f.cMapUrl || ''}
+        onChange={(e) => a.setF('cMapUrl', e.target.value)}
+      />
       <Input label={t('settings.fCourtPrice')} mono suffix={t('units.dong')} value={f.cPrice || ''}
         onChange={(e) => a.setF('cPrice', e.target.value)} />
     </Shell>

@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Alert, Button, Card, IconButton, Input, Select, Switch } from '#ds'
+import { Alert, Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
 import { Empty, LevelChip, Mono, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
@@ -82,7 +82,7 @@ export default function SessionDetail() {
               </span>
               <SessionPill status={s.status} size="md" />
             </div>
-            <Mono color="var(--text-muted)">
+            <Mono color="var(--text-muted)" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
               {group.name + ' · ' + timeTxt(s) + ' · ' + courtTxt(db, s)}
             </Mono>
           </div>
@@ -341,6 +341,22 @@ export default function SessionDetail() {
                   <div style={{ flex: 1, minWidth: 140 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                       <span style={S.label}>{courtOf(db, c.courtId).name}</span>
+                      {courtOf(db, c.courtId).mapUrl && (
+                        <a
+                          href={courtOf(db, c.courtId).mapUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 3,
+                            color: 'var(--teal-600)', fontSize: 12, textDecoration: 'none',
+                            padding: '2px 6px', borderRadius: 4, background: 'var(--surface-brand-soft)',
+                          }}
+                          title="Mở liên kết bản đồ vị trí sân"
+                        >
+                          <Icon name="map-pin" size={12} />
+                          <span>{t('settings.openMap') || 'Bản đồ'}</span>
+                        </a>
+                      )}
                       {c.extra && <span style={S.tagAmber}>{t('session.extraBadge')}</span>}
                       {c.sold && <span style={S.tagGreen}>{t('session.soldBadge')}</span>}
                     </div>

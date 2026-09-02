@@ -140,6 +140,10 @@ const raw = {
     court_pay_mode: 'month', allow_code_join: true, allow_invite: true, allow_phone_suggest: true,
     levels: ['Y', 'Y+', 'TB-'],
   },
+  courts: [
+    { id: 'c1', name: 'Sân 1', address: '123 Đường A', map_url: 'https://maps.app.goo.gl/c1', price_per_hour: 120000, active: true },
+    { id: 'c2', name: 'Sân 2', address: '123 Đường A', map_url: null, price_per_hour: 120000, active: true },
+  ],
   members: [{ id: 'm1', name: 'A', gender: 'nam', level: 'Y+', role: 'owner', joined_at: '2026-08-01', active: true }],
   guests: [{ id: 'g1', name: 'K', gender: 'nu', level: 'Y', club_id: 'CL1' }],
   sessions: [{
@@ -172,6 +176,8 @@ const raw = {
 }
 const back = toDb(raw, { clubId: 'CL1' })
 
+assert.equal(back.courts[0].mapUrl, 'https://maps.app.goo.gl/c1', 'map_url phải map thành mapUrl')
+assert.equal(back.courts[1].mapUrl, '', 'map_url null phải map thành chuỗi rỗng')
 assert.deepEqual(back.levels, ['Y', 'Y+', 'TB-'], 'thang trình độ phải lấy của CLB')
 assert.equal(back.attendance.s1.m1, false, "status 'absent' phải đọc thành false, không phải vắng bản ghi")
 assert.deepEqual(back.sessions[0].courts.map((c) => c.courtId), ['c1', 'c2'], 'sân phải xếp theo court_index')
