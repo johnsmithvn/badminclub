@@ -260,9 +260,10 @@ Sửa hồ sơ tài khoản **không** đổi gì trong CLB nào, và ngược l
 tự sửa `level` của mình được. Yêu cầu đổi đi qua `member_changes` — SĐT áp dụng ngay khi duyệt,
 trình độ áp dụng từ tháng sau.
 
-**Cài đặt** 6 tab: Chung · Cách chia tiền · Sân · Cầu · Nhóm cố định · **Tài khoản & quyền**.
+**Cài đặt** 6 tab: Chung · Biểu phí · **Sân & Cầu** · Nhóm & mức thu · Lịch tập cố định · **Tài khoản & quyền**.
 - **Tab Chung**: Sửa tên CLB, quỹ mở đầu, ngày khoá sổ, thang trình độ của CLB, sao lưu cấu hình CLB (`Settings Export / Import` dạng file JSON).
-- **Tab Sân**: Quản lý danh sách sân, địa chỉ, giá/giờ và **Link Google Maps / Bản đồ** (`map_url`). Hỗ trợ mở liên kết bản đồ trực tiếp trên màn hình Cài đặt và chi tiết buổi tập (`SessionDetail`). Xử lý chống tràn layout trên toàn bộ app khi tên sân hoặc địa chỉ sân dài.
+- **Tab Biểu phí**: Mức quỹ cố định, tiền hoàn khi vắng, và bảng giá khách giao lưu dạng ma trận thẻ nhỏ gọn.
+- **Tab Sân & Cầu**: Quản lý danh sách sân (địa chỉ, link Google Maps, giá/giờ), bảng loại cầu (hỗ trợ thêm, sửa, xoá/ngừng dùng loại cầu an toàn) và định mức cầu mỗi ca/buổi dạng lưới ngang trực quan.
 - **Tab Tài khoản & quyền**:
   - Mã CLB (`allow_code_join`): người mới nhập mã → yêu cầu chờ → chủ CLB **Ghép vào** bản ghi cũ / **Tạo thành viên mới** / **Từ chối**.
   - Trùng SĐT (`allow_phone_suggest`): so chỉ chữ số, gợi ý màu amber + nút Ghép. Không bao giờ tự ghép.

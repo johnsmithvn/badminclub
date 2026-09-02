@@ -1526,6 +1526,23 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
       toast(t('toast.typeAdded'))
     },
+    deleteShuttleType: (id) => {
+      const d = db()
+      const type = (d.shuttleTypes || []).find((s) => s.id === id)
+      if (!type) return
+      const isUsed = (d.purchases || []).some((p) => p.typeId === id)
+      if (isUsed) {
+        toast('Loại cầu này đã có lịch sử nhập kho — đã chuyển sang trạng thái Ngừng dùng thay vì xoá để không hỏng sổ sách.')
+        up((prev) => ({
+          shuttleTypes: prev.shuttleTypes.map((x) => (x.id === id ? { ...x, active: false } : x)),
+        }))
+        return
+      }
+      up((prev) => ({
+        shuttleTypes: prev.shuttleTypes.filter((x) => x.id !== id),
+      }))
+      toast('Đã xoá loại cầu "' + type.name + '"')
+    },
     exportSettings: () => {
       const d = db()
       const data = {
