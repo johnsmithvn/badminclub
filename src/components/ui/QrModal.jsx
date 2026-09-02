@@ -35,7 +35,7 @@ export function QrModal({
       open
       title={title || t('bank.qrTitle')}
       onClose={onClose}
-      actions={
+      footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
           <Button variant="secondary" icon={copied ? 'check' : 'copy'} onClick={copyAccountNo}>
             {copied ? t('common.copied') : t('bank.copyNo')}

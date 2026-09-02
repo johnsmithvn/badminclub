@@ -811,7 +811,7 @@ function SessionDebts({ canMoney }) {
           open
           onClose={() => setConfirmCollect(null)}
           title={t('debts.collectDebtConfirmTitle')}
-          actions={
+          footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%' }}>
               <Button variant="secondary" onClick={() => setConfirmCollect(null)}>
                 {t('common.cancel')}

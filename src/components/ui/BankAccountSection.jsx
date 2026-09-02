@@ -321,7 +321,7 @@ export function BankAccountSection({
           open
           title={t('bank.confirmScanTitle')}
           onClose={cancelPendingScan}
-          actions={
+          footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%', flexWrap: 'wrap' }}>
               <Button variant="secondary" onClick={cancelPendingScan}>
                 {t('common.cancel')}
