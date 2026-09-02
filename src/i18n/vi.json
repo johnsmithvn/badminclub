@@ -1817,6 +1817,7 @@
     "selectPrompt": "— Chọn ngân hàng / ví điện tử —",
     "clickToEnlarge": "Bấm để phóng to mã QR",
     "qrAutoHint": "Nhập ngân hàng & số tài khoản để tự động sinh mã VietQR",
+    "unknownBank": "Chưa có ngân hàng này trong danh sách (mã {{code}}) — mã QR vẫn dùng được bình thường, chỉ là ô tên ngân hàng để trống.",
     "scanToFill": "Quét ảnh QR để điền tự động",
     "scanFailed": "Không đọc được mã VietQR trong ảnh — vui lòng nhập tay",
     "viewQr": "Xem mã QR",

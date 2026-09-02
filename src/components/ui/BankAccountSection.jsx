@@ -46,6 +46,11 @@ export function BankAccountSection({
 
   const detectedBank = useMemo(() => findBank(bankName), [bankName])
 
+  // Quét QR của ngân hàng chưa có trong banks.json thì `bankName` là mã BIN. SearchSelect
+  // không khớp option nào nên ô hiện trống, trong khi QR vẫn sinh đúng từ BIN đó.
+  // Nói thẳng ra thay vì để người dùng tưởng là mất dữ liệu.
+  const unknownBank = Boolean(bankName) && !detectedBank
+
   // Sinh link VietQR tự động khi có đủ ngân hàng và STK
   const autoVietQrUrl = useMemo(() => {
     if (!bankNo) return ''
@@ -143,6 +148,11 @@ export function BankAccountSection({
               onChange={(val) => handleBankChange(val || '')}
               clearable
             />
+            {unknownBank && (
+              <div style={{ fontSize: 11.5, color: 'var(--status-delayed)', marginTop: -4 }}>
+                {t('bank.unknownBank', { code: bankName })}
+              </div>
+            )}
             <Input
               label={t('settings.fBankNo')}
               mono
