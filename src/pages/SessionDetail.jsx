@@ -485,65 +485,6 @@ export default function SessionDetail() {
                   </div>
                 </Alert>
               )}
-
-              {canEdit && (
-                <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-                  {drift && canMoney && (
-                    <Button variant="primary" icon="rotate-ccw"
-                      style={{
-                        background: 'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)',
-                        borderColor: '#f59e0b',
-                        boxShadow: '0 2px 10px rgba(245, 158, 11, 0.4)',
-                        fontWeight: 700,
-                      }}
-                      onClick={() => a.setSessionStatus(s.id, 'closed')}>
-                      {t('session.driftBtn')}
-                    </Button>
-                  )}
-                  {s.status === 'draft' && (
-                    <Button variant="primary" icon="user-round-check"
-                      style={{
-                        background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
-                        borderColor: '#0ea5e9',
-                        boxShadow: '0 2px 10px rgba(14, 165, 233, 0.4)',
-                        fontWeight: 700,
-                      }}
-                      onClick={() => a.setSessionStatus(s.id, 'open')}>
-                      {t('session.doOpen')}
-                    </Button>
-                  )}
-                  {s.status === 'open' && (
-                    <Button variant="primary" icon="circle-check" disabled={!canMoney}
-                      style={{
-                        background: !canMoney ? undefined : 'linear-gradient(135deg, #0d5e3a 0%, #00875a 100%)',
-                        borderColor: !canMoney ? undefined : '#00875a',
-                        boxShadow: !canMoney ? undefined : '0 2px 12px rgba(0, 135, 90, 0.45)',
-                        fontWeight: 700,
-                        padding: '0 16px',
-                      }}
-                      onClick={() => a.confirm({
-                        title: 'Chốt buổi tập này?',
-                        message: 'Số liệu điểm danh, số lượng cầu và chi phí sẽ được đóng băng vào báo cáo.',
-                        tone: 'info',
-                        confirmText: 'Chốt buổi',
-                        onConfirm: () => a.setSessionStatus(s.id, 'closed'),
-                      })}>
-                      {t('session.doClose')}
-                    </Button>
-                  )}
-                  {(s.status === 'closed' || s.status === 'cancelled') && (
-                    <Button variant="secondary" icon="rotate-ccw" onClick={() => a.confirm({
-                      title: 'Mở lại buổi tập?',
-                      message: 'Buổi tập sẽ được mở lại để chỉnh sửa điểm danh và chi phí.',
-                      tone: 'warning',
-                      confirmText: 'Mở lại buổi',
-                      onConfirm: () => a.setSessionStatus(s.id, 'open'),
-                    })}>
-                      {t('session.doReopen')}
-                    </Button>
-                  )}
-                </div>
-              )}
             </div>
           </Card>
         </div>

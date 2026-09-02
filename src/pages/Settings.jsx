@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Alert, Avatar, Button, Card, Checkbox, Icon, Input, Select, Switch, Tabs, Tag } from '#ds'
-import { DeleteClubDialog, Empty, GRID_PAIR, Mono, Overline } from '#ui'
+import { DeleteClubDialog, Empty, GRID_PAIR, LevelChip, Mono, Overline } from '#ui'
 import { courtForm, groupForm } from '#lib/forms.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
@@ -345,49 +345,79 @@ function MoneyTab({ canEdit }) {
         <div style={{ display: 'grid', gap: 12 }}>
           {canEdit && (
             <div style={S.bulkBox}>
-              <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <Input label={t('settings.bulkPrice')} mono suffix={t('units.dong')} style={{ width: 150 }}
-                  value={bulkPrice} onChange={(e) => setBulkPrice(e.target.value)} />
-                <Select label={t('settings.bulkWho')} style={{ width: 150 }} value={bulkWho}
-                  options={[
-                    { value: 'both', label: t('settings.bulkBoth') },
-                    { value: 'nam', label: t('gender.nam') },
-                    { value: 'nu', label: t('gender.nu') },
-                  ]}
-                  onChange={(e) => setBulkWho(e.target.value)} />
-                <Button variant="accent" size="sm" icon="check" disabled={!bulkLevels.length}
-                  onClick={applyBulk}>
-                  {t('settings.bulkApply', { n: bulkLevels.length })}
-                </Button>
-              </div>
-              <div style={{ display: 'grid', gap: 5 }}>
-                <Overline>{t('settings.bulkPick')}</Overline>
-                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                  {db.levels.map((l) => (
-                    <button key={l} type="button" onClick={() => toggleBulkLevel(l)}
-                      style={{ ...S.pick, ...(bulkLevels.indexOf(l) >= 0 ? S.pickOn : null) }}>
-                      {l}
-                    </button>
-                  ))}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <Input label={t('settings.bulkPrice')} mono suffix={t('units.dong')} style={{ width: 140 }}
+                    value={bulkPrice} onChange={(e) => setBulkPrice(e.target.value)} />
+                  <Select label={t('settings.bulkWho')} style={{ width: 140 }} value={bulkWho}
+                    options={[
+                      { value: 'both', label: t('settings.bulkBoth') },
+                      { value: 'nam', label: t('gender.nam') },
+                      { value: 'nu', label: t('gender.nu') },
+                    ]}
+                    onChange={(e) => setBulkWho(e.target.value)} />
+                  <Button variant="accent" size="sm" icon="check" disabled={!bulkLevels.length}
+                    onClick={applyBulk}>
+                    {t('settings.bulkApply', { n: bulkLevels.length })}
+                  </Button>
                 </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <Button variant="ghost" size="sm" onClick={() => setBulkLevels(db.levels)}>
+                    Chọn tất cả
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={!bulkLevels.length} onClick={() => setBulkLevels([])}>
+                    Bỏ chọn
+                  </Button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {db.levels.map((l) => (
+                  <button key={l} type="button" onClick={() => toggleBulkLevel(l)}
+                    style={{ ...S.pick, ...(bulkLevels.indexOf(l) >= 0 ? S.pickOn : null) }}>
+                    {l}
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
-          <div style={{ ...S.priceGrid, ...S.headRow }}>
-            <span>{t('settings.colLevel')}</span>
-            <span>{t('settings.colMale')}</span>
-            <span>{t('settings.colFemale')}</span>
+          {/* Ma trận thẻ trình độ đa cột gọn gàng */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+            gap: 10,
+          }}>
+            {guestPrices.map((p) => (
+              <div key={p.level} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: 'var(--surface-inset)',
+                border: '1px solid var(--border-subtle)',
+              }}>
+                <div style={{ minWidth: 65 }}>
+                  <LevelChip level={p.level} levels={db.levels} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Nam</span>
+                    <Input mono suffix={t('units.dong')} value={String(p.nam)} disabled={!canEdit}
+                      onChange={(e) => setPrice(p.level, 'nam', e.target.value)}
+                      style={{ width: 92 }} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Nữ</span>
+                    <Input mono suffix={t('units.dong')} value={String(p.nu)} disabled={!canEdit}
+                      onChange={(e) => setPrice(p.level, 'nu', e.target.value)}
+                      style={{ width: 92 }} />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          {guestPrices.map((p) => (
-            <div key={p.level} style={S.priceGrid}>
-              <span style={S.label}>{p.level}</span>
-              <Input mono suffix={t('units.dong')} value={String(p.nam)} disabled={!canEdit}
-                onChange={(e) => setPrice(p.level, 'nam', e.target.value)} />
-              <Input mono suffix={t('units.dong')} value={String(p.nu)} disabled={!canEdit}
-                onChange={(e) => setPrice(p.level, 'nu', e.target.value)} />
-            </div>
-          ))}
         </div>
       </Card>
 
