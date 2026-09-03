@@ -884,13 +884,10 @@ trường nào (không có cách nào lấy dữ liệu từ hồ sơ tài kho�
 - [x] **Migration `0012_court_map_url`**: Thêm cột `map_url text` cho bảng `courts` hỗ trợ link Google Maps, mở bản đồ trực tiếp.
 - [x] **Highlight trực quan bảng Danh sách buổi (`sessionColumns`) & Card Buổi tới**: Thiết kế lại toàn bộ các cột với badge màu sắc phân biệt rõ ràng (Thứ/Ngày, Nhóm ca có icon, Giờ & Sân nổi bật, Điểm danh xanh lá, Khách màu cam, Cầu màu cyan, Tiền sân & Thu khách rõ ràng).
 
-- [ ] **Trần thứ hai:** `clubs.levels` mặc định của DB (`Newbie · TBY · TB- · TB`) KHÁC
-      `app.json → levelsDefault` (9 bậc) mà màn đăng ký dùng. Chọn 'Y+' lúc đăng ký rồi tạo CLB
-      thì `create_club` hạ về `levels[1]` — đúng luật mới, nhưng im lặng. Sửa cho khớp là đổi
-      hành vi của mọi CLB tạo mới, để user quyết.
-- [ ] **Chưa làm: GỘP hai bản ghi cùng một người** (bấm nhầm "Tạo thành viên mới"). Vẫn như cũ:
-      16 cột trỏ tới `club_members`, 4 UNIQUE, sync ghi từng dòng không transaction → phải là RPC
-      riêng. Đợt này chỉ làm cho việc đó ÍT xảy ra hơn, không sửa được ca đã lỡ.
+- [x] **Trần thứ hai: Đồng bộ thang trình độ mặc định DB (`0020_sync_default_levels.sql`) — XONG 2026-09-03.**
+      Cập nhật hàm `create_club` sử dụng fallback thang 10 bậc chuẩn `ARRAY['Y', 'Y+', 'TBY-', 'TBY', 'TBY+', 'TB-', 'TB', 'TB+', 'TBK', 'Khá']`
+      khớp 1:1 với `clubs.levels` (0014) và `app.json → levelsDefault`. Không còn nguy cơ bị hạ về bậc thấp nhất khi tạo CLB mới.
+- [ ] **GỘP hai bản ghi cùng một người (User tự ghép được, tạm bỏ qua theo quyết định của user 2026-09-03).**
 
 ---
 
