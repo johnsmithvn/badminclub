@@ -296,7 +296,9 @@ export default function CourtAssignmentTab({ s }) {
                   </div>
                 ) : (
                   <span style={{ fontSize: 12, color: isHighlighted ? '#5FDBD3' : '#5B6B81', fontWeight: 500 }}>
-                    + {t('courtAssign.slotEmpty')}
+                    + {isHighlighted
+                        ? t('courtAssign.slotPlace', { name: (pmap[selectedPoolKey] || {}).name || '' })
+                        : t('courtAssign.slotEmpty')}
                   </span>
                 )}
               </button>
@@ -422,7 +424,7 @@ export default function CourtAssignmentTab({ s }) {
                       cursor: isFull ? 'pointer' : 'not-allowed',
                     }}
                   >
-                    {t('courtAssign.finishBtn')}
+                    {isFull ? t('courtAssign.finishBtn') : t('courtAssign.finishBtnDisabled')}
                   </button>
                   <button
                     type="button"
