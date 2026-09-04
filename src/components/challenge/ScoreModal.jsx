@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
-import { calcEloDelta, getPlayerRating } from '#lib/rating.js'
+import { calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -88,20 +88,45 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
   const isComplete = setsWon.wonA >= targetWins || setsWon.wonB >= targetWins
   const winnerTeam = setsWon.wonA > setsWon.wonB ? 'A' : setsWon.wonB > setsWon.wonA ? 'B' : null
 
-  // Rating của 2 đội để tính preview Elo
-  const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
-
-  const avgRatingA = teamA.length ? teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length : 0
-  const avgRatingB = teamB.length ? teamB.reduce((sum, id) => sum + getRating(id), 0) / teamB.length : 0
+  // Rating preview có tính K-Factor động và Margin Multiplier
+  const playerDeltasPreview = useMemo(() => {
+    if (!winnerTeam || teamA.length === 0 || teamB.length === 0) return null
+    const ratingsMap = {}
+    const gamesCountMap = {}
+    ;[...teamA, ...teamB].forEach((id) => {
+      const pr = getPlayerRating(db.playerRatings, id)
+      ratingsMap[id] = pr.rating
+      gamesCountMap[id] = pr.matchesCount || 0
+    })
+    return calcPlayerDeltas({
+      teamA,
+      teamB,
+      aWon: winnerTeam === 'A',
+      ratingsMap,
+      gamesCountMap,
+      sets,
+    })
+  }, [winnerTeam, teamA, teamB, sets, db.playerRatings])
 
   const ratingDeltaPreview = useMemo(() => {
-    if (!winnerTeam || teamA.length === 0 || teamB.length === 0) return null
-    const res = calcEloDelta(avgRatingA, avgRatingB, winnerTeam === 'A')
+    if (!playerDeltasPreview) return null
+    const { deltas, multiplier } = playerDeltasPreview
+    const deltasA = teamA.map((id) => ({
+      id,
+      name: memberNameOf(id),
+      delta: deltas?.[id] || 0,
+    }))
+    const deltasB = teamB.map((id) => ({
+      id,
+      name: memberNameOf(id),
+      delta: deltas?.[id] || 0,
+    }))
     return {
-      deltaA: res.deltaA,
-      deltaB: res.deltaB,
+      deltasA,
+      deltasB,
+      mult: multiplier || 1,
     }
-  }, [avgRatingA, avgRatingB, winnerTeam, teamA, teamB])
+  }, [playerDeltasPreview, teamA, teamB, db.members])
 
   const handleSave = async () => {
     if (!winnerTeam || submitting) return
@@ -247,13 +272,23 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
               </span>
             </div>
             {ratingDeltaPreview && (
-              <div style={S.summaryRow}>
-                <span style={{ color: '#8494AA' }}>{t('scoreModal.ratingDelta')}</span>
-                <span style={{ color: '#E9EFF7', fontFamily: '"IBM Plex Mono", monospace' }}>
-                  {ratingDeltaPreview.deltaA > 0 ? `+${ratingDeltaPreview.deltaA}` : ratingDeltaPreview.deltaA}
-                  {' / '}
-                  {ratingDeltaPreview.deltaB > 0 ? `+${ratingDeltaPreview.deltaB}` : ratingDeltaPreview.deltaB}
-                </span>
+              <div style={{ ...S.summaryRow, alignItems: 'flex-start', paddingTop: 6, borderTop: '1px solid #22304A' }}>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <span style={{ color: '#8494AA' }}>{t('scoreModal.ratingDelta')}</span>
+                  {ratingDeltaPreview.mult > 1 && (
+                    <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'rgba(95,219,211,0.12)', color: '#5FDBD3', fontWeight: 600, display: 'inline-block', width: 'fit-content' }}>
+                      {t('rating.multiplier', { val: ratingDeltaPreview.mult.toFixed(2) })}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'grid', gap: 4, textAlign: 'right' }}>
+                  <div style={{ color: '#5FDBD3', fontFamily: '"IBM Plex Mono", monospace', fontSize: 12 }}>
+                    {ratingDeltaPreview.deltasA.map((p) => `${p.name} (${p.delta > 0 ? `+${p.delta}` : p.delta})`).join(' · ')}
+                  </div>
+                  <div style={{ color: '#A8B7CB', fontFamily: '"IBM Plex Mono", monospace', fontSize: 12 }}>
+                    {ratingDeltaPreview.deltasB.map((p) => `${p.name} (${p.delta > 0 ? `+${p.delta}` : p.delta})`).join(' · ')}
+                  </div>
+                </div>
               </div>
             )}
           </div>

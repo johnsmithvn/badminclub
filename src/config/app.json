@@ -68,10 +68,54 @@
   },
   "rating": {
     "defaultRating": 0,
+    "minRating": 0,
     "kFactor": 32,
+    "kDynamic": {
+      "r1": 48,
+      "r2": 36,
+      "r3": 28,
+      "r4": 20,
+      "r5": 16
+    },
     "defaultDeviation": 350,
     "balanceThreshold": 120,
-    "imbalanceThreshold": 250
+    "imbalanceThreshold": 250,
+    "marginOfVictory": {
+      "enabled": true,
+      "maxMultiplier": 1.4,
+      "divisor": 40
+    },
+    "inactivity": {
+      "warnDays": 30,
+      "decayDays": 45,
+      "decayAmount": 10
+    },
+    "levelInitialRatings": {
+      "yeu": 200,
+      "y": 200,
+      "y+": 250,
+      "newbie": 200,
+      "tby-": 300,
+      "tby": 350,
+      "tby+": 400,
+      "tb-": 450,
+      "tb": 500,
+      "tb+": 650,
+      "tbk": 720,
+      "kha": 800,
+      "tot": 1000,
+      "default": 200
+    },
+    "tiers": [
+      { "key": "novice", "min": 0, "max": 199, "color": "#94A3B8", "icon": "sparkles" },
+      { "key": "rookie", "min": 200, "max": 399, "color": "#38BDF8", "icon": "play" },
+      { "key": "regular", "min": 400, "max": 599, "color": "#34D399", "icon": "shield" },
+      { "key": "solid", "min": 600, "max": 799, "color": "#FACC15", "icon": "award" },
+      { "key": "net_master", "min": 800, "max": 999, "color": "#FB923C", "icon": "zap" },
+      { "key": "coverage", "min": 1000, "max": 1199, "color": "#F43F5E", "icon": "flame" },
+      { "key": "heavy_hitter", "min": 1200, "max": 1399, "color": "#A855F7", "icon": "trophy" },
+      { "key": "court_boss", "min": 1400, "max": 99999, "color": "#EC4899", "icon": "crown" }
+    ]
   },
   "challenge": {
     "defaultBestOf": 3,

@@ -4,9 +4,127 @@
 import cfg from '#config/app.json' with { type: 'json' }
 
 export const DEFAULT_RATING = cfg.rating?.defaultRating ?? 0
+export const MIN_RATING = cfg.rating?.minRating ?? 0
 export const K_FACTOR = cfg.rating?.kFactor ?? 32
+export const K_DYNAMIC = cfg.rating?.kDynamic || { r1: 48, r2: 36, r3: 28, r4: 20, r5: 16 }
 export const BALANCE_THRESHOLD = cfg.rating?.balanceThreshold ?? 120
 export const IMBALANCE_THRESHOLD = cfg.rating?.imbalanceThreshold ?? 250
+export const TIERS = cfg.rating?.tiers || [
+  { key: 'novice', min: 0, max: 199, color: '#94A3B8', icon: 'sparkles' },
+  { key: 'rookie', min: 200, max: 399, color: '#38BDF8', icon: 'play' },
+  { key: 'regular', min: 400, max: 599, color: '#34D399', icon: 'shield' },
+  { key: 'solid', min: 600, max: 799, color: '#FACC15', icon: 'award' },
+  { key: 'net_master', min: 800, max: 999, color: '#FB923C', icon: 'zap' },
+  { key: 'coverage', min: 1000, max: 1199, color: '#F43F5E', icon: 'flame' },
+  { key: 'heavy_hitter', min: 1200, max: 1399, color: '#A855F7', icon: 'trophy' },
+  { key: 'court_boss', min: 1400, max: 99999, color: '#EC4899', icon: 'crown' },
+]
+
+/**
+ * Điểm Elo xuất phát (Seed Rating) gắn với Trình độ của thành viên.
+ * Ưu tiên:
+ * 1. Bảng cấu hình levelInitialRatings trong app.json (yeu: 200, tb: 500, kha: 800...)
+ * 2. Nội suy theo vị trí index của bậc trong mảng levels của CLB (200 -> 1000).
+ * 3. Fallback: DEFAULT_RATING.
+ * @param {string} [level]
+ * @param {Array<string>} [levels]
+ * @returns {number}
+ */
+export function initialRatingOf(level, levels) {
+  if (!level) return DEFAULT_RATING
+  const lKey = String(level).trim().toLowerCase()
+  const map = cfg.rating?.levelInitialRatings || {}
+  if (map[lKey] != null) return map[lKey]
+
+  // Chuẩn hoá bỏ dấu để so sánh an toàn không phụ thuộc font/bảng mã
+  const lClean = lKey.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0111/g, 'd') // i18n-ok: data normalization
+  if (map[lClean] != null) return map[lClean]
+  if (lClean.includes('yeu') || lClean === 'y' || lClean === 'newbie') return map.yeu ?? 200
+  if (lClean.includes('kha') || lClean === 'k' || lClean === 'tbk') return map.kha ?? 800
+  if (lClean.includes('tot') || lClean.includes('gioi') || lClean === 'pro') return map.tot ?? 1000
+  if (lClean === 'tb' || lClean.includes('trung binh')) return map.tb ?? 500
+
+  // Nếu có danh sách levels của CLB, nội suy theo index từ 200 đến 1000
+  if (Array.isArray(levels) && levels.length > 1) {
+    const idx = levels.findIndex((x) => String(x).trim().toLowerCase() === lKey)
+    if (idx >= 0) {
+      const minSeed = 200
+      const maxSeed = 1000
+      const pct = idx / (levels.length - 1)
+      return Math.round(minSeed + pct * (maxSeed - minSeed))
+    }
+  }
+
+  return DEFAULT_RATING
+}
+
+/**
+ * Trả về hệ số K riêng cho người chơi dựa vào số trận đã đấu (độ tin cậy R1 -> R5).
+ * Người mới (R1) K cao (48) để nhanh về đúng trình.
+ * Người kỳ cựu (R5) K thấp (16) để điểm vững vàng, không bị oan khi cõng tạ.
+ */
+export function kFactorOf(gamesCount = 0) {
+  if (gamesCount < 5) return K_DYNAMIC.r1 ?? 48
+  if (gamesCount < 15) return K_DYNAMIC.r2 ?? 36
+  if (gamesCount < 30) return K_DYNAMIC.r3 ?? 28
+  if (gamesCount < 50) return K_DYNAMIC.r4 ?? 20
+  return K_DYNAMIC.r5 ?? 16
+}
+
+/**
+ * Tính hệ số nhân khoảng cách tỷ số (Margin of Victory Multiplier).
+ * Thắng sát nút (21-19) nhân ~1.05.
+ * Thắng áp đảo (21-5) nhân tối đa ~1.40.
+ */
+export function marginMultiplier(sets) {
+  if (!sets || !sets.length || cfg.rating?.marginOfVictory?.enabled === false) return 1.0
+  const played = sets.filter((s) => (s[0] || 0) + (s[1] || 0) > 0)
+  if (!played.length) return 1.0
+  const diffSum = played.reduce((acc, s) => acc + Math.abs((s[0] || 0) - (s[1] || 0)), 0)
+  const avgDiff = diffSum / played.length
+  const maxMult = cfg.rating?.marginOfVictory?.maxMultiplier ?? 1.4
+  const divisor = cfg.rating?.marginOfVictory?.divisor ?? 40
+  const mult = 1 + (avgDiff / divisor)
+  return Math.min(maxMult, Math.max(1.0, Math.round(mult * 100) / 100))
+}
+
+export const TIER_EMOJIS = {
+  novice: '✨',
+  rookie: '🏸',
+  regular: '🛡️',
+  solid: '⚔️',
+  net_master: '⚡',
+  coverage: '🔥',
+  heavy_hitter: '🏆',
+  court_boss: '👑',
+}
+
+/**
+ * Xác định phân hạng Rank Tier (Hỗ trợ 4 bộ Theme: street, comedy, destroyer, slang)
+ * @param {number} [rating=0]
+ * @param {string} [themeKey='street']
+ */
+export function rankTierOf(rating = 0, themeKey = 'street') {
+  const r = Math.max(MIN_RATING, Math.round(rating || 0))
+  const tier = TIERS.find((t) => r >= t.min && r <= t.max) || TIERS[0]
+  const range = (tier.max === 99999 ? 200 : (tier.max - tier.min + 1))
+  const progress = Math.min(100, Math.max(0, Math.round(((r - tier.min) / range) * 100)))
+  const safeTheme = themeKey || 'street'
+  return {
+    key: tier.key,
+    labelKey: `rating.tierThemes.${safeTheme}.${tier.key}`,
+    fallbackLabelKey: `rating.tier.${tier.key}`,
+    quipKey: `rating.comedyQuips.${tier.key}`,
+    color: tier.color,
+    icon: tier.icon,
+    emoji: TIER_EMOJIS[tier.key] || '🏸',
+    min: tier.min,
+    max: tier.max,
+    rating: r,
+    progress,
+    theme: safeTheme,
+  }
+}
 
 /** Đánh giá độ cân bằng giữa 2 mức rating */
 export function evalBalance(ra, rb) {
@@ -23,13 +141,26 @@ export function expectedScore(ra, rb) {
 
 /**
  * Lấy an toàn thông tin rating của 1 người chơi từ playerRatings (hỗ trợ cả Object Map lẫn Array).
+ * Trả về rating kỹ thuật và displayRating luôn >= MIN_RATING (0).
+ * Nếu chưa đấu trận nào, dùng seed rating gắn với trình độ của thành viên (member.level).
  * @param {Object|Array} playerRatings
  * @param {string} memberId
- * @returns {{ rating: number, gamesCount: number, confidence: string, winsCount: number, lossesCount: number }}
+ * @param {Object} [member]
+ * @param {Array<string>} [levels]
+ * @returns {{ rating: number, displayRating: number, gamesCount: number, confidence: string, winsCount: number, lossesCount: number, tier: Object }}
  */
-export function getPlayerRating(playerRatings, memberId) {
+export function getPlayerRating(playerRatings, memberId, member = null, levels = null) {
+  const seedRating = member?.level ? initialRatingOf(member.level, levels) : DEFAULT_RATING
   if (!playerRatings || !memberId) {
-    return { rating: DEFAULT_RATING, gamesCount: 0, confidence: 'low', winsCount: 0, lossesCount: 0 }
+    return {
+      rating: seedRating,
+      displayRating: Math.max(MIN_RATING, seedRating),
+      gamesCount: 0,
+      confidence: 'low',
+      winsCount: 0,
+      lossesCount: 0,
+      tier: rankTierOf(seedRating),
+    }
   }
   let found = null
   if (Array.isArray(playerRatings)) {
@@ -38,15 +169,27 @@ export function getPlayerRating(playerRatings, memberId) {
     found = playerRatings[memberId]
   }
   if (!found) {
-    return { rating: DEFAULT_RATING, gamesCount: 0, confidence: 'low', winsCount: 0, lossesCount: 0 }
+    return {
+      rating: seedRating,
+      displayRating: Math.max(MIN_RATING, seedRating),
+      gamesCount: 0,
+      confidence: 'low',
+      winsCount: 0,
+      lossesCount: 0,
+      tier: rankTierOf(seedRating),
+    }
   }
+  const r = Math.round(found.rating ?? seedRating)
+  const gCount = found.gamesCount ?? found.games_count ?? 0
   return {
     ...found,
-    rating: Math.round(found.rating ?? DEFAULT_RATING),
-    gamesCount: found.gamesCount ?? found.games_count ?? 0,
+    rating: r,
+    displayRating: Math.max(MIN_RATING, r),
+    gamesCount: gCount,
     winsCount: found.winsCount ?? found.wins_count ?? 0,
     lossesCount: found.lossesCount ?? found.losses_count ?? 0,
-    confidence: found.confidence ?? found.confidence_label ?? confidenceOf(found.gamesCount ?? 0),
+    confidence: found.confidence ?? found.confidence_label ?? confidenceOf(gCount),
+    tier: rankTierOf(r),
   }
 }
 
@@ -61,17 +204,46 @@ export function teamRating(playerIds, ratingsMap) {
 }
 
 /**
- * Tính điểm biến thiên Elo (delta) cho trận đấu.
+ * Tính điểm biến thiên Elo (delta) cho trận đấu (Hỗ trợ K tùy biến và hệ số cách biệt Margin of Victory).
  * @param {number} ra - Rating đội A
  * @param {number} rb - Rating đội B
  * @param {boolean} aWon - Đội A thắng hay thua
  * @param {number} [k] - Hệ số K (mặc định 32)
+ * @param {Array} [sets] - Danh sách set điểm để tính Margin of Victory
  */
-export function calcEloDelta(ra, rb, aWon, k = K_FACTOR) {
+export function calcEloDelta(ra, rb, aWon, k = K_FACTOR, sets = null) {
   const ea = expectedScore(ra, rb)
   const actualA = aWon ? 1 : 0
-  const deltaA = Math.round(k * (actualA - ea))
-  return { deltaA, deltaB: -deltaA, expectedA: ea, expectedB: 1 - ea }
+  const mult = sets ? marginMultiplier(sets) : 1.0
+  const deltaA = Math.round(k * (actualA - ea) * mult)
+  return { deltaA, deltaB: -deltaA, expectedA: ea, expectedB: 1 - ea, multiplier: mult }
+}
+
+/**
+ * Tính điểm biến thiên Elo RIÊNG BIỆT cho từng thành viên trong đội dựa theo:
+ * - Hệ số K cá nhân (Dynamic K-Factor theo số trận R1-R5)
+ * - Hệ số cách biệt tỷ số set (Margin of Victory)
+ */
+export function calcPlayerDeltas({ teamA = [], teamB = [], aWon, ratingsMap = {}, gamesCountMap = {}, sets = null }) {
+  const ra = teamRating(teamA, ratingsMap)
+  const rb = teamRating(teamB, ratingsMap)
+  const ea = expectedScore(ra, rb)
+  const eb = 1 - ea
+  const mult = sets ? marginMultiplier(sets) : 1.0
+
+  const deltas = {}
+  teamA.forEach((id) => {
+    const k = kFactorOf(gamesCountMap[id] || 0)
+    const raw = k * ((aWon ? 1 : 0) - ea) * mult
+    deltas[id] = Math.round(raw)
+  })
+  teamB.forEach((id) => {
+    const k = kFactorOf(gamesCountMap[id] || 0)
+    const raw = k * ((!aWon ? 1 : 0) - eb) * mult
+    deltas[id] = Math.round(raw)
+  })
+
+  return { deltas, expectedA: ea, expectedB: eb, multiplier: mult, ra, rb }
 }
 
 /**
@@ -172,7 +344,7 @@ export function effectiveRating(member, opponentHasOppositeGender, calibrationLi
  * @param {string} editedMatchId - ID của trận vừa bị sửa
  * @param {Array} members - Danh sách thành viên CLB
  */
-export function replayRatingCascade(allMatches, editedMatchId, members) {
+export function replayRatingCascade(allMatches, editedMatchId, members, levels) {
   // Sắp xếp các trận theo thời gian tăng dần
   const sorted = [...(allMatches || [])].sort((a, b) => (a.at || 0) - (b.at || 0))
   const startIdx = sorted.findIndex((m) => m.id === editedMatchId)
@@ -184,7 +356,7 @@ export function replayRatingCascade(allMatches, editedMatchId, members) {
   const winsCount = {}
   const lossesCount = {}
   ;(members || []).forEach((m) => {
-    ratings[m.id] = DEFAULT_RATING
+    ratings[m.id] = initialRatingOf(m?.level, levels)
     gamesCount[m.id] = 0
     winsCount[m.id] = 0
     lossesCount[m.id] = 0
@@ -218,10 +390,21 @@ export function replayRatingCascade(allMatches, editedMatchId, members) {
 
     let delta = 0
     if (isRated) {
-      const { deltaA } = calcEloDelta(ra, rb, aWon, K_FACTOR)
-      delta = deltaA
-      teamA.forEach((id) => { ratings[id] = (ratings[id] || DEFAULT_RATING) + deltaA })
-      teamB.forEach((id) => { ratings[id] = (ratings[id] || DEFAULT_RATING) - deltaA })
+      const { deltas } = calcPlayerDeltas({
+        teamA,
+        teamB,
+        aWon,
+        ratingsMap: ratings,
+        gamesCountMap: gamesCount,
+        sets: m.sets,
+      })
+      delta = deltas[teamA[0]] || 0
+      teamA.forEach((id) => {
+        ratings[id] = (ratings[id] || DEFAULT_RATING) + (deltas[id] || 0)
+      })
+      teamB.forEach((id) => {
+        ratings[id] = (ratings[id] || DEFAULT_RATING) + (deltas[id] || 0)
+      })
     }
 
     // Tăng số trận
@@ -245,20 +428,90 @@ export function replayRatingCascade(allMatches, editedMatchId, members) {
     }
   })
 
-  // Dựng kết quả ratings cuối cùng cho từng người
+  // Dựng kết quả ratings cuối cùng cho từng người (kèm tier & displayRating)
   const finalRatings = {}
   Object.keys(ratings).forEach((id) => {
+    const finalR = Math.round(ratings[id])
     finalRatings[id] = {
       memberId: id,
-      rating: ratings[id],
+      rating: finalR,
+      displayRating: Math.max(MIN_RATING, finalR),
       gamesCount: gamesCount[id] || 0,
       winsCount: winsCount[id] || 0,
       lossesCount: lossesCount[id] || 0,
       confidence: confidenceOf(gamesCount[id] || 0),
+      tier: rankTierOf(finalR),
     }
   })
 
   return { finalRatings, updatedMatches }
+}
+
+/**
+ * Tính toán suy hao phong độ (Inactivity Decay) do nghỉ đấu lâu ngày.
+ * - < 30 ngày: Bình thường (active)
+ * - 30-44 ngày: Cảnh báo tạm nghỉ (inactive = true, decay = 0)
+ * - >= 45 ngày: Bắt đầu trừ nhẹ 10 điểm cho mỗi chu kỳ 30 ngày tiếp theo (decay > 0, floor >= 0)
+ * @param {number} rating
+ * @param {string|number|Date} [lastMatchAt]
+ * @param {string|number|Date} [asOfDate]
+ */
+export function applyInactivityDecay(rating, lastMatchAt, asOfDate = new Date()) {
+  const currentRating = Math.max(MIN_RATING, Math.round(rating || 0))
+  if (!lastMatchAt) {
+    return {
+      rating: currentRating,
+      daysInactive: 0,
+      isInactive: false,
+      decayAmount: 0,
+    }
+  }
+
+  const lastDate = new Date(lastMatchAt).getTime()
+  const refDate = new Date(asOfDate).getTime()
+  if (isNaN(lastDate) || isNaN(refDate) || refDate <= lastDate) {
+    return {
+      rating: currentRating,
+      daysInactive: 0,
+      isInactive: false,
+      decayAmount: 0,
+    }
+  }
+
+  const daysInactive = Math.floor((refDate - lastDate) / (1000 * 60 * 60 * 24))
+  const warnDays = cfg.rating?.inactivity?.warnDays ?? 30
+  const decayDays = cfg.rating?.inactivity?.decayDays ?? 45
+  const decayAmountPerPeriod = cfg.rating?.inactivity?.decayAmount ?? 10
+
+  if (daysInactive < warnDays) {
+    return {
+      rating: currentRating,
+      daysInactive,
+      isInactive: false,
+      decayAmount: 0,
+    }
+  }
+
+  if (daysInactive < decayDays) {
+    return {
+      rating: currentRating,
+      daysInactive,
+      isInactive: true,
+      decayAmount: 0,
+    }
+  }
+
+  // Quá decayDays (45 ngày): tính số chu kỳ 30 ngày kế tiếp
+  const periods = Math.floor((daysInactive - decayDays) / 30) + 1
+  const totalDecay = periods * decayAmountPerPeriod
+  const decayedRating = Math.max(MIN_RATING, currentRating - totalDecay)
+
+  return {
+    rating: decayedRating,
+    daysInactive,
+    isInactive: true,
+    decayAmount: totalDecay,
+  }
 }
 
 /**

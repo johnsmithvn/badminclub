@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react'
 import { Button, Card, Icon, Input, Select } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { expectedScore, confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating } from '#lib/rating.js'
+import { expectedScore, confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING } from '#lib/rating.js'
 import { searchMatches, headToHeadMatrix, neverMetPairs } from '#lib/matchSearch.js'
+import { RANK_THEMES, DEFAULT_RANK_THEME, getMemberBadge } from '#data/rankThemes.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -16,6 +17,8 @@ export default function Leaderboard() {
   const [activeTab, setActiveTab] = useState('season') // 'season' | 'chart' | 'search' | 'matrix' | 'cross'
   const [yearFilter, setYearFilter] = useState('2026')
   const [searchName, setSearchName] = useState('')
+  const [activeFilter, setActiveFilter] = useState('all') // 'all' | 'active'
+  const [rankTheme, setRankTheme] = useState(DEFAULT_RANK_THEME)
 
   // State cho Tab 2 (Biểu đồ / Profile)
   const [selectedMemberId, setSelectedMemberId] = useState(null)
@@ -44,7 +47,7 @@ export default function Leaderboard() {
 
   const memberNameOf = (id) => (memberMap[id] || {}).name || id
 
-  const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
+  const getRating = (mid) => getPlayerRating(db.playerRatings, mid, memberMap[mid], db.levels).rating
 
   // -------------------------------------------------------------
   // TAB 1: Dữ liệu Bảng xếp hạng Mùa giải
@@ -52,8 +55,7 @@ export default function Leaderboard() {
   const leaderboardData = useMemo(() => {
     const matches = db.matches || []
     return activeMembers.map((m) => {
-      const pr = getPlayerRating(db.playerRatings, m.id)
-      const rating = pr.rating
+      const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
       const gamesCount = pr.gamesCount
       const confidence = pr.confidence || confidenceOf(gamesCount)
 
@@ -81,12 +83,24 @@ export default function Leaderboard() {
       const totalGames = wins + losses
       const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0
 
+      const lastMatchDate = myMatches[0]?.date || pr.lastMatchAt || null
+      const decay = applyInactivityDecay(pr.rating, lastMatchDate)
+      const displayRating = Math.max(MIN_RATING, decay.rating)
+      const tier = rankTierOf(displayRating, rankTheme)
+      const k = kFactorOf(totalGames || gamesCount)
+
       return {
         id: m.id,
         name: m.name,
         gender: m.gender,
         level: m.level,
-        rating,
+        rating: pr.rating,
+        displayRating,
+        tier,
+        isInactive: decay.isInactive,
+        daysInactive: decay.daysInactive,
+        decayAmount: decay.decayAmount,
+        k,
         gamesCount: totalGames || gamesCount,
         wins,
         losses,
@@ -95,10 +109,11 @@ export default function Leaderboard() {
         form,
       }
     }).filter((row) => {
+      if (activeFilter === 'active' && row.isInactive) return false
       if (!searchName.trim()) return true
       return row.name.toLowerCase().includes(searchName.toLowerCase())
-    }).sort((a, b) => b.rating - a.rating)
-  }, [activeMembers, db.playerRatings, db.matches, searchName])
+    }).sort((a, b) => b.displayRating - a.displayRating)
+  }, [activeMembers, db.playerRatings, db.matches, searchName, activeFilter, rankTheme])
 
   // -------------------------------------------------------------
   // TAB 2: Biểu đồ & Phân rã ngữ cảnh của 1 thành viên
@@ -169,7 +184,7 @@ export default function Leaderboard() {
   const searchResults = useMemo(() => {
     const ratingsMap = {}
     activeMembers.forEach((m) => {
-      ratingsMap[m.id] = getPlayerRating(db.playerRatings, m.id).rating
+      ratingsMap[m.id] = getPlayerRating(db.playerRatings, m.id, m, db.levels).rating
     })
 
     return searchMatches(db.matches || [], {
@@ -252,24 +267,46 @@ export default function Leaderboard() {
               <div style={S.cardTitle}>{t('leaderboard.title')} · {t('leaderboard.season', { year: yearFilter })}</div>
               <div style={S.cardSub}>{t('leaderboard.sub')}</div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Select
+                size="sm"
+                value={rankTheme}
+                onChange={(e) => setRankTheme(e.target.value)}
+                options={RANK_THEMES.map((th) => ({
+                  value: th.key,
+                  label: t(th.labelKey),
+                }))}
+                style={{ width: 175 }}
+                title={t('leaderboard.themeHint')}
+              />
+              <Select
+                size="sm"
+                value={activeFilter}
+                onChange={(e) => setActiveFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: t('leaderboard.filterAll') },
+                  { value: 'active', label: t('leaderboard.filterActiveOnly') },
+                ]}
+                style={{ width: 150 }}
+              />
               <Input
                 size="sm"
                 placeholder={t('leaderboard.searchPlaceholder')}
                 value={searchName}
                 onChange={(e) => setSearchName(e.target.value)}
-                style={{ width: 180 }}
+                style={{ width: 170 }}
               />
             </div>
           </div>
 
           {/* Bọc bảng có thanh cuộn ngang an toàn cho mobile 390px */}
           <div style={{ overflowX: 'auto', width: '100%' }}>
-            <div style={{ minWidth: 680 }}>
+            <div style={{ minWidth: 720 }}>
               {/* Header Bảng */}
               <div style={S.seasonTableHead}>
                 <div style={S.thCell}>{t('leaderboard.rank')}</div>
                 <div style={S.thCell}>{t('leaderboard.player')}</div>
+                <div style={S.thCell}>{t('leaderboard.tierCol')}</div>
                 <div style={{ ...S.thCell, textAlign: 'right' }}>{t('rating.elo')}</div>
                 <div style={S.thCell}>{t('rating.confidence.label')}</div>
                 <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.winLoss')}</div>
@@ -295,18 +332,48 @@ export default function Leaderboard() {
                       </div>
 
                       {/* Cột Tên & Trình độ */}
-                      <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
                           {row.name}
                         </span>
                         <span style={{ fontSize: 12, color: '#8494AA' }}>({row.gender})</span>
                         <LevelChip level={row.level} levels={db.levels} />
+                        {row.isInactive && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              background: '#2D1F10',
+                              color: '#F0B75C',
+                              border: '1px solid #784A15',
+                            }}
+                            title={t('rating.inactivity.days', { n: row.daysInactive })}
+                          >
+                            {t('leaderboard.inactiveBadge')}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Cột Cấp bậc Rank */}
+                      <div style={S.tdCell}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 14 }}>
+                            {row.tier.emoji}
+                          </span>
+                          <span
+                            style={{ fontSize: 12, fontWeight: 600, color: row.tier.color }}
+                            title={rankTheme === 'comedy' ? t(row.tier.quipKey) : undefined}
+                          >
+                            {t(row.tier.labelKey)}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Cột Elo */}
                       <div style={{ ...S.tdCell, textAlign: 'right' }}>
                         <span style={{ font: '700 15px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
-                          {row.rating}
+                          {row.displayRating}
                         </span>
                       </div>
 
@@ -415,59 +482,174 @@ export default function Leaderboard() {
                   </div>
                 </div>
 
-                {/* Card tiến trình độ tin cậy Rating R1 -> R5 */}
-                <div style={{ padding: '14px 16px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                      <span style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
-                        {profileContext.overallRating}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#8494AA', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Elo {t('rating.breakdown.overall')}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        padding: '3px 10px',
-                        borderRadius: 999,
-                        background: 'rgba(0,178,169,0.15)',
-                        border: '1px solid #00786F',
-                        color: '#5FDBD3',
-                        fontSize: 12,
-                        fontWeight: 700,
-                      }}>
-                        {t('rating.confidence.levelR', { num: confProg.levelNum })}
-                      </span>
-                      <span style={{ fontSize: 13, color: '#A8B7CB', fontWeight: 500 }}>
-                        {t('rating.confidence.' + profileContext.overallConf)}
-                      </span>
-                    </div>
-                  </div>
+                {/* Card tiến trình độ tin cậy Rating R1 -> R5 & Rank Tier */}
+                {(() => {
+                  const memberTier = rankTierOf(profileContext.overallRating, rankTheme)
+                  const memberK = kFactorOf(profileContext.overallGames)
+                  const pr = getPlayerRating(db.playerRatings, currentMember.id, currentMember, db.levels)
+                  const lastMatchDate = profileContext.recentMatches?.[0]?.date || pr.lastMatchAt || null
+                  const decayInfo = applyInactivityDecay(pr.rating, lastMatchDate)
 
-                  {/* Thanh tiến trình Progress Bar */}
-                  <div style={{ display: 'grid', gap: 5 }}>
-                    <div style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', border: '1px solid #1A2437' }}>
-                      <div style={{
-                        width: `${confProg.pct}%`,
-                        height: '100%',
-                        background: 'linear-gradient(90deg, #00786F, #00B2A9)',
-                        transition: 'width 0.3s ease',
-                      }} />
+                  return (
+                    <div style={{ padding: '14px 16px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                            {decayInfo.rating}
+                          </span>
+                          <span style={{ fontSize: 12, color: '#8494AA', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Elo {t('rating.breakdown.overall')}
+                          </span>
+                          <span style={{
+                            padding: '3px 10px',
+                            borderRadius: 999,
+                            background: 'rgba(240,183,92,0.15)',
+                            border: `1px solid ${memberTier.color}`,
+                            color: memberTier.color,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}>
+                            <span>{memberTier.emoji}</span>
+                            <span>{t(memberTier.labelKey)}</span>
+                          </span>
+                          <span style={{ fontSize: 12, color: '#5FDBD3', fontFamily: '"IBM Plex Mono", monospace' }}>
+                            {t('rating.kFactor', { k: memberK })}
+                          </span>
+                          {decayInfo.isInactive && (
+                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#2D1F10', color: '#F0B75C', border: '1px solid #784A15' }}>
+                              {t('rating.inactivity.days', { n: decayInfo.daysInactive })}
+                              {decayInfo.decayAmount > 0 && ` (${t('rating.inactivity.decayed', { amount: decayInfo.decayAmount })})`}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{
+                            padding: '3px 10px',
+                            borderRadius: 999,
+                            background: 'rgba(0,178,169,0.15)',
+                            border: '1px solid #00786F',
+                            color: '#5FDBD3',
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}>
+                            {t('rating.confidence.levelR', { num: confProg.levelNum })}
+                          </span>
+                          <span style={{ fontSize: 13, color: '#A8B7CB', fontWeight: 500 }}>
+                            {t('rating.confidence.' + profileContext.overallConf)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {rankTheme === 'comedy' && (
+                        <div style={{
+                          fontStyle: 'italic',
+                          fontSize: 12.5,
+                          color: '#A8B7CB',
+                          background: 'rgba(255,255,255,0.03)',
+                          padding: '6px 12px',
+                          borderRadius: 6,
+                          borderLeft: `3px solid ${memberTier.color}`,
+                        }}>
+                          "{t(memberTier.quipKey)}"
+                        </div>
+                      )}
+
+                      {/* Thanh tiến trình Progress Bar */}
+                      <div style={{ display: 'grid', gap: 5 }}>
+                        <div style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', border: '1px solid #1A2437' }}>
+                          <div style={{
+                            width: `${confProg.pct}%`,
+                            height: '100%',
+                            background: 'linear-gradient(90deg, #00786F, #00B2A9)',
+                            transition: 'width 0.3s ease',
+                          }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: '#8494AA' }}>
+                          <span>
+                            {confProg.isMax
+                              ? t('rating.confidence.maxReached')
+                              : t('rating.confidence.progress', { needed: confProg.needed, nextLevel: confProg.nextLevel })}
+                          </span>
+                          <span style={{ fontFamily: '"IBM Plex Mono", monospace' }}>
+                            {confProg.current}/{confProg.target} ({confProg.pct}%)
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: '#8494AA' }}>
-                      <span>
-                        {confProg.isMax
-                          ? t('rating.confidence.maxReached')
-                          : t('rating.confidence.progress', { needed: confProg.needed, nextLevel: confProg.nextLevel })}
-                      </span>
-                      <span style={{ fontFamily: '"IBM Plex Mono", monospace' }}>
-                        {confProg.current}/{confProg.target} ({confProg.pct}%)
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  )
+                })()}
               </div>
             </div>
+
+            {/* Playstyle Badge & Quip Card */}
+            {(() => {
+              const badge = getMemberBadge(currentMember.id)
+              return (
+                <div style={{
+                  padding: '14px 18px',
+                  borderRadius: 8,
+                  background: '#101927',
+                  border: `1px solid ${badge.color}44`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  flexWrap: 'wrap',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 10,
+                      background: `${badge.color}1F`,
+                      border: `1px solid ${badge.color}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 22,
+                    }}>
+                      {badge.emoji}
+                    </div>
+                    <div style={{ display: 'grid', gap: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, color: '#8494AA', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                          {t('leaderboard.playstyleBadge')}
+                        </span>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: 4,
+                          background: `${badge.color}22`,
+                          color: badge.color,
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                        }}>
+                          {t(badge.nameKey)}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#E2E8F0', fontStyle: 'italic' }}>
+                        "{t(badge.descKey)}"
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Select
+                      size="sm"
+                      value={rankTheme}
+                      onChange={(e) => setRankTheme(e.target.value)}
+                      options={RANK_THEMES.map((th) => ({
+                        value: th.key,
+                        label: t(th.labelKey),
+                      }))}
+                      style={{ minWidth: 165 }}
+                      title={t('leaderboard.themeHint')}
+                    />
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* 4 Card Ngữ cảnh */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
@@ -830,13 +1012,13 @@ const S = {
   },
   seasonTableHead: {
     display: 'grid',
-    gridTemplateColumns: '60px minmax(180px, 1.5fr) 90px 140px 110px 100px 130px',
+    gridTemplateColumns: '60px minmax(170px, 1.5fr) 110px 90px 130px 100px 90px 120px',
     background: '#101927',
     borderBottom: '1px solid #22304A',
   },
   seasonTableRow: {
     display: 'grid',
-    gridTemplateColumns: '60px minmax(180px, 1.5fr) 90px 140px 110px 100px 130px',
+    gridTemplateColumns: '60px minmax(170px, 1.5fr) 110px 90px 130px 100px 90px 120px',
     borderBottom: '1px solid #22304A',
     minHeight: 48,
     alignItems: 'center',

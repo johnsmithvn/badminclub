@@ -46,6 +46,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | **Tách biệt dòng tiền**: Giá thành buổi và Quỹ tháng tuyệt đối không bị ảnh hưởng bởi Kèo & Elo | `money/isolation.test.js` |
 | Kèo đấu: Sinh mã C-XXXX · hướng kèo · độ cân · quyền huỷ · thành viên có mặt | `lib/challenge.test.js` |
 | Elo Engine: Expected score · tính delta có upset · R1–R5 · cascade replay sửa điểm | `lib/rating.test.js` |
+| **Nâng cấp Rating**: Dynamic K (R1–R5) · Margin of Victory (21-19 vs 21-5) · Elo Floor >= 0 · Rank Tiers · Inactivity Decay | `lib/rating_upgrades.test.js` |
 | Tìm trận & Đối đầu: Lọc A vs B · cùng đội · sát điểm · bất ngờ · ma trận H2H · cặp chưa gặp | `lib/matchSearch.test.js` |
 | Vòng đời Kèo đấu trong appActions: Tạo · Nhận · Xếp sân · Ghi điểm · Sửa tỷ số | `components/app_actions_lifecycle.test.js` |
 | Tính năng Kèo mở rộng: Cảnh báo lệch trình >250 · tổng hợp H2H · luân chuyển đội | `components/challenge_enhancements.test.js` |

@@ -10,23 +10,24 @@
 // Thiếu icon thì DEV console cảnh báo và ô icon trống, không crash.
 
 import {
-  ArrowLeft, ArrowRight, Banknote, Building2, Calculator, Camera, CalendarClock,
-  CalendarDays, CalendarPlus, ChevronUp, ChevronsUpDown, CircleAlert, Copy, Eye, HandCoins,
-  Lock, Pencil, Phone, Receipt, Sparkles, UserRoundCog,
+  ArrowLeft, ArrowRight, Award, Banknote, Building2, Calculator, Camera, CalendarClock,
+  CalendarDays, CalendarPlus, ChevronUp, ChevronsUpDown, CircleAlert, Copy, Crown, Eye, HandCoins,
+  Lock, Medal, Pencil, Phone, Receipt, Sparkles, UserRoundCog,
   ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, CirclePause,
-  CircleX, ClipboardCheck, ClockAlert, Database, Download, Ellipsis, Eraser, FileSpreadsheet,
+  CircleX, ClipboardCheck, ClockAlert, Database, Download, Ellipsis, Eraser, FileSpreadsheet, Flame,
   History, Inbox, Info, Landmark, Layers, LayoutDashboard, LayoutGrid, Link, List, LoaderCircle, MapPin,
   Maximize2, Minus, Package, PackageOpen, Pause, Play, Plus, QrCode, Repeat, RotateCcw,
   Route, Scale, ScanLine, Search,
   Send, Settings, Settings2, Shield, ShoppingCart, Shuffle, Split, Tags, Trash2, TrendingDown,
   TrendingUp, TriangleAlert, Trophy, Truck, Undo2, Unlink, Upload, UserRound, UserRoundCheck,
-  UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X,
+  UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X, Zap,
 } from 'lucide-react'
 
 export const ICONS = {
   'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
   'alert-circle': CircleAlert,
+  award: Award,
   banknote: Banknote,
   'building-2': Building2,
   calculator: Calculator,
@@ -45,6 +46,7 @@ export const ICONS = {
   'circle-pause': CirclePause,
   'circle-x': CircleX,
   copy: Copy,
+  crown: Crown,
   'clipboard-check': ClipboardCheck,
   'clock-alert': ClockAlert,
   database: Database,
@@ -53,6 +55,7 @@ export const ICONS = {
   ellipsis: Ellipsis,
   eraser: Eraser,
   'file-spreadsheet': FileSpreadsheet,
+  flame: Flame,
   'hand-coins': HandCoins,
   history: History,
   inbox: Inbox,
@@ -67,6 +70,7 @@ export const ICONS = {
   list: List,
   'loader-circle': LoaderCircle,
   'map-pin': MapPin,
+  medal: Medal,
   minus: Minus,
   package: Package,
   'package-open': PackageOpen,
@@ -112,4 +116,5 @@ export const ICONS = {
   wallet: Wallet,
   'wand-sparkles': WandSparkles,
   x: X,
+  zap: Zap,
 }

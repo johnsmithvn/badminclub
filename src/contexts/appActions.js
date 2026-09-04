@@ -14,7 +14,7 @@ import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
-import { calcEloDelta, teamRating, replayRatingCascade, DEFAULT_RATING } from '#lib/rating.js'
+import { calcEloDelta, teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, calcPlayerDeltas, rankTierOf, initialRatingOf } from '#lib/rating.js'
 import { nextChallengeCode } from '#lib/challenge.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -2348,35 +2348,66 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           playing[targetSid] = c
         }
 
-        // Tính Elo nếu trận được tính rating
+        // Tính Elo nếu trận được tính rating (K động từng người & Margin of Victory)
         const playerRatings = { ...(d.playerRatings || {}) }
         const ratingsMap = {}
-        Object.keys(playerRatings).forEach((mid) => { ratingsMap[mid] = playerRatings[mid].rating })
+        const gamesCountMap = {}
+        Object.keys(playerRatings).forEach((mid) => {
+          ratingsMap[mid] = playerRatings[mid].rating
+          gamesCountMap[mid] = playerRatings[mid].gamesCount || 0
+        })
+        ;[...teamA, ...teamB].forEach((id) => {
+          if (ratingsMap[id] === undefined) {
+            const m = (d0.members || []).find((x) => x.id === id)
+            ratingsMap[id] = m?.level ? initialRatingOf(m.level, d0.levels) : DEFAULT_RATING
+            gamesCountMap[id] = 0
+          }
+        })
 
         const ra = teamRating(teamA, ratingsMap)
         const rb = teamRating(teamB, ratingsMap)
         let delta = 0
         if (isRated) {
-          const res = calcEloDelta(ra, rb, aWon)
-          delta = res.deltaA
+          const { deltas } = calcPlayerDeltas({
+            teamA,
+            teamB,
+            aWon,
+            ratingsMap,
+            gamesCountMap,
+            sets: playedSets,
+          })
+          delta = deltas[teamA[0]] || 0
+          const nowIso = new Date().toISOString()
           teamA.forEach((id) => {
-            const cur = playerRatings[id] || { rating: DEFAULT_RATING, gamesCount: 0, winsCount: 0, lossesCount: 0 }
+            const memA = (d0.members || []).find((x) => x.id === id)
+            const seedA = memA?.level ? initialRatingOf(memA.level, d0.levels) : DEFAULT_RATING
+            const cur = playerRatings[id] || { rating: seedA, gamesCount: 0, winsCount: 0, lossesCount: 0 }
+            const newR = cur.rating + (deltas[id] || 0)
             playerRatings[id] = {
               ...cur,
-              rating: cur.rating + delta,
+              rating: newR,
+              displayRating: Math.max(MIN_RATING, newR),
+              tier: rankTierOf(newR),
               gamesCount: cur.gamesCount + 1,
               winsCount: aWon ? cur.winsCount + 1 : cur.winsCount,
               lossesCount: !aWon ? cur.lossesCount + 1 : cur.lossesCount,
+              lastMatchAt: nowIso,
             }
           })
           teamB.forEach((id) => {
-            const cur = playerRatings[id] || { rating: DEFAULT_RATING, gamesCount: 0, winsCount: 0, lossesCount: 0 }
+            const memB = (d0.members || []).find((x) => x.id === id)
+            const seedB = memB?.level ? initialRatingOf(memB.level, d0.levels) : DEFAULT_RATING
+            const cur = playerRatings[id] || { rating: seedB, gamesCount: 0, winsCount: 0, lossesCount: 0 }
+            const newR = cur.rating + (deltas[id] || 0)
             playerRatings[id] = {
               ...cur,
-              rating: cur.rating - delta,
+              rating: newR,
+              displayRating: Math.max(MIN_RATING, newR),
+              tier: rankTierOf(newR),
               gamesCount: cur.gamesCount + 1,
               winsCount: !aWon ? cur.winsCount + 1 : cur.winsCount,
               lossesCount: aWon ? cur.lossesCount + 1 : cur.lossesCount,
+              lastMatchAt: nowIso,
             }
           })
         }
@@ -2440,7 +2471,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       // Replay cascade tính lại toàn bộ Elo các trận sau đó
       const updatedMatchList = (d0.matches || []).map((m) => (m.id === matchId ? { ...m, sets: actualSets } : m))
-      const { finalRatings, updatedMatches } = replayRatingCascade(updatedMatchList, matchId, d0.members)
+      const { finalRatings, updatedMatches } = replayRatingCascade(updatedMatchList, matchId, d0.members, d0.levels)
 
       up((d) => ({
         matches: updatedMatches,

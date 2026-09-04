@@ -970,6 +970,37 @@ Tích hợp trọn vẹn đặc tả giao diện và nghiệp vụ từ Design H
 
 ---
 
+## Đợt 8 — Nâng cấp Rating Engine & Bảng xếp hạng Elo (4 Tính năng toán học & Trải nghiệm) · **XONG 2026-09-04**
+
+Nâng cấp chuyên sâu hệ thống tính điểm Elo rating câu lạc bộ: bổ sung hệ số K động, thưởng cách biệt tỷ số set, chặn điểm âm kèm phân hạng 5 bậc Rank Tier, và cơ chế hao mòn phong độ do nghỉ đấu lâu.
+
+- [x] **Chặn điểm âm & Hệ cấp bậc Rank (Elo Floor >= 0 & Rank Tiers)**:
+  - Phân cấp 5 bậc: Đồng (0-299), Bạc (300-599), Vàng (600-899), Bạch Kim (900-1199), Kim Cương (1200+).
+  - Tách bạch `rating` kỹ thuật (zero-sum toàn vẹn trong DB) và `displayRating = Math.max(0, rating)` cho toàn bộ giao diện và Bảng xếp hạng.
+  - Người dùng không bao giờ thấy điểm âm trên UI. Thanh tiến trình % nâng cấp rank trực quan.
+- [x] **Hệ số K động (Dynamic K-Factor)**:
+  - Tự động thay đổi K cá nhân theo số trận đã đấu: R1 (<5 trận) $K=48$, R2 (5-14 trận) $K=36$, R3 (15-29 trận) $K=28$, R4 (30-49 trận) $K=20$, R5 (>=50 trận) $K=16$.
+  - Người mới di chuyển điểm nhanh gấp 3 lần để nhanh về đúng trình độ, cao thủ không bị trừ oan điểm nặng nề khi kèm người mới.
+  - Đánh đôi tính riêng biệt delta cho từng thành viên theo K cá nhân qua `calcPlayerDeltas`.
+- [x] **Khoảng cách tỷ số set (Margin of Victory Multiplier)**:
+  - Thắng sát nút (21-19) nhân ~1.05.
+  - Thắng áp đảo (21-5) nhân tối đa ~1.40 (`cfg.rating.marginOfVictory.maxMultiplier`).
+  - Phản ánh chính xác chất lượng chiến thắng vượt trội của cặp đôi.
+- [x] **Hao mòn phong độ do nghỉ đấu lâu (Inactivity Decay)**:
+  - Nghỉ >30 ngày: Gắn nhãn `Tạm nghỉ`.
+  - Nghỉ >45 ngày: Bắt đầu trừ nhẹ 10 Elo cho mỗi chu kỳ 30 ngày tiếp theo (không bao giờ tụt dưới 0).
+  - Bổ sung bộ lọc "Tất cả / Đang hoạt động" trên Bảng xếp hạng.
+- [x] **Giao diện & Trải nghiệm người dùng**:
+  - `Leaderboard.jsx`: Thêm cột Cấp bậc Rank, icon huy hiệu, bộ lọc trạng thái hoạt động, Profile card hiển thị Rank Tier + Thanh tiến trình % + K-Factor + Cảnh báo tạm nghỉ/suy hao phong độ.
+  - `ScoreModal.jsx`: Dự đoán Elo delta chi tiết từng cá nhân (kèm nhãn hệ số cách biệt bàn thắng) trước khi lưu tỷ số.
+  - Tích hợp 3 icon mới từ Lucide (`award`, `crown`, `medal`) vào `src/components/ds/icons.js`.
+- [x] **Bộ kiểm thử tự động (106 tests pass)**:
+  - Viết mới `src/__tests__/lib/rating_upgrades.test.js` kiểm tra toán học và logic biên cho toàn bộ 4 tính năng.
+  - Cập nhật smoke test `smoke/ds.test.js` và `smoke/i18n.test.js` (1406 keys).
+  - Toàn bộ **106/106 tests PASS 100%**!
+
+---
+
 ## Quyết định đang chờ user
 
 | Việc | Vì sao cần user | Chặn cái gì |
