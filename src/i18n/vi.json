@@ -2267,7 +2267,7 @@
     "title": "Phong cách xếp hạng",
     "themeStreet": "Dân Chơi Khét Tiếng",
     "themeComedy": "Tấu Hài Sân Cầu",
-    "themeDestroyer": "Kẻ Hủy Diệt Dụng Cụ",
+    "themeDestroyer": "Cỗ Máy Hủy Diệt",
     "themeSlang": "Sân Cầu Thực Chiến",
     "badgeTitle": "Biệt danh & Lời bình bựa"
   },
@@ -2277,7 +2277,7 @@
       "desc": "Rình trên lưới như mãnh thú nhưng toàn vồ trúng không khí."
     },
     "boi_tham": {
-      "name": "Chiến Thần Bơi Thảm",
+      "name": "Thánh lau sàn",
       "desc": "Cứu cầu như thợ lặn chuyên nghiệp, trượt thảm mòn cả đầu gối."
     },
     "he_chua": {
@@ -2285,11 +2285,11 @@
       "desc": "Kỹ năng đánh cầu thì ít, nhưng tấu hài gây cười làm đội bạn mất tập trung thì vô địch."
     },
     "cai_cau": {
-      "name": "Thánh Cãi Cầu",
+      "name": "Chích chòe",
       "desc": "Cầu ra ngoài 2 mét vẫn khẳng định như đinh đóng cột là cầu trong sân."
     },
     "doi_vot": {
-      "name": "Chúa Tể Đổi Vợt",
+      "name": "Đại Gia Đổi Vợt",
       "desc": "Cứ đánh hỏng 1 quả là đổi vợt khác, đổ lỗi vợt chưa căng đủ ký."
     },
     "khoi_dong": {
@@ -2314,5 +2314,3 @@
     }
   }
 }
-
-
