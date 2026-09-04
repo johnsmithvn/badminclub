@@ -179,13 +179,13 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
           {/* Tên 2 đội */}
           <div style={S.teamsHeader}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ font: '700 15px/1.3 "IBM Plex Sans", sans-serif', color: '#5FDBD3' }}>
+              <span style={{ font: '700 15px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-transit-fg, #5FDBD3)' }}>
                 {nameTeamA}
               </span>
             </div>
-            <span style={{ font: '700 13px/1 Barlow, sans-serif', color: '#5B6B81', padding: '0 8px' }}>VS</span>
+            <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled, #5B6B81)', padding: '0 8px' }}>VS</span>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-              <span style={{ font: '700 15px/1.3 "IBM Plex Sans", sans-serif', color: '#A8B7CB' }}>
+              <span style={{ font: '700 15px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>
                 {nameTeamB}
               </span>
             </div>
@@ -214,8 +214,8 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                       onChange={(e) => setScoreDirect(setIdx, 0, e.target.value)}
                       style={{
                         ...S.scoreBox,
-                        borderColor: aWon ? '#00786F' : '#2E3E5C',
-                        color: aWon ? '#5FDBD3' : '#E9EFF7',
+                        borderColor: aWon ? 'var(--teal-700, #00786F)' : 'var(--border-default, #2E3E5C)',
+                        color: aWon ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-primary, #E9EFF7)',
                       }}
                     />
                     <button
@@ -225,7 +225,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                     >+</button>
                   </div>
 
-                  <span style={{ color: '#5B6B81', fontWeight: 600 }}>–</span>
+                  <span style={{ color: 'var(--text-disabled, #5B6B81)', fontWeight: 600 }}>–</span>
 
                   {/* Team B Stepper */}
                   <div style={S.stepper}>
@@ -240,8 +240,8 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                       onChange={(e) => setScoreDirect(setIdx, 1, e.target.value)}
                       style={{
                         ...S.scoreBox,
-                        borderColor: bWon ? '#00786F' : '#2E3E5C',
-                        color: bWon ? '#5FDBD3' : '#E9EFF7',
+                        borderColor: bWon ? 'var(--teal-700, #00786F)' : 'var(--border-default, #2E3E5C)',
+                        color: bWon ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-primary, #E9EFF7)',
                       }}
                     />
                     <button
@@ -258,27 +258,27 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
           {/* Result preview */}
           <div style={S.summaryCard}>
             <div style={S.summaryRow}>
-              <span style={{ color: '#8494AA' }}>{t('scoreModal.result')}</span>
-              <span style={{ color: winnerTeam ? '#5FDBD3' : '#E9EFF7', fontWeight: 600 }}>
+              <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('scoreModal.result')}</span>
+              <span style={{ color: winnerTeam ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-primary, #E9EFF7)', fontWeight: 600 }}>
                 {setsWon.wonA} – {setsWon.wonB}
                 {winnerTeam && ` · ${winnerTeam === 'A' ? nameTeamA : nameTeamB} ${t('scoreModal.won')}`}
               </span>
             </div>
             {ratingDeltaPreview && (
-              <div style={{ ...S.summaryRow, alignItems: 'flex-start', paddingTop: 6, borderTop: '1px solid #22304A' }}>
+              <div style={{ ...S.summaryRow, alignItems: 'flex-start', paddingTop: 6, borderTop: '1px solid var(--border-subtle, #22304A)' }}>
                 <div style={{ display: 'grid', gap: 4 }}>
-                  <span style={{ color: '#8494AA' }}>{t('scoreModal.ratingDelta')}</span>
+                  <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('scoreModal.ratingDelta')}</span>
                   {ratingDeltaPreview.mult > 1 && (
-                    <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'rgba(95,219,211,0.12)', color: '#5FDBD3', fontWeight: 600, display: 'inline-block', width: 'fit-content' }}>
+                    <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'rgba(95,219,211,0.12)', color: 'var(--status-transit-fg, #5FDBD3)', fontWeight: 600, display: 'inline-block', width: 'fit-content' }}>
                       {t('rating.multiplier', { val: ratingDeltaPreview.mult.toFixed(2) })}
                     </span>
                   )}
                 </div>
                 <div style={{ display: 'grid', gap: 4, textAlign: 'right' }}>
-                  <div style={{ color: '#5FDBD3', fontFamily: '"IBM Plex Mono", monospace', fontSize: 12 }}>
+                  <div style={{ color: 'var(--status-transit-fg, #5FDBD3)', fontFamily: '"IBM Plex Mono", monospace', fontSize: 12 }}>
                     {ratingDeltaPreview.deltasA.map((p) => `${p.name} (${p.delta > 0 ? `+${p.delta}` : p.delta})`).join(' · ')}
                   </div>
-                  <div style={{ color: '#A8B7CB', fontFamily: '"IBM Plex Mono", monospace', fontSize: 12 }}>
+                  <div style={{ color: 'var(--text-secondary, #A8B7CB)', fontFamily: '"IBM Plex Mono", monospace', fontSize: 12 }}>
                     {ratingDeltaPreview.deltasB.map((p) => `${p.name} (${p.delta > 0 ? `+${p.delta}` : p.delta})`).join(' · ')}
                   </div>
                 </div>
@@ -331,25 +331,25 @@ const S = {
     maxWidth: 520,
     maxHeight: '94vh',
     overflowY: 'auto',
-    background: '#1A2437',
-    border: '1px solid #2E3E5C',
+    background: 'var(--surface-raised, #1A2437)',
+    border: '1px solid var(--border-default, #2E3E5C)',
     borderRadius: 12,
     boxShadow: '0 24px 60px rgba(0,0,0,.60)',
   },
   header: {
     padding: '14px 18px',
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     display: 'flex',
     alignItems: 'center',
     gap: 12,
   },
   title: {
     font: '600 17px/1.25 "IBM Plex Sans", sans-serif',
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
   },
   subtitle: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   closeBtn: {
     height: 32,
@@ -357,10 +357,10 @@ const S = {
     alignItems: 'center',
     padding: '0 12px',
     borderRadius: 6,
-    background: '#141D2E',
-    border: '1px solid #2E3E5C',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-default, #2E3E5C)',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: '#A8B7CB',
+    color: 'var(--text-secondary, #A8B7CB)',
     cursor: 'pointer',
   },
   body: {
@@ -373,8 +373,8 @@ const S = {
     alignItems: 'center',
     padding: '10px 14px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
   setRow: {
     display: 'flex',
@@ -383,13 +383,13 @@ const S = {
     gap: 8,
     padding: '6px 12px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
   setLabel: {
     width: 50,
     font: '400 13px/1.4 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   stepper: {
     display: 'flex',
@@ -403,9 +403,9 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 6,
-    background: '#141D2E',
-    border: '1px solid #2E3E5C',
-    color: '#A8B7CB',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-default, #2E3E5C)',
+    color: 'var(--text-secondary, #A8B7CB)',
     fontSize: 16,
     fontWeight: 600,
     cursor: 'pointer',
@@ -414,8 +414,8 @@ const S = {
     width: 48,
     height: 40,
     borderRadius: 6,
-    background: '#141D2E',
-    border: '1.5px solid #2E3E5C',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1.5px solid var(--border-default, #2E3E5C)',
     textAlign: 'center',
     font: '700 18px/1 Barlow, sans-serif',
     outline: 'none',
@@ -425,8 +425,8 @@ const S = {
     gap: 7,
     padding: '11px 14px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
     fontSize: 13,
   },
   summaryRow: {
@@ -442,10 +442,10 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 6,
-    background: '#1D50A0',
+    background: 'var(--navy-500, #1D50A0)',
     border: 'none',
     font: '700 14px/1 "IBM Plex Sans", sans-serif',
-    color: '#FFFFFF',
+    color: 'var(--gray-0, #FFFFFF)',
     boxShadow: '0 2px 10px rgba(29,80,160,.4)',
   },
   cancelBtn: {
@@ -454,10 +454,10 @@ const S = {
     alignItems: 'center',
     padding: '0 18px',
     borderRadius: 6,
-    background: '#141D2E',
-    border: '1px solid #2E3E5C',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-default, #2E3E5C)',
     font: '600 14px/1 "IBM Plex Sans", sans-serif',
-    color: '#A8B7CB',
+    color: 'var(--text-secondary, #A8B7CB)',
     cursor: 'pointer',
   },
 }

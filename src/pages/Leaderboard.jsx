@@ -324,7 +324,7 @@ export default function Leaderboard() {
               <div style={{ display: 'grid' }}>
                 {leaderboardData.map((row, idx) => {
                   const rank = idx + 1
-                  const rankColor = rank === 1 ? '#F0B75C' : rank === 2 ? '#C0D8F8' : rank === 3 ? '#CD7F32' : '#8494AA'
+                  const rankColor = rank === 1 ? 'var(--podium-gold, #F0B75C)' : rank === 2 ? 'var(--podium-silver, #C0D8F8)' : rank === 3 ? 'var(--podium-bronze, #CD7F32)' : 'var(--text-muted, #8494AA)'
                   const confLabel = t('rating.confidence.' + (row.confidence || 'low'))
                   const confPct = row.confidence === 'very_high' ? 100 : row.confidence === 'high' ? 75 : row.confidence === 'medium' ? 50 : 25
 
@@ -339,10 +339,10 @@ export default function Leaderboard() {
 
                       {/* Cột Tên & Trình độ */}
                       <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                        <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
                           {row.name}
                         </span>
-                        <span style={{ fontSize: 12, color: '#8494AA' }}>({row.gender})</span>
+                        <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>({row.gender})</span>
                         <LevelChip level={row.level} levels={db.levels} />
                         {row.isInactive && (
                           <span
@@ -350,9 +350,9 @@ export default function Leaderboard() {
                               fontSize: 10,
                               padding: '2px 6px',
                               borderRadius: 4,
-                              background: '#2D1F10',
-                              color: '#F0B75C',
-                              border: '1px solid #784A15',
+                              background: 'var(--amber-950, #2D1F10)',
+                              color: 'var(--status-delayed-fg, #F0B75C)',
+                              border: '1px solid var(--amber-700, #784A15)',
                             }}
                             title={t('rating.inactivity.days', { n: row.daysInactive })}
                           >
@@ -374,10 +374,10 @@ export default function Leaderboard() {
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            background: `${row.tier.color}1E`,
-                            border: `1px solid ${row.tier.color}66`,
+                            background: row.tier.color?.startsWith('var(') ? `color-mix(in srgb, ${row.tier.color} 12%, transparent)` : `${row.tier.color}1E`,
+                            border: row.tier.color?.startsWith('var(') ? `1px solid color-mix(in srgb, ${row.tier.color} 40%, transparent)` : `1px solid ${row.tier.color}66`,
                             color: row.tier.color,
-                            boxShadow: `0 0 8px ${row.tier.color}25`,
+                            boxShadow: row.tier.color?.startsWith('var(') ? `0 0 8px color-mix(in srgb, ${row.tier.color} 15%, transparent)` : `0 0 8px ${row.tier.color}25`,
                             flexShrink: 0,
                           }}>
                             <Icon name={row.tier.icon} size={12} />
@@ -390,7 +390,7 @@ export default function Leaderboard() {
 
                       {/* Cột Elo */}
                       <div style={{ ...S.tdCell, textAlign: 'right' }}>
-                        <span style={{ font: '700 15px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                        <span style={{ font: '700 15px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>
                           {row.displayRating}
                         </span>
                       </div>
@@ -398,23 +398,23 @@ export default function Leaderboard() {
                       {/* Cột Độ tin cậy */}
                       <div style={S.tdCell}>
                         <div style={{ display: 'grid', gap: 3, maxWidth: 100 }}>
-                          <span style={{ fontSize: 11, color: '#A8B7CB', fontWeight: 500 }}>{confLabel}</span>
-                          <div style={{ height: 4, borderRadius: 999, background: '#0B1220', overflow: 'hidden' }}>
-                            <div style={{ width: `${confPct}%`, height: '100%', background: '#00B2A9' }} />
+                          <span style={{ fontSize: 11, color: 'var(--text-secondary, #A8B7CB)', fontWeight: 500 }}>{confLabel}</span>
+                          <div style={{ height: 4, borderRadius: 999, background: 'var(--surface-page, #0B1220)', overflow: 'hidden' }}>
+                            <div style={{ width: `${confPct}%`, height: '100%', background: 'var(--teal-500, #00B2A9)' }} />
                           </div>
                         </div>
                       </div>
 
                       {/* Cột Thắng - Thua */}
                       <div style={{ ...S.tdCell, textAlign: 'center' }}>
-                        <span style={{ font: '500 13px/1 "IBM Plex Mono", monospace', color: '#E9EFF7' }}>
+                        <span style={{ font: '500 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-primary, #E9EFF7)' }}>
                           {row.wins} – {row.losses}
                         </span>
                       </div>
 
                       {/* Cột Tỷ lệ thắng */}
                       <div style={{ ...S.tdCell, textAlign: 'right' }}>
-                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: row.winRate >= 60 ? '#5FD9A2' : '#E9EFF7' }}>
+                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: row.winRate >= 60 ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-primary, #E9EFF7)' }}>
                           {row.winRate}%
                         </span>
                       </div>
@@ -435,15 +435,15 @@ export default function Leaderboard() {
                                 fontSize: 10,
                                 fontWeight: 700,
                                 background: res === 'W' ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)',
-                                color: res === 'W' ? '#5FD9A2' : '#FF9A8F',
-                                border: `1px solid ${res === 'W' ? '#00875A' : 'rgba(225,68,52,.4)'}`,
+                                color: res === 'W' ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-incident-fg, #FF9A8F)',
+                                border: `1px solid ${res === 'W' ? 'var(--green-600, #00875A)' : 'rgba(225,68,52,.4)'}`,
                               }}
                             >
                               {res}
                             </span>
                           ))
                         ) : (
-                          <span style={{ color: '#5B6B81', fontSize: 12 }}>—</span>
+                          <span style={{ color: 'var(--text-disabled, #5B6B81)', fontSize: 12 }}>—</span>
                         )}
                       </div>
                     </div>
@@ -451,7 +451,7 @@ export default function Leaderboard() {
                 })}
 
                 {leaderboardData.length === 0 && (
-                  <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', fontSize: 13 }}>
+                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted, #8494AA)', fontSize: 13 }}>
                     {t('leaderboard.empty')}
                   </div>
                 )}
@@ -473,10 +473,10 @@ export default function Leaderboard() {
               <div style={{ padding: '16px', display: 'grid', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ font: '600 18px/1.25 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                    <span style={{ font: '600 18px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
                       {t('leaderboard.profileRating')}: {currentMember.name}
                     </span>
-                    <span style={{ fontSize: 13, color: '#8494AA' }}>({currentMember.gender})</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-muted, #8494AA)' }}>({currentMember.gender})</span>
                     <LevelChip level={currentMember.level} levels={db.levels} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
@@ -516,21 +516,21 @@ export default function Leaderboard() {
                   const decayInfo = applyInactivityDecay(pr.rating, lastMatchDate)
 
                   return (
-                    <div style={{ padding: '14px 16px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 10 }}>
+                    <div style={{ padding: '14px 16px', borderRadius: 8, background: 'var(--surface-inset, #101927)', border: '1px solid var(--border-subtle, #22304A)', display: 'grid', gap: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                          <span style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                          <span style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>
                             {decayInfo.rating}
                           </span>
-                          <span style={{ fontSize: 12, color: '#8494AA', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             Elo {t('rating.breakdown.overall')}
                           </span>
                           <span style={{
                             padding: '4px 12px',
                             borderRadius: 6,
-                            background: `${memberTier.color}1E`,
+                            background: memberTier.color?.startsWith('var(') ? `color-mix(in srgb, ${memberTier.color} 12%, transparent)` : `${memberTier.color}1E`,
                             border: `1px solid ${memberTier.color}`,
-                            boxShadow: `0 0 10px ${memberTier.color}30`,
+                            boxShadow: memberTier.color?.startsWith('var(') ? `0 0 10px color-mix(in srgb, ${memberTier.color} 19%, transparent)` : `0 0 10px ${memberTier.color}30`,
                             color: memberTier.color,
                             fontSize: 12,
                             fontWeight: 700,
@@ -541,11 +541,11 @@ export default function Leaderboard() {
                             <Icon name={memberTier.icon} size={13} />
                             <span>{memberTier.label}</span>
                           </span>
-                          <span style={{ fontSize: 12, color: '#5FDBD3', fontFamily: '"IBM Plex Mono", monospace' }}>
+                          <span style={{ fontSize: 12, color: 'var(--status-transit-fg, #5FDBD3)', fontFamily: '"IBM Plex Mono", monospace' }}>
                             {t('rating.kFactor', { k: memberK })}
                           </span>
                           {decayInfo.isInactive && (
-                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#2D1F10', color: '#F0B75C', border: '1px solid #784A15' }}>
+                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'var(--amber-950, #2D1F10)', color: 'var(--status-delayed-fg, #F0B75C)', border: '1px solid var(--amber-700, #784A15)' }}>
                               {t('rating.inactivity.days', { n: decayInfo.daysInactive })}
                               {decayInfo.decayAmount > 0 && ` (${t('rating.inactivity.decayed', { amount: decayInfo.decayAmount })})`}
                             </span>
@@ -556,14 +556,14 @@ export default function Leaderboard() {
                             padding: '3px 10px',
                             borderRadius: 999,
                             background: 'rgba(0,178,169,0.15)',
-                            border: '1px solid #00786F',
-                            color: '#5FDBD3',
+                            border: '1px solid var(--teal-700, #00786F)',
+                            color: 'var(--status-transit-fg, #5FDBD3)',
                             fontSize: 12,
                             fontWeight: 700,
                           }}>
                             {t('rating.confidence.levelR', { num: confProg.levelNum })}
                           </span>
-                          <span style={{ fontSize: 13, color: '#A8B7CB', fontWeight: 500 }}>
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary, #A8B7CB)', fontWeight: 500 }}>
                             {t('rating.confidence.' + profileContext.overallConf)}
                           </span>
                         </div>
@@ -573,7 +573,7 @@ export default function Leaderboard() {
                         <div style={{
                           fontStyle: 'italic',
                           fontSize: 12.5,
-                          color: '#A8B7CB',
+                          color: 'var(--text-secondary, #A8B7CB)',
                           background: 'rgba(255,255,255,0.03)',
                           padding: '8px 14px',
                           borderRadius: 6,
@@ -585,15 +585,15 @@ export default function Leaderboard() {
 
                       {/* Thanh tiến trình Progress Bar */}
                       <div style={{ display: 'grid', gap: 5 }}>
-                        <div style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', border: '1px solid #1A2437' }}>
+                        <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-page, #0B1220)', overflow: 'hidden', border: '1px solid var(--surface-raised, #1A2437)' }}>
                           <div style={{
                             width: `${confProg.pct}%`,
                             height: '100%',
-                            background: 'linear-gradient(90deg, #00786F, #00B2A9)',
+                            background: 'linear-gradient(90deg, var(--teal-700, #00786F), var(--teal-500, #00B2A9))',
                             transition: 'width 0.3s ease',
                           }} />
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: '#8494AA' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--text-muted, #8494AA)' }}>
                           <span>
                             {confProg.isMax
                               ? t('rating.confidence.maxReached')
@@ -657,11 +657,11 @@ export default function Leaderboard() {
                         }}>
                           [{badge.tag}]
                         </span>
-                        <span style={{ font: '700 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                        <span style={{ font: '700 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
                           {badge.name}
                         </span>
                       </div>
-                      <div style={{ fontSize: 13, color: '#A8B7CB', fontStyle: 'italic' }}>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary, #A8B7CB)', fontStyle: 'italic' }}>
                         "{badge.desc}"
                       </div>
                     </div>
@@ -800,17 +800,17 @@ export default function Leaderboard() {
                           <span style={S.monoMeta}>{m.createdAt?.slice(0, 10) || ''}</span>
                         </div>
                         <div style={{ ...S.tdCell, minWidth: 0 }}>
-                          <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: '#5FD9A2' }}>
+                          <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
                             {winnerNames}
                           </span>
                         </div>
                         <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
-                          <span style={{ font: '700 16px/1 Barlow, sans-serif', color: '#E9EFF7', whiteSpace: 'nowrap' }}>
+                          <span style={{ font: '700 16px/1 Barlow, sans-serif', color: 'var(--text-primary, #E9EFF7)', whiteSpace: 'nowrap' }}>
                             {scoreStr}
                           </span>
                         </div>
                         <div style={{ ...S.tdCell, minWidth: 0 }}>
-                          <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: '#A8B7CB' }}>
+                          <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>
                             {loserNames}
                           </span>
                         </div>
@@ -818,8 +818,8 @@ export default function Leaderboard() {
                           <span style={{
                             ...S.sourcePill,
                             background: isChallenge ? 'rgba(0,178,169,.14)' : 'rgba(255,255,255,.06)',
-                            borderColor: isChallenge ? '#00786F' : '#22304A',
-                            color: isChallenge ? '#5FDBD3' : '#8494AA',
+                            borderColor: isChallenge ? 'var(--teal-700, #00786F)' : 'var(--border-subtle, #22304A)',
+                            color: isChallenge ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-muted, #8494AA)',
                           }}>
                             {isChallenge ? t('challenge.challenge') : t('challenge.fromCourt')}
                           </span>
@@ -838,7 +838,7 @@ export default function Leaderboard() {
                   })}
 
                   {searchResults.length === 0 && (
-                    <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', fontSize: 13 }}>
+                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted, #8494AA)', fontSize: 13 }}>
                       {t('matchSearch.emptySearch')}
                     </div>
                   )}
@@ -880,7 +880,7 @@ export default function Leaderboard() {
                         }
                         const cell = matrixData[p1.id]?.[p2.id] || { wins: 0, losses: 0 }
                         const net = cell.wins - cell.losses
-                        const cellColor = net > 0 ? '#5FD9A2' : net < 0 ? '#FF9A8F' : '#8494AA'
+                        const cellColor = net > 0 ? 'var(--status-delivered-fg, #5FD9A2)' : net < 0 ? 'var(--status-incident-fg, #FF9A8F)' : 'var(--text-muted, #8494AA)'
                         const cellBg = net > 0 ? 'rgba(18,168,103,.12)' : net < 0 ? 'rgba(225,68,52,.12)' : 'transparent'
                         return (
                           <td key={p2.id} style={{ ...S.matrixCell, color: cellColor, background: cellBg }}>
@@ -898,7 +898,7 @@ export default function Leaderboard() {
           {/* Cặp chưa từng gặp nhau */}
           <div style={S.card}>
             <div style={{ padding: '14px 16px', display: 'grid', gap: 8 }}>
-              <div style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+              <div style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
                 {t('matchSearch.neverMet')} ({neverMetList.length} {t('matchSearch.pairs')})
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -941,10 +941,10 @@ export default function Leaderboard() {
                   return (
                     <div key={bucketKey} style={S.bucketCard}>
                       <div style={S.bucketHead}>{t('leaderboard.gapBucket', { bucket: bucketKey })}</div>
-                      <div style={{ font: '700 24px/1 Barlow, sans-serif', color: '#5FDBD3', margin: '4px 0' }}>
+                      <div style={{ font: '700 24px/1 Barlow, sans-serif', color: 'var(--status-transit-fg, #5FDBD3)', margin: '4px 0' }}>
                         {winRatePct}%
                       </div>
-                      <div style={{ fontSize: 12, color: '#8494AA' }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>
                         {t('leaderboard.crossStats', { wins: data.femaleWins, total: data.sampleSize })}
                       </div>
                     </div>
@@ -952,7 +952,7 @@ export default function Leaderboard() {
                 })}
               </div>
 
-              <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: '#A8B7CB', marginTop: 8 }}>
+              <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)', marginTop: 8 }}>
                 💡 <em>{t('rating.calibration.desc')}</em>
               </div>
             </div>
@@ -993,8 +993,8 @@ const S = {
     display: 'flex',
     padding: 3,
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
     gap: 2,
     overflowX: 'auto',
   },
@@ -1008,26 +1008,26 @@ const S = {
     border: 'none',
     background: 'transparent',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'all 0.15s ease',
   },
   tabBtnActive: {
-    background: '#141D2E',
-    color: '#E9EFF7',
+    background: 'var(--surface-card, #141D2E)',
+    color: 'var(--text-primary, #E9EFF7)',
     boxShadow: '0 1px 1px rgba(0,0,0,.30)',
   },
   card: {
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-subtle, #22304A)',
     borderRadius: 10,
     boxShadow: '0 1px 1px rgba(0,0,0,.30)',
     overflow: 'hidden',
   },
   cardHead: {
     padding: '14px 16px',
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1036,35 +1036,35 @@ const S = {
   },
   cardTitle: {
     font: '600 16px/1.25 "IBM Plex Sans", sans-serif',
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
   },
   cardSub: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   seasonTableHead: {
     display: 'grid',
     gridTemplateColumns: '60px minmax(170px, 1.5fr) 110px 90px 130px 100px 90px 120px',
-    background: '#101927',
-    borderBottom: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
   },
   seasonTableRow: {
     display: 'grid',
     gridTemplateColumns: '60px minmax(170px, 1.5fr) 110px 90px 130px 100px 90px 120px',
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     minHeight: 48,
     alignItems: 'center',
   },
   searchTableHead: {
     display: 'grid',
     gridTemplateColumns: '84px 90px 1.2fr 100px 1.2fr 90px 80px',
-    background: '#101927',
-    borderBottom: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
   },
   searchTableRow: {
     display: 'grid',
     gridTemplateColumns: '84px 90px 1.2fr 100px 1.2fr 90px 80px',
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     minHeight: 50,
     alignItems: 'center',
   },
@@ -1076,18 +1076,18 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   tdCell: {
     padding: '0 12px',
   },
   monoCode: {
     font: '600 12.5px/1.3 "IBM Plex Mono", monospace',
-    color: '#5FDBD3',
+    color: 'var(--status-transit-fg, #5FDBD3)',
   },
   monoMeta: {
     font: '400 12px/1.4 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   sourcePill: {
     fontSize: 11,
@@ -1099,9 +1099,9 @@ const S = {
   editBtn: {
     padding: '4px 10px',
     borderRadius: 4,
-    background: '#1A2437',
-    border: '1px solid #2E3E5C',
-    color: '#5FDBD3',
+    background: 'var(--surface-raised, #1A2437)',
+    border: '1px solid var(--border-default, #2E3E5C)',
+    color: 'var(--status-transit-fg, #5FDBD3)',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
@@ -1109,23 +1109,23 @@ const S = {
   contextCard: {
     padding: '14px 16px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
     display: 'grid',
     gap: 4,
   },
   contextHead: {
     font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
     textTransform: 'uppercase',
   },
   contextScore: {
     font: '700 20px/1.2 "IBM Plex Mono", monospace',
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
   },
   contextMeta: {
     font: '400 12px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   matrixTable: {
     borderCollapse: 'collapse',
@@ -1134,50 +1134,50 @@ const S = {
   },
   matrixTh: {
     padding: '8px 12px',
-    border: '1px solid #22304A',
-    background: '#101927',
-    color: '#8494AA',
+    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset, #101927)',
+    color: 'var(--text-muted, #8494AA)',
     fontWeight: 600,
     textAlign: 'center',
   },
   matrixRowLabel: {
     padding: '8px 12px',
-    border: '1px solid #22304A',
-    background: '#101927',
-    color: '#E9EFF7',
+    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset, #101927)',
+    color: 'var(--text-primary, #E9EFF7)',
     fontWeight: 600,
   },
   matrixCell: {
     padding: '8px 12px',
-    border: '1px solid #22304A',
+    border: '1px solid var(--border-subtle, #22304A)',
     textAlign: 'center',
     fontFamily: '"IBM Plex Mono", monospace',
     fontWeight: 600,
   },
   matrixSelfCell: {
     padding: '8px 12px',
-    border: '1px solid #22304A',
+    border: '1px solid var(--border-subtle, #22304A)',
     textAlign: 'center',
-    color: '#5B6B81',
-    background: '#0B1220',
+    color: 'var(--text-disabled, #5B6B81)',
+    background: 'var(--surface-page, #0B1220)',
   },
   pairBadge: {
     padding: '4px 10px',
     borderRadius: 6,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
     fontSize: 12,
-    color: '#A8B7CB',
+    color: 'var(--text-secondary, #A8B7CB)',
   },
   bucketCard: {
     padding: '14px 16px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
   bucketHead: {
     font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
     textTransform: 'uppercase',
   },
   challengeBtn: {
@@ -1186,8 +1186,8 @@ const S = {
     gap: 6,
     padding: '6px 14px',
     borderRadius: 6,
-    background: 'linear-gradient(135deg, #00B2A9, #00786F)',
-    color: '#FFFFFF',
+    background: 'linear-gradient(135deg, var(--teal-500, #00B2A9), var(--teal-700, #00786F))',
+    color: 'var(--gray-0, #FFFFFF)',
     fontSize: 13,
     fontWeight: 600,
     border: 'none',

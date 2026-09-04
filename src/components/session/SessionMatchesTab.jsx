@@ -94,17 +94,17 @@ export default function SessionMatchesTab({ s }) {
                     <span style={S.monoMeta}>{courtName}</span>
                   </div>
                   <div style={{ ...S.tdCell, minWidth: 0 }}>
-                    <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: '#5FD9A2' }}>
+                    <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
                       {winnerNames}
                     </span>
                   </div>
                   <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
-                    <span style={{ font: '700 16px/1 Barlow, sans-serif', color: '#E9EFF7', whiteSpace: 'nowrap' }}>
+                    <span style={{ font: '700 16px/1 Barlow, sans-serif', color: 'var(--text-primary, #E9EFF7)', whiteSpace: 'nowrap' }}>
                       {scoreStr}
                     </span>
                   </div>
                   <div style={{ ...S.tdCell, minWidth: 0 }}>
-                    <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: '#A8B7CB' }}>
+                    <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>
                       {loserNames}
                     </span>
                   </div>
@@ -112,8 +112,8 @@ export default function SessionMatchesTab({ s }) {
                     <span style={{
                       ...S.sourcePill,
                       background: isFromChallenge ? 'rgba(0,178,169,.14)' : 'rgba(255,255,255,.06)',
-                      borderColor: isFromChallenge ? '#00786F' : '#22304A',
-                      color: isFromChallenge ? '#5FDBD3' : '#8494AA',
+                      borderColor: isFromChallenge ? 'var(--teal-700, #00786F)' : 'var(--border-subtle, #22304A)',
+                      color: isFromChallenge ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-muted, #8494AA)',
                     }}>
                       {isFromChallenge ? t('challenge.tag', { code: challenge?.code || '' }) : t('challenge.fromCourt')}
                     </span>
@@ -123,7 +123,7 @@ export default function SessionMatchesTab({ s }) {
             })}
 
             {matches.length === 0 && (
-              <div style={{ padding: '24px 16px', color: '#8494AA', fontSize: 13, textAlign: 'center' }}>
+              <div style={{ padding: '24px 16px', color: 'var(--text-muted, #8494AA)', fontSize: 13, textAlign: 'center' }}>
                 {t('pages.sessions.noMatchesHint')}
               </div>
             )}
@@ -188,8 +188,8 @@ export default function SessionMatchesTab({ s }) {
                     <span style={{
                       ...S.statusBadge,
                       background: isPlayed ? 'rgba(18,168,103,.14)' : isAccepted ? 'rgba(0,178,169,.14)' : 'rgba(224,138,0,.14)',
-                      borderColor: isPlayed ? '#00875A' : isAccepted ? '#00786F' : 'rgba(224,138,0,.3)',
-                      color: isPlayed ? '#5FD9A2' : isAccepted ? '#5FDBD3' : '#F0B75C',
+                      borderColor: isPlayed ? 'var(--green-600, #00875A)' : isAccepted ? 'var(--teal-700, #00786F)' : 'rgba(224,138,0,.3)',
+                      color: isPlayed ? 'var(--status-delivered-fg, #5FD9A2)' : isAccepted ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--status-delayed-fg, #F0B75C)',
                     }}>
                       {c.status}
                     </span>
@@ -198,13 +198,13 @@ export default function SessionMatchesTab({ s }) {
                   {/* 2 Đội */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>{namesA}</div>
-                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: '#8494AA' }}>{ratA}</div>
+                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>{namesA}</div>
+                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>{ratA}</div>
                     </div>
-                    <span style={{ font: '700 13px/1 Barlow, sans-serif', color: '#5B6B81' }}>VS</span>
+                    <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled, #5B6B81)' }}>VS</span>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: '#A8B7CB' }}>{namesB}</div>
-                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: '#8494AA' }}>{ratB}</div>
+                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>{namesB}</div>
+                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>{ratB}</div>
                     </div>
                   </div>
 
@@ -212,30 +212,30 @@ export default function SessionMatchesTab({ s }) {
                   {!isPlayed && (
                     <div style={{ display: 'grid', gap: 4 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: '"IBM Plex Mono", monospace' }}>
-                        <span style={{ color: '#5FDBD3' }}>{pctA}%</span>
-                        <span style={{ color: '#8494AA' }}>{t('rating.gap', { gap })}</span>
-                        <span style={{ color: '#A8B7CB' }}>{pctB}%</span>
+                        <span style={{ color: 'var(--status-transit-fg, #5FDBD3)' }}>{pctA}%</span>
+                        <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('rating.gap', { gap })}</span>
+                        <span style={{ color: 'var(--text-secondary, #A8B7CB)' }}>{pctB}%</span>
                       </div>
-                      <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: '#0B1220' }}>
-                        <div style={{ width: `${pctA}%`, background: '#00B2A9', height: '100%' }} />
-                        <div style={{ width: `${pctB}%`, background: '#2E3E5C', height: '100%' }} />
+                      <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-page, #0B1220)' }}>
+                        <div style={{ width: `${pctA}%`, background: 'var(--teal-500, #00B2A9)', height: '100%' }} />
+                        <div style={{ width: `${pctB}%`, background: 'var(--border-default, #2E3E5C)', height: '100%' }} />
                       </div>
                     </div>
                   )}
 
                   {/* Meta */}
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>
                     BO{c.bestOf || 3} · {c.ratingEnabled ? t('challenge.rated') : t('challenge.casual')}
                   </div>
 
                   {/* Lịch sử đối đầu H2H (K4 / DK4 handoff) */}
                   {h2hMatches.length > 0 && (
                     <div style={S.h2hRow}>
-                      <span style={{ color: '#8494AA' }}>{t('challenge.h2hRecord')}:</span>
-                      <span style={{ fontFamily: '"IBM Plex Mono", monospace', color: '#5FDBD3', fontWeight: 600 }}>
+                      <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('challenge.h2hRecord')}:</span>
+                      <span style={{ fontFamily: '"IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)', fontWeight: 600 }}>
                         {h2hWinsA}W – {h2hWinsB}L
                       </span>
-                      <span style={{ color: '#8494AA', fontSize: 11 }}>
+                      <span style={{ color: 'var(--text-muted, #8494AA)', fontSize: 11 }}>
                         ({h2hMatches.length} {t('units.match')})
                       </span>
                     </div>
@@ -243,7 +243,7 @@ export default function SessionMatchesTab({ s }) {
 
                   {/* Contextual actions */}
                   {isPending && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button
                         type="button"
                         onClick={() => a.respondChallenge(c.id, true)}
@@ -260,8 +260,9 @@ export default function SessionMatchesTab({ s }) {
                       </button>
                     </div>
                   )}
+
                   {isAccepted && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button
                         type="button"
                         onClick={() => a.cancelChallenge(c.id)}
@@ -276,7 +277,7 @@ export default function SessionMatchesTab({ s }) {
             })}
 
             {challenges.length === 0 && (
-              <div style={{ color: '#8494AA', fontSize: 13, padding: '12px 0', textAlign: 'center' }}>
+              <div style={{ color: 'var(--text-muted, #8494AA)', fontSize: 13, padding: '12px 0', textAlign: 'center' }}>
                 {t('challenge.noSessionChallenges')}
               </div>
             )}
@@ -286,24 +287,24 @@ export default function SessionMatchesTab({ s }) {
         {/* Card Kèo nối vào buổi thế nào */}
         <div style={S.card}>
           <div style={{ padding: '14px 16px', display: 'grid', gap: 10 }}>
-            <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+            <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8494AA)' }}>
               {t('pages.sessions.wiringTitle')}
             </div>
-            <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: '#A8B7CB' }}>
+            <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>
               {t('pages.sessions.wiringDesc')}
             </div>
             <div style={S.wiringBox}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#8494AA' }}>session_id</span>
-                <span style={{ color: '#E9EFF7', fontWeight: 600 }}>{s.id.slice(0, 8)}...</span>
+                <span style={{ color: 'var(--text-muted, #8494AA)' }}>session_id</span>
+                <span style={{ color: 'var(--text-primary, #E9EFF7)', fontWeight: 600 }}>{s.id.slice(0, 8)}...</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#8494AA' }}>{t('pages.sessions.matchFromCourt')}</span>
-                <span style={{ color: '#E9EFF7' }}>{fromSessionCount}</span>
+                <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('pages.sessions.matchFromCourt')}</span>
+                <span style={{ color: 'var(--text-primary, #E9EFF7)' }}>{fromSessionCount}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#8494AA' }}>{t('pages.sessions.matchFromChallenge')}</span>
-                <span style={{ color: '#5FDBD3' }}>{fromChallengeCount}</span>
+                <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('pages.sessions.matchFromChallenge')}</span>
+                <span style={{ color: 'var(--status-transit-fg, #5FDBD3)' }}>{fromChallengeCount}</span>
               </div>
             </div>
           </div>
@@ -330,15 +331,15 @@ const S = {
     alignItems: 'start',
   },
   card: {
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-subtle, #22304A)',
     borderRadius: 10,
     boxShadow: '0 1px 1px rgba(0,0,0,.30)',
     overflow: 'hidden',
   },
   cardHead: {
     padding: '12px 16px',
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     display: 'flex',
     alignItems: 'center',
     gap: 12,
@@ -346,25 +347,25 @@ const S = {
   },
   cardTitle: {
     font: '600 16px/1.25 "IBM Plex Sans", sans-serif',
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
   },
   cardSub: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   monoMeta: {
     font: '400 12.5px/1.4 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   monoCode: {
     font: '600 12.5px/1.3 "IBM Plex Mono", monospace',
-    color: '#5FDBD3',
+    color: 'var(--status-transit-fg, #5FDBD3)',
   },
   tableHead: {
     display: 'grid',
     gridTemplateColumns: '88px 84px 1fr 96px 1fr 116px',
-    background: '#101927',
-    borderBottom: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
   },
   thCell: {
     padding: '0 12px',
@@ -374,12 +375,12 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   tableRow: {
     display: 'grid',
     gridTemplateColumns: '88px 84px 1fr 96px 1fr 116px',
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     minHeight: 52,
     alignItems: 'center',
   },
@@ -400,10 +401,10 @@ const S = {
     alignItems: 'center',
     padding: '0 14px',
     borderRadius: 6,
-    background: '#1D50A0',
+    background: 'var(--navy-500, #1D50A0)',
     border: 'none',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: '#FFFFFF',
+    color: 'var(--gray-0, #FFFFFF)',
     cursor: 'pointer',
   },
   challengeCard: {
@@ -411,8 +412,8 @@ const S = {
     gap: 8,
     padding: '12px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
   statusBadge: {
     fontSize: 11,
@@ -428,9 +429,9 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 6,
-    background: '#1D50A0',
+    background: 'var(--navy-500, #1D50A0)',
     border: 'none',
-    color: '#FFFFFF',
+    color: 'var(--gray-0, #FFFFFF)',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
@@ -442,9 +443,9 @@ const S = {
     justifyContent: 'center',
     padding: '0 12px',
     borderRadius: 6,
-    background: '#141D2E',
-    border: '1px solid #2E3E5C',
-    color: '#A8B7CB',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-default, #2E3E5C)',
+    color: 'var(--text-secondary, #A8B7CB)',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
@@ -454,8 +455,8 @@ const S = {
     gap: 6,
     padding: '11px 13px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
     font: '400 13px/1.5 "IBM Plex Mono", monospace',
   },
   h2hRow: {
@@ -465,7 +466,7 @@ const S = {
     fontSize: 12,
     padding: '4px 8px',
     borderRadius: 4,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
 }

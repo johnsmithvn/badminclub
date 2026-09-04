@@ -26,4 +26,12 @@
 
 /* Data-viz sequence for utilisation / volume charts */
 --viz-1:#0D2B5E;--viz-2:#00B2A9;--viz-3:#3C74C4;--viz-4:#E08A00;--viz-5:#7ADFD9;--viz-6:#73839A;
+
+/* Rank Tier Tokens (Badminton Slang) */
+--rank-novice:#94A3B8;--rank-rookie:#38BDF8;--rank-regular:#34D399;--rank-solid:#FACC15;
+--rank-net-master:#FB923C;--rank-coverage:#F43F5E;--rank-heavy-hitter:#A855F7;--rank-court-boss:#EC4899;
+
+/* Podium and Badge Tokens */
+--podium-gold:#F0B75C;--podium-silver:#C0D8F8;--podium-bronze:#CD7F32;
+--amber-950:#2D1F10;--amber-700:#784A15;
 }

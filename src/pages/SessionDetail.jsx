@@ -113,8 +113,8 @@ export default function SessionDetail() {
                 {drift && canMoney && (
                   <Button variant="primary" icon="rotate-ccw"
                     style={{
-                      background: 'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)',
-                      borderColor: '#f59e0b',
+                      background: 'linear-gradient(135deg, var(--amber-600, #b45309) 0%, var(--amber-500, #f59e0b) 100%)',
+                      borderColor: 'var(--amber-500, #f59e0b)',
                       boxShadow: '0 2px 10px rgba(245, 158, 11, 0.4)',
                       fontWeight: 700,
                     }}
@@ -125,8 +125,8 @@ export default function SessionDetail() {
                 {s.status === 'draft' && (
                   <Button variant="primary" icon="user-round-check"
                     style={{
-                      background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
-                      borderColor: '#0ea5e9',
+                      background: 'linear-gradient(135deg, var(--blue-600, #0284c7) 0%, var(--status-scheduled, #0ea5e9) 100%)',
+                      borderColor: 'var(--status-scheduled, #0ea5e9)',
                       boxShadow: '0 2px 10px rgba(14, 165, 233, 0.4)',
                       fontWeight: 700,
                     }}
@@ -141,8 +141,8 @@ export default function SessionDetail() {
                       icon="circle-check"
                       disabled={!canMoney}
                       style={{
-                        background: !canMoney ? undefined : 'linear-gradient(135deg, #0d5e3a 0%, #00875a 100%)',
-                        borderColor: !canMoney ? undefined : '#00875a',
+                        background: !canMoney ? undefined : 'linear-gradient(135deg, var(--green-600, #0d5e3a) 0%, var(--green-500, #00875a) 100%)',
+                        borderColor: !canMoney ? undefined : 'var(--green-500, #00875a)',
                         boxShadow: !canMoney ? undefined : '0 2px 12px rgba(0, 135, 90, 0.45)',
                         fontWeight: 700,
                         padding: '0 16px',
@@ -244,7 +244,7 @@ export default function SessionDetail() {
             }}
           >
             <span>{t('sessionTabs.courts')}</span>
-            <span style={{ ...S.tabBadgeMono, color: '#5FDBD3' }}>{onCourtCount}</span>
+            <span style={{ ...S.tabBadgeMono, color: 'var(--status-transit-fg, #5FDBD3)' }}>{onCourtCount}</span>
           </button>
           <button
             type="button"
@@ -255,7 +255,7 @@ export default function SessionDetail() {
             }}
           >
             <span>{t('sessionTabs.matches')}</span>
-            <span style={{ ...S.tabBadgeMono, color: '#F0B75C' }}>
+            <span style={{ ...S.tabBadgeMono, color: 'var(--status-delayed-fg, #F0B75C)' }}>
               {sessionMatches.length}{pendingChallengesCount > 0 ? `/${pendingChallengesCount}` : ''}
             </span>
           </button>
@@ -1044,15 +1044,15 @@ const SumRow = ({ label, value, color, strong, hint }) => (
 
 const S = {
   tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 16px' },
-  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: '#101927', border: '1px solid #22304A', gap: 2 },
+  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: 'var(--surface-inset, #101927)', border: '1px solid var(--border-subtle, #22304A)', gap: 2 },
   tabBtn: {
     display: 'flex', alignItems: 'center', gap: 8, height: 34, padding: '0 14px',
     borderRadius: 6, border: 'none', background: 'transparent',
-    font: '600 13px/1 "IBM Plex Sans", sans-serif', color: '#8494AA',
+    font: '600 13px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted, #8494AA)',
     cursor: 'pointer', transition: 'all 0.15s ease',
   },
-  tabBtnActive: { background: '#141D2E', color: '#E9EFF7', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
-  tabBadgeMono: { font: '400 11.5px/1 "IBM Plex Mono", monospace', color: '#8494AA' },
+  tabBtnActive: { background: 'var(--surface-card, #141D2E)', color: 'var(--text-primary, #E9EFF7)', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
+  tabBadgeMono: { font: '400 11.5px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' },
   headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
@@ -1076,7 +1076,7 @@ const S = {
   guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 110px 95px minmax(180px, 1.6fr) auto', gap: 9, alignItems: 'flex-end' },
   guestDropdown: {
     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-    background: 'var(--surface-overlay, #fff)', border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-overlay, var(--gray-0, #fff))', border: '1px solid var(--border-subtle)',
     borderRadius: 8, boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1))',
     maxHeight: 240, overflowY: 'auto', marginTop: 4, display: 'grid',
   },

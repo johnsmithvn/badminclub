@@ -11,14 +11,14 @@ export const K_DYNAMIC = cfg.rating?.kDynamic || { r1: 48, r2: 36, r3: 28, r4: 2
 export const BALANCE_THRESHOLD = cfg.rating?.balanceThreshold ?? 120
 export const IMBALANCE_THRESHOLD = cfg.rating?.imbalanceThreshold ?? 250
 export const TIERS = cfg.rating?.tiers || [
-  { key: 'novice', min: 0, max: 199, color: '#94A3B8', icon: 'sparkles' },
-  { key: 'rookie', min: 200, max: 399, color: '#38BDF8', icon: 'play' },
-  { key: 'regular', min: 400, max: 599, color: '#34D399', icon: 'shield' },
-  { key: 'solid', min: 600, max: 799, color: '#FACC15', icon: 'award' },
-  { key: 'net_master', min: 800, max: 999, color: '#FB923C', icon: 'zap' },
-  { key: 'coverage', min: 1000, max: 1199, color: '#F43F5E', icon: 'flame' },
-  { key: 'heavy_hitter', min: 1200, max: 1399, color: '#A855F7', icon: 'trophy' },
-  { key: 'court_boss', min: 1400, max: 99999, color: '#EC4899', icon: 'crown' },
+  { key: 'novice', min: 0, max: 199, token: 'rank-novice', icon: 'sparkles' },
+  { key: 'rookie', min: 200, max: 399, token: 'rank-rookie', icon: 'play' },
+  { key: 'regular', min: 400, max: 599, token: 'rank-regular', icon: 'shield' },
+  { key: 'solid', min: 600, max: 799, token: 'rank-solid', icon: 'award' },
+  { key: 'net_master', min: 800, max: 999, token: 'rank-net-master', icon: 'zap' },
+  { key: 'coverage', min: 1000, max: 1199, token: 'rank-coverage', icon: 'flame' },
+  { key: 'heavy_hitter', min: 1200, max: 1399, token: 'rank-heavy-hitter', icon: 'trophy' },
+  { key: 'court_boss', min: 1400, max: 99999, token: 'rank-court-boss', icon: 'crown' },
 ]
 
 /**
@@ -114,11 +114,15 @@ export function rankTierOf(rating = 0, themeKey = 'street') {
   const label = getTierName(safeTheme, tier.key)
   const quip = getComedyQuip(tier.key)
 
+  const colorToken = tier.token ? `var(--${tier.token})` : (tier.color || 'var(--rank-novice)')
+
   return {
     key: tier.key,
     label,
     quip,
-    color: tier.color,
+    token: tier.token || `rank-${tier.key.replace(/_/g, '-')}`,
+    color: colorToken,
+    colorToken,
     icon: tier.icon,
     min: tier.min,
     max: tier.max,

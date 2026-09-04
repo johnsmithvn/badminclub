@@ -134,9 +134,9 @@ export default function CourtAssignmentTab({ s }) {
             fontWeight: 600,
             padding: '4px 10px',
             borderRadius: 6,
-            background: selectedPoolKey ? '#1D50A0' : '#101927',
-            border: `1px solid ${selectedPoolKey ? '#3C74C4' : '#22304A'}`,
-            color: selectedPoolKey ? '#FFFFFF' : '#8494AA',
+            background: selectedPoolKey ? 'var(--navy-500, #1D50A0)' : 'var(--surface-inset, #101927)',
+            border: `1px solid ${selectedPoolKey ? 'var(--navy-400, #3C74C4)' : 'var(--border-subtle, #22304A)'}`,
+            color: selectedPoolKey ? 'var(--gray-0, #FFFFFF)' : 'var(--text-muted, #8494AA)',
           }}>
             {selectedPoolKey
               ? t('courtAssign.selHintActive', { name: (pmap[selectedPoolKey] || {}).name })
@@ -160,20 +160,20 @@ export default function CourtAssignmentTab({ s }) {
                 onClick={() => setSelectedPoolKey(isSelected ? null : p.key)}
                 style={{
                   ...S.poolChip,
-                  background: isSelected ? '#1D50A0' : '#141D2E',
-                  borderColor: isSelected ? '#3C74C4' : '#22304A',
-                  color: isSelected ? '#FFFFFF' : '#E9EFF7',
-                  boxShadow: isSelected ? '0 0 0 1px #3C74C4' : 'none',
+                  background: isSelected ? 'var(--navy-500, #1D50A0)' : 'var(--surface-card, #141D2E)',
+                  borderColor: isSelected ? 'var(--navy-400, #3C74C4)' : 'var(--border-subtle, #22304A)',
+                  color: isSelected ? 'var(--gray-0, #FFFFFF)' : 'var(--text-primary, #E9EFF7)',
+                  boxShadow: isSelected ? '0 0 0 1px var(--navy-400, #3C74C4)' : 'none',
                 }}
               >
                 <span>{p.name}</span>
-                <span style={{ ...S.monoVal, color: isSelected ? '#C0D8F8' : '#8494AA' }}>{r}</span>
+                <span style={{ ...S.monoVal, color: isSelected ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>{r}</span>
                 <LevelChip level={p.level} levels={db.levels} />
               </button>
             )
           })}
           {pool.length === 0 && (
-            <span style={{ color: '#8494AA', fontSize: 13, padding: '8px 0' }}>
+            <span style={{ color: 'var(--text-muted, #8494AA)', fontSize: 13, padding: '8px 0' }}>
               {t('courtAssign.poolEmpty')}
             </span>
           )}
@@ -184,7 +184,7 @@ export default function CourtAssignmentTab({ s }) {
       {acceptedChallenges.length > 0 && (
         <div style={S.acceptedCard}>
           <div style={{ display: 'grid', gap: 2 }}>
-            <div style={{ ...S.cardTitle, color: '#5FDBD3' }}>
+            <div style={{ ...S.cardTitle, color: 'var(--status-transit-fg, #5FDBD3)' }}>
               {t('challenge.waitingCourtTitle')}
             </div>
             <div style={S.cardSub}>
@@ -199,8 +199,8 @@ export default function CourtAssignmentTab({ s }) {
               return (
                 <div key={c.id} style={S.acceptedRow}>
                   <span style={S.challengeCode}>{c.code}</span>
-                  <span style={{ flex: 1, minWidth: 200, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
-                    {namesA} <span style={{ color: '#5B6B81', fontWeight: 400 }}>vs</span> {namesB}
+                  <span style={{ flex: 1, minWidth: 200, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
+                    {namesA} <span style={{ color: 'var(--text-disabled, #5B6B81)', fontWeight: 400 }}>vs</span> {namesB}
                   </span>
                   <span style={S.challengeMeta}>BO{c.bestOf || 3} · {c.ratingEnabled ? t('challenge.rated') : t('challenge.casual')}</span>
                   <button
@@ -263,7 +263,7 @@ export default function CourtAssignmentTab({ s }) {
               pctB: 100 - pctA,
               level: evalRes.level,
               label: evalRes.label,
-              color: evalRes.level === 'imbalanced' ? '#F0B75C' : evalRes.level === 'balanced' ? '#5FD9A2' : '#5FDBD3',
+              color: evalRes.level === 'imbalanced' ? 'var(--status-delayed-fg, #F0B75C)' : evalRes.level === 'balanced' ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-transit-fg, #5FDBD3)',
             }
           }
 
@@ -277,8 +277,8 @@ export default function CourtAssignmentTab({ s }) {
                 onDrop={(e) => drop(e, (k) => a.place(s.id, slotId, k))}
                 style={{
                   ...S.slotBox,
-                  background: p ? '#101927' : isHighlighted ? 'rgba(60,116,196,.12)' : '#0B1220',
-                  borderColor: p ? '#22304A' : isHighlighted ? '#3C74C4' : '#1F2A3F',
+                  background: p ? 'var(--surface-inset, #101927)' : isHighlighted ? 'rgba(60,116,196,.12)' : 'var(--surface-page, #0B1220)',
+                  borderColor: p ? 'var(--border-subtle, #22304A)' : isHighlighted ? 'var(--navy-400, #3C74C4)' : 'var(--navy-900, #1F2A3F)',
                   borderStyle: p ? 'solid' : 'dashed',
                   cursor: 'pointer',
                 }}
@@ -286,13 +286,13 @@ export default function CourtAssignmentTab({ s }) {
                 {p ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 6 }}>
                     <div style={{ minWidth: 0, textAlign: 'left' }}>
-                      <div style={{ font: '600 13px/1.2 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>{p.name}</div>
-                      <div style={{ font: '400 11px/1.2 "IBM Plex Mono", monospace', color: '#8494AA' }}>{getRating(p.key)}</div>
+                      <div style={{ font: '600 13px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>{p.name}</div>
+                      <div style={{ font: '400 11px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>{getRating(p.key)}</div>
                     </div>
                     <LevelChip level={p.level} levels={db.levels} />
                   </div>
                 ) : (
-                  <span style={{ fontSize: 12, color: isHighlighted ? '#5FDBD3' : '#5B6B81', fontWeight: 500 }}>
+                  <span style={{ fontSize: 12, color: isHighlighted ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-disabled, #5B6B81)', fontWeight: 500 }}>
                     + {isHighlighted
                         ? t('courtAssign.slotPlace', { name: (pmap[selectedPoolKey] || {}).name || '' })
                         : t('courtAssign.slotEmpty')}
@@ -305,13 +305,13 @@ export default function CourtAssignmentTab({ s }) {
           return (
             <div key={ci} style={{
               ...S.courtCard,
-              borderColor: attachedChallenge ? '#00786F' : '#22304A',
+              borderColor: attachedChallenge ? 'var(--teal-700, #00786F)' : 'var(--border-subtle, #22304A)',
             }}>
               {/* Header Sân */}
               <div style={S.courtHead}>
                 <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ font: '600 16px/1.25 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                    <span style={{ font: '600 16px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
                       {courtName}
                     </span>
                     {c.extra && <span style={S.tagAmber}>{t('assign.extraTag')}</span>}
@@ -325,8 +325,8 @@ export default function CourtAssignmentTab({ s }) {
                 <span style={{
                   ...S.statusPill,
                   background: attachedChallenge ? 'rgba(0,178,169,.14)' : startedAt ? 'rgba(18,168,103,.14)' : 'rgba(255,255,255,.05)',
-                  borderColor: attachedChallenge ? '#00786F' : startedAt ? '#00875A' : '#22304A',
-                  color: attachedChallenge ? '#5FDBD3' : startedAt ? '#5FD9A2' : '#8494AA',
+                  borderColor: attachedChallenge ? 'var(--teal-700, #00786F)' : startedAt ? 'var(--green-600, #00875A)' : 'var(--border-subtle, #22304A)',
+                  color: attachedChallenge ? 'var(--status-transit-fg, #5FDBD3)' : startedAt ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-muted, #8494AA)',
                 }}>
                   {attachedChallenge
                     ? `${t('courtAssign.statusFromChallenge')} ${attachedChallenge.code}`
@@ -384,16 +384,16 @@ export default function CourtAssignmentTab({ s }) {
                   {balance ? (
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>{balance.pctA}%</span>
-                        <span style={{ fontSize: 11, color: '#8494AA' }}>{t('rating.gap', { gap: balance.gap })}</span>
-                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: '#A8B7CB' }}>{balance.pctB}%</span>
+                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>{balance.pctA}%</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)' }}>{t('rating.gap', { gap: balance.gap })}</span>
+                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-secondary, #A8B7CB)' }}>{balance.pctB}%</span>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 600, color: balance.color }}>
                         {balance.label}
                       </span>
                     </>
                   ) : (
-                    <span style={{ fontSize: 12, color: '#5B6B81' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-disabled, #5B6B81)' }}>
                       {t('courtAssign.needFour')}
                     </span>
                   )}
@@ -415,9 +415,9 @@ export default function CourtAssignmentTab({ s }) {
                     })}
                     style={{
                       ...S.finishBtn,
-                      background: isFull ? '#1D50A0' : '#141D2E',
-                      borderColor: isFull ? '#3C74C4' : '#22304A',
-                      color: isFull ? '#FFFFFF' : '#5B6B81',
+                      background: isFull ? 'var(--navy-500, #1D50A0)' : 'var(--surface-card, #141D2E)',
+                      borderColor: isFull ? 'var(--navy-400, #3C74C4)' : 'var(--border-subtle, #22304A)',
+                      color: isFull ? 'var(--gray-0, #FFFFFF)' : 'var(--text-disabled, #5B6B81)',
                       cursor: isFull ? 'pointer' : 'not-allowed',
                     }}
                   >
@@ -494,8 +494,8 @@ function Toolbar({ s, lineup, idxs }) {
 
 const S = {
   poolCard: {
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-subtle, #22304A)',
     borderRadius: 10,
     boxShadow: '0 1px 1px rgba(0,0,0,.30)',
     padding: '14px 16px',
@@ -504,11 +504,11 @@ const S = {
   },
   cardTitle: {
     font: '600 16px/1.25 "IBM Plex Sans", sans-serif',
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
   },
   cardSub: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   poolChips: {
     display: 'flex',
@@ -532,8 +532,8 @@ const S = {
     font: '400 12px/1 "IBM Plex Mono", monospace',
   },
   acceptedCard: {
-    background: '#141D2E',
-    border: '1px solid #00786F',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--teal-700, #00786F)',
     borderRadius: 10,
     boxShadow: '0 1px 1px rgba(0,0,0,.30)',
     padding: '14px 16px',
@@ -547,16 +547,16 @@ const S = {
     flexWrap: 'wrap',
     padding: '10px 14px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #00786F',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--teal-700, #00786F)',
   },
   challengeCode: {
     font: '600 13px/1.4 "IBM Plex Mono", monospace',
-    color: '#5FDBD3',
+    color: 'var(--status-transit-fg, #5FDBD3)',
   },
   challengeMeta: {
     font: '400 13px/1.4 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   deployBtn: {
     height: 36,
@@ -564,28 +564,28 @@ const S = {
     alignItems: 'center',
     padding: '0 14px',
     borderRadius: 6,
-    background: '#1D50A0',
+    background: 'var(--navy-500, #1D50A0)',
     border: 'none',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: '#FFFFFF',
+    color: 'var(--gray-0, #FFFFFF)',
     cursor: 'pointer',
   },
   toolbar: {
     padding: '12px 14px',
     borderRadius: 10,
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
   seatsBadge: {
     display: 'inline-flex',
     alignItems: 'center',
     padding: '6px 12px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
     fontSize: 12.5,
     fontWeight: 600,
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
   },
   courtGrid: {
     display: 'grid',
@@ -594,15 +594,15 @@ const S = {
     alignItems: 'start',
   },
   courtCard: {
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-subtle, #22304A)',
     borderRadius: 10,
     boxShadow: '0 1px 1px rgba(0,0,0,.30)',
     overflow: 'hidden',
   },
   courtHead: {
     padding: '12px 14px',
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     display: 'flex',
     alignItems: 'center',
     gap: 10,
@@ -610,7 +610,7 @@ const S = {
   },
   courtMeta: {
     font: '400 13px/1.4 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   statusPill: {
     fontSize: 11,
@@ -621,8 +621,8 @@ const S = {
   },
   timerBar: {
     padding: '8px 14px',
-    background: '#101927',
-    borderBottom: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -658,11 +658,11 @@ const S = {
   vsLine: {
     width: 1,
     height: 18,
-    background: '#22304A',
+    background: 'var(--border-subtle, #22304A)',
   },
   vsText: {
     font: '700 12px/1 Barlow, sans-serif',
-    color: '#5B6B81',
+    color: 'var(--text-disabled, #5B6B81)',
   },
   balanceRow: {
     display: 'flex',
@@ -671,8 +671,8 @@ const S = {
     gap: 8,
     padding: '8px 12px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
   finishBtn: {
     flex: 1,
@@ -690,10 +690,10 @@ const S = {
     alignItems: 'center',
     padding: '0 14px',
     borderRadius: 6,
-    background: '#1A2437',
-    border: '1px solid #2E3E5C',
+    background: 'var(--surface-raised, #1A2437)',
+    border: '1px solid var(--border-default, #2E3E5C)',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: '#A8B7CB',
+    color: 'var(--text-secondary, #A8B7CB)',
     cursor: 'pointer',
   },
   tagAmber: {
@@ -702,6 +702,6 @@ const S = {
     padding: '2px 6px',
     borderRadius: 4,
     background: 'rgba(224,138,0,.18)',
-    color: '#F0B75C',
+    color: 'var(--status-delayed-fg, #F0B75C)',
   },
 }

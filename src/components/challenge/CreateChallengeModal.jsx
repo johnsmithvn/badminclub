@@ -110,7 +110,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
           {/* 2 Đội preview */}
           <div style={S.teamsRow}>
             {/* Đội A */}
-            <div style={{ ...S.teamCard, borderColor: '#00786F' }}>
+            <div style={{ ...S.teamCard, borderColor: 'var(--teal-700, #00786F)' }}>
               <div style={S.teamHead}>
                 <span style={S.teamLabelA}>{t('challenge.teamA')}</span>
                 <span style={S.teamRatingMono}>{teamA.length ? avgRatingA : '—'}</span>
@@ -121,7 +121,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
             </div>
 
             {/* Đội B */}
-            <div style={{ ...S.teamCard, borderColor: '#2E3E5C' }}>
+            <div style={{ ...S.teamCard, borderColor: 'var(--border-default, #2E3E5C)' }}>
               <div style={S.teamHead}>
                 <span style={S.teamLabelB}>{t('challenge.teamB')}</span>
                 <span style={S.teamRatingMono}>{teamB.length ? avgRatingB : '—'}</span>
@@ -149,20 +149,20 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                     onClick={() => cycleMember(m.id)}
                     style={{
                       ...S.playerChip,
-                      background: inA ? '#1D50A0' : inB ? '#1F3452' : '#141D2E',
-                      borderColor: inA ? '#3C74C4' : inB ? '#3A5A8C' : '#22304A',
-                      color: inA || inB ? '#FFFFFF' : '#E9EFF7',
+                      background: inA ? 'var(--navy-500, #1D50A0)' : inB ? 'var(--navy-800, #1F3452)' : 'var(--surface-card, #141D2E)',
+                      borderColor: inA ? 'var(--navy-400, #3C74C4)' : inB ? 'var(--navy-600, #3A5A8C)' : 'var(--border-subtle, #22304A)',
+                      color: inA || inB ? 'var(--gray-0, #FFFFFF)' : 'var(--text-primary, #E9EFF7)',
                     }}
                   >
                     <span>{m.name}</span>
-                    <span style={{ ...S.monoRating, color: inA || inB ? '#C0D8F8' : '#8494AA' }}>{r}</span>
+                    <span style={{ ...S.monoRating, color: inA || inB ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>{r}</span>
                     {inA && <span style={S.teamTag}>A</span>}
                     {inB && <span style={S.teamTag}>B</span>}
                   </button>
                 )
               })}
               {pickableMembers.length === 0 && (
-                <div style={{ color: '#8494AA', fontSize: 13 }}>{t('challenge.noPresentMembers')}</div>
+                <div style={{ color: 'var(--text-muted, #8494AA)', fontSize: 13 }}>{t('challenge.noPresentMembers')}</div>
               )}
             </div>
             <div style={S.guestNotice}>{t('challenge.guestNotice')}</div>
@@ -173,18 +173,18 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
             <div style={S.analysisCard}>
               <div style={S.sectionLabel}>{t('challenge.balanceTitle')}</div>
               <div style={S.pctRow}>
-                <span style={{ ...S.pctNum, color: '#5FDBD3' }}>{pctA}%</span>
+                <span style={{ ...S.pctNum, color: 'var(--status-transit-fg, #5FDBD3)' }}>{pctA}%</span>
                 <span style={S.gapMono}>{t('rating.gap', { gap })}</span>
-                <span style={{ ...S.pctNum, color: '#A8B7CB' }}>{pctB}%</span>
+                <span style={{ ...S.pctNum, color: 'var(--text-secondary, #A8B7CB)' }}>{pctB}%</span>
               </div>
               <div style={S.barTrack}>
-                <div style={{ width: `${pctA}%`, background: '#00B2A9', height: '100%' }} />
-                <div style={{ width: `${pctB}%`, background: '#2E3E5C', height: '100%' }} />
+                <div style={{ width: `${pctA}%`, background: 'var(--teal-500, #00B2A9)', height: '100%' }} />
+                <div style={{ width: `${pctB}%`, background: 'var(--border-default, #2E3E5C)', height: '100%' }} />
               </div>
               <div style={{
                 fontSize: 12,
                 fontWeight: 600,
-                color: isImbalanced ? '#F0B75C' : gap <= 120 ? '#5FD9A2' : '#5FDBD3',
+                color: isImbalanced ? 'var(--status-delayed-fg, #F0B75C)' : gap <= 120 ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-transit-fg, #5FDBD3)',
                 marginTop: 2,
               }}>
                 {isImbalanced ? t('challenge.imbalancedWarn') : gap <= 120 ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
@@ -199,23 +199,23 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               >
                 <div style={{
                   ...S.checkboxBox,
-                  background: ratingEnabled ? '#00B2A9' : 'transparent',
-                  borderColor: ratingEnabled ? '#00B2A9' : '#2E3E5C',
+                  background: ratingEnabled ? 'var(--teal-500, #00B2A9)' : 'transparent',
+                  borderColor: ratingEnabled ? 'var(--teal-500, #00B2A9)' : 'var(--border-default, #2E3E5C)',
                 }}>
-                  {ratingEnabled && <span style={{ color: '#04302C', fontWeight: 700, fontSize: 13 }}>✓</span>}
+                  {ratingEnabled && <span style={{ color: 'var(--teal-900, #04302C)', fontWeight: 700, fontSize: 13 }}>✓</span>}
                 </div>
                 <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ font: '600 13px/1.4 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                  <div style={{ font: '600 13px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
                     {t('challenge.rateOptionTitle')}
                   </div>
-                  <div style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
+                  <div style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted, #8494AA)' }}>
                     {t('challenge.rateOptionHint')}
                   </div>
                 </div>
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                <span style={{ fontSize: 12, color: '#8494AA' }}>{t('challenge.format')}:</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>{t('challenge.format')}:</span>
                 {[1, 3].map((b) => (
                   <button
                     key={b}
@@ -223,9 +223,9 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                     onClick={() => setBestOf(b)}
                     style={{
                       ...S.boBtn,
-                      background: bestOf === b ? '#1D50A0' : '#141D2E',
-                      borderColor: bestOf === b ? '#3C74C4' : '#2E3E5C',
-                      color: bestOf === b ? '#FFFFFF' : '#A8B7CB',
+                      background: bestOf === b ? 'var(--navy-500, #1D50A0)' : 'var(--surface-card, #141D2E)',
+                      borderColor: bestOf === b ? 'var(--navy-400, #3C74C4)' : 'var(--border-default, #2E3E5C)',
+                      color: bestOf === b ? 'var(--gray-0, #FFFFFF)' : 'var(--text-secondary, #A8B7CB)',
                     }}
                   >
                     BO{b}
@@ -238,24 +238,24 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
           {/* Cảnh báo K3: Kèo lệch trình độ & Chi tiết delta 2 kịch bản */}
           {isImbalanced && (
             <div style={S.imbalanceDetailedCard}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#F0B75C', fontWeight: 600, fontSize: 13 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--status-delayed-fg, #F0B75C)', fontWeight: 600, fontSize: 13 }}>
                 <span>⚠️</span> {t('challenge.imbalancedWarn', { gap })}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginTop: 4 }}>
                 <div style={S.scenarioBox}>
-                  <div style={{ color: '#8494AA', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinA')}</div>
-                  <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 12.5, color: '#5FD9A2', fontWeight: 600 }}>
+                  <div style={{ color: 'var(--text-muted, #8494AA)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinA')}</div>
+                  <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 12.5, color: 'var(--status-delivered-fg, #5FD9A2)', fontWeight: 600 }}>
                     +{deltaA_win} / -{deltaA_win}
                   </div>
                 </div>
                 <div style={S.scenarioBox}>
-                  <div style={{ color: '#8494AA', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinB')}</div>
-                  <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 12.5, color: '#F0B75C', fontWeight: 600 }}>
+                  <div style={{ color: 'var(--text-muted, #8494AA)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinB')}</div>
+                  <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 12.5, color: 'var(--status-delayed-fg, #F0B75C)', fontWeight: 600 }}>
                     +{deltaB_win} / -{deltaB_win}
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: 11.5, color: '#8494AA', fontStyle: 'italic', marginTop: 2 }}>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted, #8494AA)', fontStyle: 'italic', marginTop: 2 }}>
                 {t('challenge.imbalanceNotice')}
               </div>
             </div>
@@ -302,8 +302,8 @@ const S = {
     maxWidth: 720,
     maxHeight: '94vh',
     overflowY: 'auto',
-    background: '#1A2437',
-    border: '1px solid #2E3E5C',
+    background: 'var(--surface-raised, #1A2437)',
+    border: '1px solid var(--border-default, #2E3E5C)',
     borderRadius: 12,
     boxShadow: '0 24px 60px rgba(0,0,0,.60)',
     display: 'flex',
@@ -311,18 +311,18 @@ const S = {
   },
   header: {
     padding: '14px 18px',
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle, #22304A)',
     display: 'flex',
     alignItems: 'center',
     gap: 12,
   },
   title: {
     font: '600 17px/1.25 "IBM Plex Sans", sans-serif',
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
   },
   subtitle: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   closeBtn: {
     height: 32,
@@ -330,10 +330,10 @@ const S = {
     alignItems: 'center',
     padding: '0 12px',
     borderRadius: 6,
-    background: '#141D2E',
-    border: '1px solid #2E3E5C',
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-default, #2E3E5C)',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: '#A8B7CB',
+    color: 'var(--text-secondary, #A8B7CB)',
     cursor: 'pointer',
   },
   body: {
@@ -351,7 +351,7 @@ const S = {
     gap: 8,
     padding: '12px 14px',
     borderRadius: 8,
-    background: '#101927',
+    background: 'var(--surface-inset, #101927)',
     border: '1px solid',
   },
   teamHead: {
@@ -364,25 +364,25 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#5FDBD3',
+    color: 'var(--status-transit-fg, #5FDBD3)',
   },
   teamLabelB: {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   teamRatingMono: {
     font: '600 13px/1.3 "IBM Plex Mono", monospace',
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
   },
   teamNames: {
     font: '600 14px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#E9EFF7',
+    color: 'var(--text-primary, #E9EFF7)',
     minHeight: 22,
   },
   faintText: {
-    color: '#5B6B81',
+    color: 'var(--text-disabled, #5B6B81)',
     fontWeight: 400,
     fontSize: 13,
   },
@@ -390,7 +390,7 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   chipWrap: {
     display: 'flex',
@@ -415,12 +415,12 @@ const S = {
     font: '700 10px/1 "IBM Plex Sans", sans-serif',
     padding: '2px 4px',
     borderRadius: 3,
-    background: '#00B2A9',
-    color: '#04302C',
+    background: 'var(--teal-500, #00B2A9)',
+    color: 'var(--teal-900, #04302C)',
   },
   guestNotice: {
     font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   analysisRow: {
     display: 'grid',
@@ -433,8 +433,8 @@ const S = {
     gap: 8,
     padding: '12px 14px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
   pctRow: {
     display: 'flex',
@@ -447,14 +447,14 @@ const S = {
   },
   gapMono: {
     font: '400 12px/1.3 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   barTrack: {
     display: 'flex',
     height: 8,
     borderRadius: 999,
     overflow: 'hidden',
-    background: '#0B1220',
+    background: 'var(--surface-page, #0B1220)',
   },
   checkboxRow: {
     display: 'flex',
@@ -496,29 +496,29 @@ const S = {
     alignItems: 'center',
     padding: '0 20px',
     borderRadius: 6,
-    background: '#1D50A0',
+    background: 'var(--navy-500, #1D50A0)',
     border: 'none',
     font: '700 14px/1 "IBM Plex Sans", sans-serif',
-    color: '#FFFFFF',
+    color: 'var(--gray-0, #FFFFFF)',
     boxShadow: '0 2px 10px rgba(29,80,160,.4)',
   },
   submitHint: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted, #8494AA)',
   },
   imbalanceDetailedCard: {
     padding: '12px 14px',
     borderRadius: 8,
     background: 'rgba(224,138,0,.10)',
-    border: '1px solid #F0B75C',
+    border: '1px solid var(--status-delayed-fg, #F0B75C)',
     display: 'grid',
     gap: 6,
   },
   scenarioBox: {
     padding: '8px 10px',
     borderRadius: 6,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
     display: 'grid',
     gap: 2,
   },
