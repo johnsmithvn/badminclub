@@ -267,7 +267,7 @@ export default function Leaderboard() {
               <div style={S.cardTitle}>{t('leaderboard.title')} · {t('leaderboard.season', { year: yearFilter })}</div>
               <div style={S.cardSub}>{t('leaderboard.sub')}</div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
               <Select
                 size="sm"
                 value={rankTheme}
@@ -276,7 +276,7 @@ export default function Leaderboard() {
                   value: th.key,
                   label: th.label,
                 }))}
-                style={{ width: 175 }}
+                style={{ width: isMobile ? '100%' : 175 }}
                 title={t('leaderboard.themeHint')}
               />
               <Select
@@ -287,14 +287,14 @@ export default function Leaderboard() {
                   { value: 'all', label: t('leaderboard.filterAll') },
                   { value: 'active', label: t('leaderboard.filterActiveOnly') },
                 ]}
-                style={{ width: 150 }}
+                style={{ width: isMobile ? '100%' : 150 }}
               />
               <Input
                 size="sm"
                 placeholder={t('leaderboard.searchPlaceholder')}
                 value={searchName}
                 onChange={(e) => setSearchName(e.target.value)}
-                style={{ width: 170 }}
+                style={{ width: isMobile ? '100%' : 170 }}
               />
             </div>
           </div>
@@ -473,12 +473,12 @@ export default function Leaderboard() {
                     <span style={{ fontSize: 13, color: '#8494AA' }}>({currentMember.gender})</span>
                     <LevelChip level={currentMember.level} levels={db.levels} />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
                     <Select
                       value={currentMember.id}
                       options={activeMembers.map((m) => ({ value: m.id, label: m.name }))}
                       onChange={(e) => setSelectedMemberId(e.target.value)}
-                      style={{ width: 180 }}
+                      style={{ width: isMobile ? '100%' : 180 }}
                     />
                     <button
                       type="button"
@@ -487,7 +487,7 @@ export default function Leaderboard() {
                         setInitialTeamB([currentMember.id])
                         setChallengeModalOpen(true)
                       }}
-                      style={S.challengeBtn}
+                      style={{ ...S.challengeBtn, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                     >
                       ⚔️ {t('leaderboard.challengeMember', { name: currentMember.name })}
                     </button>
@@ -653,7 +653,7 @@ export default function Leaderboard() {
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: isMobile ? '100%' : 'auto' }}>
                     <Select
                       size="sm"
                       value={rankTheme}
@@ -662,7 +662,7 @@ export default function Leaderboard() {
                         value: th.key,
                         label: th.label,
                       }))}
-                      style={{ minWidth: 165 }}
+                      style={{ width: isMobile ? '100%' : 165 }}
                       title={t('leaderboard.themeHint')}
                     />
                   </div>
@@ -709,7 +709,7 @@ export default function Leaderboard() {
                   value={playerA}
                   options={[{ value: '', label: `-- ${t('matchSearch.playerA')} --` }, ...activeMembers.map((m) => ({ value: m.id, label: m.name }))]}
                   onChange={(e) => setPlayerA(e.target.value)}
-                  style={{ width: 170 }}
+                  style={{ width: isMobile ? '100%' : 170 }}
                 />
                 <Select
                   value={searchMode}
@@ -718,13 +718,13 @@ export default function Leaderboard() {
                     { value: 'team', label: t('matchSearch.modeTeammate') },
                   ]}
                   onChange={(e) => setSearchMode(e.target.value)}
-                  style={{ width: 120 }}
+                  style={{ width: isMobile ? '100%' : 120 }}
                 />
                 <Select
                   value={playerB}
                   options={[{ value: '', label: `-- ${t('matchSearch.playerB')} --` }, ...activeMembers.map((m) => ({ value: m.id, label: m.name }))]}
                   onChange={(e) => setPlayerB(e.target.value)}
-                  style={{ width: 170 }}
+                  style={{ width: isMobile ? '100%' : 170 }}
                 />
                 <Select
                   value={qualityFilter}
@@ -734,7 +734,7 @@ export default function Leaderboard() {
                     { value: 'upset', label: t('matchSearch.qualityUpset') },
                   ]}
                   onChange={(e) => setQualityFilter(e.target.value)}
-                  style={{ width: 180 }}
+                  style={{ width: isMobile ? '100%' : 180 }}
                 />
                 {/* Nút Gạ kèo giữa 2 người chơi khi đã chọn cả 2 */}
                 {playerA && playerB && playerA !== playerB && (
@@ -745,7 +745,7 @@ export default function Leaderboard() {
                       setInitialTeamB([playerB])
                       setChallengeModalOpen(true)
                     }}
-                    style={S.challengeBtn}
+                    style={{ ...S.challengeBtn, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                   >
                     ⚔️ {t('matchSearch.challengeBetween')}
                   </button>
