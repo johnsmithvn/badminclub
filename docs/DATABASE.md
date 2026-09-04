@@ -187,6 +187,11 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `club.debtBanner` | `clubs.debt_banner` | Kiểu banner nhắc nợ (0019). Danh sách giá trị lặp lại ở `Settings.jsx: DEBT_BANNERS` — đổi một bên là DB trả 23514 |
 | `dues[].claimedAt` · `adjustments[].claimedAt` · `sessionGuests[].claimedAt` | cột `claimed_at` của ba bảng | Khác null = thành viên đã khai đã chuyển tiền, chờ duyệt (0018). Duyệt = bật `paid` và GIỮ `claimed_at`; từ chối = đặt lại NULL |
 | `members[].bankAccounts` | `club_members.bank_accounts jsonb` | Danh sách tài khoản ngân hàng thành viên (0015) |
+| `challenges[]` | `challenges` + `challenge_players` | Kèo đấu: mã kèo, đội A/B, thể thức, trạng thái, sân chỉ định, hạn nhận (0021) |
+| `matches[]` | `matches` + `match_players` | Trận đấu: tỷ số từng set, đội thắng, nguồn (session / challenge), delta Elo (0021) |
+| `playerRatings` | `player_ratings` | Điểm Elo, độ tin cậy (R1-R5), số trận thắng/thua của từng thành viên (0021) |
+| `matchEdits[]` | `match_edits` | Lịch sử audit log sửa điểm trận: lý do sửa, tỷ số cũ/mới, người sửa (0021) |
+| `clubCalibration[]` | `club_calibration` | Hệ số hiệu chỉnh chéo giới tính học từ dữ liệu thực tế CLB (0021) |
 
 ---
 
@@ -213,6 +218,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0017_storage_owner_policy.sql` | Siết quyền ghi bucket `club-assets`: UPDATE/DELETE chỉ cho `owner = auth.uid()` thay vì mọi tài khoản đã đăng nhập. Client bỏ `upsert`. |
 | `0018_payment_claims.sql` | Thành viên tự khai đã chuyển tiền: cột `claimed_at` cho `monthly_dues` · `member_adjustments` · `session_guests`, kèm RPC `claim_payments`. **Không có bảng mới** — ba bảng đã tự giữ cờ `paid` của mình. |
 | `0019_debt_banner_style.sql` | `clubs.debt_banner` (`slim` · `alert` · `bar` · `off`) — kiểu banner nhắc công nợ hiện cho THÀNH VIÊN ở Trang chủ. Cài đặt của CLB, áp cho mọi thành viên. Cả ba kiểu mở cùng một popup chi tiết. |
+| `0021_challenge_and_rating.sql` | Hệ thống Kèo đấu (`challenges`, `challenge_players`), Kết quả trận (`matches`, `match_players`), Xếp hạng Elo (`player_ratings`), Audit log sửa điểm (`match_edits`), Hiệu chỉnh chéo giới (`club_calibration`) và RLS policies. |
 
 ---
 

@@ -66,6 +66,17 @@
     "balanceThreshold": 0.6,
     "fairnessThreshold": 1
   },
+  "rating": {
+    "defaultRating": 0,
+    "kFactor": 32,
+    "defaultDeviation": 350,
+    "balanceThreshold": 120,
+    "imbalanceThreshold": 250
+  },
+  "challenge": {
+    "defaultBestOf": 3,
+    "defaultExpireMins": 60
+  },
   "ui": {
     "contentMaxWidth": 1440,
     "sidebarWidth": 248,

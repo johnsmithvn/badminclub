@@ -14,6 +14,8 @@ import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
+import { calcEloDelta, teamRating, replayRatingCascade, DEFAULT_RATING } from '#lib/rating.js'
+import { nextChallengeCode } from '#lib/challenge.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -271,9 +273,25 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // Người đi thêm không có trạng thái "vắng" — họ không cố định nhóm này nên không nợ
         // buổi nào. Muốn bỏ thì bấm nút xoá.
         if (m[mid] === 'extra') return {}
-        m[mid] = m[mid] === true ? false : true
+        const willBePresent = m[mid] !== true
+        m[mid] = willBePresent
         a[sid] = m
-        return { attendance: a, ...withAdhocCharges(d, sid, m) }
+
+        // Handoff rule: Đánh vắng thì tự động gỡ người đó khỏi mọi ô trên sân
+        let lineups = d.lineups
+        if (!willBePresent && d.lineups?.[sid]) {
+          const sLineup = { ...d.lineups[sid] }
+          let changed = false
+          Object.keys(sLineup).forEach((slotId) => {
+            if (sLineup[slotId] === mid) {
+              delete sLineup[slotId]
+              changed = true
+            }
+          })
+          if (changed) lineups = { ...d.lineups, [sid]: sLineup }
+        }
+
+        return { attendance: a, lineups, ...withAdhocCharges(d, sid, m) }
       }),
     /** Thêm người đi thêm: thành viên nhóm khác hôm nay có đánh. Sinh khoản THU ở đối chiếu. */
     addExtra: (sid, mid) => {
@@ -288,7 +306,19 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => {
         const m = { ...(d.attendance[sid] || {}) }
         delete m[mid]
-        return { attendance: { ...d.attendance, [sid]: m }, ...withAdhocCharges(d, sid, m) }
+        let lineups = d.lineups
+        if (d.lineups?.[sid]) {
+          const sLineup = { ...d.lineups[sid] }
+          let changed = false
+          Object.keys(sLineup).forEach((slotId) => {
+            if (sLineup[slotId] === mid) {
+              delete sLineup[slotId]
+              changed = true
+            }
+          })
+          if (changed) lineups = { ...d.lineups, [sid]: sLineup }
+        }
+        return { attendance: { ...d.attendance, [sid]: m }, lineups, ...withAdhocCharges(d, sid, m) }
       })
       toast(t('toast.extraRemoved'))
     },
@@ -301,7 +331,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         const m = { ...(a[sid] || {}) }
         groupMembers(d, s.groupId, monthOf(s.date)).forEach((x) => { m[x.id] = val })
         a[sid] = m
-        return { attendance: a, ...withAdhocCharges(d, sid, m) }
+
+        let lineups = d.lineups
+        if (!val && d.lineups?.[sid]) {
+          lineups = { ...d.lineups, [sid]: {} }
+        }
+
+        return { attendance: a, lineups, ...withAdhocCharges(d, sid, m) }
       })
       toast(t(val ? 'toast.allPresent' : 'toast.allAbsent'))
     },
@@ -2176,6 +2212,243 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const last = list[list.length - 1]
       up((d) => ({ matches: (d.matches || []).filter((x) => x.id !== last.id) }))
       toast(t('toast.matchUndone'))
+    },
+
+    /* ---------- Kèo & Thi đấu (Challenge & Rating) ---------- */
+    createChallenge: ({ sessionId, teamA, teamB, courtId, bestOf = 3, ratingEnabled = true, scheduledAt }) => {
+      const d0 = db()
+      const myId = (d0.members || []).find((m) => m.userId === d0.currentUserId)?.id || teamA[0] || (d0.members[0] && d0.members[0].id)
+      const code = nextChallengeCode(d0.challenges)
+      const newChal = {
+        id: uid(),
+        code,
+        clubId: d0.clubId,
+        sessionId: sessionId || null,
+        createdBy: myId,
+        status: 'pending',
+        courtId: courtId || null,
+        scheduledAt: scheduledAt || null,
+        bestOf,
+        ratingEnabled,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        matchId: null,
+        teamA: teamA || [],
+        teamB: teamB || [],
+      }
+      up((d) => ({ challenges: [newChal, ...(d.challenges || [])] }))
+      toast(t('challenge.toastCreated', { code }))
+    },
+
+    respondChallenge: (challengeId, accept) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) return
+      const nextStatus = accept ? 'accepted' : 'declined'
+      up((d) => ({
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: nextStatus } : c)),
+      }))
+      toast(t(accept ? 'challenge.toastAccepted' : 'challenge.toastDeclined', { code: chal.code }))
+    },
+
+    cancelChallenge: (challengeId) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) return
+      up((d) => ({
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'cancelled' } : c)),
+      }))
+      toast(t('challenge.toastCancelled', { code: chal.code }))
+    },
+
+    deployChallenge: (challengeId, courtIdx) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal || !chal.sessionId) return
+      const sid = chal.sessionId
+      const s = sessionOf(d0, sid)
+      if (!s) return
+      const courtName = (s.courts[courtIdx] && courtOf(d0, s.courts[courtIdx].courtId).name) || (`${t('units.court')} ${courtIdx + 1}`)
+
+      up((d) => {
+        const lineups = { ...(d.lineups || {}) }
+        const curLu = { ...(lineups[sid] || {}) }
+        const allFour = [...(chal.teamA || []), ...(chal.teamB || [])]
+
+        // Dọn 4 người này khỏi các ô khác nếu họ đang ở sân khác
+        Object.keys(curLu).forEach((sl) => {
+          if (allFour.includes(curLu[sl])) delete curLu[sl]
+        })
+
+        // Gán 4 slot cho sân courtIdx
+        const slots = courtSlotIds(courtIdx)
+        if (chal.teamA[0]) curLu[slots[0]] = chal.teamA[0]
+        if (chal.teamA[1]) curLu[slots[1]] = chal.teamA[1]
+        if (chal.teamB[0]) curLu[slots[2]] = chal.teamB[0]
+        if (chal.teamB[1]) curLu[slots[3]] = chal.teamB[1]
+        lineups[sid] = curLu
+
+        // Đánh dấu kèo là oncourt
+        const challenges = (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'oncourt' } : c))
+        return { lineups, challenges }
+      })
+      toast(t('challenge.toastDeployed', { code: chal.code, court: courtName }))
+    },
+
+    saveMatchScore: ({ sid, sessionId, ci, courtIdx, courtIndex, sets, challengeCode, challengeId, teamA: propTeamA, teamB: propTeamB, ratingEnabled: propRatingEnabled }) => {
+      if (!canAssign()) return
+      const d0 = db()
+      const targetSid = sid || sessionId
+      const targetCi = ci !== undefined && ci !== null ? ci : (courtIdx !== undefined && courtIdx !== null ? courtIdx : courtIndex)
+      const lu = targetSid ? ((d0.lineups || {})[targetSid] || {}) : {}
+      const lineupKeys = (targetCi !== undefined && targetCi !== null) ? courtSlotIds(targetCi).map((sl) => lu[sl]).filter(Boolean) : []
+
+      const teamA = (propTeamA && propTeamA.length) ? propTeamA : lineupKeys.slice(0, 2)
+      const teamB = (propTeamB && propTeamB.length) ? propTeamB : lineupKeys.slice(2, 4)
+      const keys = [...teamA, ...teamB]
+      if (!keys.length) return toast(t('toast.courtEmpty'))
+
+      const chal = challengeCode
+        ? (d0.challenges || []).find((c) => c.code === challengeCode)
+        : challengeId
+          ? (d0.challenges || []).find((c) => c.id === challengeId)
+          : null
+      const isRated = propRatingEnabled !== undefined
+        ? Boolean(propRatingEnabled)
+        : (chal ? chal.ratingEnabled !== false : true)
+
+      const playedSets = (sets || []).filter((r) => r[0] + r[1] > 0)
+      const aWins = playedSets.filter((r) => r[0] > r[1]).length
+      const bWins = playedSets.filter((r) => r[1] > r[0]).length
+      const winnerTeam = aWins >= bWins ? 'A' : 'B'
+      const aWon = winnerTeam === 'A'
+
+      const namesA = teamA.map((id) => memberOf(d0, id).name).join(' · ')
+      const namesB = teamB.map((id) => memberOf(d0, id).name).join(' · ')
+      const winner = aWon ? namesA : namesB
+      const loser = aWon ? namesB : namesA
+
+      const scoreText = playedSets.length > 1
+        ? aWins + ' – ' + bWins
+        : (playedSets[0] ? playedSets[0][0] + ' – ' + playedSets[0][1] : '')
+
+      const matchId = uid()
+
+      up((d) => {
+        const lineups = { ...(d.lineups || {}) }
+        if (targetSid && targetCi !== undefined && targetCi !== null) {
+          const l2 = { ...(lineups[targetSid] || {}) }
+          courtSlotIds(targetCi).forEach((sl) => { delete l2[sl] })
+          lineups[targetSid] = l2
+        }
+
+        const playing = { ...(d.playing || {}) }
+        if (targetSid && targetCi !== undefined && targetCi !== null) {
+          const c = { ...(playing[targetSid] || {}) }
+          c[targetCi] = false
+          playing[targetSid] = c
+        }
+
+        // Tính Elo nếu trận được tính rating
+        const playerRatings = { ...(d.playerRatings || {}) }
+        const ratingsMap = {}
+        Object.keys(playerRatings).forEach((mid) => { ratingsMap[mid] = playerRatings[mid].rating })
+
+        const ra = teamRating(teamA, ratingsMap)
+        const rb = teamRating(teamB, ratingsMap)
+        let delta = 0
+        if (isRated) {
+          const res = calcEloDelta(ra, rb, aWon)
+          delta = res.deltaA
+          teamA.forEach((id) => {
+            const cur = playerRatings[id] || { rating: DEFAULT_RATING, gamesCount: 0, winsCount: 0, lossesCount: 0 }
+            playerRatings[id] = {
+              ...cur,
+              rating: cur.rating + delta,
+              gamesCount: cur.gamesCount + 1,
+              winsCount: aWon ? cur.winsCount + 1 : cur.winsCount,
+              lossesCount: !aWon ? cur.lossesCount + 1 : cur.lossesCount,
+            }
+          })
+          teamB.forEach((id) => {
+            const cur = playerRatings[id] || { rating: DEFAULT_RATING, gamesCount: 0, winsCount: 0, lossesCount: 0 }
+            playerRatings[id] = {
+              ...cur,
+              rating: cur.rating - delta,
+              gamesCount: cur.gamesCount + 1,
+              winsCount: !aWon ? cur.winsCount + 1 : cur.winsCount,
+              lossesCount: aWon ? cur.lossesCount + 1 : cur.lossesCount,
+            }
+          })
+        }
+
+        const newMatch = {
+          id: matchId,
+          sessionId: targetSid || null,
+          courtIdx: targetCi !== undefined && targetCi !== null ? targetCi : 0,
+          teamA,
+          teamB,
+          playerKeys: keys,
+          minutes: 20,
+          at: Date.now(),
+          sourceType: chal ? 'challenge' : 'session',
+          challengeId: chal ? chal.id : null,
+          ratingEnabled: isRated,
+          sets: playedSets,
+          winnerTeam,
+          scoreText,
+          initialRatingA: ra,
+          initialRatingB: rb,
+          eloDelta: delta,
+        }
+
+        const challenges = chal
+          ? (d.challenges || []).map((k) => (k.id === chal.id ? { ...k, status: 'played', matchId } : k))
+          : (d.challenges || [])
+
+        return {
+          lineups,
+          playing,
+          matches: (d.matches || []).concat([newMatch]),
+          challenges,
+          playerRatings,
+        }
+      })
+
+      upUi(() => ({ picked: null }))
+      toast(t('scoreModal.toastSaved', { winner, loser, score: scoreText }))
+    },
+
+    editMatchScore: ({ matchId, sets, newSets, reason }) => {
+      const d0 = db()
+      const match = (d0.matches || []).find((m) => m.id === matchId)
+      if (!match) return
+
+      const actualSets = sets || newSets || []
+      const myId = (d0.members || []).find((m) => m.userId === d0.currentUserId)?.id || null
+      const editLog = {
+        id: uid(),
+        matchId,
+        clubId: d0.clubId,
+        editedBy: myId,
+        editedAt: new Date().toISOString(),
+        fieldChanged: 'sets',
+        oldValue: JSON.stringify(match.sets || []),
+        newValue: JSON.stringify(actualSets),
+        reason: reason || t('common.edit'),
+        ratingRecalcFromMatchId: matchId,
+      }
+
+      // Replay cascade tính lại toàn bộ Elo các trận sau đó
+      const updatedMatchList = (d0.matches || []).map((m) => (m.id === matchId ? { ...m, sets: actualSets } : m))
+      const { finalRatings, updatedMatches } = replayRatingCascade(updatedMatchList, matchId, d0.members)
+
+      up((d) => ({
+        matches: updatedMatches,
+        playerRatings: { ...(d.playerRatings || {}), ...finalRatings },
+        matchEdits: [editLog, ...(d.matchEdits || [])],
+      }))
+
+      toast(t('common.save') + ': ' + match.id)
     },
 
     /* ---------- báo cáo Zalo ---------- */

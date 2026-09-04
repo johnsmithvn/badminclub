@@ -2,9 +2,11 @@
 // Nút "Chốt buổi" là hành động primary DUY NHẤT của trang.
 
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
 import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
+import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
+import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
@@ -21,6 +23,14 @@ import cfg from '#config/app.json' with { type: 'json' }
 export default function SessionDetail() {
   const { db, a } = useApp()
   const { id } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabFromUrl = searchParams.get('tab')
+  const [tabState, setTabState] = useState(tabFromUrl || 'attend')
+  const activeTab = tabFromUrl || tabState
+  const setActiveTab = (tab) => {
+    setTabState(tab)
+    setSearchParams({ tab }, { replace: true })
+  }
   const [editingGuest, setEditingGuest] = useState(null)
   const sid = id || db.sessionId
   const s = sessionOf(db, sid)
@@ -70,6 +80,10 @@ export default function SessionDetail() {
   const isCancelled = s.status === 'cancelled'
   const isClosed = s.status === 'closed'
   const isInactive = allSold || isCancelled
+
+  const onCourtCount = Object.keys((db.lineups || {})[s.id] || {}).length
+  const sessionMatches = (db.matches || []).filter((m) => m.sessionId === s.id)
+  const pendingChallengesCount = (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'PENDING').length
 
   return (
     <>
@@ -207,7 +221,49 @@ export default function SessionDetail() {
         </div>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))', gap: 16, alignItems: 'start' }}>
+      {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
+      <div style={S.tabBarWrap}>
+        <div style={S.tabTrack}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('attend')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'attend' ? S.tabBtnActive : {}),
+            }}
+          >
+            <span>{t('sessionTabs.attend')}</span>
+            <span style={S.tabBadgeMono}>{presentCount(db, s)}/{members.length}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('courts')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'courts' ? S.tabBtnActive : {}),
+            }}
+          >
+            <span>{t('sessionTabs.courts')}</span>
+            <span style={{ ...S.tabBadgeMono, color: '#5FDBD3' }}>{onCourtCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('matches')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'matches' ? S.tabBtnActive : {}),
+            }}
+          >
+            <span>{t('sessionTabs.matches')}</span>
+            <span style={{ ...S.tabBadgeMono, color: '#F0B75C' }}>
+              {sessionMatches.length}{pendingChallengesCount > 0 ? `/${pendingChallengesCount}` : ''}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'attend' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))', gap: 16, alignItems: 'start' }}>
         {/* ---------------- điểm danh ---------------- */}
         <Card
           title={t('session.attendTitle')}
@@ -559,6 +615,10 @@ export default function SessionDetail() {
           </Card>
         </div>
       </div>
+      )}
+
+      {activeTab === 'courts' && <CourtAssignmentTab s={s} />}
+      {activeTab === 'matches' && <SessionMatchesTab s={s} />}
 
       {editingGuest && (
         <EditGuestDialog
@@ -983,6 +1043,16 @@ const SumRow = ({ label, value, color, strong, hint }) => (
 )
 
 const S = {
+  tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 16px' },
+  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: '#101927', border: '1px solid #22304A', gap: 2 },
+  tabBtn: {
+    display: 'flex', alignItems: 'center', gap: 8, height: 34, padding: '0 14px',
+    borderRadius: 6, border: 'none', background: 'transparent',
+    font: '600 13px/1 "IBM Plex Sans", sans-serif', color: '#8494AA',
+    cursor: 'pointer', transition: 'all 0.15s ease',
+  },
+  tabBtnActive: { background: '#141D2E', color: '#E9EFF7', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
+  tabBadgeMono: { font: '400 11.5px/1 "IBM Plex Mono", monospace', color: '#8494AA' },
   headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },

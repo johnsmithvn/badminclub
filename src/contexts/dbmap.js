@@ -136,12 +136,24 @@ export function toDb(raw, ctx) {
       claimedAt: g.claimed_at || null,
     }))
 
-    ;(s.matches || []).forEach((mt) => matches.push({
-      id: mt.id, sessionId: s.id, courtIdx: mt.court_index, minutes: mt.minutes,
-      at: mt.ended_at ? new Date(mt.ended_at).getTime() : 0,
-      playerKeys: (mt.match_players || []).slice()
-        .sort((a, b) => a.team - b.team).map((p) => p.player_id),
-    }))
+    ;(s.matches || []).forEach((mt) => {
+      const players = (mt.match_players || []).slice().sort((a, b) => a.team - b.team)
+      matches.push({
+        id: mt.id, sessionId: s.id, courtIdx: mt.court_index, minutes: mt.minutes,
+        at: mt.ended_at ? new Date(mt.ended_at).getTime() : 0,
+        sourceType: mt.source_type || 'session',
+        challengeId: mt.challenge_id || null,
+        ratingEnabled: mt.rating_enabled !== false,
+        ratingAlgorithm: mt.rating_algorithm || 'ELO_V1',
+        matchPolicy: mt.match_policy || 'official',
+        sets: mt.sets || [],
+        winnerTeam: mt.winner_team || null,
+        scoreText: mt.score_text || '',
+        teamA: players.filter((p) => p.team === 0).map((p) => p.player_id),
+        teamB: players.filter((p) => p.team === 1).map((p) => p.player_id),
+        playerKeys: players.map((p) => p.player_id),
+      })
+    })
 
     return {
       // group_id NULL = buổi đột xuất của toàn CLB; client gọi nhóm đó là 'ALL' (xem groupOf).
@@ -262,6 +274,38 @@ export function toDb(raw, ctx) {
     joinRequests: (raw.joinRequests || []).map((r) => ({
       id: r.id, clubId: ctx.clubId, userId: r.user_id, at: dOf(r.created_at),
       status: 'pending', note: r.note || '', code: club.code,
+    })),
+    challenges: (raw.challenges || []).map((c) => {
+      const players = c.challenge_players || []
+      return {
+        id: c.id, code: c.code, clubId: c.club_id, sessionId: c.session_id || null,
+        createdBy: c.created_by, status: c.status, courtId: c.court_id || null,
+        scheduledAt: c.scheduled_at || '', bestOf: c.best_of || 3,
+        ratingEnabled: c.rating_enabled !== false, expiresAt: c.expires_at || '',
+        matchId: c.match_id || null,
+        teamA: players.filter((p) => p.team === 'A').map((p) => p.member_id),
+        teamB: players.filter((p) => p.team === 'B').map((p) => p.member_id),
+      }
+    }),
+    playerRatings: (() => {
+      const map = {}
+      ;(raw.playerRatings || []).forEach((r) => {
+        map[r.member_id] = {
+          id: r.id, memberId: r.member_id, rating: num(r.rating),
+          gamesCount: num(r.games_count), winsCount: num(r.wins_count), lossesCount: num(r.losses_count),
+          deviation: num(r.rating_deviation), confidence: r.confidence_label || 'low',
+        }
+      })
+      return map
+    })(),
+    matchEdits: (raw.matchEdits || []).map((e) => ({
+      id: e.id, matchId: e.match_id, clubId: e.club_id, editedBy: e.edited_by,
+      editedAt: e.edited_at, fieldChanged: e.field_changed, oldValue: e.old_value,
+      newValue: e.new_value, reason: e.reason, ratingRecalcFromMatchId: e.rating_recalc_from_match_id,
+    })),
+    clubCalibration: (raw.clubCalibration || []).map((c) => ({
+      id: c.id, bucket: c.bucket, sampleSize: num(c.sample_size),
+      observedWinRate: num(c.observed_win_rate), learnedAdjustment: num(c.learned_adjustment),
     })),
     playing: {},
   }
@@ -395,10 +439,30 @@ export function toRows(db, ctx) {
     }))
   })
 
+  ;(db.challenges || []).forEach((c) => {
+    put('challenges', {
+      id: c.id, code: c.code, club_id: cid, session_id: uu(c.sessionId),
+      created_by: c.createdBy, status: c.status, court_id: uu(c.courtId),
+      scheduled_at: c.scheduledAt || null, best_of: c.bestOf || 3,
+      rating_enabled: c.ratingEnabled !== false, expires_at: c.expiresAt || null,
+      match_id: uu(c.matchId),
+    })
+    ;(c.teamA || []).forEach((mid) => put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'A' }))
+    ;(c.teamB || []).forEach((mid) => put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'B' }))
+  })
+
   ;(db.matches || []).forEach((mt) => {
     put('matches', {
       id: mt.id, session_id: mt.sessionId, court_index: mt.courtIdx, minutes: mt.minutes,
       ended_at: new Date(mt.at || 0).toISOString(),
+      source_type: mt.sourceType || 'session',
+      challenge_id: uu(mt.challengeId),
+      rating_enabled: mt.ratingEnabled !== false,
+      rating_algorithm: mt.ratingAlgorithm || 'ELO_V1',
+      match_policy: mt.matchPolicy || 'official',
+      sets: mt.sets || [],
+      winner_team: mt.winnerTeam || null,
+      score_text: mt.scoreText || null,
     })
     // Ô 0,1 là một bên lưới; 2,3 là bên kia (xem courtSlotIds trong lib/assign.js).
     ;(mt.playerKeys || []).forEach((key, i) => put('match_players', {
@@ -406,6 +470,36 @@ export function toRows(db, ctx) {
       team: Math.min(1, Math.floor(i / 2)),
     }))
   })
+
+  const ratingsList = Array.isArray(db.playerRatings)
+    ? db.playerRatings
+    : Object.entries(db.playerRatings || {}).map(([mid, val]) => ({ ...val, memberId: val.memberId || mid }))
+
+  ratingsList.forEach((r) => {
+    const mid = r.memberId || r.playerId
+    if (!mid) return
+    put('player_ratings', {
+      id: r.id || uu(r.id), club_id: cid, member_id: mid,
+      rating: r.rating || 0, games_count: r.gamesCount || 0,
+      wins_count: r.winsCount || 0, losses_count: r.lossesCount || 0,
+      rating_deviation: r.deviation || 350, confidence_label: r.confidence || 'low',
+    })
+  })
+
+  ;(db.matchEdits || []).forEach((e) => put('match_edits', {
+    id: e.id, match_id: e.matchId, club_id: cid, edited_by: uu(e.editedBy),
+    edited_at: e.editedAt || new Date().toISOString(),
+    field_changed: e.fieldChanged, old_value: e.oldValue || null,
+    new_value: e.newValue || null, reason: e.reason,
+    rating_recalc_from_match_id: uu(e.ratingRecalcFromMatchId),
+  }))
+
+  ;(db.clubCalibration || []).forEach((c) => put('club_calibration', {
+    id: c.id, club_id: cid, calibration_type: 'cross_gender',
+    bucket: c.bucket, sample_size: c.sampleSize || 0,
+    observed_win_rate: c.observedWinRate || 0,
+    learned_adjustment: c.learnedAdjustment || 0,
+  }))
 
   Object.keys(db.roster || {}).forEach((month) => {
     const byGroup = db.roster[month] || {}
@@ -532,6 +626,8 @@ export const TABLES = [
   { table: 'session_guests', mode: 'id' },
   { table: 'session_lineups', mode: 'key', conflict: 'session_id,slot', scope: ['session_id'], child: 'slot' },
   { table: 'session_court_groups', mode: 'key', conflict: 'session_id,player_type,player_id', scope: ['session_id'], child: 'player_id' },
+  { table: 'challenges', mode: 'id' },
+  { table: 'challenge_players', mode: 'scope', scope: ['challenge_id'], child: 'member_id', conflict: 'challenge_id,member_id' },
   { table: 'matches', mode: 'id' },
   { table: 'match_players', mode: 'scope', scope: ['match_id'] },
   { table: 'group_memberships', mode: 'key', conflict: 'month,group_id,member_id', scope: ['month', 'group_id'], child: 'member_id' },
@@ -543,6 +639,9 @@ export const TABLES = [
   { table: 'shuttle_purchases', mode: 'id' },
   { table: 'stock_checks', mode: 'id' },
   { table: 'member_changes', mode: 'id' },
+  { table: 'player_ratings', mode: 'id' },
+  { table: 'match_edits', mode: 'id' },
+  { table: 'club_calibration', mode: 'scope', scope: ['club_id'] },
   { table: 'guest_price_rules', mode: 'scope', scope: ['club_id'] },
 ]
 

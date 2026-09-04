@@ -38,24 +38,31 @@ src/
   components/
     ds/               DESIGN SYSTEM TDMS — trích từ handoff, KHÔNG sửa tay (icons.js + index.js)
     layout/           AppLayout · Sidebar · AppHeader · ToastHost · AuthLayout
+    challenge/        CreateChallengeModal · ScoreModal · EditScoreModal
+    session/          CourtAssignmentTab · SessionMatchesTab
     ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar, AvatarUpload, BankAccountSection, QrModal, SearchSelect…
-  config/             app.json (hằng số) · permissions.json (ma trận quyền)
+  config/             app.json (hằng số, rating cfg) · permissions.json (ma trận quyền)
   contexts/
     AuthContext.jsx   phiên đăng nhập, profile, danh sách CLB của tôi, activeClubId
     AppContext.jsx    db + ui state của MỘT CLB, Context
-    appActions.js     MỌI hành động ghi dữ liệu (một chỗ duy nhất)
+    appActions.js     MỌI hành động ghi dữ liệu (thi đấu, chia sân, tiền, sổ quỹ)
     storage.js        ĐIỂM CHẠM MẠNG DUY NHẤT: load(clubId) / save(db)
-    dbmap.js          map thuần client ↔ 30+ bảng Postgres + diff()
+    dbmap.js          map thuần client ↔ 34+ bảng Postgres + diff()
   data/schema.js      mô tả schema để render trang Sơ đồ dữ liệu
-  hooks/useClock.js   đồng hồ bấm giờ sân
+  hooks/
+    useClock.js       đồng hồ bấm giờ sân
+    useMobile.js      kiểm tra breakpoint màn hình di động (<= 768px)
   i18n/               index.js (hàm t) + vi.json (toàn bộ chữ)
   lib/                LOGIC THUẦN — không React, không I/O, test bằng node
     assign.js         chia sân: slot, 5 chế độ xếp, chia đều, số trận
+    challenge.js      kèo đấu: mã kèo, hướng xem (creator/teamA/teamB), độ cân, điều kiện nhận/đẩy sân
     csv.js            đọc/sinh CSV thành viên, RFC 4180, validate, phát hiện cột
     forms.js          giá trị mặc định an toàn cho các dialog
     ledger.js         sổ quỹ (ledger, số dư, gộp dòng, tổng hợp ngày, hoàn tác)
+    matchSearch.js    tìm kiếm trận đấu, lọc đối đầu/đồng đội, ma trận H2H, cặp chưa từng gặp
     members.js        lọc/tìm/sắp xếp thành viên, chọn trường ghép tài khoản (0009/0010)
     money.js          mọi công thức tiền + tra cứu + màu/nhãn trạng thái + đối chiếu
+    rating.js         Elo Engine: tính delta, win%, đánh giá độ cân, độ tin cậy R1-R5, hiệu chỉnh chéo giới, replay cascade
     roles.js          tra cứu ma trận quyền 3 vai
     schedules.js      kế hoạch SỬA/XOÁ lịch cố định: buổi nào được đụng, tháng nào đổi đơn giá
     supabase.js       khởi tạo client Supabase từ biến môi trường
@@ -65,14 +72,15 @@ src/
     Login.jsx         đăng nhập (email / username / SĐT)
     Register.jsx      đăng ký (email + mật khẩu, auto-username, tên gọi)
     Dialogs.jsx       host toàn bộ dialog nhập liệu của app
-    Home.jsx · Calendar.jsx · Sessions.jsx · SessionDetail.jsx · Assign.jsx
+    Home.jsx · Calendar.jsx · Sessions.jsx · SessionDetail.jsx (hợp nhất Chia sân & Kèo) · Assign.jsx
+    Leaderboard.jsx   Bảng xếp hạng Elo 5 tabs (Mùa giải, Biểu đồ/Profile, Tìm trận, Ma trận H2H, Chéo giới)
     Schedules.jsx · Members.jsx · Debts.jsx · Fund.jsx · Shuttles.jsx
     Profile.jsx · Settings.jsx · Schema.jsx
-  routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
-  styles/             index.css + tokens/*.css
+  routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 14 in-club routes)
+  styles/             index.css + tokens/*.css (base.css hỗ trợ utility classes responsive mobile)
   utils/dates.js      ngày, tháng, giờ thập phân, lưới lịch
-  __tests__/          26 file test: lib/ (9) · money/ (11) · ledger/ (2) · sync/ (2) · smoke/ (2) (xem __tests__/README.md)
-supabase/migrations/   SQL cho bản chạy thật (0001..0016)
+  __tests__/          100 test cases: lib/ (14) · money/ (12) · components/ (7) · ledger/ (2) · sync/ (2) · smoke/ (2)
+supabase/migrations/   SQL cho bản chạy thật (0001..0021)
 docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
 ```
 
@@ -142,6 +150,19 @@ Mọi bảng nghiệp vụ thuộc về một CLB. Client giữ dữ liệu củ
 
 Giữ nhiều CLB trong bộ nhớ chỉ để đổi nhanh không đáng đổi lấy nguy cơ ghi lẫn dữ liệu giữa
 hai CLB — đó là lý do bỏ `clubStore`.
+
+### Tầng C: Hệ thống Thi đấu, Kèo đấu & Bảng xếp hạng Elo (Rating Engine)
+
+Bên cạnh **Tầng A (Sổ quỹ thực tế)** và **Tầng B (Giá thành buổi tập)**, hệ thống bổ sung **Tầng C (Thi đấu & Đẳng cấp)** hoàn toàn tách biệt:
+- **Độc lập luồng tiền**: Toàn bộ dữ liệu `challenges`, `matches`, `player_ratings`, `match_edits` không bao giờ sinh dòng ở sổ quỹ và không làm thay đổi giá thành buổi tập (được kiểm chứng bởi test suite `src/__tests__/money/isolation.test.js`).
+- **Elo Engine thuần túy (`src/lib/rating.js`)**:
+  - Điểm khởi đầu mặc định: `0` cho toàn bộ thành viên.
+  - Công thức tính xác suất thắng dự kiến: $P(A) = 1 / (1 + 10^{(R_B - R_A) / 400})$.
+  - Hệ số biến thiên $K = 32$, bảo toàn tổng điểm (zero-sum $\Delta A + \Delta B = 0$).
+  - Thưởng điểm khi lật kèo (Underdog upset win nhận thưởng điểm Elo cao hơn).
+  - Thang độ tin cậy R1 -> R5: R1 (<5 trận), R2 (5-14 trận), R3 (15-29 trận), R4 (30-49 trận), R5 (50+ trận).
+  - Hiệu chỉnh chéo giới (Gender Calibration): Học từ phân bố tỷ lệ thắng thực tế của CLB để cân bằng tương quan nam-nữ.
+  - Cascade Replay: Khi sửa điểm trận đấu trong quá khứ, `replayRatingCascade` tự động phát lại chuỗi kết quả để cập nhật chính xác rating của toàn bộ thành viên.
 
 ---
 
@@ -237,7 +258,9 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 | Tách 2 hồ sơ & Ghép chọn lọc | ✅ **Đã làm** | Hồ sơ tài khoản (`profiles`) vs Hồ sơ CLB (`club_members`), ghép 6 trường chọn lọc (0009/0010) |
 | Thành viên tự đổi tên | ✅ **Đã làm** | Policy `cm_update_self_name` + trigger guard chỉ cho đổi `name` và `full_name` (0010) |
 | CSV Import & JSON Settings | ✅ **Đã làm** | Nhập/xuất danh sách thành viên bằng CSV (`src/lib/csv.js`), backup/restore cài đặt CLB |
+| Hệ thống Kèo & Chia sân hợp nhất | ✅ **Đã làm** | Tab bar 3 tabs (`SessionDetail.jsx`): Điểm danh, Chia sân & Kèo chờ, Trận đấu. Ghi điểm và tạo kèo độc lập |
+| Bảng xếp hạng Elo & Độ tin cậy | ✅ **Đã làm** | Màn `Leaderboard.jsx` (5 tabs): BXH Mùa giải, Hồ sơ Rating (R1-R5), Tìm trận & Sửa điểm inline, Ma trận H2H, Hiệu chỉnh chéo giới |
+| Responsive Mobile (390px - 768px) | ✅ **Đã làm** | Hook `useMobile.js`, layout stack tự động, cuộn ngang cảm ứng chống tràn cho bảng dữ liệu, tối ưu modal |
 | Mời vào CLB qua SĐT | **KHÔNG LÀM** (user chốt 2026-09-02) | Phần NHẬN phải gửi SMS thật — tốn tiền, không làm. Người mới vào bằng **mã CLB**. Bảng `club_invites` và cột `clubs.allow_invite` để nguyên dưới DB (xoá schema là việc riêng, phải xin phép), client không đọc |
-| Bản mobile riêng cho vai `member` | Đang chờ | Desktop console là ưu tiên 1; 3 màn ưu tiên: Trang chủ · Chia sân · Cá nhân |
 | `notifications` / Zalo OA / `audit_logs` | Giai đoạn 2 | Bảng đã có sẵn trong SQL |
 | Realtime cho chia sân | Giai đoạn 2 | Realtime channel theo `session_id` cho `session_lineups` + `matches` |

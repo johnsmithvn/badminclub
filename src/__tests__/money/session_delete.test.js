@@ -27,6 +27,9 @@ assert.deepEqual(sessionRefs(base({ sessionGuests: [{ id: 'G1', sessionId: 'S1',
 assert.deepEqual(sessionRefs(base({ matches: [{ id: 'M1', sessionId: 'S1' }] }), 'S1'), ['match'],
   'buổi đã ghi trận mà xoá cứng → mất lịch sử trận và thống kê của mọi người trong buổi đó')
 
+assert.deepEqual(sessionRefs(base({ challenges: [{ id: 'C1', sessionId: 'S1' }] }), 'S1'), ['challenge'],
+  'buổi có kèo đấu mà xoá cứng → mất liên kết kèo của buổi tập')
+
 assert.deepEqual(
   sessionRefs(base({ sessions: [{ id: 'S1', status: 'closed', date: '2026-09-01' }] }), 'S1'),
   ['closed'],

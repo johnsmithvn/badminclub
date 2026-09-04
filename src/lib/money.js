@@ -1037,6 +1037,7 @@ export function sessionRefs(db, sid) {
   any('attend', Object.keys((db.attendance || {})[sid] || {}).length > 0)
   any('guest', (db.sessionGuests || []).some((g) => g.sessionId === sid))
   any('match', (db.matches || []).some((m) => m.sessionId === sid))
+  any('challenge', (db.challenges || []).some((c) => c.sessionId === sid))
   any('closed', !!(db.sessions || []).find((s) => s.id === sid && (s.status === 'closed' || s.costFrozenAt)))
   return why
 }

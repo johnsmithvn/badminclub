@@ -1,0 +1,985 @@
+import { useState, useMemo } from 'react'
+import { Button, Card, Icon, Input, Select } from '#ds'
+import { LevelChip, Mono, Overline, SearchSelect } from '#ui'
+import { useApp } from '#contexts/AppContext.jsx'
+import { expectedScore, confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating } from '#lib/rating.js'
+import { searchMatches, headToHeadMatrix, neverMetPairs } from '#lib/matchSearch.js'
+import { useMobile } from '#hooks/useMobile.js'
+import { t } from '#i18n'
+import cfg from '#config/app.json' with { type: 'json' }
+import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
+import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
+
+export default function Leaderboard() {
+  const { db } = useApp()
+  const isMobile = useMobile()
+  const [activeTab, setActiveTab] = useState('season') // 'season' | 'chart' | 'search' | 'matrix' | 'cross'
+  const [yearFilter, setYearFilter] = useState('2026')
+  const [searchName, setSearchName] = useState('')
+
+  // State cho Tab 2 (Biểu đồ / Profile)
+  const [selectedMemberId, setSelectedMemberId] = useState(null)
+
+  // State cho Tab 3 (Tìm trận)
+  const [playerA, setPlayerA] = useState('')
+  const [playerB, setPlayerB] = useState('')
+  const [searchMode, setSearchMode] = useState('vs') // 'vs' | 'team'
+  const [qualityFilter, setQualityFilter] = useState('all') // 'all' | 'close' | 'upset'
+  const [editingMatch, setEditingMatch] = useState(null)
+
+  // State cho Gạ kèo (K6)
+  const [challengeModalOpen, setChallengeModalOpen] = useState(false)
+  const [initialTeamA, setInitialTeamA] = useState([])
+  const [initialTeamB, setInitialTeamB] = useState([])
+
+  const activeMembers = useMemo(() => {
+    return (db.members || []).filter((m) => m.active !== false)
+  }, [db.members])
+
+  const memberMap = useMemo(() => {
+    const map = {}
+    activeMembers.forEach((m) => { map[m.id] = m })
+    return map
+  }, [activeMembers])
+
+  const memberNameOf = (id) => (memberMap[id] || {}).name || id
+
+  const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
+
+  // -------------------------------------------------------------
+  // TAB 1: Dữ liệu Bảng xếp hạng Mùa giải
+  // -------------------------------------------------------------
+  const leaderboardData = useMemo(() => {
+    const matches = db.matches || []
+    return activeMembers.map((m) => {
+      const pr = getPlayerRating(db.playerRatings, m.id)
+      const rating = pr.rating
+      const gamesCount = pr.gamesCount
+      const confidence = pr.confidence || confidenceOf(gamesCount)
+
+      // Tính thắng thua từ matches (hỗ trợ cả teamA/teamB lẫn playerKeys)
+      let wins = 0
+      let losses = 0
+      const myMatches = []
+      matches.forEach((mt) => {
+        const teamA = mt.teamA || (mt.playerKeys ? mt.playerKeys.slice(0, 2) : [])
+        const teamB = mt.teamB || (mt.playerKeys ? mt.playerKeys.slice(2, 4) : [])
+        const inA = teamA.includes(m.id)
+        const inB = teamB.includes(m.id)
+        if (inA || inB) {
+          const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
+          if (won) wins++
+          else losses++
+          myMatches.push({ ...mt, won, date: mt.createdAt || '' })
+        }
+      })
+
+      // Form 5 trận gần nhất (sắp xếp theo thời gian mới nhất trước)
+      myMatches.sort((a, b) => b.date.localeCompare(a.date))
+      const form = myMatches.slice(0, 5).map((x) => (x.won ? 'W' : 'L')).reverse()
+
+      const totalGames = wins + losses
+      const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0
+
+      return {
+        id: m.id,
+        name: m.name,
+        gender: m.gender,
+        level: m.level,
+        rating,
+        gamesCount: totalGames || gamesCount,
+        wins,
+        losses,
+        winRate,
+        confidence,
+        form,
+      }
+    }).filter((row) => {
+      if (!searchName.trim()) return true
+      return row.name.toLowerCase().includes(searchName.toLowerCase())
+    }).sort((a, b) => b.rating - a.rating)
+  }, [activeMembers, db.playerRatings, db.matches, searchName])
+
+  // -------------------------------------------------------------
+  // TAB 2: Biểu đồ & Phân rã ngữ cảnh của 1 thành viên
+  // -------------------------------------------------------------
+  const currentMember = useMemo(() => {
+    const targetId = selectedMemberId || leaderboardData[0]?.id || activeMembers[0]?.id
+    return activeMembers.find((m) => m.id === targetId) || null
+  }, [selectedMemberId, leaderboardData, activeMembers])
+
+  const profileContext = useMemo(() => {
+    if (!currentMember) return null
+    const mid = currentMember.id
+    const matches = db.matches || []
+    
+    let vsMaleWins = 0, vsMaleLoss = 0
+    let vsFemaleWins = 0, vsFemaleLoss = 0
+    let doublesWins = 0, doublesLoss = 0
+    let singlesWins = 0, singlesLoss = 0
+
+    matches.forEach((mt) => {
+      const teamA = mt.teamA || (mt.playerKeys ? mt.playerKeys.slice(0, 2) : [])
+      const teamB = mt.teamB || (mt.playerKeys ? mt.playerKeys.slice(2, 4) : [])
+      const inA = teamA.includes(mid)
+      const inB = teamB.includes(mid)
+      if (!inA && !inB) return
+
+      const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
+      const oppTeam = inA ? teamB : teamA
+      const hasFemaleOpp = oppTeam.some((id) => (memberMap[id]?.gender || '').toLowerCase() === 'nu')
+      const hasMaleOpp = oppTeam.some((id) => (memberMap[id]?.gender || '').toLowerCase() === 'nam')
+
+      if (hasMaleOpp) {
+        if (won) vsMaleWins++
+        else vsMaleLoss++
+      }
+      if (hasFemaleOpp) {
+        if (won) vsFemaleWins++
+        else vsFemaleLoss++
+      }
+
+      const isDoubles = (teamA.length === 2 && teamB.length === 2)
+      if (isDoubles) {
+        if (won) doublesWins++
+        else doublesLoss++
+      } else {
+        if (won) singlesWins++
+        else singlesLoss++
+      }
+    })
+
+    const overallRating = getRating(mid)
+    const totalG = vsMaleWins + vsMaleLoss + vsFemaleWins + vsFemaleLoss
+    const overallConf = confidenceOf(totalG)
+
+    return {
+      overallRating,
+      overallConf,
+      vsMale: { wins: vsMaleWins, loss: vsMaleLoss, total: vsMaleWins + vsMaleLoss, conf: confidenceOf(vsMaleWins + vsMaleLoss) },
+      vsFemale: { wins: vsFemaleWins, loss: vsFemaleLoss, total: vsFemaleWins + vsFemaleLoss, conf: confidenceOf(vsFemaleWins + vsFemaleLoss) },
+      doubles: { wins: doublesWins, loss: doublesLoss, total: doublesWins + doublesLoss, conf: confidenceOf(doublesWins + doublesLoss) },
+      singles: { wins: singlesWins, loss: singlesLoss, total: singlesWins + singlesLoss, conf: confidenceOf(singlesWins + singlesLoss) },
+    }
+  }, [currentMember, db.matches, memberMap, db.playerRatings])
+
+  // -------------------------------------------------------------
+  // TAB 3: Dữ liệu Tìm trận
+  // -------------------------------------------------------------
+  const searchResults = useMemo(() => {
+    const ratingsMap = {}
+    activeMembers.forEach((m) => {
+      ratingsMap[m.id] = getPlayerRating(db.playerRatings, m.id).rating
+    })
+
+    return searchMatches(db.matches || [], {
+      playerA: playerA || null,
+      playerB: playerB || null,
+      mode: searchMode,
+      quality: qualityFilter,
+      ratingsMap,
+    })
+  }, [db.matches, playerA, playerB, searchMode, qualityFilter, db.playerRatings, activeMembers])
+
+  // -------------------------------------------------------------
+  // TAB 4: Ma trận Đối đầu H2H
+  // -------------------------------------------------------------
+  const topMembersForMatrix = useMemo(() => activeMembers.slice(0, 8), [activeMembers])
+  const matrixData = useMemo(() => {
+    return headToHeadMatrix(topMembersForMatrix, db.matches || [])
+  }, [topMembersForMatrix, db.matches])
+
+  const neverMetList = useMemo(() => {
+    return neverMetPairs(activeMembers, db.matches || [], db.sessions || [])
+  }, [activeMembers, db.matches, db.sessions])
+
+  // -------------------------------------------------------------
+  // TAB 5: Thống kê Hiệu chỉnh chéo giới (Calibration)
+  // -------------------------------------------------------------
+  const calibrationStats = useMemo(() => {
+    return computeClubCalibration(db.matches || [], memberMap)
+  }, [db.matches, memberMap])
+
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      {/* ---------------- 1. Tab Bar chính của Leaderboard ---------------- */}
+      <div style={S.tabBarWrap}>
+        <div style={S.tabTrack}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('season')}
+            style={{ ...S.tabBtn, ...(activeTab === 'season' ? S.tabBtnActive : {}) }}
+          >
+            {t('leaderboard.tabSeason', { year: yearFilter })}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('chart')}
+            style={{ ...S.tabBtn, ...(activeTab === 'chart' ? S.tabBtnActive : {}) }}
+          >
+            {t('leaderboard.tabChart')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('search')}
+            style={{ ...S.tabBtn, ...(activeTab === 'search' ? S.tabBtnActive : {}) }}
+          >
+            {t('leaderboard.tabSearch')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('matrix')}
+            style={{ ...S.tabBtn, ...(activeTab === 'matrix' ? S.tabBtnActive : {}) }}
+          >
+            {t('leaderboard.tabMatrix')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('cross')}
+            style={{ ...S.tabBtn, ...(activeTab === 'cross' ? S.tabBtnActive : {}) }}
+          >
+            {t('leaderboard.tabCross')}
+          </button>
+        </div>
+      </div>
+
+      {/* ---------------- TAB 1: Bảng xếp hạng Mùa giải ---------------- */}
+      {activeTab === 'season' && (
+        <div style={S.card}>
+          {/* Header & Bộ lọc */}
+          <div style={S.cardHead}>
+            <div style={{ flex: 1, minWidth: 200, display: 'grid', gap: 2 }}>
+              <div style={S.cardTitle}>{t('leaderboard.title')} · {t('leaderboard.season', { year: yearFilter })}</div>
+              <div style={S.cardSub}>{t('leaderboard.sub')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Input
+                size="sm"
+                placeholder={t('leaderboard.searchPlaceholder')}
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                style={{ width: 180 }}
+              />
+            </div>
+          </div>
+
+          {/* Bọc bảng có thanh cuộn ngang an toàn cho mobile 390px */}
+          <div style={{ overflowX: 'auto', width: '100%' }}>
+            <div style={{ minWidth: 680 }}>
+              {/* Header Bảng */}
+              <div style={S.seasonTableHead}>
+                <div style={S.thCell}>{t('leaderboard.rank')}</div>
+                <div style={S.thCell}>{t('leaderboard.player')}</div>
+                <div style={{ ...S.thCell, textAlign: 'right' }}>{t('rating.elo')}</div>
+                <div style={S.thCell}>{t('rating.confidence.label')}</div>
+                <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.winLoss')}</div>
+                <div style={{ ...S.thCell, textAlign: 'right' }}>{t('leaderboard.winRate')}</div>
+                <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.recentForm')}</div>
+              </div>
+
+              {/* Danh sách thành viên */}
+              <div style={{ display: 'grid' }}>
+                {leaderboardData.map((row, idx) => {
+                  const rank = idx + 1
+                  const rankColor = rank === 1 ? '#F0B75C' : rank === 2 ? '#C0D8F8' : rank === 3 ? '#CD7F32' : '#8494AA'
+                  const confLabel = t('rating.confidence.' + (row.confidence || 'low'))
+                  const confPct = row.confidence === 'very_high' ? 100 : row.confidence === 'high' ? 75 : row.confidence === 'medium' ? 50 : 25
+
+                  return (
+                    <div key={row.id} style={S.seasonTableRow}>
+                      {/* Cột Hạng */}
+                      <div style={S.tdCell}>
+                        <span style={{ font: '700 16px/1 Barlow, sans-serif', color: rankColor }}>
+                          #{rank}
+                        </span>
+                      </div>
+
+                      {/* Cột Tên & Trình độ */}
+                      <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                          {row.name}
+                        </span>
+                        <span style={{ fontSize: 12, color: '#8494AA' }}>({row.gender})</span>
+                        <LevelChip level={row.level} levels={db.levels} />
+                      </div>
+
+                      {/* Cột Elo */}
+                      <div style={{ ...S.tdCell, textAlign: 'right' }}>
+                        <span style={{ font: '700 15px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                          {row.rating}
+                        </span>
+                      </div>
+
+                      {/* Cột Độ tin cậy */}
+                      <div style={S.tdCell}>
+                        <div style={{ display: 'grid', gap: 3, maxWidth: 100 }}>
+                          <span style={{ fontSize: 11, color: '#A8B7CB', fontWeight: 500 }}>{confLabel}</span>
+                          <div style={{ height: 4, borderRadius: 999, background: '#0B1220', overflow: 'hidden' }}>
+                            <div style={{ width: `${confPct}%`, height: '100%', background: '#00B2A9' }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cột Thắng - Thua */}
+                      <div style={{ ...S.tdCell, textAlign: 'center' }}>
+                        <span style={{ font: '500 13px/1 "IBM Plex Mono", monospace', color: '#E9EFF7' }}>
+                          {row.wins} – {row.losses}
+                        </span>
+                      </div>
+
+                      {/* Cột Tỷ lệ thắng */}
+                      <div style={{ ...S.tdCell, textAlign: 'right' }}>
+                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: row.winRate >= 60 ? '#5FD9A2' : '#E9EFF7' }}>
+                          {row.winRate}%
+                        </span>
+                      </div>
+
+                      {/* Cột Phong độ Form W/L */}
+                      <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 4 }}>
+                        {row.form.length > 0 ? (
+                          row.form.map((res, i) => (
+                            <span
+                              key={i}
+                              style={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: 999,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                background: res === 'W' ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)',
+                                color: res === 'W' ? '#5FD9A2' : '#FF9A8F',
+                                border: `1px solid ${res === 'W' ? '#00875A' : 'rgba(225,68,52,.4)'}`,
+                              }}
+                            >
+                              {res}
+                            </span>
+                          ))
+                        ) : (
+                          <span style={{ color: '#5B6B81', fontSize: 12 }}>—</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {leaderboardData.length === 0 && (
+                  <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', fontSize: 13 }}>
+                    {t('leaderboard.empty')}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- TAB 2: Biểu đồ & Phân rã ngữ cảnh ---------------- */}
+      {activeTab === 'chart' && currentMember && profileContext && (() => {
+        const totalMemberGames = profileContext.vsMale.total + profileContext.vsFemale.total
+        const confProg = confidenceProgress(totalMemberGames)
+
+        return (
+          <div style={{ display: 'grid', gap: 16 }}>
+            {/* Header chọn thành viên & Tổng quan Profile */}
+            <div style={S.card}>
+              <div style={{ padding: '16px', display: 'grid', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ font: '600 18px/1.25 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                      {t('leaderboard.profileRating')}: {currentMember.name}
+                    </span>
+                    <span style={{ fontSize: 13, color: '#8494AA' }}>({currentMember.gender})</span>
+                    <LevelChip level={currentMember.level} levels={db.levels} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Select
+                      value={currentMember.id}
+                      options={activeMembers.map((m) => ({ value: m.id, label: m.name }))}
+                      onChange={(e) => setSelectedMemberId(e.target.value)}
+                      style={{ width: 180 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInitialTeamA([])
+                        setInitialTeamB([currentMember.id])
+                        setChallengeModalOpen(true)
+                      }}
+                      style={S.challengeBtn}
+                    >
+                      ⚔️ {t('leaderboard.challengeMember', { name: currentMember.name })}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card tiến trình độ tin cậy Rating R1 -> R5 */}
+                <div style={{ padding: '14px 16px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                      <span style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                        {profileContext.overallRating}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#8494AA', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Elo {t('rating.breakdown.overall')}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        padding: '3px 10px',
+                        borderRadius: 999,
+                        background: 'rgba(0,178,169,0.15)',
+                        border: '1px solid #00786F',
+                        color: '#5FDBD3',
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}>
+                        {t('rating.confidence.levelR', { num: confProg.levelNum })}
+                      </span>
+                      <span style={{ fontSize: 13, color: '#A8B7CB', fontWeight: 500 }}>
+                        {t('rating.confidence.' + profileContext.overallConf)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Thanh tiến trình Progress Bar */}
+                  <div style={{ display: 'grid', gap: 5 }}>
+                    <div style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', border: '1px solid #1A2437' }}>
+                      <div style={{
+                        width: `${confProg.pct}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #00786F, #00B2A9)',
+                        transition: 'width 0.3s ease',
+                      }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: '#8494AA' }}>
+                      <span>
+                        {confProg.isMax
+                          ? t('rating.confidence.maxReached')
+                          : t('rating.confidence.progress', { needed: confProg.needed, nextLevel: confProg.nextLevel })}
+                      </span>
+                      <span style={{ fontFamily: '"IBM Plex Mono", monospace' }}>
+                        {confProg.current}/{confProg.target} ({confProg.pct}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 4 Card Ngữ cảnh */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+              <div style={S.contextCard}>
+                <div style={S.contextHead}>{t('rating.breakdown.vsMale')}</div>
+                <div style={S.contextScore}>{profileContext.vsMale.wins}W – {profileContext.vsMale.loss}L</div>
+                <div style={S.contextMeta}>{t('leaderboard.totalGamesMeta', { n: profileContext.vsMale.total, conf: t('rating.confidence.' + profileContext.vsMale.conf) })}</div>
+              </div>
+              <div style={S.contextCard}>
+                <div style={S.contextHead}>{t('rating.breakdown.vsFemale')}</div>
+                <div style={S.contextScore}>{profileContext.vsFemale.wins}W – {profileContext.vsFemale.loss}L</div>
+                <div style={S.contextMeta}>{t('leaderboard.totalGamesMeta', { n: profileContext.vsFemale.total, conf: t('rating.confidence.' + profileContext.vsFemale.conf) })}</div>
+              </div>
+              <div style={S.contextCard}>
+                <div style={S.contextHead}>{t('rating.breakdown.doubles')}</div>
+                <div style={S.contextScore}>{profileContext.doubles.wins}W – {profileContext.doubles.loss}L</div>
+                <div style={S.contextMeta}>{t('leaderboard.totalGamesMeta', { n: profileContext.doubles.total, conf: t('rating.confidence.' + profileContext.doubles.conf) })}</div>
+              </div>
+              <div style={S.contextCard}>
+                <div style={S.contextHead}>{t('rating.breakdown.singles')}</div>
+                <div style={S.contextScore}>{profileContext.singles.wins}W – {profileContext.singles.loss}L</div>
+                <div style={S.contextMeta}>{t('leaderboard.totalGamesMeta', { n: profileContext.singles.total, conf: t('rating.confidence.' + profileContext.singles.conf) })}</div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ---------------- TAB 3: Tìm trận & Sửa tỷ số inline ---------------- */}
+      {activeTab === 'search' && (
+        <div style={{ display: 'grid', gap: 16 }}>
+          {/* Bộ lọc Tìm trận */}
+          <div style={S.card}>
+            <div style={{ padding: '14px 16px', display: 'grid', gap: 12 }}>
+              <div style={S.cardTitle}>{t('matchSearch.title')}</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Select
+                  value={playerA}
+                  options={[{ value: '', label: `-- ${t('matchSearch.playerA')} --` }, ...activeMembers.map((m) => ({ value: m.id, label: m.name }))]}
+                  onChange={(e) => setPlayerA(e.target.value)}
+                  style={{ width: 170 }}
+                />
+                <Select
+                  value={searchMode}
+                  options={[
+                    { value: 'vs', label: t('matchSearch.modeH2H') },
+                    { value: 'team', label: t('matchSearch.modeTeammate') },
+                  ]}
+                  onChange={(e) => setSearchMode(e.target.value)}
+                  style={{ width: 120 }}
+                />
+                <Select
+                  value={playerB}
+                  options={[{ value: '', label: `-- ${t('matchSearch.playerB')} --` }, ...activeMembers.map((m) => ({ value: m.id, label: m.name }))]}
+                  onChange={(e) => setPlayerB(e.target.value)}
+                  style={{ width: 170 }}
+                />
+                <Select
+                  value={qualityFilter}
+                  options={[
+                    { value: 'all', label: t('matchSearch.qualityAll') },
+                    { value: 'close', label: t('matchSearch.qualityClose') },
+                    { value: 'upset', label: t('matchSearch.qualityUpset') },
+                  ]}
+                  onChange={(e) => setQualityFilter(e.target.value)}
+                  style={{ width: 180 }}
+                />
+                {/* Nút Gạ kèo giữa 2 người chơi khi đã chọn cả 2 */}
+                {playerA && playerB && playerA !== playerB && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInitialTeamA([playerA])
+                      setInitialTeamB([playerB])
+                      setChallengeModalOpen(true)
+                    }}
+                    style={S.challengeBtn}
+                  >
+                    ⚔️ {t('matchSearch.challengeBetween')}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bảng kết quả tìm trận có scroll ngang an toàn trên mobile */}
+          <div style={S.card}>
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <div style={{ minWidth: 680 }}>
+                <div style={S.searchTableHead}>
+                  <div style={S.thCell}>{t('matchSearch.colCode')}</div>
+                  <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
+                  <div style={S.thCell}>{t('matchSearch.colWinner')}</div>
+                  <div style={{ ...S.thCell, textAlign: 'center' }}>{t('matchSearch.colScore')}</div>
+                  <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
+                  <div style={S.thCell}>{t('matchSearch.colSource')}</div>
+                  <div style={{ ...S.thCell, textAlign: 'center' }}>{t('matchSearch.colAction')}</div>
+                </div>
+
+                <div style={{ display: 'grid' }}>
+                  {searchResults.map((m) => {
+                    const teamA = m.teamA || []
+                    const teamB = m.teamB || []
+                    const aWon = m.winnerTeam === 'A'
+                    const winnerNames = (aWon ? teamA : teamB).map(memberNameOf).join(' · ')
+                    const loserNames = (aWon ? teamB : teamA).map(memberNameOf).join(' · ')
+                    const scoreStr = (m.sets || []).map(([a, b]) => `${a}-${b}`).join(', ')
+                    const isChallenge = Boolean(m.challengeId || m.sourceType === 'CHALLENGE')
+
+                    return (
+                      <div key={m.id} style={S.searchTableRow}>
+                        <div style={S.tdCell}>
+                          <span style={S.monoCode}>{m.code || 'M-000'}</span>
+                        </div>
+                        <div style={S.tdCell}>
+                          <span style={S.monoMeta}>{m.createdAt?.slice(0, 10) || ''}</span>
+                        </div>
+                        <div style={{ ...S.tdCell, minWidth: 0 }}>
+                          <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: '#5FD9A2' }}>
+                            {winnerNames}
+                          </span>
+                        </div>
+                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
+                          <span style={{ font: '700 16px/1 Barlow, sans-serif', color: '#E9EFF7', whiteSpace: 'nowrap' }}>
+                            {scoreStr}
+                          </span>
+                        </div>
+                        <div style={{ ...S.tdCell, minWidth: 0 }}>
+                          <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: '#A8B7CB' }}>
+                            {loserNames}
+                          </span>
+                        </div>
+                        <div style={S.tdCell}>
+                          <span style={{
+                            ...S.sourcePill,
+                            background: isChallenge ? 'rgba(0,178,169,.14)' : 'rgba(255,255,255,.06)',
+                            borderColor: isChallenge ? '#00786F' : '#22304A',
+                            color: isChallenge ? '#5FDBD3' : '#8494AA',
+                          }}>
+                            {isChallenge ? t('challenge.challenge') : t('challenge.fromCourt')}
+                          </span>
+                        </div>
+                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => setEditingMatch(m)}
+                            style={S.editBtn}
+                          >
+                            {t('matchSearch.btnEdit')}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {searchResults.length === 0 && (
+                    <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', fontSize: 13 }}>
+                      {t('matchSearch.emptySearch')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- TAB 4: Ma trận Đối đầu H2H ---------------- */}
+      {activeTab === 'matrix' && (
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
+                <div style={S.cardTitle}>{t('matchSearch.matrixTitle')}</div>
+                <div style={S.cardSub}>{t('matchSearch.matrixDesc')}</div>
+              </div>
+            </div>
+
+            <div style={{ padding: 16, overflowX: 'auto' }}>
+              <table style={S.matrixTable}>
+                <thead>
+                  <tr>
+                    <th style={S.matrixTh}>VS</th>
+                    {topMembersForMatrix.map((m) => (
+                      <th key={m.id} style={S.matrixTh}>{m.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {topMembersForMatrix.map((p1) => (
+                    <tr key={p1.id}>
+                      <td style={S.matrixRowLabel}>{p1.name}</td>
+                      {topMembersForMatrix.map((p2) => {
+                        if (p1.id === p2.id) {
+                          return <td key={p2.id} style={S.matrixSelfCell}>—</td>
+                        }
+                        const cell = matrixData[p1.id]?.[p2.id] || { wins: 0, losses: 0 }
+                        const net = cell.wins - cell.losses
+                        const cellColor = net > 0 ? '#5FD9A2' : net < 0 ? '#FF9A8F' : '#8494AA'
+                        const cellBg = net > 0 ? 'rgba(18,168,103,.12)' : net < 0 ? 'rgba(225,68,52,.12)' : 'transparent'
+                        return (
+                          <td key={p2.id} style={{ ...S.matrixCell, color: cellColor, background: cellBg }}>
+                            {cell.wins}-{cell.losses}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Cặp chưa từng gặp nhau */}
+          <div style={S.card}>
+            <div style={{ padding: '14px 16px', display: 'grid', gap: 8 }}>
+              <div style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                {t('matchSearch.neverMet')} ({neverMetList.length} {t('matchSearch.pairs')})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {neverMetList.slice(0, 15).map(([id1, id2], idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setInitialTeamA([id1])
+                      setInitialTeamB([id2])
+                      setChallengeModalOpen(true)
+                    }}
+                    style={{ ...S.pairBadge, cursor: 'pointer' }}
+                    title={t('leaderboard.challengePair')}
+                  >
+                    ⚔️ {memberNameOf(id1)} · {memberNameOf(id2)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- TAB 5: Thống kê hiệu chỉnh chéo giới ---------------- */}
+      {activeTab === 'cross' && (
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={S.card}>
+            <div style={S.cardHead}>
+              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
+                <div style={S.cardTitle}>{t('rating.calibration.title')}</div>
+                <div style={S.cardSub}>{t('rating.calibration.desc')}</div>
+              </div>
+            </div>
+
+            <div style={{ padding: 16, display: 'grid', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                {Object.entries(calibrationStats.buckets).map(([bucketKey, data]) => {
+                  const winRatePct = data.sampleSize > 0 ? Math.round((data.femaleWins / data.sampleSize) * 100) : 0
+                  return (
+                    <div key={bucketKey} style={S.bucketCard}>
+                      <div style={S.bucketHead}>{t('leaderboard.gapBucket', { bucket: bucketKey })}</div>
+                      <div style={{ font: '700 24px/1 Barlow, sans-serif', color: '#5FDBD3', margin: '4px 0' }}>
+                        {winRatePct}%
+                      </div>
+                      <div style={{ fontSize: 12, color: '#8494AA' }}>
+                        {t('leaderboard.crossStats', { wins: data.femaleWins, total: data.sampleSize })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: '#A8B7CB', marginTop: 8 }}>
+                💡 <em>{t('rating.calibration.desc')}</em>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal sửa điểm inline */}
+      {editingMatch && (
+        <EditScoreModal
+          match={editingMatch}
+          onClose={() => setEditingMatch(null)}
+          onSaved={() => setEditingMatch(null)}
+        />
+      )}
+
+      {/* Modal tạo kèo / gạ kèo (K6) */}
+      {challengeModalOpen && (
+        <CreateChallengeModal
+          onClose={() => setChallengeModalOpen(false)}
+          onCreated={() => setChallengeModalOpen(false)}
+          initialTeamA={initialTeamA}
+          initialTeamB={initialTeamB}
+        />
+      )}
+    </div>
+  )
+}
+
+const S = {
+  tabBarWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  tabTrack: {
+    display: 'flex',
+    padding: 3,
+    borderRadius: 8,
+    background: '#101927',
+    border: '1px solid #22304A',
+    gap: 2,
+    overflowX: 'auto',
+  },
+  tabBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    height: 34,
+    padding: '0 14px',
+    borderRadius: 6,
+    border: 'none',
+    background: 'transparent',
+    font: '600 13px/1 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.15s ease',
+  },
+  tabBtnActive: {
+    background: '#141D2E',
+    color: '#E9EFF7',
+    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+  },
+  card: {
+    background: '#141D2E',
+    border: '1px solid #22304A',
+    borderRadius: 10,
+    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    overflow: 'hidden',
+  },
+  cardHead: {
+    padding: '14px 16px',
+    borderBottom: '1px solid #22304A',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  cardTitle: {
+    font: '600 16px/1.25 "IBM Plex Sans", sans-serif',
+    color: '#E9EFF7',
+  },
+  cardSub: {
+    font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+  },
+  seasonTableHead: {
+    display: 'grid',
+    gridTemplateColumns: '60px minmax(180px, 1.5fr) 90px 140px 110px 100px 130px',
+    background: '#101927',
+    borderBottom: '1px solid #22304A',
+  },
+  seasonTableRow: {
+    display: 'grid',
+    gridTemplateColumns: '60px minmax(180px, 1.5fr) 90px 140px 110px 100px 130px',
+    borderBottom: '1px solid #22304A',
+    minHeight: 48,
+    alignItems: 'center',
+  },
+  searchTableHead: {
+    display: 'grid',
+    gridTemplateColumns: '84px 90px 1.2fr 100px 1.2fr 90px 80px',
+    background: '#101927',
+    borderBottom: '1px solid #22304A',
+  },
+  searchTableRow: {
+    display: 'grid',
+    gridTemplateColumns: '84px 90px 1.2fr 100px 1.2fr 90px 80px',
+    borderBottom: '1px solid #22304A',
+    minHeight: 50,
+    alignItems: 'center',
+  },
+  thCell: {
+    padding: '0 12px',
+    minHeight: 38,
+    display: 'flex',
+    alignItems: 'center',
+    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#8494AA',
+  },
+  tdCell: {
+    padding: '0 12px',
+  },
+  monoCode: {
+    font: '600 12.5px/1.3 "IBM Plex Mono", monospace',
+    color: '#5FDBD3',
+  },
+  monoMeta: {
+    font: '400 12px/1.4 "IBM Plex Mono", monospace',
+    color: '#8494AA',
+  },
+  sourcePill: {
+    fontSize: 11,
+    fontWeight: 600,
+    padding: '2px 8px',
+    borderRadius: 4,
+    border: '1px solid',
+  },
+  editBtn: {
+    padding: '4px 10px',
+    borderRadius: 4,
+    background: '#1A2437',
+    border: '1px solid #2E3E5C',
+    color: '#5FDBD3',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  contextCard: {
+    padding: '14px 16px',
+    borderRadius: 8,
+    background: '#101927',
+    border: '1px solid #22304A',
+    display: 'grid',
+    gap: 4,
+  },
+  contextHead: {
+    font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    textTransform: 'uppercase',
+  },
+  contextScore: {
+    font: '700 20px/1.2 "IBM Plex Mono", monospace',
+    color: '#E9EFF7',
+  },
+  contextMeta: {
+    font: '400 12px/1.4 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+  },
+  matrixTable: {
+    borderCollapse: 'collapse',
+    fontSize: 13,
+    width: '100%',
+  },
+  matrixTh: {
+    padding: '8px 12px',
+    border: '1px solid #22304A',
+    background: '#101927',
+    color: '#8494AA',
+    fontWeight: 600,
+    textAlign: 'center',
+  },
+  matrixRowLabel: {
+    padding: '8px 12px',
+    border: '1px solid #22304A',
+    background: '#101927',
+    color: '#E9EFF7',
+    fontWeight: 600,
+  },
+  matrixCell: {
+    padding: '8px 12px',
+    border: '1px solid #22304A',
+    textAlign: 'center',
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontWeight: 600,
+  },
+  matrixSelfCell: {
+    padding: '8px 12px',
+    border: '1px solid #22304A',
+    textAlign: 'center',
+    color: '#5B6B81',
+    background: '#0B1220',
+  },
+  pairBadge: {
+    padding: '4px 10px',
+    borderRadius: 6,
+    background: '#101927',
+    border: '1px solid #22304A',
+    fontSize: 12,
+    color: '#A8B7CB',
+  },
+  bucketCard: {
+    padding: '14px 16px',
+    borderRadius: 8,
+    background: '#101927',
+    border: '1px solid #22304A',
+  },
+  bucketHead: {
+    font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    textTransform: 'uppercase',
+  },
+  challengeBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '6px 14px',
+    borderRadius: 6,
+    background: 'linear-gradient(135deg, #00B2A9, #00786F)',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 600,
+    border: 'none',
+    cursor: 'pointer',
+    boxShadow: '0 2px 6px rgba(0,178,169,0.3)',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.15s ease',
+  },
+}
