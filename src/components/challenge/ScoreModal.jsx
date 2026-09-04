@@ -84,8 +84,6 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
     return { wonA, wonB }
   }, [sets])
 
-  const targetWins = Math.ceil(numSets / 2)
-  const isComplete = setsWon.wonA >= targetWins || setsWon.wonB >= targetWins
   const winnerTeam = setsWon.wonA > setsWon.wonB ? 'A' : setsWon.wonB > setsWon.wonA ? 'B' : null
 
   // Rating preview có tính K-Factor động và Margin Multiplier
@@ -111,14 +109,15 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
   const ratingDeltaPreview = useMemo(() => {
     if (!playerDeltasPreview) return null
     const { deltas, multiplier } = playerDeltasPreview
+    const nameOf = (id) => (db.members.find((m) => m.id === id) || {}).name || id
     const deltasA = teamA.map((id) => ({
       id,
-      name: memberNameOf(id),
+      name: nameOf(id),
       delta: deltas?.[id] || 0,
     }))
     const deltasB = teamB.map((id) => ({
       id,
-      name: memberNameOf(id),
+      name: nameOf(id),
       delta: deltas?.[id] || 0,
     }))
     return {
@@ -128,21 +127,17 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
     }
   }, [playerDeltasPreview, teamA, teamB, db.members])
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!winnerTeam || submitting) return
     setSubmitting(true)
     try {
       // Lọc các set hợp lệ
       const finalSets = sets.filter(([a, b]) => a > 0 || b > 0)
-      const res = await a.saveMatchScore({
-        sid: session?.id || null,
+      const res = a.saveMatchScore({
         sessionId: session?.id || null,
-        ci: court?.courtIndex ?? 0,
         courtIdx: court?.courtIndex ?? 0,
-        courtIndex: court?.courtIndex ?? 0,
         courtId: court?.courtId || null,
         challengeId: challenge?.id || court?.fromChallengeId || null,
-        challengeCode: challenge?.code || court?.fromChallengeCode || null,
         ratingEnabled: challenge ? challenge.ratingEnabled !== false : true,
         teamA,
         teamB,
@@ -152,8 +147,6 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       })
       if (res && onSaved) onSaved(res)
       onClose()
-    } catch (err) {
-      console.error(err)
     } finally {
       setSubmitting(false)
     }

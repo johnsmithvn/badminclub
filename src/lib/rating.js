@@ -118,9 +118,6 @@ export function rankTierOf(rating = 0, themeKey = 'street') {
     key: tier.key,
     label,
     quip,
-    labelKey: `rating.tierThemes.${safeTheme}.${tier.key}`,
-    fallbackLabelKey: `rating.tier.${tier.key}`,
-    quipKey: `rating.comedyQuips.${tier.key}`,
     color: tier.color,
     icon: tier.icon,
     min: tier.min,
@@ -353,7 +350,7 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
   // Sắp xếp các trận theo thời gian tăng dần
   const sorted = [...(allMatches || [])].sort((a, b) => (a.at || 0) - (b.at || 0))
   const startIdx = sorted.findIndex((m) => m.id === editedMatchId)
-  if (startIdx < 0) return { updatedRatings: {}, updatedMatches: sorted }
+  if (startIdx < 0) return { finalRatings: {}, updatedMatches: sorted }
 
   // Khởi tạo bảng rating tính toán
   const ratings = {}
@@ -368,7 +365,7 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
   })
 
   // Duyệt qua từng trận từ đầu đến cuối
-  const updatedMatches = sorted.map((m, idx) => {
+  const updatedMatches = sorted.map((m) => {
     const players = m.playerKeys || []
     if (players.length < 2) return m
 
@@ -384,11 +381,11 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
       if (validSets.length) {
         const aWins = validSets.filter((s) => s[0] > s[1]).length
         const bWins = validSets.filter((s) => s[1] > s[0]).length
-        winnerTeam = aWins > bWins ? 'A' : 'B'
+        winnerTeam = aWins > bWins ? 'A' : bWins > aWins ? 'B' : null
       }
     }
 
-    if (!winnerTeam) return m
+    if (!winnerTeam) return { ...m, winnerTeam: null }
 
     const aWon = winnerTeam === 'A'
     const isRated = m.ratingEnabled !== false
@@ -410,19 +407,18 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
       teamB.forEach((id) => {
         ratings[id] = (ratings[id] || DEFAULT_RATING) + (deltas[id] || 0)
       })
+      // Tăng số trận Elo
+      teamA.forEach((id) => {
+        gamesCount[id] = (gamesCount[id] || 0) + 1
+        if (aWon) winsCount[id] = (winsCount[id] || 0) + 1
+        else lossesCount[id] = (lossesCount[id] || 0) + 1
+      })
+      teamB.forEach((id) => {
+        gamesCount[id] = (gamesCount[id] || 0) + 1
+        if (!aWon) winsCount[id] = (winsCount[id] || 0) + 1
+        else lossesCount[id] = (lossesCount[id] || 0) + 1
+      })
     }
-
-    // Tăng số trận
-    teamA.forEach((id) => {
-      gamesCount[id] = (gamesCount[id] || 0) + 1
-      if (aWon) winsCount[id] = (winsCount[id] || 0) + 1
-      else lossesCount[id] = (lossesCount[id] || 0) + 1
-    })
-    teamB.forEach((id) => {
-      gamesCount[id] = (gamesCount[id] || 0) + 1
-      if (!aWon) winsCount[id] = (winsCount[id] || 0) + 1
-      else lossesCount[id] = (lossesCount[id] || 0) + 1
-    })
 
     return {
       ...m,

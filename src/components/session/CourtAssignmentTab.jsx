@@ -1,12 +1,12 @@
 import { useState, useRef, useMemo } from 'react'
 import { Button, Card, Icon, Input, Select, Switch } from '#ds'
-import { LevelChip, Mono, Overline, playerMeta } from '#ui'
+import { LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { elapsedMin, useClock } from '#hooks/useClock.js'
 import { courtOf } from '#lib/money.js'
 import {
-  ASSIGN_MODES, activeCourtIdxs, courtBalance, courtSlotIds,
-  fairness, matchStats, sessionPlayers, slotIds,
+  ASSIGN_MODES, activeCourtIdxs, courtSlotIds,
+  sessionPlayers, slotIds,
 } from '#lib/assign.js'
 import { expectedScore, evalBalance, getPlayerRating } from '#lib/rating.js'
 import { t } from '#i18n'
@@ -14,7 +14,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 
 export default function CourtAssignmentTab({ s }) {
-  const { db, ui, a } = useApp()
+  const { db, a } = useApp()
   const [scoringCourt, setScoringCourt] = useState(null)
   const [selectedPoolKey, setSelectedPoolKey] = useState(null)
   const dragKey = useRef(null)
@@ -33,11 +33,8 @@ export default function CourtAssignmentTab({ s }) {
   const lineup = (db.lineups || {})[s.id] || {}
   const placed = Object.values(lineup)
   const groupMode = !!(db.groupMode || {})[s.id]
-  const courtGroups = (db.courtGroups || {})[s.id] || {}
+  const courtGroups = useMemo(() => (db.courtGroups || {})[s.id] || {}, [db.courtGroups, s.id])
   const idxs = activeCourtIdxs(s)
-  const stats = matchStats(db.matches, s.id)
-  const matches = (db.matches || []).filter((x) => x.sessionId === s.id)
-  const fair = fairness(players, stats)
 
   // Lấy rating của từng người
   const getRating = (playerId) => getPlayerRating(db.playerRatings, playerId).rating
@@ -58,7 +55,7 @@ export default function CourtAssignmentTab({ s }) {
 
   // Kèo đã nhận, đang chờ sân
   const acceptedChallenges = useMemo(() => {
-    return (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'ACCEPTED')
+    return (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'accepted')
   }, [db.challenges, s.id])
 
   // Thao tác Drag & Drop
@@ -93,7 +90,7 @@ export default function CourtAssignmentTab({ s }) {
       return
     }
 
-    a.deployChallenge(challenge.id, s.id, emptyCourtIdx)
+    a.deployChallenge(challenge.id, emptyCourtIdx)
   }
 
   // Slot click handler
@@ -221,7 +218,7 @@ export default function CourtAssignmentTab({ s }) {
       )}
 
       {/* ---------------- 3. Thanh công cụ Chia sân (5 thuật toán tự động) ---------------- */}
-      <Toolbar s={s} lineup={lineup} idxs={idxs} fair={fair} matches={matches} />
+      <Toolbar s={s} lineup={lineup} idxs={idxs} />
 
       {/* ---------------- 4. Grid các sân 2x2 ---------------- */}
       <div style={S.courtGrid}>
@@ -243,11 +240,11 @@ export default function CourtAssignmentTab({ s }) {
           const isFull = filledCount === 4
 
           // Kiểm tra xem sân này có phải từ kèo không
-          const attachedChallenge = (db.challenges || []).find((ch) => ch.sessionId === s.id && ch.status === 'ONCOURT' && ch.courtIndex === ci)
+          const attachedChallenge = (db.challenges || []).find((ch) => ch.sessionId === s.id && ch.status === 'oncourt' && ch.courtIndex === ci)
 
           // Tính độ cân khi đủ 4 người
-          const balance = useMemo(() => {
-            if (!isFull) return null
+          let balance = null
+          if (isFull) {
             const r0 = getRating(p0.key)
             const r1 = getRating(p1.key)
             const r2 = getRating(p2.key)
@@ -258,7 +255,7 @@ export default function CourtAssignmentTab({ s }) {
             const pA = expectedScore(avgA, avgB)
             const pctA = Math.round(pA * 100)
             const evalRes = evalBalance(avgA, avgB)
-            return {
+            balance = {
               avgA,
               avgB,
               gap,
@@ -268,7 +265,7 @@ export default function CourtAssignmentTab({ s }) {
               label: evalRes.label,
               color: evalRes.level === 'imbalanced' ? '#F0B75C' : evalRes.level === 'balanced' ? '#5FD9A2' : '#5FDBD3',
             }
-          }, [isFull, p0, p1, p2, p3, db.playerRatings])
+          }
 
           const SlotBox = ({ p, slotId }) => {
             const isHighlighted = Boolean(selectedPoolKey && !p)
@@ -458,12 +455,11 @@ export default function CourtAssignmentTab({ s }) {
 }
 
 /** Thanh công cụ: chọn chế độ xếp, xếp ngay, xóa, chia đều */
-function Toolbar({ s, lineup, idxs, fair, matches }) {
+function Toolbar({ s, lineup, idxs }) {
   const { ui, a } = useApp()
   const mode = ui.asnMode || 'balance'
   const total = slotIds(s).length
   const on = Object.keys(lineup).length
-  const totalMin = matches.reduce((x, m) => x + (m.minutes || 0), 0)
 
   return (
     <div style={S.toolbar}>

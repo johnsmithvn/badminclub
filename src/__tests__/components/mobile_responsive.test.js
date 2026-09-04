@@ -1,13 +1,32 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { confidenceProgress, confidenceOf } from '../../lib/rating.js'
+import { confidenceProgress } from '../../lib/rating.js'
 import { useMobile } from '../../hooks/useMobile.js'
+
+import React from 'react'
 
 test('Mobile Responsiveness & Confidence Progression Tests', async (t) => {
   await t.test('useMobile returns boolean safely in SSR/Node without window', () => {
-    const isMob = useMobile(768)
-    assert.equal(typeof isMob, 'boolean')
-    assert.equal(isMob, false) // In node environment without window, safely defaults to false
+    const internals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE || React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
+    const origH = internals ? (internals.H || internals.ReactCurrentDispatcher?.current) : null
+    if (internals) {
+      const mockDispatcher = {
+        useState: (init) => [typeof init === 'function' ? init() : init, () => {}],
+        useEffect: () => {},
+      }
+      if (internals.H !== undefined) internals.H = mockDispatcher
+      if (internals.ReactCurrentDispatcher) internals.ReactCurrentDispatcher.current = mockDispatcher
+    }
+    try {
+      const isMob = useMobile(768)
+      assert.equal(typeof isMob, 'boolean')
+      assert.equal(isMob, false) // In node environment without window, safely defaults to false
+    } finally {
+      if (internals) {
+        if (internals.H !== undefined) internals.H = origH
+        if (internals.ReactCurrentDispatcher) internals.ReactCurrentDispatcher.current = origH
+      }
+    }
   })
 
   await t.test('confidenceProgress calculates R1 through R5 correctly', () => {

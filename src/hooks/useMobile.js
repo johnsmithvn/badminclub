@@ -4,10 +4,8 @@
 import { useEffect, useState } from 'react'
 
 export function useMobile(breakpoint = 768) {
-  if (typeof window === 'undefined') return false
-
   const [isMobile, setIsMobile] = useState(() => {
-    if (!window.matchMedia) return false
+    if (typeof window === 'undefined' || !window.matchMedia) return false
     return window.matchMedia(`(max-width: ${breakpoint}px)`).matches
   })
 

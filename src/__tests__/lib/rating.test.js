@@ -52,4 +52,20 @@ assert.ok(finalRatings.m1.rating > 0, 'Người thắng trận phải có điể
 assert.ok(finalRatings.m3.rating < 0, 'Người thua trận phải có điểm rating < 0 (khi bắt đầu từ 0)')
 assert.equal(updatedMatches.length, 1, 'Danh sách trận cập nhật phải khớp')
 
+// 7. B1: Trận hoà set (1-1) trong replayRatingCascade phải trả về winnerTeam = null và không đổi Elo
+const tieMatches = [
+  {
+    id: 'matchTie',
+    at: 2000,
+    playerKeys: ['m1', 'm2', 'm3', 'm4'],
+    sets: [[21, 19], [19, 21]], // 1-1 set
+    winnerTeam: 'A', // Dữ liệu cũ ghi A
+    ratingEnabled: true,
+  },
+]
+const { finalRatings: tieRatings, updatedMatches: tieUpdated } = replayRatingCascade(tieMatches, 'matchTie', members)
+assert.equal(tieUpdated[0].winnerTeam, null, 'Trận hoà set 1-1 phải có winnerTeam = null')
+assert.equal(tieRatings.m1.rating, 0, 'Trận hoà không làm thay đổi Elo của m1')
+assert.equal(tieRatings.m3.rating, 0, 'Trận hoà không làm thay đổi Elo của m3')
+
 console.log('rating check: OK')

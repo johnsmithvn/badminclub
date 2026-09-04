@@ -1,4 +1,5 @@
 // Logic tìm kiếm trận đấu, lọc đối đầu & ma trận thi đấu (H2H Matrix) — Pure functions.
+import cfg from '#config/app.json' with { type: 'json' }
 
 /**
  * Lọc danh sách trận đấu theo các tiêu chí đa chiều.
@@ -38,7 +39,8 @@ export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality
     // Lọc theo chất lượng trận đấu
     if (quality === 'close') {
       const sets = m.sets || []
-      const isCloseSet = sets.some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
+      const maxDiff = cfg.match?.closeMatchMaxDiff ?? 3
+      const isCloseSet = sets.some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= maxDiff)
       const isThreeSets = sets.filter((s) => s && s[0] + s[1] > 0).length >= 3
       if (!isCloseSet && !isThreeSets) return false
     } else if (quality === 'upset') {
@@ -47,8 +49,9 @@ export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality
       const winTeam = m.winnerTeam
       const aLower = ra < rb
       const bLower = rb < ra
-      const aUpset = aLower && winTeam === 'A' && Math.abs(ra - rb) > 100
-      const bUpset = bLower && winTeam === 'B' && Math.abs(ra - rb) > 100
+      const minGap = cfg.match?.upsetMinGap ?? 100
+      const aUpset = aLower && winTeam === 'A' && Math.abs(ra - rb) > minGap
+      const bUpset = bLower && winTeam === 'B' && Math.abs(ra - rb) > minGap
       if (!aUpset && !bUpset) return false
     }
 

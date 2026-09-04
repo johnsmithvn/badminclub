@@ -243,7 +243,7 @@ async function apply(op) {
   const q = supabase.from(op.table)
   if (op.op === 'upsert') {
     return unwrap(op.conflict
-      ? await q.upsert(op.rows, { onConflict: op.conflict })
+      ? await q.upsert(op.rows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
       : await q.insert(op.rows))
   }
   if (op.op === 'delIds') {

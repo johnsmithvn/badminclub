@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeClubCalibration, confidenceOf } from '../../lib/rating.js'
-import { headToHeadMatrix, searchMatches, neverMetPairs } from '../../lib/matchSearch.js'
+import { headToHeadMatrix, searchMatches } from '../../lib/matchSearch.js'
 
 test('Phase 3 Leaderboard Logic Verification', async (t) => {
   const members = [

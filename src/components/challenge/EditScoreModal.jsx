@@ -1,8 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
-import { calcEloDelta, getPlayerRating } from '#lib/rating.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
 
 export default function EditScoreModal({ match, onClose, onSaved }) {
   const { db, a } = useApp()
@@ -66,15 +64,7 @@ export default function EditScoreModal({ match, onClose, onSaved }) {
 
   const newWinnerTeam = setsWon.wonA > setsWon.wonB ? 'A' : setsWon.wonB > setsWon.wonA ? 'B' : null
 
-  // Tính rating delta mới dự kiến
-  const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
-  const avgRatingA = teamA.length ? teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length : 0
-  const avgRatingB = teamB.length ? teamB.reduce((sum, id) => sum + getRating(id), 0) / teamB.length : 0
 
-  const newDelta = useMemo(() => {
-    if (!newWinnerTeam) return null
-    return calcEloDelta(avgRatingA, avgRatingB, newWinnerTeam === 'A')
-  }, [avgRatingA, avgRatingB, newWinnerTeam])
 
   const handleSave = async () => {
     if (!reason.trim()) {
@@ -88,10 +78,9 @@ export default function EditScoreModal({ match, onClose, onSaved }) {
     setSubmitting(true)
     setErrorMsg('')
     try {
-      const res = await a.editMatchScore({
+      const res = a.editMatchScore({
         matchId: match.id,
         sets,
-        newSets: sets,
         reason: reason.trim(),
       })
       if (res && onSaved) onSaved(res)

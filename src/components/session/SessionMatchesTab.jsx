@@ -5,7 +5,6 @@ import { expectedScore, getPlayerRating } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 
 export default function SessionMatchesTab({ s }) {
@@ -34,8 +33,8 @@ export default function SessionMatchesTab({ s }) {
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
 
   // Đếm số trận từ nguồn
-  const fromSessionCount = matches.filter((m) => m.sourceType === 'SESSION' || !m.challengeId).length
-  const fromChallengeCount = matches.filter((m) => m.sourceType === 'CHALLENGE' || m.challengeId).length
+  const fromSessionCount = matches.filter((m) => m.sourceType === 'session' || (!m.sourceType && !m.challengeId)).length
+  const fromChallengeCount = matches.filter((m) => m.sourceType === 'challenge' || m.challengeId).length
   const totalMin = matches.reduce((acc, m) => acc + (m.minutes || 0), 0)
 
   return (
@@ -83,7 +82,7 @@ export default function SessionMatchesTab({ s }) {
 
               const scoreStr = (m.sets || []).map(([a, b]) => `${a}-${b}`).join(', ')
               const courtName = m.courtId ? courtOf(db, m.courtId).name : t('units.court')
-              const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'CHALLENGE')
+              const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
               const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
 
               return (
@@ -177,9 +176,9 @@ export default function SessionMatchesTab({ s }) {
               }).length
               const h2hWinsB = h2hMatches.length - h2hWinsA
 
-              const isPlayed = c.status === 'PLAYED'
-              const isPending = c.status === 'PENDING'
-              const isAccepted = c.status === 'ACCEPTED'
+              const isPlayed = c.status === 'played'
+              const isPending = c.status === 'pending'
+              const isAccepted = c.status === 'accepted'
 
               return (
                 <div key={c.id} style={S.challengeCard}>

@@ -944,7 +944,7 @@ Tích hợp trọn vẹn đặc tả giao diện và nghiệp vụ từ Design H
   - `SessionTabs.jsx`: Tab 1 (Chia sân thông minh + slot VS + độ cân Elo), Tab 2 (Danh sách Kèo đấu đang chờ, nhận kèo, deploy lên sân, lịch sử trận), Tab 3 (Giá thành, điểm danh, khách vãng lai).
   - `CourtAssignmentTab.jsx`: Chia sân kéo thả, chọn slot, hiển thị độ cân lệch % Elo, gán kèo lên sân `deployChallenge`.
   - `SessionMatchesTab.jsx`: Danh sách kèo đấu, chi tiết kèo, phản hồi kèo, lịch sử các trận đấu trong buổi.
-  - `SessionCostTab.jsx`: Giữ nguyên toàn bộ nghiệp vụ tài chính và điểm danh của buổi tập.
+  - `SessionDetail.jsx`: Tích hợp 3 tabs (Chia sân, Trận đấu, Giá thành & Điểm danh) giữ nguyên toàn bộ nghiệp vụ tài chính và điểm danh của buổi tập.
 - [x] **Bảng xếp hạng Elo (Leaderboard 5 Tabs)**:
   - `src/pages/Leaderboard.jsx`:
     - Tab 1: BXH Mùa giải (Top Elo, Số trận, Thắng/Thua, Win rate, Form gần đây).
@@ -956,17 +956,16 @@ Tích hợp trọn vẹn đặc tả giao diện và nghiệp vụ từ Design H
   - `CreateChallengeModal.jsx`: Tạo kèo đấu 1v1 / 2v2, dự báo Elo win%, cảnh báo lệch trình >250 điểm, chọn số set Best of.
   - `ScoreModal.jsx`: Nhập điểm tỷ số set linh hoạt (nút +1/-1 hoặc gõ trực tiếp), dự báo Elo delta, ghi nhận đội thắng.
   - `EditScoreModal.jsx`: Sửa tỷ số trận cũ, kiểm toán lý do bắt buộc, cascade tính lại Elo.
-  - `ChallengeDetailModal.jsx`: Xem chi tiết kèo, chấp nhận / từ chối kèo, xếp lên sân.
 - [x] **Sửa lỗi phát hiện trong quá trình rà soát (Bug Hunts)**:
   - Chuẩn hoá cấu trúc `playerRatings` hỗ trợ cả Object Map và Array qua helper an toàn `getPlayerRating()`.
   - Bổ sung `teamA` / `teamB` trong Match record khi tạo mới lẫn khi map từ DB.
   - Chặn xoá buổi tập nếu đã có Kèo đấu được tạo gắn với buổi (`money.js: sessionRefs`).
-  - Khắc phục alias tham số `saveMatchScore` (`sid/sessionId`, `ci/courtIdx`, `challengeCode/challengeId`, `propTeamA/B`) và `editMatchScore` (`sets/newSets`).
+  - Khắc phục alias tham số `saveMatchScore` và chuẩn hóa action sync returns.
   - Đảm bảo `isWaitingCourt` trả về chuẩn `boolean`.
   - Cập nhật nhóm `Competition` trong `src/data/schema.js` và `vi.json` cho trang Sơ đồ dữ liệu.
-- [x] **Kiểm thử tự động (100 tests pass)**:
-  - Viết mới và mở rộng 11 test suites: `app_actions_lifecycle.test.js`, `challenge_enhancements.test.js`, `leaderboard_logic.test.js`, `mobile_responsive.test.js`, `modals_logic.test.js`, `routes_leaderboard.test.js`, `session_tabs.test.js`, `challenge.test.js`, `matchSearch.test.js`, `rating.test.js`, `money/isolation.test.js`, `smoke/empty.test.js`.
-  - Đạt mốc **100/100 tests PASS 100%** trên Node.js native test runner (~700ms).
+- [x] **Kiểm thử tự động (111 tests pass)**:
+  - Viết mới và mở rộng 12 test suites: `app_actions_competitions.test.js`, `challenge_enhancements.test.js`, `leaderboard_logic.test.js`, `mobile_responsive.test.js`, `modals.test.js`, `routes_leaderboard.test.js`, `session_tabs.test.js`, `challenge.test.js`, `matchSearch.test.js`, `rating.test.js`, `money/isolation.test.js`, `rank_themes.test.js`.
+  - Đạt mốc **111/111 tests PASS 100%** trên Node.js native test runner.
 
 ---
 

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import rankData from '#data/rankThemes.json' with { type: 'json' }
+
 import { rankTierOf, TIERS } from '#lib/rating.js'
 import { RANK_THEMES, DEFAULT_RANK_THEME, PLAYSTYLE_BADGES, getMemberBadge, getTierName, getComedyQuip } from '#data/rankThemes.js'
 

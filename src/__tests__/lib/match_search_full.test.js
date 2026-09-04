@@ -2,8 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   filterMatches,
-  searchMatches,
-  buildH2HMatrix,
   headToHeadMatrix,
   neverMetPairs,
 } from '../../lib/matchSearch.js'

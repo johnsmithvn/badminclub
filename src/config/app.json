@@ -56,7 +56,9 @@
   "match": {
     "defaultMinutes": 20,
     "playersPerCourt": 4,
-    "teamsPerCourt": 2
+    "teamsPerCourt": 2,
+    "closeMatchMaxDiff": 3,
+    "upsetMinGap": 100
   },
   "club": {
     "defaultLockDay": 25,
@@ -115,7 +117,8 @@
       { "key": "coverage", "min": 1000, "max": 1199, "color": "#F43F5E", "icon": "flame" },
       { "key": "heavy_hitter", "min": 1200, "max": 1399, "color": "#A855F7", "icon": "trophy" },
       { "key": "court_boss", "min": 1400, "max": 99999, "color": "#EC4899", "icon": "crown" }
-    ]
+    ],
+    "h2hMatrixLimit": 8
   },
   "challenge": {
     "defaultBestOf": 3,

@@ -18,8 +18,8 @@ test('Financial Isolation Verification (Tách biệt tuyệt đối với luồn
     const dbWithCompetitions = {
       ...db,
       challenges: [
-        { id: 'ch-1', code: 'C-0101', sessionId: s.id, status: 'PLAYED', ratingEnabled: true },
-        { id: 'ch-2', code: 'C-0102', sessionId: s.id, status: 'ACCEPTED', ratingEnabled: false },
+        { id: 'ch-1', code: 'C-0101', sessionId: s.id, status: 'played', ratingEnabled: true },
+        { id: 'ch-2', code: 'C-0102', sessionId: s.id, status: 'accepted', ratingEnabled: false },
       ],
       matches: [
         { id: 'mat-1', sessionId: s.id, sets: [[21, 19], [21, 15]], winnerTeam: 'A', challengeId: 'ch-1' },
@@ -54,7 +54,7 @@ test('Financial Isolation Verification (Tách biệt tuyệt đối với luồn
     const dbWithMatches = {
       ...db,
       matches: [{ id: 'm-x', sessionId: s.id, sets: [[21, 0]], winnerTeam: 'A' }],
-      challenges: [{ id: 'c-x', status: 'PLAYED' }],
+      challenges: [{ id: 'c-x', status: 'played' }],
     }
     const duesAfter = duesOf(dbWithMatches, month)
 

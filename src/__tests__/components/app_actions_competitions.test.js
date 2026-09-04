@@ -75,7 +75,7 @@ test('AppActions Competition Lifecycle Integration Tests', async (t) => {
       code: 'M-01',
       sessionId: 'S1',
       challengeId: ch.id,
-      sourceType: 'CHALLENGE',
+      sourceType: 'challenge',
       teamA: ch.teamA,
       teamB: ch.teamB,
       sets: [[21, 19], [21, 17]],
@@ -100,7 +100,7 @@ test('AppActions Competition Lifecycle Integration Tests', async (t) => {
 
     assert.equal(ch.status, 'played')
     assert.equal(state.matches.length, 1)
-    assert.equal(state.matches[0].sourceType, 'CHALLENGE')
+    assert.equal(state.matches[0].sourceType, 'challenge')
     assert.ok(state.playerRatings['m1'].rating > 0)
     assert.ok(state.playerRatings['m3'].rating < 0)
     assert.equal(state.lineups['S1'], undefined)

@@ -1,13 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
-import { expectedScore, evalBalance, calcEloDelta, getPlayerRating } from '#lib/rating.js'
-import { useMobile } from '#hooks/useMobile.js'
+import { expectedScore, calcEloDelta, getPlayerRating } from '#lib/rating.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
 export default function CreateChallengeModal({ session, onClose, onCreated, initialTeamA = [], initialTeamB = [] }) {
   const { db, a } = useApp()
-  const isMobile = useMobile()
   const [teamA, setTeamA] = useState(initialTeamA)
   const [teamB, setTeamB] = useState(initialTeamB)
   const [bestOf, setBestOf] = useState(cfg.challenge?.defaultBestOf || 3)
@@ -48,13 +46,13 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   // Tính rating trung bình
   const avgRatingA = useMemo(() => {
     if (!teamA.length) return 0
-    const sum = teamA.reduce((acc, id) => acc + getRating(id), 0)
+    const sum = teamA.reduce((acc, id) => acc + getPlayerRating(db.playerRatings, id).rating, 0)
     return Math.round(sum / teamA.length)
   }, [teamA, db.playerRatings])
 
   const avgRatingB = useMemo(() => {
     if (!teamB.length) return 0
-    const sum = teamB.reduce((acc, id) => acc + getRating(id), 0)
+    const sum = teamB.reduce((acc, id) => acc + getPlayerRating(db.playerRatings, id).rating, 0)
     return Math.round(sum / teamB.length)
   }, [teamB, db.playerRatings])
 
@@ -74,11 +72,11 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
 
   const ready = (teamA.length === 2 && teamB.length === 2) || (teamA.length === 1 && teamB.length === 1)
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!ready || submitting) return
     setSubmitting(true)
     try {
-      const created = await a.createChallenge({
+      const created = a.createChallenge({
         sessionId: session ? session.id : null,
         teamA,
         teamB,
@@ -87,8 +85,6 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
       })
       if (created && onCreated) onCreated(created)
       onClose()
-    } catch (err) {
-      console.error(err)
     } finally {
       setSubmitting(false)
     }

@@ -10,7 +10,7 @@ import {
   getPlayerRating,
   initialRatingOf,
 } from '../../lib/rating.js'
-import cfg from '../../config/app.json' with { type: 'json' }
+
 
 test('Rating Upgrades Suite', async (t) => {
   await t.test('1. Dynamic K-Factor (kFactorOf)', () => {

@@ -35,7 +35,6 @@ test('Phase 1 Modals Logic Verification', async (t) => {
   })
 
   await t.test('EditScoreModal logic checks', () => {
-    const oldSets = [[21, 19], [21, 17]]
     const newSets = [[19, 21], [17, 21]]
     let newWonA = 0
     let newWonB = 0

@@ -4,17 +4,17 @@
 import { addMonth, dd, ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import {
-  courtCost, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
+  courtCost, courtOf, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
   adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
-  adhocCharges, chargeName, sGuestsOnly, normalizeText,
+  adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
-import { calcEloDelta, teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, calcPlayerDeltas, rankTierOf, initialRatingOf } from '#lib/rating.js'
+import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration } from '#lib/rating.js'
 import { nextChallengeCode } from '#lib/challenge.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -2215,10 +2215,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     /* ---------- Kèo & Thi đấu (Challenge & Rating) ---------- */
-    createChallenge: ({ sessionId, teamA, teamB, courtId, bestOf = 3, ratingEnabled = true, scheduledAt }) => {
+    createChallenge: ({ sessionId, teamA, teamB, courtId, bestOf = (cfg.challenge?.defaultBestOf ?? 3), ratingEnabled = true, scheduledAt }) => {
       const d0 = db()
-      const myId = (d0.members || []).find((m) => m.userId === d0.currentUserId)?.id || teamA[0] || (d0.members[0] && d0.members[0].id)
+      const myMem = myMember(d0)
+      const myId = myMem?.id || null
+      if (!myId) {
+        toast(t('common.unauthorized'))
+        return
+      }
       const code = nextChallengeCode(d0.challenges)
+      const expireMins = cfg.challenge?.defaultExpireMins ?? 60
       const newChal = {
         id: uid(),
         code,
@@ -2230,19 +2236,23 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         scheduledAt: scheduledAt || null,
         bestOf,
         ratingEnabled,
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        expiresAt: new Date(Date.now() + expireMins * 60 * 1000).toISOString(),
         matchId: null,
         teamA: teamA || [],
         teamB: teamB || [],
       }
       up((d) => ({ challenges: [newChal, ...(d.challenges || [])] }))
       toast(t('challenge.toastCreated', { code }))
+      return newChal
     },
 
     respondChallenge: (challengeId, accept) => {
       const d0 = db()
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)
       if (!chal) return
+      const myMem = myMember(d0)
+      const isTeamB = myMem && (chal.teamB || []).includes(myMem.id)
+      if (!canAssign() && !isTeamB) return
       const nextStatus = accept ? 'accepted' : 'declined'
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: nextStatus } : c)),
@@ -2254,6 +2264,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const d0 = db()
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)
       if (!chal) return
+      const myMem = myMember(d0)
+      const isCreatorOrTeamA = myMem && (chal.createdBy === myMem.id || (chal.teamA || []).includes(myMem.id))
+      if (!canAssign() && !isCreatorOrTeamA) return
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'cancelled' } : c)),
       }))
@@ -2261,6 +2274,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     deployChallenge: (challengeId, courtIdx) => {
+      if (!canAssign()) return
       const d0 = db()
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)
       if (!chal || !chal.sessionId) return
@@ -2294,7 +2308,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('challenge.toastDeployed', { code: chal.code, court: courtName }))
     },
 
-    saveMatchScore: ({ sid, sessionId, ci, courtIdx, courtIndex, sets, challengeCode, challengeId, teamA: propTeamA, teamB: propTeamB, ratingEnabled: propRatingEnabled }) => {
+    saveMatchScore: ({ sid, sessionId, ci, courtIdx, courtIndex, sets, challengeCode, challengeId, teamA: propTeamA, teamB: propTeamB, ratingEnabled: propRatingEnabled, minutes }) => {
       if (!canAssign()) return
       const d0 = db()
       const targetSid = sid || sessionId
@@ -2319,19 +2333,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const playedSets = (sets || []).filter((r) => r[0] + r[1] > 0)
       const aWins = playedSets.filter((r) => r[0] > r[1]).length
       const bWins = playedSets.filter((r) => r[1] > r[0]).length
-      const winnerTeam = aWins >= bWins ? 'A' : 'B'
+      const winnerTeam = aWins > bWins ? 'A' : bWins > aWins ? 'B' : null
       const aWon = winnerTeam === 'A'
 
       const namesA = teamA.map((id) => memberOf(d0, id).name).join(' · ')
       const namesB = teamB.map((id) => memberOf(d0, id).name).join(' · ')
-      const winner = aWon ? namesA : namesB
-      const loser = aWon ? namesB : namesA
+      const winner = aWon ? namesA : (winnerTeam === 'B' ? namesB : '—')
+      const loser = aWon ? namesB : (winnerTeam === 'B' ? namesA : '—')
 
       const scoreText = playedSets.length > 1
         ? aWins + ' – ' + bWins
         : (playedSets[0] ? playedSets[0][0] + ' – ' + playedSets[0][1] : '')
 
       const matchId = uid()
+      let newMatch
 
       up((d) => {
         const lineups = { ...(d.lineups || {}) }
@@ -2348,7 +2363,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           playing[targetSid] = c
         }
 
-        // Tính Elo nếu trận được tính rating (K động từng người & Margin of Victory)
+        // Tính Elo nếu trận được tính rating và có người thắng
         const playerRatings = { ...(d.playerRatings || {}) }
         const ratingsMap = {}
         const gamesCountMap = {}
@@ -2367,7 +2382,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         const ra = teamRating(teamA, ratingsMap)
         const rb = teamRating(teamB, ratingsMap)
         let delta = 0
-        if (isRated) {
+        if (isRated && winnerTeam) {
           const { deltas } = calcPlayerDeltas({
             teamA,
             teamB,
@@ -2381,10 +2396,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           teamA.forEach((id) => {
             const memA = (d0.members || []).find((x) => x.id === id)
             const seedA = memA?.level ? initialRatingOf(memA.level, d0.levels) : DEFAULT_RATING
-            const cur = playerRatings[id] || { rating: seedA, gamesCount: 0, winsCount: 0, lossesCount: 0 }
+            const cur = playerRatings[id] || { id: uid(), rating: seedA, gamesCount: 0, winsCount: 0, lossesCount: 0 }
             const newR = cur.rating + (deltas[id] || 0)
             playerRatings[id] = {
               ...cur,
+              id: cur.id || uid(),
               rating: newR,
               displayRating: Math.max(MIN_RATING, newR),
               tier: rankTierOf(newR),
@@ -2397,10 +2413,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           teamB.forEach((id) => {
             const memB = (d0.members || []).find((x) => x.id === id)
             const seedB = memB?.level ? initialRatingOf(memB.level, d0.levels) : DEFAULT_RATING
-            const cur = playerRatings[id] || { rating: seedB, gamesCount: 0, winsCount: 0, lossesCount: 0 }
+            const cur = playerRatings[id] || { id: uid(), rating: seedB, gamesCount: 0, winsCount: 0, lossesCount: 0 }
             const newR = cur.rating + (deltas[id] || 0)
             playerRatings[id] = {
               ...cur,
+              id: cur.id || uid(),
               rating: newR,
               displayRating: Math.max(MIN_RATING, newR),
               tier: rankTierOf(newR),
@@ -2412,14 +2429,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           })
         }
 
-        const newMatch = {
+        newMatch = {
           id: matchId,
           sessionId: targetSid || null,
           courtIdx: targetCi !== undefined && targetCi !== null ? targetCi : 0,
           teamA,
           teamB,
           playerKeys: keys,
-          minutes: 20,
+          minutes: minutes || cfg.match?.defaultMinutes || 20,
           at: Date.now(),
           sourceType: chal ? 'challenge' : 'session',
           challengeId: chal ? chal.id : null,
@@ -2436,26 +2453,47 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           ? (d.challenges || []).map((k) => (k.id === chal.id ? { ...k, status: 'played', matchId } : k))
           : (d.challenges || [])
 
+        const nextMatches = (d.matches || []).concat([newMatch])
+        const memberMap = {}
+        ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        const calList = computeClubCalibration(nextMatches, memberMap)
+        const prevCals = d.clubCalibration || []
+        const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
+          const item = calList.find((x) => x.bucket === bKey) || { bucket: bKey, sampleSize: 0, observedWinRate: 0, learnedAdjustment: 0 }
+          const existing = prevCals.find((p) => p.bucket === bKey)
+          return {
+            id: existing?.id || uid(),
+            bucket: bKey,
+            sampleSize: item.sampleSize || 0,
+            observedWinRate: item.observedWinRate || 0,
+            learnedAdjustment: item.learnedAdjustment || 0,
+          }
+        })
+
         return {
           lineups,
           playing,
-          matches: (d.matches || []).concat([newMatch]),
+          matches: nextMatches,
           challenges,
           playerRatings,
+          clubCalibration: nextCals,
         }
       })
 
       upUi(() => ({ picked: null }))
       toast(t('scoreModal.toastSaved', { winner, loser, score: scoreText }))
+      return newMatch
     },
 
     editMatchScore: ({ matchId, sets, newSets, reason }) => {
+      if (!canAssign()) return
       const d0 = db()
       const match = (d0.matches || []).find((m) => m.id === matchId)
       if (!match) return
 
       const actualSets = sets || newSets || []
-      const myId = (d0.members || []).find((m) => m.userId === d0.currentUserId)?.id || null
+      const myMem = myMember(d0)
+      const myId = myMem?.id || null
       const editLog = {
         id: uid(),
         matchId,
@@ -2473,13 +2511,42 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const updatedMatchList = (d0.matches || []).map((m) => (m.id === matchId ? { ...m, sets: actualSets } : m))
       const { finalRatings, updatedMatches } = replayRatingCascade(updatedMatchList, matchId, d0.members, d0.levels)
 
-      up((d) => ({
-        matches: updatedMatches,
-        playerRatings: { ...(d.playerRatings || {}), ...finalRatings },
-        matchEdits: [editLog, ...(d.matchEdits || [])],
-      }))
+      up((d) => {
+        const nextRatings = { ...(d.playerRatings || {}) }
+        Object.entries(finalRatings || {}).forEach(([mid, r]) => {
+          const old = nextRatings[mid] || {}
+          nextRatings[mid] = {
+            ...old,
+            ...r,
+            id: old.id || r.id || uid(),
+            memberId: mid,
+          }
+        })
+        const memberMap = {}
+        ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        const calList = computeClubCalibration(updatedMatches, memberMap)
+        const prevCals = d.clubCalibration || []
+        const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
+          const item = calList.find((x) => x.bucket === bKey) || { bucket: bKey, sampleSize: 0, observedWinRate: 0, learnedAdjustment: 0 }
+          const existing = prevCals.find((p) => p.bucket === bKey)
+          return {
+            id: existing?.id || uid(),
+            bucket: bKey,
+            sampleSize: item.sampleSize || 0,
+            observedWinRate: item.observedWinRate || 0,
+            learnedAdjustment: item.learnedAdjustment || 0,
+          }
+        })
+        return {
+          matches: updatedMatches,
+          playerRatings: nextRatings,
+          matchEdits: [editLog, ...(d.matchEdits || [])],
+          clubCalibration: nextCals,
+        }
+      })
 
       toast(t('common.save') + ': ' + match.id)
+      return { matchId, sets: actualSets }
     },
 
     /* ---------- báo cáo Zalo ---------- */

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Button, Card, Icon, Input, Select } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { expectedScore, confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING } from '#lib/rating.js'
+import { confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING } from '#lib/rating.js'
 import { searchMatches, headToHeadMatrix, neverMetPairs } from '#lib/matchSearch.js'
 import { RANK_THEMES, DEFAULT_RANK_THEME, getMemberBadge } from '#data/rankThemes.js'
 import { useMobile } from '#hooks/useMobile.js'
@@ -15,7 +15,7 @@ export default function Leaderboard() {
   const { db } = useApp()
   const isMobile = useMobile()
   const [activeTab, setActiveTab] = useState('season') // 'season' | 'chart' | 'search' | 'matrix' | 'cross'
-  const [yearFilter, setYearFilter] = useState('2026')
+  const yearFilter = '2026'
   const [searchName, setSearchName] = useState('')
   const [activeFilter, setActiveFilter] = useState('all') // 'all' | 'active'
   const [rankTheme, setRankTheme] = useState(DEFAULT_RANK_THEME)
@@ -47,8 +47,6 @@ export default function Leaderboard() {
 
   const memberNameOf = (id) => (memberMap[id] || {}).name || id
 
-  const getRating = (mid) => getPlayerRating(db.playerRatings, mid, memberMap[mid], db.levels).rating
-
   // -------------------------------------------------------------
   // TAB 1: Dữ liệu Bảng xếp hạng Mùa giải
   // -------------------------------------------------------------
@@ -72,18 +70,18 @@ export default function Leaderboard() {
           const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
           if (won) wins++
           else losses++
-          myMatches.push({ ...mt, won, date: mt.createdAt || '' })
+          myMatches.push({ ...mt, won, at: mt.at || (mt.playedAt ? Date.parse(mt.playedAt) : 0) })
         }
       })
 
       // Form 5 trận gần nhất (sắp xếp theo thời gian mới nhất trước)
-      myMatches.sort((a, b) => b.date.localeCompare(a.date))
+      myMatches.sort((a, b) => (b.at || 0) - (a.at || 0))
       const form = myMatches.slice(0, 5).map((x) => (x.won ? 'W' : 'L')).reverse()
 
       const totalGames = wins + losses
       const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0
 
-      const lastMatchDate = myMatches[0]?.date || pr.lastMatchAt || null
+      const lastMatchDate = myMatches[0]?.at ? new Date(myMatches[0].at).toISOString() : (pr.lastMatchAt || null)
       const decay = applyInactivityDecay(pr.rating, lastMatchDate)
       const displayRating = Math.max(MIN_RATING, decay.rating)
       const tier = rankTierOf(displayRating, rankTheme)
@@ -113,7 +111,7 @@ export default function Leaderboard() {
       if (!searchName.trim()) return true
       return row.name.toLowerCase().includes(searchName.toLowerCase())
     }).sort((a, b) => b.displayRating - a.displayRating)
-  }, [activeMembers, db.playerRatings, db.matches, searchName, activeFilter, rankTheme])
+  }, [activeMembers, db.playerRatings, db.matches, searchName, activeFilter, rankTheme, db.levels])
 
   // -------------------------------------------------------------
   // TAB 2: Biểu đồ & Phân rã ngữ cảnh của 1 thành viên
@@ -164,7 +162,7 @@ export default function Leaderboard() {
       }
     })
 
-    const overallRating = getRating(mid)
+    const overallRating = getPlayerRating(db.playerRatings, mid, memberMap[mid], db.levels).rating
     const totalG = vsMaleWins + vsMaleLoss + vsFemaleWins + vsFemaleLoss
     const overallConf = confidenceOf(totalG)
 
@@ -176,7 +174,7 @@ export default function Leaderboard() {
       doubles: { wins: doublesWins, loss: doublesLoss, total: doublesWins + doublesLoss, conf: confidenceOf(doublesWins + doublesLoss) },
       singles: { wins: singlesWins, loss: singlesLoss, total: singlesWins + singlesLoss, conf: confidenceOf(singlesWins + singlesLoss) },
     }
-  }, [currentMember, db.matches, memberMap, db.playerRatings])
+  }, [currentMember, db.matches, memberMap, db.playerRatings, db.levels])
 
   // -------------------------------------------------------------
   // TAB 3: Dữ liệu Tìm trận
@@ -194,19 +192,27 @@ export default function Leaderboard() {
       quality: qualityFilter,
       ratingsMap,
     })
-  }, [db.matches, playerA, playerB, searchMode, qualityFilter, db.playerRatings, activeMembers])
+  }, [db.matches, playerA, playerB, searchMode, qualityFilter, db.playerRatings, activeMembers, db.levels])
 
   // -------------------------------------------------------------
   // TAB 4: Ma trận Đối đầu H2H
   // -------------------------------------------------------------
-  const topMembersForMatrix = useMemo(() => activeMembers.slice(0, 8), [activeMembers])
+  const topMembersForMatrix = useMemo(() => {
+    const sorted = [...activeMembers].sort((a, b) => {
+      const ra = getPlayerRating(db.playerRatings, a.id, a, db.levels).rating
+      const rb = getPlayerRating(db.playerRatings, b.id, b, db.levels).rating
+      return rb - ra
+    })
+    const limit = cfg.rating?.h2hMatrixLimit ?? 8
+    return sorted.slice(0, limit)
+  }, [activeMembers, db.playerRatings, db.levels])
   const matrixData = useMemo(() => {
     return headToHeadMatrix(topMembersForMatrix, db.matches || [])
   }, [topMembersForMatrix, db.matches])
 
   const neverMetList = useMemo(() => {
-    return neverMetPairs(activeMembers, db.matches || [], db.sessions || [])
-  }, [activeMembers, db.matches, db.sessions])
+    return neverMetPairs(activeMembers, db.matches || [])
+  }, [activeMembers, db.matches])
 
   // -------------------------------------------------------------
   // TAB 5: Thống kê Hiệu chỉnh chéo giới (Calibration)
@@ -496,10 +502,17 @@ export default function Leaderboard() {
 
                 {/* Card tiến trình độ tin cậy Rating R1 -> R5 & Rank Tier */}
                 {(() => {
-                  const memberTier = rankTierOf(profileContext.overallRating, rankTheme)
-                  const memberK = kFactorOf(profileContext.overallGames)
                   const pr = getPlayerRating(db.playerRatings, currentMember.id, currentMember, db.levels)
-                  const lastMatchDate = profileContext.recentMatches?.[0]?.date || pr.lastMatchAt || null
+                  const memberTier = rankTierOf(profileContext.overallRating, rankTheme)
+                  const memberK = kFactorOf(pr.gamesCount)
+                  const memberMatches = (db.matches || []).filter(
+                    (mt) =>
+                      (mt.playerKeys || []).includes(currentMember.id) ||
+                      (mt.teamA || []).includes(currentMember.id) ||
+                      (mt.teamB || []).includes(currentMember.id)
+                  )
+                  const sortedMemberMatches = [...memberMatches].sort((a, b) => (b.at || 0) - (a.at || 0))
+                  const lastMatchDate = sortedMemberMatches[0]?.at ? new Date(sortedMemberMatches[0].at).toISOString() : (pr.lastMatchAt || null)
                   const decayInfo = applyInactivityDecay(pr.rating, lastMatchDate)
 
                   return (
@@ -776,7 +789,7 @@ export default function Leaderboard() {
                     const winnerNames = (aWon ? teamA : teamB).map(memberNameOf).join(' · ')
                     const loserNames = (aWon ? teamB : teamA).map(memberNameOf).join(' · ')
                     const scoreStr = (m.sets || []).map(([a, b]) => `${a}-${b}`).join(', ')
-                    const isChallenge = Boolean(m.challengeId || m.sourceType === 'CHALLENGE')
+                    const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
 
                     return (
                       <div key={m.id} style={S.searchTableRow}>

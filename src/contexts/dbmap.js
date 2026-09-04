@@ -149,6 +149,9 @@ export function toDb(raw, ctx) {
         sets: mt.sets || [],
         winnerTeam: mt.winner_team || null,
         scoreText: mt.score_text || '',
+        initialRatingA: numN(mt.initial_rating_a),
+        initialRatingB: numN(mt.initial_rating_b),
+        eloDelta: numN(mt.elo_delta),
         teamA: players.filter((p) => p.team === 0).map((p) => p.player_id),
         teamB: players.filter((p) => p.team === 1).map((p) => p.player_id),
         playerKeys: players.map((p) => p.player_id),
@@ -463,6 +466,9 @@ export function toRows(db, ctx) {
       sets: mt.sets || [],
       winner_team: mt.winnerTeam || null,
       score_text: mt.scoreText || null,
+      initial_rating_a: numN(mt.initialRatingA),
+      initial_rating_b: numN(mt.initialRatingB),
+      elo_delta: numN(mt.eloDelta),
     })
     // Ô 0,1 là một bên lưới; 2,3 là bên kia (xem courtSlotIds trong lib/assign.js).
     ;(mt.playerKeys || []).forEach((key, i) => put('match_players', {
@@ -478,11 +484,13 @@ export function toRows(db, ctx) {
   ratingsList.forEach((r) => {
     const mid = r.memberId || r.playerId
     if (!mid) return
+    const rid = r.id || uu(r.id)
+    if (!rid) return
     put('player_ratings', {
-      id: r.id || uu(r.id), club_id: cid, member_id: mid,
+      id: rid, club_id: cid, member_id: mid,
       rating: r.rating || 0, games_count: r.gamesCount || 0,
       wins_count: r.winsCount || 0, losses_count: r.lossesCount || 0,
-      rating_deviation: r.deviation || 350, confidence_label: r.confidence || 'low',
+      rating_deviation: r.deviation || cfg.rating?.defaultDeviation || 350, confidence_label: r.confidence || 'low',
     })
   })
 
@@ -627,7 +635,7 @@ export const TABLES = [
   { table: 'session_lineups', mode: 'key', conflict: 'session_id,slot', scope: ['session_id'], child: 'slot' },
   { table: 'session_court_groups', mode: 'key', conflict: 'session_id,player_type,player_id', scope: ['session_id'], child: 'player_id' },
   { table: 'challenges', mode: 'id' },
-  { table: 'challenge_players', mode: 'scope', scope: ['challenge_id'], child: 'member_id', conflict: 'challenge_id,member_id' },
+  { table: 'challenge_players', mode: 'key', conflict: 'challenge_id,member_id', scope: ['challenge_id'], child: 'member_id' },
   { table: 'matches', mode: 'id' },
   { table: 'match_players', mode: 'scope', scope: ['match_id'] },
   { table: 'group_memberships', mode: 'key', conflict: 'month,group_id,member_id', scope: ['month', 'group_id'], child: 'member_id' },
@@ -640,12 +648,12 @@ export const TABLES = [
   { table: 'stock_checks', mode: 'id' },
   { table: 'member_changes', mode: 'id' },
   { table: 'player_ratings', mode: 'id' },
-  { table: 'match_edits', mode: 'id' },
+  { table: 'match_edits', mode: 'id', noDelete: true, insertOnly: true },
   { table: 'club_calibration', mode: 'scope', scope: ['club_id'] },
   { table: 'guest_price_rules', mode: 'scope', scope: ['club_id'] },
 ]
 
-const scopeKey = (spec, row) => spec.scope.map((c) => row[c]).join(' ')
+const scopeKey = (spec, row) => spec.scope.map((c) => row[c]).join(' ')
 
 /**
  * So hai kết quả toRows() → danh sách việc phải làm với Supabase.
@@ -678,8 +686,16 @@ export function diff(prev, next) {
       const ma = byId(a)
       const mb = byId(b)
       const write = b.filter((r) => JSON.stringify(ma.get(r.id)) !== JSON.stringify(r))
-      const dead = a.filter((r) => !mb.has(r.id)).map((r) => r.id)
-      if (write.length) ops.push({ table: spec.table, op: 'upsert', rows: write, conflict: 'id' })
+      const dead = spec.noDelete ? [] : a.filter((r) => !mb.has(r.id)).map((r) => r.id)
+      if (write.length) {
+        ops.push({
+          table: spec.table,
+          op: 'upsert',
+          rows: write,
+          conflict: 'id',
+          ignoreDuplicates: Boolean(spec.insertOnly),
+        })
+      }
       if (dead.length) gone.push({ table: spec.table, op: 'delIds', ids: dead })
       return
     }

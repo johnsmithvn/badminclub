@@ -27,7 +27,8 @@
     "removeAvatar": "Xoá ảnh",
     "copied": "Đã sao chép",
     "imageError": "Lỗi xử lý ảnh",
-    "saving": "Đang lưu..."
+    "saving": "Đang lưu...",
+    "unauthorized": "Không có quyền thực hiện"
   },
   "units": {
     "dong": "đ",

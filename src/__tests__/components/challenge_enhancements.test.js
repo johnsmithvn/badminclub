@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { evalBalance, calcEloDelta, expectedScore } from '../../lib/rating.js'
+import { evalBalance, calcEloDelta } from '../../lib/rating.js'
 
 test('Challenge Enhancements (K3 Imbalance, K4 H2H, K6 Gạ Kèo)', async (t) => {
   await t.test('K3: Imbalance warning triggers when gap > 250 points', () => {
