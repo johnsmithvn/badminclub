@@ -2,6 +2,7 @@
 // HÀM THUẦN — không gọi React hay Supabase, test độc lập bằng Node.
 
 import cfg from '#config/app.json' with { type: 'json' }
+import { getTierName, getComedyQuip } from '#data/rankThemes.js'
 
 export const DEFAULT_RATING = cfg.rating?.defaultRating ?? 0
 export const MIN_RATING = cfg.rating?.minRating ?? 0
@@ -110,14 +111,18 @@ export function rankTierOf(rating = 0, themeKey = 'street') {
   const range = (tier.max === 99999 ? 200 : (tier.max - tier.min + 1))
   const progress = Math.min(100, Math.max(0, Math.round(((r - tier.min) / range) * 100)))
   const safeTheme = themeKey || 'street'
+  const label = getTierName(safeTheme, tier.key)
+  const quip = getComedyQuip(tier.key)
+
   return {
     key: tier.key,
+    label,
+    quip,
     labelKey: `rating.tierThemes.${safeTheme}.${tier.key}`,
     fallbackLabelKey: `rating.tier.${tier.key}`,
     quipKey: `rating.comedyQuips.${tier.key}`,
     color: tier.color,
     icon: tier.icon,
-    emoji: TIER_EMOJIS[tier.key] || '🏸',
     min: tier.min,
     max: tier.max,
     rating: r,

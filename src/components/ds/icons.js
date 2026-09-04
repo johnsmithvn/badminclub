@@ -10,9 +10,9 @@
 // Thiếu icon thì DEV console cảnh báo và ô icon trống, không crash.
 
 import {
-  ArrowLeft, ArrowRight, Award, Banknote, Building2, Calculator, Camera, CalendarClock,
-  CalendarDays, CalendarPlus, ChevronUp, ChevronsUpDown, CircleAlert, Copy, Crown, Eye, HandCoins,
-  Lock, Medal, Pencil, Phone, Receipt, Sparkles, UserRoundCog,
+  Activity, ArrowLeft, ArrowRight, Award, Banknote, Building2, Calculator, Camera, CalendarClock,
+  CalendarDays, CalendarPlus, ChevronUp, ChevronsUpDown, CircleAlert, Copy, Crown, Dumbbell, Eye, HandCoins,
+  Lock, Medal, Pencil, Phone, Receipt, Sparkles, Target, UserRoundCog,
   ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, CirclePause,
   CircleX, ClipboardCheck, ClockAlert, Database, Download, Ellipsis, Eraser, FileSpreadsheet, Flame,
   History, Inbox, Info, Landmark, Layers, LayoutDashboard, LayoutGrid, Link, List, LoaderCircle, MapPin,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 
 export const ICONS = {
+  activity: Activity,
   'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
   'alert-circle': CircleAlert,
@@ -50,6 +51,7 @@ export const ICONS = {
   'clipboard-check': ClipboardCheck,
   'clock-alert': ClockAlert,
   database: Database,
+  dumbbell: Dumbbell,
   eye: Eye,
   download: Download,
   ellipsis: Ellipsis,
@@ -96,6 +98,7 @@ export const ICONS = {
   shuffle: Shuffle,
   split: Split,
   tags: Tags,
+  target: Target,
   'trash-2': Trash2,
   'trending-down': TrendingDown,
   'trending-up': TrendingUp,

@@ -1,0 +1,142 @@
+{
+  "themes": [
+    { "key": "street", "label": "Dân Chơi Khét Tiếng", "icon": "zap" },
+    { "key": "comedy", "label": "Tấu Hài Sân Cầu", "icon": "sparkles" },
+    { "key": "destroyer", "label": "Cỗ Máy Hủy Diệt", "icon": "flame" },
+    { "key": "slang", "label": "Sân Cầu Thực Chiến", "icon": "award" }
+  ],
+  "tierNames": {
+    "street": {
+      "novice": "Tập Sự",
+      "rookie": "Có Tiềm Năng",
+      "regular": "Cũng Ra Gì",
+      "solid": "Không Phải Dạng Vừa",
+      "net_master": "Có Số Má",
+      "coverage": "Có Tiếng",
+      "heavy_hitter": "Chưa Biết Sợ",
+      "court_boss": "Thấy Là Chạy"
+    },
+    "comedy": {
+      "novice": "Bậc Thầy Đứng Nhìn",
+      "rookie": "Chuyên gia vồ hụt",
+      "regular": "Thợ Múa Đường Cầu",
+      "solid": "Đại Sứ Giao Cầu",
+      "net_master": "Chuyên Gia Mớm Cầu",
+      "coverage": "Thợ Săn Rùa",
+      "heavy_hitter": "Chúa Tể Phản Tạt",
+      "court_boss": "Máy Đập Bằng Cơm"
+    },
+    "destroyer": {
+      "novice": "Kẻ Hủy Diệt Không Khí",
+      "rookie": "Chúa Tể Cạch Khung",
+      "regular": "Vua Phá Lưới",
+      "solid": "Thần Đồng Cày Sân",
+      "net_master": "Kẻ Hủy Diệt Lông Ngỗng",
+      "coverage": "Cỗ Máy Đứt Cước",
+      "heavy_hitter": "Trùm Bào Thể Lực",
+      "court_boss": "Kẻ Phá Giá Giải Đấu"
+    },
+    "slang": {
+      "novice": "Mới Cầm Vợt",
+      "rookie": "Vào Sân",
+      "regular": "Quen Sân",
+      "solid": "Cứng Tay",
+      "net_master": "Khó Lói",
+      "coverage": "Bao Sân",
+      "heavy_hitter": "Tay To",
+      "court_boss": "Trùm Sân"
+    }
+  },
+  "comedyQuips": {
+    "novice": "Cầu rơi sát chân vẫn đứng khoanh tay ngó xem nó trong hay ngoài.",
+    "rookie": "Khởi động hừng hực, vào sân đánh 1 trận, ra rìa ngồi thở 4 trận.",
+    "regular": "Kỹ thuật chân dẻo như múa búp bê, tạo dáng vung vợt cực ngầu nhưng đánh... hụt.",
+    "solid": "Giao cầu 10 quả thì 5 quả hỏng, 5 quả cao ngang ngực cho đội bạn gõ đầu.",
+    "net_master": "Toàn trả cầu lửng lơ trước lưới tạo điều kiện cho đối thủ smash thẳng mặt đồng đội mình.",
+    "coverage": "Đánh rất bình thường nhưng toàn có những pha cứu cầu leo dây cạ mép lưới cực kỳ tâm linh.",
+    "heavy_hitter": "Phản tạt nhanh như chớp, lười lùi sân sau, chỉ thích đứng cắm rễ trên lưới chém cầu.",
+    "court_boss": "Bật cao như lò xo, trận nào cũng đập rách cầu, đứt cước làm đối thủ khiếp vía."
+  },
+  "playstyleBadges": [
+    {
+      "key": "vo_hut",
+      "name": "Chuyên Gia Vồ Hụt",
+      "tag": "VỒ HỤT",
+      "desc": "Rình trên lưới như mãnh thú nhưng toàn vồ trúng không khí.",
+      "color": "#FACC15",
+      "icon": "zap"
+    },
+    {
+      "key": "boi_tham",
+      "name": "Thánh lau sàn",
+      "tag": "THỂ LỰC",
+      "desc": "Cứu cầu như thợ lặn chuyên nghiệp, trượt thảm mòn cả đầu gối.",
+      "color": "#38BDF8",
+      "icon": "activity"
+    },
+    {
+      "key": "he_chua",
+      "name": "Hề Chúa Sân Cầu",
+      "tag": "TÂM LÝ CHIẾN",
+      "desc": "Kỹ năng đánh cầu thì ít, nhưng tấu hài gây cười làm đội bạn mất tập trung thì vô địch.",
+      "color": "#EC4899",
+      "icon": "sparkles"
+    },
+    {
+      "key": "cai_cau",
+      "name": "Chích chòe",
+      "tag": "TRANH CÃI",
+      "desc": "Cầu ra ngoài 2 mét vẫn khẳng định như đinh đóng cột là cầu trong sân.",
+      "color": "#F43F5E",
+      "icon": "scale"
+    },
+    {
+      "key": "doi_vot",
+      "name": "Đại Gia Đổi Vợt",
+      "tag": "TRANG BỊ",
+      "desc": "Cứ đánh hỏng 1 quả là đổi vợt khác, đổ lỗi vợt chưa căng đủ ký.",
+      "color": "#A855F7",
+      "icon": "award"
+    },
+    {
+      "key": "khoi_dong",
+      "name": "Đại Sứ Khởi Động",
+      "tag": "DƯỠNG SINH",
+      "desc": "Khởi động ép dẻo xoay khớp cả tiếng đồng hồ, vào đánh đúng 1 set là chuột rút.",
+      "color": "#FB923C",
+      "icon": "dumbbell"
+    },
+    {
+      "key": "chia_san",
+      "name": "Thần Tài Chia Sân",
+      "tag": "ĐỒNG ĐỘI",
+      "desc": "Bao sân bạn thì ít mà bỏ trống nửa sân mình thì nhiều, nhường hết phần gánh cho đồng đội.",
+      "color": "#10B981",
+      "icon": "medal"
+    },
+    {
+      "key": "be_tong",
+      "name": "Bức Tường Bê Tông",
+      "tag": "PHÒNG THỦ",
+      "desc": "Cầu đập mạnh như đạn bắn qua vẫn kê đẩy nhẹ nhàng trả về sân đối thủ.",
+      "color": "#94A3B8",
+      "icon": "shield"
+    },
+    {
+      "key": "nguoc_dong",
+      "name": "Chúa Lội Ngược Dòng",
+      "tag": "LẬT KÈO",
+      "desc": "Bị dẫn trước 15-20 vẫn bình chân như vại, ăn liền 7 điểm lật kèo ngoạn mục.",
+      "color": "#34D399",
+      "icon": "crown"
+    },
+    {
+      "key": "ban_chim",
+      "name": "Sát Thủ Bắn Chim",
+      "tag": "SÁT THƯƠNG",
+      "desc": "Đập cầu uy lực kinh hoàng nhưng điểm rơi toàn nằm trên trần nhà hoặc nóc nhà thi đấu.",
+      "color": "#E11D48",
+      "icon": "target"
+    }
+  ]
+}

@@ -1,27 +1,32 @@
-// Rank themes and playstyle badges configuration and utilities.
-// All user-facing strings are localized via i18n keys (RULES §3.1).
+// Rank themes, tier titles, and playstyle badge definitions.
+// Separated from vi.json into a dedicated game content configuration.
+
+import rankData from './rankThemes.json' with { type: 'json' }
 
 export const DEFAULT_RANK_THEME = 'street'
 
-export const RANK_THEMES = [
-  { key: 'street', labelKey: 'rankThemes.themeStreet', icon: 'zap' },
-  { key: 'comedy', labelKey: 'rankThemes.themeComedy', icon: 'sparkles' },
-  { key: 'destroyer', labelKey: 'rankThemes.themeDestroyer', icon: 'flame' },
-  { key: 'slang', labelKey: 'rankThemes.themeSlang', icon: 'award' },
-]
+export const RANK_THEMES = rankData.themes
 
-export const PLAYSTYLE_BADGES = [
-  { key: 'vo_hut', icon: 'zap', color: '#FACC15', emoji: '🦅' },
-  { key: 'boi_tham', icon: 'shield', color: '#38BDF8', emoji: '🏊' },
-  { key: 'he_chua', icon: 'sparkles', color: '#EC4899', emoji: '🤡' },
-  { key: 'cai_cau', icon: 'flame', color: '#F43F5E', emoji: '⚖️' },
-  { key: 'doi_vot', icon: 'award', color: '#A855F7', emoji: '🏸' },
-  { key: 'khoi_dong', icon: 'play', color: '#FB923C', emoji: '🧘' },
-  { key: 'chia_san', icon: 'medal', color: '#10B981', emoji: '🤝' },
-  { key: 'be_tong', icon: 'shield', color: '#94A3B8', emoji: '🧱' },
-  { key: 'nguoc_dong', icon: 'crown', color: '#34D399', emoji: '🔄' },
-  { key: 'ban_chim', icon: 'trophy', color: '#E11D48', emoji: '🎯' },
-]
+export const PLAYSTYLE_BADGES = rankData.playstyleBadges
+
+/**
+ * Lấy tên bậc rank theo theme và key bậc.
+ * @param {string} themeKey
+ * @param {string} tierKey
+ * @returns {string}
+ */
+export function getTierName(themeKey = 'street', tierKey) {
+  return rankData.tierNames?.[themeKey]?.[tierKey] || tierKey
+}
+
+/**
+ * Lấy câu mô tả tấu hài cho bậc rank.
+ * @param {string} tierKey
+ * @returns {string}
+ */
+export function getComedyQuip(tierKey) {
+  return rankData.comedyQuips?.[tierKey] || ''
+}
 
 /**
  * Deterministically retrieves a playstyle badge for a member.
@@ -30,24 +35,12 @@ export const PLAYSTYLE_BADGES = [
  * @returns {Object}
  */
 export function getMemberBadge(memberId) {
-  if (!memberId) {
-    const defaultBadge = PLAYSTYLE_BADGES[0]
-    return {
-      ...defaultBadge,
-      nameKey: `playstyleBadges.${defaultBadge.key}.name`,
-      descKey: `playstyleBadges.${defaultBadge.key}.desc`,
-    }
-  }
+  if (!memberId) return PLAYSTYLE_BADGES[0]
   let hash = 0
   const str = String(memberId)
   for (let i = 0; i < str.length; i++) {
     hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0
   }
   const idx = Math.abs(hash) % PLAYSTYLE_BADGES.length
-  const badge = PLAYSTYLE_BADGES[idx]
-  return {
-    ...badge,
-    nameKey: `playstyleBadges.${badge.key}.name`,
-    descKey: `playstyleBadges.${badge.key}.desc`,
-  }
+  return PLAYSTYLE_BADGES[idx]
 }

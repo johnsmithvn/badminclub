@@ -274,7 +274,7 @@ export default function Leaderboard() {
                 onChange={(e) => setRankTheme(e.target.value)}
                 options={RANK_THEMES.map((th) => ({
                   value: th.key,
-                  label: t(th.labelKey),
+                  label: th.label,
                 }))}
                 style={{ width: 175 }}
                 title={t('leaderboard.themeHint')}
@@ -357,15 +357,27 @@ export default function Leaderboard() {
 
                       {/* Cột Cấp bậc Rank */}
                       <div style={S.tdCell}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 14 }}>
-                            {row.tier.emoji}
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: 7 }}
+                          title={rankTheme === 'comedy' ? row.tier.quip : undefined}
+                        >
+                          <span style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 5,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: `${row.tier.color}1E`,
+                            border: `1px solid ${row.tier.color}66`,
+                            color: row.tier.color,
+                            boxShadow: `0 0 8px ${row.tier.color}25`,
+                            flexShrink: 0,
+                          }}>
+                            <Icon name={row.tier.icon} size={12} />
                           </span>
-                          <span
-                            style={{ fontSize: 12, fontWeight: 600, color: row.tier.color }}
-                            title={rankTheme === 'comedy' ? t(row.tier.quipKey) : undefined}
-                          >
-                            {t(row.tier.labelKey)}
+                          <span style={{ fontSize: 12.5, fontWeight: 600, color: row.tier.color }}>
+                            {row.tier.label}
                           </span>
                         </div>
                       </div>
@@ -501,10 +513,11 @@ export default function Leaderboard() {
                             Elo {t('rating.breakdown.overall')}
                           </span>
                           <span style={{
-                            padding: '3px 10px',
-                            borderRadius: 999,
-                            background: 'rgba(240,183,92,0.15)',
+                            padding: '4px 12px',
+                            borderRadius: 6,
+                            background: `${memberTier.color}1E`,
                             border: `1px solid ${memberTier.color}`,
+                            boxShadow: `0 0 10px ${memberTier.color}30`,
                             color: memberTier.color,
                             fontSize: 12,
                             fontWeight: 700,
@@ -512,8 +525,8 @@ export default function Leaderboard() {
                             alignItems: 'center',
                             gap: 6,
                           }}>
-                            <span>{memberTier.emoji}</span>
-                            <span>{t(memberTier.labelKey)}</span>
+                            <Icon name={memberTier.icon} size={13} />
+                            <span>{memberTier.label}</span>
                           </span>
                           <span style={{ fontSize: 12, color: '#5FDBD3', fontFamily: '"IBM Plex Mono", monospace' }}>
                             {t('rating.kFactor', { k: memberK })}
@@ -543,17 +556,17 @@ export default function Leaderboard() {
                         </div>
                       </div>
 
-                      {rankTheme === 'comedy' && (
+                      {rankTheme === 'comedy' && memberTier.quip && (
                         <div style={{
                           fontStyle: 'italic',
                           fontSize: 12.5,
                           color: '#A8B7CB',
                           background: 'rgba(255,255,255,0.03)',
-                          padding: '6px 12px',
+                          padding: '8px 14px',
                           borderRadius: 6,
                           borderLeft: `3px solid ${memberTier.color}`,
                         }}>
-                          "{t(memberTier.quipKey)}"
+                          "{memberTier.quip}"
                         </div>
                       )}
 
@@ -589,10 +602,11 @@ export default function Leaderboard() {
               const badge = getMemberBadge(currentMember.id)
               return (
                 <div style={{
-                  padding: '14px 18px',
-                  borderRadius: 8,
-                  background: '#101927',
-                  border: `1px solid ${badge.color}44`,
+                  padding: '16px 20px',
+                  borderRadius: 10,
+                  background: 'linear-gradient(135deg, rgba(16, 25, 39, 0.95) 0%, rgba(10, 16, 26, 0.95) 100%)',
+                  border: `1px solid ${badge.color}40`,
+                  boxShadow: `0 4px 20px ${badge.color}15`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -604,33 +618,38 @@ export default function Leaderboard() {
                       width: 44,
                       height: 44,
                       borderRadius: 10,
-                      background: `${badge.color}1F`,
-                      border: `1px solid ${badge.color}`,
+                      background: `linear-gradient(135deg, ${badge.color}25 0%, ${badge.color}0A 100%)`,
+                      border: `1.5px solid ${badge.color}`,
+                      boxShadow: `0 0 14px ${badge.color}35`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 22,
+                      color: badge.color,
+                      flexShrink: 0,
                     }}>
-                      {badge.emoji}
+                      <Icon name={badge.icon} size={20} />
                     </div>
                     <div style={{ display: 'grid', gap: 3 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 11, color: '#8494AA', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-                          {t('leaderboard.playstyleBadge')}
-                        </span>
                         <span style={{
                           padding: '2px 8px',
                           borderRadius: 4,
                           background: `${badge.color}22`,
+                          border: `1px solid ${badge.color}55`,
                           color: badge.color,
-                          fontSize: 11.5,
+                          fontSize: 10.5,
+                          fontFamily: '"IBM Plex Mono", monospace',
                           fontWeight: 700,
+                          letterSpacing: '0.04em',
                         }}>
-                          {t(badge.nameKey)}
+                          [{badge.tag}]
+                        </span>
+                        <span style={{ font: '700 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                          {badge.name}
                         </span>
                       </div>
-                      <div style={{ fontSize: 13, color: '#E2E8F0', fontStyle: 'italic' }}>
-                        "{t(badge.descKey)}"
+                      <div style={{ fontSize: 13, color: '#A8B7CB', fontStyle: 'italic' }}>
+                        "{badge.desc}"
                       </div>
                     </div>
                   </div>
@@ -641,7 +660,7 @@ export default function Leaderboard() {
                       onChange={(e) => setRankTheme(e.target.value)}
                       options={RANK_THEMES.map((th) => ({
                         value: th.key,
-                        label: t(th.labelKey),
+                        label: th.label,
                       }))}
                       style={{ minWidth: 165 }}
                       title={t('leaderboard.themeHint')}
