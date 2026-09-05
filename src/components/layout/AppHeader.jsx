@@ -2,6 +2,7 @@
 
 import { Button, IconButton } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { pageOf } from '#routes'
 import { can } from '#lib/roles.js'
 import { monthTxt } from '#utils/dates.js'
@@ -10,6 +11,7 @@ import { t } from '#i18n'
 
 export default function AppHeader({ route }) {
   const { db, a } = useApp()
+  const { isDark, toggleTheme } = useTheme()
 
   const role = db.myRole || db.viewAs || 'owner'
   const page = pageOf(route)
@@ -29,6 +31,15 @@ export default function AppHeader({ route }) {
           <IconButton icon="chevron-right" size="sm" variant="ghost"
             label={t('common.nextMonth')} onClick={() => a.shiftMonth(1)} />
         </div>
+
+        <IconButton
+          icon={isDark ? 'sun' : 'moon'}
+          size="sm"
+          variant="ghost"
+          style={S.themeBtn}
+          label={isDark ? t('common.themeLight') : t('common.themeDark')}
+          onClick={toggleTheme}
+        />
 
         {can(role, 'sessions') && (
           <>
@@ -69,4 +80,9 @@ const S = {
     border: '1px solid var(--border-subtle)', borderRadius: 6,
   },
   monthLabel: { font: '600 13px/1 var(--font-mono)', color: 'var(--text-primary)', minWidth: 78, textAlign: 'center' },
+  themeBtn: {
+    width: 34, height: 34,
+    border: '1px solid var(--border-subtle)', borderRadius: 6,
+    color: 'var(--text-secondary)',
+  },
 }

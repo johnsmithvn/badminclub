@@ -503,11 +503,12 @@ export function InlineTextCell({
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
+  const [prevValue, setPrevValue] = useState(value)
   const inputRef = useRef(null)
-
-  useEffect(() => {
+  if (value !== prevValue) {
+    setPrevValue(value)
     setDraft(value)
-  }, [value])
+  }
 
   useEffect(() => {
     if (editing && inputRef.current) {

@@ -28,7 +28,10 @@
     "copied": "Đã sao chép",
     "imageError": "Lỗi xử lý ảnh",
     "saving": "Đang lưu...",
-    "unauthorized": "Không có quyền thực hiện"
+    "unauthorized": "Không có quyền thực hiện",
+    "themeLight": "Chuyển giao diện sáng",
+    "themeDark": "Chuyển giao diện tối",
+    "themeToggle": "Chuyển giao diện sáng/tối"
   },
   "units": {
     "dong": "đ",

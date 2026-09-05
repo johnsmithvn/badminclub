@@ -7,6 +7,7 @@ import { Alert, Avatar, Button, Dialog, Icon, IconButton, Input, StatusPill } fr
 import { DeleteClubDialog, Empty, Mono, Overline } from '#ui'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { ddmy } from '#utils/dates.js'
 import { roleName } from '#lib/roles.js'
 import { PUBLIC_PATHS } from '#routes'
@@ -16,6 +17,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 export default function Clubs() {
   const { profile, clubs, requests, setActiveClub, signOut, createClub, joinByCode } = useAuth()
   const { toast } = useApp()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [dlg, setDlg] = useState(null) // 'create' | 'join' | null
   const [del, setDel] = useState(null) // CLB đang chờ xác nhận xoá
@@ -50,6 +52,14 @@ export default function Clubs() {
         {/* Hồ sơ TÀI KHOẢN nằm ngoài CLB (`/tai-khoan`). Trước đây nút này phải nhảy đại vào
             CLB đầu tiên mới mở được trang hồ sơ — sửa một tài khoản không được đòi phải chọn
             CLB, và cái sửa được ở trong CLB là bản ghi thành viên, không phải tài khoản. */}
+        <IconButton
+          icon={isDark ? 'sun' : 'moon'}
+          size="sm"
+          variant="ghost"
+          style={{ border: '1px solid var(--border-subtle)', borderRadius: 6 }}
+          label={isDark ? t('common.themeLight') : t('common.themeDark')}
+          onClick={toggleTheme}
+        />
         <Button variant="secondary" size="sm" icon="user-round" onClick={() => navigate(PUBLIC_PATHS.account)}>
           {t('auth.profileBtn')}
         </Button>
