@@ -12,7 +12,7 @@ import { seed } from '../fixture.js'
 import {
   addCourtForm, adhocForm, courtBillForm, courtForm, defaultCourtRows, editMemberForm,
   groupForm, guestForm, ledgerForm, memberForm, scheduleForm,
-  venueOptions,
+  resolveVenue, venueOptions,
 } from '#lib/forms.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -61,11 +61,21 @@ assert.equal(courtBillForm(empty).bVenue, '', 'không có sân thì không bịa
 assert.equal(ledgerForm(db).lDir, 'out', 'ghi tay mặc định là CHI')
 assert.equal(ledgerForm(db).lAmount, '')
 
-// Địa điểm gom từ địa chỉ sân, bỏ trùng; sân không có địa chỉ thì lấy tên.
+// Tên sân gom từ danh sách sân của CLB, ưu tiên tên sân; sân không có tên thì lấy địa chỉ.
 const venues = venueOptions(db)
 assert.equal(venues.length, new Set(venues).size, 'không được lặp địa điểm')
-assert.ok(venues.length < db.courts.length, 'hai sân cùng địa chỉ phải gộp làm một')
 assert.deepEqual(venueOptions(empty), [])
+
+const dbDup = { ...db, courts: [{ id: '1', name: 'Sân An Bình' }, { id: '2', name: 'Sân An Bình' }] }
+assert.equal(venueOptions(dbDup).length, 1, 'hai sân cùng tên phải gộp làm một')
+
+const dbNoName = { ...empty, courts: [{ id: '1', name: '', addr: 'Số 1 Mai Dịch' }] }
+assert.equal(venueOptions(dbNoName)[0], 'Số 1 Mai Dịch', 'sân không có tên thì lấy địa chỉ')
+
+// Chuẩn hoá tên sân: địa chỉ cũ được ánh xạ về tên sân
+assert.equal(resolveVenue(db, 'Nhà TĐ Phú Khê'), 'Sân Phú Khê 1', 'địa chỉ cũ phải ánh xạ về tên sân')
+assert.equal(resolveVenue(db, 'Sân Yên Phong'), 'Sân Yên Phong', 'đã là tên sân thì giữ nguyên')
+assert.equal(resolveVenue(empty, 'Địa chỉ lạ'), 'Địa chỉ lạ')
 
 /* ---------- form thành viên ---------- */
 

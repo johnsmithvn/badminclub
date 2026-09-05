@@ -1057,6 +1057,8 @@
     "colGroup": "Nhóm",
     "colWeekdays": "Các thứ",
     "colCourts": "Sân · giờ",
+    "colFrom": "Từ giờ",
+    "colTo": "Đến giờ",
     "colRange": "Khoảng ngày",
     "colSessions": "Đã sinh",
     "colStatus": "Trạng thái",

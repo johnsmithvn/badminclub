@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Button, Card, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, expectedScore } from '#lib/rating.js'
+import { confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 import { searchMatches, headToHeadMatrix, neverMetPairs } from '#lib/matchSearch.js'
 import { RANK_THEMES, DEFAULT_RANK_THEME, getMemberBadge } from '#data/rankThemes.js'
@@ -1003,7 +1003,7 @@ export default function Leaderboard() {
             {/* Bảng kết quả tìm trận có scroll ngang an toàn trên mobile */}
             <div style={S.card}>
               <div style={{ overflowX: 'auto', width: '100%' }}>
-                <div style={{ minWidth: 780 }}>
+                <div style={{ minWidth: 860 }}>
                   <div style={S.searchTableHead}>
                     <div style={S.thCell}>{t('matchSearch.colCode')}</div>
                     <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
@@ -1021,9 +1021,16 @@ export default function Leaderboard() {
                       const teamA = m.teamA || []
                       const teamB = m.teamB || []
                       const aWon = m.winnerTeam === 'A'
-                      const winnerNames = (aWon ? teamA : teamB).map(memberNameOf).join(' · ')
-                      const loserNames = (aWon ? teamB : teamA).map(memberNameOf).join(' · ')
-                      const scoreStr = (m.sets || []).map(([a, b]) => `${a}-${b}`).join(', ')
+                      const winnerTeam = aWon ? teamA : teamB
+                      const loserTeam = aWon ? teamB : teamA
+                      const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
+                      const loserNames = loserTeam.map(memberNameOf).join(' · ')
+
+                      // Điểm đội thắng luôn ở bên trái (ứng với cột ĐỘI THẮNG), đội thua bên phải (ứng với cột ĐỘI THUA)
+                      const scoreSets = (m.sets || []).map(([a, b]) => ({
+                        winPts: aWon ? a : b,
+                        losePts: aWon ? b : a,
+                      }))
                       const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
                       const delta = m.eloDelta || 0
                       const ra = m.initialRatingA || 0
@@ -1031,34 +1038,71 @@ export default function Leaderboard() {
                       const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
                       const isClose = (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
 
+                      const s = (db.sessions || []).find((x) => x.id === m.sessionId)
+                      const courtObj = s?.courts?.[m.courtIdx]
+                      const venue = courtObj ? courtOf(db, courtObj.courtId) : null
+                      const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
+                      const dateStr = s?.date ? dd(s.date) : (m.at ? new Date(m.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
+                      const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '')
+                      const courtTimeStr = courtLabel ? `${dateStr ? dateStr + ' · ' : ''}${courtLabel}` : (dateStr || matchTime || '—')
+                      const tooltipWhen = `${venue?.name || ''}${courtObj?.from ? ` · ${courtObj.from} → ${courtObj.to}` : ''}`
+
                       return (
                         <div key={m.id} style={S.searchTableRow}>
                           <div style={S.tdCell}>
-                            <span style={S.monoCode}>{m.code || 'M-000'}</span>
+                            <span style={S.monoCode}>{matchCodeOf(db, m)}</span>
                           </div>
                           <div style={S.tdCell}>
-                            <span style={S.monoMeta}>{m.createdAt?.slice(0, 10) || ''}</span>
+                            <span style={S.monoMeta} title={tooltipWhen}>{courtTimeStr}</span>
                           </div>
-                          <div style={{ ...S.tdCell, minWidth: 0 }}>
-                            <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
+                          <div style={{ ...S.tdCell, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              width: 20, height: 20, borderRadius: 6,
+                              background: 'rgba(240,183,92,0.15)', color: '#F0B75C', fontSize: 11, flexShrink: 0,
+                            }} title={t('matchSearch.colWinner')}>
+                              👑
+                            </span>
+                            <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg, #5FD9A2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {winnerNames}
                             </span>
                           </div>
-                          <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
-                            <span style={{ font: '700 15px/1 Barlow, sans-serif', color: 'var(--text-primary, #E9EFF7)', whiteSpace: 'nowrap' }}>
-                              {scoreStr}
-                            </span>
+                          <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            {scoreSets.map((st, sIdx) => (
+                              <div key={sIdx} style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '3px 8px',
+                                borderRadius: 6,
+                                background: 'var(--surface-sunken, rgba(0,0,0,0.06))',
+                                border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+                                font: '700 14px/1 "Barlow", sans-serif',
+                                letterSpacing: '0.03em',
+                              }}>
+                                <span style={{ color: 'var(--status-delivered-fg, #5FD9A2)', fontWeight: 800 }}>{st.winPts}</span>
+                                <span style={{ margin: '0 3px', opacity: 0.35, fontWeight: 400 }}>:</span>
+                                <span style={{ color: 'var(--text-secondary, #A8B7CB)', fontWeight: 600 }}>{st.losePts}</span>
+                              </div>
+                            ))}
                           </div>
                           <div style={{ ...S.tdCell, minWidth: 0 }}>
-                            <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>
+                            <span style={{ font: '500 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {loserNames}
                             </span>
                           </div>
                           {/* Cột Delta Elo (+ / -) */}
                           <div style={{ ...S.tdCell, textAlign: 'center' }}>
                             {delta > 0 ? (
-                              <span style={{ font: '600 12px "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
-                                +{delta} / -{delta}
+                              <span style={{
+                                font: '600 12px "IBM Plex Mono", monospace',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: 'rgba(95,217,162,0.12)',
+                                color: 'var(--status-delivered-fg, #5FD9A2)',
+                                border: '1px solid rgba(95,217,162,0.25)',
+                              }}>
+                                +{delta}
                               </span>
                             ) : (
                               <span style={{ font: '400 12px "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>—</span>
@@ -1067,35 +1111,45 @@ export default function Leaderboard() {
                           {/* Cột Dự đoán */}
                           <div style={{ ...S.tdCell, textAlign: 'center' }}>
                             {isUpset ? (
-                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(240,183,92,.18)', color: 'var(--status-delayed-fg, #F0B75C)', border: '1px solid rgba(240,183,92,.4)' }}>
-                                {t('leaderboard.predUpset')}
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(240,183,92,.18)', color: 'var(--status-delayed-fg, #F0B75C)', border: '1px solid rgba(240,183,92,.4)', whiteSpace: 'nowrap' }}>
+                                🔥 {t('leaderboard.predUpset')}
                               </span>
                             ) : isClose ? (
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: 'rgba(95,219,211,.14)', color: 'var(--status-transit-fg, #5FDBD3)', border: '1px solid rgba(95,219,211,.3)' }}>
-                                {t('leaderboard.predClose')}
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(95,219,211,.14)', color: 'var(--status-transit-fg, #5FDBD3)', border: '1px solid rgba(95,219,211,.3)', whiteSpace: 'nowrap' }}>
+                                ⚡ {t('leaderboard.predClose')}
                               </span>
                             ) : (
-                              <span style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)' }}>
-                                {t('leaderboard.predCorrect')}
+                              <span style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)', padding: '2px 6px', borderRadius: 4, background: 'var(--surface-sunken, rgba(0,0,0,0.04))', border: '1px solid var(--border-subtle, rgba(255,255,255,0.06))', whiteSpace: 'nowrap' }}>
+                                ✓ {t('leaderboard.predCorrect')}
                               </span>
                             )}
                           </div>
                           <div style={S.tdCell}>
                             <span style={{
                               ...S.sourcePill,
-                              background: isChallenge ? 'rgba(0,178,169,.14)' : 'rgba(255,255,255,.06)',
+                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              background: isChallenge ? 'rgba(0,178,169,.12)' : 'var(--surface-sunken, rgba(0,0,0,0.04))',
                               borderColor: isChallenge ? 'var(--teal-700, #00786F)' : 'var(--border-subtle, #22304A)',
                               color: isChallenge ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-muted, #8494AA)',
                             }}>
-                              {isChallenge ? t('challenge.challenge') : t('challenge.fromCourt')}
+                              {isChallenge ? `⚔️ ${t('challenge.challenge')}` : `🏸 ${t('challenge.fromCourt')}`}
                             </span>
                           </div>
                           <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
                             <button
                               type="button"
                               onClick={() => setEditingMatch(m)}
-                              style={S.editBtn}
+                              style={{
+                                ...S.editBtn,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
                             >
+                              <Icon name="pencil" size={12} />
                               {t('matchSearch.btnEdit')}
                             </button>
                           </div>
@@ -1413,15 +1467,15 @@ const S = {
   },
   searchTableHead: {
     display: 'grid',
-    gridTemplateColumns: '75px 80px 1.2fr 90px 1.2fr 75px 75px 80px 70px',
+    gridTemplateColumns: '70px 115px minmax(160px, 1.2fr) 95px minmax(160px, 1.2fr) 80px 95px 95px 70px',
     background: 'var(--surface-inset, #101927)',
     borderBottom: '1px solid var(--border-subtle, #22304A)',
   },
   searchTableRow: {
     display: 'grid',
-    gridTemplateColumns: '75px 80px 1.2fr 90px 1.2fr 75px 75px 80px 70px',
+    gridTemplateColumns: '70px 115px minmax(160px, 1.2fr) 95px minmax(160px, 1.2fr) 80px 95px 95px 70px',
     borderBottom: '1px solid var(--border-subtle, #22304A)',
-    minHeight: 50,
+    minHeight: 52,
     alignItems: 'center',
   },
   thCell: {

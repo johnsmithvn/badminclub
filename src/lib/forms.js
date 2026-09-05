@@ -35,11 +35,27 @@ export const editScheduleForm = (s) => ({
 })
 
 
-/** Địa điểm để chọn khi nhập hoá đơn sân: gom địa chỉ các sân của CLB, bỏ trùng. */
+/**
+ * Chuẩn hoá tên sân cho hoá đơn:
+ * Nếu `venue` đang lưu địa chỉ của một sân trong CLB (do dữ liệu cũ hoặc người dùng chọn địa chỉ),
+ * ánh xạ lại thành tên sân để hiển thị và lưu cho chuẩn.
+ */
+export const resolveVenue = (db, venue) => {
+  if (!venue || !db || !db.courts) return venue || ''
+  const trimmed = String(venue).trim()
+  if (!trimmed) return ''
+  const byName = (db.courts || []).find((c) => (c.name || '').trim() === trimmed)
+  if (byName && (byName.name || '').trim()) return byName.name.trim()
+  const byAddr = (db.courts || []).find((c) => (c.addr || '').trim() === trimmed)
+  if (byAddr && (byAddr.name || '').trim()) return byAddr.name.trim()
+  return venue
+}
+
+/** Tên sân để chọn khi nhập hoá đơn sân: ưu tiên tên sân của CLB, bỏ trùng; sân không có tên thì lấy địa chỉ. */
 export const venueOptions = (db) => {
   const seen = []
   ;(db.courts || []).forEach((c) => {
-    const v = (c.addr || '').trim() || c.name
+    const v = (c.name || '').trim() || (c.addr || '').trim()
     if (v && seen.indexOf(v) < 0) seen.push(v)
   })
   return seen
@@ -56,8 +72,9 @@ export const courtBillForm = (db) => ({
 export const ledgerForm = (db) => ({ lDate: db.today, lDir: 'out', lCat: 'other', lLabel: '', lAmount: '' })
 
 /** Form SỬA một hoá đơn sân đã ghi. `eBillId` là cờ phân biệt sửa với ghi mới. */
-export const editBillForm = (b) => ({
-  eBillId: b.id, bDate: b.date, bMonth: b.month, bVenue: b.venue,
+export const editBillForm = (b, db = null) => ({
+  eBillId: b.id, bDate: b.date, bMonth: b.month,
+  bVenue: db ? resolveVenue(db, b.venue) : (b.venue || ''),
   bAmount: String(b.amount ?? ''), bPayer: b.payerId || '', bNote: b.note || '',
 })
 

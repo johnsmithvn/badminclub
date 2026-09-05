@@ -77,7 +77,7 @@ export default function SchedulesTab({
             const grp = groupOf(db, r.groupId)
             const weekdaysText = (r.weekdays || []).map((w) => WD[w]).join(', ')
             const courtsText = (r.rows || [])
-              .map((x) => `${courtOf(db, x.courtId).name} ${x.from}→${x.to}`)
+              .map((x) => `${x.label ? x.label + ' · ' : ''}${courtOf(db, x.courtId).name} ${x.from}→${x.to}`)
               .join(' · ')
             const dateRange = `${ddmy(r.start)} → ${r.end ? ddmy(r.end) : t('schedules.openEnded')}`
 

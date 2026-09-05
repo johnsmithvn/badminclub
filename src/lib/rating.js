@@ -592,3 +592,32 @@ export function confidenceProgress(gamesCount = 0) {
   }
 }
 
+/**
+ * Trả về mã hiển thị định danh cho một trận đấu (VD: M-01, M-02... hoặc mã kèo CH-001)
+ * @param {object} db 
+ * @param {object} m 
+ */
+export function matchCodeOf(db, m) {
+  if (!m) return 'M-01'
+  if (m.code) return m.code
+  if (m.challengeId) {
+    const c = (db?.challenges || []).find((x) => x.id === m.challengeId)
+    if (c?.code) return c.code
+  }
+  if (m.sessionId) {
+    const sessionMatches = (db?.matches || [])
+      .filter((x) => x.sessionId === m.sessionId)
+      .slice()
+      .sort((a, b) => (a.at || 0) - (b.at || 0) || (a.createdAt || '').localeCompare(b.createdAt || ''))
+    const idx = sessionMatches.findIndex((x) => x.id === m.id)
+    if (idx >= 0) {
+      return `M-${String(idx + 1).padStart(2, '0')}`
+    }
+  }
+  const allMatches = (db?.matches || [])
+    .slice()
+    .sort((a, b) => (a.at || 0) - (b.at || 0) || (a.createdAt || '').localeCompare(b.createdAt || ''))
+  const gIdx = allMatches.findIndex((x) => x.id === m.id)
+  return gIdx >= 0 ? `M-${String(gIdx + 1).padStart(2, '0')}` : 'M-01'
+}
+

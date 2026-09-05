@@ -5,6 +5,7 @@
 
 import { hours, monthOf } from '#utils/dates.js'
 import { can } from '#lib/roles.js'
+import { resolveVenue } from '#lib/forms.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 
@@ -225,7 +226,7 @@ export function advanceRows(db) {
       memberId: x.payerId, name: memberOf(db, x.payerId).name, repaidAt: x.repaidAt || '',
     })
   }
-  ;(db.courtBills || []).forEach((b) => add('court', b, b.amount, b.venue))
+  ;(db.courtBills || []).forEach((b) => add('court', b, b.amount, resolveVenue(db, b.venue)))
   return out.sort((a, b) => (a.date < b.date ? -1 : 1))
 }
 

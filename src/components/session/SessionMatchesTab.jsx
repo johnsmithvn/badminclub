@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
 import { courtOf, playerName } from '#lib/money.js'
-import { expectedScore, getPlayerRating } from '#lib/rating.js'
+import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
@@ -121,8 +121,20 @@ export default function SessionMatchesTab({ s }) {
               const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
               const loserNames = loserTeam.map(memberNameOf).join(' · ')
 
-              const scoreStr = (m.sets || []).map(([a, b]) => `${a}-${b}`).join(', ')
-              const courtName = m.courtId ? courtOf(db, m.courtId).name : t('units.court')
+              const scoreSets = (m.sets || []).map(([a, b]) => ({
+                winPts: aWon ? a : b,
+                losePts: aWon ? b : a,
+              }))
+              const courtObj = (s.courts || [])[m.courtIdx]
+              const venue = courtObj ? courtOf(db, courtObj.courtId) : null
+              const courtLabel = courtObj?.label
+                ? courtObj.label
+                : ((s.courts || []).length > 1 ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : (venue?.name || t('units.court')))
+              const matchTime = m.at
+                ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                : (courtObj ? courtObj.from : '')
+              const courtTimeStr = matchTime ? `${courtLabel} · ${matchTime}` : courtLabel
+              const matchCode = matchCodeOf(db, m)
               const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
               const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
               const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
@@ -131,23 +143,44 @@ export default function SessionMatchesTab({ s }) {
               return (
                 <div key={m.id} style={S.tableRow}>
                   <div style={S.tdCell}>
-                    <span style={S.monoCode}>{m.code || 'M-000'}</span>
+                    <span style={S.monoCode}>{matchCode}</span>
                   </div>
                   <div style={S.tdCell}>
-                    <span style={S.monoMeta}>{courtName}</span>
+                    <span style={S.monoMeta} title={venue?.name}>{courtTimeStr}</span>
                   </div>
-                  <div style={{ ...S.tdCell, minWidth: 0 }}>
-                    <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
+                  <div style={{ ...S.tdCell, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 20, height: 20, borderRadius: 6,
+                      background: 'rgba(240,183,92,0.15)', color: '#F0B75C', fontSize: 11, flexShrink: 0,
+                    }} title={t('matchSearch.colWinner')}>
+                      👑
+                    </span>
+                    <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg, #5FD9A2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {winnerNames}
                     </span>
                   </div>
-                  <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
-                    <span style={{ font: '700 16px/1 Barlow, sans-serif', color: 'var(--text-primary, #E9EFF7)', whiteSpace: 'nowrap' }}>
-                      {scoreStr}
-                    </span>
+                  <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {scoreSets.map((st, sIdx) => (
+                      <div key={sIdx} style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        background: 'var(--surface-sunken, rgba(0,0,0,0.06))',
+                        border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+                        font: '700 14px/1 "Barlow", sans-serif',
+                        letterSpacing: '0.03em',
+                      }}>
+                        <span style={{ color: 'var(--status-delivered-fg, #5FD9A2)', fontWeight: 800 }}>{st.winPts}</span>
+                        <span style={{ margin: '0 3px', opacity: 0.35, fontWeight: 400 }}>:</span>
+                        <span style={{ color: 'var(--text-secondary, #A8B7CB)', fontWeight: 600 }}>{st.losePts}</span>
+                      </div>
+                    ))}
                   </div>
                   <div style={{ ...S.tdCell, minWidth: 0 }}>
-                    <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>
+                    <span style={{ font: '500 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {loserNames}
                     </span>
                   </div>

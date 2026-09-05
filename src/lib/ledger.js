@@ -8,6 +8,7 @@
 
 import { dd, monthOf, monthTxt } from '#utils/dates.js'
 import { t } from '#i18n'
+import { resolveVenue } from '#lib/forms.js'
 import {
   advanceRows, courtCost, courtExtraCost, courtPayMode, courtTxt, dueState, fmtK,
   chargeName, groupOf, isVault, memberOf, payerName, sessionOf, soldTotal,
@@ -106,7 +107,7 @@ export function ledger(db) {
       out.push({
         id: 'cb' + b.id, date: at, dir: 'out', cat: CATS.court,
         label: t('ledger.label.courtBill', {
-          venue: b.venue, month: monthTxt(b.month).toLowerCase(), note: b.note ? ' · ' + b.note : '',
+          venue: resolveVenue(db, b.venue), month: monthTxt(b.month).toLowerCase(), note: b.note ? ' · ' + b.note : '',
         }) + repayTag(db, b),
         amount: b.amount, by: payerName(db, b.payerId, b.payer),
       })
@@ -290,7 +291,7 @@ export function ledgerGrouped(db, month, { includeAdvances = false } = {}) {
             dir: 'advance',
             cat: CATS.court,
             label: t('ledger.label.courtBill', {
-              venue: b.venue,
+              venue: resolveVenue(db, b.venue),
               month: monthTxt(b.month).toLowerCase(),
               note: b.note ? ' · ' + b.note : '',
             }),
