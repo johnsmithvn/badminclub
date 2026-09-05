@@ -94,7 +94,7 @@ export const SCHEMA_GROUPS = [
         name: 'schedule_slots',
         fields: [
           f('id', 'uuid', 'PK'), f('schedule_id', 'uuid', 'FK'), f('court_id', 'uuid', 'FK'),
-          f('start_time', 'time'), f('end_time', 'time'),
+          f('start_time', 'time'), f('end_time', 'time'), f('court_label', 'text null'),
         ],
       },
       {
@@ -111,7 +111,7 @@ export const SCHEMA_GROUPS = [
           f('id', 'uuid', 'PK'), f('session_id', 'uuid', 'FK'), f('court_id', 'uuid', 'FK'),
           f('court_index', 'int'), f('start_time', 'time'), f('end_time', 'time'),
           f('default_minutes', 'int null'), f('is_extra', 'bool'), f('is_sold', 'bool'),
-          f('sold_amount', 'bigint'), f('sold_to', 'text'),
+          f('sold_amount', 'bigint'), f('sold_to', 'text'), f('court_label', 'text null'),
         ],
       },
     ],

@@ -25,6 +25,7 @@ export default function Dialogs() {
     ledger: LedgerDialog,
     addMember: AddMemberDialog,
     editMember: EditMemberDialog,
+    editCourtLabel: EditCourtLabelDialog,
     importMembers: ImportMembersDialog,
     importSettings: ImportSettingsDialog,
     offBack: OffBackDialog,
@@ -198,9 +199,11 @@ function CourtRows() {
     <div style={{ display: 'grid', gap: 8 }}>
       <Overline>{t('schedules.fCourts')}</Overline>
       {rows.map((r, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr auto', gap: 8, alignItems: 'flex-end' }}>
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.1fr 0.9fr 0.9fr auto', gap: 8, alignItems: 'flex-end' }}>
           <Select value={r.courtId} options={db.courts.map((c) => ({ value: c.id, label: c.name }))}
             onChange={(e) => a.setRow(i, 'courtId', e.target.value)} />
+          <Input placeholder={t('session.courtLabelPh')} value={r.label || ''}
+            onChange={(e) => a.setRow(i, 'label', e.target.value)} />
           <Input type="time" mono value={r.from} onChange={(e) => a.setRow(i, 'from', e.target.value)} />
           <Input type="time" mono value={r.to} onChange={(e) => a.setRow(i, 'to', e.target.value)} />
           <Button variant="ghost" size="sm" icon="trash-2" disabled={rows.length < 2}
@@ -348,6 +351,8 @@ function AddCourtDialog() {
       <Select label={t('addCourt.fCourt')} value={f.acCourt}
         options={db.courts.map((c) => ({ value: c.id, label: c.name + ' · ' + fmtK(c.price) + ' ' + t('units.dongPerHour') }))}
         onChange={(e) => a.setF('acCourt', e.target.value)} />
+      <Input label={t('session.fCourtLabel')} placeholder={t('session.courtLabelPh')}
+        value={f.acLabel || ''} onChange={(e) => a.setF('acLabel', e.target.value)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Input label={t('addCourt.fFrom')} type="time" mono value={f.acFrom || ''}
           onChange={(e) => a.setF('acFrom', e.target.value)} />
@@ -355,6 +360,21 @@ function AddCourtDialog() {
           onChange={(e) => a.setF('acTo', e.target.value)} />
       </div>
       <Note tone="warn">{t('session.courtRule')}</Note>
+    </Shell>
+  )
+}
+
+/* ---------------- sửa số sân / tên sân của buổi ---------------- */
+
+function EditCourtLabelDialog() {
+  const { ui, a } = useApp()
+  const f = ui.form
+  return (
+    <Shell title={t('session.editCourtLabelTitle')} desc={t('session.editCourtLabelDesc')}
+      onSubmit={() => a.setSessionCourtLabel(f.sid, f.courtIndex, f.label)}
+      submitLabel={t('common.save')} submitIcon="check">
+      <Input label={t('session.fCourtLabel')} placeholder={t('session.courtLabelPh')}
+        value={f.label || ''} onChange={(e) => a.setF('label', e.target.value)} autoFocus />
     </Shell>
   )
 }

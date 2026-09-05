@@ -337,7 +337,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             ? {
                 ...x,
                 courts: (x.courts || []).concat([
-                  { courtId: f.acCourt, from: f.acFrom, to: f.acTo, sold: false, soldAmount: 0, soldTo: '', extra: true },
+                  { courtId: f.acCourt, label: (f.acLabel || '').trim(), from: f.acFrom, to: f.acTo, sold: false, soldAmount: 0, soldTo: '', extra: true },
                 ]),
               }
             : x
@@ -345,6 +345,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
       upUi(() => ({ dialog: null, form: {} }))
       toast(t('toast.courtAdded'))
+    },
+    setSessionCourtLabel: (sid, courtIndex, label) => {
+      patchSession(sid, (x) => {
+        const rows = (x.courts || []).slice()
+        if (!rows[courtIndex]) return x
+        rows[courtIndex] = { ...rows[courtIndex], label: (label || '').trim() }
+        return { ...x, courts: rows }
+      })
+      upUi(() => ({ dialog: null, form: {} }))
+      toast(t('toast.courtLabelUpdated'))
     },
     /** Ghi chú của một buổi. Cột `sessions.note` có sẵn dưới DB và đã map hai chiều từ lâu,
      *  chỉ là chưa có ô nhập nào. */
@@ -1206,7 +1216,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           form: {
             ...u.form,
             rows: (u.form.rows || []).concat([
-              { courtId: c.id, from: (g && g.from) || '18:00', to: (g && g.to) || '20:00' },
+              { courtId: c.id, label: '', from: (g && g.from) || '18:00', to: (g && g.to) || '20:00' },
             ]),
           },
         }

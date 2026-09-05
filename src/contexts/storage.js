@@ -245,9 +245,21 @@ async function flush() {
 async function apply(op) {
   const q = supabase.from(op.table)
   if (op.op === 'upsert') {
-    return unwrap(op.conflict
+    let res = op.conflict
       ? await q.upsert(op.rows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
-      : await q.insert(op.rows))
+      : await q.insert(op.rows)
+    if (res.error && res.error.message?.includes('court_label')) {
+      console.warn('[storage] DB chưa chạy migration 0025 (thiếu cột court_label). Bỏ qua court_label để không chặn lưu.')
+      const cleanRows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.court_label
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(cleanRows)
+    }
+    return unwrap(res)
   }
   if (op.op === 'delIds') {
     return unwrap(await q.delete().in('id', op.ids))

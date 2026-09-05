@@ -340,6 +340,7 @@
     "balanced": "Hai bên cân trình độ",
     "skewed": "Lệch trình độ giữa hai bên",
     "needFour": "Chưa đủ 4 người",
+    "courtTitle": "Sân {{name}}",
     "matchMeta": "{{gender}}{{guest}} · {{n}} trận"
   },
   "home": {
@@ -585,6 +586,7 @@
     "allPresent": "Đã đánh tất cả Có mặt",
     "allAbsent": "Đã đánh tất cả Vắng",
     "courtAdded": "Đã thêm sân cho buổi này — ghi chi riêng ngoài hóa đơn tháng",
+    "courtLabelUpdated": "Đã cập nhật số sân",
     "sessionClosed": "Đã chốt buổi — số liệu vào sổ quỹ",
     "sessionOpened": "Đã mở điểm danh",
     "sessionCancelled": "Đã hủy buổi — không tính tiền, không tính vào đơn giá/buổi",
@@ -723,6 +725,12 @@
     "courtsTitle": "Sân buổi này",
     "courtsSub": "Bán sân dư thì sân đó không tính chi phí; thuê thêm thì ghi chi riêng",
     "addCourt": "Thêm sân cho buổi này",
+    "fCourtLabel": "Số sân / Tên sân",
+    "courtLabelPh": "VD: Sân 19, Sân 20...",
+    "editCourtLabel": "Sửa số sân",
+    "editCourtLabelTitle": "Sửa số sân",
+    "editCourtLabelDesc": "Nhập số sân hoặc tên sân cụ thể trong tổ hợp (VD: Sân 19, Sân 20...)",
+    "courtNum": "Sân {{n}}",
     "sell": "Bán sân",
     "unsell": "Bỏ bán",
     "soldAmount": "Bán được",

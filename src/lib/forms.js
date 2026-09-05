@@ -10,7 +10,7 @@
 export function defaultCourtRows(db) {
   const g = db.groups[0]
   const c = db.courts[0]
-  return [{ courtId: c ? c.id : '', from: g ? g.from : '18:00', to: g ? g.to : '20:00' }]
+  return [{ courtId: c ? c.id : '', label: '', from: g ? g.from : '18:00', to: g ? g.to : '20:00' }]
 }
 
 /** Form tạo buổi đột xuất. */
@@ -95,7 +95,7 @@ export const editMemberForm = (m) => ({
 /** Form thêm sân cho một buổi. */
 export const addCourtForm = (db, s) => {
   const r = (s && (s.courts || [])[0]) || { from: '18:00', to: '20:00' }
-  return { acCourt: db.courts[0] && db.courts[0].id, acFrom: r.from, acTo: r.to }
+  return { acCourt: db.courts[0] && db.courts[0].id, acLabel: '', acFrom: r.from, acTo: r.to }
 }
 
 /** Form thêm sân của CLB (không phải thêm sân cho một buổi — cái đó là addCourtForm). */

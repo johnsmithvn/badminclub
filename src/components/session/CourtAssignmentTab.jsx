@@ -326,7 +326,10 @@ export default function CourtAssignmentTab({ s }) {
       <div style={S.courtGrid}>
         {idxs.map((ci) => {
           const c = s.courts[ci]
-          const courtName = courtOf(db, c.courtId).name
+          const venueName = courtOf(db, c.courtId).name
+          const courtName = c.label
+            ? `${c.label} · ${venueName}`
+            : ((s.courts || []).length > 1 ? `${t('assign.courtTitle', { name: ci + 1 })} · ${venueName}` : venueName)
           const slots = courtSlotIds(ci)
           const startedAt = ((db.playing || {})[s.id] || {})[ci]
           const mins = ((db.courtMin || {})[s.id] || {})[ci]

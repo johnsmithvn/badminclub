@@ -62,6 +62,11 @@ const anyCourt = rows.session_courts.find((r) => r.cost == null)
 assert.ok(anyCourt, 'buổi chưa chốt thì cost xuống NULL')
 assert.notEqual(anyCourt.cost, 0)
 
+const dLabel = clone(db)
+dLabel.sessions[0].courts[0].label = 'Sân 19'
+const rowsLabel = toRows(dLabel, ctx)
+assert.equal(rowsLabel.session_courts.find((r) => r.court_index === 0 && r.session_id === dLabel.sessions[0].id).court_label, 'Sân 19', 'toRows phải gửi court_label lên DB')
+
 // Xoá một khách của buổi: bảng có id ở client → xoá theo id.
 const d2 = clone(db)
 const goneId = d2.sessionGuests[0].id
@@ -129,8 +134,8 @@ const raw = {
     id: 's1', group_id: 'gr1', date: '2026-08-09', status: 'open', group_mode: true,
     // Cố tình trả về ngược thứ tự: court_index phải quyết định thứ tự, không phải thứ tự trả về.
     session_courts: [
-      { court_id: 'c2', court_index: 1, start_time: '20:00:00', end_time: '22:00:00', is_sold: false, is_extra: true, sold_amount: 0, default_minutes: 18 },
-      { court_id: 'c1', court_index: 0, start_time: '18:00:00', end_time: '20:00:00', is_sold: true, is_extra: false, sold_amount: 240000, sold_to: 'CLB X', cost: 310000 },
+      { court_id: 'c2', court_index: 1, court_label: 'Sân 20', start_time: '20:00:00', end_time: '22:00:00', is_sold: false, is_extra: true, sold_amount: 0, default_minutes: 18 },
+      { court_id: 'c1', court_index: 0, court_label: 'Sân 19', start_time: '18:00:00', end_time: '20:00:00', is_sold: true, is_extra: false, sold_amount: 240000, sold_to: 'CLB X', cost: 310000 },
     ],
     attendances: [{ member_id: 'm1', status: 'absent' }],
     session_lineups: [{ slot: 'c0t1s0', court_index: 0, player_type: 'guest', player_id: 'g1' }],
@@ -159,6 +164,8 @@ assert.equal(back.courts[1].mapUrl, '', 'map_url null phải map thành chuỗi 
 assert.deepEqual(back.levels, ['Y', 'Y+', 'TB-'], 'thang trình độ phải lấy của CLB')
 assert.equal(back.attendance.s1.m1, false, "status 'absent' phải đọc thành false, không phải vắng bản ghi")
 assert.deepEqual(back.sessions[0].courts.map((c) => c.courtId), ['c1', 'c2'], 'sân phải xếp theo court_index')
+assert.equal(back.sessions[0].courts[0].label, 'Sân 19', 'court_label phải map thành label')
+assert.equal(back.sessions[0].courts[1].label, 'Sân 20', 'court_label phải map thành label')
 assert.equal(back.sessions[0].courts[0].soldTo, 'CLB X')
 assert.equal(back.sessions[0].courts[0].from, '18:00', 'giờ phải cắt còn HH:MM')
 // Tiền sân đóng băng (0012): có số thì giữ nguyên, NULL phải về null chứ không phải 0 —

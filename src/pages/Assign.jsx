@@ -216,7 +216,9 @@ export default function Assign() {
                   <div style={S.courtHead}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>
-                        {courtOf(db, c.courtId).name}
+                        {c.label
+                          ? `${c.label} · ${courtOf(db, c.courtId).name}`
+                          : ((s.courts || []).length > 1 ? `${t('assign.courtTitle', { name: ci + 1 })} · ${courtOf(db, c.courtId).name}` : courtOf(db, c.courtId).name)}
                       </span>
                       {c.extra && <span style={S.tagAmber}>{t('assign.extraTag')}</span>}
                       <Mono color="var(--text-muted)" size={12}>{c.from + ' → ' + c.to}</Mono>

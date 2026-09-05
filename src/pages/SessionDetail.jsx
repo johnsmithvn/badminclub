@@ -409,7 +409,34 @@ export default function SessionDetail() {
                 <div key={i} style={S.courtRow}>
                   <div style={{ flex: 1, minWidth: 140 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                      <span style={S.label}>{courtOf(db, c.courtId).name}</span>
+                      <span style={S.label}>
+                        {c.label ? (
+                          <>
+                            <span style={{ color: 'var(--teal-600)', fontWeight: 700 }}>{c.label}</span>
+                            <span style={{ color: 'var(--text-muted)', margin: '0 4px' }}>·</span>
+                            <span>{courtOf(db, c.courtId).name}</span>
+                          </>
+                        ) : (
+                          (s.courts || []).length > 1 ? (
+                            <>
+                              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{t('session.courtNum', { n: i + 1 })}</span>
+                              <span style={{ color: 'var(--text-muted)', margin: '0 4px' }}>·</span>
+                              <span>{courtOf(db, c.courtId).name}</span>
+                            </>
+                          ) : (
+                            courtOf(db, c.courtId).name
+                          )
+                        )}
+                      </span>
+                      {canEdit && !isClosed && (
+                        <IconButton
+                          icon="pencil"
+                          size="sm"
+                          variant="ghost"
+                          label={t('session.editCourtLabel')}
+                          onClick={() => a.openDialog('editCourtLabel', { sid: s.id, courtIndex: i, label: c.label || '' })}
+                        />
+                      )}
                       {courtOf(db, c.courtId).mapUrl && (
                         <a
                           href={courtOf(db, c.courtId).mapUrl}

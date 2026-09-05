@@ -91,7 +91,7 @@ export function toDb(raw, ctx) {
     id: s.id, name: s.name, groupId: s.group_id, weekdays: s.weekdays || [],
     start: s.start_date, end: s.end_date || '', active: s.active,
     rows: (s.schedule_slots || []).map((r) => ({
-      courtId: r.court_id, from: hm(r.start_time), to: hm(r.end_time),
+      courtId: r.court_id, label: r.court_label || '', from: hm(r.start_time), to: hm(r.end_time),
     })),
   }))
 
@@ -163,7 +163,7 @@ export function toDb(raw, ctx) {
       id: s.id, date: s.date, groupId: s.group_id || 'ALL', scheduleId: s.schedule_id || null,
       status: s.status, note: s.note || '', closedAt: dOf(s.closed_at),
       courts: rows.map((r) => ({
-        courtId: r.court_id, from: hm(r.start_time), to: hm(r.end_time),
+        courtId: r.court_id, label: r.court_label || '', from: hm(r.start_time), to: hm(r.end_time),
         sold: r.is_sold, soldAmount: num(r.sold_amount), soldTo: r.sold_to || '', extra: r.is_extra,
         // Tiền dòng sân đóng băng lúc chốt buổi (0012). null = chưa chốt, rowCost tính live.
         cost: numN(r.cost),
@@ -357,7 +357,7 @@ export function toRows(db, ctx) {
       start_date: s.start, end_date: s.end || null, active: s.active !== false,
     })
     ;(s.rows || []).forEach((r) => put('schedule_slots', {
-      schedule_id: s.id, court_id: r.courtId, start_time: r.from, end_time: r.to,
+      schedule_id: s.id, court_id: r.courtId, court_label: r.label || null, start_time: r.from, end_time: r.to,
     }))
   })
 
@@ -371,6 +371,7 @@ export function toRows(db, ctx) {
     const mins = (db.courtMin || {})[s.id] || {}
     ;(s.courts || []).forEach((r, i) => put('session_courts', {
       session_id: s.id, court_id: r.courtId, court_index: i,
+      court_label: r.label || null,
       start_time: r.from, end_time: r.to, is_extra: !!r.extra, is_sold: !!r.sold,
       sold_amount: r.soldAmount || 0, sold_to: r.soldTo || null,
       default_minutes: mins[i] == null ? null : mins[i],
