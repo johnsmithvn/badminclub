@@ -1395,6 +1395,7 @@
     "winRate": "Tỷ lệ thắng",
     "recent10": "10 trận gần nhất",
     "recentSessionsBar": "Số trận tham gia {{n}} buổi gần nhất",
+    "sessionMatchesCount": "{{date}}: {{n}} trận",
     "bestPartner": "Partner hợp nhất",
     "toughestOpponent": "Đối thủ khó nhất",
     "mostFrequentOpp": "Gặp nhiều nhất",

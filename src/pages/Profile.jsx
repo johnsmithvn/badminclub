@@ -16,6 +16,7 @@ import { Avatar, Button, Card, Icon, Input, Select } from '#ds'
 import { Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { genderTxt, nextLevelStep, playerName } from '#lib/money.js'
 import { roleName } from '#lib/roles.js'
 import { getPlayerRating, rankTierOf, confidenceProgress, MIN_RATING } from '#lib/rating.js'
@@ -161,50 +162,35 @@ export default function Profile() {
     }
   }, [me, db])
 
+  const isMobile = useMobile(960)
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(330px,1fr))', gap: 16, alignItems: 'start' }}>
-      {/* 1. Bản ghi thành viên trong CLB này */}
-      <MeCard me={me} myGroups={myGroups} db={db} a={a} />
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'minmax(340px, 390px) minmax(0, 1fr)',
+      gap: 16,
+      alignItems: 'start',
+    }}>
+      {/* Cột trái: Hồ sơ cá nhân trong CLB, xin đổi thông tin và tài khoản */}
+      <div style={{ display: 'grid', gap: 16 }}>
+        <MeCard me={me} myGroups={myGroups} db={db} a={a} />
+        <ChangeCard me={me} pending={pending} db={db} a={a} />
+        <AccountCard myClubs={myClubs} setActiveClub={setActiveClub} db={db} navigate={navigate} />
+      </div>
 
-      {/* 2. Thẻ Thành tích & Elo */}
-      <MemberPerformanceCard me={me} stats={stats} />
-
-      {/* 3. Thẻ Đối đầu & Partner */}
-      <MemberH2HPartnerCard me={me} stats={stats} />
-
-      {/* 4. Thẻ Tiến trình & Cột mốc */}
-      <MemberContributionCard me={me} stats={stats} />
-
-      {/* 5. Xin đổi thông tin trong CLB — chủ CLB duyệt */}
-      <ChangeCard me={me} pending={pending} db={db} a={a} />
-
-      {/* 6. Hồ sơ tài khoản + danh sách CLB */}
-      <Card title={t('profile.accountTitle')} subtitle={t('profile.accountSub')} icon="building-2" padding="14px">
-        <div style={{ display: 'grid', gap: 10 }}>
-          <Button variant="secondary" icon="user-round-cog" onClick={() => navigate(PUBLIC_PATHS.account)}>
-            {t('profile.accountBtn')}
-          </Button>
-          <span style={S.caption}>{t('profile.accountNote')}</span>
-
-          {myClubs.length === 0
-            ? <Empty icon="building-2" title={t('profile.noClub')} hint={t('profile.noClubHint')} />
-            : myClubs.map((c) => {
-                const here = c.id === db.clubId
-                return (
-                  <button key={c.id} type="button" onClick={() => setActiveClub(c.id)} style={{
-                    ...S.clubRow, borderColor: here ? 'var(--navy-700)' : 'var(--border-subtle)',
-                  }}>
-                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                      <div style={S.label}>{c.name}</div>
-                      <Mono color="var(--text-muted)">{t('profile.clubMeta', { code: c.code, n: c.member_count })}</Mono>
-                    </div>
-                    <span style={S.rolePill}>{roleName(c.role)}</span>
-                    {here && <span style={{ font: 'var(--type-caption)', color: 'var(--status-delivered)' }}>{t('profile.viewing')}</span>}
-                  </button>
-                )
-              })}
+      {/* Cột phải: Phong độ Elo, Thống kê đối đầu và Tiến trình */}
+      <div style={{ display: 'grid', gap: 16 }}>
+        <MemberPerformanceCard me={me} stats={stats} />
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 16,
+          alignItems: 'start',
+        }}>
+          <MemberH2HPartnerCard me={me} stats={stats} />
+          <MemberContributionCard me={me} stats={stats} />
         </div>
-      </Card>
+      </div>
     </div>
   )
 }
@@ -315,7 +301,7 @@ function ChangeCard({ me, pending, db, a }) {
 
   return (
     <Card title={t('profile.changeTitle')} subtitle={t('profile.changeSub')} icon="settings-2" padding="16px 18px">
-      <div style={{ display: 'grid', gap: 13 }}>
+      <div style={{ display: 'grid', gap: 14 }}>
         {pending.length > 0 && (
           <div style={S.pendingBox}>
             {pending.map((c) => (
@@ -326,25 +312,34 @@ function ChangeCard({ me, pending, db, a }) {
           </div>
         )}
 
-        <div style={{ display: 'grid', gap: 6 }}>
-          <Select label={t('profile.changeLevel')} value={level} onChange={(e) => setLevel(e.target.value)}
-            options={[{ value: '', label: t('profile.changePick') }]
-              .concat((db.levels || []).map((l) => ({ value: l, label: l })))} />
-          <Button variant="secondary" size="sm" icon="send" disabled={!level}
-            onClick={() => { a.requestChange('level', level); setLevel('') }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Select label={t('profile.changeLevel')} value={level} onChange={(e) => setLevel(e.target.value)}
+              options={[{ value: '', label: t('profile.changePick') }]
+                .concat((db.levels || []).map((l) => ({ value: l, label: l })))} />
+          </div>
+          <Button variant="secondary" size="md" icon="send" disabled={!level}
+            onClick={() => { a.requestChange('level', level); setLevel('') }}
+            style={{ marginBottom: 1 }}>
             {t('profile.changeSend')}
           </Button>
         </div>
 
-        <div style={{ display: 'grid', gap: 6 }}>
-          <Input label={t('profile.changePhone')} mono value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <Button variant="secondary" size="sm" icon="send" disabled={!phone.trim()}
-            onClick={() => { a.requestChange('phone', phone); setPhone('') }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Input label={t('profile.changePhone')} mono value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <Button variant="secondary" size="md" icon="send" disabled={!phone.trim()}
+            onClick={() => { a.requestChange('phone', phone); setPhone('') }}
+            style={{ marginBottom: 1 }}>
             {t('profile.changeSend')}
           </Button>
         </div>
 
-        <span style={S.caption}>{t('profile.changeNote')}</span>
+        <div style={S.note}>
+          <Icon name="info" size={14} />
+          <span>{t('profile.changeNote')}</span>
+        </div>
       </div>
     </Card>
   )
@@ -363,22 +358,22 @@ function MemberPerformanceCard({ me, stats }) {
 
   return (
     <Card title={t('profile.performanceTitle')} subtitle={t('profile.performanceSub')} icon="trophy" padding="16px 18px">
-      <div style={{ display: 'grid', gap: 14 }}>
+      <div style={{ display: 'grid', gap: 16 }}>
         {/* Rating to & Rank Tier */}
         <div style={S.eloHeaderBox}>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
               {t('profile.eloRating')}
             </div>
-            <div style={{ font: '700 28px/1.1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>
+            <div style={{ font: '700 32px/1.1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>
               {stats.displayRating}
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
             <span style={{
               padding: '4px 10px',
               borderRadius: 6,
-              background: 'rgba(255,255,255,0.06)',
+              background: `${stats.tier.color}18`,
               border: `1px solid ${stats.tier.color}`,
               color: stats.tier.color,
               fontSize: 12,
@@ -397,22 +392,23 @@ function MemberPerformanceCard({ me, stats }) {
         </div>
 
         {/* Dải 10 trận gần nhất */}
-        <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: 'grid', gap: 8 }}>
           <Overline>{t('profile.recent10')}</Overline>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             {stats.recent10.map((res, i) => (
               <span
                 key={i}
                 style={{
-                  width: 26,
-                  height: 26,
+                  width: 28,
+                  height: 28,
                   borderRadius: 999,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: 700,
-                  background: res === 'W' ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)',
+                  fontFamily: '"IBM Plex Mono", monospace',
+                  background: res === 'W' ? 'rgba(18,168,103,.15)' : 'rgba(225,68,52,.15)',
                   color: res === 'W' ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-incident-fg, #FF9A8F)',
                   border: `1px solid ${res === 'W' ? 'var(--green-600, #00875A)' : 'rgba(225,68,52,.4)'}`,
                 }}
@@ -425,25 +421,56 @@ function MemberPerformanceCard({ me, stats }) {
 
         {/* Biểu đồ mini số trận 12 buổi gần nhất */}
         {stats.sessionBars.length > 0 && (
-          <div style={{ display: 'grid', gap: 6, paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'grid', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
             <Overline>{t('profile.recentSessionsBar', { n: stats.sessionBars.length })}</Overline>
             <div style={S.barChartWrap}>
               {stats.sessionBars.map((b, idx) => {
-                const heightPct = stats.maxSessionCount > 0 ? Math.max(8, Math.round((b.count / stats.maxSessionCount) * 100)) : 8
+                const heightPct = stats.maxSessionCount > 0 && b.count > 0
+                  ? Math.max(16, Math.round((b.count / stats.maxSessionCount) * 100))
+                  : 0
                 return (
-                  <div key={idx} style={S.barCol}>
-                    <div style={{ fontSize: 10, color: b.count > 0 ? 'var(--text-primary)' : 'var(--text-disabled)', fontFamily: '"IBM Plex Mono", monospace' }}>
+                  <div key={idx} style={S.barCol} title={t('profile.sessionMatchesCount', { date: b.date, n: b.count })}>
+                    <div style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      fontFamily: '"IBM Plex Mono", monospace',
+                      color: b.count > 0 ? 'var(--status-transit-fg, #5FDBD3)' : 'transparent',
+                      height: 14,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
                       {b.count > 0 ? b.count : ''}
                     </div>
-                    <div style={{ width: '100%', height: 46, display: 'flex', alignItems: 'flex-end' }}>
-                      <div style={{
-                        width: '100%',
-                        height: `${heightPct}%`,
-                        borderRadius: 3,
-                        background: b.count > 0 ? 'linear-gradient(180deg, var(--teal-500, #00B2A9), var(--teal-700, #00786F))' : 'rgba(255,255,255,0.06)',
-                      }} />
+                    <div style={S.barTrackWrap}>
+                      {b.count > 0 ? (
+                        <div style={{
+                          width: '100%',
+                          maxWidth: 22,
+                          height: `${heightPct}%`,
+                          borderRadius: '4px 4px 2px 2px',
+                          background: 'linear-gradient(180deg, var(--teal-400, #2DD4BF), var(--teal-600, #0D9488))',
+                          boxShadow: '0 2px 8px rgba(13,148,136,0.25)',
+                          transition: 'height 0.3s ease',
+                        }} />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          maxWidth: 22,
+                          height: 4,
+                          borderRadius: 2,
+                          background: 'var(--border-subtle)',
+                        }} />
+                      )}
                     </div>
-                    <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontFamily: '"IBM Plex Mono", monospace', whiteSpace: 'nowrap' }}>
+                    <div style={{
+                      fontSize: 10,
+                      fontFamily: '"IBM Plex Mono", monospace',
+                      color: b.count > 0 ? 'var(--text-primary)' : 'var(--text-muted)',
+                      fontWeight: b.count > 0 ? 600 : 400,
+                      whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                    }}>
                       {b.date}
                     </div>
                   </div>
@@ -452,6 +479,55 @@ function MemberPerformanceCard({ me, stats }) {
             </div>
           </div>
         )}
+      </div>
+    </Card>
+  )
+}
+
+/* ---------------- Hồ sơ tài khoản + danh sách CLB ---------------- */
+function AccountCard({ myClubs, setActiveClub, db, navigate }) {
+  return (
+    <Card title={t('profile.accountTitle')} subtitle={t('profile.accountSub')} icon="building-2" padding="16px 18px">
+      <div style={{ display: 'grid', gap: 12 }}>
+        <Button variant="secondary" icon="user-round-cog" onClick={() => navigate(PUBLIC_PATHS.account)}>
+          {t('profile.accountBtn')}
+        </Button>
+        <span style={S.caption}>{t('profile.accountNote')}</span>
+
+        <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
+          {myClubs.length === 0
+            ? <Empty icon="building-2" title={t('profile.noClub')} hint={t('profile.noClubHint')} />
+            : myClubs.map((c) => {
+                const here = c.id === db.clubId
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setActiveClub(c.id)}
+                    style={{
+                      ...S.clubRow,
+                      borderColor: here ? 'var(--navy-700)' : 'var(--border-subtle)',
+                      background: here ? 'var(--surface-brand-soft)' : 'var(--surface-card)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: 8 }}>
+                      <div style={{ ...S.label, fontWeight: here ? 700 : 600 }}>{c.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        <span style={S.rolePill}>{roleName(c.role)}</span>
+                        {here && (
+                          <span style={{ font: '600 11px/1 var(--font-sans)', color: 'var(--status-delivered-fg, var(--teal-700))' }}>
+                            {t('profile.viewing')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Mono color="var(--text-muted)">{t('profile.clubMeta', { code: c.code, n: c.member_count })}</Mono>
+                    </div>
+                  </button>
+                )
+              })}
+        </div>
       </div>
     </Card>
   )
@@ -643,8 +719,9 @@ const S = {
     background: 'var(--surface-accent-soft)', color: 'var(--teal-700)',
   },
   clubRow: {
-    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8,
-    border: '1px solid', background: 'var(--surface-card)', cursor: 'pointer', font: 'inherit',
+    display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: '12px 14px', borderRadius: 8,
+    border: '1px solid', background: 'var(--surface-card)', cursor: 'pointer', font: 'inherit', textAlign: 'left',
+    width: '100%', transition: 'border-color 0.15s ease, background 0.15s ease',
   },
   note: {
     display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 11px', borderRadius: 8,
@@ -660,8 +737,8 @@ const S = {
     alignItems: 'center',
     padding: '12px 14px',
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     flexWrap: 'wrap',
     gap: 10,
   },
@@ -669,18 +746,28 @@ const S = {
     display: 'flex',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: 6,
-    paddingTop: 8,
-    height: 76,
+    gap: 8,
+    padding: '12px 14px',
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     overflowX: 'auto',
   },
   barCol: {
-    flex: 1,
-    minWidth: 20,
+    flex: '1 1 0',
+    minWidth: 32,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 3,
+    gap: 6,
+  },
+  barTrackWrap: {
+    width: '100%',
+    height: 54,
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingBottom: 2,
   },
   h2hBox: {
     display: 'flex',
@@ -688,8 +775,8 @@ const S = {
     justifyContent: 'space-between',
     padding: '10px 12px',
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     gap: 8,
   },
   h2hIconWrap: {
@@ -713,9 +800,9 @@ const S = {
   progressBarTrack: {
     height: 6,
     borderRadius: 999,
-    background: 'var(--surface-inset, #101927)',
+    background: 'var(--surface-inset)',
     overflow: 'hidden',
-    border: '1px solid var(--border-subtle, #22304A)',
+    border: '1px solid var(--border-subtle)',
   },
   progressBarFill: {
     height: '100%',
