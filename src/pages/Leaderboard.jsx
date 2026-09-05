@@ -878,7 +878,7 @@ export default function Leaderboard() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ font: '700 16px/1.2 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
-                        {seasonStats.bountyPlayer?.name || 'An Nguyễn'}
+                        {seasonStats.bountyPlayer?.name || 'An Nguyễn'} {/* i18n-ok mock name */}
                       </span>
                       <span style={{
                         font: '600 10px/1 "IBM Plex Sans", sans-serif',

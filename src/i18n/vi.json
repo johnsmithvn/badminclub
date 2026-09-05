@@ -2072,7 +2072,11 @@
     "keepRated": "Vẫn tính Elo",
     "unreliableWarning": "Lệch trình — nhưng độ tin cậy thấp, đọc số này thận trọng",
     "confidenceLow": "Tin cậy kèo: thấp",
-    "gamesCountMeta": "{{n}} trận"
+    "gamesCountMeta": "{{n}} trận",
+    "bounty": "Treo thưởng",
+    "bountyTarget": "Đang bị treo thưởng",
+    "bountyStreak": "Thắng {{n}} trận liên tiếp",
+    "btnBounty": "Thách đấu ngay!"
   },
   "scoreModal": {
     "title": "Nhập kết quả · sân {{court}}",
