@@ -1,16 +1,63 @@
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import { Button, Icon, Input, Select } from '#ds'
-import { AvatarUpload, SearchSelect, DeleteClubDialog, QrModal } from '#ui'
+import { AvatarUpload, DeleteClubDialog, SearchSelect } from '#ui'
 import {
   FormRow,
   ToggleSwitch,
   Stepper,
   SettingsCard,
-  DangerZoneCard,
   LevelPillsManager,
+  DangerZoneCard,
 } from '#components/settings/SettingsComponents.jsx'
-import { banks, findBank, getVietQrUrl, parseVietQr, scanQrCodeFromImage } from '#utils/vietqr.js'
+import { scanQrCodeFromImage, parseVietQr, generateVietQrUrl } from '#lib/vietqr.js'
+import banks from '#config/banks.json' with { type: 'json' }
 import { t } from '#i18n'
+
+function QrModal({ title, qrUrl, bankName, accountNo, accountHolder, onClose }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        background: 'rgba(5, 15, 39, 0.4)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: 'var(--surface-card)',
+          borderRadius: 14,
+          padding: 24,
+          maxWidth: 400,
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16,
+          boxShadow: '0 20px 48px -24px rgba(13, 43, 94, 0.32)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{title}</div>
+        <img src={qrUrl} alt={title} style={{ width: 260, height: 260, objectFit: 'contain' }} />
+        <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-secondary)' }}>
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{bankName}</div>
+          <div style={{ fontFamily: 'var(--font-mono)', marginTop: 2 }}>{accountNo}</div>
+          <div style={{ fontWeight: 600, marginTop: 2 }}>{accountHolder}</div>
+        </div>
+        <Button variant="secondary" onClick={onClose}>
+          {t('common.close')}
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export default function GeneralTab({
   data,
@@ -20,29 +67,26 @@ export default function GeneralTab({
   activeClub,
   onClubDeleted,
 }) {
-  const [showQrModal, setShowQrModal] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanErr, setScanErr] = useState('')
-  const [copiedCode, setCopiedCode] = useState(false)
+  const [showQrModal, setShowQrModal] = useState(false)
   const [openDelete, setOpenDelete] = useState(false)
   const fileRef = useRef(null)
 
   const bank = data.bank || {}
-  const detectedBank = useMemo(() => findBank(bank.bank), [bank.bank])
-
   const autoVietQrUrl = useMemo(() => {
-    if (!bank.no) return ''
-    const bankCode = detectedBank ? detectedBank.bin : bank.bank
-    return getVietQrUrl({
-      bankCode,
+    if (!bank.no || !bank.bank) return ''
+    return generateVietQrUrl({
+      bankCode: bank.bank,
       accountNo: bank.no,
-      accountHolder: bank.holder,
+      accountName: bank.holder,
     })
-  }, [detectedBank, bank.bank, bank.no, bank.holder])
+  }, [bank.bank, bank.no, bank.holder])
 
   const handleCopyCode = () => {
     if (!data.code) return
-    navigator.clipboard?.writeText(data.code)
+    navigator.clipboard.writeText(data.code)
     setCopiedCode(true)
     setTimeout(() => setCopiedCode(false), 2000)
   }
@@ -86,7 +130,15 @@ export default function GeneralTab({
   }, [])
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20, alignItems: 'start' }}>
+    <div
+      className="settings-general-grid"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: 20,
+        alignItems: 'start',
+      }}
+    >
       {/* 1. Thông tin CLB */}
       <SettingsCard
         title={t('settings.clubTitle')}
@@ -109,7 +161,7 @@ export default function GeneralTab({
                 style={{
                   border: 'none',
                   background: 'transparent',
-                  color: '#c0392b',
+                  color: 'var(--red-600)',
                   fontSize: 12.5,
                   cursor: 'pointer',
                   padding: 0,
@@ -141,12 +193,12 @@ export default function GeneralTab({
               style={{
                 padding: '6px 12px',
                 borderRadius: 8,
-                background: '#f4f6f9',
-                border: '1px solid #d4dce7',
-                fontFamily: "'JetBrains Mono', monospace",
+                background: 'var(--surface-page)',
+                border: '1px solid var(--border-default)',
+                fontFamily: 'var(--font-mono)',
                 fontWeight: 600,
                 fontSize: 14,
-                color: '#10203c',
+                color: 'var(--text-primary)',
                 letterSpacing: '.1em',
               }}
             >
@@ -288,10 +340,10 @@ export default function GeneralTab({
                 style={{
                   width: 120,
                   height: 120,
-                  background: '#fff',
+                  background: 'var(--surface-card)',
                   borderRadius: 8,
                   padding: 4,
-                  border: '1px solid #d4dce7',
+                  border: '1px solid var(--border-default)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -326,15 +378,15 @@ export default function GeneralTab({
                 style={{
                   width: 120,
                   height: 120,
-                  background: '#f8fafc',
-                  border: '1px dashed #d4dce7',
+                  background: 'var(--surface-inset)',
+                  border: '1px dashed var(--border-default)',
                   borderRadius: 8,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 4,
-                  color: '#8b98ab',
+                  color: 'var(--text-muted)',
                 }}
               >
                 <Icon name="qr-code" size={32} />
@@ -361,7 +413,7 @@ export default function GeneralTab({
                   {scanning ? t('settings.qrScanning') : t('settings.qrScanBtn')}
                 </Button>
                 {scanErr && (
-                  <div style={{ fontSize: 11.5, color: '#c0392b', marginTop: 4 }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--red-600)', marginTop: 4 }}>
                     {scanErr}
                   </div>
                 )}

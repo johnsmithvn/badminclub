@@ -1,12 +1,12 @@
 // Cài đặt: Chung · Biểu phí · Sân & Cầu · Nhóm & mức thu · Lịch tập cố định · Tài khoản & quyền
 // Handoff 2c: "Giữ tab, siết ngữ pháp" — 6 tab, ngữ pháp hàng dữ liệu 170px, thanh lưu nổi batch ở đáy.
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Button, Icon } from '#ds'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { can } from '#lib/roles.js'
-import { intOf, levelOf } from '#lib/money.js'
+import { intOf } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -32,7 +32,7 @@ export default function Settings() {
   const pending = db.joinRequests || []
 
   // ----------------- Baseline & Draft State Management -----------------
-  const defGroup = db.groups[0] || {}
+  const defGroup = useMemo(() => db.groups?.[0] || {}, [db.groups])
 
   const [generalDraft, setGeneralDraft] = useState({
     name: db.club?.name || '',
@@ -70,48 +70,9 @@ export default function Settings() {
   const [isSaved, setIsSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
 
-  // Đồng bộ lại draft khi db thay đổi từ bên ngoài (nạp mới / đồng bộ)
-  useEffect(() => {
-    setGeneralDraft({
-      name: db.club?.name || '',
-      avatarUrl: db.club?.avatarUrl || '',
-      code: db.club?.code || '',
-      lockDay: db.club?.lockDay || cfg.club.defaultLockDay,
-      seeDebtEachOther: Boolean(db.club?.seeDebtEachOther),
-      seeFund: Boolean(db.club?.seeFund),
-      roundUnit: Boolean(db.club?.roundUnit),
-      debtBanner: db.club?.debtBanner || 'slim',
-      bank: {
-        holder: db.club?.bank?.holder || '',
-        no: db.club?.bank?.no || '',
-        bank: db.club?.bank?.bank || '',
-      },
-      levels: db.levels || cfg.levelsDefault,
-    })
-
-    const dg = db.groups[0] || {}
-    setMoneyDraft({
-      hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
-      feeNam: String(dg.feeNam || ''),
-      feeNu: String(dg.feeNu || ''),
-      hasRefund: dg.hasRefund !== false && dg.unitNam !== -1,
-      customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
-      unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
-      unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
-      guestPrices: db.guestPrices || [],
-    })
-
-    setCourtsDraft(db.courts || [])
-    setShuttleTypesDraft(db.shuttleTypes || [])
-    setGroupsDraft(db.groups || [])
-  }, [db])
-
   // ----------------- Tính toán danh sách thay đổi (Dirty Tracker) -----------------
-  const dirtyFields = useMemo(() => {
+  const dirtyGeneral = useMemo(() => {
     const list = []
-    if (!canEdit) return list
-
-    // General tab
     if (generalDraft.name !== (db.club?.name || '')) list.push(t('settings.fieldClubName'))
     if (generalDraft.avatarUrl !== (db.club?.avatarUrl || '')) list.push(t('settings.fieldAvatar'))
     if (String(generalDraft.lockDay) !== String(db.club?.lockDay || cfg.club.defaultLockDay)) list.push(t('settings.fieldLockDay'))
@@ -121,8 +82,11 @@ export default function Settings() {
     if (generalDraft.debtBanner !== (db.club?.debtBanner || 'slim')) list.push(t('settings.fieldDebtBanner'))
     if (JSON.stringify(generalDraft.bank) !== JSON.stringify(db.club?.bank || {})) list.push(t('settings.fieldBank'))
     if (JSON.stringify(generalDraft.levels) !== JSON.stringify(db.levels || [])) list.push(t('settings.fieldLevels'))
+    return list
+  }, [generalDraft, db.club, db.levels])
 
-    // Money tab
+  const dirtyMoney = useMemo(() => {
+    const list = []
     const curHasMonthlyFee = Boolean(intOf(defGroup.feeNam) > 0 || intOf(defGroup.feeNu) > 0)
     const curHasRefund = defGroup.hasRefund !== false && defGroup.unitNam !== -1
     const curCustomRefundUnit = Boolean(intOf(defGroup.unitNam) > 0 || intOf(defGroup.unitNu) > 0)
@@ -143,32 +107,71 @@ export default function Settings() {
     if (isFeeChanged) list.push(t('settings.fieldMonthlyFee'))
     if (isRefundChanged) list.push(t('settings.fieldRefund'))
     if (JSON.stringify(moneyDraft.guestPrices) !== JSON.stringify(db.guestPrices || [])) list.push(t('settings.fieldGuestPrices'))
-
-    // Courts & Shuttles tab
-    if (JSON.stringify(courtsDraft) !== JSON.stringify(db.courts || [])) list.push(t('settings.fieldCourts'))
-    if (JSON.stringify(shuttleTypesDraft) !== JSON.stringify(db.shuttleTypes || [])) list.push(t('settings.fieldShuttles'))
-
-    // Groups tab (quota và các field nhóm)
-    if (JSON.stringify(groupsDraft) !== JSON.stringify(db.groups || [])) list.push(t('settings.fieldGroups'))
-
     return list
-  }, [
-    canEdit, generalDraft, db.club, db.levels, defGroup.feeNam, defGroup.feeNu, defGroup.hasRefund,
-    defGroup.unitNam, defGroup.unitNu, moneyDraft, db.guestPrices, courtsDraft, db.courts,
-    shuttleTypesDraft, db.shuttleTypes, groupsDraft, db.groups,
-  ])
+  }, [moneyDraft, defGroup, db.guestPrices])
 
-  // Cảnh báo người dùng nếu rời trang khi còn thay đổi chưa lưu
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (dirtyFields.length > 0) {
-        e.preventDefault()
-        e.returnValue = ''
-      }
+  const dirtyCourts = useMemo(() => {
+    if (JSON.stringify(courtsDraft) !== JSON.stringify(db.courts || [])) return [t('settings.fieldCourts')]
+    return []
+  }, [courtsDraft, db.courts])
+
+  const dirtyShuttles = useMemo(() => {
+    if (JSON.stringify(shuttleTypesDraft) !== JSON.stringify(db.shuttleTypes || [])) return [t('settings.fieldShuttles')]
+    return []
+  }, [shuttleTypesDraft, db.shuttleTypes])
+
+  const dirtyGroups = useMemo(() => {
+    if (JSON.stringify(groupsDraft) !== JSON.stringify(db.groups || [])) return [t('settings.fieldGroups')]
+    return []
+  }, [groupsDraft, db.groups])
+
+  const dirtyFields = useMemo(() => {
+    if (!canEdit) return []
+    return [...dirtyGeneral, ...dirtyMoney, ...dirtyCourts, ...dirtyShuttles, ...dirtyGroups]
+  }, [canEdit, dirtyGeneral, dirtyMoney, dirtyCourts, dirtyShuttles, dirtyGroups])
+
+  // Tránh xoá trắng draft khi db đổi reference (Item 2)
+  const prevClubIdRef = useRef(db.club?.id)
+
+  const syncCleanDrafts = useCallback(() => {
+    // Chỉ reset draft nếu tab đó KHÔNG dirty
+    if (dirtyGeneral.length === 0) {
+      setGeneralDraft({
+        name: db.club?.name || '',
+        avatarUrl: db.club?.avatarUrl || '',
+        code: db.club?.code || '',
+        lockDay: db.club?.lockDay || cfg.club.defaultLockDay,
+        seeDebtEachOther: Boolean(db.club?.seeDebtEachOther),
+        seeFund: Boolean(db.club?.seeFund),
+        roundUnit: Boolean(db.club?.roundUnit),
+        debtBanner: db.club?.debtBanner || 'slim',
+        bank: {
+          holder: db.club?.bank?.holder || '',
+          no: db.club?.bank?.no || '',
+          bank: db.club?.bank?.bank || '',
+        },
+        levels: db.levels || cfg.levelsDefault,
+      })
     }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [dirtyFields.length])
+
+    if (dirtyMoney.length === 0) {
+      const dg = db.groups[0] || {}
+      setMoneyDraft({
+        hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
+        feeNam: String(dg.feeNam || ''),
+        feeNu: String(dg.feeNu || ''),
+        hasRefund: dg.hasRefund !== false && dg.unitNam !== -1,
+        customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
+        unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
+        unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
+        guestPrices: db.guestPrices || [],
+      })
+    }
+
+    if (dirtyCourts.length === 0) setCourtsDraft(db.courts || [])
+    if (dirtyShuttles.length === 0) setShuttleTypesDraft(db.shuttleTypes || [])
+    if (dirtyGroups.length === 0) setGroupsDraft(db.groups || [])
+  }, [db, dirtyGeneral.length, dirtyMoney.length, dirtyCourts.length, dirtyShuttles.length, dirtyGroups.length])
 
   // ----------------- Xử lý Hoàn tác & Lưu thay đổi -----------------
   const handleRevert = useCallback(() => {
@@ -189,7 +192,7 @@ export default function Settings() {
       levels: db.levels || cfg.levelsDefault,
     })
 
-    const dg = db.groups[0] || {}
+    const dg = db.groups?.[0] || {}
     setMoneyDraft({
       hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
       feeNam: String(dg.feeNam || ''),
@@ -205,13 +208,56 @@ export default function Settings() {
     setShuttleTypesDraft(db.shuttleTypes || [])
     setGroupsDraft(db.groups || [])
     setSaveError(null)
-  }, [db, defGroup])
+  }, [db])
+
+  useEffect(() => {
+    if (db.club?.id !== prevClubIdRef.current) {
+      prevClubIdRef.current = db.club?.id
+      // Đổi hẳn CLB: reset toàn bộ draft
+      handleRevert()
+      return
+    }
+    syncCleanDrafts()
+  }, [db.club?.id, syncCleanDrafts, handleRevert])
+
+  // Cảnh báo người dùng nếu rời trang khi còn thay đổi chưa lưu
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (dirtyFields.length > 0) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [dirtyFields.length])
 
   const handleSaveAll = async () => {
     if (!canEdit || dirtyFields.length === 0) return
     setIsSaving(true)
     setSaveError(null)
+
+    // Validate trước khi lưu
+    for (const g of groupsDraft) {
+      if (g.from && g.to && g.from >= g.to) {
+        setSaveError(t('settings.errGroupTime'))
+        setIsSaving(false)
+        return
+      }
+      const isDup = groupsDraft.some(
+        (x) => x.id !== g.id && (x.name || '').trim().toLowerCase() === (g.name || '').trim().toLowerCase()
+      )
+      if (isDup) {
+        setSaveError(t('settings.errGroupDupName'))
+        setIsSaving(false)
+        return
+      }
+    }
+
     try {
+      // Giả lập transition lưu mượt mà
+      await new Promise((resolve) => setTimeout(resolve, 250))
+
       // 1. Lưu General Tab
       if (generalDraft.name !== (db.club?.name || '')) a.setClub('name', generalDraft.name)
       if (generalDraft.avatarUrl !== (db.club?.avatarUrl || '')) a.setClub('avatarUrl', generalDraft.avatarUrl)
@@ -238,38 +284,28 @@ export default function Settings() {
       }
 
       // 2. Lưu Money Tab
-      const curHasMonthlyFee = Boolean(intOf(defGroup.feeNam) > 0 || intOf(defGroup.feeNu) > 0)
-      const curHasRefund = defGroup.hasRefund !== false && defGroup.unitNam !== -1
-      const curCustomRefundUnit = Boolean(intOf(defGroup.unitNam) > 0 || intOf(defGroup.unitNu) > 0)
+      const isFeeChanged = dirtyMoney.includes(t('settings.fieldMonthlyFee'))
+      const isRefundChanged = dirtyMoney.includes(t('settings.fieldRefund'))
+      const isGuestPricesChanged = dirtyMoney.includes(t('settings.fieldGuestPrices'))
 
-      const isFeeChanged =
-        moneyDraft.hasMonthlyFee !== curHasMonthlyFee ||
-        (moneyDraft.hasMonthlyFee &&
-          (moneyDraft.feeNam !== String(defGroup.feeNam || '') || moneyDraft.feeNu !== String(defGroup.feeNu || '')))
-
-      const isRefundChanged =
-        moneyDraft.hasRefund !== curHasRefund ||
-        (moneyDraft.hasRefund &&
-          (moneyDraft.customRefundUnit !== curCustomRefundUnit ||
-            (moneyDraft.customRefundUnit &&
-              (moneyDraft.unitNam !== String(defGroup.unitNam > 0 ? defGroup.unitNam : '') ||
-                moneyDraft.unitNu !== String(defGroup.unitNu > 0 ? defGroup.unitNu : '')))))
-
-      const isGuestPricesChanged = JSON.stringify(moneyDraft.guestPrices) !== JSON.stringify(db.guestPrices || [])
+      const newClubFeeNam = moneyDraft.hasMonthlyFee ? intOf(moneyDraft.feeNam) : 0
+      const newClubFeeNu = moneyDraft.hasMonthlyFee ? intOf(moneyDraft.feeNu) : 0
+      const newClubUnitNam = moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNam) : 0) : -1
+      const newClubUnitNu = moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNu) : 0) : -1
 
       if (isFeeChanged || isRefundChanged || isGuestPricesChanged) {
         a.saveMoneyTab({
-          feeNam: moneyDraft.hasMonthlyFee ? moneyDraft.feeNam : 0,
-          feeNu: moneyDraft.hasMonthlyFee ? moneyDraft.feeNu : 0,
+          feeNam: newClubFeeNam,
+          feeNu: newClubFeeNu,
           hasRefund: moneyDraft.hasRefund,
-          unitNam: moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? moneyDraft.unitNam : 0) : -1,
-          unitNu: moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? moneyDraft.unitNu : 0) : -1,
+          unitNam: newClubUnitNam,
+          unitNu: newClubUnitNu,
           guestPrices: moneyDraft.guestPrices,
         })
       }
 
       // 3. Lưu Courts
-      if (JSON.stringify(courtsDraft) !== JSON.stringify(db.courts || [])) {
+      if (dirtyCourts.length > 0) {
         courtsDraft.forEach((c) => {
           const orig = (db.courts || []).find((x) => x.id === c.id)
           if (!orig || JSON.stringify(c) !== JSON.stringify(orig)) {
@@ -283,7 +319,7 @@ export default function Settings() {
       }
 
       // 4. Lưu Shuttle Types
-      if (JSON.stringify(shuttleTypesDraft) !== JSON.stringify(db.shuttleTypes || [])) {
+      if (dirtyShuttles.length > 0) {
         shuttleTypesDraft.forEach((st) => {
           const orig = (db.shuttleTypes || []).find((x) => x.id === st.id)
           if (!orig || JSON.stringify(st) !== JSON.stringify(orig)) {
@@ -295,9 +331,26 @@ export default function Settings() {
         })
       }
 
-      // 5. Lưu Groups
-      if (JSON.stringify(groupsDraft) !== JSON.stringify(db.groups || [])) {
-        a.saveGroupsTab(groupsDraft)
+      // 5. Lưu Groups (Đồng bộ mức phí CLB cho các nhóm không có mức riêng để tránh bị nuốt)
+      if (dirtyGroups.length > 0 || isFeeChanged || isRefundChanged) {
+        const syncedGroups = groupsDraft.map((g, idx) => {
+          const isCustom =
+            idx !== 0 &&
+            (intOf(g.feeNam) !== intOf(defGroup.feeNam) ||
+              intOf(g.feeNu) !== intOf(defGroup.feeNu) ||
+              intOf(g.unitNam) !== intOf(defGroup.unitNam) ||
+              intOf(g.unitNu) !== intOf(defGroup.unitNu))
+
+          if (isCustom) return g
+          return {
+            ...g,
+            feeNam: newClubFeeNam,
+            feeNu: newClubFeeNu,
+            unitNam: newClubUnitNam,
+            unitNu: newClubUnitNu,
+          }
+        })
+        a.saveGroupsTab(syncedGroups)
       }
 
       setIsSaved(true)
@@ -314,6 +367,17 @@ export default function Settings() {
   // ----------------- Callbacks cho các tab con -----------------
   const handleGeneralChange = (key, val) => {
     setGeneralDraft((prev) => ({ ...prev, [key]: val }))
+    // Đồng bộ bậc mới vào guestPrices (Item 9)
+    if (key === 'levels' && Array.isArray(val)) {
+      setMoneyDraft((prev) => {
+        const currentPrices = prev.guestPrices || []
+        const updatedPrices = val.map((lv) => {
+          const existing = currentPrices.find((p) => p.level === lv)
+          return existing || { level: lv, nam: 0, nu: 0 }
+        })
+        return { ...prev, guestPrices: updatedPrices }
+      })
+    }
   }
 
   const handleMoneyChange = (key, val) => {
@@ -332,7 +396,7 @@ export default function Settings() {
         st.id === id
           ? {
               ...st,
-              [field]: field === 'perTube' ? Number(val) || 12 : field === 'pricePerTube' ? intOf(val) : val,
+              [field]: field === 'perTube' ? Math.min(24, Math.max(1, intOf(val) || 12)) : field === 'pricePerTube' ? intOf(val) : val,
             }
           : st
       )
@@ -346,14 +410,50 @@ export default function Settings() {
   }
 
   const handleGroupFieldChange = (groupId, field, val) => {
-    setGroupsDraft((prev) =>
-      prev.map((g) => (g.id === groupId ? { ...g, [field]: val } : g))
-    )
+    if (typeof field === 'object') {
+      setGroupsDraft((prev) => prev.map((g) => (g.id === groupId ? { ...g, ...field } : g)))
+    } else {
+      setGroupsDraft((prev) => prev.map((g) => (g.id === groupId ? { ...g, [field]: val } : g)))
+    }
   }
 
+  // Quét toàn diện usedLevels theo appActions:1614-1624 (Item 8)
   const usedLevels = useMemo(() => {
-    return Array.from(new Set((db.members || []).map((m) => levelOf(m, db.month)).filter(Boolean)))
-  }, [db.members, db.month])
+    const set = new Set()
+    ;(db.members || []).forEach((m) => {
+      if (m.level) set.add(m.level)
+      if (m.pendingLevel) set.add(m.pendingLevel)
+      ;(m.levelHistory || []).forEach((h) => {
+        if (h.level) set.add(h.level)
+      })
+    })
+    ;(db.guests || []).forEach((g) => {
+      if (g.level) set.add(g.level)
+    })
+    ;(db.sessionGuests || []).forEach((sg) => {
+      if (sg.level) set.add(sg.level)
+    })
+    return Array.from(set)
+  }, [db.members, db.guests, db.sessionGuests])
+
+  // Hỗ trợ điều hướng bằng phím mũi tên trên thanh tab (Item 15)
+  const handleTabKeyDown = (e, currentKey) => {
+    const idx = TABS.indexOf(currentKey)
+    if (idx < 0) return
+    let nextIdx = -1
+    if (e.key === 'ArrowRight') nextIdx = (idx + 1) % TABS.length
+    else if (e.key === 'ArrowLeft') nextIdx = (idx - 1 + TABS.length) % TABS.length
+    else if (e.key === 'Home') nextIdx = 0
+    else if (e.key === 'End') nextIdx = TABS.length - 1
+
+    if (nextIdx >= 0) {
+      e.preventDefault()
+      const nextKey = TABS[nextIdx]
+      a.setTab('settings', nextKey)
+      const el = document.getElementById(`tab-${nextKey}`)
+      if (el) el.focus()
+    }
+  }
 
   return (
     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -363,7 +463,12 @@ export default function Settings() {
           to { transform: translateY(0); opacity: 1; }
         }
         .hover-cell:hover {
-          background: #fbfcfe;
+          background: var(--surface-inset);
+        }
+        @media (min-width: 834px) and (max-width: 1279px) {
+          .settings-form-label {
+            width: 150px !important;
+          }
         }
         @media (max-width: 833px) {
           .settings-form-row:not(.settings-form-row--toggle) {
@@ -388,8 +493,8 @@ export default function Settings() {
       {/* HEADER 96px: Hàng 1 tiêu đề + Nhập/Xuất · Hàng 2: 6 tab */}
       <div
         style={{
-          background: '#fff',
-          borderBottom: '1px solid #e7ebf2',
+          background: 'var(--surface-card)',
+          borderBottom: '1px solid var(--border-subtle)',
           padding: '14px 28px 0',
           display: 'flex',
           flexDirection: 'column',
@@ -401,10 +506,10 @@ export default function Settings() {
         {/* Hàng 1: Tiêu đề trang + Xuất/Nhập cài đặt */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <h1 style={{ fontSize: 19, fontWeight: 700, color: '#10203c', letterSpacing: '-0.01em', margin: 0 }}>
+            <h1 style={{ fontSize: 19, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em', margin: 0 }}>
               {t('settings.appTitle')}
             </h1>
-            <span style={{ fontSize: 13, color: '#8b98ab' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
               {t('settings.appDesc')}
             </span>
           </div>
@@ -434,6 +539,7 @@ export default function Settings() {
         {/* Hàng 2: 6 Tab điều hướng duy nhất */}
         <div
           role="tablist"
+          aria-label={t('settings.appTitle')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -450,10 +556,14 @@ export default function Settings() {
             return (
               <button
                 key={k}
+                id={`tab-${k}`}
                 type="button"
                 role="tab"
+                tabIndex={isActive ? 0 : -1}
                 aria-selected={isActive}
+                aria-controls={`tabpanel-${k}`}
                 onClick={() => a.setTab('settings', k)}
+                onKeyDown={(e) => handleTabKeyDown(e, k)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -461,14 +571,14 @@ export default function Settings() {
                   padding: '8px 0 11px',
                   background: 'transparent',
                   border: 'none',
-                  borderBottom: isActive ? '2px solid #0d8b8a' : '2px solid transparent',
-                  color: isActive ? '#10203c' : '#6b7a90',
+                  borderBottom: isActive ? '2px solid var(--teal-600)' : '2px solid transparent',
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                   fontWeight: isActive ? 600 : 400,
                   fontSize: 13.5,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.18s ease',
-                  outline: 'none',
+                  outlineColor: 'var(--teal-500)',
                 }}
               >
                 <span>{t('settings.tab' + k[0].toUpperCase() + k.slice(1))}</span>
@@ -478,8 +588,8 @@ export default function Settings() {
                       minWidth: 18,
                       height: 18,
                       borderRadius: 6,
-                      background: count > 0 ? '#0d8b8a' : '#eef1f6',
-                      color: count > 0 ? '#fff' : '#8b98ab',
+                      background: count > 0 ? 'var(--teal-600)' : 'var(--surface-page)',
+                      color: count > 0 ? '#fff' : 'var(--text-muted)',
                       fontSize: 11,
                       fontWeight: 700,
                       display: 'inline-flex',
@@ -498,7 +608,12 @@ export default function Settings() {
       </div>
 
       {/* VÙNG NỘI DUNG 6 TAB */}
-      <div style={{ paddingBottom: dirtyFields.length > 0 ? 80 : 20 }}>
+      <div
+        role="tabpanel"
+        id={`tabpanel-${activeTab}`}
+        aria-labelledby={`tab-${activeTab}`}
+        style={{ paddingBottom: dirtyFields.length > 0 ? 80 : 20 }}
+      >
         {activeTab === 'general' && (
           <GeneralTab
             data={generalDraft}
@@ -519,6 +634,7 @@ export default function Settings() {
             canEdit={canEdit}
             levels={generalDraft.levels || db.levels || []}
             noGroup={db.groups.length === 0}
+            defGroup={defGroup}
           />
         )}
 
@@ -533,15 +649,6 @@ export default function Settings() {
             onShuttleTypeChange={handleShuttleTypeChange}
             onGroupQuotaChange={handleGroupQuotaChange}
             onOpenDialog={(name, param) => a.openDialog(name, param)}
-            onDeleteCourt={(id, name) => {
-              a.confirm({
-                title: t('settings.courtDelTitle', { name }),
-                message: t('settings.courtDelMsg', { name }),
-                tone: 'danger',
-                confirmText: t('common.delete'),
-                onConfirm: () => a.deleteCourt(id),
-              })
-            }}
             onDeleteShuttleType={(id, name) => {
               a.confirm({
                 title: t('settings.typeDelTitle', { name }),
@@ -560,6 +667,7 @@ export default function Settings() {
             courts={courtsDraft}
             db={db}
             canEdit={canEdit}
+            defGroup={defGroup}
             onGroupFieldChange={handleGroupFieldChange}
             onOpenDialog={(name, param) => a.openDialog(name, param)}
             onDeleteGroup={(id, name) => {
@@ -580,7 +688,15 @@ export default function Settings() {
             canEdit={canEdit}
             onOpenDialog={(name, param) => a.openDialog(name, param)}
             onToggleSchedule={(id) => a.toggleSchedule(id)}
-            onDeleteSchedule={(id) => a.deleteSchedule(id)}
+            onDeleteSchedule={(id, name, futureCount) => {
+              a.confirm({
+                title: t('schedules.delConfirmTitle', { name }),
+                message: t('schedules.delConfirmMsg', { n: futureCount }),
+                tone: 'danger',
+                confirmText: t('common.delete'),
+                onConfirm: () => a.deleteSchedule(id),
+              })
+            }}
           />
         )}
 

@@ -557,8 +557,8 @@ function NewShuttleTypeDialog() {
       width={520}
       onSubmit={() => a.addShuttleType({
         name: name.trim(),
-        perTube: Number(perTube) || 12,
-        pricePerTube: Number(price) || 0,
+        perTube: Math.min(24, Math.max(1, intOf(perTube) || 12)),
+        pricePerTube: intOf(price),
         active: true,
       })}
       submitLabel={t('common.add')}

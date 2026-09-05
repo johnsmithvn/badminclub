@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Icon, Button } from '#ds'
+import { Icon } from '#ds'
 import { t } from '#i18n'
+import cfg from '#config/app.json' with { type: 'json' }
 
 /**
  * Hàng dữ liệu chuẩn theo ngữ pháp handoff 2c:
  * - Nhãn cố định 170px (hoặc 130px)
  * - Điều khiển cao 38px (flex: 1)
- * - Chú thích 12px #8b98ab căn theo cột điều khiển (KHÔNG thụt theo nhãn)
- * - Kẻ 1px #f6f8fb giữa các hàng (hàng cuối không kẻ)
+ * - Chú thích 12px căn theo cột điều khiển (KHÔNG thụt theo nhãn)
+ * - Kẻ 1px giữa các hàng (hàng cuối không kẻ)
  */
 export function FormRow({
   label,
@@ -18,6 +19,7 @@ export function FormRow({
   isToggle = false,
   alignTop = false,
   last = false,
+  htmlFor,
   style = {},
 }) {
   const needsTopAlign = alignTop || Boolean(note) || Boolean(error)
@@ -31,26 +33,29 @@ export function FormRow({
           alignItems: 'flex-start',
           gap: 18,
           padding: '13px 0',
-          borderBottom: last ? 'none' : '1px solid #f6f8fb',
+          borderBottom: last ? 'none' : '1px solid var(--border-subtle)',
           ...style,
         }}
       >
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#2a3a54', lineHeight: 1.4 }}>
+          <label
+            htmlFor={htmlFor}
+            style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.4, cursor: htmlFor ? 'pointer' : 'default' }}
+          >
             {label}
-          </div>
+          </label>
           {note && !error && (
-            <div style={{ fontSize: 12, color: '#8b98ab', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               {note}
             </div>
           )}
           {error && (
-            <div style={{ fontSize: 12, color: '#c0392b', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: 'var(--red-600)', lineHeight: 1.5 }}>
               {error}
             </div>
           )}
         </div>
-        <div style={{ flex: 'none', marginTop: 2 }}>
+        <div style={{ flex: 'none', marginTop: 2, minHeight: 38, display: 'flex', alignItems: 'center' }}>
           {children}
         </div>
       </div>
@@ -65,25 +70,27 @@ export function FormRow({
         alignItems: needsTopAlign ? 'flex-start' : 'center',
         gap: 18,
         padding: '14px 0',
-        borderBottom: last ? 'none' : '1px solid #f6f8fb',
+        borderBottom: last ? 'none' : '1px solid var(--border-subtle)',
         ...style,
       }}
     >
-      <div
+      <label
+        htmlFor={htmlFor}
         className="settings-form-label"
         style={{
           width: labelWidth,
           flex: 'none',
           fontSize: 13,
           fontWeight: 600,
-          color: '#2a3a54',
+          color: 'var(--text-primary)',
           paddingTop: needsTopAlign ? 9 : 0,
           lineHeight: 1.4,
           wordBreak: 'break-word',
+          cursor: htmlFor ? 'pointer' : 'default',
         }}
       >
         {label}
-      </div>
+      </label>
       <div
         className="settings-form-control"
         style={{
@@ -94,16 +101,16 @@ export function FormRow({
           gap: 6,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 38 }}>
           {children}
         </div>
         {note && !error && (
-          <div style={{ fontSize: 12, color: '#8b98ab', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
             {note}
           </div>
         )}
         {error && (
-          <div style={{ fontSize: 12, color: '#c0392b', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: 'var(--red-600)', lineHeight: 1.5 }}>
             {error}
           </div>
         )}
@@ -114,8 +121,7 @@ export function FormRow({
 
 /**
  * Toggle Switch chuẩn:
- * - 40x23, thumb 19px, inset 2px
- * - Bật: #0d8b8a, Tắt: #d9dfe8
+ * - 40x23 (mobile 44x26), thumb 19px, inset 2px
  */
 export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ariaLabel }) {
   return (
@@ -128,15 +134,15 @@ export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ar
       id={id}
       onClick={() => !disabled && onChange && onChange(!checked)}
       style={{
-        width: 40,
-        height: 23,
+        width: 42,
+        height: 24,
         borderRadius: 999,
-        background: checked ? '#0d8b8a' : '#d9dfe8',
+        background: checked ? 'var(--teal-600)' : 'var(--border-default)',
         position: 'relative',
         cursor: disabled ? 'not-allowed' : 'pointer',
         border: 'none',
         padding: 0,
-        outline: 'none',
+        outlineColor: 'var(--teal-500)',
         transition: 'background 0.18s ease',
         flexShrink: 0,
         opacity: disabled ? 0.6 : 1,
@@ -146,12 +152,12 @@ export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ar
         style={{
           position: 'absolute',
           top: 2,
-          left: checked ? 19 : 2,
-          width: 19,
-          height: 19,
+          left: checked ? 20 : 2,
+          width: 20,
+          height: 20,
           borderRadius: '50%',
-          background: '#fff',
-          boxShadow: '0 1px 3px rgba(16, 32, 60, 0.28)',
+          background: 'var(--surface-card)',
+          boxShadow: '0 1px 3px rgba(13, 43, 94, 0.28)',
           transition: 'left 0.18s ease',
         }}
       />
@@ -161,8 +167,8 @@ export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ar
 
 /**
  * Stepper chuẩn handoff:
- * - width 150px, cao 36px
- * - Ô - (36px), ô số tabular-nums (cho phép nhập tay), ô + (36px)
+ * - width 150px, cao 38px
+ * - Ô - (38px), ô số tabular-nums (cho phép nhập tay), ô + (38px)
  */
 export function Stepper({
   value,
@@ -204,12 +210,12 @@ export function Stepper({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        border: '1px solid #d4dce7',
+        border: '1px solid var(--border-default)',
         borderRadius: 9,
         overflow: 'hidden',
         width,
-        height: 36,
-        background: disabled ? '#f6f8fb' : '#fff',
+        height: 38,
+        background: disabled ? 'var(--surface-inset)' : 'var(--surface-card)',
         opacity: disabled ? 0.6 : 1,
       }}
     >
@@ -218,17 +224,17 @@ export function Stepper({
         disabled={disabled || numVal <= min}
         onClick={handleDec}
         style={{
-          width: 36,
-          height: 36,
+          width: 38,
+          height: 38,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 16,
           fontWeight: 600,
-          color: '#6b7a90',
+          color: 'var(--text-secondary)',
           border: 'none',
           background: 'transparent',
-          borderRight: '1px solid #e7ebf2',
+          borderRight: '1px solid var(--border-subtle)',
           cursor: disabled || numVal <= min ? 'not-allowed' : 'pointer',
           padding: 0,
         }}
@@ -246,16 +252,16 @@ export function Stepper({
             textAlign: 'center',
             fontSize: 13.5,
             fontWeight: 600,
-            color: '#10203c',
+            color: 'var(--text-primary)',
             border: 'none',
-            outline: 'none',
+            outlineColor: 'var(--teal-500)',
             background: 'transparent',
             fontVariantNumeric: 'tabular-nums',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'var(--font-mono)',
           }}
         />
         {suffix && (
-          <span style={{ fontSize: 12, color: '#8b98ab', marginRight: 6 }}>{suffix}</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 6 }}>{suffix}</span>
         )}
       </div>
       <button
@@ -263,17 +269,17 @@ export function Stepper({
         disabled={disabled || numVal >= max}
         onClick={handleInc}
         style={{
-          width: 36,
-          height: 36,
+          width: 38,
+          height: 38,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 16,
           fontWeight: 600,
-          color: '#6b7a90',
+          color: 'var(--text-secondary)',
           border: 'none',
           background: 'transparent',
-          borderLeft: '1px solid #e7ebf2',
+          borderLeft: '1px solid var(--border-subtle)',
           cursor: disabled || numVal >= max ? 'not-allowed' : 'pointer',
           padding: 0,
         }}
@@ -286,8 +292,8 @@ export function Stepper({
 
 /**
  * Card bao bọc theo chuẩn handoff:
- * - Viền 1px #e4e9f1, radius 12px, background #fff
- * - Header 15px/700 #10203c + phụ đề 12.5px #8b98ab + action góc phải
+ * - Viền 1px, radius 12px, background var(--surface-card)
+ * - Header 15px/700 var(--text-primary) + phụ đề 12.5px var(--text-muted) + action góc phải
  */
 export function SettingsCard({
   title,
@@ -303,8 +309,8 @@ export function SettingsCard({
     <div
       className="settings-card"
       style={{
-        background: '#fff',
-        border: '1px solid #e4e9f1',
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 12,
         gridColumn: fullWidth ? '1 / -1' : undefined,
         overflow: 'hidden',
@@ -315,7 +321,7 @@ export function SettingsCard({
         <div
           style={{
             padding: '16px 20px',
-            borderBottom: '1px solid #f2f5f9',
+            borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'space-between',
@@ -326,14 +332,14 @@ export function SettingsCard({
             {icon && (
               <div
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
-                  background: '#f4f6f9',
+                  background: 'var(--surface-page)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#0d8b8a',
+                  color: 'var(--teal-600)',
                 }}
               >
                 <Icon name={icon} size={16} />
@@ -341,12 +347,12 @@ export function SettingsCard({
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {title && (
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#10203c', letterSpacing: '-0.01em' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                   {title}
                 </div>
               )}
               {subtitle && (
-                <div style={{ fontSize: 12.5, color: '#8b98ab', lineHeight: 1.4 }}>
+                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.4 }}>
                   {subtitle}
                 </div>
               )}
@@ -367,6 +373,7 @@ export function SettingsCard({
  * - Hiện khi có thay đổi chưa lưu
  * - Đếm số thay đổi theo field
  * - Nút Hoàn tác & Lưu thay đổi
+ * - Sử dụng transform + opacity để giữ mượt mà khi ẩn/hiện, không unmount đột ngột
  */
 export function FloatingSaveBar({
   dirtyCount = 0,
@@ -378,8 +385,6 @@ export function FloatingSaveBar({
   saveError = null,
 }) {
   const visible = dirtyCount > 0 || isSaving || isSaved
-
-  if (!visible) return null
 
   const namesSummary =
     fieldNames.length <= 2
@@ -398,16 +403,19 @@ export function FloatingSaveBar({
         right: 0,
         zIndex: 50,
         height: 68,
-        background: 'rgba(255, 255, 255, 0.95)',
+        background: 'var(--surface-card)',
         backdropFilter: 'blur(8px)',
-        borderTop: '1px solid #e0e6ee',
+        borderTop: '1px solid var(--border-subtle)',
         padding: '0 28px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 16,
-        animation: 'slideUpSaveBar 0.22s ease',
-        boxShadow: '0 -4px 20px rgba(16, 32, 60, 0.08)',
+        transform: visible ? 'translateY(0)' : 'translateY(100%)',
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? 'auto' : 'none',
+        transition: 'transform 0.22s ease, opacity 0.22s ease',
+        boxShadow: '0 -4px 20px rgba(13, 43, 94, 0.08)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -416,19 +424,19 @@ export function FloatingSaveBar({
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: isSaved ? '#0d8b8a' : isSaving ? '#6b7a90' : '#e8a33d',
+            background: isSaved ? 'var(--teal-600)' : isSaving ? 'var(--text-muted)' : 'var(--amber-500)',
             flexShrink: 0,
             transition: 'background 0.2s ease',
           }}
         />
-        <div style={{ fontSize: 13.5, color: '#42526b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {isSaved ? (
-            <span style={{ color: '#0a6f6d', fontWeight: 600 }}>{t('settings.allSaved')}</span>
+            <span style={{ color: 'var(--teal-700)', fontWeight: 600 }}>{t('settings.allSaved')}</span>
           ) : isSaving ? (
             <span>{t('settings.saving')}</span>
           ) : (
             <>
-              <strong style={{ color: '#10203c', fontWeight: 600 }}>{t('settings.dirtyCount', { count: dirtyCount })}</strong> {t('settings.dirtySummary')}
+              <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{t('settings.dirtyCount', { count: dirtyCount })}</strong> {t('settings.dirtySummary')}
               {namesSummary && <span> · {namesSummary}</span>}
             </>
           )}
@@ -437,7 +445,7 @@ export function FloatingSaveBar({
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {saveError && (
-          <span style={{ fontSize: 12, color: '#c0392b', marginRight: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--red-600)', marginRight: 6 }}>
             {saveError}
           </span>
         )}
@@ -450,7 +458,7 @@ export function FloatingSaveBar({
               border: 'none',
               fontSize: 13.5,
               fontWeight: 600,
-              color: '#6b7a90',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: '8px 12px',
               borderRadius: 8,
@@ -465,7 +473,7 @@ export function FloatingSaveBar({
           disabled={isSaving || isSaved}
           onClick={onSave}
           style={{
-            background: '#10203c',
+            background: 'var(--navy-700)',
             color: '#fff',
             height: 38,
             display: 'inline-flex',
@@ -490,6 +498,7 @@ export function FloatingSaveBar({
 
 /**
  * Ô sửa giá trị tại chỗ trong bảng (Inline Edit Cell)
+ * - Không set-state-in-effect để đảm bảo lint sạch
  */
 export function InlineTextCell({
   value,
@@ -502,12 +511,8 @@ export function InlineTextCell({
   placeholder = '—',
 }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
+  const [draft, setDraft] = useState('')
   const inputRef = useRef(null)
-
-  useEffect(() => {
-    setDraft(value)
-  }, [value])
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -515,6 +520,12 @@ export function InlineTextCell({
       inputRef.current.select()
     }
   }, [editing])
+
+  const startEditing = () => {
+    if (disabled) return
+    setDraft(value ?? '')
+    setEditing(true)
+  }
 
   const commit = () => {
     setEditing(false)
@@ -525,7 +536,6 @@ export function InlineTextCell({
 
   const cancel = () => {
     setEditing(false)
-    setDraft(value)
   }
 
   const handleKeyDown = (e) => {
@@ -545,65 +555,74 @@ export function InlineTextCell({
           onKeyDown={handleKeyDown}
           style={{
             height: 32,
-            border: '1.5px solid #0d8b8a',
+            border: '1.5px solid var(--teal-500)',
             borderRadius: 6,
             padding: '0 8px',
             fontSize: 13,
-            color: '#10203c',
+            width: type === 'number' ? 100 : '100%',
             textAlign: align,
-            width: '100%',
-            maxWidth: 160,
+            fontFamily: type === 'number' ? 'var(--font-mono)' : 'var(--font-sans)',
+            fontVariantNumeric: 'tabular-nums',
+            color: 'var(--text-primary)',
+            background: 'var(--surface-card)',
             outline: 'none',
-            fontVariantNumeric: type === 'number' || align === 'right' ? 'tabular-nums' : undefined,
-            fontFamily: type === 'number' || align === 'right' ? "'JetBrains Mono', monospace" : undefined,
-            background: '#fff',
           }}
         />
+        {suffix && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>{suffix}</span>}
       </div>
     )
   }
 
-  const displayVal = formatDisplay ? formatDisplay(value) : (value ? `${value}${suffix}` : placeholder)
+  const display = formatDisplay ? formatDisplay(value) : (value || placeholder)
 
   return (
     <div
-      onClick={() => !disabled && setEditing(true)}
+      onClick={startEditing}
+      role={disabled ? undefined : 'button'}
+      tabIndex={disabled ? undefined : 0}
+      onKeyDown={(e) => {
+        if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          startEditing()
+        }
+      }}
       title={disabled ? undefined : t('settings.clickToEdit')}
       style={{
-        padding: '6px 8px',
-        margin: '-6px -8px',
-        borderRadius: 6,
         cursor: disabled ? 'default' : 'pointer',
         textAlign: align,
-        fontSize: 13.5,
-        fontWeight: align === 'right' ? 600 : 400,
-        color: value ? '#10203c' : '#8b98ab',
-        fontVariantNumeric: align === 'right' ? 'tabular-nums' : undefined,
-        fontFamily: align === 'right' ? "'JetBrains Mono', monospace" : undefined,
+        fontSize: 13,
+        fontWeight: value ? 600 : 400,
+        color: value ? 'var(--text-primary)' : 'var(--text-muted)',
+        fontVariantNumeric: type === 'number' ? 'tabular-nums' : undefined,
+        fontFamily: type === 'number' ? 'var(--font-mono)' : 'var(--font-sans)',
+        padding: '6px 4px',
+        borderRadius: 6,
         transition: 'background 0.15s ease',
+        userSelect: 'none',
       }}
-      className={disabled ? '' : 'hover-cell'}
     >
-      {displayVal}
+      {display}
     </div>
   )
 }
 
 /**
- * Trình quản lý Thang trình độ dạng pill (mục 3.6):
- * - Pill có badge số thứ tự (1, 2, 3...)
- * - Kéo hoặc nút di chuyển thứ tự (yếu trước, mạnh dần)
- * - Nút thêm bậc & Dùng thang gợi ý
+ * Trình quản lý Thang trình độ dạng Pill (mục 3.6):
+ * - Kéo-thả (HTML5 Drag & Drop) hoặc dùng nút mũi tên ◀ ▶
+ * - Thêm bậc mới
+ * - Gợi ý thang chuẩn
+ * - Không cho xoá bậc đang có thành viên
  */
 export function LevelPillsManager({
   levels = [],
   onChange,
   disabled = false,
   usedLevels = [],
-  defaultLevels = ['Y', 'Y+', 'TB-', 'TB', 'TB+', 'K-', 'K', 'K+', 'G'],
+  defaultLevels = cfg.levelsDefault,
 }) {
   const [adding, setAdding] = useState(false)
   const [newLevelName, setNewLevelName] = useState('')
+  const [draggedIdx, setDraggedIdx] = useState(null)
 
   const handleMove = (index, direction) => {
     if (disabled) return
@@ -614,6 +633,15 @@ export function LevelPillsManager({
     updated[index] = updated[targetIdx]
     updated[targetIdx] = temp
     onChange && onChange(updated)
+  }
+
+  const handleDropReorder = (fromIdx, toIdx) => {
+    if (disabled || fromIdx === toIdx || fromIdx == null || toIdx == null) return
+    const updated = [...levels]
+    const [moved] = updated.splice(fromIdx, 1)
+    updated.splice(toIdx, 0, moved)
+    onChange && onChange(updated)
+    setDraggedIdx(null)
   }
 
   const handleDelete = (index) => {
@@ -650,25 +678,41 @@ export function LevelPillsManager({
           return (
             <div
               key={`${lv}_${idx}`}
+              draggable={!disabled}
+              onDragStart={(e) => {
+                setDraggedIdx(idx)
+                e.dataTransfer.setData('text/plain', String(idx))
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                const from = draggedIdx != null ? draggedIdx : Number(e.dataTransfer.getData('text/plain'))
+                handleDropReorder(from, idx)
+              }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                border: '1px solid #dde3ec',
-                background: '#f8fafc',
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--surface-inset)',
                 borderRadius: 8,
                 padding: '6px 10px',
                 fontSize: 13,
                 fontWeight: 600,
-                color: '#10203c',
+                color: 'var(--text-primary)',
+                cursor: disabled ? 'default' : 'grab',
+                userSelect: 'none',
               }}
             >
+              {!disabled && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'grab' }}>⠿</span>
+              )}
               <span
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: '#a9b4c4',
-                  background: '#eef1f6',
+                  color: 'var(--text-muted)',
+                  background: 'var(--surface-page)',
                   borderRadius: 4,
                   padding: '2px 5px',
                   fontVariantNumeric: 'tabular-nums',
@@ -684,7 +728,7 @@ export function LevelPillsManager({
                     <button
                       type="button"
                       onClick={() => handleMove(idx, -1)}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 2px', color: '#8b98ab', fontSize: 11 }}
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 2px', color: 'var(--text-muted)', fontSize: 11 }}
                       title={t('settings.levelMoveEarlier')}
                     >
                       ◀
@@ -694,7 +738,7 @@ export function LevelPillsManager({
                     <button
                       type="button"
                       onClick={() => handleMove(idx, 1)}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 2px', color: '#8b98ab', fontSize: 11 }}
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 2px', color: 'var(--text-muted)', fontSize: 11 }}
                       title={t('settings.levelMoveLater')}
                     >
                       ▶
@@ -704,7 +748,7 @@ export function LevelPillsManager({
                     <button
                       type="button"
                       onClick={() => handleDelete(idx)}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 2px', color: '#c0392b', fontSize: 13, marginLeft: 2 }}
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 2px', color: 'var(--red-600)', fontSize: 13, marginLeft: 2 }}
                       title={t('settings.levelDelete')}
                     >
                       ×
@@ -730,19 +774,21 @@ export function LevelPillsManager({
               }}
               style={{
                 height: 32,
-                border: '1.5px solid #0d8b8a',
+                border: '1.5px solid var(--teal-500)',
                 borderRadius: 8,
                 padding: '0 8px',
                 fontSize: 12.5,
                 width: 90,
                 outline: 'none',
+                color: 'var(--text-primary)',
+                background: 'var(--surface-card)',
               }}
             />
             <button
               type="button"
               onClick={handleAdd}
               style={{
-                background: '#0d8b8a',
+                background: 'var(--teal-600)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 6,
@@ -759,7 +805,7 @@ export function LevelPillsManager({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#8b98ab',
+                color: 'var(--text-muted)',
                 fontSize: 12,
                 cursor: 'pointer',
               }}
@@ -773,13 +819,13 @@ export function LevelPillsManager({
               type="button"
               onClick={() => setAdding(true)}
               style={{
-                border: '1px dashed #cdd6e2',
+                border: '1px dashed var(--border-default)',
                 borderRadius: 8,
                 padding: '6px 11px',
                 fontSize: 12.5,
                 fontWeight: 600,
-                color: '#0d8b8a',
-                background: '#fff',
+                color: 'var(--teal-600)',
+                background: 'var(--surface-card)',
                 cursor: 'pointer',
               }}
             >
@@ -790,7 +836,7 @@ export function LevelPillsManager({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ fontSize: 12, color: '#8b98ab' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           {t('settings.levelOrderNote')}
         </div>
         {!disabled && (
@@ -802,7 +848,7 @@ export function LevelPillsManager({
               background: 'transparent',
               fontSize: 12,
               fontWeight: 600,
-              color: '#0d8b8a',
+              color: 'var(--teal-600)',
               cursor: 'pointer',
               padding: 0,
               textDecoration: 'underline',
@@ -824,8 +870,8 @@ export function InfoBox({ title, children, style = {} }) {
   return (
     <div
       style={{
-        background: '#f2f7fc',
-        border: '1px solid #d8e6f2',
+        background: 'var(--surface-brand-soft)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 10,
         padding: '12px 14px',
         display: 'flex',
@@ -835,11 +881,11 @@ export function InfoBox({ title, children, style = {} }) {
       }}
     >
       {title && (
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#2a4a6b' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy-800)' }}>
           {title}
         </div>
       )}
-      <div style={{ fontSize: 12.5, color: '#4d6a88', lineHeight: 1.55 }}>
+      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
         {children}
       </div>
     </div>
@@ -854,8 +900,8 @@ export function DangerZoneCard({ title, desc, actionLabel, onAction }) {
   return (
     <div
       style={{
-        background: '#fff',
-        border: '1px solid #f0d7d4',
+        background: 'var(--surface-card)',
+        border: '1px solid var(--surface-danger-soft)',
         borderRadius: 10,
         overflow: 'hidden',
         gridColumn: '1 / -1',
@@ -864,10 +910,10 @@ export function DangerZoneCard({ title, desc, actionLabel, onAction }) {
       <div
         style={{
           padding: '12px 16px',
-          borderBottom: '1px solid #f9edeb',
+          borderBottom: '1px solid var(--surface-danger-soft)',
           fontSize: 13.5,
           fontWeight: 700,
-          color: '#a13228',
+          color: 'var(--red-600)',
         }}
       >
         {title || t('settings.delClubTitle')}
@@ -882,16 +928,16 @@ export function DangerZoneCard({ title, desc, actionLabel, onAction }) {
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ fontSize: 12.5, color: '#5c6b81', flex: 1, minWidth: 200 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', flex: 1, minWidth: 200 }}>
           {desc || t('settings.delClubDesc')}
         </div>
         <button
           type="button"
           onClick={onAction}
           style={{
-            background: '#c0392b',
+            background: 'var(--red-600)',
             color: '#fff',
-            height: 32,
+            height: 34,
             display: 'inline-flex',
             alignItems: 'center',
             padding: '0 14px',
@@ -931,22 +977,22 @@ export function EmptyState({ title, hint, icon = 'circle-check' }) {
           width: 32,
           height: 32,
           borderRadius: '50%',
-          border: '1.5px solid #cfd7e3',
+          border: '1.5px solid var(--border-default)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#0d8b8a',
+          color: 'var(--teal-600)',
           fontSize: 14,
           marginBottom: 2,
         }}
       >
         <Icon name={icon} size={18} />
       </div>
-      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#42526b' }}>
+      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-secondary)' }}>
         {title}
       </div>
       {hint && (
-        <div style={{ fontSize: 12.5, color: '#8b98ab', textAlign: 'center', maxWidth: 360, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 360, lineHeight: 1.5 }}>
           {hint}
         </div>
       )}
