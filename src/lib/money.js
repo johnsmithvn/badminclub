@@ -160,7 +160,7 @@ export function freezeCost(db, s) {
     courts: (s.courts || []).map((r) => ({ ...r, cost: rowCost(db, r) })),
   }
 }
-export const unfrozenCost = (s) => (s ? { costFrozenAt: null, courts: (s.courts || []).map((r) => ({ ...r, cost: null })) } : {})
+export const unfrozenCost = (s) => (s ? { courts: (s.courts || []).map((r) => ({ ...r, cost: null })) } : {})
 
 export function courtTxt(db, s) {
   const n = rows(s).length
@@ -206,8 +206,6 @@ export function advanceRows(db) {
     })
   }
   ;(db.courtBills || []).forEach((b) => add('court', b, b.amount, b.venue))
-  ;(db.purchases || []).forEach((p) => add('shuttle', p, p.total,
-    (db.shuttleTypes.find((x) => x.id === p.typeId) || { name: t('common.unknown') }).name))
   return out.sort((a, b) => (a.date < b.date ? -1 : 1))
 }
 
@@ -919,8 +917,7 @@ export function memberRefs(db, id) {
   any('guest', (db.sessionGuests || []).some((x) => x.invitedBy === id) ||
     (db.guests || []).some((x) => x.invitedBy === id))
   any('match', (db.matches || []).some((m) => (m.playerKeys || []).indexOf(id) >= 0))
-  any('payer', (db.courtBills || []).some((x) => x.payerId === id) ||
-    (db.purchases || []).some((x) => x.payerId === id))
+  any('payer', (db.courtBills || []).some((x) => x.payerId === id))
   any('change', (db.changes || []).some((x) => x.memberId === id))
   any('account', !!(db.members.find((m) => m.id === id) || {}).userId)
   return why
@@ -982,7 +979,7 @@ export function sessionRefs(db, sid) {
   any('guest', (db.sessionGuests || []).some((g) => g.sessionId === sid))
   any('match', (db.matches || []).some((m) => m.sessionId === sid))
   any('challenge', (db.challenges || []).some((c) => c.sessionId === sid))
-  any('closed', !!(db.sessions || []).find((s) => s.id === sid && (s.status === 'closed' || s.costFrozenAt)))
+  any('closed', !!(db.sessions || []).find((s) => s.id === sid && s.status === 'closed'))
   return why
 }
 

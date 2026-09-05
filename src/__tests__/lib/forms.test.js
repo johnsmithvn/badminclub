@@ -19,7 +19,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 const db = seed()
 /** CLB vừa tạo: không sân, không nhóm, không loại cầu, không thành viên. */
 const empty = {
-  ...db, courts: [], groups: [], shuttleTypes: [], members: [], guests: [],
+  ...db, courts: [], groups: [], members: [], guests: [],
   levels: cfg.levelsDefault,
 }
 

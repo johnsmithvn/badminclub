@@ -26,9 +26,9 @@ function club1Data() {
   ]
   const groups = [
     { id: 'G1', name: 'Cố định Chủ nhật', short: 'CN', weekday: 0, feeNam: 250000, feeNu: 200000,
-      from: '18:00', to: '20:00', courtIds: ['C1', 'C2'], quota: 34, active: true },
+      from: '18:00', to: '20:00', courtIds: ['C1', 'C2'], active: true },
     { id: 'G2', name: 'Cố định Thứ 6', short: 'T6', weekday: 5, feeNam: 250000, feeNu: 200000,
-      from: '20:00', to: '22:00', courtIds: ['C3'], quota: 23, active: true },
+      from: '20:00', to: '22:00', courtIds: ['C3'], active: true },
   ]
 
   const mk = (id, name, gender, level, groupIds, role) => ({
@@ -71,26 +71,22 @@ function club1Data() {
     gs('K11', 'Sự', 'nu', 'TBY', 'M1'), gs('K12', 'Linh', 'nu', 'Newbie', 'M5'),
   ]
 
-  const mkS = (id, date, groupId, status, used, mode) => {
+  const mkS = (id, date, groupId, status) => {
     const g = groups.find((x) => x.id === groupId)
-    const md = mode || 'tubes'
     const courtRows = g.courtIds.map((c) => ({
       courtId: c, from: g.from, to: g.to, sold: false, soldAmount: 0, soldTo: '', extra: false,
     }))
-    const qt = md === 'quota' ? g.quota : used
-    const tb = Math.floor(qt / 12)
     return {
-      id, date, groupId, status, shuttleUsed: qt, shuttleTypeId: 'S1', note: '',
-      shuttleMode: md, tubesOpened: tb, loose: qt - tb * 12, shuttleEst: md === 'quota',
+      id, date, groupId, status, note: '',
       courts: courtRows, scheduleId: groupId === 'G1' ? 'SC1' : 'SC2',
     }
   }
   const sessions = [
-    mkS('B1', '2026-08-02', 'G1', 'closed', 34), mkS('B2', '2026-08-07', 'G2', 'closed', 22),
-    mkS('B3', '2026-08-09', 'G1', 'closed', 36), mkS('B4', '2026-08-14', 'G2', 'closed', 24),
-    mkS('B5', '2026-08-16', 'G1', 'closed', 0, 'quota'), mkS('B6', '2026-08-21', 'G2', 'open', 0, 'quota'),
-    mkS('B7', '2026-08-23', 'G1', 'open', 0, 'quota'), mkS('B8', '2026-08-28', 'G2', 'draft', 0, 'quota'),
-    mkS('B9', '2026-08-30', 'G1', 'draft', 0, 'quota'),
+    mkS('B1', '2026-08-02', 'G1', 'closed'), mkS('B2', '2026-08-07', 'G2', 'closed'),
+    mkS('B3', '2026-08-09', 'G1', 'closed'), mkS('B4', '2026-08-14', 'G2', 'closed'),
+    mkS('B5', '2026-08-16', 'G1', 'closed'), mkS('B6', '2026-08-21', 'G2', 'open'),
+    mkS('B7', '2026-08-23', 'G1', 'open'), mkS('B8', '2026-08-28', 'G2', 'draft'),
+    mkS('B9', '2026-08-30', 'G1', 'draft'),
   ]
   // Buổi B3 bán một sân cho CLB khác — sân đó không tính vào chi phí buổi.
   sessions.forEach((s) => {
@@ -145,10 +141,6 @@ function club1Data() {
   return {
     courts, groups, members, guests, sessions, attendance, sessionGuests, dues,
     guestPrices: GUEST_PRICES.map((x) => ({ ...x })),
-    shuttleTypes: [
-      { id: 'S1', name: 'TC77', perTube: 12, pricePerTube: 320000, active: true },
-      { id: 'S2', name: 'Kumpoo K520', perTube: 12, pricePerTube: 280000, active: true },
-    ],
     schedules: [
       { id: 'SC1', name: 'Cố định Chủ nhật', groupId: 'G1', weekdays: [0],
         rows: [{ courtId: 'C1', from: '18:00', to: '20:00' }, { courtId: 'C2', from: '18:00', to: '20:00' }],
@@ -156,15 +148,6 @@ function club1Data() {
       { id: 'SC2', name: 'Cố định Thứ 6', groupId: 'G2', weekdays: [5],
         rows: [{ courtId: 'C3', from: '20:00', to: '22:00' }], start: '2026-05-01', end: '', active: true },
     ],
-    purchases: [
-      { id: 'P1', date: '2026-08-01', typeId: 'S1', tubes: 0, extra: 29, qty: 29, pricePerTube: 0, total: 0,
-        payer: 'Quỹ cũ', note: 'Bổ sung cầu dư tháng 7' },
-      { id: 'P2', date: '2026-08-06', typeId: 'S1', tubes: 10, extra: 0, qty: 120, pricePerTube: 320000, total: 3200000,
-        payer: 'Thúy', note: '' },
-      { id: 'P3', date: '2026-08-17', typeId: 'S1', tubes: 10, extra: 0, qty: 120, pricePerTube: 330000, total: 3300000,
-        payer: 'Thắng em', note: 'Đợt này 330k/ống' },
-    ],
-    stockChecks: [{ id: 'SK1', date: '2026-07-31', month: '2026-07', counted: 29, systemLeft: 29, diff: 0, spread: 0 }],
     courtBills: [
       { id: 'SB1', month: '2026-08', date: '2026-08-01', venue: 'Nhà TĐ Phú Khê', amount: 1920000,
         payer: 'Thúy · chuyển khoản', note: '4 buổi CN × 2 sân, trả trước' },
@@ -203,7 +186,7 @@ function club2Data() {
   const courts = [{ id: 'C1', name: 'Sân Yên Phong A', price: 130000, addr: '27 Lê Văn Lương', active: true }]
   const groups = [
     { id: 'G1', name: 'Cố định Thứ 4', short: 'T4', weekday: 3, feeNam: 200000, feeNu: 170000,
-      from: '19:00', to: '21:00', courtIds: ['C1'], quota: 20, active: true },
+      from: '19:00', to: '21:00', courtIds: ['C1'], active: true },
   ]
   const m2 = (id, name, gender, level, role, userId) => ({
     id, name, gender, level, groupIds: ['G1'], role,
@@ -216,16 +199,14 @@ function club2Data() {
     m2('M5', 'Tú', 'nam', 'TB-', 'member'), m2('M6', 'Bích', 'nu', 'Newbie', 'member'),
     m2('M7', 'Quyết', 'nam', 'TB-', 'treasurer'), m2('M8', 'Hà', 'nu', 'TBY', 'member'),
   ]
-  const mkS = (id, date, status, used) => ({
-    id, date, groupId: 'G1', status, shuttleUsed: used, shuttleTypeId: 'S1', note: '',
-    shuttleMode: used ? 'tubes' : 'quota', tubesOpened: Math.floor(used / 12),
-    loose: used - Math.floor(used / 12) * 12, shuttleEst: !used,
+  const mkS = (id, date, status) => ({
+    id, date, groupId: 'G1', status, note: '',
     courts: [{ courtId: 'C1', from: '19:00', to: '21:00', sold: false, soldAmount: 0, soldTo: '', extra: false }],
     scheduleId: 'SC1',
   })
   const sessions = [
-    mkS('B1', '2026-08-05', 'closed', 18), mkS('B2', '2026-08-12', 'closed', 20),
-    mkS('B3', '2026-08-19', 'open', 0), mkS('B4', '2026-08-26', 'draft', 0),
+    mkS('B1', '2026-08-05', 'closed'), mkS('B2', '2026-08-12', 'closed'),
+    mkS('B3', '2026-08-19', 'open'), mkS('B4', '2026-08-26', 'draft'),
   ]
   const attendance = { B1: {}, B2: {}, B3: {} }
   members.forEach((m) => {
@@ -243,16 +224,11 @@ function club2Data() {
   return {
     courts, groups, members, guests: [], sessions, attendance, sessionGuests: [], dues,
     guestPrices: GUEST_PRICES.map((x) => ({ ...x })),
-    shuttleTypes: [{ id: 'S1', name: 'TC77', perTube: 12, pricePerTube: 320000, active: true }],
     schedules: [
       { id: 'SC1', name: 'Cố định Thứ 4', groupId: 'G1', weekdays: [3],
         rows: [{ courtId: 'C1', from: '19:00', to: '21:00' }], start: '2026-08-01', end: '', active: true },
     ],
-    purchases: [
-      { id: 'P1', date: '2026-08-01', typeId: 'S1', tubes: 5, extra: 0, qty: 60, pricePerTube: 320000,
-        total: 1600000, payer: 'Huy', note: '' },
-    ],
-    stockChecks: [], courtBills: [], manual: [], adjustments: [], roster: {}, locked: {}, changes: [],
+    courtBills: [], manual: [], adjustments: [], roster: {}, locked: {}, changes: [],
     lineups: {}, matches: [], playing: {}, courtMin: {}, courtGroups: {}, groupMode: {},
     sessionId: 'B3',
     seq: { B: 4, SG: 0, D: dues.length, K: 0, M: members.length, P: 1, L: 0, SC: 1, SK: 0, MT: 0 },

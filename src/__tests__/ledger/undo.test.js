@@ -32,7 +32,6 @@ const db = {
     { id: 'CB2', payerId: 'M1', repaidAt: '' },           // ứng nhưng CLB chưa trả
     { id: 'CB3', payerId: '', repaidAt: '' },             // két tự trả
   ],
-  purchases: [{ id: 'PU1', payerId: 'M1', repaidAt: '2026-09-06' }],
   // Dòng ghi tay: id là uuid TRẦN. Cố tình cho một cái bắt đầu bằng "cb" và một cái "aj".
   manual: [
     { id: 'cb7f1e20-0000-4000-8000-000000000001', dir: 'out', amount: 1000 },
@@ -77,8 +76,7 @@ assert.equal(undoTarget(db, row('ajAJ3')), null,
 
 /* ---------- ứng tiền ---------- */
 
-assert.deepEqual(undoTarget(db, row('cbCB1')), { kind: 'advance', advKind: 'court', id: 'CB1' })
-assert.deepEqual(undoTarget(db, row('puPU1')), { kind: 'advance', advKind: 'shuttle', id: 'PU1' })
+assert.deepEqual(undoTarget(db, row('cbCB1')), { kind: 'advance', id: 'CB1' })
 assert.equal(undoTarget(db, row('cbCB2')), null,
   'CLB chưa trả lại người ứng thì chưa có dòng chi nào trong sổ — không có gì để hoàn')
 assert.equal(undoTarget(db, row('cbCB3')), null,

@@ -1,10 +1,17 @@
 # TASKS.md
 
-**Version:** v1.0.0 · **Updated:** 2026-09-02
+**Version:** v1.1.0 · **Updated:** 2026-09-05
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
 Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
+
+> **Lưu ý khi đọc lại (2026-09-05).** File này là NHẬT KÝ, giữ nguyên cả mục đã lỗi thời.
+> **Module Kho cầu và Tầng B (giá thành từng buổi) đã bị gỡ bỏ hoàn toàn**: `Shuttles.jsx`,
+> `costRow` · `costState` · `costDrift` · `shuttleUnit` · `quotaFor` · `checkPreview` · `checkDue`,
+> 4 bảng `shuttle_*` / `stock_checks`, và mọi cấu hình `app.json: shuttle.*`. Mọi mục dưới đây
+> nhắc tới chúng là chuyện ĐÃ XẢY RA, không phải mô tả hệ thống hiện tại — xem `FEATURES.md` §6
+> và `DATABASE.md` §3 để biết trạng thái hôm nay.
 
 ---
 
@@ -493,9 +500,8 @@ Hai việc dưới bắt được gần hết.
       Test + mutation-test 4 nhánh (`settle` · `paid` · chiều dấu · bỏ khoản ứng).
 - [x] **N5 / mục 8 · Tồn kho quy tiền** ở màn Sổ quỹ (`số quả còn × giá bình quân`) — user đang
       đọc quỹ **thấp hơn** thực tế vì quên số cầu trong tủ. StatCard cạnh "Số dư quỹ".
-- [ ] **Gộp 3 mức nhắc kiểm kho (`checkDue`: `never` · `stale` · `low`) còn một câu.** CLB này
-      không đếm cầu nên ba sắc thái nhắc chỉ là ba cách nói cùng một việc. Không đáng làm riêng —
-      nhặt lúc nào sửa `Shuttles.jsx` vì việc khác. Ghi 2026-08-24.
+- [~] ~~Gộp 3 mức nhắc kiểm kho (`checkDue`)~~ — **HUỶ 2026-09-05:** module Kho cầu đã gỡ bỏ
+      hoàn toàn, không còn `checkDue` lẫn `Shuttles.jsx`.
 
 ---
 

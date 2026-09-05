@@ -1,6 +1,6 @@
 // node src/__tests__/dates.test.js
 import assert from 'node:assert/strict'
-import { addMonth, dd, ddmy, genDates, hours, monthGrid, monthOf, monthShort, monthTxt, monthsBetween, wd, weekdayOf } from '#utils/dates.js'
+import { addMonth, dd, ddmy, genDates, hours, monthGrid, monthOf, monthShort, monthTxt, wd, weekdayOf } from '#utils/dates.js'
 
 /* nhãn ngày tháng */
 assert.equal(wd('2026-08-16'), 'CN')
@@ -47,12 +47,5 @@ assert.equal(inMonth[0].iso, '2026-08-01')
 assert.equal(inMonth[30].iso, '2026-08-31')
 // tháng 2 năm nhuận
 assert.equal(monthGrid('2028-02').flat().filter((d) => d.inMonth).length, 29)
-
-/* khoảng cách tháng — dùng để biết bao lâu rồi chưa kiểm kho */
-assert.equal(monthsBetween('2026-08', '2026-08'), 0)
-assert.equal(monthsBetween('2026-07', '2026-08'), 1)
-assert.equal(monthsBetween('2025-11', '2026-02'), 3, 'phải nhảy qua được mốc sang năm')
-assert.equal(monthsBetween('2026-08', '2026-07'), -1, 'b trước a thì âm')
-assert.equal(monthsBetween('2024-02', '2026-02'), 24)
 
 console.log('dates check: OK')

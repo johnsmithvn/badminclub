@@ -1239,8 +1239,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         dates.forEach((dt) => {
           if (exist[dt + '|' + sGroup]) return
           added.push({
-            id: uid(), date: dt, groupId: sGroup, status: 'draft', shuttleUsed: 0,
-            shuttleTypeId: null, note: '', shuttleMode: null, tubesOpened: 0, loose: 0, shuttleEst: false,
+            id: uid(), date: dt, groupId: sGroup, status: 'draft', note: '',
             courts: rows.map((r) => ({ ...r })), scheduleId: scId,
           })
         })
@@ -1316,9 +1315,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             // LUÔN 'ALL' (→ group_id NULL). Gán buổi đột xuất vào một ca cố định thì
             // `unitPrice` đếm nó vào số buổi của ca đó, đơn giá một buổi tụt xuống, và tiền
             // back cho người vắng của CẢ ca giảm theo — không ai sửa gì mà tiền vẫn đổi.
-            id: newId, date: f.aDate, groupId: 'ALL', status: 'open', shuttleUsed: 0,
-            shuttleTypeId: null,
-            note: t('adhoc.noteDefault'), shuttleMode: null, tubesOpened: 0, loose: 0, shuttleEst: false,
+            id: newId, date: f.aDate, groupId: 'ALL', status: 'open',
+            note: t('adhoc.noteDefault'),
             courts: (f.rows || []).map((r) => ({ ...r, sold: false, soldAmount: 0, soldTo: '', extra: false })),
             scheduleId: null,
           }]).sort((a, b) => (a.date < b.date ? -1 : 1)),
@@ -1412,17 +1410,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      * Đọc trạng thái TRƯỚC khi ghi — updater của React không chạy đồng bộ, đọc trong đó thì
      * toast báo ngược (đúng cái bug `toggleSchedule` đã dính một lần).
      */
-    repayAdvance: (kind, id) => {
-      const key = kind === 'court' ? 'courtBills' : 'purchases'
-      const cur = (db()[key] || []).find((x) => x.id === id)
+    repayAdvance: (id) => {
+      const cur = (db().courtBills || []).find((x) => x.id === id)
       if (!cur) return
       const on = !cur.repaidAt
-      up((d) => ({ [key]: d[key].map((x) => (x.id === id ? { ...x, repaidAt: on ? d.today : '' } : x)) }))
+      up((d) => ({ courtBills: d.courtBills.map((x) => (x.id === id ? { ...x, repaidAt: on ? d.today : '' } : x)) }))
       toast(t(on ? 'toast.advanceRepaid' : 'toast.advanceUndone'))
     },
-    deleteAdvance: (kind, id) => {
-      const key = kind === 'court' ? 'courtBills' : 'purchases'
-      up((d) => ({ [key]: (d[key] || []).filter((x) => x.id !== id) }))
+    deleteAdvance: (id) => {
+      up((d) => ({ courtBills: (d.courtBills || []).filter((x) => x.id !== id) }))
       toast(t('toast.debtDeleted'))
     },
 
@@ -2473,7 +2469,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       return toast(t('toast.guestUnpaid'))
     }
     if (tg.kind === 'adjust') return A.settleAdjust(tg.key)
-    return A.repayAdvance(tg.advKind, tg.id)
+    return A.repayAdvance(tg.id)
   }
 
   return A

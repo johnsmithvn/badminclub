@@ -27,9 +27,6 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
     courts: [
       { id: 'C1', name: 'Sân Nguyễn Tuân', addr: 'Số 9 NT', price: 120000, active: true },
     ],
-    shuttleTypes: [
-      { id: 'S1', name: 'Hải Yến Đỏ', perTube: 12, pricePerTube: 240000, active: true },
-    ],
   }
 
   const dbRef = { current: currentDb }
@@ -83,11 +80,8 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
     courts: [
       { name: 'Sân Nguyễn Xiển', addr: 'Hạ Đình', mapUrl: 'https://maps.app.goo.gl/xyz', price: 140000, active: true },
     ],
-    shuttleTypes: [
-      { name: 'Ba Sao', perTube: 12, pricePerTube: 220000, active: true },
-    ],
     groups: [
-      { name: 'Ca Chủ Nhật', short: 'CN', from: '08:00', to: '10:00', quota: 24, feeNam: 300000, feeNu: 260000 },
+      { name: 'Ca Chủ Nhật', short: 'CN', from: '08:00', to: '10:00', feeNam: 300000, feeNu: 260000 },
     ],
   }
 

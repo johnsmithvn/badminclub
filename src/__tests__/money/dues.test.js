@@ -34,7 +34,7 @@ const dbAdhoc = {
   ...db,
   sessions: db.sessions.concat([{
     id: 'ADHOC1', date: '2026-08-12', groupId: 'ALL', status: 'closed',
-    shuttleUsed: 0, shuttleTypeId: 'S1', note: '', courts: [], scheduleId: null,
+    note: '', courts: [], scheduleId: null,
   }]),
 }
 assert.equal(unitPrice(dbAdhoc, { gender: 'nam' }, g1, '2026-08').n, 5,

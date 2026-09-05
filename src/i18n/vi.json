@@ -256,7 +256,6 @@
       "courtSession": "{{courts}} · {{time}}",
       "sold": "{{courts}} · buổi {{date}}",
       "extra": "{{name}} đi thêm {{n}} buổi",
-      "shuttle": "{{type}} · {{tubes}} ống · {{qty}} quả",
       "back": "{{name}} · nghỉ {{n}} buổi",
       "duesPartial": "{{name}} · {{group}} · {{month}} (đóng thiếu, còn {{remain}})"
     },

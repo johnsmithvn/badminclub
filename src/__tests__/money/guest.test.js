@@ -45,8 +45,8 @@ assert.equal(guestPaidRev(db, 'buổi-không-có'), 0)
 // tiền sân + tiền cầu của mọi buổi lẻ, và không màn nào lộ ra chuyện đó.
 
 const adhoc = {
-  id: 'ADH1', date: '2026-08-12', groupId: 'ALL', status: 'open', shuttleUsed: 0,
-  shuttleTypeId: 'S1', note: '', courts: [], scheduleId: null,
+  id: 'ADH1', date: '2026-08-12', groupId: 'ALL', status: 'open',
+  note: '', courts: [], scheduleId: null,
 }
 const dbA = {
   ...db,

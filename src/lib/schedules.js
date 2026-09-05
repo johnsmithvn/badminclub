@@ -156,8 +156,7 @@ export function applyScheduleEdit(db, sched, form, plan, mkId) {
   const gid = plan.groupTo || sched.groupId
 
   const born = plan.add.map((date) => ({
-    id: mkId(), date, groupId: gid, status: 'draft', shuttleUsed: 0,
-    shuttleTypeId: null, note: '', shuttleMode: null, tubesOpened: 0, loose: 0, shuttleEst: false,
+    id: mkId(), date, groupId: gid, status: 'draft', note: '',
     courts: rows.map((r) => ({ ...r })), scheduleId: sched.id,
   }))
 

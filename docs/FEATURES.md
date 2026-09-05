@@ -9,14 +9,12 @@ Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố 
 
 ## 0. Ba nguyên tắc chi phối mọi màn hình
 
-1. **Không ai phải nhập thứ app tự suy ra được.** Không đếm cầu vẫn chốt được buổi (lấy định mức).
-   Không nhập giá khách (tự tính theo trình độ × giới tính). Không nhập tiền sân (giờ × giá sân).
+1. **Không ai phải nhập thứ app tự suy ra được.** Không nhập giá khách (tự tính theo trình độ ×
+   giới tính). Không nhập tiền sân (giờ × giá sân).
 2. **Mọi con số phải giải thích được nguồn gốc.** Con số nào cũng đi kèm một câu nói nó từ đâu ra:
-   *"Định mức Cố định Chủ nhật: 34 quả/buổi cho 2 sân"*.
-3. **Nói rõ con số nào là tiền, con số nào là tính toán.** Mỗi màn hình tiền thuộc đúng một
-   trong hai tầng (`DATABASE.md` §3): **Tầng A · sổ quỹ** là tiền đã đổi tay; **Tầng B · giá
-   thành buổi** chỉ để biết buổi tốn bao nhiêu, **không bao giờ** sinh dòng ở sổ quỹ. Chốt buổi
-   chỉ ghi sổ đúng ba thứ — sân bán được, sân thuê thêm, và tiền sân nếu CLB trả theo buổi.
+   *"250.000 ÷ 5 buổi của Cố định Chủ nhật"*.
+3. **Chỉ có MỘT tầng tiền: sổ quỹ** (`DATABASE.md` §3) — tiền đã đổi tay. Chốt buổi chỉ ghi sổ
+   đúng ba thứ: sân bán được, sân thuê thêm, và tiền sân nếu CLB trả theo buổi.
    Chia sân, số trận, bấm giờ **không bao giờ** ảnh hưởng tiền.
 
 ---
@@ -29,7 +27,7 @@ nhập liệu **bắt buộc** theo dây phụ thuộc:
 | Bước | Ở đâu | Vì sao phải trước |
 | --- | --- | --- |
 | 1. Sân | Cài đặt → Sân | Nhóm cố định phải chỉ ra đánh ở sân nào; tiền sân từng buổi tính từ giá giờ |
-| 2. Nhóm cố định | Cài đặt → Nhóm cố định | Quỹ tháng, định mức cầu và lịch tập đều tính theo nhóm |
+| 2. Nhóm cố định | Cài đặt → Nhóm cố định | Quỹ tháng và lịch tập đều tính theo nhóm |
 | 3. Thành viên | Thành viên → Thêm thành viên (hoặc Nhập CSV) | Không cần họ có tài khoản; ghép sau ở Cài đặt |
 | 4. Lịch tập cố định | Lịch tập cố định | Sinh sẵn buổi cho cả kỳ |
 | 5. Giá khách giao lưu | Cài đặt → Cách chia tiền | Mặc định 0 đ — không sửa thì thu khách ra 0 |
@@ -49,7 +47,7 @@ Buổi (open)  →  điểm danh · thêm khách giao lưu
       ↓  Chốt tiền buổi
 Buổi (closed)  →  vào sổ quỹ và mọi thống kê
       ↓  Cuối tháng
-Kiểm kho cầu  →  Back tiền người nghỉ / Thu đi thêm  →  Chốt danh sách tháng sau (ngày lock_day = 25)
+Back tiền người nghỉ / Thu đi thêm  →  Chốt danh sách tháng sau (ngày lock_day = 25)
 ```
 
 Trạng thái buổi: `draft` (Chưa mở) · `open` (Đã mở) · `closed` (Đã chốt) · `cancelled` (Đã hủy).
@@ -61,13 +59,12 @@ Buổi `cancelled` **không** tính tiền và **không** tính vào số buổi
 
 Hai tab: **Tổng quan** · **Báo cáo**.
 
-Tổng quan: 8 StatCard (số dư quỹ, công nợ khách, tồn kho cầu, tiến độ đóng quỹ, thu tháng,
-chi tháng, cầu bình quân/buổi, buổi đã chốt) · "Buổi tới" (mở điểm danh trước giờ chơi) ·
+Tổng quan: 6 StatCard (số dư quỹ, công nợ khách, tiến độ đóng quỹ, thu tháng, chi tháng,
+buổi đã chốt) · "Buổi tới" (mở điểm danh trước giờ chơi) ·
 "Tiến độ đóng quỹ tháng" (kèm chip từng người **chưa** đóng, bấm là đánh dấu đã đóng) ·
 "Đi nhiều nhất" top 7 · "Khách nợ nhiều nhất" 5 dòng · "Buổi gần nhất" (bảng, click mở buổi).
 
-Báo cáo: thu chi theo tháng (cột đôi) · tỷ lệ đi tập · khách theo trình độ ·
-**giá thành từng buổi** (9 cột, có cột "Quỹ bù" = chi phí − thu khách; dương là quỹ phải bù).
+Báo cáo: thu chi theo tháng (cột đôi) · tỷ lệ đi tập · khách theo trình độ.
 
 ## 3. Buổi tập (`/buoi-tap`) và Chi tiết buổi (`/buoi-tap/:id`)
 
@@ -90,30 +87,13 @@ Mỗi khách có công tắc *đã trả* / *ghi nợ*.
 
 **Sân của buổi** — hai luật hay bị nhầm:
 
-| Việc | Hệ quả tiền | Hệ quả cầu |
-| --- | --- | --- |
-| **Bán sân dư** cho CLB khác | sân đó **không** tính vào chi phí buổi; tiền bán ghi **thu** | định mức cầu **giảm** theo số sân CLB còn chơi |
-| **Thuê thêm sân** (`extra`) | ghi **chi riêng** ngoài hoá đơn tháng | không đổi mẫu số định mức |
+| Việc | Hệ quả tiền |
+| --- | --- |
+| **Bán sân dư** cho CLB khác | sân đó **không** tính vào tiền sân của buổi; tiền bán ghi **thu** |
+| **Thuê thêm sân** (`extra`) | ghi **chi riêng** ngoài hoá đơn tháng |
 
-**Giá thành buổi này** — card tổng hợp bốn ô: chi phí buổi · thu khách · quỹ đang gánh ·
-giá thành/người. **Không ô nào là giao dịch** — đây là Tầng B. Tiền sân đã trả theo hoá đơn
-tháng, tiền cầu đã trả khi nhập kho; hiện lại ở đây chỉ là phần chia cho riêng buổi này.
-Card phải nói thẳng điều đó, vì bốn ô tiền xếp thành hàng dưới chữ "Chốt" trông y hệt một hoá đơn.
-
-```
-quỹ đang gánh = chi phí buổi − thu khách        ← KHÔNG trừ tiền bán sân,
-                                                  courtNet đã loại sân bán rồi
-```
-
-Con số này phải **giống nhau** ở card chi tiết buổi và bảng "Giá thành từng buổi" ở Báo cáo —
-cùng gọi `money.js: costRow`, không màn nào tự viết lại công thức.
-
-**Ba cách vào số cầu**, cùng ra một con số:
-
-1. `quota` (mặc định, không ai phải đếm): `max(6, round(quota × sân_còn_chơi / sân_không_thuê_thêm))`,
-   cờ `shuttle_est = true` → chờ kiểm kho cuối tháng chỉnh lại.
-2. `tubes`: số ống mở × 12 + số quả lẻ.
-3. `exact`: nhập tay số quả.
+Chốt buổi **đóng băng tiền sân từng dòng** (`session_courts.cost`) để chủ sân tăng giá sau này
+không làm trôi số của buổi cũ. Ngoài ba dòng ở §0, chốt buổi không sinh giao dịch nào.
 
 Nút chốt buổi là hành động primary **duy nhất** của trang.
 
@@ -127,7 +107,7 @@ Nút chốt buổi là hành động primary **duy nhất** của trang.
 Chi tiết buổi tập được thiết kế lại thành thanh Tab Bar 3 tabs chuyển đổi mượt mà:
 
 ### Tab 1: Điểm danh & Tiền (`attend`)
-- Giữ nguyên 100% logic điểm danh (Có mặt / Vắng / Đi thêm) và các công thức tính chi phí, giá thành buổi tập (Tầng B), thu tiền khách giao lưu.
+- Giữ nguyên 100% logic điểm danh (Có mặt / Vắng / Đi thêm) và thu tiền khách giao lưu.
 - Đánh Vắng một người sẽ **tự động gỡ người đó khỏi bất kỳ ô sân nào đang ngồi** (Quy tắc Handoff).
 
 ### Tab 2: Chia sân (`courts`)
@@ -224,7 +204,7 @@ theo số buổi còn lại** tính từ hôm nay.
   - *Đăng ký cố định tháng sau* — trạng thái theo tháng: `fixed` / `off` / `pending`.
   - *Thay đổi thông tin* — **đổi trình độ áp dụng từ tháng sau**, **đổi SĐT áp dụng ngay**.
 
-## 6. Công nợ · Sổ quỹ · Kho cầu
+## 6. Công nợ · Sổ quỹ
 
 **Công nợ (`/cong-no`)** tổ chức thành các tab tinh gọn và chuyên nghiệp:
 1. **Thu / Hoàn theo buổi**:
@@ -238,7 +218,7 @@ theo số buổi còn lại** tính từ hôm nay.
    - Thu quỹ tháng trọn gói của hội viên cố định, lọc theo từng ca/nhóm.
    - Hỗ trợ cả 2 chế độ Bảng và Lưới thẻ, tìm kiếm thành viên/SĐT và sắp xếp theo số tiền còn thiếu/đã đóng.
 3. **Quỹ nợ (Thành viên ứng tiền)**:
-   - Theo dõi các khoản chi mà thành viên ứng tiền túi thay cho CLB (như mua cầu, trả tiền sân), hỗ trợ bấm hoàn trả khi quỹ hoàn tiền lại cho thành viên.
+   - Theo dõi các khoản hoá đơn sân mà thành viên ứng tiền túi thay cho CLB, hỗ trợ bấm hoàn trả khi quỹ hoàn tiền lại cho thành viên.
 
 **Đối chiếu buổi chạy hai chiều**, cùng một đơn giá, chỉ khác dấu:
 
@@ -254,20 +234,12 @@ không đọc cấu hình nhóm hiện tại — sửa quỹ nhóm giữa chừn
 **Sổ quỹ (`/so-quy`)** — Minh bạch dòng tiền phong trào CLB:
 - **Tab mặc định là Chi tiết thu chi**: Hiển thị rành mạch từng khoản tiền thực tế: Quỹ tháng của ai, Hoá đơn tiền sân trọn tháng, Tiền mua mấy ống cầu, Sân thuê thêm lẻ của buổi nào, Hoàn tiền vắng... Các khoản cùng ngày cùng loại được gom gọn gàng, bấm để bung ra xem chi tiết.
 - **Tab Tổng kết quỹ tháng**: Báo cáo tổng kết quỹ phong trào 2 cột cực kỳ trực quan:
-  - 4 Thẻ chỉ số: `Tổng tiền thu từ anh em` (+), `Tổng chi phí hoạt động` (-), `Chênh lệch thu - chi tháng` (Báo rõ Thặng dư hay Hụt quỹ), và `Số dư quỹ hiện tại` (kèm giá trị số cầu tồn trong kho).
+  - 4 Thẻ chỉ số: `Tổng tiền thu từ anh em` (+), `Tổng chi phí hoạt động` (-), `Chênh lệch thu - chi tháng` (Báo rõ Thặng dư hay Hụt quỹ), và `Số dư quỹ hiện tại`.
   - Bảng Cân đối 2 cột: Cột trái (Các khoản thu từ anh em) & Cột phải (Các khoản chi hoạt động).
 - **Tiền sân**: CLB thanh toán trọn gói 1 lần cả tháng theo Hoá đơn tiền sân. Khi buổi tập có phát sinh sân thuê thêm ngoài giờ (`extra: true`), hệ thống tự động ghi thêm 1 dòng Chi riêng cho sân đó vào sổ quỹ.
 
-**Kho cầu**: nhập mua (nhập **tổng tiền thực trả**, app tự ra đ/quả) · tiêu thụ theo buổi
-(dấu `~` = buổi đang lấy định mức) · **kiểm kho cuối tháng**: đếm thực tế, so tồn hệ thống,
-phần lệch **chia đều vào các buổi `closed` còn cờ `shuttle_est`** trong tháng, phần dư dồn vào
-buổi cuối để tổng khớp tuyệt đối.
-
-Ba luật của kiểm kho, sai một cái là hỏng số hai tháng:
-
-1. **Tháng chia lệch lấy từ ngày kiểm**, không phải tháng đang chọn ở header.
-2. **Chỉ sửa buổi còn cờ ước lượng.** Buổi đã đếm tay (`exact`) là số thật.
-3. **Không tạo giao dịch nào**, kể cả khi hụt kho — xem `DATABASE.md` §3.1.
+> **Module Kho cầu đã gỡ bỏ.** Không còn nhập kho, định mức, đếm ống, kiểm kho, tồn kho hay giá
+> bình quân. Tiền mua cầu ghi như mọi khoản chi khác: Sổ quỹ → *Ghi thu/chi* → hạng mục **Mua cầu**.
 
 ## 7. Hồ sơ · Cài đặt
 
@@ -292,7 +264,7 @@ trình độ áp dụng từ tháng sau.
 **Cài đặt** 6 tab: Chung · Biểu phí · **Sân & Cầu** · Nhóm & mức thu · Lịch tập cố định · **Tài khoản & quyền**.
 - **Tab Chung**: Sửa tên CLB, quỹ mở đầu, ngày khoá sổ, thang trình độ của CLB, sao lưu cấu hình CLB (`Settings Export / Import` dạng file JSON).
 - **Tab Biểu phí**: Mức quỹ cố định, tiền hoàn khi vắng, và bảng giá khách giao lưu dạng ma trận thẻ nhỏ gọn.
-- **Tab Sân & Cầu**: Quản lý danh sách sân (địa chỉ, link Google Maps, giá/giờ), bảng loại cầu (hỗ trợ thêm, sửa, xoá/ngừng dùng loại cầu an toàn) và định mức cầu mỗi ca/buổi dạng lưới ngang trực quan.
+- **Tab Sân**: Quản lý danh sách sân (địa chỉ, link Google Maps, giá/giờ).
 - **Tab Tài khoản & quyền**:
   - Mã CLB (`allow_code_join`): người mới nhập mã → yêu cầu chờ → chủ CLB **Ghép vào** bản ghi cũ / **Tạo thành viên mới** / **Từ chối**.
   - Trùng SĐT (`allow_phone_suggest`): so chỉ chữ số, gợi ý màu amber + nút Ghép. Không bao giờ tự ghép.

@@ -128,7 +128,7 @@ assert.equal(hard.length, 0,
 
 /* ---------- key GHÉP ĐỘNG: liệt kê tay vì regex trên không thấy được ---------- */
 // Đây là chỗ thiếu key mà không ai phát hiện: t('nav.' + p.key) thiếu một route thì sidebar
-// hiện thẳng chuỗi "nav.shuttles". Miền giá trị của từng họ key lấy từ config / hằng số thật,
+// hiện thẳng chuỗi "nav.fund". Miền giá trị của từng họ key lấy từ config / hằng số thật,
 // nên thêm route hay thêm chế độ xếp mới là test tự đòi key tương ứng.
 const cap = (s) => s[0].toUpperCase() + s.slice(1)
 const dyn = []
