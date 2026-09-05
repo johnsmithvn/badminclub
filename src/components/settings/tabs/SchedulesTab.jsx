@@ -46,8 +46,9 @@ export default function SchedulesTab({
           hint={t('schedules.emptyHint')}
         />
       ) : (
-        <div style={{ overflowX: 'auto', marginTop: 14 }}>
+        <div className="settings-table-scroll" style={{ overflowX: 'auto', marginTop: 14 }}>
           <div
+            className="settings-table-head"
             style={{
               display: 'grid',
               gridTemplateColumns: '1.2fr 1fr 1fr 1.6fr 1.5fr 90px 100px 140px',
@@ -83,6 +84,7 @@ export default function SchedulesTab({
             return (
               <div
                 key={r.id}
+                className="settings-table-row"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1.2fr 1fr 1fr 1.6fr 1.5fr 90px 100px 140px',
@@ -92,25 +94,25 @@ export default function SchedulesTab({
                   fontSize: 13,
                 }}
               >
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div data-label={t('settings.colScheduleName')} style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.name}
                 </div>
-                <div style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div data-label={t('settings.colScheduleGroup')} style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {grp.name}
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-primary)' }}>
+                <div data-label={t('settings.colScheduleWeekdays')} style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-primary)' }}>
                   {weekdaysText}
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                <div data-label={t('settings.colScheduleCourtsTime')} style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
                   {courtsText}
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                <div data-label={t('settings.colScheduleDateRange')} style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
                   {dateRange}
                 </div>
-                <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div data-label={t('settings.colScheduleGenerated')} style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {t('settings.sessionsCount', { count })}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div data-label={t('settings.colScheduleStatus')} style={{ display: 'flex', justifyContent: 'center' }}>
                   <span
                     style={{
                       font: '600 11px/1 var(--font-sans)',
@@ -125,7 +127,7 @@ export default function SchedulesTab({
                     {r.active ? t('settings.running') : t('settings.paused')}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
+                <div data-label="" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
                   {canEdit && (
                     <>
                       <button

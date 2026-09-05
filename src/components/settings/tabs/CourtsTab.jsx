@@ -55,8 +55,9 @@ export default function CourtsTab({
             hint={t('settings.noCourtHint')}
           />
         ) : (
-          <div style={{ overflowX: 'auto', marginTop: 14 }}>
+          <div className="settings-table-scroll" style={{ overflowX: 'auto', marginTop: 14 }}>
             <div
+              className="settings-table-head"
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1.4fr 1.6fr 1.3fr 140px 90px',
@@ -79,6 +80,7 @@ export default function CourtsTab({
             {courts.map((c) => (
               <div
                 key={c.id}
+                className="settings-table-row"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1.4fr 1.6fr 1.3fr 140px 90px',
@@ -88,7 +90,7 @@ export default function CourtsTab({
                   fontSize: 13.5,
                 }}
               >
-                <div>
+                <div data-label={t('settings.colCourtName')}>
                   <InlineTextCell
                     value={c.name}
                     disabled={!canEdit}
@@ -96,7 +98,7 @@ export default function CourtsTab({
                     onChange={(val) => onCourtChange(c.id, 'name', val)}
                   />
                 </div>
-                <div>
+                <div data-label={t('settings.colAddressCaps')}>
                   <InlineTextCell
                     value={c.addr || ''}
                     disabled={!canEdit}
@@ -104,7 +106,7 @@ export default function CourtsTab({
                     onChange={(val) => onCourtChange(c.id, 'addr', val)}
                   />
                 </div>
-                <div>
+                <div data-label={t('settings.colMapUrlCaps')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <InlineTextCell
@@ -134,7 +136,7 @@ export default function CourtsTab({
                     )}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div data-label={t('settings.colPricePerHour')} style={{ textAlign: 'right' }}>
                   <InlineTextCell
                     value={c.price}
                     type="number"
@@ -145,7 +147,7 @@ export default function CourtsTab({
                     onChange={(val) => onCourtChange(c.id, 'price', val)}
                   />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div data-label={t('settings.colActiveCaps')} style={{ display: 'flex', justifyContent: 'center' }}>
                   <ToggleSwitch
                     checked={c.active !== false}
                     disabled={!canEdit}
@@ -185,8 +187,9 @@ export default function CourtsTab({
             hint={t('settings.noTypeHint')}
           />
         ) : (
-          <div style={{ overflowX: 'auto', marginTop: 14 }}>
+          <div className="settings-table-scroll" style={{ overflowX: 'auto', marginTop: 14 }}>
             <div
+              className="settings-table-head"
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1.5fr 110px 140px 90px 70px',
@@ -209,6 +212,7 @@ export default function CourtsTab({
             {shuttleTypes.map((x) => (
               <div
                 key={x.id}
+                className="settings-table-row"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1.5fr 110px 140px 90px 70px',
@@ -218,7 +222,7 @@ export default function CourtsTab({
                   fontSize: 13.5,
                 }}
               >
-                <div>
+                <div data-label={t('settings.colShuttleType')}>
                   <InlineTextCell
                     value={x.name}
                     disabled={!canEdit}
@@ -226,7 +230,7 @@ export default function CourtsTab({
                     onChange={(val) => onShuttleTypeChange(x.id, 'name', val)}
                   />
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div data-label={t('settings.colPerTubeCaps')} style={{ textAlign: 'right' }}>
                   <InlineTextCell
                     value={x.perTube}
                     type="number"
@@ -236,7 +240,7 @@ export default function CourtsTab({
                     onChange={(val) => onShuttleTypeChange(x.id, 'perTube', val)}
                   />
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div data-label={t('settings.colRefPriceCaps')} style={{ textAlign: 'right' }}>
                   <InlineTextCell
                     value={x.pricePerTube}
                     type="number"
@@ -247,14 +251,14 @@ export default function CourtsTab({
                     onChange={(val) => onShuttleTypeChange(x.id, 'pricePerTube', val)}
                   />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div data-label={t('settings.colUseCaps')} style={{ display: 'flex', justifyContent: 'center' }}>
                   <ToggleSwitch
                     checked={x.active !== false}
                     disabled={!canEdit}
                     onChange={(checked) => onShuttleTypeChange(x.id, 'active', checked)}
                   />
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div data-label="" style={{ textAlign: 'right' }}>
                   {canEdit && (
                     <button
                       type="button"

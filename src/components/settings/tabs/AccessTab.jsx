@@ -370,8 +370,9 @@ export default function AccessTab({
         )}
 
         {/* Bảng thành viên */}
-        <div style={{ overflowX: 'auto', marginTop: 10 }}>
+        <div className="settings-table-scroll" style={{ overflowX: 'auto', marginTop: 10 }}>
           <div
+            className="settings-table-head"
             style={{
               display: 'grid',
               gridTemplateColumns: '1.4fr 1.2fr 1.3fr 130px 1.5fr',
@@ -400,6 +401,7 @@ export default function AccessTab({
               return (
                 <div
                   key={m.id}
+                  className="settings-table-row"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1.4fr 1.2fr 1.3fr 130px 1.5fr',
@@ -409,7 +411,7 @@ export default function AccessTab({
                     fontSize: 13,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <div data-label={t('settings.colMemberCaps')} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                     <Avatar name={m.name} size={30} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
@@ -417,11 +419,11 @@ export default function AccessTab({
                     </div>
                   </div>
 
-                  <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                  <div data-label={t('settings.colPhoneCaps')} style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
                     {m.phone || '—'}
                   </div>
 
-                  <div>
+                  <div data-label={t('settings.colAccountCaps')}>
                     {user ? (
                       <span
                         style={{
@@ -453,7 +455,7 @@ export default function AccessTab({
                     )}
                   </div>
 
-                  <div>
+                  <div data-label={t('settings.colRoleCaps')}>
                     <Select
                       size="sm"
                       value={m.role}
@@ -463,7 +465,7 @@ export default function AccessTab({
                     />
                   </div>
 
-                  <div>
+                  <div data-label={t('settings.colTodoCaps')}>
                     {canEdit && user && (
                       <button
                         type="button"

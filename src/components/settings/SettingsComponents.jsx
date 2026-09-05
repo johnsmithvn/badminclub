@@ -132,6 +132,7 @@ export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ar
       aria-label={ariaLabel}
       disabled={disabled}
       id={id}
+      className={`settings-toggle${checked ? ' settings-toggle--on' : ''}`}
       onClick={() => !disabled && onChange && onChange(!checked)}
       style={{
         width: 40,
@@ -149,6 +150,7 @@ export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ar
       }}
     >
       <div
+        className="settings-toggle__thumb"
         style={{
           position: 'absolute',
           top: 2,
@@ -207,6 +209,7 @@ export function Stepper({
 
   return (
     <div
+      className="settings-stepper"
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -223,6 +226,7 @@ export function Stepper({
         type="button"
         disabled={disabled || numVal <= min}
         onClick={handleDec}
+        className="settings-stepper__btn"
         style={{
           width: 38,
           height: 38,
@@ -244,6 +248,7 @@ export function Stepper({
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <input
           type="text"
+          className="settings-stepper__input"
           value={value ?? ''}
           disabled={disabled}
           onChange={handleInput}
@@ -268,6 +273,7 @@ export function Stepper({
         type="button"
         disabled={disabled || numVal >= max}
         onClick={handleInc}
+        className="settings-stepper__btn"
         style={{
           width: 38,
           height: 38,
@@ -419,7 +425,7 @@ export function FloatingSaveBar({
         boxShadow: '0 -4px 20px rgba(13, 43, 94, 0.08)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+      <div className="settings-save-status" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <div
           style={{
             width: 8,
@@ -438,13 +444,13 @@ export function FloatingSaveBar({
           ) : (
             <>
               <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{t('settings.dirtyCount', { count: dirtyCount })}</strong> {t('settings.dirtySummary')}
-              {namesSummary && <span> · {namesSummary}</span>}
+              {namesSummary && <span className="settings-save-names"> · {namesSummary}</span>}
             </>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+      <div className="settings-save-actions" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {saveError && (
           <span style={{ fontSize: 12, color: 'var(--text-danger)', marginRight: 6 }}>
             {saveError}
@@ -454,6 +460,7 @@ export function FloatingSaveBar({
           <button
             type="button"
             onClick={onRevert}
+            className="settings-save-revert"
             style={{
               background: 'transparent',
               border: 'none',
@@ -473,6 +480,7 @@ export function FloatingSaveBar({
           type="button"
           disabled={isSaving || isSaved}
           onClick={onSave}
+          className="settings-save-submit"
           style={{
             background: 'var(--action-primary-bg)',
             color: 'var(--action-primary-fg)',

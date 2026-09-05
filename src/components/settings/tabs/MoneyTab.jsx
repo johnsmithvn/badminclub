@@ -397,8 +397,9 @@ export default function MoneyTab({
           )}
 
           {/* Bảng giá 3 cột chuẩn */}
-          <div style={{ overflowX: 'auto' }}>
+          <div className="settings-table-scroll" style={{ overflowX: 'auto' }}>
             <div
+              className="settings-table-head"
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1.2fr 1fr 1fr',
@@ -421,6 +422,7 @@ export default function MoneyTab({
               return (
                 <div
                   key={p.level}
+                  className="settings-table-row"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1.2fr 1fr 1fr',
@@ -430,10 +432,10 @@ export default function MoneyTab({
                     fontSize: 13.5,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div data-label={t('settings.colLevelCaps')} style={{ display: 'flex', alignItems: 'center' }}>
                     <LevelChip level={p.level} levels={levels} />
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div data-label={t('settings.colMalePriceCaps')} style={{ textAlign: 'right' }}>
                     <InlineTextCell
                       value={p.nam}
                       type="number"
@@ -444,7 +446,7 @@ export default function MoneyTab({
                       onChange={(newVal) => setSinglePrice(p.level, 'nam', newVal)}
                     />
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div data-label={t('settings.colFemalePriceCaps')} style={{ textAlign: 'right' }}>
                     <InlineTextCell
                       value={p.nu}
                       type="number"
