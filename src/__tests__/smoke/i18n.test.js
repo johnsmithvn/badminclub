@@ -24,7 +24,7 @@ import { SCHEMA_GROUPS } from '#data/schema.js'
 // Miền giá trị của các họ key ghép động mà file nguồn không export ra được.
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
 // Đúng bộ mục sidebar trong Sidebar.jsx (KHÔNG phải toàn bộ route: 'session' không có ở sidebar).
-const NAV = ['home', 'calendar', 'sessions', 'assign', 'leaderboard', 'members',
+const NAV = ['home', 'calendar', 'sessions', 'leaderboard', 'members',
   'debts', 'fund', 'profile', 'settings']
 const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
@@ -158,6 +158,7 @@ WARN_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('home.warn.' + k 
 // `t(bienSo)` nên regex quét key ở trên không thấy.
 Object.values(BLOCK_KEYS).forEach(need)
 ;['groupFree', 'groupLocked', 'del', 'delBlocked'].forEach((k) => need('schedules.' + k))
+;[...Object.keys(cfg.rating?.crossGenderConfidence || {}), 'very_high'].forEach((k) => need('rating.confidence.' + k))
 
 assert.equal(dyn.length, 0, 'key i18n ghép động không tồn tại:\n  ' + dyn.join('\n  '))
 

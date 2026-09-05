@@ -1,314 +1,288 @@
-import { useState, useRef, useMemo } from 'react'
-import { Button, Card, Dialog, Icon, Input, Select, Switch } from '#ds'
-import { LevelChip, Mono, Overline } from '#ui'
+import { useState, useMemo, useCallback } from 'react'
+import { Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
+import { LevelChip, Mono, Empty } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { elapsedMin, useClock } from '#hooks/useClock.js'
-import { courtOf, playerName } from '#lib/money.js'
-import {
-  ASSIGN_MODES, activeCourtIdxs, courtSlotIds, firstEmptyCourtIdx,
-  sessionPlayers, slotIds,
-} from '#lib/assign.js'
+import { courtOf, playerName, genderTxt } from '#lib/money.js'
+import { sessionPlayers } from '#lib/assign.js'
 import {
   expectedScore, evalBalance, getPlayerRating,
-  computeClubCalibration, confidenceProgress,
+  rankTierOf, teamRating,
 } from '#lib/rating.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
-import ScoreModal from '#components/challenge/ScoreModal.jsx'
 
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
   const isMobile = useMobile(768)
-  const [scoringCourt, setScoringCourt] = useState(null)
-  const [selectedPoolKey, setSelectedPoolKey] = useState(null)
-  const dragKey = useRef(null)
 
-  // Clock hook để re-render định kỳ khi có sân đang bấm giờ
-  const anyPlaying = Object.values((db.playing || {})[s.id] || {}).some(Boolean)
-  useClock(anyPlaying)
+  // Mode: 'doubles' (2 vs 2) hoặc 'singles' (1 vs 1)
+  const [mode, setMode] = useState('doubles')
+  const maxPerTeam = mode === 'doubles' ? 2 : 1
 
-  const players = sessionPlayers(db, s)
-  const pmap = useMemo(() => {
+  // Đội A & Đội B (mảng id các đấu thủ)
+  const [teamA, setTeamA] = useState([])
+  const [teamB, setTeamB] = useState([])
+
+  // Cài đặt trận
+  const [courtIdx, setCourtIdx] = useState(0)
+  const [ratingEnabled, setRatingEnabled] = useState(true)
+  const [selectedChallengeId, setSelectedChallengeId] = useState(null)
+
+  // Tỷ số
+  const [scoreA, setScoreA] = useState(21)
+  const [scoreB, setScoreB] = useState(19)
+  const [isBo3, setIsBo3] = useState(false)
+  const [bo3Sets, setBo3Sets] = useState([
+    [21, 19],
+    [19, 21],
+    [21, 18],
+  ])
+
+  // Tìm kiếm người trong pool
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Danh sách người tham gia buổi (đã điểm danh có mặt hoặc khách)
+  const players = useMemo(() => sessionPlayers(db, s), [db, s])
+
+  // Map rating cho tất cả người trong pool
+  const ratingsMap = useMemo(() => {
     const map = {}
-    players.forEach((p) => { map[p.key] = p })
-    return map
-  }, [players])
-
-  const lineup = (db.lineups || {})[s.id] || {}
-  const placed = Object.values(lineup)
-  const groupMode = !!(db.groupMode || {})[s.id]
-  const courtGroups = useMemo(() => (db.courtGroups || {})[s.id] || {}, [db.courtGroups, s.id])
-  const idxs = activeCourtIdxs(s)
-
-  const membersMap = useMemo(() => {
-    const map = {}
-    ;(db.members || []).forEach((m) => { map[m.id] = m })
-    return map
-  }, [db.members])
-
-  const [applyCalibration, setApplyCalibration] = useState(true)
-
-  const calList = useMemo(() => {
-    return computeClubCalibration(db.matches || [], membersMap)
-  }, [db.matches, membersMap])
-
-  const cal100_300 = useMemo(() => {
-    return calList.find((c) => c.bucket === '100-300') || calList[0]
-  }, [calList])
-
-  // Lấy rating thô và hiệu dụng của từng người
-  const getPlayerInfo = (key) => {
-    const pr = getPlayerRating(db.playerRatings, key)
-    const mem = membersMap[key] || pmap[key] || {}
-    const conf = confidenceProgress(pr.gamesCount || 0)
-    const isFemale = mem.gender === 'nu' || mem.gender === 'Nữ' // i18n-ok: data matching
-    const adj = (applyCalibration && isFemale && cal100_300?.learnedAdjustment) ? cal100_300.learnedAdjustment : 0
-    return {
-      rawRating: pr.rating,
-      effRating: pr.rating + adj,
-      hasAdjustment: adj !== 0,
-      adj,
-      confLevel: conf.level,
-      gamesCount: pr.gamesCount || 0,
-      isFemale,
-      gender: mem.gender,
-    }
-  }
-
-
-  // Danh sách chờ (Pool): những người ĐÃ ĐIỂM DANH CÓ MẶT hoặc EXTRA mà chưa lên sân
-  const pool = useMemo(() => {
-    const att = db.attendance[s.id] || {}
-    // Người có mặt hoặc extra
-    const presentPlayers = players.filter((p) => {
-      // p.key có thể là member id hoặc guest:id
-      if (p.guest) return true // khách trong buổi cũng được tính nếu đã thêm
-      return att[p.key] === true || att[p.key] === 'extra'
+    players.forEach((p) => {
+      map[p.key] = getPlayerRating(db.playerRatings, p.key).rating
     })
-    return groupMode
-      ? presentPlayers.filter((p) => courtGroups[p.key] === undefined)
-      : presentPlayers.filter((p) => placed.indexOf(p.key) < 0)
-  }, [players, db.attendance, s.id, groupMode, courtGroups, placed])
+    return map
+  }, [players, db.playerRatings])
 
-  // Kèo đã nhận, đang chờ sân
+  // Danh sách các trận đã đấu trong buổi này
+  const sessionMatches = useMemo(() => {
+    return (db.matches || [])
+      .filter((m) => m.sessionId === s.id)
+      .slice()
+      .sort((m1, m2) => (m2.at || 0) - (m1.at || 0))
+  }, [db.matches, s.id])
+
+  // Đếm số trận đã chơi trong buổi hôm nay cho từng người
+  const matchCountMap = useMemo(() => {
+    const counts = {}
+    sessionMatches.forEach((m) => {
+      const keys = m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
+      keys.forEach((k) => {
+        counts[k] = (counts[k] || 0) + 1
+      })
+    })
+    return counts
+  }, [sessionMatches])
+
+  // Danh sách các sân còn hoạt động trong buổi
+  const courtOptions = useMemo(() => {
+    const list = (s.courts || []).filter((c) => !c.sold)
+    if (!list.length) return [{ value: 0, label: t('session.courtNum', { n: 1 }) }]
+    return list.map((c, i) => ({
+      value: i,
+      label: c.label
+        ? `${c.label} · ${courtOf(db, c.courtId).name}`
+        : `${t('session.courtNum', { n: i + 1 })} · ${courtOf(db, c.courtId).name}`,
+    }))
+  }, [s.courts, db])
+
+  // Kèo đã nhận trong buổi (chưa kết thúc)
   const acceptedChallenges = useMemo(() => {
     return (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'accepted')
   }, [db.challenges, s.id])
 
-  // Thao tác Drag & Drop
-  const drop = (e, fn) => {
-    e.preventDefault()
-    let k = dragKey.current
-    try { k = e.dataTransfer.getData('text/plain') || k } catch { /* Safari */ }
-    if (k) fn(k)
+  // Đổi mode đơn/đôi
+  const handleSwitchMode = (newMode) => {
+    setMode(newMode)
+    const newMax = newMode === 'doubles' ? 2 : 1
+    if (teamA.length > newMax) setTeamA(teamA.slice(0, newMax))
+    if (teamB.length > newMax) setTeamB(teamB.slice(0, newMax))
   }
 
-  const dragProps = (key) => ({
-    draggable: true,
-    onDragStart: (e) => {
-      dragKey.current = key
-      try {
-        e.dataTransfer.setData('text/plain', key)
-        e.dataTransfer.effectAllowed = 'move'
-      } catch { /* ignore */ }
-    },
-  })
+  // Chạm vào người trong danh sách chờ: tự xếp vào slot trống hoặc gỡ ra nếu đã có tên
+  const handleTogglePlayer = useCallback((key) => {
+    if (teamA.includes(key)) {
+      setTeamA((prev) => prev.filter((k) => k !== key))
+      return
+    }
+    if (teamB.includes(key)) {
+      setTeamB((prev) => prev.filter((k) => k !== key))
+      return
+    }
+    if (teamA.length < maxPerTeam) {
+      setTeamA((prev) => [...prev, key])
+    } else if (teamB.length < maxPerTeam) {
+      setTeamB((prev) => [...prev, key])
+    } else {
+      a.toast(t('quickMatch.errFullSlots', { req: maxPerTeam }))
+    }
+  }, [teamA, teamB, maxPerTeam, a])
 
-  // Đưa kèo lên sân trống
-  const handleDeployChallenge = (challenge) => {
-    // Tìm sân đầu tiên hoàn toàn trống
-    const emptyCourtIdx = firstEmptyCourtIdx(lineup, s)
+  // Tự động xếp những người đánh ít nhất vào các slot trống
+  const handleAutoPickFewest = () => {
+    const unselected = players.filter((p) => !teamA.includes(p.key) && !teamB.includes(p.key))
+    unselected.sort((p1, p2) => (matchCountMap[p1.key] || 0) - (matchCountMap[p2.key] || 0))
 
-    if (emptyCourtIdx === undefined) {
-      a.toast(t('challenge.noEmptyCourt'))
+    const needed = (maxPerTeam * 2) - (teamA.length + teamB.length)
+    if (needed <= 0) return
+
+    const picked = unselected.slice(0, needed).map((p) => p.key)
+    let pIdx = 0
+    const nextA = [...teamA]
+    while (nextA.length < maxPerTeam && pIdx < picked.length) {
+      nextA.push(picked[pIdx++])
+    }
+    const nextB = [...teamB]
+    while (nextB.length < maxPerTeam && pIdx < picked.length) {
+      nextB.push(picked[pIdx++])
+    }
+    setTeamA(nextA)
+    setTeamB(nextB)
+  }
+
+  // Đổi vị trí hai đội A và B
+  const handleSwapTeams = () => {
+    const tempA = teamA
+    setTeamA(teamB)
+    setTeamB(tempA)
+  }
+
+  // Xoá trắng 2 đội
+  const handleClearAll = () => {
+    setTeamA([])
+    setTeamB([])
+    setSelectedChallengeId(null)
+  }
+
+  // Nạp kèo đã nhận vào form
+  const handleLoadChallenge = (c) => {
+    const isDbl = (c.teamA || []).length > 1 || (c.teamB || []).length > 1
+    const targetMode = isDbl ? 'doubles' : 'singles'
+    setMode(targetMode)
+    setTeamA(c.teamA || [])
+    setTeamB(c.teamB || [])
+    setSelectedChallengeId(c.id)
+    setRatingEnabled(c.ratingEnabled !== false)
+    if ((c.bestOf || 1) > 1) {
+      setIsBo3(true)
+    }
+    a.toast(t('quickMatch.loadChalSuccess', { code: c.code || '' }))
+  }
+
+  // Tính Elo trung bình và độ cân bằng
+  const ratingA = useMemo(() => teamRating(teamA, ratingsMap), [teamA, ratingsMap])
+  const ratingB = useMemo(() => teamRating(teamB, ratingsMap), [teamB, ratingsMap])
+
+  const balanceInfo = useMemo(() => {
+    if (!teamA.length || !teamB.length) return null
+    const expA = expectedScore(ratingA, ratingB)
+    const pctA = Math.round(expA * 100)
+    const pctB = 100 - pctA
+    const evalRes = evalBalance(ratingA, ratingB)
+    return { pctA, pctB, evalRes }
+  }, [teamA, teamB, ratingA, ratingB])
+
+  // Preset tỷ số nhanh
+  const applyPreset = (sa, sb) => {
+    setScoreA(sa)
+    setScoreB(sb)
+  }
+
+  // Đảo chiều điểm số (Set 1)
+  const handleSwapScore = () => {
+    const temp = scoreA
+    setScoreA(scoreB)
+    setScoreB(temp)
+  }
+
+  // Lưu kết quả trận
+  const handleSaveResult = () => {
+    if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) {
+      a.toast(t('quickMatch.errNotEnough', { req: maxPerTeam }))
       return
     }
 
-    a.deployChallenge(challenge.id, emptyCourtIdx)
-  }
+    const playedSets = isBo3
+      ? bo3Sets.filter(([sa, sb]) => sa > 0 || sb > 0)
+      : [[Number(scoreA), Number(scoreB)]]
 
-  // Slot click handler
-  const handleSlotClick = (slotId, currentKey) => {
-    if (selectedPoolKey) {
-      // Đặt người được chọn vào ô
-      a.place(s.id, slotId, selectedPoolKey)
-      setSelectedPoolKey(null)
-    } else if (currentKey) {
-      // Bỏ người ra khỏi ô
-      if (groupMode) {
-        a.clearSlot(s.id, slotId)
-      } else {
-        a.removeFromCourt(s.id, currentKey)
+    if (!playedSets.length) {
+      a.toast(t('quickMatch.errNoScore'))
+      return
+    }
+
+    // Kiểm tra hòa set
+    for (let i = 0; i < playedSets.length; i++) {
+      const [sa, sb] = playedSets[i]
+      if (sa === sb) {
+        a.toast(t('quickMatch.errTie'))
+        return
       }
     }
-  }
 
-  // Trả sân: gỡ tất cả 4 slot
-  const handleClearCourt = (ci) => {
-    const slots = courtSlotIds(ci)
-    slots.forEach((sl) => {
-      const k = lineup[sl]
-      if (k) {
-        if (groupMode) {
-          a.clearSlot(s.id, sl)
-        } else {
-          a.removeFromCourt(s.id, k)
-        }
-      }
+    a.saveMatchScore({
+      sid: s.id,
+      ci: courtIdx,
+      teamA,
+      teamB,
+      sets: playedSets,
+      challengeId: selectedChallengeId,
+      ratingEnabled,
     })
+
+    // Reset sạch form sẵn sàng ghi trận tiếp theo ngay lập tức
+    setTeamA([])
+    setTeamB([])
+    setSelectedChallengeId(null)
+    setScoreA(21)
+    setScoreB(19)
+    setBo3Sets([
+      [21, 19],
+      [19, 21],
+      [21, 18],
+    ])
+    a.toast(t('quickMatch.saveSuccess'))
   }
 
-  // Gợi ý cặp cân nhất lên sân trống
-  const handleSuggestPair = (ci) => {
-    if (pool.length < 4) return
-    const slots = courtSlotIds(ci)
-    const candidates = pool.slice(0, 4)
-    candidates.forEach((p, idx) => {
-      a.place(s.id, slots[idx], p.key)
+  // Lọc người trong pool theo ô tìm kiếm
+  const filteredPlayers = useMemo(() => {
+    if (!searchQuery.trim()) return players
+    const q = searchQuery.toLowerCase()
+    return players.filter((p) => {
+      const nameMatch = (p.name || '').toLowerCase().includes(q)
+      const levelMatch = (p.level || '').toLowerCase().includes(q)
+      return nameMatch || levelMatch
     })
-  }
-
-  const memberNameOf = (id) => playerName(db, id)
+  }, [players, searchQuery])
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      {/* ---------------- 0. Banner Hiệu chỉnh Chéo giới (Handoff GD1) ---------------- */}
-      {cal100_300 && cal100_300.sampleSize >= 5 && cal100_300.learnedAdjustment !== 0 && (
-        <div style={S.calBanner}>
-          <div style={S.calIcon}>≈</div>
-          <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 4 }}>
-            <div style={S.calTitle}>{t('courtAssign.crossGenderBannerTitle')}</div>
-            <div style={S.calDesc}>
-              {t('courtAssign.crossGenderBannerDesc', {
-                sampleSize: cal100_300.sampleSize,
-                pct: Math.round(cal100_300.observedWinRate * 100),
-                adj: cal100_300.learnedAdjustment > 0 ? `+${cal100_300.learnedAdjustment}` : cal100_300.learnedAdjustment,
-              })}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setApplyCalibration(!applyCalibration)}
-            style={S.calToggleBtn}
-          >
-            {t(applyCalibration ? 'courtAssign.disableCalibration' : 'courtAssign.enableCalibration')}
-          </button>
-        </div>
-      )}
-
-      {/* ---------------- 1. Pool người chờ ---------------- */}
-      <div style={S.poolCard}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
-            <div style={S.cardTitle}>
-              {groupMode ? t('assign.poolTitleGrouped') : t('courtAssign.waitingPool', { n: pool.length })}
-            </div>
-            <div style={S.cardSub}>
-              {groupMode
-                ? t('assign.poolSubGrouped', { waiting: pool.length, total: players.length })
-                : t('courtAssign.poolRatingSub')}
-            </div>
-          </div>
-          <span style={{
-            fontSize: 12,
-            fontWeight: 600,
-            padding: '4px 10px',
-            borderRadius: 6,
-            background: selectedPoolKey ? 'var(--action-primary-bg)' : 'var(--surface-inset)',
-            border: `1px solid ${selectedPoolKey ? 'var(--border-focus-color)' : 'var(--border-subtle)'}`,
-            color: selectedPoolKey ? 'var(--action-primary-fg)' : 'var(--text-muted)',
-          }}>
-            {selectedPoolKey
-              ? t('courtAssign.selHintActive', { name: (pmap[selectedPoolKey] || {}).name })
-              : t('courtAssign.selHintNone')}
-          </span>
-        </div>
-
-        <div
-          style={S.poolChips}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => drop(e, (k) => a.removeFromCourt(s.id, k))}
-        >
-          {pool.map((p) => {
-            const isSelected = selectedPoolKey === p.key
-            const info = getPlayerInfo(p.key)
-            return (
-              <button
-                key={p.key}
-                type="button"
-                {...dragProps(p.key)}
-                onClick={() => setSelectedPoolKey(isSelected ? null : p.key)}
-                style={{
-                  ...S.poolChip,
-                  background: isSelected ? 'var(--action-primary-bg)' : 'var(--surface-card)',
-                  borderColor: isSelected ? 'var(--border-focus-color)' : 'var(--border-subtle)',
-                  color: isSelected ? 'var(--action-primary-fg)' : 'var(--text-primary)',
-                  boxShadow: isSelected ? '0 0 0 1px var(--border-focus-color)' : 'none',
-                }}
-              >
-                <span>{p.name}</span>
-                <span style={info.isFemale ? S.genderBadgeNu : S.genderBadgeNam}>
-                  {t(info.isFemale ? 'gender.nu' : 'gender.nam')}
-                </span>
-                {info.hasAdjustment ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <span style={S.ratingStrike}>{info.rawRating}</span>
-                    <span style={S.ratingEff}>{info.effRating}</span>
-                  </span>
-                ) : (
-                  <span style={{ ...S.monoVal, color: isSelected ? 'var(--text-accent)' : 'var(--text-muted)' }}>
-                    {info.rawRating}
-                  </span>
-                )}
-                <span style={confBadgeStyle(info.confLevel)}>{info.confLevel}</span>
-                <LevelChip level={p.level} levels={db.levels} />
-              </button>
-            )
-          })}
-          {pool.length === 0 && (
-            <span style={{ color: 'var(--text-muted)', fontSize: 13, padding: '8px 0' }}>
-              {groupMode
-                ? t('courtAssign.poolAllGrouped')
-                : t('courtAssign.poolEmpty')}
-            </span>
-          )}
-        </div>
-        {pool.length > 0 && (
-          <div style={S.rawRatingDesc}>{t('courtAssign.rawRatingCrossDesc')}</div>
-        )}
-      </div>
-
-      {/* ---------------- 2. Kèo đã nhận, đang chờ sân (conditional) ---------------- */}
+    <div style={S.container}>
+      {/* ---------------- Banner Kèo đã nhận (nếu có) ---------------- */}
       {acceptedChallenges.length > 0 && (
-        <div style={S.acceptedCard}>
-          <div style={{ display: 'grid', gap: 2 }}>
-            <div style={{ ...S.cardTitle, color: 'var(--status-transit-fg)' }}>
-              {t('challenge.waitingCourtTitle')}
-            </div>
-            <div style={S.cardSub}>
-              {t('challenge.waitingCourtDesc')}
-            </div>
+        <div style={S.chalBanner}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="flame" size={16} color="var(--status-transit-fg)" />
+            <span style={{ font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
+              {t('quickMatch.pendingChalBanner', { n: acceptedChallenges.length })}:
+            </span>
           </div>
-
-          <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
             {acceptedChallenges.map((c) => {
-              const namesA = (c.teamA || []).map(memberNameOf).join(' · ')
-              const namesB = (c.teamB || []).map(memberNameOf).join(' · ')
+              const nameA = (c.teamA || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamA')
+              const nameB = (c.teamB || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamB')
               return (
-                <div key={c.id} style={S.acceptedRow}>
-                  <span style={S.challengeCode}>{c.code}</span>
-                  <span style={{ flex: 1, minWidth: 200, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                    {namesA} <span style={{ color: 'var(--text-disabled)', fontWeight: 400 }}>vs</span> {namesB}
-                  </span>
-                  <span style={S.challengeMeta}>BO{c.bestOf || 3} · {c.ratingEnabled ? t('challenge.rated') : t('challenge.casual')}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleDeployChallenge(c)}
-                    style={S.deployBtn}
+                <div key={c.id} style={S.chalChip}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameA}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>vs</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameB}</span>
+                  <span style={S.tagSub}>{c.bestOf || 1} set</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="download"
+                    onClick={() => handleLoadChallenge(c)}
                   >
-                    {t('challenge.deployToCourt')}
-                  </button>
+                    {t('quickMatch.loadChal')}
+                  </Button>
                 </div>
               )
             })}
@@ -316,905 +290,1010 @@ export default function CourtAssignmentTab({ s }) {
         </div>
       )}
 
-      {/* ---------------- 3. Thanh công cụ Chia sân (5 thuật toán tự động) ---------------- */}
-      <Toolbar s={s} lineup={lineup} idxs={idxs} isMobile={isMobile} />
-
-      {/* ---------------- 4. Grid các sân 2x2 ---------------- */}
-      <div style={S.courtGrid}>
-        {idxs.map((ci) => {
-          const c = s.courts[ci]
-          const venueName = courtOf(db, c.courtId).name
-          const courtName = c.label
-            ? `${c.label} · ${venueName}`
-            : ((s.courts || []).length > 1 ? `${t('assign.courtTitle', { name: ci + 1 })} · ${venueName}` : venueName)
-          const slots = courtSlotIds(ci)
-          const startedAt = ((db.playing || {})[s.id] || {})[ci]
-          const mins = ((db.courtMin || {})[s.id] || {})[ci]
-          const minutes = mins === undefined ? cfg.match.defaultMinutes : mins
-          const running = elapsedMin(startedAt)
-
-          // Lấy 4 người trên sân
-          const p0 = lineup[slots[0]] ? pmap[lineup[slots[0]]] : null
-          const p1 = lineup[slots[1]] ? pmap[lineup[slots[1]]] : null
-          const p2 = lineup[slots[2]] ? pmap[lineup[slots[2]]] : null
-          const p3 = lineup[slots[3]] ? pmap[lineup[slots[3]]] : null
-          const filledCount = [p0, p1, p2, p3].filter(Boolean).length
-          const isFull = filledCount === 4
-          const rosterHere = players.filter((p) => courtGroups[p.key] === ci)
-          const benchPlayers = rosterHere.filter((p) => placed.indexOf(p.key) < 0)
-
-          // Kiểm tra xem sân này có phải từ kèo không
-          const attachedChallenge = (db.challenges || []).find((ch) => ch.sessionId === s.id && ch.status === 'oncourt' && ch.courtIndex === ci)
-
-          // Tính độ cân khi đủ 4 người
-          let balance = null
-          if (isFull) {
-            const inf0 = getPlayerInfo(p0.key)
-            const inf1 = getPlayerInfo(p1.key)
-            const inf2 = getPlayerInfo(p2.key)
-            const inf3 = getPlayerInfo(p3.key)
-            const teamAFemale = inf0.isFemale || inf1.isFemale
-            const teamBFemale = inf2.isFemale || inf3.isFemale
-            const isCrossMatch = (teamAFemale && !teamBFemale) || (!teamAFemale && teamBFemale)
-
-            const rawAvgA = Math.round((inf0.rawRating + inf1.rawRating) / 2)
-            const rawAvgB = Math.round((inf2.rawRating + inf3.rawRating) / 2)
-            const rawGap = Math.abs(rawAvgA - rawAvgB)
-            const rawEval = evalBalance(rawAvgA, rawAvgB)
-
-            const effAvgA = applyCalibration && isCrossMatch ? Math.round((inf0.effRating + inf1.effRating) / 2) : rawAvgA
-            const effAvgB = applyCalibration && isCrossMatch ? Math.round((inf2.effRating + inf3.effRating) / 2) : rawAvgB
-            const gap = Math.abs(effAvgA - effAvgB)
-            const pA = expectedScore(effAvgA, effAvgB)
-            const pctA = Math.round(pA * 100)
-            const evalRes = evalBalance(effAvgA, effAvgB)
-            balance = {
-              rawAvgA,
-              rawAvgB,
-              rawGap,
-              rawLabel: t(rawEval.labelKey),
-              effAvgA,
-              effAvgB,
-              isEff: effAvgA !== rawAvgA || effAvgB !== rawAvgB,
-              gap,
-              pctA,
-              pctB: 100 - pctA,
-              level: evalRes.level,
-              label: t(evalRes.labelKey),
-              color: evalRes.level === 'imbalanced' ? 'var(--status-delayed-fg)' : evalRes.level === 'balanced' ? 'var(--status-delivered-fg)' : 'var(--status-transit-fg)',
-            }
-          }
-
-          const SlotBox = ({ p, slotId }) => {
-            const isHighlighted = Boolean(selectedPoolKey && !p)
-            const inf = p ? getPlayerInfo(p.key) : null
-            return (
+      {/* ---------------- KHUNG GHI KẾT QUẢ NHANH (QUICK MATCH LOGGER) ---------------- */}
+      <Card
+        title={t('quickMatch.title')}
+        subtitle={t('quickMatch.sub')}
+        icon="sparkles"
+        padding="16px 20px"
+      >
+        <div style={{ display: 'grid', gap: 16 }}>
+          {/* Thanh công cụ: Mode Switcher + Chọn Sân + Tính Elo */}
+          <div style={S.topToolbar}>
+            {/* Mode Switcher */}
+            <div style={S.modeTrack}>
               <button
                 type="button"
-                onClick={() => handleSlotClick(slotId, p?.key)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => drop(e, (k) => a.place(s.id, slotId, k))}
+                onClick={() => handleSwitchMode('doubles')}
                 style={{
-                  ...S.slotBox,
-                  minHeight: isMobile ? 60 : 46,
-                  background: p ? 'var(--surface-inset)' : isHighlighted ? 'var(--surface-accent-soft)' : 'var(--surface-page)',
-                  borderColor: p ? 'var(--border-subtle)' : isHighlighted ? 'var(--border-focus-color)' : 'var(--border-subtle)',
-                  borderStyle: p ? 'solid' : 'dashed',
-                  cursor: 'pointer',
+                  ...S.modeBtn,
+                  ...(mode === 'doubles' ? S.modeBtnActive : {}),
                 }}
               >
-                {p ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 6 }}>
-                    <div style={{ minWidth: 0, textAlign: 'left' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ font: '600 13px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>{p.name}</span>
-                        <span style={inf.isFemale ? S.genderBadgeNu : S.genderBadgeNam}>
-                          {t(inf.isFemale ? 'gender.nu' : 'gender.nam')}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                        {inf.hasAdjustment ? (
-                          <>
-                            <span style={S.ratingStrike}>{inf.rawRating}</span>
-                            <span style={S.ratingEff}>{inf.effRating}</span>
-                          </>
-                        ) : (
-                          <span style={{ font: '400 11px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>{inf.rawRating}</span>
-                        )}
-                        <span style={confBadgeStyle(inf.confLevel)}>{inf.confLevel}</span>
-                      </div>
-                    </div>
-                    <LevelChip level={p.level} levels={db.levels} />
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 12, color: isHighlighted ? 'var(--status-transit-fg)' : 'var(--text-disabled)', fontWeight: 500 }}>
-                    + {isHighlighted
-                        ? t('courtAssign.slotPlace', { name: (pmap[selectedPoolKey] || {}).name || '' })
-                        : t('courtAssign.slotEmpty')}
-                  </span>
-                )}
+                <Icon name="users" size={14} />
+                <span>{t('quickMatch.modeDoubles')}</span>
               </button>
-            )
-          }
+              <button
+                type="button"
+                onClick={() => handleSwitchMode('singles')}
+                style={{
+                  ...S.modeBtn,
+                  ...(mode === 'singles' ? S.modeBtnActive : {}),
+                }}
+              >
+                <Icon name="user-round" size={14} />
+                <span>{t('quickMatch.modeSingles')}</span>
+              </button>
+            </div>
 
-          return (
-            <div key={ci} style={{
-              ...S.courtCard,
-              borderColor: attachedChallenge ? 'var(--teal-600)' : 'var(--border-subtle)',
-            }}>
-              {/* Header Sân */}
-              <div style={S.courtHead}>
-                <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ font: '600 16px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                      {courtName}
-                    </span>
-                    {c.extra && <span style={S.tagAmber}>{t('assign.extraTag')}</span>}
-                  </div>
-                  <div style={S.courtMeta}>
-                    {startedAt ? t('courtAssign.playingMin', { min: running }) : `${c.from} → ${c.to}`}
-                  </div>
-                </div>
+            {/* Sân & Tuỳ chọn Elo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 160 }}>
+                <Select
+                  size="sm"
+                  value={courtIdx}
+                  options={courtOptions}
+                  onChange={(e) => setCourtIdx(Number(e.target.value))}
+                />
+              </div>
+              <label style={S.toggleLabel}>
+                <Switch
+                  checked={ratingEnabled}
+                  onChange={(val) => setRatingEnabled(val)}
+                />
+                <span style={{ font: '500 13px/1 var(--font-sans)', color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
+                </span>
+              </label>
+            </div>
+          </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {filledCount === 0 && pool.length >= 4 && (
-                    <button
-                      type="button"
-                      onClick={() => handleSuggestPair(ci)}
-                      style={S.suggestBtn}
-                    >
-                      {t('courtAssign.suggestBalancedPair')}
-                    </button>
-                  )}
-                  {/* Pill trạng thái */}
-                  <span style={{
-                    ...S.statusPill,
-                    background: attachedChallenge ? 'var(--status-transit-bg, rgba(0,178,169,.14))' : startedAt ? 'var(--status-delivered-bg)' : 'var(--surface-inset)',
-                    borderColor: attachedChallenge ? 'var(--teal-600)' : startedAt ? 'var(--status-delivered-fg)' : 'var(--border-subtle)',
-                    color: attachedChallenge ? 'var(--status-transit-fg)' : startedAt ? 'var(--status-delivered-fg)' : 'var(--text-muted)',
-                  }}>
-                    {attachedChallenge
-                      ? `${t('courtAssign.statusFromChallenge')} ${attachedChallenge.code}`
-                      : startedAt ? t('courtAssign.statusPlaying') : filledCount > 0 ? t('courtAssign.filledCount', { n: filledCount }) : t('courtAssign.statusEmpty')}
+          {/* Sân đấu Visual VS (Đội A vs Đội B) */}
+          <div style={{ ...S.vsContainer, gridTemplateColumns: isMobile ? '1fr' : '1fr auto 1fr' }}>
+            {/* Box Đội A */}
+            <div style={S.teamBox}>
+              <div style={S.teamHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ ...S.teamTag, background: 'var(--status-transit-bg)', color: 'var(--status-transit-fg)' }}>
+                    {t('quickMatch.teamA')}
+                  </span>
+                  <span style={S.teamRatingText}>
+                    {teamA.length ? `${t('rating.rating')} ~ ${ratingA}` : ''}
                   </span>
                 </div>
+                <span style={S.slotCountBadge}>
+                  {teamA.length}/{maxPerTeam}
+                </span>
               </div>
 
-              {/* Timer Bar */}
-              <div style={S.timerBar}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Button
-                    size="sm"
-                    variant={startedAt ? 'secondary' : 'primary'}
-                    icon={startedAt ? 'pause' : 'play'}
-                    onClick={() => a.startCourt(s.id, ci)}
-                  >
-                    {t(startedAt ? 'assign.pause' : 'assign.start')}
-                  </Button>
-                  <Input
-                    size="sm"
-                    mono
-                    suffix={t('units.minute')}
-                    value={String(minutes)}
-                    onChange={(e) => a.setCourtMin(s.id, ci, e.target.value)}
-                    style={{ width: 88 }}
-                  />
-                </div>
-              </div>
-
-              {/* Body Sân: 2x2 Slots với VS */}
-              <div style={S.courtBody}>
-                {groupMode && (
-                  <div
-                    style={S.rosterBox}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => drop(e, (k) => a.assignToCourt(s.id, k, ci))}
-                    onClick={() => {
-                      if (selectedPoolKey && courtGroups[selectedPoolKey] !== ci) {
-                        a.assignToCourt(s.id, selectedPoolKey, ci)
-                        setSelectedPoolKey(null)
-                      }
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={S.rosterTitle}>
-                        {t('assign.rosterCount', { n: rosterHere.length, on: filledCount })}
-                      </span>
-                      {benchPlayers.length > 0 && (
-                        <span style={S.rosterBadge}>
-                          {t('courtAssign.benchWaiting', { n: benchPlayers.length })}
-                        </span>
-                      )}
-                    </div>
-                    <div style={S.rosterChips}>
-                      {benchPlayers.map((p) => {
-                        const isSelected = selectedPoolKey === p.key
-                        const inf = getPlayerInfo(p.key)
-                        return (
-                          <div
-                            key={p.key}
-                            {...dragProps(p.key)}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedPoolKey(isSelected ? null : p.key)
-                            }}
-                            style={{
-                              ...S.rosterChip,
-                              background: isSelected ? 'var(--action-primary-bg)' : 'var(--surface-inset)',
-                              borderColor: isSelected ? 'var(--border-focus-color)' : 'var(--border-subtle)',
-                              boxShadow: isSelected ? '0 0 0 1px var(--border-focus-color)' : 'none',
-                            }}
-                          >
-                            <span style={{ color: isSelected ? 'var(--action-primary-fg)' : 'var(--text-primary)' }}>
-                              {p.name}
+              <div style={S.slotsGrid}>
+                {Array.from({ length: maxPerTeam }).map((_, idx) => {
+                  const key = teamA[idx]
+                  if (key) {
+                    const pr = getPlayerRating(db.playerRatings, key)
+                    const p = players.find((x) => x.key === key) || {}
+                    const tier = rankTierOf(pr.rating)
+                    return (
+                      <div key={key} style={S.filledSlot}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={S.playerName}>{playerName(db, key)}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              {genderTxt(p.gender)}
                             </span>
-                            <span style={inf.isFemale ? S.genderBadgeNu : S.genderBadgeNam}>
-                              {t(inf.isFemale ? 'gender.nu' : 'gender.nam')}
-                            </span>
-                            {inf.hasAdjustment ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                <span style={S.ratingStrike}>{inf.rawRating}</span>
-                                <span style={S.ratingEff}>{inf.effRating}</span>
-                              </span>
-                            ) : (
-                              <span style={{ ...S.monoVal, color: isSelected ? 'var(--text-accent)' : 'var(--text-muted)' }}>
-                                {inf.rawRating}
-                              </span>
-                            )}
-                            <span style={confBadgeStyle(inf.confLevel)}>{inf.confLevel}</span>
-                            <LevelChip level={p.level} levels={db.levels} />
-                            <button
-                              type="button"
-                              title={t('courtAssign.unassignTitle')}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                a.removeFromCourt(s.id, p.key)
-                                if (selectedPoolKey === p.key) setSelectedPoolKey(null)
-                              }}
-                              style={S.chipRemoveBtn}
-                            >
-                              ×
-                            </button>
                           </div>
-                        )
-                      })}
-                      {benchPlayers.length === 0 && (
-                        <span style={{ fontSize: 12, color: 'var(--text-disabled)', padding: '2px 0' }}>
-                          {rosterHere.length === 0 ? t('assign.rosterEmpty') : t('courtAssign.rosterAllPlaying')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div style={S.slotsGrid}>
-                  {/* Đội A */}
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    <SlotBox p={p0} slotId={slots[0]} />
-                    <SlotBox p={p1} slotId={slots[1]} />
-                  </div>
-
-                  {/* VS divider */}
-                  <div style={S.vsDivider}>
-                    <div style={S.vsLine} />
-                    <span style={S.vsText}>VS</span>
-                    <div style={S.vsLine} />
-                  </div>
-
-                  {/* Đội B */}
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    <SlotBox p={p2} slotId={slots[2]} />
-                    <SlotBox p={p3} slotId={slots[3]} />
-                  </div>
-                </div>
-
-                {/* Balance Row */}
-                <div style={S.balanceRow}>
-                  {balance ? (
-                    <div style={{ display: 'grid', gap: 3, width: '100%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>{balance.pctA}%</span>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            {t('rating.gap', { gap: balance.gap })} {balance.isEff ? `· ${t('courtAssign.effective')}` : ''}
-                          </span>
-                          <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-secondary)' }}>{balance.pctB}%</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            <span style={{ ...S.tierPill, color: tier.color }}>
+                              {tier.label} ({pr.rating})
+                            </span>
+                          </div>
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: balance.color }}>
-                          {balance.label}
-                        </span>
+                        <IconButton
+                          icon="x"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setTeamA(teamA.filter((k) => k !== key))}
+                        />
                       </div>
-                      {balance.isEff && (
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                          {t('courtAssign.rawRatingNote', { gap: balance.rawGap, label: balance.rawLabel })}
-                        </div>
-                      )}
+                    )
+                  }
+                  return (
+                    <div key={idx} style={S.emptySlot}>
+                      <Icon name="user-round-plus" size={14} color="var(--text-muted)" />
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {t('challenge.pickTwo')}
+                      </span>
                     </div>
-                  ) : (
-                    <span style={{ fontSize: 12, color: 'var(--text-disabled)' }}>
-                      {t('courtAssign.needFour')}
-                    </span>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-                  <button
-                    type="button"
-                    disabled={!isFull}
-                    onClick={() => setScoringCourt({
-                      courtId: c.courtId,
-                      courtIndex: ci,
-                      name: courtName,
-                      slots: [p0?.key, p1?.key, p2?.key, p3?.key],
-                      fromChallengeId: attachedChallenge?.id,
-                      fromChallengeCode: attachedChallenge?.code,
-                      minutes: running || minutes,
-                    })}
-                    style={{
-                      ...S.finishBtn,
-                      background: isFull ? 'var(--action-primary-bg)' : 'var(--surface-card)',
-                      borderColor: isFull ? 'var(--border-focus-color)' : 'var(--border-subtle)',
-                      color: isFull ? 'var(--action-primary-fg)' : 'var(--text-disabled)',
-                      cursor: isFull ? 'pointer' : 'not-allowed',
-                      minHeight: isMobile ? 44 : 40,
-                    }}
-                  >
-                    {isFull ? t('courtAssign.finishBtn') : t('courtAssign.finishBtnDisabled')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleClearCourt(ci)}
-                    style={{ ...S.clearBtn, minHeight: isMobile ? 44 : 40 }}
-                  >
-                    {t('courtAssign.clearBtn')}
-                  </button>
-                </div>
+                  )
+                })}
               </div>
             </div>
-          )
-        })}
-      </div>
 
-      {/* Score Modal */}
-      {scoringCourt && (
-        <ScoreModal
-          court={scoringCourt}
-          session={s}
-          challenge={scoringCourt.fromChallengeId ? (db.challenges || []).find((c) => c.id === scoringCourt.fromChallengeId) : null}
-          onClose={() => setScoringCourt(null)}
-          onSaved={() => {
-            setScoringCourt(null)
-            handleClearCourt(scoringCourt.courtIndex)
-          }}
-        />
-      )}
-    </div>
-  )
-}
-
-/** Thanh công cụ: chọn chế độ xếp, xếp ngay, xóa, chia đều */
-function Toolbar({ s, lineup, idxs, isMobile }) {
-  const { ui, a, db } = useApp()
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const mode = ui.asnMode || 'balance'
-  const total = slotIds(s).length
-  const on = Object.keys(lineup).length
-  const groupMode = !!(db.groupMode || {})[s.id]
-
-  if (isMobile) {
-    const curModeObj = ASSIGN_MODES.find((m) => m.value === mode) || ASSIGN_MODES[0]
-    return (
-      <div style={S.toolbar}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Button
-            variant="primary"
-            icon="wand-sparkles"
-            style={{ flex: 1, minHeight: 44 }}
-            onClick={() => setSheetOpen(true)}
-          >
-            {t('assign.arrangeNow')} ({curModeObj.label})
-          </Button>
-          <Button
-            variant="secondary"
-            icon="eraser"
-            style={{ minHeight: 44 }}
-            onClick={() => a.clearLineup(s.id)}
-          >
-            {t('assign.clear')}
-          </Button>
-          {idxs.length > 1 && (
-            <Button
-              variant="secondary"
-              icon="split"
-              style={{ minHeight: 44 }}
-              onClick={() => a.autoSplitCourts(s.id)}
-            >
-              {t('assign.splitEven')}
-            </Button>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-          <div style={S.seatsBadge}>
-            {t('assign.seats', { on, total, courts: idxs.length })}
-          </div>
-          {idxs.length > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Switch
-                label={t('assign.groupModeLabel')}
-                checked={groupMode}
-                onChange={() => a.toggleGroupMode(s.id)}
-              />
+            {/* VS Badge & Balance Indicator ở giữa */}
+            <div style={S.vsCenter}>
+              <div style={S.vsBadge}>
+                {t('quickMatch.vs')}
+              </div>
+              {balanceInfo && (
+                <div style={S.balanceBox}>
+                  <div style={{
+                    ...S.balanceTag,
+                    background: balanceInfo.evalRes.level === 'balanced'
+                      ? 'var(--status-delivered-bg)'
+                      : balanceInfo.evalRes.level === 'slight'
+                        ? 'var(--status-delayed-bg)'
+                        : 'var(--status-incident-bg)',
+                    color: balanceInfo.evalRes.level === 'balanced'
+                      ? 'var(--status-delivered-fg)'
+                      : balanceInfo.evalRes.level === 'slight'
+                        ? 'var(--status-delayed-fg)'
+                        : 'var(--status-incident-fg)',
+                  }}>
+                    {t(balanceInfo.evalRes.labelKey)}
+                  </div>
+                  <div style={S.balanceBarWrap}>
+                    <div style={{ ...S.balanceBarA, width: `${balanceInfo.pctA}%` }} />
+                    <div style={{ ...S.balanceBarB, width: `${balanceInfo.pctB}%` }} />
+                  </div>
+                  <span style={S.balanceSub}>
+                    {balanceInfo.pctA}% – {balanceInfo.pctB}% (Δ {balanceInfo.evalRes.gap})
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {sheetOpen && (
-          <Dialog
-            sheet
-            open={sheetOpen}
-            onClose={() => setSheetOpen(false)}
-            title={t('assign.arrangeNow')}
-          >
-            <div style={{ display: 'grid', gap: 10, padding: '10px 0 calc(20px + env(safe-area-inset-bottom, 0px))' }}>
-              {ASSIGN_MODES.map((m) => {
-                const isSelected = mode === m.value
+            {/* Box Đội B */}
+            <div style={S.teamBox}>
+              <div style={S.teamHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ ...S.teamTag, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' }}>
+                    {t('quickMatch.teamB')}
+                  </span>
+                  <span style={S.teamRatingText}>
+                    {teamB.length ? `${t('rating.rating')} ~ ${ratingB}` : ''}
+                  </span>
+                </div>
+                <span style={S.slotCountBadge}>
+                  {teamB.length}/{maxPerTeam}
+                </span>
+              </div>
+
+              <div style={S.slotsGrid}>
+                {Array.from({ length: maxPerTeam }).map((_, idx) => {
+                  const key = teamB[idx]
+                  if (key) {
+                    const pr = getPlayerRating(db.playerRatings, key)
+                    const p = players.find((x) => x.key === key) || {}
+                    const tier = rankTierOf(pr.rating)
+                    return (
+                      <div key={key} style={S.filledSlot}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={S.playerName}>{playerName(db, key)}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              {genderTxt(p.gender)}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            <span style={{ ...S.tierPill, color: tier.color }}>
+                              {tier.label} ({pr.rating})
+                            </span>
+                          </div>
+                        </div>
+                        <IconButton
+                          icon="x"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setTeamB(teamB.filter((k) => k !== key))}
+                        />
+                      </div>
+                    )
+                  }
+                  return (
+                    <div key={idx} style={S.emptySlot}>
+                      <Icon name="user-round-plus" size={14} color="var(--text-muted)" />
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {t('challenge.pickTwo')}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Công cụ nhanh điều phối slot */}
+          <div style={S.slotActionsRow}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="shuffle"
+                onClick={handleAutoPickFewest}
+              >
+                {t('quickMatch.autoPick')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="repeat"
+                onClick={handleSwapTeams}
+              >
+                {t('quickMatch.swapTeams')}
+              </Button>
+            </div>
+            {(teamA.length > 0 || teamB.length > 0) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="rotate-ccw"
+                onClick={handleClearAll}
+              >
+                {t('quickMatch.clearAll')}
+              </Button>
+            )}
+          </div>
+
+          {/* Danh sách người có mặt tại sân (Player Pool) */}
+          <div style={S.poolSection}>
+            <div style={S.poolHeader}>
+              <div>
+                <span style={S.poolTitle}>{t('quickMatch.poolTitle')}</span>
+                <span style={S.poolCount}>({players.length})</span>
+                <div style={S.poolSub}>{t('quickMatch.poolSub')}</div>
+              </div>
+              <div style={{ width: 220 }}>
+                <Input
+                  size="sm"
+                  placeholder={t('quickMatch.searchPh')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div style={S.poolGrid}>
+              {filteredPlayers.map((p) => {
+                const inA = teamA.includes(p.key)
+                const inB = teamB.includes(p.key)
+                const isSelected = inA || inB
+                const pr = getPlayerRating(db.playerRatings, p.key)
+                const tier = rankTierOf(pr.rating)
+                const played = matchCountMap[p.key] || 0
+
                 return (
                   <button
-                    key={m.value}
+                    key={p.key}
                     type="button"
-                    onClick={() => {
-                      a.setAsnMode(m.value)
-                      a.arrange(s.id, m.value)
-                      setSheetOpen(false)
-                    }}
+                    onClick={() => handleTogglePlayer(p.key)}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 14px',
-                      borderRadius: 8,
-                      border: isSelected ? '1.5px solid var(--action-primary-bg)' : '1px solid var(--border-subtle)',
-                      background: isSelected ? 'var(--surface-nav-active)' : 'var(--surface-card)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      minHeight: 52,
+                      ...S.playerChip,
+                      ...(inA ? S.playerChipA : {}),
+                      ...(inB ? S.playerChipB : {}),
                     }}
                   >
-                    <div>
-                      <div style={{ font: '600 14px var(--font-sans)', color: isSelected ? 'var(--text-accent)' : 'var(--text-primary)' }}>
-                        {m.label}
-                      </div>
-                      {m.desc && (
-                        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-                          {m.desc}
-                        </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      <span style={S.chipName}>{p.name}</span>
+                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                        {genderTxt(p.gender)}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ ...S.chipTier, color: tier.color }}>
+                        {tier.label}
+                      </span>
+                      <span style={S.chipPlayed}>
+                        {t('quickMatch.playedCount', { n: played })}
+                      </span>
+                      {isSelected && (
+                        <span style={S.chipSelectedBadge}>
+                          {inA ? 'A' : 'B'}
+                        </span>
                       )}
                     </div>
-                    {isSelected && <Icon name="circle-check" size={18} style={{ color: 'var(--action-primary-bg)' }} />}
                   </button>
                 )
               })}
             </div>
-          </Dialog>
-        )}
-      </div>
-    )
-  }
+          </div>
 
-  return (
-    <div style={S.toolbar}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Select
-            value={mode}
-            options={ASSIGN_MODES.map((m) => ({ value: m.value, label: m.label }))}
-            onChange={(e) => a.setAsnMode(e.target.value)}
-            style={{ width: 220 }}
-          />
-          <Button variant="primary" icon="wand-sparkles" onClick={() => a.arrange(s.id, mode)}>
-            {t('assign.arrangeNow')}
-          </Button>
-          <Button variant="secondary" icon="eraser" onClick={() => a.clearLineup(s.id)}>
-            {t('assign.clear')}
-          </Button>
-          {idxs.length > 1 && (
-            <Button variant="secondary" icon="split" onClick={() => a.autoSplitCourts(s.id)}>
-              {t('assign.splitEven')}
+          {/* ---------------- KHỐI NHẬP TỶ SỐ ---------------- */}
+          <div style={S.scoreCard}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="trophy" size={16} color="var(--status-delayed-fg)" />
+                <span style={{ font: '600 14px/1 var(--font-sans)', color: 'var(--text-primary)' }}>
+                  {t('quickMatch.scoreTitle')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsBo3(!isBo3)}
+                >
+                  {isBo3 ? t('quickMatch.set1') : t('quickMatch.setBo3')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="repeat"
+                  onClick={handleSwapScore}
+                >
+                  {t('quickMatch.swapScore')}
+                </Button>
+              </div>
+            </div>
+
+            {/* Giao diện nhập 1 Set thông dụng */}
+            {!isBo3 ? (
+              <div style={{ display: 'grid', gap: 12, marginTop: 10 }}>
+                <div style={S.singleScoreRow}>
+                  {/* Điểm Đội A */}
+                  <div style={S.scoreInputBox}>
+                    <span style={{ font: '600 13px/1 var(--font-sans)', color: 'var(--status-transit-fg)' }}>
+                      {t('quickMatch.teamA')}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        style={S.stepBtn}
+                        onClick={() => setScoreA(Math.max(0, Number(scoreA) - 1))}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        max="30"
+                        value={scoreA}
+                        onChange={(e) => setScoreA(Number(e.target.value))}
+                        style={S.scoreBigInput}
+                      />
+                      <button
+                        type="button"
+                        style={S.stepBtn}
+                        onClick={() => setScoreA(Math.min(30, Number(scoreA) + 1))}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <span style={{ font: '700 22px/1 var(--font-mono, monospace)', color: 'var(--text-muted)' }}>
+                    –
+                  </span>
+
+                  {/* Điểm Đội B */}
+                  <div style={S.scoreInputBox}>
+                    <span style={{ font: '600 13px/1 var(--font-sans)', color: 'var(--status-delayed-fg)' }}>
+                      {t('quickMatch.teamB')}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        style={S.stepBtn}
+                        onClick={() => setScoreB(Math.max(0, Number(scoreB) - 1))}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        max="30"
+                        value={scoreB}
+                        onChange={(e) => setScoreB(Number(e.target.value))}
+                        style={S.scoreBigInput}
+                      />
+                      <button
+                        type="button"
+                        style={S.stepBtn}
+                        onClick={() => setScoreB(Math.min(30, Number(scoreB) + 1))}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preset tỷ số thường gặp */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{t('quickMatch.quickPresets')}</span>
+                  {[[21, 19], [21, 15], [21, 12], [21, 8], [30, 29]].map(([pa, pb]) => (
+                    <button
+                      key={`${pa}-${pb}`}
+                      type="button"
+                      onClick={() => applyPreset(pa, pb)}
+                      style={S.presetBtn}
+                    >
+                      {pa} - {pb}
+                    </button>
+                  ))}
+                  {[[19, 21], [15, 21], [12, 21], [8, 21], [29, 30]].map(([pa, pb]) => (
+                    <button
+                      key={`${pa}-${pb}`}
+                      type="button"
+                      onClick={() => applyPreset(pa, pb)}
+                      style={{ ...S.presetBtn, color: 'var(--status-delayed-fg)' }}
+                    >
+                      {pa} - {pb}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Giao diện 3 Sets (BO3) */
+              <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+                {[0, 1, 2].map((sIdx) => (
+                  <div key={sIdx} style={S.bo3Row}>
+                    <span style={{ font: '600 12.5px/1 var(--font-sans)', color: 'var(--text-secondary)', width: 60 }}>
+                      {t('quickMatch.scoreSet', { n: sIdx + 1 })}:
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      value={bo3Sets[sIdx][0]}
+                      onChange={(e) => {
+                        const next = [...bo3Sets]
+                        next[sIdx] = [Number(e.target.value), next[sIdx][1]]
+                        setBo3Sets(next)
+                      }}
+                      style={S.bo3Input}
+                    />
+                    <span style={{ color: 'var(--text-muted)' }}>–</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      value={bo3Sets[sIdx][1]}
+                      onChange={(e) => {
+                        const next = [...bo3Sets]
+                        next[sIdx] = [next[sIdx][0], Number(e.target.value)]
+                        setBo3Sets(next)
+                      }}
+                      style={S.bo3Input}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ---------------- NÚT LƯU KẾT QUẢ & TÍNH ELO (CTA CHÍNH) ---------------- */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+            <Button
+              variant="primary"
+              size="lg"
+              icon="circle-check"
+              disabled={teamA.length < maxPerTeam || teamB.length < maxPerTeam}
+              style={{
+                background: 'var(--action-success-bg)',
+                borderColor: 'var(--action-success-border)',
+                fontWeight: 700,
+                padding: '0 24px',
+                minHeight: 46,
+                fontSize: 15,
+                boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0, 135, 90, 0.25))',
+              }}
+              onClick={handleSaveResult}
+            >
+              {t('quickMatch.saveResult')}
             </Button>
-          )}
+          </div>
         </div>
+      </Card>
 
-        <div style={S.seatsBadge}>
-          {t('assign.seats', { on, total, courts: idxs.length })}
-        </div>
-      </div>
-
-      {idxs.length > 1 && (
-        <div style={S.groupBar}>
-          <Switch
-            label={t('assign.groupModeLabel')}
-            checked={groupMode}
-            onChange={() => a.toggleGroupMode(s.id)}
+      {/* ---------------- BẢNG LỊCH SỬ CÁC TRẬN ĐÃ ĐẤU TRONG BUỔI ---------------- */}
+      <Card
+        title={t('quickMatch.historyTitle')}
+        subtitle={t('quickMatch.historySub')}
+        icon="history"
+        padding="16px 20px"
+        actions={
+          <span style={S.historyBadge}>
+            {sessionMatches.length} {t('quickMatch.matchCode').toLowerCase()}
+          </span>
+        }
+      >
+        {sessionMatches.length === 0 ? (
+          <Empty
+            icon="flame"
+            title={t('quickMatch.emptyHistory')}
+            hint={t('quickMatch.emptyHistoryHint')}
           />
-          <span style={S.caption}>{t(groupMode ? 'assign.groupModeOn' : 'assign.groupModeOff')}</span>
-        </div>
-      )}
+        ) : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {sessionMatches.map((m) => {
+              const aWon = m.winnerTeam === 'A'
+              const namesA = (m.teamA || []).map((id) => playerName(db, id)).join(' · ')
+              const namesB = (m.teamB || []).map((id) => playerName(db, id)).join(' · ')
+              const delta = Math.abs(m.eloDelta || 0)
+
+              return (
+                <div key={m.id} style={S.matchRow}>
+                  {/* Mã trận & Sân */}
+                  <div style={S.matchMetaCol}>
+                    <span style={S.matchCodeBadge}>{m.code || 'M'}</span>
+                    <span style={S.matchCourtText}>
+                      {courtOf(db, (s.courts || [])[m.courtIdx]?.courtId)?.name || t('session.courtNum', { n: m.courtIdx + 1 })}
+                    </span>
+                    <span style={m.challengeId ? S.sourceTagChallenge : S.sourceTagQuick}>
+                      {m.challengeId ? t('quickMatch.sourceChallenge') : t('quickMatch.sourceQuick')}
+                    </span>
+                  </div>
+
+                  {/* Đội A vs Đội B & Điểm số */}
+                  <div style={S.matchTeamsCol}>
+                    {/* Đội A */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{
+                        ...S.matchPlayerNames,
+                        color: aWon ? 'var(--status-delivered-fg)' : 'var(--text-primary)',
+                        fontWeight: aWon ? 700 : 500,
+                      }}>
+                        {aWon && <Icon name="check" size={13} style={{ marginRight: 4, display: 'inline' }} />}
+                        {namesA}
+                      </span>
+                      <span style={{
+                        ...S.matchScoreBadge,
+                        color: aWon ? 'var(--status-delivered-fg)' : 'var(--text-muted)',
+                      }}>
+                        {(m.sets || []).map((r) => r[0]).join(' / ') || '—'}
+                      </span>
+                    </div>
+
+                    {/* Đội B */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
+                      <span style={{
+                        ...S.matchPlayerNames,
+                        color: !aWon ? 'var(--status-delivered-fg)' : 'var(--text-primary)',
+                        fontWeight: !aWon ? 700 : 500,
+                      }}>
+                        {!aWon && <Icon name="check" size={13} style={{ marginRight: 4, display: 'inline' }} />}
+                        {namesB}
+                      </span>
+                      <span style={{
+                        ...S.matchScoreBadge,
+                        color: !aWon ? 'var(--status-delivered-fg)' : 'var(--text-muted)',
+                      }}>
+                        {(m.sets || []).map((r) => r[1]).join(' / ') || '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Biến động Elo */}
+                  <div style={S.matchEloCol}>
+                    {m.ratingEnabled !== false && delta > 0 ? (
+                      <span style={S.eloDeltaBadge}>
+                        ±{delta} Elo
+                      </span>
+                    ) : (
+                      <span style={S.unratedText}>
+                        {t('quickMatch.unrated')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }
 
 const S = {
-  poolCard: {
+  container: {
+    display: 'grid',
+    gap: 16,
+  },
+  chalBanner: {
+    padding: '12px 16px',
+    borderRadius: 8,
+    background: 'var(--status-transit-bg)',
+    border: '1px solid var(--status-transit)',
+  },
+  chalChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 10px',
+    borderRadius: 6,
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
-    borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
-    padding: '14px 16px',
-    display: 'grid',
-    gap: 10,
+    fontSize: 12.5,
   },
-  cardTitle: {
-    font: '600 16px/1.25 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-primary)',
-  },
-  cardSub: {
-    font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
+  tagSub: {
+    fontSize: 11,
     color: 'var(--text-muted)',
+    padding: '1px 6px',
+    borderRadius: 99,
+    background: 'var(--surface-inset)',
   },
-  poolChips: {
+  topToolbar: {
     display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-    minHeight: 40,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    flexWrap: 'wrap',
+    paddingBottom: 12,
+    borderBottom: '1px solid var(--border-subtle)',
   },
-  poolChip: {
+  modeTrack: {
+    display: 'flex',
+    padding: 3,
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+    gap: 2,
+  },
+  modeBtn: {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
-    padding: '6px 10px',
+    height: 32,
+    padding: '0 12px',
     borderRadius: 6,
-    border: '1px solid',
+    border: 'none',
+    background: 'transparent',
+    font: '600 12.5px/1 var(--font-sans)',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
-    font: '600 13px/1.2 "IBM Plex Sans", sans-serif',
     transition: 'all 0.15s ease',
   },
-  monoVal: {
-    font: '400 12px/1 "IBM Plex Mono", monospace',
-  },
-  acceptedCard: {
+  modeBtnActive: {
     background: 'var(--surface-card)',
-    border: '1px solid var(--teal-600)',
-    borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
-    padding: '14px 16px',
-    display: 'grid',
-    gap: 10,
+    color: 'var(--text-primary)',
+    boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.15))',
   },
-  acceptedRow: {
+  toggleLabel: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-    padding: '10px 14px',
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--teal-600)',
-  },
-  challengeCode: {
-    font: '600 13px/1.4 "IBM Plex Mono", monospace',
-    color: 'var(--status-transit-fg)',
-  },
-  challengeMeta: {
-    font: '400 13px/1.4 "IBM Plex Mono", monospace',
-    color: 'var(--text-muted)',
-  },
-  deployBtn: {
-    height: 36,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 14px',
-    borderRadius: 6,
-    background: 'var(--action-primary-bg)',
-    border: 'none',
-    font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: 'var(--action-primary-fg)',
+    gap: 8,
     cursor: 'pointer',
   },
-  toolbar: {
-    padding: '12px 14px',
-    borderRadius: 10,
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-  },
-  seatsBadge: {
-    display: 'inline-flex',
+  vsContainer: {
+    display: 'grid',
+    gap: 12,
     alignItems: 'center',
-    padding: '6px 12px',
+  },
+  teamBox: {
+    display: 'grid',
+    gap: 8,
+    padding: 12,
     borderRadius: 8,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
-    fontSize: 12.5,
-    fontWeight: 600,
-    color: 'var(--text-primary)',
   },
-  courtGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-    gap: 16,
-    alignItems: 'start',
-  },
-  courtCard: {
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
-    overflow: 'hidden',
-  },
-  courtHead: {
-    padding: '12px 14px',
-    borderBottom: '1px solid var(--border-subtle)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  courtMeta: {
-    font: '400 13px/1.4 "IBM Plex Mono", monospace',
-    color: 'var(--text-muted)',
-  },
-  statusPill: {
-    fontSize: 11,
-    fontWeight: 600,
-    padding: '4px 8px',
-    borderRadius: 999,
-    border: '1px solid',
-  },
-  timerBar: {
-    padding: '8px 14px',
-    background: 'var(--surface-inset)',
-    borderBottom: '1px solid var(--border-subtle)',
+  teamHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  courtBody: {
-    padding: '12px 14px',
-    display: 'grid',
-    gap: 10,
+  teamTag: {
+    font: '700 11px/1 var(--font-sans)',
+    letterSpacing: 'var(--tracking-caps)',
+    padding: '3px 8px',
+    borderRadius: 99,
+  },
+  teamRatingText: {
+    fontSize: 12,
+    fontFamily: 'var(--font-mono, monospace)',
+    color: 'var(--text-muted)',
+  },
+  slotCountBadge: {
+    fontSize: 11.5,
+    fontFamily: 'var(--font-mono, monospace)',
+    color: 'var(--text-muted)',
   },
   slotsGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 28px 1fr',
     gap: 8,
-    alignItems: 'center',
   },
-  slotBox: {
-    minHeight: 46,
-    padding: '8px 10px',
-    borderRadius: 8,
-    border: '1px solid',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    textAlign: 'left',
-    transition: 'all 0.15s ease',
-  },
-  vsDivider: {
-    display: 'grid',
-    justifyItems: 'center',
-    gap: 4,
-  },
-  vsLine: {
-    width: 1,
-    height: 18,
-    background: 'var(--border-subtle)',
-  },
-  vsText: {
-    font: '700 12px/1 Barlow, sans-serif',
-    color: 'var(--text-disabled)',
-  },
-  balanceRow: {
+  filledSlot: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-    padding: '8px 12px',
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
+    padding: '8px 10px',
+    borderRadius: 6,
+    background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
   },
-  finishBtn: {
-    flex: 1,
-    height: 40,
+  emptySlot: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    padding: '12px 10px',
     borderRadius: 6,
-    border: '1px solid',
-    font: '600 13px/1 "IBM Plex Sans", sans-serif',
+    border: '1px dashed var(--border-subtle)',
+    background: 'transparent',
   },
-  clearBtn: {
-    height: 40,
+  playerName: {
+    font: '600 13px/1.3 var(--font-sans)',
+    color: 'var(--text-primary)',
+  },
+  tierPill: {
+    font: '600 10.5px/1 var(--font-sans)',
+    letterSpacing: 'var(--tracking-caps)',
+  },
+  vsCenter: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: '8px 0',
+  },
+  vsBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
-    padding: '0 14px',
-    borderRadius: 6,
-    background: 'var(--surface-raised)',
+    justifyContent: 'center',
+    font: '800 13px/1 var(--font-sans)',
+    background: 'var(--surface-card)',
     border: '1px solid var(--border-default)',
-    font: '600 13px/1 "IBM Plex Sans", sans-serif',
     color: 'var(--text-secondary)',
-    cursor: 'pointer',
+    boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1))',
   },
-  tagAmber: {
-    fontSize: 10,
-    fontWeight: 700,
-    padding: '2px 6px',
-    borderRadius: 4,
-    background: 'var(--status-delayed-bg)',
-    color: 'var(--status-delayed-fg)',
+  balanceBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 140,
   },
-  rosterBox: {
-    padding: '10px 12px',
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px dashed var(--border-default)',
-    display: 'grid',
+  balanceTag: {
+    font: '700 10px/1 var(--font-sans)',
+    letterSpacing: 'var(--tracking-caps)',
+    padding: '2px 8px',
+    borderRadius: 99,
+  },
+  balanceBarWrap: {
+    display: 'flex',
+    width: '100%',
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    background: 'var(--surface-sunken)',
+  },
+  balanceBarA: {
+    background: 'var(--status-transit-fg)',
+    transition: 'width 0.2s ease',
+  },
+  balanceBarB: {
+    background: 'var(--status-delayed-fg)',
+    transition: 'width 0.2s ease',
+  },
+  balanceSub: {
+    fontSize: 11,
+    fontFamily: 'var(--font-mono, monospace)',
+    color: 'var(--text-muted)',
+  },
+  slotActionsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  rosterTitle: {
-    font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  poolSection: {
+    display: 'grid',
+    gap: 10,
+    paddingTop: 10,
+    borderTop: '1px solid var(--border-subtle)',
   },
-  rosterBadge: {
-    font: '600 11px/1 "IBM Plex Sans", sans-serif',
-    padding: '2px 6px',
-    borderRadius: 99,
-    background: 'var(--status-transit-bg, rgba(95, 219, 211, 0.12))',
-    color: 'var(--status-transit-fg)',
-    border: '1px solid var(--border-subtle)',
+  poolHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  rosterChips: {
+  poolTitle: {
+    font: '600 13.5px/1 var(--font-sans)',
+    color: 'var(--text-primary)',
+  },
+  poolCount: {
+    fontSize: 12,
+    color: 'var(--text-muted)',
+    marginLeft: 4,
+  },
+  poolSub: {
+    fontSize: 12,
+    color: 'var(--text-muted)',
+    marginTop: 2,
+  },
+  poolGrid: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: 6,
-    alignItems: 'center',
-    minHeight: 28,
+    gap: 7,
+    maxHeight: 220,
+    overflowY: 'auto',
+    padding: '4px 1px',
   },
-  rosterChip: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '4px 8px',
-    borderRadius: 6,
-    border: '1px solid',
-    cursor: 'grab',
-    font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
-    transition: 'all 0.15s ease',
-  },
-  chipRemoveBtn: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--text-muted)',
-    cursor: 'pointer',
-    padding: '0 2px',
-    fontSize: 14,
-    lineHeight: 1,
-    marginLeft: 2,
-    borderRadius: 3,
+  playerChip: {
     display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  groupBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-    padding: '8px 12px',
+    gap: 8,
+    padding: '6px 11px',
     borderRadius: 8,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
-    marginTop: 10,
+    cursor: 'pointer',
+    textAlign: 'left',
+    transition: 'all 0.15s ease',
   },
-  caption: {
-    font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
+  playerChipA: {
+    background: 'var(--status-transit-bg)',
+    borderColor: 'var(--status-transit-fg)',
+  },
+  playerChipB: {
+    background: 'var(--status-delayed-bg)',
+    borderColor: 'var(--status-delayed-fg)',
+  },
+  chipName: {
+    font: '600 12.5px/1 var(--font-sans)',
+    color: 'var(--text-primary)',
+  },
+  chipTier: {
+    font: '600 10.5px/1 var(--font-sans)',
+  },
+  chipPlayed: {
+    fontSize: 11,
+    fontFamily: 'var(--font-mono, monospace)',
     color: 'var(--text-muted)',
   },
-  calBanner: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 12,
-    padding: '12px 14px',
-    borderRadius: 8,
-    background: 'var(--surface-accent-soft, rgba(0,178,169,.10))',
-    border: '1px solid var(--teal-600)',
+  chipSelectedBadge: {
+    font: '700 10px/1 var(--font-sans)',
+    padding: '1px 5px',
+    borderRadius: 4,
+    background: 'var(--surface-card)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border-default)',
   },
-  calIcon: {
-    width: 22,
-    height: 22,
-    flex: '0 0 auto',
-    borderRadius: 999,
-    background: 'var(--teal-500)',
+  scoreCard: {
+    padding: 12,
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+  },
+  singleScoreRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    font: '700 13px/1 Barlow, sans-serif',
-    color: 'var(--teal-900)',
+    gap: 20,
   },
-  calTitle: {
-    font: '600 14px/1.35 "IBM Plex Sans", sans-serif',
-    color: 'var(--status-transit-fg)',
+  scoreInputBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
-  calDesc: {
-    font: '400 13px/1.5 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-secondary)',
-  },
-  calToggleBtn: {
-    font: '600 11px/1 "IBM Plex Sans", sans-serif',
-    padding: '6px 10px',
-    borderRadius: 999,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-default)',
-    color: 'var(--text-secondary)',
-    whiteSpace: 'nowrap',
-    alignSelf: 'center',
-    cursor: 'pointer',
-  },
-  genderBadgeNu: {
-    font: '600 10px/1 "IBM Plex Sans", sans-serif',
-    padding: '2px 5px',
-    borderRadius: 999,
-    background: 'var(--status-incident-bg)',
-    color: 'var(--status-incident-fg)',
-  },
-  genderBadgeNam: {
-    font: '600 10px/1 "IBM Plex Sans", sans-serif',
-    padding: '2px 5px',
-    borderRadius: 999,
-    background: 'var(--status-scheduled-bg)',
-    color: 'var(--navy-200)',
-  },
-  ratingStrike: {
-    font: '400 11px/1 "IBM Plex Mono", monospace',
-    color: 'var(--text-muted)',
-    textDecoration: 'line-through',
-  },
-  ratingEff: {
-    font: '600 12px/1 "IBM Plex Mono", monospace',
-    color: 'var(--status-transit-fg)',
-  },
-  rawRatingDesc: {
-    font: '400 12px/1.5 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted)',
-    paddingTop: 6,
-    borderTop: '1px dashed var(--border-subtle)',
-  },
-  suggestBtn: {
-    font: '600 11px/1 "IBM Plex Sans", sans-serif',
-    padding: '5px 10px',
+  stepBtn: {
+    width: 32,
+    height: 38,
     borderRadius: 6,
-    background: 'var(--surface-raised)',
-    border: '1px solid var(--border-default)',
+    border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-card)',
+    font: '700 16px/1 var(--font-sans)',
     color: 'var(--text-primary)',
     cursor: 'pointer',
-    whiteSpace: 'nowrap',
   },
-}
-
-const confBadgeStyle = (level) => {
-  const base = {
-    font: '700 9px/1 "IBM Plex Mono", monospace',
-    padding: '2px 4px',
-    borderRadius: 3,
-  }
-  if (level === 'R1') return { ...base, background: 'var(--status-incident-bg)', color: 'var(--status-incident-fg)' }
-  if (level === 'R2') return { ...base, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' }
-  if (level === 'R3') return { ...base, background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)' }
-  return { ...base, background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)' }
+  scoreBigInput: {
+    width: 68,
+    height: 38,
+    borderRadius: 6,
+    border: '1px solid var(--border-default)',
+    background: 'var(--surface-card)',
+    textAlign: 'center',
+    font: '700 20px/1 var(--font-mono, monospace)',
+    color: 'var(--text-primary)',
+  },
+  presetBtn: {
+    padding: '3px 8px',
+    borderRadius: 4,
+    border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-card)',
+    font: '600 11px/1 var(--font-mono, monospace)',
+    color: 'var(--status-transit-fg)',
+    cursor: 'pointer',
+  },
+  bo3Row: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bo3Input: {
+    width: 56,
+    height: 32,
+    borderRadius: 6,
+    border: '1px solid var(--border-default)',
+    background: 'var(--surface-card)',
+    textAlign: 'center',
+    font: '600 14px/1 var(--font-mono, monospace)',
+    color: 'var(--text-primary)',
+  },
+  historyBadge: {
+    font: '600 11.5px/1 var(--font-mono, monospace)',
+    padding: '3px 8px',
+    borderRadius: 99,
+    background: 'var(--surface-inset)',
+    color: 'var(--text-muted)',
+  },
+  matchRow: {
+    display: 'grid',
+    gridTemplateColumns: '120px 1fr auto',
+    gap: 12,
+    alignItems: 'center',
+    padding: '10px 14px',
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+  },
+  matchMetaCol: {
+    display: 'grid',
+    gap: 4,
+  },
+  matchCodeBadge: {
+    font: '700 12px/1 var(--font-mono, monospace)',
+    color: 'var(--text-primary)',
+  },
+  matchCourtText: {
+    fontSize: 11.5,
+    color: 'var(--text-muted)',
+  },
+  sourceTagQuick: {
+    font: '600 10px/1 var(--font-sans)',
+    letterSpacing: 'var(--tracking-caps)',
+    padding: '2px 6px',
+    borderRadius: 4,
+    background: 'var(--surface-card)',
+    color: 'var(--text-secondary)',
+    width: 'fit-content',
+  },
+  sourceTagChallenge: {
+    font: '600 10px/1 var(--font-sans)',
+    letterSpacing: 'var(--tracking-caps)',
+    padding: '2px 6px',
+    borderRadius: 4,
+    background: 'var(--status-transit-bg)',
+    color: 'var(--status-transit-fg)',
+    width: 'fit-content',
+  },
+  matchTeamsCol: {
+    display: 'grid',
+    gap: 2,
+    minWidth: 0,
+  },
+  matchPlayerNames: {
+    fontSize: 13,
+    fontFamily: 'var(--font-sans)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  matchScoreBadge: {
+    font: '700 13.5px/1 var(--font-mono, monospace)',
+  },
+  matchEloCol: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  eloDeltaBadge: {
+    font: '700 12px/1 var(--font-mono, monospace)',
+    padding: '3px 8px',
+    borderRadius: 99,
+    background: 'var(--status-delivered-bg)',
+    color: 'var(--status-delivered-fg)',
+  },
+  unratedText: {
+    fontSize: 11.5,
+    color: 'var(--text-muted)',
+  },
 }

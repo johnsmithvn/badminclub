@@ -113,16 +113,8 @@ export function rankTierOf(rating = 0, themeKey = 'street') {
   const safeTheme = themeKey || 'street'
   const label = getTierName(safeTheme, tier.key)
   const quip = getComedyQuip(tier.key)
-  const tierHex = tier.color || (cfg.rating?.tiers || []).find((t) => t.key === tier.key)?.color || (
-    tier.key === 'rookie' ? '#38BDF8' :
-    tier.key === 'regular' ? '#34D399' :
-    tier.key === 'solid' ? '#FACC15' :
-    tier.key === 'net_master' ? '#FB923C' :
-    tier.key === 'coverage' ? '#F43F5E' :
-    tier.key === 'heavy_hitter' ? '#A855F7' :
-    tier.key === 'court_boss' ? '#EC4899' : '#94A3B8'
-  )
-  const colorToken = tier.token ? `var(--${tier.token}, ${tierHex})` : (tier.color || `var(--rank-novice, #94A3B8)`)
+  const tokenName = tier.token || `rank-${tier.key.replace(/_/g, '-')}`
+  const colorToken = `var(--${tokenName})`
 
   return {
     key: tier.key,
@@ -345,11 +337,11 @@ export function computeClubCalibration(matches, membersMap) {
  * @param {Object} membersMap - Map memberId -> member object
  * @returns {Array<{ id: string, name: string, member: Object, count: number, confidence: 'low'|'medium'|'high'|'very_high' }>}
  */
-export function rankTopCrossGenderPlayers(topCrossMap, membersMap) {
+export function rankTopCrossGenderPlayers(topCrossMap, membersMap, limit = 8) {
   if (!topCrossMap || typeof topCrossMap !== 'object') return []
   const confThresholds = cfg.rating?.crossGenderConfidence || { low: 5, medium: 15, high: 30 }
 
-  return Object.entries(topCrossMap)
+  const sorted = Object.entries(topCrossMap)
     .map(([id, count]) => {
       const member = membersMap?.[id] || { id, name: '—' }
       let confidence = 'very_high'
@@ -366,6 +358,8 @@ export function rankTopCrossGenderPlayers(topCrossMap, membersMap) {
       }
     })
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+
+  return typeof limit === 'number' && limit > 0 ? sorted.slice(0, limit) : sorted
 }
 
 /**

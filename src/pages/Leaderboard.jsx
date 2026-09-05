@@ -241,7 +241,7 @@ export default function Leaderboard() {
   }, [db.matches, memberMap])
 
   const topCrossPlayers = useMemo(() => {
-    return rankTopCrossGenderPlayers(calibrationStats.topCrossGenderPlayers, memberMap)
+    return rankTopCrossGenderPlayers(calibrationStats.topCrossGenderPlayers, memberMap, 8)
   }, [calibrationStats.topCrossGenderPlayers, memberMap])
 
   const crossOverall = useMemo(() => {
@@ -513,31 +513,31 @@ export default function Leaderboard() {
             <div style={S.statCardBox}>
               <span style={S.statCardLabel}>{t('leaderboard.statCurrentSeason')}</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: '#5FDBD3' }}>2026 Q3</span>
+                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: 'var(--status-transit-fg)' }}>2026 Q3</span>
               </div>
               <span style={S.statCardSub}>{t('leaderboard.statSeasonRange')}</span>
             </div>
             <div style={S.statCardBox}>
               <span style={S.statCardLabel}>{t('leaderboard.statTotalMatches')}</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: '#E9EFF7' }}>{seasonStats.totalMatches || 284}</span>
-                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>{t('units.match')}</span>
+                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: 'var(--text-primary)' }}>{seasonStats.totalMatches || 284}</span>
+                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>{t('units.match')}</span>
               </div>
               <span style={S.statCardSub}>{t('leaderboard.statMatchesDesc')}</span>
             </div>
             <div style={S.statCardBox}>
               <span style={S.statCardLabel}>{t('leaderboard.statRatedPlayers')}</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: '#E9EFF7' }}>{seasonStats.ratedPlayersCount || 31}</span>
-                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>{t('units.person')}</span>
+                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: 'var(--text-primary)' }}>{seasonStats.ratedPlayersCount || 31}</span>
+                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>{t('units.person')}</span>
               </div>
               <span style={S.statCardSub}>{t('leaderboard.statPlayersDesc')}</span>
             </div>
             <div style={S.statCardBox}>
               <span style={S.statCardLabel}>{t('leaderboard.statUpsetMatches')}</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: '#FF9A8F' }}>{seasonStats.upsetMatchesCount || 19}</span>
-                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>{t('units.match')}</span>
+                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: 'var(--status-incident-fg)' }}>{seasonStats.upsetMatchesCount || 19}</span>
+                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>{t('units.match')}</span>
               </div>
               <span style={S.statCardSub}>{t('leaderboard.statUpsetDesc')}</span>
             </div>
@@ -595,7 +595,7 @@ export default function Leaderboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
                   {leaderboardData.map((row, idx) => {
                     const rank = idx + 1
-                    const rankColor = rank <= 3 ? '#5FDBD3' : 'var(--text-muted)'
+                    const rankColor = rank <= 3 ? 'var(--status-transit-fg)' : 'var(--text-muted)'
 
                     return (
                       <div
@@ -624,8 +624,8 @@ export default function Leaderboard() {
                                 font: '600 10px/1 "IBM Plex Sans", sans-serif',
                                 padding: '3px 7px',
                                 borderRadius: 999,
-                                background: 'rgba(18,168,103,.18)',
-                                color: '#5FD9A2',
+                                background: 'var(--status-delivered-bg)',
+                                color: 'var(--status-delivered-fg)',
                                 whiteSpace: 'nowrap',
                               }}>
                                 {row.level || 'TBK'}
@@ -680,9 +680,9 @@ export default function Leaderboard() {
                                       justifyContent: 'center',
                                       fontSize: 9,
                                       fontWeight: 700,
-                                      background: res === 'W' ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)',
+                                      background: res === 'W' ? 'var(--status-delivered-bg)' : 'var(--status-incident-bg)',
                                       color: res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
-                                      border: `1px solid ${res === 'W' ? 'var(--green-600)' : 'rgba(225,68,52,.4)'}`,
+                                      border: `1px solid ${res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)'}`,
                                     }}
                                   >
                                     {res}
@@ -825,9 +825,9 @@ export default function Leaderboard() {
                                       justifyContent: 'center',
                                       fontSize: 10,
                                       fontWeight: 700,
-                                      background: res === 'W' ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)',
+                                      background: res === 'W' ? 'var(--status-delivered-bg)' : 'var(--status-incident-bg)',
                                       color: res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
-                                      border: `1px solid ${res === 'W' ? 'var(--green-600)' : 'rgba(225,68,52,.4)'}`,
+                                      border: `1px solid ${res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)'}`,
                                     }}
                                   >
                                     {res}
@@ -865,9 +865,9 @@ export default function Leaderboard() {
                     font: '700 10px/1 "IBM Plex Sans", sans-serif',
                     padding: '4px 8px',
                     borderRadius: 999,
-                    background: 'rgba(240,183,92,.18)',
-                    color: '#F0B75C',
-                    border: '1px solid rgba(240,183,92,.4)',
+                    background: 'var(--status-delayed-bg)',
+                    color: 'var(--status-delayed-fg)',
+                    border: '1px solid var(--border-subtle)',
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase',
                   }}>
@@ -877,20 +877,20 @@ export default function Leaderboard() {
                 <div style={{ padding: 14, display: 'grid', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ font: '700 16px/1.2 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                      <span style={{ font: '700 16px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
                         {seasonStats.bountyPlayer?.name || 'An Nguyễn'} {/* i18n-ok mock name */}
                       </span>
                       <span style={{
                         font: '600 10px/1 "IBM Plex Sans", sans-serif',
                         padding: '3px 7px',
                         borderRadius: 999,
-                        background: 'rgba(18,168,103,.18)',
-                        color: '#5FD9A2',
+                        background: 'var(--status-delivered-bg)',
+                        color: 'var(--status-delivered-fg)',
                       }}>
                         {seasonStats.bountyPlayer?.level || 'TBK'}
                       </span>
                     </div>
-                    <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
+                    <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--status-transit-fg)' }}>
                       {seasonStats.bountyPlayer?.displayRating || 1480}
                     </span>
                   </div>
@@ -898,11 +898,11 @@ export default function Leaderboard() {
                   <div style={{
                     padding: '10px 12px',
                     borderRadius: 8,
-                    background: '#1D170B',
-                    border: '1px solid #4A3311',
+                    background: 'var(--status-delayed-bg)',
+                    border: '1px solid var(--border-subtle)',
                     fontSize: 12,
                     lineHeight: 1.45,
-                    color: '#F0B75C',
+                    color: 'var(--status-delayed-fg)',
                   }}>
                     {t('leaderboard.bountyRewardNote')}
                   </div>
@@ -918,7 +918,6 @@ export default function Leaderboard() {
                         setChallengeModalOpen(true)
                       }
                     }}
-                    style={{ background: 'linear-gradient(135deg, #00B2A9 0%, #00877F 100%)' }}
                   >
                     {t('challenge.btnBounty')}
                   </Button>
@@ -932,7 +931,7 @@ export default function Leaderboard() {
                     <div style={S.cardTitle}>{t('leaderboard.topChangesTitle')}</div>
                     <div style={S.cardSub}>{t('leaderboard.topChangesSub')}</div>
                   </div>
-                  <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                  <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                     {t('leaderboard.lastSessionDelta')}
                   </span>
                 </div>
@@ -946,23 +945,23 @@ export default function Leaderboard() {
                         justifyContent: 'space-between',
                         gap: 8,
                         paddingBottom: idx < topRatingChanges.length - 1 ? 8 : 0,
-                        borderBottom: idx < topRatingChanges.length - 1 ? '1px solid #1E2B42' : 'none',
+                        borderBottom: idx < topRatingChanges.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                       }}
                     >
                       <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                          <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
                             {item.name}
                           </span>
-                          <span style={{ fontSize: 11, color: '#8494AA' }}>({item.gender || 'M'})</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({item.gender || 'M'})</span>
                         </div>
-                        <span style={{ fontSize: 11, color: '#8494AA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.reason}
                         </span>
                       </div>
                       <span style={{
                         font: '700 15px/1 "IBM Plex Mono", monospace',
-                        color: item.delta >= 0 ? '#5FD9A2' : '#FF9A8F',
+                        color: item.delta >= 0 ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
                         flexShrink: 0,
                       }}>
                         {item.delta >= 0 ? `+${item.delta}` : item.delta}
@@ -979,7 +978,7 @@ export default function Leaderboard() {
                     <div style={S.cardTitle}>{t('leaderboard.achievementsTitle')}</div>
                     <div style={S.cardSub}>{t('leaderboard.achievementsSub')}</div>
                   </div>
-                  <Icon name="award" size={16} color="#F0B75C" />
+                  <Icon name="award" size={16} color="var(--status-delayed-fg)" />
                 </div>
                 <div style={{ padding: '8px 14px 14px', display: 'grid', gap: 8 }}>
                   {recentSeasonAchievements.map((ach, idx) => (
@@ -991,16 +990,16 @@ export default function Leaderboard() {
                         gap: 10,
                         padding: '8px 10px',
                         borderRadius: 6,
-                        background: '#101927',
-                        border: '1px solid #22304A',
+                        background: 'var(--surface-inset)',
+                        border: '1px solid var(--border-subtle)',
                       }}
                     >
                       <span style={{
                         width: 28,
                         height: 28,
                         borderRadius: 999,
-                        background: 'rgba(240,183,92,.15)',
-                        color: '#F0B75C',
+                        background: 'var(--status-delayed-bg)',
+                        color: 'var(--status-delayed-fg)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1010,14 +1009,14 @@ export default function Leaderboard() {
                       </span>
                       <div style={{ display: 'grid', gap: 2, minWidth: 0, flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                          <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                          <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
                             {ach.title}
                           </span>
-                          <span style={{ font: '400 11px "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                          <span style={{ font: '400 11px "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                             {ach.date}
                           </span>
                         </div>
-                        <span style={{ fontSize: 11, color: '#8494AA' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                           {ach.name}
                         </span>
                       </div>
@@ -1125,8 +1124,8 @@ export default function Leaderboard() {
                           <span style={{
                             padding: '3px 10px',
                             borderRadius: 999,
-                            background: 'rgba(0,178,169,0.15)',
-                            border: '1px solid var(--teal-700)',
+                            background: 'var(--status-transit-bg)',
+                            border: '1px solid var(--border-subtle)',
                             color: 'var(--status-transit-fg)',
                             fontSize: 12,
                             fontWeight: 700,
@@ -1144,7 +1143,7 @@ export default function Leaderboard() {
                           fontStyle: 'italic',
                           fontSize: 12.5,
                           color: 'var(--text-secondary)',
-                          background: 'rgba(255,255,255,0.03)',
+                          background: 'var(--surface-inset)',
                           padding: '8px 14px',
                           borderRadius: 6,
                           borderLeft: `3px solid ${memberTier.color}`,
@@ -1187,9 +1186,9 @@ export default function Leaderboard() {
                 <div style={{
                   padding: '16px 20px',
                   borderRadius: 10,
-                  background: 'linear-gradient(135deg, rgba(16, 25, 39, 0.95) 0%, rgba(10, 16, 26, 0.95) 100%)',
-                  border: `1px solid ${alphaColor(badge.color, '40', 25)}`,
-                  boxShadow: `0 4px 20px ${alphaColor(badge.color, '15', 8)}`,
+                  background: 'var(--surface-card)',
+                  border: `1px solid var(--border-subtle)`,
+                  boxShadow: 'var(--shadow-sm)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -1267,37 +1266,37 @@ export default function Leaderboard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
               <div style={S.contextCardBox}>
                 <span style={S.contextCardLabel}>{t('rating.breakdown.vsMale')}</span>
-                <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
+                <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)' }}>
                   {profileContext.vsMale.wins}W – {profileContext.vsMale.loss}L
                 </span>
-                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: profileContext.vsMale.conf === 'very_high' || profileContext.vsMale.conf === 'high' ? '#5FD9A2' : '#F0B75C' }}>
+                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: profileContext.vsMale.conf === 'very_high' || profileContext.vsMale.conf === 'high' ? 'var(--status-delivered-fg)' : 'var(--status-delayed-fg)' }}>
                   {profileContext.vsMale.total} {t('units.match')} · {t('rating.confidence.' + profileContext.vsMale.conf)}
                 </span>
               </div>
               <div style={S.contextCardBox}>
                 <span style={S.contextCardLabel}>{t('rating.breakdown.vsFemale')}</span>
-                <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
+                <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)' }}>
                   {profileContext.vsFemale.wins}W – {profileContext.vsFemale.loss}L
                 </span>
-                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: profileContext.vsFemale.conf === 'very_high' || profileContext.vsFemale.conf === 'high' ? '#5FD9A2' : '#F0B75C' }}>
+                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: profileContext.vsFemale.conf === 'very_high' || profileContext.vsFemale.conf === 'high' ? 'var(--status-delivered-fg)' : 'var(--status-delayed-fg)' }}>
                   {profileContext.vsFemale.total} {t('units.match')} · {t('rating.confidence.' + profileContext.vsFemale.conf)}
                 </span>
               </div>
               <div style={S.contextCardBox}>
                 <span style={S.contextCardLabel}>{t('rating.breakdown.doubles')}</span>
-                <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
+                <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)' }}>
                   {profileContext.doubles.wins}W – {profileContext.doubles.loss}L
                 </span>
-                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: profileContext.doubles.conf === 'very_high' || profileContext.doubles.conf === 'high' ? '#5FD9A2' : '#F0B75C' }}>
+                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: profileContext.doubles.conf === 'very_high' || profileContext.doubles.conf === 'high' ? 'var(--status-delivered-fg)' : 'var(--status-delayed-fg)' }}>
                   {profileContext.doubles.total} {t('units.match')} · {t('rating.confidence.' + profileContext.doubles.conf)}
                 </span>
               </div>
               <div style={S.contextCardBox}>
                 <span style={S.contextCardLabel}>{t('rating.breakdown.singles')}</span>
-                <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
+                <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)' }}>
                   {profileContext.singles.wins}W – {profileContext.singles.loss}L
                 </span>
-                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: profileContext.singles.conf === 'very_high' || profileContext.singles.conf === 'high' ? '#5FD9A2' : '#FF8578' }}>
+                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: profileContext.singles.conf === 'very_high' || profileContext.singles.conf === 'high' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
                   {profileContext.singles.total} {t('units.match')} · {t('rating.confidence.' + profileContext.singles.conf)}
                 </span>
               </div>
@@ -1412,7 +1411,7 @@ export default function Leaderboard() {
                                 background: 'transparent',
                                 padding: 0,
                                 font: '600 12px/1 "IBM Plex Sans", sans-serif',
-                                color: 'var(--text-link, #7AA3DC)',
+                                color: 'var(--text-link)',
                                 cursor: 'pointer',
                                 textAlign: 'left',
                               }}
@@ -1428,35 +1427,35 @@ export default function Leaderboard() {
 
                           {/* Cột 3: Đội thắng + delta rating */}
                           <div style={{ ...S.tdCell, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                            <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#5FD9A2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {winnerNames}
                             </span>
-                            <span style={{ font: '400 13px/1.2 "IBM Plex Mono", monospace', color: '#5FD9A2' }}>
+                            <span style={{ font: '400 13px/1.2 "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg)' }}>
                               +{delta} · +{delta}
                             </span>
                           </div>
 
                           {/* Cột 4: Tỷ số to nằm giữa */}
-                          <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '700 17px/1 Barlow, sans-serif', color: '#E9EFF7', whiteSpace: 'nowrap' }}>
+                          <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '700 17px/1 Barlow, sans-serif', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                             {scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : '21 – 19'}
                           </div>
 
                           {/* Cột 5: Đội thua + delta rating */}
                           <div style={{ ...S.tdCell, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                            <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#A8B7CB', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {loserNames}
                             </span>
-                            <span style={{ font: '400 13px/1.2 "IBM Plex Mono", monospace', color: '#FF8578' }}>
+                            <span style={{ font: '400 13px/1.2 "IBM Plex Mono", monospace', color: 'var(--status-incident-fg)' }}>
                               −{delta} · −{delta}
                             </span>
                           </div>
 
                           {/* Cột 6: Dự đoán */}
                           <div style={{ ...S.tdCell, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}>
-                            <span style={{ font: '600 13px/1.2 "IBM Plex Mono", monospace', color: '#A8B7CB' }}>
+                            <span style={{ font: '600 13px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-secondary)' }}>
                               {isUpset ? '71%' : isClose ? '52%' : '50%'}
                             </span>
-                            <span style={{ font: '400 12px/1.2 "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                            <span style={{ font: '400 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                               {isUpset ? t('leaderboard.predUpset') : isClose ? t('leaderboard.predClose') : t('leaderboard.predCorrect')}
                             </span>
                           </div>
@@ -1467,8 +1466,8 @@ export default function Leaderboard() {
                               font: '600 10px/1 "IBM Plex Sans", sans-serif',
                               padding: '5px 9px',
                               borderRadius: 999,
-                              background: isChallenge ? 'rgba(0,178,169,.18)' : 'rgba(148,164,186,.14)',
-                              color: isChallenge ? '#5FDBD3' : '#A8B7CB',
+                              background: isChallenge ? 'var(--status-transit-bg)' : 'var(--surface-sunken)',
+                              color: isChallenge ? 'var(--status-transit-fg)' : 'var(--text-secondary)',
                               whiteSpace: 'nowrap',
                             }}>
                               {isChallenge ? t('leaderboard.codeChallenge', { code: 'C-0125' }) : t('challenge.fromCourt')}
@@ -1504,8 +1503,8 @@ export default function Leaderboard() {
                       font: '600 10px/1 "IBM Plex Sans", sans-serif',
                       padding: '5px 9px',
                       borderRadius: 999,
-                      background: h2hSummary.relationshipTone === 'tough' ? 'rgba(225,68,52,.18)' : 'rgba(0,178,169,.18)',
-                      color: h2hSummary.relationshipTone === 'tough' ? '#FF9A8F' : '#5FD9A2',
+                      background: h2hSummary.relationshipTone === 'tough' ? 'var(--status-incident-bg)' : 'var(--status-transit-bg)',
+                      color: h2hSummary.relationshipTone === 'tough' ? 'var(--status-incident-fg)' : 'var(--status-delivered-fg)',
                       whiteSpace: 'nowrap',
                     }}>
                       {h2hSummary.relationshipTone === 'tough' ? t('leaderboard.toughOpponent') : h2hSummary.relationshipTone === 'easy' ? t('leaderboard.easyOpponent') : t('leaderboard.balancedOpponent')}
@@ -1514,31 +1513,31 @@ export default function Leaderboard() {
                   <div style={{ padding: 14, display: 'grid', gap: 10 }}>
                     {/* Tỷ số to khổng lồ ở giữa */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, font: '700 32px/1 Barlow, sans-serif' }}>
-                      <span style={{ color: '#FF9A8F' }}>{h2hSummary.aWins}</span>
-                      <span style={{ color: '#5B6B81', fontSize: 17 }}>–</span>
-                      <span style={{ color: '#E9EFF7' }}>{h2hSummary.bWins}</span>
+                      <span style={{ color: 'var(--status-incident-fg)' }}>{h2hSummary.aWins}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 17 }}>–</span>
+                      <span style={{ color: 'var(--text-primary)' }}>{h2hSummary.bWins}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, font: '400 13px/1.4 "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, font: '400 13px/1.4 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                       <span>{memberNameOf(playerA)} {h2hSummary.aWinRate}%</span>
                       <span>{memberNameOf(playerB)} {h2hSummary.bWinRate}%</span>
                     </div>
                     {/* Inset Box */}
-                    <div style={{ display: 'grid', gap: 8, padding: '11px 13px', borderRadius: 8, background: '#101927', border: '1px solid #22304A' }}>
+                    <div style={{ display: 'grid', gap: 8, padding: '11px 13px', borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                        <span style={{ color: '#8494AA' }}>{t('matchSearch.qualityClose')}</span>
-                        <span style={{ color: '#F0B75C' }}>{h2hSummary.closeCount} {t('units.match')}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('matchSearch.qualityClose')}</span>
+                        <span style={{ color: 'var(--status-delayed-fg)' }}>{h2hSummary.closeCount} {t('units.match')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                        <span style={{ color: '#8494AA' }}>{t('matchSearch.qualityUpset')}</span>
-                        <span style={{ color: '#FF9A8F' }}>{h2hSummary.upsetCount} {t('units.match')}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('matchSearch.qualityUpset')}</span>
+                        <span style={{ color: 'var(--status-incident-fg)' }}>{h2hSummary.upsetCount} {t('units.match')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                        <span style={{ color: '#8494AA' }}>{t('challenge.challenge')}</span>
-                        <span style={{ color: '#5FDBD3' }}>{h2hSummary.challengeCount} {t('units.match')}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('challenge.challenge')}</span>
+                        <span style={{ color: 'var(--status-transit-fg)' }}>{h2hSummary.challengeCount} {t('units.match')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                        <span style={{ color: '#8494AA' }}>{t('leaderboard.netRating')}</span>
-                        <span style={{ color: '#E9EFF7' }}>{h2hSummary.netDelta >= 0 ? `+${h2hSummary.netDelta}` : h2hSummary.netDelta}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('leaderboard.netRating')}</span>
+                        <span style={{ color: 'var(--text-primary)' }}>{h2hSummary.netDelta >= 0 ? `+${h2hSummary.netDelta}` : h2hSummary.netDelta}</span>
                       </div>
                     </div>
                   </div>
@@ -1557,8 +1556,8 @@ export default function Leaderboard() {
                       font: '600 10px/1 "IBM Plex Sans", sans-serif',
                       padding: '5px 9px',
                       borderRadius: 999,
-                      background: 'rgba(0,178,169,.18)',
-                      color: '#5FDBD3',
+                      background: 'var(--status-transit-bg)',
+                      color: 'var(--status-transit-fg)',
                       whiteSpace: 'nowrap',
                     }}>
                       {t('leaderboard.wonCount', { n: h2hSummary.tmWins })}
@@ -1566,15 +1565,15 @@ export default function Leaderboard() {
                   </div>
                   <div style={{ padding: 14, display: 'grid', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                      <span style={{ color: '#8494AA' }}>{t('leaderboard.winLoss')}</span>
-                      <span style={{ color: '#5FD9A2' }}>{h2hSummary.tmWins} – {h2hSummary.tmLoss}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('leaderboard.winLoss')}</span>
+                      <span style={{ color: 'var(--status-delivered-fg)' }}>{h2hSummary.tmWins} – {h2hSummary.tmLoss}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                      <span style={{ color: '#8494AA' }}>{t('leaderboard.winRateLabel')}</span>
-                      <span style={{ color: '#5FD9A2' }}>{h2hSummary.tmWinRate}%</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('leaderboard.winRateLabel')}</span>
+                      <span style={{ color: 'var(--status-delivered-fg)' }}>{h2hSummary.tmWinRate}%</span>
                     </div>
                     {h2hSummary.lastDate && (
-                      <div style={{ fontSize: 11, color: '#8494AA', marginTop: 6 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
                         {t('leaderboard.lastTeammateMatch')}: {h2hSummary.lastDate} ({h2hSummary.lastWon ? t('leaderboard.wonStatus') : t('leaderboard.lostStatus')})
                       </div>
                     )}
@@ -1631,7 +1630,7 @@ export default function Leaderboard() {
                         const cell = matrixData[p1.id]?.[p2.id] || { wins: 0, losses: 0 }
                         const net = cell.wins - cell.losses
                         const cellColor = net > 0 ? 'var(--status-delivered-fg)' : net < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)'
-                        const cellBg = net > 0 ? 'rgba(18,168,103,.12)' : net < 0 ? 'rgba(225,68,52,.12)' : 'transparent'
+                        const cellBg = net > 0 ? 'var(--status-delivered-bg)' : net < 0 ? 'var(--status-incident-bg)' : 'transparent'
                         return (
                           <td key={p2.id} style={{ ...S.matrixCell, color: cellColor, background: cellBg }}>
                             {cell.wins}-{cell.losses}
@@ -1706,47 +1705,56 @@ export default function Leaderboard() {
           {/* Cột trái: Tỷ lệ nữ thắng & Phân rã theo mức chênh Elo */}
           <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
             {/* Card 1: Tổng quan Nữ thắng khi gặp nam */}
-            <div style={{
-              ...S.card,
-              padding: 16,
-              display: 'grid',
-              gap: 10,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-muted)',
+            {(() => {
+              const hasCrossData = crossOverall.totalSample > 0
+              return (
+                <div style={{
+                  ...S.card,
+                  padding: 16,
+                  display: 'grid',
+                  gap: 10,
                 }}>
-                  {t('rating.calibration.femaleVsMale')}
-                </span>
-                <span style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 30,
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  color: 'var(--status-delayed-fg)',
-                }}>
-                  {crossOverall.winRate}%
-                </span>
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                lineHeight: 1.45,
-                color: 'var(--text-secondary)',
-              }}>
-                {t('rating.calibration.overallDesc', {
-                  wins: crossOverall.totalFemaleWins,
-                  total: crossOverall.totalSample,
-                  note: t('rating.calibration.learnedNote'),
-                })}
-              </div>
-            </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      lineHeight: 1.2,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-muted)',
+                    }}>
+                      {t('rating.calibration.femaleVsMale')}
+                    </span>
+                    <span style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 30,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      color: hasCrossData ? 'var(--status-delayed-fg)' : 'var(--text-muted)',
+                    }}>
+                      {hasCrossData ? `${crossOverall.winRate}%` : '—'}
+                    </span>
+                  </div>
+                  <div style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                    color: 'var(--text-secondary)',
+                  }}>
+                    {hasCrossData ? (
+                      t('rating.calibration.overallDesc', {
+                        wins: crossOverall.totalFemaleWins,
+                        total: crossOverall.totalSample,
+                        note: t('rating.calibration.learnedNote'),
+                      })
+                    ) : (
+                      t('rating.calibration.emptyCross')
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Card 2: Bảng theo mức chênh rating */}
             <div style={{ ...S.card, overflow: 'hidden' }}>
@@ -1770,12 +1778,15 @@ export default function Leaderboard() {
 
               {calibrationStats.map((item, idx) => {
                 const isLast = idx === calibrationStats.length - 1
-                const winRatePct = Math.round(item.observedWinRate * 100)
-                const rateColor = winRatePct >= 40
-                  ? 'var(--status-delivered-fg)'
-                  : winRatePct >= 20
-                    ? 'var(--status-delayed-fg)'
-                    : 'var(--status-incident-fg)'
+                const hasData = item.sampleSize > 0
+                const winRatePct = hasData ? Math.round(item.observedWinRate * 100) : null
+                const rateColor = !hasData
+                  ? 'var(--text-muted)'
+                  : winRatePct >= 40
+                    ? 'var(--status-delivered-fg)'
+                    : winRatePct >= 20
+                      ? 'var(--status-delayed-fg)'
+                      : 'var(--status-incident-fg)'
                 const gapLabel = item.bucket === '<100'
                   ? t('rating.calibration.gapUnder100')
                   : item.bucket === '100-300'
@@ -1800,7 +1811,7 @@ export default function Leaderboard() {
                     </div>
                     <div style={{ padding: '0 14px' }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 600, color: rateColor }}>
-                        {winRatePct}%
+                        {hasData ? `${winRatePct}%` : '—'}
                       </span>
                     </div>
                     <div style={{ padding: '0 14px' }}>
@@ -1831,14 +1842,14 @@ export default function Leaderboard() {
                     {t('rating.calibration.emptyCross')}
                   </div>
                 ) : (
-                  topCrossPlayers.slice(0, 8).map((p) => {
+                  topCrossPlayers.map((p) => {
                     const badgeToken = p.confidence === 'very_high'
-                      ? { bg: 'rgba(18,168,103,.16)', color: 'var(--status-delivered-fg)' }
+                      ? { bg: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)' }
                       : p.confidence === 'high'
-                        ? { bg: 'rgba(0,178,169,.16)', color: 'var(--status-transit-fg)' }
+                        ? { bg: 'var(--status-transit-bg)', color: 'var(--status-transit-fg)' }
                         : p.confidence === 'medium'
-                          ? { bg: 'rgba(240,183,92,.16)', color: 'var(--status-delayed-fg)' }
-                          : { bg: 'rgba(225,68,52,.16)', color: 'var(--status-incident-fg)' }
+                          ? { bg: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' }
+                          : { bg: 'var(--status-incident-bg)', color: 'var(--status-incident-fg)' }
 
                     return (
                       <div
@@ -1917,7 +1928,9 @@ export default function Leaderboard() {
                 lineHeight: 1.5,
                 color: 'var(--text-secondary)',
               }}>
-                {t('rating.calibration.howToUseDesc', { rate: crossOverall.winRate })}
+                {crossOverall.totalSample > 0
+                  ? t('rating.calibration.howToUseDesc', { rate: crossOverall.winRate })
+                  : t('rating.calibration.desc')}
               </span>
             </div>
           </div>
@@ -1980,13 +1993,13 @@ const S = {
   tabBtnActive: {
     background: 'var(--surface-card)',
     color: 'var(--text-primary)',
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    boxShadow: 'var(--shadow-xs)',
   },
   card: {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    boxShadow: 'var(--shadow-xs)',
     overflow: 'hidden',
   },
   cardHead: {
@@ -2010,7 +2023,7 @@ const S = {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    boxShadow: 'var(--shadow-xs)',
     padding: '14px 16px',
     display: 'grid',
     gap: 6,
@@ -2188,15 +2201,15 @@ const S = {
     fontWeight: 600,
     border: 'none',
     cursor: 'pointer',
-    boxShadow: '0 2px 6px rgba(0,178,169,0.3)',
+    boxShadow: 'var(--shadow-xs)',
     whiteSpace: 'nowrap',
     transition: 'all 0.15s ease',
   },
   bountyBanner: {
     padding: '14px 18px',
     borderRadius: 8,
-    background: 'linear-gradient(135deg, rgba(240,183,92,.12) 0%, rgba(205,127,50,.10) 100%)',
-    border: '1px solid rgba(240,183,92,.35)',
+    background: 'var(--status-delayed-bg)',
+    border: '1px solid var(--border-subtle)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -2207,8 +2220,8 @@ const S = {
     width: 38,
     height: 38,
     borderRadius: 8,
-    background: 'rgba(240,183,92,.2)',
-    border: '1px solid rgba(240,183,92,.4)',
+    background: 'var(--status-delayed-bg)',
+    border: '1px solid var(--border-subtle)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2222,7 +2235,7 @@ const S = {
   bountyBadge: {
     padding: '2px 8px',
     borderRadius: 4,
-    background: 'rgba(240,183,92,.25)',
+    background: 'var(--status-delayed-bg)',
     border: '1px solid var(--status-delayed-fg)',
     color: 'var(--status-delayed-fg)',
     fontSize: 11,

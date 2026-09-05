@@ -10,7 +10,6 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { PUBLIC_PATHS, pathOf } from '#routes'
 import { allowedRoutes, roleName, can } from '#lib/roles.js'
 import { clubDebtCounts, monthSessions, myDebtCounts } from '#lib/money.js'
-import { assignableSessions } from '#lib/assign.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -20,7 +19,6 @@ const NAV = [
   { section: 'ops' },
   { value: 'calendar', icon: 'calendar-days' },
   { value: 'sessions', icon: 'clipboard-check', badge: 'unclosedSessions' },
-  { value: 'assign', icon: 'route', badge: 'assignable' },
   { value: 'leaderboard', icon: 'trophy' },
   { value: 'members', icon: 'users' },
   { section: 'money' },
@@ -52,7 +50,6 @@ export default function Sidebar({ route }) {
 
   const counts = {
     unclosedSessions: monthSessions(db, db.month).filter((s) => s.status !== 'closed').length,
-    assignable: assignableSessions(db).length,
     debtPending: totalDebtPending,
     pendingJoins: (db.joinRequests || []).length,
   }
@@ -193,14 +190,6 @@ export default function Sidebar({ route }) {
           items={items}
           value={route === 'session' ? 'sessions' : route}
           onChange={(v) => {
-            if (v === 'assign') {
-              const list = assignableSessions(db)
-              const todaySess = list[0]
-              if (todaySess) {
-                navigate(`/buoi-tap/${todaySess.id}?tab=courts`)
-                return
-              }
-            }
             navigate(pathOf(v, v === 'session' ? db.sessionId : undefined))
           }}
           style={{ background: 'transparent', border: 0, width: '100%' }}

@@ -591,7 +591,7 @@ function OpenNow() {
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               padding: '2px 8px', borderRadius: 99,
-              background: 'var(--status-delivered)', color: '#fff',
+              background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)',
               font: '700 10.5px/1 var(--font-sans)', letterSpacing: 'var(--tracking-caps)',
             }}>
               <Icon name="play" size={10} />

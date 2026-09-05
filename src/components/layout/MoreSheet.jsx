@@ -9,7 +9,6 @@ import { useAuth } from '#contexts/AuthContext.jsx'
 import { PUBLIC_PATHS, pathOf } from '#routes'
 import { allowedRoutes, can, footerSlots, roleName } from '#lib/roles.js'
 import { clubDebtCounts, monthSessions, myDebtCounts } from '#lib/money.js'
-import { assignableSessions } from '#lib/assign.js'
 import { t } from '#i18n'
 
 export default function MoreSheet({ open, onClose, route }) {
@@ -25,7 +24,6 @@ export default function MoreSheet({ open, onClose, route }) {
 
   const counts = {
     unclosedSessions: monthSessions(db, db.month).filter((s) => s.status !== 'closed').length,
-    assignable: assignableSessions(db).length,
     debtPending: debtCounts.total,
     pendingJoins: (db.joinRequests || []).length,
     pendingChanges: (db.changes || []).filter((c) => c.status === 'pending').length,
@@ -52,12 +50,6 @@ export default function MoreSheet({ open, onClose, route }) {
           value: 'members',
           icon: 'users',
           badge: counts.pendingChanges > 0 ? counts.pendingChanges : null,
-        },
-        {
-          value: 'assign',
-          icon: 'route',
-          badge: counts.assignable > 0 ? counts.assignable : null,
-          isAssign: true,
         },
         { value: 'calendar', icon: 'calendar-days' },
         { value: 'schedules', icon: 'repeat' },
@@ -108,16 +100,6 @@ export default function MoreSheet({ open, onClose, route }) {
     }
     if (it.action === 'importSettings') {
       a.openDialog('importSettings', {})
-      return
-    }
-    if (it.isAssign) {
-      // Nhảy thẳng vào buổi khả dụng đầu tiên (Sidebar.jsx:196)
-      const firstSession = assignableSessions(db)[0]
-      if (firstSession) {
-        navigate('/buoi-tap/' + firstSession.id + '?tab=courts')
-      } else {
-        navigate(pathOf('assign'))
-      }
       return
     }
     a.go(it.value)

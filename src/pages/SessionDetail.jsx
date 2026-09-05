@@ -232,7 +232,7 @@ export default function SessionDetail() {
             }}
           >
             <span>{t('sessionTabs.courts')}</span>
-            <span style={{ ...S.tabBadgeMono, color: 'var(--status-transit-fg)' }}>{onCourtCount}</span>
+            <span style={{ ...S.tabBadgeMono, color: 'var(--status-transit-fg)' }}>{sessionMatches.length}</span>
           </button>
           <button
             type="button"

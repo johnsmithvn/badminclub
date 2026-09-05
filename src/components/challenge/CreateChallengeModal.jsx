@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { expectedScore, calcEloDelta, getPlayerRating, confidenceProgress } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
@@ -307,7 +308,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                   background: ratingEnabled ? 'var(--teal-500)' : 'transparent',
                   borderColor: ratingEnabled ? 'var(--teal-500)' : 'var(--border-default)',
                 }}>
-                  {ratingEnabled && <span style={{ color: 'var(--teal-900)', fontWeight: 700, fontSize: 13 }}>✓</span>}
+                  {ratingEnabled && <Icon name="check" size={12} color="var(--teal-900)" />}
                 </div>
                 <div style={{ flex: 1, textAlign: 'left' }}>
                   <div style={{ font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>

@@ -275,11 +275,11 @@ export function Detail({ canMoney }) {
                       title={g.tooltip || (g.isAdvance ? t('fund.advanceTip') : undefined)}
                       style={{
                         ...S.r, fontWeight: 600,
-                        color: g.isAdvance ? '#d97706' : g.dir === 'in' ? 'var(--status-delivered)' : 'var(--status-incident)',
+                        color: g.isAdvance ? 'var(--status-delayed-fg)' : g.dir === 'in' ? 'var(--status-delivered)' : 'var(--status-incident)',
                         cursor: g.tooltip || g.isAdvance ? 'help' : undefined,
                       }}
                     >
-                      {g.isAdvance ? `⚡ ${fmt(g.amount)}` : (g.dir === 'in' ? '+' : '−') + fmt(g.amount)}
+                      {g.isAdvance ? <><Icon name="zap" size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 3 }} />{fmt(g.amount)}</> : (g.dir === 'in' ? '+' : '−') + fmt(g.amount)}
                     </span>
                     {/* Dòng gộp nhiều mục không có nút: mỗi mục một nguồn khác nhau, gộp lại
                         thì không biết đang hoàn cái nào. Bung ra rồi thao tác từng mục. */}
@@ -293,7 +293,7 @@ export function Detail({ canMoney }) {
                       <span style={{
                         ...S.caption,
                         fontWeight: it.isAdvance ? 600 : 'normal',
-                        color: it.isAdvance ? '#b45309' : undefined,
+                        color: it.isAdvance ? 'var(--status-delayed-fg)' : undefined,
                       }}>
                         {it.by && it.by !== '—' ? it.by : t('fund.payerFund')}
                       </span>
@@ -301,12 +301,12 @@ export function Detail({ canMoney }) {
                         title={it.tooltip}
                         style={{
                           ...S.r,
-                          color: it.isAdvance ? '#d97706' : 'var(--text-secondary)',
+                          color: it.isAdvance ? 'var(--status-delayed-fg)' : 'var(--text-secondary)',
                           fontWeight: it.isAdvance ? 600 : 'normal',
                           cursor: it.tooltip ? 'help' : undefined,
                         }}
                       >
-                        {it.isAdvance ? `⚡ ${fmt(it.amount)}` : fmt(it.amount)}
+                        {it.isAdvance ? <><Icon name="zap" size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 3 }} />{fmt(it.amount)}</> : fmt(it.amount)}
                       </span>
                       <RowActions row={it} canMoney={canMoney} />
                     </div>
