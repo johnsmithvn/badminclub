@@ -16,6 +16,12 @@ export default function AppHeader({ route }) {
   const role = db.myRole || db.viewAs || 'owner'
   const page = pageOf(route)
 
+  // Cài đặt không đụng gì tới tháng đang xem, cũng không tạo buổi/lịch — ba nút đó bấm vào chỉ
+  // mở popup lạc đề. Thay vào đó header nhận Nhập/Xuất cài đặt, đúng "hàng 1" của handoff §1.
+  // Dùng đúng biểu thức quyền của trang Cài đặt để hai chỗ không bao giờ lệch nhau.
+  const isSettings = route === 'settings'
+  const canEditSettings = can(db.viewAs || 'owner', 'settings')
+
   return (
     <header style={S.header}>
       <div style={S.left}>
@@ -24,13 +30,15 @@ export default function AppHeader({ route }) {
       </div>
 
       <div style={S.right}>
-        <div style={S.monthBox}>
-          <IconButton icon="chevron-left" size="sm" variant="ghost"
-            label={t('common.prevMonth')} onClick={() => a.shiftMonth(-1)} />
-          <span style={S.monthLabel}>{monthTxt(db.month)}</span>
-          <IconButton icon="chevron-right" size="sm" variant="ghost"
-            label={t('common.nextMonth')} onClick={() => a.shiftMonth(1)} />
-        </div>
+        {!isSettings && (
+          <div style={S.monthBox}>
+            <IconButton icon="chevron-left" size="sm" variant="ghost"
+              label={t('common.prevMonth')} onClick={() => a.shiftMonth(-1)} />
+            <span style={S.monthLabel}>{monthTxt(db.month)}</span>
+            <IconButton icon="chevron-right" size="sm" variant="ghost"
+              label={t('common.nextMonth')} onClick={() => a.shiftMonth(1)} />
+          </div>
+        )}
 
         <IconButton
           icon={isDark ? 'sun' : 'moon'}
@@ -41,18 +49,31 @@ export default function AppHeader({ route }) {
           onClick={toggleTheme}
         />
 
-        {can(role, 'sessions') && (
-          <>
-            <Button variant="secondary" icon="calendar-plus"
-              onClick={() => a.openDialog('adhoc', adhocForm(db))}>
-              {t('shell.adhoc')}
-            </Button>
-            <Button variant="primary" icon="repeat"
-              onClick={() => a.openDialog('schedule', scheduleForm(db))}>
-              {t('shell.bulkSchedule')}
-            </Button>
-          </>
-        )}
+        {isSettings
+          ? canEditSettings && (
+            <>
+              <Button variant="secondary" icon="upload"
+                onClick={() => a.openDialog('importSettings', {})}>
+                {t('settings.ioImport')}
+              </Button>
+              <Button variant="secondary" icon="download"
+                onClick={a.exportSettings}>
+                {t('settings.ioExport')}
+              </Button>
+            </>
+          )
+          : can(role, 'sessions') && (
+            <>
+              <Button variant="secondary" icon="calendar-plus"
+                onClick={() => a.openDialog('adhoc', adhocForm(db))}>
+                {t('shell.adhoc')}
+              </Button>
+              <Button variant="primary" icon="repeat"
+                onClick={() => a.openDialog('schedule', scheduleForm(db))}>
+                {t('shell.bulkSchedule')}
+              </Button>
+            </>
+          )}
       </div>
     </header>
   )

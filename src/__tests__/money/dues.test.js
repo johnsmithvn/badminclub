@@ -101,8 +101,16 @@ assert.ok(ex, 'phải sinh một dòng người-nợ-quỹ')
 assert.equal(ex.sessions, 1)
 assert.equal(ex.amount, ex.unit, 'đi 1 buổi thì nợ đúng 1 đơn giá')
 assert.ok(ex.amount > 0, 'người nợ quỹ thì amount DƯƠNG')
-assert.equal(ex.group.id, 'G1', 'đơn giá lấy theo nhóm của BUỔI, không phải nhóm của người')
 assert.equal(ex.key, adjustKey('2026-08', 'G1', gone.id, 'extra_session'))
+
+// CLB chưa cấu hình guestPrices (hoặc trình độ của thành viên chưa có giá khách):
+// Đơn giá đi thêm buổi phải fallback về unitPrice(db, m, g, month).unit, KHÔNG ĐƯỢC ra 0đ.
+const dbNoGuestPrices = { ...dbExtra, guestPrices: [] }
+const exFallback = adjustRows(dbNoGuestPrices, '2026-08').find((r) => r.kind === 'extra_session' && r.memberId === gone.id)
+assert.ok(exFallback, 'vẫn phải sinh dòng extra_session')
+assert.ok(exFallback.unit > 0, 'đơn giá không được bằng 0 khi CLB chưa nhập bảng giá khách')
+assert.equal(exFallback.unit, unitPrice(dbNoGuestPrices, gone, exFallback.group, '2026-08').unit, 'fallback về đơn giá chia từ quỹ/nhóm')
+assert.equal(exFallback.amount, exFallback.unit * exFallback.sessions)
 
 // REGRESSION: người ĐÃ cố định nhóm CN mà ô điểm danh là 'extra' thì KHÔNG bị tính tiền —
 // họ đã đóng quỹ tháng cho nhóm này rồi, tính thêm là thu hai lần cùng một buổi.

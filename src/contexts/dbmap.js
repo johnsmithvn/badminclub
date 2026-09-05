@@ -48,7 +48,7 @@ export function toDb(raw, ctx) {
     feeNam: num(g.fee_male), feeNu: num(g.fee_female),
     // Đơn giá một buổi CLB tự đặt; 0 = để app tự chia.
     unitNam: num(g.unit_male), unitNu: num(g.unit_female),
-    from: hm(g.start_time), to: hm(g.end_time), quota: g.quota, active: g.active,
+    from: hm(g.start_time), to: hm(g.end_time), active: g.active,
     courtIds: (g.group_courts || []).map((x) => x.court_id),
   }))
 
@@ -340,7 +340,10 @@ export function toRows(db, ctx) {
       fee_male: g.feeNam, fee_female: g.feeNu, start_time: g.from, end_time: g.to,
       // Đơn giá một buổi CLB tự đặt. 0 và null đều nghĩa là "để app tự chia" → ghi null cho gọn.
       unit_male: g.unitNam || null, unit_female: g.unitNu || null,
-      quota: g.quota, active: g.active !== false,
+      // `member_groups.quota` (định mức cầu/buổi) là cột NOT NULL còn lại của module Kho cầu
+      // đã bỏ. Client không còn khái niệm này — ghi số mặc định của schema và quên nó đi,
+      // cùng cách xử lý `weekday` ở trên.
+      quota: 24, active: g.active !== false,
     })
     ;(g.courtIds || []).forEach((court) => put('group_courts', { group_id: g.id, court_id: court }))
   })
@@ -388,7 +391,11 @@ export function toRows(db, ctx) {
       id: s.id, club_id: cid, group_id: s.groupId === 'ALL' ? null : uu(s.groupId),
       schedule_id: uu(s.scheduleId),
       date: s.date, status: s.status, shuttle_type_id: uu(s.shuttleTypeId),
-      shuttle_mode: s.shuttleMode, tubes_opened: s.tubesOpened || 0, loose_units: s.loose || 0,
+      // `sessions.shuttle_mode` là enum NOT NULL (0001_init) và cột này đã hết nghĩa từ lúc bỏ
+      // kho cầu — buổi mới sinh ra với `shuttleMode: null`. Gửi NULL tường minh thì DEFAULT của
+      // Postgres KHÔNG chạy, insert bị từ chối và cả hàng đợi đồng bộ kẹt. Đỡ ở đây, điểm map
+      // duy nhất ra Postgres, thay vì nhớ đặt giá trị ở từng chỗ tạo buổi.
+      shuttle_mode: s.shuttleMode || 'quota', tubes_opened: s.tubesOpened || 0, loose_units: s.loose || 0,
       shuttle_used: s.shuttleUsed || 0, shuttle_est: !!s.shuttleEst, note: s.note || null,
       closed_at: s.closedAt || null, group_mode: !!(db.groupMode || {})[s.id],
       // `?? null` chứ không `|| null`: số 0 hợp lệ (buổi không dùng quả cầu nào) phải giữ là 0.

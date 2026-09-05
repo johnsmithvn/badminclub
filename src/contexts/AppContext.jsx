@@ -11,7 +11,7 @@ import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
 const UI0 = {
-  tab: { home: 'overview', debts: 'guest', fund: 'month', shuttles: 'buy', settings: 'general', members: 'all', sessions: 'all' },
+  tab: { home: 'overview', debts: 'guest', fund: 'month', settings: 'general', members: 'all', sessions: 'all' },
   dialog: null,
   confirm: null,
   form: {},

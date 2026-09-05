@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import {
-  normalizeText, guestStats, headCount, guestRev, sessionOf, sGuestsOnly, costRow,
+  normalizeText, guestStats, headCount, guestRev, sessionOf, sGuestsOnly,
 } from '#lib/money.js'
 import { guestForm } from '#lib/forms.js'
 
@@ -96,10 +96,6 @@ assert.ok(totalHeads >= 2, 'headCount phải tính cả 2 người chơi trên s
 // 2. Kiểm tra tổng doanh thu khách bao gồm cả 2 suất
 const totalGuestRev = guestRev(companionTestDb, testSessionId)
 assert.ok(totalGuestRev >= 125000, 'Doanh thu khách gồm 75k (Leader) + 50k (Friend)')
-
-// 3. Kiểm tra chi phí tính đúng số đầu người
-const cost = costRow(companionTestDb, s1)
-assert.equal(cost.people, totalHeads, 'Số người trong costRow phải bằng headCount')
 
 /* ==========================================================================
    4. TEST FORM KHÁCH VÀ CẤU TRÚC KHỞI TẠO (guestForm)

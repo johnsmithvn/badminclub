@@ -93,7 +93,6 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
     includeClub: true,
     includeMoney: true,
     includeCourts: true,
-    includeShuttles: true,
     includeGroups: true,
   })
 
@@ -111,9 +110,6 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
   assert.ok(nxCourt)
   assert.equal(nxCourt.mapUrl, 'https://maps.app.goo.gl/xyz')
 
-  // Kiểm tra loại cầu (giữ loại cũ, thêm loại mới)
-  assert.equal(currentDb.shuttleTypes.length, 2)
-  assert.ok(currentDb.shuttleTypes.some((s) => s.name === 'Ba Sao'))
 
   // Kiểm tra nhóm
   assert.equal(currentDb.groups.length, 2)

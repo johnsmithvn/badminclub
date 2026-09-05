@@ -232,23 +232,6 @@ export function sessionColumns(db) {
       },
     },
     {
-      key: 's', header: t('sessionCol.shuttle'), align: 'right', mono: true,
-      render: (r) => {
-        if (!r.shuttleUsed) return <span style={{ color: 'var(--text-muted)' }}>—</span>
-        return (
-          <span style={{
-            fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 12,
-            padding: '2px 8px', borderRadius: 99,
-            background: 'rgba(14, 165, 233, 0.1)',
-            color: 'var(--navy-700)',
-            border: '1px solid rgba(14, 165, 233, 0.25)',
-          }}>
-            {t('sessionCol.shuttleUsed', { n: r.shuttleUsed, est: r.shuttleEst ? ' ~' : '' })}
-          </span>
-        )
-      },
-    },
-    {
       key: 'c', header: t('sessionCol.court'), align: 'right', mono: true,
       render: (r) => (
         <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12.5, color: 'var(--text-primary)' }}>

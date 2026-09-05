@@ -5,10 +5,9 @@ import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, MyDebtPanel, Overline, 
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import {
-  adjustRows, advanceRows, costRow, costState, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
+  adjustRows, advanceRows, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
   groupMembers, groupOf, guestOf, homeAlerts, isPresent, memberOf, monthSessions,
-  openSessions, sessionOf,
-  stock, timeTxt,
+  openSessions, sessionOf, timeTxt,
 } from '#lib/money.js'
 import { monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
@@ -158,8 +157,6 @@ function Overview() {
 
   const creditors = Object.values(creditorMap).sort((a, b) => b.owed - a.owed)
 
-  const st = stock(db)
-
   // 3. Buổi tới: Ưu tiên các buổi sắp tới trong tháng hiện tại CHƯA CHỐT và CHƯA HUỶ.
   // LOẠI buổi đang mở: chúng đã nằm trên banner `OpenNow` ở đầu trang. Một buổi hiện hai chỗ
   // thì người ta phải tự đối chiếu xem có phải cùng một buổi không, và đó là việc của máy.
@@ -243,8 +240,6 @@ function Overview() {
             paid: fmtK(duesTotal(dues).paid),
             total: fmtK(duesTotal(dues).amount),
           })} />
-        <StatCard label={t('home.stock')} value={st.left} unit={t('units.shuttle')} icon="package" tone="accent"
-          caption={t('home.stockCaption', { bought: st.bought, used: st.used })} />
         <StatCard label={t('home.closedRatio')}
           value={closed.length + ' / ' + sess.filter((s) => s.status !== 'cancelled').length}
           icon="clipboard-check"
@@ -782,7 +777,6 @@ function Report() {
   const closed = monthSessions(db, month).filter((s) => s.status === 'closed')
   // Bảng giá thành liệt kê MỌI buổi trong tháng trừ buổi huỷ — buổi chưa chốt vẫn xem được
   // giá tạm, badge trạng thái nói rõ con số nào còn đổi được.
-  const costSessions = monthSessions(db, month).filter((s) => s.status !== 'cancelled')
   // Tỷ lệ đi tập: mẫu số là số buổi đã chốt của nhóm mà người đó cố định
   const rows = []
   db.groups.forEach((g) => {
@@ -875,63 +869,11 @@ function Report() {
         </Card>
       </div>
 
-      <Card title={t('report.costTable')} subtitle={t('report.costTableSub')} icon="calculator" padding="0">
-        <div style={{ display: 'grid', overflowX: 'auto' }}>
-          <div style={{ ...SS.costGrid, ...SS.costHead }}>
-            <span>{t('report.col.session')}</span>
-            <span>{t('report.col.group')}</span>
-            <span style={SS.r}>{t('report.col.people')}</span>
-            <span style={SS.r}>{t('report.col.court')}</span>
-            <span style={SS.r}>{t('report.col.shuttle')}</span>
-            <span style={SS.r}>{t('report.col.cost')}</span>
-            <span style={SS.r}>{t('report.col.guestRev')}</span>
-            <span style={SS.r}>{t('report.col.perHead')}</span>
-            <span style={SS.r}>{t('report.col.subsidy')}</span>
-          </div>
-          {costSessions.map((s) => {
-            const c = costRow(db, s)
-            const st = costState(s)
-            return (
-              <div key={s.id} style={{ ...SS.costGrid, ...SS.costRow }}>
-                <span style={{ color: 'var(--text-primary)' }}>
-                  {s.date.slice(8, 10) + '/' + s.date.slice(5, 7)}
-                  {st !== 'final' && <span style={SS.costTag[st]}>{t('session.costState.' + st)}</span>}
-                </span>
-                <span style={SS.caption}>{groupOf(db, s.groupId).name}</span>
-                <span style={SS.r}>{c.people}</span>
-                <span style={SS.r}>{fmtK(c.court)}</span>
-                <span style={SS.r}>{fmtK(c.shuttle)}</span>
-                <span style={{ ...SS.r, color: 'var(--text-primary)', fontWeight: 600 }}>{fmtK(c.cost)}</span>
-                <span style={{ ...SS.r, color: 'var(--status-delivered)' }}>{fmtK(c.rev)}</span>
-                <span style={SS.r}>{fmtK(c.per)}</span>
-                <span style={{
-                  ...SS.r, fontWeight: 600,
-                  color: c.subsidy > 0 ? 'var(--status-incident)' : 'var(--status-delivered)',
-                }}>
-                  {fmtK(c.subsidy)}
-                </span>
-              </div>
-            )
-          })}
-          {!costSessions.length && <Empty title={t('home.noSession')} hint={t('home.noSessionHint')} />}
-        </div>
-        <div style={{ ...SS.caption, padding: '10px 18px' }}>{t('report.costTableNote')}</div>
-      </Card>
     </>
   )
 }
 
-const COST_COLS = '1.35fr 1.2fr .7fr .9fr .9fr 1fr 1fr .9fr 1fr'
-// Badge trạng thái con số giá thành — xem money.js: costState.
-const COST_TAG = {
-  font: '600 9px/1 var(--font-sans)', padding: '3px 6px', borderRadius: 99,
-  marginLeft: 6, whiteSpace: 'nowrap',
-}
 const SS = {
-  costTag: {
-    live: { ...COST_TAG, background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)' },
-    temp: { ...COST_TAG, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' },
-  },
   upRow: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
     borderTop: '1px solid var(--border-subtle)',
@@ -959,15 +901,4 @@ const SS = {
     display: 'flex', alignItems: 'center', gap: 8, padding: '6px 9px',
     borderRadius: 8, background: 'var(--surface-card)',
   },
-  costGrid: { display: 'grid', gridTemplateColumns: COST_COLS, gap: 8, minWidth: 900 },
-  costHead: {
-    padding: '10px 18px', background: 'var(--surface-inset)', borderBottom: '1px solid var(--border-subtle)',
-    font: 'var(--type-overline)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)',
-    color: 'var(--text-muted)',
-  },
-  costRow: {
-    padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)',
-    font: 'var(--type-mono)', color: 'var(--text-secondary)',
-  },
-  r: { textAlign: 'right' },
 }

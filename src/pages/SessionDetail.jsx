@@ -3,22 +3,21 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { Alert, Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
-import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
+import { Alert, Button, Card, Icon, IconButton, Input, Select } from '#ds'
+import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, SearchSelect, SessionPill } from '#ui'
 import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
 import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
-  closeWarnings, costDrift, costRow, costState, courtOf, courtPayMode, courtTxt, dueState, duesOf,
-  fmt, fmtK, genderTxt, groupOf, guestOf, guestPaidRev, guestPrice, guestRev, headCount, levelOf, perTube, playedCourts,
-  isAdhoc, isMemberCharge, memberOf, presentCount, quotaFor, rowCost, sGuests, sGuestsOnly, sessionMembers,
-  sessionOf, soldTotal, timeTxt, normalizeText, guestStats,
+  courtOf, courtTxt, dueState, duesOf,
+  fmt, fmtK, genderTxt, groupOf, guestOf, guestPrice, headCount, levelOf,
+  isAdhoc, isMemberCharge, memberOf, presentCount, rowCost, sGuests, sGuestsOnly, sessionMembers,
+  sessionOf, timeTxt, normalizeText, guestStats,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
 
 export default function SessionDetail() {
   const { db, a } = useApp()
@@ -62,20 +61,6 @@ export default function SessionDetail() {
   const charges = sGuests(db, s.id).filter(isMemberCharge)
   const dues = duesOf(db, month)
 
-  // Thu khách có HAI con số khác nhau, đừng trộn: `c.rev` là số ĐÓNG BĂNG lúc chốt (thuộc giá
-  // thành), còn đã-thu / còn-nợ là công nợ, luôn sống. Lấy `c.rev - paid` thì thêm một khách sau
-  // khi chốt là ra "khách còn nợ" ÂM. Lệch giữa hai số đã có `costDrift` lo cảnh báo.
-  const revLive = guestRev(db, s.id)
-  const paid = guestPaidRev(db, s.id)
-  const sold = soldTotal(s)
-  // Giá thành buổi — CÙNG hàm với bảng "Giá thành từng buổi" ở Báo cáo, không viết lại công thức.
-  // quỹ bù = chi phí − thu khách; KHÔNG trừ tiền bán sân vì courtNet đã loại sân bán rồi.
-  // Buổi đã chốt thì c.* là số ĐÃ ĐÓNG BĂNG hôm chốt, không tính lại theo giá hôm nay.
-  const c = costRow(db, s)
-  const cState = costState(s)
-  const warns = closeWarnings(db, s)
-  const drift = costDrift(db, s)
-
   const allSold = (s.courts || []).length > 0 && (s.courts || []).every((court) => court.sold)
   const isCancelled = s.status === 'cancelled'
   const isClosed = s.status === 'closed'
@@ -110,18 +95,6 @@ export default function SessionDetail() {
             {/* Nút hành động chính theo trạng thái buổi: Mở / Chốt / Mở lại / Chốt lại */}
             {canEdit && (
               <>
-                {drift && canMoney && (
-                  <Button variant="primary" icon="rotate-ccw"
-                    style={{
-                      background: 'linear-gradient(135deg, var(--amber-600, #b45309) 0%, var(--amber-500, #f59e0b) 100%)',
-                      borderColor: 'var(--amber-500, #f59e0b)',
-                      boxShadow: '0 2px 10px rgba(245, 158, 11, 0.4)',
-                      fontWeight: 700,
-                    }}
-                    onClick={() => a.setSessionStatus(s.id, 'closed')}>
-                    {t('session.driftBtn')}
-                  </Button>
-                )}
                 {s.status === 'draft' && (
                   <Button variant="primary" icon="user-round-check"
                     style={{
@@ -348,15 +321,12 @@ export default function SessionDetail() {
                   </button>
                   {charge
                     ? <>
-                        <Input size="sm" mono style={{ width: 108, textAlign: 'right' }}
-                          aria-label={t('session.chargePrice')}
-                          suffix={t('units.dong')}
-                          value={String(charge.price)}
-                          disabled={!canEdit || charge.paid}
-                          onChange={(e) => a.setChargePrice(charge.id, e.target.value)} />
-                        <Switch label={charge.paid ? t('session.guestPaid') : t('session.guestDebt')}
-                          checked={charge.paid} disabled={!canMoney}
-                          onChange={() => a.toggleGuestPaid(charge.id)} />
+                        <Mono weight={600} color="var(--text-primary)">{fmt(charge.price)}</Mono>
+                        {/* CHỈ HIỂN THỊ. Thu tiền và gạch nợ nằm hết ở màn Công nợ — một khoản
+                            tiền chỉ được sửa ở MỘT chỗ, không thì hai màn nói hai kiểu. */}
+                        <span style={charge.paid ? S.tagGreen : S.tagAmber}>
+                          {t(charge.paid ? 'session.guestPaid' : 'session.guestDebt')}
+                        </span>
                         {extra && canEdit && (
                           <IconButton
                             icon="trash-2"
@@ -531,8 +501,9 @@ export default function SessionDetail() {
                         onChange={(val) => a.setGuestInviter(g.id, val)}
                       />
                       <Mono weight={600} color="var(--text-primary)">{fmt(g.price)}</Mono>
-                      <Switch label={g.paid ? t('session.guestPaid') : t('session.guestDebt')}
-                        checked={g.paid} disabled={!canMoney || isInactive || isClosed} onChange={() => a.toggleGuestPaid(g.id)} />
+                      <span style={g.paid ? S.tagGreen : S.tagAmber}>
+                        {t(g.paid ? 'session.guestPaid' : 'session.guestDebt')}
+                      </span>
                       {canEdit && !isInactive && !isClosed && (
                         <div style={{ display: 'flex', gap: 2 }}>
                           <IconButton
@@ -562,57 +533,6 @@ export default function SessionDetail() {
             </div>
           </Card>
 
-          <Card title={t('session.costTitle')} subtitle={t('session.costSub')} icon="calculator" padding="14px 16px"
-            actions={<span style={S.costTag[cState]}>{t('session.costState.' + cState)}</span>}>
-            <div style={{ display: 'grid', gap: 12 }}>
-              <ShuttleBox s={s} canEdit={canEdit && !isInactive && !isClosed} />
-
-              <div style={S.sumBox}>
-                <SumRow label={t('session.sumCourt')} value={fmt(c.court)}
-                  hint={courtPayMode(db) === 'month' ? t('session.sumCourtHint') : undefined} />
-                <SumRow label={t('session.sumShuttle')} value={fmt(c.shuttle)}
-                  hint={t('session.sumShuttleHint', { n: s.shuttleUsed || 0, unit: fmtK(c.unit) })} />
-                {sold > 0 && <SumRow label={t('session.sumSold')} value={fmt(sold)}
-                  hint={t('session.sumSoldHint')} color="var(--status-delivered)" />}
-                <SumRow label={t('session.sumGuest')} value={fmt(c.rev)} />
-                <SumRow label={t('session.sumGuestPaid')} value={fmt(paid)} color="var(--status-delivered)" />
-                <SumRow label={t('session.sumGuestDebt')} value={fmt(revLive - paid)} color="var(--status-delayed)" />
-                <div style={S.sumDivider} />
-                <SumRow label={t('session.sumCost')} value={fmt(c.cost)} strong />
-                <SumRow label={t('session.sumPerHead')} value={fmt(c.per)}
-                  hint={t('session.sumPerHeadHint', { n: c.people })} />
-                <SumRow label={t('session.sumSubsidy')} value={fmt(c.subsidy)} strong
-                  color={c.subsidy > 0 ? 'var(--status-incident)' : 'var(--status-delivered)'} />
-              </div>
-
-              <div style={S.caption}>{t('session.costNote')}</div>
-
-              {/* Trước khi chốt: chỉ cảnh báo, KHÔNG chặn nút Chốt. */}
-              {s.status === 'open' && warns.length > 0 && (
-                <Alert tone="warning" title={t('session.closeWarnTitle')}>
-                  <div style={{ display: 'grid', gap: 3 }}>
-                    {warns.map((w) => (
-                      <span key={w.key}>{t('session.closeWarn.' + w.key, { n: w.n })}</span>
-                    ))}
-                  </div>
-                </Alert>
-              )}
-
-              {/* Sau khi chốt: số đã đóng băng mà dữ liệu buổi đổi rồi — sửa đang vô ích. */}
-              {drift && (
-                <Alert tone="warning" title={t('session.driftTitle', { date: ddmy(s.costFrozenAt) })}>
-                  <div style={{ display: 'grid', gap: 3 }}>
-                    {drift.map((d) => (
-                      <span key={d.key}>
-                        {t('session.drift.' + d.key, { was: fmtK(d.was), now: fmtK(d.now) })}
-                      </span>
-                    ))}
-                    <span style={{ marginTop: 4 }}>{t('session.driftNote')}</span>
-                  </div>
-                </Alert>
-              )}
-            </div>
-          </Card>
         </div>
       </div>
       )}
@@ -964,84 +884,6 @@ function GuestForm({ s }) {
   )
 }
 
-/* ---------------- ba cách vào số cầu ---------------- */
-
-function ShuttleBox({ s, canEdit }) {
-  const { db, a } = useApp()
-  const mode = s.shuttleMode || 'quota'
-  const per = perTube(db, s)
-  const group = groupOf(db, s.groupId)
-
-  const note = mode === 'quota'
-    ? t('session.quotaNote', { group: group.name, quota: quotaFor(db, s), courts: playedCourts(s) })
-    : mode === 'tubes'
-      ? t('session.tubesNote', { tubes: s.tubesOpened || 0, per, loose: s.loose || 0, total: s.shuttleUsed || 0 })
-      : t('session.exactNote')
-
-  return (
-    <div style={{ display: 'grid', gap: 9 }}>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {cfg.shuttleModes.map((m) => (
-          <Button key={m} size="sm" variant={mode === m ? 'primary' : 'secondary'} disabled={!canEdit}
-            onClick={() => a.setShuttleMode(s.id, m)}>
-            {t('session.shuttleMode' + m[0].toUpperCase() + m.slice(1))}
-          </Button>
-        ))}
-      </div>
-
-      {mode === 'tubes' && (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <Stepper label={t('session.tubesLabel')} value={s.tubesOpened || 0} disabled={!canEdit}
-            onMinus={() => a.bumpTubes(s.id, -1)} onPlus={() => a.bumpTubes(s.id, 1)} />
-          <Stepper label={t('session.looseLabel')} value={s.loose || 0} disabled={!canEdit}
-            onMinus={() => a.bumpLoose(s.id, -1)} onPlus={() => a.bumpLoose(s.id, 1)} />
-        </div>
-      )}
-
-      {mode === 'exact' && (
-        <Input label={t('session.exactLabel')} mono suffix={t('units.shuttle')} disabled={!canEdit}
-          value={String(s.shuttleUsed || 0)} onChange={(e) => a.setShuttle(s.id, e.target.value)}
-          style={{ width: 180 }} />
-      )}
-
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <Mono weight={600} size={14} color="var(--text-primary)">
-          {(s.shuttleUsed || 0) + ' ' + t('units.shuttle')}
-        </Mono>
-        {s.shuttleEst && <span style={S.tagAmber}>{t('session.estTag')}</span>}
-        <span style={S.caption}>{note}</span>
-      </div>
-    </div>
-  )
-}
-
-function Stepper({ label, value, onMinus, onPlus, disabled }) {
-  return (
-    <div style={{ display: 'grid', gap: 4 }}>
-      <Overline>{label}</Overline>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <IconButton icon="minus" size="sm" variant="secondary" label="-" disabled={disabled} onClick={onMinus} />
-        <Mono weight={600} size={14} color="var(--text-primary)" style={{ minWidth: 28, textAlign: 'center' }}>
-          {value}
-        </Mono>
-        <IconButton icon="plus" size="sm" variant="secondary" label="+" disabled={disabled} onClick={onPlus} />
-      </div>
-    </div>
-  )
-}
-
-const SumRow = ({ label, value, color, strong, hint }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
-    <span style={{ font: strong ? 'var(--type-label)' : 'var(--type-caption)', color: 'var(--text-secondary)' }}>
-      {label}
-      {hint && <span style={{ ...S.caption, marginLeft: 6 }}>{hint}</span>}
-    </span>
-    <Mono weight={strong ? 600 : 400} size={strong ? 14 : 13} color={color || 'var(--text-primary)'}>
-      {value}
-    </Mono>
-  </div>
-)
-
 const S = {
   tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 16px' },
   tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: 'var(--surface-inset, #101927)', border: '1px solid var(--border-subtle, #22304A)', gap: 2 },
@@ -1093,7 +935,6 @@ const S = {
     padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border-subtle)',
     background: 'var(--surface-card)', font: 'inherit', fontSize: 13, width: 140,
   },
-  // Bấm được: lỗi cấu hình thì phải chỉ thẳng sang chỗ sửa, không bắt người ta đi mò.
   guestWarn: {
     textAlign: 'left', border: 0, padding: 0, cursor: 'pointer', background: 'transparent',
     font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', textDecoration: 'underline',
@@ -1108,8 +949,6 @@ const S = {
     borderRadius: 8,
     background: 'var(--surface-card)',
   },
-  sumBox: { display: 'grid', gap: 7, padding: '12px 14px', borderRadius: 8, background: 'var(--surface-inset)' },
-  sumDivider: { height: 1, background: 'var(--border-subtle)', margin: '3px 0' },
   tagAmber: {
     font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
     background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap',
@@ -1118,11 +957,4 @@ const S = {
     font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
     background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)', whiteSpace: 'nowrap',
   },
-}
-
-// Ba trạng thái của con số giá thành — xem money.js: costState và DATABASE.md §8.
-S.costTag = {
-  live: { ...S.tagAmber, background: 'var(--status-scheduled-bg)', color: 'var(--status-scheduled-fg)' },
-  temp: S.tagAmber,
-  final: S.tagGreen,
 }

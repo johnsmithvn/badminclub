@@ -32,12 +32,11 @@ import Schema from '#pages/Schema.jsx'
 import SessionDetail from '#pages/SessionDetail.jsx'
 import Sessions from '#pages/Sessions.jsx'
 import Settings from '#pages/Settings.jsx'
-import Shuttles from '#pages/Shuttles.jsx'
 
 const SCREEN = {
   home: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail, assign: Assign,
   leaderboard: Leaderboard, schedules: Schedules, members: Members, debts: Debts, fund: Fund,
-  shuttles: Shuttles, profile: Profile, settings: Settings, schema: Schema,
+  profile: Profile, settings: Settings, schema: Schema,
 }
 
 export default function App() {

@@ -69,6 +69,15 @@ const anyRow = rows.sessions.find((r) => r.id !== 'B1')
 assert.equal(anyRow.cost_frozen_at, null)
 assert.equal(anyRow.cost_total, null)
 
+// `sessions.shuttle_mode` là enum NOT NULL (0001_init) nhưng cột đã hết nghĩa từ lúc bỏ kho cầu —
+// buổi tạo mới mang `shuttleMode: null`. Gửi NULL tường minh thì DEFAULT của Postgres KHÔNG chạy,
+// insert bị từ chối và cả hàng đợi đồng bộ kẹt: không tạo được buổi nào nữa.
+const dNoMode = clone(db)
+dNoMode.sessions[0] = { ...dNoMode.sessions[0], shuttleMode: null }
+const rowNoMode = toRows(dNoMode, ctx).sessions.find((r) => r.id === dNoMode.sessions[0].id)
+assert.equal(rowNoMode.shuttle_mode, 'quota',
+  'buổi không còn chế độ cầu vẫn phải xuống DB một enum hợp lệ, không thì insert vỡ vì NOT NULL')
+
 // Đóng băng TỪNG DÒNG SÂN (0012) cũng phải xuống DB thật. Không xuống thì F5 xong sổ quỹ đọc lại
 // giá sân hiện tại và dòng chi của buổi đã chốt nhảy số — đúng con bug 0012 sinh ra để chặn.
 const dRow = clone(db)

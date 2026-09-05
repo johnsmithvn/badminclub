@@ -106,6 +106,8 @@ export default function GeneralTab({
         icon="building-2"
       >
         <FormRow label={t('settings.fAvatar')} labelWidth={170} alignTop>
+          {/* AvatarUpload đã tự render nút Xoá ảnh (`common.removeAvatar`) — thêm một nút nữa ở
+              đây là hai chữ "Xoá ảnh" nằm cạnh nhau, cùng làm một việc. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <AvatarUpload
               name={data.name || ''}
@@ -114,23 +116,6 @@ export default function GeneralTab({
               disabled={!canEdit}
               onChange={(url) => onChange('avatarUrl', url)}
             />
-            {data.avatarUrl && canEdit && (
-              <button
-                type="button"
-                onClick={() => onChange('avatarUrl', '')}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-danger)',
-                  fontSize: 12.5,
-                  cursor: 'pointer',
-                  padding: 0,
-                  textDecoration: 'underline',
-                }}
-              >
-                {t('settings.fAvatarDel')}
-              </button>
-            )}
           </div>
         </FormRow>
 

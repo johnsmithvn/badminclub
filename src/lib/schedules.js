@@ -150,7 +150,6 @@ export function applyScheduleEdit(db, sched, form, plan, mkId) {
   const rows = (form.rows || []).map((r) => ({ ...r, sold: false, soldAmount: 0, soldTo: '', extra: false }))
   const keepIds = new Set(plan.keep.map((s) => s.id))
   const dropIds = new Set(plan.remove)
-  const stId = (db.shuttleTypes || [])[0] ? db.shuttleTypes[0].id : null
 
   // Đổi nhóm thì buổi phải đi theo. `plan.groupTo` chỉ khác null khi lịch còn mềm (không buổi
   // nào đã mở / đã qua ngày), nên không có buổi nào rớt lại ở nhóm cũ.
@@ -158,7 +157,7 @@ export function applyScheduleEdit(db, sched, form, plan, mkId) {
 
   const born = plan.add.map((date) => ({
     id: mkId(), date, groupId: gid, status: 'draft', shuttleUsed: 0,
-    shuttleTypeId: stId, note: '', shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
+    shuttleTypeId: null, note: '', shuttleMode: null, tubesOpened: 0, loose: 0, shuttleEst: false,
     courts: rows.map((r) => ({ ...r })), scheduleId: sched.id,
   }))
 
