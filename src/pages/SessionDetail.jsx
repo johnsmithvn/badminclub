@@ -805,7 +805,7 @@ function GuestForm({ s }) {
               {f.gName && (
                 <button
                   type="button"
-                  style={{ ...S.guestOption, color: 'var(--accent)', fontWeight: 600 }}
+                  style={{ ...S.guestOption, color: 'var(--text-accent, var(--teal-500, #00B2A9))', fontWeight: 600 }}
                   onMouseDown={(e) => {
                     e.preventDefault()
                     set('gGuestId', '')
@@ -883,7 +883,7 @@ function GuestForm({ s }) {
           type="button"
           style={{
             border: 0, background: 'none', padding: 0, cursor: 'pointer',
-            fontSize: 12, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 12, color: 'var(--text-accent, var(--teal-500, #00B2A9))', display: 'inline-flex', alignItems: 'center', gap: 4,
           }}
           onClick={() => setShowExtra(!showExtra)}
         >

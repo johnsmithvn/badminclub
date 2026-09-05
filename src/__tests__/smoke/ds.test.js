@@ -125,4 +125,47 @@ assert.deepEqual(fromClient, fromSql,
   'Người dùng chọn được giá trị DB từ chối, lỗi 23514 chỉ nổ lúc bấm Lưu.\n' +
   '  client: ' + fromClient.join(', ') + '\n  DB    : ' + fromSql.join(', '))
 
-console.log('design system usage check: OK (' + used.size + ' icon, ' + APP.length + ' file)')
+/* ================== 5. Mọi CSS Design Token (var(--...)) phải tồn tại ================== */
+// Gõ sai tên token CSS (ví dụ `var(--accent)` thay vì `var(--text-accent)`) làm thuộc tính CSS
+// không hợp lệ, chữ/nền biến mất hoặc kế thừa sai màu cha. Không ném lỗi JS, lint không bắt được.
+// Khắc phục bằng cách quét toàn bộ token định nghĩa trong src/styles/tokens/*.css và đối chiếu
+// với mọi lệnh gọi `var(--*)` trong code ứng dụng.
+
+const tokenFiles = readdirSync('src/styles/tokens').map((f) => join('src/styles/tokens', f))
+const definedTokens = new Set()
+tokenFiles.forEach((f) => {
+  const content = readFileSync(f, 'utf8')
+  for (const m of content.matchAll(/--([a-zA-Z0-9_-]+)\s*:/g)) {
+    definedTokens.add('--' + m[1])
+  }
+})
+
+function stripComments(code) {
+  return code
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
+}
+
+const usedTokens = new Map()
+APP.forEach((p) => {
+  const content = stripComments(readFileSync(p, 'utf8'))
+  for (const m of content.matchAll(/var\(\s*(--[a-zA-Z0-9_-]+)/g)) {
+    const tok = m[1]
+    // Bỏ qua các tiền tố nội suy động
+    if (tok === '--shadow-' || tok === '--status-') continue
+    if (!usedTokens.has(tok)) usedTokens.set(tok, new Set())
+    usedTokens.get(tok).add(p)
+  }
+})
+
+const missingTokens = [...usedTokens.keys()]
+  .filter((tok) => !definedTokens.has(tok))
+  .map((tok) => tok + '  ← ' + [...usedTokens.get(tok)].join(', '))
+
+assert.equal(missingTokens.length, 0,
+  'CSS Token được gọi trong code nhưng KHÔNG tồn tại trong src/styles/tokens/.\n' +
+  'Thuộc tính CSS sẽ bị invalid hoặc kế thừa sai màu.\n  ' +
+  missingTokens.join('\n  '))
+
+console.log('design system usage check: OK (' + used.size + ' icon, ' + usedTokens.size + ' token, ' + APP.length + ' file)')
+

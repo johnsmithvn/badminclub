@@ -11,6 +11,35 @@ import cfg from '#config/app.json' with { type: 'json' }
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 
+/**
+ * Trợ thủ ghép màu kèm độ trong suốt (alpha).
+ * - Nếu là hex (#RRGGBB): nối chuỗi hex (#RRGGBBAA) — tương thích mọi trình duyệt từ 2016+.
+ * - Nếu là CSS variable (var(--token, #hex)):
+ *   + Trình duyệt hiện đại hỗ trợ color-mix(): dùng color-mix(in srgb, var(...) pct%, transparent).
+ *   + Trình duyệt cũ hơn (chưa có color-mix): trích xuất hex fallback (#hex) rồi ghép hex (#hex + alphaHex)
+ *     để nền và border không bị mất hoàn toàn (graceful degradation).
+ * - Bảo vệ chống "mìn" vỡ CSS khi token hóa badge.color / tier.color sau này.
+ */
+function alphaColor(color, alphaHex, pct) {
+  if (!color) return 'transparent'
+  const isVar = typeof color === 'string' && color.startsWith('var(')
+  if (!isVar) {
+    return `${color}${alphaHex}`
+  }
+
+  const p = pct ?? Math.min(100, Math.max(0, Math.round((parseInt(alphaHex, 16) / 255) * 100)))
+
+  // Trình duyệt không hỗ trợ color-mix() -> degrade an toàn về hex fallback nếu có
+  if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function') {
+    if (!CSS.supports('color', 'color-mix(in srgb, red, blue)')) {
+      const fallbackMatch = color.match(/#[0-9a-fA-F]{6}\b/)
+      if (fallbackMatch) return `${fallbackMatch[0]}${alphaHex}`
+    }
+  }
+
+  return `color-mix(in srgb, ${color} ${p}%, transparent)`
+}
+
 export default function Leaderboard() {
   const { db } = useApp()
   const isMobile = useMobile()
@@ -374,10 +403,10 @@ export default function Leaderboard() {
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            background: row.tier.color?.startsWith('var(') ? `color-mix(in srgb, ${row.tier.color} 12%, transparent)` : `${row.tier.color}1E`,
-                            border: row.tier.color?.startsWith('var(') ? `1px solid color-mix(in srgb, ${row.tier.color} 40%, transparent)` : `1px solid ${row.tier.color}66`,
+                            background: alphaColor(row.tier.color, '1E', 12),
+                            border: `1px solid ${alphaColor(row.tier.color, '66', 40)}`,
                             color: row.tier.color,
-                            boxShadow: row.tier.color?.startsWith('var(') ? `0 0 8px color-mix(in srgb, ${row.tier.color} 15%, transparent)` : `0 0 8px ${row.tier.color}25`,
+                            boxShadow: `0 0 8px ${alphaColor(row.tier.color, '25', 15)}`,
                             flexShrink: 0,
                           }}>
                             <Icon name={row.tier.icon} size={12} />
@@ -528,9 +557,9 @@ export default function Leaderboard() {
                           <span style={{
                             padding: '4px 12px',
                             borderRadius: 6,
-                            background: memberTier.color?.startsWith('var(') ? `color-mix(in srgb, ${memberTier.color} 12%, transparent)` : `${memberTier.color}1E`,
+                            background: alphaColor(memberTier.color, '1E', 12),
                             border: `1px solid ${memberTier.color}`,
-                            boxShadow: memberTier.color?.startsWith('var(') ? `0 0 10px color-mix(in srgb, ${memberTier.color} 19%, transparent)` : `0 0 10px ${memberTier.color}30`,
+                            boxShadow: `0 0 10px ${alphaColor(memberTier.color, '30', 19)}`,
                             color: memberTier.color,
                             fontSize: 12,
                             fontWeight: 700,
@@ -618,8 +647,8 @@ export default function Leaderboard() {
                   padding: '16px 20px',
                   borderRadius: 10,
                   background: 'linear-gradient(135deg, rgba(16, 25, 39, 0.95) 0%, rgba(10, 16, 26, 0.95) 100%)',
-                  border: `1px solid ${badge.color}40`,
-                  boxShadow: `0 4px 20px ${badge.color}15`,
+                  border: `1px solid ${alphaColor(badge.color, '40', 25)}`,
+                  boxShadow: `0 4px 20px ${alphaColor(badge.color, '15', 8)}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -631,9 +660,9 @@ export default function Leaderboard() {
                       width: 44,
                       height: 44,
                       borderRadius: 10,
-                      background: `linear-gradient(135deg, ${badge.color}25 0%, ${badge.color}0A 100%)`,
+                      background: `linear-gradient(135deg, ${alphaColor(badge.color, '25', 15)} 0%, ${alphaColor(badge.color, '0A', 4)} 100%)`,
                       border: `1.5px solid ${badge.color}`,
-                      boxShadow: `0 0 14px ${badge.color}35`,
+                      boxShadow: `0 0 14px ${alphaColor(badge.color, '35', 21)}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -647,8 +676,8 @@ export default function Leaderboard() {
                         <span style={{
                           padding: '2px 8px',
                           borderRadius: 4,
-                          background: `${badge.color}22`,
-                          border: `1px solid ${badge.color}55`,
+                          background: alphaColor(badge.color, '22', 13),
+                          border: `1px solid ${alphaColor(badge.color, '55', 33)}`,
                           color: badge.color,
                           fontSize: 10.5,
                           fontFamily: '"IBM Plex Mono", monospace',

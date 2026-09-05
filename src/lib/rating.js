@@ -113,8 +113,16 @@ export function rankTierOf(rating = 0, themeKey = 'street') {
   const safeTheme = themeKey || 'street'
   const label = getTierName(safeTheme, tier.key)
   const quip = getComedyQuip(tier.key)
-
-  const colorToken = tier.token ? `var(--${tier.token})` : (tier.color || 'var(--rank-novice)')
+  const tierHex = tier.color || (cfg.rating?.tiers || []).find((t) => t.key === tier.key)?.color || (
+    tier.key === 'rookie' ? '#38BDF8' :
+    tier.key === 'regular' ? '#34D399' :
+    tier.key === 'solid' ? '#FACC15' :
+    tier.key === 'net_master' ? '#FB923C' :
+    tier.key === 'coverage' ? '#F43F5E' :
+    tier.key === 'heavy_hitter' ? '#A855F7' :
+    tier.key === 'court_boss' ? '#EC4899' : '#94A3B8'
+  )
+  const colorToken = tier.token ? `var(--${tier.token}, ${tierHex})` : (tier.color || `var(--rank-novice, #94A3B8)`)
 
   return {
     key: tier.key,
