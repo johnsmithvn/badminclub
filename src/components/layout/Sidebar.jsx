@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { Avatar, Icon, SidebarNav } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { PUBLIC_PATHS, pathOf } from '#routes'
 import { allowedRoutes, roleName, can } from '#lib/roles.js'
 import { clubDebtCounts, monthSessions, myDebtCounts } from '#lib/money.js'
@@ -33,6 +34,7 @@ const NAV = [
 export default function Sidebar({ route }) {
   const { db } = useApp()
   const { clubs: myClubs, activeClub, setActiveClub, profile, signOut } = useAuth()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [menu, setMenu] = useState(false)
   const [clubMenu, setClubMenu] = useState(false)
@@ -211,6 +213,11 @@ export default function Sidebar({ route }) {
         {menu && <div style={S.scrim} onClick={() => setMenu(false)} />}
         {menu && (
           <div style={S.menu} role="menu">
+            <button type="button" role="menuitem" style={S.item}
+              onClick={() => { toggleTheme(); setMenu(false) }}>
+              <Icon name={isDark ? 'sun' : 'moon'} size={16} />
+              {isDark ? t('common.themeLight') : t('common.themeDark')}
+            </button>
             <button type="button" role="menuitem" style={S.item}
               onClick={() => { setMenu(false); navigate(PUBLIC_PATHS.clubs) }}>
               <Icon name="building-2" size={16} />{t('shell.backToClubs')}

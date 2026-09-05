@@ -1772,7 +1772,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         }]),
       }))
       toast(t('toast.typeAdded'))
-      closeDialog()
+      upUi(() => ({ dialog: null, form: {} }))
     },
     deleteShuttleType: (id) => {
       const d = db()

@@ -205,7 +205,7 @@ export default function Settings() {
     setShuttleTypesDraft(db.shuttleTypes || [])
     setGroupsDraft(db.groups || [])
     setSaveError(null)
-  }, [db, defGroup])
+  }, [db])
 
   const handleSaveAll = async () => {
     if (!canEdit || dirtyFields.length === 0) return

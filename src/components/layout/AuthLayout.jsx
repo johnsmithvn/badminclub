@@ -1,12 +1,26 @@
 // Khung cho các trang ngoài app (đăng nhập, đăng ký): nền navy, thẻ trắng ở giữa.
 // Khác AppLayout: không sidebar, không header CLB — lúc này chưa biết CLB nào.
 
-import { Icon } from '#ds'
+import { Icon, IconButton } from '#ds'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t } from '#i18n'
 
 export default function AuthLayout({ title, sub, children, footer }) {
+  const { isDark, toggleTheme } = useTheme()
+
   return (
     <div style={S.page}>
+      <div style={S.themeWrap}>
+        <IconButton
+          icon={isDark ? 'sun' : 'moon'}
+          size="sm"
+          variant="ghost"
+          style={S.themeBtn}
+          label={isDark ? t('common.themeLight') : t('common.themeDark')}
+          onClick={toggleTheme}
+        />
+      </div>
+
       <div style={S.brand}>
         <div style={S.logo}><Icon name="volleyball" size={22} /></div>
         <div>
@@ -49,4 +63,10 @@ const S = {
   title: { font: 'var(--type-h2)', color: 'var(--text-primary)', margin: 0 },
   sub: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
   footer: { font: 'var(--type-caption)', color: 'rgba(255,255,255,.75)', textAlign: 'center', maxWidth: 460 },
+  themeWrap: { position: 'fixed', top: 16, right: 16, zIndex: 10 },
+  themeBtn: {
+    border: '1px solid rgba(255,255,255,0.25)',
+    borderRadius: 6,
+    color: '#fff',
+  },
 }
