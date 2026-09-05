@@ -405,6 +405,9 @@
     "descSession": "Buổi {{date}}",
     "descDuesShort": "Quỹ tháng thiếu {{amount}}",
     "descBack": "Hoàn vắng {{what}}",
+    "descExtra": "Đi thêm {{what}}",
+    "groupSessions": "{{group}} ({{n}} buổi)",
+    "sessionsCount": "{{n}} buổi",
     "debt": {
       "slimTitle": "Bạn đang nợ quỹ {{amount}} — {{n}} khoản",
       "slimWaiting": "{{n}} khoản đang chờ thủ quỹ duyệt",
@@ -1355,7 +1358,7 @@
     },
     "tabGeneral": "Chung",
     "tabMoney": "Biểu phí",
-    "tabCourts": "Sân & Cầu",
+    "tabCourts": "Sân",
     "tabGroups": "Nhóm & mức thu",
     "tabSchedules": "Lịch tập cố định",
     "tabAccess": "Tài khoản & quyền",

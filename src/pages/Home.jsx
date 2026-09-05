@@ -152,7 +152,7 @@ function Overview() {
       }
     }
     creditorMap[k].owed += amt
-    creditorMap[k].desc.push(t('home.descBack', { what: ar.label }))
+    creditorMap[k].desc.push(ar.label)
   })
 
   const creditors = Object.values(creditorMap).sort((a, b) => b.owed - a.owed)

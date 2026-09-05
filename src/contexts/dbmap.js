@@ -325,6 +325,8 @@ export function toRows(db, ctx) {
     ;(g.courtIds || []).forEach((court) => put('group_courts', { group_id: g.id, court_id: court }))
   })
 
+  const memberIdSet = new Set((db.members || []).map((m) => m.id))
+
   db.members.forEach((m) => {
     put('club_members', {
       id: m.id, club_id: cid, user_id: uu(m.userId), role: m.role, name: m.name,
@@ -345,7 +347,8 @@ export function toRows(db, ctx) {
 
   db.guests.forEach((g) => put('guests', {
     id: g.id, club_id: cid, name: g.name, gender: g.gender, level: g.level,
-    phone: g.phone || null, invited_by: uu(g.invitedBy), note: g.note || null,
+    phone: g.phone || null, invited_by: (g.invitedBy && memberIdSet.has(g.invitedBy)) ? uu(g.invitedBy) : null,
+    note: g.note || null,
   }))
 
   db.schedules.forEach((s) => {
@@ -418,8 +421,12 @@ export function toRows(db, ctx) {
       rating_enabled: c.ratingEnabled !== false, expires_at: c.expiresAt || null,
       match_id: uu(c.matchId),
     })
-    ;(c.teamA || []).forEach((mid) => put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'A' }))
-    ;(c.teamB || []).forEach((mid) => put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'B' }))
+    ;(c.teamA || []).forEach((mid) => {
+      if (memberIdSet.has(mid)) put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'A' })
+    })
+    ;(c.teamB || []).forEach((mid) => {
+      if (memberIdSet.has(mid)) put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'B' })
+    })
   })
 
   ;(db.matches || []).forEach((mt) => {
@@ -451,7 +458,8 @@ export function toRows(db, ctx) {
 
   ratingsList.forEach((r) => {
     const mid = r.memberId || r.playerId
-    if (!mid) return
+    // CHỈ lưu rating cho hội viên chính thức trong CLB (tránh vi phạm khoá ngoại player_ratings_member_id_fkey với khách)
+    if (!mid || !memberIdSet.has(mid)) return
     const rid = r.id || uu(r.id)
     if (!rid) return
     put('player_ratings', {
@@ -463,7 +471,8 @@ export function toRows(db, ctx) {
   })
 
   ;(db.matchEdits || []).forEach((e) => put('match_edits', {
-    id: e.id, match_id: e.matchId, club_id: cid, edited_by: uu(e.editedBy),
+    id: e.id, match_id: e.matchId, club_id: cid,
+    edited_by: (e.editedBy && memberIdSet.has(e.editedBy)) ? uu(e.editedBy) : null,
     edited_at: e.editedAt || new Date().toISOString(),
     field_changed: e.fieldChanged, old_value: e.oldValue || null,
     new_value: e.newValue || null, reason: e.reason,

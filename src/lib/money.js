@@ -571,9 +571,16 @@ export function adjustRows(db, monthKey) {
       ? { sessions: saved.sessions, unit: saved.unit, amount: saved.amount }
       : { sessions, unit: calcUnit, amount: sign * calcUnit * sessions }
     // Đơn giá này là số CLB tự đặt hay app tự chia — hiện ra để không ai phải đoán.
+    const gName = g.name || ''
+    const what = gName
+      ? t('home.groupSessions', { group: gName, n: sessions })
+      : t('home.sessionsCount', { n: sessions })
+    const label = kind === 'absent_back'
+      ? t('home.descBack', { what })
+      : t('home.descExtra', { what })
     out.push({
       key, month: monthKey, member: m, group: g, kind, groupId: g.id, memberId: m.id,
-      total: u.n, fee: u.fee, unitOverride: !!u.override, ...row,
+      total: u.n, fee: u.fee, unitOverride: !!u.override, label, ...row,
       settle: saved ? saved.settle : 'cash',
       paid: saved ? !!saved.paid : false,
       paidAt: saved ? saved.paidAt : null,

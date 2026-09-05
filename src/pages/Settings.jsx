@@ -1,4 +1,4 @@
-// Cài đặt: Chung · Biểu phí · Sân & Cầu · Nhóm & mức thu · Lịch tập cố định · Tài khoản & quyền
+// Cài đặt: Chung · Biểu phí · Sân · Nhóm & mức thu · Lịch tập cố định · Tài khoản & quyền
 // Handoff 2c: "Giữ tab, siết ngữ pháp" — 6 tab, ngữ pháp hàng dữ liệu 170px, thanh lưu nổi batch ở đáy.
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
@@ -399,19 +399,19 @@ export default function Settings() {
   // Quét toàn diện usedLevels theo appActions:1614-1624 (Item 8)
   const usedLevels = useMemo(() => {
     const set = new Set()
-    ;(db.members || []).forEach((m) => {
-      if (m.level) set.add(m.level)
-      if (m.pendingLevel) set.add(m.pendingLevel)
-      ;(m.levelHistory || []).forEach((h) => {
-        if (h.level) set.add(h.level)
+      ; (db.members || []).forEach((m) => {
+        if (m.level) set.add(m.level)
+        if (m.pendingLevel) set.add(m.pendingLevel)
+          ; (m.levelHistory || []).forEach((h) => {
+            if (h.level) set.add(h.level)
+          })
       })
-    })
-    ;(db.guests || []).forEach((g) => {
-      if (g.level) set.add(g.level)
-    })
-    ;(db.sessionGuests || []).forEach((sg) => {
-      if (sg.level) set.add(sg.level)
-    })
+      ; (db.guests || []).forEach((g) => {
+        if (g.level) set.add(g.level)
+      })
+      ; (db.sessionGuests || []).forEach((sg) => {
+        if (sg.level) set.add(sg.level)
+      })
     return Array.from(set)
   }, [db.members, db.guests, db.sessionGuests])
 
@@ -590,76 +590,76 @@ export default function Settings() {
             Hàng 2 — 6 tab — là tất cả những gì còn lại ở đây. Bọc thêm một lớp để đặt vệt mờ báo
             còn cuộn được ở màn hẹp (§8): pseudo-element không gắn được lên chính tablist. */}
         <div className="settings-tabs-wrap">
-        <div
-          role="tablist"
-          aria-label={t('settings.appTitle')}
-          className="settings-tabs"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 22,
-            overflowX: 'auto',
-            paddingBottom: 2,
-          }}
-        >
-          {TABS.map((k) => {
-            const isActive = activeTab === k
-            const isAccess = k === 'access'
-            const count = isAccess ? pending.length : 0
+          <div
+            role="tablist"
+            aria-label={t('settings.appTitle')}
+            className="settings-tabs"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 22,
+              overflowX: 'auto',
+              paddingBottom: 2,
+            }}
+          >
+            {TABS.map((k) => {
+              const isActive = activeTab === k
+              const isAccess = k === 'access'
+              const count = isAccess ? pending.length : 0
 
-            return (
-              <button
-                key={k}
-                id={`tab-${k}`}
-                type="button"
-                className="settings-tab"
-                role="tab"
-                tabIndex={isActive ? 0 : -1}
-                aria-selected={isActive}
-                aria-controls={`tabpanel-${k}`}
-                onClick={() => a.setTab('settings', k)}
-                onKeyDown={(e) => handleTabKeyDown(e, k)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  padding: '8px 0 11px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: isActive ? '2px solid var(--action-accent-bg)' : '2px solid transparent',
-                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontWeight: isActive ? 600 : 400,
-                  fontSize: 13.5,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.18s ease',
-                  outlineColor: 'var(--border-focus-color)',
-                }}
-              >
-                <span>{t('settings.tab' + k[0].toUpperCase() + k.slice(1))}</span>
-                {isAccess && (
-                  <span
-                    style={{
-                      minWidth: 18,
-                      height: 18,
-                      borderRadius: 6,
-                      background: count > 0 ? 'var(--action-accent-bg)' : 'var(--surface-page)',
-                      color: count > 0 ? 'var(--action-accent-fg)' : 'var(--text-muted)',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '0 5px',
-                    }}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
+              return (
+                <button
+                  key={k}
+                  id={`tab-${k}`}
+                  type="button"
+                  className="settings-tab"
+                  role="tab"
+                  tabIndex={isActive ? 0 : -1}
+                  aria-selected={isActive}
+                  aria-controls={`tabpanel-${k}`}
+                  onClick={() => a.setTab('settings', k)}
+                  onKeyDown={(e) => handleTabKeyDown(e, k)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '8px 0 11px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: isActive ? '2px solid var(--action-accent-bg)' : '2px solid transparent',
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: 13.5,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.18s ease',
+                    outlineColor: 'var(--border-focus-color)',
+                  }}
+                >
+                  <span>{t('settings.tab' + k[0].toUpperCase() + k.slice(1))}</span>
+                  {isAccess && (
+                    <span
+                      style={{
+                        minWidth: 18,
+                        height: 18,
+                        borderRadius: 6,
+                        background: count > 0 ? 'var(--action-accent-bg)' : 'var(--surface-page)',
+                        color: count > 0 ? 'var(--action-accent-fg)' : 'var(--text-muted)',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0 5px',
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 

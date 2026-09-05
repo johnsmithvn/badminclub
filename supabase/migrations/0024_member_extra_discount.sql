@@ -1,4 +1,4 @@
--- Migration 0023: Cấu hình chênh lệch giá thành viên đi thêm so với khách giao lưu.
+-- Migration 0024: Cấu hình chênh lệch giá thành viên đi thêm so với khách giao lưu.
 --
 -- Thành viên cố định của CLB khi tham gia thêm các buổi khác (ngoài nhóm cố định)
 -- có thể được giảm trừ một khoản so với giá khách giao lưu.

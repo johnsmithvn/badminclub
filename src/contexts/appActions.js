@@ -2245,9 +2245,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             sets: playedSets,
           })
           delta = deltas[teamA[0]] || 0
+          const memberIdSet = new Set((d0.members || []).map((x) => x.id))
           const nowIso = new Date().toISOString()
           teamA.forEach((id) => {
-            const memA = (d0.members || []).find((x) => x.id === id) || (d0.guests || []).find((x) => x.id === id)
+            if (!memberIdSet.has(id)) return // Khách giao lưu không tích luỹ bảng xếp hạng Elo CLB
+            const memA = (d0.members || []).find((x) => x.id === id)
             const seedA = memA?.level ? initialRatingOf(memA.level, d0.levels) : DEFAULT_RATING
             const cur = playerRatings[id] || { id: uid(), rating: seedA, gamesCount: 0, winsCount: 0, lossesCount: 0 }
             const newR = cur.rating + (deltas[id] || 0)
@@ -2264,7 +2266,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             }
           })
           teamB.forEach((id) => {
-            const memB = (d0.members || []).find((x) => x.id === id) || (d0.guests || []).find((x) => x.id === id)
+            if (!memberIdSet.has(id)) return // Khách giao lưu không tích luỹ bảng xếp hạng Elo CLB
+            const memB = (d0.members || []).find((x) => x.id === id)
             const seedB = memB?.level ? initialRatingOf(memB.level, d0.levels) : DEFAULT_RATING
             const cur = playerRatings[id] || { id: uid(), rating: seedB, gamesCount: 0, winsCount: 0, lossesCount: 0 }
             const newR = cur.rating + (deltas[id] || 0)
