@@ -34,7 +34,6 @@ export default function GroupsTab({
       ...prev,
       [groupId]: willBeCustom,
     }))
-    onGroupFieldChange(groupId, 'customPricing', willBeCustom)
     if (willBeCustom) {
       if (g.feeNam === undefined) onGroupFieldChange(groupId, 'feeNam', defaultFeeNam)
       if (g.feeNu === undefined) onGroupFieldChange(groupId, 'feeNu', defaultFeeNu)
@@ -74,12 +73,12 @@ export default function GroupsTab({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 14 }}>
           {groups.map((g, idx) => {
             const hasCustom = Boolean(
-              customPricing[g.id] ||
-              g.customPricing ||
-              (g.feeNam !== undefined && g.feeNam !== defaultFeeNam) ||
-              (g.feeNu !== undefined && g.feeNu !== defaultFeeNu) ||
-              (g.unitNam !== undefined && g.unitNam !== defaultUnitNam) ||
-              (g.unitNu !== undefined && g.unitNu !== defaultUnitNu)
+              customPricing[g.id] !== undefined
+                ? customPricing[g.id]
+                : (g.feeNam !== undefined && g.feeNam !== defaultFeeNam) ||
+                  (g.feeNu !== undefined && g.feeNu !== defaultFeeNu) ||
+                  (g.unitNam !== undefined && g.unitNam !== defaultUnitNam) ||
+                  (g.unitNu !== undefined && g.unitNu !== defaultUnitNu)
             )
             const feeNamVal = g.feeNam !== undefined ? g.feeNam : defaultFeeNam
             const feeNuVal = g.feeNu !== undefined ? g.feeNu : defaultFeeNu
@@ -123,7 +122,7 @@ export default function GroupsTab({
                           fontWeight: 700,
                           padding: '2px 7px',
                           borderRadius: 6,
-                          background: 'var(--gray-100)',
+                          background: 'var(--surface-inset)',
                           color: 'var(--text-secondary)',
                           fontFamily: 'var(--font-mono)',
                         }}
@@ -140,7 +139,7 @@ export default function GroupsTab({
                       style={{
                         border: 'none',
                         background: 'transparent',
-                        color: 'var(--red-600)',
+                        color: 'var(--text-danger)',
                         fontSize: 12.5,
                         fontWeight: 600,
                         cursor: 'pointer',
@@ -239,7 +238,7 @@ export default function GroupsTab({
                       style={{
                         border: 'none',
                         background: hasCustom ? 'var(--surface-warning-soft)' : 'var(--surface-accent-soft)',
-                        color: hasCustom ? 'var(--amber-600)' : 'var(--teal-700)',
+                        color: hasCustom ? 'var(--status-delayed-fg)' : 'var(--text-accent)',
                         fontSize: 12,
                         fontWeight: 700,
                         padding: '4px 10px',
@@ -264,7 +263,6 @@ export default function GroupsTab({
                       <button
                         type="button"
                         onClick={() => {
-                          onGroupFieldChange(g.id, 'customPricing', false)
                           onGroupFieldChange(g.id, 'feeNam', defaultFeeNam)
                           onGroupFieldChange(g.id, 'feeNu', defaultFeeNu)
                           onGroupFieldChange(g.id, 'unitNam', defaultUnitNam)
@@ -274,7 +272,7 @@ export default function GroupsTab({
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: 'var(--teal-700)',
+                          color: 'var(--text-accent)',
                           fontSize: 12,
                           cursor: 'pointer',
                           textDecoration: 'underline',

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Alert, Button, Input, Select } from '#ds'
+import { LevelChip } from '#ui'
 import {
   FormRow,
   ToggleSwitch,
@@ -9,37 +10,6 @@ import {
 import { fmtK, intOf } from '#lib/money.js'
 import { t } from '#i18n'
 
-function LevelChip({ level, levels = [] }) {
-  const idx = levels.indexOf(level)
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '3px 8px',
-        borderRadius: 6,
-        background: 'var(--surface-inset)',
-        border: '1px solid var(--border-subtle)',
-      }}
-    >
-      {idx >= 0 && (
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: 'var(--text-muted)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {idx + 1}
-        </span>
-      )}
-      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{level}</span>
-    </div>
-  )
-}
-
 export default function MoneyTab({
   data,
   onChange,
@@ -47,6 +17,7 @@ export default function MoneyTab({
   levels = [],
   noGroup = false,
   defGroup = {},
+  sessionsPerMonth = 4,
 }) {
   const [bulkPrice, setBulkPrice] = useState('')
   const [bulkWho, setBulkWho] = useState('both')
@@ -98,8 +69,8 @@ export default function MoneyTab({
   const sampleNam = sample?.nam || 0
   const sampleNu = sample?.nu || 0
 
-  const isMaleUnitHigh = intOf(feeNam) > 0 && intOf(unitNam) > Math.round(intOf(feeNam) / 4)
-  const isFemaleUnitHigh = intOf(feeNu) > 0 && intOf(unitNu) > Math.round(intOf(feeNu) / 4)
+  const isMaleUnitHigh = intOf(feeNam) > 0 && intOf(unitNam) > Math.round(intOf(feeNam) / sessionsPerMonth)
+  const isFemaleUnitHigh = intOf(feeNu) > 0 && intOf(unitNu) > Math.round(intOf(feeNu) / sessionsPerMonth)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -242,7 +213,7 @@ export default function MoneyTab({
                         onChange={(e) => onChange('unitNam', e.target.value)}
                       />
                       {isMaleUnitHigh && (
-                        <div style={{ fontSize: 11.5, color: 'var(--amber-500)', marginTop: 4 }}>
+                        <div style={{ fontSize: 11.5, color: 'var(--status-delayed-fg)', marginTop: 4 }}>
                           {t('settings.refundExceedWarn')}
                         </div>
                       )}
@@ -260,7 +231,7 @@ export default function MoneyTab({
                         onChange={(e) => onChange('unitNu', e.target.value)}
                       />
                       {isFemaleUnitHigh && (
-                        <div style={{ fontSize: 11.5, color: 'var(--amber-500)', marginTop: 4 }}>
+                        <div style={{ fontSize: 11.5, color: 'var(--status-delayed-fg)', marginTop: 4 }}>
                           {t('settings.refundExceedWarn')}
                         </div>
                       )}
@@ -278,7 +249,7 @@ export default function MoneyTab({
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: 'var(--teal-600)',
+                          color: 'var(--text-accent)',
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -368,7 +339,7 @@ export default function MoneyTab({
                     style={{
                       border: 'none',
                       background: 'transparent',
-                      color: 'var(--teal-600)',
+                      color: 'var(--text-accent)',
                       fontSize: 12.5,
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -408,9 +379,9 @@ export default function MoneyTab({
                       style={{
                         padding: '6px 12px',
                         borderRadius: 8,
-                        border: `1px solid ${isSelected ? 'var(--teal-600)' : 'var(--border-default)'}`,
+                        border: `1px solid ${isSelected ? 'var(--action-accent-bg)' : 'var(--border-default)'}`,
                         background: isSelected ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
-                        color: isSelected ? 'var(--teal-700)' : 'var(--text-primary)',
+                        color: isSelected ? 'var(--text-accent)' : 'var(--text-primary)',
                         fontWeight: 600,
                         fontSize: 13,
                         cursor: 'pointer',
@@ -468,6 +439,7 @@ export default function MoneyTab({
                       type="number"
                       align="right"
                       disabled={!canEdit}
+                      suffix={t('units.dong')}
                       formatDisplay={(v) => (v ? `${fmtK(v)}${t('units.dong')}` : t('settings.priceUnset'))}
                       onChange={(newVal) => setSinglePrice(p.level, 'nam', newVal)}
                     />
@@ -478,6 +450,7 @@ export default function MoneyTab({
                       type="number"
                       align="right"
                       disabled={!canEdit}
+                      suffix={t('units.dong')}
                       formatDisplay={(v) => (v ? `${fmtK(v)}${t('units.dong')}` : t('settings.priceUnset'))}
                       onChange={(newVal) => setSinglePrice(p.level, 'nu', newVal)}
                     />

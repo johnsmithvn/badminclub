@@ -6,7 +6,7 @@ import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { can } from '#lib/roles.js'
-import { intOf } from '#lib/money.js'
+import { intOf, monthSessions } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -255,9 +255,6 @@ export default function Settings() {
     }
 
     try {
-      // Giả lập transition lưu mượt mà
-      await new Promise((resolve) => setTimeout(resolve, 250))
-
       // 1. Lưu General Tab
       if (generalDraft.name !== (db.club?.name || '')) a.setClub('name', generalDraft.name)
       if (generalDraft.avatarUrl !== (db.club?.avatarUrl || '')) a.setClub('avatarUrl', generalDraft.avatarUrl)
@@ -417,6 +414,14 @@ export default function Settings() {
     }
   }
 
+  // Ngưỡng cảnh báo "tiền hoàn 1 buổi > quỹ tháng / số buổi": đếm buổi THẬT của tháng đang xem,
+  // không suy từ số lịch — một lịch `weekdays:[T3,T6]` là 8 buổi/tháng chứ không phải 1.
+  // Chưa có buổi nào thì để 1: ngưỡng bằng cả quỹ tháng, không cảnh báo nhầm khi CLB còn trống.
+  const sessionsPerMonth = useMemo(
+    () => Math.max(1, monthSessions(db, db.month).filter((s) => s.groupId === defGroup.id).length),
+    [db, defGroup.id]
+  )
+
   // Quét toàn diện usedLevels theo appActions:1614-1624 (Item 8)
   const usedLevels = useMemo(() => {
     const set = new Set()
@@ -462,12 +467,23 @@ export default function Settings() {
           from { transform: translateY(16px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
+        /* Handoff §3.7: hàng hover phải SÁNG LÊN. Ở theme sáng --surface-inset (#FAFBFD) đúng là
+           sắc đó; ở theme tối nó lại TỐI HƠN card nên phải đổi sang --surface-raised. */
         .hover-cell:hover {
           background: var(--surface-inset);
+        }
+        [data-theme="dark"] .hover-cell:hover,
+        .theme-dark .hover-cell:hover {
+          background: var(--surface-raised);
         }
         @media (min-width: 834px) and (max-width: 1279px) {
           .settings-form-label {
             width: 150px !important;
+          }
+        }
+        @media (max-width: 1279px) {
+          .settings-general-grid {
+            grid-template-columns: 1fr !important;
           }
         }
         @media (max-width: 833px) {
@@ -503,16 +519,9 @@ export default function Settings() {
           margin: '-20px -22px 20px -22px',
         }}
       >
-        {/* Hàng 1: Tiêu đề trang + Xuất/Nhập cài đặt */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <h1 style={{ fontSize: 19, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em', margin: 0 }}>
-              {t('settings.appTitle')}
-            </h1>
-            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              {t('settings.appDesc')}
-            </span>
-          </div>
+        {/* Hàng 1 của handoff §1 là "tiêu đề + Nhập/Xuất". Tiêu đề trang đã do AppHeader render
+            (`pages.settings.title/desc`) nên ở đây chỉ còn hai nút — in lại là lặp y hệt hai dòng chữ. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
 
           {canEdit && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -571,14 +580,14 @@ export default function Settings() {
                   padding: '8px 0 11px',
                   background: 'transparent',
                   border: 'none',
-                  borderBottom: isActive ? '2px solid var(--teal-600)' : '2px solid transparent',
+                  borderBottom: isActive ? '2px solid var(--action-accent-bg)' : '2px solid transparent',
                   color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                   fontWeight: isActive ? 600 : 400,
                   fontSize: 13.5,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.18s ease',
-                  outlineColor: 'var(--teal-500)',
+                  outlineColor: 'var(--border-focus-color)',
                 }}
               >
                 <span>{t('settings.tab' + k[0].toUpperCase() + k.slice(1))}</span>
@@ -588,8 +597,8 @@ export default function Settings() {
                       minWidth: 18,
                       height: 18,
                       borderRadius: 6,
-                      background: count > 0 ? 'var(--teal-600)' : 'var(--surface-page)',
-                      color: count > 0 ? '#fff' : 'var(--text-muted)',
+                      background: count > 0 ? 'var(--action-accent-bg)' : 'var(--surface-page)',
+                      color: count > 0 ? 'var(--action-accent-fg)' : 'var(--text-muted)',
                       fontSize: 11,
                       fontWeight: 700,
                       display: 'inline-flex',
@@ -635,6 +644,7 @@ export default function Settings() {
             levels={generalDraft.levels || db.levels || []}
             noGroup={db.groups.length === 0}
             defGroup={defGroup}
+            sessionsPerMonth={sessionsPerMonth}
           />
         )}
 

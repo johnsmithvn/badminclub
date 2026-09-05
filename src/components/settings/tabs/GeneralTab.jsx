@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react'
 import { Button, Icon, Input, Select } from '#ds'
-import { AvatarUpload, DeleteClubDialog, SearchSelect } from '#ui'
+import { AvatarUpload, DeleteClubDialog, SearchSelect, QrModal } from '#ui'
 import {
   FormRow,
   ToggleSwitch,
@@ -9,55 +9,9 @@ import {
   LevelPillsManager,
   DangerZoneCard,
 } from '#components/settings/SettingsComponents.jsx'
-import { scanQrCodeFromImage, parseVietQr, getVietQrUrl } from '#utils/vietqr.js'
+import { scanQrCodeFromImage, parseVietQr, getVietQrUrl, findBank } from '#utils/vietqr.js'
 import banks from '#config/banks.json' with { type: 'json' }
 import { t } from '#i18n'
-
-function QrModal({ title, qrUrl, bankName, accountNo, accountHolder, onClose }) {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'rgba(5, 15, 39, 0.4)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          borderRadius: 14,
-          padding: 24,
-          maxWidth: 400,
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 16,
-          boxShadow: '0 20px 48px -24px rgba(13, 43, 94, 0.32)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{title}</div>
-        <img src={qrUrl} alt={title} style={{ width: 260, height: 260, objectFit: 'contain' }} />
-        <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-secondary)' }}>
-          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{bankName}</div>
-          <div style={{ fontFamily: 'var(--font-mono)', marginTop: 2 }}>{accountNo}</div>
-          <div style={{ fontWeight: 600, marginTop: 2 }}>{accountHolder}</div>
-        </div>
-        <Button variant="secondary" onClick={onClose}>
-          {t('common.close')}
-        </Button>
-      </div>
-    </div>
-  )
-}
 
 export default function GeneralTab({
   data,
@@ -75,6 +29,12 @@ export default function GeneralTab({
   const fileRef = useRef(null)
 
   const bank = data.bank || {}
+
+  // `club.bank.bank` có thể là mã ('TCB'), tên viết tắt hay tên đầy đủ — quét QR trả về `bankName`.
+  // SearchSelect so khớp TUYỆT ĐỐI với `option.value` (= mã), nên giá trị dạng tên làm nó vừa
+  // không tìm ra option vừa tưởng là đã chọn → ô hiện ra TRỐNG TRƠN. Quy về mã bằng findBank.
+  const selectedBankCode = useMemo(() => findBank(bank.bank)?.code || bank.bank || '', [bank.bank])
+
   const autoVietQrUrl = useMemo(() => {
     if (!bank.no || !bank.bank) return ''
     return getVietQrUrl({
@@ -161,7 +121,7 @@ export default function GeneralTab({
                 style={{
                   border: 'none',
                   background: 'transparent',
-                  color: 'var(--red-600)',
+                  color: 'var(--text-danger)',
                   fontSize: 12.5,
                   cursor: 'pointer',
                   padding: 0,
@@ -298,7 +258,7 @@ export default function GeneralTab({
       >
         <FormRow label={t('settings.fBankName')} labelWidth={130}>
           <SearchSelect
-            value={bank.bank || ''}
+            value={selectedBankCode}
             disabled={!canEdit}
             placeholder={t('settings.fBankName')}
             options={bankOptions}
@@ -413,7 +373,7 @@ export default function GeneralTab({
                   {scanning ? t('settings.qrScanning') : t('settings.qrScanBtn')}
                 </Button>
                 {scanErr && (
-                  <div style={{ fontSize: 11.5, color: 'var(--red-600)', marginTop: 4 }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-danger)', marginTop: 4 }}>
                     {scanErr}
                   </div>
                 )}

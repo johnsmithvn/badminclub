@@ -68,7 +68,7 @@ function JoinRow({ r, canEdit, unlinked, db, ui, a }) {
       {canEdit && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
           {dup && (
-            <div style={{ fontSize: 12, color: 'var(--amber-600)', fontWeight: 600 }}>
+            <div style={{ fontSize: 12, color: 'var(--status-delayed-fg)', fontWeight: 600 }}>
               {t('settings.joinDupWarn', { name: dup.name })}
             </div>
           )}
@@ -297,7 +297,7 @@ export default function AccessTab({
                     padding: '4px 10px',
                     borderRadius: 999,
                     background: 'var(--surface-accent-soft)',
-                    color: 'var(--teal-700)',
+                    color: 'var(--text-accent)',
                     whiteSpace: 'nowrap',
                     width: 92,
                     textAlign: 'center',
@@ -430,7 +430,7 @@ export default function AccessTab({
                           padding: '3px 8px',
                           borderRadius: 999,
                           background: 'var(--surface-accent-soft)',
-                          color: 'var(--teal-700)',
+                          color: 'var(--text-accent)',
                           display: 'inline-block',
                         }}
                       >
@@ -443,7 +443,7 @@ export default function AccessTab({
                           fontWeight: 600,
                           padding: '3px 8px',
                           borderRadius: 999,
-                          background: 'var(--gray-100)',
+                          background: 'var(--surface-inset)',
                           color: 'var(--text-muted)',
                           display: 'inline-block',
                         }}
@@ -479,7 +479,7 @@ export default function AccessTab({
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: 'var(--red-600)',
+                          color: 'var(--text-danger)',
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: 'pointer',

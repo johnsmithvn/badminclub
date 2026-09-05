@@ -117,9 +117,9 @@ export default function SchedulesTab({
                       padding: '4px 8px',
                       borderRadius: 999,
                       whiteSpace: 'nowrap',
-                      background: r.active ? 'var(--surface-accent-soft)' : 'var(--surface-page)',
-                      border: `1px solid ${r.active ? 'var(--teal-200)' : 'var(--border-subtle)'}`,
-                      color: r.active ? 'var(--teal-700)' : 'var(--text-muted)',
+                      background: r.active ? 'var(--status-transit-bg)' : 'var(--status-idle-bg)',
+                      border: '1px solid transparent',
+                      color: r.active ? 'var(--status-transit-fg)' : 'var(--status-idle-fg)',
                     }}
                   >
                     {r.active ? t('settings.running') : t('settings.paused')}
@@ -134,7 +134,7 @@ export default function SchedulesTab({
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: 'var(--teal-600)',
+                          color: 'var(--text-accent)',
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -149,7 +149,7 @@ export default function SchedulesTab({
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: 'var(--teal-600)',
+                          color: 'var(--text-accent)',
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -166,7 +166,7 @@ export default function SchedulesTab({
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: drop.ok ? 'var(--red-600)' : 'var(--text-disabled)',
+                          color: drop.ok ? 'var(--text-danger)' : 'var(--text-disabled)',
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: drop.ok ? 'pointer' : 'not-allowed',

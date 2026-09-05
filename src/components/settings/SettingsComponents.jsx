@@ -50,7 +50,7 @@ export function FormRow({
             </div>
           )}
           {error && (
-            <div style={{ fontSize: 12, color: 'var(--red-600)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-danger)', lineHeight: 1.5 }}>
               {error}
             </div>
           )}
@@ -110,7 +110,7 @@ export function FormRow({
           </div>
         )}
         {error && (
-          <div style={{ fontSize: 12, color: 'var(--red-600)', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-danger)', lineHeight: 1.5 }}>
             {error}
           </div>
         )}
@@ -121,7 +121,7 @@ export function FormRow({
 
 /**
  * Toggle Switch chuẩn:
- * - 40x23 (mobile 44x26), thumb 19px, inset 2px
+ * - 40x23, thumb 19px (handoff §3.4), inset 2px
  */
 export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ariaLabel }) {
   return (
@@ -134,15 +134,15 @@ export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ar
       id={id}
       onClick={() => !disabled && onChange && onChange(!checked)}
       style={{
-        width: 42,
-        height: 24,
+        width: 40,
+        height: 23,
         borderRadius: 999,
-        background: checked ? 'var(--teal-600)' : 'var(--border-default)',
+        background: checked ? 'var(--action-accent-bg)' : 'var(--border-default)',
         position: 'relative',
         cursor: disabled ? 'not-allowed' : 'pointer',
         border: 'none',
         padding: 0,
-        outlineColor: 'var(--teal-500)',
+        outlineColor: 'var(--border-focus-color)',
         transition: 'background 0.18s ease',
         flexShrink: 0,
         opacity: disabled ? 0.6 : 1,
@@ -152,9 +152,9 @@ export function ToggleSwitch({ checked, onChange, disabled, id, 'aria-label': ar
         style={{
           position: 'absolute',
           top: 2,
-          left: checked ? 20 : 2,
-          width: 20,
-          height: 20,
+          left: checked ? 19 : 2,
+          width: 19,
+          height: 19,
           borderRadius: '50%',
           background: 'var(--surface-card)',
           boxShadow: '0 1px 3px rgba(13, 43, 94, 0.28)',
@@ -254,7 +254,7 @@ export function Stepper({
             fontWeight: 600,
             color: 'var(--text-primary)',
             border: 'none',
-            outlineColor: 'var(--teal-500)',
+            outlineColor: 'var(--border-focus-color)',
             background: 'transparent',
             fontVariantNumeric: 'tabular-nums',
             fontFamily: 'var(--font-mono)',
@@ -339,7 +339,7 @@ export function SettingsCard({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'var(--teal-600)',
+                  color: 'var(--text-accent)',
                 }}
               >
                 <Icon name={icon} size={16} />
@@ -413,8 +413,9 @@ export function FloatingSaveBar({
         gap: 16,
         transform: visible ? 'translateY(0)' : 'translateY(100%)',
         opacity: visible ? 1 : 0,
+        marginBottom: visible ? 0 : -68,
         pointerEvents: visible ? 'auto' : 'none',
-        transition: 'transform 0.22s ease, opacity 0.22s ease',
+        transition: 'transform 0.22s ease, opacity 0.22s ease, margin-bottom 0.22s ease',
         boxShadow: '0 -4px 20px rgba(13, 43, 94, 0.08)',
       }}
     >
@@ -424,14 +425,14 @@ export function FloatingSaveBar({
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: isSaved ? 'var(--teal-600)' : isSaving ? 'var(--text-muted)' : 'var(--amber-500)',
+            background: isSaved ? 'var(--action-accent-bg)' : isSaving ? 'var(--text-muted)' : 'var(--status-delayed-fg)',
             flexShrink: 0,
             transition: 'background 0.2s ease',
           }}
         />
         <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {isSaved ? (
-            <span style={{ color: 'var(--teal-700)', fontWeight: 600 }}>{t('settings.allSaved')}</span>
+            <span style={{ color: 'var(--text-accent)', fontWeight: 600 }}>{t('settings.allSaved')}</span>
           ) : isSaving ? (
             <span>{t('settings.saving')}</span>
           ) : (
@@ -445,7 +446,7 @@ export function FloatingSaveBar({
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {saveError && (
-          <span style={{ fontSize: 12, color: 'var(--red-600)', marginRight: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-danger)', marginRight: 6 }}>
             {saveError}
           </span>
         )}
@@ -473,8 +474,8 @@ export function FloatingSaveBar({
           disabled={isSaving || isSaved}
           onClick={onSave}
           style={{
-            background: 'var(--navy-700)',
-            color: '#fff',
+            background: 'var(--action-primary-bg)',
+            color: 'var(--action-primary-fg)',
             height: 38,
             display: 'inline-flex',
             alignItems: 'center',
@@ -560,7 +561,7 @@ export function InlineTextCell({
           onKeyDown={handleKeyDown}
           style={{
             height: 32,
-            border: '1.5px solid var(--teal-500)',
+            border: '1.5px solid var(--action-accent-bg)',
             borderRadius: 6,
             padding: '0 8px',
             fontSize: 13,
@@ -578,6 +579,8 @@ export function InlineTextCell({
     )
   }
 
+  // Giá trị dài (link bản đồ) cắt bằng ellipsis, không được đẩy cao cả dòng bảng.
+  // `title` giữ bản đầy đủ để hover vẫn đọc được.
   const display = formatDisplay ? formatDisplay(value) : (value || placeholder)
 
   return (
@@ -591,7 +594,7 @@ export function InlineTextCell({
           startEditing()
         }
       }}
-      title={disabled ? undefined : t('settings.clickToEdit')}
+      title={value ? String(value) : (disabled ? undefined : t('settings.clickToEdit'))}
       style={{
         cursor: disabled ? 'default' : 'pointer',
         textAlign: align,
@@ -604,6 +607,9 @@ export function InlineTextCell({
         borderRadius: 6,
         transition: 'background 0.15s ease',
         userSelect: 'none',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
       }}
     >
       {display}
@@ -650,7 +656,7 @@ export function LevelPillsManager({
   }
 
   const handleDelete = (index) => {
-    if (disabled) return
+    if (disabled || levels.length <= 2) return
     const lv = levels[index]
     if (usedLevels.indexOf(lv) >= 0) return
     const updated = levels.filter((_, i) => i !== index)
@@ -749,11 +755,11 @@ export function LevelPillsManager({
                       ▶
                     </button>
                   )}
-                  {!isUsed && (
+                  {!isUsed && levels.length > 2 && (
                     <button
                       type="button"
                       onClick={() => handleDelete(idx)}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 2px', color: 'var(--red-600)', fontSize: 13, marginLeft: 2 }}
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 2px', color: 'var(--text-danger)', fontSize: 13, marginLeft: 2 }}
                       title={t('settings.levelDelete')}
                     >
                       ×
@@ -779,7 +785,7 @@ export function LevelPillsManager({
               }}
               style={{
                 height: 32,
-                border: '1.5px solid var(--teal-500)',
+                border: '1.5px solid var(--action-accent-bg)',
                 borderRadius: 8,
                 padding: '0 8px',
                 fontSize: 12.5,
@@ -793,8 +799,8 @@ export function LevelPillsManager({
               type="button"
               onClick={handleAdd}
               style={{
-                background: 'var(--teal-600)',
-                color: '#fff',
+                background: 'var(--action-accent-bg)',
+                color: 'var(--action-accent-fg)',
                 border: 'none',
                 borderRadius: 6,
                 padding: '4px 8px',
@@ -829,7 +835,7 @@ export function LevelPillsManager({
                 padding: '6px 11px',
                 fontSize: 12.5,
                 fontWeight: 600,
-                color: 'var(--teal-600)',
+                color: 'var(--text-accent)',
                 background: 'var(--surface-card)',
                 cursor: 'pointer',
               }}
@@ -853,7 +859,7 @@ export function LevelPillsManager({
               background: 'transparent',
               fontSize: 12,
               fontWeight: 600,
-              color: 'var(--teal-600)',
+              color: 'var(--text-accent)',
               cursor: 'pointer',
               padding: 0,
               textDecoration: 'underline',
@@ -886,7 +892,7 @@ export function InfoBox({ title, children, style = {} }) {
       }}
     >
       {title && (
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy-800)' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-link)' }}>
           {title}
         </div>
       )}
@@ -918,7 +924,7 @@ export function DangerZoneCard({ title, desc, actionLabel, onAction }) {
           borderBottom: '1px solid var(--surface-danger-soft)',
           fontSize: 13.5,
           fontWeight: 700,
-          color: 'var(--red-600)',
+          color: 'var(--text-danger)',
         }}
       >
         {title || t('settings.delClubTitle')}
@@ -940,7 +946,7 @@ export function DangerZoneCard({ title, desc, actionLabel, onAction }) {
           type="button"
           onClick={onAction}
           style={{
-            background: 'var(--red-600)',
+            background: 'var(--action-danger-bg)',
             color: '#fff',
             height: 34,
             display: 'inline-flex',
@@ -986,7 +992,7 @@ export function EmptyState({ title, hint, icon = 'circle-check' }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'var(--teal-600)',
+          color: 'var(--text-accent)',
           fontSize: 14,
           marginBottom: 2,
         }}

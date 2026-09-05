@@ -105,55 +105,34 @@ export default function CourtsTab({
                   />
                 </div>
                 <div>
-                  {c.mapUrl ? (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <InlineTextCell
+                        value={c.mapUrl || ''}
+                        disabled={!canEdit}
+                        placeholder={t('settings.phPasteLink')}
+                        onChange={(val) => onCourtChange(c.id, 'mapUrl', val)}
+                      />
+                    </div>
+                    {c.mapUrl && (
                       <a
                         href={c.mapUrl}
                         target="_blank"
                         rel="noreferrer"
+                        title={t('settings.openMap')}
                         style={{
                           fontSize: 13,
-                          color: 'var(--teal-600)',
-                          fontWeight: 600,
-                          textDecoration: 'none',
+                          color: 'var(--text-accent)',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 4,
+                          padding: '4px',
+                          flexShrink: 0,
                         }}
                       >
-                        {t('settings.openMap')}
                         <Icon name="arrow-up-right" size={13} />
                       </a>
-                      {canEdit && (
-                        <button
-                          type="button"
-                          title={t('common.edit')}
-                          onClick={() => {
-                            const next = window.prompt(t('settings.phPasteLink'), c.mapUrl)
-                            if (next !== null) onCourtChange(c.id, 'mapUrl', next.trim())
-                          }}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            padding: '2px 4px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <Icon name="pencil" size={12} />
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <InlineTextCell
-                      value=""
-                      disabled={!canEdit}
-                      placeholder={t('settings.phPasteLink')}
-                      onChange={(val) => onCourtChange(c.id, 'mapUrl', val)}
-                    />
-                  )}
+                    )}
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <InlineTextCell
@@ -161,6 +140,7 @@ export default function CourtsTab({
                     type="number"
                     align="right"
                     disabled={!canEdit}
+                    suffix={t('units.dong')}
                     formatDisplay={(v) => t('settings.dongPerHour', { price: fmtK(v || 0) })}
                     onChange={(val) => onCourtChange(c.id, 'price', val)}
                   />
@@ -262,6 +242,7 @@ export default function CourtsTab({
                     type="number"
                     align="right"
                     disabled={!canEdit}
+                    suffix={t('units.dong')}
                     formatDisplay={(v) => (v ? `${fmtK(v)}${t('units.dong')}` : t('common.unknown'))}
                     onChange={(val) => onShuttleTypeChange(x.id, 'pricePerTube', val)}
                   />
@@ -281,7 +262,7 @@ export default function CourtsTab({
                       style={{
                         border: 'none',
                         background: 'transparent',
-                        color: 'var(--red-600)',
+                        color: 'var(--text-danger)',
                         fontSize: 12.5,
                         fontWeight: 600,
                         cursor: 'pointer',

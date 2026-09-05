@@ -1900,7 +1900,6 @@
     "exactEmailHint": "Nhập chính xác email để tìm tài khoản đã đăng ký trên hệ thống (chống dò danh bạ).",
     "unlinkConfirm": "Hủy liên kết giữa tài khoản \"{{account}}\" và thành viên \"{{name}}\"?",
     "appTitle": "Cài đặt",
-    "appDesc": "Sân, giá giao lưu, loại cầu, nhóm",
     "noAccount": "Chưa có tài khoản",
     "chooseAccount": "Chọn tài khoản...",
     "turnOff": "Tắt",
