@@ -138,8 +138,10 @@ function Overview() {
     creditorMap[k].desc.push(adv.label)
   })
 
+  const backRows = []
   adjustRows(db, month).forEach((ar) => {
     if (ar.paid || ar.amount >= 0) return
+    backRows.push(ar)
     const k = ar.memberId
     const who = ar.member
     const amt = Math.abs(ar.amount)
@@ -156,6 +158,8 @@ function Overview() {
   })
 
   const creditors = Object.values(creditorMap).sort((a, b) => b.owed - a.owed)
+  const totalBack = backRows.reduce((x, r) => x + Math.abs(r.amount), 0)
+  const backMembers = new Set(backRows.map((r) => r.memberId))
 
   // 3. Buổi tới: Ưu tiên các buổi sắp tới trong tháng hiện tại CHƯA CHỐT và CHƯA HUỶ.
   // LOẠI buổi đang mở: chúng đã nằm trên banner `OpenNow` ở đầu trang. Một buổi hiện hai chỗ
@@ -234,6 +238,9 @@ function Overview() {
         <StatCard label={t('home.debtToCollect')} value={fmt(totalDebt)} icon="clock-alert"
           tone={totalDebt > 0 ? 'warning' : 'neutral'}
           caption={debtors.length ? t('home.debtorCount', { n: debtors.length }) : t('home.debtAllPaid')} />
+        <StatCard label={t('home.totalBack')} value={fmt(totalBack)} icon="hand-coins"
+          tone={totalBack > 0 ? 'accent' : 'neutral'}
+          caption={backMembers.size ? t('home.backCount', { n: backMembers.size }) : t('home.noBack')} />
         <StatCard label={t('home.dues')} value={duesPaid.length + ' / ' + dues.length} icon="users"
           tone={dues.length && duesPaid.length === dues.length ? 'positive' : 'warning'}
           caption={t('home.duesCaption', {

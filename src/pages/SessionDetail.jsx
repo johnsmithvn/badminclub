@@ -143,7 +143,7 @@ export default function SessionDetail() {
                     </Button>
                   </>
                 )}
-                {s.status === 'cancelled' && (
+                {(s.status === 'cancelled' || s.status === 'closed') && (
                   <Button variant="secondary" icon="rotate-ccw" onClick={() => a.confirm({
                     title: t('session.reopenTitle'),
                     message: t('session.reopenMsg'),

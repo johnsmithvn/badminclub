@@ -390,7 +390,35 @@ function BillDialog() {
           onChange={(e) => a.setF('bAmount', e.target.value)} />
         <PayerSelect field="bPayer" />
       </div>
-      <Input label={t('fund.billNote')} value={f.bNote || ''} onChange={(e) => a.setF('bNote', e.target.value)} />
+      <div>
+        <Input label={t('fund.billNote')} value={f.bNote || ''} onChange={(e) => a.setF('bNote', e.target.value)} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('fund.quickSuggest')}:</span>
+          {[
+            t('fund.quickBillFri4b'),
+            t('fund.quickBillSun4b'),
+            t('fund.quickBillPassSun'),
+            t('fund.quickBillSun4bNext'),
+            t('fund.quickBillFri4bNext'),
+          ].map((txt) => (
+            <button
+              key={txt}
+              type="button"
+              onClick={() => a.setF('bNote', txt)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', padding: '3px 9px',
+                borderRadius: 99, border: '1px solid var(--border-subtle)',
+                background: f.bNote === txt ? 'var(--action-accent-bg)' : 'var(--surface-inset)',
+                color: f.bNote === txt ? 'var(--action-accent-fg)' : 'var(--text-secondary)',
+                fontSize: 12, cursor: 'pointer', fontWeight: 500,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {txt}
+            </button>
+          ))}
+        </div>
+      </div>
     </Shell>
   )
 }
@@ -398,8 +426,22 @@ function BillDialog() {
 /* ---------------- ghi thu / chi tay ---------------- */
 
 function LedgerDialog() {
-  const { ui, a } = useApp()
+  const { db, ui, a } = useApp()
   const f = ui.form
+
+  const quickPresets = [
+    { text: t('fund.quickLedgerShuttle'), dir: 'out', cat: 'shuttle' },
+    { text: t('fund.quickLedgerBack'), dir: 'out', cat: 'back' },
+    { text: t('fund.quickLedgerDrinks'), dir: 'out', cat: 'other' },
+  ]
+  const recentManual = Array.from(new Set(
+    (db.manual || []).map((m) => (m.label || '').trim()).filter(Boolean)
+  )).slice(0, 3)
+    .filter((txt) => !quickPresets.some((p) => p.text === txt))
+    .map((txt) => ({ text: txt }))
+
+  const allLedgerChips = [...quickPresets, ...recentManual]
+
   return (
     <Shell
       title={t(f.eLedgerId ? 'fund.dlgEditTitle' : 'fund.dlgTitle')}
@@ -416,7 +458,33 @@ function LedgerDialog() {
           options={MANUAL_CATS.map((c) => ({ value: c, label: catLabel(c) }))}
           onChange={(e) => a.setF('lCat', e.target.value)} />
       </div>
-      <Input label={t('fund.fLabel')} value={f.lLabel || ''} onChange={(e) => a.setF('lLabel', e.target.value)} />
+      <div>
+        <Input label={t('fund.fLabel')} value={f.lLabel || ''} onChange={(e) => a.setF('lLabel', e.target.value)} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('fund.quickSuggest')}:</span>
+          {allLedgerChips.map((item) => (
+            <button
+              key={item.text}
+              type="button"
+              onClick={() => {
+                a.setF('lLabel', item.text)
+                if (item.dir) a.setF('lDir', item.dir)
+                if (item.cat) a.setF('lCat', item.cat)
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', padding: '3px 9px',
+                borderRadius: 99, border: '1px solid var(--border-subtle)',
+                background: f.lLabel === item.text ? 'var(--action-accent-bg)' : 'var(--surface-inset)',
+                color: f.lLabel === item.text ? 'var(--action-accent-fg)' : 'var(--text-secondary)',
+                fontSize: 12, cursor: 'pointer', fontWeight: 500,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {item.text}
+            </button>
+          ))}
+        </div>
+      </div>
       <Input label={t('fund.fAmount')} mono suffix={t('units.dong')} value={String(f.lAmount ?? '')}
         onChange={(e) => a.setF('lAmount', e.target.value)} />
     </Shell>
