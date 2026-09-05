@@ -8,7 +8,7 @@
 // BỐN RÀNG BUỘC, mỗi cái đổi bằng tiền thật:
 //
 //  1. KHÔNG đụng buổi đã mở / đã chốt / đã huỷ. Buổi `closed` đã đóng băng giá thành
-//     (`sessions.cost_frozen_at`) — sửa là đổi con số người ta đã đọc và đã chia tiền.
+//     (`session_courts.cost`) — sửa là đổi con số người ta đã đọc và đã chia tiền.
 //     Buổi `open` đang điểm danh dở. Cả hai chỉ ĐẾM để báo, không nằm trong add/remove.
 //  2. KHÔNG đụng buổi trong quá khứ, kể cả còn `draft`: đã qua ngày đó rồi thì nó là lịch sử,
 //     không phải kế hoạch.

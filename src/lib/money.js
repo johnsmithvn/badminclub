@@ -219,7 +219,7 @@ export const WARN_KEYS = ['noBill', 'staleDraft', 'openOverdue']
  * Trả mảng `{ key, tone, n, ids }` — rỗng nghĩa là không có gì để nhắc.
  *
  * B5/B7 quét MỌI tháng chứ không riêng tháng đang xem: buổi tháng trước quên chốt vẫn đang
- * làm sai tồn kho và đơn giá back của tháng đó, đổi tháng ở header không làm nó đúng lên.
+ * làm sai đơn giá back của tháng đó, đổi tháng ở header không làm nó đúng lên.
  */
 export function homeAlerts(db) {
   const out = []
@@ -235,7 +235,7 @@ export function homeAlerts(db) {
   const stale = db.sessions.filter((s) => s.status === 'draft' && s.date < db.today)
   if (stale.length) out.push({ key: 'staleDraft', tone: 'warning', n: stale.length, ids: stale.map((s) => s.id) })
 
-  // B7 · Buổi để `open` mãi: sai tồn kho (số cầu chưa trừ), sai back, mất khỏi báo cáo.
+  // B7 · Buổi để `open` mãi: sai back, sai tiền sân mode `session`, mất khỏi báo cáo.
   const open = db.sessions.filter((s) => s.status === 'open' && s.date < db.today)
   if (open.length) out.push({ key: 'openOverdue', tone: 'warning', n: open.length, ids: open.map((s) => s.id) })
 
