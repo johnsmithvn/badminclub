@@ -16,16 +16,18 @@ export default function MoneyTab({
   canEdit = true,
   levels = [],
   noGroup = false,
+  defGroup = {},
+  sessionsPerMonth = 4,
 }) {
   const [bulkPrice, setBulkPrice] = useState('')
   const [bulkWho, setBulkWho] = useState('both')
   const [bulkLevels, setBulkLevels] = useState([])
 
+  const hasMonthlyFee = Boolean(data.hasMonthlyFee)
   const feeNam = data.feeNam ?? ''
   const feeNu = data.feeNu ?? ''
-  const hasMonthlyFee = Boolean(data.hasMonthlyFee)
 
-  const hasRefund = data.hasRefund !== false
+  const hasRefund = Boolean(data.hasRefund)
   const customRefundUnit = Boolean(data.customRefundUnit)
   const unitNam = data.unitNam ?? ''
   const unitNu = data.unitNu ?? ''
@@ -61,8 +63,14 @@ export default function MoneyTab({
     onChange('guestPrices', updated)
   }
 
-  const sampleNam = guestPrices.find((p) => p.nam > 0)?.nam || 0
-  const sampleNu = guestPrices.find((p) => p.nu > 0)?.nu || 0
+  // Lấy giá của bậc trung bình CLB theo spec §6
+  const midLevel = levels[Math.floor(levels.length / 2)]
+  const sample = (guestPrices || []).find((p) => p.level === midLevel) || (guestPrices || []).find((p) => p.nam > 0 || p.nu > 0)
+  const sampleNam = sample?.nam || 0
+  const sampleNu = sample?.nu || 0
+
+  const isMaleUnitHigh = intOf(feeNam) > 0 && intOf(unitNam) > Math.round(intOf(feeNam) / sessionsPerMonth)
+  const isFemaleUnitHigh = intOf(feeNu) > 0 && intOf(unitNu) > Math.round(intOf(feeNu) / sessionsPerMonth)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -83,7 +91,7 @@ export default function MoneyTab({
         )}
 
         {/* Khối 1: Thu quỹ tháng cố định */}
-        <div style={{ padding: '14px 0', borderBottom: '1px solid #f6f8fb' }}>
+        <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
           <FormRow
             isToggle
             label={t('settings.toggleFixedFee')}
@@ -95,8 +103,8 @@ export default function MoneyTab({
               onChange={(checked) => {
                 onChange('hasMonthlyFee', checked)
                 if (checked && !feeNam && !feeNu) {
-                  onChange('feeNam', '250000')
-                  onChange('feeNu', '200000')
+                  if (defGroup.feeNam) onChange('feeNam', String(defGroup.feeNam))
+                  if (defGroup.feeNu) onChange('feeNu', String(defGroup.feeNu))
                 }
               }}
             />
@@ -109,33 +117,33 @@ export default function MoneyTab({
               gap: 14,
               padding: '14px 16px',
               borderRadius: 10,
-              background: hasMonthlyFee ? '#f8fafc' : '#f6f8fb',
-              border: '1px solid #e4e9f1',
+              background: hasMonthlyFee ? 'var(--surface-inset)' : 'var(--surface-page)',
+              border: '1px solid var(--border-subtle)',
               marginTop: 10,
               opacity: hasMonthlyFee ? 1 : 0.6,
             }}
           >
             <div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#2a3a54', marginBottom: 6 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
                 {t('settings.feeMaleLabel')}
               </div>
               <Input
                 mono
                 suffix={t('units.dong')}
-                placeholder="250000"
+                placeholder={String(defGroup.feeNam || 0)}
                 value={String(feeNam)}
                 disabled={!canEdit || !hasMonthlyFee || noGroup}
                 onChange={(e) => onChange('feeNam', e.target.value)}
               />
             </div>
             <div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#2a3a54', marginBottom: 6 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
                 {t('settings.feeFemaleLabel')}
               </div>
               <Input
                 mono
                 suffix={t('units.dong')}
-                placeholder="200000"
+                placeholder={String(defGroup.feeNu || 0)}
                 value={String(feeNu)}
                 disabled={!canEdit || !hasMonthlyFee || noGroup}
                 onChange={(e) => onChange('feeNu', e.target.value)}
@@ -166,8 +174,8 @@ export default function MoneyTab({
                 gap: 12,
                 padding: '14px 16px',
                 borderRadius: 10,
-                background: '#f8fafc',
-                border: '1px solid #e4e9f1',
+                background: 'var(--surface-inset)',
+                border: '1px solid var(--border-subtle)',
                 marginTop: 10,
               }}
             >
@@ -182,8 +190,8 @@ export default function MoneyTab({
                   onChange={(checked) => {
                     onChange('customRefundUnit', checked)
                     if (checked && !unitNam && !unitNu) {
-                      onChange('unitNam', '50000')
-                      onChange('unitNu', '45000')
+                      if (defGroup.unitNam > 0) onChange('unitNam', String(defGroup.unitNam))
+                      if (defGroup.unitNu > 0) onChange('unitNu', String(defGroup.unitNu))
                     }
                   }}
                 />
@@ -193,30 +201,40 @@ export default function MoneyTab({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#2a3a54', marginBottom: 6 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
                         {t('settings.refundMale')}
                       </div>
                       <Input
                         mono
                         suffix={t('units.dong')}
-                        placeholder="50000"
+                        placeholder={String(defGroup.unitNam > 0 ? defGroup.unitNam : 0)}
                         value={String(unitNam)}
                         disabled={!canEdit || noGroup}
                         onChange={(e) => onChange('unitNam', e.target.value)}
                       />
+                      {isMaleUnitHigh && (
+                        <div style={{ fontSize: 11.5, color: 'var(--status-delayed-fg)', marginTop: 4 }}>
+                          {t('settings.refundExceedWarn')}
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#2a3a54', marginBottom: 6 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
                         {t('settings.refundFemale')}
                       </div>
                       <Input
                         mono
                         suffix={t('units.dong')}
-                        placeholder="45000"
+                        placeholder={String(defGroup.unitNu > 0 ? defGroup.unitNu : 0)}
                         value={String(unitNu)}
                         disabled={!canEdit || noGroup}
                         onChange={(e) => onChange('unitNu', e.target.value)}
                       />
+                      {isFemaleUnitHigh && (
+                        <div style={{ fontSize: 11.5, color: 'var(--status-delayed-fg)', marginTop: 4 }}>
+                          {t('settings.refundExceedWarn')}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -231,7 +249,7 @@ export default function MoneyTab({
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: '#0d8b8a',
+                          color: 'var(--text-accent)',
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -268,15 +286,15 @@ export default function MoneyTab({
                 gap: 12,
                 padding: '14px 16px',
                 borderRadius: 10,
-                background: '#f8fafc',
-                border: '1px dashed #cdd6e2',
+                background: 'var(--surface-inset)',
+                border: '1px dashed var(--border-default)',
                 marginTop: 14,
               }}
             >
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                   <div style={{ width: 140 }}>
-                    <div style={{ fontSize: 11.5, fontWeight: 700, color: '#8b98ab', marginBottom: 4 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>
                       {t('settings.bulkPriceLabel')}
                     </div>
                     <Input
@@ -288,7 +306,7 @@ export default function MoneyTab({
                     />
                   </div>
                   <div style={{ width: 150 }}>
-                    <div style={{ fontSize: 11.5, fontWeight: 700, color: '#8b98ab', marginBottom: 4 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>
                       {t('settings.bulkWhoLabel')}
                     </div>
                     <Select
@@ -321,7 +339,7 @@ export default function MoneyTab({
                     style={{
                       border: 'none',
                       background: 'transparent',
-                      color: '#0d8b8a',
+                      color: 'var(--text-accent)',
                       fontSize: 12.5,
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -337,7 +355,7 @@ export default function MoneyTab({
                     style={{
                       border: 'none',
                       background: 'transparent',
-                      color: bulkLevels.length ? '#6b7a90' : '#a9b4c4',
+                      color: bulkLevels.length ? 'var(--text-secondary)' : 'var(--text-disabled)',
                       fontSize: 12.5,
                       fontWeight: 600,
                       cursor: bulkLevels.length ? 'pointer' : 'not-allowed',
@@ -361,9 +379,9 @@ export default function MoneyTab({
                       style={{
                         padding: '6px 12px',
                         borderRadius: 8,
-                        border: `1px solid ${isSelected ? '#0d8b8a' : '#d4dce7'}`,
-                        background: isSelected ? '#eef7f6' : '#fff',
-                        color: isSelected ? '#0a6f6d' : '#2a3a54',
+                        border: `1px solid ${isSelected ? 'var(--action-accent-bg)' : 'var(--border-default)'}`,
+                        background: isSelected ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
+                        color: isSelected ? 'var(--text-accent)' : 'var(--text-primary)',
                         fontWeight: 600,
                         fontSize: 13,
                         cursor: 'pointer',
@@ -379,18 +397,19 @@ export default function MoneyTab({
           )}
 
           {/* Bảng giá 3 cột chuẩn */}
-          <div style={{ overflowX: 'auto' }}>
+          <div className="settings-table-scroll" style={{ overflowX: 'auto' }}>
             <div
+              className="settings-table-head"
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1.2fr 1fr 1fr',
-                background: '#f7f9fc',
+                background: 'var(--surface-inset)',
                 borderRadius: 8,
                 padding: '9px 14px',
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: '.07em',
-                color: '#8b98ab',
+                color: 'var(--text-muted)',
                 marginTop: canEdit ? 4 : 14,
               }}
             >
@@ -403,34 +422,37 @@ export default function MoneyTab({
               return (
                 <div
                   key={p.level}
+                  className="settings-table-row"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1.2fr 1fr 1fr',
                     alignItems: 'center',
                     padding: '12px 14px',
-                    borderBottom: '1px solid #f6f8fb',
+                    borderBottom: '1px solid var(--border-subtle)',
                     fontSize: 13.5,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div data-label={t('settings.colLevelCaps')} style={{ display: 'flex', alignItems: 'center' }}>
                     <LevelChip level={p.level} levels={levels} />
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div data-label={t('settings.colMalePriceCaps')} style={{ textAlign: 'right' }}>
                     <InlineTextCell
                       value={p.nam}
                       type="number"
                       align="right"
                       disabled={!canEdit}
+                      suffix={t('units.dong')}
                       formatDisplay={(v) => (v ? `${fmtK(v)}${t('units.dong')}` : t('settings.priceUnset'))}
                       onChange={(newVal) => setSinglePrice(p.level, 'nam', newVal)}
                     />
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div data-label={t('settings.colFemalePriceCaps')} style={{ textAlign: 'right' }}>
                     <InlineTextCell
                       value={p.nu}
                       type="number"
                       align="right"
                       disabled={!canEdit}
+                      suffix={t('units.dong')}
                       formatDisplay={(v) => (v ? `${fmtK(v)}${t('units.dong')}` : t('settings.priceUnset'))}
                       onChange={(newVal) => setSinglePrice(p.level, 'nu', newVal)}
                     />

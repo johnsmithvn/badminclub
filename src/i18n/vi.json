@@ -1127,6 +1127,8 @@
     "groupLocked": "Lịch đã có buổi đã mở, đã chốt hoặc đã qua ngày — những buổi đó vẫn thuộc nhóm cũ nên không đổi nhóm được nữa",
     "groupFree": "Mọi buổi của lịch vẫn còn ở tương lai và chưa mở, nên đổi nhóm được — buổi sẽ dời theo",
     "del": "Xóa lịch",
+    "delConfirmTitle": "Xóa lịch \"{{name}}\"?",
+    "delConfirmMsg": "Bạn có chắc chắn muốn xóa lịch này? Hệ thống sẽ xóa {{n}} buổi tương lai chưa mở.",
     "delBlocked": "Không xóa được: lịch đã có buổi đã mở, đã chốt hoặc đã qua ngày. Bấm Tắt để dừng sinh buổi mới.",
     "planLine": "Giữ {{keep}} buổi · thêm {{add}} · xóa {{remove}}",
     "planSkip": "Giữ nguyên {{n}} buổi đã mở, đã chốt hoặc đã qua ngày.",
@@ -1898,11 +1900,13 @@
     "exactEmailHint": "Nhập chính xác email để tìm tài khoản đã đăng ký trên hệ thống (chống dò danh bạ).",
     "unlinkConfirm": "Hủy liên kết giữa tài khoản \"{{account}}\" và thành viên \"{{name}}\"?",
     "appTitle": "Cài đặt",
-    "appDesc": "Sân, giá giao lưu, loại cầu, nhóm",
     "noAccount": "Chưa có tài khoản",
     "chooseAccount": "Chọn tài khoản...",
     "turnOff": "Tắt",
-    "turnOn": "Bật"
+    "turnOn": "Bật",
+    "errGroupTime": "Giờ kết thúc phải sau giờ bắt đầu",
+    "errGroupDupName": "Tên nhóm không được trùng nhau",
+    "refundExceedWarn": "Lưu ý: Mức hoàn 1 buổi đang cao hơn mức chia đều theo tháng"
   },
   "schema": {
     "alertTitle": "Thiết kế database cho bản chạy thật",
@@ -2214,7 +2218,11 @@
     "clearBtn": "Trả sân",
     "slotEmpty": "Ô trống",
     "slotPlace": "Đặt {{name}}",
-    "recentMatch": "Trận vừa xong: {{winner}} thắng ({{score}})"
+    "recentMatch": "Trận vừa xong: {{winner}} thắng ({{score}})",
+    "poolAllGrouped": "Tất cả người chơi đã được chia vào các sân bên dưới.",
+    "benchWaiting": "{{n}} đang chờ",
+    "unassignTitle": "Bỏ gán sân",
+    "rosterAllPlaying": "Tất cả người thuộc sân này đang thi đấu"
   },
   "rating": {
     "elo": "Elo",

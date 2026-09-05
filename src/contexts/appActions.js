@@ -1653,12 +1653,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ dialog: null, form: {} }))
       toast(t('toast.courtCreated', { name }))
     },
-    deleteCourt: (id) => {
-      up((d) => ({
-        courts: d.courts.filter((c) => c.id !== id),
-      }))
-      toast(t('toast.courtDeleted'))
-    },
     addGroup: () => {
       const f = form()
       const d0 = db()
@@ -1723,21 +1717,31 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('toast.groupDeleted'))
     },
     saveMoneyTab: ({ feeNam, feeNu, hasRefund, unitNam, unitNu, guestPrices }) => {
-      up((d) => ({
-        groups: d.groups.map((g) => ({
-          ...g,
-          feeNam: intOf(feeNam),
-          feeNu: intOf(feeNu),
-          hasRefund: hasRefund !== undefined ? hasRefund : g.hasRefund,
-          unitNam: intOf(unitNam),
-          unitNu: intOf(unitNu),
-        })),
-        guestPrices: guestPrices ? guestPrices.map((x) => ({
-          level: x.level,
-          nam: intOf(x.nam),
-          nu: intOf(x.nu),
-        })) : d.guestPrices,
-      }))
+      const parseUnit = (v) => (v === -1 || v === '-1' ? -1 : intOf(v))
+      up((d) => {
+        const def = d.groups[0] || {}
+        const isCustom = (g) =>
+          g.id !== def.id &&
+          (g.feeNam !== def.feeNam || g.feeNu !== def.feeNu || g.unitNam !== def.unitNam || g.unitNu !== def.unitNu)
+        return {
+          groups: d.groups.map((g) => {
+            if (isCustom(g)) return g
+            return {
+              ...g,
+              feeNam: intOf(feeNam),
+              feeNu: intOf(feeNu),
+              hasRefund: hasRefund !== undefined ? hasRefund : g.hasRefund,
+              unitNam: parseUnit(unitNam),
+              unitNu: parseUnit(unitNu),
+            }
+          }),
+          guestPrices: guestPrices ? guestPrices.map((x) => ({
+            level: x.level,
+            nam: intOf(x.nam),
+            nu: intOf(x.nu),
+          })) : d.guestPrices,
+        }
+      })
       toast(t('toast.pricingSaved'))
     },
     saveGroupsTab: (groupsList) => {
@@ -1758,13 +1762,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         shuttleTypes: d.shuttleTypes.map((x) => {
           if (x.id !== id) return x
           if (k === 'name' || k === 'active') return { ...x, [k]: v }
+          if (k === 'perTube') return { ...x, perTube: Math.min(24, Math.max(1, intOf(v) || cfg.shuttle.perTubeDefault)) }
           return { ...x, [k]: intOf(v) }
         }),
       })),
     addShuttleType: (data) => {
       const name = (data && data.name) ? data.name.trim() : t('settings.newTypeName')
-      const perTube = (data && data.perTube != null) ? (Number(data.perTube) || cfg.shuttle.perTubeDefault) : cfg.shuttle.perTubeDefault
-      const pricePerTube = (data && data.pricePerTube != null) ? intOf(data.pricePerTube) : 0
+      const perTube = Math.min(24, Math.max(1, intOf(data?.perTube) || cfg.shuttle.perTubeDefault))
+      const pricePerTube = intOf(data?.pricePerTube)
       const active = data && data.active !== undefined ? Boolean(data.active) : true
       up((d) => ({
         shuttleTypes: d.shuttleTypes.concat([{
@@ -2132,9 +2137,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (idxs.length < 2) return toast(t('toast.oneCourtOnly'))
       const ps = sessionPlayers(d0, s)
       const cg = autoSplit(ps, idxs, d0.levels)
+      const mode = (uiRef.current && uiRef.current.asnMode) || 'balance'
+      const { lineup } = arrange({
+        players: ps,
+        session: s,
+        mode,
+        levels: d0.levels,
+        matches: d0.matches || [],
+        groupMode: true,
+        courtGroups: cg,
+        kept: [],
+        playing: (d0.playing || {})[sid] || {},
+      })
       up((d) => ({
         courtGroups: { ...(d.courtGroups || {}), [sid]: cg },
-        lineups: { ...(d.lineups || {}), [sid]: {} },
+        lineups: { ...(d.lineups || {}), [sid]: lineup },
         groupMode: { ...(d.groupMode || {}), [sid]: true },
       }))
       upUi(() => ({ picked: null }))
@@ -2145,6 +2162,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         lineups: { ...(d.lineups || {}), [sid]: {} },
         courtGroups: { ...(d.courtGroups || {}), [sid]: {} },
+        groupMode: { ...(d.groupMode || {}), [sid]: false },
       }))
       upUi(() => ({ picked: null }))
       toast(t('toast.lineupCleared'))

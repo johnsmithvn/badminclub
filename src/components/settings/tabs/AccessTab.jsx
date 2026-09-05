@@ -50,25 +50,25 @@ function JoinRow({ r, canEdit, unlinked, db, ui, a }) {
         gap: 10,
         padding: '12px 14px',
         borderRadius: 10,
-        border: '1px solid #e4e9f1',
-        background: '#f8fafc',
+        border: '1px solid var(--border-subtle)',
+        background: 'var(--surface-inset)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Avatar name={u.name || ''} size={36} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 13.5, color: '#10203c' }}>{u.name}</div>
-          <div style={{ fontSize: 12, color: '#8b98ab', fontFamily: "'JetBrains Mono', monospace" }}>
+          <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)' }}>{u.name}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
             {t('settings.joinMeta', { phone: u.phone || '—', code: r.code, date: ddmy(r.at) })}
           </div>
-          {r.note && <div style={{ fontSize: 12, color: '#5c6b81', marginTop: 2 }}>{r.note}</div>}
+          {r.note && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{r.note}</div>}
         </div>
       </div>
 
       {canEdit && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
           {dup && (
-            <div style={{ fontSize: 12, color: '#e8a33d', fontWeight: 600 }}>
+            <div style={{ fontSize: 12, color: 'var(--status-delayed-fg)', fontWeight: 600 }}>
               {t('settings.joinDupWarn', { name: dup.name })}
             </div>
           )}
@@ -124,15 +124,15 @@ function JoinRow({ r, canEdit, unlinked, db, ui, a }) {
                 gap: 8,
                 padding: '10px 12px',
                 borderRadius: 8,
-                background: '#fff',
-                border: '1px dashed #d4dce7',
+                background: 'var(--surface-card)',
+                border: '1px dashed var(--border-default)',
                 marginTop: 4,
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#8b98ab', letterSpacing: '.07em' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.07em' }}>
                 {t('settings.mergeFieldTitle')}
               </div>
-              <div style={{ fontSize: 12, color: '#8b98ab' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 {t('settings.mergeFieldDesc')}
               </div>
               {rows.map((x) => (
@@ -154,11 +154,11 @@ function JoinRow({ r, canEdit, unlinked, db, ui, a }) {
                     onChange={() => toggle(x.field)}
                   />
                   {x.block ? (
-                    <span style={{ fontSize: 11.5, color: '#8b98ab' }}>
+                    <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
                       {t('settings.mergeBlock.' + x.block)}
                     </span>
                   ) : (
-                    <span style={{ fontSize: 12, color: '#6b7a90', fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
                       {t('settings.mergeArrow', {
                         from: showVal(x.field, x.from) || t('common.notYet'),
                         to: showVal(x.field, x.to),
@@ -296,8 +296,8 @@ export default function AccessTab({
                     fontWeight: 700,
                     padding: '4px 10px',
                     borderRadius: 999,
-                    background: '#eef7f6',
-                    color: '#0a6f6d',
+                    background: 'var(--surface-accent-soft)',
+                    color: 'var(--text-accent)',
                     whiteSpace: 'nowrap',
                     width: 92,
                     textAlign: 'center',
@@ -306,7 +306,7 @@ export default function AccessTab({
                 >
                   {r.label}
                 </span>
-                <span style={{ fontSize: 12.5, color: '#5c6b81', lineHeight: 1.5 }}>
+                <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                   {roleDesc(r.value)}
                 </span>
               </div>
@@ -334,7 +334,7 @@ export default function AccessTab({
             {/* Tìm kiếm email chính xác */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 260px' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#8b98ab', marginBottom: 4 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
                   {t('settings.lookupLabel')}
                 </div>
                 <Input
@@ -355,7 +355,7 @@ export default function AccessTab({
                 {t(looking ? 'settings.lookupBusy' : 'settings.lookupDo')}
               </Button>
             </div>
-            <div style={{ fontSize: 12, color: '#8b98ab', marginTop: -2 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -2 }}>
               {t('settings.exactEmailHint')}
             </div>
 
@@ -370,18 +370,19 @@ export default function AccessTab({
         )}
 
         {/* Bảng thành viên */}
-        <div style={{ overflowX: 'auto', marginTop: 10 }}>
+        <div className="settings-table-scroll" style={{ overflowX: 'auto', marginTop: 10 }}>
           <div
+            className="settings-table-head"
             style={{
               display: 'grid',
               gridTemplateColumns: '1.4fr 1.2fr 1.3fr 130px 1.5fr',
-              background: '#f7f9fc',
+              background: 'var(--surface-inset)',
               borderRadius: 8,
               padding: '9px 14px',
               fontSize: 11,
               fontWeight: 700,
               letterSpacing: '.07em',
-              color: '#8b98ab',
+              color: 'var(--text-muted)',
             }}
           >
             <div>{t('settings.colMemberCaps')}</div>
@@ -400,28 +401,29 @@ export default function AccessTab({
               return (
                 <div
                   key={m.id}
+                  className="settings-table-row"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1.4fr 1.2fr 1.3fr 130px 1.5fr',
                     alignItems: 'center',
                     padding: '12px 14px',
-                    borderBottom: '1px solid #f6f8fb',
+                    borderBottom: '1px solid var(--border-subtle)',
                     fontSize: 13,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <div data-label={t('settings.colMemberCaps')} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                     <Avatar name={m.name} size={30} />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: '#10203c' }}>{m.name}</div>
-                      {m.fullName && <div style={{ fontSize: 11.5, color: '#8b98ab' }}>{m.fullName}</div>}
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
+                      {m.fullName && <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{m.fullName}</div>}
                     </div>
                   </div>
 
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", color: '#5c6b81' }}>
+                  <div data-label={t('settings.colPhoneCaps')} style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
                     {m.phone || '—'}
                   </div>
 
-                  <div>
+                  <div data-label={t('settings.colAccountCaps')}>
                     {user ? (
                       <span
                         style={{
@@ -429,8 +431,8 @@ export default function AccessTab({
                           fontWeight: 700,
                           padding: '3px 8px',
                           borderRadius: 999,
-                          background: '#eef7f6',
-                          color: '#0a6f6d',
+                          background: 'var(--surface-accent-soft)',
+                          color: 'var(--text-accent)',
                           display: 'inline-block',
                         }}
                       >
@@ -443,8 +445,8 @@ export default function AccessTab({
                           fontWeight: 600,
                           padding: '3px 8px',
                           borderRadius: 999,
-                          background: '#f2f5f9',
-                          color: '#8b98ab',
+                          background: 'var(--surface-inset)',
+                          color: 'var(--text-muted)',
                           display: 'inline-block',
                         }}
                       >
@@ -453,7 +455,7 @@ export default function AccessTab({
                     )}
                   </div>
 
-                  <div>
+                  <div data-label={t('settings.colRoleCaps')}>
                     <Select
                       size="sm"
                       value={m.role}
@@ -463,7 +465,7 @@ export default function AccessTab({
                     />
                   </div>
 
-                  <div>
+                  <div data-label={t('settings.colTodoCaps')}>
                     {canEdit && user && (
                       <button
                         type="button"
@@ -479,7 +481,7 @@ export default function AccessTab({
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: '#c0392b',
+                          color: 'var(--text-danger)',
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: 'pointer',

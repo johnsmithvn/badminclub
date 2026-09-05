@@ -20,7 +20,6 @@ export default function CourtsTab({
   onShuttleTypeChange,
   onGroupQuotaChange,
   onOpenDialog,
-  onDeleteCourt,
   onDeleteShuttleType,
   canEdit = true,
 }) {
@@ -56,18 +55,19 @@ export default function CourtsTab({
             hint={t('settings.noCourtHint')}
           />
         ) : (
-          <div style={{ overflowX: 'auto', marginTop: 14 }}>
+          <div className="settings-table-scroll" style={{ overflowX: 'auto', marginTop: 14 }}>
             <div
+              className="settings-table-head"
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1.4fr 1.6fr 1.2fr 130px 90px 70px',
-                background: '#f7f9fc',
+                gridTemplateColumns: '1.4fr 1.6fr 1.3fr 140px 90px',
+                background: 'var(--surface-inset)',
                 borderRadius: 8,
                 padding: '9px 12px',
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: '.07em',
-                color: '#8b98ab',
+                color: 'var(--text-muted)',
               }}
             >
               <div>{t('settings.colCourtName')}</div>
@@ -75,22 +75,22 @@ export default function CourtsTab({
               <div>{t('settings.colMapUrlCaps')}</div>
               <div style={{ textAlign: 'right' }}>{t('settings.colPricePerHour')}</div>
               <div style={{ textAlign: 'center' }}>{t('settings.colActiveCaps')}</div>
-              <div style={{ textAlign: 'right' }}></div>
             </div>
 
             {courts.map((c) => (
               <div
                 key={c.id}
+                className="settings-table-row"
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1.4fr 1.6fr 1.2fr 130px 90px 70px',
+                  gridTemplateColumns: '1.4fr 1.6fr 1.3fr 140px 90px',
                   alignItems: 'center',
                   padding: '12px 12px',
-                  borderBottom: '1px solid #f6f8fb',
+                  borderBottom: '1px solid var(--border-subtle)',
                   fontSize: 13.5,
                 }}
               >
-                <div>
+                <div data-label={t('settings.colCourtName')}>
                   <InlineTextCell
                     value={c.name}
                     disabled={!canEdit}
@@ -98,7 +98,7 @@ export default function CourtsTab({
                     onChange={(val) => onCourtChange(c.id, 'name', val)}
                   />
                 </div>
-                <div>
+                <div data-label={t('settings.colAddressCaps')}>
                   <InlineTextCell
                     value={c.addr || ''}
                     disabled={!canEdit}
@@ -106,71 +106,53 @@ export default function CourtsTab({
                     onChange={(val) => onCourtChange(c.id, 'addr', val)}
                   />
                 </div>
-                <div>
-                  {c.mapUrl ? (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <div data-label={t('settings.colMapUrlCaps')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <InlineTextCell
+                        value={c.mapUrl || ''}
+                        disabled={!canEdit}
+                        placeholder={t('settings.phPasteLink')}
+                        onChange={(val) => onCourtChange(c.id, 'mapUrl', val)}
+                      />
+                    </div>
+                    {c.mapUrl && (
                       <a
                         href={c.mapUrl}
                         target="_blank"
                         rel="noreferrer"
+                        title={t('settings.openMap')}
                         style={{
                           fontSize: 13,
-                          color: '#0d8b8a',
-                          fontWeight: 600,
-                          textDecoration: 'none',
+                          color: 'var(--text-accent)',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 4,
+                          padding: '4px',
+                          flexShrink: 0,
                         }}
                       >
-                        {t('settings.openMap')}
                         <Icon name="arrow-up-right" size={13} />
                       </a>
-                    </div>
-                  ) : (
-                    <InlineTextCell
-                      value=""
-                      disabled={!canEdit}
-                      placeholder={t('settings.phPasteLink')}
-                      onChange={(val) => onCourtChange(c.id, 'mapUrl', val)}
-                    />
-                  )}
+                    )}
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div data-label={t('settings.colPricePerHour')} style={{ textAlign: 'right' }}>
                   <InlineTextCell
                     value={c.price}
                     type="number"
                     align="right"
                     disabled={!canEdit}
+                    suffix={t('units.dong')}
                     formatDisplay={(v) => t('settings.dongPerHour', { price: fmtK(v || 0) })}
                     onChange={(val) => onCourtChange(c.id, 'price', val)}
                   />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div data-label={t('settings.colActiveCaps')} style={{ display: 'flex', justifyContent: 'center' }}>
                   <ToggleSwitch
                     checked={c.active !== false}
                     disabled={!canEdit}
                     onChange={(checked) => onCourtChange(c.id, 'active', checked)}
                   />
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteCourt && onDeleteCourt(c.id, c.name)}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#c0392b',
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      {t('common.delete')}
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
@@ -178,11 +160,11 @@ export default function CourtsTab({
         )}
       </SettingsCard>
 
-      {/* 2. Loại cầu & Định mức cầu */}
+      {/* 2. Loại cầu & Định mức */}
       <SettingsCard
         title={t('settings.typesQuotaTitle')}
         subtitle={t('settings.typesQuotaSub')}
-        icon="package-open"
+        icon="volleyball"
         fullWidth
         action={
           canEdit && (
@@ -190,9 +172,9 @@ export default function CourtsTab({
               variant="secondary"
               size="sm"
               icon="plus"
-              onClick={() => onOpenDialog('newShuttleType')}
+              onClick={() => onOpenDialog('newShuttleType', {})}
             >
-              {t('settings.addType')}
+              {t('common.add')}
             </Button>
           )
         }
@@ -200,23 +182,24 @@ export default function CourtsTab({
       >
         {shuttleTypes.length === 0 ? (
           <EmptyState
-            icon="package-open"
+            icon="volleyball"
             title={t('settings.noType')}
             hint={t('settings.noTypeHint')}
           />
         ) : (
-          <div style={{ overflowX: 'auto', marginTop: 14 }}>
+          <div className="settings-table-scroll" style={{ overflowX: 'auto', marginTop: 14 }}>
             <div
+              className="settings-table-head"
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1.5fr 110px 140px 90px 70px',
-                background: '#f7f9fc',
+                background: 'var(--surface-inset)',
                 borderRadius: 8,
                 padding: '9px 12px',
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: '.07em',
-                color: '#8b98ab',
+                color: 'var(--text-muted)',
               }}
             >
               <div>{t('settings.colShuttleType')}</div>
@@ -229,16 +212,17 @@ export default function CourtsTab({
             {shuttleTypes.map((x) => (
               <div
                 key={x.id}
+                className="settings-table-row"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1.5fr 110px 140px 90px 70px',
                   alignItems: 'center',
                   padding: '12px 12px',
-                  borderBottom: '1px solid #f6f8fb',
+                  borderBottom: '1px solid var(--border-subtle)',
                   fontSize: 13.5,
                 }}
               >
-                <div>
+                <div data-label={t('settings.colShuttleType')}>
                   <InlineTextCell
                     value={x.name}
                     disabled={!canEdit}
@@ -246,7 +230,7 @@ export default function CourtsTab({
                     onChange={(val) => onShuttleTypeChange(x.id, 'name', val)}
                   />
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div data-label={t('settings.colPerTubeCaps')} style={{ textAlign: 'right' }}>
                   <InlineTextCell
                     value={x.perTube}
                     type="number"
@@ -256,24 +240,25 @@ export default function CourtsTab({
                     onChange={(val) => onShuttleTypeChange(x.id, 'perTube', val)}
                   />
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div data-label={t('settings.colRefPriceCaps')} style={{ textAlign: 'right' }}>
                   <InlineTextCell
                     value={x.pricePerTube}
                     type="number"
                     align="right"
                     disabled={!canEdit}
+                    suffix={t('units.dong')}
                     formatDisplay={(v) => (v ? `${fmtK(v)}${t('units.dong')}` : t('common.unknown'))}
                     onChange={(val) => onShuttleTypeChange(x.id, 'pricePerTube', val)}
                   />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div data-label={t('settings.colUseCaps')} style={{ display: 'flex', justifyContent: 'center' }}>
                   <ToggleSwitch
                     checked={x.active !== false}
                     disabled={!canEdit}
                     onChange={(checked) => onShuttleTypeChange(x.id, 'active', checked)}
                   />
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div data-label="" style={{ textAlign: 'right' }}>
                   {canEdit && (
                     <button
                       type="button"
@@ -281,7 +266,7 @@ export default function CourtsTab({
                       style={{
                         border: 'none',
                         background: 'transparent',
-                        color: '#c0392b',
+                        color: 'var(--text-danger)',
                         fontSize: 12.5,
                         fontWeight: 600,
                         cursor: 'pointer',
@@ -295,7 +280,7 @@ export default function CourtsTab({
               </div>
             ))}
 
-            <div style={{ fontSize: 12, color: '#8b98ab', lineHeight: 1.5, marginTop: 10, padding: '0 4px' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 10, padding: '0 4px' }}>
               {t('settings.refPriceNote')}
             </div>
           </div>
@@ -303,12 +288,12 @@ export default function CourtsTab({
 
         {/* Khối định mức cầu mỗi buổi */}
         {groups.length > 0 && (
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #eef1f6' }}>
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--border-subtle)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#2a3a54' }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>
                 {t('settings.quotaTitle')}
               </div>
-              <div style={{ fontSize: 12, color: '#8b98ab' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 {t('settings.quotaNote')}
               </div>
             </div>
@@ -336,15 +321,15 @@ export default function CourtsTab({
                       gap: 12,
                       padding: '12px 16px',
                       borderRadius: 10,
-                      background: '#f8fafc',
-                      border: '1px solid #e4e9f1',
+                      background: 'var(--surface-inset)',
+                      border: '1px solid var(--border-subtle)',
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13.5, color: '#10203c' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)' }}>
                         {g.name}
                       </div>
-                      <div style={{ fontSize: 12, color: '#8b98ab', marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                         {avg === null ? t('settings.quotaNone') : t('settings.quotaActual', { avg })}
                       </div>
                     </div>
