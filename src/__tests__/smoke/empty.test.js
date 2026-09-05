@@ -64,6 +64,7 @@ const ok = (label, fn) => {
 assert.equal(ok('courtOf', () => M.courtOf(db, 'x')).price, 0)
 assert.ok(ok('memberOf', () => M.memberOf(db, 'x')).name)
 assert.ok(ok('guestOf', () => M.guestOf(db, 'x')).name)
+assert.equal(ok('playerName', () => M.playerName(db, 'x')), 'x')
 assert.equal(ok('sessionOf', () => M.sessionOf(db, 'x')), undefined)
 assert.ok(ok('groupOf', () => M.groupOf(db, 'x')).courtIds)
 assert.ok(ok('groupOf ALL', () => M.groupOf(db, 'ALL')).quota > 0)
