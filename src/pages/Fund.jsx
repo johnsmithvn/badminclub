@@ -5,7 +5,7 @@ import { Alert, Badge, Button, Card, IconButton, Input, StatCard, Tabs } from '#
 import { Empty, GRID_STAT, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
-import { fmt, shuttleUnit, stock } from '#lib/money.js'
+import { fmt } from '#lib/money.js'
 import { availableBalance, catLabel, editTarget, ledgerGrouped, monthFlow, undoTarget } from '#lib/ledger.js'
 import { courtBillForm, editBillForm, editLedgerForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -41,8 +41,6 @@ export function FundOverviewCards() {
   const net = flow.in - flow.out
   const av = availableBalance(db)
   const bal = av.balance
-  const st = stock(db)
-  const unit = shuttleUnit(db)
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
@@ -85,9 +83,6 @@ export function FundOverviewCards() {
         <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>{t('fund.colBalanceNow')}</div>
         <div style={{ font: 'var(--type-h2)', color: 'var(--text-primary)', marginTop: 4 }}>
           {fmt(bal)}
-        </div>
-        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-          {t('fund.stockLine', { n: st.left, amount: fmt(st.left * unit) })}
         </div>
       </div>
     </div>

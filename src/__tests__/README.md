@@ -17,11 +17,9 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | --- | --- |
 | Làm tròn tiền · đọc ô nhập có dấu chấm · thang trình độ · tên người trả | `money/format.test.js` |
 | Tiền sân một buổi · sân bán · sân thuê thêm | `money/court.test.js` |
-| Định mức cầu · giá bình quân kho · tồn kho · kiểm kho cuối tháng | `money/shuttle.test.js` |
 | Bảng giá khách · công nợ khách · gộp theo người rủ | `money/guest.test.js` |
 | Điểm danh · danh sách cố định theo tháng · vào giữa tháng · ngưng / xoá thành viên | `money/member.test.js` |
 | **Quỹ tháng → đơn giá một buổi → đối chiếu buổi** (một chuỗi, để chung) | `money/dues.test.js` |
-| Giá thành buổi · đóng băng khi chốt · cảnh báo trước và sau khi chốt | `money/cost.test.js` |
 | Cảnh báo sai im lặng ở Trang chủ | `money/alerts.test.js` |
 | Xoá nhóm: chặn tạm (có buổi tương lai) vs chặn vĩnh viễn (dính lịch sử tiền) | `money/group_delete.test.js` |
 | Xoá buổi: điều kiện an toàn, dọn buổi chưa phát sinh chi phí | `money/session_delete.test.js` |

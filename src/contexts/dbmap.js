@@ -48,7 +48,7 @@ export function toDb(raw, ctx) {
     feeNam: num(g.fee_male), feeNu: num(g.fee_female),
     // Đơn giá một buổi CLB tự đặt; 0 = để app tự chia.
     unitNam: num(g.unit_male), unitNu: num(g.unit_female),
-    from: hm(g.start_time), to: hm(g.end_time), quota: g.quota, active: g.active,
+    from: hm(g.start_time), to: hm(g.end_time), active: g.active,
     courtIds: (g.group_courts || []).map((x) => x.court_id),
   }))
 
@@ -161,14 +161,7 @@ export function toDb(raw, ctx) {
     return {
       // group_id NULL = buổi đột xuất của toàn CLB; client gọi nhóm đó là 'ALL' (xem groupOf).
       id: s.id, date: s.date, groupId: s.group_id || 'ALL', scheduleId: s.schedule_id || null,
-      status: s.status, note: s.note || '', shuttleTypeId: s.shuttle_type_id || null,
-      shuttleMode: s.shuttle_mode, tubesOpened: s.tubes_opened, loose: s.loose_units,
-      shuttleUsed: s.shuttle_used, shuttleEst: s.shuttle_est, closedAt: dOf(s.closed_at),
-      // Giá thành đóng băng lúc chốt buổi. null = chưa đóng băng, đọc số tính live.
-      costCourt: numN(s.cost_court), costShuttleUnit: numN(s.cost_shuttle_unit),
-      costShuttle: numN(s.cost_shuttle), costTotal: numN(s.cost_total),
-      costGuestRev: numN(s.cost_guest_rev), costHeads: numN(s.cost_heads),
-      costFrozenAt: dOf(s.cost_frozen_at),
+      status: s.status, note: s.note || '', closedAt: dOf(s.closed_at),
       courts: rows.map((r) => ({
         courtId: r.court_id, from: hm(r.start_time), to: hm(r.end_time),
         sold: r.is_sold, soldAmount: num(r.sold_amount), soldTo: r.sold_to || '', extra: r.is_extra,
@@ -222,6 +215,8 @@ export function toDb(raw, ctx) {
       seeDebtEachOther: club.see_debt_each_other, seeFund: club.see_fund,
       roundUnit: club.round_unit, lockDay: club.lock_day, courtPayMode: club.court_pay_mode,
       multiGroup: !!club.multi_group,
+      hasMemberExtraDiscount: !!club.has_member_extra_discount,
+      memberExtraDiscount: club.member_extra_discount != null ? num(club.member_extra_discount) : 5000,
       debtBanner: club.debt_banner || 'slim',
       linkModes: { code: club.allow_code_join, invite: club.allow_invite, phone: club.allow_phone_suggest },
       levels,
@@ -231,10 +226,6 @@ export function toDb(raw, ctx) {
     attendance, sessionGuests, lineups, courtGroups, groupMode, courtMin, matches,
     roster, locked, adjustments, guestPrices,
 
-    shuttleTypes: (raw.shuttleTypes || []).map((s) => ({
-      id: s.id, name: s.name, perTube: s.per_tube,
-      pricePerTube: num(s.price_per_tube), active: s.active,
-    })),
     dues: (raw.dues || []).map((d) => ({
       id: d.id, month: d.month, groupId: d.group_id, memberId: d.member_id,
       // `paid_amount` là nguồn sự thật; cột `paid` chỉ còn là bản sao suy ra (xem 0009).
@@ -251,17 +242,6 @@ export function toDb(raw, ctx) {
     manual: (raw.manual || []).map((x) => ({
       id: x.id, date: x.date, dir: x.direction, cat: x.category, label: x.label,
       amount: num(x.amount), by: x.payer_name || '',
-    })),
-    purchases: (raw.purchases || []).map((p) => ({
-      id: p.id, date: p.date, typeId: p.type_id, tubes: p.tubes, extra: p.extra_units,
-      qty: p.total_units, pricePerTube: num(p.price_per_tube), total: num(p.total_amount),
-      // funded_by là NGUỒN TIỀN (fund / member_advance), không phải tên người — xem 0008.
-      payerId: p.payer_member_id || null, fundedBy: p.funded_by || null, note: p.note || '',
-      repaidAt: p.repaid_at || '',
-    })),
-    stockChecks: (raw.stockChecks || []).map((s) => ({
-      id: s.id, date: s.date, month: s.month, counted: s.counted,
-      systemLeft: s.system_left, diff: s.diff, spread: s.spread_sessions,
     })),
     changes: (raw.changes || []).map((c) => ({
       id: c.id, memberId: c.member_id, field: c.field, from: c.from_value, to: c.to_value,
@@ -340,7 +320,7 @@ export function toRows(db, ctx) {
       fee_male: g.feeNam, fee_female: g.feeNu, start_time: g.from, end_time: g.to,
       // Đơn giá một buổi CLB tự đặt. 0 và null đều nghĩa là "để app tự chia" → ghi null cho gọn.
       unit_male: g.unitNam || null, unit_female: g.unitNu || null,
-      quota: g.quota, active: g.active !== false,
+      active: g.active !== false,
     })
     ;(g.courtIds || []).forEach((court) => put('group_courts', { group_id: g.id, court_id: court }))
   })
@@ -368,11 +348,6 @@ export function toRows(db, ctx) {
     phone: g.phone || null, invited_by: uu(g.invitedBy), note: g.note || null,
   }))
 
-  db.shuttleTypes.forEach((s) => put('shuttle_types', {
-    id: s.id, club_id: cid, name: s.name, per_tube: s.perTube,
-    price_per_tube: s.pricePerTube || null, active: s.active !== false,
-  }))
-
   db.schedules.forEach((s) => {
     put('schedules', {
       id: s.id, club_id: cid, group_id: s.groupId, name: s.name, weekdays: s.weekdays || [],
@@ -387,15 +362,8 @@ export function toRows(db, ctx) {
     put('sessions', {
       id: s.id, club_id: cid, group_id: s.groupId === 'ALL' ? null : uu(s.groupId),
       schedule_id: uu(s.scheduleId),
-      date: s.date, status: s.status, shuttle_type_id: uu(s.shuttleTypeId),
-      shuttle_mode: s.shuttleMode, tubes_opened: s.tubesOpened || 0, loose_units: s.loose || 0,
-      shuttle_used: s.shuttleUsed || 0, shuttle_est: !!s.shuttleEst, note: s.note || null,
+      date: s.date, status: s.status, note: s.note || null,
       closed_at: s.closedAt || null, group_mode: !!(db.groupMode || {})[s.id],
-      // `?? null` chứ không `|| null`: số 0 hợp lệ (buổi không dùng quả cầu nào) phải giữ là 0.
-      cost_court: s.costCourt ?? null, cost_shuttle_unit: s.costShuttleUnit ?? null,
-      cost_shuttle: s.costShuttle ?? null, cost_total: s.costTotal ?? null,
-      cost_guest_rev: s.costGuestRev ?? null, cost_heads: s.costHeads ?? null,
-      cost_frozen_at: s.costFrozenAt || null,
     })
     const mins = (db.courtMin || {})[s.id] || {}
     ;(s.courts || []).forEach((r, i) => put('session_courts', {
@@ -557,18 +525,6 @@ export function toRows(db, ctx) {
     label: x.label, amount: x.amount, ref_type: 'manual', payer_name: x.by || null,
   }))
 
-  db.purchases.forEach((p) => put('shuttle_purchases', {
-    id: p.id, club_id: cid, date: p.date, type_id: p.typeId, tubes: p.tubes,
-    extra_units: p.extra, total_units: p.qty, price_per_tube: p.pricePerTube || null,
-    total_amount: p.total, payer_member_id: uu(p.payerId), funded_by: p.fundedBy || null,
-    note: p.note || null, repaid_at: p.repaidAt || null,
-  }))
-
-  ;(db.stockChecks || []).forEach((s) => put('stock_checks', {
-    id: s.id, club_id: cid, date: s.date, month: s.month, counted: s.counted,
-    system_left: s.systemLeft, diff: s.diff, spread_sessions: s.spread,
-  }))
-
   ;(db.changes || []).forEach((c) => put('member_changes', {
     id: c.id, member_id: c.memberId, field: c.field, from_value: c.from, to_value: c.to,
     effective: c.effective, status: c.status,
@@ -596,6 +552,8 @@ export function clubRow(db) {
     bank_accounts: c.bankAccounts && c.bankAccounts.length ? c.bankAccounts : null,
     court_pay_mode: c.courtPayMode, lock_day: c.lockDay, round_unit: !!c.roundUnit,
     multi_group: !!c.multiGroup,
+    has_member_extra_discount: !!c.hasMemberExtraDiscount,
+    member_extra_discount: c.memberExtraDiscount != null ? num(c.memberExtraDiscount) : 5000,
     debt_banner: c.debtBanner || 'slim',
     see_debt_each_other: !!c.seeDebtEachOther, see_fund: !!c.seeFund,
     allow_code_join: !!c.linkModes.code, allow_invite: !!c.linkModes.invite,
@@ -625,7 +583,6 @@ export const TABLES = [
   // `club_invites` cố ý KHÔNG có ở đây: mời qua SĐT đã gỡ khỏi client (cần module riêng, có
   // gửi tin thật). Bảng và cột `clubs.allow_invite` giữ nguyên dưới DB, chờ module đó.
   { table: 'guests', mode: 'id' },
-  { table: 'shuttle_types', mode: 'id' },
   { table: 'schedules', mode: 'id' },
   { table: 'schedule_slots', mode: 'scope', scope: ['schedule_id'] },
   { table: 'sessions', mode: 'id' },
@@ -644,8 +601,6 @@ export const TABLES = [
   { table: 'member_adjustments', mode: 'id' },
   { table: 'court_bills', mode: 'id' },
   { table: 'transactions', mode: 'id' },
-  { table: 'shuttle_purchases', mode: 'id' },
-  { table: 'stock_checks', mode: 'id' },
   { table: 'member_changes', mode: 'id' },
   { table: 'player_ratings', mode: 'id' },
   { table: 'match_edits', mode: 'id', noDelete: true, insertOnly: true },

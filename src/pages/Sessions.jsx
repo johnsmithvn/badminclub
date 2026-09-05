@@ -4,7 +4,7 @@ import { Card, DataTable, StatCard, Tabs } from '#ds'
 import { Empty, GRID_STAT, sessionColumns } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import {
-  billsOf, courtCost, courtPayMode, fmt, guestPaidRev, guestRev, monthSessions, shuttleUnit,
+  billsOf, courtCost, courtPayMode, fmt, guestPaidRev, guestRev, monthSessions,
 } from '#lib/money.js'
 import { t } from '#i18n'
 
@@ -24,7 +24,6 @@ export default function Sessions() {
 
   const guestTotal = sess.reduce((x, s) => x + guestRev(db, s.id), 0)
   const guestPaid = sess.reduce((x, s) => x + guestPaidRev(db, s.id), 0)
-  const shuttleUsed = closed.reduce((x, s) => x + s.shuttleUsed, 0)
 
   const rows = tab === 'open' ? unclosed : tab === 'closed' ? closed : tab === 'cancelled' ? cancelled : sess
 
@@ -54,8 +53,6 @@ export default function Sessions() {
           caption={t(perMonth ? 'session.statCourtMonth' : 'session.statCourtSession')} />
         <StatCard label={t('session.statGuest')} value={fmt(guestTotal)} icon="user-round-plus" tone="positive"
           caption={t('session.statGuestCaption', { paid: fmt(guestPaid), debt: fmt(guestTotal - guestPaid) })} />
-        <StatCard label={t('session.statShuttle')} value={shuttleUsed} unit={t('units.shuttle')} icon="package-open"
-          tone="accent" caption={t('session.statShuttleCaption', { money: fmt(shuttleUsed * shuttleUnit(db)) })} />
       </div>
 
       <Card

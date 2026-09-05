@@ -2,8 +2,8 @@ import { useMemo, useRef, useState } from 'react'
 import { Alert, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, StatusPill, Switch } from '#ds'
 import { AvatarUpload, BankAccountSection, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { WD, dd, genDates, monthOf, monthTxt } from '#utils/dates.js'
-import { checkOf, checkPreview, fmtK, genderTxt, intOf, offBackSuggest } from '#lib/money.js'
+import { WD, dd, genDates, monthTxt } from '#utils/dates.js'
+import { fmtK, genderTxt, intOf, offBackSuggest } from '#lib/money.js'
 import { venueOptions } from '#lib/forms.js'
 import { planScheduleEdit } from '#lib/schedules.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
@@ -20,10 +20,7 @@ export default function Dialogs() {
     adhoc: AdhocDialog,
     addcourt: AddCourtDialog,
     newCourt: NewCourtDialog,
-    newShuttleType: NewShuttleTypeDialog,
     newGroup: NewGroupDialog,
-    purchase: PurchaseDialog,
-    check: CheckDialog,
     bill: BillDialog,
     ledger: LedgerDialog,
     addMember: AddMemberDialog,
@@ -362,98 +359,6 @@ function AddCourtDialog() {
   )
 }
 
-/* ---------------- nhập kho cầu ---------------- */
-
-function PurchaseDialog() {
-  const { db, ui, a } = useApp()
-  const f = ui.form
-  const type = db.shuttleTypes.find((x) => x.id === f.pType) || db.shuttleTypes[0] || { perTube: cfg.shuttle.perTubeDefault }
-  // intOf chứ không parseInt: xem trước phải ra đúng số mà createPurchase sẽ lưu.
-  const qty = intOf(f.pTubes) * type.perTube + intOf(f.pExtra)
-  const total = intOf(f.pTotal)
-  // Cùng cái ngày mà createPurchase sẽ dùng, để xem trước không nói khác lúc bấm.
-  const pDate = f.pDate || db.today
-  // Tháng của ngày nhập đã kiểm kho rồi thì ẩn ô đếm tủ — mỗi tháng chỉ một lần (uq_check_month).
-  const checked = checkOf(db, monthOf(pDate))
-  const left = !checked && String(f.pLeft ?? '').trim() !== '' ? checkPreview(db, pDate, f.pLeft) : null
-
-  return (
-    <Shell title={t('shuttles.dlgTitle')} desc={t('shuttles.dlgDesc')}
-      onSubmit={() => a.createPurchase()} submitLabel={t('shuttles.addPurchase')} submitIcon="shopping-cart">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Input label={t('shuttles.fDate')} type="date" mono value={f.pDate || ''}
-          onChange={(e) => a.setF('pDate', e.target.value)} />
-        <Select label={t('shuttles.fType')} value={f.pType}
-          options={db.shuttleTypes.map((x) => ({ value: x.id, label: x.name + ' · ' + x.perTube + ' ' + t('units.shuttlePerTube') }))}
-          onChange={(e) => a.setF('pType', e.target.value)} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.3fr', gap: 10 }}>
-        <Input label={t('shuttles.fTubes')} mono value={String(f.pTubes ?? '')}
-          onChange={(e) => a.setF('pTubes', e.target.value)} />
-        <Input label={t('shuttles.fExtra')} mono value={String(f.pExtra ?? '')}
-          onChange={(e) => a.setF('pExtra', e.target.value)} />
-        <Input label={t('shuttles.fTotal')} mono suffix={t('units.dong')} value={String(f.pTotal ?? '')}
-          onChange={(e) => a.setF('pTotal', e.target.value)} />
-      </div>
-      <PayerSelect field="pPayer" />
-
-      {/* Đếm tủ lúc mua tự nhiên hơn bắt nhớ đếm cuối tháng — mua cầu thì đằng nào cũng mở tủ. */}
-      {!checked && (
-        <Input label={t('shuttles.fLeft')} mono suffix={t('units.shuttle')} value={String(f.pLeft ?? '')}
-          hint={t('shuttles.fLeftHint')} onChange={(e) => a.setF('pLeft', e.target.value)} />
-      )}
-
-      <Note>
-        {!qty
-          ? t('shuttles.previewNeedQty')
-          : !total
-            ? t('shuttles.previewNeedTotal', { qty })
-            : t('shuttles.preview', { qty, unit: fmtK(Math.round(total / qty)) })}
-        {left && <div style={{ marginTop: 4 }}>
-          {left.diff !== 0 && !left.n
-            ? t('shuttles.checkNoEst')
-            : left.diff === 0
-              ? t('shuttles.leftMatch', { system: left.systemLeft })
-              : t('shuttles.leftSpread', {
-                  system: left.systemLeft, diff: (left.diff > 0 ? '+' : '') + left.diff,
-                  n: left.n, month: monthTxt(left.month),
-                })}
-        </div>}
-      </Note>
-    </Shell>
-  )
-}
-
-/* ---------------- kiểm kho ---------------- */
-
-function CheckDialog() {
-  const { db, ui, a } = useApp()
-  const f = ui.form
-  const p = checkPreview(db, f.ckDate, f.ckCount)
-  const noEst = p.diff !== 0 && !p.n
-
-  return (
-    <Shell title={t('shuttles.checkDlgTitle')} desc={t('shuttles.checkDlgDesc')}
-      onSubmit={() => a.applyCheck()} submitLabel={t('shuttles.doCheck')} submitIcon="scale">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Input label={t('shuttles.fCheckDate')} type="date" mono value={f.ckDate || ''}
-          onChange={(e) => a.setF('ckDate', e.target.value)} />
-        <Input label={t('shuttles.fCheckCount')} mono suffix={t('units.shuttle')} value={String(f.ckCount ?? '')}
-          onChange={(e) => a.setF('ckCount', e.target.value)} />
-      </div>
-      <Note tone={noEst ? 'warn' : undefined}>
-        {p.diff === 0
-          ? t('shuttles.checkPreviewMatch', { system: p.systemLeft })
-          : t('shuttles.checkPreview', {
-              system: p.systemLeft, diff: (p.diff > 0 ? '+' : '') + p.diff, n: p.n,
-              month: monthTxt(p.month), share: (p.share > 0 ? '+' : '') + p.share,
-            })}
-        {noEst && <div style={{ marginTop: 4 }}>{t('shuttles.checkNoEst')}</div>}
-      </Note>
-    </Shell>
-  )
-}
-
 /* ---------------- hoá đơn sân ---------------- */
 
 function BillDialog() {
@@ -541,59 +446,6 @@ function NewCourtDialog() {
   )
 }
 
-/* ---------------- thêm loại cầu ---------------- */
-
-function NewShuttleTypeDialog() {
-  const { ui, a } = useApp()
-  const f = ui.form
-  const name = f.typeName || ''
-  const perTube = f.typePerTube ?? '12'
-  const price = f.typePrice || ''
-
-  return (
-    <Shell
-      title={t('settings.shuttleTypeModalTitle')}
-      desc={t('settings.shuttleTypeModalDesc')}
-      width={520}
-      onSubmit={() => a.addShuttleType({
-        name: name.trim(),
-        perTube: Math.min(24, Math.max(1, intOf(perTube) || 12)),
-        pricePerTube: intOf(price),
-        active: true,
-      })}
-      submitLabel={t('common.add')}
-      submitIcon="plus"
-      disabled={!name.trim()}
-    >
-      <Input
-        label={t('settings.colType')}
-        placeholder={t('settings.shuttleTypePh')}
-        value={name}
-        onChange={(e) => a.setF('typeName', e.target.value)}
-      />
-      <Input
-        label={t('settings.hPerTube')}
-        mono
-        suffix={t('units.shuttle')}
-        placeholder="12"
-        value={perTube}
-        onChange={(e) => a.setF('typePerTube', e.target.value)}
-      />
-      <Input
-        label={t('settings.hRefPrice')}
-        mono
-        suffix={t('units.dong')}
-        placeholder="0"
-        value={price}
-        onChange={(e) => a.setF('typePrice', e.target.value)}
-      />
-      <div style={{ fontSize: 12, color: '#8b98ab', lineHeight: 1.5, marginTop: -2 }}>
-        {t('settings.shuttleTypeModalNote')}
-      </div>
-    </Shell>
-  )
-}
-
 /* ---------------- thêm nhóm cố định ---------------- */
 
 function NewGroupDialog() {
@@ -619,8 +471,6 @@ function NewGroupDialog() {
         <span>
           {t('settings.groupFeeApplied')}: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNam || 0)}{t('units.dong')}</strong> ({t('gender.nam')}) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNu || 0)}{t('units.dong')}</strong> ({t('gender.nu')})
         </span>
-        <Input label={t('settings.colQuota')} mono suffix={t('units.shuttle')} value={f.grQuota || ''}
-          style={{ width: 110 }} onChange={(e) => a.setF('grQuota', e.target.value)} />
       </div>
       <Note tone="warn">
         {t('settings.dlgGroupWarn')}
@@ -1287,7 +1137,6 @@ const IMPORT_PARTS = [
   { key: 'includeClub', label: () => t('settings.ioPartClub'), meta: (d) => t('settings.ioPartClubMeta', { n: (d.club?.levels || []).length }) },
   { key: 'includeMoney', label: () => t('settings.ioPartMoney'), meta: (d) => t('settings.ioPartMoneyMeta', { n: (d.money?.guestPrices || []).length }) },
   { key: 'includeCourts', label: () => t('settings.ioPartCourts'), meta: (d) => nameList(d.courts) },
-  { key: 'includeShuttles', label: () => t('settings.ioPartShuttles'), meta: (d) => nameList(d.shuttleTypes) },
   { key: 'includeGroups', label: () => t('settings.ioPartGroups'), meta: (d) => nameList(d.groups) },
 ]
 

@@ -8,7 +8,7 @@
 // BỐN RÀNG BUỘC, mỗi cái đổi bằng tiền thật:
 //
 //  1. KHÔNG đụng buổi đã mở / đã chốt / đã huỷ. Buổi `closed` đã đóng băng giá thành
-//     (`sessions.cost_frozen_at`) — sửa là đổi con số người ta đã đọc và đã chia tiền.
+//     (`session_courts.cost`) — sửa là đổi con số người ta đã đọc và đã chia tiền.
 //     Buổi `open` đang điểm danh dở. Cả hai chỉ ĐẾM để báo, không nằm trong add/remove.
 //  2. KHÔNG đụng buổi trong quá khứ, kể cả còn `draft`: đã qua ngày đó rồi thì nó là lịch sử,
 //     không phải kế hoạch.
@@ -150,15 +150,13 @@ export function applyScheduleEdit(db, sched, form, plan, mkId) {
   const rows = (form.rows || []).map((r) => ({ ...r, sold: false, soldAmount: 0, soldTo: '', extra: false }))
   const keepIds = new Set(plan.keep.map((s) => s.id))
   const dropIds = new Set(plan.remove)
-  const stId = (db.shuttleTypes || [])[0] ? db.shuttleTypes[0].id : null
 
   // Đổi nhóm thì buổi phải đi theo. `plan.groupTo` chỉ khác null khi lịch còn mềm (không buổi
   // nào đã mở / đã qua ngày), nên không có buổi nào rớt lại ở nhóm cũ.
   const gid = plan.groupTo || sched.groupId
 
   const born = plan.add.map((date) => ({
-    id: mkId(), date, groupId: gid, status: 'draft', shuttleUsed: 0,
-    shuttleTypeId: stId, note: '', shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
+    id: mkId(), date, groupId: gid, status: 'draft', note: '',
     courts: rows.map((r) => ({ ...r })), scheduleId: sched.id,
   }))
 

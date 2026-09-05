@@ -22,7 +22,6 @@ const mkSession = (id, date, status = 'draft') => ({
 
 const db = {
   today: TODAY,
-  shuttleTypes: [{ id: 'ST1' }],
   schedules: [SCHED],
   sessions: [
     mkSession('s04', '2026-09-04', 'closed'), // đã chốt, đã đóng băng giá thành

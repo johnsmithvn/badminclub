@@ -36,8 +36,8 @@ export async function load(clubId) {
   const of = (table, sel) => supabase.from(table).select(sel || '*').eq('club_id', clubId)
 
   const [
-    club, courts, groups, members, guests, shuttleTypes, schedules, sessions,
-    dues, adjustments, courtBills, manual, purchases, stockChecks, guestPrices,
+    club, courts, groups, members, guests, schedules, sessions,
+    dues, adjustments, courtBills, manual, guestPrices,
     locks, rosterRows, changes, levelRows, joinRequests,
     challenges, playerRatings, matchEdits, clubCalibration,
   ] = await Promise.all([
@@ -46,15 +46,12 @@ export async function load(clubId) {
     of('member_groups', '*, group_courts(court_id)'),
     of('club_members', '*, club_member_groups(group_id), profile:profiles(*)'),
     of('guests'),
-    of('shuttle_types'),
     of('schedules', '*, schedule_slots(*)'),
     of('sessions', SESSION_TREE),
     of('monthly_dues'),
     of('member_adjustments'),
     of('court_bills'),
     of('transactions').eq('ref_type', 'manual'),
-    of('shuttle_purchases'),
-    of('stock_checks'),
     of('guest_price_rules'),
     of('roster_locks'),
     supabase.from('group_memberships').select('*, member_groups!inner(club_id)')
@@ -103,15 +100,12 @@ export async function load(clubId) {
     groups: unwrap(groups),
     members: memberRows,
     guests: unwrap(guests),
-    shuttleTypes: unwrap(shuttleTypes),
     schedules: unwrap(schedules),
     sessions: unwrap(sessions),
     dues: unwrap(dues),
     adjustments: unwrap(adjustments),
     courtBills: unwrap(courtBills),
     manual: unwrap(manual),
-    purchases: unwrap(purchases),
-    stockChecks: unwrap(stockChecks),
     guestPrices: unwrap(guestPrices),
     locks: unwrap(locks),
     rosterRows: unwrap(rosterRows),

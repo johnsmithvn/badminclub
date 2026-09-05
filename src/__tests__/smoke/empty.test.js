@@ -67,7 +67,7 @@ assert.ok(ok('guestOf', () => M.guestOf(db, 'x')).name)
 assert.equal(ok('playerName', () => M.playerName(db, 'x')), 'x')
 assert.equal(ok('sessionOf', () => M.sessionOf(db, 'x')), undefined)
 assert.ok(ok('groupOf', () => M.groupOf(db, 'x')).courtIds)
-assert.ok(ok('groupOf ALL', () => M.groupOf(db, 'ALL')).quota > 0)
+assert.ok(ok('groupOf ALL', () => M.groupOf(db, 'ALL')).name)
 
 /* ---------- tổng hợp toàn CLB ---------- */
 
@@ -88,19 +88,13 @@ assert.deepEqual(ok('duesOf', () => M.duesOf(db, MONTH)), [])
 assert.deepEqual(ok('adjustRows', () => M.adjustRows(db, MONTH)), [])
 assert.deepEqual(ok('pendingOffset', () => M.pendingOffset(db, 'x', MONTH)), [])
 assert.deepEqual(ok('billsOf', () => M.billsOf(db, MONTH)), [])
-assert.deepEqual(ok('estSessions', () => M.estSessions(db, MONTH)), [])
-ok('stock', () => M.stock(db))
-ok('checkPreview', () => M.checkPreview(db, '', ''))
-// Chưa mua đợt cầu nào → phải dùng giá dự phòng ở config, KHÔNG chia cho 0.
-assert.equal(ok('shuttleUnit', () => M.shuttleUnit(db)), cfg.money.shuttleUnitFallback)
 assert.equal(ok('courtPayMode', () => M.courtPayMode(db)), 'month')
 
 /* ---------- một buổi vừa tạo: chưa sân, chưa ai điểm danh ---------- */
 
 const s0 = {
   id: 'S', date: TODAY, groupId: 'ALL', scheduleId: null, status: 'open', note: '',
-  shuttleTypeId: null, shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleUsed: 0,
-  shuttleEst: true, closedAt: null, courts: [],
+  closedAt: null, courts: [],
 }
 const dbS = { ...db, sessions: [s0] }
 
@@ -109,30 +103,14 @@ assert.equal(ok('courtCost', () => M.courtCost(dbS, s0)), 0)
 assert.equal(ok('courtBase', () => M.courtBase(dbS, s0)), 0)
 assert.equal(ok('courtExtraCost', () => M.courtExtraCost(dbS, s0)), 0)
 assert.equal(ok('soldTotal', () => M.soldTotal(dbS, s0)), 0)
-assert.equal(ok('shuttleCost', () => M.shuttleCost(dbS, s0)), 0)
-assert.equal(ok('sessionCost', () => M.sessionCost(dbS, s0)), 0)
 assert.equal(ok('guestRev', () => M.guestRev(dbS, 'S')), 0)
 assert.equal(ok('playedCourts', () => M.playedCourts(dbS, s0)), 0)
-assert.equal(ok('perTube', () => M.perTube(dbS, s0)), cfg.shuttle.perTubeDefault)
-ok('quotaFor', () => M.quotaFor(dbS, s0))
-ok('costRow', () => M.costRow(dbS, s0))
 ok('courtTxt', () => M.courtTxt(dbS, s0))
 ok('timeTxt', () => M.timeTxt(s0))
-// Buổi rỗng: chi phí mỗi người không được ra NaN (0/0). Trường tên là `per`, KHÔNG phải
-// `perHead` — viết sai tên thì assert luôn đúng một cách vô nghĩa (undefined không chứa 'NaN').
-assert.ok(Number.isFinite(M.costRow(dbS, s0).per), 'chi phí mỗi người ra NaN/Infinity')
-assert.ok(Number.isFinite(M.costRow(dbS, s0).subsidy))
-ok('costState', () => M.costState(s0))
-ok('checkDue', () => M.checkDue(db))
 // CLB rỗng thì không có gì để cảnh báo — nhắc "chưa nhập hoá đơn sân" ngay hôm tạo CLB là nhắc oan.
 assert.deepEqual(ok('homeAlerts', () => M.homeAlerts(db)), [])
 assert.deepEqual(ok('advanceRows', () => M.advanceRows(db)), [])
 assert.equal(ok('isVault', () => M.isVault(db, 'không-có-ai')), false)
-assert.deepEqual(ok('closeWarnings null', () => M.closeWarnings(db, null)), [])
-assert.equal(ok('costDrift null', () => M.costDrift(db, null)), null)
-assert.deepEqual(ok('closeWarnings s0', () => M.closeWarnings(dbS, s0)).map((w) => w.key), ['noAttend'],
-  'buổi mới tạo chưa điểm danh ai — phải nhắc, không được throw')
-assert.equal(ok('costDrift s0', () => M.costDrift(dbS, s0)), null, 'chưa chốt thì không lệch')
 ok('joinDues', () => M.joinDues(db, { gender: 'nam' }, M.groupOf(db, 'ALL'), MONTH))
 // CLB rỗng: chốt danh sách không sinh khoản nào, và ngưng hoạt động không hỏi back tiền.
 assert.deepEqual(ok('lockDues', () => M.lockDues(db, MONTH)), { rows: [], used: [] })
@@ -140,7 +118,6 @@ assert.equal(ok('offBackSuggest', () => M.offBackSuggest(db, 'không-có-ai')), 
 ok('payerName', () => M.payerName(db, null, ''))
 assert.equal(M.intOf('1.650.000'), 1650000)
 assert.deepEqual(ok('memberRefs', () => M.memberRefs(db, 'x')), [])
-assert.deepEqual(M.spreadDiff([], 5), {})
 
 assert.equal(ok('remainSessions', () => M.remainSessions(dbS, 'x', MONTH)), 0)
 ok('unitPrice', () => M.unitPrice(dbS, { gender: 'nam' }, M.groupOf(dbS, 'ALL'), MONTH))

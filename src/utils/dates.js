@@ -23,10 +23,6 @@ export const monthTxt = (m) => t('monthPrefix') + ' ' + m.slice(5, 7) + '/' + m.
 export const monthShort = (m) => m.slice(5, 7) + '/' + m.slice(0, 4)
 
 /** Cộng/trừ tháng: ('2026-08', 1) → '2026-09' */
-/** Số tháng từ a đến b, cùng dạng '2026-08'. Âm nếu b trước a. */
-export const monthsBetween = (a, b) =>
-  (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 + (Number(b.slice(5, 7)) - Number(a.slice(5, 7)))
-
 export function addMonth(m, delta) {
   const [y, mo] = m.split('-').map(Number)
   const d = new Date(y, mo - 1 + delta, 1)

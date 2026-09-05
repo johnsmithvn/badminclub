@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import {
-  SHUTTLE_UNIT_FALLBACK, fmt, fmtK, genderTxt, intOf, levelIdx, levelOf, levelStyle, nextLevelStep, payerName,
+  fmt, fmtK, genderTxt, intOf, levelIdx, levelOf, levelStyle, nextLevelStep, payerName,
 } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -118,8 +118,5 @@ assert.equal(genderTxt('nu'), 'Nữ')
 assert.equal(genderTxt('nam'), 'Nam')
 assert.equal(genderTxt(''), 'Nam', 'giá trị lạ rơi về Nam, không ra chuỗi rỗng')
 assert.equal(genderTxt(undefined), 'Nam')
-
-/* ---------- giá cầu khi chưa mua đợt nào ---------- */
-assert.ok(SHUTTLE_UNIT_FALLBACK > 0, 'phải có giá đỡ, không thì CLB mới tính giá thành ra 0')
 
 console.log('money/format check: OK')

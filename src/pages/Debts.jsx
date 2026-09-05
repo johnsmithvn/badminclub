@@ -1034,13 +1034,13 @@ function Advances({ rows, canMoney }) {
                 <Button size="sm" variant={r.repaidAt ? 'ghost' : 'secondary'}
                   icon={r.repaidAt ? 'rotate-ccw' : 'circle-check'}
                   onClick={() => {
-                    if (r.repaidAt) return a.repayAdvance(r.kind, r.id)
+                    if (r.repaidAt) return a.repayAdvance(r.id)
                     const mb = memberOf(db, r.memberId)
                     return setRefundTarget({
                       name: r.name,
                       bankHolder: mb.bankHolder, bankNo: mb.bankNo, bankName: mb.bankName,
                       amount: r.amount,
-                      run: () => a.repayAdvance(r.kind, r.id),
+                      run: () => a.repayAdvance(r.id),
                     })
                   }}>
                   {r.repaidAt ? t('debts.advanceUndo') : t('debts.advanceRepay')}
@@ -1056,7 +1056,7 @@ function Advances({ rows, canMoney }) {
                     desc: t('debts.delDesc'),
                     tone: 'danger',
                     confirmText: t('debts.delOk'),
-                    onConfirm: () => a.deleteAdvance(r.kind, r.id),
+                    onConfirm: () => a.deleteAdvance(r.id),
                   })}
                   style={{ color: 'var(--status-incident)' }}
                 />
