@@ -1653,6 +1653,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ dialog: null, form: {} }))
       toast(t('toast.courtCreated', { name }))
     },
+    deleteCourt: (id) => {
+      up((d) => ({
+        courts: d.courts.filter((c) => c.id !== id),
+      }))
+      toast(t('toast.courtDeleted'))
+    },
     addGroup: () => {
       const f = form()
       const d0 = db()
@@ -1755,14 +1761,18 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           return { ...x, [k]: intOf(v) }
         }),
       })),
-    addShuttleType: () => {
+    addShuttleType: (data) => {
+      const name = (data && data.name) ? data.name.trim() : t('settings.newTypeName')
+      const perTube = (data && data.perTube != null) ? (Number(data.perTube) || cfg.shuttle.perTubeDefault) : cfg.shuttle.perTubeDefault
+      const pricePerTube = (data && data.pricePerTube != null) ? intOf(data.pricePerTube) : 0
+      const active = data && data.active !== undefined ? Boolean(data.active) : true
       up((d) => ({
         shuttleTypes: d.shuttleTypes.concat([{
-          id: uid(), name: t('settings.newTypeName'), perTube: cfg.shuttle.perTubeDefault,
-          pricePerTube: 0, active: true,
+          id: uid(), name, perTube, pricePerTube, active,
         }]),
       }))
       toast(t('toast.typeAdded'))
+      closeDialog()
     },
     deleteShuttleType: (id) => {
       const d = db()

@@ -10,7 +10,7 @@
 // Thiếu icon thì DEV console cảnh báo và ô icon trống, không crash.
 
 import {
-  Activity, ArrowLeft, ArrowRight, Award, Banknote, Building2, Calculator, Camera, CalendarClock,
+  Activity, ArrowLeft, ArrowRight, ArrowUpRight, Award, Banknote, Building2, Calculator, Camera, CalendarClock,
   CalendarDays, CalendarPlus, ChevronUp, ChevronsUpDown, CircleAlert, Copy, Crown, Dumbbell, Eye, HandCoins,
   Lock, Medal, Pencil, Phone, Receipt, Sparkles, Target, UserRoundCog,
   ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, CirclePause,
@@ -27,6 +27,7 @@ export const ICONS = {
   activity: Activity,
   'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
+  'arrow-up-right': ArrowUpRight,
   'alert-circle': CircleAlert,
   award: Award,
   banknote: Banknote,

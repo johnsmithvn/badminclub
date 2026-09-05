@@ -20,6 +20,7 @@ export default function Dialogs() {
     adhoc: AdhocDialog,
     addcourt: AddCourtDialog,
     newCourt: NewCourtDialog,
+    newShuttleType: NewShuttleTypeDialog,
     newGroup: NewGroupDialog,
     purchase: PurchaseDialog,
     check: CheckDialog,
@@ -536,6 +537,59 @@ function NewCourtDialog() {
       />
       <Input label={t('settings.fCourtPrice')} mono suffix={t('units.dong')} value={f.cPrice || ''}
         onChange={(e) => a.setF('cPrice', e.target.value)} />
+    </Shell>
+  )
+}
+
+/* ---------------- thêm loại cầu ---------------- */
+
+function NewShuttleTypeDialog() {
+  const { ui, a } = useApp()
+  const f = ui.form
+  const name = f.typeName || ''
+  const perTube = f.typePerTube ?? '12'
+  const price = f.typePrice || ''
+
+  return (
+    <Shell
+      title={t('settings.shuttleTypeModalTitle')}
+      desc={t('settings.shuttleTypeModalDesc')}
+      width={520}
+      onSubmit={() => a.addShuttleType({
+        name: name.trim(),
+        perTube: Number(perTube) || 12,
+        pricePerTube: Number(price) || 0,
+        active: true,
+      })}
+      submitLabel={t('common.add')}
+      submitIcon="plus"
+      disabled={!name.trim()}
+    >
+      <Input
+        label={t('settings.colType')}
+        placeholder={t('settings.shuttleTypePh')}
+        value={name}
+        onChange={(e) => a.setF('typeName', e.target.value)}
+      />
+      <Input
+        label={t('settings.hPerTube')}
+        mono
+        suffix={t('units.shuttle')}
+        placeholder="12"
+        value={perTube}
+        onChange={(e) => a.setF('typePerTube', e.target.value)}
+      />
+      <Input
+        label={t('settings.hRefPrice')}
+        mono
+        suffix={t('units.dong')}
+        placeholder="0"
+        value={price}
+        onChange={(e) => a.setF('typePrice', e.target.value)}
+      />
+      <div style={{ fontSize: 12, color: '#8b98ab', lineHeight: 1.5, marginTop: -2 }}>
+        {t('settings.shuttleTypeModalNote')}
+      </div>
     </Shell>
   )
 }
