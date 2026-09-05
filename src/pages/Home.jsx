@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Alert, Avatar, Button, Card, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
 import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, MyDebtPanel, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -890,9 +889,9 @@ function Report() {
 
 function MatchTab() {
   const { db } = useApp()
-  const activeMembers = (db.members || []).filter((m) => m.active !== false)
-  const matches = db.matches || []
-  const sessions = db.sessions || []
+  const activeMembers = useMemo(() => (db.members || []).filter((m) => m.active !== false), [db.members])
+  const matches = useMemo(() => db.matches || [], [db.matches])
+  const sessions = useMemo(() => db.sessions || [], [db.sessions])
   const month = db.month
 
   const memberMap = useMemo(() => {

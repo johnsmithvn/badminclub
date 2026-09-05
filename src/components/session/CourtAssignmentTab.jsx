@@ -10,7 +10,7 @@ import {
 } from '#lib/assign.js'
 import {
   expectedScore, evalBalance, getPlayerRating,
-  computeClubCalibration, effectiveRating, confidenceProgress,
+  computeClubCalibration, confidenceProgress,
 } from '#lib/rating.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -74,8 +74,6 @@ export default function CourtAssignmentTab({ s }) {
     }
   }
 
-  // Lấy rating của từng người
-  const getRating = (playerId) => getPlayerInfo(playerId).rawRating
 
   // Danh sách chờ (Pool): những người ĐÃ ĐIỂM DANH CÓ MẶT hoặc EXTRA mà chưa lên sân
   const pool = useMemo(() => {

@@ -159,7 +159,7 @@ export default function Profile() {
       totalSessions: pastSessions.length,
       attendRate,
     }
-  }, [me, db.matches, db.sessions, db.members, db.playerRatings, db.levels])
+  }, [me, db])
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(330px,1fr))', gap: 16, alignItems: 'start' }}>
