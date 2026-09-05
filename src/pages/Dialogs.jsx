@@ -4,7 +4,7 @@ import { AvatarUpload, BankAccountSection, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { WD, dd, genDates, monthTxt } from '#utils/dates.js'
 import { fmtK, genderTxt, intOf, offBackSuggest } from '#lib/money.js'
-import { venueOptions } from '#lib/forms.js'
+import { resolveVenue, venueOptions } from '#lib/forms.js'
 import { planScheduleEdit } from '#lib/schedules.js'
 import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
 import {
@@ -198,8 +198,23 @@ function CourtRows() {
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <Overline>{t('schedules.fCourts')}</Overline>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1.4fr 1.1fr 0.9fr 0.9fr 36px',
+        gap: 8,
+        fontSize: 11,
+        fontWeight: 600,
+        color: 'var(--text-muted)',
+        padding: '0 2px',
+      }}>
+        <div>{t('fund.billVenue')}</div>
+        <div>{t('session.fCourtLabel')}</div>
+        <div>{t('schedules.colFrom')}</div>
+        <div>{t('schedules.colTo')}</div>
+        <div></div>
+      </div>
       {rows.map((r, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.1fr 0.9fr 0.9fr auto', gap: 8, alignItems: 'flex-end' }}>
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.1fr 0.9fr 0.9fr 36px', gap: 8, alignItems: 'center' }}>
           <Select value={r.courtId} options={db.courts.map((c) => ({ value: c.id, label: c.name }))}
             onChange={(e) => a.setRow(i, 'courtId', e.target.value)} />
           <Input placeholder={t('session.courtLabelPh')} value={r.label || ''}
@@ -385,6 +400,11 @@ function BillDialog() {
   const { db, ui, a } = useApp()
   const f = ui.form
   const venues = venueOptions(db)
+  const currentVenue = resolveVenue(db, f.bVenue || '')
+  const selectVenues = venues.slice()
+  if (currentVenue && !selectVenues.includes(currentVenue)) {
+    selectVenues.unshift(currentVenue)
+  }
   return (
     <Shell
       title={t(f.eBillId ? 'fund.billEditTitle' : 'fund.billDlgTitle')}
@@ -396,14 +416,14 @@ function BillDialog() {
           onChange={(e) => a.setF('bDate', e.target.value)} />
         <Input label={t('fund.fMonth')} mono value={f.bMonth || ''} onChange={(e) => a.setF('bMonth', e.target.value)} />
       </div>
-      {/* Địa điểm lấy từ danh sách sân trong Cài đặt, khỏi gõ tay lệch tên mỗi tháng một kiểu.
+      {/* Tên sân lấy từ danh sách sân trong Cài đặt, khỏi gõ tay lệch tên mỗi tháng một kiểu.
           CLB chưa khai sân nào thì vẫn cho gõ, không chặn đường nhập hoá đơn. */}
-      {venues.length
-        ? <Select label={t('fund.billVenue')} value={f.bVenue || ''}
+      {selectVenues.length
+        ? <Select label={t('fund.billVenue')} value={currentVenue || f.bVenue || ''}
             hint={t('fund.billVenueHint')}
-            options={venues.map((v) => ({ value: v, label: v }))}
+            options={selectVenues.map((v) => ({ value: v, label: v }))}
             onChange={(e) => a.setF('bVenue', e.target.value)} />
-        : <Input label={t('fund.billVenue')} hint={t('fund.billVenueEmpty')} value={f.bVenue || ''}
+        : <Input label={t('fund.billVenue')} hint={t('fund.billVenueEmpty')} value={currentVenue || f.bVenue || ''}
             onChange={(e) => a.setF('bVenue', e.target.value)} />}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Input label={t('fund.billAmount')} mono suffix={t('units.dong')} value={String(f.bAmount ?? '')}

@@ -16,6 +16,7 @@ import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration } from '#lib/rating.js'
 import { nextChallengeCode } from '#lib/challenge.js'
+import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -1340,12 +1341,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     /* ---------- sổ quỹ ---------- */
     createCourtBill: () => {
       const f = form()
+      const d = db()
       const amt = intOf(f.bAmount)
-      if (!amt || !(f.bVenue || '').trim()) return toast(t('toast.needVenueAmount'))
+      const venue = resolveVenue(d, f.bVenue || '').trim()
+      if (!amt || !venue) return toast(t('toast.needVenueAmount'))
       up((d) => {
         return {
           courtBills: (d.courtBills || []).concat([{
-            id: uid(), month: f.bMonth, date: f.bDate, venue: f.bVenue, amount: amt,
+            id: uid(), month: f.bMonth, date: f.bDate, venue, amount: amt,
             payerId: f.bPayer || null, payer: '', note: f.bNote || '',
           }]),
         }
@@ -1363,11 +1366,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      */
     saveCourtBill: () => {
       const f = form()
+      const d = db()
       const amt = intOf(f.bAmount)
-      if (!amt || !(f.bVenue || '').trim()) return toast(t('toast.needVenueAmount'))
+      const venue = resolveVenue(d, f.bVenue || '').trim()
+      if (!amt || !venue) return toast(t('toast.needVenueAmount'))
       up((d) => ({
         courtBills: (d.courtBills || []).map((x) => (x.id === f.eBillId
-          ? { ...x, month: f.bMonth, date: f.bDate, venue: f.bVenue, amount: amt, payerId: f.bPayer || null, note: f.bNote || '' }
+          ? { ...x, month: f.bMonth, date: f.bDate, venue, amount: amt, payerId: f.bPayer || null, note: f.bNote || '' }
           : x)),
       }))
       upUi(() => ({ dialog: null, form: {} }))
@@ -2295,8 +2300,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           })
         }
 
+        const sessionMatches = (d.matches || []).filter((x) => x.sessionId === targetSid)
+        const matchCode = chal ? chal.code : `M-${String(sessionMatches.length + 1).padStart(2, '0')}`
+
         newMatch = {
           id: matchId,
+          code: matchCode,
           sessionId: targetSid || null,
           courtIdx: targetCi !== undefined && targetCi !== null ? targetCi : 0,
           teamA,

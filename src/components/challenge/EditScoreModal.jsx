@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
 import { playerName } from '#lib/money.js'
+import { matchCodeOf } from '#lib/rating.js'
 import { t } from '#i18n'
 
 export default function EditScoreModal({ match, onClose, onSaved }) {
@@ -102,7 +103,7 @@ export default function EditScoreModal({ match, onClose, onSaved }) {
         <div style={S.header}>
           <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
             <div style={S.title}>
-              {t('matchSearch.editTitle', { code: match.code || match.id })}
+              {t('matchSearch.editTitle', { code: matchCodeOf(db, match) })}
             </div>
             <div style={S.subtitle}>{t('matchSearch.editDesc')}</div>
           </div>

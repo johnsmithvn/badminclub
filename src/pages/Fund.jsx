@@ -340,7 +340,7 @@ function RowActions({ row, canMoney }) {
       {edit && (
         <IconButton icon="settings-2" size="sm" variant="ghost" label={t('fund.editRow')}
           onClick={(e) => open(e, () => (edit.kind === 'bill'
-            ? a.openDialog('bill', editBillForm(db.courtBills.find((x) => x.id === edit.id)))
+            ? a.openDialog('bill', editBillForm(db.courtBills.find((x) => x.id === edit.id), db))
             : a.openDialog('ledger', editLedgerForm(db.manual.find((x) => x.id === edit.id)))))} />
       )}
       {undo && (
