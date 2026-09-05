@@ -2309,6 +2309,26 @@
     "predClose": "sát điểm",
     "chartAriaLabel": "Biểu đồ rating của {{name}}",
     "wonStatus": "Thắng",
-    "lostStatus": "Thua"
+    "lostStatus": "Thua",
+    "bountyRewardNote": "Ai hạ được nhận 40 XP thưởng. Rating vẫn tính bình thường.",
+    "topChangesTitle": "Rating đổi nhiều nhất buổi",
+    "topChangesSub": "8 trận gần nhất",
+    "achievementsTitle": "Thành tựu mới trong mùa",
+    "achievementsSub": "14 lượt đạt",
+    "lastSessionDelta": "Đổi buổi cuối",
+    "reasonUpsetWon": "Thắng đội mạnh hơn trong trận bất ngờ",
+    "reasonUpsetLost": "Được dự đoán thắng nhưng thua",
+    "reasonTightWon": "Thắng trận đấu xuất sắc",
+    "reasonTightLost": "Thua trận sát nút",
+    "sampleGuestUpset": "Khách, thắng đội mạnh hơn 200 rating",
+    "sampleTeammateUpset": "Cùng đội với An trong trận bất ngờ",
+    "sampleExpectedLoss": "Được dự đoán thắng 74% nhưng thua",
+    "sampleTeammateLoss": "Cùng đội với Đạt",
+    "achieveStreak": "Thắng {{n}} liền",
+    "achieveMatches": "{{n}} trận",
+    "achieveBeatStronger": "Hạ đối thủ mạnh hơn",
+    "achieveClutchKing": "Vua trận sát điểm",
+    "wonCount": "{{n}} thắng",
+    "codeChallenge": "Kèo {{code}}"
   }
 }
