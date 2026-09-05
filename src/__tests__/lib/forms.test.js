@@ -82,8 +82,6 @@ assert.equal(ef.eId, db.members[0].id)
 assert.deepEqual(ef.eGroups, db.members[0].groupIds, 'mở dialog phải tích sẵn đúng nhóm đang có')
 assert.equal(typeof ef.eNote, 'string', 'có trường eNote')
 assert.equal(typeof memberForm(db).mNote, 'string', 'có trường mNote')
-assert.equal(ef.eWhenGroup, 'next',
-  'đổi nhóm mặc định TỪ THÁNG SAU: tháng này có thể đã đóng quỹ rồi')
 
 /* ---------- form khách ---------- */
 

@@ -707,14 +707,6 @@ function EditMemberDialog() {
         </div>
       </div>
 
-      <Select label={t('members.fWhenGroup')} value={f.eWhenGroup || 'next'}
-        hint={t('members.fWhenGroupHint')}
-        options={[
-          { value: 'next', label: t('members.groupNext') },
-          { value: 'now', label: t('members.groupNow') },
-        ]}
-        onChange={(e) => a.setF('eWhenGroup', e.target.value)} />
-
       {/* Thông tin tài khoản ngân hàng & QR nhận tiền */}
       <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
         <BankAccountSection
@@ -731,9 +723,11 @@ function EditMemberDialog() {
         />
       </div>
 
-      <Note tone={(f.eGroups || []).length ? undefined : 'warn'}>
-        {(f.eGroups || []).length ? t('members.editGroupNote') : t('members.editGroupNone')}
-      </Note>
+      {!(f.eGroups || []).length && (
+        <Note tone="warn">
+          {t('members.editGroupNone')}
+        </Note>
+      )}
     </Shell>
   )
 }

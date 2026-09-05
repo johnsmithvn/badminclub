@@ -80,8 +80,7 @@ export const memberForm = (db) => ({
 const lv1 = (db) => (db.levels || [])[1] || (db.levels || [])[0] || ''
 
 /**
- * Form sửa thành viên. `eGroups` là nhóm cố định, `eWhenGroup` quyết định áp dụng từ tháng nào —
- * mặc định THÁNG SAU vì tháng này có thể đã đóng tiền rồi, đổi ngay là phải xử lý khoản đã thu.
+ * Form sửa thành viên. `eGroups` là nhóm cố định trong hồ sơ.
  * Trình độ áp dụng ngay lập tức cho các buổi tiếp theo.
  */
 export const editMemberForm = (m) => ({
@@ -90,7 +89,7 @@ export const editMemberForm = (m) => ({
   eAvatarUrl: m.avatarUrl || '', eQrUrl: m.qrUrl || '',
   eBankHolder: m.bankHolder || '', eBankNo: m.bankNo || '', eBankName: m.bankName || '',
   eBankAccounts: (m.bankAccounts || []).slice(),
-  eGroups: (m.groupIds || []).slice(), eWhenGroup: 'next',
+  eGroups: (m.groupIds || []).slice(),
 })
 
 /** Form thêm sân cho một buổi. */

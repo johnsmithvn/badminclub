@@ -780,7 +780,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const was = d0.members.find((m) => m.id === f.eId)
       if (!was) return
       const gs = f.eGroups || []
-      const gMonth = f.eWhenGroup === 'now' ? d0.month : addMonth(d0.month, 1)
+      const gMonth = addMonth(d0.month, 1)
 
       const mb = {
         ...was,
