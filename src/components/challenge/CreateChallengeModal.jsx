@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
 import { expectedScore, calcEloDelta, getPlayerRating } from '#lib/rating.js'
+import { playerName } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -90,7 +91,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
     }
   }
 
-  const memberNameOf = (id) => (db.members.find((m) => m.id === id) || {}).name || id
+  const memberNameOf = (id) => playerName(db, id)
 
   return (
     <div style={S.overlay}>

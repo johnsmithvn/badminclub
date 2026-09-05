@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
+import { playerName } from '#lib/money.js'
 import { t } from '#i18n'
 
 export default function EditScoreModal({ match, onClose, onSaved }) {
@@ -19,9 +20,8 @@ export default function EditScoreModal({ match, onClose, onSaved }) {
   const teamA = match.teamA || []
   const teamB = match.teamB || []
 
-  const memberNameOf = (id) => (db.members.find((m) => m.id === id) || {}).name || id
-  const nameTeamA = teamA.map(memberNameOf).join(' · ') || t('challenge.teamA')
-  const nameTeamB = teamB.map(memberNameOf).join(' · ') || t('challenge.teamB')
+  const nameTeamA = teamA.map((id) => playerName(db, id)).join(' · ') || t('challenge.teamA')
+  const nameTeamB = teamB.map((id) => playerName(db, id)).join(' · ') || t('challenge.teamB')
 
   // Cập nhật điểm set
   const updateScore = (setIdx, teamIdx, delta) => {

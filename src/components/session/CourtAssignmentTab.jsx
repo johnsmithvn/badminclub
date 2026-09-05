@@ -3,7 +3,7 @@ import { Button, Card, Icon, Input, Select, Switch } from '#ds'
 import { LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { elapsedMin, useClock } from '#hooks/useClock.js'
-import { courtOf } from '#lib/money.js'
+import { courtOf, playerName } from '#lib/money.js'
 import {
   ASSIGN_MODES, activeCourtIdxs, courtSlotIds,
   sessionPlayers, slotIds,
@@ -124,7 +124,7 @@ export default function CourtAssignmentTab({ s }) {
     })
   }
 
-  const memberNameOf = (id) => (db.members.find((m) => m.id === id) || {}).name || id
+  const memberNameOf = (id) => playerName(db, id)
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>

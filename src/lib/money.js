@@ -51,6 +51,26 @@ export const payerName = (db, payerId, legacy) => {
   return (m && m.name) || legacy || t('fund.payerFund')
 }
 export const guestOf = (db, id) => db.guests.find((g) => g.id === id) || { name: t('common.unknown') }
+/** Tên của một người chơi bất kỳ trong CLB (thành viên hoặc khách giao lưu). */
+export const playerName = (db, id) => {
+  if (!id) return ''
+  const m = (db?.members || []).find((x) => x.id === id)
+  if (m?.name) return m.name
+  const g = (db?.guests || []).find((x) => x.id === id)
+  if (g?.name) return g.name
+  const sg = (db?.sessionGuests || []).find((x) => x.id === id || x.guestId === id)
+  if (sg) {
+    if (sg.guestId) {
+      const g2 = (db?.guests || []).find((x) => x.id === sg.guestId)
+      if (g2?.name) return g2.name
+    }
+    if (sg.memberId) {
+      const m2 = (db?.members || []).find((x) => x.id === sg.memberId)
+      if (m2?.name) return m2.name
+    }
+  }
+  return id
+}
 export const sessionOf = (db, id) => db.sessions.find((s) => s.id === id)
 
 export function groupOf(db, id) {

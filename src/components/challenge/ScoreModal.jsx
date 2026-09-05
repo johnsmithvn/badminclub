@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
 import { calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
+import { playerName } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -21,21 +22,30 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
     return []
   }, [challenge, court])
 
-  const bestOf = challenge?.bestOf || 3
-  const numSets = bestOf === 1 ? 1 : 3
-
-  // State các set: [[21, 19], [18, 21], [21, 15]]
+  // Trận chia sân / phong trào mặc định 1 set (1 ván 21đ). Kèo thách đấu BO3 mới mặc định 3 set.
+  const isChallengeBo3 = challenge?.bestOf === 3
   const [sets, setSets] = useState(() => {
-    const initial = []
-    for (let i = 0; i < numSets; i++) {
-      initial.push([21, 0])
+    if (isChallengeBo3) {
+      return [[21, 0], [0, 21], [21, 0]]
     }
-    return initial
+    return [[21, 0]]
   })
 
-  const memberNameOf = (id) => (db.members.find((m) => m.id === id) || {}).name || id
-  const nameTeamA = teamA.map(memberNameOf).join(' · ') || t('challenge.teamA')
-  const nameTeamB = teamB.map(memberNameOf).join(' · ') || t('challenge.teamB')
+  const nameTeamA = teamA.map((id) => playerName(db, id)).join(' · ') || t('challenge.teamA')
+  const nameTeamB = teamB.map((id) => playerName(db, id)).join(' · ') || t('challenge.teamB')
+
+  // Chuyển đổi giữa 1 Set và 3 Set
+  const setMatchFormat = (mode) => {
+    if (mode === 'single') {
+      setSets([[sets[0]?.[0] ?? 21, sets[0]?.[1] ?? 0]])
+    } else {
+      setSets((prev) => {
+        const next = [...prev]
+        while (next.length < 3) next.push([21, 0])
+        return next
+      })
+    }
+  }
 
   // Điều chỉnh điểm set
   const updateScore = (setIdx, teamIdx, delta) => {
@@ -109,15 +119,14 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
   const ratingDeltaPreview = useMemo(() => {
     if (!playerDeltasPreview) return null
     const { deltas, multiplier } = playerDeltasPreview
-    const nameOf = (id) => (db.members.find((m) => m.id === id) || {}).name || id
     const deltasA = teamA.map((id) => ({
       id,
-      name: nameOf(id),
+      name: playerName(db, id),
       delta: deltas?.[id] || 0,
     }))
     const deltasB = teamB.map((id) => ({
       id,
-      name: nameOf(id),
+      name: playerName(db, id),
       delta: deltas?.[id] || 0,
     }))
     return {
@@ -125,7 +134,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       deltasB,
       mult: multiplier || 1,
     }
-  }, [playerDeltasPreview, teamA, teamB, db.members])
+  }, [playerDeltasPreview, teamA, teamB, db])
 
   const handleSave = () => {
     if (!winnerTeam || submitting) return
@@ -191,64 +200,145 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
             </div>
           </div>
 
+          {/* Tuỳ chọn số set: 1 Set (phong trào) vs 3 Set (BO3) */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary, #A8B7CB)' }}>
+              {t('scoreModal.matchFormat')}
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => setMatchFormat('single')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: 6,
+                  border: `1px solid ${sets.length === 1 ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--border-subtle, #22304A)'}`,
+                  background: sets.length === 1 ? 'rgba(95,219,211,0.14)' : 'var(--surface-card, #141D2E)',
+                  color: sets.length === 1 ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-muted, #8494AA)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('scoreModal.format1Set')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMatchFormat('bo3')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: 6,
+                  border: `1px solid ${sets.length === 3 ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--border-subtle, #22304A)'}`,
+                  background: sets.length === 3 ? 'rgba(95,219,211,0.14)' : 'var(--surface-card, #141D2E)',
+                  color: sets.length === 3 ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-muted, #8494AA)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('scoreModal.format3Set')}
+              </button>
+            </div>
+          </div>
+
           {/* Stepper từng set */}
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gap: 12 }}>
             {sets.map((set, setIdx) => {
               const [aScore, bScore] = set
               const aWon = aScore > bScore
               const bWon = bScore > aScore
               return (
-                <div key={setIdx} style={S.setRow}>
-                  <span style={S.setLabel}>{t('scoreModal.setLabel', { n: setIdx + 1 })}</span>
-                  
-                  {/* Team A Stepper */}
-                  <div style={S.stepper}>
+                <div key={setIdx} style={{ display: 'grid', gap: 6 }}>
+                  <div style={S.setRow}>
+                    <span style={S.setLabel}>{t('scoreModal.setLabel', { n: setIdx + 1 })}</span>
+                    
+                    {/* Team A Stepper */}
+                    <div style={S.stepper}>
+                      <button
+                        type="button"
+                        onClick={() => updateScore(setIdx, 0, -1)}
+                        style={S.stepBtn}
+                      >−</button>
+                      <input
+                        type="number"
+                        value={aScore}
+                        onChange={(e) => setScoreDirect(setIdx, 0, e.target.value)}
+                        style={{
+                          ...S.scoreBox,
+                          borderColor: aWon ? 'var(--teal-700, #00786F)' : 'var(--border-default, #2E3E5C)',
+                          color: aWon ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-primary, #E9EFF7)',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateScore(setIdx, 0, 1)}
+                        style={S.stepBtn}
+                      >+</button>
+                    </div>
+
+                    {/* Nút đổi điểm / đổi bên */}
                     <button
                       type="button"
-                      onClick={() => updateScore(setIdx, 0, -1)}
-                      style={S.stepBtn}
-                    >−</button>
-                    <input
-                      type="number"
-                      value={aScore}
-                      onChange={(e) => setScoreDirect(setIdx, 0, e.target.value)}
-                      style={{
-                        ...S.scoreBox,
-                        borderColor: aWon ? 'var(--teal-700, #00786F)' : 'var(--border-default, #2E3E5C)',
-                        color: aWon ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-primary, #E9EFF7)',
+                      title={t('scoreModal.swapScore')}
+                      onClick={() => {
+                        setSets((prev) => prev.map((s, i) => (i === setIdx ? [s[1], s[0]] : s)))
                       }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateScore(setIdx, 0, 1)}
-                      style={S.stepBtn}
-                    >+</button>
+                      style={S.swapBtn}
+                    >
+                      ⇄
+                    </button>
+
+                    {/* Team B Stepper */}
+                    <div style={S.stepper}>
+                      <button
+                        type="button"
+                        onClick={() => updateScore(setIdx, 1, -1)}
+                        style={S.stepBtn}
+                      >−</button>
+                      <input
+                        type="number"
+                        value={bScore}
+                        onChange={(e) => setScoreDirect(setIdx, 1, e.target.value)}
+                        style={{
+                          ...S.scoreBox,
+                          borderColor: bWon ? 'var(--teal-700, #00786F)' : 'var(--border-default, #2E3E5C)',
+                          color: bWon ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-primary, #E9EFF7)',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateScore(setIdx, 1, 1)}
+                        style={S.stepBtn}
+                      >+</button>
+                    </div>
                   </div>
 
-                  <span style={{ color: 'var(--text-disabled, #5B6B81)', fontWeight: 600 }}>–</span>
-
-                  {/* Team B Stepper */}
-                  <div style={S.stepper}>
-                    <button
-                      type="button"
-                      onClick={() => updateScore(setIdx, 1, -1)}
-                      style={S.stepBtn}
-                    >−</button>
-                    <input
-                      type="number"
-                      value={bScore}
-                      onChange={(e) => setScoreDirect(setIdx, 1, e.target.value)}
-                      style={{
-                        ...S.scoreBox,
-                        borderColor: bWon ? 'var(--teal-700, #00786F)' : 'var(--border-default, #2E3E5C)',
-                        color: bWon ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-primary, #E9EFF7)',
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateScore(setIdx, 1, 1)}
-                      style={S.stepBtn}
-                    >+</button>
+                  {/* Tỷ số nhanh */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', paddingLeft: 4 }}>
+                    <span style={{ fontSize: 11.5, color: 'var(--text-muted, #8494AA)' }}>
+                      {t('scoreModal.quickPresets')}:
+                    </span>
+                    {[
+                      [21, 19],
+                      [21, 18],
+                      [21, 15],
+                      [21, 12],
+                      [21, 0],
+                    ].map(([pa, pb]) => (
+                      <button
+                        key={`${pa}-${pb}`}
+                        type="button"
+                        onClick={() => {
+                          setSets((prev) => prev.map((s, i) => {
+                            if (i !== setIdx) return s
+                            return s[1] > s[0] ? [pb, pa] : [pa, pb]
+                          }))
+                        }}
+                        style={S.presetBtn}
+                      >
+                        {pa}–{pb}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )
@@ -260,7 +350,10 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
             <div style={S.summaryRow}>
               <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('scoreModal.result')}</span>
               <span style={{ color: winnerTeam ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-primary, #E9EFF7)', fontWeight: 600 }}>
-                {setsWon.wonA} – {setsWon.wonB}
+                {sets.length === 1
+                  ? `${sets[0][0]} – ${sets[0][1]}`
+                  : `${setsWon.wonA} – ${setsWon.wonB} (${sets.map(([a, b]) => `${a}-${b}`).join(', ')})`
+                }
                 {winnerTeam && ` · ${winnerTeam === 'A' ? nameTeamA : nameTeamB} ${t('scoreModal.won')}`}
               </span>
             </div>
@@ -270,7 +363,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                   <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('scoreModal.ratingDelta')}</span>
                   {ratingDeltaPreview.mult > 1 && (
                     <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'rgba(95,219,211,0.12)', color: 'var(--status-transit-fg, #5FDBD3)', fontWeight: 600, display: 'inline-block', width: 'fit-content' }}>
-                      {t('rating.multiplier', { val: ratingDeltaPreview.mult.toFixed(2) })}
+                      {t('rating.multiplier', { mult: ratingDeltaPreview.mult.toFixed(2), val: ratingDeltaPreview.mult.toFixed(2) })}
                     </span>
                   )}
                 </div>
@@ -408,6 +501,31 @@ const S = {
     color: 'var(--text-secondary, #A8B7CB)',
     fontSize: 16,
     fontWeight: 600,
+    cursor: 'pointer',
+  },
+  swapBtn: {
+    width: 32,
+    height: 32,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'transparent',
+    border: '1px solid var(--border-subtle, #22304A)',
+    borderRadius: 6,
+    color: 'var(--text-muted, #8494AA)',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 600,
+    transition: 'all 0.15s ease',
+  },
+  presetBtn: {
+    padding: '3px 8px',
+    borderRadius: 4,
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-subtle, #22304A)',
+    color: 'var(--text-secondary, #A8B7CB)',
+    fontSize: 11.5,
+    fontFamily: '"IBM Plex Mono", monospace',
     cursor: 'pointer',
   },
   scoreBox: {

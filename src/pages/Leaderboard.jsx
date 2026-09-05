@@ -3,6 +3,7 @@ import { Button, Card, Icon, Input, Select } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING } from '#lib/rating.js'
+import { playerName } from '#lib/money.js'
 import { searchMatches, headToHeadMatrix, neverMetPairs } from '#lib/matchSearch.js'
 import { RANK_THEMES, DEFAULT_RANK_THEME, getMemberBadge } from '#data/rankThemes.js'
 import { useMobile } from '#hooks/useMobile.js'
@@ -74,7 +75,7 @@ export default function Leaderboard() {
     return map
   }, [activeMembers])
 
-  const memberNameOf = (id) => (memberMap[id] || {}).name || id
+  const memberNameOf = (id) => playerName(db, id)
 
   // -------------------------------------------------------------
   // TAB 1: Dữ liệu Bảng xếp hạng Mùa giải

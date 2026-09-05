@@ -8,7 +8,7 @@ import {
   perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
   sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
   adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
-  adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember,
+  adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -2364,8 +2364,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const winnerTeam = aWins > bWins ? 'A' : bWins > aWins ? 'B' : null
       const aWon = winnerTeam === 'A'
 
-      const namesA = teamA.map((id) => memberOf(d0, id).name).join(' · ')
-      const namesB = teamB.map((id) => memberOf(d0, id).name).join(' · ')
+      const namesA = teamA.map((id) => playerName(d0, id)).join(' · ')
+      const namesB = teamB.map((id) => playerName(d0, id)).join(' · ')
       const winner = aWon ? namesA : (winnerTeam === 'B' ? namesB : '—')
       const loser = aWon ? namesB : (winnerTeam === 'B' ? namesA : '—')
 
@@ -2401,7 +2401,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
         ;[...teamA, ...teamB].forEach((id) => {
           if (ratingsMap[id] === undefined) {
-            const m = (d0.members || []).find((x) => x.id === id)
+            const m = (d0.members || []).find((x) => x.id === id) || (d0.guests || []).find((x) => x.id === id)
             ratingsMap[id] = m?.level ? initialRatingOf(m.level, d0.levels) : DEFAULT_RATING
             gamesCountMap[id] = 0
           }
@@ -2422,7 +2422,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           delta = deltas[teamA[0]] || 0
           const nowIso = new Date().toISOString()
           teamA.forEach((id) => {
-            const memA = (d0.members || []).find((x) => x.id === id)
+            const memA = (d0.members || []).find((x) => x.id === id) || (d0.guests || []).find((x) => x.id === id)
             const seedA = memA?.level ? initialRatingOf(memA.level, d0.levels) : DEFAULT_RATING
             const cur = playerRatings[id] || { id: uid(), rating: seedA, gamesCount: 0, winsCount: 0, lossesCount: 0 }
             const newR = cur.rating + (deltas[id] || 0)
@@ -2439,7 +2439,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             }
           })
           teamB.forEach((id) => {
-            const memB = (d0.members || []).find((x) => x.id === id)
+            const memB = (d0.members || []).find((x) => x.id === id) || (d0.guests || []).find((x) => x.id === id)
             const seedB = memB?.level ? initialRatingOf(memB.level, d0.levels) : DEFAULT_RATING
             const cur = playerRatings[id] || { id: uid(), rating: seedB, gamesCount: 0, winsCount: 0, lossesCount: 0 }
             const newR = cur.rating + (deltas[id] || 0)

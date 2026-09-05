@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
-import { courtOf } from '#lib/money.js'
+import { courtOf, playerName } from '#lib/money.js'
 import { expectedScore, getPlayerRating } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { useMobile } from '#hooks/useMobile.js'
@@ -28,7 +28,7 @@ export default function SessionMatchesTab({ s }) {
       .sort((c1, c2) => (c2.createdAt || '').localeCompare(c1.createdAt || ''))
   }, [db.challenges, s.id])
 
-  const memberNameOf = (id) => (db.members.find((m) => m.id === id) || {}).name || id
+  const memberNameOf = (id) => playerName(db, id)
 
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
 
