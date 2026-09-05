@@ -45,7 +45,7 @@ export const SCHEMA_GROUPS = [
           f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('name', 'text'), f('short', 'text'),
           f('weekday', 'int 0-6'), f('fee_male', 'bigint'), f('fee_female', 'bigint'),
           f('unit_male', 'bigint'), f('unit_female', 'bigint'),
-          f('start_time', 'time'), f('end_time', 'time'), f('quota', 'int'), f('active', 'bool'),
+          f('start_time', 'time'), f('end_time', 'time'), f('active', 'bool'),
         ],
       },
       {
@@ -102,11 +102,7 @@ export const SCHEMA_GROUPS = [
         fields: [
           f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('group_id', 'uuid null', 'FK'),
           f('schedule_id', 'uuid null', 'FK'), f('date', 'date'), f('status', 'enum'),
-          f('shuttle_mode', 'enum'), f('tubes_opened', 'int'), f('loose_units', 'int'),
-          f('shuttle_used', 'int'), f('shuttle_est', 'bool'), f('closed_at', 'timestamptz null'),
-          f('cost_court', 'bigint null'), f('cost_shuttle_unit', 'bigint null'), f('cost_shuttle', 'bigint null'),
-          f('cost_total', 'bigint null'), f('cost_guest_rev', 'bigint null'), f('cost_heads', 'int null'),
-          f('cost_frozen_at', 'timestamptz null'),
+          f('closed_at', 'timestamptz null'),
         ],
       },
       {
@@ -192,44 +188,6 @@ export const SCHEMA_GROUPS = [
           f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('month', 'char(7)'),
           f('paid_on', 'date'), f('venue', 'text'), f('amount', 'bigint'),
           f('payer_member_id', 'uuid null', 'FK'), f('payer', 'text null'), f('note', 'text null'),
-        ],
-      },
-    ],
-  },
-  {
-    groupKey: 'Stock',
-    color: 'var(--status-delivered)',
-    tables: [
-      {
-        name: 'shuttle_types',
-        fields: [
-          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('name', 'text'),
-          f('per_tube', 'int'), f('price_per_tube', 'bigint null'), f('active', 'bool'),
-        ],
-      },
-      {
-        name: 'shuttle_purchases',
-        fields: [
-          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('date', 'date'),
-          f('type_id', 'uuid', 'FK'), f('tubes', 'int'), f('extra_units', 'int'),
-          f('total_units', 'int'), f('price_per_tube', 'bigint null'), f('total_amount', 'bigint'),
-          f('payer_member_id', 'uuid null', 'FK'), f('payer', 'text null'),
-        ],
-      },
-      {
-        name: 'shuttle_movements',
-        fields: [
-          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('type_id', 'uuid', 'FK'),
-          f('date', 'date'), f('direction', 'enum in/out'), f('qty', 'int'),
-          f('ref_type', 'text'), f('ref_id', 'uuid null'), f('balance_after', 'int'),
-        ],
-      },
-      {
-        name: 'stock_checks',
-        fields: [
-          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('date', 'date'),
-          f('month', 'char(7)'), f('counted', 'int'), f('system_left', 'int'),
-          f('diff', 'int'), f('spread_sessions', 'int'),
         ],
       },
     ],

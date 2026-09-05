@@ -48,13 +48,6 @@ assert.equal(ops1[0].rows.length, 1)
 assert.equal(ops1[0].rows[0].member_id, mid)
 assert.equal(ops1[0].conflict, 'session_id,member_id')
 
-// `sessions.shuttle_mode` là enum NOT NULL (0001_init) nhưng cột đã hết nghĩa từ lúc bỏ kho cầu —
-// client không còn khái niệm này. Gửi NULL tường minh thì DEFAULT của Postgres KHÔNG chạy, insert
-// bị từ chối và cả hàng đợi đồng bộ kẹt: không tạo được buổi nào nữa. Bỏ assert này sau khi
-// migration DROP COLUMN chạy xong.
-assert.ok(rows.sessions.every((r) => r.shuttle_mode === 'quota'),
-  'mọi buổi phải xuống DB một enum hợp lệ, không thì insert vỡ vì NOT NULL')
-
 // Đóng băng TỪNG DÒNG SÂN (0012) cũng phải xuống DB thật. Không xuống thì F5 xong sổ quỹ đọc lại
 // giá sân hiện tại và dòng chi của buổi đã chốt nhảy số — đúng con bug 0012 sinh ra để chặn.
 const dRow = clone(db)

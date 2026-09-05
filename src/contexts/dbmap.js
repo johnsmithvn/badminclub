@@ -320,10 +320,7 @@ export function toRows(db, ctx) {
       fee_male: g.feeNam, fee_female: g.feeNu, start_time: g.from, end_time: g.to,
       // Đơn giá một buổi CLB tự đặt. 0 và null đều nghĩa là "để app tự chia" → ghi null cho gọn.
       unit_male: g.unitNam || null, unit_female: g.unitNu || null,
-      // `member_groups.quota` (định mức cầu/buổi) là cột NOT NULL còn lại của module Kho cầu
-      // đã bỏ. Client không còn khái niệm này — ghi số mặc định của schema và quên nó đi,
-      // cùng cách xử lý `weekday` ở trên.
-      quota: 24, active: g.active !== false,
+      active: g.active !== false,
     })
     ;(g.courtIds || []).forEach((court) => put('group_courts', { group_id: g.id, court_id: court }))
   })
@@ -366,11 +363,6 @@ export function toRows(db, ctx) {
       id: s.id, club_id: cid, group_id: s.groupId === 'ALL' ? null : uu(s.groupId),
       schedule_id: uu(s.scheduleId),
       date: s.date, status: s.status, note: s.note || null,
-      // `sessions.shuttle_mode` là enum NOT NULL (0001_init) và cột đã hết nghĩa từ lúc bỏ kho
-      // cầu — client không còn khái niệm này. Gửi NULL tường minh thì DEFAULT của Postgres KHÔNG
-      // chạy, insert bị từ chối và cả hàng đợi đồng bộ kẹt. Ghi giá trị mặc định của schema rồi
-      // quên nó đi, cùng cách xử lý `member_groups.quota`. Bỏ được sau khi DROP COLUMN.
-      shuttle_mode: 'quota',
       closed_at: s.closedAt || null, group_mode: !!(db.groupMode || {})[s.id],
     })
     const mins = (db.courtMin || {})[s.id] || {}
