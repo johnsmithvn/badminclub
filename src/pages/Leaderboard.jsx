@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Button, Card, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf } from '#lib/rating.js'
+import { confidenceOf, confidenceProgress, computeClubCalibration, rankTopCrossGenderPlayers, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf } from '#lib/rating.js'
 import { playerName, courtOf } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
 import { searchMatches, headToHeadMatrix, neverMetPairs } from '#lib/matchSearch.js'
@@ -240,6 +240,26 @@ export default function Leaderboard() {
     return computeClubCalibration(db.matches || [], memberMap)
   }, [db.matches, memberMap])
 
+  const topCrossPlayers = useMemo(() => {
+    return rankTopCrossGenderPlayers(calibrationStats.topCrossGenderPlayers, memberMap)
+  }, [calibrationStats.topCrossGenderPlayers, memberMap])
+
+  const crossOverall = useMemo(() => {
+    const buckets = calibrationStats.buckets || {}
+    let totalSample = 0
+    let totalFemaleWins = 0
+    Object.values(buckets).forEach((b) => {
+      totalSample += b.sampleSize || 0
+      totalFemaleWins += b.femaleWins || 0
+    })
+    const winRate = totalSample > 0 ? Math.round((totalFemaleWins / totalSample) * 100) : 0
+    return {
+      totalSample,
+      totalFemaleWins,
+      winRate,
+    }
+  }, [calibrationStats.buckets])
+
   // Thống kê Mùa giải cho Tab 1
   const seasonStats = useMemo(() => {
     const matches = db.matches || []
@@ -464,7 +484,8 @@ export default function Leaderboard() {
                   setChallengeModalOpen(true)
                 }}
               >
-                ⚔️ {t('leaderboard.challengeMember', { name: seasonStats.bountyPlayer.name })}
+                <Icon name="target" size={14} />
+                <span>{t('leaderboard.challengeMember', { name: seasonStats.bountyPlayer.name })}</span>
               </button>
             </div>
           )}
@@ -820,7 +841,8 @@ export default function Leaderboard() {
                       }}
                       style={{ ...S.challengeBtn, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                     >
-                      ⚔️ {t('leaderboard.challengeMember', { name: currentMember.name })}
+                      <Icon name="target" size={14} />
+                      <span>{t('leaderboard.challengeMember', { name: currentMember.name })}</span>
                     </button>
                   </div>
                 </div>
@@ -1084,20 +1106,6 @@ export default function Leaderboard() {
                   onChange={(e) => setQualityFilter(e.target.value)}
                   style={{ width: isMobile ? '100%' : 180 }}
                 />
-                {/* Nút Gạ kèo giữa 2 người chơi khi đã chọn cả 2 */}
-                {playerA && playerB && playerA !== playerB && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInitialTeamA([playerA])
-                      setInitialTeamB([playerB])
-                      setChallengeModalOpen(true)
-                    }}
-                    style={{ ...S.challengeBtn, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
-                  >
-                    ⚔️ {t('matchSearch.challengeBetween')}
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -1220,16 +1228,19 @@ export default function Leaderboard() {
                           {/* Cột Dự đoán */}
                           <div style={{ ...S.tdCell, textAlign: 'center' }}>
                             {isUpset ? (
-                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(240,183,92,.18)', color: 'var(--status-delayed-fg)', border: '1px solid rgba(240,183,92,.4)', whiteSpace: 'nowrap' }}>
-                                🔥 {t('leaderboard.predUpset')}
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(240,183,92,.18)', color: 'var(--status-delayed-fg)', border: '1px solid rgba(240,183,92,.4)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <Icon name="flame" size={12} />
+                                <span>{t('leaderboard.predUpset')}</span>
                               </span>
                             ) : isClose ? (
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(95,219,211,.14)', color: 'var(--status-transit-fg)', border: '1px solid rgba(95,219,211,.3)', whiteSpace: 'nowrap' }}>
-                                ⚡ {t('leaderboard.predClose')}
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(95,219,211,.14)', color: 'var(--status-transit-fg)', border: '1px solid rgba(95,219,211,.3)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <Icon name="zap" size={12} />
+                                <span>{t('leaderboard.predClose')}</span>
                               </span>
                             ) : (
-                              <span style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', borderRadius: 4, background: 'var(--surface-sunken, rgba(0,0,0,0.04))', border: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>
-                                ✓ {t('leaderboard.predCorrect')}
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', borderRadius: 4, background: 'var(--surface-sunken, rgba(0,0,0,0.04))', border: '1px solid var(--border-subtle)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <Icon name="check" size={12} />
+                                <span>{t('leaderboard.predCorrect')}</span>
                               </span>
                             )}
                           </div>
@@ -1241,10 +1252,20 @@ export default function Leaderboard() {
                               alignItems: 'center',
                               gap: 4,
                               background: isChallenge ? 'rgba(0,178,169,.12)' : 'var(--surface-sunken, rgba(0,0,0,0.04))',
-                              borderColor: isChallenge ? 'var(--teal-700)' : 'var(--border-subtle)',
+                              borderColor: isChallenge ? 'var(--action-primary-bg)' : 'var(--border-subtle)',
                               color: isChallenge ? 'var(--status-transit-fg)' : 'var(--text-muted)',
                             }}>
-                              {isChallenge ? `⚔️ ${t('challenge.challenge')}` : `🏸 ${t('challenge.fromCourt')}`}
+                              {isChallenge ? (
+                                <>
+                                  <Icon name="target" size={12} />
+                                  <span>{t('challenge.challenge')}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Icon name="activity" size={12} />
+                                  <span>{t('challenge.fromCourt')}</span>
+                                </>
+                              )}
                             </span>
                           </div>
                           <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
@@ -1360,6 +1381,19 @@ export default function Leaderboard() {
                         {t('leaderboard.lastTeammateMatch')}: {h2hSummary.lastDate} ({h2hSummary.lastWon ? t('leaderboard.wonStatus') : t('leaderboard.lostStatus')})
                       </div>
                     )}
+                    <Button
+                      variant="primary"
+                      block
+                      icon="target"
+                      style={{ marginTop: 14 }}
+                      onClick={() => {
+                        setInitialTeamA([playerA])
+                        setInitialTeamB([playerB])
+                        setChallengeModalOpen(true)
+                      }}
+                    >
+                      {t('matchSearch.challengeBetween')}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1454,7 +1488,8 @@ export default function Leaderboard() {
                     style={{ ...S.pairBadge, cursor: 'pointer' }}
                     title={t('leaderboard.challengePair')}
                   >
-                    ⚔️ {memberNameOf(id1)} · {memberNameOf(id2)}
+                    <Icon name="target" size={13} />
+                    <span>{memberNameOf(id1)} · {memberNameOf(id2)}</span>
                   </button>
                 ))}
               </div>
@@ -1463,38 +1498,230 @@ export default function Leaderboard() {
         </div>
       )}
 
-      {/* ---------------- TAB 5: Thống kê hiệu chỉnh chéo giới ---------------- */}
+      {/* ---------------- TAB 5: Thống kê hiệu chỉnh chéo giới (RD5) ---------------- */}
       {activeTab === 'cross' && (
-        <div style={{ display: 'grid', gap: 16 }}>
-          <div style={S.card}>
-            <div style={S.cardHead}>
-              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
-                <div style={S.cardTitle}>{t('rating.calibration.title')}</div>
-                <div style={S.cardSub}>{t('rating.calibration.desc')}</div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px',
+          gap: 16,
+          alignItems: 'start',
+        }}>
+          {/* Cột trái: Tỷ lệ nữ thắng & Phân rã theo mức chênh Elo */}
+          <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+            {/* Card 1: Tổng quan Nữ thắng khi gặp nam */}
+            <div style={{
+              ...S.card,
+              padding: 16,
+              display: 'grid',
+              gap: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  lineHeight: 1.2,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                }}>
+                  {t('rating.calibration.femaleVsMale')}
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 30,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  color: 'var(--status-delayed-fg)',
+                }}>
+                  {crossOverall.winRate}%
+                </span>
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                lineHeight: 1.45,
+                color: 'var(--text-secondary)',
+              }}>
+                {t('rating.calibration.overallDesc', {
+                  wins: crossOverall.totalFemaleWins,
+                  total: crossOverall.totalSample,
+                  note: t('rating.calibration.learnedNote'),
+                })}
               </div>
             </div>
 
-            <div style={{ padding: 16, display: 'grid', gap: 12 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                {Object.entries(calibrationStats.buckets).map(([bucketKey, data]) => {
-                  const winRatePct = data.sampleSize > 0 ? Math.round((data.femaleWins / data.sampleSize) * 100) : 0
-                  return (
-                    <div key={bucketKey} style={S.bucketCard}>
-                      <div style={S.bucketHead}>{t('leaderboard.gapBucket', { bucket: bucketKey })}</div>
-                      <div style={{ font: '700 24px/1 Barlow, sans-serif', color: 'var(--status-transit-fg)', margin: '4px 0' }}>
-                        {winRatePct}%
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {t('leaderboard.crossStats', { wins: data.femaleWins, total: data.sampleSize })}
-                      </div>
-                    </div>
-                  )
-                })}
+            {/* Card 2: Bảng theo mức chênh rating */}
+            <div style={{ ...S.card, overflow: 'hidden' }}>
+              <div style={S.cardHead}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={S.cardTitle}>{t('rating.calibration.byGapTitle')}</div>
+                  <div style={S.cardSub}>{t('rating.calibration.byGapSub')}</div>
+                </div>
               </div>
 
-              <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', marginTop: 8 }}>
-                💡 <em>{t('rating.calibration.desc')}</em>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr 1fr',
+                background: 'var(--surface-inset)',
+                borderBottom: '1px solid var(--border-subtle)',
+              }}>
+                <div style={S.thCell}>{t('rating.calibration.colGap')}</div>
+                <div style={S.thCell}>{t('rating.calibration.femaleVsMale')}</div>
+                <div style={S.thCell}>{t('rating.calibration.colSample')}</div>
               </div>
+
+              {calibrationStats.map((item, idx) => {
+                const isLast = idx === calibrationStats.length - 1
+                const winRatePct = Math.round(item.observedWinRate * 100)
+                const rateColor = winRatePct >= 40
+                  ? 'var(--status-delivered-fg)'
+                  : winRatePct >= 20
+                    ? 'var(--status-delayed-fg)'
+                    : 'var(--status-incident-fg)'
+                const gapLabel = item.bucket === '<100'
+                  ? t('rating.calibration.gapUnder100')
+                  : item.bucket === '100-300'
+                    ? t('rating.calibration.gap100to300')
+                    : t('rating.calibration.gapOver300')
+
+                return (
+                  <div
+                    key={item.bucket}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr 1fr',
+                      borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)',
+                      minHeight: 52,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div style={{ padding: '0 14px' }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        {gapLabel}
+                      </span>
+                    </div>
+                    <div style={{ padding: '0 14px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 600, color: rateColor }}>
+                        {winRatePct}%
+                      </span>
+                    </div>
+                    <div style={{ padding: '0 14px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
+                        {t('rating.calibration.matchCount', { n: item.sampleSize })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Cột phải: Top thành viên đấu chéo & Thẻ hướng dẫn Cách dùng số này */}
+          <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+            {/* Card 3: Top chéo giới */}
+            <div style={{ ...S.card, overflow: 'hidden' }}>
+              <div style={S.cardHead}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={S.cardTitle}>{t('rating.calibration.topCross')}</div>
+                  <div style={S.cardSub}>{t('rating.calibration.topCrossSub')}</div>
+                </div>
+              </div>
+
+              <div style={{ padding: 14, display: 'grid', gap: 8 }}>
+                {topCrossPlayers.length === 0 ? (
+                  <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, fontFamily: 'var(--font-sans)' }}>
+                    {t('rating.calibration.emptyCross')}
+                  </div>
+                ) : (
+                  topCrossPlayers.slice(0, 8).map((p) => {
+                    const badgeToken = p.confidence === 'very_high'
+                      ? { bg: 'rgba(18,168,103,.16)', color: 'var(--status-delivered-fg)' }
+                      : p.confidence === 'high'
+                        ? { bg: 'rgba(0,178,169,.16)', color: 'var(--status-transit-fg)' }
+                        : p.confidence === 'medium'
+                          ? { bg: 'rgba(240,183,92,.16)', color: 'var(--status-delayed-fg)' }
+                          : { bg: 'rgba(225,68,52,.16)', color: 'var(--status-incident-fg)' }
+
+                    return (
+                      <div
+                        key={p.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '11px 13px',
+                          borderRadius: 8,
+                          background: 'var(--surface-inset)',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <span style={{
+                          flex: 1,
+                          minWidth: 0,
+                          fontFamily: 'var(--font-sans)',
+                          fontWeight: 600,
+                          fontSize: 14,
+                          lineHeight: 1.3,
+                          color: 'var(--text-primary)',
+                        }}>
+                          {p.name}
+                        </span>
+                        <span style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 400,
+                          fontSize: 13,
+                          lineHeight: 1.4,
+                          color: 'var(--text-muted)',
+                        }}>
+                          {t('rating.calibration.crossMatchesCount', { n: p.count })}
+                        </span>
+                        <span style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontWeight: 600,
+                          fontSize: 10,
+                          lineHeight: 1,
+                          padding: '5px 9px',
+                          borderRadius: 999,
+                          background: badgeToken.bg,
+                          color: badgeToken.color,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {t('rating.confidence.' + p.confidence)}
+                        </span>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Card 4: Cách dùng số này */}
+            <div style={{
+              ...S.card,
+              padding: 14,
+              display: 'grid',
+              gap: 8,
+            }}>
+              <span style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 11,
+                fontWeight: 600,
+                lineHeight: 1.2,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+              }}>
+                {t('rating.calibration.howToUse')}
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: 'var(--text-secondary)',
+              }}>
+                {t('rating.calibration.howToUseDesc', { rate: crossOverall.winRate })}
+              </span>
             </div>
           </div>
         </div>

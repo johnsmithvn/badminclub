@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import {
-  ASSIGN_MODES, MODE_KEYS, activeCourtIdxs, arrange, assignableSessions, autoSplit, courtBalance, courtSlotIds, fairness, matchStats, modeToast, place, removePlayer, sessionPlayers, slotCourtIdx, slotIds,
+  ASSIGN_MODES, MODE_KEYS, activeCourtIdxs, arrange, assignableSessions, autoSplit, courtBalance, courtSlotIds, fairness, firstEmptyCourtIdx, matchStats, modeToast, place, removePlayer, sessionPlayers, slotCourtIdx, slotIds,
 } from '#lib/assign.js'
 import { levelIdx } from '#lib/money.js'
 
@@ -38,6 +38,14 @@ assert.equal(slotIds(S('B7')).length, 8)
 // Sân đã bán KHÔNG sinh slot
 assert.deepEqual(activeCourtIdxs(S('B3')), [0], 'B3 bán sân thứ hai')
 assert.equal(slotIds(S('B3')).length, 4)
+
+/* ---------- firstEmptyCourtIdx ---------- */
+assert.equal(firstEmptyCourtIdx({}, S('B7')), 0, 'sân 0 và 1 đều trống -> chọn sân 0')
+assert.equal(firstEmptyCourtIdx(undefined, S('B7')), 0, 'lineup undefined -> coi như trống')
+assert.equal(firstEmptyCourtIdx({ c0t0s0: 'M1' }, S('B7')), 1, 'sân 0 có người -> chọn sân 1')
+assert.equal(firstEmptyCourtIdx({ c0t0s0: 'M1', c1t1s1: 'M2' }, S('B7')), undefined, 'cả 2 sân đều có người -> undefined')
+assert.equal(firstEmptyCourtIdx({ c0t0s0: 'M1' }, S('B3')), undefined, 'B3 chỉ có sân 0 hoạt động, đã có người -> undefined')
+assert.equal(firstEmptyCourtIdx({}, null), undefined, 'session null -> undefined')
 
 /* ---------- người tham gia ---------- */
 const p7 = sessionPlayers(db, S('B7'))

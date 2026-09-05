@@ -106,7 +106,12 @@
       { "key": "heavy_hitter", "min": 1200, "max": 1399, "token": "rank-heavy-hitter", "icon": "trophy" },
       { "key": "court_boss", "min": 1400, "max": 99999, "token": "rank-court-boss", "icon": "crown" }
     ],
-    "h2hMatrixLimit": 8
+    "h2hMatrixLimit": 8,
+    "crossGenderConfidence": {
+      "low": 5,
+      "medium": 15,
+      "high": 30
+    }
   },
   "challenge": {
     "defaultBestOf": 3,

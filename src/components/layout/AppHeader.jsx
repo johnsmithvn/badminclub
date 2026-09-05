@@ -1,4 +1,4 @@
-import { Button, IconButton } from '#ds'
+import { Button, Icon, IconButton } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -24,8 +24,37 @@ export default function AppHeader({ route }) {
       <header style={S.mobileHeader}>
         <div style={S.mobileLeft}>
           <div style={S.mobileTitle}>{page.title}</div>
-          <div style={S.mobileSubtitle}>
-            {db.club.name} · {monthTxt(db.month)}
+          <div style={S.mobileSubtitleRow}>
+            <span style={S.mobileClubName}>{db.club.name}</span>
+            {!isSettings ? (
+              <>
+                <span style={S.mobileDot}>·</span>
+                <div style={S.mobileMonthNav}>
+                  <button
+                    type="button"
+                    aria-label={t('common.prevMonth')}
+                    onClick={() => a.shiftMonth(-1)}
+                    style={S.mobileMonthBtn}
+                  >
+                    <Icon name="chevron-left" size={15} />
+                  </button>
+                  <span style={S.mobileMonthLabel}>{monthTxt(db.month)}</span>
+                  <button
+                    type="button"
+                    aria-label={t('common.nextMonth')}
+                    onClick={() => a.shiftMonth(1)}
+                    style={S.mobileMonthBtn}
+                  >
+                    <Icon name="chevron-right" size={15} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span style={S.mobileDot}>·</span>
+                <span style={S.mobileMonthLabel}>{monthTxt(db.month)}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -38,6 +67,26 @@ export default function AppHeader({ route }) {
             label={isDark ? t('common.themeLight') : t('common.themeDark')}
             onClick={toggleTheme}
           />
+          {isSettings && canEditSettings && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              <IconButton
+                icon="upload"
+                size="sm"
+                variant="ghost"
+                style={S.themeBtn}
+                label={t('settings.ioImport')}
+                onClick={() => a.openDialog('importSettings', {})}
+              />
+              <IconButton
+                icon="download"
+                size="sm"
+                variant="ghost"
+                style={S.themeBtn}
+                label={t('settings.ioExport')}
+                onClick={a.exportSettings}
+              />
+            </div>
+          )}
           {route === 'sessions' && can(role, 'sessions') && (
             <Button
               variant="primary"
@@ -168,17 +217,60 @@ const S = {
   },
   mobileTitle: {
     font: '600 17px/1.2 var(--font-display, Barlow, sans-serif)',
-    color: 'var(--text-on-nav-active, #FFFFFF)',
+    color: 'var(--text-on-nav-active)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  mobileSubtitle: {
+  mobileSubtitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 0,
+  },
+  mobileClubName: {
     font: '400 12px/1.3 var(--font-mono)',
-    color: 'var(--text-muted)',
+    color: 'var(--text-on-nav)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    minWidth: 0,
+    flex: '1 1 auto',
+  },
+  mobileDot: {
+    color: 'var(--text-on-nav)',
+    opacity: 0.6,
+    flexShrink: 0,
+    font: '400 12px/1.3 var(--font-mono)',
+  },
+  mobileMonthNav: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    flexShrink: 0,
+    gap: 2,
+  },
+  mobileMonthLabel: {
+    fontWeight: 600,
+    font: '600 12px/1 var(--font-mono)',
+    color: 'var(--text-on-nav)',
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
+    padding: '0 2px',
+  },
+  mobileMonthBtn: {
+    background: 'transparent',
+    border: 0,
+    color: 'var(--text-on-nav)',
+    cursor: 'pointer',
+    minWidth: 44,
+    minHeight: 44,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    padding: 0,
+    lineHeight: 1,
+    flexShrink: 0,
   },
   mobileRight: {
     display: 'flex',

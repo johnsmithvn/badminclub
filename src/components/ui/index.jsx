@@ -490,7 +490,15 @@ export function CardList({
         return (
           <div
             key={id}
+            role={onRowClick ? 'button' : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
+            onKeyDown={onRowClick ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onRowClick(row)
+              }
+            } : undefined}
             style={{
               background: 'var(--surface-card)',
               border: '1px solid var(--border-subtle)',
@@ -510,11 +518,30 @@ export function CardList({
               </div>
               {rightCols.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                  {rightCols.map((c) => (
-                    <div key={c.key}>
-                      {c.render ? c.render(row) : row[c.key]}
-                    </div>
-                  ))}
+                  {rightCols.map((c) => {
+                    const val = c.render ? c.render(row) : row[c.key]
+                    if (val == null || val === '') return null
+                    return (
+                      <div
+                        key={c.key}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'baseline',
+                          justifyContent: 'flex-end',
+                          gap: 6,
+                        }}
+                      >
+                        {c.header && typeof c.header === 'string' && (
+                          <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+                            {c.header}:
+                          </span>
+                        )}
+                        <div style={{ font: 'var(--type-body)', color: 'var(--text-primary)' }}>
+                          {val}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

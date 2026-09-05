@@ -1,8 +1,9 @@
 // Buổi tập: 4 StatCard + danh sách buổi có tab lọc (handoff 02 §2).
 
 import { Card, DataTable, StatCard, Tabs } from '#ds'
-import { Empty, GRID_STAT, sessionColumns } from '#ui'
+import { CardList, Empty, GRID_STAT, sessionColumns, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import {
   billsOf, courtCost, courtPayMode, fmt, guestPaidRev, guestRev, monthSessions,
 } from '#lib/money.js'
@@ -10,6 +11,7 @@ import { t } from '#i18n'
 
 export default function Sessions() {
   const { db, ui, a } = useApp()
+  const isMobile = useMobile()
   const tab = ui.tab.sessions || 'all'
   const sess = monthSessions(db, db.month)
   const closed = sess.filter((s) => s.status === 'closed')
@@ -46,13 +48,23 @@ export default function Sessions() {
 
   return (
     <>
-      <div style={{ ...GRID_STAT, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+      <div style={{
+        ...GRID_STAT,
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit,minmax(200px,1fr))',
+      }}>
         <StatCard label={t('session.statCount')} value={sess.length} unit={t('units.session')} icon="clipboard-check"
           caption={countCaption} />
         <StatCard label={t('session.statCourt')} value={fmt(courtSpent)} icon="landmark" tone="critical"
           caption={t(perMonth ? 'session.statCourtMonth' : 'session.statCourtSession')} />
-        <StatCard label={t('session.statGuest')} value={fmt(guestTotal)} icon="user-round-plus" tone="positive"
-          caption={t('session.statGuestCaption', { paid: fmt(guestPaid), debt: fmt(guestTotal - guestPaid) })} />
+        {isMobile ? (
+          <div style={{ gridColumn: 'span 2' }}>
+            <StatCard label={t('session.statGuest')} value={fmt(guestTotal)} icon="user-round-plus" tone="positive"
+              caption={t('session.statGuestCaption', { paid: fmt(guestPaid), debt: fmt(guestTotal - guestPaid) })} />
+          </div>
+        ) : (
+          <StatCard label={t('session.statGuest')} value={fmt(guestTotal)} icon="user-round-plus" tone="positive"
+            caption={t('session.statGuestCaption', { paid: fmt(guestPaid), debt: fmt(guestTotal - guestPaid) })} />
+        )}
       </div>
 
       <Card
@@ -60,17 +72,30 @@ export default function Sessions() {
         icon="list"
         padding="0"
         actions={
-          <Tabs
-            variant="segmented"
-            items={tabItems}
-            value={tab}
-            onChange={(v) => a.setTab('sessions', v)}
-          />
+          <TabTrack>
+            <Tabs
+              variant="segmented"
+              items={tabItems}
+              value={tab}
+              onChange={(v) => a.setTab('sessions', v)}
+            />
+          </TabTrack>
         }
       >
         {rows.length === 0
           ? <Empty icon="calendar-days" title={t('session.emptyTitle')} hint={t('session.emptyHint')} />
-          : <DataTable columns={sessionColumns(db)} rows={rows} rowKey="id" onRowClick={(r) => a.openSession(r.id)} />}
+          : isMobile
+            ? (
+              <div style={{ padding: 12 }}>
+                <CardList
+                  columns={sessionColumns(db)}
+                  rows={rows}
+                  rowKey="id"
+                  onRowClick={(r) => a.openSession(r.id)}
+                />
+              </div>
+            )
+            : <DataTable columns={sessionColumns(db)} rows={rows} rowKey="id" onRowClick={(r) => a.openSession(r.id)} />}
       </Card>
     </>
   )

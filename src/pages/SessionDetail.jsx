@@ -593,7 +593,7 @@ export default function SessionDetail() {
       )}
 
       {activeTab === 'courts' && <CourtAssignmentTab s={s} />}
-      {activeTab === 'matches' && <SessionMatchesTab s={s} />}
+      {activeTab === 'matches' && <SessionMatchesTab s={s} onSwitchTab={setActiveTab} />}
 
       {editingGuest && (
         <EditGuestDialog

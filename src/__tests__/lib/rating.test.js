@@ -4,6 +4,7 @@ import {
   confidenceOf,
   DEFAULT_RATING,
   expectedScore,
+  rankTopCrossGenderPlayers,
   replayRatingCascade,
   teamRating,
 } from '#lib/rating.js'
@@ -67,5 +68,39 @@ const { finalRatings: tieRatings, updatedMatches: tieUpdated } = replayRatingCas
 assert.equal(tieUpdated[0].winnerTeam, null, 'Trận hoà set 1-1 phải có winnerTeam = null')
 assert.equal(tieRatings.m1.rating, 0, 'Trận hoà không làm thay đổi Elo của m1')
 assert.equal(tieRatings.m3.rating, 0, 'Trận hoà không làm thay đổi Elo của m3')
+
+// 8. rankTopCrossGenderPlayers
+assert.deepEqual(rankTopCrossGenderPlayers(null, {}), [])
+assert.deepEqual(rankTopCrossGenderPlayers({}, {}), [])
+
+const memberData = {
+  p1: { id: 'p1', name: 'Sơn' },
+  p2: { id: 'p2', name: 'Lan' },
+  p3: { id: 'p3', name: 'Tuấn' },
+  p4: { id: 'p4', name: 'Hương' },
+}
+const topCrossCounts = {
+  p1: 14,
+  p2: 3,
+  p3: 35,
+  p4: 20,
+}
+const ranked = rankTopCrossGenderPlayers(topCrossCounts, memberData)
+assert.equal(ranked.length, 4)
+assert.equal(ranked[0].id, 'p3')
+assert.equal(ranked[0].count, 35)
+assert.equal(ranked[0].confidence, 'very_high')
+
+assert.equal(ranked[1].id, 'p4')
+assert.equal(ranked[1].count, 20)
+assert.equal(ranked[1].confidence, 'high')
+
+assert.equal(ranked[2].id, 'p1')
+assert.equal(ranked[2].count, 14)
+assert.equal(ranked[2].confidence, 'medium')
+
+assert.equal(ranked[3].id, 'p2')
+assert.equal(ranked[3].count, 3)
+assert.equal(ranked[3].confidence, 'low')
 
 console.log('rating check: OK')

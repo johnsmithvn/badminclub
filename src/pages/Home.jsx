@@ -1241,7 +1241,7 @@ function MatchTab() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {neverMet.map(([id1, id2], idx) => (
                   <div key={idx} style={SS.neverMetChip}>
-                    <span>⚔️</span>
+                    <Icon name="target" size={13} />
                     <span style={{ fontWeight: 600 }}>{playerName(db, id1)}</span>
                     <span style={{ color: 'var(--text-muted)' }}>·</span>
                     <span style={{ fontWeight: 600 }}>{playerName(db, id2)}</span>

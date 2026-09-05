@@ -71,6 +71,24 @@ export function slotIds(s) {
 }
 export const slotCourtIdx = (slot) => parseInt(slot.slice(1, slot.indexOf('t')), 10)
 
+/**
+ * Tìm index của sân đầu tiên hoàn toàn trống trong buổi.
+ * Sân hợp lệ phải là sân đang chơi (!sold) và tất cả 4 slot đều không có người.
+ * Trả về index của sân (number) hoặc undefined nếu không có sân nào trống.
+ * @param {Object} lineup - Lineup hiện tại của buổi ({ [slotId]: playerKey })
+ * @param {Object} session - Đối tượng buổi tập
+ * @returns {number|undefined}
+ */
+export function firstEmptyCourtIdx(lineup, session) {
+  if (!session) return undefined
+  const curLu = lineup || {}
+  const activeIdxs = activeCourtIdxs(session)
+  return activeIdxs.find((ci) => {
+    const slots = courtSlotIds(ci)
+    return slots.every((sl) => !curLu[sl])
+  })
+}
+
 /* ---------- số trận ---------- */
 
 /** { playerKey: { n: số trận, min: tổng phút } } — chỉ tính trong buổi đó. */

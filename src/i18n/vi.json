@@ -2181,7 +2181,22 @@
       "colSample": "Số trận thực tế",
       "colWinRate": "Tỷ lệ Nữ thắng Nam",
       "colAdj": "Mức hiệu chỉnh đề xuất",
-      "topCross": "Thành viên thi đấu chéo giới nhiều nhất"
+      "topCross": "Nhiều dữ liệu chéo giới nhất",
+      "topCrossSub": "Rating của họ đáng tin hơn khi ghép trái giới",
+      "femaleVsMale": "Nữ thắng khi gặp nam",
+      "overallDesc": "{{wins}} thắng trên {{total}} trận nam-nữ. {{note}}",
+      "learnedNote": "Đây là số mô tả từ dữ liệu CLB này, không phải quy tắc cố định — CLB khác có thể ra số khác hẳn, và số này tự cập nhật khi có thêm trận.",
+      "byGapTitle": "Theo mức chênh rating",
+      "byGapSub": "Rating càng gần, nữ thắng nhiều hơn",
+      "colGap": "Mức chênh",
+      "gapUnder100": "Dưới 100",
+      "gap100to300": "100–300",
+      "gapOver300": "Trên 300",
+      "crossMatchesCount": "{{n}} trận chéo",
+      "matchCount": "{{n}} trận",
+      "emptyCross": "Chưa có dữ liệu trận chéo giới",
+      "howToUse": "Cách dùng số này",
+      "howToUseDesc": "{{rate}}% dùng để hiệu chỉnh chia sân và cảnh báo kèo, không dùng để đổi rating trực tiếp và không hard-code thành công thức cố định — số này học lại theo thời gian khi CLB có thêm trận chéo giới."
     }
   },
   "matchSearch": {

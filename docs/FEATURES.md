@@ -327,12 +327,34 @@ Bản mobile được tối ưu hóa cho màn hình cầm tay (≤768px) theo m�
 
 5. **Công nợ (`/cong-no`):**
    - Luôn sử dụng dạng thẻ (`viewMode = 'grid'`), ẩn nút toggle bảng desktop.
-   - Bung từng buổi qua accordion kèm ô sửa tiền inline 56×44px.
-   - Nút Lọc mở sheet điều kiện; QR mở full-screen sheet.
+---
 
-6. **Thành viên (`/thanh-vien`):**
-   - Giữ đủ 4 tab. Thẻ thành viên định danh 2 tầng.
-   - Tab Chờ duyệt chia rõ 2 nhóm: Đăng ký cố định tháng sau và Thay đổi thông tin, mỗi yêu cầu có cặp nút Duyệt/Từ chối.
-   - Sheet Ngưng hoạt động có 3 lối ra tách bạch (*Ngưng và trả lại*, *Chỉ ngưng, không trả*, *Huỷ*).
+## 10. Kèo Thách Đấu (Challenge), Tìm Trận & Hiệu Chỉnh Elo (Handoff Challenge & Rating)
+
+Hệ thống bổ sung lớp tiền trận đấu (Pre-match negotiation) và phân tích chuyên sâu dữ liệu trận đấu:
+
+1. **Lớp Thách đấu (Challenge / "Kèo"):**
+   - Vòng đời: `pending` (chờ nhận) $\to$ `accepted` (đã nhận) $\to$ `oncourt` (đang trên sân) $\to$ `played` (đã đấu và ghi nhận Match). Các trạng thái kết thúc khác: `declined`, `expired`, `cancelled`.
+   - Chỉ dành riêng cho thành viên chính thức (`members-only`). Khách giao lưu (`guests`) không được tham gia tạo hoặc nhận kèo.
+   - Khi tạo kèo trong buổi, chỉ những thành viên đã có mặt (`attendance === true`) mới được hiển thị trong danh sách chọn đội.
+   - Cảnh báo lệch trình độ: khi chênh lệch Elo giữa 2 đội $> 250$ điểm, hiển thị cảnh báo trực quan nhưng **không chặn** thao tác gửi kèo.
+
+2. **Quy tắc Đưa kèo lên sân (Đóng Open Question #1):**
+   - **Quy tắc xử sự:** Khi người điều phối bấm nút "Đưa lên sân" (từ tab Chia sân hoặc tab Trận & kèo), hệ thống tìm sân đầu tiên đang hoàn toàn trống (`firstEmptyCourtIdx`).
+   - Nếu tìm thấy sân trống: 4 thành viên của kèo được đưa vào sân, kèo chuyển sang trạng thái `oncourt`, sân được đánh dấu nguồn từ mã kèo (`from: <challengeCode>`).
+   - Nếu **không có sân nào trống**: Hệ thống **chặn (block)** thao tác và hiển thị toast cảnh báo `t('challenge.noEmptyCourt')`. Tuyệt đối **không tự ý đẩy văng (displace)** những người chơi đang thi đấu ở sân khác.
+
+3. **Tìm trận & Thao tác Gạ kèo (Mockup K6):**
+   - Nằm tại Tab 3 (Tìm trận) của trang Bảng xếp hạng (`/bang-xep-hang`).
+   - Hỗ trợ lọc theo 2 người chơi (Đối đầu / Cùng đội), thời gian, và chất lượng trận (Sát điểm / Bất ngờ).
+   - Khi chọn 2 đấu thủ ở chế độ Đối đầu: Thẻ tóm tắt H2H ở cột phải hiển thị lịch sử đối đầu chi tiết kèm nút CTA "Gạ kèo" trực tiếp ở cuối thẻ (dùng component `<Icon name="target" />`, không dùng emoji). Bấm nút sẽ mở modal Tạo kèo với Đội A và Đội B được điền sẵn 2 đấu thủ này.
+   - Sửa tỷ số inline: Ghi sổ kiểm toán (`match_edits`), yêu cầu nhập lý do bắt buộc và kích hoạt hàm tính lại chuỗi Elo (`replayRatingCascade`) theo thứ tự thời gian cho toàn bộ các trận về sau.
+
+4. **Hiệu chỉnh Chéo giới & Độ tin cậy (Mockup RD5):**
+   - Nằm tại Tab 5 của trang Bảng xếp hạng.
+   - Thiết kế 2 cột:
+     - **Cột trái:** Thẻ tỷ lệ Nữ thắng Nam toàn CLB (chữ số lớn), câu ghi chú tường minh *"Con số này học từ dữ liệu thực chiến của CLB này, không phải hệ số cố định — tự động cập nhật khi có thêm trận."*, bảng phân tích theo 3 khoảng chênh Elo (<100, 100–300, >300), và thẻ giải thích cách dùng số liệu trong matchmaking.
+     - **Cột phải:** Bảng xếp hạng thành viên thi đấu chéo giới nhiều nhất (`rankTopCrossGenderPlayers`) kèm số trận chéo và badge độ tin cậy được cấu hình trong `src/config/app.json`.
+
 
 

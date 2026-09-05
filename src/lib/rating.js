@@ -340,6 +340,35 @@ export function computeClubCalibration(matches, membersMap) {
 }
 
 /**
+ * Xếp hạng danh sách thành viên thi đấu chéo giới nhiều nhất và độ tin cậy tương ứng.
+ * @param {Object} topCrossMap - Map memberId -> số trận chéo giới tính
+ * @param {Object} membersMap - Map memberId -> member object
+ * @returns {Array<{ id: string, name: string, member: Object, count: number, confidence: 'low'|'medium'|'high'|'very_high' }>}
+ */
+export function rankTopCrossGenderPlayers(topCrossMap, membersMap) {
+  if (!topCrossMap || typeof topCrossMap !== 'object') return []
+  const confThresholds = cfg.rating?.crossGenderConfidence || { low: 5, medium: 15, high: 30 }
+
+  return Object.entries(topCrossMap)
+    .map(([id, count]) => {
+      const member = membersMap?.[id] || { id, name: '—' }
+      let confidence = 'very_high'
+      if (count < confThresholds.low) confidence = 'low'
+      else if (count < confThresholds.medium) confidence = 'medium'
+      else if (count < confThresholds.high) confidence = 'high'
+
+      return {
+        id,
+        name: member.name || '—',
+        member,
+        count,
+        confidence,
+      }
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+}
+
+/**
  * Tính toán Effective Rating cho một người chơi khi thi đấu với đối phương,
  * áp dụng hiệu chỉnh học được từ CLB nếu là trận chéo giới tính.
  */

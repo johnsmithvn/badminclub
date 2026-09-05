@@ -126,7 +126,13 @@ function ConfirmDialog({ confirm, onClose }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, marginTop: 20 }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 9,
+        marginTop: 20,
+        paddingBottom: isMobile ? 'calc(12px + env(safe-area-inset-bottom, 0px))' : 0,
+      }}>
         {!alertOnly && (
           <Button variant="secondary" onClick={handleCancel}>
             {cancelText}
@@ -154,7 +160,12 @@ function Shell({ title, desc, width, onSubmit, submitLabel, submitIcon, children
     <Dialog open sheet={isMobile} title={title} description={desc} width={width || 560} onClose={() => a.closeDialog()}>
       <div style={{ display: 'grid', gap: 12 }}>
         {children}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9 }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 9,
+          paddingBottom: isMobile ? 'calc(12px + env(safe-area-inset-bottom, 0px))' : 0,
+        }}>
           <Button variant="secondary" onClick={() => a.closeDialog()}>{t('common.cancel')}</Button>
           {onSubmit && (
             <Button variant="primary" icon={submitIcon || 'check'} onClick={onSubmit} disabled={disabled}>
@@ -801,7 +812,7 @@ function OffBackDialog() {
         description={t('members.offBackDesc', { groups: s.groups, n: s.sessions })}
         onClose={() => a.closeDialog()}
       >
-        <div style={{ display: 'grid', gap: 14, padding: '8px 0 20px' }}>
+        <div style={{ display: 'grid', gap: 14, padding: '8px 0 calc(20px + env(safe-area-inset-bottom, 0px))' }}>
           <Input
             label={t('members.offBackAmount')}
             mono

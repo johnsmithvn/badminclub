@@ -3,12 +3,13 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { courtOf, playerName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
+import { firstEmptyCourtIdx } from '#lib/assign.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 
-export default function SessionMatchesTab({ s }) {
+export default function SessionMatchesTab({ s, onSwitchTab }) {
   const { db, a } = useApp()
   const isMobile = useMobile()
   const [showCreate, setShowCreate] = useState(false)
@@ -51,6 +52,19 @@ export default function SessionMatchesTab({ s }) {
       return false
     }).length
   }, [matches])
+
+  // Đưa kèo lên sân trống
+  const handleDeployChallenge = (challenge) => {
+    const curLu = db.lineups?.[s.id] || {}
+    const emptyCourtIdx = firstEmptyCourtIdx(curLu, s)
+    if (emptyCourtIdx === undefined) {
+      a.toast(t('challenge.noEmptyCourt'))
+      if (onSwitchTab) onSwitchTab('courts')
+      return
+    }
+    a.deployChallenge(challenge.id, emptyCourtIdx)
+    if (onSwitchTab) onSwitchTab('courts')
+  }
 
   return (
     <div style={{ ...S.layout, gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px' }}>
@@ -489,6 +503,13 @@ export default function SessionMatchesTab({ s }) {
 
                   {isAccepted && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleDeployChallenge(c)}
+                        style={S.smallPrimaryBtn}
+                      >
+                        {t('challenge.deployToCourt')}
+                      </button>
                       <button
                         type="button"
                         onClick={() => a.cancelChallenge(c.id)}

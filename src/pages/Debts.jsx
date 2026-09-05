@@ -55,7 +55,6 @@ const stateStyle = (item) => (item.paid ? S.pillPaid : item.claimedAt ? S.pillWa
 
 export default function Debts() {
   const { db, ui, a } = useApp()
-  const isMobile = useMobile()
   const rawTab = ui.tab.debts || 'sessions'
   // `canMoney` PHẢI đứng trước `tab`: `tab` đọc nó. Để sau là TDZ — "Cannot access before
   // initialization" ngay lúc render, và minify đổi tên biến nên log không nói được là biến nào.
@@ -489,7 +488,7 @@ function SessionDebts({ canMoney }) {
       }}>
         <SearchField
           width={isMobile ? undefined : 250}
-          style={{ height: 36, flex: 1 }}
+          style={{ height: isMobile ? 48 : 36, flex: 1 }}
           placeholder={t('debts.searchSession')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -501,8 +500,9 @@ function SessionDebts({ canMoney }) {
               type="button"
               onClick={() => setFilterSheetOpen(true)}
               style={{
-                height: 36,
-                padding: '0 12px',
+                height: 48,
+                minHeight: 48,
+                padding: '0 14px',
                 borderRadius: 'var(--radius-control)',
                 border: '1px solid var(--border-default)',
                 background: activeFilterCount > 0 ? 'var(--action-accent-bg)' : 'var(--surface-card)',
@@ -533,11 +533,12 @@ function SessionDebts({ canMoney }) {
             </button>
             {filterSheetOpen && (
               <Dialog
+                open={filterSheetOpen}
                 sheet
                 title={t('common.filterTitle')}
                 onClose={() => setFilterSheetOpen(false)}
               >
-                <div style={{ display: 'grid', gap: 16, padding: '12px 0 20px' }}>
+                <div style={{ display: 'grid', gap: 16, padding: '12px 0 calc(20px + env(safe-area-inset-bottom, 0px))' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
                       {t('debts.whoMember')} / {t('debts.whoGuest')}

@@ -6,7 +6,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { elapsedMin, useClock } from '#hooks/useClock.js'
 import { courtOf, playerName } from '#lib/money.js'
 import {
-  ASSIGN_MODES, activeCourtIdxs, courtSlotIds,
+  ASSIGN_MODES, activeCourtIdxs, courtSlotIds, firstEmptyCourtIdx,
   sessionPlayers, slotIds,
 } from '#lib/assign.js'
 import {
@@ -118,10 +118,7 @@ export default function CourtAssignmentTab({ s }) {
   // Đưa kèo lên sân trống
   const handleDeployChallenge = (challenge) => {
     // Tìm sân đầu tiên hoàn toàn trống
-    const emptyCourtIdx = idxs.find((ci) => {
-      const slots = courtSlotIds(ci)
-      return slots.every((sl) => !lineup[sl])
-    })
+    const emptyCourtIdx = firstEmptyCourtIdx(lineup, s)
 
     if (emptyCourtIdx === undefined) {
       a.toast(t('challenge.noEmptyCourt'))
@@ -760,7 +757,7 @@ function Toolbar({ s, lineup, idxs, isMobile }) {
             onClose={() => setSheetOpen(false)}
             title={t('assign.arrangeNow')}
           >
-            <div style={{ display: 'grid', gap: 10, padding: '10px 0 20px' }}>
+            <div style={{ display: 'grid', gap: 10, padding: '10px 0 calc(20px + env(safe-area-inset-bottom, 0px))' }}>
               {ASSIGN_MODES.map((m) => {
                 const isSelected = mode === m.value
                 return (

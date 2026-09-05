@@ -173,7 +173,7 @@ const S = {
     padding: '0 4px',
     borderRadius: 99,
     background: 'var(--status-delayed-fg)',
-    color: 'var(--text-inverse, #0B1220)',
+    color: 'var(--text-inverse)',
     font: '700 9px/16px var(--font-mono)',
     textAlign: 'center',
     boxShadow: '0 0 0 1.5px var(--surface-nav)',

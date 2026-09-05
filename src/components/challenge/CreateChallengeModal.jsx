@@ -129,7 +129,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
           {/* 2 Đội preview */}
           <div style={S.teamsRow}>
             {/* Đội A */}
-            <div style={{ ...S.teamCard, borderColor: 'var(--teal-700, #00786F)' }}>
+            <div style={{ ...S.teamCard, borderColor: 'var(--teal-700)' }}>
               <div style={S.teamHead}>
                 <span style={S.teamLabelA}>{t('challenge.teamA')}</span>
                 <span style={S.teamRatingMono}>{teamA.length ? avgRatingA : '—'}</span>
@@ -153,7 +153,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
             </div>
 
             {/* Đội B */}
-            <div style={{ ...S.teamCard, borderColor: 'var(--border-default, #2E3E5C)' }}>
+            <div style={{ ...S.teamCard, borderColor: 'var(--border-default)' }}>
               <div style={S.teamHead}>
                 <span style={S.teamLabelB}>{t('challenge.teamB')}</span>
                 <span style={S.teamRatingMono}>{teamB.length ? avgRatingB : '—'}</span>
@@ -196,13 +196,13 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                     onClick={() => cycleMember(m.id)}
                     style={{
                       ...S.playerChip,
-                      background: inA ? 'var(--navy-500, #1D50A0)' : inB ? 'var(--navy-800, #1F3452)' : 'var(--surface-card, #141D2E)',
-                      borderColor: inA ? 'var(--navy-400, #3C74C4)' : inB ? 'var(--navy-600, #3A5A8C)' : 'var(--border-subtle, #22304A)',
-                      color: inA || inB ? 'var(--gray-0, #FFFFFF)' : 'var(--text-primary, #E9EFF7)',
+                      background: inA ? 'var(--navy-500)' : inB ? 'var(--navy-800)' : 'var(--surface-card)',
+                      borderColor: inA ? 'var(--navy-400)' : inB ? 'var(--navy-600)' : 'var(--border-subtle)',
+                      color: inA || inB ? 'var(--action-primary-fg)' : 'var(--text-primary)',
                     }}
                   >
                     <span>{m.name}</span>
-                    <span style={{ ...S.monoRating, color: inA || inB ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>{r}</span>
+                    <span style={{ ...S.monoRating, color: inA || inB ? 'var(--navy-200)' : 'var(--text-muted)' }}>{r}</span>
                     <span style={confBadgeStyle(conf.level)}>{conf.level}</span>
                     {inA && <span style={S.teamTag}>A</span>}
                     {inB && <span style={S.teamTag}>B</span>}
@@ -210,7 +210,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                 )
               })}
               {pickableMembers.length === 0 && (
-                <div style={{ color: 'var(--text-muted, #8494AA)', fontSize: 13 }}>{t('challenge.noPresentMembers')}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('challenge.noPresentMembers')}</div>
               )}
             </div>
             <div style={S.guestNotice}>{t('challenge.guestNotice')}</div>
@@ -236,8 +236,8 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                     onClick={() => setRatingEnabled(false)}
                     style={{
                       ...S.unreliableBtn,
-                      background: !ratingEnabled ? 'var(--navy-500, #1D50A0)' : 'var(--surface-card, #141D2E)',
-                      color: !ratingEnabled ? 'var(--gray-0, #FFFFFF)' : 'var(--text-secondary, #A8B7CB)',
+                      background: !ratingEnabled ? 'var(--navy-500)' : 'var(--surface-card)',
+                      color: !ratingEnabled ? 'var(--action-primary-fg)' : 'var(--text-secondary)',
                     }}
                   >
                     {t('challenge.switchCasual')}
@@ -247,8 +247,8 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                     onClick={() => setRatingEnabled(true)}
                     style={{
                       ...S.unreliableBtn,
-                      background: ratingEnabled ? 'var(--navy-500, #1D50A0)' : 'var(--surface-card, #141D2E)',
-                      color: ratingEnabled ? 'var(--gray-0, #FFFFFF)' : 'var(--text-secondary, #A8B7CB)',
+                      background: ratingEnabled ? 'var(--navy-500)' : 'var(--surface-card)',
+                      color: ratingEnabled ? 'var(--action-primary-fg)' : 'var(--text-secondary)',
                     }}
                   >
                     {t('challenge.keepRated')}
@@ -263,32 +263,32 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
             <div style={S.analysisCard}>
               <div style={S.sectionLabel}>{t('challenge.balanceTitle')}</div>
               <div style={S.pctRow}>
-                <span style={{ ...S.pctNum, color: 'var(--status-transit-fg, #5FDBD3)' }}>{pctA}%</span>
+                <span style={{ ...S.pctNum, color: 'var(--status-transit-fg)' }}>{pctA}%</span>
                 <span style={S.gapMono}>{t('rating.gap', { gap })}</span>
-                <span style={{ ...S.pctNum, color: 'var(--text-secondary, #A8B7CB)' }}>{pctB}%</span>
+                <span style={{ ...S.pctNum, color: 'var(--text-secondary)' }}>{pctB}%</span>
               </div>
               <div style={S.barTrack}>
-                <div style={{ width: `${pctA}%`, background: 'var(--teal-500, #00B2A9)', height: '100%' }} />
-                <div style={{ width: `${pctB}%`, background: 'var(--border-default, #2E3E5C)', height: '100%' }} />
+                <div style={{ width: `${pctA}%`, background: 'var(--teal-500)', height: '100%' }} />
+                <div style={{ width: `${pctB}%`, background: 'var(--border-default)', height: '100%' }} />
               </div>
               <div style={{
                 fontSize: 12,
                 fontWeight: 600,
-                color: isImbalanced ? 'var(--status-delayed-fg, #F0B75C)' : gap <= 120 ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-transit-fg, #5FDBD3)',
+                color: isImbalanced ? 'var(--status-delayed-fg)' : gap <= 120 ? 'var(--status-delivered-fg)' : 'var(--status-transit-fg)',
                 marginTop: 2,
               }}>
                 {isImbalanced ? t('challenge.imbalancedWarn') : gap <= 120 ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
               </div>
               {unreliableMember && (
                 <>
-                  <div style={{ font: '600 12px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--status-delayed-fg, #F0B75C)', marginTop: 4 }}>
+                  <div style={{ font: '600 12px/1.4 var(--font-sans)', color: 'var(--status-delayed-fg)', marginTop: 4 }}>
                     {t('challenge.unreliableWarning')}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, paddingTop: 4 }}>
-                    <div style={{ flex: 1, height: 5, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-page, #0B1220)' }}>
-                      <div style={{ width: '26%', background: '#D63B2B', height: '100%' }} />
+                    <div style={{ flex: 1, height: 5, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-page)' }}>
+                      <div style={{ width: '26%', background: 'var(--status-incident)', height: '100%' }} />
                     </div>
-                    <span style={{ font: '600 11px/1 "IBM Plex Sans", sans-serif', color: '#F09A8E', whiteSpace: 'nowrap' }}>
+                    <span style={{ font: '600 11px/1 var(--font-sans)', color: 'var(--status-incident-fg)', whiteSpace: 'nowrap' }}>
                       {t('challenge.confidenceLow')}
                     </span>
                   </div>
@@ -304,23 +304,23 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               >
                 <div style={{
                   ...S.checkboxBox,
-                  background: ratingEnabled ? 'var(--teal-500, #00B2A9)' : 'transparent',
-                  borderColor: ratingEnabled ? 'var(--teal-500, #00B2A9)' : 'var(--border-default, #2E3E5C)',
+                  background: ratingEnabled ? 'var(--teal-500)' : 'transparent',
+                  borderColor: ratingEnabled ? 'var(--teal-500)' : 'var(--border-default)',
                 }}>
-                  {ratingEnabled && <span style={{ color: 'var(--teal-900, #04302C)', fontWeight: 700, fontSize: 13 }}>✓</span>}
+                  {ratingEnabled && <span style={{ color: 'var(--teal-900)', fontWeight: 700, fontSize: 13 }}>✓</span>}
                 </div>
                 <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ font: '600 13px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
+                  <div style={{ font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
                     {t('challenge.rateOptionTitle')}
                   </div>
-                  <div style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted, #8494AA)' }}>
+                  <div style={{ font: '400 12px/1.4 var(--font-sans)', color: 'var(--text-muted)' }}>
                     {t('challenge.rateOptionHint')}
                   </div>
                 </div>
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>{t('challenge.format')}:</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('challenge.format')}:</span>
                 {[1, 3].map((b) => (
                   <button
                     key={b}
@@ -328,9 +328,9 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                     onClick={() => setBestOf(b)}
                     style={{
                       ...S.boBtn,
-                      background: bestOf === b ? 'var(--navy-500, #1D50A0)' : 'var(--surface-card, #141D2E)',
-                      borderColor: bestOf === b ? 'var(--navy-400, #3C74C4)' : 'var(--border-default, #2E3E5C)',
-                      color: bestOf === b ? 'var(--gray-0, #FFFFFF)' : 'var(--text-secondary, #A8B7CB)',
+                      background: bestOf === b ? 'var(--navy-500)' : 'var(--surface-card)',
+                      borderColor: bestOf === b ? 'var(--navy-400)' : 'var(--border-default)',
+                      color: bestOf === b ? 'var(--action-primary-fg)' : 'var(--text-secondary)',
                     }}
                   >
                     BO{b}
@@ -343,24 +343,24 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
           {/* Cảnh báo K3: Kèo lệch trình độ & Chi tiết delta 2 kịch bản */}
           {isImbalanced && (
             <div style={S.imbalanceDetailedCard}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--status-delayed-fg, #F0B75C)', fontWeight: 600, fontSize: 13 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--status-delayed-fg)', fontWeight: 600, fontSize: 13 }}>
                 <span>⚠️</span> {t('challenge.imbalancedWarn', { gap })}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginTop: 4 }}>
                 <div style={S.scenarioBox}>
-                  <div style={{ color: 'var(--text-muted, #8494AA)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinA')}</div>
-                  <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 12.5, color: 'var(--status-delivered-fg, #5FD9A2)', fontWeight: 600 }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinA')}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--status-delivered-fg)', fontWeight: 600 }}>
                     +{deltaA_win} / -{deltaA_win}
                   </div>
                 </div>
                 <div style={S.scenarioBox}>
-                  <div style={{ color: 'var(--text-muted, #8494AA)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinB')}</div>
-                  <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 12.5, color: 'var(--status-delayed-fg, #F0B75C)', fontWeight: 600 }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinB')}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--status-delayed-fg)', fontWeight: 600 }}>
                     +{deltaB_win} / -{deltaB_win}
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--text-muted, #8494AA)', fontStyle: 'italic', marginTop: 2 }}>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
                 {t('challenge.imbalanceNotice')}
               </div>
             </div>
@@ -407,8 +407,8 @@ const S = {
     maxWidth: 720,
     maxHeight: '94vh',
     overflowY: 'auto',
-    background: 'var(--surface-raised, #1A2437)',
-    border: '1px solid var(--border-default, #2E3E5C)',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border-default)',
     borderRadius: 12,
     boxShadow: '0 24px 60px rgba(0,0,0,.60)',
     display: 'flex',
@@ -416,18 +416,18 @@ const S = {
   },
   header: {
     padding: '14px 18px',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    borderBottom: '1px solid var(--border-subtle)',
     display: 'flex',
     alignItems: 'center',
     gap: 12,
   },
   title: {
-    font: '600 17px/1.25 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-primary, #E9EFF7)',
+    font: '600 17px/1.25 var(--font-sans)',
+    color: 'var(--text-primary)',
   },
   subtitle: {
-    font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    font: '400 13px/1.4 var(--font-sans)',
+    color: 'var(--text-muted)',
   },
   closeBtn: {
     height: 32,
@@ -435,10 +435,10 @@ const S = {
     alignItems: 'center',
     padding: '0 12px',
     borderRadius: 6,
-    background: 'var(--surface-card, #141D2E)',
-    border: '1px solid var(--border-default, #2E3E5C)',
-    font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-secondary, #A8B7CB)',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    font: '600 13px/1 var(--font-sans)',
+    color: 'var(--text-secondary)',
     cursor: 'pointer',
   },
   body: {
@@ -456,7 +456,7 @@ const S = {
     gap: 8,
     padding: '12px 14px',
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
+    background: 'var(--surface-inset)',
     border: '1px solid',
   },
   teamHead: {
@@ -466,36 +466,36 @@ const S = {
     gap: 8,
   },
   teamLabelA: {
-    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
+    font: '600 11px/1.2 var(--font-sans)',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: 'var(--status-transit-fg, #5FDBD3)',
+    color: 'var(--status-transit-fg)',
   },
   teamLabelB: {
-    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
+    font: '600 11px/1.2 var(--font-sans)',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   teamRatingMono: {
-    font: '600 13px/1.3 "IBM Plex Mono", monospace',
-    color: 'var(--text-primary, #E9EFF7)',
+    font: '600 13px/1.3 var(--font-mono)',
+    color: 'var(--text-primary)',
   },
   teamNames: {
-    font: '600 14px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-primary, #E9EFF7)',
+    font: '600 14px/1.4 var(--font-sans)',
+    color: 'var(--text-primary)',
     minHeight: 22,
   },
   faintText: {
-    color: 'var(--text-disabled, #5B6B81)',
+    color: 'var(--text-disabled)',
     fontWeight: 400,
     fontSize: 13,
   },
   sectionLabel: {
-    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
+    font: '600 11px/1.2 var(--font-sans)',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   chipWrap: {
     display: 'flex',
@@ -510,22 +510,22 @@ const S = {
     borderRadius: 6,
     border: '1px solid',
     cursor: 'pointer',
-    font: '600 13px/1.2 "IBM Plex Sans", sans-serif',
+    font: '600 13px/1.2 var(--font-sans)',
     transition: 'all 0.15s ease',
   },
   monoRating: {
-    font: '400 12px/1 "IBM Plex Mono", monospace',
+    font: '400 12px/1 var(--font-mono)',
   },
   teamTag: {
-    font: '700 10px/1 "IBM Plex Sans", sans-serif',
+    font: '700 10px/1 var(--font-sans)',
     padding: '2px 4px',
     borderRadius: 3,
-    background: 'var(--teal-500, #00B2A9)',
-    color: 'var(--teal-900, #04302C)',
+    background: 'var(--teal-500)',
+    color: 'var(--teal-900)',
   },
   guestNotice: {
-    font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    font: '400 12.5px/1.4 var(--font-sans)',
+    color: 'var(--text-muted)',
   },
   analysisRow: {
     display: 'grid',
@@ -538,8 +538,8 @@ const S = {
     gap: 8,
     padding: '12px 14px',
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
   },
   pctRow: {
     display: 'flex',
@@ -548,18 +548,18 @@ const S = {
     gap: 8,
   },
   pctNum: {
-    font: '700 22px/1 Barlow, sans-serif',
+    font: '700 22px/1 var(--font-display)',
   },
   gapMono: {
-    font: '400 12px/1.3 "IBM Plex Mono", monospace',
-    color: 'var(--text-muted, #8494AA)',
+    font: '400 12px/1.3 var(--font-mono)',
+    color: 'var(--text-muted)',
   },
   barTrack: {
     display: 'flex',
     height: 8,
     borderRadius: 999,
     overflow: 'hidden',
-    background: 'var(--surface-page, #0B1220)',
+    background: 'var(--surface-page)',
   },
   checkboxRow: {
     display: 'flex',
@@ -585,7 +585,7 @@ const S = {
     padding: '4px 10px',
     borderRadius: 4,
     border: '1px solid',
-    font: '600 12px/1 "IBM Plex Mono", monospace',
+    font: '600 12px/1 var(--font-mono)',
     cursor: 'pointer',
   },
   actionRow: {
@@ -601,37 +601,37 @@ const S = {
     alignItems: 'center',
     padding: '0 20px',
     borderRadius: 6,
-    background: 'var(--navy-500, #1D50A0)',
+    background: 'var(--action-primary-bg)',
     border: 'none',
-    font: '700 14px/1 "IBM Plex Sans", sans-serif',
-    color: 'var(--gray-0, #FFFFFF)',
-    boxShadow: '0 2px 10px rgba(29,80,160,.4)',
+    font: '700 14px/1 var(--font-sans)',
+    color: 'var(--action-primary-fg)',
+    boxShadow: 'var(--shadow-sm)',
   },
   submitHint: {
-    font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    font: '400 13px/1.4 var(--font-sans)',
+    color: 'var(--text-muted)',
   },
   imbalanceDetailedCard: {
     padding: '12px 14px',
     borderRadius: 8,
-    background: 'rgba(224,138,0,.10)',
-    border: '1px solid var(--status-delayed-fg, #F0B75C)',
+    background: 'var(--surface-warning-soft)',
+    border: '1px solid var(--status-delayed-fg)',
     display: 'grid',
     gap: 6,
   },
   scenarioBox: {
     padding: '8px 10px',
     borderRadius: 6,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     display: 'grid',
     gap: 2,
   },
   unreliableCard: {
     padding: '12px 14px',
     borderRadius: 8,
-    background: 'rgba(214,59,43,.10)',
-    border: '1px solid #D63B2B',
+    background: 'var(--surface-danger-soft)',
+    border: '1px solid var(--status-incident)',
     display: 'grid',
     gap: 8,
   },
@@ -639,21 +639,21 @@ const S = {
     width: 20,
     height: 20,
     borderRadius: 999,
-    background: '#D63B2B',
+    background: 'var(--status-incident)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    font: '700 12px/1 Barlow, sans-serif',
-    color: '#FFFFFF',
+    font: '700 12px/1 var(--font-display)',
+    color: 'var(--action-primary-fg)',
     flexShrink: 0,
   },
   unreliableTitle: {
-    font: '600 14px/1.3 "IBM Plex Sans", sans-serif',
-    color: '#F09A8E',
+    font: '600 14px/1.3 var(--font-sans)',
+    color: 'var(--status-incident-fg)',
   },
   unreliableDesc: {
-    font: '400 13px/1.55 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-secondary, #A8B7CB)',
+    font: '400 13px/1.55 var(--font-sans)',
+    color: 'var(--text-secondary)',
   },
   unreliableBtn: {
     height: 32,
@@ -661,32 +661,32 @@ const S = {
     alignItems: 'center',
     padding: '0 12px',
     borderRadius: 6,
-    border: '1px solid var(--border-default, #2E3E5C)',
-    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    border: '1px solid var(--border-default)',
+    font: '600 12px/1 var(--font-sans)',
     cursor: 'pointer',
   },
 }
 
 const confBadgeStyle = (level) => {
   const base = {
-    font: '700 9px/1 "IBM Plex Mono", monospace',
+    font: '700 9px/1 var(--font-mono)',
     padding: '2px 4px',
     borderRadius: 3,
   }
-  if (level === 'R1') return { ...base, background: 'rgba(214,59,43,.22)', color: '#F09A8E' }
-  if (level === 'R2') return { ...base, background: 'rgba(240,183,92,.22)', color: 'var(--status-delayed-fg, #F0B75C)' }
-  if (level === 'R3') return { ...base, background: 'rgba(60,116,196,.22)', color: 'var(--navy-200, #9FC0EA)' }
-  return { ...base, background: 'rgba(95,217,162,.20)', color: 'var(--status-delivered-fg, #5FD9A2)' }
+  if (level === 'R1') return { ...base, background: 'var(--surface-danger-soft)', color: 'var(--status-incident-fg)' }
+  if (level === 'R2') return { ...base, background: 'var(--surface-warning-soft)', color: 'var(--status-delayed-fg)' }
+  if (level === 'R3') return { ...base, background: 'var(--surface-brand-soft)', color: 'var(--status-scheduled-fg)' }
+  return { ...base, background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)' }
 }
 
 const confTagStyle = (level) => {
   const base = {
-    font: '600 10px/1 "IBM Plex Mono", monospace',
+    font: '600 10px/1 var(--font-mono)',
     padding: '3px 6px',
     borderRadius: 4,
   }
-  if (level === 'R1') return { ...base, background: 'rgba(214,59,43,.18)', color: '#F09A8E' }
-  if (level === 'R2') return { ...base, background: 'rgba(240,183,92,.16)', color: '#F0B75C' }
-  if (level === 'R3') return { ...base, background: 'rgba(60,116,196,.18)', color: '#9FC0EA' }
-  return { ...base, background: 'rgba(95,217,162,.14)', color: '#5FD9A2' }
+  if (level === 'R1') return { ...base, background: 'var(--surface-danger-soft)', color: 'var(--status-incident-fg)' }
+  if (level === 'R2') return { ...base, background: 'var(--surface-warning-soft)', color: 'var(--status-delayed-fg)' }
+  if (level === 'R3') return { ...base, background: 'var(--surface-brand-soft)', color: 'var(--status-scheduled-fg)' }
+  return { ...base, background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)' }
 }

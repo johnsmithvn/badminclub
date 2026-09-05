@@ -76,6 +76,20 @@ export default function MoreSheet({ open, onClose, route }) {
           badge: counts.pendingJoins > 0 ? counts.pendingJoins : null,
         },
         { value: 'schema', icon: 'database' },
+        ...(can(role, 'settings') ? [
+          {
+            value: 'ioExport',
+            label: t('settings.ioExport'),
+            icon: 'download',
+            action: 'exportSettings',
+          },
+          {
+            value: 'ioImport',
+            label: t('settings.ioImport'),
+            icon: 'upload',
+            action: 'importSettings',
+          },
+        ] : []),
       ],
     },
   ]
@@ -88,6 +102,14 @@ export default function MoreSheet({ open, onClose, route }) {
 
   const handleItemClick = (it) => {
     onClose()
+    if (it.action === 'exportSettings') {
+      a.exportSettings()
+      return
+    }
+    if (it.action === 'importSettings') {
+      a.openDialog('importSettings', {})
+      return
+    }
     if (it.isAssign) {
       // Nhảy thẳng vào buổi khả dụng đầu tiên (Sidebar.jsx:196)
       const firstSession = assignableSessions(db)[0]
@@ -129,10 +151,10 @@ export default function MoreSheet({ open, onClose, route }) {
                     </div>
                     <span style={{
                       ...S.rowLabel,
-                      color: isActive ? 'var(--text-primary)' : 'var(--text-primary)',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                       fontWeight: isActive ? 600 : 500,
                     }}>
-                      {t('nav.' + it.value)}
+                      {it.label || t('nav.' + it.value)}
                     </span>
                     {it.badge != null && (
                       <span style={S.rowBadge}>
@@ -163,7 +185,7 @@ export default function MoreSheet({ open, onClose, route }) {
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
               <div style={S.clubName}>{clubName}</div>
               <div style={S.clubRole}>
-                {roleName(role)} · {t('common.changeAvatar') || ''}
+                {roleName(role)} · {db.club?.code ? t('shell.clubPrefix') + db.club.code : clubName}
               </div>
             </div>
             <Icon
@@ -206,7 +228,7 @@ export default function MoreSheet({ open, onClose, route }) {
                       width: 24, height: 24, borderRadius: 6,
                       background: isCurrent ? 'var(--action-accent-bg)' : 'var(--surface-sunken)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: isCurrent ? '#04302C' : 'var(--text-secondary)',
+                      color: isCurrent ? 'var(--action-accent-fg)' : 'var(--text-secondary)',
                       fontSize: 11, fontWeight: 700, flexShrink: 0,
                     }}>
                       {c.name.slice(0, 1).toUpperCase()}
@@ -251,7 +273,7 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 14,
-    padding: '4px 0 16px',
+    padding: '4px 0 calc(16px + env(safe-area-inset-bottom, 0px))',
   },
   group: {
     display: 'flex',
@@ -320,7 +342,7 @@ const S = {
     height: 28,
     borderRadius: 7,
     background: 'var(--action-accent-bg)',
-    color: '#04302C',
+    color: 'var(--action-accent-fg)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
