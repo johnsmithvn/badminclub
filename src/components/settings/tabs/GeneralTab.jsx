@@ -9,7 +9,7 @@ import {
   LevelPillsManager,
   DangerZoneCard,
 } from '#components/settings/SettingsComponents.jsx'
-import { scanQrCodeFromImage, parseVietQr, generateVietQrUrl } from '#lib/vietqr.js'
+import { scanQrCodeFromImage, parseVietQr, getVietQrUrl } from '#utils/vietqr.js'
 import banks from '#config/banks.json' with { type: 'json' }
 import { t } from '#i18n'
 
@@ -77,10 +77,10 @@ export default function GeneralTab({
   const bank = data.bank || {}
   const autoVietQrUrl = useMemo(() => {
     if (!bank.no || !bank.bank) return ''
-    return generateVietQrUrl({
+    return getVietQrUrl({
       bankCode: bank.bank,
       accountNo: bank.no,
-      accountName: bank.holder,
+      accountHolder: bank.holder,
     })
   }, [bank.bank, bank.no, bank.holder])
 
