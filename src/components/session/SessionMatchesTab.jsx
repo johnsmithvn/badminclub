@@ -6,11 +6,13 @@ import { searchMatches } from '#lib/matchSearch.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
+import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 
 export default function SessionMatchesTab({ s }) {
   const { db, a } = useApp()
   const isMobile = useMobile()
   const [showCreate, setShowCreate] = useState(false)
+  const [editingMatch, setEditingMatch] = useState(null)
 
   // Danh sách các trận trong buổi này
   const matches = useMemo(() => {
@@ -37,10 +39,47 @@ export default function SessionMatchesTab({ s }) {
   const fromChallengeCount = matches.filter((m) => m.sourceType === 'challenge' || m.challengeId).length
   const totalMin = matches.reduce((acc, m) => acc + (m.minutes || 0), 0)
 
+  // Đếm số trận cân bằng (lệch ban đầu <= 120 điểm hoặc có set sát <= 3 điểm)
+  const balancedCount = useMemo(() => {
+    return matches.filter((m) => {
+      if (m.initialRatingA != null && m.initialRatingB != null) {
+        return Math.abs(m.initialRatingA - m.initialRatingB) <= 120
+      }
+      if (m.sets && m.sets.length) {
+        return m.sets.some(([aScore, bScore]) => Math.abs(aScore - bScore) <= 3)
+      }
+      return false
+    }).length
+  }, [matches])
+
   return (
     <div style={{ ...S.layout, gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px' }}>
       {/* ---------------- Cột trái: Bảng Trận đấu của buổi ---------------- */}
       <div style={{ display: 'grid', gap: 16, alignContent: 'start', minWidth: 0 }}>
+        {/* 4 StatCards thống kê buổi */}
+        <div style={S.statGrid}>
+          <div style={S.statCard}>
+            <div style={S.statLabel}>{t('pages.sessions.statTotalMatches')}</div>
+            <div style={S.statValue}>{matches.length}</div>
+            <div style={S.statSub}>{t('pages.sessions.statTotalMinutes', { min: totalMin })}</div>
+          </div>
+          <div style={S.statCard}>
+            <div style={S.statLabel}>{t('pages.sessions.statCourtMatches')}</div>
+            <div style={{ ...S.statValue, color: 'var(--text-primary, #E9EFF7)' }}>{fromSessionCount}</div>
+            <div style={S.statSub}>{t('pages.sessions.statCourtMatchesDesc')}</div>
+          </div>
+          <div style={S.statCard}>
+            <div style={S.statLabel}>{t('pages.sessions.statChallengeMatches')}</div>
+            <div style={{ ...S.statValue, color: 'var(--status-transit-fg, #5FDBD3)' }}>{fromChallengeCount}</div>
+            <div style={S.statSub}>{t('pages.sessions.statChallengeMatchesDesc')}</div>
+          </div>
+          <div style={S.statCard}>
+            <div style={S.statLabel}>{t('pages.sessions.statBalancedMatches')}</div>
+            <div style={{ ...S.statValue, color: 'var(--status-delivered-fg, #5FD9A2)' }}>{balancedCount}</div>
+            <div style={S.statSub}>{t('pages.sessions.statBalancedMatchesDesc')}</div>
+          </div>
+        </div>
+
         <div style={S.card}>
           {/* Header Bảng */}
           <div style={S.cardHead}>
@@ -59,14 +98,16 @@ export default function SessionMatchesTab({ s }) {
 
           {/* Table Headers & Rows với scroll ngang an toàn trên mobile */}
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <div style={{ minWidth: 540 }}>
+            <div style={{ minWidth: 680 }}>
               <div style={S.tableHead}>
                 <div style={S.thCell}>{t('matchSearch.colCode')}</div>
                 <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
                 <div style={S.thCell}>{t('matchSearch.colWinner')}</div>
                 <div style={{ ...S.thCell, textAlign: 'center' }}>{t('matchSearch.colScore')}</div>
                 <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
+                <div style={S.thCell}>{t('pages.sessions.colDelta')}</div>
                 <div style={S.thCell}>{t('matchSearch.colSource')}</div>
+                <div style={{ ...S.thCell, textAlign: 'right' }}>{t('pages.sessions.colAction')}</div>
               </div>
 
               {/* Rows */}
@@ -84,6 +125,8 @@ export default function SessionMatchesTab({ s }) {
               const courtName = m.courtId ? courtOf(db, m.courtId).name : t('units.court')
               const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
               const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
+              const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
+              const deltaStr = hasElo ? `${m.eloDelta > 0 ? '+' : ''}${m.eloDelta}` : '—'
 
               return (
                 <div key={m.id} style={S.tableRow}>
@@ -110,6 +153,14 @@ export default function SessionMatchesTab({ s }) {
                   </div>
                   <div style={S.tdCell}>
                     <span style={{
+                      font: '600 12.5px/1 "IBM Plex Mono", monospace',
+                      color: hasElo ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-disabled, #5B6B81)',
+                    }}>
+                      {deltaStr}
+                    </span>
+                  </div>
+                  <div style={S.tdCell}>
+                    <span style={{
                       ...S.sourcePill,
                       background: isFromChallenge ? 'rgba(0,178,169,.14)' : 'rgba(255,255,255,.06)',
                       borderColor: isFromChallenge ? 'var(--teal-700, #00786F)' : 'var(--border-subtle, #22304A)',
@@ -117,6 +168,15 @@ export default function SessionMatchesTab({ s }) {
                     }}>
                       {isFromChallenge ? t('challenge.tag', { code: challenge?.code || '' }) : t('challenge.fromCourt')}
                     </span>
+                  </div>
+                  <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={() => setEditingMatch(m)}
+                      style={S.editInlineBtn}
+                    >
+                      {t('matchSearch.btnEdit')}
+                    </button>
                   </div>
                 </div>
               )
@@ -319,6 +379,15 @@ export default function SessionMatchesTab({ s }) {
           onCreated={() => setShowCreate(false)}
         />
       )}
+
+      {/* Modal sửa điểm */}
+      {editingMatch && (
+        <EditScoreModal
+          match={editingMatch}
+          onClose={() => setEditingMatch(null)}
+          onSaved={() => setEditingMatch(null)}
+        />
+      )}
     </div>
   )
 }
@@ -329,6 +398,33 @@ const S = {
     gridTemplateColumns: 'minmax(0, 1fr) 380px',
     gap: 16,
     alignItems: 'start',
+  },
+  statGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+    gap: 12,
+  },
+  statCard: {
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid var(--border-subtle, #22304A)',
+    borderRadius: 8,
+    padding: '12px 14px',
+    display: 'grid',
+    gap: 4,
+  },
+  statLabel: {
+    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--text-muted, #8494AA)',
+  },
+  statValue: {
+    font: '700 24px/1.1 Barlow, sans-serif',
+    color: 'var(--text-primary, #E9EFF7)',
+  },
+  statSub: {
+    font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-secondary, #A8B7CB)',
   },
   card: {
     background: 'var(--surface-card, #141D2E)',
@@ -363,7 +459,7 @@ const S = {
   },
   tableHead: {
     display: 'grid',
-    gridTemplateColumns: '88px 84px 1fr 96px 1fr 116px',
+    gridTemplateColumns: '88px 84px 1fr 96px 1fr 90px 116px 64px',
     background: 'var(--surface-inset, #101927)',
     borderBottom: '1px solid var(--border-subtle, #22304A)',
   },
@@ -379,10 +475,21 @@ const S = {
   },
   tableRow: {
     display: 'grid',
-    gridTemplateColumns: '88px 84px 1fr 96px 1fr 116px',
+    gridTemplateColumns: '88px 84px 1fr 96px 1fr 90px 116px 64px',
     borderBottom: '1px solid var(--border-subtle, #22304A)',
     minHeight: 52,
     alignItems: 'center',
+  },
+  editInlineBtn: {
+    height: 28,
+    padding: '0 10px',
+    borderRadius: 4,
+    background: 'var(--surface-raised, #1A2437)',
+    border: '1px solid var(--border-default, #2E3E5C)',
+    color: 'var(--text-secondary, #A8B7CB)',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   tdCell: {
     padding: '0 12px',

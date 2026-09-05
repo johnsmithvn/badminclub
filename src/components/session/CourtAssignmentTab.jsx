@@ -8,7 +8,10 @@ import {
   ASSIGN_MODES, activeCourtIdxs, courtSlotIds,
   sessionPlayers, slotIds,
 } from '#lib/assign.js'
-import { expectedScore, evalBalance, getPlayerRating } from '#lib/rating.js'
+import {
+  expectedScore, evalBalance, getPlayerRating,
+  computeClubCalibration, effectiveRating, confidenceProgress,
+} from '#lib/rating.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
@@ -36,8 +39,43 @@ export default function CourtAssignmentTab({ s }) {
   const courtGroups = useMemo(() => (db.courtGroups || {})[s.id] || {}, [db.courtGroups, s.id])
   const idxs = activeCourtIdxs(s)
 
+  const membersMap = useMemo(() => {
+    const map = {}
+    ;(db.members || []).forEach((m) => { map[m.id] = m })
+    return map
+  }, [db.members])
+
+  const [applyCalibration, setApplyCalibration] = useState(true)
+
+  const calList = useMemo(() => {
+    return computeClubCalibration(db.matches || [], membersMap)
+  }, [db.matches, membersMap])
+
+  const cal100_300 = useMemo(() => {
+    return calList.find((c) => c.bucket === '100-300') || calList[0]
+  }, [calList])
+
+  // Lấy rating thô và hiệu dụng của từng người
+  const getPlayerInfo = (key) => {
+    const pr = getPlayerRating(db.playerRatings, key)
+    const mem = membersMap[key] || pmap[key] || {}
+    const conf = confidenceProgress(pr.gamesCount || 0)
+    const isFemale = mem.gender === 'nu' || mem.gender === 'Nữ' // i18n-ok: data matching
+    const adj = (applyCalibration && isFemale && cal100_300?.learnedAdjustment) ? cal100_300.learnedAdjustment : 0
+    return {
+      rawRating: pr.rating,
+      effRating: pr.rating + adj,
+      hasAdjustment: adj !== 0,
+      adj,
+      confLevel: conf.level,
+      gamesCount: pr.gamesCount || 0,
+      isFemale,
+      gender: mem.gender,
+    }
+  }
+
   // Lấy rating của từng người
-  const getRating = (playerId) => getPlayerRating(db.playerRatings, playerId).rating
+  const getRating = (playerId) => getPlayerInfo(playerId).rawRating
 
   // Danh sách chờ (Pool): những người ĐÃ ĐIỂM DANH CÓ MẶT hoặc EXTRA mà chưa lên sân
   const pool = useMemo(() => {
@@ -124,10 +162,44 @@ export default function CourtAssignmentTab({ s }) {
     })
   }
 
+  // Gợi ý cặp cân nhất lên sân trống
+  const handleSuggestPair = (ci) => {
+    if (pool.length < 4) return
+    const slots = courtSlotIds(ci)
+    const candidates = pool.slice(0, 4)
+    candidates.forEach((p, idx) => {
+      a.place(s.id, slots[idx], p.key)
+    })
+  }
+
   const memberNameOf = (id) => playerName(db, id)
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      {/* ---------------- 0. Banner Hiệu chỉnh Chéo giới (Handoff GD1) ---------------- */}
+      {cal100_300 && cal100_300.sampleSize >= 5 && cal100_300.learnedAdjustment !== 0 && (
+        <div style={S.calBanner}>
+          <div style={S.calIcon}>≈</div>
+          <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 4 }}>
+            <div style={S.calTitle}>{t('courtAssign.crossGenderBannerTitle')}</div>
+            <div style={S.calDesc}>
+              {t('courtAssign.crossGenderBannerDesc', {
+                sampleSize: cal100_300.sampleSize,
+                pct: Math.round(cal100_300.observedWinRate * 100),
+                adj: cal100_300.learnedAdjustment > 0 ? `+${cal100_300.learnedAdjustment}` : cal100_300.learnedAdjustment,
+              })}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setApplyCalibration(!applyCalibration)}
+            style={S.calToggleBtn}
+          >
+            {t(applyCalibration ? 'courtAssign.disableCalibration' : 'courtAssign.enableCalibration')}
+          </button>
+        </div>
+      )}
+
       {/* ---------------- 1. Pool người chờ ---------------- */}
       <div style={S.poolCard}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
@@ -138,7 +210,7 @@ export default function CourtAssignmentTab({ s }) {
             <div style={S.cardSub}>
               {groupMode
                 ? t('assign.poolSubGrouped', { waiting: pool.length, total: players.length })
-                : t('courtAssign.poolDesc')}
+                : t('courtAssign.poolRatingSub')}
             </div>
           </div>
           <span style={{
@@ -163,7 +235,7 @@ export default function CourtAssignmentTab({ s }) {
         >
           {pool.map((p) => {
             const isSelected = selectedPoolKey === p.key
-            const r = getRating(p.key)
+            const info = getPlayerInfo(p.key)
             return (
               <button
                 key={p.key}
@@ -179,7 +251,20 @@ export default function CourtAssignmentTab({ s }) {
                 }}
               >
                 <span>{p.name}</span>
-                <span style={{ ...S.monoVal, color: isSelected ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>{r}</span>
+                <span style={info.isFemale ? S.genderBadgeNu : S.genderBadgeNam}>
+                  {t(info.isFemale ? 'gender.nu' : 'gender.nam')}
+                </span>
+                {info.hasAdjustment ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={S.ratingStrike}>{info.rawRating}</span>
+                    <span style={S.ratingEff}>{info.effRating}</span>
+                  </span>
+                ) : (
+                  <span style={{ ...S.monoVal, color: isSelected ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>
+                    {info.rawRating}
+                  </span>
+                )}
+                <span style={confBadgeStyle(info.confLevel)}>{info.confLevel}</span>
                 <LevelChip level={p.level} levels={db.levels} />
               </button>
             )
@@ -192,6 +277,9 @@ export default function CourtAssignmentTab({ s }) {
             </span>
           )}
         </div>
+        {pool.length > 0 && (
+          <div style={S.rawRatingDesc}>{t('courtAssign.rawRatingCrossDesc')}</div>
+        )}
       </div>
 
       {/* ---------------- 2. Kèo đã nhận, đang chờ sân (conditional) ---------------- */}
@@ -261,30 +349,45 @@ export default function CourtAssignmentTab({ s }) {
           // Tính độ cân khi đủ 4 người
           let balance = null
           if (isFull) {
-            const r0 = getRating(p0.key)
-            const r1 = getRating(p1.key)
-            const r2 = getRating(p2.key)
-            const r3 = getRating(p3.key)
-            const avgA = Math.round((r0 + r1) / 2)
-            const avgB = Math.round((r2 + r3) / 2)
-            const gap = Math.abs(avgA - avgB)
-            const pA = expectedScore(avgA, avgB)
+            const inf0 = getPlayerInfo(p0.key)
+            const inf1 = getPlayerInfo(p1.key)
+            const inf2 = getPlayerInfo(p2.key)
+            const inf3 = getPlayerInfo(p3.key)
+            const teamAFemale = inf0.isFemale || inf1.isFemale
+            const teamBFemale = inf2.isFemale || inf3.isFemale
+            const isCrossMatch = (teamAFemale && !teamBFemale) || (!teamAFemale && teamBFemale)
+
+            const rawAvgA = Math.round((inf0.rawRating + inf1.rawRating) / 2)
+            const rawAvgB = Math.round((inf2.rawRating + inf3.rawRating) / 2)
+            const rawGap = Math.abs(rawAvgA - rawAvgB)
+            const rawEval = evalBalance(rawAvgA, rawAvgB)
+
+            const effAvgA = applyCalibration && isCrossMatch ? Math.round((inf0.effRating + inf1.effRating) / 2) : rawAvgA
+            const effAvgB = applyCalibration && isCrossMatch ? Math.round((inf2.effRating + inf3.effRating) / 2) : rawAvgB
+            const gap = Math.abs(effAvgA - effAvgB)
+            const pA = expectedScore(effAvgA, effAvgB)
             const pctA = Math.round(pA * 100)
-            const evalRes = evalBalance(avgA, avgB)
+            const evalRes = evalBalance(effAvgA, effAvgB)
             balance = {
-              avgA,
-              avgB,
+              rawAvgA,
+              rawAvgB,
+              rawGap,
+              rawLabel: t(rawEval.labelKey),
+              effAvgA,
+              effAvgB,
+              isEff: effAvgA !== rawAvgA || effAvgB !== rawAvgB,
               gap,
               pctA,
               pctB: 100 - pctA,
               level: evalRes.level,
-              label: evalRes.label,
+              label: t(evalRes.labelKey),
               color: evalRes.level === 'imbalanced' ? 'var(--status-delayed-fg, #F0B75C)' : evalRes.level === 'balanced' ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-transit-fg, #5FDBD3)',
             }
           }
 
           const SlotBox = ({ p, slotId }) => {
             const isHighlighted = Boolean(selectedPoolKey && !p)
+            const inf = p ? getPlayerInfo(p.key) : null
             return (
               <button
                 type="button"
@@ -302,8 +405,23 @@ export default function CourtAssignmentTab({ s }) {
                 {p ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 6 }}>
                     <div style={{ minWidth: 0, textAlign: 'left' }}>
-                      <div style={{ font: '600 13px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>{p.name}</div>
-                      <div style={{ font: '400 11px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>{getRating(p.key)}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ font: '600 13px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>{p.name}</span>
+                        <span style={inf.isFemale ? S.genderBadgeNu : S.genderBadgeNam}>
+                          {t(inf.isFemale ? 'gender.nu' : 'gender.nam')}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        {inf.hasAdjustment ? (
+                          <>
+                            <span style={S.ratingStrike}>{inf.rawRating}</span>
+                            <span style={S.ratingEff}>{inf.effRating}</span>
+                          </>
+                        ) : (
+                          <span style={{ font: '400 11px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>{inf.rawRating}</span>
+                        )}
+                        <span style={confBadgeStyle(inf.confLevel)}>{inf.confLevel}</span>
+                      </div>
                     </div>
                     <LevelChip level={p.level} levels={db.levels} />
                   </div>
@@ -337,17 +455,28 @@ export default function CourtAssignmentTab({ s }) {
                   </div>
                 </div>
 
-                {/* Pill trạng thái */}
-                <span style={{
-                  ...S.statusPill,
-                  background: attachedChallenge ? 'rgba(0,178,169,.14)' : startedAt ? 'rgba(18,168,103,.14)' : 'rgba(255,255,255,.05)',
-                  borderColor: attachedChallenge ? 'var(--teal-700, #00786F)' : startedAt ? 'var(--green-600, #00875A)' : 'var(--border-subtle, #22304A)',
-                  color: attachedChallenge ? 'var(--status-transit-fg, #5FDBD3)' : startedAt ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-muted, #8494AA)',
-                }}>
-                  {attachedChallenge
-                    ? `${t('courtAssign.statusFromChallenge')} ${attachedChallenge.code}`
-                    : startedAt ? t('courtAssign.statusPlaying') : filledCount > 0 ? t('courtAssign.filledCount', { n: filledCount }) : t('courtAssign.statusEmpty')}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {filledCount === 0 && pool.length >= 4 && (
+                    <button
+                      type="button"
+                      onClick={() => handleSuggestPair(ci)}
+                      style={S.suggestBtn}
+                    >
+                      {t('courtAssign.suggestBalancedPair')}
+                    </button>
+                  )}
+                  {/* Pill trạng thái */}
+                  <span style={{
+                    ...S.statusPill,
+                    background: attachedChallenge ? 'rgba(0,178,169,.14)' : startedAt ? 'rgba(18,168,103,.14)' : 'rgba(255,255,255,.05)',
+                    borderColor: attachedChallenge ? 'var(--teal-700, #00786F)' : startedAt ? 'var(--green-600, #00875A)' : 'var(--border-subtle, #22304A)',
+                    color: attachedChallenge ? 'var(--status-transit-fg, #5FDBD3)' : startedAt ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-muted, #8494AA)',
+                  }}>
+                    {attachedChallenge
+                      ? `${t('courtAssign.statusFromChallenge')} ${attachedChallenge.code}`
+                      : startedAt ? t('courtAssign.statusPlaying') : filledCount > 0 ? t('courtAssign.filledCount', { n: filledCount }) : t('courtAssign.statusEmpty')}
+                  </span>
+                </div>
               </div>
 
               {/* Timer Bar */}
@@ -399,7 +528,7 @@ export default function CourtAssignmentTab({ s }) {
                     <div style={S.rosterChips}>
                       {benchPlayers.map((p) => {
                         const isSelected = selectedPoolKey === p.key
-                        const r = getRating(p.key)
+                        const inf = getPlayerInfo(p.key)
                         return (
                           <div
                             key={p.key}
@@ -418,9 +547,20 @@ export default function CourtAssignmentTab({ s }) {
                             <span style={{ color: isSelected ? 'var(--gray-0, #FFFFFF)' : 'var(--text-primary, #E9EFF7)' }}>
                               {p.name}
                             </span>
-                            <span style={{ ...S.monoVal, color: isSelected ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>
-                              {r}
+                            <span style={inf.isFemale ? S.genderBadgeNu : S.genderBadgeNam}>
+                              {t(inf.isFemale ? 'gender.nu' : 'gender.nam')}
                             </span>
+                            {inf.hasAdjustment ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <span style={S.ratingStrike}>{inf.rawRating}</span>
+                                <span style={S.ratingEff}>{inf.effRating}</span>
+                              </span>
+                            ) : (
+                              <span style={{ ...S.monoVal, color: isSelected ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>
+                                {inf.rawRating}
+                              </span>
+                            )}
+                            <span style={confBadgeStyle(inf.confLevel)}>{inf.confLevel}</span>
                             <LevelChip level={p.level} levels={db.levels} />
                             <button
                               type="button"
@@ -470,16 +610,25 @@ export default function CourtAssignmentTab({ s }) {
                 {/* Balance Row */}
                 <div style={S.balanceRow}>
                   {balance ? (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>{balance.pctA}%</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)' }}>{t('rating.gap', { gap: balance.gap })}</span>
-                        <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-secondary, #A8B7CB)' }}>{balance.pctB}%</span>
+                    <div style={{ display: 'grid', gap: 3, width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>{balance.pctA}%</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)' }}>
+                            {t('rating.gap', { gap: balance.gap })} {balance.isEff ? `· ${t('courtAssign.effective')}` : ''}
+                          </span>
+                          <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-secondary, #A8B7CB)' }}>{balance.pctB}%</span>
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: balance.color }}>
+                          {balance.label}
+                        </span>
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: balance.color }}>
-                        {balance.label}
-                      </span>
-                    </>
+                      {balance.isEff && (
+                        <div style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)' }}>
+                          {t('courtAssign.rawRatingNote', { gap: balance.rawGap, label: balance.rawLabel })}
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <span style={{ fontSize: 12, color: 'var(--text-disabled, #5B6B81)' }}>
                       {t('courtAssign.needFour')}
@@ -873,4 +1022,95 @@ const S = {
     font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
     color: 'var(--text-muted, #8494AA)',
   },
+  calBanner: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: '12px 14px',
+    borderRadius: 8,
+    background: 'rgba(0,178,169,.10)',
+    border: '1px solid var(--teal-700, #00786F)',
+  },
+  calIcon: {
+    width: 22,
+    height: 22,
+    flex: '0 0 auto',
+    borderRadius: 999,
+    background: 'var(--teal-500, #00B2A9)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    font: '700 13px/1 Barlow, sans-serif',
+    color: 'var(--teal-900, #04302C)',
+  },
+  calTitle: {
+    font: '600 14px/1.35 "IBM Plex Sans", sans-serif',
+    color: 'var(--status-transit-fg, #5FDBD3)',
+  },
+  calDesc: {
+    font: '400 13px/1.5 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-secondary, #A8B7CB)',
+  },
+  calToggleBtn: {
+    font: '600 11px/1 "IBM Plex Sans", sans-serif',
+    padding: '6px 10px',
+    borderRadius: 999,
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-default, #2E3E5C)',
+    color: 'var(--text-secondary, #A8B7CB)',
+    whiteSpace: 'nowrap',
+    alignSelf: 'center',
+    cursor: 'pointer',
+  },
+  genderBadgeNu: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    padding: '2px 5px',
+    borderRadius: 999,
+    background: 'rgba(236,72,153,.16)',
+    color: '#F0A5CD',
+  },
+  genderBadgeNam: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    padding: '2px 5px',
+    borderRadius: 999,
+    background: 'rgba(60,116,196,.18)',
+    color: 'var(--navy-200, #9FC0EA)',
+  },
+  ratingStrike: {
+    font: '400 11px/1 "IBM Plex Mono", monospace',
+    color: 'var(--text-muted, #8494AA)',
+    textDecoration: 'line-through',
+  },
+  ratingEff: {
+    font: '600 12px/1 "IBM Plex Mono", monospace',
+    color: 'var(--status-transit-fg, #5FDBD3)',
+  },
+  rawRatingDesc: {
+    font: '400 12px/1.5 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-muted, #8494AA)',
+    paddingTop: 6,
+    borderTop: '1px dashed var(--border-subtle, #22304A)',
+  },
+  suggestBtn: {
+    font: '600 11px/1 "IBM Plex Sans", sans-serif',
+    padding: '5px 10px',
+    borderRadius: 6,
+    background: 'var(--surface-raised, #1A2437)',
+    border: '1px solid var(--border-default, #2E3E5C)',
+    color: 'var(--text-primary, #E9EFF7)',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+}
+
+const confBadgeStyle = (level) => {
+  const base = {
+    font: '700 9px/1 "IBM Plex Mono", monospace',
+    padding: '2px 4px',
+    borderRadius: 3,
+  }
+  if (level === 'R1') return { ...base, background: 'rgba(214,59,43,.22)', color: '#F09A8E' }
+  if (level === 'R2') return { ...base, background: 'rgba(240,183,92,.22)', color: 'var(--status-delayed-fg, #F0B75C)' }
+  if (level === 'R3') return { ...base, background: 'rgba(60,116,196,.22)', color: 'var(--navy-200, #9FC0EA)' }
+  return { ...base, background: 'rgba(95,217,162,.20)', color: 'var(--status-delivered-fg, #5FD9A2)' }
 }

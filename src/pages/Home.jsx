@@ -1,5 +1,5 @@
-// Trang chủ: tab Tổng quan + tab Báo cáo (handoff 02 §1).
-
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Alert, Avatar, Button, Card, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
 import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, MyDebtPanel, Overline, SessionPill } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -7,13 +7,16 @@ import { ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import {
   adjustRows, advanceRows, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
   groupMembers, groupOf, guestOf, homeAlerts, isPresent, memberOf, monthSessions,
-  openSessions, sessionOf, timeTxt,
+  openSessions, sessionOf, timeTxt, playerName,
 } from '#lib/money.js'
 import { monthFlow } from '#lib/ledger.js'
+import { getPlayerRating } from '#lib/rating.js'
+import { neverMetPairs } from '#lib/matchSearch.js'
 import { t } from '#i18n'
 import { Detail, FundBalanceColumns, FundOverviewCards } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
 import { scheduleForm } from '#lib/forms.js'
+import { PUBLIC_PATHS } from '#routes'
 import cfg from '#config/app.json' with { type: 'json' }
 
 export default function Home() {
@@ -28,6 +31,7 @@ export default function Home() {
         variant="underline"
         items={[
           { value: 'overview', label: t('home.tabs.overview') },
+          { value: 'match', label: t('home.tabMatch') },
           { value: 'transactions', label: t('home.tabTransactions') },
           { value: 'report', label: t('home.tabReport') },
         ]}
@@ -36,6 +40,8 @@ export default function Home() {
       />
       {tab === 'overview' ? (
         <Overview />
+      ) : tab === 'match' ? (
+        <MatchTab />
       ) : tab === 'transactions' ? (
         <Detail canMoney={canMoney} />
       ) : (
@@ -880,6 +886,392 @@ function Report() {
   )
 }
 
+/* ============================ SÂN ĐẤU / THI ĐẤU ============================ */
+
+function MatchTab() {
+  const { db } = useApp()
+  const activeMembers = (db.members || []).filter((m) => m.active !== false)
+  const matches = db.matches || []
+  const sessions = db.sessions || []
+  const month = db.month
+
+  const memberMap = useMemo(() => {
+    const map = {}
+    activeMembers.forEach((m) => { map[m.id] = m })
+    return map
+  }, [activeMembers])
+
+  // 1. 4 Thẻ StatCard
+  const stats = useMemo(() => {
+    const totalMatches = matches.length
+    let upsetMatchesCount = 0
+    let balancedMatchesCount = 0
+
+    matches.forEach((m) => {
+      const ra = m.initialRatingA || 0
+      const rb = m.initialRatingB || 0
+      if (Math.abs(ra - rb) > 100 && ((ra < rb && m.winnerTeam === 'A') || (rb < ra && m.winnerTeam === 'B'))) {
+        upsetMatchesCount++
+      }
+      const isScoreClose = (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
+      const isRatingClose = Math.abs(ra - rb) <= 50
+      if (isScoreClose || isRatingClose) {
+        balancedMatchesCount++
+      }
+    })
+
+    let ratedCount = 0
+    activeMembers.forEach((m) => {
+      const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
+      if (pr.gamesCount > 0) ratedCount++
+    })
+
+    const balancedRatio = totalMatches > 0 ? Math.round((balancedMatchesCount / totalMatches) * 100) : 0
+
+    return {
+      totalMatches,
+      upsetMatchesCount,
+      ratedCount,
+      balancedRatio,
+    }
+  }, [matches, activeMembers, db.playerRatings, db.levels])
+
+  // 2. Buổi tiếp theo & Trải phổ Elo (Histogram)
+  const nextSessionData = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const upcoming = sessions
+      .filter((s) => s.status !== 'closed' && (s.date >= todayStr || s.status === 'open'))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+
+    const next = upcoming[0] || null
+    if (!next) return null
+
+    const group = (db.groups || []).find((g) => g.id === next.groupId)
+    const fixedIds = group?.memberIds || []
+    const attendIds = (next.attendance || []).filter((at) => at.status === 'present').map((at) => at.memberId || at.id)
+    const allRosterIds = Array.from(new Set([...fixedIds, ...attendIds]))
+    const roster = allRosterIds.map((id) => memberMap[id]).filter(Boolean)
+
+    const buckets = [
+      { key: 'bronze', label: '< 800', count: 0, color: 'var(--podium-bronze, #CD7F32)' },
+      { key: 'silver', label: '800 – 999', count: 0, color: 'var(--podium-silver, #C0D8F8)' },
+      { key: 'gold', label: '1000 – 1199', count: 0, color: 'var(--podium-gold, #F0B75C)' },
+      { key: 'plat', label: '1200 – 1399', count: 0, color: 'var(--status-transit-fg, #5FDBD3)' },
+      { key: 'diamond', label: '≥ 1400', count: 0, color: '#4C9AFF' },
+    ]
+
+    roster.forEach((m) => {
+      const r = getPlayerRating(db.playerRatings, m.id, m, db.levels).rating
+      if (r < 800) buckets[0].count++
+      else if (r < 1000) buckets[1].count++
+      else if (r < 1200) buckets[2].count++
+      else if (r < 1400) buckets[3].count++
+      else buckets[4].count++
+    })
+
+    const maxCount = Math.max(1, ...buckets.map((b) => b.count))
+
+    return {
+      session: next,
+      rosterCount: roster.length,
+      buckets,
+      maxCount,
+    }
+  }, [sessions, db.groups, memberMap, db.playerRatings, db.levels])
+
+  // 3. Người của tháng (Top Win Rate, Top Streak)
+  const playersOfMonth = useMemo(() => {
+    const memberStats = {}
+    activeMembers.forEach((m) => {
+      memberStats[m.id] = { member: m, matches: 0, wins: 0 }
+    })
+
+    const sorted = [...matches].sort((a, b) => (b.at || 0) - (a.at || 0))
+    sorted.forEach((m) => {
+      const mDate = m.createdAt ? m.createdAt.slice(0, 7) : ''
+      if (mDate && mDate !== month) return
+
+      const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+      const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+      const aWon = m.winnerTeam === 'A'
+
+      teamA.forEach((id) => {
+        if (memberStats[id]) {
+          memberStats[id].matches++
+          if (aWon) memberStats[id].wins++
+        }
+      })
+      teamB.forEach((id) => {
+        if (memberStats[id]) {
+          memberStats[id].matches++
+          if (!aWon) memberStats[id].wins++
+        }
+      })
+    })
+
+    let topWrPlayer = null
+    let maxWr = -1
+    Object.values(memberStats).forEach((st) => {
+      if (st.matches >= 2) {
+        const wr = st.wins / st.matches
+        if (wr > maxWr) {
+          maxWr = wr
+          topWrPlayer = { ...st, winRate: Math.round(wr * 100) }
+        }
+      }
+    })
+
+    let topStreakPlayer = null
+    let maxStreak = 0
+    activeMembers.forEach((m) => {
+      let streak = 0
+      for (const mt of sorted) {
+        const teamA = mt.teamA || (mt.playerKeys ? mt.playerKeys.slice(0, 2) : [])
+        const teamB = mt.teamB || (mt.playerKeys ? mt.playerKeys.slice(2, 4) : [])
+        const inA = teamA.includes(m.id)
+        const inB = teamB.includes(m.id)
+        if (!inA && !inB) continue
+        const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
+        if (won) streak++
+        else break
+      }
+      if (streak >= 3 && streak > maxStreak) {
+        maxStreak = streak
+        topStreakPlayer = { member: m, streak }
+      }
+    })
+
+    return {
+      topWrPlayer,
+      topStreakPlayer,
+    }
+  }, [activeMembers, matches, month])
+
+  // 4. Cặp chưa từng gặp nhau & Lượt đánh chưa đều
+  const neverMet = useMemo(() => {
+    return neverMetPairs(activeMembers, matches).slice(0, 6)
+  }, [activeMembers, matches])
+
+  const unevenSessionPlay = useMemo(() => {
+    const sessionsWithMatches = sessions.filter((s) => matches.some((m) => m.sessionId === s.id))
+    const lastSession = sessionsWithMatches.sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0] || null
+    if (!lastSession) return null
+
+    const sessionMatches = matches.filter((m) => m.sessionId === lastSession.id)
+    const playCounts = {}
+    sessionMatches.forEach((m) => {
+      const allP = [...(m.teamA || []), ...(m.teamB || [])]
+      allP.forEach((pid) => {
+        playCounts[pid] = (playCounts[pid] || 0) + 1
+      })
+    })
+
+    const entries = Object.entries(playCounts)
+    if (entries.length < 3) return null
+
+    const totalPlays = entries.reduce((acc, [, c]) => acc + c, 0)
+    const avgPlays = totalPlays / entries.length
+
+    const uneven = entries
+      .filter(([, c]) => c <= Math.max(1, Math.floor(avgPlays - 1)))
+      .map(([id, count]) => ({
+        id,
+        name: playerName(db, id),
+        count,
+        avg: Math.round(avgPlays),
+      }))
+
+    return {
+      session: lastSession,
+      uneven,
+    }
+  }, [sessions, matches, db])
+
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      {/* 4 StatCards */}
+      <div style={GRID_STAT}>
+        <StatCard
+          label={t('home.statMatchesTotal')}
+          value={stats.totalMatches}
+          sub={t('home.statMatchesSub')}
+        />
+        <StatCard
+          label={t('home.statUpsetCount')}
+          value={stats.upsetMatchesCount}
+          sub={t('home.statUpsetSub')}
+        />
+        <StatCard
+          label={t('home.statRatedCount')}
+          value={`${stats.ratedCount}/${activeMembers.length}`}
+          sub={t('home.statRatedSub')}
+        />
+        <StatCard
+          label={t('home.statBalancedRatio')}
+          value={`${stats.balancedRatio}%`}
+          sub={t('home.statBalancedSub')}
+        />
+      </div>
+
+      {/* Grid 2 cột */}
+      <div style={GRID_PAIR}>
+        {/* Cột trái */}
+        <div style={{ display: 'grid', gap: 16 }}>
+          {/* 1. Trải phổ Elo buổi tới */}
+          <Card
+            title={t('home.histogramTitle')}
+            subtitle={nextSessionData ? t('home.histogramSub', { n: nextSessionData.rosterCount, date: ddmy(nextSessionData.session.date) }) : t('home.histogramNoSession')}
+            icon="chart-column"
+            padding="16px"
+          >
+            {!nextSessionData ? (
+              <Empty icon="calendar-days" title={t('home.histogramNoSession')} />
+            ) : (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {nextSessionData.buckets.map((b) => {
+                  const pct = Math.round((b.count / nextSessionData.maxCount) * 100)
+                  return (
+                    <div key={b.key} style={{ display: 'grid', gap: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+                        <span style={{ fontWeight: 600, color: b.color, fontFamily: '"IBM Plex Mono", monospace' }}>
+                          {b.label}
+                        </span>
+                        <span style={{ fontFamily: '"IBM Plex Mono", monospace', color: 'var(--text-primary)' }}>
+                          {b.count}
+                        </span>
+                      </div>
+                      <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-inset, #101927)', overflow: 'hidden', border: '1px solid var(--border-subtle, #22304A)' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: b.color, transition: 'width 0.3s ease' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </Card>
+
+          {/* 2. Người nổi bật trong tháng */}
+          <Card
+            title={t('home.playersOfMonthTitle')}
+            subtitle={t('home.playersOfMonthSub')}
+            icon="trophy"
+            padding="16px"
+          >
+            <div style={{ display: 'grid', gap: 10 }}>
+              {/* Top Win Rate */}
+              <div style={SS.matchHighlightBox}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ ...SS.matchIconWrap, background: 'rgba(18,168,103,.15)', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
+                    <Icon name="sparkles" size={16} />
+                  </div>
+                  <div>
+                    <div style={SS.caption}>{t('home.topWinRate')}</div>
+                    <div style={SS.label}>
+                      {playersOfMonth.topWrPlayer ? playersOfMonth.topWrPlayer.member.name : '—'}
+                    </div>
+                  </div>
+                </div>
+                {playersOfMonth.topWrPlayer && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ font: '700 15px "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
+                      {playersOfMonth.topWrPlayer.winRate}%
+                    </div>
+                    <div style={SS.caption}>
+                      {playersOfMonth.topWrPlayer.wins}W – {playersOfMonth.topWrPlayer.matches - playersOfMonth.topWrPlayer.wins}L
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Top Streak */}
+              <div style={SS.matchHighlightBox}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ ...SS.matchIconWrap, background: 'rgba(240,183,92,.15)', color: 'var(--status-delayed-fg, #F0B75C)' }}>
+                    <Icon name="flame" size={16} />
+                  </div>
+                  <div>
+                    <div style={SS.caption}>{t('home.topStreak')}</div>
+                    <div style={SS.label}>
+                      {playersOfMonth.topStreakPlayer ? playersOfMonth.topStreakPlayer.member.name : '—'}
+                    </div>
+                  </div>
+                </div>
+                {playersOfMonth.topStreakPlayer && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ font: '700 15px "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg, #F0B75C)' }}>
+                      {playersOfMonth.topStreakPlayer.streak}W
+                    </div>
+                    <div style={SS.caption}>
+                      {t('home.statMatchesSub')}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Cột phải */}
+        <div style={{ display: 'grid', gap: 16 }}>
+          {/* 3. Cặp chưa từng đối đầu */}
+          <Card
+            title={t('home.neverMetTitle')}
+            subtitle={t('home.neverMetSub')}
+            icon="users"
+            padding="16px"
+          >
+            {neverMet.length === 0 ? (
+              <Empty icon="users" title={t('home.noNeverMet')} />
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {neverMet.map(([id1, id2], idx) => (
+                  <div key={idx} style={SS.neverMetChip}>
+                    <span>⚔️</span>
+                    <span style={{ fontWeight: 600 }}>{playerName(db, id1)}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>·</span>
+                    <span style={{ fontWeight: 600 }}>{playerName(db, id2)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* 4. Lượt đánh chưa đều buổi gần nhất */}
+          <Card
+            title={t('home.unevenPlayTitle')}
+            subtitle={unevenSessionPlay ? `${t('home.unevenPlaySub')} · ${ddmy(unevenSessionPlay.session.date)}` : t('home.unevenPlaySub')}
+            icon="clock-alert"
+            padding="16px"
+          >
+            {!unevenSessionPlay || unevenSessionPlay.uneven.length === 0 ? (
+              <Empty icon="check" title={t('home.noUneven')} />
+            ) : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {unevenSessionPlay.uneven.map((u) => (
+                  <div key={u.id} style={SS.unevenRow}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: 'var(--status-delayed-fg, #F0B75C)' }}>⚠️</span>
+                      <span style={SS.label}>{u.name}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ font: '600 13px "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg, #F0B75C)' }}>
+                        {t('home.playCount', { n: u.count })}
+                      </span>
+                      <span style={SS.caption}>
+                        (tb ~ {u.avg})
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const SS = {
   upRow: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
@@ -907,5 +1299,43 @@ const SS = {
   warnRow: {
     display: 'flex', alignItems: 'center', gap: 8, padding: '6px 9px',
     borderRadius: 8, background: 'var(--surface-card)',
+  },
+  matchHighlightBox: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 12px',
+    borderRadius: 8,
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
+  },
+  matchIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  neverMetChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '5px 10px',
+    borderRadius: 6,
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
+    fontSize: 12.5,
+    color: 'var(--text-primary)',
+  },
+  unevenRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '8px 12px',
+    borderRadius: 6,
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
   },
 }

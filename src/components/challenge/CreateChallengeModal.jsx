@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
-import { expectedScore, calcEloDelta, getPlayerRating } from '#lib/rating.js'
+import { expectedScore, calcEloDelta, getPlayerRating, confidenceProgress } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -25,6 +25,24 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
 
   // Lấy rating của từng người (an toàn với cả Map lẫn Array)
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
+
+  // Kiểm tra thành viên có độ tin cậy thấp (R1/R2: < 15 trận)
+  const unreliableMember = useMemo(() => {
+    const allIds = [...teamA, ...teamB]
+    for (const id of allIds) {
+      const pr = getPlayerRating(db.playerRatings, id)
+      if ((pr.gamesCount || 0) < 15) {
+        return {
+          id,
+          name: playerName(db, id),
+          gamesCount: pr.gamesCount || 0,
+          rating: pr.rating,
+          conf: confidenceProgress(pr.gamesCount || 0),
+        }
+      }
+    }
+    return null
+  }, [teamA, teamB, db])
 
   // Luân chuyển: Chưa chọn -> Đội A -> Đội B -> Chưa chọn
   const cycleMember = (mid) => {
@@ -119,6 +137,19 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               <div style={S.teamNames}>
                 {teamA.length ? teamA.map(memberNameOf).join(' · ') : <span style={S.faintText}>{t('challenge.teamEmptyHint')}</span>}
               </div>
+              {teamA.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                  {teamA.map((id) => {
+                    const pr = getPlayerRating(db.playerRatings, id)
+                    const conf = confidenceProgress(pr.gamesCount || 0)
+                    return (
+                      <span key={id} style={confTagStyle(conf.level)}>
+                        {conf.level} · {t('challenge.gamesCountMeta', { n: pr.gamesCount || 0 })}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Đội B */}
@@ -130,6 +161,19 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               <div style={S.teamNames}>
                 {teamB.length ? teamB.map(memberNameOf).join(' · ') : <span style={S.faintText}>{t('challenge.teamEmptyHint')}</span>}
               </div>
+              {teamB.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                  {teamB.map((id) => {
+                    const pr = getPlayerRating(db.playerRatings, id)
+                    const conf = confidenceProgress(pr.gamesCount || 0)
+                    return (
+                      <span key={id} style={confTagStyle(conf.level)}>
+                        {conf.level} · {t('challenge.gamesCountMeta', { n: pr.gamesCount || 0 })}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -143,6 +187,8 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                 const inA = teamA.includes(m.id)
                 const inB = teamB.includes(m.id)
                 const r = getRating(m.id)
+                const pr = getPlayerRating(db.playerRatings, m.id)
+                const conf = confidenceProgress(pr.gamesCount || 0)
                 return (
                   <button
                     key={m.id}
@@ -157,6 +203,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                   >
                     <span>{m.name}</span>
                     <span style={{ ...S.monoRating, color: inA || inB ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>{r}</span>
+                    <span style={confBadgeStyle(conf.level)}>{conf.level}</span>
                     {inA && <span style={S.teamTag}>A</span>}
                     {inB && <span style={S.teamTag}>B</span>}
                   </button>
@@ -167,6 +214,48 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               )}
             </div>
             <div style={S.guestNotice}>{t('challenge.guestNotice')}</div>
+
+            {/* Cảnh báo GD2: Điểm chưa đáng tin (R1/R2) */}
+            {unreliableMember && (
+              <div style={S.unreliableCard}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={S.unreliableIcon}>!</div>
+                  <span style={S.unreliableTitle}>{t('challenge.unreliableTitle')}</span>
+                </div>
+                <div style={S.unreliableDesc}>
+                  {t('challenge.unreliableDesc', {
+                    name: unreliableMember.name,
+                    games: unreliableMember.gamesCount,
+                    level: unreliableMember.conf.level,
+                    rating: unreliableMember.rating,
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRatingEnabled(false)}
+                    style={{
+                      ...S.unreliableBtn,
+                      background: !ratingEnabled ? 'var(--navy-500, #1D50A0)' : 'var(--surface-card, #141D2E)',
+                      color: !ratingEnabled ? 'var(--gray-0, #FFFFFF)' : 'var(--text-secondary, #A8B7CB)',
+                    }}
+                  >
+                    {t('challenge.switchCasual')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRatingEnabled(true)}
+                    style={{
+                      ...S.unreliableBtn,
+                      background: ratingEnabled ? 'var(--navy-500, #1D50A0)' : 'var(--surface-card, #141D2E)',
+                      color: ratingEnabled ? 'var(--gray-0, #FFFFFF)' : 'var(--text-secondary, #A8B7CB)',
+                    }}
+                  >
+                    {t('challenge.keepRated')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Độ cân & Đánh giá cân kèo */}
@@ -190,6 +279,21 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               }}>
                 {isImbalanced ? t('challenge.imbalancedWarn') : gap <= 120 ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
               </div>
+              {unreliableMember && (
+                <>
+                  <div style={{ font: '600 12px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--status-delayed-fg, #F0B75C)', marginTop: 4 }}>
+                    {t('challenge.unreliableWarning')}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, paddingTop: 4 }}>
+                    <div style={{ flex: 1, height: 5, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-page, #0B1220)' }}>
+                      <div style={{ width: '26%', background: '#D63B2B', height: '100%' }} />
+                    </div>
+                    <span style={{ font: '600 11px/1 "IBM Plex Sans", sans-serif', color: '#F09A8E', whiteSpace: 'nowrap' }}>
+                      {t('challenge.confidenceLow')}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div style={S.analysisCard}>
@@ -523,4 +627,66 @@ const S = {
     display: 'grid',
     gap: 2,
   },
+  unreliableCard: {
+    padding: '12px 14px',
+    borderRadius: 8,
+    background: 'rgba(214,59,43,.10)',
+    border: '1px solid #D63B2B',
+    display: 'grid',
+    gap: 8,
+  },
+  unreliableIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 999,
+    background: '#D63B2B',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    font: '700 12px/1 Barlow, sans-serif',
+    color: '#FFFFFF',
+    flexShrink: 0,
+  },
+  unreliableTitle: {
+    font: '600 14px/1.3 "IBM Plex Sans", sans-serif',
+    color: '#F09A8E',
+  },
+  unreliableDesc: {
+    font: '400 13px/1.55 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-secondary, #A8B7CB)',
+  },
+  unreliableBtn: {
+    height: 32,
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    borderRadius: 6,
+    border: '1px solid var(--border-default, #2E3E5C)',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    cursor: 'pointer',
+  },
+}
+
+const confBadgeStyle = (level) => {
+  const base = {
+    font: '700 9px/1 "IBM Plex Mono", monospace',
+    padding: '2px 4px',
+    borderRadius: 3,
+  }
+  if (level === 'R1') return { ...base, background: 'rgba(214,59,43,.22)', color: '#F09A8E' }
+  if (level === 'R2') return { ...base, background: 'rgba(240,183,92,.22)', color: 'var(--status-delayed-fg, #F0B75C)' }
+  if (level === 'R3') return { ...base, background: 'rgba(60,116,196,.22)', color: 'var(--navy-200, #9FC0EA)' }
+  return { ...base, background: 'rgba(95,217,162,.20)', color: 'var(--status-delivered-fg, #5FD9A2)' }
+}
+
+const confTagStyle = (level) => {
+  const base = {
+    font: '600 10px/1 "IBM Plex Mono", monospace',
+    padding: '3px 6px',
+    borderRadius: 4,
+  }
+  if (level === 'R1') return { ...base, background: 'rgba(214,59,43,.18)', color: '#F09A8E' }
+  if (level === 'R2') return { ...base, background: 'rgba(240,183,92,.16)', color: '#F0B75C' }
+  if (level === 'R3') return { ...base, background: 'rgba(60,116,196,.18)', color: '#9FC0EA' }
+  return { ...base, background: 'rgba(95,217,162,.14)', color: '#5FD9A2' }
 }
