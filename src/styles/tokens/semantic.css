@@ -11,6 +11,8 @@
 --surface-scrim:var(--scrim);
 --surface-accent-soft:var(--teal-50);
 --surface-brand-soft:var(--navy-50);
+--surface-danger-soft:var(--red-100);
+--surface-warning-soft:var(--amber-100);
 
 /* Text */
 --text-primary:var(--gray-900);

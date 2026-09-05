@@ -20,10 +20,18 @@
 
 /* Feedback */
 --green-600:#0E8A55;--green-500:#12A867;--green-100:#DBF5E9;
---amber-600:#B26A00;--amber-500:#E08A00;--amber-100:#FDF0D9;
+--amber-600:#B26A00;--amber-500:#E08A00;--amber-100:#FDF0D9;--amber-50:#FEF9EE;
 --red-600:#C42B1C;--red-500:#E14434;--red-100:#FCE4E1;
 --blue-600:#1D50A0;--blue-100:#DDE8F7;
 
 /* Data-viz sequence for utilisation / volume charts */
 --viz-1:#0D2B5E;--viz-2:#00B2A9;--viz-3:#3C74C4;--viz-4:#E08A00;--viz-5:#7ADFD9;--viz-6:#73839A;
+
+/* Rank Tier Tokens (Badminton Slang) */
+--rank-novice:#94A3B8;--rank-rookie:#38BDF8;--rank-regular:#34D399;--rank-solid:#FACC15;
+--rank-net-master:#FB923C;--rank-coverage:#F43F5E;--rank-heavy-hitter:#A855F7;--rank-court-boss:#EC4899;
+
+/* Podium and Badge Tokens */
+--podium-gold:#F0B75C;--podium-silver:#C0D8F8;--podium-bronze:#CD7F32;
+--amber-950:#2D1F10;--amber-700:#784A15;
 }

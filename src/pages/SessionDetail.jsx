@@ -2,9 +2,11 @@
 // Nút "Chốt buổi" là hành động primary DUY NHẤT của trang.
 
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
 import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, Overline, SearchSelect, SessionPill } from '#ui'
+import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
+import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, wd } from '#utils/dates.js'
 import {
@@ -21,6 +23,14 @@ import cfg from '#config/app.json' with { type: 'json' }
 export default function SessionDetail() {
   const { db, a } = useApp()
   const { id } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabFromUrl = searchParams.get('tab')
+  const [tabState, setTabState] = useState(tabFromUrl || 'attend')
+  const activeTab = tabFromUrl || tabState
+  const setActiveTab = (tab) => {
+    setTabState(tab)
+    setSearchParams({ tab }, { replace: true })
+  }
   const [editingGuest, setEditingGuest] = useState(null)
   const sid = id || db.sessionId
   const s = sessionOf(db, sid)
@@ -71,6 +81,10 @@ export default function SessionDetail() {
   const isClosed = s.status === 'closed'
   const isInactive = allSold || isCancelled
 
+  const onCourtCount = Object.keys((db.lineups || {})[s.id] || {}).length
+  const sessionMatches = (db.matches || []).filter((m) => m.sessionId === s.id)
+  const pendingChallengesCount = (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'pending').length
+
   return (
     <>
       <div>
@@ -99,8 +113,8 @@ export default function SessionDetail() {
                 {drift && canMoney && (
                   <Button variant="primary" icon="rotate-ccw"
                     style={{
-                      background: 'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)',
-                      borderColor: '#f59e0b',
+                      background: 'linear-gradient(135deg, var(--amber-600, #b45309) 0%, var(--amber-500, #f59e0b) 100%)',
+                      borderColor: 'var(--amber-500, #f59e0b)',
                       boxShadow: '0 2px 10px rgba(245, 158, 11, 0.4)',
                       fontWeight: 700,
                     }}
@@ -111,8 +125,8 @@ export default function SessionDetail() {
                 {s.status === 'draft' && (
                   <Button variant="primary" icon="user-round-check"
                     style={{
-                      background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
-                      borderColor: '#0ea5e9',
+                      background: 'linear-gradient(135deg, var(--blue-600, #0284c7) 0%, var(--status-scheduled, #0ea5e9) 100%)',
+                      borderColor: 'var(--status-scheduled, #0ea5e9)',
                       boxShadow: '0 2px 10px rgba(14, 165, 233, 0.4)',
                       fontWeight: 700,
                     }}
@@ -127,8 +141,8 @@ export default function SessionDetail() {
                       icon="circle-check"
                       disabled={!canMoney}
                       style={{
-                        background: !canMoney ? undefined : 'linear-gradient(135deg, #0d5e3a 0%, #00875a 100%)',
-                        borderColor: !canMoney ? undefined : '#00875a',
+                        background: !canMoney ? undefined : 'linear-gradient(135deg, var(--green-600, #0d5e3a) 0%, var(--green-500, #00875a) 100%)',
+                        borderColor: !canMoney ? undefined : 'var(--green-500, #00875a)',
                         boxShadow: !canMoney ? undefined : '0 2px 12px rgba(0, 135, 90, 0.45)',
                         fontWeight: 700,
                         padding: '0 16px',
@@ -207,7 +221,49 @@ export default function SessionDetail() {
         </div>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))', gap: 16, alignItems: 'start' }}>
+      {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
+      <div style={S.tabBarWrap}>
+        <div style={S.tabTrack}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('attend')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'attend' ? S.tabBtnActive : {}),
+            }}
+          >
+            <span>{t('sessionTabs.attend')}</span>
+            <span style={S.tabBadgeMono}>{presentCount(db, s)}/{members.length}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('courts')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'courts' ? S.tabBtnActive : {}),
+            }}
+          >
+            <span>{t('sessionTabs.courts')}</span>
+            <span style={{ ...S.tabBadgeMono, color: 'var(--status-transit-fg, #5FDBD3)' }}>{onCourtCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('matches')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'matches' ? S.tabBtnActive : {}),
+            }}
+          >
+            <span>{t('sessionTabs.matches')}</span>
+            <span style={{ ...S.tabBadgeMono, color: 'var(--status-delayed-fg, #F0B75C)' }}>
+              {sessionMatches.length}{pendingChallengesCount > 0 ? `/${pendingChallengesCount}` : ''}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'attend' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))', gap: 16, alignItems: 'start' }}>
         {/* ---------------- điểm danh ---------------- */}
         <Card
           title={t('session.attendTitle')}
@@ -559,6 +615,10 @@ export default function SessionDetail() {
           </Card>
         </div>
       </div>
+      )}
+
+      {activeTab === 'courts' && <CourtAssignmentTab s={s} />}
+      {activeTab === 'matches' && <SessionMatchesTab s={s} />}
 
       {editingGuest && (
         <EditGuestDialog
@@ -745,7 +805,7 @@ function GuestForm({ s }) {
               {f.gName && (
                 <button
                   type="button"
-                  style={{ ...S.guestOption, color: 'var(--accent)', fontWeight: 600 }}
+                  style={{ ...S.guestOption, color: 'var(--text-accent, var(--teal-500, #00B2A9))', fontWeight: 600 }}
                   onMouseDown={(e) => {
                     e.preventDefault()
                     set('gGuestId', '')
@@ -823,7 +883,7 @@ function GuestForm({ s }) {
           type="button"
           style={{
             border: 0, background: 'none', padding: 0, cursor: 'pointer',
-            fontSize: 12, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 12, color: 'var(--text-accent, var(--teal-500, #00B2A9))', display: 'inline-flex', alignItems: 'center', gap: 4,
           }}
           onClick={() => setShowExtra(!showExtra)}
         >
@@ -983,6 +1043,16 @@ const SumRow = ({ label, value, color, strong, hint }) => (
 )
 
 const S = {
+  tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 16px' },
+  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: 'var(--surface-inset, #101927)', border: '1px solid var(--border-subtle, #22304A)', gap: 2 },
+  tabBtn: {
+    display: 'flex', alignItems: 'center', gap: 8, height: 34, padding: '0 14px',
+    borderRadius: 6, border: 'none', background: 'transparent',
+    font: '600 13px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted, #8494AA)',
+    cursor: 'pointer', transition: 'all 0.15s ease',
+  },
+  tabBtnActive: { background: 'var(--surface-card, #141D2E)', color: 'var(--text-primary, #E9EFF7)', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
+  tabBadgeMono: { font: '400 11.5px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' },
   headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
@@ -1006,7 +1076,7 @@ const S = {
   guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 110px 95px minmax(180px, 1.6fr) auto', gap: 9, alignItems: 'flex-end' },
   guestDropdown: {
     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-    background: 'var(--surface-overlay, #fff)', border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-overlay, var(--gray-0, #fff))', border: '1px solid var(--border-subtle)',
     borderRadius: 8, boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1))',
     maxHeight: 240, overflowY: 'auto', marginTop: 4, display: 'grid',
   },

@@ -22,6 +22,7 @@ import Clubs from '#pages/Clubs.jsx'
 import Debts from '#pages/Debts.jsx'
 import Fund from '#pages/Fund.jsx'
 import Home from '#pages/Home.jsx'
+import Leaderboard from '#pages/Leaderboard.jsx'
 import Login from '#pages/Login.jsx'
 import Members from '#pages/Members.jsx'
 import Profile from '#pages/Profile.jsx'
@@ -35,8 +36,8 @@ import Shuttles from '#pages/Shuttles.jsx'
 
 const SCREEN = {
   home: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail, assign: Assign,
-  schedules: Schedules, members: Members, debts: Debts, fund: Fund, shuttles: Shuttles,
-  profile: Profile, settings: Settings, schema: Schema,
+  leaderboard: Leaderboard, schedules: Schedules, members: Members, debts: Debts, fund: Fund,
+  shuttles: Shuttles, profile: Profile, settings: Settings, schema: Schema,
 }
 
 export default function App() {

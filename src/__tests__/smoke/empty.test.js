@@ -10,6 +10,9 @@ import { toDb } from '#contexts/dbmap.js'
 import * as M from '#lib/money.js'
 import * as L from '#lib/ledger.js'
 import * as A from '#lib/assign.js'
+import * as CH from '#lib/challenge.js'
+import * as R from '#lib/rating.js'
+import * as MS from '#lib/matchSearch.js'
 import { monthGrid, monthOf } from '#utils/dates.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -163,5 +166,23 @@ assert.deepEqual(ok('autoSplit', () => A.autoSplit([], [], db.levels)), {})
 const grid = ok('monthGrid', () => monthGrid(MONTH))
 assert.equal(grid.length, 6, 'lưới lịch luôn 6 tuần')
 grid.forEach((w) => assert.equal(w.length, 7))
+
+/* ---------- kèo đấu, elo và tìm trận khi CLB rỗng ---------- */
+
+assert.equal(ok('nextChallengeCode', () => CH.nextChallengeCode(db.challenges)), 'C-0101')
+assert.deepEqual(ok('pickableMembersForChallenge', () => CH.pickableMembersForChallenge(db.members, db.attendance, 's0')), [])
+assert.equal(ok('challengeDirection', () => CH.challengeDirection(null, 'mid')), 'none')
+assert.equal(ok('canCancelChallenge', () => CH.canCancelChallenge(null, 'mid')), false)
+assert.equal(ok('isWaitingCourt', () => CH.isWaitingCourt(null)), false)
+ok('evalChallengeBalance', () => CH.evalChallengeBalance([], [], {}))
+ok('getPlayerRating non-existent', () => R.getPlayerRating(db.playerRatings, 'non-existent'))
+ok('expectedScore', () => R.expectedScore(0, 0))
+ok('teamRating', () => R.teamRating([], {}))
+ok('calcEloDelta', () => R.calcEloDelta(0, 0, true))
+ok('confidenceProgress', () => R.confidenceProgress(0))
+assert.equal(ok('computeClubCalibration', () => R.computeClubCalibration(db.matches, db.members)).length, 3)
+assert.deepEqual(ok('searchMatches', () => MS.searchMatches(db.matches, {})), [])
+assert.deepEqual(ok('headToHeadMatrix', () => MS.headToHeadMatrix(db.matches, db.members)), {})
+assert.deepEqual(ok('neverMetPairs', () => MS.neverMetPairs(db.matches, db.members)), [])
 
 console.log('empty check: OK')

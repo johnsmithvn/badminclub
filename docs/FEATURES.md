@@ -122,37 +122,61 @@ Nút chốt buổi là hành động primary **duy nhất** của trang.
 - Vô hiệu hóa / ẩn các thao tác sửa đổi: Thêm sân, Bán sân / Hủy bán, Xóa sân phụ trội, ô Ghi chú buổi.
 - Nút "Mở lại buổi" chỉ hiển thị với buổi đã hủy (`cancelled`).
 
-## 4. Chia sân (`/chia-san`)
+## 4. Buổi tập & Chia sân hợp nhất (`/buoi-tap/:id`)
 
-Chỉ hiện buổi: `date >= hôm nay` **và** `status = 'open'` **và** có ≥1 người Có mặt.
+Chi tiết buổi tập được thiết kế lại thành thanh Tab Bar 3 tabs chuyển đổi mượt mà:
 
-Người trong buổi = thành viên cố định **có mặt** + khách giao lưu của buổi.
-Slot id: `c{sân}t{đội}s{chỗ}`, mỗi sân 4 chỗ, sân **đã bán không sinh slot**.
+### Tab 1: Điểm danh & Tiền (`attend`)
+- Giữ nguyên 100% logic điểm danh (Có mặt / Vắng / Đi thêm) và các công thức tính chi phí, giá thành buổi tập (Tầng B), thu tiền khách giao lưu.
+- Đánh Vắng một người sẽ **tự động gỡ người đó khỏi bất kỳ ô sân nào đang ngồi** (Quy tắc Handoff).
 
-Thao tác: kéo thả · bấm chọn người rồi bấm ô · kéo về danh sách để bỏ khỏi sân.
+### Tab 2: Chia sân (`courts`)
+- **Pool người chờ**: Chỉ những ai đã điểm danh Có mặt mới vào pool. Người dùng bấm chọn 1 người rồi bấm ô trống trên sân.
+- **Kèo đã nhận, đang chờ sân**: Hiển thị danh sách kèo trạng thái `ACCEPTED`. Nút "Đưa lên sân trống" tự động xếp 4 người vào sân rỗng.
+- **Grid sân & Thẻ sân**:
+  - Timer bấm giờ trận đấu.
+  - Hiển thị độ cân bằng trình độ (`Cân trình`, `Hơi lệch`, `Lệch trình`).
+  - Nút `Xong trận · nhập tỷ số`: Mở `ScoreModal` để ghi nhận tỷ số các set và tính Elo.
+  - Nút `Trả sân`: Giải phóng 4 người về lại Pool chờ.
+- **5 chế độ xếp thông minh**: Cân trình, Đều lượt, Chỉ xếp chỗ trống, Cùng trình độ, Random.
+- **Cố định người theo sân** & **Chia đều vào sân**.
 
-**Năm chế độ xếp thông minh:**
+### Tab 3: Trận & Kèo (`matches`)
+- **Danh sách trận trong buổi**: Phân loại nguồn (Chia sân vs Từ kèo), xem tỷ số từng set, biến động Elo.
+- **Danh sách kèo trong buổi**:
+  - Tạo kèo đấu mới qua `CreateChallengeModal`.
+  - Quản lý trạng thái: `PENDING`, `ACCEPTED`, `DECLINED`, `ONCOURT`, `PLAYED`, `CANCELLED`.
+  - Hỗ trợ xem theo góc nhìn: Người tạo, Đội được thách đấu, Khách xem.
+  - Tự động hiển thị lịch sử đối đầu (H2H) giữa 2 đội (K4).
 
-| Chế độ | Sắp thứ tự | Điền |
-| --- | --- | --- |
-| Cân trình độ hai bên | trình độ giảm dần | ghép **mạnh nhất với nhẹ nhất** vào cùng một đôi |
-| Ưu tiên ai ít trận nhất | số trận ↑, rồi số phút ↑, rồi random | tuần tự |
-| Chỉ xếp chỗ trống | như trên | **giữ nguyên** người đang trên sân |
-| Ghép cùng trình độ một sân | trình độ giảm dần | cắt từng 4 người liền nhau vào từng sân |
-| Random hoàn toàn | Fisher–Yates | tuần tự |
+---
 
-Thứ tự trình độ: `Newbie < TBY < TB- < TB` (hoặc theo cấu hình CLB).
-Số trận đọc từ `matchStats` — **chỉ tính trong buổi đó**, không tính lịch sử buổi trước.
+## 5. Bảng xếp hạng Elo & Lịch sử Thi đấu (`/bang-xep-hang`)
 
-**"Cố định người theo sân"** (chỉ khi ≥2 sân): mỗi sân một roster riêng; mọi lệnh xếp chạy **độc
-lập trong từng sân**, không ai bị đẩy sang sân khác.
-**"Chia đều vào sân"**: sắp theo trình độ giảm dần rồi chia serpentine (vòng 1 xuôi, vòng 2 ngược).
+Màn hình Bảng xếp hạng 5 tabs toàn diện:
 
-**Bấm giờ và ghi trận:** Bắt đầu/Tạm dừng là toggle. `Xong trận` lấy 4 người đang ở sân,
-`minutes = phút bấm giờ || số phút nhập tay (mặc định 20)`, ghi 1 `match`, **xoá 4 người khỏi sân**
-để xếp lượt mới, dừng đồng hồ. `Bỏ trận vừa ghi` xoá match cuối, **không** phục hồi lineup.
+1. **Mùa giải (`season`)**:
+   - Xếp hạng thành viên theo Elo Rating giảm dần.
+   - Hiển thị Rank (#1, #2, #3 nổi bật), Tên, Giới tính, LevelChip, Điểm Elo, Thanh độ tin cậy (Confidence Bar), Tỷ số Thắng-Thua, Tỷ lệ thắng %, Form 5 trận gần nhất (W/L badge).
+2. **Biểu đồ & Hồ sơ Rating (`chart`)**:
+   - Thẻ hồ sơ thành viên với điểm Elo lớn, cấp độ độ tin cậy R1 -> R5, thanh tiến trình % và số trận cần thêm để nâng cấp.
+   - Nút **⚔️ Gạ kèo** mở popup tạo kèo với thành viên đang xem.
+   - 4 card phân rã ngữ cảnh thực chiến: Gặp Nam, Gặp Nữ, Đánh Đôi, Đánh Đơn.
+3. **Tìm trận & Sửa tỷ số inline (`search`)**:
+   - Tìm kiếm trận đấu theo Người chơi A và B (Chế độ Đối đầu hoặc Cùng đội).
+   - Lọc trận chất lượng: Trận sát điểm (≤ 3 điểm), Trận bất ngờ (Upset).
+   - Nút **⚔️ Gạ kèo giữa 2 bạn** khi chọn đủ 2 đấu thủ.
+   - Nút **Sửa** mở `EditScoreModal`: Sửa tỷ số trực tiếp, bắt buộc nhập lý do sửa, ghi audit log và tự động chạy `replayRatingCascade` để tính lại chuỗi Elo các trận sau đó.
+4. **Ma trận Đối đầu H2H (`matrix`)**:
+   - Bảng đối đầu NxN giữa các đấu thủ hàng đầu CLB với tỷ số thắng-thua màu sắc trực quan.
+   - Danh sách các cặp thành viên chưa từng chạm trán kèm nút click gạ kèo nhanh.
+5. **Thống kê Hiệu chỉnh chéo giới (`cross`)**:
+   - Tỷ lệ Nữ thắng Nam theo các khoảng lệch Elo (<100, 100-300, >300).
+   - Học tự động từ dữ liệu thi đấu thực chiến của CLB.
 
-## 5. Lịch tháng · Lịch cố định · Thành viên
+---
+
+## 6. Lịch tháng · Lịch cố định · Thành viên
 
 **Chốt danh sách cố định** làm được cho **cả tháng đang xem lẫn tháng sau** — nút chuyển nằm ngay
 trên thẻ. Dựng CLB giữa tháng thì việc đầu tiên là chốt danh sách **tháng này**, không thì không

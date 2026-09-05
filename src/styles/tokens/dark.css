@@ -12,6 +12,8 @@
 --surface-scrim:rgba(3,8,17,.68);
 --surface-accent-soft:rgba(0,178,169,.14);
 --surface-brand-soft:rgba(60,116,196,.14);
+--surface-danger-soft:rgba(225,68,52,.18);
+--surface-warning-soft:rgba(224,138,0,.18);
 
 --text-primary:#E9EFF7;
 --text-secondary:#A8B7CB;

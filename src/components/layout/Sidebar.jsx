@@ -20,6 +20,7 @@ const NAV = [
   { value: 'calendar', icon: 'calendar-days' },
   { value: 'sessions', icon: 'clipboard-check', badge: 'unclosedSessions' },
   { value: 'assign', icon: 'route', badge: 'assignable' },
+  { value: 'leaderboard', icon: 'trophy' },
   { value: 'members', icon: 'users' },
   { section: 'money' },
   { value: 'debts', icon: 'clock-alert', badge: 'debtPending', alert: 'hasDebt' },
@@ -190,7 +191,17 @@ export default function Sidebar({ route }) {
         <SidebarNav
           items={items}
           value={route === 'session' ? 'sessions' : route}
-          onChange={(v) => navigate(pathOf(v, v === 'session' ? db.sessionId : undefined))}
+          onChange={(v) => {
+            if (v === 'assign') {
+              const list = assignableSessions(db)
+              const todaySess = list[0]
+              if (todaySess) {
+                navigate(`/buoi-tap/${todaySess.id}?tab=courts`)
+                return
+              }
+            }
+            navigate(pathOf(v, v === 'session' ? db.sessionId : undefined))
+          }}
           style={{ background: 'transparent', border: 0, width: '100%' }}
         />
       </div>

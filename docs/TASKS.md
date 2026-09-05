@@ -923,6 +923,83 @@ Không đụng schema, không migration, không đổi một dòng logic nào �
 
 ---
 
+## Đợt 7 — Hệ thống Kèo đấu & Bảng xếp hạng Elo (Design Handoff Merge) · **XONG 2026-09-04**
+
+Tích hợp trọn vẹn đặc tả giao diện và nghiệp vụ từ Design Handoff: hệ thống Gạ kèo/Thách đấu, chia sân thông minh hợp nhất, bảng xếp hạng Elo thích ứng với độ tin cậy R1–R5, sửa tỷ số trực tiếp với cascade tính lại Elo, và thống kê hiệu chỉnh chéo giới.
+
+- [x] **Nguyên tắc cốt lõi & Thiết kế ban đầu**:
+  - **Tách biệt 100% với dòng tiền**: Phân hệ thi đấu và Elo rating không làm thay đổi hay phụ thuộc vào Tầng A (Sổ quỹ `transactions`) và Tầng B (Giá thành buổi tập `costRow`, tiền sân, tiền cầu). Có test riêng `money/isolation.test.js` kiểm chứng.
+  - **Khởi điểm Elo = 0**: Điểm khởi tạo toàn bộ thành viên là 0 (`cfg.rating.defaultRating = 0`) theo quyết định của user.
+  - **Hợp nhất Buổi tập & Chia sân**: Gộp màn Chi tiết buổi tập và Chia sân thành cấu trúc 3 tabs thống nhất (`SessionTabs.jsx`): Chia sân (Court Assignment) · Kèo & Trận đấu (Challenges & Matches) · Giá thành & Điểm danh (Cost & Roster).
+  - **Tuân thủ RULES §3.1 về i18n**: Tuyệt đối không hardcode chữ tiếng Việt trong mã nguồn. Toàn bộ chuỗi hiển thị nằm trong `src/i18n/vi.json`, được giám sát bởi `smoke/i18n.test.js`.
+  - **Responsive Mobile**: Giao diện co giãn mượt mà từ màn hình điện thoại 390px đến desktop 1440px+, hỗ trợ touch scroll, drawer tab bar và wrap flexbox.
+- [x] **Tầng Logic nghiệp vụ thuần (lib/)**:
+  - `src/lib/rating.js`: Elo expected score, win%, delta calculation với upset bonus, confidence progression (R1 -> R5), gender cross-calibration, rating cascade recalculation.
+  - `src/lib/challenge.js`: helper mã kèo `C-XXXX`, chiều kèo `challengeDirection`, độ cân `evalChallengeBalance`, quyền huỷ kèo, bộ lọc thành viên hợp lệ (loại trừ khách vãng lai).
+  - `src/lib/matchSearch.js`: tìm kiếm trận đấu đa tiêu chí (H2H, teammate, close, upset, date range), ma trận đối đầu H2H toàn CLB, phát hiện các cặp chưa từng gặp `neverMetPairs`.
+- [x] **Migration Cơ sở dữ liệu Supabase**:
+  - `supabase/migrations/0021_challenge_and_rating.sql`: Tạo 5 bảng mới (`challenges`, `challenge_players`, `player_ratings`, `match_edits`, `club_calibration`) và mở rộng các cột tỷ số/rating trong bảng `matches` (`source_type`, `challenge_id`, `rating_enabled`, `score_a`, `score_b`, `team_a_won`, `elo_delta_a`, `elo_delta_b`, `score_text`, `sets`).
+  - Cập nhật `src/contexts/dbmap.js` (toDb, toRows, diff) và `src/contexts/storage.js` (load, save).
+- [x] **Hợp nhất Buổi tập & Chia sân (3 Tabs)**:
+  - `SessionTabs.jsx`: Tab 1 (Chia sân thông minh + slot VS + độ cân Elo), Tab 2 (Danh sách Kèo đấu đang chờ, nhận kèo, deploy lên sân, lịch sử trận), Tab 3 (Giá thành, điểm danh, khách vãng lai).
+  - `CourtAssignmentTab.jsx`: Chia sân kéo thả, chọn slot, hiển thị độ cân lệch % Elo, gán kèo lên sân `deployChallenge`.
+  - `SessionMatchesTab.jsx`: Danh sách kèo đấu, chi tiết kèo, phản hồi kèo, lịch sử các trận đấu trong buổi.
+  - `SessionDetail.jsx`: Tích hợp 3 tabs (Chia sân, Trận đấu, Giá thành & Điểm danh) giữ nguyên toàn bộ nghiệp vụ tài chính và điểm danh của buổi tập.
+- [x] **Bảng xếp hạng Elo (Leaderboard 5 Tabs)**:
+  - `src/pages/Leaderboard.jsx`:
+    - Tab 1: BXH Mùa giải (Top Elo, Số trận, Thắng/Thua, Win rate, Form gần đây).
+    - Tab 2: Biểu đồ Rating & Hồ sơ cá nhân (Card tiến trình R1 -> R5, context Breakdown Đánh đơn/Đánh đôi/Gặp Nam/Gặp Nữ, Gạ kèo trực tiếp).
+    - Tab 3: Tìm trận & Sửa điểm trực tiếp (Bộ lọc A vs B, cùng đội, sát điểm, bất ngờ; Modal sửa tỷ số kèm lý do và cascade tính lại Elo).
+    - Tab 4: Ma trận đối đầu CLB (Tỷ số H2H matrix, danh sách các cặp chưa từng chạm trán để gạ kèo).
+    - Tab 5: Thống kê hiệu chỉnh chéo giới (Học từ dữ liệu thực chiến theo khoảng lệch Elo).
+- [x] **Modals & Quick Actions**:
+  - `CreateChallengeModal.jsx`: Tạo kèo đấu 1v1 / 2v2, dự báo Elo win%, cảnh báo lệch trình >250 điểm, chọn số set Best of.
+  - `ScoreModal.jsx`: Nhập điểm tỷ số set linh hoạt (nút +1/-1 hoặc gõ trực tiếp), dự báo Elo delta, ghi nhận đội thắng.
+  - `EditScoreModal.jsx`: Sửa tỷ số trận cũ, kiểm toán lý do bắt buộc, cascade tính lại Elo.
+- [x] **Sửa lỗi phát hiện trong quá trình rà soát (Bug Hunts)**:
+  - Chuẩn hoá cấu trúc `playerRatings` hỗ trợ cả Object Map và Array qua helper an toàn `getPlayerRating()`.
+  - Bổ sung `teamA` / `teamB` trong Match record khi tạo mới lẫn khi map từ DB.
+  - Chặn xoá buổi tập nếu đã có Kèo đấu được tạo gắn với buổi (`money.js: sessionRefs`).
+  - Khắc phục alias tham số `saveMatchScore` và chuẩn hóa action sync returns.
+  - Đảm bảo `isWaitingCourt` trả về chuẩn `boolean`.
+  - Cập nhật nhóm `Competition` trong `src/data/schema.js` và `vi.json` cho trang Sơ đồ dữ liệu.
+- [x] **Kiểm thử tự động (111 tests pass)**:
+  - Viết mới và mở rộng 12 test suites: `app_actions_competitions.test.js`, `challenge_enhancements.test.js`, `leaderboard_logic.test.js`, `mobile_responsive.test.js`, `modals.test.js`, `routes_leaderboard.test.js`, `session_tabs.test.js`, `challenge.test.js`, `matchSearch.test.js`, `rating.test.js`, `money/isolation.test.js`, `rank_themes.test.js`.
+  - Đạt mốc **111/111 tests PASS 100%** trên Node.js native test runner.
+
+---
+
+## Đợt 8 — Nâng cấp Rating Engine & Bảng xếp hạng Elo (4 Tính năng toán học & Trải nghiệm) · **XONG 2026-09-04**
+
+Nâng cấp chuyên sâu hệ thống tính điểm Elo rating câu lạc bộ: bổ sung hệ số K động, thưởng cách biệt tỷ số set, chặn điểm âm kèm phân hạng 5 bậc Rank Tier, và cơ chế hao mòn phong độ do nghỉ đấu lâu.
+
+- [x] **Chặn điểm âm & Hệ cấp bậc Rank (Elo Floor >= 0 & Rank Tiers)**:
+  - Phân cấp 5 bậc: Đồng (0-299), Bạc (300-599), Vàng (600-899), Bạch Kim (900-1199), Kim Cương (1200+).
+  - Tách bạch `rating` kỹ thuật (zero-sum toàn vẹn trong DB) và `displayRating = Math.max(0, rating)` cho toàn bộ giao diện và Bảng xếp hạng.
+  - Người dùng không bao giờ thấy điểm âm trên UI. Thanh tiến trình % nâng cấp rank trực quan.
+- [x] **Hệ số K động (Dynamic K-Factor)**:
+  - Tự động thay đổi K cá nhân theo số trận đã đấu: R1 (<5 trận) $K=48$, R2 (5-14 trận) $K=36$, R3 (15-29 trận) $K=28$, R4 (30-49 trận) $K=20$, R5 (>=50 trận) $K=16$.
+  - Người mới di chuyển điểm nhanh gấp 3 lần để nhanh về đúng trình độ, cao thủ không bị trừ oan điểm nặng nề khi kèm người mới.
+  - Đánh đôi tính riêng biệt delta cho từng thành viên theo K cá nhân qua `calcPlayerDeltas`.
+- [x] **Khoảng cách tỷ số set (Margin of Victory Multiplier)**:
+  - Thắng sát nút (21-19) nhân ~1.05.
+  - Thắng áp đảo (21-5) nhân tối đa ~1.40 (`cfg.rating.marginOfVictory.maxMultiplier`).
+  - Phản ánh chính xác chất lượng chiến thắng vượt trội của cặp đôi.
+- [x] **Hao mòn phong độ do nghỉ đấu lâu (Inactivity Decay)**:
+  - Nghỉ >30 ngày: Gắn nhãn `Tạm nghỉ`.
+  - Nghỉ >45 ngày: Bắt đầu trừ nhẹ 10 Elo cho mỗi chu kỳ 30 ngày tiếp theo (không bao giờ tụt dưới 0).
+  - Bổ sung bộ lọc "Tất cả / Đang hoạt động" trên Bảng xếp hạng.
+- [x] **Giao diện & Trải nghiệm người dùng**:
+  - `Leaderboard.jsx`: Thêm cột Cấp bậc Rank, icon huy hiệu, bộ lọc trạng thái hoạt động, Profile card hiển thị Rank Tier + Thanh tiến trình % + K-Factor + Cảnh báo tạm nghỉ/suy hao phong độ.
+  - `ScoreModal.jsx`: Dự đoán Elo delta chi tiết từng cá nhân (kèm nhãn hệ số cách biệt bàn thắng) trước khi lưu tỷ số.
+  - Tích hợp 3 icon mới từ Lucide (`award`, `crown`, `medal`) vào `src/components/ds/icons.js`.
+- [x] **Bộ kiểm thử tự động (106 tests pass)**:
+  - Viết mới `src/__tests__/lib/rating_upgrades.test.js` kiểm tra toán học và logic biên cho toàn bộ 4 tính năng.
+  - Cập nhật smoke test `smoke/ds.test.js` và `smoke/i18n.test.js` (1406 keys).
+  - Toàn bộ **106/106 tests PASS 100%**!
+
+---
+
 ## Quyết định đang chờ user
 
 | Việc | Vì sao cần user | Chặn cái gì |

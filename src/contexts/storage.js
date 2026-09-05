@@ -39,6 +39,7 @@ export async function load(clubId) {
     club, courts, groups, members, guests, shuttleTypes, schedules, sessions,
     dues, adjustments, courtBills, manual, purchases, stockChecks, guestPrices,
     locks, rosterRows, changes, levelRows, joinRequests,
+    challenges, playerRatings, matchEdits, clubCalibration,
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
@@ -64,6 +65,10 @@ export async function load(clubId) {
     supabase.from('member_levels').select('*, club_members!inner(club_id)')
       .eq('club_members.club_id', clubId),
     supabase.rpc('club_pending_requests', { p_club: clubId }),
+    of('challenges', '*, challenge_players(*)'),
+    of('player_ratings'),
+    of('match_edits'),
+    of('club_calibration'),
   ])
 
   const clubRowRaw = unwrap(club)
@@ -115,6 +120,10 @@ export async function load(clubId) {
     levelRows: levelRows.error ? [] : (levelRows.data || []),
     joinRequests: requests,
     users,
+    challenges: challenges.error ? [] : (challenges.data || []),
+    playerRatings: playerRatings.error ? [] : (playerRatings.data || []),
+    matchEdits: matchEdits.error ? [] : (matchEdits.data || []),
+    clubCalibration: clubCalibration.error ? [] : (clubCalibration.data || []),
   }
 
   const today = todayISO()
@@ -234,7 +243,7 @@ async function apply(op) {
   const q = supabase.from(op.table)
   if (op.op === 'upsert') {
     return unwrap(op.conflict
-      ? await q.upsert(op.rows, { onConflict: op.conflict })
+      ? await q.upsert(op.rows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
       : await q.insert(op.rows))
   }
   if (op.op === 'delIds') {

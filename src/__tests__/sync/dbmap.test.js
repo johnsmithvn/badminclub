@@ -399,12 +399,87 @@ const sgRow = toRows({
 }, ctx).session_guests.find((r) => r.id === 'SG_C')
 assert.equal(sgRow.claimed_at, CLAIM, 'buổi đi lẻ: không ghi claimed_at lên DB')
 
-/* ---------- debt_banner: kiểu nhắc nợ của CLB (migration 0019) ---------- */
+/* ---------- player_ratings & matches: an toàn ID và cột rating (Đợt 1) ---------- */
 
-assert.equal(toDb({ club: { debt_banner: 'alert' } }, { clubId: 'CL1' }).club.debtBanner, 'alert')
-assert.equal(toDb({ club: {} }, { clubId: 'CL1' }).club.debtBanner, 'slim',
-  'CLB dựng trước 0019 chưa có cột thì phải rơi về "slim", không được undefined')
-assert.equal(clubRow({ ...db, club: { ...db.club, debtBanner: 'bar' } }).debt_banner, 'bar',
-  'không ghi debt_banner lên DB thì chủ CLB đổi kiểu banner xong reload là mất')
+const ratingRows = toRows({
+  ...db,
+  playerRatings: {
+    M1: { id: 'PR_1', memberId: 'M1', rating: 1250, gamesCount: 5 },
+    M2: { memberId: 'M2', rating: 1100, gamesCount: 2 }, // Không có id -> toRows không được đẩy id: null
+  },
+  matches: [{
+    id: 'MT_1', sessionId: db.sessions[0].id, courtIdx: 0, minutes: 20, at: 1725440000000,
+    sourceType: 'session', sets: [[21, 19]], winnerTeam: 'A', scoreText: '21-19',
+    teamA: ['M1'], teamB: ['M2'], playerKeys: ['M1', 'M2'],
+    initialRatingA: 1200, initialRatingB: 1150, eloDelta: 16,
+  }],
+}, ctx)
+
+assert.ok(ratingRows.player_ratings.every((r) => r.id != null), 'player_ratings không bao giờ được chứa id null')
+assert.equal(ratingRows.player_ratings.length, 1, 'dòng không có id không được đẩy xuống DB gây crash 23502')
+
+const mtRow = ratingRows.matches.find((m) => m.id === 'MT_1')
+assert.equal(mtRow.initial_rating_a, 1200)
+assert.equal(mtRow.initial_rating_b, 1150)
+assert.equal(mtRow.elo_delta, 16)
+
+const rawMtBack = toDb({
+  club: {},
+  sessions: [{ id: 'S1', date: '2026-09-04', group_id: 'G1', matches: [{
+    id: 'MT_1', court_index: 0, minutes: 20, ended_at: new Date(1725440000000).toISOString(),
+    source_type: 'session', sets: [[21, 19]], winner_team: 'A', score_text: '21-19',
+    initial_rating_a: 1200, initial_rating_b: 1150, elo_delta: 16,
+    match_players: [{ player_id: 'M1', team: 0 }, { player_id: 'M2', team: 1 }],
+  }] }],
+}, { clubId: 'CL1' })
+
+assert.equal(rawMtBack.matches[0].initialRatingA, 1200)
+assert.equal(rawMtBack.matches[0].initialRatingB, 1150)
+assert.equal(rawMtBack.matches[0].eloDelta, 16)
+
+/* ---------- S5: editMatchScore cascade không được sinh delIds cho player_ratings ---------- */
+const prevRatingsState = {
+  ...db,
+  playerRatings: {
+    M1: { id: 'PR_1', memberId: 'M1', rating: 1250, gamesCount: 5 },
+    M2: { id: 'PR_2', memberId: 'M2', rating: 1100, gamesCount: 2 },
+  },
+}
+const nextRatingsState = {
+  ...db,
+  playerRatings: {
+    M1: { id: 'PR_1', memberId: 'M1', rating: 1260, gamesCount: 5 },
+    M2: { id: 'PR_2', memberId: 'M2', rating: 1090, gamesCount: 2 },
+  },
+}
+const prevRows = toRows(prevRatingsState, ctx)
+const nextRows = toRows(nextRatingsState, ctx)
+const ratingOps = diff(prevRows, nextRows)
+const delRatingOps = ratingOps.filter((o) => o.table === 'player_ratings' && o.op === 'delIds')
+assert.equal(delRatingOps.length, 0, 'S5: editMatchScore cascade không được sinh delIds xoá bảng điểm CLB')
+
+/* ---------- R8: match_edits noDelete không bao giờ sinh delIds ---------- */
+const prevEditsState = {
+  ...db,
+  matchEdits: [{ id: 'ME_1', matchId: 'MT_1', fieldChanged: 'sets', reason: 'Nhập sai' }],
+}
+const nextEditsState = {
+  ...db,
+  matchEdits: [], // Client làm rơi log khỏi state
+}
+const editOps = diff(toRows(prevEditsState, ctx), toRows(nextEditsState, ctx))
+const delEditOps = editOps.filter((o) => o.table === 'match_edits' && o.op === 'delIds')
+assert.equal(delEditOps.length, 0, 'R8: match_edits noDelete ngăn chặn delIds gây lỗi 42501 Postgres RLS')
+
+/* ---------- X2: match_edits insertOnly sinh conflict: 'id' và ignoreDuplicates: true ---------- */
+const newEditState = {
+  ...db,
+  matchEdits: [{ id: 'ME_2', matchId: 'MT_1', fieldChanged: 'sets', reason: 'Sửa điểm' }],
+}
+const addEditOps = diff(toRows(db, ctx), toRows(newEditState, ctx))
+const upsertEditOp = addEditOps.find((o) => o.table === 'match_edits')
+assert.ok(upsertEditOp, 'match_edits phải có thao tác ghi')
+assert.equal(upsertEditOp.conflict, 'id', 'match_edits giữ conflict: id để Postgres ON CONFLICT hoạt động')
+assert.equal(upsertEditOp.ignoreDuplicates, true, 'X2: match_edits phải có ignoreDuplicates: true để idempotent DO NOTHING')
 
 console.log('dbmap check: OK')

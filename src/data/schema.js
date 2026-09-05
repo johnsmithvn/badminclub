@@ -288,6 +288,10 @@ export const SCHEMA_GROUPS = [
           f('id', 'uuid', 'PK'), f('session_id', 'uuid', 'FK'), f('court_index', 'int'),
           f('minutes', 'int'), f('started_at', 'timestamptz'), f('ended_at', 'timestamptz'),
           f('created_by', 'uuid null', 'FK'),
+          f('source_type', 'enum session/challenge'), f('challenge_id', 'uuid null', 'FK'),
+          f('rating_enabled', 'bool'), f('score_a', 'int null'), f('score_b', 'int null'),
+          f('team_a_won', 'bool null'), f('elo_delta_a', 'int null'), f('elo_delta_b', 'int null'),
+          f('score_text', 'text null'), f('sets', 'jsonb null'),
         ],
       },
       {
@@ -295,6 +299,55 @@ export const SCHEMA_GROUPS = [
         fields: [
           f('id', 'uuid', 'PK'), f('match_id', 'uuid', 'FK'),
           f('player_type', 'enum member/guest'), f('player_id', 'uuid'), f('team', 'int 0/1'),
+        ],
+      },
+    ],
+  },
+  {
+    groupKey: 'Competition',
+    color: '#00786F',
+    tables: [
+      {
+        name: 'challenges',
+        fields: [
+          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('session_id', 'uuid null', 'FK'),
+          f('code', 'char(8) uniq'), f('created_by', 'uuid', 'FK'),
+          f('status', 'enum pending/accepted/declined/cancelled/oncourt/played'),
+          f('court_id', 'uuid null', 'FK'), f('scheduled_at', 'timestamptz null'),
+          f('best_of', 'int'), f('rating_enabled', 'bool'), f('expires_at', 'timestamptz'),
+          f('match_id', 'uuid null', 'FK'),
+        ],
+      },
+      {
+        name: 'challenge_players',
+        fields: [
+          f('id', 'uuid', 'PK'), f('challenge_id', 'uuid', 'FK'),
+          f('member_id', 'uuid', 'FK'), f('team', 'enum team_a/team_b'),
+        ],
+      },
+      {
+        name: 'player_ratings',
+        fields: [
+          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('member_id', 'uuid', 'FK'),
+          f('rating', 'int'), f('games_count', 'int'), f('wins_count', 'int'), f('losses_count', 'int'),
+          f('confidence', 'enum low/medium/high/very_high/maxed'), f('updated_at', 'timestamptz'),
+        ],
+      },
+      {
+        name: 'match_edits',
+        fields: [
+          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('match_id', 'uuid', 'FK'),
+          f('edited_by', 'uuid', 'FK'), f('edited_at', 'timestamptz'), f('field_changed', 'text'),
+          f('old_value', 'text'), f('new_value', 'text'), f('reason', 'text'),
+          f('rating_recalc_from_match_id', 'uuid null'),
+        ],
+      },
+      {
+        name: 'club_calibration',
+        fields: [
+          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('gap_bucket', 'text'),
+          f('sample_size', 'int'), f('female_wins', 'int'), f('adjustment_value', 'int'),
+          f('updated_at', 'timestamptz'),
         ],
       },
     ],
