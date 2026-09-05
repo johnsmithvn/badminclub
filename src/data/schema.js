@@ -16,6 +16,7 @@ export const SCHEMA_GROUPS = [
           f('opening_balance', 'bigint'), f('opening_date', 'date'), f('opening_by', 'text'),
           f('lock_day', 'int'), f('round_unit', 'bool'), f('allow_code_join', 'bool'),
           f('allow_invite', 'bool'), f('allow_phone_suggest', 'bool'), f('multi_group', 'bool'),
+          f('has_member_extra_discount', 'bool'), f('member_extra_discount', 'bigint'),
           f('levels', 'text[]'), f('bank_holder', 'text'), f('bank_no', 'text'), f('bank_name', 'text'),
         ],
       },

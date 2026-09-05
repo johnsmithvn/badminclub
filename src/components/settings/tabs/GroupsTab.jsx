@@ -283,11 +283,6 @@ export default function GroupsTab({
                       </button>
                     )}
                   </div>
-
-                  <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-                    {t('settings.groupQuota', { n: g.quota ?? 24 })}
-                    <span style={{ fontSize: 11.5, marginLeft: 4 }}>{t('settings.quotaShuttleNote')}</span>
-                  </div>
                 </div>
 
                 {/* Khối chỉnh mức phí riêng nếu mở */}

@@ -4,8 +4,9 @@
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import {
-  guestPaidRev, guestRev, sGuests, sGuestsOnly, headCount, adhocCharges, sessionOf, costRow,
-  guestDebtRows, guestPrice, normalizeText, guestStats, guestDebtByInviter,
+  adhocCharges, guestDebtByInviter, guestDebtRows, guestPaidRev, guestPrice,
+  guestRev, guestStats, headCount, normalizeText,
+  sGuests, sGuestsOnly, sessionOf,
 } from '#lib/money.js'
 
 const db = seed()
@@ -44,8 +45,8 @@ assert.equal(guestPaidRev(db, 'buổi-không-có'), 0)
 // tiền sân + tiền cầu của mọi buổi lẻ, và không màn nào lộ ra chuyện đó.
 
 const adhoc = {
-  id: 'ADH1', date: '2026-08-12', groupId: 'ALL', status: 'open', shuttleUsed: 0,
-  shuttleTypeId: 'S1', note: '', courts: [], scheduleId: null,
+  id: 'ADH1', date: '2026-08-12', groupId: 'ALL', status: 'open',
+  note: '', courts: [], scheduleId: null,
 }
 const dbA = {
   ...db,
@@ -66,8 +67,16 @@ assert.equal(c1.add.length, 1, 'chỉ người CÓ MẶT mới sinh khoản thu;
 assert.equal(c1.add[0].memberId, 'M1')
 assert.equal(c1.add[0].guestId, null, 'dòng của thành viên phải để guest_id NULL — CHECK ở migration 0003')
 assert.equal(c1.add[0].price, 60000,
-  'M1 nữ TB- phải lấy GIÁ GIAO LƯU 60.000, không phải đơn giá chia từ quỹ tháng')
+  'mặc định tắt ưu đãi: M1 nữ TB- là thành viên CLB đi đột xuất tính nguyên giá giao lưu 60.000')
 assert.equal(c1.add[0].paid, false, 'sinh ra là còn nợ, thu hay không là thao tác riêng')
+
+// Khi bật ưu đãi thành viên đi thêm: giá giao lưu 60.000 - 5.000 = 55.000
+const dbWithDiscount = {
+  ...dbA,
+  club: { ...dbA.club, hasMemberExtraDiscount: true, memberExtraDiscount: 5000 },
+}
+const c1Discount = adhocCharges(dbWithDiscount, adhoc, dbWithDiscount.attendance.ADH1)
+assert.equal(c1Discount.add[0].price, 55000, 'bật ưu đãi: giá giao lưu 60.000 - giảm 5.000 = 55.000')
 
 // Gọi lại sau mỗi lần chạm điểm danh — không được đẻ dòng thứ hai cho cùng một người, không thì
 // bấm qua bấm lại là thu gấp đôi.
@@ -87,13 +96,10 @@ const paidRow = { ...withRow, sessionGuests: withRow.sessionGuests.map((g) => (g
 assert.deepEqual(adhocCharges(paidRow, adhoc, { M1: false }).remove, [],
   'tiền ĐÃ vào quỹ thì bỏ tick điểm danh không được làm nó bốc hơi khỏi sổ')
 
-// Một người, một đầu người. M1 vừa có ô điểm danh vừa có dòng thu — đếm cả hai là "chi phí mỗi
-// người" tụt còn một nửa, và đó là con số CLB dùng để quyết có tăng quỹ hay không.
+// Một người, một đầu người. M1 vừa có ô điểm danh vừa có dòng thu
 assert.equal(sGuestsOnly(withRow, 'ADH1').length, 0, 'dòng thu của thành viên KHÔNG phải khách')
 assert.equal(sGuests(withRow, 'ADH1').length, 1)
 assert.equal(headCount(withRow, adhoc), 1, 'M1 có mặt + có dòng thu vẫn là MỘT người')
-assert.equal(costRow(withRow, adhoc).people, 1,
-  'chi phí mỗi người chia cho đúng 1 — đếm thành 2 là con số quyết định tăng quỹ sai một nửa')
 assert.equal(guestRev(withRow, 'ADH1'), 60000, 'thu của thành viên vẫn là tiền vào của buổi đó')
 
 /* ---------- chuẩn hoá tên khách (normalizeText) ---------- */

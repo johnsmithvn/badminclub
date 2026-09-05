@@ -7,7 +7,7 @@ import {
   savedAdjust,
   adjustKey, adjustRows, dueState, duesTotal, groupMembers, isPresent,
   joinDues, lockDues, pendingOffset, presentCount, regroupDues, sessionMembers,
-  sessionOf, unitPrice,
+  sessionOf, unitPrice, memberExtraPrice, guestPrice,
 } from '#lib/money.js'
 
 const db = seed()
@@ -34,7 +34,7 @@ const dbAdhoc = {
   ...db,
   sessions: db.sessions.concat([{
     id: 'ADHOC1', date: '2026-08-12', groupId: 'ALL', status: 'closed',
-    shuttleUsed: 0, shuttleTypeId: 'S1', note: '', courts: [], scheduleId: null,
+    note: '', courts: [], scheduleId: null,
   }]),
 }
 assert.equal(unitPrice(dbAdhoc, { gender: 'nam' }, g1, '2026-08').n, 5,
@@ -101,8 +101,43 @@ assert.ok(ex, 'phải sinh một dòng người-nợ-quỹ')
 assert.equal(ex.sessions, 1)
 assert.equal(ex.amount, ex.unit, 'đi 1 buổi thì nợ đúng 1 đơn giá')
 assert.ok(ex.amount > 0, 'người nợ quỹ thì amount DƯƠNG')
-assert.equal(ex.group.id, 'G1', 'đơn giá lấy theo nhóm của BUỔI, không phải nhóm của người')
 assert.equal(ex.key, adjustKey('2026-08', 'G1', gone.id, 'extra_session'))
+
+// Test toggle chênh lệch giá thành viên đi thêm so với khách giao lưu:
+const gPrice = guestPrice(db, gone.level, gone.gender)
+assert.ok(gPrice > 0, 'fixture phải có giá khách cho trình độ của gone')
+assert.equal(
+  memberExtraPrice(db, gone, '2026-08'),
+  gPrice,
+  'khi toggle tắt (mặc định), thành viên đi thêm trả nguyên giá khách giao lưu'
+)
+const dbWithDiscount = {
+  ...db,
+  club: { ...db.club, hasMemberExtraDiscount: true, memberExtraDiscount: 5000 },
+}
+assert.equal(
+  memberExtraPrice(dbWithDiscount, gone, '2026-08'),
+  gPrice - 5000,
+  'khi toggle bật, thành viên đi thêm được giảm đúng 5.000đ'
+)
+const dbWithCustomDiscount = {
+  ...db,
+  club: { ...db.club, hasMemberExtraDiscount: true, memberExtraDiscount: 10000 },
+}
+assert.equal(
+  memberExtraPrice(dbWithCustomDiscount, gone, '2026-08'),
+  gPrice - 10000,
+  'khi cấu hình mức giảm 10.000đ, thành viên được giảm đúng 10.000đ'
+)
+
+// CLB chưa cấu hình guestPrices (hoặc trình độ của thành viên chưa có giá khách):
+// Đơn giá đi thêm buổi phải fallback về unitPrice(db, m, g, month).unit, KHÔNG ĐƯỢC ra 0đ.
+const dbNoGuestPrices = { ...dbExtra, guestPrices: [] }
+const exFallback = adjustRows(dbNoGuestPrices, '2026-08').find((r) => r.kind === 'extra_session' && r.memberId === gone.id)
+assert.ok(exFallback, 'vẫn phải sinh dòng extra_session')
+assert.ok(exFallback.unit > 0, 'đơn giá không được bằng 0 khi CLB chưa nhập bảng giá khách')
+assert.equal(exFallback.unit, unitPrice(dbNoGuestPrices, gone, exFallback.group, '2026-08').unit, 'fallback về đơn giá chia từ quỹ/nhóm')
+assert.equal(exFallback.amount, exFallback.unit * exFallback.sessions)
 
 // REGRESSION: người ĐÃ cố định nhóm CN mà ô điểm danh là 'extra' thì KHÔNG bị tính tiền —
 // họ đã đóng quỹ tháng cho nhóm này rồi, tính thêm là thu hai lần cùng một buổi.

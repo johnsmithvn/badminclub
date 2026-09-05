@@ -2,7 +2,6 @@
 // Handoff 2c: "Giữ tab, siết ngữ pháp" — 6 tab, ngữ pháp hàng dữ liệu 170px, thanh lưu nổi batch ở đáy.
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { can } from '#lib/roles.js'
@@ -26,8 +25,7 @@ const DEBT_BANNERS = ['slim', 'alert', 'bar', 'off']
 export default function Settings() {
   const { db, ui, a } = useApp()
   const { activeClub } = useAuth()
-  const tab = ui.tab.settings || 'general'
-  const activeTab = tab === 'shuttles' ? 'courts' : tab
+  const activeTab = ui.tab.settings || 'general'
   const canEdit = can(db.viewAs || 'owner', 'settings')
   const pending = db.joinRequests || []
 
@@ -59,11 +57,12 @@ export default function Settings() {
     customRefundUnit: Boolean(intOf(defGroup.unitNam) > 0 || intOf(defGroup.unitNu) > 0),
     unitNam: String(defGroup.unitNam > 0 ? defGroup.unitNam : ''),
     unitNu: String(defGroup.unitNu > 0 ? defGroup.unitNu : ''),
+    hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
+    memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
     guestPrices: db.guestPrices || [],
   })
 
   const [courtsDraft, setCourtsDraft] = useState(db.courts || [])
-  const [shuttleTypesDraft, setShuttleTypesDraft] = useState(db.shuttleTypes || [])
   const [groupsDraft, setGroupsDraft] = useState(db.groups || [])
 
   const [isSaving, setIsSaving] = useState(false)
@@ -104,21 +103,23 @@ export default function Settings() {
             (moneyDraft.unitNam !== String(defGroup.unitNam > 0 ? defGroup.unitNam : '') ||
               moneyDraft.unitNu !== String(defGroup.unitNu > 0 ? defGroup.unitNu : '')))))
 
+    const curHasMemberExtraDiscount = Boolean(db.club?.hasMemberExtraDiscount)
+    const curMemberExtraDiscount = db.club?.memberExtraDiscount != null ? intOf(db.club.memberExtraDiscount) : 5000
+    const isMemberDiscountChanged =
+      moneyDraft.hasMemberExtraDiscount !== curHasMemberExtraDiscount ||
+      (moneyDraft.hasMemberExtraDiscount && intOf(moneyDraft.memberExtraDiscount) !== curMemberExtraDiscount)
+
     if (isFeeChanged) list.push(t('settings.fieldMonthlyFee'))
     if (isRefundChanged) list.push(t('settings.fieldRefund'))
+    if (isMemberDiscountChanged) list.push(t('settings.fieldMemberExtraDiscount'))
     if (JSON.stringify(moneyDraft.guestPrices) !== JSON.stringify(db.guestPrices || [])) list.push(t('settings.fieldGuestPrices'))
     return list
-  }, [moneyDraft, defGroup, db.guestPrices])
+  }, [moneyDraft, defGroup, db.club, db.guestPrices])
 
   const dirtyCourts = useMemo(() => {
     if (JSON.stringify(courtsDraft) !== JSON.stringify(db.courts || [])) return [t('settings.fieldCourts')]
     return []
   }, [courtsDraft, db.courts])
-
-  const dirtyShuttles = useMemo(() => {
-    if (JSON.stringify(shuttleTypesDraft) !== JSON.stringify(db.shuttleTypes || [])) return [t('settings.fieldShuttles')]
-    return []
-  }, [shuttleTypesDraft, db.shuttleTypes])
 
   const dirtyGroups = useMemo(() => {
     if (JSON.stringify(groupsDraft) !== JSON.stringify(db.groups || [])) return [t('settings.fieldGroups')]
@@ -127,8 +128,8 @@ export default function Settings() {
 
   const dirtyFields = useMemo(() => {
     if (!canEdit) return []
-    return [...dirtyGeneral, ...dirtyMoney, ...dirtyCourts, ...dirtyShuttles, ...dirtyGroups]
-  }, [canEdit, dirtyGeneral, dirtyMoney, dirtyCourts, dirtyShuttles, dirtyGroups])
+    return [...dirtyGeneral, ...dirtyMoney, ...dirtyCourts, ...dirtyGroups]
+  }, [canEdit, dirtyGeneral, dirtyMoney, dirtyCourts, dirtyGroups])
 
   // Tránh xoá trắng draft khi db đổi reference (Item 2)
   const prevClubIdRef = useRef(db.club?.id)
@@ -164,14 +165,15 @@ export default function Settings() {
         customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
         unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
         unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
+        hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
+        memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
         guestPrices: db.guestPrices || [],
       })
     }
 
     if (dirtyCourts.length === 0) setCourtsDraft(db.courts || [])
-    if (dirtyShuttles.length === 0) setShuttleTypesDraft(db.shuttleTypes || [])
     if (dirtyGroups.length === 0) setGroupsDraft(db.groups || [])
-  }, [db, dirtyGeneral.length, dirtyMoney.length, dirtyCourts.length, dirtyShuttles.length, dirtyGroups.length])
+  }, [db, dirtyGeneral.length, dirtyMoney.length, dirtyCourts.length, dirtyGroups.length])
 
   // ----------------- Xử lý Hoàn tác & Lưu thay đổi -----------------
   const handleRevert = useCallback(() => {
@@ -201,11 +203,12 @@ export default function Settings() {
       customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
       unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
       unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
+      hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
+      memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
       guestPrices: db.guestPrices || [],
     })
 
     setCourtsDraft(db.courts || [])
-    setShuttleTypesDraft(db.shuttleTypes || [])
     setGroupsDraft(db.groups || [])
     setSaveError(null)
   }, [db])
@@ -283,6 +286,7 @@ export default function Settings() {
       // 2. Lưu Money Tab
       const isFeeChanged = dirtyMoney.includes(t('settings.fieldMonthlyFee'))
       const isRefundChanged = dirtyMoney.includes(t('settings.fieldRefund'))
+      const isMemberDiscountChanged = dirtyMoney.includes(t('settings.fieldMemberExtraDiscount'))
       const isGuestPricesChanged = dirtyMoney.includes(t('settings.fieldGuestPrices'))
 
       const newClubFeeNam = moneyDraft.hasMonthlyFee ? intOf(moneyDraft.feeNam) : 0
@@ -290,7 +294,7 @@ export default function Settings() {
       const newClubUnitNam = moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNam) : 0) : -1
       const newClubUnitNu = moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNu) : 0) : -1
 
-      if (isFeeChanged || isRefundChanged || isGuestPricesChanged) {
+      if (isFeeChanged || isRefundChanged || isMemberDiscountChanged || isGuestPricesChanged) {
         a.saveMoneyTab({
           feeNam: newClubFeeNam,
           feeNu: newClubFeeNu,
@@ -298,6 +302,8 @@ export default function Settings() {
           unitNam: newClubUnitNam,
           unitNu: newClubUnitNu,
           guestPrices: moneyDraft.guestPrices,
+          hasMemberExtraDiscount: moneyDraft.hasMemberExtraDiscount,
+          memberExtraDiscount: intOf(moneyDraft.memberExtraDiscount) || 5000,
         })
       }
 
@@ -315,20 +321,7 @@ export default function Settings() {
         })
       }
 
-      // 4. Lưu Shuttle Types
-      if (dirtyShuttles.length > 0) {
-        shuttleTypesDraft.forEach((st) => {
-          const orig = (db.shuttleTypes || []).find((x) => x.id === st.id)
-          if (!orig || JSON.stringify(st) !== JSON.stringify(orig)) {
-            a.setShuttleType(st.id, 'name', st.name)
-            a.setShuttleType(st.id, 'perTube', st.perTube)
-            a.setShuttleType(st.id, 'pricePerTube', st.pricePerTube)
-            a.setShuttleType(st.id, 'active', st.active)
-          }
-        })
-      }
-
-      // 5. Lưu Groups (Đồng bộ mức phí CLB cho các nhóm không có mức riêng để tránh bị nuốt)
+      // 4. Lưu Groups (Đồng bộ mức phí CLB cho các nhóm không có mức riêng để tránh bị nuốt)
       if (dirtyGroups.length > 0 || isFeeChanged || isRefundChanged) {
         const syncedGroups = groupsDraft.map((g, idx) => {
           const isCustom =
@@ -384,25 +377,6 @@ export default function Settings() {
   const handleCourtChange = (id, field, val) => {
     setCourtsDraft((prev) =>
       prev.map((c) => (c.id === id ? { ...c, [field]: field === 'price' ? intOf(val) : val } : c))
-    )
-  }
-
-  const handleShuttleTypeChange = (id, field, val) => {
-    setShuttleTypesDraft((prev) =>
-      prev.map((st) =>
-        st.id === id
-          ? {
-              ...st,
-              [field]: field === 'perTube' ? Math.min(24, Math.max(1, intOf(val) || 12)) : field === 'pricePerTube' ? intOf(val) : val,
-            }
-          : st
-      )
-    )
-  }
-
-  const handleGroupQuotaChange = (groupId, quota) => {
-    setGroupsDraft((prev) =>
-      prev.map((g) => (g.id === groupId ? { ...g, quota: intOf(quota) } : g))
     )
   }
 
@@ -598,7 +572,7 @@ export default function Settings() {
         }
       `}</style>
 
-      {/* HEADER 96px: Hàng 1 tiêu đề + Nhập/Xuất · Hàng 2: 6 tab */}
+      {/* Dải tab của trang. Tiêu đề + Nhập/Xuất cài đặt nằm ở AppHeader (xem chú thích dưới). */}
       <div
         style={{
           background: 'var(--surface-card)',
@@ -611,34 +585,10 @@ export default function Settings() {
           margin: '-20px -22px 20px -22px',
         }}
       >
-        {/* Hàng 1 của handoff §1 là "tiêu đề + Nhập/Xuất". Tiêu đề trang đã do AppHeader render
-            (`pages.settings.title/desc`) nên ở đây chỉ còn hai nút — in lại là lặp y hệt hai dòng chữ. */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
-
-          {canEdit && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="upload"
-                onClick={() => a.openDialog('importSettings', {})}
-              >
-                {t('settings.ioImport')}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="download"
-                onClick={a.exportSettings}
-              >
-                {t('settings.ioExport')}
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Hàng 2: 6 Tab điều hướng duy nhất. Bọc thêm một lớp để đặt vệt mờ báo còn cuộn
-            được ở màn hẹp (handoff §8) — pseudo-element không gắn được lên chính tablist. */}
+        {/* Hàng 1 của handoff §1 ("tiêu đề + Nhập/Xuất") nằm hẳn ở AppHeader: tiêu đề lấy từ
+            `pages.settings.title/desc`, hai nút Nhập/Xuất đặt cạnh nút đổi theme.
+            Hàng 2 — 6 tab — là tất cả những gì còn lại ở đây. Bọc thêm một lớp để đặt vệt mờ báo
+            còn cuộn được ở màn hẹp (§8): pseudo-element không gắn được lên chính tablist. */}
         <div className="settings-tabs-wrap">
         <div
           role="tablist"
@@ -748,23 +698,9 @@ export default function Settings() {
         {activeTab === 'courts' && (
           <CourtsTab
             courts={courtsDraft}
-            shuttleTypes={shuttleTypesDraft}
-            groups={groupsDraft}
-            sessions={db.sessions || []}
             canEdit={canEdit}
             onCourtChange={handleCourtChange}
-            onShuttleTypeChange={handleShuttleTypeChange}
-            onGroupQuotaChange={handleGroupQuotaChange}
             onOpenDialog={(name, param) => a.openDialog(name, param)}
-            onDeleteShuttleType={(id, name) => {
-              a.confirm({
-                title: t('settings.typeDelTitle', { name }),
-                message: t('settings.typeDelMsg'),
-                tone: 'danger',
-                confirmText: t('settings.typeDelOk'),
-                onConfirm: () => a.deleteShuttleType(id),
-              })
-            }}
           />
         )}
 

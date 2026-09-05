@@ -88,35 +88,24 @@ bản ghi B khi đang ở bản ghi A → A tự bị bỏ ghép (`appActions.js
 Mọi con số tiền trong app thuộc **đúng một trong hai tầng**. Gộp hai tầng lại là đếm cùng một
 số tiền hai lần.
 
-| | Tầng A · Sổ quỹ | Tầng B · Giá thành buổi |
-| --- | --- | --- |
-| Là gì | tiền thật đã đổi tay, có chứng từ | phân bổ khoản đã trả ra từng buổi để phân tích |
-| Ở đâu | `transactions` | không lưu — tính lại mỗi lần mở màn hình |
-| Trả lời | CLB **còn** bao nhiêu | buổi này **tốn** bao nhiêu, thu đã đủ chưa |
-| Ràng buộc | phải khớp số dư tài khoản ngân hàng | **không bao giờ** sinh dòng ở Tầng A |
+Chỉ còn MỘT tầng: **Sổ quỹ** — tiền thật đã đổi tay, có chứng từ, lưu ở `transactions`, phải
+khớp số dư tài khoản ngân hàng.
 
-```
-Tầng B:  chi phí buổi = courtNet + shuttle_used × giá bình quân
-         /người       = chi phí buổi ÷ (số có mặt + số khách)
-         quỹ bù       = chi phí buổi − thu khách        ← KHÔNG trừ tiền bán sân,
-                                                           courtNet đã loại sân bán rồi
-```
+> **Tầng B (giá thành từng buổi) đã bị gỡ bỏ.** Cùng với module Kho cầu: không còn định mức,
+> đếm ống, kiểm kho, giá bình quân, hay card "Giá thành buổi này". Tiền cầu giờ ghi tay ở Sổ quỹ
+> qua hạng mục `shuttle` như mọi khoản chi khác.
 
-Tiền sân ra khỏi quỹ khi chuyển cho chủ sân theo hoá đơn tháng; tiền cầu ra khỏi quỹ khi nhập
-kho. Ghi thêm chi theo từng buổi là đếm hai lần.
+Tiền sân ra khỏi quỹ khi chuyển cho chủ sân theo hoá đơn tháng. Ghi thêm chi theo từng buổi là
+đếm hai lần.
 
 | Con số hiển thị | Tính từ | Hàm |
 | --- | --- | --- |
 | Số dư quỹ | `transactions` / bản ghi sổ quỹ | `ledger.js: fundBalance` |
 | Thu/chi tháng | `transactions` trong tháng, **trừ** "Số dư mang sang" | `ledger.js: monthFlow` |
 | Tiền sân của buổi | `session_courts.cost` nếu đã chốt; chưa chốt thì `courts.price_per_hour` × số giờ | `money.js: rowCost` → `courtNet` |
-| Tiền cầu của buổi | `sessions.shuttle_used` × giá bình quân toàn kho | `money.js: shuttleCost` |
-| Giá 1 quả cầu | `SUM(total_amount)/SUM(total_units)` các đợt có `total_amount > 0` | `money.js: shuttleUnit` |
-| Định mức cầu | `group.quota × số sân còn chơi / số sân không thuê thêm`, sàn 6 | `money.js: quotaFor` |
 | Ai phải đóng quỹ tháng | `group_memberships` của tháng đó, `state='fixed'` | `money.js: groupMembers` |
 | Đơn giá 1 buổi (để đối chiếu) | `member_groups.unit_male/unit_female` nếu CLB tự đặt; không thì `monthly_dues.amount` **của chính người đó** ÷ số buổi nhóm trong tháng ≠ cancelled | `money.js: unitPrice` |
 | Đối chiếu buổi | đơn giá × số buổi; ÂM khi vắng, DƯƠNG khi đi thêm | `money.js: adjustRows` |
-| Chi phí buổi · /người · quỹ bù | Tầng B, tính live từ giá **hiện tại** | `money.js: costRow` |
 | Số trận từng người | `match_players` join `matches` theo `session_id` | `assign.js: matchStats` |
 
 ### 3.1 Sự kiện nào ghi sổ quỹ — bảng tra nhanh
@@ -129,16 +118,14 @@ kho. Ghi thêm chi theo từng buổi là đếm hai lần.
 | Tick thành viên đã đóng quỹ tháng | **có** | in | `dues` | `paid_at` |
 | Add khách vào buổi | không | | | sinh công nợ, giá chốt tại buổi |
 | Tick khách đã trả | **có** | in | `guest` | ngày buổi |
-| Điểm danh Có mặt / Vắng | không | | | nuôi back tiền + giá thành |
+| Điểm danh Có mặt / Vắng | không | | | nuôi back tiền |
 | Chia sân, bấm giờ, ghi trận | không | | | |
-| Nhập số cầu dùng của buổi | không | | | chỉ trừ tồn kho |
-| **Chốt buổi** — tiền sân, tiền cầu | không | | | Tầng B |
+| **Chốt buổi** — tiền sân | không | | | đóng băng `session_courts.cost`, không sinh dòng |
 | **Chốt buổi** — có sân bán được | **có** | in | `courtSold` | ngày buổi |
 | **Chốt buổi** — có sân thuê thêm | **có** | out | `courtExtra` | ngày buổi · chỉ mode `month` |
 | **Chốt buổi** — mode `session` | **có** | out | `court` | cả tiền sân buổi đó |
-| Nhập đợt cầu mới | **có** | out | `shuttle` | ngày nhập |
+| Ghi tay khoản mua cầu ở Sổ quỹ | **có** | out | `shuttle` | ngày ghi |
 | Nhập hoá đơn sân trọn tháng | **có** | out | `court` | `paid_on` |
-| Kiểm kho cuối tháng | không | | | chỉ chỉnh `shuttle_used` |
 | Tick đã trả back (đối chiếu, amount ÂM) | **có** | out | `back` | `paid_at`, mặc định ngày 28 |
 | Tick đã thu người đi thêm (amount DƯƠNG) | **có** | in | `extra` | `paid_at`, mặc định ngày 28 |
 | Chọn "trừ vào quỹ tháng sau" | không | | | cộng dấu vào `monthly_dues.amount` tháng sau |

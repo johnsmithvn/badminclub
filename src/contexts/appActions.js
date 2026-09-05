@@ -4,9 +4,9 @@
 import { addMonth, dd, ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import {
-  courtCost, courtOf, courtTxt, fmt, fmtK, groupMembers, groupOf, guestOf, guestPrice, memberOf,
-  perTube, presentCount, quotaFor, rowCost, sGuests, guestRev, costRow,
-  sessionOf, checkPreview, checkOf, freezeCost, spreadDiff, unfrozenCost, timeTxt,
+  courtCost, courtOf, courtTxt, fmt, fmtK, freezeCost, groupMembers, groupOf, guestOf, guestPrice, memberOf,
+  presentCount, rowCost, sGuests, guestRev,
+  sessionOf, timeTxt, unfrozenCost,
   adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
   adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember,
 } from '#lib/money.js'
@@ -24,7 +24,7 @@ import { t } from '#i18n'
 const uid = () => crypto.randomUUID()
 
 /** Các trường SỐ của một nhóm cố định — dùng để biết ô nhập nào phải đi qua intOf. */
-const GROUP_NUM = ['feeNam', 'feeNu', 'quota', 'unitNam', 'unitNu']
+const GROUP_NUM = ['feeNam', 'feeNu', 'unitNam', 'unitNu']
 
 export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) {
   const db = () => dbRef.current
@@ -35,7 +35,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
   /**
    * Ghi/đè một dòng đối chiếu buổi. Lần đầu chạm vào là LƯU con số hiện tại — từ đó sửa điểm
-   * danh hay sửa quỹ nhóm không làm đổi khoản đã chốt nữa. Cùng nguyên tắc đóng băng giá thành.
+   * danh hay sửa quỹ nhóm không làm đổi khoản đã chốt nữa.
    */
   const upsertAdjust = (d, row, patch) => {
     const list = (d.adjustments || []).slice()
@@ -51,33 +51,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     return list
   }
 
-  /**
-   * Áp một lần kiểm kho, trả về phần state thay đổi. Dùng chung cho nút "Kiểm kho" và ô
-   * "còn lại trong tủ" lúc nhập đợt cầu — hai lối vào, một logic.
-   *
-   * Ba việc: chỉnh số cầu các buổi CÒN ƯỚC LƯỢNG của tháng đó · đóng băng CỨNG lại giá thành
-   * mấy buổi vừa chỉnh · ghi một dòng lịch sử kiểm kho.
-   * KHÔNG tạo giao dịch nào: tiền cầu đã ra khỏi quỹ lúc mua, kiểm kho chỉ chia lại số tiền
-   * đã trả đó cho các buổi. Chia lại một cái bánh đã mua thì không tốn thêm tiền.
-   */
-  const stockCheckPatch = (d, date, counted) => {
-    const { month, systemLeft, diff, est, n } = checkPreview(d, date, counted)
-    const delta = spreadDiff(est, diff)
-    return {
-      sessions: d.sessions.map((x) => {
-        if (delta[x.id] === undefined) return x
-        const next = {
-          ...x, shuttleUsed: Math.max(0, x.shuttleUsed + delta[x.id]),
-          shuttleEst: false, shuttleMode: 'exact',
-        }
-        return { ...next, ...freezeCost(d, next, date) }
-      }),
-      stockChecks: (d.stockChecks || []).concat([{
-        id: uid(), date, month, counted: intOf(counted),
-        systemLeft, diff, spread: diff ? n : 0,
-      }]),
-    }
-  }
   const upUi = (fn) => setUi((u) => ({ ...u, ...fn(u) }))
   const myRole = () => db().viewAs || 'owner'
 
@@ -122,9 +95,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         .concat(add.map((r) => ({ id: uid(), ...r }))),
     }
   }
-
-  /** Buổi đang ở chế độ định mức thì cập nhật lại số cầu khi số sân đổi. */
-  const syncQuota = (d, s) => (s.shuttleMode === 'quota' ? { ...s, shuttleUsed: quotaFor(d, s) } : s)
 
   /** Điều hướng qua React Router. */
   const nav = (key, id) => navRef.current && navRef.current(pathOf(key, id))
@@ -342,38 +312,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t(val ? 'toast.allPresent' : 'toast.allAbsent'))
     },
 
-    /* ---------- cầu của buổi ---------- */
-    setShuttleMode: (sid, mode) =>
-      patchSession(sid, (x, d) => {
-        if (mode === 'quota') return { ...x, shuttleMode: 'quota', shuttleEst: true, shuttleUsed: quotaFor(d, x) }
-        if (mode === 'tubes') {
-          const pt = perTube(d, x)
-          const tb = x.tubesOpened || Math.floor((x.shuttleUsed || 0) / pt)
-          return { ...x, shuttleMode: 'tubes', shuttleEst: false, tubesOpened: tb, loose: x.loose || 0, shuttleUsed: tb * pt + (x.loose || 0) }
-        }
-        return { ...x, shuttleMode: 'exact', shuttleEst: false }
-      }),
-    setShuttle: (sid, v) =>
-      patchSession(sid, (x) => ({ ...x, shuttleUsed: intOf(v), shuttleEst: false })),
-    bumpTubes: (sid, delta) =>
-      patchSession(sid, (x, d) => {
-        const pt = perTube(d, x)
-        const tb = Math.max(0, (x.tubesOpened || 0) + delta)
-        return { ...x, shuttleMode: 'tubes', shuttleEst: false, tubesOpened: tb, shuttleUsed: tb * pt + (x.loose || 0) }
-      }),
-    bumpLoose: (sid, delta) =>
-      patchSession(sid, (x, d) => {
-        const pt = perTube(d, x)
-        const lo = Math.max(0, (x.loose || 0) + delta)
-        return { ...x, shuttleMode: 'tubes', shuttleEst: false, loose: lo, shuttleUsed: (x.tubesOpened || 0) * pt + lo }
-      }),
-
     /* ---------- sân của buổi ---------- */
     setSold: (sid, i, k, v) =>
-      patchSession(sid, (x, d) => {
+      patchSession(sid, (x) => {
         const rows = (x.courts || []).slice()
         rows[i] = { ...rows[i], [k]: k === 'soldAmount' ? intOf(v) : v }
-        return syncQuota(d, { ...x, courts: rows })
+        return { ...x, courts: rows }
       }),
     toggleCourtSold: (sid, i) =>
       patchSession(sid, (x, d) => {
@@ -382,7 +326,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         rows[i] = r.sold
           ? { ...r, sold: false, soldAmount: 0, soldTo: '' }
           : { ...r, sold: true, soldAmount: Math.round(rowCost(d, r) / 1000) * 1000 }
-        return syncQuota(d, { ...x, courts: rows })
+        return { ...x, courts: rows }
       }),
     addSessionCourt: () => {
       const f = form()
@@ -390,12 +334,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         sessions: d.sessions.map((x) =>
           x.id === sid
-            ? syncQuota(d, {
+            ? {
                 ...x,
                 courts: (x.courts || []).concat([
                   { courtId: f.acCourt, from: f.acFrom, to: f.acTo, sold: false, soldAmount: 0, soldTo: '', extra: true },
                 ]),
-              })
+              }
             : x
         ),
       }))
@@ -426,26 +370,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     removeSessionCourt: (sid, i) =>
-      patchSession(sid, (x, d) => {
+      patchSession(sid, (x) => {
         const rows = (x.courts || []).slice()
         rows.splice(i, 1)
-        return syncQuota(d, { ...x, courts: rows })
+        return { ...x, courts: rows }
       }),
 
     /* ---------- trạng thái buổi ---------- */
-    /**
-     * Chốt buổi → ĐÓNG BĂNG giá thành vào chính bản ghi buổi. Mở lại / huỷ → bỏ đóng băng.
-     * Không đóng băng thì mua thêm một đợt cầu giá khác là mọi buổi cũ đổi con số, sang năm
-     * mở lại tháng cũ user thấy số khác số họ đã đọc hôm nay.
-     * Đây là Tầng B — vẫn KHÔNG sinh dòng nào ở sổ quỹ (xem DATABASE.md §3.1).
-     */
     setSessionStatus: (sid, st) => {
       up((d) => ({
         sessions: d.sessions.map((x) => {
           if (x.id !== sid) return x
           const base = { ...x, status: st, closedAt: st === 'closed' ? d.today : x.closedAt }
           return st === 'closed'
-            ? { ...base, ...freezeCost(d, base, d.today) }
+            ? { ...base, ...freezeCost(d, base) }
             : { ...base, ...unfrozenCost(base) }
         }),
       }))
@@ -1295,15 +1233,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => {
         const scId = uid()
         const rows = (f.rows || []).map((r) => ({ ...r, sold: false, soldAmount: 0, soldTo: '', extra: false }))
-        const stId = d.shuttleTypes[0] ? d.shuttleTypes[0].id : null
         const exist = {}
         d.sessions.forEach((x) => { exist[x.date + '|' + sGroup] = true })
         const added = []
         dates.forEach((dt) => {
           if (exist[dt + '|' + sGroup]) return
           added.push({
-            id: uid(), date: dt, groupId: sGroup, status: 'draft', shuttleUsed: 0,
-            shuttleTypeId: stId, note: '', shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
+            id: uid(), date: dt, groupId: sGroup, status: 'draft', note: '',
             courts: rows.map((r) => ({ ...r })), scheduleId: scId,
           })
         })
@@ -1379,9 +1315,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             // LUÔN 'ALL' (→ group_id NULL). Gán buổi đột xuất vào một ca cố định thì
             // `unitPrice` đếm nó vào số buổi của ca đó, đơn giá một buổi tụt xuống, và tiền
             // back cho người vắng của CẢ ca giảm theo — không ai sửa gì mà tiền vẫn đổi.
-            id: newId, date: f.aDate, groupId: 'ALL', status: 'open', shuttleUsed: 0,
-            shuttleTypeId: d.shuttleTypes[0] ? d.shuttleTypes[0].id : null,
-            note: t('adhoc.noteDefault'), shuttleMode: 'quota', tubesOpened: 0, loose: 0, shuttleEst: true,
+            id: newId, date: f.aDate, groupId: 'ALL', status: 'open',
+            note: t('adhoc.noteDefault'),
             courts: (f.rows || []).map((r) => ({ ...r, sold: false, soldAmount: 0, soldTo: '', extra: false })),
             scheduleId: null,
           }]).sort((a, b) => (a.date < b.date ? -1 : 1)),
@@ -1390,72 +1325,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ dialog: null, form: {} }))
       nav('session', newId)
       toast(t('toast.adhocCreated', { date: dd(f.aDate) }))
-    },
-
-    /* ---------- kho cầu ---------- */
-    /**
-     * Nhập một đợt cầu. Đây là chỗ DUY NHẤT tiền cầu ra khỏi quỹ — dùng cầu từng buổi không
-     * ghi chi nữa, ghi thêm là đếm hai lần cùng một số tiền.
-     *
-     * Ô "còn lại trong tủ trước khi nhập" (tuỳ chọn) sinh luôn một lần kiểm kho. Đảo thời điểm
-     * đếm sang lúc mua là lối tốt nhất: mua cầu thì đằng nào cũng mở tủ, tự nhiên hơn bắt user
-     * nhớ đếm cuối tháng, mà tần suất mua vốn đã ~1 lần/tháng.
-     */
-    createPurchase: () => {
-      const f = form()
-      const d0 = db()
-      // KHÔNG đặt tên biến là `t` — sẽ che hàm dịch t() và mọi toast dưới đây nổ TypeError.
-      const ty = d0.shuttleTypes.find((x) => x.id === f.pType)
-      if (!ty) return toast(t('toast.needShuttleType'))
-      const tubes = intOf(f.pTubes)
-      const extra = intOf(f.pExtra)
-      const total = intOf(f.pTotal)
-      const qty = tubes * ty.perTube + extra
-      if (!qty) return toast(t('toast.needQty'))
-      if (!total) return toast(t('toast.needTotal'))
-
-      // Ngày để trống thì rơi về hôm nay — nếu không, `date` lưu là '' còn `month` lại tính
-      // theo hôm nay, hai con số của cùng một lần kiểm kho lệch nhau.
-      const pDate = f.pDate || d0.today
-      // Đếm tủ TRƯỚC khi nhập: kiểm kho phải tính trên tồn cũ và giá bình quân cũ.
-      const left = String(f.pLeft ?? '').trim()
-      const check = left === '' || checkOf(d0, monthOf(pDate)) ? null : checkPreview(d0, pDate, left)
-      const canCheck = !!check && (check.diff === 0 || check.n > 0)
-
-      up((d) => ({
-        ...(canCheck ? stockCheckPatch(d, pDate, left) : {}),
-        purchases: d.purchases.concat([{
-          id: uid(), date: pDate, typeId: f.pType, tubes, extra, qty,
-          pricePerTube: tubes ? Math.round(total / tubes) : 0, total,
-          // Người trả trỏ về bản ghi thành viên. `fundedBy` để P5 dùng (quỹ trả / thành viên ứng).
-          payerId: f.pPayer || null, fundedBy: null, note: f.pNote || '',
-        }]),
-      }))
-      upUi(() => ({ dialog: null, form: {} }))
-      toast(canCheck
-        ? t('toast.purchaseAddedChecked', {
-            qty, unit: fmtK(Math.round(total / qty)),
-            diff: (check.diff > 0 ? '+' : '') + check.diff, n: check.n,
-          })
-        : t('toast.purchaseAdded', { qty, unit: fmtK(Math.round(total / qty)) }))
-    },
-    applyCheck: () => {
-      const f = form()
-      const d0 = db()
-      if (!f.ckCount) return toast(t('toast.needCounted'))
-      const date = f.ckDate || d0.today
-      // Tháng chia phần lệch lấy từ NGÀY KIỂM, không phải tháng đang xem ở header.
-      const { month, diff, n, done } = checkPreview(d0, date, f.ckCount)
-      // Mỗi tháng một lần: lần hai không còn buổi ước lượng để chia, hoặc chia chồng lên phần
-      // đã chia. DB cũng chặn bằng uq_check_month, chặn ở đây để user thấy câu tử tế.
-      if (done) return toast(t('toast.checkDone', { month: monthTxt(month), date: ddmy(done.date) }))
-      if (diff !== 0 && !n) return toast(t('toast.noEstSession', { month: monthTxt(month) }))
-
-      up((d) => stockCheckPatch(d, date, f.ckCount))
-      upUi(() => ({ dialog: null, form: {} }))
-      toast(diff === 0
-        ? t('toast.stockMatched')
-        : t('toast.stockSpread', { diff: (diff > 0 ? '+' : '') + diff, n, month: monthTxt(month) }))
     },
 
     /* ---------- sổ quỹ ---------- */
@@ -1541,17 +1410,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      * Đọc trạng thái TRƯỚC khi ghi — updater của React không chạy đồng bộ, đọc trong đó thì
      * toast báo ngược (đúng cái bug `toggleSchedule` đã dính một lần).
      */
-    repayAdvance: (kind, id) => {
-      const key = kind === 'court' ? 'courtBills' : 'purchases'
-      const cur = (db()[key] || []).find((x) => x.id === id)
+    repayAdvance: (id) => {
+      const cur = (db().courtBills || []).find((x) => x.id === id)
       if (!cur) return
       const on = !cur.repaidAt
-      up((d) => ({ [key]: d[key].map((x) => (x.id === id ? { ...x, repaidAt: on ? d.today : '' } : x)) }))
+      up((d) => ({ courtBills: d.courtBills.map((x) => (x.id === id ? { ...x, repaidAt: on ? d.today : '' } : x)) }))
       toast(t(on ? 'toast.advanceRepaid' : 'toast.advanceUndone'))
     },
-    deleteAdvance: (kind, id) => {
-      const key = kind === 'court' ? 'courtBills' : 'purchases'
-      up((d) => ({ [key]: (d[key] || []).filter((x) => x.id !== id) }))
+    deleteAdvance: (id) => {
+      up((d) => ({ courtBills: (d.courtBills || []).filter((x) => x.id !== id) }))
       toast(t('toast.debtDeleted'))
     },
 
@@ -1667,7 +1534,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           unitNam: def.unitNam || 0,
           unitNu: def.unitNu || 0,
           from: f.grFrom || '18:00', to: f.grTo || '20:00',
-          quota: intOf(f.grQuota) || cfg.shuttle.quotaDefault,
           courtIds: [], active: true,
         }]),
       }))
@@ -1716,7 +1582,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
       toast(t('toast.groupDeleted'))
     },
-    saveMoneyTab: ({ feeNam, feeNu, hasRefund, unitNam, unitNu, guestPrices }) => {
+    saveMoneyTab: ({
+      feeNam,
+      feeNu,
+      hasRefund,
+      unitNam,
+      unitNu,
+      guestPrices,
+      hasMemberExtraDiscount,
+      memberExtraDiscount,
+    }) => {
       const parseUnit = (v) => (v === -1 || v === '-1' ? -1 : intOf(v))
       up((d) => {
         const def = d.groups[0] || {}
@@ -1724,6 +1599,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           g.id !== def.id &&
           (g.feeNam !== def.feeNam || g.feeNu !== def.feeNu || g.unitNam !== def.unitNam || g.unitNu !== def.unitNu)
         return {
+          club: {
+            ...d.club,
+            ...(hasMemberExtraDiscount !== undefined
+              ? { hasMemberExtraDiscount: Boolean(hasMemberExtraDiscount) }
+              : {}),
+            ...(memberExtraDiscount !== undefined
+              ? { memberExtraDiscount: intOf(memberExtraDiscount) }
+              : {}),
+          },
           groups: d.groups.map((g) => {
             if (isCustom(g)) return g
             return {
@@ -1752,49 +1636,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           short: (g.short || '').trim() || (g.name || '').slice(0, 3),
           from: g.from || '18:00',
           to: g.to || '20:00',
-          quota: intOf(g.quota) || cfg.shuttle.quotaDefault,
         })),
       }))
       toast(t('toast.groupsSaved'))
-    },
-    setShuttleType: (id, k, v) =>
-      up((d) => ({
-        shuttleTypes: d.shuttleTypes.map((x) => {
-          if (x.id !== id) return x
-          if (k === 'name' || k === 'active') return { ...x, [k]: v }
-          if (k === 'perTube') return { ...x, perTube: Math.min(24, Math.max(1, intOf(v) || cfg.shuttle.perTubeDefault)) }
-          return { ...x, [k]: intOf(v) }
-        }),
-      })),
-    addShuttleType: (data) => {
-      const name = (data && data.name) ? data.name.trim() : t('settings.newTypeName')
-      const perTube = Math.min(24, Math.max(1, intOf(data?.perTube) || cfg.shuttle.perTubeDefault))
-      const pricePerTube = intOf(data?.pricePerTube)
-      const active = data && data.active !== undefined ? Boolean(data.active) : true
-      up((d) => ({
-        shuttleTypes: d.shuttleTypes.concat([{
-          id: uid(), name, perTube, pricePerTube, active,
-        }]),
-      }))
-      toast(t('toast.typeAdded'))
-      upUi(() => ({ dialog: null, form: {} }))
-    },
-    deleteShuttleType: (id) => {
-      const d = db()
-      const type = (d.shuttleTypes || []).find((s) => s.id === id)
-      if (!type) return
-      const isUsed = (d.purchases || []).some((p) => p.typeId === id)
-      if (isUsed) {
-        toast(t('toast.typeArchived'))
-        up((prev) => ({
-          shuttleTypes: prev.shuttleTypes.map((x) => (x.id === id ? { ...x, active: false } : x)),
-        }))
-        return
-      }
-      up((prev) => ({
-        shuttleTypes: prev.shuttleTypes.filter((x) => x.id !== id),
-      }))
-      toast(t('toast.typeDeleted', { name: type.name }))
     },
     exportSettings: () => {
       const d = db()
@@ -1817,6 +1661,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           feeNu: d.groups[0]?.feeNu || 0,
           unitNam: d.groups[0]?.unitNam || 0,
           unitNu: d.groups[0]?.unitNu || 0,
+          hasMemberExtraDiscount: Boolean(d.club?.hasMemberExtraDiscount),
+          memberExtraDiscount: d.club?.memberExtraDiscount != null ? intOf(d.club.memberExtraDiscount) : 5000,
           guestPrices: (d.guestPrices || []).map((p) => ({
             level: p.level,
             nam: p.nam || 0,
@@ -1830,12 +1676,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           price: c.price || 0,
           active: c.active !== false,
         })),
-        shuttleTypes: (d.shuttleTypes || []).map((s) => ({
-          name: s.name,
-          perTube: s.perTube || cfg.shuttle.perTubeDefault,
-          pricePerTube: s.pricePerTube || 0,
-          active: s.active !== false,
-        })),
+
         groups: (d.groups || []).map((g) => ({
           name: g.name,
           short: g.short || '',
@@ -1845,7 +1686,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           unitNu: g.unitNu || 0,
           from: g.from || '18:00',
           to: g.to || '20:00',
-          quota: g.quota || cfg.shuttle.quotaDefault,
           active: g.active !== false,
         })),
       }
@@ -1891,6 +1731,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
         // 2. Biểu phí & Giá khách giao lưu
         if (opts.includeMoney && data.money) {
+          if (data.money.hasMemberExtraDiscount !== undefined) {
+            next.club = {
+              ...(next.club || d.club),
+              hasMemberExtraDiscount: Boolean(data.money.hasMemberExtraDiscount),
+              memberExtraDiscount: data.money.memberExtraDiscount != null ? intOf(data.money.memberExtraDiscount) : 5000,
+            }
+          }
           const activeLevels = next.levels || d.levels
           if (Array.isArray(data.money.guestPrices)) {
             const priceMap = {}
@@ -1941,27 +1788,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           next.courts = existingCourts.concat(newCourts)
         }
 
-        // 4. Loại cầu
-        if (opts.includeShuttles && Array.isArray(data.shuttleTypes) && data.shuttleTypes.length) {
-          const existingShuttles = (d.shuttleTypes || []).slice()
-          const newShuttles = []
-          data.shuttleTypes.forEach((s) => {
-            const match = existingShuttles.find((x) => x.name.toLowerCase() === (s.name || '').trim().toLowerCase())
-            if (match) {
-              match.perTube = intOf(s.perTube) || match.perTube
-              match.pricePerTube = intOf(s.pricePerTube) || match.pricePerTube
-            } else {
-              newShuttles.push({
-                id: uid(),
-                name: (s.name || '').trim(),
-                perTube: intOf(s.perTube) || cfg.shuttle.perTubeDefault,
-                pricePerTube: intOf(s.pricePerTube) || 0,
-                active: s.active !== false,
-              })
-            }
-          })
-          next.shuttleTypes = existingShuttles.concat(newShuttles)
-        }
+
 
         // 5. Nhóm cố định
         if (opts.includeGroups && Array.isArray(data.groups) && data.groups.length) {
@@ -1973,7 +1800,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
               match.short = g.short || match.short
               match.from = g.from || match.from
               match.to = g.to || match.to
-              match.quota = intOf(g.quota) || match.quota
               match.feeNam = intOf(g.feeNam) || match.feeNam
               match.feeNu = intOf(g.feeNu) || match.feeNu
               match.unitNam = intOf(g.unitNam) || match.unitNam
@@ -1985,7 +1811,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
                 short: g.short || (g.name || '').slice(0, 3),
                 from: g.from || '18:00',
                 to: g.to || '20:00',
-                quota: intOf(g.quota) || cfg.shuttle.quotaDefault,
                 feeNam: intOf(g.feeNam) || 0,
                 feeNu: intOf(g.feeNu) || 0,
                 unitNam: intOf(g.unitNam) || 0,
@@ -2592,7 +2417,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         total: groupMembers(d0, s.groupId, monthOf(s.date)).length,
         group: g.name,
       }))
-      L.push(t('zalo.shuttleCourt', { n: s.shuttleUsed, amount: fmt(courtCost(d0, s)) }))
+      L.push(t('zalo.courtOnly', { amount: fmt(courtCost(d0, s)) }))
       L.push('')
       L.push(t('zalo.guestsHead', { n: gl.length, amount: fmt(guestRev(d0, sid)) }))
       gl.forEach((x) => {
@@ -2607,10 +2432,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         }))
       })
       L.push('')
-      // costRow chứ không sessionCost: buổi đã chốt thì đọc số ĐÃ ĐÓNG BĂNG, đúng bằng số
-      // đang hiện trên card buổi và bảng Báo cáo. Tính lại là báo cáo gửi lên nhóm nói một
-      // đằng, màn hình nói một nẻo, ngay khi giá cầu hay giá sân đổi.
-      L.push(t('zalo.cost', { amount: fmt(costRow(d0, s).cost), n: s.shuttleUsed }))
       L.push(t('zalo.guestRev', { amount: fmt(guestRev(d0, sid)) }))
       L.push(t('zalo.balance', { amount: fmt(fundBalance(d0)) }))
       const bk = d0.club.bank
@@ -2648,7 +2469,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       return toast(t('toast.guestUnpaid'))
     }
     if (tg.kind === 'adjust') return A.settleAdjust(tg.key)
-    return A.repayAdvance(tg.advKind, tg.id)
+    return A.repayAdvance(tg.id)
   }
 
   return A

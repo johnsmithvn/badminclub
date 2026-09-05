@@ -3,7 +3,7 @@
 // khi lưu là đơn giá một buổi (unitPrice) — dùng để back tiền.
 // Hàm ở đây thuần: nhận db (state) + tham số, không đụng React/Supabase.
 
-import { hours, monthOf, monthsBetween } from '#utils/dates.js'
+import { hours, monthOf } from '#utils/dates.js'
 import { can } from '#lib/roles.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
@@ -11,7 +11,6 @@ import { t } from '#i18n'
 /** Thứ tự trình độ tăng dần MẶC ĐỊNH cho CLB mới. Mỗi CLB tự sửa được (clubs.levels),
  *  khi đó dùng db.levels — xem levelIdx. */
 export const LEVELS = cfg.levelsDefault
-export const SHUTTLE_UNIT_FALLBACK = cfg.money.shuttleUnitFallback // đ/quả khi chưa có đợt mua nào
 
 /* ---------- hiển thị ---------- */
 
@@ -57,11 +56,11 @@ export function groupOf(db, id) {
   if (id === 'ALL') {
     return {
       id: 'ALL', name: t('group.allClub'), short: t('group.allClubShort'), courtIds: [],
-      feeNam: 0, feeNu: 0, from: '18:00', to: '20:00', quota: cfg.shuttle.quotaDefault || 24,
+      feeNam: 0, feeNu: 0, from: '18:00', to: '20:00',
     }
   }
   return db.groups.find((g) => g.id === id) ||
-    { name: t('common.unknown'), short: '', courtIds: [], feeNam: 0, feeNu: 0, quota: 24 }
+    { name: t('common.unknown'), short: '', courtIds: [], feeNam: 0, feeNu: 0 }
 }
 
 /** Vị trí trình độ trong thang của CLB (càng lớn càng mạnh). `levels` bỏ trống thì dùng mặc định. */
@@ -155,6 +154,14 @@ export const playedCourts = (s) => rows(s).filter((c) => !c.sold).length
 export const courtPayMode = (db) => db.club.courtPayMode || 'month'
 export const billsOf = (db, month) => (db.courtBills || []).filter((b) => b.month === month)
 
+/** Đóng băng tiền sân của buổi lúc chốt để giá sân đổi sau này không làm trôi sổ quỹ. */
+export function freezeCost(db, s) {
+  return {
+    courts: (s.courts || []).map((r) => ({ ...r, cost: rowCost(db, r) })),
+  }
+}
+export const unfrozenCost = (s) => (s ? { courts: (s.courts || []).map((r) => ({ ...r, cost: null })) } : {})
+
 export function courtTxt(db, s) {
   const n = rows(s).length
   if (!n) return t('session.noCourt')
@@ -170,91 +177,7 @@ export function timeTxt(s) {
   return c ? c.from + ' → ' + c.to : '--:--'
 }
 
-/* ---------- tiền cầu ---------- */
 
-/** Giá bình quân toàn kho (đ/quả) — không dùng giá tham chiếu của loại cầu. */
-export function shuttleUnit(db) {
-  const p = db.purchases.filter((x) => x.total > 0)
-  const q = p.reduce((t, x) => t + x.qty, 0)
-  const s = p.reduce((t, x) => t + x.total, 0)
-  return q ? s / q : SHUTTLE_UNIT_FALLBACK
-}
-
-export function perTube(db, s) {
-  const type = db.shuttleTypes.find((x) => x.id === ((s && s.shuttleTypeId) || db.shuttleTypes[0]?.id))
-  return (type && type.perTube) || cfg.shuttle.perTubeDefault
-}
-
-export function quotaFor(db, s) {
-  const g = groupOf(db, s.groupId)
-  const base = g.quota || 24
-  const total = rows(s).filter((c) => !c.extra).length || (g.courtIds || []).length || 1
-  const played = playedCourts(s)
-  if (rows(s).length > 0 && played === 0) return 0
-  return Math.max(cfg.shuttle.quotaMin, Math.round((base * (played || 1)) / total))
-}
-
-export const shuttleCost = (db, s) => (s.shuttleUsed || 0) * shuttleUnit(db)
-/** Chi phí thực của một buổi: sân CLB gánh + cầu. */
-export const sessionCost = (db, s) => courtNet(db, s) + shuttleCost(db, s)
-
-export function stock(db) {
-  const bought = db.purchases.reduce((t, x) => t + x.qty, 0)
-  const used = db.sessions.filter((s) => s.status === 'closed').reduce((t, s) => t + s.shuttleUsed, 0)
-  return { bought, used, left: bought - used }
-}
-
-/** Buổi đã chốt còn lấy định mức — kiểm kho cuối tháng chia phần lệch vào đây. */
-export const estSessions = (db, month) =>
-  monthSessions(db, month).filter((s) => s.status === 'closed' && s.shuttleEst)
-
-/**
- * Kiểm kho: tính phần lệch và chia vào đâu. Dialog xem trước và action áp dụng dùng CHUNG hàm này.
- * Tháng lấy từ NGÀY KIỂM, không phải tháng đang chọn ở header: kiểm ngày 31/08 trong lúc header
- * đang ở tháng 09 thì phần lệch của tháng 8 sẽ chui vào các buổi tháng 9 — sai hai tháng cùng lúc.
- */
-export function checkPreview(db, date, counted) {
-  const month = monthOf(date || db.today)
-  const systemLeft = stock(db).left
-  const diff = systemLeft - intOf(counted)
-  const est = estSessions(db, month)
-  return {
-    month, systemLeft, diff, est, n: est.length, done: checkOf(db, month),
-    share: est.length ? Math.round(diff / est.length) : 0,
-  }
-}
-
-/** Lần kiểm kho của một tháng, nếu có. Mỗi tháng chỉ được một lần — xem uq_check_month. */
-export const checkOf = (db, month) => (db.stockChecks || []).find((c) => c.month === month) || null
-
-/** Chia phần lệch vào các buổi ước lượng; phần dư dồn vào buổi cuối để tổng khớp tuyệt đối. */
-export function spreadDiff(est, diff) {
-  const out = {}
-  let rest = diff
-  est.forEach((x, i) => {
-    const share = i === est.length - 1 ? rest : Math.round(diff / est.length)
-    rest -= share
-    out[x.id] = share
-  })
-  return out
-}
-
-/**
- * Có nên nhắc kiểm kho không → '' | 'never' | 'stale' | 'low'.
- * Bỏ kiểm kho thì tồn kho và giá thành trôi mà KHÔNG AI BIẾT: sai số có hệ thống chứ không
- * random, nên càng để lâu càng lệch cùng một hướng. Quỹ không sai đồng nào, nhưng "quỹ bù mỗi
- * buổi" — con số dùng để quyết định có tăng quỹ tháng hay không — thì sai.
- */
-export function checkDue(db) {
-  if (!(db.purchases || []).length) return ''          // chưa mua đợt nào thì chưa có gì để đếm
-  const month = monthOf(db.today)
-  if (checkOf(db, month)) return ''
-  const last = (db.stockChecks || []).map((c) => c.month).sort().pop()
-  if (!last) return 'never'
-  if (monthsBetween(last, month) > cfg.shuttle.checkRemindMonths) return 'stale'
-  if (stock(db).left < cfg.shuttle.checkLowStock) return 'low'
-  return ''
-}
 
 /* ---------- thành viên ứng tiền · LUẬT NGƯỜI GIỮ QUỸ (Issue 4) ---------- */
 
@@ -283,8 +206,6 @@ export function advanceRows(db) {
     })
   }
   ;(db.courtBills || []).forEach((b) => add('court', b, b.amount, b.venue))
-  ;(db.purchases || []).forEach((p) => add('shuttle', p, p.total,
-    (db.shuttleTypes.find((x) => x.id === p.typeId) || { name: t('common.unknown') }).name))
   return out.sort((a, b) => (a.date < b.date ? -1 : 1))
 }
 
@@ -348,6 +269,23 @@ export function guestPrice(db, level, gender) {
   const r = db.guestPrices.find((x) => x.level === level)
   if (!r) return 0
   return gender === 'nu' ? r.nu : r.nam
+}
+
+/**
+ * Đơn giá một buổi cho THÀNH VIÊN CLB đi lẻ (không đóng cố định nhóm đó).
+ * Bằng giá giao lưu (theo trình độ và giới tính) trừ mức ưu đãi hội viên nếu bật toggle, hoặc bằng giá giao lưu nếu tắt.
+ * Trả 0 khi CLB chưa khai bảng giá khách cho trình độ đó — chỗ gọi phải tự đỡ, xem `adjustRows`.
+ */
+export function memberExtraPrice(db, member, month) {
+  if (!member) return 0
+  const base = guestPrice(db, levelOf(member, month), member.gender)
+  if (base <= 0) return 0
+  const hasDiscount = Boolean(db.club?.hasMemberExtraDiscount)
+  if (!hasDiscount) return base
+  const discount = db.club?.memberExtraDiscount != null
+    ? intOf(db.club.memberExtraDiscount)
+    : (cfg.money.memberExtraDiscount ?? 5000)
+  return Math.max(0, base - discount)
 }
 
 /** Công nợ khách, gộp theo từng khách trong tháng. */
@@ -513,7 +451,7 @@ export function adhocCharges(db, s, att) {
       const level = levelOf(m, month)
       return {
         sessionId: s.id, memberId: m.id, guestId: null, level, gender: m.gender,
-        price: guestPrice(db, level, m.gender), paid: false, invitedBy: '',
+        price: memberExtraPrice(db, m, month), paid: false, invitedBy: '',
       }
     }),
     remove: rows.filter((g) => !want.has(g.memberId) && !g.paid).map((g) => g.id),
@@ -605,9 +543,13 @@ export function adjustRows(db, monthKey) {
     const key = adjustKey(monthKey, g.id, m.id, kind)
     const saved = savedAdjust(db, key)
     const u = unitPrice(db, m, g, monthKey)
+    // Người đi thêm buổi trả giá giao lưu đã trừ ưu đãi hội viên. CLB chưa khai bảng giá khách
+    // thì `memberExtraPrice` ra 0 — rơi về đơn giá chia từ quỹ tháng, KHÔNG được thu 0 đồng.
+    const extraUnit = kind === 'extra_session' ? memberExtraPrice(db, m, monthKey) : 0
+    const calcUnit = extraUnit > 0 ? extraUnit : u.unit
     const row = saved
       ? { sessions: saved.sessions, unit: saved.unit, amount: saved.amount }
-      : { sessions, unit: u.unit, amount: sign * u.unit * sessions }
+      : { sessions, unit: calcUnit, amount: sign * calcUnit * sessions }
     // Đơn giá này là số CLB tự đặt hay app tự chia — hiện ra để không ai phải đoán.
     out.push({
       key, month: monthKey, member: m, group: g, kind, groupId: g.id, memberId: m.id,
@@ -975,8 +917,7 @@ export function memberRefs(db, id) {
   any('guest', (db.sessionGuests || []).some((x) => x.invitedBy === id) ||
     (db.guests || []).some((x) => x.invitedBy === id))
   any('match', (db.matches || []).some((m) => (m.playerKeys || []).indexOf(id) >= 0))
-  any('payer', (db.courtBills || []).some((x) => x.payerId === id) ||
-    (db.purchases || []).some((x) => x.payerId === id))
+  any('payer', (db.courtBills || []).some((x) => x.payerId === id))
   any('change', (db.changes || []).some((x) => x.memberId === id))
   any('account', !!(db.members.find((m) => m.id === id) || {}).userId)
   return why
@@ -1038,7 +979,7 @@ export function sessionRefs(db, sid) {
   any('guest', (db.sessionGuests || []).some((g) => g.sessionId === sid))
   any('match', (db.matches || []).some((m) => m.sessionId === sid))
   any('challenge', (db.challenges || []).some((c) => c.sessionId === sid))
-  any('closed', !!(db.sessions || []).find((s) => s.id === sid && (s.status === 'closed' || s.costFrozenAt)))
+  any('closed', !!(db.sessions || []).find((s) => s.id === sid && s.status === 'closed'))
   return why
 }
 
@@ -1133,122 +1074,6 @@ export function offBackSuggest(db, id) {
     amount += unitPrice(db, m, g, month).unit * n
   })
   return groups.length ? { name: m.name, groups: groups.join(', '), sessions, amount } : null
-}
-
-/* ---------- giá thành từng buổi · TẦNG B ---------- */
-
-/**
- * Giá thành một buổi. Tầng B — KHÔNG BAO GIỜ sinh dòng ở sổ quỹ (xem DATABASE.md §3).
- *
- * Buổi đã đóng băng (`costFrozenAt`) thì ĐỌC số đã lưu, không tính lại: mua thêm một đợt cầu
- * giá khác hoặc chủ sân tăng giá thì buổi cũ phải giữ nguyên con số đã đọc hôm chốt.
- *
- * `quỹ bù = chi phí − thu khách`. KHÔNG trừ tiền bán sân: `courtNet` đã loại sân bán khỏi chi
- * phí rồi, trừ thêm `soldAmount` nữa là tính lợi ích bán sân hai lần.
- */
-export function costRow(db, s) {
-  if (s.costFrozenAt) {
-    const people = s.costHeads || 0
-    const cost = s.costTotal || 0
-    const rev = s.costGuestRev || 0
-    return {
-      people, cost, rev, court: s.costCourt || 0, shuttle: s.costShuttle || 0,
-      unit: s.costShuttleUnit || 0, per: cost / (people || 1), subsidy: cost - rev, frozen: true,
-    }
-  }
-  const people = headCount(db, s)
-  const unit = shuttleUnit(db)
-  const court = courtNet(db, s)
-  const shuttle = (s.shuttleUsed || 0) * unit
-  const cost = court + shuttle
-  const rev = guestRev(db, s.id)
-  return { people, cost, rev, court, shuttle, unit, per: cost / (people || 1), subsidy: cost - rev, frozen: false }
-}
-
-/**
- * Ảnh chụp giá thành để gắn vào bản ghi buổi lúc chốt. Thuần — action chỉ việc merge vào buổi.
- * Cố tình đi qua costRow ở nhánh live để số đóng băng LUÔN BẰNG số đang hiện trên màn hình.
- */
-export function freezeCost(db, s, at) {
-  const c = costRow(db, { ...s, costFrozenAt: null })
-  return {
-    costCourt: c.court, costShuttleUnit: c.unit, costShuttle: c.shuttle, costTotal: c.cost,
-    costGuestRev: c.rev, costHeads: c.people, costFrozenAt: at,
-    // Đóng băng luôn TỪNG dòng sân (0012). `rowCost` đọc `cost` trước nên chốt lại lần nữa
-    // (kiểm kho cuối tháng gọi `freezeCost` lại) là idempotent, không nhân lại theo giá mới.
-    courts: (s.courts || []).map((r) => ({ ...r, cost: rowCost(db, r) })),
-  }
-}
-
-/**
- * Mở lại buổi → số quay về tính live. Xoá hẳn để không còn số cũ lảng vảng trong bản ghi.
- * Truyền `s` để thả băng luôn từng dòng sân; gọi trần thì chỉ thả 7 số ở tầng buổi — cố ý giữ
- * nhánh đó để gọi thiếu tham số KHÔNG hoá thành `courts: []` xoá sạch sân của buổi.
- */
-export const unfrozenCost = (s) => ({
-  costCourt: null, costShuttleUnit: null, costShuttle: null, costTotal: null,
-  costGuestRev: null, costHeads: null, costFrozenAt: null,
-  ...(s ? { courts: (s.courts || []).map((r) => ({ ...r, cost: null })) } : {}),
-})
-
-/**
- * Trạng thái con số giá thành — quyết định badge nào hiện trên UI.
- *   live  buổi chưa chốt, số còn đổi
- *   temp  đóng băng tạm, số cầu còn là định mức, kiểm kho sẽ chỉnh lại
- *   final số chốt, không đổi nữa
- */
-export const costState = (s) => (!s.costFrozenAt ? 'live' : s.shuttleEst ? 'temp' : 'final')
-
-/* ---------- chốt buổi: cảnh báo trước và sau ---------- */
-
-/** Miền giá trị hai họ key `session.closeWarn.*` và `session.drift.*` — i18n test đọc từ đây. */
-export const CLOSE_WARN_KEYS = ['noAttend', 'soldBlank']
-export const DRIFT_KEYS = ['heads', 'rev', 'shuttle']
-
-/**
- * Việc còn treo trước khi chốt buổi. CHỈ CẢNH BÁO, không chặn: chặn thì có ngày bán sân cho CLB
- * khác mà chưa biết họ trả bao nhiêu là không chốt được buổi, trong khi chẳng có lỗi gì.
- *
- * Cố ý KHÔNG nhắc: khách còn ghi nợ (nợ nằm ở màn Công nợ, chốt hay không đều hiện) · số cầu
- * đang là định mức (CLB không đếm cầu thì định mức là bình thường, nhắc là phiền).
- */
-export function closeWarnings(db, s) {
-  if (!s) return []
-  const out = []
-  const map = (db.attendance || {})[s.id] || {}
-  if (!Object.keys(map).some((k) => isPresent(map[k]))) out.push({ key: 'noAttend', n: 0 })
-  // Đánh dấu "đã bán" mà ô tiền để trống: hai ô đang chỏi nhau, không phải quên nhập chung chung.
-  const blank = rows(s).filter((c) => c.sold && !(c.soldAmount > 0)).length
-  if (blank) out.push({ key: 'soldBlank', n: blank })
-  return out
-}
-
-/**
- * Buổi đã chốt mà dữ liệu buổi đổi sau đó → số đóng băng KHÔNG tự cập nhật. Đóng băng là cố ý
- * (giá sân / giá cầu đổi không được làm đổi buổi cũ), nhưng người vừa sửa điểm danh thì không có
- * gì báo cho họ biết là sửa vô ích. Trả `null` khi chưa chốt hoặc không lệch.
- *
- * CHỈ so ba thứ ĐẾM ĐƯỢC: số người · thu khách · số cầu. Ba cái này chỉ đổi khi có người sửa dữ
- * liệu buổi. KHÔNG so tiền sân — giá sân đổi là đủ làm nó lệch mà chẳng ai sửa gì, cảnh báo oan
- * đúng vào cái mà đóng băng sinh ra để chống.
- */
-export function costDrift(db, s) {
-  if (!s || !s.costFrozenAt) return null
-  const out = []
-  const heads = headCount(db, s)
-  if (heads !== (s.costHeads || 0)) out.push({ key: 'heads', was: s.costHeads || 0, now: heads })
-
-  // Giá khách chốt ngay lúc thêm (sessionGuests.price) nên rev chỉ lệch khi thêm/bớt khách.
-  const rev = guestRev(db, s.id)
-  if (rev !== (s.costGuestRev || 0)) out.push({ key: 'rev', was: s.costGuestRev || 0, now: rev })
-
-  // Số cầu lúc chốt suy ra từ tiền cầu ÷ đơn giá đã lưu. Chưa mua đợt nào thì đơn giá 0, bỏ qua.
-  const unit = s.costShuttleUnit || 0
-  if (unit > 0) {
-    const was = Math.round((s.costShuttle || 0) / unit)
-    if ((s.shuttleUsed || 0) !== was) out.push({ key: 'shuttle', was, now: s.shuttleUsed || 0 })
-  }
-  return out.length ? out : null
 }
 
 /* ---------- màu và nhãn ---------- */

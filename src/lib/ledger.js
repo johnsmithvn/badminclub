@@ -1,6 +1,8 @@
 // Sổ quỹ — nguồn DUY NHẤT của số dư. Mọi thay đổi tiền đổ về đây, không tính lại từ nhiều nguồn.
 //
 // QUAN TRỌNG: `cat` là KEY ổn định (dues, court, shuttle…), không phải chữ hiển thị.
+// `shuttle` giữ lại có chủ đích: module Kho cầu đã bỏ, nhưng đây là hạng mục "Mua cầu" của
+// dialog ghi thu/chi tay — đường DUY NHẤT còn lại để ghi tiền cầu vào sổ quỹ.
 // Key này tương ứng transactions.category trong DB — đổi ngôn ngữ KHÔNG được làm đổi dữ liệu đã ghi.
 // Chữ hiển thị lấy bằng catLabel(cat) / label dựng từ i18n.
 
@@ -143,19 +145,6 @@ export function ledger(db) {
     })
   }
 
-  db.purchases.filter((p) => p.total > 0).forEach((p) => {
-    const at = paidOn(db, p)
-    if (!at) return                         // thành viên ứng, CLB chưa trả lại → quỹ chưa mất gì
-    out.push({
-      id: 'pu' + p.id, date: at, dir: 'out', cat: CATS.shuttle,
-      label: t('ledger.label.shuttle', {
-        type: (db.shuttleTypes.find((x) => x.id === p.typeId) || { name: '' }).name,
-        tubes: p.tubes, qty: p.qty,
-      }) + repayTag(db, p),
-      amount: p.total, by: payerName(db, p.payerId, p.payer),
-    })
-  })
-
   // Đối chiếu buổi — hai chiều, đọc SỐ ĐÃ LƯU chứ không tính lại từ điểm danh hiện tại.
   //   amount ÂM  → chi, quỹ trả lại người vắng
   //   amount DƯƠNG → thu, người đi thêm buổi trả quỹ
@@ -183,7 +172,7 @@ export function ledger(db) {
  * HOÀN TÁC một dòng sổ quỹ: dòng này đến từ đâu, và gỡ bằng cách nào.
  *
  * Sổ quỹ là bảng SUY RA, không phải bảng lưu — `ledger()` dựng dòng từ `dues`, `sessionGuests`,
- * `courtBills`, `purchases`, `adjustments` và `manual`. Nên "hoàn tác" ở đây KHÔNG được xoá một
+ * `courtBills`, `adjustments` và `manual`. Nên "hoàn tác" ở đây KHÔNG được xoá một
  * dòng sổ (không có dòng nào để xoá), mà phải lật đúng cái cờ ở NGUỒN — y hệt bấm "Thu" rồi
  * "Bỏ thu" ở màn Công nợ. Lật xong thì dòng tự biến khỏi sổ và số dư tự trừ lại.
  *
@@ -218,11 +207,10 @@ export function undoTarget(db, row) {
     const x = (db.adjustments || []).find((y) => y.id === id)
     return x && x.paid && x.settle === 'cash' ? { kind: 'adjust', key: x.key } : null
   }
-  if (tag === 'cb' || tag === 'pu') {
-    const kind = tag === 'cb' ? 'court' : 'shuttle'
-    const x = (tag === 'cb' ? db.courtBills : db.purchases || []).find((y) => y.id === id)
+  if (tag === 'cb') {
+    const x = (db.courtBills || []).find((y) => y.id === id)
     // Chỉ hoàn được khoản THÀNH VIÊN ỨNG rồi CLB đã trả lại: gỡ `repaidAt` là tiền chưa rời két.
-    return x && !isVault(db, x.payerId) && x.repaidAt ? { kind: 'advance', advKind: kind, id } : null
+    return x && !isVault(db, x.payerId) && x.repaidAt ? { kind: 'advance', id } : null
   }
   return null
 }
@@ -314,23 +302,6 @@ export function ledgerGrouped(db, month, { includeAdvances = false } = {}) {
         }
       })
     }
-    ;(db.purchases || []).forEach((p) => {
-      if (monthOf(p.date) === month && !isVault(db, p.payerId) && !p.repaidAt) {
-        const payer = payerName(db, p.payerId, p.payer)
-        const typeName = (db.shuttleTypes.find((x) => x.id === p.typeId) || { name: '' }).name
-        advances.push({
-          id: 'pu_adv_' + p.id,
-          date: p.date,
-          dir: 'advance',
-          cat: CATS.shuttle,
-          label: t('ledger.label.shuttle', { type: typeName, tubes: p.tubes, qty: p.qty }),
-          amount: p.total,
-          by: payer,
-          isAdvance: true,
-          tooltip: t('ledger.advanceTip', { name: payer }),
-        })
-      }
-    })
   }
 
   const allRows = rowsIn.concat(advances).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))

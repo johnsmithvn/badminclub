@@ -35,11 +35,6 @@ assert.deepEqual(
   ['closed'],
   'buổi ĐÃ CHỐT mà xoá cứng → mất giá thành đã đóng băng, con số cả nhóm đã chia tiền theo')
 
-assert.deepEqual(
-  sessionRefs(base({ sessions: [{ id: 'S1', status: 'draft', costFrozenAt: '2026-09-01' }] }), 'S1'),
-  ['closed'],
-  'đã đóng băng giá thành thì dù status còn draft cũng là số đã chốt — không được xoá')
-
 // Buổi khác không được kéo theo.
 assert.deepEqual(sessionRefs(base({ sessionGuests: [{ sessionId: 'S2' }], matches: [{ sessionId: 'S2' }] }), 'S1'), [])
 // Ô điểm danh rỗng không tính là đã chạm.

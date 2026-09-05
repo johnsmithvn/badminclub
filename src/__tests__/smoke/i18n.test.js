@@ -15,7 +15,7 @@ import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import perm from '#config/permissions.json' with { type: 'json' }
 import { MODE_KEYS } from '#lib/assign.js'
-import { CLOSE_WARN_KEYS, DRIFT_KEYS, WARN_KEYS } from '#lib/money.js'
+import { WARN_KEYS } from '#lib/money.js'
 import { CATS, MANUAL_CATS } from '#lib/ledger.js'
 import { BLOCK_KEYS } from '#lib/schedules.js'
 import { MERGE_FIELDS } from '#lib/members.js'
@@ -25,15 +25,13 @@ import { SCHEMA_GROUPS } from '#data/schema.js'
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
 // Đúng bộ mục sidebar trong Sidebar.jsx (KHÔNG phải toàn bộ route: 'session' không có ở sidebar).
 const NAV = ['home', 'calendar', 'sessions', 'assign', 'leaderboard', 'members',
-  'debts', 'fund', 'shuttles', 'profile', 'settings']
+  'debts', 'fund', 'profile', 'settings']
 const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
 const CHANGE_FIELDS = ['level', 'phone', 'gender', 'name']
 // Lý do một trường KHÔNG ghép được ở màn duyệt vào CLB — khớp `members.js: mergeRows().block`.
 const MERGE_BLOCKS = ['empty', 'same', 'offScale']
-const SETTINGS_TABS = ['general', 'money', 'courts', 'shuttles', 'groups', 'schedules', 'access']
-// Trạng thái con số giá thành (money.js: costState) và lý do nhắc kiểm kho (money.js: checkDue).
-const COST_STATES = ['live', 'temp', 'final']
+const SETTINGS_TABS = ['general', 'money', 'courts', 'groups', 'schedules', 'access']
 // Hai chiều của bảng đối chiếu và hai cách trả — khớp enum adjust_kind / settle_mode ở DB.
 const ADJUST_KINDS = ['absent_back', 'extra_session']
 const SETTLE_MODES = ['cash', 'offset_next_dues']
@@ -41,7 +39,6 @@ const SETTLE_MODES = ['cash', 'offset_next_dues']
 const MEMBER_REFS = ['attend', 'dues', 'adjust', 'guest', 'match', 'payer', 'change', 'account']
 // Lý do không xoá được một NHÓM — khớp money.js: groupRefs.
 const GROUP_REFS = ['session', 'history', 'schedule', 'dues', 'adjust', 'roster']
-const CHECK_DUE = ['never', 'stale', 'low']
 
 const SRC = 'src'
 const SKIP = new Set(['ds', '__tests__'])
@@ -131,7 +128,7 @@ assert.equal(hard.length, 0,
 
 /* ---------- key GHÉP ĐỘNG: liệt kê tay vì regex trên không thấy được ---------- */
 // Đây là chỗ thiếu key mà không ai phát hiện: t('nav.' + p.key) thiếu một route thì sidebar
-// hiện thẳng chuỗi "nav.shuttles". Miền giá trị của từng họ key lấy từ config / hằng số thật,
+// hiện thẳng chuỗi "nav.fund". Miền giá trị của từng họ key lấy từ config / hằng số thật,
 // nên thêm route hay thêm chế độ xếp mới là test tự đòi key tương ứng.
 const cap = (s) => s[0].toUpperCase() + s.slice(1)
 const dyn = []
@@ -144,26 +141,19 @@ MODE_KEYS.forEach((m) => { need('assign.modes.' + m + '.label'); need('assign.mo
 cfg.sessionStates.forEach((s) => need('sessionState.' + s))
 cfg.genders.forEach((g) => need('gender.' + g))
 cfg.rosterStates.forEach((r) => need('rosterState.' + r))
-cfg.shuttleModes.forEach((m) => need('session.shuttleMode' + cap(m)))
 perm.order.forEach((r) => { need('roles.' + r + '.label'); need('roles.' + r + '.desc') })
 SETUP_STEPS.forEach((s) => ['title', 'hint', 'btn'].forEach((f) => need('setup.step.' + s + '.' + f)))
 CHANGE_FIELDS.forEach((f) => need('members.changeField.' + f))
-// Bảng chọn trường ghi đè lúc ghép tài khoản dùng CHUNG nhãn với màn duyệt đổi thông tin —
-// thêm trường vào MERGE_FIELDS mà quên nhãn thì ô tick hiện ra chuỗi "members.changeField.x".
 MERGE_FIELDS.forEach((f) => need('members.changeField.' + f))
 MERGE_BLOCKS.forEach((k) => need('settings.mergeBlock.' + k))
 SCHEMA_GROUPS.forEach((g) => need('schema.group' + g.groupKey))
 SETTINGS_TABS.forEach((k) => need('settings.tab' + cap(k)))
-COST_STATES.forEach((k) => need('session.costState.' + k))
-CHECK_DUE.forEach((k) => need('shuttles.due.' + k))
 ADJUST_KINDS.forEach((k) => need('debts.kind.' + k))
 SETTLE_MODES.forEach((k) => need('debts.settle.' + k))
 MEMBER_REFS.forEach((k) => need('members.ref.' + k))
 GROUP_REFS.forEach((k) => need('settings.groupRef.' + k))
 ;['attend', 'guest', 'match', 'closed'].forEach((k) => need('session.ref.' + k))
 WARN_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('home.warn.' + k + '.' + f)))
-CLOSE_WARN_KEYS.forEach((k) => need('session.closeWarn.' + k))
-DRIFT_KEYS.forEach((k) => need('session.drift.' + k))
 // Lý do chặn lưu khi sửa lịch + hai cặp nhãn chọn theo điều kiện — đều tới màn hình qua
 // `t(bienSo)` nên regex quét key ở trên không thấy.
 Object.values(BLOCK_KEYS).forEach(need)

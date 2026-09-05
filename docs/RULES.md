@@ -56,11 +56,11 @@ một blocker mà user phải quyết định.
 
 ### 3.2 Hằng số và cấu hình → `src/config/*.json`
 
-- Số nghiệp vụ (`quotaMin`, `defaultMinutes`, `roundTo`, `shuttleUnitFallback`, `toastMs`,
+- Số nghiệp vụ (`defaultMinutes`, `roundTo`, `memberExtraDiscount`, `toastMs`,
   ngưỡng cân trình độ…) nằm ở `src/config/app.json`. **Cấm** số ma thuật trong logic.
 - Ma trận quyền 3 vai (`owner`, `treasurer`, `member`) nằm ở `src/config/permissions.json`
   — tương ứng bảng `role_permissions` trong DB, app không cho sửa.
-- Danh sách enum (`genders`, `sessionStates`, `shuttleModes`…) lấy từ config, không viết lại
+- Danh sách enum (`genders`, `sessionStates`, `courtPayModes`…) lấy từ config, không viết lại
   mảng ở nhiều file. **Ngoại lệ:** `levels` là dữ liệu của từng CLB (`db.levels`), `app.json`
   chỉ giữ `levelsDefault` cho CLB mới — xem §3.4.
 
@@ -72,7 +72,7 @@ một blocker mà user phải quyết định.
   `src/lib/ledger.js`. Hiển thị bằng `catLabel(cat)`.
 - Lý do: đổi ngôn ngữ hoặc sửa câu chữ **không được** làm đổi dữ liệu tiền đã ghi. Nếu lưu chữ
   hiển thị, một lần sửa copy là mọi bản ghi cũ mồ côi.
-- Cùng nguyên tắc cho `status`, `role`, `level`, `shuttleMode`, `dir`, `effective`.
+- Cùng nguyên tắc cho `status`, `role`, `level`, `dir`, `effective`.
 
 ### 3.4 KHÔNG có dữ liệu mẫu trong app
 

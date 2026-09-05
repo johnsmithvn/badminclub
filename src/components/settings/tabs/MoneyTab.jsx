@@ -32,6 +32,9 @@ export default function MoneyTab({
   const unitNam = data.unitNam ?? ''
   const unitNu = data.unitNu ?? ''
 
+  const hasMemberExtraDiscount = Boolean(data.hasMemberExtraDiscount)
+  const memberExtraDiscount = data.memberExtraDiscount ?? ''
+
   const guestPrices = data.guestPrices || []
 
   const toggleBulkLevel = (lv) => {
@@ -263,6 +266,58 @@ export default function MoneyTab({
                   )}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Khối 3: Chênh lệch thành viên đi thêm so với giao lưu */}
+        <div style={{ padding: '14px 0 4px', borderTop: '1px solid var(--border-subtle)', marginTop: 14 }}>
+          <FormRow
+            isToggle
+            label={t('settings.toggleMemberExtraDiscount')}
+            note={t('settings.toggleMemberExtraDiscountNote')}
+          >
+            <ToggleSwitch
+              checked={hasMemberExtraDiscount}
+              disabled={!canEdit}
+              onChange={(checked) => {
+                onChange('hasMemberExtraDiscount', checked)
+                if (checked && (!memberExtraDiscount || intOf(memberExtraDiscount) === 0)) {
+                  onChange('memberExtraDiscount', '5000')
+                }
+              }}
+            />
+          </FormRow>
+
+          {hasMemberExtraDiscount && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                padding: '14px 16px',
+                borderRadius: 10,
+                background: 'var(--surface-inset)',
+                border: '1px solid var(--border-subtle)',
+                marginTop: 10,
+              }}
+            >
+              <div style={{ maxWidth: 320 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  {t('settings.memberExtraDiscountAmount')}
+                </div>
+                <Input
+                  mono
+                  suffix={t('units.dong')}
+                  placeholder="5000"
+                  value={String(memberExtraDiscount)}
+                  disabled={!canEdit}
+                  onChange={(e) => onChange('memberExtraDiscount', e.target.value)}
+                />
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
+                  {t('settings.memberExtraDiscountHint')}
+                </div>
+              </div>
             </div>
           )}
         </div>

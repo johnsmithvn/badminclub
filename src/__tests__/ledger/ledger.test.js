@@ -149,10 +149,6 @@ assert.equal(ledger(none).filter((r) => r.cat === CATS.dues).length, 0)
 const guests = rows.filter((r) => r.cat === CATS.guest)
 assert.equal(guests.length, db.sessionGuests.filter((g) => g.paid).length, 'chỉ khách đã trả mới vào sổ')
 
-const buys = rows.filter((r) => r.cat === CATS.shuttle)
-assert.equal(buys.length, 2, 'P1 total = 0 nên không phải giao dịch tiền')
-assert.equal(buys.reduce((t, r) => t + r.amount, 0), 3200000 + 3300000)
-
 /* ---------- đối chiếu buổi chỉ vào sổ khi đã trả / đã thu ---------- */
 assert.equal(rows.filter((r) => r.cat === CATS.back).length, 0)
 const adj = (x) => ({
@@ -238,7 +234,6 @@ assert.notEqual(
   'khác ngày không được gộp chung')
 // Tiền sân và khoản ứng giữ riêng từng dòng để còn đọc được tên sân.
 assert.equal(groupKey({ id: 'cbX', date: '2026-09-01', cat: CATS.court, dir: 'out' }), 'cbX')
-assert.equal(groupKey({ id: 'puY', date: '2026-09-01', cat: CATS.shuttle, dir: 'advance' }), 'puY')
 assert.ok(grouped.every((g) => g.key === groupKey(g.items[0])),
   'ledgerGrouped phải dùng đúng groupKey — lệch là action bung một nhóm không tồn tại')
 
@@ -259,51 +254,47 @@ assert.deepEqual(cats(rows.filter((r) => r.amount < 0)), [], 'không dòng nào 
 
 /* ---------- LUẬT NGƯỜI GIỮ QUỸ: thành viên ứng tiền (migration 0011) ---------- */
 
-const pu = (x) => ledger(x).filter((r) => r.id === 'puP3')       // đợt cầu 3.300.000
+// Hoá đơn sân là đường ứng tiền DUY NHẤT còn lại sau khi bỏ kho cầu — trước đây đợt mua cầu
+// cũng đi qua đúng luật này.
+const cb = (x) => ledger(x).filter((r) => r.id === 'cbSB1')      // hoá đơn sân 1.920.000
 const bal = (x) => fundBalance(x)
-const withP3 = (patch) => ({ ...db, purchases: db.purchases.map((p) => (p.id === 'P3' ? { ...p, ...patch } : p)) })
+const withSB1 = (patch) => ({ ...db, courtBills: db.courtBills.map((b) => (b.id === 'SB1' ? { ...b, ...patch } : b)) })
 
 // Fixture chưa có payerId (dữ liệu prototype cũ) → coi như quỹ trả thẳng, giữ nguyên hành vi cũ.
-assert.equal(pu(db).length, 1, 'không có người trả thì vẫn là chi của quỹ')
-assert.equal(pu(db)[0].date, '2026-08-17')
+assert.equal(cb(db).length, 1, 'không có người trả thì vẫn là chi của quỹ')
+assert.equal(cb(db)[0].date, '2026-08-01')
 
-// M1 Thúy là owner → két. Két trả thì tiền ra khỏi quỹ ngay hôm mua.
-const byOwner = withP3({ payerId: 'M1' })
-assert.equal(pu(byOwner)[0].date, '2026-08-17')
+// M1 Thúy là owner → két. Két trả thì tiền ra khỏi quỹ ngay hôm trả hoá đơn.
+const byOwner = withSB1({ payerId: 'M1' })
+assert.equal(cb(byOwner)[0].date, '2026-08-01')
 assert.equal(bal(byOwner), bal(db), 'két trả: số dư y như cũ')
 
 // M8 Đạt là treasurer → cũng là két.
-assert.equal(pu(withP3({ payerId: 'M8' })).length, 1, 'thủ quỹ cũng là két')
+assert.equal(cb(withSB1({ payerId: 'M8' })).length, 1, 'thủ quỹ cũng là két')
 
 // M7 Thắng em là member thường → ứng tiền. Chưa trả lại thì KHÔNG có dòng chi nào.
-const byMember = withP3({ payerId: 'M7' })
-assert.equal(pu(byMember).length, 0, 'thành viên ứng: khoản chi chưa vào sổ')
-assert.equal(bal(byMember), bal(db) + 3300000, 'số dư CAO HƠN đúng bằng khoản đang nợ')
+const byMember = withSB1({ payerId: 'M7' })
+assert.equal(cb(byMember).length, 0, 'thành viên ứng: khoản chi chưa vào sổ')
+assert.equal(bal(byMember), bal(db) + 1920000, 'số dư CAO HƠN đúng bằng khoản đang nợ')
 
-// Trả lại rồi thì dòng chi xuất hiện, mang NGÀY TRẢ chứ không phải ngày mua.
-const repaid = withP3({ payerId: 'M7', repaidAt: '2026-08-25' })
-assert.equal(pu(repaid).length, 1)
-assert.equal(pu(repaid)[0].date, '2026-08-25', 'ngày tiền rời két, không phải ngày mua')
-assert.ok(pu(repaid)[0].label.indexOf('17/08') >= 0, 'nhãn phải nhắc ngày mua gốc, không thì đọc nhầm')
+// Trả lại rồi thì dòng chi xuất hiện, mang NGÀY TRẢ chứ không phải ngày ứng.
+const repaid = withSB1({ payerId: 'M7', repaidAt: '2026-08-25' })
+assert.equal(cb(repaid).length, 1)
+assert.equal(cb(repaid)[0].date, '2026-08-25', 'ngày tiền rời két, không phải ngày ứng')
 assert.equal(bal(repaid), bal(db), 'trả xong thì số dư về đúng như quỹ tự trả')
-
-// Hoá đơn sân đi cùng một luật.
-const billMember = { ...db, courtBills: db.courtBills.map((b) => (b.id === 'SB1' ? { ...b, payerId: 'M7' } : b)) }
-assert.equal(ledger(billMember).filter((r) => r.id === 'cbSB1').length, 0, 'hoá đơn sân do thành viên ứng')
-assert.equal(bal(billMember), bal(db) + 1920000)
 
 /* ---------- danh sách khoản ứng ---------- */
 const adv = advanceRows(byMember)
 assert.equal(adv.length, 1)
-assert.equal(adv[0].kind, 'shuttle')
+assert.equal(adv[0].kind, 'court')
 assert.equal(adv[0].memberId, 'M7')
-assert.equal(adv[0].amount, 3300000)
+assert.equal(adv[0].amount, 1920000)
 assert.equal(adv[0].repaidAt, '')
 assert.deepEqual(advanceRows(byOwner), [], 'két trả thì không phải khoản ứng')
 assert.equal(advanceRows(repaid)[0].repaidAt, '2026-08-25', 'đã trả vẫn còn trong danh sách, có ngày')
 assert.equal(advanceRows(db).length, 0, 'fixture gốc: không ai ứng')
-// Đợt P1 tổng 0 đ (cầu dư mang sang) — không phải khoản nợ ai.
-assert.deepEqual(advanceRows(withP3({ payerId: 'M7', total: 0 })).filter((r) => r.id === 'P3'), [])
+// Hoá đơn 0 đ không phải khoản nợ ai.
+assert.deepEqual(advanceRows(withSB1({ payerId: 'M7', amount: 0 })).filter((r) => r.id === 'SB1'), [])
 
 assert.equal(isVault(db, 'M1'), true, 'owner')
 assert.equal(isVault(db, 'M8'), true, 'treasurer')
@@ -318,10 +309,10 @@ const av0 = availableBalance(db)
 assert.equal(av0.owed, 0)
 assert.equal(av0.available, av0.balance)
 
-// Thành viên ứng 3.300.000 chưa được trả: số dư SỔ cao lên (chi chưa vào sổ), khả dụng thì không.
+// Thành viên ứng 1.920.000 chưa được trả: số dư SỔ cao lên (chi chưa vào sổ), khả dụng thì không.
 const avAdv = availableBalance(byMember)
-assert.equal(avAdv.advance, 3300000)
-assert.equal(avAdv.balance, av0.balance + 3300000, 'sổ cao hơn vì khoản chi chưa ghi')
+assert.equal(avAdv.advance, 1920000)
+assert.equal(avAdv.balance, av0.balance + 1920000, 'sổ cao hơn vì khoản chi chưa ghi')
 assert.equal(avAdv.available, av0.balance, 'khả dụng đứng yên — đó mới là điểm của T2')
 
 // Trả rồi thì hết nghĩa vụ, hai số bằng nhau trở lại.
@@ -342,8 +333,8 @@ assert.equal(availableBalance(withBack([A({ amount: 60000 })])).back, 0,
 
 // Hai nguồn nghĩa vụ cộng dồn.
 const both = { ...byMember, adjustments: [A()] }
-assert.equal(availableBalance(both).owed, 3300000 + 80000)
-assert.equal(availableBalance(both).available, availableBalance(both).balance - 3380000)
+assert.equal(availableBalance(both).owed, 1920000 + 80000)
+assert.equal(availableBalance(both).available, availableBalance(both).balance - 2000000)
 
 /* ---------- nhãn hạng mục ---------- */
 // `cat` lưu là KEY ổn định; đổi câu chữ hay đổi ngôn ngữ KHÔNG được làm đổi dữ liệu đã ghi

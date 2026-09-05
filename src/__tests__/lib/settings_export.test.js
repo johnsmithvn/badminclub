@@ -27,9 +27,6 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
     courts: [
       { id: 'C1', name: 'Sân Nguyễn Tuân', addr: 'Số 9 NT', price: 120000, active: true },
     ],
-    shuttleTypes: [
-      { id: 'S1', name: 'Hải Yến Đỏ', perTube: 12, pricePerTube: 240000, active: true },
-    ],
   }
 
   const dbRef = { current: currentDb }
@@ -71,6 +68,8 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
       feeNu: 260000,
       unitNam: 75000,
       unitNu: 65000,
+      hasMemberExtraDiscount: true,
+      memberExtraDiscount: 10000,
       guestPrices: [
         { level: 'Y', nam: 70000, nu: 60000 },
         { level: 'TB-', nam: 80000, nu: 70000 },
@@ -81,11 +80,8 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
     courts: [
       { name: 'Sân Nguyễn Xiển', addr: 'Hạ Đình', mapUrl: 'https://maps.app.goo.gl/xyz', price: 140000, active: true },
     ],
-    shuttleTypes: [
-      { name: 'Ba Sao', perTube: 12, pricePerTube: 220000, active: true },
-    ],
     groups: [
-      { name: 'Ca Chủ Nhật', short: 'CN', from: '08:00', to: '10:00', quota: 24, feeNam: 300000, feeNu: 260000 },
+      { name: 'Ca Chủ Nhật', short: 'CN', from: '08:00', to: '10:00', feeNam: 300000, feeNu: 260000 },
     ],
   }
 
@@ -93,7 +89,6 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
     includeClub: true,
     includeMoney: true,
     includeCourts: true,
-    includeShuttles: true,
     includeGroups: true,
   })
 
@@ -104,6 +99,8 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
 
   // Kiểm tra giá khách
   assert.equal(currentDb.guestPrices.find((p) => p.level === 'TB')?.nam, 85000)
+  assert.equal(currentDb.club.hasMemberExtraDiscount, true)
+  assert.equal(currentDb.club.memberExtraDiscount, 10000)
 
   // Kiểm tra sân bãi (giữ sân cũ, thêm sân mới có mapUrl)
   assert.equal(currentDb.courts.length, 2)
@@ -111,9 +108,6 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
   assert.ok(nxCourt)
   assert.equal(nxCourt.mapUrl, 'https://maps.app.goo.gl/xyz')
 
-  // Kiểm tra loại cầu (giữ loại cũ, thêm loại mới)
-  assert.equal(currentDb.shuttleTypes.length, 2)
-  assert.ok(currentDb.shuttleTypes.some((s) => s.name === 'Ba Sao'))
 
   // Kiểm tra nhóm
   assert.equal(currentDb.groups.length, 2)

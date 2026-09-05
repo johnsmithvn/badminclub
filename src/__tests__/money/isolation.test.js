@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { costRow, duesOf } from '../../lib/money.js'
+import { courtCost, duesOf, guestRev } from '../../lib/money.js'
 import { seed } from '../fixture.js'
 
 test('Financial Isolation Verification (Tách biệt tuyệt đối với luồng tiền)', async (t) => {
@@ -8,13 +8,12 @@ test('Financial Isolation Verification (Tách biệt tuyệt đối với luồn
   const s = db.sessions[0]
   assert.ok(s, 'Phải có ít nhất 1 session mẫu')
 
-  await t.test('costRow is strictly unaffected by matches and challenges', () => {
-    // 1. Tính giá thành buổi tập lúc ban đầu
-    const costBefore = costRow(db, s)
-    assert.ok(costBefore.cost > 0)
-    assert.ok(costBefore.per > 0)
+  await t.test('courtCost and guestRev are strictly unaffected by matches and challenges', () => {
+    const courtBefore = courtCost(db, s)
+    const revBefore = guestRev(db, s.id)
+    assert.ok(courtBefore > 0)
 
-    // 2. Thêm giả lập nhiều challenges và matches vào db
+    // Thêm giả lập nhiều challenges và matches vào db
     const dbWithCompetitions = {
       ...db,
       challenges: [
@@ -34,17 +33,11 @@ test('Financial Isolation Verification (Tách biệt tuyệt đối với luồn
       ],
     }
 
-    // 3. Tính lại giá thành buổi tập sau khi có matches & challenges
-    const costAfter = costRow(dbWithCompetitions, s)
+    const courtAfter = courtCost(dbWithCompetitions, s)
+    const revAfter = guestRev(dbWithCompetitions, s.id)
 
-    // 4. Khẳng định: Các con số tài chính phải trùng khớp chính xác 100%
-    assert.equal(costAfter.court, costBefore.court, 'Tiền sân không đổi')
-    assert.equal(costAfter.shuttle, costBefore.shuttle, 'Tiền cầu không đổi')
-    assert.equal(costAfter.cost, costBefore.cost, 'Tổng chi phí buổi không đổi')
-    assert.equal(costAfter.rev, costBefore.rev, 'Tiền thu khách không đổi')
-    assert.equal(costAfter.subsidy, costBefore.subsidy, 'Quỹ bù không đổi')
-    assert.equal(costAfter.per, costBefore.per, 'Mỗi đầu người không đổi')
-    assert.equal(costAfter.people, costBefore.people, 'Số người có mặt không đổi')
+    assert.equal(courtAfter, courtBefore, 'Tiền sân không đổi')
+    assert.equal(revAfter, revBefore, 'Tiền thu khách không đổi')
   })
 
   await t.test('Member dues are strictly unaffected by matches and challenges', () => {

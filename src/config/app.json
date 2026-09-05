@@ -28,11 +28,6 @@
     "off",
     "pending"
   ],
-  "shuttleModes": [
-    "quota",
-    "tubes",
-    "exact"
-  ],
   "courtPayModes": [
     "month",
     "session"
@@ -44,14 +39,7 @@
   "clockTickMs": 10000,
   "money": {
     "roundTo": 1000,
-    "shuttleUnitFallback": 26667
-  },
-  "shuttle": {
-    "quotaMin": 6,
-    "perTubeDefault": 12,
-    "quotaDefault": 24,
-    "checkRemindMonths": 2,
-    "checkLowStock": 20
+    "memberExtraDiscount": 5000
   },
   "match": {
     "defaultMinutes": 20,

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import {
   addCourtForm, adhocForm, courtBillForm, courtForm, defaultCourtRows, editMemberForm,
-  groupForm, guestForm, ledgerForm, memberForm, purchaseForm, scheduleForm, stockCheckForm,
+  groupForm, guestForm, ledgerForm, memberForm, scheduleForm,
   venueOptions,
 } from '#lib/forms.js'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -19,7 +19,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 const db = seed()
 /** CLB vừa tạo: không sân, không nhóm, không loại cầu, không thành viên. */
 const empty = {
-  ...db, courts: [], groups: [], shuttleTypes: [], members: [], guests: [],
+  ...db, courts: [], groups: [], members: [], guests: [],
   levels: cfg.levelsDefault,
 }
 
@@ -51,12 +51,7 @@ assert.equal(addCourtForm(empty, null).acFrom, '18:00', 'buổi chưa có sân n
 
 /* ---------- form tiền ---------- */
 
-const pf = purchaseForm(db)
-assert.equal(pf.pDate, db.today)
-assert.equal(pf.pType, db.shuttleTypes[0].id)
-assert.equal(pf.pTotal, '', 'tổng tiền để TRỐNG, không gợi ý số — gợi ý sai là ghi sai sổ quỹ')
-assert.equal(pf.pLeft, '', 'ô "còn lại trong tủ" trống = bỏ qua kiểm kho')
-assert.equal(pf.pPayer, '', 'người trả để trống = quỹ CLB tự trả')
+
 
 assert.equal(courtBillForm(db).bMonth, db.month, 'hoá đơn sân mặc định đúng tháng đang xem')
 assert.equal(courtBillForm(db).bAmount, '')
@@ -65,8 +60,6 @@ assert.equal(courtBillForm(empty).bVenue, '', 'không có sân thì không bịa
 
 assert.equal(ledgerForm(db).lDir, 'out', 'ghi tay mặc định là CHI')
 assert.equal(ledgerForm(db).lAmount, '')
-assert.equal(stockCheckForm(db).ckCount, '', 'số đếm thực tế phải do người ta gõ, không điền hộ')
-assert.equal(stockCheckForm(db).ckDate, db.today)
 
 // Địa điểm gom từ địa chỉ sân, bỏ trùng; sân không có địa chỉ thì lấy tên.
 const venues = venueOptions(db)

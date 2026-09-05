@@ -34,11 +34,6 @@ export const editScheduleForm = (s) => ({
   start: s.start, end: s.end || '',
 })
 
-/** Form nhập kho cầu. `pLeft` = số quả còn trong tủ TRƯỚC khi nhập, để trống thì bỏ qua. */
-export const purchaseForm = (db) => ({
-  pDate: db.today, pType: db.shuttleTypes[0] && db.shuttleTypes[0].id,
-  pTubes: 10, pExtra: 0, pTotal: '', pPayer: '', pNote: '', pLeft: '',
-})
 
 /** Địa điểm để chọn khi nhập hoá đơn sân: gom địa chỉ các sân của CLB, bỏ trùng. */
 export const venueOptions = (db) => {
@@ -50,8 +45,6 @@ export const venueOptions = (db) => {
   return seen
 }
 
-/** Form kiểm kho cuối tháng. */
-export const stockCheckForm = (db) => ({ ckDate: db.today, ckCount: '' })
 
 /** Form hoá đơn sân trọn tháng. `bPayer` là id thành viên, không phải tên gõ tay. */
 export const courtBillForm = (db) => ({
@@ -109,13 +102,13 @@ export const addCourtForm = (db, s) => {
 /** Form thêm sân của CLB (không phải thêm sân cho một buổi — cái đó là addCourtForm). */
 export const courtForm = () => ({ cName: '', cAddr: '', cMapUrl: '', cPrice: '' })
 
-/** Form thêm nhóm cố định. Giờ và định mức lấy theo nhóm đã có, không có thì mặc định. */
+/** Form thêm nhóm cố định. Giờ lấy theo nhóm đã có, không có thì mặc định. */
 export const groupForm = (db) => {
   const g = db.groups[0]
   return {
     grName: '', grShort: '',
     grFrom: g ? g.from : '18:00', grTo: g ? g.to : '20:00',
-    grFeeNam: '', grFeeNu: '', grQuota: String(g ? g.quota : ''),
+    grFeeNam: '', grFeeNu: '',
     grCourts: db.courts.length === 1 ? [db.courts[0].id] : [],
   }
 }

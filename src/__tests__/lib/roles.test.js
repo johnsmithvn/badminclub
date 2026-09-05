@@ -68,14 +68,14 @@ assert.equal(effRoute('owner', 'settings'), 'settings')
 const ROUTE_WRITE_FLAG = {
   sessions: 'sessions', session: 'sessions', schedules: 'sessions',
   assign: 'assign', members: 'members', settings: 'settings',
-  debts: 'money', fund: 'money', shuttles: 'money',
+  debts: 'money', fund: 'money',
 }
 /** Cặp `vai:route` đã rà tay và xác nhận màn hình có chặn ghi. */
 const READ_ONLY_OK = new Set([
   'treasurer:members', 'treasurer:settings',
   'member:sessions', 'member:session', 'member:schedules',
   'member:assign', 'member:members', 'member:settings',
-  'member:debts', 'member:fund', 'member:shuttles',
+  'member:debts', 'member:fund',
 ])
 
 ROLE_KEYS.forEach((role) => {

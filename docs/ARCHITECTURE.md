@@ -74,9 +74,9 @@ src/
     Dialogs.jsx       host toàn bộ dialog nhập liệu của app
     Home.jsx · Calendar.jsx · Sessions.jsx · SessionDetail.jsx (hợp nhất Chia sân & Kèo) · Assign.jsx
     Leaderboard.jsx   Bảng xếp hạng Elo 5 tabs (Mùa giải, Biểu đồ/Profile, Tìm trận, Ma trận H2H, Chéo giới)
-    Schedules.jsx · Members.jsx · Debts.jsx · Fund.jsx · Shuttles.jsx
+    Schedules.jsx · Members.jsx · Debts.jsx · Fund.jsx
     Profile.jsx · Settings.jsx · Schema.jsx
-  routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 14 in-club routes)
+  routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
   styles/             index.css + tokens/*.css (base.css hỗ trợ utility classes responsive mobile)
   utils/dates.js      ngày, tháng, giờ thập phân, lưới lịch
   __tests__/          100 test cases: lib/ (14) · money/ (12) · components/ (7) · ledger/ (2) · sync/ (2) · smoke/ (2)
@@ -116,7 +116,7 @@ Lý do: mọi con số phải giải thích được nguồn gốc, tiền phả
 localStorage). Đúng những khoá `dbmap.toDb()` sinh ra:
 `club, levels, courts, groups, members, guests, schedules, sessions, attendance, sessionGuests,`
 `lineups, courtGroups, groupMode, courtMin, matches, roster, locked, adjustments, guestPrices,`
-`shuttleTypes, dues, courtBills, manual, purchases, stockChecks, changes, users, joinRequests,`
+`dues, courtBills, manual, changes, users, joinRequests,`
 `playing`
 cộng `clubId, today, month` do `load()` gắn và `currentUserId, myRole, viewAs, sessionId` do
 `reload()` gắn.
@@ -153,8 +153,8 @@ hai CLB — đó là lý do bỏ `clubStore`.
 
 ### Tầng C: Hệ thống Thi đấu, Kèo đấu & Bảng xếp hạng Elo (Rating Engine)
 
-Bên cạnh **Tầng A (Sổ quỹ thực tế)** và **Tầng B (Giá thành buổi tập)**, hệ thống bổ sung **Tầng C (Thi đấu & Đẳng cấp)** hoàn toàn tách biệt:
-- **Độc lập luồng tiền**: Toàn bộ dữ liệu `challenges`, `matches`, `player_ratings`, `match_edits` không bao giờ sinh dòng ở sổ quỹ và không làm thay đổi giá thành buổi tập (được kiểm chứng bởi test suite `src/__tests__/money/isolation.test.js`).
+Bên cạnh **Sổ quỹ**, hệ thống có **Thi đấu & Đẳng cấp** hoàn toàn tách biệt:
+- **Độc lập luồng tiền**: Toàn bộ dữ liệu `challenges`, `matches`, `player_ratings`, `match_edits` không bao giờ sinh dòng ở sổ quỹ và không làm thay đổi tiền sân hay thu khách của buổi (được kiểm chứng bởi test suite `src/__tests__/money/isolation.test.js`).
 - **Elo Engine thuần túy (`src/lib/rating.js`)**:
   - Điểm khởi đầu mặc định: `0` cho toàn bộ thành viên.
   - Công thức tính xác suất thắng dự kiến: $P(A) = 1 / (1 + 10^{(R_B - R_A) / 400})$.
@@ -191,8 +191,8 @@ Ba quy ước:
 - `/clb` (`Clubs` — chọn CLB, tạo CLB, nhập mã tham gia)
 - `/tai-khoan` (`Account` — quản lý hồ sơ tài khoản `profiles` dùng chung)
 
-**Route trong CLB (13 màn hình trong `AppLayout`):**
-Route key (xem `routes/index.js`) là một trong: `home sessions session assign schedules calendar members debts fund shuttles profile settings schema`.
+**Route trong CLB (12 màn hình trong `AppLayout`):**
+Route key (xem `routes/index.js`) là một trong: `home sessions session assign schedules calendar members debts fund profile settings schema`.
 
 Quyền lấy từ `lib/roles.js` + `config/permissions.json` (3 vai: `owner`, `treasurer`, `member`):
 

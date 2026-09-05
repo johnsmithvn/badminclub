@@ -48,26 +48,12 @@ assert.equal(ops1[0].rows.length, 1)
 assert.equal(ops1[0].rows[0].member_id, mid)
 assert.equal(ops1[0].conflict, 'session_id,member_id')
 
-// Đóng băng giá thành một buổi: chỉ ghi đúng buổi đó, và cột cost_* phải xuống DB thật.
-// Sai chỗ này thì số đóng băng chỉ sống trong RAM, F5 một cái là trôi lại như cũ.
-const dFreeze = clone(db)
-const iFreeze = dFreeze.sessions.findIndex((x) => x.id === 'B1')
-dFreeze.sessions[iFreeze] = {
-  ...dFreeze.sessions[iFreeze],
-  costCourt: 480000, costShuttleUnit: 27500, costShuttle: 935000, costTotal: 1415000,
-  costGuestRev: 130000, costHeads: 10, costFrozenAt: '2026-08-02',
-}
-const opsF = diff(rows, toRows(dFreeze, ctx))
-assert.equal(opsF.length, 1, 'đóng băng 1 buổi phải ra đúng 1 thao tác')
-assert.equal(opsF[0].table, 'sessions')
-assert.equal(opsF[0].rows.length, 1)
-assert.equal(opsF[0].rows[0].cost_total, 1415000)
-assert.equal(opsF[0].rows[0].cost_frozen_at, '2026-08-02')
-assert.equal(opsF[0].rows[0].cost_shuttle_unit, 27500)
-// Buổi chưa đóng băng phải xuống DB là NULL, không phải 0 — 0 nghĩa là "đã chốt, tốn 0 đồng".
-const anyRow = rows.sessions.find((r) => r.id !== 'B1')
-assert.equal(anyRow.cost_frozen_at, null)
-assert.equal(anyRow.cost_total, null)
+// `sessions.shuttle_mode` là enum NOT NULL (0001_init) nhưng cột đã hết nghĩa từ lúc bỏ kho cầu —
+// client không còn khái niệm này. Gửi NULL tường minh thì DEFAULT của Postgres KHÔNG chạy, insert
+// bị từ chối và cả hàng đợi đồng bộ kẹt: không tạo được buổi nào nữa. Bỏ assert này sau khi
+// migration DROP COLUMN chạy xong.
+assert.ok(rows.sessions.every((r) => r.shuttle_mode === 'quota'),
+  'mọi buổi phải xuống DB một enum hợp lệ, không thì insert vỡ vì NOT NULL')
 
 // Đóng băng TỪNG DÒNG SÂN (0012) cũng phải xuống DB thật. Không xuống thì F5 xong sổ quỹ đọc lại
 // giá sân hiện tại và dòng chi của buổi đã chốt nhảy số — đúng con bug 0012 sinh ra để chặn.
@@ -147,8 +133,7 @@ const raw = {
   members: [{ id: 'm1', name: 'A', gender: 'nam', level: 'Y+', role: 'owner', joined_at: '2026-08-01', active: true }],
   guests: [{ id: 'g1', name: 'K', gender: 'nu', level: 'Y', club_id: 'CL1' }],
   sessions: [{
-    id: 's1', group_id: 'gr1', date: '2026-08-09', status: 'open', shuttle_mode: 'tubes',
-    tubes_opened: 1, loose_units: 2, shuttle_used: 14, shuttle_est: false, group_mode: true,
+    id: 's1', group_id: 'gr1', date: '2026-08-09', status: 'open', group_mode: true,
     // Cố tình trả về ngược thứ tự: court_index phải quyết định thứ tự, không phải thứ tự trả về.
     session_courts: [
       { court_id: 'c2', court_index: 1, start_time: '20:00:00', end_time: '22:00:00', is_sold: false, is_extra: true, sold_amount: 0, default_minutes: 18 },
@@ -239,22 +224,19 @@ assert.equal(toRows(allBack, backCtx).sessions[0].group_id, null, "'ALL' phải 
 // đang nợ, ghi hụt thì bấm "Đã trả" xong tải lại là mất dấu.
 const advRaw = {
   ...raw,
-  purchases: [{
-    id: 'p1', date: '2026-08-06', type_id: 's1', tubes: 1, extra_units: 0, total_units: 12,
-    price_per_tube: 320000, total_amount: 320000, payer_member_id: 'm1', funded_by: null,
-    note: null, repaid_at: '2026-08-20',
-  }],
-  courtBills: [{
-    id: 'b1', month: '2026-08', paid_on: '2026-08-01', venue: 'X', amount: 100000,
-    payer_member_id: 'm1', payer: null, note: null, repaid_at: null,
-  }],
+  courtBills: [
+    { id: 'b1', month: '2026-08', paid_on: '2026-08-01', venue: 'X', amount: 100000,
+      payer_member_id: 'm1', payer: null, note: null, repaid_at: '2026-08-20' },
+    { id: 'b2', month: '2026-08', paid_on: '2026-08-01', venue: 'Y', amount: 100000,
+      payer_member_id: 'm1', payer: null, note: null, repaid_at: null },
+  ],
 }
 const advBack = toDb(advRaw, { clubId: 'CL1' })
-assert.equal(advBack.purchases[0].repaidAt, '2026-08-20')
-assert.equal(advBack.courtBills[0].repaidAt, '', 'chưa trả thì đọc thành chuỗi rỗng')
+assert.equal(advBack.courtBills[0].repaidAt, '2026-08-20')
+assert.equal(advBack.courtBills[1].repaidAt, '', 'chưa trả thì đọc thành chuỗi rỗng')
 const advRows = toRows(advBack, { clubId: 'CL1', memberIds: new Set(['m1']) })
-assert.equal(advRows.shuttle_purchases[0].repaid_at, '2026-08-20')
-assert.equal(advRows.court_bills[0].repaid_at, null, 'chưa trả phải xuống NULL, không phải chuỗi rỗng')
+assert.equal(advRows.court_bills[0].repaid_at, '2026-08-20')
+assert.equal(advRows.court_bills[1].repaid_at, null, 'chưa trả phải xuống NULL, không phải chuỗi rỗng')
 
 /* ---------- bảng `clubs`: cập nhật, không insert ---------- */
 // `clubRow` đi đường RIÊNG trong storage.js (một dòng, `update` chứ không `upsert`) nên nó KHÔNG
@@ -265,6 +247,8 @@ assert.ok(!('code' in cr), 'mã CLB do server sinh, client không được ghi �
 assert.equal(cr.opening_balance, db.club.opening)
 assert.equal(cr.court_pay_mode, db.club.courtPayMode)
 assert.equal(cr.allow_code_join, db.club.linkModes.code)
+assert.equal(cr.has_member_extra_discount, false, 'mặc định tắt ưu đãi đi thêm')
+assert.equal(cr.member_extra_discount, 5000, 'mặc định mức giảm 5.000đ')
 assert.deepEqual(cr.levels, db.club.levels, 'thang trình độ là dữ liệu của từng CLB')
 // Chuỗi rỗng phải xuống NULL, không phải '' — cột text nullable đọc lại thành '' thì diff nhảy mãi.
 const bare = clubRow({ club: { ...db.club, openingBy: '', bank: { holder: '', no: '', bank: '' }, levels: [] } })
@@ -360,7 +344,7 @@ const claimBack = toDb({
     paid: false, paid_at: null, claimed_at: CLAIM,
   }],
   sessions: [{
-    id: 'S_C', date: '2026-08-10', group_id: 'G1', status: 'closed', shuttle_used: 0,
+    id: 'S_C', date: '2026-08-10', group_id: 'G1', status: 'closed',
     session_guests: [{
       id: 'SG_C', guest_id: null, member_id: 'M1', level: 'TB', gender: 'nam',
       price: 70000, paid: false, claimed_at: CLAIM,
