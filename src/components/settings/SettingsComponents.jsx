@@ -511,8 +511,13 @@ export function InlineTextCell({
   placeholder = '—',
 }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState(value)
+  const [prevValue, setPrevValue] = useState(value)
   const inputRef = useRef(null)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setDraft(value)
+  }
 
   useEffect(() => {
     if (editing && inputRef.current) {

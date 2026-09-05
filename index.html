@@ -5,6 +5,17 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quản lý CLB cầu lông</title>
+<script>
+  (function() {
+    try {
+      var k = 'badminclub.theme';
+      var t = localStorage.getItem(k) ||
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.style.colorScheme = t;
+    } catch (e) {}
+  })();
+</script>
 </head>
 <body>
 <div id="root"></div>
