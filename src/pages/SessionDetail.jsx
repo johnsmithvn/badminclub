@@ -4,10 +4,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select } from '#ds'
-import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, SearchSelect, SessionPill } from '#ui'
+import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, SearchSelect, SessionPill, TabTrack } from '#ui'
 import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
 import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { ddmy, wd } from '#utils/dates.js'
 import {
   courtOf, courtTxt, dueState, duesOf,
@@ -21,6 +22,7 @@ import { t } from '#i18n'
 
 export default function SessionDetail() {
   const { db, a } = useApp()
+  const isMobile = useMobile(768)
   const { id } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab')
@@ -98,10 +100,11 @@ export default function SessionDetail() {
                 {s.status === 'draft' && (
                   <Button variant="primary" icon="user-round-check"
                     style={{
-                      background: 'linear-gradient(135deg, var(--blue-600, #0284c7) 0%, var(--status-scheduled, #0ea5e9) 100%)',
-                      borderColor: 'var(--status-scheduled, #0ea5e9)',
+                      background: 'linear-gradient(135deg, var(--blue-600) 0%, var(--status-scheduled) 100%)',
+                      borderColor: 'var(--status-scheduled)',
                       boxShadow: '0 2px 10px rgba(14, 165, 233, 0.4)',
                       fontWeight: 700,
+                      minHeight: isMobile ? 44 : 36,
                     }}
                     onClick={() => a.setSessionStatus(s.id, 'open')}>
                     {t('session.doOpen')}
@@ -114,11 +117,12 @@ export default function SessionDetail() {
                       icon="circle-check"
                       disabled={!canMoney}
                       style={{
-                        background: !canMoney ? undefined : 'linear-gradient(135deg, var(--green-600, #0d5e3a) 0%, var(--green-500, #00875a) 100%)',
-                        borderColor: !canMoney ? undefined : 'var(--green-500, #00875a)',
-                        boxShadow: !canMoney ? undefined : '0 2px 12px rgba(0, 135, 90, 0.45)',
+                        background: !canMoney ? undefined : 'var(--action-success-bg)',
+                        borderColor: !canMoney ? undefined : 'var(--action-success-border)',
+                        boxShadow: !canMoney ? undefined : '0 2px 12px rgba(0, 135, 90, 0.35)',
                         fontWeight: 700,
                         padding: '0 16px',
+                        minHeight: isMobile ? 44 : 36,
                       }}
                       onClick={() => a.confirm({
                         title: t('session.closeTitle'),
@@ -157,9 +161,11 @@ export default function SessionDetail() {
               </>
             )}
 
-            <Button variant="secondary" size="sm" icon="send" onClick={() => a.copyZalo(s.id)}>
-              {t('session.copyZalo')}
-            </Button>
+            {!isMobile && (
+              <Button variant="secondary" size="sm" icon="send" onClick={() => a.copyZalo(s.id)}>
+                {t('session.copyZalo')}
+              </Button>
+            )}
             {canEdit && s.status !== 'cancelled' && s.status !== 'closed' && (
               <Button variant="ghost" size="sm" icon="circle-x" onClick={() => a.confirm({
                 title: t('session.cancelTitle'),
@@ -186,6 +192,15 @@ export default function SessionDetail() {
           </div>
         </div>
 
+        {/* Copy Zalo trên mobile chuyển thành nút phụ trong thân */}
+        {isMobile && (
+          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-start' }}>
+            <Button variant="ghost" size="sm" icon="send" onClick={() => a.copyZalo(s.id)}>
+              {t('session.copyZalo')}
+            </Button>
+          </div>
+        )}
+
         {/* Ghi chú của buổi. Vô hiệu hóa khi buổi đã chốt. */}
         <div style={{ marginTop: 12 }}>
           <Input label={t('session.note')} placeholder={t('session.notePh')}
@@ -195,7 +210,7 @@ export default function SessionDetail() {
       </Card>
 
       {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
-      <div style={S.tabBarWrap}>
+      <TabTrack style={S.tabBarWrap}>
         <div style={S.tabTrack}>
           <button
             type="button"
@@ -217,7 +232,7 @@ export default function SessionDetail() {
             }}
           >
             <span>{t('sessionTabs.courts')}</span>
-            <span style={{ ...S.tabBadgeMono, color: 'var(--status-transit-fg, #5FDBD3)' }}>{onCourtCount}</span>
+            <span style={{ ...S.tabBadgeMono, color: 'var(--status-transit-fg)' }}>{onCourtCount}</span>
           </button>
           <button
             type="button"
@@ -228,15 +243,15 @@ export default function SessionDetail() {
             }}
           >
             <span>{t('sessionTabs.matches')}</span>
-            <span style={{ ...S.tabBadgeMono, color: 'var(--status-delayed-fg, #F0B75C)' }}>
+            <span style={{ ...S.tabBadgeMono, color: 'var(--status-delayed-fg)' }}>
               {sessionMatches.length}{pendingChallengesCount > 0 ? `/${pendingChallengesCount}` : ''}
             </span>
           </button>
         </div>
-      </div>
+      </TabTrack>
 
       {activeTab === 'attend' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit,minmax(380px,1fr))', gap: 16, alignItems: 'start' }}>
         {/* ---------------- điểm danh ---------------- */}
         <Card
           title={t('session.attendTitle')}
@@ -290,6 +305,9 @@ export default function SessionDetail() {
               return (
                 <div key={m.id} style={{
                   ...S.attRow,
+                  flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: isMobile ? 'stretch' : 'center',
+                  gap: isMobile ? 6 : 10,
                   background: allSold ? 'var(--surface-sunken)' : state === true ? 'var(--surface-accent-soft)'
                     : extra ? 'var(--status-scheduled-bg)'
                       : state === false ? 'var(--surface-sunken)' : 'var(--surface-card)',
@@ -302,6 +320,7 @@ export default function SessionDetail() {
                     style={{
                       ...S.attBtn,
                       cursor: canEdit && !extra && !isInactive && !isClosed ? 'pointer' : 'default',
+                      width: '100%',
                     }}>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                       <div style={S.label}>{m.name}</div>
@@ -319,70 +338,79 @@ export default function SessionDetail() {
                           : state === false ? t('attend.absent') : t('attend.unmarked')}
                     </span>
                   </button>
-                  {charge
-                    ? <>
-                        <Mono weight={600} color="var(--text-primary)">{fmt(charge.price)}</Mono>
-                        {/* CHỈ HIỂN THỊ. Thu tiền và gạch nợ nằm hết ở màn Công nợ — một khoản
-                            tiền chỉ được sửa ở MỘT chỗ, không thì hai màn nói hai kiểu. */}
-                        <span style={charge.paid ? S.tagGreen : S.tagAmber}>
-                          {t(charge.paid ? 'session.guestPaid' : 'session.guestDebt')}
-                        </span>
-                        {extra && canEdit && (
-                          <IconButton
-                            icon="trash-2"
-                            size="sm"
-                            variant="ghost"
-                            style={{ color: 'var(--status-incident)' }}
-                            label={t('common.delete')}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              a.confirm({
-                                title: t('session.dropExtraTitle'),
-                                message: t('session.dropExtraMsg', { name: m.name }),
-                                tone: 'danger',
-                                confirmText: t('session.dropExtraOk'),
-                                onConfirm: () => a.removeExtra(s.id, m.id),
-                              })
-                            }}
-                          />
-                        )}
-                      </>
-                    : adhoc
-                    ? <span style={{ ...S.caption, minWidth: 96, textAlign: 'right' }} />
-                    : extra
-                    ? <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ ...S.caption, minWidth: 96, textAlign: 'right' }}>{t('session.extraDueTag')}</span>
-                        {canEdit && (
-                          <IconButton
-                            icon="trash-2"
-                            size="sm"
-                            variant="ghost"
-                            style={{ color: 'var(--status-incident)' }}
-                            label={t('common.delete')}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              a.confirm({
-                                title: t('session.dropExtraTitle'),
-                                message: t('session.dropExtraMsg', { name: m.name }),
-                                tone: 'danger',
-                                confirmText: t('session.dropExtraOk'),
-                                onConfirm: () => a.removeExtra(s.id, m.id),
-                              })
-                            }}
-                          />
-                        )}
-                      </div>
-                    : <span style={{
-                        font: 'var(--type-caption)', minWidth: 96, textAlign: 'right',
-                        color: !due ? 'var(--text-disabled)'
-                          : dueState(due).state === 'full' ? 'var(--status-delivered)' : 'var(--status-delayed)',
-                      }}>
-                        {!due ? t('session.noDueTag')
-                          : dueState(due).state === 'full' ? t('session.duePaidTag')
-                            : dueState(due).state === 'partial'
-                              ? t('session.duePartialTag', { amount: fmtK(dueState(due).remain) })
-                              : t('session.dueUnpaidTag')}
-                      </span>}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: isMobile ? 'space-between' : 'flex-end',
+                    borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
+                    paddingTop: isMobile ? 4 : 0,
+                    gap: 8,
+                  }}>
+                    {charge
+                      ? <>
+                          <Mono weight={600} color="var(--text-primary)">{fmt(charge.price)}</Mono>
+                          {/* CHỈ HIỂN THỊ. Thu tiền và gạch nợ nằm hết ở màn Công nợ — một khoản
+                              tiền chỉ được sửa ở MỘT chỗ, không thì hai màn nói hai kiểu. */}
+                          <span style={charge.paid ? S.tagGreen : S.tagAmber}>
+                            {t(charge.paid ? 'session.guestPaid' : 'session.guestDebt')}
+                          </span>
+                          {extra && canEdit && !isClosed && (
+                            <IconButton
+                              icon="trash-2"
+                              size="sm"
+                              variant="ghost"
+                              style={{ color: 'var(--status-incident)' }}
+                              label={t('common.delete')}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                a.confirm({
+                                  title: t('session.dropExtraTitle'),
+                                  message: t('session.dropExtraMsg', { name: m.name }),
+                                  tone: 'danger',
+                                  confirmText: t('session.dropExtraOk'),
+                                  onConfirm: () => a.removeExtra(s.id, m.id),
+                                })
+                              }}
+                            />
+                          )}
+                        </>
+                      : adhoc
+                      ? <span style={{ ...S.caption, minWidth: isMobile ? 0 : 96, textAlign: 'right' }} />
+                      : extra
+                      ? <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ ...S.caption, minWidth: isMobile ? 0 : 96, textAlign: 'right' }}>{t('session.extraDueTag')}</span>
+                          {canEdit && !isClosed && (
+                            <IconButton
+                              icon="trash-2"
+                              size="sm"
+                              variant="ghost"
+                              style={{ color: 'var(--status-incident)' }}
+                              label={t('common.delete')}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                a.confirm({
+                                  title: t('session.dropExtraTitle'),
+                                  message: t('session.dropExtraMsg', { name: m.name }),
+                                  tone: 'danger',
+                                  confirmText: t('session.dropExtraOk'),
+                                  onConfirm: () => a.removeExtra(s.id, m.id),
+                                })
+                              }}
+                            />
+                          )}
+                        </div>
+                      : <span style={{
+                          font: 'var(--type-caption)', minWidth: isMobile ? 0 : 96, textAlign: 'right',
+                          color: !due ? 'var(--text-disabled)'
+                            : dueState(due).state === 'full' ? 'var(--status-delivered)' : 'var(--status-delayed)',
+                        }}>
+                          {!due ? t('session.noDueTag')
+                            : dueState(due).state === 'full' ? t('session.duePaidTag')
+                              : dueState(due).state === 'partial'
+                                ? t('session.duePartialTag', { amount: fmtK(dueState(due).remain) })
+                                : t('session.dueUnpaidTag')}
+                        </span>}
+                  </div>
                 </div>
               )
             })}
@@ -752,7 +780,7 @@ function GuestForm({ s }) {
               {f.gName && (
                 <button
                   type="button"
-                  style={{ ...S.guestOption, color: 'var(--text-accent, var(--teal-500, #00B2A9))', fontWeight: 600 }}
+                  style={{ ...S.guestOption, color: 'var(--text-accent, var(--teal-500))', fontWeight: 600 }}
                   onMouseDown={(e) => {
                     e.preventDefault()
                     set('gGuestId', '')
@@ -830,7 +858,7 @@ function GuestForm({ s }) {
           type="button"
           style={{
             border: 0, background: 'none', padding: 0, cursor: 'pointer',
-            fontSize: 12, color: 'var(--text-accent, var(--teal-500, #00B2A9))', display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 12, color: 'var(--text-accent, var(--teal-500))', display: 'inline-flex', alignItems: 'center', gap: 4,
           }}
           onClick={() => setShowExtra(!showExtra)}
         >
@@ -913,15 +941,15 @@ function GuestForm({ s }) {
 
 const S = {
   tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 16px' },
-  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: 'var(--surface-inset, #101927)', border: '1px solid var(--border-subtle, #22304A)', gap: 2 },
+  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', gap: 2 },
   tabBtn: {
     display: 'flex', alignItems: 'center', gap: 8, height: 34, padding: '0 14px',
     borderRadius: 6, border: 'none', background: 'transparent',
-    font: '600 13px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted, #8494AA)',
+    font: '600 13px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)',
     cursor: 'pointer', transition: 'all 0.15s ease',
   },
-  tabBtnActive: { background: 'var(--surface-card, #141D2E)', color: 'var(--text-primary, #E9EFF7)', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
-  tabBadgeMono: { font: '400 11.5px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' },
+  tabBtnActive: { background: 'var(--surface-card)', color: 'var(--text-primary)', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
+  tabBadgeMono: { font: '400 11.5px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' },
   headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
@@ -945,7 +973,7 @@ const S = {
   guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 110px 95px minmax(180px, 1.6fr) auto', gap: 9, alignItems: 'flex-end' },
   guestDropdown: {
     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-    background: 'var(--surface-overlay, var(--gray-0, #fff))', border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-overlay, var(--surface-card))', border: '1px solid var(--border-subtle)',
     borderRadius: 8, boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1))',
     maxHeight: 240, overflowY: 'auto', marginTop: 4, display: 'grid',
   },

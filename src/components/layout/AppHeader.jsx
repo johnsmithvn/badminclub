@@ -1,26 +1,67 @@
-// Header: tên trang + mô tả · chọn tháng · nút hành động (theo quyền).
-
 import { Button, IconButton } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { pageOf } from '#routes'
 import { can } from '#lib/roles.js'
 import { monthTxt } from '#utils/dates.js'
-import { adhocForm, scheduleForm } from '#lib/forms.js'
+import { adhocForm, scheduleForm, memberForm } from '#lib/forms.js'
 import { t } from '#i18n'
 
 export default function AppHeader({ route }) {
   const { db, a } = useApp()
   const { isDark, toggleTheme } = useTheme()
+  const isMobile = useMobile(768)
 
   const role = db.myRole || db.viewAs || 'owner'
   const page = pageOf(route)
 
-  // Cài đặt không đụng gì tới tháng đang xem, cũng không tạo buổi/lịch — ba nút đó bấm vào chỉ
-  // mở popup lạc đề. Thay vào đó header nhận Nhập/Xuất cài đặt, đúng "hàng 1" của handoff §1.
-  // Dùng đúng biểu thức quyền của trang Cài đặt để hai chỗ không bao giờ lệch nhau.
   const isSettings = route === 'settings'
   const canEditSettings = can(db.viewAs || 'owner', 'settings')
+
+  if (isMobile) {
+    return (
+      <header style={S.mobileHeader}>
+        <div style={S.mobileLeft}>
+          <div style={S.mobileTitle}>{page.title}</div>
+          <div style={S.mobileSubtitle}>
+            {db.club.name} · {monthTxt(db.month)}
+          </div>
+        </div>
+
+        <div style={S.mobileRight}>
+          <IconButton
+            icon={isDark ? 'sun' : 'moon'}
+            size="sm"
+            variant="ghost"
+            style={S.themeBtn}
+            label={isDark ? t('common.themeLight') : t('common.themeDark')}
+            onClick={toggleTheme}
+          />
+          {route === 'sessions' && can(role, 'sessions') && (
+            <Button
+              variant="primary"
+              size="sm"
+              icon="calendar-plus"
+              onClick={() => a.openDialog('adhoc', adhocForm(db))}
+            >
+              {t('shell.adhoc')}
+            </Button>
+          )}
+          {route === 'members' && can(role, 'members') && (
+            <Button
+              variant="primary"
+              size="sm"
+              icon="user-round-plus"
+              onClick={() => a.openDialog('member', memberForm(db))}
+            >
+              {t('common.add')}
+            </Button>
+          )}
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header style={S.header}>
@@ -106,4 +147,44 @@ const S = {
     border: '1px solid var(--border-subtle)', borderRadius: 6,
     color: 'var(--text-secondary)',
   },
+  mobileHeader: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 30,
+    minHeight: 'var(--topbar-h, 60px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 18px',
+    background: 'var(--surface-nav)',
+    borderBottom: '1px solid var(--border-nav)',
+  },
+  mobileLeft: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    minWidth: 0,
+    flex: 1,
+  },
+  mobileTitle: {
+    font: '600 17px/1.2 var(--font-display, Barlow, sans-serif)',
+    color: 'var(--text-on-nav-active, #FFFFFF)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  mobileSubtitle: {
+    font: '400 12px/1.3 var(--font-mono)',
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  mobileRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+  },
 }
+

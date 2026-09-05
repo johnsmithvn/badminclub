@@ -298,3 +298,41 @@ trình độ áp dụng từ tháng sau.
   *"Vai này không được sửa thành viên"*, *"Sân này chưa có ai"*, *"Chọn bản ghi thành viên để ghép"*.
 - **Tải** → skeleton hình dạng giống nội dung, không spinner.
 
+---
+
+## 9. Trải nghiệm Mobile (≤ 768px)
+
+Bản mobile được tối ưu hóa cho màn hình cầm tay (≤768px) theo mật độ "Driver App" (touch target ≥48px, CTA chính 56px, body ≥16px):
+
+1. **Khung điều hướng (Shell):**
+   - Ẩn sidebar desktop; thay thế bằng Mobile Header (tên trang + subtitle mono ngày/giờ) và Footer Navigation 5 slot.
+   - 4 slot đầu phân bổ theo vai: vai có cờ `money` (`owner`, `treasurer`) có slot 3 là Công nợ (`/cong-no`); vai không có cờ `money` (`member`) có slot 3 là Bảng xếp hạng, slot 4 là Hồ sơ (`/ca-nhan`). Slot 5 luôn là "Thêm" mở Bottom Sheet.
+   - Sheet Thêm phân nhóm giữ đúng cấu trúc sidebar desktop (Tiền, Người và lịch có Chia sân nhảy thẳng buổi tập, Hệ thống), cuối sheet là thẻ Switcher CLB.
+
+2. **Trang chủ (`/`):**
+   - Giữ trọn vẹn 4 tab (Tổng quan · Giao dịch · Sân đấu · Báo cáo) trong `TabTrack` cuộn ngang.
+   - StatCards xếp lưới 2 cột. Thẻ "Buổi tới" đặt trên lưới StatCards.
+   - Các danh sách (Đi nhiều nhất, Khách nợ nhiều nhất, Buổi gần nhất) chuyển sang danh sách thẻ (`CardList`).
+
+3. **Buổi tập (`/buoi-tap/:id`):**
+   - Nút "Chốt buổi" là nút primary duy nhất ở header (màu xanh lá `--action-success-bg`). "Copy báo cáo Zalo" là nút ghost trong thân trang.
+   - 3 tab (Điểm danh & tiền, Chia sân, Trận & kèo) có badge số liệu.
+   - Điểm danh xếp dọc; nhãn quỹ chuyển xuống tầng 2 của mỗi dòng. Đánh vắng tự động gỡ khỏi sân và tính lại chi phí ngay.
+   - Thao tác Xếp tự động và Nhập tỷ số mở dưới dạng Bottom Sheet.
+
+4. **Bảng xếp hạng (`/bang-xep-hang`):**
+   - 5 tab cuộn ngang. Dòng xếp hạng thành thẻ 2 tầng.
+   - Ma trận H2H cho phép cuộn ngang với cột tên dán trái (sticky left).
+   - Sheet Sửa tỷ số xếp dọc hai khối cũ/mới và bắt buộc nhập lý do trước khi lưu.
+
+5. **Công nợ (`/cong-no`):**
+   - Luôn sử dụng dạng thẻ (`viewMode = 'grid'`), ẩn nút toggle bảng desktop.
+   - Bung từng buổi qua accordion kèm ô sửa tiền inline 56×44px.
+   - Nút Lọc mở sheet điều kiện; QR mở full-screen sheet.
+
+6. **Thành viên (`/thanh-vien`):**
+   - Giữ đủ 4 tab. Thẻ thành viên định danh 2 tầng.
+   - Tab Chờ duyệt chia rõ 2 nhóm: Đăng ký cố định tháng sau và Thay đổi thông tin, mỗi yêu cầu có cặp nút Duyệt/Từ chối.
+   - Sheet Ngưng hoạt động có 3 lối ra tách bạch (*Ngưng và trả lại*, *Chỉ ngưng, không trả*, *Huỷ*).
+
+

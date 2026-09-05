@@ -32,7 +32,13 @@
     "themeLight": "Chuyển giao diện sáng",
     "themeDark": "Chuyển giao diện tối",
     "themeToggle": "Chuyển giao diện sáng/tối",
-    "today": "Hôm nay"
+    "today": "Hôm nay",
+    "empty": "Chưa có dữ liệu",
+    "more": "Xem thêm",
+    "filter": "Lọc",
+    "filterTitle": "Bộ lọc",
+    "sort": "Sắp xếp",
+    "apply": "Áp dụng"
   },
   "units": {
     "dong": "đ",
@@ -101,6 +107,7 @@
     "profile": "Hồ sơ của tôi",
     "settings": "Cài đặt",
     "schema": "Sơ đồ dữ liệu",
+    "more": "Thêm",
     "section": {
       "ops": "Vận hành",
       "money": "Tài chính",
@@ -1021,6 +1028,8 @@
     "soloShort": "Đi lẻ",
     "colNote": "Ghi chú",
     "colState": "Trạng thái",
+    "stateActive": "Hoạt động",
+    "stateInactive": "Ngưng hoạt động",
     "toActive": "Kích hoạt lại (Active)",
     "toInactive": "Chuyển Inactive (Ngưng hoạt động)",
     "delTitle": "Xoá thành viên \"{{name}}\"?",

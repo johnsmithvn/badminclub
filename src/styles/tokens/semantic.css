@@ -49,6 +49,8 @@
 --action-ghost-bg-hover:var(--gray-100);
 --action-danger-bg:var(--red-600);
 --action-danger-bg-hover:#A82316;
+--action-success-bg:#12A867;
+--action-success-border:#0D5E3A;
 --action-disabled-bg:var(--gray-100);
 --action-disabled-fg:var(--gray-400);
 

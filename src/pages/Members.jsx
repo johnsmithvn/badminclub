@@ -2,8 +2,8 @@
 // Nguồn ai phải đóng quỹ là roster THEO THÁNG, không phải groupIds.
 
 import { useMemo, useState } from 'react'
-import { Avatar, Button, Card, DataTable, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
-import { EditGuestDialog, Empty, LevelChip, Mono, Overline, QrModal } from '#ui'
+import { Avatar, Button, Card, Checkbox, DataTable, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
+import { EditGuestDialog, Empty, LevelChip, Mono, Overline, QrModal, TabTrack } from '#ui'
 import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
@@ -11,6 +11,7 @@ import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberR
 import { FILTER0, duesStatusOf, filterMembers, fixedGroups, hasFilter, nextSort, sortMembers } from '#lib/members.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
+import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -25,17 +26,19 @@ export default function Members() {
 
   return (
     <>
-      <Tabs
-        variant="underline"
-        items={[
-          { value: 'all', label: t('members.tabAll'), count: db.members.filter((m) => m.active !== false).length },
-          { value: 'next', label: t('members.tabNext') },
-          { value: 'guests', label: t('members.tabGuests'), count: (db.guests || []).length },
-          { value: 'pending', label: t('members.tabPending'), count: pendingChanges.length },
-        ]}
-        value={tab}
-        onChange={(v) => a.setTab('members', v)}
-      />
+      <TabTrack>
+        <Tabs
+          variant="underline"
+          items={[
+            { value: 'all', label: t('members.tabAll'), count: db.members.filter((m) => m.active !== false).length },
+            { value: 'next', label: t('members.tabNext') },
+            { value: 'guests', label: t('members.tabGuests'), count: (db.guests || []).length },
+            { value: 'pending', label: t('members.tabPending'), count: pendingChanges.length },
+          ]}
+          value={tab}
+          onChange={(v) => a.setTab('members', v)}
+        />
+      </TabTrack>
       {tab === 'all' && <AllMembers canEdit={canEdit} />}
       {tab === 'next' && <NextMonth month={rosterM} canEdit={canEdit} />}
       {tab === 'guests' && <GuestMembers canEdit={canEditGuest} />}
@@ -48,6 +51,7 @@ export default function Members() {
 
 function AllMembers({ canEdit }) {
   const { db, ui, a } = useApp()
+  const isMobile = useMobile()
   const [selectedIds, setSelectedIds] = useState([])
   const [flt, setFlt] = useState(FILTER0)
   const [sort, setSort] = useState({})
@@ -223,7 +227,7 @@ function AllMembers({ canEdit }) {
             font: '600 11px var(--font-sans)', color: 'var(--text-muted)',
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-disabled)' }} />
-            Inactive
+            {t('members.stateInactive')}
           </span>
         ) : (
           <span style={{
@@ -233,7 +237,7 @@ function AllMembers({ canEdit }) {
             font: '600 11px var(--font-sans)', color: 'var(--teal-700)',
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-delivered)' }} />
-            Active
+            {t('members.stateActive')}
           </span>
         )
       ),
@@ -304,8 +308,8 @@ function AllMembers({ canEdit }) {
             <Tabs
               variant="segmented"
               items={[
-                { value: 'on', label: 'Active' },
-                { value: 'off', label: 'Inactive', count: off.length },
+                { value: 'on', label: t('members.stateActive') },
+                { value: 'off', label: t('members.stateInactive'), count: off.length },
               ]}
               value={ui.tab.mstate || 'on'}
               onChange={(v) => a.setTab('mstate', v)}
@@ -313,10 +317,12 @@ function AllMembers({ canEdit }) {
           )}
           {canEdit && (
             <>
-              <Button variant="secondary" size="sm" icon="file-spreadsheet"
-                onClick={() => a.openDialog('importMembers', {})}>
-                {t('members.importCsv')}
-              </Button>
+              {!isMobile && (
+                <Button variant="secondary" size="sm" icon="file-spreadsheet"
+                  onClick={() => a.openDialog('importMembers', {})}>
+                  {t('members.importCsv')}
+                </Button>
+              )}
               <Button variant="primary" size="sm" icon="user-round-plus"
                 onClick={() => a.openDialog('addMember', memberForm(db))}>
                 {t('members.addMember')}
@@ -490,7 +496,201 @@ function AllMembers({ canEdit }) {
         ? (hasFilter(flt)
             ? <Empty icon="search" title={t('members.fltEmpty')} hint={t('members.fltEmptyHint')} />
             : <Empty icon="users" title={t('members.empty')} hint={t('members.emptyHint')} />)
-        : <DataTable columns={columns} rows={rows} rowKey="id" />}
+        : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
+            {rows.map((r) => {
+              const gs = fixedGroups(db, r.id, db.month)
+              const st = duesStatusOf(db, r.id, db.month)
+              const isSelected = selectedIds.includes(r.id)
+              const unpaid = dues.filter((x) => x.memberId === r.id && dueState(x).remain > 0)
+              const isBlocked = memberRefs(db, r.id).length > 0
+
+              return (
+                <div
+                  key={r.id}
+                  style={{
+                    background: 'var(--surface-card)',
+                    border: isSelected ? '1px solid var(--border-focus-color)' : '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-card, 8px)',
+                    padding: 12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    {canEdit && (
+                      <div style={{ paddingTop: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectOne(r.id)}
+                          style={{ cursor: 'pointer', margin: 0, width: 18, height: 18 }}
+                        />
+                      </div>
+                    )}
+                    <Avatar name={r.name} src={r.avatarUrl} size={40} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)', fontSize: 16 }}>
+                          {r.name}
+                        </span>
+                        <div>
+                          {r.active === false ? (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              padding: '2px 6px', borderRadius: 99,
+                              background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+                              font: '600 11px var(--font-sans)', color: 'var(--text-muted)',
+                            }}>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-disabled)' }} />
+                              {t('members.stateInactive')}
+                            </span>
+                          ) : (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              padding: '2px 6px', borderRadius: 99,
+                              background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)',
+                              font: '600 11px var(--font-sans)', color: 'var(--teal-700)',
+                            }}>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-delivered)' }} />
+                              {t('members.stateActive')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {r.fullName && (
+                        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
+                          {r.fullName}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                        <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
+                          {genderTxt(r.gender)}
+                        </span>
+                        <span>·</span>
+                        <LevelChip level={levelOf(r, db.month)} levels={db.levels} />
+                        {nextLevelStep(r, db.month) && (
+                          <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
+                            {t('members.pendingLevel', {
+                              level: nextLevelStep(r, db.month).level,
+                              month: nextLevelStep(r, db.month).from,
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 8,
+                    padding: '8px 10px',
+                    background: 'var(--surface-inset)',
+                    borderRadius: 6,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: 'var(--type-caption)' }}>
+                      <Icon name="users" size={13} style={{ color: 'var(--text-muted)' }} />
+                      <span style={{ color: gs.length ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                        {gs.length ? gs.map((g) => g.short || g.name).join(', ') : t('members.noGroup')}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Icon name="phone" size={13} style={{ color: 'var(--text-muted)' }} />
+                      <span style={{ font: 'var(--type-mono)', fontSize: 13, color: 'var(--text-secondary)' }}>
+                        {r.phone || t('common.unknown')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <div>
+                      {st === 'none' ? (
+                        <span style={{ font: 'var(--type-caption)', color: 'var(--text-disabled)' }}>{t('members.duesNone')}</span>
+                      ) : (
+                        <span style={{
+                          font: 'var(--type-label)',
+                          color: st === 'unpaid' ? 'var(--status-delayed)' : 'var(--status-delivered)',
+                        }}>
+                          {st === 'unpaid'
+                            ? t('members.duesUnpaid') + ' · ' + fmt(duesTotal(unpaid).remain)
+                            : t('members.duesPaid')}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      {(r.bankName && r.bankNo) && (
+                        <IconButton
+                          icon="qr-code"
+                          size="sm"
+                          variant="ghost"
+                          label={t('bank.viewQr')}
+                          onClick={() => setQrMember(r)}
+                        />
+                      )}
+                      {canEdit && (
+                        <IconButton
+                          icon="settings-2"
+                          size="sm"
+                          variant="ghost"
+                          label={t('common.edit')}
+                          onClick={() => a.openDialog('editMember', editMemberForm(r))}
+                        />
+                      )}
+                      <IconButton
+                        icon={r.active === false ? 'rotate-ccw' : 'user-round-minus'}
+                        size="sm"
+                        variant="ghost"
+                        label={t(r.active === false ? 'members.toActive' : 'members.toInactive')}
+                        onClick={() => {
+                          if (r.active === false) return a.reactivate(r.id)
+                          const s = offBackSuggest(db, r.id)
+                          return s
+                            ? a.openDialog('offBack', { obId: r.id, obAmount: String(s.amount || '') })
+                            : a.deactivate(r.id, 0)
+                        }}
+                      />
+                      {canEdit && (!isBlocked ? (
+                        <IconButton
+                          icon="trash-2"
+                          size="sm"
+                          variant="ghost"
+                          label={t('common.delete')}
+                          onClick={() => a.confirm({
+                            title: t('members.delTitle', { name: r.name }),
+                            message: t('members.delMsg', { name: r.name }),
+                            tone: 'danger',
+                            confirmText: t('members.delOk'),
+                            onConfirm: () => a.deleteMember(r.id),
+                          })}
+                        />
+                      ) : (
+                        <span
+                          title={t('members.delBlocked')}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            opacity: 0.4, cursor: 'not-allowed',
+                          }}
+                        >
+                          <IconButton icon="lock" size="sm" variant="ghost" disabled label={t('members.delBlockedShort')} />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <DataTable columns={columns} rows={rows} rowKey="id" />
+        )}
 
       {qrMember && (
         <QrModal

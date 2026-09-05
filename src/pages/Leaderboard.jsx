@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Button, Card, Icon, Input, Select, StatCard } from '#ds'
-import { LevelChip, Mono, Overline, SearchSelect } from '#ui'
+import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { confidenceOf, confidenceProgress, computeClubCalibration, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf } from '#lib/rating.js'
 import { playerName, courtOf } from '#lib/money.js'
@@ -16,12 +16,6 @@ import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 
 /**
  * Trợ thủ ghép màu kèm độ trong suốt (alpha).
- * - Nếu là hex (#RRGGBB): nối chuỗi hex (#RRGGBBAA) — tương thích mọi trình duyệt từ 2016+.
- * - Nếu là CSS variable (var(--token, #hex)):
- *   + Trình duyệt hiện đại hỗ trợ color-mix(): dùng color-mix(in srgb, var(...) pct%, transparent).
- *   + Trình duyệt cũ hơn (chưa có color-mix): trích xuất hex fallback (#hex) rồi ghép hex (#hex + alphaHex)
- *     để nền và border không bị mất hoàn toàn (graceful degradation).
- * - Bảo vệ chống "mìn" vỡ CSS khi token hóa badge.color / tier.color sau này.
  */
 function alphaColor(color, alphaHex, pct) {
   if (!color) return 'transparent'
@@ -31,15 +25,6 @@ function alphaColor(color, alphaHex, pct) {
   }
 
   const p = pct ?? Math.min(100, Math.max(0, Math.round((parseInt(alphaHex, 16) / 255) * 100)))
-
-  // Trình duyệt không hỗ trợ color-mix() -> degrade an toàn về hex fallback nếu có
-  if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function') {
-    if (!CSS.supports('color', 'color-mix(in srgb, red, blue)')) {
-      const fallbackMatch = color.match(/#[0-9a-fA-F]{6}\b/)
-      if (fallbackMatch) return `${fallbackMatch[0]}${alphaHex}`
-    }
-  }
-
   return `color-mix(in srgb, ${color} ${p}%, transparent)`
 }
 
@@ -229,15 +214,17 @@ export default function Leaderboard() {
   // -------------------------------------------------------------
   // TAB 4: Ma trận Đối đầu H2H
   // -------------------------------------------------------------
+  const [matrixExpanded, setMatrixExpanded] = useState(false)
   const topMembersForMatrix = useMemo(() => {
     const sorted = [...activeMembers].sort((a, b) => {
       const ra = getPlayerRating(db.playerRatings, a.id, a, db.levels).rating
       const rb = getPlayerRating(db.playerRatings, b.id, b, db.levels).rating
       return rb - ra
     })
-    const limit = cfg.rating?.h2hMatrixLimit ?? 8
+    const defaultLimit = isMobile ? 5 : (cfg.rating?.h2hMatrixLimit ?? 8)
+    const limit = matrixExpanded ? (cfg.rating?.h2hMatrixLimit ?? 8) : defaultLimit
     return sorted.slice(0, limit)
-  }, [activeMembers, db.playerRatings, db.levels])
+  }, [activeMembers, db.playerRatings, db.levels, isMobile, matrixExpanded])
   const matrixData = useMemo(() => {
     return headToHeadMatrix(topMembersForMatrix, db.matches || [])
   }, [topMembersForMatrix, db.matches])
@@ -386,7 +373,7 @@ export default function Leaderboard() {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {/* ---------------- 1. Tab Bar chính của Leaderboard ---------------- */}
-      <div style={S.tabBarWrap}>
+      <TabTrack style={{ marginBottom: 4 }}>
         <div style={S.tabTrack}>
           <button
             type="button"
@@ -424,7 +411,7 @@ export default function Leaderboard() {
             {t('leaderboard.tabCross')}
           </button>
         </div>
-      </div>
+      </TabTrack>
 
       {/* ---------------- TAB 1: Bảng xếp hạng Mùa giải ---------------- */}
       {activeTab === 'season' && (
@@ -521,159 +508,280 @@ export default function Leaderboard() {
               </div>
             </div>
 
-            {/* Bọc bảng có thanh cuộn ngang an toàn cho mobile 390px */}
-            <div style={{ overflowX: 'auto', width: '100%' }}>
-              <div style={{ minWidth: 720 }}>
-                {/* Header Bảng */}
-                <div style={S.seasonTableHead}>
-                  <div style={S.thCell}>{t('leaderboard.rank')}</div>
-                  <div style={S.thCell}>{t('leaderboard.player')}</div>
-                  <div style={S.thCell}>{t('leaderboard.tierCol')}</div>
-                  <div style={{ ...S.thCell, textAlign: 'right' }}>{t('rating.elo')}</div>
-                  <div style={S.thCell}>{t('rating.confidence.label')}</div>
-                  <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.winLoss')}</div>
-                  <div style={{ ...S.thCell, textAlign: 'right' }}>{t('leaderboard.winRate')}</div>
-                  <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.recentForm')}</div>
-                </div>
+            {/* Render 2-tier card list trên mobile hoặc bảng rộng trên desktop */}
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
+                {leaderboardData.map((row, idx) => {
+                  const rank = idx + 1
+                  const rankColor = rank === 1 ? 'var(--podium-gold)' : rank === 2 ? 'var(--podium-silver)' : rank === 3 ? 'var(--podium-bronze)' : 'var(--text-muted)'
 
-                {/* Danh sách thành viên */}
-                <div style={{ display: 'grid' }}>
-                  {leaderboardData.map((row, idx) => {
-                    const rank = idx + 1
-                    const rankColor = rank === 1 ? 'var(--podium-gold, #F0B75C)' : rank === 2 ? 'var(--podium-silver, #C0D8F8)' : rank === 3 ? 'var(--podium-bronze, #CD7F32)' : 'var(--text-muted, #8494AA)'
-                    const confLabel = t('rating.confidence.' + (row.confidence || 'low'))
-                    const confPct = row.confidence === 'very_high' ? 100 : row.confidence === 'high' ? 75 : row.confidence === 'medium' ? 50 : 25
-
-                    return (
-                      <div key={row.id} style={S.seasonTableRow}>
-                        {/* Cột Hạng */}
-                        <div style={S.tdCell}>
-                          <span style={{ font: '700 16px/1 Barlow, sans-serif', color: rankColor }}>
+                  return (
+                    <div
+                      key={row.id}
+                      style={{
+                        background: 'var(--surface-card)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-card)',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      {/* Tầng 1: Hạng + Tên + Tier badge + Rating */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                          <span style={{ font: '700 16px/1 Barlow, sans-serif', color: rankColor, width: 28, flexShrink: 0 }}>
                             #{rank}
                           </span>
-                        </div>
-
-                        {/* Cột Tên & Trình độ */}
-                        <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
-                            {row.name}
-                          </span>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>({row.gender})</span>
-                          <LevelChip level={row.level} levels={db.levels} />
-                          {row.isInactive && (
-                            <span
-                              style={{
-                                fontSize: 10,
-                                padding: '2px 6px',
-                                borderRadius: 4,
-                                background: 'var(--amber-950, #2D1F10)',
-                                color: 'var(--status-delayed-fg, #F0B75C)',
-                                border: '1px solid var(--amber-700, #784A15)',
-                              }}
-                              title={t('rating.inactivity.days', { n: row.daysInactive })}
-                            >
-                              {t('leaderboard.inactiveBadge')}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
+                            <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                              {row.name}
                             </span>
-                          )}
-                        </div>
-
-                        {/* Cột Cấp bậc Rank */}
-                        <div style={S.tdCell}>
-                          <div
-                            style={{ display: 'flex', alignItems: 'center', gap: 7 }}
-                            title={rankTheme === 'comedy' ? row.tier.quip : undefined}
-                          >
-                            <span style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: 5,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: alphaColor(row.tier.color, '1E', 12),
-                              border: `1px solid ${alphaColor(row.tier.color, '66', 40)}`,
-                              color: row.tier.color,
-                              boxShadow: `0 0 8px ${alphaColor(row.tier.color, '25', 15)}`,
-                              flexShrink: 0,
-                            }}>
-                              <Icon name={row.tier.icon} size={12} />
-                            </span>
-                            <span style={{ fontSize: 12.5, fontWeight: 600, color: row.tier.color }}>
-                              {row.tier.label}
-                            </span>
+                            <LevelChip level={row.level} levels={db.levels} />
+                            {row.isInactive && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  padding: '1px 5px',
+                                  borderRadius: 4,
+                                  background: 'var(--amber-950)',
+                                  color: 'var(--status-delayed-fg)',
+                                  border: '1px solid var(--amber-700)',
+                                }}
+                                title={t('rating.inactivity.days', { n: row.daysInactive })}
+                              >
+                                {t('leaderboard.inactiveBadge')}
+                              </span>
+                            )}
                           </div>
                         </div>
 
-                        {/* Cột Elo */}
-                        <div style={{ ...S.tdCell, textAlign: 'right' }}>
-                          <span style={{ font: '700 15px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <span style={{ font: '700 16px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
                             {row.displayRating}
                           </span>
                         </div>
+                      </div>
 
-                        {/* Cột Độ tin cậy */}
-                        <div style={S.tdCell}>
-                          <div style={{ display: 'grid', gap: 3, maxWidth: 100 }}>
-                            <span style={{ fontSize: 11, color: 'var(--text-secondary, #A8B7CB)', fontWeight: 500 }}>{confLabel}</span>
-                            <div style={{ height: 4, borderRadius: 999, background: 'var(--surface-page, #0B1220)', overflow: 'hidden' }}>
-                              <div style={{ width: `${confPct}%`, height: '100%', background: 'var(--teal-500, #00B2A9)' }} />
+                      {/* Tầng 2: Tier badge, Thắng/thua, Winrate, Form */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
+                        {/* Tier badge */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: 4,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: alphaColor(row.tier.color, '1E', 12),
+                            border: `1px solid ${alphaColor(row.tier.color, '66', 40)}`,
+                            color: row.tier.color,
+                            flexShrink: 0,
+                          }}>
+                            <Icon name={row.tier.icon} size={11} />
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: row.tier.color }}>
+                            {row.tier.label}
+                          </span>
+                        </div>
+
+                        {/* Stats & Form */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ font: '500 12px/1 "IBM Plex Mono", monospace', color: 'var(--text-secondary)' }}>
+                            {row.wins}W–{row.losses}L ({row.winRate}%)
+                          </span>
+                          {row.form.length > 0 && (
+                            <div style={{ display: 'flex', gap: 3 }}>
+                              {row.form.map((res, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    width: 16,
+                                    height: 16,
+                                    borderRadius: 999,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    background: res === 'W' ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)',
+                                    color: res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
+                                    border: `1px solid ${res === 'W' ? 'var(--green-600)' : 'rgba(225,68,52,.4)'}`,
+                                  }}
+                                >
+                                  {res}
+                                </span>
+                              ))}
                             </div>
-                          </div>
-                        </div>
-
-                        {/* Cột Thắng - Thua */}
-                        <div style={{ ...S.tdCell, textAlign: 'center' }}>
-                          <span style={{ font: '500 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-primary, #E9EFF7)' }}>
-                            {row.wins} – {row.losses}
-                          </span>
-                        </div>
-
-                        {/* Cột Tỷ lệ thắng */}
-                        <div style={{ ...S.tdCell, textAlign: 'right' }}>
-                          <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: row.winRate >= 60 ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-primary, #E9EFF7)' }}>
-                            {row.winRate}%
-                          </span>
-                        </div>
-
-                        {/* Cột Phong độ Form W/L */}
-                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 4 }}>
-                          {row.form.length > 0 ? (
-                            row.form.map((res, i) => (
-                              <span
-                                key={i}
-                                style={{
-                                  width: 18,
-                                  height: 18,
-                                  borderRadius: 999,
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  background: res === 'W' ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)',
-                                  color: res === 'W' ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-incident-fg, #FF9A8F)',
-                                  border: `1px solid ${res === 'W' ? 'var(--green-600, #00875A)' : 'rgba(225,68,52,.4)'}`,
-                                }}
-                              >
-                                {res}
-                              </span>
-                            ))
-                          ) : (
-                            <span style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)' }}>—</span>
                           )}
                         </div>
                       </div>
-                    )
-                  })}
-
-                  {leaderboardData.length === 0 && (
-                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted, #8494AA)', fontSize: 13 }}>
-                      {t('leaderboard.empty')}
                     </div>
-                  )}
+                  )
+                })}
+
+                {leaderboardData.length === 0 && (
+                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    {t('leaderboard.empty')}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', width: '100%' }}>
+                <div style={{ minWidth: 720 }}>
+                  {/* Header Bảng */}
+                  <div style={S.seasonTableHead}>
+                    <div style={S.thCell}>{t('leaderboard.rank')}</div>
+                    <div style={S.thCell}>{t('leaderboard.player')}</div>
+                    <div style={S.thCell}>{t('leaderboard.tierCol')}</div>
+                    <div style={{ ...S.thCell, textAlign: 'right' }}>{t('rating.elo')}</div>
+                    <div style={S.thCell}>{t('rating.confidence.label')}</div>
+                    <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.winLoss')}</div>
+                    <div style={{ ...S.thCell, textAlign: 'right' }}>{t('leaderboard.winRate')}</div>
+                    <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.recentForm')}</div>
+                  </div>
+
+                  {/* Danh sách thành viên */}
+                  <div style={{ display: 'grid' }}>
+                    {leaderboardData.map((row, idx) => {
+                      const rank = idx + 1
+                      const rankColor = rank === 1 ? 'var(--podium-gold)' : rank === 2 ? 'var(--podium-silver)' : rank === 3 ? 'var(--podium-bronze)' : 'var(--text-muted)'
+                      const confLabel = t('rating.confidence.' + (row.confidence || 'low'))
+                      const confPct = row.confidence === 'very_high' ? 100 : row.confidence === 'high' ? 75 : row.confidence === 'medium' ? 50 : 25
+
+                      return (
+                        <div key={row.id} style={S.seasonTableRow}>
+                          {/* Cột Hạng */}
+                          <div style={S.tdCell}>
+                            <span style={{ font: '700 16px/1 Barlow, sans-serif', color: rankColor }}>
+                              #{rank}
+                            </span>
+                          </div>
+
+                          {/* Cột Tên & Trình độ */}
+                          <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                              {row.name}
+                            </span>
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>({row.gender})</span>
+                            <LevelChip level={row.level} levels={db.levels} />
+                            {row.isInactive && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                  background: 'var(--amber-950)',
+                                  color: 'var(--status-delayed-fg)',
+                                  border: '1px solid var(--amber-700)',
+                                }}
+                                title={t('rating.inactivity.days', { n: row.daysInactive })}
+                              >
+                                {t('leaderboard.inactiveBadge')}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Cột Cấp bậc Rank */}
+                          <div style={S.tdCell}>
+                            <div
+                              style={{ display: 'flex', alignItems: 'center', gap: 7 }}
+                              title={rankTheme === 'comedy' ? row.tier.quip : undefined}
+                            >
+                              <span style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 5,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyItems: 'center',
+                                background: alphaColor(row.tier.color, '1E', 12),
+                                border: `1px solid ${alphaColor(row.tier.color, '66', 40)}`,
+                                color: row.tier.color,
+                                boxShadow: `0 0 8px ${alphaColor(row.tier.color, '25', 15)}`,
+                                flexShrink: 0,
+                              }}>
+                                <Icon name={row.tier.icon} size={12} />
+                              </span>
+                              <span style={{ fontSize: 12.5, fontWeight: 600, color: row.tier.color }}>
+                                {row.tier.label}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Cột Elo */}
+                          <div style={{ ...S.tdCell, textAlign: 'right' }}>
+                            <span style={{ font: '700 15px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
+                              {row.displayRating}
+                            </span>
+                          </div>
+
+                          {/* Cột Độ tin cậy */}
+                          <div style={S.tdCell}>
+                            <div style={{ display: 'grid', gap: 3, maxWidth: 100 }}>
+                              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}>{confLabel}</span>
+                              <div style={{ height: 4, borderRadius: 999, background: 'var(--surface-page)', overflow: 'hidden' }}>
+                                <div style={{ width: `${confPct}%`, height: '100%', background: 'var(--teal-500)' }} />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Cột Thắng - Thua */}
+                          <div style={{ ...S.tdCell, textAlign: 'center' }}>
+                            <span style={{ font: '500 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-primary)' }}>
+                              {row.wins} – {row.losses}
+                            </span>
+                          </div>
+
+                          {/* Cột Tỷ lệ thắng */}
+                          <div style={{ ...S.tdCell, textAlign: 'right' }}>
+                            <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: row.winRate >= 60 ? 'var(--status-delivered-fg)' : 'var(--text-primary)' }}>
+                              {row.winRate}%
+                            </span>
+                          </div>
+
+                          {/* Cột Phong độ Form W/L */}
+                          <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 4 }}>
+                            {row.form.length > 0 ? (
+                              row.form.map((res, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: 999,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    background: res === 'W' ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)',
+                                    color: res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
+                                    border: `1px solid ${res === 'W' ? 'var(--green-600)' : 'rgba(225,68,52,.4)'}`,
+                                  }}
+                                >
+                                  {res}
+                                </span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {leaderboardData.length === 0 && (
+                      <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                        {t('leaderboard.empty')}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -690,10 +798,10 @@ export default function Leaderboard() {
               <div style={{ padding: '16px', display: 'grid', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ font: '600 18px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
+                    <span style={{ font: '600 18px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
                       {t('leaderboard.profileRating')}: {currentMember.name}
                     </span>
-                    <span style={{ fontSize: 13, color: 'var(--text-muted, #8494AA)' }}>({currentMember.gender})</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>({currentMember.gender})</span>
                     <LevelChip level={currentMember.level} levels={db.levels} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
@@ -733,13 +841,13 @@ export default function Leaderboard() {
                   const decayInfo = applyInactivityDecay(pr.rating, lastMatchDate)
 
                   return (
-                    <div style={{ padding: '14px 16px', borderRadius: 8, background: 'var(--surface-inset, #101927)', border: '1px solid var(--border-subtle, #22304A)', display: 'grid', gap: 10 }}>
+                    <div style={{ padding: '14px 16px', borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', display: 'grid', gap: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                          <span style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>
+                          <span style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
                             {decayInfo.rating}
                           </span>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             Elo {t('rating.breakdown.overall')}
                           </span>
                           <span style={{
@@ -758,11 +866,11 @@ export default function Leaderboard() {
                             <Icon name={memberTier.icon} size={13} />
                             <span>{memberTier.label}</span>
                           </span>
-                          <span style={{ fontSize: 12, color: 'var(--status-transit-fg, #5FDBD3)', fontFamily: '"IBM Plex Mono", monospace' }}>
+                          <span style={{ fontSize: 12, color: 'var(--status-transit-fg)', fontFamily: '"IBM Plex Mono", monospace' }}>
                             {t('rating.kFactor', { k: memberK })}
                           </span>
                           {decayInfo.isInactive && (
-                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'var(--amber-950, #2D1F10)', color: 'var(--status-delayed-fg, #F0B75C)', border: '1px solid var(--amber-700, #784A15)' }}>
+                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'var(--amber-950)', color: 'var(--status-delayed-fg)', border: '1px solid var(--amber-700)' }}>
                               {t('rating.inactivity.days', { n: decayInfo.daysInactive })}
                               {decayInfo.decayAmount > 0 && ` (${t('rating.inactivity.decayed', { amount: decayInfo.decayAmount })})`}
                             </span>
@@ -773,14 +881,14 @@ export default function Leaderboard() {
                             padding: '3px 10px',
                             borderRadius: 999,
                             background: 'rgba(0,178,169,0.15)',
-                            border: '1px solid var(--teal-700, #00786F)',
-                            color: 'var(--status-transit-fg, #5FDBD3)',
+                            border: '1px solid var(--teal-700)',
+                            color: 'var(--status-transit-fg)',
                             fontSize: 12,
                             fontWeight: 700,
                           }}>
                             {t('rating.confidence.levelR', { num: confProg.levelNum })}
                           </span>
-                          <span style={{ fontSize: 13, color: 'var(--text-secondary, #A8B7CB)', fontWeight: 500 }}>
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>
                             {t('rating.confidence.' + profileContext.overallConf)}
                           </span>
                         </div>
@@ -790,7 +898,7 @@ export default function Leaderboard() {
                         <div style={{
                           fontStyle: 'italic',
                           fontSize: 12.5,
-                          color: 'var(--text-secondary, #A8B7CB)',
+                          color: 'var(--text-secondary)',
                           background: 'rgba(255,255,255,0.03)',
                           padding: '8px 14px',
                           borderRadius: 6,
@@ -802,15 +910,15 @@ export default function Leaderboard() {
 
                       {/* Thanh tiến trình Progress Bar */}
                       <div style={{ display: 'grid', gap: 5 }}>
-                        <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-page, #0B1220)', overflow: 'hidden', border: '1px solid var(--surface-raised, #1A2437)' }}>
+                        <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-page)', overflow: 'hidden', border: '1px solid var(--surface-raised)' }}>
                           <div style={{
                             width: `${confProg.pct}%`,
                             height: '100%',
-                            background: 'linear-gradient(90deg, var(--teal-700, #00786F), var(--teal-500, #00B2A9))',
+                            background: 'linear-gradient(90deg, var(--teal-700), var(--teal-500))',
                             transition: 'width 0.3s ease',
                           }} />
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--text-muted, #8494AA)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--text-muted)' }}>
                           <span>
                             {confProg.isMax
                               ? t('rating.confidence.maxReached')
@@ -874,11 +982,11 @@ export default function Leaderboard() {
                         }}>
                           [{badge.tag}]
                         </span>
-                        <span style={{ font: '700 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
+                        <span style={{ font: '700 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
                           {badge.name}
                         </span>
                       </div>
-                      <div style={{ fontSize: 13, color: 'var(--text-secondary, #A8B7CB)', fontStyle: 'italic' }}>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                         "{badge.desc}"
                       </div>
                     </div>
@@ -1060,11 +1168,11 @@ export default function Leaderboard() {
                             <span style={{
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                               width: 20, height: 20, borderRadius: 6,
-                              background: 'rgba(240,183,92,0.15)', color: '#F0B75C', fontSize: 11, flexShrink: 0,
+                              background: 'rgba(240,183,92,0.15)', color: 'var(--status-delayed-fg)', fontSize: 11, flexShrink: 0,
                             }} title={t('matchSearch.colWinner')}>
                               👑
                             </span>
-                            <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg, #5FD9A2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {winnerNames}
                             </span>
                           </div>
@@ -1077,18 +1185,18 @@ export default function Leaderboard() {
                                 padding: '3px 8px',
                                 borderRadius: 6,
                                 background: 'var(--surface-sunken, rgba(0,0,0,0.06))',
-                                border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+                                border: '1px solid var(--border-subtle)',
                                 font: '700 14px/1 "Barlow", sans-serif',
                                 letterSpacing: '0.03em',
                               }}>
-                                <span style={{ color: 'var(--status-delivered-fg, #5FD9A2)', fontWeight: 800 }}>{st.winPts}</span>
+                                <span style={{ color: 'var(--status-delivered-fg)', fontWeight: 800 }}>{st.winPts}</span>
                                 <span style={{ margin: '0 3px', opacity: 0.35, fontWeight: 400 }}>:</span>
-                                <span style={{ color: 'var(--text-secondary, #A8B7CB)', fontWeight: 600 }}>{st.losePts}</span>
+                                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{st.losePts}</span>
                               </div>
                             ))}
                           </div>
                           <div style={{ ...S.tdCell, minWidth: 0 }}>
-                            <span style={{ font: '500 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ font: '500 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {loserNames}
                             </span>
                           </div>
@@ -1100,27 +1208,27 @@ export default function Leaderboard() {
                                 padding: '2px 6px',
                                 borderRadius: 4,
                                 background: 'rgba(95,217,162,0.12)',
-                                color: 'var(--status-delivered-fg, #5FD9A2)',
+                                color: 'var(--status-delivered-fg)',
                                 border: '1px solid rgba(95,217,162,0.25)',
                               }}>
                                 +{delta}
                               </span>
                             ) : (
-                              <span style={{ font: '400 12px "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>—</span>
+                              <span style={{ font: '400 12px "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>—</span>
                             )}
                           </div>
                           {/* Cột Dự đoán */}
                           <div style={{ ...S.tdCell, textAlign: 'center' }}>
                             {isUpset ? (
-                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(240,183,92,.18)', color: 'var(--status-delayed-fg, #F0B75C)', border: '1px solid rgba(240,183,92,.4)', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(240,183,92,.18)', color: 'var(--status-delayed-fg)', border: '1px solid rgba(240,183,92,.4)', whiteSpace: 'nowrap' }}>
                                 🔥 {t('leaderboard.predUpset')}
                               </span>
                             ) : isClose ? (
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(95,219,211,.14)', color: 'var(--status-transit-fg, #5FDBD3)', border: '1px solid rgba(95,219,211,.3)', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(95,219,211,.14)', color: 'var(--status-transit-fg)', border: '1px solid rgba(95,219,211,.3)', whiteSpace: 'nowrap' }}>
                                 ⚡ {t('leaderboard.predClose')}
                               </span>
                             ) : (
-                              <span style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)', padding: '2px 6px', borderRadius: 4, background: 'var(--surface-sunken, rgba(0,0,0,0.04))', border: '1px solid var(--border-subtle, rgba(255,255,255,0.06))', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', borderRadius: 4, background: 'var(--surface-sunken, rgba(0,0,0,0.04))', border: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>
                                 ✓ {t('leaderboard.predCorrect')}
                               </span>
                             )}
@@ -1133,8 +1241,8 @@ export default function Leaderboard() {
                               alignItems: 'center',
                               gap: 4,
                               background: isChallenge ? 'rgba(0,178,169,.12)' : 'var(--surface-sunken, rgba(0,0,0,0.04))',
-                              borderColor: isChallenge ? 'var(--teal-700, #00786F)' : 'var(--border-subtle, #22304A)',
-                              color: isChallenge ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-muted, #8494AA)',
+                              borderColor: isChallenge ? 'var(--teal-700)' : 'var(--border-subtle)',
+                              color: isChallenge ? 'var(--status-transit-fg)' : 'var(--text-muted)',
                             }}>
                               {isChallenge ? `⚔️ ${t('challenge.challenge')}` : `🏸 ${t('challenge.fromCourt')}`}
                             </span>
@@ -1159,7 +1267,7 @@ export default function Leaderboard() {
                     })}
 
                     {searchResults.length === 0 && (
-                      <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted, #8494AA)', fontSize: 13 }}>
+                      <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                         {t('matchSearch.emptySearch')}
                       </div>
                     )}
@@ -1183,8 +1291,8 @@ export default function Leaderboard() {
                         padding: '2px 8px',
                         borderRadius: 4,
                         background: h2hSummary.relationshipTone === 'tough' ? 'rgba(225,68,52,.15)' : h2hSummary.relationshipTone === 'easy' ? 'rgba(18,168,103,.15)' : 'rgba(255,255,255,.08)',
-                        color: h2hSummary.relationshipTone === 'tough' ? 'var(--status-incident-fg, #FF9A8F)' : h2hSummary.relationshipTone === 'easy' ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-secondary, #A8B7CB)',
-                        border: `1px solid ${h2hSummary.relationshipTone === 'tough' ? 'rgba(225,68,52,.4)' : h2hSummary.relationshipTone === 'easy' ? 'rgba(18,168,103,.4)' : 'var(--border-subtle, #22304A)'}`,
+                        color: h2hSummary.relationshipTone === 'tough' ? 'var(--status-incident-fg)' : h2hSummary.relationshipTone === 'easy' ? 'var(--status-delivered-fg)' : 'var(--text-secondary)',
+                        border: `1px solid ${h2hSummary.relationshipTone === 'tough' ? 'rgba(225,68,52,.4)' : h2hSummary.relationshipTone === 'easy' ? 'rgba(18,168,103,.4)' : 'var(--border-subtle)'}`,
                       }}>
                         {h2hSummary.relationshipTone === 'tough' ? t('leaderboard.toughOpponent') : h2hSummary.relationshipTone === 'easy' ? t('leaderboard.easyOpponent') : t('leaderboard.balancedOpponent')}
                       </span>
@@ -1195,22 +1303,22 @@ export default function Leaderboard() {
                   {/* Tỷ số H2H to */}
                   <div style={S.h2hScoreBig}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)', marginBottom: 2 }}>{memberNameOf(playerA)}</div>
-                      <div style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg, #5FD9A2)' }}>{h2hSummary.aWins}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)' }}>{h2hSummary.aWinRate}%</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>{memberNameOf(playerA)}</div>
+                      <div style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg)' }}>{h2hSummary.aWins}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{h2hSummary.aWinRate}%</div>
                     </div>
-                    <div style={{ font: '700 20px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>:</div>
+                    <div style={{ font: '700 20px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>:</div>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)', marginBottom: 2 }}>{memberNameOf(playerB)}</div>
-                      <div style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)' }}>{h2hSummary.bWins}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)' }}>{h2hSummary.bWinRate}%</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>{memberNameOf(playerB)}</div>
+                      <div style={{ font: '700 28px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>{h2hSummary.bWins}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{h2hSummary.bWinRate}%</div>
                     </div>
                   </div>
 
                   {/* Rating ròng */}
                   <div style={S.h2hStatRow}>
-                    <span style={{ fontSize: 12.5, color: 'var(--text-secondary, #A8B7CB)' }}>{t('leaderboard.netRating')}</span>
-                    <span style={{ font: '700 13px "IBM Plex Mono", monospace', color: h2hSummary.netDelta >= 0 ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-incident-fg, #FF9A8F)' }}>
+                    <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{t('leaderboard.netRating')}</span>
+                    <span style={{ font: '700 13px "IBM Plex Mono", monospace', color: h2hSummary.netDelta >= 0 ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
                       {h2hSummary.netDelta >= 0 ? `+${h2hSummary.netDelta}` : h2hSummary.netDelta}
                     </span>
                   </div>
@@ -1218,37 +1326,37 @@ export default function Leaderboard() {
                   {/* Chi tiết trận */}
                   <div style={S.h2hStatsBox}>
                     <div style={S.h2hStatRow}>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>{t('matchSearch.qualityClose')}</span>
-                      <span style={{ font: '600 12px "IBM Plex Mono", monospace', color: 'var(--text-primary, #E9EFF7)' }}>{h2hSummary.closeCount}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('matchSearch.qualityClose')}</span>
+                      <span style={{ font: '600 12px "IBM Plex Mono", monospace', color: 'var(--text-primary)' }}>{h2hSummary.closeCount}</span>
                     </div>
                     <div style={S.h2hStatRow}>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>{t('matchSearch.qualityUpset')}</span>
-                      <span style={{ font: '600 12px "IBM Plex Mono", monospace', color: 'var(--text-primary, #E9EFF7)' }}>{h2hSummary.upsetCount}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('matchSearch.qualityUpset')}</span>
+                      <span style={{ font: '600 12px "IBM Plex Mono", monospace', color: 'var(--text-primary)' }}>{h2hSummary.upsetCount}</span>
                     </div>
                     <div style={S.h2hStatRow}>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>{t('challenge.challenge')}</span>
-                      <span style={{ font: '600 12px "IBM Plex Mono", monospace', color: 'var(--text-primary, #E9EFF7)' }}>{h2hSummary.challengeCount}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('challenge.challenge')}</span>
+                      <span style={{ font: '600 12px "IBM Plex Mono", monospace', color: 'var(--text-primary)' }}>{h2hSummary.challengeCount}</span>
                     </div>
                   </div>
 
                   {/* Khi cùng đội */}
-                  <div style={{ ...S.h2hStatsBox, background: 'var(--surface-inset, #101927)' }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary, #E9EFF7)', marginBottom: 2 }}>
+                  <div style={{ ...S.h2hStatsBox, background: 'var(--surface-inset)' }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', marginBottom: 2 }}>
                       {t('leaderboard.whenTeammates')}
                     </div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-muted, #8494AA)', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 8 }}>
                       {t('leaderboard.teammateSubtitle', { total: h2hSummary.tmTotal, nameA: memberNameOf(playerA), nameB: memberNameOf(playerB) })}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ font: '700 16px "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
+                      <span style={{ font: '700 16px "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg)' }}>
                         {h2hSummary.tmWins}W – {h2hSummary.tmLoss}L
                       </span>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>
-                        {t('leaderboard.winRateLabel')}: <strong style={{ color: 'var(--text-primary, #E9EFF7)' }}>{h2hSummary.tmWinRate}%</strong>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {t('leaderboard.winRateLabel')}: <strong style={{ color: 'var(--text-primary)' }}>{h2hSummary.tmWinRate}%</strong>
                       </span>
                     </div>
                     {h2hSummary.lastDate && (
-                      <div style={{ fontSize: 11, color: 'var(--text-muted, #8494AA)', marginTop: 6 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
                         {t('leaderboard.lastTeammateMatch')}: {h2hSummary.lastDate} ({h2hSummary.lastWon ? t('leaderboard.wonStatus') : t('leaderboard.lostStatus')})
                       </div>
                     )}
@@ -1275,7 +1383,7 @@ export default function Leaderboard() {
               <table style={S.matrixTable}>
                 <thead>
                   <tr>
-                    <th style={S.matrixTh}>VS</th>
+                    <th style={{ ...S.matrixTh, ...(isMobile ? { position: 'sticky', left: 0, zIndex: 3, background: 'var(--surface-inset)' } : {}) }}>VS</th>
                     {topMembersForMatrix.map((m) => (
                       <th key={m.id} style={S.matrixTh}>{m.name}</th>
                     ))}
@@ -1284,14 +1392,14 @@ export default function Leaderboard() {
                 <tbody>
                   {topMembersForMatrix.map((p1) => (
                     <tr key={p1.id}>
-                      <td style={S.matrixRowLabel}>{p1.name}</td>
+                      <td style={{ ...S.matrixRowLabel, ...(isMobile ? { position: 'sticky', left: 0, zIndex: 2, background: 'var(--surface-inset)' } : {}) }}>{p1.name}</td>
                       {topMembersForMatrix.map((p2) => {
                         if (p1.id === p2.id) {
                           return <td key={p2.id} style={S.matrixSelfCell}>—</td>
                         }
                         const cell = matrixData[p1.id]?.[p2.id] || { wins: 0, losses: 0 }
                         const net = cell.wins - cell.losses
-                        const cellColor = net > 0 ? 'var(--status-delivered-fg, #5FD9A2)' : net < 0 ? 'var(--status-incident-fg, #FF9A8F)' : 'var(--text-muted, #8494AA)'
+                        const cellColor = net > 0 ? 'var(--status-delivered-fg)' : net < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)'
                         const cellBg = net > 0 ? 'rgba(18,168,103,.12)' : net < 0 ? 'rgba(225,68,52,.12)' : 'transparent'
                         return (
                           <td key={p2.id} style={{ ...S.matrixCell, color: cellColor, background: cellBg }}>
@@ -1304,12 +1412,33 @@ export default function Leaderboard() {
                 </tbody>
               </table>
             </div>
+
+            {isMobile && !matrixExpanded && activeMembers.length > 5 && (
+              <div style={{ padding: '0 16px 16px', textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setMatrixExpanded(true)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-default)',
+                    background: 'var(--surface-raised)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('common.more')}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Cặp chưa từng gặp nhau */}
           <div style={S.card}>
             <div style={{ padding: '14px 16px', display: 'grid', gap: 8 }}>
-              <div style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>
+              <div style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
                 {t('matchSearch.neverMet')} ({neverMetList.length} {t('matchSearch.pairs')})
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1352,10 +1481,10 @@ export default function Leaderboard() {
                   return (
                     <div key={bucketKey} style={S.bucketCard}>
                       <div style={S.bucketHead}>{t('leaderboard.gapBucket', { bucket: bucketKey })}</div>
-                      <div style={{ font: '700 24px/1 Barlow, sans-serif', color: 'var(--status-transit-fg, #5FDBD3)', margin: '4px 0' }}>
+                      <div style={{ font: '700 24px/1 Barlow, sans-serif', color: 'var(--status-transit-fg)', margin: '4px 0' }}>
                         {winRatePct}%
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted, #8494AA)' }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                         {t('leaderboard.crossStats', { wins: data.femaleWins, total: data.sampleSize })}
                       </div>
                     </div>
@@ -1363,7 +1492,7 @@ export default function Leaderboard() {
                 })}
               </div>
 
-              <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)', marginTop: 8 }}>
+              <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', marginTop: 8 }}>
                 💡 <em>{t('rating.calibration.desc')}</em>
               </div>
             </div>
@@ -1404,8 +1533,8 @@ const S = {
     display: 'flex',
     padding: 3,
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     gap: 2,
     overflowX: 'auto',
   },
@@ -1419,26 +1548,26 @@ const S = {
     border: 'none',
     background: 'transparent',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'all 0.15s ease',
   },
   tabBtnActive: {
-    background: 'var(--surface-card, #141D2E)',
-    color: 'var(--text-primary, #E9EFF7)',
+    background: 'var(--surface-card)',
+    color: 'var(--text-primary)',
     boxShadow: '0 1px 1px rgba(0,0,0,.30)',
   },
   card: {
-    background: 'var(--surface-card, #141D2E)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 10,
     boxShadow: '0 1px 1px rgba(0,0,0,.30)',
     overflow: 'hidden',
   },
   cardHead: {
     padding: '14px 16px',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    borderBottom: '1px solid var(--border-subtle)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1447,35 +1576,35 @@ const S = {
   },
   cardTitle: {
     font: '600 16px/1.25 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-primary, #E9EFF7)',
+    color: 'var(--text-primary)',
   },
   cardSub: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   seasonTableHead: {
     display: 'grid',
     gridTemplateColumns: '60px minmax(170px, 1.5fr) 110px 90px 130px 100px 90px 120px',
-    background: 'var(--surface-inset, #101927)',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    borderBottom: '1px solid var(--border-subtle)',
   },
   seasonTableRow: {
     display: 'grid',
     gridTemplateColumns: '60px minmax(170px, 1.5fr) 110px 90px 130px 100px 90px 120px',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    borderBottom: '1px solid var(--border-subtle)',
     minHeight: 48,
     alignItems: 'center',
   },
   searchTableHead: {
     display: 'grid',
     gridTemplateColumns: '70px 115px minmax(160px, 1.2fr) 95px minmax(160px, 1.2fr) 80px 95px 95px 70px',
-    background: 'var(--surface-inset, #101927)',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    borderBottom: '1px solid var(--border-subtle)',
   },
   searchTableRow: {
     display: 'grid',
     gridTemplateColumns: '70px 115px minmax(160px, 1.2fr) 95px minmax(160px, 1.2fr) 80px 95px 95px 70px',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    borderBottom: '1px solid var(--border-subtle)',
     minHeight: 52,
     alignItems: 'center',
   },
@@ -1487,18 +1616,18 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   tdCell: {
     padding: '0 12px',
   },
   monoCode: {
     font: '600 12.5px/1.3 "IBM Plex Mono", monospace',
-    color: 'var(--status-transit-fg, #5FDBD3)',
+    color: 'var(--status-transit-fg)',
   },
   monoMeta: {
     font: '400 12px/1.4 "IBM Plex Mono", monospace',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   sourcePill: {
     fontSize: 11,
@@ -1510,9 +1639,9 @@ const S = {
   editBtn: {
     padding: '4px 10px',
     borderRadius: 4,
-    background: 'var(--surface-raised, #1A2437)',
-    border: '1px solid var(--border-default, #2E3E5C)',
-    color: 'var(--status-transit-fg, #5FDBD3)',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border-default)',
+    color: 'var(--status-transit-fg)',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
@@ -1520,23 +1649,23 @@ const S = {
   contextCard: {
     padding: '14px 16px',
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     display: 'grid',
     gap: 4,
   },
   contextHead: {
     font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
   },
   contextScore: {
     font: '700 20px/1.2 "IBM Plex Mono", monospace',
-    color: 'var(--text-primary, #E9EFF7)',
+    color: 'var(--text-primary)',
   },
   contextMeta: {
     font: '400 12px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   matrixTable: {
     borderCollapse: 'collapse',
@@ -1545,50 +1674,50 @@ const S = {
   },
   matrixTh: {
     padding: '8px 12px',
-    border: '1px solid var(--border-subtle, #22304A)',
-    background: 'var(--surface-inset, #101927)',
-    color: 'var(--text-muted, #8494AA)',
+    border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-inset)',
+    color: 'var(--text-muted)',
     fontWeight: 600,
     textAlign: 'center',
   },
   matrixRowLabel: {
     padding: '8px 12px',
-    border: '1px solid var(--border-subtle, #22304A)',
-    background: 'var(--surface-inset, #101927)',
-    color: 'var(--text-primary, #E9EFF7)',
+    border: '1px solid var(--border-subtle)',
+    background: 'var(--surface-inset)',
+    color: 'var(--text-primary)',
     fontWeight: 600,
   },
   matrixCell: {
     padding: '8px 12px',
-    border: '1px solid var(--border-subtle, #22304A)',
+    border: '1px solid var(--border-subtle)',
     textAlign: 'center',
     fontFamily: '"IBM Plex Mono", monospace',
     fontWeight: 600,
   },
   matrixSelfCell: {
     padding: '8px 12px',
-    border: '1px solid var(--border-subtle, #22304A)',
+    border: '1px solid var(--border-subtle)',
     textAlign: 'center',
-    color: 'var(--text-disabled, #5B6B81)',
-    background: 'var(--surface-page, #0B1220)',
+    color: 'var(--text-disabled)',
+    background: 'var(--surface-page)',
   },
   pairBadge: {
     padding: '4px 10px',
     borderRadius: 6,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     fontSize: 12,
-    color: 'var(--text-secondary, #A8B7CB)',
+    color: 'var(--text-secondary)',
   },
   bucketCard: {
     padding: '14px 16px',
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
   },
   bucketHead: {
     font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
   },
   challengeBtn: {
@@ -1597,8 +1726,8 @@ const S = {
     gap: 6,
     padding: '6px 14px',
     borderRadius: 6,
-    background: 'linear-gradient(135deg, var(--teal-500, #00B2A9), var(--teal-700, #00786F))',
-    color: 'var(--gray-0, #FFFFFF)',
+    background: 'linear-gradient(135deg, var(--teal-500), var(--teal-700))',
+    color: 'var(--gray-0)',
     fontSize: 13,
     fontWeight: 600,
     border: 'none',
@@ -1632,27 +1761,27 @@ const S = {
   },
   bountyTitle: {
     font: '700 14px "IBM Plex Sans", sans-serif',
-    color: 'var(--status-delayed-fg, #F0B75C)',
+    color: 'var(--status-delayed-fg)',
   },
   bountyBadge: {
     padding: '2px 8px',
     borderRadius: 4,
     background: 'rgba(240,183,92,.25)',
-    border: '1px solid var(--status-delayed-fg, #F0B75C)',
-    color: 'var(--status-delayed-fg, #F0B75C)',
+    border: '1px solid var(--status-delayed-fg)',
+    color: 'var(--status-delayed-fg)',
     fontSize: 11,
     fontWeight: 700,
   },
   bountyDesc: {
     fontSize: 12.5,
-    color: 'var(--text-secondary, #A8B7CB)',
+    color: 'var(--text-secondary)',
     marginTop: 2,
   },
   h2hScoreBig: {
     padding: '14px',
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -1661,7 +1790,7 @@ const S = {
   h2hStatsBox: {
     padding: '12px 14px',
     borderRadius: 8,
-    border: '1px solid var(--border-subtle, #22304A)',
+    border: '1px solid var(--border-subtle)',
     display: 'grid',
     gap: 6,
   },

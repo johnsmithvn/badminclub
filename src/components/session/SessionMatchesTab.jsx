@@ -57,7 +57,7 @@ export default function SessionMatchesTab({ s }) {
       {/* ---------------- Cột trái: Bảng Trận đấu của buổi ---------------- */}
       <div style={{ display: 'grid', gap: 16, alignContent: 'start', minWidth: 0 }}>
         {/* 4 StatCards thống kê buổi */}
-        <div style={S.statGrid}>
+        <div style={{ ...S.statGrid, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))' }}>
           <div style={S.statCard}>
             <div style={S.statLabel}>{t('pages.sessions.statTotalMatches')}</div>
             <div style={S.statValue}>{matches.length}</div>
@@ -65,17 +65,17 @@ export default function SessionMatchesTab({ s }) {
           </div>
           <div style={S.statCard}>
             <div style={S.statLabel}>{t('pages.sessions.statCourtMatches')}</div>
-            <div style={{ ...S.statValue, color: 'var(--text-primary, #E9EFF7)' }}>{fromSessionCount}</div>
+            <div style={{ ...S.statValue, color: 'var(--text-primary)' }}>{fromSessionCount}</div>
             <div style={S.statSub}>{t('pages.sessions.statCourtMatchesDesc')}</div>
           </div>
           <div style={S.statCard}>
             <div style={S.statLabel}>{t('pages.sessions.statChallengeMatches')}</div>
-            <div style={{ ...S.statValue, color: 'var(--status-transit-fg, #5FDBD3)' }}>{fromChallengeCount}</div>
+            <div style={{ ...S.statValue, color: 'var(--status-transit-fg)' }}>{fromChallengeCount}</div>
             <div style={S.statSub}>{t('pages.sessions.statChallengeMatchesDesc')}</div>
           </div>
           <div style={S.statCard}>
             <div style={S.statLabel}>{t('pages.sessions.statBalancedMatches')}</div>
-            <div style={{ ...S.statValue, color: 'var(--status-delivered-fg, #5FD9A2)' }}>{balancedCount}</div>
+            <div style={{ ...S.statValue, color: 'var(--status-delivered-fg)' }}>{balancedCount}</div>
             <div style={S.statSub}>{t('pages.sessions.statBalancedMatchesDesc')}</div>
           </div>
         </div>
@@ -96,133 +96,266 @@ export default function SessionMatchesTab({ s }) {
             </span>
           </div>
 
-          {/* Table Headers & Rows với scroll ngang an toàn trên mobile */}
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <div style={{ minWidth: 680 }}>
-              <div style={S.tableHead}>
-                <div style={S.thCell}>{t('matchSearch.colCode')}</div>
-                <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
-                <div style={S.thCell}>{t('matchSearch.colWinner')}</div>
-                <div style={{ ...S.thCell, textAlign: 'center' }}>{t('matchSearch.colScore')}</div>
-                <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
-                <div style={S.thCell}>{t('pages.sessions.colDelta')}</div>
-                <div style={S.thCell}>{t('matchSearch.colSource')}</div>
-                <div style={{ ...S.thCell, textAlign: 'right' }}>{t('pages.sessions.colAction')}</div>
-              </div>
+          {/* Render theo mobile card list hoặc desktop table */}
+          {isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
+              {matches.map((m) => {
+                const teamA = m.teamA || []
+                const teamB = m.teamB || []
+                const aWon = m.winnerTeam === 'A'
+                const winnerTeam = aWon ? teamA : teamB
+                const loserTeam = aWon ? teamB : teamA
+                const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
+                const loserNames = loserTeam.map(memberNameOf).join(' · ')
 
-              {/* Rows */}
-              <div style={{ display: 'grid' }}>
-            {matches.map((m) => {
-              const teamA = m.teamA || []
-              const teamB = m.teamB || []
-              const aWon = m.winnerTeam === 'A'
-              const winnerTeam = aWon ? teamA : teamB
-              const loserTeam = aWon ? teamB : teamA
-              const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
-              const loserNames = loserTeam.map(memberNameOf).join(' · ')
+                const scoreSets = (m.sets || []).map(([a, b]) => ({
+                  winPts: aWon ? a : b,
+                  losePts: aWon ? b : a,
+                }))
+                const courtObj = (s.courts || [])[m.courtIdx]
+                const venue = courtObj ? courtOf(db, courtObj.courtId) : null
+                const courtLabel = courtObj?.label
+                  ? courtObj.label
+                  : ((s.courts || []).length > 1 ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : (venue?.name || t('units.court')))
+                const matchTime = m.at
+                  ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                  : (courtObj ? courtObj.from : '')
+                const courtTimeStr = matchTime ? `${courtLabel} · ${matchTime}` : courtLabel
+                const matchCode = matchCodeOf(db, m)
+                const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
+                const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
+                const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
+                const deltaStr = hasElo ? `${m.eloDelta > 0 ? '+' : ''}${m.eloDelta}` : '—'
 
-              const scoreSets = (m.sets || []).map(([a, b]) => ({
-                winPts: aWon ? a : b,
-                losePts: aWon ? b : a,
-              }))
-              const courtObj = (s.courts || [])[m.courtIdx]
-              const venue = courtObj ? courtOf(db, courtObj.courtId) : null
-              const courtLabel = courtObj?.label
-                ? courtObj.label
-                : ((s.courts || []).length > 1 ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : (venue?.name || t('units.court')))
-              const matchTime = m.at
-                ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-                : (courtObj ? courtObj.from : '')
-              const courtTimeStr = matchTime ? `${courtLabel} · ${matchTime}` : courtLabel
-              const matchCode = matchCodeOf(db, m)
-              const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
-              const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
-              const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
-              const deltaStr = hasElo ? `${m.eloDelta > 0 ? '+' : ''}${m.eloDelta}` : '—'
-
-              return (
-                <div key={m.id} style={S.tableRow}>
-                  <div style={S.tdCell}>
-                    <span style={S.monoCode}>{matchCode}</span>
-                  </div>
-                  <div style={S.tdCell}>
-                    <span style={S.monoMeta} title={venue?.name}>{courtTimeStr}</span>
-                  </div>
-                  <div style={{ ...S.tdCell, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      width: 20, height: 20, borderRadius: 6,
-                      background: 'rgba(240,183,92,0.15)', color: '#F0B75C', fontSize: 11, flexShrink: 0,
-                    }} title={t('matchSearch.colWinner')}>
-                      👑
-                    </span>
-                    <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg, #5FD9A2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {winnerNames}
-                    </span>
-                  </div>
-                  <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {scoreSets.map((st, sIdx) => (
-                      <div key={sIdx} style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '3px 8px',
-                        borderRadius: 6,
-                        background: 'var(--surface-sunken, rgba(0,0,0,0.06))',
-                        border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-                        font: '700 14px/1 "Barlow", sans-serif',
-                        letterSpacing: '0.03em',
-                      }}>
-                        <span style={{ color: 'var(--status-delivered-fg, #5FD9A2)', fontWeight: 800 }}>{st.winPts}</span>
-                        <span style={{ margin: '0 3px', opacity: 0.35, fontWeight: 400 }}>:</span>
-                        <span style={{ color: 'var(--text-secondary, #A8B7CB)', fontWeight: 600 }}>{st.losePts}</span>
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      background: 'var(--surface-card)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-card)',
+                      padding: '12px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    {/* Hàng 1: Mã trận + Sân/giờ và Nút sửa */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={S.monoCode}>{matchCode}</span>
+                        <span style={S.monoMeta}>{courtTimeStr}</span>
                       </div>
-                    ))}
-                  </div>
-                  <div style={{ ...S.tdCell, minWidth: 0 }}>
-                    <span style={{ font: '500 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {loserNames}
-                    </span>
-                  </div>
-                  <div style={S.tdCell}>
-                    <span style={{
-                      font: '600 12.5px/1 "IBM Plex Mono", monospace',
-                      color: hasElo ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-disabled, #5B6B81)',
-                    }}>
-                      {deltaStr}
-                    </span>
-                  </div>
-                  <div style={S.tdCell}>
-                    <span style={{
-                      ...S.sourcePill,
-                      background: isFromChallenge ? 'rgba(0,178,169,.14)' : 'rgba(255,255,255,.06)',
-                      borderColor: isFromChallenge ? 'var(--teal-700, #00786F)' : 'var(--border-subtle, #22304A)',
-                      color: isFromChallenge ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--text-muted, #8494AA)',
-                    }}>
-                      {isFromChallenge ? t('challenge.tag', { code: challenge?.code || '' }) : t('challenge.fromCourt')}
-                    </span>
-                  </div>
-                  <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      type="button"
-                      onClick={() => setEditingMatch(m)}
-                      style={S.editInlineBtn}
-                    >
-                      {t('matchSearch.btnEdit')}
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+                      <button
+                        type="button"
+                        onClick={() => setEditingMatch(m)}
+                        style={{
+                          ...S.editInlineBtn,
+                          height: 32,
+                          padding: '0 12px',
+                        }}
+                      >
+                        {t('matchSearch.btnEdit')}
+                      </button>
+                    </div>
 
-            {matches.length === 0 && (
-              <div style={{ padding: '24px 16px', color: 'var(--text-muted, #8494AA)', fontSize: 13, textAlign: 'center' }}>
-                {t('pages.sessions.noMatchesHint')}
-              </div>
-            )}
+                    {/* Hàng 2: Thắng vs Thua + Tỷ số */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 18, height: 18, borderRadius: 4,
+                            background: 'rgba(240,183,92,0.15)', color: 'var(--status-delayed-fg)', fontSize: 10, flexShrink: 0,
+                          }}>
+                            👑
+                          </span>
+                          <span style={{ font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {winnerNames}
+                          </span>
+                        </div>
+                        <div style={{ font: '500 13px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', paddingLeft: 23, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {loserNames}
+                        </div>
+                      </div>
+
+                      {/* Cụm tỷ số */}
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        {scoreSets.map((st, sIdx) => (
+                          <div key={sIdx} style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '4px 8px',
+                            borderRadius: 'var(--radius-md)',
+                            background: 'var(--surface-sunken)',
+                            border: '1px solid var(--border-subtle)',
+                            font: '700 14px/1 "Barlow", sans-serif',
+                          }}>
+                            <span style={{ color: 'var(--status-delivered-fg)', fontWeight: 800 }}>{st.winPts}</span>
+                            <span style={{ margin: '0 2px', opacity: 0.35 }}>:</span>
+                            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{st.losePts}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Hàng 3: Delta Elo & Nguồn */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 4, borderTop: '1px solid var(--border-subtle)' }}>
+                      <span style={{
+                        font: '600 12px/1 "IBM Plex Mono", monospace',
+                        color: hasElo ? 'var(--status-delivered-fg)' : 'var(--text-disabled)',
+                      }}>
+                        {hasElo ? `Elo: ${deltaStr}` : t('challenge.casual')}
+                      </span>
+                      <span style={{
+                        ...S.sourcePill,
+                        background: isFromChallenge ? 'var(--surface-nav-active)' : 'var(--surface-card)',
+                        borderColor: isFromChallenge ? 'var(--teal-700)' : 'var(--border-subtle)',
+                        color: isFromChallenge ? 'var(--status-transit-fg)' : 'var(--text-muted)',
+                      }}>
+                        {isFromChallenge ? t('challenge.tag', { code: challenge?.code || '' }) : t('challenge.fromCourt')}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {matches.length === 0 && (
+                <div style={{ padding: '24px 16px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+                  {t('pages.sessions.noMatchesHint')}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Table Headers & Rows với scroll ngang an toàn trên desktop */
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 680 }}>
+                <div style={S.tableHead}>
+                  <div style={S.thCell}>{t('matchSearch.colCode')}</div>
+                  <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
+                  <div style={S.thCell}>{t('matchSearch.colWinner')}</div>
+                  <div style={{ ...S.thCell, textAlign: 'center' }}>{t('matchSearch.colScore')}</div>
+                  <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
+                  <div style={S.thCell}>{t('pages.sessions.colDelta')}</div>
+                  <div style={S.thCell}>{t('matchSearch.colSource')}</div>
+                  <div style={{ ...S.thCell, textAlign: 'right' }}>{t('pages.sessions.colAction')}</div>
+                </div>
+
+                {/* Rows */}
+                <div style={{ display: 'grid' }}>
+                  {matches.map((m) => {
+                    const teamA = m.teamA || []
+                    const teamB = m.teamB || []
+                    const aWon = m.winnerTeam === 'A'
+                    const winnerTeam = aWon ? teamA : teamB
+                    const loserTeam = aWon ? teamB : teamA
+                    const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
+                    const loserNames = loserTeam.map(memberNameOf).join(' · ')
+
+                    const scoreSets = (m.sets || []).map(([a, b]) => ({
+                      winPts: aWon ? a : b,
+                      losePts: aWon ? b : a,
+                    }))
+                    const courtObj = (s.courts || [])[m.courtIdx]
+                    const venue = courtObj ? courtOf(db, courtObj.courtId) : null
+                    const courtLabel = courtObj?.label
+                      ? courtObj.label
+                      : ((s.courts || []).length > 1 ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : (venue?.name || t('units.court')))
+                    const matchTime = m.at
+                      ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                      : (courtObj ? courtObj.from : '')
+                    const courtTimeStr = matchTime ? `${courtLabel} · ${matchTime}` : courtLabel
+                    const matchCode = matchCodeOf(db, m)
+                    const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
+                    const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
+                    const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
+                    const deltaStr = hasElo ? `${m.eloDelta > 0 ? '+' : ''}${m.eloDelta}` : '—'
+
+                    return (
+                      <div key={m.id} style={S.tableRow}>
+                        <div style={S.tdCell}>
+                          <span style={S.monoCode}>{matchCode}</span>
+                        </div>
+                        <div style={S.tdCell}>
+                          <span style={S.monoMeta} title={venue?.name}>{courtTimeStr}</span>
+                        </div>
+                        <div style={{ ...S.tdCell, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 20, height: 20, borderRadius: 6,
+                            background: 'rgba(240,183,92,0.15)', color: 'var(--status-delayed-fg)', fontSize: 11, flexShrink: 0,
+                          }} title={t('matchSearch.colWinner')}>
+                            👑
+                          </span>
+                          <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {winnerNames}
+                          </span>
+                        </div>
+                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          {scoreSets.map((st, sIdx) => (
+                            <div key={sIdx} style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '3px 8px',
+                              borderRadius: 6,
+                              background: 'var(--surface-sunken)',
+                              border: '1px solid var(--border-subtle)',
+                              font: '700 14px/1 "Barlow", sans-serif',
+                              letterSpacing: '0.03em',
+                            }}>
+                              <span style={{ color: 'var(--status-delivered-fg)', fontWeight: 800 }}>{st.winPts}</span>
+                              <span style={{ margin: '0 3px', opacity: 0.35, fontWeight: 400 }}>:</span>
+                              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{st.losePts}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ ...S.tdCell, minWidth: 0 }}>
+                          <span style={{ font: '500 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {loserNames}
+                          </span>
+                        </div>
+                        <div style={S.tdCell}>
+                          <span style={{
+                            font: '600 12.5px/1 "IBM Plex Mono", monospace',
+                            color: hasElo ? 'var(--status-delivered-fg)' : 'var(--text-disabled)',
+                          }}>
+                            {deltaStr}
+                          </span>
+                        </div>
+                        <div style={S.tdCell}>
+                          <span style={{
+                            ...S.sourcePill,
+                            background: isFromChallenge ? 'var(--surface-nav-active)' : 'var(--surface-card)',
+                            borderColor: isFromChallenge ? 'var(--teal-700)' : 'var(--border-subtle)',
+                            color: isFromChallenge ? 'var(--status-transit-fg)' : 'var(--text-muted)',
+                          }}>
+                            {isFromChallenge ? t('challenge.tag', { code: challenge?.code || '' }) : t('challenge.fromCourt')}
+                          </span>
+                        </div>
+                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={() => setEditingMatch(m)}
+                            style={S.editInlineBtn}
+                          >
+                            {t('matchSearch.btnEdit')}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {matches.length === 0 && (
+                    <div style={{ padding: '24px 16px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+                      {t('pages.sessions.noMatchesHint')}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -280,9 +413,9 @@ export default function SessionMatchesTab({ s }) {
                     <span style={S.monoCode}>{c.code}</span>
                     <span style={{
                       ...S.statusBadge,
-                      background: isPlayed ? 'rgba(18,168,103,.14)' : isAccepted ? 'rgba(0,178,169,.14)' : 'rgba(224,138,0,.14)',
-                      borderColor: isPlayed ? 'var(--green-600, #00875A)' : isAccepted ? 'var(--teal-700, #00786F)' : 'rgba(224,138,0,.3)',
-                      color: isPlayed ? 'var(--status-delivered-fg, #5FD9A2)' : isAccepted ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--status-delayed-fg, #F0B75C)',
+                      background: isPlayed ? 'var(--surface-brand-soft)' : isAccepted ? 'var(--surface-nav-active)' : 'rgba(240,183,92,0.14)',
+                      borderColor: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--teal-700)' : 'var(--border-subtle)',
+                      color: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--status-transit-fg)' : 'var(--status-delayed-fg)',
                     }}>
                       {c.status}
                     </span>
@@ -291,44 +424,44 @@ export default function SessionMatchesTab({ s }) {
                   {/* 2 Đội */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary, #E9EFF7)' }}>{namesA}</div>
-                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>{ratA}</div>
+                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>{namesA}</div>
+                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>{ratA}</div>
                     </div>
-                    <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled, #5B6B81)' }}>VS</span>
+                    <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)' }}>VS</span>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>{namesB}</div>
-                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>{ratB}</div>
+                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>{namesB}</div>
+                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>{ratB}</div>
                     </div>
                   </div>
 
                   {/* Win% Bar */}
                   {!isPlayed && (
                     <div style={{ display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: '"IBM Plex Mono", monospace' }}>
-                        <span style={{ color: 'var(--status-transit-fg, #5FDBD3)' }}>{pctA}%</span>
-                        <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('rating.gap', { gap })}</span>
-                        <span style={{ color: 'var(--text-secondary, #A8B7CB)' }}>{pctB}%</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ color: 'var(--status-transit-fg)' }}>{pctA}%</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{t('rating.gap', { gap })}</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>{pctB}%</span>
                       </div>
-                      <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-page, #0B1220)' }}>
-                        <div style={{ width: `${pctA}%`, background: 'var(--teal-500, #00B2A9)', height: '100%' }} />
-                        <div style={{ width: `${pctB}%`, background: 'var(--border-default, #2E3E5C)', height: '100%' }} />
+                      <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-page)' }}>
+                        <div style={{ width: `${pctA}%`, background: 'var(--action-accent-bg, var(--teal-500))', height: '100%' }} />
+                        <div style={{ width: `${pctB}%`, background: 'var(--border-default)', height: '100%' }} />
                       </div>
                     </div>
                   )}
 
                   {/* Meta */}
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted, #8494AA)' }}>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                     BO{c.bestOf || 3} · {c.ratingEnabled ? t('challenge.rated') : t('challenge.casual')}
                   </div>
 
                   {/* Lịch sử đối đầu H2H (K4 / DK4 handoff) */}
                   {h2hMatches.length > 0 && (
                     <div style={S.h2hRow}>
-                      <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('challenge.h2hRecord')}:</span>
-                      <span style={{ fontFamily: '"IBM Plex Mono", monospace', color: 'var(--status-transit-fg, #5FDBD3)', fontWeight: 600 }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('challenge.h2hRecord')}:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--status-transit-fg)', fontWeight: 600 }}>
                         {h2hWinsA}W – {h2hWinsB}L
                       </span>
-                      <span style={{ color: 'var(--text-muted, #8494AA)', fontSize: 11 }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
                         ({h2hMatches.length} {t('units.match')})
                       </span>
                     </div>
@@ -370,7 +503,7 @@ export default function SessionMatchesTab({ s }) {
             })}
 
             {challenges.length === 0 && (
-              <div style={{ color: 'var(--text-muted, #8494AA)', fontSize: 13, padding: '12px 0', textAlign: 'center' }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px 0', textAlign: 'center' }}>
                 {t('challenge.noSessionChallenges')}
               </div>
             )}
@@ -380,24 +513,24 @@ export default function SessionMatchesTab({ s }) {
         {/* Card Kèo nối vào buổi thế nào */}
         <div style={S.card}>
           <div style={{ padding: '14px 16px', display: 'grid', gap: 10 }}>
-            <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8494AA)' }}>
+            <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
               {t('pages.sessions.wiringTitle')}
             </div>
-            <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary, #A8B7CB)' }}>
+            <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
               {t('pages.sessions.wiringDesc')}
             </div>
             <div style={S.wiringBox}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted, #8494AA)' }}>session_id</span>
-                <span style={{ color: 'var(--text-primary, #E9EFF7)', fontWeight: 600 }}>{s.id.slice(0, 8)}...</span>
+                <span style={{ color: 'var(--text-muted)' }}>session_id</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{s.id.slice(0, 8)}...</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('pages.sessions.matchFromCourt')}</span>
-                <span style={{ color: 'var(--text-primary, #E9EFF7)' }}>{fromSessionCount}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('pages.sessions.matchFromCourt')}</span>
+                <span style={{ color: 'var(--text-primary)' }}>{fromSessionCount}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('pages.sessions.matchFromChallenge')}</span>
-                <span style={{ color: 'var(--status-transit-fg, #5FDBD3)' }}>{fromChallengeCount}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('pages.sessions.matchFromChallenge')}</span>
+                <span style={{ color: 'var(--status-transit-fg)' }}>{fromChallengeCount}</span>
               </div>
             </div>
           </div>
@@ -438,9 +571,9 @@ const S = {
     gap: 12,
   },
   statCard: {
-    background: 'var(--surface-card, #141D2E)',
-    border: '1px solid var(--border-subtle, #22304A)',
-    borderRadius: 8,
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-card)',
     padding: '12px 14px',
     display: 'grid',
     gap: 4,
@@ -449,26 +582,26 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   statValue: {
     font: '700 24px/1.1 Barlow, sans-serif',
-    color: 'var(--text-primary, #E9EFF7)',
+    color: 'var(--text-primary)',
   },
   statSub: {
     font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-secondary, #A8B7CB)',
+    color: 'var(--text-secondary)',
   },
   card: {
-    background: 'var(--surface-card, #141D2E)',
-    border: '1px solid var(--border-subtle, #22304A)',
-    borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-card)',
+    boxShadow: 'var(--shadow-xs)',
     overflow: 'hidden',
   },
   cardHead: {
     padding: '12px 16px',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    borderBottom: '1px solid var(--border-subtle)',
     display: 'flex',
     alignItems: 'center',
     gap: 12,
@@ -476,25 +609,25 @@ const S = {
   },
   cardTitle: {
     font: '600 16px/1.25 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-primary, #E9EFF7)',
+    color: 'var(--text-primary)',
   },
   cardSub: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   monoMeta: {
     font: '400 12.5px/1.4 "IBM Plex Mono", monospace',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   monoCode: {
     font: '600 12.5px/1.3 "IBM Plex Mono", monospace',
-    color: 'var(--status-transit-fg, #5FDBD3)',
+    color: 'var(--status-transit-fg)',
   },
   tableHead: {
     display: 'grid',
     gridTemplateColumns: '88px 84px 1fr 96px 1fr 90px 116px 64px',
-    background: 'var(--surface-inset, #101927)',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    borderBottom: '1px solid var(--border-subtle)',
   },
   thCell: {
     padding: '0 12px',
@@ -504,22 +637,22 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   tableRow: {
     display: 'grid',
     gridTemplateColumns: '88px 84px 1fr 96px 1fr 90px 116px 64px',
-    borderBottom: '1px solid var(--border-subtle, #22304A)',
+    borderBottom: '1px solid var(--border-subtle)',
     minHeight: 52,
     alignItems: 'center',
   },
   editInlineBtn: {
     height: 28,
     padding: '0 10px',
-    borderRadius: 4,
-    background: 'var(--surface-raised, #1A2437)',
-    border: '1px solid var(--border-default, #2E3E5C)',
-    color: 'var(--text-secondary, #A8B7CB)',
+    borderRadius: 'var(--radius-md)',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border-default)',
+    color: 'var(--text-secondary)',
     font: '600 12px/1 "IBM Plex Sans", sans-serif',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
@@ -540,20 +673,20 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     padding: '0 14px',
-    borderRadius: 6,
-    background: 'var(--navy-500, #1D50A0)',
+    borderRadius: 'var(--radius-md)',
+    background: 'var(--action-primary-bg)',
     border: 'none',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: 'var(--gray-0, #FFFFFF)',
+    color: 'var(--gray-0)',
     cursor: 'pointer',
   },
   challengeCard: {
     display: 'grid',
     gap: 8,
     padding: '12px',
-    borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    borderRadius: 'var(--radius-card)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
   },
   statusBadge: {
     fontSize: 11,
@@ -568,10 +701,10 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
-    background: 'var(--navy-500, #1D50A0)',
+    borderRadius: 'var(--radius-md)',
+    background: 'var(--action-primary-bg)',
     border: 'none',
-    color: 'var(--gray-0, #FFFFFF)',
+    color: 'var(--gray-0)',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
@@ -582,10 +715,10 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '0 12px',
-    borderRadius: 6,
-    background: 'var(--surface-card, #141D2E)',
-    border: '1px solid var(--border-default, #2E3E5C)',
-    color: 'var(--text-secondary, #A8B7CB)',
+    borderRadius: 'var(--radius-md)',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    color: 'var(--text-secondary)',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
@@ -594,9 +727,9 @@ const S = {
     display: 'grid',
     gap: 6,
     padding: '11px 13px',
-    borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    borderRadius: 'var(--radius-card)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     font: '400 13px/1.5 "IBM Plex Mono", monospace',
   },
   h2hRow: {
@@ -606,7 +739,7 @@ const S = {
     fontSize: 12,
     padding: '4px 8px',
     borderRadius: 4,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
   },
 }

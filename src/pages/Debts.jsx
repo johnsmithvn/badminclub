@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
-import { Empty, GRID_PAIR, Mono, Overline, PayDebtsDialog, QrModal } from '#ui'
+import { Empty, GRID_PAIR, Mono, Overline, PayDebtsDialog, QrModal, TabTrack } from '#ui'
 import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, wd } from '#utils/dates.js'
@@ -12,6 +12,7 @@ import {
   sessionOf, timeTxt,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
+import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 
 const norm = (s) =>
@@ -54,6 +55,7 @@ const stateStyle = (item) => (item.paid ? S.pillPaid : item.claimedAt ? S.pillWa
 
 export default function Debts() {
   const { db, ui, a } = useApp()
+  const isMobile = useMobile()
   const rawTab = ui.tab.debts || 'sessions'
   // `canMoney` PHẢI đứng trước `tab`: `tab` đọc nó. Để sau là TDZ — "Cannot access before
   // initialization" ngay lúc render, và minify đổi tên biến nên log không nói được là biến nào.
@@ -69,20 +71,22 @@ export default function Debts() {
 
   return (
     <>
-      <Tabs
-        variant="underline"
-        items={[
-          { value: 'sessions', label: t('debts.tabSessions'), count: counts.sessions },
-          { value: 'dues', label: t('debts.tabDues'), count: counts.dues },
-          { value: 'advance', label: t('debts.tabAdvance'), count: counts.advance },
-        ].concat(canMoney ? [{
-          value: 'pending',
-          label: t('debts.tabPending'),
-          count: counts.pending,
-        }] : [])}
-        value={tab}
-        onChange={(v) => a.setTab('debts', v)}
-      />
+      <TabTrack>
+        <Tabs
+          variant="underline"
+          items={[
+            { value: 'sessions', label: t('debts.tabSessions'), count: counts.sessions },
+            { value: 'dues', label: t('debts.tabDues'), count: counts.dues },
+            { value: 'advance', label: t('debts.tabAdvance'), count: counts.advance },
+          ].concat(canMoney ? [{
+            value: 'pending',
+            label: t('debts.tabPending'),
+            count: counts.pending,
+          }] : [])}
+          value={tab}
+          onChange={(v) => a.setTab('debts', v)}
+        />
+      </TabTrack>
       {tab === 'sessions' && <SessionDebts canMoney={canMoney} />}
       {tab === 'dues' && <Dues dues={dues} canMoney={canMoney} />}
       {tab === 'advance' && <Advances rows={advances} canMoney={canMoney} />}
@@ -127,11 +131,13 @@ function RefundConfirm({ target, onClose }) {
 }
 
 function SessionDebts({ canMoney }) {
-  const { db, a } = useApp()
+  const { db, a, toast } = useApp()
+  const isMobile = useMobile()
   const [expanded, setExpanded] = useState({})
   const [editingPrices, setEditingPrices] = useState({})
   const [filter, setFilter] = useState('unpaid')
   const [viewMode, setViewMode] = useState('table') // 'table' | 'grid'
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState('unpaid-desc')
   const [typeFilter, setTypeFilter] = useState('') // '' | 'member' | 'guest'
@@ -140,6 +146,8 @@ function SessionDebts({ canMoney }) {
   const [payMine, setPayMine] = useState(null)
   const [refundTarget, setRefundTarget] = useState(null)
   const me = myMember(db)
+  const effectiveViewMode = isMobile ? 'grid' : viewMode
+  const activeFilterCount = (typeFilter ? 1 : 0) + (sortKey !== 'unpaid-desc' ? 1 : 0)
 
   /**
    * Các khoản của một người mà THÀNH VIÊN tự khai được: còn nợ, chưa khai, có id thật, và
@@ -429,22 +437,24 @@ function SessionDebts({ canMoney }) {
           />
 
           {/* Chuyển đổi Bảng / Lưới */}
-          <div style={S.viewSwitcher}>
-            <IconButton
-              icon="list"
-              size="sm"
-              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              label={t('debts.viewTable')}
-              onClick={() => setViewMode('table')}
-            />
-            <IconButton
-              icon="layout-grid"
-              size="sm"
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              label={t('debts.viewGrid')}
-              onClick={() => setViewMode('grid')}
-            />
-          </div>
+          {!isMobile && (
+            <div style={S.viewSwitcher}>
+              <IconButton
+                icon="list"
+                size="sm"
+                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                label={t('debts.viewTable')}
+                onClick={() => setViewMode('table')}
+              />
+              <IconButton
+                icon="layout-grid"
+                size="sm"
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                label={t('debts.viewGrid')}
+                onClick={() => setViewMode('grid')}
+              />
+            </div>
+          )}
 
           {/* Tổng tiền nổi bật */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -473,42 +483,135 @@ function SessionDebts({ canMoney }) {
       }
     >
       {/* Thanh tìm kiếm và sắp xếp */}
-      <div style={S.fltBar}>
+      <div style={{
+        ...S.fltBar,
+        ...(isMobile ? { display: 'flex', gap: 8, width: '100%' } : {}),
+      }}>
         <SearchField
-          width={250}
-          style={{ height: 32 }}
+          width={isMobile ? undefined : 250}
+          style={{ height: 36, flex: 1 }}
           placeholder={t('debts.searchSession')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
         />
-        <Select
-          size="sm"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          options={[
-            { value: '', label: t('debts.whoAll') },
-            { value: 'member', label: t('debts.whoMember') },
-            { value: 'guest', label: t('debts.whoGuest') },
-          ]}
-        />
-        <Select
-          size="sm"
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value)}
-          options={[
-            { value: 'unpaid-desc', label: t('debts.sortUnpaidDesc') },
-            { value: 'unpaid-asc', label: t('debts.sortUnpaidAsc') },
-            { value: 'name-asc', label: t('debts.sortNameAsc') },
-            { value: 'name-desc', label: t('debts.sortNameDesc') },
-            { value: 'count-desc', label: t('debts.sortCountDesc') },
-          ]}
-        />
+        {isMobile ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setFilterSheetOpen(true)}
+              style={{
+                height: 36,
+                padding: '0 12px',
+                borderRadius: 'var(--radius-control)',
+                border: '1px solid var(--border-default)',
+                background: activeFilterCount > 0 ? 'var(--action-accent-bg)' : 'var(--surface-card)',
+                color: activeFilterCount > 0 ? 'var(--action-accent-fg)' : 'var(--text-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="settings-2" size={14} />
+              <span>{t('common.filter')}</span>
+              {activeFilterCount > 0 && (
+                <span style={{
+                  background: 'var(--action-accent-fg)',
+                  color: 'var(--gray-0)',
+                  borderRadius: 999,
+                  padding: '1px 6px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            {filterSheetOpen && (
+              <Dialog
+                sheet
+                title={t('common.filterTitle')}
+                onClose={() => setFilterSheetOpen(false)}
+              >
+                <div style={{ display: 'grid', gap: 16, padding: '12px 0 20px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                      {t('debts.whoMember')} / {t('debts.whoGuest')}
+                    </label>
+                    <Select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      options={[
+                        { value: '', label: t('debts.whoAll') },
+                        { value: 'member', label: t('debts.whoMember') },
+                        { value: 'guest', label: t('debts.whoGuest') },
+                      ]}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                      {t('common.sort')}
+                    </label>
+                    <Select
+                      value={sortKey}
+                      onChange={(e) => setSortKey(e.target.value)}
+                      options={[
+                        { value: 'unpaid-desc', label: t('debts.sortUnpaidDesc') },
+                        { value: 'unpaid-asc', label: t('debts.sortUnpaidAsc') },
+                        { value: 'name-asc', label: t('debts.sortNameAsc') },
+                        { value: 'name-desc', label: t('debts.sortNameDesc') },
+                        { value: 'count-desc', label: t('debts.sortCountDesc') },
+                      ]}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <Button
+                    variant="primary"
+                    style={{ height: 48, marginTop: 8 }}
+                    onClick={() => setFilterSheetOpen(false)}
+                  >
+                    {t('common.apply')}
+                  </Button>
+                </div>
+              </Dialog>
+            )}
+          </>
+        ) : (
+          <>
+            <Select
+              size="sm"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              options={[
+                { value: '', label: t('debts.whoAll') },
+                { value: 'member', label: t('debts.whoMember') },
+                { value: 'guest', label: t('debts.whoGuest') },
+              ]}
+            />
+            <Select
+              size="sm"
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value)}
+              options={[
+                { value: 'unpaid-desc', label: t('debts.sortUnpaidDesc') },
+                { value: 'unpaid-asc', label: t('debts.sortUnpaidAsc') },
+                { value: 'name-asc', label: t('debts.sortNameAsc') },
+                { value: 'name-desc', label: t('debts.sortNameDesc') },
+                { value: 'count-desc', label: t('debts.sortCountDesc') },
+              ]}
+            />
+          </>
+        )}
       </div>
 
       {filteredPeople.length === 0 ? (
         <Empty icon="circle-check" title={t('debts.sEmpty')} hint={t('debts.sEmptyHint')} />
-      ) : viewMode === 'table' ? (
+      ) : effectiveViewMode === 'table' ? (
         <div style={{ display: 'grid' }}>
           {filteredPeople.map((p) => {
             const isExp = !!expanded[p.id]
@@ -771,7 +874,7 @@ function SessionDebts({ canMoney }) {
                             value={currentPrice}
                             onChange={(e) => handlePriceChange(item.key, e.target.value)}
                             onBlur={() => handlePriceBlur(item)}
-                            style={{ width: 95, textAlign: 'right' }}
+                            style={{ width: isMobile ? 110 : 95, height: isMobile ? 44 : undefined, textAlign: 'right' }}
                             suffix={t('units.dong')}
                           />
                           {canMoney ? (
@@ -782,10 +885,11 @@ function SessionDebts({ canMoney }) {
                               </Button>
                             ) : (
                             <Button
-                              size="sm"
+                              size={isMobile ? 'md' : 'sm'}
                               variant={item.paid ? 'ghost' : 'secondary'}
                               icon={actionLabel.icon(item)}
                               onClick={() => handleSettleItem(item, p)}
+                              style={isMobile ? { minHeight: 44 } : undefined}
                             >
                               {t(item.paid
                                 ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
@@ -793,9 +897,17 @@ function SessionDebts({ canMoney }) {
                             </Button>
                             )
                           ) : (
-                            <span style={stateStyle(item)}>
-                              {stateLabel(item)}
-                            </span>
+                            <Button
+                              size={isMobile ? 'md' : 'sm'}
+                              variant={item.paid ? 'ghost' : 'secondary'}
+                              icon={actionLabel.icon(item)}
+                              onClick={() => toast(t('common.unauthorized'))}
+                              style={isMobile ? { minHeight: 44 } : undefined}
+                            >
+                              {t(item.paid
+                                ? (item.isRefund ? 'debts.paidRefund' : 'debts.paidCollect')
+                                : (item.isRefund ? 'debts.doRefund' : 'debts.doCollect'))}
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -803,13 +915,19 @@ function SessionDebts({ canMoney }) {
                   })}
                 </div>
 
-                {canMoney && p.hasUnpaid && (
+                {p.hasUnpaid && (
                   <Button
-                    size="sm"
+                    size={isMobile ? 'md' : 'sm'}
                     variant="primary"
                     icon={p.unpaidRefund > 0 && p.unpaidDue === 0 ? 'send' : 'circle-check'}
-                    onClick={() => handleSettleAll(p)}
-                    style={{ width: '100%', marginTop: 'auto' }}
+                    onClick={() => {
+                      if (!canMoney) {
+                        toast(t('common.unauthorized'))
+                        return
+                      }
+                      handleSettleAll(p)
+                    }}
+                    style={{ width: '100%', minHeight: isMobile ? 48 : undefined, marginTop: 'auto' }}
                   >
                     {t(p.unpaidRefund > 0 && p.unpaidDue === 0 ? 'debts.refundAll' : 'debts.collectAll')}
                   </Button>
@@ -824,15 +942,17 @@ function SessionDebts({ canMoney }) {
       {confirmCollect && (
         <Dialog
           open
+          sheet={isMobile}
           onClose={() => setConfirmCollect(null)}
           title={t('debts.collectDebtConfirmTitle')}
           footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', width: '100%' }}>
-              <Button variant="secondary" onClick={() => setConfirmCollect(null)}>
+              <Button variant="secondary" style={isMobile ? { height: 48, flex: 1 } : undefined} onClick={() => setConfirmCollect(null)}>
                 {t('common.cancel')}
               </Button>
               <Button
                 variant="accent"
+                style={isMobile ? { height: 48, flex: 1 } : undefined}
                 onClick={() => {
                   executeSettleAll(confirmCollect)
                   setConfirmCollect(null)
@@ -1072,7 +1192,8 @@ function Advances({ rows, canMoney }) {
 /* ---------------- QUỸ THÁNG (TABLE & GRID) ---------------- */
 
 function Dues({ dues, canMoney }) {
-  const { db, ui, a } = useApp()
+  const { db, ui, a, toast } = useApp()
+  const isMobile = useMobile()
   // Thành viên thường không có canMoney nên mọi nút thu đều ẩn. Ngoại lệ duy nhất: khoản quỹ
   // tháng của CHÍNH HỌ — bấm để tự khai đã chuyển, không phải để tick đã thu.
   const me = myMember(db)
@@ -1082,6 +1203,7 @@ function Dues({ dues, canMoney }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('') // '' | 'unpaid' | 'paid'
   const [sortKey, setSortKey] = useState('remain-desc')
+  const effectiveViewMode = isMobile ? 'grid' : viewMode
 
   const missing = duesTotal(dues).remain
 
@@ -1139,22 +1261,24 @@ function Dues({ dues, canMoney }) {
             onChange={(v) => setSelectedGroup(v)}
           />
 
-          <div style={S.viewSwitcher}>
-            <IconButton
-              icon="list"
-              size="sm"
-              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              label={t('debts.viewTable')}
-              onClick={() => setViewMode('table')}
-            />
-            <IconButton
-              icon="layout-grid"
-              size="sm"
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              label={t('debts.viewGrid')}
-              onClick={() => setViewMode('grid')}
-            />
-          </div>
+          {!isMobile && (
+            <div style={S.viewSwitcher}>
+              <IconButton
+                icon="list"
+                size="sm"
+                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                label={t('debts.viewTable')}
+                onClick={() => setViewMode('table')}
+              />
+              <IconButton
+                icon="layout-grid"
+                size="sm"
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                label={t('debts.viewGrid')}
+                onClick={() => setViewMode('grid')}
+              />
+            </div>
+          )}
 
           <span style={{
             font: '700 12.5px/1 var(--font-sans)',
@@ -1205,7 +1329,7 @@ function Dues({ dues, canMoney }) {
       </div>
       {filteredDues.length === 0 ? (
         <Empty icon="banknote" title={t('debts.duesEmpty')} hint={t('debts.duesEmptyHint')} />
-      ) : viewMode === 'table' ? (
+      ) : effectiveViewMode === 'table' ? (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--type-label)' }}>
             <thead>
@@ -1303,12 +1427,22 @@ function Dues({ dues, canMoney }) {
                             {t('debts.payMine', { amount: fmt(st.remain) })}
                           </Button>
                         )}
+                        {!canMoney && (!me || x.memberId !== me.id) && st.remain > 0 && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon="hand-coins"
+                            onClick={() => toast(t('common.unauthorized'))}
+                          >
+                            {t('debts.collectMoney')}
+                          </Button>
+                        )}
                         {canMoney && st.paid > 0 && (
                           <IconButton
                             icon="rotate-ccw"
                             size="sm"
                             variant="ghost"
-                            label={t('debts.dueClear')}
+                            label={t('debts.undoMark')}
                             onClick={() => a.clearDue(x.id)}
                           />
                         )}
@@ -1377,8 +1511,9 @@ function Dues({ dues, canMoney }) {
                   {canMoney && st.remain > 0 && (
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       {dueWaiting(x, st) ? (
-                        <Button size="sm" variant="ghost" icon="arrow-right"
-                          onClick={() => a.setTab('debts', 'pending')}>
+                        <Button size={isMobile ? 'md' : 'sm'} variant="ghost" icon="arrow-right"
+                          onClick={() => a.setTab('debts', 'pending')}
+                          style={isMobile ? { minHeight: 48, width: '100%' } : undefined}>
                           {t('debts.goPending')}
                         </Button>
                       ) : (
@@ -1386,16 +1521,17 @@ function Dues({ dues, canMoney }) {
                         <Input
                           size="sm"
                           mono
-                          style={{ flex: 1, textAlign: 'right' }}
+                          style={{ flex: 1, textAlign: 'right', ...(isMobile ? { height: 44 } : {}) }}
                           value={ui.form[key] ?? String(st.remain)}
                           onChange={(e) => a.setF(key, e.target.value)}
                           suffix={t('units.dong')}
                         />
                         <Button
                           variant="secondary"
-                          size="sm"
+                          size={isMobile ? 'md' : 'sm'}
                           icon="hand-coins"
                           onClick={() => { a.payDue(x.id, ui.form[key]); a.setF(key, undefined) }}
+                          style={isMobile ? { minHeight: 48 } : undefined}
                         >
                           {t('debts.doCollect')}
                         </Button>
@@ -1406,11 +1542,23 @@ function Dues({ dues, canMoney }) {
                   {!canMoney && me && x.memberId === me.id && st.remain > 0 && !x.claimedAt && (
                     <Button
                       variant="primary"
-                      size="sm"
+                      size={isMobile ? 'md' : 'sm'}
                       icon="banknote"
                       onClick={() => setPayMine([{ kind: 'dues', id: x.id, amount: st.remain }])}
+                      style={isMobile ? { minHeight: 48, width: '100%' } : undefined}
                     >
                       {t('debts.payMine', { amount: fmt(st.remain) })}
+                    </Button>
+                  )}
+                  {!canMoney && (!me || x.memberId !== me.id) && st.remain > 0 && (
+                    <Button
+                      variant="secondary"
+                      size={isMobile ? 'md' : 'sm'}
+                      icon="hand-coins"
+                      onClick={() => toast(t('common.unauthorized'))}
+                      style={isMobile ? { minHeight: 48, width: '100%' } : undefined}
+                    >
+                      {t('debts.doCollect')}
                     </Button>
                   )}
                   {canMoney && st.paid > 0 && st.remain === 0 && (

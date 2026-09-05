@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { Alert, Avatar, Button, Card, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
-import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, MyDebtPanel, Overline, SessionPill } from '#ui'
+import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, MyDebtPanel, Overline, SessionPill, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import {
   adjustRows, advanceRows, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
@@ -26,17 +27,19 @@ export default function Home() {
   return (
     <>
       <MyDebtPanel place="top" />
-      <Tabs
-        variant="underline"
-        items={[
-          { value: 'overview', label: t('home.tabs.overview') },
-          { value: 'match', label: t('home.tabMatch') },
-          { value: 'transactions', label: t('home.tabTransactions') },
-          { value: 'report', label: t('home.tabReport') },
-        ]}
-        value={tab}
-        onChange={(v) => a.setTab('home', v)}
-      />
+      <TabTrack>
+        <Tabs
+          variant="underline"
+          items={[
+            { value: 'overview', label: t('home.tabs.overview') },
+            { value: 'match', label: t('home.tabMatch') },
+            { value: 'transactions', label: t('home.tabTransactions') },
+            { value: 'report', label: t('home.tabReport') },
+          ]}
+          value={tab}
+          onChange={(v) => a.setTab('home', v)}
+        />
+      </TabTrack>
       {tab === 'overview' ? (
         <Overview />
       ) : tab === 'match' ? (
@@ -54,6 +57,7 @@ export default function Home() {
 
 function Overview() {
   const { db, a } = useApp()
+  const isMobile = useMobile(768)
   const canMoney = can(db.viewAs || 'owner', 'money')
   const canSessions = can(db.viewAs || 'owner', 'sessions')
   const month = db.month
@@ -229,17 +233,99 @@ function Overview() {
     .sort((a, b) => b.count - a.count)
   const maxInvites = Math.max(1, ...topInviters.map((x) => x.count))
 
+  const upcomingCard = (
+    <Card title={t('home.upcoming')} subtitle={t('home.upcomingSub')} icon="calendar-clock" padding="0">
+      {upcoming.length === 0
+        ? <Empty
+            icon={openIds.size ? 'play' : 'calendar-days'}
+            title={t(openIds.size ? 'home.allOpen' : 'home.noUpcoming')}
+            hint={t(openIds.size ? 'home.allOpenHint' : 'home.noUpcomingHint')}
+          />
+        : <div style={{ display: 'grid', minWidth: 0, width: '100%' }}>
+            {upcoming.map((s) => (
+              <div key={s.id} style={SS.upRow}>
+                <DayBox iso={s.date} />
+                <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'grid', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '2px 7px', borderRadius: 4,
+                      background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(14, 165, 233, 0.12) 100%)',
+                      border: '1px solid rgba(2, 132, 199, 0.2)',
+                      color: 'var(--navy-800)', fontWeight: 600, fontSize: 12,
+                    }}>
+                      <Icon name="users" size={11} style={{ color: 'var(--teal-600)' }} />
+                      <span>{groupOf(db, s.groupId).name}</span>
+                    </span>
+                    <SessionPill status={s.status} size="sm" />
+                  </div>
+                  <div
+                    title={timeTxt(s) + ' · ' + courtTxt(db, s)}
+                    style={{
+                      ...SS.ellipsis,
+                      fontFamily: 'var(--font-sans)',
+                      color: 'var(--text-secondary)',
+                      fontSize: 12,
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11.5,
+                      color: 'var(--navy-700)', padding: '1px 5px', borderRadius: 3,
+                      background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+                    }}>
+                      {timeTxt(s)}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)' }}>·</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <Icon name="map-pin" size={11} style={{ color: 'var(--teal-600)', flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{courtTxt(db, s)}</span>
+                    </span>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  <Mono weight={600} color="var(--text-primary)">{fmt(courtCost(db, s))}</Mono>
+                  <div style={SS.caption}>{t('home.courtCostLabel')}</div>
+                </div>
+                <div style={{ flexShrink: 0 }}>
+                  {canSessions ? (
+                    <Button size="sm" icon="user-round-check"
+                      variant={s.status === 'draft' ? 'secondary' : 'accent'}
+                      onClick={() => {
+                        if (s.status === 'draft') a.setSessionStatus(s.id, 'open')
+                        a.openSession(s.id)
+                      }}>
+                      {s.status === 'draft' ? t('home.openSession') : t('home.markAttend')}
+                    </Button>
+                  ) : (
+                    <Button size="sm" icon="eye" variant="ghost" onClick={() => a.openSession(s.id)}>
+                      {t('home.viewSession')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>}
+    </Card>
+  )
+
   return (
     <>
+      {isMobile && <Setup />}
       <Warnings />
       <MyDebtPanel place="overview" />
       <OpenNow />
-      <Setup />
+      {!isMobile && <Setup />}
+      {isMobile && upcomingCard}
       {/* 4 thẻ tài chính chuẩn từ Sổ quỹ */}
       <FundOverviewCards />
 
       {/* 4 chỉ số vận hành CLB */}
-      <div style={{ ...GRID_STAT, marginTop: 12 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: isMobile ? 10 : 12,
+        marginTop: 12,
+      }}>
         <StatCard label={t('home.debtToCollect')} value={fmt(totalDebt)} icon="clock-alert"
           tone={totalDebt > 0 ? 'warning' : 'neutral'}
           caption={debtors.length ? t('home.debtorCount', { n: debtors.length }) : t('home.debtAllPaid')} />
@@ -260,79 +346,8 @@ function Overview() {
             : t('home.openLeft', { n: sess.filter((s) => s.status !== 'cancelled').length - closed.length })} />
       </div>
 
-      <div style={GRID_PAIR}>
-        <Card title={t('home.upcoming')} subtitle={t('home.upcomingSub')} icon="calendar-clock" padding="0">
-          {upcoming.length === 0
-            ? <Empty
-                icon={openIds.size ? 'play' : 'calendar-days'}
-                title={t(openIds.size ? 'home.allOpen' : 'home.noUpcoming')}
-                hint={t(openIds.size ? 'home.allOpenHint' : 'home.noUpcomingHint')}
-              />
-            : <div style={{ display: 'grid', minWidth: 0, width: '100%' }}>
-                {upcoming.map((s) => (
-                  <div key={s.id} style={SS.upRow}>
-                    <DayBox iso={s.date} />
-                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          padding: '2px 7px', borderRadius: 4,
-                          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(14, 165, 233, 0.12) 100%)',
-                          border: '1px solid rgba(2, 132, 199, 0.2)',
-                          color: 'var(--navy-800)', fontWeight: 600, fontSize: 12,
-                        }}>
-                          <Icon name="users" size={11} style={{ color: 'var(--teal-600)' }} />
-                          <span>{groupOf(db, s.groupId).name}</span>
-                        </span>
-                        <SessionPill status={s.status} size="sm" />
-                      </div>
-                      <div
-                        title={timeTxt(s) + ' · ' + courtTxt(db, s)}
-                        style={{
-                          ...SS.ellipsis,
-                          fontFamily: 'var(--font-sans)',
-                          color: 'var(--text-secondary)',
-                          fontSize: 12,
-                          display: 'flex', alignItems: 'center', gap: 6,
-                        }}>
-                        <span style={{
-                          fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11.5,
-                          color: 'var(--navy-700)', padding: '1px 5px', borderRadius: 3,
-                          background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
-                        }}>
-                          {timeTxt(s)}
-                        </span>
-                        <span style={{ color: 'var(--text-muted)' }}>·</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <Icon name="map-pin" size={11} style={{ color: 'var(--teal-600)', flexShrink: 0 }} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{courtTxt(db, s)}</span>
-                        </span>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                      <Mono weight={600} color="var(--text-primary)">{fmt(courtCost(db, s))}</Mono>
-                      <div style={SS.caption}>{t('home.courtCostLabel')}</div>
-                    </div>
-                    <div style={{ flexShrink: 0 }}>
-                      {canSessions ? (
-                        <Button size="sm" icon="user-round-check"
-                          variant={s.status === 'draft' ? 'secondary' : 'accent'}
-                          onClick={() => {
-                            if (s.status === 'draft') a.setSessionStatus(s.id, 'open')
-                            a.openSession(s.id)
-                          }}>
-                          {s.status === 'draft' ? t('home.openSession') : t('home.markAttend')}
-                        </Button>
-                      ) : (
-                        <Button size="sm" icon="eye" variant="ghost" onClick={() => a.openSession(s.id)}>
-                          {t('home.viewSession')}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>}
-        </Card>
+      <div style={isMobile ? { display: 'grid', gap: 12 } : GRID_PAIR}>
+        {!isMobile && upcomingCard}
 
         <Card title={t('home.duesProgress')} subtitle={monthTxt(month)} icon="banknote"
           actions={<Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.go('debts')}>
@@ -370,7 +385,7 @@ function Overview() {
                 {dues.filter((d) => dueState(d).remain > 0).map((d) => {
                   const st = dueState(d)
                   return (
-                    <div key={d.id} style={SS.chip}>
+                    <div key={d.id} style={{ ...SS.chip, minHeight: 32 }}>
                       <Avatar name={memberOf(db, d.memberId).name} size={22} />
                       <span style={SS.label}>{memberOf(db, d.memberId).name}</span>
                       <Mono color="var(--status-delayed)">{fmt(st.remain)}</Mono>
@@ -390,7 +405,7 @@ function Overview() {
         </Card>
       </div>
 
-      <div style={GRID_PAIR}>
+      <div style={isMobile ? { display: 'grid', gap: 12 } : GRID_PAIR}>
         <Card
           title={t('home.topDebtorTitle')}
           subtitle={t('home.topDebtorSub', { month: monthTxt(month) })}
@@ -417,14 +432,14 @@ function Overview() {
                       {t(r.isMember ? 'home.tagMember' : 'home.tagGuest')}
                     </span>
                   </div>
-                  <div style={{ ...SS.caption, ...SS.ellipsis }}>
+                  <div style={isMobile ? SS.caption : { ...SS.caption, ...SS.ellipsis }}>
                     {r.desc.slice(0, 2).join(' · ')}
                   </div>
                 </div>
                 <Mono weight={600} size={14} color="var(--status-delayed)">{fmt(r.debt)}</Mono>
                 {canMoney && (
                   <Button variant="secondary" size="sm" icon="arrow-right"
-                    onClick={() => a.go('debts')}>Thu</Button>
+                    onClick={() => a.go('debts')}>{t('debts.doCollect')}</Button>
                 )}
               </div>
             ))}
@@ -449,7 +464,7 @@ function Overview() {
                 <Avatar name={r.name} size={28} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={SS.label}>{r.name}</span>
-                  <div style={{ ...SS.caption, ...SS.ellipsis }}>
+                  <div style={isMobile ? SS.caption : { ...SS.caption, ...SS.ellipsis }}>
                     {r.desc.slice(0, 2).join(' · ')}
                   </div>
                 </div>
@@ -465,7 +480,7 @@ function Overview() {
         </Card>
       </div>
 
-      <div style={GRID_PAIR}>
+      <div style={isMobile ? { display: 'grid', gap: 12 } : GRID_PAIR}>
         <Card title={t('home.topAttend')} subtitle={t('home.topAttendSub')} icon="trophy" padding="16px 18px">
           <div style={{ display: 'grid', gap: 10 }}>
             {Object.keys(attend).sort((x, y) => attend[y] - attend[x]).slice(0, cfg.ui.topAttendCount)
@@ -889,6 +904,7 @@ function Report() {
 
 function MatchTab() {
   const { db } = useApp()
+  const isMobile = useMobile(768)
   const activeMembers = useMemo(() => (db.members || []).filter((m) => m.active !== false), [db.members])
   const matches = useMemo(() => db.matches || [], [db.matches])
   const sessions = useMemo(() => db.sessions || [], [db.sessions])
@@ -952,11 +968,11 @@ function MatchTab() {
     const roster = allRosterIds.map((id) => memberMap[id]).filter(Boolean)
 
     const buckets = [
-      { key: 'bronze', label: '< 800', count: 0, color: 'var(--podium-bronze, #CD7F32)' },
-      { key: 'silver', label: '800 – 999', count: 0, color: 'var(--podium-silver, #C0D8F8)' },
-      { key: 'gold', label: '1000 – 1199', count: 0, color: 'var(--podium-gold, #F0B75C)' },
-      { key: 'plat', label: '1200 – 1399', count: 0, color: 'var(--status-transit-fg, #5FDBD3)' },
-      { key: 'diamond', label: '≥ 1400', count: 0, color: '#4C9AFF' },
+      { key: 'bronze', label: '< 800', count: 0, color: 'var(--podium-bronze)' },
+      { key: 'silver', label: '800 – 999', count: 0, color: 'var(--podium-silver)' },
+      { key: 'gold', label: '1000 – 1199', count: 0, color: 'var(--podium-gold)' },
+      { key: 'plat', label: '1200 – 1399', count: 0, color: 'var(--status-transit-fg)' },
+      { key: 'diamond', label: '≥ 1400', count: 0, color: 'var(--action-primary-bg)' },
     ]
 
     roster.forEach((m) => {
@@ -1089,7 +1105,7 @@ function MatchTab() {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {/* 4 StatCards */}
-      <div style={GRID_STAT}>
+      <div style={isMobile ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 } : GRID_STAT}>
         <StatCard
           label={t('home.statMatchesTotal')}
           value={stats.totalMatches}
@@ -1113,7 +1129,7 @@ function MatchTab() {
       </div>
 
       {/* Grid 2 cột */}
-      <div style={GRID_PAIR}>
+      <div style={isMobile ? { display: 'grid', gap: 16 } : GRID_PAIR}>
         {/* Cột trái */}
         <div style={{ display: 'grid', gap: 16 }}>
           {/* 1. Trải phổ Elo buổi tới */}
@@ -1139,7 +1155,7 @@ function MatchTab() {
                           {b.count}
                         </span>
                       </div>
-                      <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-inset, #101927)', overflow: 'hidden', border: '1px solid var(--border-subtle, #22304A)' }}>
+                      <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-inset)', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
                         <div style={{ width: `${pct}%`, height: '100%', background: b.color, transition: 'width 0.3s ease' }} />
                       </div>
                     </div>
@@ -1160,7 +1176,7 @@ function MatchTab() {
               {/* Top Win Rate */}
               <div style={SS.matchHighlightBox}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ ...SS.matchIconWrap, background: 'rgba(18,168,103,.15)', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
+                  <div style={{ ...SS.matchIconWrap, background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)' }}>
                     <Icon name="sparkles" size={16} />
                   </div>
                   <div>
@@ -1172,7 +1188,7 @@ function MatchTab() {
                 </div>
                 {playersOfMonth.topWrPlayer && (
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ font: '700 15px "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg, #5FD9A2)' }}>
+                    <div style={{ font: '700 15px "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg)' }}>
                       {playersOfMonth.topWrPlayer.winRate}%
                     </div>
                     <div style={SS.caption}>
@@ -1185,7 +1201,7 @@ function MatchTab() {
               {/* Top Streak */}
               <div style={SS.matchHighlightBox}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ ...SS.matchIconWrap, background: 'rgba(240,183,92,.15)', color: 'var(--status-delayed-fg, #F0B75C)' }}>
+                  <div style={{ ...SS.matchIconWrap, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' }}>
                     <Icon name="flame" size={16} />
                   </div>
                   <div>
@@ -1197,7 +1213,7 @@ function MatchTab() {
                 </div>
                 {playersOfMonth.topStreakPlayer && (
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ font: '700 15px "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg, #F0B75C)' }}>
+                    <div style={{ font: '700 15px "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg)' }}>
                       {playersOfMonth.topStreakPlayer.streak}W
                     </div>
                     <div style={SS.caption}>
@@ -1249,11 +1265,11 @@ function MatchTab() {
                 {unevenSessionPlay.uneven.map((u) => (
                   <div key={u.id} style={SS.unevenRow}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ color: 'var(--status-delayed-fg, #F0B75C)' }}>⚠️</span>
+                      <span style={{ color: 'var(--status-delayed-fg)' }}>⚠️</span>
                       <span style={SS.label}>{u.name}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ font: '600 13px "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg, #F0B75C)' }}>
+                      <span style={{ font: '600 13px "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg)' }}>
                         {t('home.playCount', { n: u.count })}
                       </span>
                       <span style={SS.caption}>
@@ -1305,8 +1321,8 @@ const SS = {
     justifyContent: 'space-between',
     padding: '10px 12px',
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
   },
   matchIconWrap: {
     width: 32,
@@ -1323,8 +1339,8 @@ const SS = {
     gap: 6,
     padding: '5px 10px',
     borderRadius: 6,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     fontSize: 12.5,
     color: 'var(--text-primary)',
   },
@@ -1334,7 +1350,7 @@ const SS = {
     justifyContent: 'space-between',
     padding: '8px 12px',
     borderRadius: 6,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
   },
 }

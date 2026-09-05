@@ -240,8 +240,8 @@ export default function RatingLineChart({
                 onClick={() => setFilter(btn.id)}
                 style={{
                   ...S.filterBtn,
-                  background: active ? 'var(--navy-500, #1D50A0)' : 'transparent',
-                  color: active ? 'var(--gray-0, #FFFFFF)' : 'var(--text-secondary, #A8B7CB)',
+                  background: active ? 'var(--action-primary-bg)' : 'transparent',
+                  color: active ? 'var(--gray-0)' : 'var(--text-secondary)',
                   boxShadow: active ? '0 1px 2px rgba(0,0,0,0.25)' : 'none',
                 }}
               >
@@ -259,7 +259,7 @@ export default function RatingLineChart({
           <span
             style={{
               ...S.deltaBadge,
-              color: delta >= 0 ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--status-incident-fg, #FF9A8F)',
+              color: delta >= 0 ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
             }}
           >
             {t('leaderboard.ratingDeltaMeta', {
@@ -284,27 +284,27 @@ export default function RatingLineChart({
             style={{ display: 'block', overflow: 'visible' }}
           >
             {/* Lưới ngang Grid Lines */}
-            <g stroke="var(--border-subtle, #22304A)" strokeWidth="1">
+            <g stroke="var(--border-subtle)" strokeWidth="1">
               <line x1="40" y1={svgMetrics.yTop} x2="810" y2={svgMetrics.yTop} />
               <line x1="40" y1={svgMetrics.yMid} x2="810" y2={svgMetrics.yMid} strokeDasharray="3 3" />
               <line x1="40" y1={svgMetrics.yBot} x2="810" y2={svgMetrics.yBot} />
             </g>
 
             {/* Nhãn trục Y */}
-            <g fill="var(--text-muted, #8494AA)" fontFamily="'IBM Plex Mono', monospace" fontSize="11">
+            <g fill="var(--text-muted)" fontFamily="var(--font-mono)" fontSize="11">
               <text x="2" y={svgMetrics.yTop + 4}>{svgMetrics.maxR}</text>
               <text x="2" y={svgMetrics.yMid + 4}>{svgMetrics.midR}</text>
               <text x="2" y={svgMetrics.yBot + 4}>{svgMetrics.minR}</text>
             </g>
 
             {/* Dải mờ Confidence Interval Band */}
-            <path d={svgMetrics.bandPath} fill="#3C74C4" fillOpacity="0.16" />
+            <path d={svgMetrics.bandPath} fill="var(--border-focus-color)" fillOpacity="0.16" />
 
             {/* Đường polyline rating chính */}
             <polyline
               points={svgMetrics.polylinePts}
               fill="none"
-              stroke="var(--status-transit-fg, #5FDBD3)"
+              stroke="var(--status-transit-fg)"
               strokeWidth="2.5"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -320,8 +320,8 @@ export default function RatingLineChart({
                     cx={c.x}
                     cy={c.y}
                     r="5"
-                    fill="var(--surface-page, #0B1220)"
-                    stroke="var(--status-delayed-fg, #F0B75C)"
+                    fill="var(--surface-page)"
+                    stroke="var(--status-delayed-fg)"
                     strokeWidth="2"
                   >
                     <title>{`${c.label}: ${c.rating} (${t('leaderboard.chartLegendEdited')})`}</title>
@@ -334,8 +334,8 @@ export default function RatingLineChart({
                   cx={c.x}
                   cy={c.y}
                   r={isLast ? '4.5' : '3.5'}
-                  fill={isLast ? 'var(--status-transit-fg, #5FDBD3)' : 'var(--surface-page, #0B1220)'}
-                  stroke="var(--status-transit-fg, #5FDBD3)"
+                  fill={isLast ? 'var(--status-transit-fg)' : 'var(--surface-page)'}
+                  stroke="var(--status-transit-fg)"
                   strokeWidth="2"
                 >
                   <title>{`${c.label}: ${c.rating}`}</title>
@@ -344,7 +344,7 @@ export default function RatingLineChart({
             })}
 
             {/* Nhãn trục X mốc ngày */}
-            <g fill="var(--text-muted, #8494AA)" fontFamily="'IBM Plex Sans', sans-serif" fontSize="11">
+            <g fill="var(--text-muted)" fontFamily="var(--font-sans)" fontSize="11">
               {svgMetrics.coords.map((c, i) => {
                 // Chỉ hiện một số mốc ngày để không bị đè chữ
                 const shouldShow =
@@ -362,7 +362,7 @@ export default function RatingLineChart({
             </g>
           </svg>
         ) : (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted, #8494AA)', fontSize: 13 }}>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
             {t('leaderboard.chartNoData')}
           </div>
         )}
@@ -370,7 +370,7 @@ export default function RatingLineChart({
         {/* Chú thích Legend bên dưới */}
         <div style={S.legendRow}>
           <span style={S.legendItem}>
-            <span style={{ width: 16, height: 2.5, background: 'var(--status-transit-fg, #5FDBD3)', borderRadius: 999 }} />
+            <span style={{ width: 16, height: 2.5, background: 'var(--status-transit-fg)', borderRadius: 999 }} />
             {t('leaderboard.chartLegendLine')}
           </span>
           <span style={S.legendItem}>
@@ -378,7 +378,7 @@ export default function RatingLineChart({
             {t('leaderboard.chartLegendBand')}
           </span>
           <span style={S.legendItem}>
-            <span style={{ width: 9, height: 9, borderRadius: 999, border: '2px solid var(--status-delayed-fg, #F0B75C)' }} />
+            <span style={{ width: 9, height: 9, borderRadius: 999, border: '2px solid var(--status-delayed-fg)' }} />
             {t('leaderboard.chartLegendEdited')}
           </span>
         </div>
@@ -401,19 +401,19 @@ const S = {
   },
   title: {
     font: '600 18px/1.25 Barlow, sans-serif',
-    color: 'var(--text-primary, #E9EFF7)',
+    color: 'var(--text-primary)',
   },
   subtitle: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   filterGroup: {
     display: 'flex',
     gap: 4,
     padding: 3,
     borderRadius: 8,
-    background: 'var(--surface-inset, #101927)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     flexWrap: 'wrap',
   },
   filterBtn: {
@@ -425,10 +425,10 @@ const S = {
     transition: 'all 0.15s ease',
   },
   chartCard: {
-    background: 'var(--surface-card, #141D2E)',
-    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    boxShadow: 'var(--shadow-xs)',
     padding: 16,
     display: 'grid',
     gap: 14,
@@ -441,14 +441,14 @@ const S = {
   },
   bigRating: {
     font: '700 34px/1 Barlow, sans-serif',
-    color: 'var(--text-primary, #E9EFF7)',
+    color: 'var(--text-primary)',
   },
   deltaBadge: {
     font: '600 14px/1 "IBM Plex Mono", monospace',
   },
   confidenceMeta: {
     font: '400 13px/1.4 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-muted, #8494AA)',
+    color: 'var(--text-muted)',
   },
   legendRow: {
     display: 'flex',
@@ -456,13 +456,13 @@ const S = {
     gap: 18,
     flexWrap: 'wrap',
     paddingTop: 8,
-    borderTop: '1px solid var(--border-subtle, #22304A)',
+    borderTop: '1px solid var(--border-subtle)',
   },
   legendItem: {
     display: 'flex',
     alignItems: 'center',
     gap: 7,
     font: '400 12px/1 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-secondary, #A8B7CB)',
+    color: 'var(--text-secondary)',
   },
 }

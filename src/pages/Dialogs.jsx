@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Alert, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, StatusPill, Switch } from '#ds'
 import { AvatarUpload, BankAccountSection, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { WD, dd, genDates, monthTxt } from '#utils/dates.js'
 import { fmtK, genderTxt, intOf, offBackSuggest } from '#lib/money.js'
 import { resolveVenue, venueOptions } from '#lib/forms.js'
@@ -41,6 +42,7 @@ export default function Dialogs() {
 }
 
 function ConfirmDialog({ confirm, onClose }) {
+  const isMobile = useMobile()
   const {
     title = t('common.confirm'),
     message,
@@ -73,7 +75,7 @@ function ConfirmDialog({ confirm, onClose }) {
     },
     warning: {
       icon: icon || 'alert-circle',
-      iconColor: '#d97706',
+      iconColor: 'var(--status-delayed-fg)',
       iconBg: 'rgba(217, 119, 6, 0.12)',
       btnVariant: 'primary',
     },
@@ -97,7 +99,7 @@ function ConfirmDialog({ confirm, onClose }) {
   }
 
   return (
-    <Dialog open title={title} width={460} onClose={handleCancel}>
+    <Dialog open sheet={isMobile} title={title} width={460} onClose={handleCancel}>
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: 2 }}>
         <div style={{
           width: 44,
@@ -134,7 +136,7 @@ function ConfirmDialog({ confirm, onClose }) {
           variant={toneConfig.btnVariant}
           icon={alertOnly ? undefined : (tone === 'danger' ? 'trash-2' : 'check')}
           onClick={handleConfirm}
-          style={tone === 'danger' ? { background: 'var(--status-incident)', color: '#fff', borderColor: 'transparent' } : undefined}
+          style={tone === 'danger' ? { background: 'var(--status-incident)', color: 'var(--gray-0)', borderColor: 'transparent' } : undefined}
         >
           {confirmText}
         </Button>
@@ -147,8 +149,9 @@ function ConfirmDialog({ confirm, onClose }) {
 
 function Shell({ title, desc, width, onSubmit, submitLabel, submitIcon, children, disabled }) {
   const { a } = useApp()
+  const isMobile = useMobile()
   return (
-    <Dialog open title={title} description={desc} width={width || 560} onClose={() => a.closeDialog()}>
+    <Dialog open sheet={isMobile} title={title} description={desc} width={width || 560} onClose={() => a.closeDialog()}>
       <div style={{ display: 'grid', gap: 12 }}>
         {children}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9 }}>
@@ -282,7 +285,7 @@ function ScheduleDialog() {
                 padding: '7px 12px', borderRadius: 99, border: '1px solid',
                 borderColor: on ? 'var(--navy-700)' : 'var(--border-subtle)',
                 background: on ? 'var(--navy-700)' : 'var(--surface-card)',
-                color: on ? '#fff' : 'var(--text-primary)',
+                color: on ? 'var(--gray-0)' : 'var(--text-primary)',
                 font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
               }}>{w}</button>
             )
@@ -784,9 +787,66 @@ function EditMemberDialog() {
  */
 function OffBackDialog() {
   const { db, ui, a } = useApp()
+  const isMobile = useMobile()
   const f = ui.form
   const s = offBackSuggest(db, f.obId)
   if (!s) return null
+
+  if (isMobile) {
+    return (
+      <Dialog
+        open
+        sheet
+        title={t('members.offBackTitle', { name: s.name })}
+        description={t('members.offBackDesc', { groups: s.groups, n: s.sessions })}
+        onClose={() => a.closeDialog()}
+      >
+        <div style={{ display: 'grid', gap: 14, padding: '8px 0 20px' }}>
+          <Input
+            label={t('members.offBackAmount')}
+            mono
+            suffix={t('units.dong')}
+            value={f.obAmount || ''}
+            hint={t('members.offBackHint', { amount: fmtK(s.amount), n: s.sessions })}
+            onChange={(e) => a.setF('obAmount', e.target.value)}
+          />
+          <Note>{t('members.offBackNote')}</Note>
+          <div style={{ display: 'grid', gap: 10, marginTop: 6 }}>
+            <Button
+              variant="primary"
+              icon="banknote"
+              disabled={intOf(f.obAmount) <= 0}
+              onClick={() => {
+                a.deactivate(f.obId, f.obAmount)
+                a.closeDialog()
+              }}
+              style={{ minHeight: 56, width: '100%', fontSize: 14, fontWeight: 600 }}
+            >
+              {t('members.offBackDo')}
+            </Button>
+            <Button
+              variant="secondary"
+              icon="user-round-minus"
+              onClick={() => {
+                a.deactivate(f.obId, 0)
+                a.closeDialog()
+              }}
+              style={{ minHeight: 56, width: '100%', fontSize: 14, fontWeight: 600 }}
+            >
+              {t('members.offBackSkip')}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => a.closeDialog()}
+              style={{ minHeight: 48, width: '100%' }}
+            >
+              {t('common.cancel')}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    )
+  }
 
   return (
     <Shell

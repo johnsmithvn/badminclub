@@ -7,9 +7,10 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { ROLE_KEYS, ROLES, allowedRoutes, can, effRoute, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
+import { ROLE_KEYS, ROLES, allowedRoutes, can, effRoute, footerSlots, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import perm from '#config/permissions.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
+
 
 /* ---------- cờ quyền ---------- */
 
@@ -109,4 +110,24 @@ ROLE_KEYS.forEach((r) => {
   assert.ok(roleDesc(r) && !roleDesc(r).includes('roles.'), 'thiếu mô tả i18n cho vai ' + r)
 })
 
+/* ---------- footerSlots: 5 slot mobile theo vai (Handoff §1.2 & §B3) ---------- */
+assert.deepEqual(
+  footerSlots('owner'),
+  ['home', 'sessions', 'debts', 'leaderboard', 'more'],
+  'owner có flag money -> slot 3 là debts, slot 5 là more'
+)
+assert.deepEqual(
+  footerSlots('treasurer'),
+  ['home', 'sessions', 'debts', 'leaderboard', 'more'],
+  'treasurer có flag money -> slot 3 là debts, slot 5 là more'
+)
+assert.deepEqual(
+  footerSlots('member'),
+  ['home', 'sessions', 'leaderboard', 'profile', 'more'],
+  'member không có flag money -> slot 3 là leaderboard, slot 4 là profile, slot 5 là more'
+)
+assert.equal(footerSlots('owner').length, 5, 'số slot luôn luôn là 5')
+assert.equal(footerSlots('member').length, 5, 'số slot luôn luôn là 5')
+
 console.log('lib/roles check: OK')
+

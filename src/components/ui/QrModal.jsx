@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button, Dialog, Icon } from '#ds'
+import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 
 const Mono = ({ children, color, weight, size, style }) => (
@@ -21,6 +22,7 @@ export function QrModal({
   title, qrUrl, bankName, accountNo, accountHolder, amount, memo, onClose,
   onConfirm, confirmLabel, confirming,
 }) {
+  const isMobile = useMobile()
   const [copied, setCopied] = useState(false)
 
   const copyAccountNo = () => {
@@ -33,6 +35,7 @@ export function QrModal({
   return (
     <Dialog
       open
+      sheet={isMobile}
       title={title || t('bank.qrTitle')}
       onClose={onClose}
       footer={
@@ -63,7 +66,7 @@ export function QrModal({
             alignItems: 'center',
             padding: 10,
             borderRadius: 12,
-            background: '#fff',
+            background: 'var(--gray-0)',
             border: '1px solid var(--border-subtle)',
             boxShadow: 'var(--shadow-sm)',
             maxWidth: 300,

@@ -430,9 +430,126 @@ export function EditGuestDialog({ guest, levels, onClose, onSave, onDelete }) {
   )
 }
 
+/**
+ * Khung bọc tab bar có thanh trượt ngang tự động cho mobile (ẩn scrollbar).
+ */
+export function TabTrack({ children, style }) {
+  return (
+    <div style={{
+      overflowX: 'auto',
+      WebkitOverflowScrolling: 'touch',
+      scrollbarWidth: 'none',
+      msOverflowStyle: 'none',
+      display: 'flex',
+      maxWidth: '100%',
+      ...style,
+    }}>
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Danh sách thẻ hai tầng cho mobile (handoff §1.3: một dòng bảng = một thẻ hai tầng).
+ * Nhận đúng columns của DataTable, render thân thiện với màn hình 390px.
+ */
+export function CardList({
+  columns = [],
+  rows = [],
+  rowKey = 'id',
+  onRowClick,
+  emptyLabel = t('common.empty'),
+  style,
+}) {
+  if (rows.length === 0) {
+    return (
+      <div style={{
+        padding: '24px 16px',
+        textAlign: 'center',
+        background: 'var(--surface-card)',
+        borderRadius: 'var(--radius-card, 10px)',
+        border: '1px solid var(--border-subtle)',
+        color: 'var(--text-muted)',
+        font: 'var(--type-body)',
+      }}>
+        <Icon name="inbox" size={20} style={{ display: 'block', margin: '0 auto 8px' }} />
+        {emptyLabel}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, ...style }}>
+      {rows.map((row, i) => {
+        const id = row[rowKey] ?? i
+        const firstCol = columns[0]
+        const rightCols = columns.filter((c, idx) => idx > 0 && c.align === 'right')
+        const midCols = columns.filter((c, idx) => idx > 0 && c.align !== 'right')
+        const firstVal = firstCol ? (firstCol.render ? firstCol.render(row) : row[firstCol.key]) : null
+
+        return (
+          <div
+            key={id}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-card, 10px)',
+              padding: '14px',
+              boxShadow: 'var(--shadow-xs)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              cursor: onRowClick ? 'pointer' : 'default',
+              transition: 'background var(--dur-fast) var(--ease-standard)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {firstVal}
+              </div>
+              {rightCols.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                  {rightCols.map((c) => (
+                    <div key={c.key}>
+                      {c.render ? c.render(row) : row[c.key]}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {midCols.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 12px', paddingTop: 2 }}>
+                {midCols.map((c) => {
+                  const val = c.render ? c.render(row) : row[c.key]
+                  if (val == null || val === '') return null
+                  return (
+                    <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {c.header && typeof c.header === 'string' && (
+                        <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+                          {c.header}:
+                        </span>
+                      )}
+                      <div style={{ font: 'var(--type-body)', color: 'var(--text-secondary)' }}>
+                        {val}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export { SearchSelect } from './SearchSelect.jsx'
 export { AvatarUpload } from './AvatarUpload.jsx'
 export { BankAccountSection } from './BankAccountSection.jsx'
 export { QrModal } from './QrModal.jsx'
 export { PayDebtsDialog } from '#components/ui/PayDebtsDialog.jsx'
 export { MyDebtPanel } from './MyDebtPanel.jsx'
+
