@@ -66,15 +66,23 @@ const c1 = adhocCharges(dbA, adhoc, dbA.attendance.ADH1)
 assert.equal(c1.add.length, 1, 'chỉ người CÓ MẶT mới sinh khoản thu; người vắng thì không')
 assert.equal(c1.add[0].memberId, 'M1')
 assert.equal(c1.add[0].guestId, null, 'dòng của thành viên phải để guest_id NULL — CHECK ở migration 0003')
-assert.equal(c1.add[0].price, 55000,
-  'M1 nữ TB- là thành viên CLB đi đột xuất: giá giao lưu 60.000 - giảm 5.000 = 55.000')
+assert.equal(c1.add[0].price, 60000,
+  'mặc định tắt ưu đãi: M1 nữ TB- là thành viên CLB đi đột xuất tính nguyên giá giao lưu 60.000')
 assert.equal(c1.add[0].paid, false, 'sinh ra là còn nợ, thu hay không là thao tác riêng')
+
+// Khi bật ưu đãi thành viên đi thêm: giá giao lưu 60.000 - 5.000 = 55.000
+const dbWithDiscount = {
+  ...dbA,
+  club: { ...dbA.club, hasMemberExtraDiscount: true, memberExtraDiscount: 5000 },
+}
+const c1Discount = adhocCharges(dbWithDiscount, adhoc, dbWithDiscount.attendance.ADH1)
+assert.equal(c1Discount.add[0].price, 55000, 'bật ưu đãi: giá giao lưu 60.000 - giảm 5.000 = 55.000')
 
 // Gọi lại sau mỗi lần chạm điểm danh — không được đẻ dòng thứ hai cho cùng một người, không thì
 // bấm qua bấm lại là thu gấp đôi.
 const row = {
   id: 'SGM1', sessionId: 'ADH1', memberId: 'M1', guestId: null,
-  level: 'TB-', gender: 'nu', price: 55000, paid: false, invitedBy: '',
+  level: 'TB-', gender: 'nu', price: 60000, paid: false, invitedBy: '',
 }
 const withRow = { ...dbA, sessionGuests: dbA.sessionGuests.concat([row]) }
 const c2 = adhocCharges(withRow, adhoc, withRow.attendance.ADH1)
@@ -92,7 +100,7 @@ assert.deepEqual(adhocCharges(paidRow, adhoc, { M1: false }).remove, [],
 assert.equal(sGuestsOnly(withRow, 'ADH1').length, 0, 'dòng thu của thành viên KHÔNG phải khách')
 assert.equal(sGuests(withRow, 'ADH1').length, 1)
 assert.equal(headCount(withRow, adhoc), 1, 'M1 có mặt + có dòng thu vẫn là MỘT người')
-assert.equal(guestRev(withRow, 'ADH1'), 55000, 'thu của thành viên vẫn là tiền vào của buổi đó')
+assert.equal(guestRev(withRow, 'ADH1'), 60000, 'thu của thành viên vẫn là tiền vào của buổi đó')
 
 /* ---------- chuẩn hoá tên khách (normalizeText) ---------- */
 assert.equal(normalizeText('  Thắng  '), 'thang')

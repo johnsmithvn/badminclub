@@ -275,13 +275,19 @@ export function guestPrice(db, level, gender) {
 
 /**
  * Đơn giá một buổi cho THÀNH VIÊN CLB đi lẻ (không đóng cố định nhóm đó).
- * Bằng giá giao lưu (theo trình độ và giới tính) trừ mức ưu đãi hội viên.
+ * Bằng giá giao lưu (theo trình độ và giới tính) trừ mức ưu đãi hội viên nếu bật toggle, hoặc bằng giá giao lưu nếu tắt.
  * Trả 0 khi CLB chưa khai bảng giá khách cho trình độ đó — chỗ gọi phải tự đỡ, xem `adjustRows`.
  */
 export function memberExtraPrice(db, member, month) {
   if (!member) return 0
   const base = guestPrice(db, levelOf(member, month), member.gender)
-  return Math.max(0, base - cfg.money.memberExtraDiscount)
+  if (base <= 0) return 0
+  const hasDiscount = Boolean(db.club?.hasMemberExtraDiscount)
+  if (!hasDiscount) return base
+  const discount = db.club?.memberExtraDiscount != null
+    ? intOf(db.club.memberExtraDiscount)
+    : (cfg.money.memberExtraDiscount ?? 5000)
+  return Math.max(0, base - discount)
 }
 
 /** Công nợ khách, gộp theo từng khách trong tháng. */

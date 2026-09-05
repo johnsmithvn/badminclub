@@ -71,6 +71,8 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
       feeNu: 260000,
       unitNam: 75000,
       unitNu: 65000,
+      hasMemberExtraDiscount: true,
+      memberExtraDiscount: 10000,
       guestPrices: [
         { level: 'Y', nam: 70000, nu: 60000 },
         { level: 'TB-', nam: 80000, nu: 70000 },
@@ -103,6 +105,8 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
 
   // Kiểm tra giá khách
   assert.equal(currentDb.guestPrices.find((p) => p.level === 'TB')?.nam, 85000)
+  assert.equal(currentDb.club.hasMemberExtraDiscount, true)
+  assert.equal(currentDb.club.memberExtraDiscount, 10000)
 
   // Kiểm tra sân bãi (giữ sân cũ, thêm sân mới có mapUrl)
   assert.equal(currentDb.courts.length, 2)

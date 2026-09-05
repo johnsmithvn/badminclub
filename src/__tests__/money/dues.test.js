@@ -7,7 +7,7 @@ import {
   savedAdjust,
   adjustKey, adjustRows, dueState, duesTotal, groupMembers, isPresent,
   joinDues, lockDues, pendingOffset, presentCount, regroupDues, sessionMembers,
-  sessionOf, unitPrice,
+  sessionOf, unitPrice, memberExtraPrice, guestPrice,
 } from '#lib/money.js'
 
 const db = seed()
@@ -102,6 +102,33 @@ assert.equal(ex.sessions, 1)
 assert.equal(ex.amount, ex.unit, 'đi 1 buổi thì nợ đúng 1 đơn giá')
 assert.ok(ex.amount > 0, 'người nợ quỹ thì amount DƯƠNG')
 assert.equal(ex.key, adjustKey('2026-08', 'G1', gone.id, 'extra_session'))
+
+// Test toggle chênh lệch giá thành viên đi thêm so với khách giao lưu:
+const gPrice = guestPrice(db, gone.level, gone.gender)
+assert.ok(gPrice > 0, 'fixture phải có giá khách cho trình độ của gone')
+assert.equal(
+  memberExtraPrice(db, gone, '2026-08'),
+  gPrice,
+  'khi toggle tắt (mặc định), thành viên đi thêm trả nguyên giá khách giao lưu'
+)
+const dbWithDiscount = {
+  ...db,
+  club: { ...db.club, hasMemberExtraDiscount: true, memberExtraDiscount: 5000 },
+}
+assert.equal(
+  memberExtraPrice(dbWithDiscount, gone, '2026-08'),
+  gPrice - 5000,
+  'khi toggle bật, thành viên đi thêm được giảm đúng 5.000đ'
+)
+const dbWithCustomDiscount = {
+  ...db,
+  club: { ...db.club, hasMemberExtraDiscount: true, memberExtraDiscount: 10000 },
+}
+assert.equal(
+  memberExtraPrice(dbWithCustomDiscount, gone, '2026-08'),
+  gPrice - 10000,
+  'khi cấu hình mức giảm 10.000đ, thành viên được giảm đúng 10.000đ'
+)
 
 // CLB chưa cấu hình guestPrices (hoặc trình độ của thành viên chưa có giá khách):
 // Đơn giá đi thêm buổi phải fallback về unitPrice(db, m, g, month).unit, KHÔNG ĐƯỢC ra 0đ.

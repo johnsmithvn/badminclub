@@ -1586,7 +1586,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
       toast(t('toast.groupDeleted'))
     },
-    saveMoneyTab: ({ feeNam, feeNu, hasRefund, unitNam, unitNu, guestPrices }) => {
+    saveMoneyTab: ({
+      feeNam,
+      feeNu,
+      hasRefund,
+      unitNam,
+      unitNu,
+      guestPrices,
+      hasMemberExtraDiscount,
+      memberExtraDiscount,
+    }) => {
       const parseUnit = (v) => (v === -1 || v === '-1' ? -1 : intOf(v))
       up((d) => {
         const def = d.groups[0] || {}
@@ -1594,6 +1603,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           g.id !== def.id &&
           (g.feeNam !== def.feeNam || g.feeNu !== def.feeNu || g.unitNam !== def.unitNam || g.unitNu !== def.unitNu)
         return {
+          club: {
+            ...d.club,
+            ...(hasMemberExtraDiscount !== undefined
+              ? { hasMemberExtraDiscount: Boolean(hasMemberExtraDiscount) }
+              : {}),
+            ...(memberExtraDiscount !== undefined
+              ? { memberExtraDiscount: intOf(memberExtraDiscount) }
+              : {}),
+          },
           groups: d.groups.map((g) => {
             if (isCustom(g)) return g
             return {
@@ -1647,6 +1665,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           feeNu: d.groups[0]?.feeNu || 0,
           unitNam: d.groups[0]?.unitNam || 0,
           unitNu: d.groups[0]?.unitNu || 0,
+          hasMemberExtraDiscount: Boolean(d.club?.hasMemberExtraDiscount),
+          memberExtraDiscount: d.club?.memberExtraDiscount != null ? intOf(d.club.memberExtraDiscount) : 5000,
           guestPrices: (d.guestPrices || []).map((p) => ({
             level: p.level,
             nam: p.nam || 0,
@@ -1715,6 +1735,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
         // 2. Biểu phí & Giá khách giao lưu
         if (opts.includeMoney && data.money) {
+          if (data.money.hasMemberExtraDiscount !== undefined) {
+            next.club = {
+              ...(next.club || d.club),
+              hasMemberExtraDiscount: Boolean(data.money.hasMemberExtraDiscount),
+              memberExtraDiscount: data.money.memberExtraDiscount != null ? intOf(data.money.memberExtraDiscount) : 5000,
+            }
+          }
           const activeLevels = next.levels || d.levels
           if (Array.isArray(data.money.guestPrices)) {
             const priceMap = {}

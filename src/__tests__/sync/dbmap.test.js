@@ -274,6 +274,8 @@ assert.ok(!('code' in cr), 'mã CLB do server sinh, client không được ghi �
 assert.equal(cr.opening_balance, db.club.opening)
 assert.equal(cr.court_pay_mode, db.club.courtPayMode)
 assert.equal(cr.allow_code_join, db.club.linkModes.code)
+assert.equal(cr.has_member_extra_discount, false, 'mặc định tắt ưu đãi đi thêm')
+assert.equal(cr.member_extra_discount, 5000, 'mặc định mức giảm 5.000đ')
 assert.deepEqual(cr.levels, db.club.levels, 'thang trình độ là dữ liệu của từng CLB')
 // Chuỗi rỗng phải xuống NULL, không phải '' — cột text nullable đọc lại thành '' thì diff nhảy mãi.
 const bare = clubRow({ club: { ...db.club, openingBy: '', bank: { holder: '', no: '', bank: '' }, levels: [] } })

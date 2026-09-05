@@ -57,6 +57,8 @@ export default function Settings() {
     customRefundUnit: Boolean(intOf(defGroup.unitNam) > 0 || intOf(defGroup.unitNu) > 0),
     unitNam: String(defGroup.unitNam > 0 ? defGroup.unitNam : ''),
     unitNu: String(defGroup.unitNu > 0 ? defGroup.unitNu : ''),
+    hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
+    memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
     guestPrices: db.guestPrices || [],
   })
 
@@ -101,11 +103,18 @@ export default function Settings() {
             (moneyDraft.unitNam !== String(defGroup.unitNam > 0 ? defGroup.unitNam : '') ||
               moneyDraft.unitNu !== String(defGroup.unitNu > 0 ? defGroup.unitNu : '')))))
 
+    const curHasMemberExtraDiscount = Boolean(db.club?.hasMemberExtraDiscount)
+    const curMemberExtraDiscount = db.club?.memberExtraDiscount != null ? intOf(db.club.memberExtraDiscount) : 5000
+    const isMemberDiscountChanged =
+      moneyDraft.hasMemberExtraDiscount !== curHasMemberExtraDiscount ||
+      (moneyDraft.hasMemberExtraDiscount && intOf(moneyDraft.memberExtraDiscount) !== curMemberExtraDiscount)
+
     if (isFeeChanged) list.push(t('settings.fieldMonthlyFee'))
     if (isRefundChanged) list.push(t('settings.fieldRefund'))
+    if (isMemberDiscountChanged) list.push(t('settings.fieldMemberExtraDiscount'))
     if (JSON.stringify(moneyDraft.guestPrices) !== JSON.stringify(db.guestPrices || [])) list.push(t('settings.fieldGuestPrices'))
     return list
-  }, [moneyDraft, defGroup, db.guestPrices])
+  }, [moneyDraft, defGroup, db.club, db.guestPrices])
 
   const dirtyCourts = useMemo(() => {
     if (JSON.stringify(courtsDraft) !== JSON.stringify(db.courts || [])) return [t('settings.fieldCourts')]
@@ -156,6 +165,8 @@ export default function Settings() {
         customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
         unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
         unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
+        hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
+        memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
         guestPrices: db.guestPrices || [],
       })
     }
@@ -192,6 +203,8 @@ export default function Settings() {
       customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
       unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
       unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
+      hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
+      memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
       guestPrices: db.guestPrices || [],
     })
 
@@ -273,6 +286,7 @@ export default function Settings() {
       // 2. Lưu Money Tab
       const isFeeChanged = dirtyMoney.includes(t('settings.fieldMonthlyFee'))
       const isRefundChanged = dirtyMoney.includes(t('settings.fieldRefund'))
+      const isMemberDiscountChanged = dirtyMoney.includes(t('settings.fieldMemberExtraDiscount'))
       const isGuestPricesChanged = dirtyMoney.includes(t('settings.fieldGuestPrices'))
 
       const newClubFeeNam = moneyDraft.hasMonthlyFee ? intOf(moneyDraft.feeNam) : 0
@@ -280,7 +294,7 @@ export default function Settings() {
       const newClubUnitNam = moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNam) : 0) : -1
       const newClubUnitNu = moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNu) : 0) : -1
 
-      if (isFeeChanged || isRefundChanged || isGuestPricesChanged) {
+      if (isFeeChanged || isRefundChanged || isMemberDiscountChanged || isGuestPricesChanged) {
         a.saveMoneyTab({
           feeNam: newClubFeeNam,
           feeNu: newClubFeeNu,
@@ -288,6 +302,8 @@ export default function Settings() {
           unitNam: newClubUnitNam,
           unitNu: newClubUnitNu,
           guestPrices: moneyDraft.guestPrices,
+          hasMemberExtraDiscount: moneyDraft.hasMemberExtraDiscount,
+          memberExtraDiscount: intOf(moneyDraft.memberExtraDiscount) || 5000,
         })
       }
 

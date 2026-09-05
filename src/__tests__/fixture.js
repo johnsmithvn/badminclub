@@ -267,6 +267,7 @@ export function seed() {
     openingBy: 'Thúy',
     bank: { holder: 'LE THI THUY ANH', no: '8804505982', bank: 'BIDV - PGD Cầu Dền' },
     seeDebtEachOther: false, seeFund: true, roundUnit: true, lockDay: 25, courtPayMode: 'month',
+    hasMemberExtraDiscount: false, memberExtraDiscount: 5000,
     linkModes: { code: true, invite: true, phone: true },
     // toDb LUÔN đặt club.levels — fixture phải cùng hình, không thì test chạy trên dữ liệu
     // không bao giờ tồn tại lúc chạy thật.
@@ -277,6 +278,7 @@ export function seed() {
     openingBy: 'Huy',
     bank: { holder: 'DO QUANG HUY', no: '0331000455112', bank: 'Vietcombank - Yên Phong' },
     seeDebtEachOther: false, seeFund: true, roundUnit: true, lockDay: 25, courtPayMode: 'session',
+    hasMemberExtraDiscount: false, memberExtraDiscount: 5000,
     linkModes: { code: true, invite: false, phone: false },
     levels: LEVELS,
   }
