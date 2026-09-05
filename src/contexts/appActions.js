@@ -2137,9 +2137,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (idxs.length < 2) return toast(t('toast.oneCourtOnly'))
       const ps = sessionPlayers(d0, s)
       const cg = autoSplit(ps, idxs, d0.levels)
+      const mode = (uiRef.current && uiRef.current.asnMode) || 'balance'
+      const { lineup } = arrange({
+        players: ps,
+        session: s,
+        mode,
+        levels: d0.levels,
+        matches: d0.matches || [],
+        groupMode: true,
+        courtGroups: cg,
+        kept: [],
+        playing: (d0.playing || {})[sid] || {},
+      })
       up((d) => ({
         courtGroups: { ...(d.courtGroups || {}), [sid]: cg },
-        lineups: { ...(d.lineups || {}), [sid]: {} },
+        lineups: { ...(d.lineups || {}), [sid]: lineup },
         groupMode: { ...(d.groupMode || {}), [sid]: true },
       }))
       upUi(() => ({ picked: null }))
@@ -2150,6 +2162,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       up((d) => ({
         lineups: { ...(d.lineups || {}), [sid]: {} },
         courtGroups: { ...(d.courtGroups || {}), [sid]: {} },
+        groupMode: { ...(d.groupMode || {}), [sid]: false },
       }))
       upUi(() => ({ picked: null }))
       toast(t('toast.lineupCleared'))

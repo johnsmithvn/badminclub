@@ -2219,7 +2219,11 @@
     "clearBtn": "Trả sân",
     "slotEmpty": "Ô trống",
     "slotPlace": "Đặt {{name}}",
-    "recentMatch": "Trận vừa xong: {{winner}} thắng ({{score}})"
+    "recentMatch": "Trận vừa xong: {{winner}} thắng ({{score}})",
+    "poolAllGrouped": "Tất cả người chơi đã được chia vào các sân bên dưới.",
+    "benchWaiting": "{{n}} đang chờ",
+    "unassignTitle": "Bỏ gán sân",
+    "rosterAllPlaying": "Tất cả người thuộc sân này đang thi đấu"
   },
   "rating": {
     "elo": "Elo",

@@ -101,7 +101,11 @@ export default function CourtAssignmentTab({ s }) {
       setSelectedPoolKey(null)
     } else if (currentKey) {
       // Bỏ người ra khỏi ô
-      a.removeFromCourt(s.id, currentKey)
+      if (groupMode) {
+        a.clearSlot(s.id, slotId)
+      } else {
+        a.removeFromCourt(s.id, currentKey)
+      }
     }
   }
 
@@ -110,7 +114,13 @@ export default function CourtAssignmentTab({ s }) {
     const slots = courtSlotIds(ci)
     slots.forEach((sl) => {
       const k = lineup[sl]
-      if (k) a.removeFromCourt(s.id, k)
+      if (k) {
+        if (groupMode) {
+          a.clearSlot(s.id, sl)
+        } else {
+          a.removeFromCourt(s.id, k)
+        }
+      }
     })
   }
 
@@ -123,10 +133,12 @@ export default function CourtAssignmentTab({ s }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
             <div style={S.cardTitle}>
-              {t('courtAssign.waitingPool', { n: pool.length })}
+              {groupMode ? t('assign.poolTitleGrouped') : t('courtAssign.waitingPool', { n: pool.length })}
             </div>
             <div style={S.cardSub}>
-              {t('courtAssign.poolDesc')}
+              {groupMode
+                ? t('assign.poolSubGrouped', { waiting: pool.length, total: players.length })
+                : t('courtAssign.poolDesc')}
             </div>
           </div>
           <span style={{
@@ -174,7 +186,9 @@ export default function CourtAssignmentTab({ s }) {
           })}
           {pool.length === 0 && (
             <span style={{ color: 'var(--text-muted, #8494AA)', fontSize: 13, padding: '8px 0' }}>
-              {t('courtAssign.poolEmpty')}
+              {groupMode
+                ? t('courtAssign.poolAllGrouped')
+                : t('courtAssign.poolEmpty')}
             </span>
           )}
         </div>
@@ -238,6 +252,8 @@ export default function CourtAssignmentTab({ s }) {
           const p3 = lineup[slots[3]] ? pmap[lineup[slots[3]]] : null
           const filledCount = [p0, p1, p2, p3].filter(Boolean).length
           const isFull = filledCount === 4
+          const rosterHere = players.filter((p) => courtGroups[p.key] === ci)
+          const benchPlayers = rosterHere.filter((p) => placed.indexOf(p.key) < 0)
 
           // Kiểm tra xem sân này có phải từ kèo không
           const attachedChallenge = (db.challenges || []).find((ch) => ch.sessionId === s.id && ch.status === 'oncourt' && ch.courtIndex === ci)
@@ -358,6 +374,78 @@ export default function CourtAssignmentTab({ s }) {
 
               {/* Body Sân: 2x2 Slots với VS */}
               <div style={S.courtBody}>
+                {groupMode && (
+                  <div
+                    style={S.rosterBox}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => drop(e, (k) => a.assignToCourt(s.id, k, ci))}
+                    onClick={() => {
+                      if (selectedPoolKey && courtGroups[selectedPoolKey] !== ci) {
+                        a.assignToCourt(s.id, selectedPoolKey, ci)
+                        setSelectedPoolKey(null)
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={S.rosterTitle}>
+                        {t('assign.rosterCount', { n: rosterHere.length, on: filledCount })}
+                      </span>
+                      {benchPlayers.length > 0 && (
+                        <span style={S.rosterBadge}>
+                          {t('courtAssign.benchWaiting', { n: benchPlayers.length })}
+                        </span>
+                      )}
+                    </div>
+                    <div style={S.rosterChips}>
+                      {benchPlayers.map((p) => {
+                        const isSelected = selectedPoolKey === p.key
+                        const r = getRating(p.key)
+                        return (
+                          <div
+                            key={p.key}
+                            {...dragProps(p.key)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedPoolKey(isSelected ? null : p.key)
+                            }}
+                            style={{
+                              ...S.rosterChip,
+                              background: isSelected ? 'var(--navy-500, #1D50A0)' : 'var(--surface-inset, #101927)',
+                              borderColor: isSelected ? 'var(--navy-400, #3C74C4)' : 'var(--border-subtle, #22304A)',
+                              boxShadow: isSelected ? '0 0 0 1px var(--navy-400, #3C74C4)' : 'none',
+                            }}
+                          >
+                            <span style={{ color: isSelected ? 'var(--gray-0, #FFFFFF)' : 'var(--text-primary, #E9EFF7)' }}>
+                              {p.name}
+                            </span>
+                            <span style={{ ...S.monoVal, color: isSelected ? 'var(--navy-200, #C0D8F8)' : 'var(--text-muted, #8494AA)' }}>
+                              {r}
+                            </span>
+                            <LevelChip level={p.level} levels={db.levels} />
+                            <button
+                              type="button"
+                              title={t('courtAssign.unassignTitle')}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                a.removeFromCourt(s.id, p.key)
+                                if (selectedPoolKey === p.key) setSelectedPoolKey(null)
+                              }}
+                              style={S.chipRemoveBtn}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )
+                      })}
+                      {benchPlayers.length === 0 && (
+                        <span style={{ fontSize: 12, color: 'var(--text-disabled, #5B6B81)', padding: '2px 0' }}>
+                          {rosterHere.length === 0 ? t('assign.rosterEmpty') : t('courtAssign.rosterAllPlaying')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div style={S.slotsGrid}>
                   {/* Đội A */}
                   <div style={{ display: 'grid', gap: 8 }}>
@@ -456,10 +544,11 @@ export default function CourtAssignmentTab({ s }) {
 
 /** Thanh công cụ: chọn chế độ xếp, xếp ngay, xóa, chia đều */
 function Toolbar({ s, lineup, idxs }) {
-  const { ui, a } = useApp()
+  const { ui, a, db } = useApp()
   const mode = ui.asnMode || 'balance'
   const total = slotIds(s).length
   const on = Object.keys(lineup).length
+  const groupMode = !!(db.groupMode || {})[s.id]
 
   return (
     <div style={S.toolbar}>
@@ -488,6 +577,17 @@ function Toolbar({ s, lineup, idxs }) {
           {t('assign.seats', { on, total, courts: idxs.length })}
         </div>
       </div>
+
+      {idxs.length > 1 && (
+        <div style={S.groupBar}>
+          <Switch
+            label={t('assign.groupModeLabel')}
+            checked={groupMode}
+            onChange={() => a.toggleGroupMode(s.id)}
+          />
+          <span style={S.caption}>{t(groupMode ? 'assign.groupModeOn' : 'assign.groupModeOff')}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -703,5 +803,74 @@ const S = {
     borderRadius: 4,
     background: 'rgba(224,138,0,.18)',
     color: 'var(--status-delayed-fg, #F0B75C)',
+  },
+  rosterBox: {
+    padding: '10px 12px',
+    borderRadius: 8,
+    background: 'var(--surface-inset, #101927)',
+    border: '1px dashed var(--navy-600, #163B75)',
+    display: 'grid',
+    gap: 8,
+  },
+  rosterTitle: {
+    font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-secondary, #A8B7CB)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  rosterBadge: {
+    font: '600 11px/1 "IBM Plex Sans", sans-serif',
+    padding: '2px 6px',
+    borderRadius: 99,
+    background: 'rgba(95, 219, 211, 0.12)',
+    color: 'var(--status-transit-fg, #5FDBD3)',
+    border: '1px solid rgba(95, 219, 211, 0.25)',
+  },
+  rosterChips: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+    minHeight: 28,
+  },
+  rosterChip: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 8px',
+    borderRadius: 6,
+    border: '1px solid',
+    cursor: 'grab',
+    font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
+    transition: 'all 0.15s ease',
+  },
+  chipRemoveBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-muted, #8494AA)',
+    cursor: 'pointer',
+    padding: '0 2px',
+    fontSize: 14,
+    lineHeight: 1,
+    marginLeft: 2,
+    borderRadius: 3,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+    padding: '8px 12px',
+    borderRadius: 8,
+    background: 'var(--surface-inset, #101927)',
+    border: '1px solid var(--border-subtle, #22304A)',
+    marginTop: 10,
+  },
+  caption: {
+    font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-muted, #8494AA)',
   },
 }
