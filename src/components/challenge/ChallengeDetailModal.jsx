@@ -2,10 +2,9 @@ import { useState, useMemo } from 'react'
 import { Dialog } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { playerName } from '#lib/money.js'
+import { myMember, playerName } from '#lib/money.js'
 import { expectedScore, getPlayerRating } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
-import { myMember } from '#lib/members.js'
 import { t } from '#i18n'
 
 export default function ChallengeDetailModal({ challenge, session, onClose, onDeployed, onScoreInput }) {
