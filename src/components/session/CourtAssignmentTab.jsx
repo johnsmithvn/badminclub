@@ -3,7 +3,7 @@ import { Button, Card, Icon, IconButton, Select, Switch } from '#ds'
 import { LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { courtOf, playerName, genderTxt } from '#lib/money.js'
+import { playerName, genderTxt } from '#lib/money.js'
 import { sessionPlayers, detailedCourtBalance, courtSlotIds } from '#lib/assign.js'
 import {
   expectedScore, getPlayerRating,

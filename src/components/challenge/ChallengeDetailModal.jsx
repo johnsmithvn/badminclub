@@ -113,14 +113,21 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   }
 
   const handleCancel = () => {
-    if (!window.confirm(t('common.confirm') + '?')) return
-    setSubmitting(true)
-    try {
-      a.cancelChallenge(c.id)
-      onClose()
-    } finally {
-      setSubmitting(false)
-    }
+    a.confirm({
+      title: t('challenge.cancelTitle'),
+      message: t('challenge.cancelMsg'),
+      tone: 'danger',
+      confirmText: t('challenge.cancelOk'),
+      onConfirm: () => {
+        setSubmitting(true)
+        try {
+          a.cancelChallenge(c.id)
+          onClose()
+        } finally {
+          setSubmitting(false)
+        }
+      },
+    })
   }
 
   const namesA = teamA.map((id) => playerName(db, id)).join(' · ') || t('challenge.teamA')

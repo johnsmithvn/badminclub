@@ -863,6 +863,7 @@ function Dialog({
   onClose,
   sheet,
   style,
+  zIndex = 60,
   ...rest
 }) {
   if (!open) return null;
@@ -870,7 +871,7 @@ function Dialog({
     style: {
       position: 'fixed',
       inset: 0,
-      zIndex: 60,
+      zIndex: zIndex,
       display: 'flex',
       alignItems: sheet ? 'flex-end' : 'center',
       justifyContent: 'center',

@@ -95,14 +95,21 @@ export default function EditScoreModal({ match, onClose, onSaved }) {
   }
 
   const handleCancelMatch = () => {
-    if (!window.confirm(t('common.delete') + '?')) return
-    try {
-      a.cancelMatch({ matchId: match.id, reason: reason.trim() || t('common.delete') })
-      if (onSaved) onSaved({ matchId: match.id, cancelled: true })
-      onClose()
-    } catch (err) {
-      setErrorMsg(err.message || t('matchSearch.errorEdit'))
-    }
+    a.confirm({
+      title: t('matchSearch.cancelMatchTitle'),
+      message: t('matchSearch.cancelMatchMsg'),
+      tone: 'danger',
+      confirmText: t('matchSearch.cancelMatchOk'),
+      onConfirm: () => {
+        try {
+          a.cancelMatch({ matchId: match.id, reason: reason.trim() || t('common.delete') })
+          if (onSaved) onSaved({ matchId: match.id, cancelled: true })
+          onClose()
+        } catch (err) {
+          setErrorMsg(err.message || t('matchSearch.errorEdit'))
+        }
+      },
+    })
   }
 
   const matchEdits = useMemo(() => {

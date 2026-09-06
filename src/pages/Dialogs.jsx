@@ -99,7 +99,7 @@ function ConfirmDialog({ confirm, onClose }) {
   }
 
   return (
-    <Dialog open sheet={isMobile} title={title} width={460} onClose={handleCancel}>
+    <Dialog open sheet={isMobile} title={title} width={460} onClose={handleCancel} zIndex={1000}>
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: 2 }}>
         <div style={{
           width: 44,
