@@ -23,6 +23,7 @@ const NAV = [
   { value: 'members', icon: 'users' },
   { section: 'money' },
   { value: 'debts', icon: 'clock-alert', badge: 'debtPending', alert: 'hasDebt' },
+  { value: 'fund', icon: 'wallet' },
   { section: 'account' },
   { value: 'profile', icon: 'user-round' },
   { value: 'settings', icon: 'settings', badge: 'pendingJoins' },
