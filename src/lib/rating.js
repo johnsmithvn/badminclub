@@ -399,11 +399,17 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
 
   // Duyệt qua từng trận từ đầu đến cuối
   const updatedMatches = sorted.map((m) => {
-    const players = m.playerKeys || []
-    if (players.length < 2) return m
+    const teamA = (m.teamA && m.teamA.length) ? m.teamA : (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const teamB = (m.teamB && m.teamB.length) ? m.teamB : (m.playerKeys ? m.playerKeys.slice(teamA.length) : [])
+    if (!teamA.length || !teamB.length) return m
 
-    const teamA = players.slice(0, 2)
-    const teamB = players.slice(2, 4)
+    ;[...teamA, ...teamB].forEach((id) => {
+      if (ratings[id] === undefined) {
+        ratings[id] = initialRatingOf('TB', levels)
+        gamesCount[id] = 0
+      }
+    })
+
     const ra = teamRating(teamA, ratings)
     const rb = teamRating(teamB, ratings)
 
@@ -455,6 +461,8 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
 
     return {
       ...m,
+      teamA,
+      teamB,
       initialRatingA: ra,
       initialRatingB: rb,
       winnerTeam,
@@ -463,8 +471,10 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
   })
 
   // Dựng kết quả ratings cuối cùng cho từng người (kèm tier & displayRating)
+  const memberIdSet = new Set((members || []).map((m) => m.id))
   const finalRatings = {}
   Object.keys(ratings).forEach((id) => {
+    if (!memberIdSet.has(id)) return
     const finalR = Math.round(ratings[id])
     finalRatings[id] = {
       memberId: id,
