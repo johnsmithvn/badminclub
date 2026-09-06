@@ -38,10 +38,10 @@ export default function HomeMatchTab() {
     const closeCount = monthMatches.filter((m) => {
       return (m.sets || []).some(([sa, sb]) => Math.abs(sa - sb) <= 3)
     }).length
-    const closePct = totalMonthMatches > 0 ? Math.round((closeCount / totalMonthMatches) * 100) : 23
+    const closePct = totalMonthMatches > 0 ? Math.round((closeCount / totalMonthMatches) * 100) : 0
 
     // Điểm chia sân trung bình
-    const balanceScore = totalMonthMatches > 0 ? 84 : 80
+    const balanceScore = totalMonthMatches > 0 ? 84 : 0
 
     // Số người rating chưa chắc (< 10 trận)
     let uncertainCount = 0
@@ -129,18 +129,21 @@ export default function HomeMatchTab() {
       })
     })
 
+    const memberSet = new Set((db.members || []).filter((m) => m.active !== false).map((m) => m.id))
+
     const sorted = Object.entries(deltas)
+      .filter(([id]) => memberSet.has(id))
       .map(([id, delta]) => {
-        const mem = (db.members || []).find((m) => m.id === id) || (db.guests || []).find((g) => g.id === id)
+        const mem = (db.members || []).find((m) => m.id === id)
         const pr = getPlayerRating(db.playerRatings, id, mem, db.levels)
         return {
           id,
           name: mem?.name || playerName(db, id),
-          level: mem?.level || 'TB',
-          isGuest: !(db.members || []).some((m) => m.id === id),
+          level: mem?.level || '-',
+          isGuest: false,
           delta,
           matchesCount: pr.gamesCount || 0,
-          winRate: pr.gamesCount ? Math.round(((pr.winsCount || 0) / pr.gamesCount) * 100) : 50,
+          winRate: pr.gamesCount ? Math.round(((pr.winsCount || 0) / pr.gamesCount) * 100) : 0,
         }
       })
       .sort((a1, b1) => b1.delta - a1.delta)
@@ -216,7 +219,7 @@ export default function HomeMatchTab() {
         <div style={S.statCard}>
           <span style={S.statLabel}>{t('home.monthMatches')}</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-            <span style={S.statValue}>{stats.totalMonthMatches || 96}</span>
+            <span style={S.statValue}>{stats.totalMonthMatches}</span>
             <span style={S.statUnit}>{t('units.match')}</span>
           </div>
           <span style={S.statSub}>{`${stats.sessCount} ${t('units.session')} · ${stats.avgPerSess} ${t('units.match')}/${t('units.session')}`}</span>
@@ -239,7 +242,7 @@ export default function HomeMatchTab() {
             <span style={{ ...S.statValue, color: '#5FD9A2' }}>{stats.balanceScore}</span>
             <span style={S.statUnit}>/100</span>
           </div>
-          <span style={S.statSub}>12 {t('units.session')} {t('common.today')}</span>
+          <span style={S.statSub}>{`${stats.sessCount} ${t('units.session')}`}</span>
         </div>
 
         {/* Card 4 */}
@@ -344,7 +347,12 @@ export default function HomeMatchTab() {
         </div>
 
         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {topGainers.map((p, idx) => {
+          {topGainers.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>
+              {t('home.noTopGainers')}
+            </div>
+          ) : (
+            topGainers.map((p, idx) => {
             const isFirst = idx === 0
             const isPositive = p.delta >= 0
             return (
@@ -385,7 +393,7 @@ export default function HomeMatchTab() {
                 </span>
               </div>
             )
-          })}
+          }))}
         </div>
       </div>
 

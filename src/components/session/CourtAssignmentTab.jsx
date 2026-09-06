@@ -446,20 +446,28 @@ export default function CourtAssignmentTab({ s }) {
                   style={S.playerChip}
                   role="button"
                   tabIndex={0}
+                  title={p.name}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                    <span style={S.playerNameText}>{p.name}</span>
-                    <span style={isFemale ? S.genderTagFemale : S.genderTagMale}>
-                      {genderTxt(p.gender)}
-                    </span>
-                    <LevelChip level={p.level} levels={db.levels} />
-                    {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                  {/* Hàng 1: Tên VĐV to rõ không bị cắt + LevelChip + Tag Khách */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                      <span style={S.playerNameText}>{p.name}</span>
+                      {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                    </div>
+                    <LevelChip level={p.level} levels={db.levels} size="sm" />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <span style={isFresh ? S.freshPlayTag : S.playCountTag}>
-                      {plays} {t('units.match')}
-                    </span>
+                  {/* Hàng 2: Giới tính · Số trận (nổi bật nếu 0 trận) · Rating Elo */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%', fontSize: 11.5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      <span style={{ color: isFemale ? 'var(--status-incident-fg)' : 'var(--text-secondary)', fontWeight: 500 }}>
+                        {genderTxt(p.gender)}
+                      </span>
+                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                      <span style={isFresh ? S.freshPlayTag : S.playCountTag}>
+                        {plays} {t('units.match')}
+                      </span>
+                    </div>
                     <span style={S.playerRatingMono}>{r}</span>
                   </div>
                 </div>
@@ -553,11 +561,11 @@ export default function CourtAssignmentTab({ s }) {
                       />
                     </div>
                     <div style={S.slotMeta}>
-                      <span style={{ color: '#8494AA' }}>{genderTxt(p.gender)}</span>
-                      <span style={{ color: '#8494AA' }}>·</span>
-                      <span style={{ color: '#E9EFF7', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
-                      <span style={{ color: '#8494AA' }}>·</span>
-                      <span style={{ color: '#5FDBD3' }}>{plays} {t('units.match')}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{genderTxt(p.gender)}</span>
+                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                      <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
+                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                      <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
                     </div>
                   </div>
                 )
@@ -601,11 +609,11 @@ export default function CourtAssignmentTab({ s }) {
                       />
                     </div>
                     <div style={S.slotMeta}>
-                      <span style={{ color: '#8494AA' }}>{genderTxt(p.gender)}</span>
-                      <span style={{ color: '#8494AA' }}>·</span>
-                      <span style={{ color: '#E9EFF7', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
-                      <span style={{ color: '#8494AA' }}>·</span>
-                      <span style={{ color: '#5FDBD3' }}>{plays} {t('units.match')}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{genderTxt(p.gender)}</span>
+                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                      <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
+                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                      <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
                     </div>
                   </div>
                 )
@@ -716,10 +724,10 @@ export default function CourtAssignmentTab({ s }) {
             {effectiveAnalysis.suggestion && (
               <div style={S.suggestionBox}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                  <div style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
                     {t('assign.swapAction', { p1: effectiveAnalysis.suggestion.p1Name, p2: effectiveAnalysis.suggestion.p2Name })}
                   </div>
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
                     {t('assign.skewDiff', { d: effectiveAnalysis.suggestion.newDelta })}
                   </div>
                 </div>
@@ -738,7 +746,7 @@ export default function CourtAssignmentTab({ s }) {
         {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
         {teamA.length > 0 && teamB.length > 0 && (
           <div style={S.scoreLoggerBox}>
-            <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+            <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
               {t('scoreModal.instruction')}
             </div>
 
@@ -753,10 +761,10 @@ export default function CourtAssignmentTab({ s }) {
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'A' ? '#E9EFF7' : '#A8B7CB' }}>
+                  <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'A' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                     {teamA.map((k) => playerName(db, k)).join(' · ')}
                   </div>
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'A' ? '#5FDBD3' : '#8494AA' }}>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
                     {t('scoreModal.teamAvg', { t: 'A', r: ratingA })}
                   </div>
                 </div>
@@ -777,10 +785,10 @@ export default function CourtAssignmentTab({ s }) {
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'B' ? '#E9EFF7' : '#A8B7CB' }}>
+                  <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'B' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                     {teamB.map((k) => playerName(db, k)).join(' · ')}
                   </div>
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'B' ? '#5FDBD3' : '#8494AA' }}>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
                     {t('scoreModal.teamAvg', { t: 'B', r: ratingB })}
                   </div>
                 </div>
@@ -823,27 +831,27 @@ export default function CourtAssignmentTab({ s }) {
             {/* Dự đoán trước trận & Thay đổi sau khi lưu */}
             <div style={S.preMatchBox}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+                <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
                   {t('scoreModal.predictTitle')}
                 </span>
                 <span style={S.balancedTag}>{t('scoreModal.balancedTag')}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px "IBM Plex Mono", monospace', marginTop: 4 }}>
-                <span style={{ color: '#5FDBD3' }}>A {pctA}%</span>
-                <span style={{ color: '#8494AA' }}>{pctB}% B</span>
+                <span style={{ color: 'var(--status-transit-fg)' }}>A {pctA}%</span>
+                <span style={{ color: 'var(--text-muted)' }}>{pctB}% B</span>
               </div>
               <div style={S.predictBarTrack}>
-                <div style={{ width: `${pctA}%`, height: '100%', background: '#00B2A9' }} />
-                <div style={{ width: `${pctB}%`, height: '100%', background: '#2E3E5C' }} />
+                <div style={{ width: `${pctA}%`, height: '100%', background: 'var(--action-accent-bg, #00B2A9)' }} />
+                <div style={{ width: `${pctB}%`, height: '100%', background: 'var(--border-subtle)' }} />
               </div>
-              <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA', marginTop: 4 }}>
+              <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
                 {t('scoreModal.predictSub', { delta: deltaRating })}
               </div>
             </div>
 
             {/* Box thay đổi Elo & XP */}
             <div style={S.changesBox}>
-              <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+              <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
                 {t('scoreModal.postMatchChanges')}
               </span>
               <div style={{ display: 'grid', gap: 6, marginTop: 4 }}>
@@ -853,14 +861,14 @@ export default function CourtAssignmentTab({ s }) {
                   const deltaTxt = isWon ? '+8' : '−8'
                   return (
                     <div key={k} style={S.changeRow}>
-                      <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? '#E9EFF7' : '#A8B7CB' }}>
+                      <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                         {playerName(db, k)}
                       </span>
                       <div style={{ display: 'flex', gap: 12 }}>
-                        <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? '#5FD9A2' : '#FF8578' }}>
+                        <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
                           {t('scoreModal.ratingChange', { d: deltaTxt })}
                         </span>
-                        <span style={{ font: '400 12.5px "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                        <span style={{ font: '400 12.5px "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                           {t('scoreModal.xpChange')}
                         </span>
                       </div>
@@ -868,7 +876,7 @@ export default function CourtAssignmentTab({ s }) {
                   )
                 })}
               </div>
-              <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: '#8494AA', marginTop: 6 }}>
+              <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
                 {t('scoreModal.xpExplain')}
               </div>
             </div>
@@ -927,16 +935,16 @@ const S = {
     flex: '1 1 200px',
     height: 38,
     borderRadius: 8,
-    border: '1px solid #2E3E5C',
-    background: '#101927',
-    color: '#E9EFF7',
+    border: '1px solid var(--border-default)',
+    background: 'var(--surface-sunken)',
+    color: 'var(--text-primary)',
     padding: '0 12px',
     fontSize: 13,
     outline: 'none',
   },
   touchHint: {
     font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
   },
   poolGrid: {
     display: 'grid',
@@ -948,77 +956,77 @@ const S = {
   },
   playerChip: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    padding: '8px 12px',
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: 5,
+    padding: '9px 12px',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 8,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
   },
   playerNameText: {
-    font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif',
-    color: '#E9EFF7',
+    font: '600 14px/1.2 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-primary)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
   genderTagMale: {
     font: '600 10px/1 "IBM Plex Sans", sans-serif',
-    color: '#9FC0EA',
-    background: 'rgba(60, 116, 196, 0.18)',
-    padding: '3px 6px',
+    color: 'var(--status-scheduled-fg)',
+    background: 'var(--status-scheduled-bg)',
+    padding: '2px 6px',
     borderRadius: 4,
   },
   genderTagFemale: {
     font: '600 10px/1 "IBM Plex Sans", sans-serif',
-    color: '#FF9A8F',
-    background: 'rgba(225, 68, 52, 0.18)',
-    padding: '3px 6px',
+    color: 'var(--status-incident-fg)',
+    background: 'var(--status-incident-bg)',
+    padding: '2px 6px',
     borderRadius: 4,
   },
   guestTag: {
     font: '600 10px/1 "IBM Plex Sans", sans-serif',
-    color: '#F0B75C',
-    background: 'rgba(224, 138, 0, 0.18)',
-    padding: '3px 6px',
+    color: 'var(--status-delayed-fg)',
+    background: 'var(--status-delayed-bg)',
+    padding: '2px 6px',
     borderRadius: 4,
   },
   freshPlayTag: {
-    font: '600 10px/1 "IBM Plex Mono", monospace',
-    color: '#5FDBD3',
-    background: 'rgba(0, 178, 169, 0.18)',
-    padding: '3px 6px',
+    font: '600 10.5px/1 "IBM Plex Mono", monospace',
+    color: 'var(--status-delayed-fg)',
+    background: 'var(--status-delayed-bg)',
+    padding: '2px 6px',
     borderRadius: 999,
     whiteSpace: 'nowrap',
   },
   playCountTag: {
-    font: '400 10.5px/1 "IBM Plex Mono", monospace',
-    color: '#8494AA',
-    background: 'rgba(132, 148, 170, 0.12)',
-    padding: '3px 6px',
+    font: '400 11px/1 "IBM Plex Mono", monospace',
+    color: 'var(--text-muted)',
+    background: 'var(--surface-sunken)',
+    padding: '2px 6px',
     borderRadius: 999,
     whiteSpace: 'nowrap',
   },
   playerRatingMono: {
-    font: '600 12px/1 "IBM Plex Mono", monospace',
-    color: '#A8B7CB',
-    minWidth: 32,
+    font: '500 11.5px/1 "IBM Plex Mono", monospace',
+    color: 'var(--text-muted)',
     textAlign: 'right',
   },
   emptyPoolMsg: {
     gridColumn: '1 / -1',
     textAlign: 'center',
     padding: '16px',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
     fontSize: 13,
   },
   courtCard: {
-    background: '#0B1220',
-    border: '1px solid #22304A',
-    borderRadius: 22,
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 16,
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
@@ -1032,14 +1040,14 @@ const S = {
     gap: 12,
     flexWrap: 'wrap',
     paddingBottom: 10,
-    borderBottom: '1px solid #22304A',
+    borderBottom: '1px solid var(--border-subtle)',
   },
   modeTrack: {
     display: 'flex',
     padding: 3,
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
     gap: 2,
   },
   modeBtn: {
@@ -1049,13 +1057,13 @@ const S = {
     border: 'none',
     background: 'transparent',
     font: '600 12.5px/1 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
   },
   modeBtnActive: {
-    background: '#141D2E',
-    color: '#E9EFF7',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+    background: 'var(--surface-card)',
+    color: 'var(--text-primary)',
+    boxShadow: 'var(--shadow-sm)',
   },
   switchLabel: {
     display: 'flex',
@@ -1064,8 +1072,8 @@ const S = {
     cursor: 'pointer',
   },
   courtSurface: {
-    background: '#0B1220',
-    border: '1px solid #22304A',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 12,
     padding: '12px',
     display: 'flex',
@@ -1081,16 +1089,17 @@ const S = {
     minHeight: 64,
     borderRadius: 8,
     padding: '10px',
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
     gap: 6,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
   },
   slotName: {
     font: '600 14px/1.2 "IBM Plex Sans", sans-serif',
-    color: '#E9EFF7',
+    color: 'var(--text-primary)',
   },
   slotMeta: {
     display: 'flex',
@@ -1101,15 +1110,15 @@ const S = {
   slotEmpty: {
     minHeight: 64,
     borderRadius: 8,
-    background: '#101927',
-    border: '1.5px dashed #42557A',
+    background: 'var(--surface-card)',
+    border: '1.5px dashed var(--border-strong-color)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   slotEmptyText: {
     font: '500 13px/1 "IBM Plex Sans", sans-serif',
-    color: '#5B6B81',
+    color: 'var(--text-muted)',
   },
   netDivider: {
     display: 'flex',
@@ -1120,20 +1129,20 @@ const S = {
   netLine: {
     flex: 1,
     height: 1,
-    background: '#42557A',
-    opacity: 0.7,
+    background: 'var(--border-default)',
+    opacity: 0.8,
   },
   netText: {
     font: '700 10px/1 "IBM Plex Sans", sans-serif',
     letterSpacing: '1.5px',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
     padding: '0 8px',
   },
   balanceBox: {
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
     padding: '14px',
     display: 'flex',
     flexDirection: 'column',
@@ -1143,11 +1152,11 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#8494AA',
+    color: 'var(--text-secondary)',
   },
   balanceBigScore: {
     font: '700 22px/1 Barlow, sans-serif',
-    color: '#5FDBD3',
+    color: 'var(--status-transit-fg)',
   },
   metricRow: {
     display: 'flex',
@@ -1156,32 +1165,32 @@ const S = {
   },
   metricLabel: {
     font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
-    color: '#A8B7CB',
+    color: 'var(--text-secondary)',
     width: 100,
   },
   metricTrack: {
     flex: 1,
     height: 4,
     borderRadius: 999,
-    background: '#22304A',
+    background: 'var(--surface-sunken)',
     overflow: 'hidden',
   },
   metricValueMono: {
     font: '400 12px/1.3 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
     width: 36,
     textAlign: 'right',
   },
   balanceNoteText: {
     font: '400 12.5px/1.45 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
     marginTop: 4,
   },
   effCard: {
-    background: '#141D2E',
-    border: '1px solid #00786F',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--teal-600, #00786F)',
     borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
     padding: '14px',
     display: 'flex',
     flexDirection: 'column',
@@ -1191,8 +1200,8 @@ const S = {
     font: '600 10px/1 "IBM Plex Sans", sans-serif',
     padding: '5px 9px',
     borderRadius: 999,
-    background: 'rgba(0,178,169,.18)',
-    color: '#5FDBD3',
+    background: 'var(--status-transit-bg)',
+    color: 'var(--status-transit-fg)',
     whiteSpace: 'nowrap',
   },
   barCompareRow: {
@@ -1203,7 +1212,7 @@ const S = {
   },
   barCompareLabel: {
     font: '400 12px/1.3 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
     width: 100,
   },
   barCompareTrack: {
@@ -1211,18 +1220,18 @@ const S = {
     height: 8,
     borderRadius: 999,
     overflow: 'hidden',
-    background: '#0B1220',
+    background: 'var(--surface-sunken)',
     display: 'flex',
   },
   barCompareValue: {
     font: '400 12px/1.3 "IBM Plex Mono", monospace',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
     fontSize: 11.5,
     whiteSpace: 'nowrap',
   },
   effDescText: {
     font: '400 12.5px/1.45 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
   },
   suggestionBox: {
     display: 'flex',
@@ -1230,15 +1239,15 @@ const S = {
     gap: 10,
     padding: '10px 12px',
     borderRadius: 8,
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
     marginTop: 2,
   },
   scoreLoggerBox: {
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 10,
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
     padding: '14px',
     display: 'flex',
     flexDirection: 'column',
@@ -1252,8 +1261,8 @@ const S = {
   teamChoiceCard: {
     borderRadius: 10,
     padding: '12px',
-    background: '#101927',
-    border: '1.5px solid #22304A',
+    background: 'var(--surface-sunken)',
+    border: '1.5px solid var(--border-subtle)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1262,15 +1271,15 @@ const S = {
     transition: 'all 0.15s ease',
   },
   teamChoiceCardWon: {
-    background: 'rgba(0, 178, 169, 0.14)',
-    borderColor: '#00B2A9',
+    background: 'var(--status-transit-bg)',
+    borderColor: 'var(--status-transit-fg)',
   },
   wonBadge: {
     font: '600 11px/1 "IBM Plex Sans", sans-serif',
     padding: '4px 8px',
     borderRadius: 999,
-    background: '#00B2A9',
-    color: '#04302C',
+    background: 'var(--action-accent-bg, #00B2A9)',
+    color: 'var(--action-accent-fg, #04302C)',
   },
   bigScoreWon: {
     minWidth: 48,
@@ -1279,10 +1288,10 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 6,
-    background: '#0B1220',
-    border: '1.5px solid #00B2A9',
+    background: 'var(--surface-card)',
+    border: '1.5px solid var(--action-accent-bg, #00B2A9)',
     font: '700 24px/1 Barlow, sans-serif',
-    color: '#5FDBD3',
+    color: 'var(--status-transit-fg)',
   },
   bigScoreLost: {
     minWidth: 48,
@@ -1291,10 +1300,10 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 6,
-    background: '#0B1220',
-    border: '1px solid #2E3E5C',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     font: '700 24px/1 Barlow, sans-serif',
-    color: '#A8B7CB',
+    color: 'var(--text-muted)',
   },
   presetRow: {
     display: 'grid',
@@ -1307,20 +1316,20 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 6,
-    background: '#1A2437',
-    border: '1px solid #2E3E5C',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
     font: '600 13px/1 "IBM Plex Mono", monospace',
-    color: '#E9EFF7',
+    color: 'var(--text-secondary)',
     cursor: 'pointer',
   },
   presetBtnActive: {
-    background: '#1D50A0',
-    borderColor: '#3C74C4',
-    color: '#FFFFFF',
+    background: 'var(--action-primary-bg)',
+    borderColor: 'var(--action-primary-bg)',
+    color: 'var(--action-primary-fg)',
   },
   preMatchBox: {
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 8,
     padding: '12px',
     display: 'flex',
@@ -1331,20 +1340,20 @@ const S = {
     font: '600 10.5px/1 "IBM Plex Sans", sans-serif',
     padding: '3px 8px',
     borderRadius: 999,
-    background: 'rgba(0,178,169,.18)',
-    color: '#5FDBD3',
+    background: 'var(--status-transit-bg)',
+    color: 'var(--status-transit-fg)',
   },
   predictBarTrack: {
     display: 'flex',
     height: 6,
     borderRadius: 999,
     overflow: 'hidden',
-    background: '#22304A',
+    background: 'var(--border-subtle)',
     marginTop: 2,
   },
   changesBox: {
-    background: '#101927',
-    border: '1px solid #22304A',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 8,
     padding: '12px',
     display: 'flex',
@@ -1358,8 +1367,8 @@ const S = {
     gap: 8,
     padding: '8px 10px',
     borderRadius: 6,
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
   },
   bigSaveBtn: {
     minHeight: 56,
@@ -1367,10 +1376,10 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    background: '#00B2A9',
+    background: 'var(--action-accent-bg, #00B2A9)',
     border: 'none',
     font: '700 16px/1 "IBM Plex Sans", sans-serif',
-    color: '#04302C',
+    color: 'var(--action-accent-fg, #04302C)',
     cursor: 'pointer',
     boxShadow: '0 2px 8px rgba(0, 178, 169, 0.3)',
     transition: 'all 0.15s ease',
