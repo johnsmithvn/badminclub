@@ -679,6 +679,16 @@ export default function Leaderboard() {
                     onChange={(e) => setSearchName(e.target.value)}
                     style={{ width: isMobile ? '100%' : 150 }}
                   />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => a.recalcAllRatings()}
+                    title={t('leaderboard.recalcHint')}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    <Icon name="rotate-ccw" size={13} />
+                    {!isMobile && <span>{t('leaderboard.btnRecalc')}</span>}
+                  </Button>
                 </div>
               </div>
 

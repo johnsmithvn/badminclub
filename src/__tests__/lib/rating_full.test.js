@@ -165,5 +165,16 @@ test('Comprehensive Rating & Elo Engine Tests', async (t) => {
 
     // p1 thua match 1 nên rating cuối cùng chắc chắn phải thấp hơn run1
     assert.ok(p1Rating2 < p1Rating1, `Expected recalculated rating ${p1Rating2} < ${p1Rating1}`)
+
+    // Test huỷ/xoá trận: matchId không còn nằm trong remainingMatches vẫn phải cascade tính lại
+    const runCancelled = replayRatingCascade([match2], 'm-1', members)
+    assert.ok(runCancelled.finalRatings.p1 != null, 'Phải có kết quả tính rating khi huỷ trận')
+    assert.equal(runCancelled.finalRatings.p1.gamesCount, 1, 'Sau khi huỷ match1 thì p1 chỉ còn 1 trận')
+
+    // Test xoá hết mọi trận: đưa toàn bộ thành viên về điểm ban đầu
+    const runEmpty = replayRatingCascade([], null, members)
+    assert.equal(runEmpty.finalRatings.p1.gamesCount, 0, 'Xoá hết trận thì gamesCount = 0')
+    assert.equal(runEmpty.finalRatings.p1.rating, 0, 'Xoá hết trận thì rating về điểm gốc')
   })
 })
+
