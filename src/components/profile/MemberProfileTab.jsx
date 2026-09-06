@@ -230,7 +230,7 @@ export default function MemberProfileTab({
     <div style={{ display: 'grid', gap: 16 }}>
       {/* HEADER HỒ SƠ VĐV */}
       <div style={S.card}>
-        <div style={{ padding: 18, background: '#080F1C', borderBottom: '1px solid rgba(255,255,255,.10)', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ padding: 18, background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{
@@ -528,11 +528,11 @@ export default function MemberProfileTab({
                       </span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: '#22304A' }}>
+                  <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-inset)' }}>
                     <div style={{ width: `${h2hData.mostMet.winRate}%`, background: '#12A867' }} />
-                    <div style={{ flex: 1, background: '#42557A' }} />
+                    <div style={{ flex: 1, background: 'var(--border-subtle)' }} />
                   </div>
-                  <div style={{ font: '400 13px/1.45 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
+                  <div style={{ font: '400 13px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
                     {t('leaderboard.winRate')}: {h2hData.mostMet.winRate}%.
                   </div>
                 </div>
@@ -550,7 +550,7 @@ export default function MemberProfileTab({
                     <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('common.noData')}</span>
                   ) : (
                     h2hData.toughest.map((op) => (
-                      <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, background: '#141D2E', border: '1px solid #22304A' }}>
+                      <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)' }}>
                         <span style={{ flex: 1, font: '600 15px/1.3 "IBM Plex Sans", sans-serif', minWidth: 0, color: 'var(--text-primary)' }}>
                           {playerName(db, op.id)}
                           {op.isGuest && (
@@ -601,13 +601,13 @@ export default function MemberProfileTab({
           {subTab === 'xp' && (
             <>
               {/* Header XP & Level */}
-              <div style={{ ...S.cardBox, gap: 12, background: '#080F1C' }}>
+              <div style={{ ...S.cardBox, gap: 12, background: 'var(--surface-sunken)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span style={{ font: '600 18px/1.25 Barlow, sans-serif', color: 'var(--text-primary)' }}>
                       {t('leaderboard.xpTitle')}
                     </span>
-                    <span style={{ font: '400 13px/1.4 "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                    <span style={{ font: '400 13px/1.4 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                       {member.name} · {xpData.sessionCount} {t('units.session')} · {xpData.matchCount} {t('units.match')}
                     </span>
                   </div>
@@ -615,7 +615,7 @@ export default function MemberProfileTab({
                     <span style={{ font: '700 24px/1.05 Barlow, sans-serif', color: 'var(--status-transit-fg)' }}>
                       Lv {xpData.level}
                     </span>
-                    <span style={{ font: '400 12px/1.3 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
+                    <span style={{ font: '400 12px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
                       {xpData.title}
                     </span>
                   </div>
@@ -624,12 +624,12 @@ export default function MemberProfileTab({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 13px/1.4 "IBM Plex Mono", monospace' }}>
                     <span style={{ color: '#5FDBD3' }}>{xpData.totalXp.toLocaleString()} XP</span>
-                    <span style={{ color: '#8494AA' }}>{t('leaderboard.xpNextAt', { level: xpData.level + 1, xp: xpData.nextLevelXp.toLocaleString() })}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{t('leaderboard.xpNextAt', { level: xpData.level + 1, xp: xpData.nextLevelXp.toLocaleString() })}</span>
                   </div>
-                  <div style={{ height: 8, borderRadius: 999, background: '#22304A', overflow: 'hidden' }}>
+                  <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-inset)', overflow: 'hidden' }}>
                     <div style={{ width: `${xpData.levelProgressPct}%`, height: '100%', background: '#00B2A9', transition: 'width 0.3s ease' }} />
                   </div>
-                  <span style={{ font: '400 13px/1.45 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
+                  <span style={{ font: '400 13px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
                     {t('leaderboard.xpProgressDesc')}
                   </span>
                 </div>
@@ -662,19 +662,19 @@ export default function MemberProfileTab({
               {/* Sổ XP */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <span style={S.cardBoxLabel}>{t('leaderboard.xpLedgerTitle')}</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: '#22304A', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: 'var(--border-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
                   {xpLedger.length === 0 ? (
-                    <div style={{ padding: 14, background: '#141D2E', fontSize: 13, color: 'var(--text-muted)' }}>
+                    <div style={{ padding: 14, background: 'var(--surface-card)', fontSize: 13, color: 'var(--text-muted)' }}>
                       {t('common.noData')}
                     </div>
                   ) : (
                     xpLedger.map((row) => (
-                      <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#141D2E' }}>
+                      <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'var(--surface-card)' }}>
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                           <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
                             {t(`leaderboard.${row.titleKey}`)}
                           </span>
-                          <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                          <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                             {row.source}
                           </span>
                         </div>
@@ -685,7 +685,7 @@ export default function MemberProfileTab({
                     ))
                   )}
                 </div>
-                <span style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
+                <span style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
                   {t('leaderboard.xpLedgerNote')}
                 </span>
               </div>
@@ -698,8 +698,8 @@ export default function MemberProfileTab({
                     <div
                       key={ach.id}
                       style={{
-                        background: ach.achieved ? '#141D2E' : '#101927',
-                        border: ach.achieved ? '1px solid #00786F' : '1px dashed #2E3E5C',
+                        background: ach.achieved ? 'var(--surface-card)' : 'var(--surface-sunken)',
+                        border: ach.achieved ? '1px solid #00786F' : '1px dashed var(--border-default)',
                         borderRadius: 10,
                         padding: 12,
                         display: 'flex',
@@ -707,10 +707,10 @@ export default function MemberProfileTab({
                         gap: 4,
                       }}
                     >
-                      <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: ach.achieved ? 'var(--text-primary)' : '#8494AA' }}>
+                      <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: ach.achieved ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                         {ach.title}
                       </span>
-                      <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: ach.achieved ? '#5FDBD3' : '#5B6B81' }}>
+                      <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: ach.achieved ? '#5FDBD3' : 'var(--text-muted)' }}>
                         {ach.progressText}
                       </span>
                     </div>
@@ -735,8 +735,8 @@ const S = {
     flexDirection: 'column',
   },
   cardBox: {
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 10,
     padding: 14,
     display: 'flex',
@@ -747,11 +747,11 @@ const S = {
     font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
   },
   statCardMini: {
-    background: '#141D2E',
-    border: '1px solid #22304A',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 10,
     padding: 12,
     display: 'flex',
@@ -762,11 +762,11 @@ const S = {
     font: '600 10px/1.2 "IBM Plex Sans", sans-serif',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
   },
   caption: {
     font: '400 13px/1.35 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
   },
   challengeBtn: {
     display: 'inline-flex',
@@ -790,13 +790,13 @@ const S = {
     background: 'transparent',
     border: 'none',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
-    color: '#8494AA',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
   },
   subTabBtnActive: {
-    background: '#141D2E',
-    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
-    color: '#E9EFF7',
+    background: 'var(--surface-card)',
+    boxShadow: 'var(--shadow-xs)',
+    color: 'var(--text-primary)',
   },
 }

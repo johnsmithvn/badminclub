@@ -691,8 +691,8 @@ export default function Leaderboard() {
                       <div
                         key={row.id}
                         style={{
-                          background: row.isGuest ? '#101927' : isRank1 ? 'rgba(0, 178, 169, 0.14)' : 'var(--surface-card)',
-                          border: row.isGuest ? '1px dashed #2E3E5C' : isRank1 ? '1px solid #00786F' : '1px solid var(--border-subtle)',
+                          background: row.isGuest ? 'var(--surface-sunken)' : isRank1 ? 'rgba(0, 178, 169, 0.14)' : 'var(--surface-card)',
+                          border: row.isGuest ? '1px dashed var(--border-default)' : isRank1 ? '1px solid #00786F' : '1px solid var(--border-subtle)',
                           borderRadius: 'var(--radius-card)',
                           padding: '12px 14px',
                           display: 'flex',
@@ -829,12 +829,12 @@ export default function Leaderboard() {
                         const confPct = row.confidence === 'very_high' ? 100 : row.confidence === 'high' ? 75 : row.confidence === 'medium' ? 50 : 25
 
                         const rowBg = row.isGuest
-                          ? '#101927'
+                          ? 'var(--surface-sunken)'
                           : isRank1
                             ? 'rgba(0, 178, 169, 0.10)'
                             : 'transparent'
                         const rowBorder = row.isGuest
-                          ? '1px dashed #2E3E5C'
+                          ? '1px dashed var(--border-default)'
                           : isRank1
                             ? '1px solid #00786F'
                             : '1px solid var(--border-subtle)'

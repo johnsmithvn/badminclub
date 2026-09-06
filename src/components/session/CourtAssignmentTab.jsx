@@ -13,7 +13,7 @@ import { t } from '#i18n'
 
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
-  const _isMobile = useMobile(768)
+  const isMobile = useMobile(768)
 
   // Mode: 'doubles' (2 vs 2) hoặc 'singles' (1 vs 1)
   const [mode, setMode] = useState('doubles')
@@ -432,13 +432,36 @@ export default function CourtAssignmentTab({ s }) {
             <span style={S.touchHint}>{t('assign.poolTouchHint')}</span>
           </div>
 
-          {/* Lưới danh sách người chờ */}
-          <div style={S.poolGrid}>
+          {/* Danh sách người chờ: trên mobile là hàng pill cuộn tự nhiên (Screen 01), trên desktop là lưới card 2 dòng */}
+          <div style={isMobile ? S.poolPillWrap : S.poolGrid}>
             {filteredWaiting.map((p) => {
               const plays = matchCountMap[p.key] || 0
               const r = ratingsMap[p.key] || 0
               const isFemale = p.gender === 'female'
               const isFresh = plays === 0
+
+              if (isMobile) {
+                return (
+                  <div
+                    key={p.key}
+                    onClick={() => handleTapPlayer(p.key)}
+                    style={S.playerPillMobile}
+                    role="button"
+                    tabIndex={0}
+                    title={`${p.name} · ${genderTxt(p.gender)} · ${r} Elo · ${plays} ${t('units.match')}`}
+                  >
+                    <span style={S.playerNameText}>{p.name}</span>
+                    <LevelChip level={p.level} levels={db.levels} size="sm" />
+                    {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                    {isFresh ? (
+                      <span style={S.freshPlayTag}>0 {t('units.match')}</span>
+                    ) : (
+                      <span style={S.playCountTagPill}>{plays}t</span>
+                    )}
+                  </div>
+                )
+              }
+
               return (
                 <div
                   key={p.key}
@@ -483,7 +506,7 @@ export default function CourtAssignmentTab({ s }) {
       </Card>
 
       {/* ---------------- 2. MẶT SÂN THI ĐẤU VISUAL COURT (SCREEN 01) ---------------- */}
-      <div style={S.courtCard}>
+      <div style={{ ...S.courtCard, padding: isMobile ? '12px 10px' : '16px' }}>
         {/* Header Sân */}
         <div style={S.courtTopBar}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 }}>
@@ -538,7 +561,7 @@ export default function CourtAssignmentTab({ s }) {
         {/* Khung mặt sân thi đấu */}
         <div style={S.courtSurface}>
           {/* Đội A (Top) */}
-          <div style={S.teamRow}>
+          <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : '1fr 1fr' }}>
             {Array.from({ length: maxPerTeam }).map((_, idx) => {
               const key = teamA[idx]
               if (key) {
@@ -586,7 +609,7 @@ export default function CourtAssignmentTab({ s }) {
           </div>
 
           {/* Đội B (Bottom) */}
-          <div style={S.teamRow}>
+          <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : '1fr 1fr' }}>
             {Array.from({ length: maxPerTeam }).map((_, idx) => {
               const key = teamB[idx]
               if (key) {
@@ -953,6 +976,34 @@ const S = {
     maxHeight: 280,
     overflowY: 'auto',
     paddingRight: 4,
+  },
+  poolPillWrap: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 8,
+    maxHeight: 220,
+    overflowY: 'auto',
+    padding: '2px 0',
+  },
+  playerPillMobile: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 7,
+    minHeight: 38,
+    padding: '6px 12px',
+    borderRadius: 999,
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    cursor: 'pointer',
+    boxShadow: 'var(--shadow-xs)',
+    transition: 'all 0.15s ease',
+  },
+  playCountTagPill: {
+    font: '400 11px/1 var(--font-mono)',
+    color: 'var(--text-muted)',
+    background: 'var(--surface-sunken)',
+    padding: '2px 6px',
+    borderRadius: 999,
   },
   playerChip: {
     display: 'flex',
