@@ -1441,7 +1441,10 @@ export default function Leaderboard() {
                 const courtObj = s?.courts?.[m.courtIdx]
                 const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
                 const dateStr = s?.date ? dd(s.date) : (m.at ? new Date(m.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
-                const courtTimeStr = courtLabel ? `${dateStr ? dateStr + ' · ' : ''}${courtLabel}` : (dateStr || '—')
+                const matchTime = courtObj?.from || (m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '')
+                const courtTimeStr = courtLabel
+                  ? `${dateStr ? dateStr + ' · ' : ''}${courtLabel}${matchTime ? ' · ' + matchTime : ''}`
+                  : (dateStr || '—')
 
                 const displayScore = scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : '21 – 19'
                 const predStr = isUpset ? '71%' : isClose ? '52%' : '50%'
@@ -1487,7 +1490,7 @@ export default function Leaderboard() {
                         {s?.id ? (
                           <button
                             type="button"
-                            onClick={() => navigate('/buoi-tap/' + s.id)}
+                            onClick={() => navigate(`/buoi-tap/${s.id}?tab=matches&matchId=${m.id}`)}
                             style={{
                               border: 'none',
                               background: 'transparent',
@@ -1665,7 +1668,7 @@ export default function Leaderboard() {
                             key={m.id}
                             onClick={() => setViewingMatch(m)}
                             style={S.searchTableRow}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--surface-hover)' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--action-ghost-bg-hover)' }}
                             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                             title={t('matchDetail.title')}
                           >
@@ -2416,16 +2419,18 @@ const S = {
   },
   searchTableHead: {
     display: 'grid',
-    gridTemplateColumns: '96px 145px 1fr 80px 1fr 90px 90px',
+    gridTemplateColumns: '96px 165px 1.15fr 76px 1.15fr 88px 84px',
     background: 'var(--surface-inset)',
     borderBottom: '1px solid var(--border-subtle)',
   },
   searchTableRow: {
     display: 'grid',
-    gridTemplateColumns: '96px 145px 1fr 80px 1fr 90px 90px',
+    gridTemplateColumns: '96px 165px 1.15fr 76px 1.15fr 88px 84px',
     borderBottom: '1px solid var(--border-subtle)',
     minHeight: 52,
     alignItems: 'center',
+    cursor: 'pointer',
+    transition: 'background-color 0.15s ease',
   },
   thCell: {
     padding: '0 12px',

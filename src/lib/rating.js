@@ -460,7 +460,7 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
       initialRatingA: ra,
       initialRatingB: rb,
       winnerTeam,
-      eloDelta: delta,
+      eloDelta: Math.abs(delta),
     }
   })
 

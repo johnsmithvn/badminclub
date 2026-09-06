@@ -2339,7 +2339,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           scoreText,
           initialRatingA: ra,
           initialRatingB: rb,
-          eloDelta: delta,
+          eloDelta: Math.abs(delta),
         }
 
         const challenges = chal

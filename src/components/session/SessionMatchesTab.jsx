@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
 import { courtOf, myMember, playerName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
@@ -14,6 +15,8 @@ import ScoreModal from '#components/challenge/ScoreModal.jsx'
 export default function SessionMatchesTab({ s, onSwitchTab }) {
   const { db, a } = useApp()
   const isMobile = useMobile()
+  const [searchParams] = useSearchParams()
+  const targetMatchId = searchParams.get('matchId')
   const [showCreate, setShowCreate] = useState(false)
   const [editingMatch, setEditingMatch] = useState(null)
   const [challengeTab, setChallengeTab] = useState('my')
@@ -27,6 +30,16 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
       .slice()
       .sort((m1, m2) => (m2.createdAt || '').localeCompare(m1.createdAt || ''))
   }, [db.matches, s.id])
+
+  // Tự động cuộn và làm nổi bật trận đấu nếu được chuyển tiếp từ màn Tìm trận
+  useEffect(() => {
+    if (targetMatchId) {
+      const el = document.getElementById(`session-match-${targetMatchId}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }
+  }, [targetMatchId, matches])
 
   // Danh sách kèo trong buổi này
   const challenges = useMemo(() => {
@@ -176,18 +189,21 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
                 const absDelta = Math.abs(m.eloDelta || 0)
                 const deltaStr = hasElo ? `+${absDelta}` : '—'
+                const isTarget = targetMatchId === m.id
 
                 return (
                   <div
                     key={m.id}
+                    id={`session-match-${m.id}`}
                     style={{
-                      background: 'var(--surface-card)',
-                      border: '1px solid var(--border-subtle)',
+                      background: isTarget ? 'var(--surface-brand-soft, rgba(0, 178, 169, 0.08))' : 'var(--surface-card)',
+                      border: isTarget ? '2px solid var(--teal-500)' : '1px solid var(--border-subtle)',
                       borderRadius: 'var(--radius-card)',
                       padding: '12px 14px',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: 8,
+                      transition: 'all 0.3s ease',
                     }}
                   >
                     {/* Hàng 1: Mã trận + Sân/giờ và Nút sửa */}
@@ -320,9 +336,19 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
                     const absDelta = Math.abs(m.eloDelta || 0)
                     const deltaStr = hasElo ? `+${absDelta}` : '—'
+                    const isTarget = targetMatchId === m.id
 
                     return (
-                      <div key={m.id} style={S.tableRow}>
+                      <div
+                        key={m.id}
+                        id={`session-match-${m.id}`}
+                        style={{
+                          ...S.tableRow,
+                          background: isTarget ? 'var(--surface-brand-soft, rgba(0, 178, 169, 0.08))' : undefined,
+                          outline: isTarget ? '2px solid var(--teal-500)' : undefined,
+                          transition: 'all 0.3s ease',
+                        }}
+                      >
                         <div style={S.tdCell}>
                           <span style={S.monoCode}>{matchCode}</span>
                         </div>
