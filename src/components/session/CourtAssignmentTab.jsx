@@ -8,6 +8,7 @@ import { sessionPlayers, detailedCourtBalance, courtSlotIds } from '#lib/assign.
 import {
   expectedScore, getPlayerRating,
   teamRating, computeClubCalibration,
+  calcPlayerDeltas,
 } from '#lib/rating.js'
 import { t } from '#i18n'
 
@@ -90,11 +91,9 @@ export default function CourtAssignmentTab({ s }) {
     if (!list.length) return [{ value: 0, label: t('session.courtNum', { n: 1 }) }]
     return list.map((c, i) => ({
       value: i,
-      label: c.label
-        ? `${c.label} · ${courtOf(db, c.courtId).name}`
-        : `${t('session.courtNum', { n: i + 1 })} · ${courtOf(db, c.courtId).name}`,
+      label: c.label || t('session.courtNum', { n: i + 1 }),
     }))
-  }, [s.courts, db])
+  }, [s.courts])
 
   // Kèo đã nhận trong buổi (chưa hoàn thành)
   const acceptedChallenges = useMemo(() => {
@@ -362,6 +361,31 @@ export default function CourtAssignmentTab({ s }) {
     return [rA, 100 - rA]
   }, [ratingA, ratingB, teamA, teamB])
 
+  // Biến động Elo dự kiến theo thuật toán cho từng người
+  const playerDeltas = useMemo(() => {
+    if (!teamA.length || !teamB.length || !ratingEnabled) return {}
+    try {
+      const gamesCountMap = {}
+      players.forEach((p) => {
+        gamesCountMap[p.key] = getPlayerRating(db.playerRatings, p.key).gamesCount || 0
+      })
+      const playedSets = isBo3
+        ? bo3Sets.filter(([sa, sb]) => sa > 0 || sb > 0)
+        : [[Number(scoreA), Number(scoreB)]]
+      const { deltas } = calcPlayerDeltas({
+        teamA,
+        teamB,
+        aWon: winnerTeam === 'A',
+        ratingsMap,
+        gamesCountMap,
+        sets: playedSets,
+      })
+      return deltas || {}
+    } catch {
+      return {}
+    }
+  }, [teamA, teamB, ratingEnabled, winnerTeam, ratingsMap, players, db.playerRatings, isBo3, bo3Sets, scoreA, scoreB])
+
   // Lưu kết quả trận đấu
   const handleSaveResult = () => {
     if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) {
@@ -563,14 +587,32 @@ export default function CourtAssignmentTab({ s }) {
         {/* Header Sân */}
         <div style={S.courtTopBar}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 }}>
-            <div style={{ minWidth: 140 }}>
-              <Select
-                size="sm"
-                value={courtIdx}
-                options={courtOptions}
-                onChange={(e) => setCourtIdx(Number(e.target.value))}
-              />
-            </div>
+            {courtOptions.length > 1 ? (
+              <div style={{ minWidth: 120 }}>
+                <Select
+                  size="sm"
+                  value={courtIdx}
+                  options={courtOptions}
+                  onChange={(e) => setCourtIdx(Number(e.target.value))}
+                />
+              </div>
+            ) : (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 10px',
+                borderRadius: 6,
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+              }}>
+                <Icon name="map-pin" size={14} color="var(--status-transit-fg)" />
+                <span>{courtOptions[0]?.label || t('session.courtNum', { n: 1 })}</span>
+              </div>
+            )}
             {/* Mode Switcher */}
             <div style={S.modeTrack}>
               <button
@@ -1050,19 +1092,29 @@ export default function CourtAssignmentTab({ s }) {
                 <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
                   {t('scoreModal.predictTitle')}
                 </span>
-                <span style={S.balancedTag}>{t('scoreModal.balancedTag')}</span>
+                <span style={ratingEnabled ? S.balancedTag : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                  {ratingEnabled ? t('scoreModal.balancedTag') : t('scoreModal.unratedTag')}
+                </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px "IBM Plex Mono", monospace', marginTop: 4 }}>
-                <span style={{ color: 'var(--status-transit-fg)' }}>A {pctA}%</span>
-                <span style={{ color: 'var(--text-muted)' }}>{pctB}% B</span>
-              </div>
-              <div style={S.predictBarTrack}>
-                <div style={{ width: `${pctA}%`, height: '100%', background: 'var(--action-accent-bg, #00B2A9)' }} />
-                <div style={{ width: `${pctB}%`, height: '100%', background: 'var(--border-subtle)' }} />
-              </div>
-              <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
-                {t('scoreModal.predictSub', { delta: deltaRating })}
-              </div>
+              {ratingEnabled ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px "IBM Plex Mono", monospace', marginTop: 4 }}>
+                    <span style={{ color: 'var(--status-transit-fg)' }}>A {pctA}%</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{pctB}% B</span>
+                  </div>
+                  <div style={S.predictBarTrack}>
+                    <div style={{ width: `${pctA}%`, height: '100%', background: 'var(--action-accent-bg, #00B2A9)' }} />
+                    <div style={{ width: `${pctB}%`, height: '100%', background: 'var(--border-subtle)' }} />
+                  </div>
+                  <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
+                    {t('scoreModal.predictSub', { delta: deltaRating })}
+                  </div>
+                </>
+              ) : (
+                <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
+                  {t('scoreModal.predictSubUnrated')}
+                </div>
+              )}
             </div>
 
             {/* Box thay đổi Elo & XP */}
@@ -1074,18 +1126,26 @@ export default function CourtAssignmentTab({ s }) {
                 {[...teamA, ...teamB].map((k) => {
                   const inA = teamA.includes(k)
                   const isWon = (inA && winnerTeam === 'A') || (!inA && winnerTeam === 'B')
-                  const deltaTxt = isWon ? '+8' : '−8'
+                  const dVal = playerDeltas[k]
+                  const deltaTxt = dVal != null ? (dVal > 0 ? `+${dVal}` : `${dVal}`) : (isWon ? '+8' : '−8')
+                  const xpVal = isWon ? '+30' : '+15'
                   return (
                     <div key={k} style={S.changeRow}>
                       <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                         {playerName(db, k)}
                       </span>
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
-                          {t('scoreModal.ratingChange', { d: deltaTxt })}
-                        </span>
-                        <span style={{ font: '400 12.5px "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                          {t('scoreModal.xpChange')}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {ratingEnabled ? (
+                          <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
+                            {t('scoreModal.ratingChange', { d: deltaTxt })}
+                          </span>
+                        ) : (
+                          <span style={{ font: '500 12px "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                            {t('scoreModal.unratedChange')}
+                          </span>
+                        )}
+                        <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
+                          {t('scoreModal.xpChange', { xp: xpVal })}
                         </span>
                       </div>
                     </div>
@@ -1093,7 +1153,7 @@ export default function CourtAssignmentTab({ s }) {
                 })}
               </div>
               <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
-                {t('scoreModal.xpExplain')}
+                {ratingEnabled ? t('scoreModal.xpExplain') : t('scoreModal.xpExplainUnrated')}
               </div>
             </div>
 

@@ -2208,10 +2208,14 @@
     "predictTitle": "Dự đoán & Tỷ lệ",
     "balancedTag": "Trận cân bằng",
     "predictSub": "Xác suất thắng trước trận",
+    "predictSubUnrated": "Trận giao lưu · Không tính biến động điểm Elo BXH",
+    "unratedTag": "Giao lưu",
     "postMatchChanges": "Biến động sau trận",
-    "ratingChange": "Biến động Rating (Elo)",
-    "xpChange": "Điểm kinh nghiệm (XP)",
+    "ratingChange": "{{d}} Elo",
+    "unratedChange": "Không tính Elo",
+    "xpChange": "{{xp}} XP",
     "xpExplain": "Thắng: +30 XP · Thua: +15 XP",
+    "xpExplainUnrated": "Trận giao lưu: Không thay đổi Elo, người chơi vẫn nhận XP tích luỹ",
     "saveResult": "Lưu kết quả trận đấu"
   },
   "courtAssign": {
