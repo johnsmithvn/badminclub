@@ -45,10 +45,12 @@ export default function Fund() {
   const [dirFilter, setDirFilter] = useState('all') // 'all' | 'in' | 'out'
   const [catFilter, setCatFilter] = useState([])
   const [filterOpen, setFilterOpen] = useState(false)
+  const [timeOpen, setTimeOpen] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [expandedClusters, setExpandedClusters] = useState({})
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const filterRef = useRef(null)
+  const timeRef = useRef(null)
 
   // Đóng filter popover khi click ra ngoài
   useEffect(() => {
@@ -61,6 +63,25 @@ export default function Fund() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [filterOpen])
+
+  // Đóng time popover khi click ra ngoài
+  useEffect(() => {
+    if (!timeOpen) return
+    const handleClickOutside = (e) => {
+      if (timeRef.current && !timeRef.current.contains(e.target)) {
+        setTimeOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [timeOpen])
+
+  const quickTabs = useMemo(() => [
+    { id: 'all', label: t('fund.tabAll') },
+    { id: 'today', label: t('fund.tabToday') },
+    { id: 'yesterday', label: t('fund.tabYesterday') },
+    { id: '7days', label: t('fund.tab7Days') },
+  ], [])
 
   // Số ngày trong tháng đang xem
   const [curYear, curMonthNum] = db.month.split('-').map(Number)
@@ -398,29 +419,55 @@ export default function Fund() {
 
   return (
     <div style={S.container}>
-      {/* ---------------- 1. TOP HEADER (Chuẩn thiết kế 70px) ---------------- */}
-      <div style={S.topHeader}>
-        <div style={S.topHeaderLeft}>
-          <h1 style={S.title}>{t('fund.title')}</h1>
-          <span style={S.subTitle}>
-            {t('fund.txCountInDays', { n: filteredRows.length, days: stats.daysWithOut })} · {monthTxt(db.month)}
-          </span>
+      {/* ---------------- 1. TOP HEADER ---------------- */}
+      <div style={{
+        ...S.topHeader,
+        ...(isMobile ? { height: 'auto', minHeight: 48, padding: '8px 0', gap: 8 } : {}),
+      }}>
+        <div style={{ ...S.topHeaderLeft, ...(isMobile ? { gap: 6 } : {}) }}>
+          <h1 style={{ ...S.title, ...(isMobile ? { fontSize: 18 } : {}) }}>{t('fund.title')}</h1>
+          {!isMobile && (
+            <span style={S.subTitle}>
+              {t('fund.txCountInDays', { n: filteredRows.length, days: stats.daysWithOut })} · {monthTxt(db.month)}
+            </span>
+          )}
         </div>
 
-        <div style={S.topHeaderRight}>
-          <button type="button" onClick={handleExportCsv} style={S.btnGhost}>
-            <Icon name="download" size={14} style={{ marginRight: 6 }} />
-            <span>{t('fund.exportCsv')}</span>
+        <div style={{ ...S.topHeaderRight, ...(isMobile ? { gap: 6 } : {}) }}>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            style={{ ...S.btnGhost, ...(isMobile ? { width: 34, height: 34, padding: 0 } : {}) }}
+            title={t('fund.exportCsv')}
+            aria-label={t('fund.exportCsv')}
+          >
+            <Icon name="download" size={15} />
+            {!isMobile && <span style={{ marginLeft: 6 }}>{t('fund.exportCsv')}</span>}
           </button>
 
           {canMoney && (
             <button
               type="button"
-              onClick={() => a.openDialog('ledger', ledgerForm(db))}
-              style={S.btnPrimary}
+              onClick={() => a.openDialog('bill', courtBillForm(db))}
+              style={{ ...S.btnCourtBill, ...(isMobile ? { width: 34, height: 34, padding: 0 } : {}) }}
+              title={t('fund.addBill')}
+              aria-label={t('fund.addBill')}
             >
-              <Icon name="plus" size={15} style={{ marginRight: 5 }} />
-              <span>{t('fund.addTx')}</span>
+              <Icon name="landmark" size={15} />
+              {!isMobile && <span style={{ marginLeft: 6 }}>{t('fund.addBill')}</span>}
+            </button>
+          )}
+
+          {canMoney && (
+            <button
+              type="button"
+              onClick={() => a.openDialog('ledger', ledgerForm(db))}
+              style={{ ...S.btnPrimary, ...(isMobile ? { width: 34, height: 34, padding: 0 } : {}) }}
+              title={t('fund.addTx')}
+              aria-label={t('fund.addTx')}
+            >
+              <Icon name="plus" size={16} />
+              {!isMobile && <span style={{ marginLeft: 6 }}>{t('fund.addTx')}</span>}
             </button>
           )}
 
@@ -435,11 +482,11 @@ export default function Fund() {
         </div>
       </div>
 
-      {/* ---------------- 2. HÀNG LỌC 1 DÒNG DUY NHẤT (Ảnh số 2) ---------------- */}
-      <div style={S.filterBar}>
-        <div style={S.filterBarInner}>
+      {/* ---------------- 2. HÀNG LỌC ---------------- */}
+      <div style={{ ...S.filterBar, ...(isMobile ? { padding: '10px 0' } : {}) }}>
+        <div style={{ ...S.filterBarInner, ...(isMobile ? { gap: 8 } : {}) }}>
           {/* Bộ chọn chuyển tháng */}
-          <div style={S.monthNavBox}>
+          <div style={{ ...S.monthNavBox, ...(isMobile ? { height: 34 } : {}) }}>
             <button
               type="button"
               onClick={() => a.shiftMonth(-1)}
@@ -448,7 +495,7 @@ export default function Fund() {
             >
               ‹
             </button>
-            <div style={S.monthNavLabel}>
+            <div style={{ ...S.monthNavLabel, ...(isMobile ? { padding: '0 8px', fontSize: 12.5 } : {}) }}>
               <span>{monthTxt(db.month)}</span>
               <span style={S.daysBadge}>{t('fund.daysCount', { n: daysInMonth })}</span>
             </div>
@@ -462,7 +509,7 @@ export default function Fund() {
             </button>
           </div>
 
-          <div style={S.verticalDivider} />
+          {!isMobile && <div style={S.verticalDivider} />}
 
           {/* Nút Lọc Popover */}
           <div style={{ position: 'relative' }} ref={filterRef}>
@@ -471,13 +518,16 @@ export default function Fund() {
               onClick={() => setFilterOpen((v) => !v)}
               style={{
                 ...S.filterBtn,
+                ...(isMobile ? { padding: '0 10px', height: 34 } : {}),
                 background: (catFilter.length > 0 || dirFilter !== 'all') ? '#F4F2FF' : 'var(--surface-card, #fff)',
                 borderColor: (catFilter.length > 0 || dirFilter !== 'all') ? '#6C5CE7' : '#E3DFD8',
                 color: (catFilter.length > 0 || dirFilter !== 'all') ? '#4F3FD1' : 'var(--text-primary, #1C1917)',
               }}
+              title={t('common.filter')}
+              aria-label={t('common.filter')}
             >
               <Icon name="filter" size={14} />
-              <span>{t('common.filter')}</span>
+              {!isMobile && <span>{t('common.filter')}</span>}
               {(catFilter.length > 0 || dirFilter !== 'all') && (
                 <span style={S.filterBadge}>
                   {catFilter.length + (dirFilter !== 'all' ? 1 : 0)}
@@ -552,38 +602,89 @@ export default function Fund() {
             )}
           </div>
 
-          {/* Các tab chọn khoảng thời gian */}
-          <div style={S.quickTabBox}>
-            {[
-              { id: 'all', label: t('fund.tabAll') },
-              { id: 'today', label: t('fund.tabToday') },
-              { id: 'yesterday', label: t('fund.tabYesterday') },
-              { id: '7days', label: t('fund.tab7Days') },
-            ].map((tab) => {
-              const active = quickDate === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setQuickDate(tab.id)
-                    setSelectedDay(null)
-                  }}
-                  style={{
-                    ...S.quickTabBtn,
-                    background: active ? '#6C5CE7' : 'transparent',
-                    color: active ? '#fff' : 'var(--text-secondary, #57534E)',
-                    fontWeight: active ? 600 : 500,
-                  }}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
+          {/* Chọn mốc thời gian: Trên Mobile thu gọn thành Icon popover; Trên Desktop là 4 Tab */}
+          {isMobile ? (
+            <div style={{ position: 'relative' }} ref={timeRef}>
+              <button
+                type="button"
+                onClick={() => setTimeOpen((v) => !v)}
+                style={{
+                  ...S.filterBtn,
+                  padding: '0 10px',
+                  height: 34,
+                  background: quickDate !== 'all' ? '#F4F2FF' : 'var(--surface-card, #fff)',
+                  borderColor: quickDate !== 'all' ? '#6C5CE7' : 'var(--border-subtle, #E3DFD8)',
+                  color: quickDate !== 'all' ? '#4F3FD1' : 'var(--text-primary, #1C1917)',
+                }}
+                title={quickTabs.find((tab) => tab.id === quickDate)?.label || t('fund.tabAll')}
+                aria-label={quickTabs.find((tab) => tab.id === quickDate)?.label || t('fund.tabAll')}
+              >
+                <Icon name="calendar-clock" size={14} />
+                {quickDate !== 'all' && (
+                  <span style={{ fontSize: 11.5, fontWeight: 600 }}>
+                    {quickTabs.find((tab) => tab.id === quickDate)?.label}
+                  </span>
+                )}
+              </button>
 
-          {/* Ô tìm kiếm thu nhỏ gọn gàng */}
-          <div style={S.compactSearchBox}>
+              {timeOpen && (
+                <div style={{ ...S.filterDropdown, width: 160, left: 'auto', right: 0 }}>
+                  <div style={S.filterDropdownTitle}>{t('fund.filterQuickDate')}</div>
+                  <div style={S.filterOptionGroup}>
+                    {quickTabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => {
+                          setQuickDate(tab.id)
+                          setSelectedDay(null)
+                          setTimeOpen(false)
+                        }}
+                        style={{
+                          ...S.filterOptionBtn,
+                          background: quickDate === tab.id ? '#6C5CE7' : 'transparent',
+                          color: quickDate === tab.id ? '#fff' : 'var(--text-primary, #1C1917)',
+                          fontWeight: quickDate === tab.id ? 600 : 400,
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={S.quickTabBox}>
+              {quickTabs.map((tab) => {
+                const active = quickDate === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setQuickDate(tab.id)
+                      setSelectedDay(null)
+                    }}
+                    style={{
+                      ...S.quickTabBtn,
+                      background: active ? '#6C5CE7' : 'transparent',
+                      color: active ? '#fff' : 'var(--text-secondary, #57534E)',
+                      fontWeight: active ? 600 : 500,
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Ô tìm kiếm */}
+          <div style={{
+            ...S.compactSearchBox,
+            ...(isMobile ? { width: '100%', maxWidth: '100%', minWidth: 0, marginTop: 4, height: 34 } : {}),
+          }}>
             <Icon name="search" size={13} color="#A8A29E" />
             <input
               type="text"
@@ -606,58 +707,72 @@ export default function Fund() {
         </div>
       </div>
 
-      {/* ---------------- 3. BIỂU ĐỒ SPARKLINE 30 NGÀY & 4 THẺ CHỈ SỐ ---------------- */}
-      <div style={S.sparklineSection}>
-        {/* Biểu đồ thanh hằng ngày */}
-        <div style={S.sparklineChart}>
-          {sparkDays.map((d) => (
-            <div
-              key={d.day}
-              onClick={() => setSelectedDay(selectedDay === d.day ? null : d.day)}
-              title={`${String(d.day).padStart(2, '0')}/${db.month.slice(5, 7)}: ${d.out > 0 ? fmt(d.out) : '0₫'}`}
-              style={{
-                ...S.sparkBarCol,
-                opacity: selectedDay !== null && selectedDay !== d.day ? 0.35 : 1,
-              }}
-            >
+      {/* ---------------- 3. BIỂU ĐỒ SPARKLINE 30 NGÀY & THẺ CHỈ SỐ ---------------- */}
+      <div style={{ ...S.sparklineSection, ...(isMobile ? { padding: '14px 0 12px' } : {}) }}>
+        {/* Biểu đồ thanh hằng ngày (cuộn ngang mượt mà trên mobile để chạm chính xác) */}
+        <div style={{
+          width: '100%',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          paddingBottom: 4,
+        }}>
+          <div style={{
+            ...S.sparklineChart,
+            ...(isMobile ? { minWidth: 540, height: 60 } : {}),
+          }}>
+            {sparkDays.map((d) => (
               <div
+                key={d.day}
+                onClick={() => setSelectedDay(selectedDay === d.day ? null : d.day)}
+                title={`${String(d.day).padStart(2, '0')}/${db.month.slice(5, 7)}: ${d.out > 0 ? fmt(d.out) : '0₫'}`}
                 style={{
-                  ...S.sparkBar,
-                  height: `${d.h}%`,
-                  background: d.isPicked
-                    ? '#6C5CE7'
-                    : d.hasOut
-                      ? 'var(--text-primary, #1C1917)'
-                      : '#E7E3DC',
-                }}
-              />
-              <span
-                style={{
-                  ...S.sparkLabel,
-                  color: d.isPicked ? '#6C5CE7' : 'var(--text-muted, #A8A29E)',
-                  fontWeight: d.isPicked ? 600 : 400,
+                  ...S.sparkBarCol,
+                  opacity: selectedDay !== null && selectedDay !== d.day ? 0.35 : 1,
                 }}
               >
-                {d.lbl}
-              </span>
-            </div>
-          ))}
+                <div
+                  style={{
+                    ...S.sparkBar,
+                    height: `${d.h}%`,
+                    background: d.isPicked
+                      ? '#6C5CE7'
+                      : d.hasOut
+                        ? 'var(--text-primary, #1C1917)'
+                        : '#E7E3DC',
+                  }}
+                />
+                <span
+                  style={{
+                    ...S.sparkLabel,
+                    color: d.isPicked ? '#6C5CE7' : 'var(--text-muted, #A8A29E)',
+                    fontWeight: d.isPicked ? 600 : 400,
+                  }}
+                >
+                  {d.lbl}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Thẻ chỉ số tổng quan */}
-        <div style={S.statGrid}>
-          <div style={S.statCard}>
+        <div style={{
+          ...S.statGrid,
+          ...(isMobile ? { gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 } : {}),
+        }}>
+          <div style={{ ...S.statCard, ...(isMobile ? { padding: '10px 12px' } : {}) }}>
             <div style={S.statOverline}>{t('fund.spentThisPeriod')}</div>
-            <div style={S.statBigNumber}>−{fmt(flow.out)}</div>
-            <div style={S.statSub}>
+            <div style={{ ...S.statBigNumber, ...(isMobile ? { fontSize: 18, marginTop: 4 } : {}) }}>−{fmt(flow.out)}</div>
+            <div style={{ ...S.statSub, ...(isMobile ? { fontSize: 11, marginTop: 3 } : {}) }}>
               {t('fund.txCountInDays', { n: stats.outCount, days: stats.daysWithOut })}
             </div>
           </div>
 
-          <div style={S.statCard}>
+          <div style={{ ...S.statCard, ...(isMobile ? { padding: '10px 12px' } : {}) }}>
             <div style={S.statOverline}>{t('fund.balanceNow')}</div>
-            <div style={S.statBigNumber}>{fmt(av.balance)}</div>
-            <div style={S.statSub}>
+            <div style={{ ...S.statBigNumber, ...(isMobile ? { fontSize: 18, marginTop: 4 } : {}) }}>{fmt(av.balance)}</div>
+            <div style={{ ...S.statSub, ...(isMobile ? { fontSize: 11, marginTop: 3 } : {}) }}>
               {t('fund.available')}: {fmt(av.available)}
             </div>
           </div>
@@ -665,7 +780,10 @@ export default function Fund() {
       </div>
 
       {/* ---------------- 4. MAIN SPLIT VIEW (DANH SÁCH + CHI TIẾT) ---------------- */}
-      <div style={S.mainSplit}>
+      <div style={{
+        ...S.mainSplit,
+        ...(isMobile ? { flexDirection: 'column', gap: 14, padding: '14px 0 24px' } : {}),
+      }}>
         {/* Cột Trái: Danh sách giao dịch gom theo ngày */}
         <div style={S.listColumn}>
           {dateGroups.length === 0 ? (
@@ -694,7 +812,10 @@ export default function Fund() {
                           background: isSelected ? (isDark ? 'var(--surface-accent-soft)' : '#F6F4FF') : 'var(--surface-card, #fff)',
                         }}
                       >
-                        <div style={S.txRow}>
+                        <div style={{
+                          ...S.txRow,
+                          ...(isMobile ? { padding: '10px 12px', gap: 10 } : {}),
+                        }}>
                           <span style={{ ...S.colorIndicator, background: catColor }} />
 
                           <div style={S.txMainInfo}>
@@ -732,7 +853,10 @@ export default function Fund() {
 
                         {/* Danh sách con trong cụm gộp */}
                         {it.isCluster && isExpanded && it.kids && (
-                          <div style={S.clusterKidsBox}>
+                          <div style={{
+                            ...S.clusterKidsBox,
+                            ...(isMobile ? { margin: '0 10px 10px 20px', paddingLeft: 10 } : {}),
+                          }}>
                             {it.kids.map((kid) => (
                               <div
                                 key={kid.id}
@@ -1247,7 +1371,23 @@ const S = {
     color: 'var(--text-secondary, #57534E)',
     display: 'inline-flex',
     alignItems: 'center',
+    justifyContent: 'center',
     cursor: 'pointer',
+  },
+  btnCourtBill: {
+    height: 36,
+    padding: '0 14px',
+    border: '1px solid var(--border-subtle, #E3DFD8)',
+    borderRadius: 9,
+    background: 'var(--surface-card, #fff)',
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--text-primary, #1C1917)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
   },
   btnPrimary: {
     height: 36,
@@ -1260,6 +1400,7 @@ const S = {
     border: 'none',
     display: 'inline-flex',
     alignItems: 'center',
+    justifyContent: 'center',
     cursor: 'pointer',
   },
   themeBtn: {
