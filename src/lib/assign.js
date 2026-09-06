@@ -136,6 +136,94 @@ export function courtBalance(lineup, ci, levelOfKey, levels) {
     : { text: t('assign.skewed'), color: 'var(--status-delayed)' }
 }
 
+/**
+ * Tính điểm cân bằng chi tiết 4 tiêu chí cho 1 sân (Design Screen 01).
+ * 1. Cân rating (Δ rating)
+ * 2. Đổi partner (độ mới của cặp đôi)
+ * 3. Đổi đối thủ (độ mới của đối đầu)
+ * 4. Đều lượt đánh (so sánh lượt chơi với người đang chờ)
+ */
+export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, matches = [], players = [], stats = {} }) {
+  const ids = courtSlotIds(ci)
+  const teamA = [ids[0], ids[1]].map((s) => lineup[s]).filter(Boolean)
+  const teamB = [ids[2], ids[3]].map((s) => lineup[s]).filter(Boolean)
+
+  if (teamA.length < 2 || teamB.length < 2) {
+    return null
+  }
+
+  // 1. Cân rating
+  const ra = teamA.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamA.length
+  const rb = teamB.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamB.length
+  const delta = Math.round(Math.abs(ra - rb))
+  const canRatingScore = Math.max(10, Math.min(100, Math.round(100 - (delta / 50) * 6)))
+
+  // 2. Đổi partner (Cặp đôi đã đánh cùng nhau bao nhiêu lần)
+  let partnerPlayCount = 0
+  matches.forEach((m) => {
+    const ma = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const mb = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+    if ((ma.includes(teamA[0]) && ma.includes(teamA[1])) || (mb.includes(teamA[0]) && mb.includes(teamA[1]))) {
+      partnerPlayCount++
+    }
+    if ((ma.includes(teamB[0]) && ma.includes(teamB[1])) || (mb.includes(teamB[0]) && mb.includes(teamB[1]))) {
+      partnerPlayCount++
+    }
+  })
+  const partnerScore = Math.max(50, Math.min(100, 100 - partnerPlayCount * 12))
+
+  // 3. Đổi đối thủ (Team A vs Team B đã đối đầu bao nhiêu lần)
+  let opponentPlayCount = 0
+  matches.forEach((m) => {
+    const ma = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const mb = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+    const aInA = teamA.some((k) => ma.includes(k))
+    const bInB = teamB.some((k) => mb.includes(k))
+    const aInB = teamA.some((k) => mb.includes(k))
+    const bInA = teamB.some((k) => ma.includes(k))
+    if ((aInA && bInB) || (aInB && bInA)) {
+      opponentPlayCount++
+    }
+  })
+  const opponentScore = Math.max(40, Math.min(100, 100 - opponentPlayCount * 15))
+
+  // 4. Đều lượt đánh
+  // So sánh số trận của người trên sân với người đang chờ có ít trận nhất
+  const onCourtKeys = [...teamA, ...teamB]
+  const waitingPlayers = players.filter((p) => !onCourtKeys.includes(p.key))
+  const waitingCounts = waitingPlayers.map((p) => ({ player: p, n: stats[p.key]?.n || 0 }))
+  waitingCounts.sort((a, b) => a.n - b.n)
+  const minWaiting = waitingCounts[0] || null
+
+  const maxOnCourt = Math.max(...onCourtKeys.map((k) => stats[k]?.n || 0), 0)
+  const waitDiff = minWaiting ? Math.max(0, maxOnCourt - minWaiting.n) : 0
+  const fairScore = Math.max(40, Math.min(100, 100 - waitDiff * 14))
+
+  // Điểm tổng hợp
+  const totalScore = Math.round(
+    canRatingScore * 0.35 + partnerScore * 0.25 + opponentScore * 0.25 + fairScore * 0.15
+  )
+
+  let note = t('assign.balanceNoteGeneral', { delta })
+  if (minWaiting && waitDiff >= 2) {
+    note = t('assign.balanceNoteWaiting', {
+      delta,
+      name: minWaiting.player.name,
+      turns: waitDiff,
+    })
+  }
+
+  return {
+    totalScore,
+    canRating: { delta, score: canRatingScore },
+    partner: { score: partnerScore },
+    opponent: { score: opponentScore },
+    fairness: { score: fairScore, waitDiff, waitingPlayer: minWaiting?.player },
+    note,
+  }
+}
+
+
 /* ---------- xếp ---------- */
 
 const shuffle = (a) => {

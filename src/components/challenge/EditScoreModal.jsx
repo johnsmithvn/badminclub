@@ -94,6 +94,21 @@ export default function EditScoreModal({ match, onClose, onSaved }) {
     }
   }
 
+  const handleCancelMatch = () => {
+    if (!window.confirm(t('common.delete') + '?')) return
+    try {
+      a.cancelMatch({ matchId: match.id, reason: reason.trim() || t('common.delete') })
+      if (onSaved) onSaved({ matchId: match.id, cancelled: true })
+      onClose()
+    } catch (err) {
+      setErrorMsg(err.message || t('matchSearch.errorEdit'))
+    }
+  }
+
+  const matchEdits = useMemo(() => {
+    return (db.matchEdits || []).filter((e) => e.matchId === match.id)
+  }, [db.matchEdits, match.id])
+
   const oldScoreStr = oldSets.map(([a, b]) => `${a}-${b}`).join(', ')
   const newScoreStr = sets.map(([a, b]) => `${a}-${b}`).join(', ')
 
@@ -134,12 +149,31 @@ export default function EditScoreModal({ match, onClose, onSaved }) {
           </button>
           <button
             type="button"
+            disabled={submitting}
+            onClick={handleCancelMatch}
+            style={{
+              height: isMobile ? 56 : 44,
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 14px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              font: '600 13px/1 "IBM Plex Sans", sans-serif',
+              color: 'var(--red-500, #ef4444)',
+              cursor: submitting ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {t('common.delete')}
+          </button>
+          <button
+            type="button"
             onClick={onClose}
             style={{
               height: isMobile ? 56 : 44,
               display: 'flex',
               alignItems: 'center',
-              padding: '0 20px',
+              padding: '0 16px',
               borderRadius: 'var(--radius-md)',
               background: 'var(--surface-card)',
               border: '1px solid var(--border-default)',
@@ -287,6 +321,42 @@ export default function EditScoreModal({ match, onClose, onSaved }) {
         <div style={S.noticeBox}>
           <span style={{ color: 'var(--status-delayed-fg)', fontWeight: 600 }}>⚠️ {t('matchSearch.recalcNotice')}</span>
         </div>
+
+        {/* Lịch sử chỉnh sửa nếu có */}
+        {matchEdits.length > 0 && (
+          <div style={{ display: 'grid', gap: 6, marginTop: 4 }}>
+            <span style={{ font: '600 12px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+              {t('common.more')} ({matchEdits.length})
+            </span>
+            <div style={{ display: 'grid', gap: 6, maxHeight: 120, overflowY: 'auto', paddingRight: 4 }}>
+              {matchEdits.map((ed) => (
+                <div
+                  key={ed.id}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-inset)',
+                    fontSize: 12,
+                    borderLeft: '2px solid var(--status-transit-fg)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                    <span>{playerName(db, ed.editedBy) || t('common.unknown')}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>
+                      {new Date(ed.editedAt).toLocaleDateString('vi-VN')} {new Date(ed.editedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div style={{ color: 'var(--text-secondary)' }}>
+                    {ed.reason} {ed.newValue && `(${ed.newValue})`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {errorMsg && (
           <div style={{ color: 'var(--status-incident-fg, var(--red-500))', fontSize: 13, fontWeight: 500 }}>

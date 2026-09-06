@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
-import { courtOf, playerName } from '#lib/money.js'
+import { courtOf, myMember, playerName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { firstEmptyCourtIdx } from '#lib/assign.js'
@@ -8,12 +9,19 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
+import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx'
+import ScoreModal from '#components/challenge/ScoreModal.jsx'
 
 export default function SessionMatchesTab({ s, onSwitchTab }) {
   const { db, a } = useApp()
   const isMobile = useMobile()
+  const [searchParams] = useSearchParams()
+  const targetMatchId = searchParams.get('matchId')
   const [showCreate, setShowCreate] = useState(false)
   const [editingMatch, setEditingMatch] = useState(null)
+  const [challengeTab, setChallengeTab] = useState('my')
+  const [selectedChallenge, setSelectedChallenge] = useState(null)
+  const [scoringChallenge, setScoringChallenge] = useState(null)
 
   // Danh sách các trận trong buổi này
   const matches = useMemo(() => {
@@ -23,6 +31,16 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
       .sort((m1, m2) => (m2.createdAt || '').localeCompare(m1.createdAt || ''))
   }, [db.matches, s.id])
 
+  // Tự động cuộn và làm nổi bật trận đấu nếu được chuyển tiếp từ màn Tìm trận
+  useEffect(() => {
+    if (targetMatchId) {
+      const el = document.getElementById(`session-match-${targetMatchId}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }
+  }, [targetMatchId, matches])
+
   // Danh sách kèo trong buổi này
   const challenges = useMemo(() => {
     return (db.challenges || [])
@@ -30,6 +48,36 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
       .slice()
       .sort((c1, c2) => (c2.createdAt || '').localeCompare(c1.createdAt || ''))
   }, [db.challenges, s.id])
+
+  const myMem = myMember(db)
+  const myId = myMem?.id || null
+
+  const myChallenges = useMemo(() => {
+    return challenges.filter((c) => {
+      if (!myId) return false
+      return c.createdBy === myId || (c.teamA || []).includes(myId) || (c.teamB || []).includes(myId)
+    })
+  }, [challenges, myId])
+
+  const pendingChallenges = useMemo(() => {
+    return challenges.filter((c) => c.status === 'pending')
+  }, [challenges])
+
+  const openChallenges = useMemo(() => {
+    return challenges.filter((c) => !c.teamB?.length || (c.teamB && c.teamB.length < (c.teamA?.length > 1 ? 2 : 1)))
+  }, [challenges])
+
+  const playedChallenges = useMemo(() => {
+    return challenges.filter((c) => c.status === 'played')
+  }, [challenges])
+
+  const displayedChallenges = useMemo(() => {
+    if (challengeTab === 'my') return myChallenges.length ? myChallenges : challenges
+    if (challengeTab === 'pending') return pendingChallenges
+    if (challengeTab === 'open') return openChallenges
+    if (challengeTab === 'played') return playedChallenges
+    return challenges
+  }, [challengeTab, myChallenges, pendingChallenges, openChallenges, playedChallenges, challenges])
 
   const memberNameOf = (id) => playerName(db, id)
 
@@ -139,19 +187,23 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
                 const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
                 const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
-                const deltaStr = hasElo ? `${m.eloDelta > 0 ? '+' : ''}${m.eloDelta}` : '—'
+                const absDelta = Math.abs(m.eloDelta || 0)
+                const deltaStr = hasElo ? `+${absDelta}` : '—'
+                const isTarget = targetMatchId === m.id
 
                 return (
                   <div
                     key={m.id}
+                    id={`session-match-${m.id}`}
                     style={{
-                      background: 'var(--surface-card)',
-                      border: '1px solid var(--border-subtle)',
+                      background: isTarget ? 'var(--surface-brand-soft, rgba(0, 178, 169, 0.08))' : 'var(--surface-card)',
+                      border: isTarget ? '2px solid var(--teal-500)' : '1px solid var(--border-subtle)',
                       borderRadius: 'var(--radius-card)',
                       padding: '12px 14px',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: 8,
+                      transition: 'all 0.3s ease',
                     }}
                   >
                     {/* Hàng 1: Mã trận + Sân/giờ và Nút sửa */}
@@ -244,16 +296,16 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           ) : (
             /* Table Headers & Rows với scroll ngang an toàn trên desktop */
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <div style={{ minWidth: 680 }}>
+              <div style={{ minWidth: 740 }}>
                 <div style={S.tableHead}>
                   <div style={S.thCell}>{t('matchSearch.colCode')}</div>
                   <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
                   <div style={S.thCell}>{t('matchSearch.colWinner')}</div>
-                  <div style={{ ...S.thCell, textAlign: 'center' }}>{t('matchSearch.colScore')}</div>
+                  <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('matchSearch.colScore')}</div>
                   <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
-                  <div style={S.thCell}>{t('pages.sessions.colDelta')}</div>
+                  <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('pages.sessions.colDelta')}</div>
                   <div style={S.thCell}>{t('matchSearch.colSource')}</div>
-                  <div style={{ ...S.thCell, textAlign: 'right' }}>{t('pages.sessions.colAction')}</div>
+                  <div style={{ ...S.thCell, justifyContent: 'flex-end' }}>{t('pages.sessions.colAction')}</div>
                 </div>
 
                 {/* Rows */}
@@ -273,9 +325,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     }))
                     const courtObj = (s.courts || [])[m.courtIdx]
                     const venue = courtObj ? courtOf(db, courtObj.courtId) : null
-                    const courtLabel = courtObj?.label
-                      ? courtObj.label
-                      : ((s.courts || []).length > 1 ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : (venue?.name || t('units.court')))
+                    const courtLabel = courtObj?.label || t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 })
                     const matchTime = m.at
                       ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                       : (courtObj ? courtObj.from : '')
@@ -284,10 +334,21 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
                     const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
                     const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
-                    const deltaStr = hasElo ? `${m.eloDelta > 0 ? '+' : ''}${m.eloDelta}` : '—'
+                    const absDelta = Math.abs(m.eloDelta || 0)
+                    const deltaStr = hasElo ? `+${absDelta}` : '—'
+                    const isTarget = targetMatchId === m.id
 
                     return (
-                      <div key={m.id} style={S.tableRow}>
+                      <div
+                        key={m.id}
+                        id={`session-match-${m.id}`}
+                        style={{
+                          ...S.tableRow,
+                          background: isTarget ? 'var(--surface-brand-soft, rgba(0, 178, 169, 0.08))' : undefined,
+                          outline: isTarget ? '2px solid var(--teal-500)' : undefined,
+                          transition: 'all 0.3s ease',
+                        }}
+                      >
                         <div style={S.tdCell}>
                           <span style={S.monoCode}>{matchCode}</span>
                         </div>
@@ -330,7 +391,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                             {loserNames}
                           </span>
                         </div>
-                        <div style={S.tdCell}>
+                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
                           <span style={{
                             font: '600 12.5px/1 "IBM Plex Mono", monospace',
                             color: hasElo ? 'var(--status-delivered-fg)' : 'var(--text-disabled)',
@@ -391,16 +452,56 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
             </button>
           </div>
 
+          {/* Sub-tabs K1 (Của tôi, Đang chờ, Đang mở, Đã đấu) */}
+          <div style={{ display: 'flex', gap: 6, padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-sunken)' }}>
+            {[
+              { id: 'my', label: t('challenge.tabMy'), count: myChallenges.length },
+              { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: 'var(--status-delayed-fg)' },
+              { id: 'open', label: t('challenge.tabOpen'), count: openChallenges.length, color: 'var(--status-transit-fg)' },
+              { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
+            ].map((tb) => {
+              const active = challengeTab === tb.id
+              return (
+                <button
+                  key={tb.id}
+                  type="button"
+                  onClick={() => setChallengeTab(tb.id)}
+                  style={{
+                    flex: 1,
+                    minHeight: 34,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 2,
+                    borderRadius: 'var(--radius-sm)',
+                    background: active ? 'var(--surface-card)' : 'transparent',
+                    border: active ? '1px solid var(--border-default)' : '1px solid transparent',
+                    cursor: 'pointer',
+                    boxShadow: active ? 'var(--shadow-xs)' : 'none',
+                  }}
+                >
+                  <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {tb.label}
+                  </span>
+                  <span style={{ font: '500 11px/1 "IBM Plex Mono", monospace', color: tb.color || (active ? 'var(--text-primary)' : 'var(--text-muted)') }}>
+                    {tb.count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
           <div style={{ padding: '12px 14px', display: 'grid', gap: 10 }}>
-            {challenges.map((c) => {
+            {displayedChallenges.map((c) => {
               const teamA = c.teamA || []
               const teamB = c.teamB || []
               const namesA = teamA.map(memberNameOf).join(' · ')
-              const namesB = teamB.map(memberNameOf).join(' · ')
+              const namesB = teamB.length ? teamB.map(memberNameOf).join(' · ') : t('challenge.teamEmptyHint')
               const ratA = teamA.length ? Math.round(teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length) : 0
               const ratB = teamB.length ? Math.round(teamB.reduce((sum, id) => sum + getRating(id), 0) / teamB.length) : 0
               const gap = Math.abs(ratA - ratB)
-              const pA = expectedScore(ratA, ratB)
+              const pA = expectedScore(ratA, ratB || ratA)
               const pctA = Math.round(pA * 100)
               const pctB = 100 - pctA
 
@@ -421,7 +522,15 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const isAccepted = c.status === 'accepted'
 
               return (
-                <div key={c.id} style={S.challengeCard}>
+                <div
+                  key={c.id}
+                  onClick={() => setSelectedChallenge(c)}
+                  style={{
+                    ...S.challengeCard,
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s ease',
+                  }}
+                >
                   {/* Code & Status */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <span style={S.monoCode}>{c.code}</span>
@@ -444,12 +553,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)' }}>VS</span>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                       <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>{namesB}</div>
-                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>{ratB}</div>
+                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>{ratB ? `${ratB}` : '—'}</div>
                     </div>
                   </div>
 
                   {/* Win% Bar */}
-                  {!isPlayed && (
+                  {!isPlayed && ratB > 0 && (
                     <div style={{ display: 'grid', gap: 4 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
                         <span style={{ color: 'var(--status-transit-fg)' }}>{pctA}%</span>
@@ -463,40 +572,28 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     </div>
                   )}
 
-                  {/* Meta */}
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                    BO{c.bestOf || 3} · {c.ratingEnabled ? t('challenge.rated') : t('challenge.casual')}
-                  </div>
-
-                  {/* Lịch sử đối đầu H2H (K4 / DK4 handoff) */}
+                  {/* H2H Tag nếu có lịch sử */}
                   {h2hMatches.length > 0 && (
                     <div style={S.h2hRow}>
                       <span style={{ color: 'var(--text-muted)' }}>{t('challenge.h2hRecord')}:</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--status-transit-fg)', fontWeight: 600 }}>
-                        {h2hWinsA}W – {h2hWinsB}L
-                      </span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                        ({h2hMatches.length} {t('units.match')})
-                      </span>
+                      <span style={{ color: 'var(--status-delivered-fg)', fontWeight: 600 }}>{h2hWinsA}W</span>
+                      <span style={{ color: 'var(--text-disabled)' }}>–</span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{h2hWinsB}L</span>
                     </div>
                   )}
 
-                  {/* Contextual actions */}
+                  {/* Action buttons tuỳ trạng thái */}
                   {isPending && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button
                         type="button"
-                        onClick={() => a.respondChallenge(c.id, true)}
-                        style={S.smallPrimaryBtn}
-                      >
-                        {t('challenge.accept')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => a.respondChallenge(c.id, false)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedChallenge(c)
+                        }}
                         style={S.smallGhostBtn}
                       >
-                        {t('challenge.decline')}
+                        {t('challenge.details')}
                       </button>
                     </div>
                   )}
@@ -505,17 +602,23 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button
                         type="button"
-                        onClick={() => handleDeployChallenge(c)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeployChallenge(c)
+                        }}
                         style={S.smallPrimaryBtn}
                       >
                         {t('challenge.deployToCourt')}
                       </button>
                       <button
                         type="button"
-                        onClick={() => a.cancelChallenge(c.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setScoringChallenge(c)
+                        }}
                         style={S.smallGhostBtn}
                       >
-                        {t('challenge.cancel')}
+                        {t('scoreModal.title')}
                       </button>
                     </div>
                   )}
@@ -523,7 +626,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               )
             })}
 
-            {challenges.length === 0 && (
+            {displayedChallenges.length === 0 && (
               <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px 0', textAlign: 'center' }}>
                 {t('challenge.noSessionChallenges')}
               </div>
@@ -573,6 +676,33 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           match={editingMatch}
           onClose={() => setEditingMatch(null)}
           onSaved={() => setEditingMatch(null)}
+        />
+      )}
+
+      {/* Modal chi tiết/thao tác kèo (K4 / K5 / K7) */}
+      {selectedChallenge && (
+        <ChallengeDetailModal
+          challenge={selectedChallenge}
+          session={s}
+          onClose={() => setSelectedChallenge(null)}
+          onDeployed={(c) => {
+            setSelectedChallenge(null)
+            handleDeployChallenge(c)
+          }}
+          onScoreInput={(c) => {
+            setSelectedChallenge(null)
+            setScoringChallenge(c)
+          }}
+        />
+      )}
+
+      {/* Modal ghi điểm cho kèo (K8) */}
+      {scoringChallenge && (
+        <ScoreModal
+          challenge={scoringChallenge}
+          session={s}
+          onClose={() => setScoringChallenge(null)}
+          onSaved={() => setScoringChallenge(null)}
         />
       )}
     </div>
@@ -646,7 +776,7 @@ const S = {
   },
   tableHead: {
     display: 'grid',
-    gridTemplateColumns: '88px 84px 1fr 96px 1fr 90px 116px 64px',
+    gridTemplateColumns: '76px 110px 1fr 84px 1fr 84px 96px 64px',
     background: 'var(--surface-inset)',
     borderBottom: '1px solid var(--border-subtle)',
   },
@@ -659,10 +789,11 @@ const S = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   tableRow: {
     display: 'grid',
-    gridTemplateColumns: '88px 84px 1fr 96px 1fr 90px 116px 64px',
+    gridTemplateColumns: '76px 110px 1fr 84px 1fr 84px 96px 64px',
     borderBottom: '1px solid var(--border-subtle)',
     minHeight: 52,
     alignItems: 'center',

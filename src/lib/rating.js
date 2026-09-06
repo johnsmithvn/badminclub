@@ -384,8 +384,6 @@ export function effectiveRating(member, opponentHasOppositeGender, calibrationLi
 export function replayRatingCascade(allMatches, editedMatchId, members, levels) {
   // Sắp xếp các trận theo thời gian tăng dần
   const sorted = [...(allMatches || [])].sort((a, b) => (a.at || 0) - (b.at || 0))
-  const startIdx = sorted.findIndex((m) => m.id === editedMatchId)
-  if (startIdx < 0) return { finalRatings: {}, updatedMatches: sorted }
 
   // Khởi tạo bảng rating tính toán
   const ratings = {}
@@ -460,7 +458,7 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
       initialRatingA: ra,
       initialRatingB: rb,
       winnerTeam,
-      eloDelta: delta,
+      eloDelta: Math.abs(delta),
     }
   })
 

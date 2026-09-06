@@ -9,12 +9,12 @@ import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
 import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { ddmy, wd } from '#utils/dates.js'
+import { dd, ddmy, wd } from '#utils/dates.js'
 import {
-  courtOf, courtTxt, dueState, duesOf,
+  courtOf, dueState, duesOf,
   fmt, fmtK, genderTxt, groupOf, guestOf, guestPrice, headCount, levelOf,
   isAdhoc, isMemberCharge, memberOf, presentCount, rowCost, sGuests, sGuestsOnly, sessionMembers,
-  sessionOf, timeTxt, normalizeText, guestStats,
+  sessionOf, normalizeText, guestStats,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -73,140 +73,111 @@ export default function SessionDetail() {
 
   return (
     <>
-      <div>
-        <Button variant="ghost" size="sm" icon="arrow-left" onClick={() => a.go('sessions')}>
-          {t('session.backToList')}
-        </Button>
-      </div>
-
-      <Card padding="14px 18px">
-        <div style={S.headRow}>
-          <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>
-                {ddmy(s.date) + ' · ' + wd(s.date)}
-              </span>
-              <SessionPill status={s.status} size="md" />
+      {/* ---------------- Unified Session Top Header (Mockup 01 / K1) ---------------- */}
+      <div style={S.sessionHeaderBar}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+          <button
+            type="button"
+            onClick={() => a.go('sessions')}
+            style={S.backBtn}
+            aria-label={t('session.backToList')}
+          >
+            <Icon name="arrow-left" size={18} color="var(--text-primary)" />
+          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+            <div style={S.sessionTitleText}>
+              {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
             </div>
-            <Mono color="var(--text-muted)" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-              {group.name + ' · ' + timeTxt(s) + ' · ' + courtTxt(db, s)}
-            </Mono>
+            <div style={S.sessionSubText}>
+              {`${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Nút hành động chính theo trạng thái buổi: Mở / Chốt / Mở lại / Chốt lại */}
-            {canEdit && (
-              <>
-                {s.status === 'draft' && (
-                  <Button variant="primary" icon="user-round-check"
-                    style={{
-                      background: 'linear-gradient(135deg, var(--blue-600) 0%, var(--status-scheduled) 100%)',
-                      borderColor: 'var(--status-scheduled)',
-                      boxShadow: '0 2px 10px rgba(14, 165, 233, 0.4)',
-                      fontWeight: 700,
-                      minHeight: isMobile ? 44 : 36,
-                    }}
-                    onClick={() => a.setSessionStatus(s.id, 'open')}>
-                    {t('session.doOpen')}
-                  </Button>
-                )}
-                {s.status === 'open' && (
-                  <>
-                    <Button
-                      variant="primary"
-                      icon="circle-check"
-                      disabled={!canMoney}
-                      style={{
-                        background: !canMoney ? undefined : 'var(--action-success-bg)',
-                        borderColor: !canMoney ? undefined : 'var(--action-success-border)',
-                        boxShadow: !canMoney ? undefined : '0 2px 12px rgba(0, 135, 90, 0.35)',
-                        fontWeight: 700,
-                        padding: '0 16px',
-                        minHeight: isMobile ? 44 : 36,
-                      }}
-                      onClick={() => a.confirm({
-                        title: t('session.closeTitle'),
-                        message: t('session.closeMsg'),
-                        tone: 'info',
-                        confirmText: t('session.closeOk'),
-                        onConfirm: () => a.setSessionStatus(s.id, 'closed'),
-                      })}>
-                      {t('session.doClose')}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      icon="undo-2"
-                      onClick={() => a.confirm({
-                        title: t('session.revertDraftTitle'),
-                        message: t('session.revertDraftMsg'),
-                        tone: 'info',
-                        confirmText: t('session.revertDraftOk'),
-                        onConfirm: () => a.setSessionStatus(s.id, 'draft'),
-                      })}>
-                      {t('session.doRevertDraft')}
-                    </Button>
-                  </>
-                )}
-                {(s.status === 'cancelled' || s.status === 'closed') && (
-                  <Button variant="secondary" icon="rotate-ccw" onClick={() => a.confirm({
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
+            <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
+            <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)' }}>
+              {s.status === 'open'
+                ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
+                : t(`status.${s.status}`)}
+            </span>
+          </div>
+
+          {canEdit && (
+            <>
+              {s.status === 'draft' && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon="user-round-check"
+                  onClick={() => a.setSessionStatus(s.id, 'open')}
+                >
+                  {t('session.doOpen')}
+                </Button>
+              )}
+              {s.status === 'open' && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon="circle-check"
+                  disabled={!canMoney}
+                  onClick={() => a.confirm({
+                    title: t('session.closeTitle'),
+                    message: t('session.closeMsg'),
+                    tone: 'info',
+                    confirmText: t('session.closeOk'),
+                    onConfirm: () => a.setSessionStatus(s.id, 'closed'),
+                  })}
+                >
+                  {t('session.doClose')}
+                </Button>
+              )}
+              {(s.status === 'cancelled' || s.status === 'closed') && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="rotate-ccw"
+                  disabled={!canMoney}
+                  onClick={() => a.confirm({
                     title: t('session.reopenTitle'),
                     message: t('session.reopenMsg'),
                     tone: 'warning',
                     confirmText: t('session.reopenOk'),
                     onConfirm: () => a.setSessionStatus(s.id, 'open'),
-                  })}>
-                    {t('session.doReopen')}
-                  </Button>
-                )}
-              </>
-            )}
+                  })}
+                >
+                  {t('session.doReopen')}
+                </Button>
+              )}
+            </>
+          )}
 
-            {!isMobile && (
-              <Button variant="secondary" size="sm" icon="send" onClick={() => a.copyZalo(s.id)}>
-                {t('session.copyZalo')}
-              </Button>
-            )}
-            {canEdit && s.status !== 'cancelled' && s.status !== 'closed' && (
-              <Button variant="ghost" size="sm" icon="circle-x" onClick={() => a.confirm({
-                title: t('session.cancelTitle'),
-                message: t('session.cancelMsg'),
-                tone: 'warning',
-                confirmText: t('session.cancelOk'),
-                onConfirm: () => a.setSessionStatus(s.id, 'cancelled'),
-              })}>
-                {t('session.doCancel')}
-              </Button>
-            )}
-            {/* Xoá HẲN chỉ mở khi chưa chốt và có quyền sửa */}
-            {canEdit && s.status !== 'closed' && (
-              <Button variant="ghost" size="sm" icon="trash-2" onClick={() => a.confirm({
+          <IconButton
+            icon="send"
+            size="sm"
+            variant="ghost"
+            label={t('session.copyZalo')}
+            onClick={() => a.copyZalo(s.id)}
+          />
+
+          {canEdit && s.status !== 'closed' && (
+            <IconButton
+              icon="trash-2"
+              size="sm"
+              variant="ghost"
+              label={t('session.doDelete')}
+              onClick={() => a.confirm({
                 title: t('session.delTitle'),
                 message: t('session.delMsg', { date: ddmy(s.date) }),
                 tone: 'danger',
                 confirmText: t('session.doDelete'),
                 onConfirm: () => a.deleteSession(s.id),
-              })}>
-                {t('session.doDelete')}
-              </Button>
-            )}
-          </div>
+              })}
+            />
+          )}
         </div>
-
-        {/* Copy Zalo trên mobile chuyển thành nút phụ trong thân */}
-        {isMobile && (
-          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-start' }}>
-            <Button variant="ghost" size="sm" icon="send" onClick={() => a.copyZalo(s.id)}>
-              {t('session.copyZalo')}
-            </Button>
-          </div>
-        )}
-
-        {/* Ghi chú của buổi. Vô hiệu hóa khi buổi đã chốt. */}
-        <div style={{ marginTop: 12 }}>
-          <Input label={t('session.note')} placeholder={t('session.notePh')}
-            value={s.note || ''} disabled={!canEdit || isClosed}
-            onChange={(e) => a.setSessionNote(s.id, e.target.value)} />
-        </div>
-      </Card>
+      </div>
 
       {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
       <TabTrack style={S.tabBarWrap}>
@@ -939,6 +910,70 @@ function GuestForm({ s }) {
 }
 
 const S = {
+  sessionHeaderBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    minHeight: 60,
+    padding: '12px 16px',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-lg)',
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    border: '1px solid var(--border-default)',
+    background: 'var(--surface-inset)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: 'var(--text-primary)',
+    flexShrink: 0,
+  },
+  sessionTitleText: {
+    font: '700 18px/1.2 Barlow, sans-serif',
+    letterSpacing: '-0.01em',
+    color: 'var(--text-primary)',
+  },
+  sessionSubText: {
+    font: '400 12.5px/1.3 "IBM Plex Mono", monospace',
+    color: 'var(--text-muted)',
+  },
+  statusBadgeTeal: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '5px 10px',
+    borderRadius: 999,
+    background: 'rgba(0, 178, 169, 0.16)',
+    border: '1px solid rgba(0, 178, 169, 0.3)',
+  },
+  statusDotTeal: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: '#5FDBD3',
+    boxShadow: '0 0 6px #5FDBD3',
+  },
+  statusBadgeDefault: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '5px 10px',
+    borderRadius: 999,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+  },
+  statusDotDefault: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: 'var(--text-muted)',
+  },
   tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 16px' },
   tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', gap: 2 },
   tabBtn: {

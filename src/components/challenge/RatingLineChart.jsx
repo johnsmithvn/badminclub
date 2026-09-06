@@ -76,7 +76,7 @@ export default function RatingLineChart({
     filteredMatches.forEach((m) => {
       const inA = (m.teamA || []).includes(memberId)
       const won = (inA && m.winnerTeam === 'A') || (!inA && m.winnerTeam === 'B')
-      const dVal = m.eloDelta || 0
+      const dVal = Math.abs(m.eloDelta || 0)
       const delta = won ? dVal : -dVal
       if (m.ratingEnabled !== false) {
         runningRating += delta
