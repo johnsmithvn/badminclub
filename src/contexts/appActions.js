@@ -2128,6 +2128,24 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t(accept ? 'challenge.toastAccepted' : 'challenge.toastDeclined', { code: chal.code }))
     },
 
+    acceptOpenChallenge: ({ challengeId, partnerId }) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) return
+      const myMem = myMember(d0)
+      const myId = myMem?.id || null
+      if (!myId) {
+        toast(t('common.unauthorized'))
+        return
+      }
+      const isDoubles = (chal.teamA || []).length > 1
+      const teamB = isDoubles ? (partnerId ? [myId, partnerId] : [myId]) : [myId]
+      up((d) => ({
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, status: 'accepted' } : c)),
+      }))
+      toast(t('challenge.toastAccepted', { code: chal.code }))
+    },
+
     cancelChallenge: (challengeId) => {
       const d0 = db()
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)
@@ -2422,6 +2440,68 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       toast(t('common.save') + ': ' + match.id)
       return { matchId, sets: actualSets }
+    },
+
+    cancelMatch: ({ matchId, reason }) => {
+      if (!canAssign()) return
+      const d0 = db()
+      const match = (d0.matches || []).find((m) => m.id === matchId)
+      if (!match) return
+
+      const myMem = myMember(d0)
+      const myId = myMem?.id || null
+      const editLog = {
+        id: uid(),
+        matchId,
+        clubId: d0.clubId,
+        editedBy: myId,
+        editedAt: new Date().toISOString(),
+        fieldChanged: 'status',
+        oldValue: 'completed',
+        newValue: 'cancelled',
+        reason: reason || t('common.delete'),
+        ratingRecalcFromMatchId: matchId,
+      }
+
+      const remainingMatches = (d0.matches || []).filter((m) => m.id !== matchId)
+      const { finalRatings, updatedMatches } = replayRatingCascade(remainingMatches, matchId, d0.members, d0.levels)
+
+      up((d) => {
+        const nextRatings = { ...(d.playerRatings || {}) }
+        Object.entries(finalRatings || {}).forEach(([mid, r]) => {
+          const old = nextRatings[mid] || {}
+          nextRatings[mid] = {
+            ...old,
+            ...r,
+            id: old.id || r.id || uid(),
+            memberId: mid,
+          }
+        })
+        const memberMap = {}
+        ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        const calList = computeClubCalibration(updatedMatches, memberMap)
+        const prevCals = d.clubCalibration || []
+        const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
+          const item = calList.find((x) => x.bucket === bKey) || { bucket: bKey, sampleSize: 0, observedWinRate: 0, learnedAdjustment: 0 }
+          const existing = prevCals.find((p) => p.bucket === bKey)
+          return {
+            id: existing?.id || uid(),
+            bucket: bKey,
+            sampleSize: item.sampleSize || 0,
+            observedWinRate: item.observedWinRate || 0,
+            learnedAdjustment: item.learnedAdjustment || 0,
+          }
+        })
+        return {
+          matches: updatedMatches,
+          playerRatings: nextRatings,
+          matchEdits: [editLog, ...(d.matchEdits || [])],
+          clubCalibration: nextCals,
+        }
+      })
+
+      toast(t('common.delete') + ': ' + match.id)
+      return { matchId, cancelled: true }
     },
 
     /* ---------- báo cáo Zalo ---------- */

@@ -1,47 +1,49 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Button, Card, Icon, IconButton, Input, Select, Switch } from '#ds'
-import { LevelChip, Mono, Empty } from '#ui'
+import { Button, Card, Icon, IconButton, Select, Switch } from '#ds'
+import { LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, playerName, genderTxt } from '#lib/money.js'
-import { sessionPlayers } from '#lib/assign.js'
+import { sessionPlayers, detailedCourtBalance, courtSlotIds } from '#lib/assign.js'
 import {
-  expectedScore, evalBalance, getPlayerRating,
-  rankTierOf, teamRating,
+  expectedScore, getPlayerRating,
+  teamRating, computeClubCalibration,
 } from '#lib/rating.js'
 import { t } from '#i18n'
 
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
-  const isMobile = useMobile(768)
+  const _isMobile = useMobile(768)
 
   // Mode: 'doubles' (2 vs 2) hoặc 'singles' (1 vs 1)
   const [mode, setMode] = useState('doubles')
   const maxPerTeam = mode === 'doubles' ? 2 : 1
 
-  // Đội A & Đội B (mảng id các đấu thủ)
+  // Đội A & Đội B (mảng id/key các đấu thủ)
   const [teamA, setTeamA] = useState([])
   const [teamB, setTeamB] = useState([])
 
-  // Cài đặt trận
+  // Cài đặt sân & Elo
   const [courtIdx, setCourtIdx] = useState(0)
   const [ratingEnabled, setRatingEnabled] = useState(true)
   const [selectedChallengeId, setSelectedChallengeId] = useState(null)
 
-  // Tỷ số
+  // Tỷ số & Đội thắng
+  const [winnerTeam, setWinnerTeam] = useState('A')
+  const [presetScore, setPresetScore] = useState('21-19') // '21-19' | '21-15' | '21-11' | 'custom'
   const [scoreA, setScoreA] = useState(21)
   const [scoreB, setScoreB] = useState(19)
   const [isBo3, setIsBo3] = useState(false)
-  const [bo3Sets, setBo3Sets] = useState([
+  const [bo3Sets, _setBo3Sets] = useState([
     [21, 19],
     [19, 21],
     [21, 18],
   ])
 
-  // Tìm kiếm người trong pool
+  // Tìm kiếm trong khu vực chờ
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Danh sách người tham gia buổi (đã điểm danh có mặt hoặc khách)
+  // Danh sách tất cả người tham gia buổi (thành viên có mặt + khách)
   const players = useMemo(() => sessionPlayers(db, s), [db, s])
 
   // Map rating cho tất cả người trong pool
@@ -73,6 +75,15 @@ export default function CourtAssignmentTab({ s }) {
     return counts
   }, [sessionMatches])
 
+  // Object stats cho hàm tính điểm cân bằng
+  const statsObj = useMemo(() => {
+    const obj = {}
+    players.forEach((p) => {
+      obj[p.key] = { n: matchCountMap[p.key] || 0 }
+    })
+    return obj
+  }, [players, matchCountMap])
+
   // Danh sách các sân còn hoạt động trong buổi
   const courtOptions = useMemo(() => {
     const list = (s.courts || []).filter((c) => !c.sold)
@@ -85,12 +96,28 @@ export default function CourtAssignmentTab({ s }) {
     }))
   }, [s.courts, db])
 
-  // Kèo đã nhận trong buổi (chưa kết thúc)
+  // Kèo đã nhận trong buổi (chưa hoàn thành)
   const acceptedChallenges = useMemo(() => {
     return (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'accepted')
   }, [db.challenges, s.id])
 
-  // Đổi mode đơn/đôi
+  // Người đang chờ (chưa có tên trên sân)
+  const waitingPlayers = useMemo(() => {
+    return players.filter((p) => !teamA.includes(p.key) && !teamB.includes(p.key))
+  }, [players, teamA, teamB])
+
+  // Lọc người chờ theo ô tìm kiếm
+  const filteredWaiting = useMemo(() => {
+    if (!searchQuery.trim()) return waitingPlayers
+    const q = searchQuery.toLowerCase()
+    return waitingPlayers.filter((p) => {
+      const nameMatch = (p.name || '').toLowerCase().includes(q)
+      const levelMatch = (p.level || '').toLowerCase().includes(q)
+      return nameMatch || levelMatch
+    })
+  }, [waitingPlayers, searchQuery])
+
+  // Đổi mode đơn / đôi
   const handleSwitchMode = (newMode) => {
     setMode(newMode)
     const newMax = newMode === 'doubles' ? 2 : 1
@@ -98,8 +125,8 @@ export default function CourtAssignmentTab({ s }) {
     if (teamB.length > newMax) setTeamB(teamB.slice(0, newMax))
   }
 
-  // Chạm vào người trong danh sách chờ: tự xếp vào slot trống hoặc gỡ ra nếu đã có tên
-  const handleTogglePlayer = useCallback((key) => {
+  // Chạm vào người trong danh sách chờ: tự động đưa vào slot trống
+  const handleTapPlayer = useCallback((key) => {
     if (teamA.includes(key)) {
       setTeamA((prev) => prev.filter((k) => k !== key))
       return
@@ -117,9 +144,9 @@ export default function CourtAssignmentTab({ s }) {
     }
   }, [teamA, teamB, maxPerTeam, a])
 
-  // Tự động xếp những người đánh ít nhất vào các slot trống
+  // Nút "Ai ít trận nhất": tự động xếp những người đánh ít nhất vào các slot trống
   const handleAutoPickFewest = () => {
-    const unselected = players.filter((p) => !teamA.includes(p.key) && !teamB.includes(p.key))
+    const unselected = [...waitingPlayers]
     unselected.sort((p1, p2) => (matchCountMap[p1.key] || 0) - (matchCountMap[p2.key] || 0))
 
     const needed = (maxPerTeam * 2) - (teamA.length + teamB.length)
@@ -139,21 +166,14 @@ export default function CourtAssignmentTab({ s }) {
     setTeamB(nextB)
   }
 
-  // Đổi vị trí hai đội A và B
-  const handleSwapTeams = () => {
-    const tempA = teamA
-    setTeamA(teamB)
-    setTeamB(tempA)
-  }
-
-  // Xoá trắng 2 đội
-  const handleClearAll = () => {
+  // Xoá đội hình
+  const handleClearLineup = () => {
     setTeamA([])
     setTeamB([])
     setSelectedChallengeId(null)
   }
 
-  // Nạp kèo đã nhận vào form
+  // Nạp kèo đã nhận vào sân
   const handleLoadChallenge = (c) => {
     const isDbl = (c.teamA || []).length > 1 || (c.teamB || []).length > 1
     const targetMode = isDbl ? 'doubles' : 'singles'
@@ -168,33 +188,128 @@ export default function CourtAssignmentTab({ s }) {
     a.toast(t('quickMatch.loadChalSuccess', { code: c.code || '' }))
   }
 
-  // Tính Elo trung bình và độ cân bằng
+  // Đổi đội thắng (1 chạm)
+  const handleSelectWinner = (team) => {
+    setWinnerTeam(team)
+    if (presetScore === '21-19') {
+      setScoreA(team === 'A' ? 21 : 19)
+      setScoreB(team === 'B' ? 21 : 19)
+    } else if (presetScore === '21-15') {
+      setScoreA(team === 'A' ? 21 : 15)
+      setScoreB(team === 'B' ? 21 : 15)
+    } else if (presetScore === '21-11') {
+      setScoreA(team === 'A' ? 21 : 11)
+      setScoreB(team === 'B' ? 21 : 11)
+    }
+  }
+
+  // Chọn preset tỷ số nhanh (21-19, 21-15, 21-11, Khác)
+  const handleSelectPreset = (preset) => {
+    setPresetScore(preset)
+    if (preset === '21-19') {
+      setScoreA(winnerTeam === 'A' ? 21 : 19)
+      setScoreB(winnerTeam === 'B' ? 21 : 19)
+    } else if (preset === '21-15') {
+      setScoreA(winnerTeam === 'A' ? 21 : 15)
+      setScoreB(winnerTeam === 'B' ? 21 : 15)
+    } else if (preset === '21-11') {
+      setScoreA(winnerTeam === 'A' ? 21 : 11)
+      setScoreB(winnerTeam === 'B' ? 21 : 11)
+    }
+  }
+
+  // ---------------- TÍNH TOÁN RATING, BALANCE & EFFECTIVE RATING ----------------
   const ratingA = useMemo(() => teamRating(teamA, ratingsMap), [teamA, ratingsMap])
   const ratingB = useMemo(() => teamRating(teamB, ratingsMap), [teamB, ratingsMap])
+  const deltaRating = Math.abs(ratingA - ratingB)
 
-  const balanceInfo = useMemo(() => {
-    if (!teamA.length || !teamB.length) return null
-    const expA = expectedScore(ratingA, ratingB)
-    const pctA = Math.round(expA * 100)
-    const pctB = 100 - pctA
-    const evalRes = evalBalance(ratingA, ratingB)
-    return { pctA, pctB, evalRes }
-  }, [teamA, teamB, ratingA, ratingB])
+  // Điểm cân bằng chi tiết (Detailed Balance Score - Mockup 01)
+  const balanceDetails = useMemo(() => {
+    if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) return null
+    const mockLineup = {}
+    const ids = courtSlotIds(courtIdx)
+    teamA.forEach((k, idx) => { mockLineup[ids[idx]] = k })
+    teamB.forEach((k, idx) => { mockLineup[ids[2 + idx]] = k })
+    return detailedCourtBalance({
+      lineup: mockLineup,
+      ci: courtIdx,
+      ratingsMap,
+      matches: sessionMatches,
+      players,
+      stats: statsObj,
+    })
+  }, [teamA, teamB, maxPerTeam, courtIdx, ratingsMap, sessionMatches, players, statsObj])
 
-  // Preset tỷ số nhanh
-  const applyPreset = (sa, sb) => {
-    setScoreA(sa)
-    setScoreB(sb)
-  }
+  // Phân tích Effective Rating & Học chéo giới tính (Mockup R3)
+  const effectiveAnalysis = useMemo(() => {
+    if (teamA.length < 2 || teamB.length < 2) return null
 
-  // Đảo chiều điểm số (Set 1)
-  const handleSwapScore = () => {
-    const temp = scoreA
-    setScoreA(scoreB)
-    setScoreB(temp)
-  }
+    // Đếm giới tính
+    const gA = teamA.map((k) => (players.find((p) => p.key === k) || {}).gender)
+    const gB = teamB.map((k) => (players.find((p) => p.key === k) || {}).gender)
+    const hasFemaleA = gA.includes('female')
+    const hasFemaleB = gB.includes('female')
+    const isCrossGender = hasFemaleA !== hasFemaleB || (hasFemaleA && hasFemaleB)
 
-  // Lưu kết quả trận
+    // Lấy dữ liệu hiệu chỉnh chéo giới tính của CLB
+    const memberMap = {}
+    players.forEach((p) => { memberMap[p.key] = p })
+    const cals = computeClubCalibration(db.matches || [], memberMap)
+    const midBucket = cals.find((c) => c.bucket === '100-300') || { observedWinRate: 27, sampleSize: 40, learnedAdjustment: 38 }
+
+    // Tính effective rating (cộng hệ số hiệu chỉnh cho bên có nữ nếu chéo)
+    let effA = ratingA
+    let effB = ratingB
+    if (hasFemaleA && !hasFemaleB) effA += (midBucket.learnedAdjustment || 38) * 2
+    else if (hasFemaleB && !hasFemaleA) effB += (midBucket.learnedAdjustment || 38) * 2
+
+    const effDelta = Math.abs(effA - effB)
+
+    // Gợi ý đổi người: thử swap 1 người để tìm cặp cân hơn
+    let suggestion = null
+    if (deltaRating > 80 || effDelta > 80) {
+      const p1 = teamA[1]
+      const p2 = teamB[1]
+      if (p1 && p2) {
+        const testA = [teamA[0], p2]
+        const testB = [teamB[0], p1]
+        const testRa = teamRating(testA, ratingsMap)
+        const testRb = teamRating(testB, ratingsMap)
+        const testDelta = Math.abs(testRa - testRb)
+        if (testDelta < effDelta) {
+          suggestion = {
+            p1Key: p1,
+            p2Key: p2,
+            p1Name: playerName(db, p1),
+            p2Name: playerName(db, p2),
+            teamName: playerName(db, teamB[0]),
+            newDelta: testDelta,
+          }
+        }
+      }
+    }
+
+    return {
+      isCrossGender,
+      rawDelta: deltaRating,
+      effA: Math.round(effA),
+      effB: Math.round(effB),
+      effDelta,
+      sampleMatches: midBucket.sampleSize || 40,
+      femaleWinRate: midBucket.observedWinRate || 27,
+      suggestion,
+    }
+  }, [teamA, teamB, players, ratingA, ratingB, deltaRating, db, ratingsMap])
+
+  // Win rate dự đoán từ Elo
+  const [pctA, pctB] = useMemo(() => {
+    if (!teamA.length || !teamB.length) return [50, 50]
+    const pA = expectedScore(ratingA, ratingB)
+    const rA = Math.round(pA * 100)
+    return [rA, 100 - rA]
+  }, [ratingA, ratingB, teamA, teamB])
+
+  // Lưu kết quả trận đấu
   const handleSaveResult = () => {
     if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) {
       a.toast(t('quickMatch.errNotEnough', { req: maxPerTeam }))
@@ -229,30 +344,26 @@ export default function CourtAssignmentTab({ s }) {
       ratingEnabled,
     })
 
-    // Reset sạch form sẵn sàng ghi trận tiếp theo ngay lập tức
+    // Reset sạch sân sẵn sàng cho trận kế tiếp
     setTeamA([])
     setTeamB([])
     setSelectedChallengeId(null)
+    setWinnerTeam('A')
+    setPresetScore('21-19')
     setScoreA(21)
     setScoreB(19)
-    setBo3Sets([
-      [21, 19],
-      [19, 21],
-      [21, 18],
-    ])
     a.toast(t('quickMatch.saveSuccess'))
   }
 
-  // Lọc người trong pool theo ô tìm kiếm
-  const filteredPlayers = useMemo(() => {
-    if (!searchQuery.trim()) return players
-    const q = searchQuery.toLowerCase()
-    return players.filter((p) => {
-      const nameMatch = (p.name || '').toLowerCase().includes(q)
-      const levelMatch = (p.level || '').toLowerCase().includes(q)
-      return nameMatch || levelMatch
-    })
-  }, [players, searchQuery])
+  // Swap theo gợi ý của Effective Rating
+  const handleApplySuggestion = (sug) => {
+    if (!sug) return
+    setTeamA((prev) => [prev[0], sug.p2Key])
+    setTeamB((prev) => [prev[0], sug.p1Key])
+    a.toast(t('assign.swapSuggestion') + ': ' + sug.p1Name + ' ⇄ ' + sug.p2Name)
+  }
+
+  const isCourtFull = teamA.length >= maxPerTeam && teamB.length >= maxPerTeam
 
   return (
     <div style={S.container}>
@@ -290,16 +401,92 @@ export default function CourtAssignmentTab({ s }) {
         </div>
       )}
 
-      {/* ---------------- KHUNG GHI KẾT QUẢ NHANH (QUICK MATCH LOGGER) ---------------- */}
+      {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - TĂNG CƯỜNG THÔNG TIN) ---------------- */}
       <Card
-        title={t('quickMatch.title')}
-        subtitle={t('quickMatch.sub')}
-        icon="sparkles"
-        padding="16px 20px"
+        title={t('assign.waitingPool')}
+        subtitle={t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
+        icon="users"
+        padding="14px 16px"
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="wand-sparkles"
+            onClick={handleAutoPickFewest}
+            disabled={waitingPlayers.length === 0 || isCourtFull}
+          >
+            {t('assign.fewestBtn')}
+          </Button>
+        }
       >
-        <div style={{ display: 'grid', gap: 16 }}>
-          {/* Thanh công cụ: Mode Switcher + Chọn Sân + Tính Elo */}
-          <div style={S.topToolbar}>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {/* Ô tìm kiếm người trong pool */}
+          <div style={S.searchRow}>
+            <input
+              type="text"
+              placeholder={t('session.searchMember') + '...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={S.searchInput}
+            />
+            <span style={S.touchHint}>{t('assign.poolTouchHint')}</span>
+          </div>
+
+          {/* Lưới danh sách người chờ */}
+          <div style={S.poolGrid}>
+            {filteredWaiting.map((p) => {
+              const plays = matchCountMap[p.key] || 0
+              const r = ratingsMap[p.key] || 0
+              const isFemale = p.gender === 'female'
+              const isFresh = plays === 0
+              return (
+                <div
+                  key={p.key}
+                  onClick={() => handleTapPlayer(p.key)}
+                  style={S.playerChip}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                    <span style={S.playerNameText}>{p.name}</span>
+                    <span style={isFemale ? S.genderTagFemale : S.genderTagMale}>
+                      {genderTxt(p.gender)}
+                    </span>
+                    <LevelChip level={p.level} levels={db.levels} />
+                    {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <span style={isFresh ? S.freshPlayTag : S.playCountTag}>
+                      {plays} {t('units.match')}
+                    </span>
+                    <span style={S.playerRatingMono}>{r}</span>
+                  </div>
+                </div>
+              )
+            })}
+            {filteredWaiting.length === 0 && (
+              <div style={S.emptyPoolMsg}>
+                {waitingPlayers.length === 0 ? t('session.guestEmpty') : t('common.noData')}
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* ---------------- 2. MẶT SÂN THI ĐẤU VISUAL COURT (SCREEN 01) ---------------- */}
+      <div style={S.courtCard}>
+        {/* Header Sân */}
+        <div style={S.courtTopBar}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 }}>
+            <div style={{ minWidth: 140 }}>
+              <Select
+                size="sm"
+                value={courtIdx}
+                options={courtOptions}
+                onChange={(e) => setCourtIdx(Number(e.target.value))}
+              />
+            </div>
             {/* Mode Switcher */}
             <div style={S.modeTrack}>
               <button
@@ -310,7 +497,6 @@ export default function CourtAssignmentTab({ s }) {
                   ...(mode === 'doubles' ? S.modeBtnActive : {}),
                 }}
               >
-                <Icon name="users" size={14} />
                 <span>{t('quickMatch.modeDoubles')}</span>
               </button>
               <button
@@ -321,566 +507,383 @@ export default function CourtAssignmentTab({ s }) {
                   ...(mode === 'singles' ? S.modeBtnActive : {}),
                 }}
               >
-                <Icon name="user-round" size={14} />
                 <span>{t('quickMatch.modeSingles')}</span>
               </button>
             </div>
-
-            {/* Sân & Tuỳ chọn Elo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 160 }}>
-                <Select
-                  size="sm"
-                  value={courtIdx}
-                  options={courtOptions}
-                  onChange={(e) => setCourtIdx(Number(e.target.value))}
-                />
-              </div>
-              <label style={S.toggleLabel}>
-                <Switch
-                  checked={ratingEnabled}
-                  onChange={(val) => setRatingEnabled(val)}
-                />
-                <span style={{ font: '500 13px/1 var(--font-sans)', color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
-                </span>
-              </label>
-            </div>
           </div>
 
-          {/* Sân đấu Visual VS (Đội A vs Đội B) */}
-          <div style={{ ...S.vsContainer, gridTemplateColumns: isMobile ? '1fr' : '1fr auto 1fr' }}>
-            {/* Box Đội A */}
-            <div style={S.teamBox}>
-              <div style={S.teamHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ ...S.teamTag, background: 'var(--status-transit-bg)', color: 'var(--status-transit-fg)' }}>
-                    {t('quickMatch.teamA')}
-                  </span>
-                  <span style={S.teamRatingText}>
-                    {teamA.length ? `${t('rating.rating')} ~ ${ratingA}` : ''}
-                  </span>
-                </div>
-                <span style={S.slotCountBadge}>
-                  {teamA.length}/{maxPerTeam}
-                </span>
-              </div>
-
-              <div style={S.slotsGrid}>
-                {Array.from({ length: maxPerTeam }).map((_, idx) => {
-                  const key = teamA[idx]
-                  if (key) {
-                    const pr = getPlayerRating(db.playerRatings, key)
-                    const p = players.find((x) => x.key === key) || {}
-                    const tier = rankTierOf(pr.rating)
-                    return (
-                      <div key={key} style={S.filledSlot}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={S.playerName}>{playerName(db, key)}</span>
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                              {genderTxt(p.gender)}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                            <span style={{ ...S.tierPill, color: tier.color }}>
-                              {tier.label} ({pr.rating})
-                            </span>
-                          </div>
-                        </div>
-                        <IconButton
-                          icon="x"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setTeamA(teamA.filter((k) => k !== key))}
-                        />
-                      </div>
-                    )
-                  }
-                  return (
-                    <div key={idx} style={S.emptySlot}>
-                      <Icon name="user-round-plus" size={14} color="var(--text-muted)" />
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {t('challenge.pickTwo')}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* VS Badge & Balance Indicator ở giữa */}
-            <div style={S.vsCenter}>
-              <div style={S.vsBadge}>
-                {t('quickMatch.vs')}
-              </div>
-              {balanceInfo && (
-                <div style={S.balanceBox}>
-                  <div style={{
-                    ...S.balanceTag,
-                    background: balanceInfo.evalRes.level === 'balanced'
-                      ? 'var(--status-delivered-bg)'
-                      : balanceInfo.evalRes.level === 'slight'
-                        ? 'var(--status-delayed-bg)'
-                        : 'var(--status-incident-bg)',
-                    color: balanceInfo.evalRes.level === 'balanced'
-                      ? 'var(--status-delivered-fg)'
-                      : balanceInfo.evalRes.level === 'slight'
-                        ? 'var(--status-delayed-fg)'
-                        : 'var(--status-incident-fg)',
-                  }}>
-                    {t(balanceInfo.evalRes.labelKey)}
-                  </div>
-                  <div style={S.balanceBarWrap}>
-                    <div style={{ ...S.balanceBarA, width: `${balanceInfo.pctA}%` }} />
-                    <div style={{ ...S.balanceBarB, width: `${balanceInfo.pctB}%` }} />
-                  </div>
-                  <span style={S.balanceSub}>
-                    {balanceInfo.pctA}% – {balanceInfo.pctB}% (Δ {balanceInfo.evalRes.gap})
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Box Đội B */}
-            <div style={S.teamBox}>
-              <div style={S.teamHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ ...S.teamTag, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' }}>
-                    {t('quickMatch.teamB')}
-                  </span>
-                  <span style={S.teamRatingText}>
-                    {teamB.length ? `${t('rating.rating')} ~ ${ratingB}` : ''}
-                  </span>
-                </div>
-                <span style={S.slotCountBadge}>
-                  {teamB.length}/{maxPerTeam}
-                </span>
-              </div>
-
-              <div style={S.slotsGrid}>
-                {Array.from({ length: maxPerTeam }).map((_, idx) => {
-                  const key = teamB[idx]
-                  if (key) {
-                    const pr = getPlayerRating(db.playerRatings, key)
-                    const p = players.find((x) => x.key === key) || {}
-                    const tier = rankTierOf(pr.rating)
-                    return (
-                      <div key={key} style={S.filledSlot}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={S.playerName}>{playerName(db, key)}</span>
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                              {genderTxt(p.gender)}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                            <span style={{ ...S.tierPill, color: tier.color }}>
-                              {tier.label} ({pr.rating})
-                            </span>
-                          </div>
-                        </div>
-                        <IconButton
-                          icon="x"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setTeamB(teamB.filter((k) => k !== key))}
-                        />
-                      </div>
-                    )
-                  }
-                  return (
-                    <div key={idx} style={S.emptySlot}>
-                      <Icon name="user-round-plus" size={14} color="var(--text-muted)" />
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {t('challenge.pickTwo')}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Công cụ nhanh điều phối slot */}
-          <div style={S.slotActionsRow}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="shuffle"
-                onClick={handleAutoPickFewest}
-              >
-                {t('quickMatch.autoPick')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon="repeat"
-                onClick={handleSwapTeams}
-              >
-                {t('quickMatch.swapTeams')}
-              </Button>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <label style={S.switchLabel}>
+              <Switch checked={ratingEnabled} onChange={setRatingEnabled} />
+              <span style={{ fontSize: 13, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
+              </span>
+            </label>
             {(teamA.length > 0 || teamB.length > 0) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon="rotate-ccw"
-                onClick={handleClearAll}
-              >
-                {t('quickMatch.clearAll')}
+              <Button variant="ghost" size="sm" icon="eraser" onClick={handleClearLineup}>
+                {t('assign.clearCourt')}
               </Button>
             )}
-          </div>
-
-          {/* Danh sách người có mặt tại sân (Player Pool) */}
-          <div style={S.poolSection}>
-            <div style={S.poolHeader}>
-              <div>
-                <span style={S.poolTitle}>{t('quickMatch.poolTitle')}</span>
-                <span style={S.poolCount}>({players.length})</span>
-                <div style={S.poolSub}>{t('quickMatch.poolSub')}</div>
-              </div>
-              <div style={{ width: 220 }}>
-                <Input
-                  size="sm"
-                  placeholder={t('quickMatch.searchPh')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={S.poolGrid}>
-              {filteredPlayers.map((p) => {
-                const inA = teamA.includes(p.key)
-                const inB = teamB.includes(p.key)
-                const isSelected = inA || inB
-                const pr = getPlayerRating(db.playerRatings, p.key)
-                const tier = rankTierOf(pr.rating)
-                const played = matchCountMap[p.key] || 0
-
-                return (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => handleTogglePlayer(p.key)}
-                    style={{
-                      ...S.playerChip,
-                      ...(inA ? S.playerChipA : {}),
-                      ...(inB ? S.playerChipB : {}),
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      <span style={S.chipName}>{p.name}</span>
-                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                        {genderTxt(p.gender)}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ ...S.chipTier, color: tier.color }}>
-                        {tier.label}
-                      </span>
-                      <span style={S.chipPlayed}>
-                        {t('quickMatch.playedCount', { n: played })}
-                      </span>
-                      {isSelected && (
-                        <span style={S.chipSelectedBadge}>
-                          {inA ? 'A' : 'B'}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* ---------------- KHỐI NHẬP TỶ SỐ ---------------- */}
-          <div style={S.scoreCard}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name="trophy" size={16} color="var(--status-delayed-fg)" />
-                <span style={{ font: '600 14px/1 var(--font-sans)', color: 'var(--text-primary)' }}>
-                  {t('quickMatch.scoreTitle')}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsBo3(!isBo3)}
-                >
-                  {isBo3 ? t('quickMatch.set1') : t('quickMatch.setBo3')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon="repeat"
-                  onClick={handleSwapScore}
-                >
-                  {t('quickMatch.swapScore')}
-                </Button>
-              </div>
-            </div>
-
-            {/* Giao diện nhập 1 Set thông dụng */}
-            {!isBo3 ? (
-              <div style={{ display: 'grid', gap: 12, marginTop: 10 }}>
-                <div style={S.singleScoreRow}>
-                  {/* Điểm Đội A */}
-                  <div style={S.scoreInputBox}>
-                    <span style={{ font: '600 13px/1 var(--font-sans)', color: 'var(--status-transit-fg)' }}>
-                      {t('quickMatch.teamA')}
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      <button
-                        type="button"
-                        style={S.stepBtn}
-                        onClick={() => setScoreA(Math.max(0, Number(scoreA) - 1))}
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        min="0"
-                        max="30"
-                        value={scoreA}
-                        onChange={(e) => setScoreA(Number(e.target.value))}
-                        style={S.scoreBigInput}
-                      />
-                      <button
-                        type="button"
-                        style={S.stepBtn}
-                        onClick={() => setScoreA(Math.min(30, Number(scoreA) + 1))}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  <span style={{ font: '700 22px/1 var(--font-mono, monospace)', color: 'var(--text-muted)' }}>
-                    –
-                  </span>
-
-                  {/* Điểm Đội B */}
-                  <div style={S.scoreInputBox}>
-                    <span style={{ font: '600 13px/1 var(--font-sans)', color: 'var(--status-delayed-fg)' }}>
-                      {t('quickMatch.teamB')}
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      <button
-                        type="button"
-                        style={S.stepBtn}
-                        onClick={() => setScoreB(Math.max(0, Number(scoreB) - 1))}
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        min="0"
-                        max="30"
-                        value={scoreB}
-                        onChange={(e) => setScoreB(Number(e.target.value))}
-                        style={S.scoreBigInput}
-                      />
-                      <button
-                        type="button"
-                        style={S.stepBtn}
-                        onClick={() => setScoreB(Math.min(30, Number(scoreB) + 1))}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Preset tỷ số thường gặp */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{t('quickMatch.quickPresets')}</span>
-                  {[[21, 19], [21, 15], [21, 12], [21, 8], [30, 29]].map(([pa, pb]) => (
-                    <button
-                      key={`${pa}-${pb}`}
-                      type="button"
-                      onClick={() => applyPreset(pa, pb)}
-                      style={S.presetBtn}
-                    >
-                      {pa} - {pb}
-                    </button>
-                  ))}
-                  {[[19, 21], [15, 21], [12, 21], [8, 21], [29, 30]].map(([pa, pb]) => (
-                    <button
-                      key={`${pa}-${pb}`}
-                      type="button"
-                      onClick={() => applyPreset(pa, pb)}
-                      style={{ ...S.presetBtn, color: 'var(--status-delayed-fg)' }}
-                    >
-                      {pa} - {pb}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              /* Giao diện 3 Sets (BO3) */
-              <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
-                {[0, 1, 2].map((sIdx) => (
-                  <div key={sIdx} style={S.bo3Row}>
-                    <span style={{ font: '600 12.5px/1 var(--font-sans)', color: 'var(--text-secondary)', width: 60 }}>
-                      {t('quickMatch.scoreSet', { n: sIdx + 1 })}:
-                    </span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="30"
-                      value={bo3Sets[sIdx][0]}
-                      onChange={(e) => {
-                        const next = [...bo3Sets]
-                        next[sIdx] = [Number(e.target.value), next[sIdx][1]]
-                        setBo3Sets(next)
-                      }}
-                      style={S.bo3Input}
-                    />
-                    <span style={{ color: 'var(--text-muted)' }}>–</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="30"
-                      value={bo3Sets[sIdx][1]}
-                      onChange={(e) => {
-                        const next = [...bo3Sets]
-                        next[sIdx] = [next[sIdx][0], Number(e.target.value)]
-                        setBo3Sets(next)
-                      }}
-                      style={S.bo3Input}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ---------------- NÚT LƯU KẾT QUẢ & TÍNH ELO (CTA CHÍNH) ---------------- */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-            <Button
-              variant="primary"
-              size="lg"
-              icon="circle-check"
-              disabled={teamA.length < maxPerTeam || teamB.length < maxPerTeam}
-              style={{
-                background: 'var(--action-success-bg)',
-                borderColor: 'var(--action-success-border)',
-                fontWeight: 700,
-                padding: '0 24px',
-                minHeight: 46,
-                fontSize: 15,
-                boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0, 135, 90, 0.25))',
-              }}
-              onClick={handleSaveResult}
-            >
-              {t('quickMatch.saveResult')}
-            </Button>
           </div>
         </div>
-      </Card>
 
-      {/* ---------------- BẢNG LỊCH SỬ CÁC TRẬN ĐÃ ĐẤU TRONG BUỔI ---------------- */}
-      <Card
-        title={t('quickMatch.historyTitle')}
-        subtitle={t('quickMatch.historySub')}
-        icon="history"
-        padding="16px 20px"
-        actions={
-          <span style={S.historyBadge}>
-            {sessionMatches.length} {t('quickMatch.matchCode').toLowerCase()}
-          </span>
-        }
-      >
-        {sessionMatches.length === 0 ? (
-          <Empty
-            icon="flame"
-            title={t('quickMatch.emptyHistory')}
-            hint={t('quickMatch.emptyHistoryHint')}
-          />
-        ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
-            {sessionMatches.map((m) => {
-              const aWon = m.winnerTeam === 'A'
-              const namesA = (m.teamA || []).map((id) => playerName(db, id)).join(' · ')
-              const namesB = (m.teamB || []).map((id) => playerName(db, id)).join(' · ')
-              const delta = Math.abs(m.eloDelta || 0)
-
+        {/* Khung mặt sân thi đấu */}
+        <div style={S.courtSurface}>
+          {/* Đội A (Top) */}
+          <div style={S.teamRow}>
+            {Array.from({ length: maxPerTeam }).map((_, idx) => {
+              const key = teamA[idx]
+              if (key) {
+                const p = players.find((x) => x.key === key) || {}
+                const r = ratingsMap[key] || 0
+                const plays = matchCountMap[key] || 0
+                return (
+                  <div key={key} style={S.slotFilled}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <span style={S.slotName}>{p.name}</span>
+                        <LevelChip level={p.level} levels={db.levels} />
+                        {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                      </div>
+                      <IconButton
+                        icon="x"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setTeamA((prev) => prev.filter((k) => k !== key))}
+                      />
+                    </div>
+                    <div style={S.slotMeta}>
+                      <span style={{ color: '#8494AA' }}>{genderTxt(p.gender)}</span>
+                      <span style={{ color: '#8494AA' }}>·</span>
+                      <span style={{ color: '#E9EFF7', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
+                      <span style={{ color: '#8494AA' }}>·</span>
+                      <span style={{ color: '#5FDBD3' }}>{plays} {t('units.match')}</span>
+                    </div>
+                  </div>
+                )
+              }
               return (
-                <div key={m.id} style={S.matchRow}>
-                  {/* Mã trận & Sân */}
-                  <div style={S.matchMetaCol}>
-                    <span style={S.matchCodeBadge}>{m.code || 'M'}</span>
-                    <span style={S.matchCourtText}>
-                      {courtOf(db, (s.courts || [])[m.courtIdx]?.courtId)?.name || t('session.courtNum', { n: m.courtIdx + 1 })}
-                    </span>
-                    <span style={m.challengeId ? S.sourceTagChallenge : S.sourceTagQuick}>
-                      {m.challengeId ? t('quickMatch.sourceChallenge') : t('quickMatch.sourceQuick')}
-                    </span>
-                  </div>
-
-                  {/* Đội A vs Đội B & Điểm số */}
-                  <div style={S.matchTeamsCol}>
-                    {/* Đội A */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{
-                        ...S.matchPlayerNames,
-                        color: aWon ? 'var(--status-delivered-fg)' : 'var(--text-primary)',
-                        fontWeight: aWon ? 700 : 500,
-                      }}>
-                        {aWon && <Icon name="check" size={13} style={{ marginRight: 4, display: 'inline' }} />}
-                        {namesA}
-                      </span>
-                      <span style={{
-                        ...S.matchScoreBadge,
-                        color: aWon ? 'var(--status-delivered-fg)' : 'var(--text-muted)',
-                      }}>
-                        {(m.sets || []).map((r) => r[0]).join(' / ') || '—'}
-                      </span>
-                    </div>
-
-                    {/* Đội B */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
-                      <span style={{
-                        ...S.matchPlayerNames,
-                        color: !aWon ? 'var(--status-delivered-fg)' : 'var(--text-primary)',
-                        fontWeight: !aWon ? 700 : 500,
-                      }}>
-                        {!aWon && <Icon name="check" size={13} style={{ marginRight: 4, display: 'inline' }} />}
-                        {namesB}
-                      </span>
-                      <span style={{
-                        ...S.matchScoreBadge,
-                        color: !aWon ? 'var(--status-delivered-fg)' : 'var(--text-muted)',
-                      }}>
-                        {(m.sets || []).map((r) => r[1]).join(' / ') || '—'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Biến động Elo */}
-                  <div style={S.matchEloCol}>
-                    {m.ratingEnabled !== false && delta > 0 ? (
-                      <span style={S.eloDeltaBadge}>
-                        ±{delta} Elo
-                      </span>
-                    ) : (
-                      <span style={S.unratedText}>
-                        {t('quickMatch.unrated')}
-                      </span>
-                    )}
-                  </div>
+                <div key={idx} style={S.slotEmpty}>
+                  <span style={S.slotEmptyText}>{t('assign.courtEmptySlot')}</span>
                 </div>
               )
             })}
           </div>
+
+          {/* Vạch LƯỚI Phân Cách */}
+          <div style={S.netDivider}>
+            <div style={S.netLine} />
+            <span style={S.netText}>{t('assign.net')}</span>
+            <div style={S.netLine} />
+          </div>
+
+          {/* Đội B (Bottom) */}
+          <div style={S.teamRow}>
+            {Array.from({ length: maxPerTeam }).map((_, idx) => {
+              const key = teamB[idx]
+              if (key) {
+                const p = players.find((x) => x.key === key) || {}
+                const r = ratingsMap[key] || 0
+                const plays = matchCountMap[key] || 0
+                return (
+                  <div key={key} style={S.slotFilled}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <span style={S.slotName}>{p.name}</span>
+                        <LevelChip level={p.level} levels={db.levels} />
+                        {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                      </div>
+                      <IconButton
+                        icon="x"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setTeamB((prev) => prev.filter((k) => k !== key))}
+                      />
+                    </div>
+                    <div style={S.slotMeta}>
+                      <span style={{ color: '#8494AA' }}>{genderTxt(p.gender)}</span>
+                      <span style={{ color: '#8494AA' }}>·</span>
+                      <span style={{ color: '#E9EFF7', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
+                      <span style={{ color: '#8494AA' }}>·</span>
+                      <span style={{ color: '#5FDBD3' }}>{plays} {t('units.match')}</span>
+                    </div>
+                  </div>
+                )
+              }
+              return (
+                <div key={idx} style={S.slotEmpty}>
+                  <span style={S.slotEmptyText}>{t('assign.courtEmptySlot')}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ---------------- 3. KHỐI ĐIỂM CÂN BẰNG (BALANCE SCORE - MOCKUP 01) ---------------- */}
+        {balanceDetails && (
+          <div style={S.balanceBox}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={S.balanceTitle}>{t('assign.balanceScore')}</span>
+              <span style={S.balanceBigScore}>{balanceDetails.totalScore}</span>
+            </div>
+
+            {/* 4 thanh đo sub-metrics */}
+            <div style={{ display: 'grid', gap: 6, marginTop: 4 }}>
+              {/* 1. Cân rating */}
+              <div style={S.metricRow}>
+                <span style={S.metricLabel}>{t('assign.canRating')}</span>
+                <div style={S.metricTrack}>
+                  <div style={{ width: `${balanceDetails.canRating.score}%`, height: '100%', background: '#00B2A9' }} />
+                </div>
+                <span style={S.metricValueMono}>Δ{balanceDetails.canRating.delta}</span>
+              </div>
+              {/* 2. Đổi partner */}
+              <div style={S.metricRow}>
+                <span style={S.metricLabel}>{t('assign.partnerVariety')}</span>
+                <div style={S.metricTrack}>
+                  <div style={{ width: `${balanceDetails.partner.score}%`, height: '100%', background: '#00B2A9' }} />
+                </div>
+                <span style={S.metricValueMono}>{balanceDetails.partner.score}</span>
+              </div>
+              {/* 3. Đổi đối thủ */}
+              <div style={S.metricRow}>
+                <span style={S.metricLabel}>{t('assign.opponentVariety')}</span>
+                <div style={S.metricTrack}>
+                  <div style={{ width: `${balanceDetails.opponent.score}%`, height: '100%', background: '#00B2A9' }} />
+                </div>
+                <span style={S.metricValueMono}>{balanceDetails.opponent.score}</span>
+              </div>
+              {/* 4. Đều lượt đánh */}
+              <div style={S.metricRow}>
+                <span style={S.metricLabel}>{t('assign.fairnessPlays')}</span>
+                <div style={S.metricTrack}>
+                  <div style={{ width: `${balanceDetails.fairness.score}%`, height: '100%', background: balanceDetails.fairness.score < 80 ? '#E08A00' : '#00B2A9' }} />
+                </div>
+                <span style={{ ...S.metricValueMono, color: balanceDetails.fairness.score < 80 ? '#F0B75C' : '#8494AA' }}>
+                  {balanceDetails.fairness.score}
+                </span>
+              </div>
+            </div>
+
+            <div style={S.balanceNoteText}>{balanceDetails.note}</div>
+          </div>
         )}
-      </Card>
+
+        {/* ---------------- 4. KHỐI EFFECTIVE RATING (MOCKUP R3) ---------------- */}
+        {effectiveAnalysis && effectiveAnalysis.isCrossGender && (
+          <div style={S.effCard}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div>
+                <div style={{ font: '600 15px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                  {t('assign.twoWayBalance')}
+                </div>
+                <div style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
+                  {t('assign.twoWaySub')}
+                </div>
+              </div>
+              <span style={S.calibratedBadge}>{t('assign.calibratedTag')}</span>
+            </div>
+
+            <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+              {/* Rating thô */}
+              <div style={S.barCompareRow}>
+                <span style={S.barCompareLabel}>{t('assign.rawRating')}</span>
+                <div style={S.barCompareTrack}>
+                  <div style={{ width: `${pctA}%`, height: '100%', background: '#2E3E5C' }} />
+                  <div style={{ width: `${pctB}%`, height: '100%', background: '#1A2437' }} />
+                </div>
+                <span style={S.barCompareValue}>{ratingA} vs {ratingB} · {t('assign.skewDiff', { d: effectiveAnalysis.rawDelta })}</span>
+              </div>
+
+              {/* Effective rating */}
+              <div style={S.barCompareRow}>
+                <span style={{ ...S.barCompareLabel, color: '#5FDBD3' }}>{t('assign.effectiveRating')}</span>
+                <div style={S.barCompareTrack}>
+                  <div style={{ width: `${Math.round((effectiveAnalysis.effA / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#00B2A9' }} />
+                  <div style={{ width: `${Math.round((effectiveAnalysis.effB / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#2E3E5C' }} />
+                </div>
+                <span style={{ ...S.barCompareValue, color: '#5FDBD3' }}>
+                  {effectiveAnalysis.effA} vs {effectiveAnalysis.effB} · {t('assign.skewDiff', { d: effectiveAnalysis.effDelta })}
+                </span>
+              </div>
+            </div>
+
+            <div style={S.effDescText}>
+              {t('assign.effectiveDesc', { n: effectiveAnalysis.sampleMatches, pct: effectiveAnalysis.femaleWinRate })}
+            </div>
+
+            {/* Gợi ý xếp khác */}
+            {effectiveAnalysis.suggestion && (
+              <div style={S.suggestionBox}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                    {t('assign.swapAction', { p1: effectiveAnalysis.suggestion.p1Name, p2: effectiveAnalysis.suggestion.p2Name })}
+                  </div>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                    {t('assign.skewDiff', { d: effectiveAnalysis.suggestion.newDelta })}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => handleApplySuggestion(effectiveAnalysis.suggestion)}
+                >
+                  {t('assign.swapNow')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
+        {teamA.length > 0 && teamB.length > 0 && (
+          <div style={S.scoreLoggerBox}>
+            <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+              {t('scoreModal.instruction')}
+            </div>
+
+            {/* 2 Thẻ Đội A và Đội B */}
+            <div style={S.teamsChoiceGrid}>
+              {/* Thẻ Đội A */}
+              <div
+                onClick={() => handleSelectWinner('A')}
+                style={{
+                  ...S.teamChoiceCard,
+                  ...(winnerTeam === 'A' ? S.teamChoiceCardWon : {}),
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'A' ? '#E9EFF7' : '#A8B7CB' }}>
+                    {teamA.map((k) => playerName(db, k)).join(' · ')}
+                  </div>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'A' ? '#5FDBD3' : '#8494AA' }}>
+                    {t('scoreModal.teamAvg', { t: 'A', r: ratingA })}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {winnerTeam === 'A' && <span style={S.wonBadge}>{t('scoreModal.winnerTag')}</span>}
+                  <div style={winnerTeam === 'A' ? S.bigScoreWon : S.bigScoreLost}>
+                    {scoreA}
+                  </div>
+                </div>
+              </div>
+
+              {/* Thẻ Đội B */}
+              <div
+                onClick={() => handleSelectWinner('B')}
+                style={{
+                  ...S.teamChoiceCard,
+                  ...(winnerTeam === 'B' ? S.teamChoiceCardWon : {}),
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'B' ? '#E9EFF7' : '#A8B7CB' }}>
+                    {teamB.map((k) => playerName(db, k)).join(' · ')}
+                  </div>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'B' ? '#5FDBD3' : '#8494AA' }}>
+                    {t('scoreModal.teamAvg', { t: 'B', r: ratingB })}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {winnerTeam === 'B' && <span style={S.wonBadge}>{t('scoreModal.winnerTag')}</span>}
+                  <div style={winnerTeam === 'B' ? S.bigScoreWon : S.bigScoreLost}>
+                    {scoreB}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 4 Nút preset tỷ số nhanh */}
+            <div style={S.presetRow}>
+              {['21-19', '21-15', '21-11'].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => handleSelectPreset(p)}
+                  style={{
+                    ...S.presetBtn,
+                    ...(presetScore === p ? S.presetBtnActive : {}),
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => handleSelectPreset('custom')}
+                style={{
+                  ...S.presetBtn,
+                  ...(presetScore === 'custom' ? S.presetBtnActive : {}),
+                }}
+              >
+                {t('scoreModal.presetOther')}
+              </button>
+            </div>
+
+            {/* Dự đoán trước trận & Thay đổi sau khi lưu */}
+            <div style={S.preMatchBox}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+                  {t('scoreModal.predictTitle')}
+                </span>
+                <span style={S.balancedTag}>{t('scoreModal.balancedTag')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px "IBM Plex Mono", monospace', marginTop: 4 }}>
+                <span style={{ color: '#5FDBD3' }}>A {pctA}%</span>
+                <span style={{ color: '#8494AA' }}>{pctB}% B</span>
+              </div>
+              <div style={S.predictBarTrack}>
+                <div style={{ width: `${pctA}%`, height: '100%', background: '#00B2A9' }} />
+                <div style={{ width: `${pctB}%`, height: '100%', background: '#2E3E5C' }} />
+              </div>
+              <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA', marginTop: 4 }}>
+                {t('scoreModal.predictSub', { delta: deltaRating })}
+              </div>
+            </div>
+
+            {/* Box thay đổi Elo & XP */}
+            <div style={S.changesBox}>
+              <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+                {t('scoreModal.postMatchChanges')}
+              </span>
+              <div style={{ display: 'grid', gap: 6, marginTop: 4 }}>
+                {[...teamA, ...teamB].map((k) => {
+                  const inA = teamA.includes(k)
+                  const isWon = (inA && winnerTeam === 'A') || (!inA && winnerTeam === 'B')
+                  const deltaTxt = isWon ? '+8' : '−8'
+                  return (
+                    <div key={k} style={S.changeRow}>
+                      <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? '#E9EFF7' : '#A8B7CB' }}>
+                        {playerName(db, k)}
+                      </span>
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? '#5FD9A2' : '#FF8578' }}>
+                          {t('scoreModal.ratingChange', { d: deltaTxt })}
+                        </span>
+                        <span style={{ font: '400 12.5px "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                          {t('scoreModal.xpChange')}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: '#8494AA', marginTop: 6 }}>
+                {t('scoreModal.xpExplain')}
+              </div>
+            </div>
+
+            {/* NÚT LƯU KẾT QUẢ TO 56px */}
+            <button
+              type="button"
+              onClick={handleSaveResult}
+              style={S.bigSaveBtn}
+            >
+              {t('scoreModal.saveResult')}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -891,409 +894,485 @@ const S = {
     gap: 16,
   },
   chalBanner: {
-    padding: '12px 16px',
-    borderRadius: 8,
-    background: 'var(--status-transit-bg)',
-    border: '1px solid var(--status-transit)',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '12px 14px',
   },
   chalChip: {
-    display: 'inline-flex',
+    display: 'flex',
     alignItems: 'center',
-    gap: 6,
-    padding: '4px 10px',
-    borderRadius: 6,
-    background: 'var(--surface-card)',
+    gap: 8,
+    background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
-    fontSize: 12.5,
+    borderRadius: 'var(--radius-md)',
+    padding: '6px 10px',
+    fontSize: 13,
   },
   tagSub: {
-    fontSize: 11,
+    font: '400 11.5px/1 var(--font-mono)',
     color: 'var(--text-muted)',
-    padding: '1px 6px',
-    borderRadius: 99,
-    background: 'var(--surface-inset)',
+    background: 'var(--surface-card)',
+    padding: '3px 6px',
+    borderRadius: 4,
   },
-  topToolbar: {
+  searchRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  searchInput: {
+    flex: '1 1 200px',
+    height: 38,
+    borderRadius: 8,
+    border: '1px solid #2E3E5C',
+    background: '#101927',
+    color: '#E9EFF7',
+    padding: '0 12px',
+    fontSize: 13,
+    outline: 'none',
+  },
+  touchHint: {
+    font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+  },
+  poolGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+    gap: 8,
+    maxHeight: 280,
+    overflowY: 'auto',
+    paddingRight: 4,
+  },
+  playerChip: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    padding: '8px 12px',
+    background: '#141D2E',
+    border: '1px solid #22304A',
+    borderRadius: 8,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  playerNameText: {
+    font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif',
+    color: '#E9EFF7',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  genderTagMale: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    color: '#9FC0EA',
+    background: 'rgba(60, 116, 196, 0.18)',
+    padding: '3px 6px',
+    borderRadius: 4,
+  },
+  genderTagFemale: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    color: '#FF9A8F',
+    background: 'rgba(225, 68, 52, 0.18)',
+    padding: '3px 6px',
+    borderRadius: 4,
+  },
+  guestTag: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    color: '#F0B75C',
+    background: 'rgba(224, 138, 0, 0.18)',
+    padding: '3px 6px',
+    borderRadius: 4,
+  },
+  freshPlayTag: {
+    font: '600 10px/1 "IBM Plex Mono", monospace',
+    color: '#5FDBD3',
+    background: 'rgba(0, 178, 169, 0.18)',
+    padding: '3px 6px',
+    borderRadius: 999,
+    whiteSpace: 'nowrap',
+  },
+  playCountTag: {
+    font: '400 10.5px/1 "IBM Plex Mono", monospace',
+    color: '#8494AA',
+    background: 'rgba(132, 148, 170, 0.12)',
+    padding: '3px 6px',
+    borderRadius: 999,
+    whiteSpace: 'nowrap',
+  },
+  playerRatingMono: {
+    font: '600 12px/1 "IBM Plex Mono", monospace',
+    color: '#A8B7CB',
+    minWidth: 32,
+    textAlign: 'right',
+  },
+  emptyPoolMsg: {
+    gridColumn: '1 / -1',
+    textAlign: 'center',
+    padding: '16px',
+    color: '#8494AA',
+    fontSize: 13,
+  },
+  courtCard: {
+    background: '#0B1220',
+    border: '1px solid #22304A',
+    borderRadius: 22,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    padding: '16px',
+  },
+  courtTopBar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
     flexWrap: 'wrap',
-    paddingBottom: 12,
-    borderBottom: '1px solid var(--border-subtle)',
+    paddingBottom: 10,
+    borderBottom: '1px solid #22304A',
   },
   modeTrack: {
     display: 'flex',
     padding: 3,
     borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
+    background: '#101927',
+    border: '1px solid #22304A',
     gap: 2,
   },
   modeBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
     height: 32,
     padding: '0 12px',
     borderRadius: 6,
     border: 'none',
     background: 'transparent',
-    font: '600 12.5px/1 var(--font-sans)',
-    color: 'var(--text-muted)',
+    font: '600 12.5px/1 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
     cursor: 'pointer',
-    transition: 'all 0.15s ease',
   },
   modeBtnActive: {
-    background: 'var(--surface-card)',
-    color: 'var(--text-primary)',
-    boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.15))',
+    background: '#141D2E',
+    color: '#E9EFF7',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
   },
-  toggleLabel: {
+  switchLabel: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
     cursor: 'pointer',
   },
-  vsContainer: {
-    display: 'grid',
-    gap: 12,
-    alignItems: 'center',
-  },
-  teamBox: {
-    display: 'grid',
-    gap: 8,
-    padding: 12,
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
-  },
-  teamHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  teamTag: {
-    font: '700 11px/1 var(--font-sans)',
-    letterSpacing: 'var(--tracking-caps)',
-    padding: '3px 8px',
-    borderRadius: 99,
-  },
-  teamRatingText: {
-    fontSize: 12,
-    fontFamily: 'var(--font-mono, monospace)',
-    color: 'var(--text-muted)',
-  },
-  slotCountBadge: {
-    fontSize: 11.5,
-    fontFamily: 'var(--font-mono, monospace)',
-    color: 'var(--text-muted)',
-  },
-  slotsGrid: {
-    display: 'grid',
-    gap: 8,
-  },
-  filledSlot: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '8px 10px',
-    borderRadius: 6,
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-  },
-  emptySlot: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: '12px 10px',
-    borderRadius: 6,
-    border: '1px dashed var(--border-subtle)',
-    background: 'transparent',
-  },
-  playerName: {
-    font: '600 13px/1.3 var(--font-sans)',
-    color: 'var(--text-primary)',
-  },
-  tierPill: {
-    font: '600 10.5px/1 var(--font-sans)',
-    letterSpacing: 'var(--tracking-caps)',
-  },
-  vsCenter: {
+  courtSurface: {
+    background: '#0B1220',
+    border: '1px solid #22304A',
+    borderRadius: 12,
+    padding: '12px',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: '8px 0',
+    gap: 10,
   },
-  vsBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: '50%',
+  teamRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: 10,
+  },
+  slotFilled: {
+    minHeight: 64,
+    borderRadius: 8,
+    padding: '10px',
+    background: '#141D2E',
+    border: '1px solid #22304A',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  slotName: {
+    font: '600 14px/1.2 "IBM Plex Sans", sans-serif',
+    color: '#E9EFF7',
+  },
+  slotMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 12,
+  },
+  slotEmpty: {
+    minHeight: 64,
+    borderRadius: 8,
+    background: '#101927',
+    border: '1.5px dashed #42557A',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    font: '800 13px/1 var(--font-sans)',
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-default)',
-    color: 'var(--text-secondary)',
-    boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1))',
+  },
+  slotEmptyText: {
+    font: '500 13px/1 "IBM Plex Sans", sans-serif',
+    color: '#5B6B81',
+  },
+  netDivider: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    margin: '2px 0',
+  },
+  netLine: {
+    flex: 1,
+    height: 1,
+    background: '#42557A',
+    opacity: 0.7,
+  },
+  netText: {
+    font: '700 10px/1 "IBM Plex Sans", sans-serif',
+    letterSpacing: '1.5px',
+    color: '#8494AA',
+    padding: '0 8px',
   },
   balanceBox: {
+    background: '#141D2E',
+    border: '1px solid #22304A',
+    borderRadius: 10,
+    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    padding: '14px',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    gap: 4,
-    minWidth: 140,
+    gap: 8,
   },
-  balanceTag: {
-    font: '700 10px/1 var(--font-sans)',
-    letterSpacing: 'var(--tracking-caps)',
-    padding: '2px 8px',
-    borderRadius: 99,
+  balanceTitle: {
+    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#8494AA',
   },
-  balanceBarWrap: {
+  balanceBigScore: {
+    font: '700 22px/1 Barlow, sans-serif',
+    color: '#5FDBD3',
+  },
+  metricRow: {
     display: 'flex',
-    width: '100%',
-    height: 6,
-    borderRadius: 3,
+    alignItems: 'center',
+    gap: 8,
+  },
+  metricLabel: {
+    font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
+    color: '#A8B7CB',
+    width: 100,
+  },
+  metricTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 999,
+    background: '#22304A',
     overflow: 'hidden',
-    background: 'var(--surface-sunken)',
   },
-  balanceBarA: {
-    background: 'var(--status-transit-fg)',
-    transition: 'width 0.2s ease',
+  metricValueMono: {
+    font: '400 12px/1.3 "IBM Plex Mono", monospace',
+    color: '#8494AA',
+    width: 36,
+    textAlign: 'right',
   },
-  balanceBarB: {
-    background: 'var(--status-delayed-fg)',
-    transition: 'width 0.2s ease',
+  balanceNoteText: {
+    font: '400 12.5px/1.45 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    marginTop: 4,
   },
-  balanceSub: {
-    fontSize: 11,
-    fontFamily: 'var(--font-mono, monospace)',
-    color: 'var(--text-muted)',
+  effCard: {
+    background: '#141D2E',
+    border: '1px solid #00786F',
+    borderRadius: 10,
+    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    padding: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
   },
-  slotActionsRow: {
+  calibratedBadge: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    padding: '5px 9px',
+    borderRadius: 999,
+    background: 'rgba(0,178,169,.18)',
+    color: '#5FDBD3',
+    whiteSpace: 'nowrap',
+  },
+  barCompareRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
     gap: 8,
   },
-  poolSection: {
-    display: 'grid',
+  barCompareLabel: {
+    font: '400 12px/1.3 "IBM Plex Mono", monospace',
+    color: '#8494AA',
+    width: 100,
+  },
+  barCompareTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+    background: '#0B1220',
+    display: 'flex',
+  },
+  barCompareValue: {
+    font: '400 12px/1.3 "IBM Plex Mono", monospace',
+    color: '#8494AA',
+    fontSize: 11.5,
+    whiteSpace: 'nowrap',
+  },
+  effDescText: {
+    font: '400 12.5px/1.45 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+  },
+  suggestionBox: {
+    display: 'flex',
+    alignItems: 'center',
     gap: 10,
-    paddingTop: 10,
-    borderTop: '1px solid var(--border-subtle)',
-  },
-  poolHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  poolTitle: {
-    font: '600 13.5px/1 var(--font-sans)',
-    color: 'var(--text-primary)',
-  },
-  poolCount: {
-    fontSize: 12,
-    color: 'var(--text-muted)',
-    marginLeft: 4,
-  },
-  poolSub: {
-    fontSize: 12,
-    color: 'var(--text-muted)',
+    padding: '10px 12px',
+    borderRadius: 8,
+    background: '#101927',
+    border: '1px solid #22304A',
     marginTop: 2,
   },
-  poolGrid: {
+  scoreLoggerBox: {
+    background: '#141D2E',
+    border: '1px solid #22304A',
+    borderRadius: 10,
+    boxShadow: '0 1px 1px rgba(0,0,0,.30)',
+    padding: '14px',
     display: 'flex',
-    flexWrap: 'wrap',
-    gap: 7,
-    maxHeight: 220,
-    overflowY: 'auto',
-    padding: '4px 1px',
+    flexDirection: 'column',
+    gap: 12,
   },
-  playerChip: {
-    display: 'inline-flex',
+  teamsChoiceGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: 10,
+  },
+  teamChoiceCard: {
+    borderRadius: 10,
+    padding: '12px',
+    background: '#101927',
+    border: '1.5px solid #22304A',
+    display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    padding: '6px 11px',
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
+    justifyContent: 'space-between',
+    gap: 10,
     cursor: 'pointer',
-    textAlign: 'left',
     transition: 'all 0.15s ease',
   },
-  playerChipA: {
-    background: 'var(--status-transit-bg)',
-    borderColor: 'var(--status-transit-fg)',
+  teamChoiceCardWon: {
+    background: 'rgba(0, 178, 169, 0.14)',
+    borderColor: '#00B2A9',
   },
-  playerChipB: {
-    background: 'var(--status-delayed-bg)',
-    borderColor: 'var(--status-delayed-fg)',
+  wonBadge: {
+    font: '600 11px/1 "IBM Plex Sans", sans-serif',
+    padding: '4px 8px',
+    borderRadius: 999,
+    background: '#00B2A9',
+    color: '#04302C',
   },
-  chipName: {
-    font: '600 12.5px/1 var(--font-sans)',
-    color: 'var(--text-primary)',
-  },
-  chipTier: {
-    font: '600 10.5px/1 var(--font-sans)',
-  },
-  chipPlayed: {
-    fontSize: 11,
-    fontFamily: 'var(--font-mono, monospace)',
-    color: 'var(--text-muted)',
-  },
-  chipSelectedBadge: {
-    font: '700 10px/1 var(--font-sans)',
-    padding: '1px 5px',
-    borderRadius: 4,
-    background: 'var(--surface-card)',
-    color: 'var(--text-primary)',
-    border: '1px solid var(--border-default)',
-  },
-  scoreCard: {
-    padding: 12,
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
-  },
-  singleScoreRow: {
+  bigScoreWon: {
+    minWidth: 48,
+    height: 40,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 20,
-  },
-  scoreInputBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  stepBtn: {
-    width: 32,
-    height: 38,
     borderRadius: 6,
-    border: '1px solid var(--border-subtle)',
-    background: 'var(--surface-card)',
-    font: '700 16px/1 var(--font-sans)',
-    color: 'var(--text-primary)',
-    cursor: 'pointer',
+    background: '#0B1220',
+    border: '1.5px solid #00B2A9',
+    font: '700 24px/1 Barlow, sans-serif',
+    color: '#5FDBD3',
   },
-  scoreBigInput: {
-    width: 68,
-    height: 38,
-    borderRadius: 6,
-    border: '1px solid var(--border-default)',
-    background: 'var(--surface-card)',
-    textAlign: 'center',
-    font: '700 20px/1 var(--font-mono, monospace)',
-    color: 'var(--text-primary)',
-  },
-  presetBtn: {
-    padding: '3px 8px',
-    borderRadius: 4,
-    border: '1px solid var(--border-subtle)',
-    background: 'var(--surface-card)',
-    font: '600 11px/1 var(--font-mono, monospace)',
-    color: 'var(--status-transit-fg)',
-    cursor: 'pointer',
-  },
-  bo3Row: {
+  bigScoreLost: {
+    minWidth: 48,
+    height: 40,
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    background: '#0B1220',
+    border: '1px solid #2E3E5C',
+    font: '700 24px/1 Barlow, sans-serif',
+    color: '#A8B7CB',
+  },
+  presetRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
     gap: 8,
   },
-  bo3Input: {
-    width: 56,
-    height: 32,
-    borderRadius: 6,
-    border: '1px solid var(--border-default)',
-    background: 'var(--surface-card)',
-    textAlign: 'center',
-    font: '600 14px/1 var(--font-mono, monospace)',
-    color: 'var(--text-primary)',
-  },
-  historyBadge: {
-    font: '600 11.5px/1 var(--font-mono, monospace)',
-    padding: '3px 8px',
-    borderRadius: 99,
-    background: 'var(--surface-inset)',
-    color: 'var(--text-muted)',
-  },
-  matchRow: {
-    display: 'grid',
-    gridTemplateColumns: '120px 1fr auto',
-    gap: 12,
-    alignItems: 'center',
-    padding: '10px 14px',
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
-  },
-  matchMetaCol: {
-    display: 'grid',
-    gap: 4,
-  },
-  matchCodeBadge: {
-    font: '700 12px/1 var(--font-mono, monospace)',
-    color: 'var(--text-primary)',
-  },
-  matchCourtText: {
-    fontSize: 11.5,
-    color: 'var(--text-muted)',
-  },
-  sourceTagQuick: {
-    font: '600 10px/1 var(--font-sans)',
-    letterSpacing: 'var(--tracking-caps)',
-    padding: '2px 6px',
-    borderRadius: 4,
-    background: 'var(--surface-card)',
-    color: 'var(--text-secondary)',
-    width: 'fit-content',
-  },
-  sourceTagChallenge: {
-    font: '600 10px/1 var(--font-sans)',
-    letterSpacing: 'var(--tracking-caps)',
-    padding: '2px 6px',
-    borderRadius: 4,
-    background: 'var(--status-transit-bg)',
-    color: 'var(--status-transit-fg)',
-    width: 'fit-content',
-  },
-  matchTeamsCol: {
-    display: 'grid',
-    gap: 2,
-    minWidth: 0,
-  },
-  matchPlayerNames: {
-    fontSize: 13,
-    fontFamily: 'var(--font-sans)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  matchScoreBadge: {
-    font: '700 13.5px/1 var(--font-mono, monospace)',
-  },
-  matchEloCol: {
+  presetBtn: {
+    minHeight: 40,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    borderRadius: 6,
+    background: '#1A2437',
+    border: '1px solid #2E3E5C',
+    font: '600 13px/1 "IBM Plex Mono", monospace',
+    color: '#E9EFF7',
+    cursor: 'pointer',
   },
-  eloDeltaBadge: {
-    font: '700 12px/1 var(--font-mono, monospace)',
+  presetBtnActive: {
+    background: '#1D50A0',
+    borderColor: '#3C74C4',
+    color: '#FFFFFF',
+  },
+  preMatchBox: {
+    background: '#101927',
+    border: '1px solid #22304A',
+    borderRadius: 8,
+    padding: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  balancedTag: {
+    font: '600 10.5px/1 "IBM Plex Sans", sans-serif',
     padding: '3px 8px',
-    borderRadius: 99,
-    background: 'var(--status-delivered-bg)',
-    color: 'var(--status-delivered-fg)',
+    borderRadius: 999,
+    background: 'rgba(0,178,169,.18)',
+    color: '#5FDBD3',
   },
-  unratedText: {
-    fontSize: 11.5,
-    color: 'var(--text-muted)',
+  predictBarTrack: {
+    display: 'flex',
+    height: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
+    background: '#22304A',
+    marginTop: 2,
+  },
+  changesBox: {
+    background: '#101927',
+    border: '1px solid #22304A',
+    borderRadius: 8,
+    padding: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  changeRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    padding: '8px 10px',
+    borderRadius: 6,
+    background: '#141D2E',
+    border: '1px solid #22304A',
+  },
+  bigSaveBtn: {
+    minHeight: 56,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    background: '#00B2A9',
+    border: 'none',
+    font: '700 16px/1 "IBM Plex Sans", sans-serif',
+    color: '#04302C',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(0, 178, 169, 0.3)',
+    transition: 'all 0.15s ease',
   },
 }
