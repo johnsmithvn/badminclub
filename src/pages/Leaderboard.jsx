@@ -31,7 +31,7 @@ function alphaColor(color, alphaHex, pct) {
 }
 
 export default function Leaderboard() {
-  const { db } = useApp()
+  const { db, a } = useApp()
   const navigate = useNavigate()
   const isMobile = useMobile()
   const [activeTab, setActiveTab] = useState('season') // 'season' | 'chart' | 'search' | 'matrix' | 'cross'
@@ -682,7 +682,15 @@ export default function Leaderboard() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => a.recalcAllRatings()}
+                    onClick={() => {
+                      a.confirm({
+                        title: t('leaderboard.recalcConfirmTitle'),
+                        message: t('leaderboard.recalcConfirmMsg'),
+                        tone: 'warning',
+                        confirmText: t('leaderboard.btnRecalc'),
+                        onConfirm: () => a.recalcAllRatings(),
+                      })
+                    }}
                     title={t('leaderboard.recalcHint')}
                     style={{ whiteSpace: 'nowrap' }}
                   >
