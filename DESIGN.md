@@ -104,7 +104,7 @@ Không bounce, không spring. Tôn trọng `prefers-reduced-motion` (token về 
 
 - Tiếng Việt. **Không dấu chấm than, không emoji, không "Oops".**
 - Nút là **động từ**: "Mở điểm danh", "Xong trận", "Gửi lời mời", "Bỏ ghép", "Thu nợ".
-- Mỗi con số đi kèm câu giải thích nguồn: *"Định mức Cố định Chủ nhật: 34 quả/buổi cho 2 sân"*.
+- Mỗi con số đi kèm câu giải thích nguồn: *"250.000 ÷ 5 buổi của Cố định Chủ nhật"*.
 - Toast nói **kết quả + hệ quả**: *"Đã gửi lời mời tới 0910000411 — ai nhận và tạo tài khoản sẽ tự
   ghép vào Vân Anh"*.
 - Trạng thái rỗng = **sự thật + việc cần làm**, không phải minh hoạ.

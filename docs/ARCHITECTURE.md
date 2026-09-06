@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Quản lý CLB cầu lông
 
-**Version:** v0.4.0 · **Updated:** 2026-09-02
+**Version:** v0.5.0 · **Updated:** 2026-09-06
 
 Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả nghiệp vụ gốc nằm trong bộ handoff
 (`design_handoff_clb_cau_long/01..06`) — không lặp lại ở đây; chỗ nào cần thì trỏ sang.
@@ -33,22 +33,27 @@ Không thêm dependency UI nào khác (không Tailwind, không MUI, không style
 index.html            jsconfig.json (alias cho editor)   vercel.json
 public/favicon.svg
 src/
-  main.jsx            mount React + BrowserRouter + AuthProvider + StoreProvider
+  main.jsx            mount React + BrowserRouter + AuthProvider + ThemeProvider + StoreProvider
   App.jsx             đăng ký route, gác quyền, đưa navigate cho actions
   components/
     ds/               DESIGN SYSTEM TDMS — trích từ handoff, KHÔNG sửa tay (icons.js + index.js)
-    layout/           AppLayout · Sidebar · AppHeader · ToastHost · AuthLayout
-    challenge/        CreateChallengeModal · ScoreModal · EditScoreModal
+    layout/           AppLayout · Sidebar · AppHeader · MobileFooterNav · MoreSheet · ToastHost · AuthLayout
+    challenge/        CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart
     session/          CourtAssignmentTab · SessionMatchesTab
+    settings/         SettingsComponents.jsx · tabs/ (AccessTab · CourtsTab · GeneralTab · GroupsTab · MoneyTab · SchedulesTab)
     ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar, AvatarUpload, BankAccountSection, QrModal, SearchSelect…
   config/             app.json (hằng số, rating cfg) · permissions.json (ma trận quyền)
   contexts/
     AuthContext.jsx   phiên đăng nhập, profile, danh sách CLB của tôi, activeClubId
     AppContext.jsx    db + ui state của MỘT CLB, Context
+    ThemeContext.jsx  quản lý Dark / Light / System theme chống nháy sáng FOUC
     appActions.js     MỌI hành động ghi dữ liệu (thi đấu, chia sân, tiền, sổ quỹ)
     storage.js        ĐIỂM CHẠM MẠNG DUY NHẤT: load(clubId) / save(db)
     dbmap.js          map thuần client ↔ 34+ bảng Postgres + diff()
-  data/schema.js      mô tả schema để render trang Sơ đồ dữ liệu
+  data/
+    schema.js         mô tả schema để render trang Sơ đồ dữ liệu
+    rankThemes.js     loader & helper cho 4 theme xếp hạng & kho biệt danh
+    rankThemes.json   dữ liệu phân bậc 8 rank tiers và playstyle badges
   hooks/
     useClock.js       đồng hồ bấm giờ sân
     useMobile.js      kiểm tra breakpoint màn hình di động (<= 768px)
@@ -62,7 +67,7 @@ src/
     matchSearch.js    tìm kiếm trận đấu, lọc đối đầu/đồng đội, ma trận H2H, cặp chưa từng gặp
     members.js        lọc/tìm/sắp xếp thành viên, chọn trường ghép tài khoản (0009/0010)
     money.js          mọi công thức tiền + tra cứu + màu/nhãn trạng thái + đối chiếu
-    rating.js         Elo Engine: tính delta, win%, đánh giá độ cân, độ tin cậy R1-R5, hiệu chỉnh chéo giới, replay cascade
+    rating.js         Elo Engine: tính delta, win%, đánh giá độ cân, độ tin cậy R1-R5, hiệu chỉnh chéo giới, replay cascade, dynamic K, margin multiplier
     roles.js          tra cứu ma trận quyền 3 vai
     schedules.js      kế hoạch SỬA/XOÁ lịch cố định: buổi nào được đụng, tháng nào đổi đơn giá
     supabase.js       khởi tạo client Supabase từ biến môi trường
@@ -77,10 +82,10 @@ src/
     Schedules.jsx · Members.jsx · Debts.jsx · Fund.jsx
     Profile.jsx · Settings.jsx · Schema.jsx
   routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
-  styles/             index.css + tokens/*.css (base.css hỗ trợ utility classes responsive mobile)
-  utils/dates.js      ngày, tháng, giờ thập phân, lưới lịch
-  __tests__/          100 test cases: lib/ (14) · money/ (12) · components/ (7) · ledger/ (2) · sync/ (2) · smoke/ (2)
-supabase/migrations/   SQL cho bản chạy thật (0001..0021)
+  styles/             index.css + tokens/*.css (dark.css, base.css hỗ trợ utility classes responsive mobile)
+  utils/              dates.js · image.js · vietqr.js
+  __tests__/          43 file test cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/ (118 tests)
+supabase/migrations/   SQL cho bản chạy thật (0001..0025)
 docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
 ```
 
@@ -191,8 +196,8 @@ Ba quy ước:
 - `/clb` (`Clubs` — chọn CLB, tạo CLB, nhập mã tham gia)
 - `/tai-khoan` (`Account` — quản lý hồ sơ tài khoản `profiles` dùng chung)
 
-**Route trong CLB (12 màn hình trong `AppLayout`):**
-Route key (xem `routes/index.js`) là một trong: `home sessions session assign schedules calendar members debts fund profile settings schema`.
+**Route trong CLB (13 màn hình trong `AppLayout`):**
+Route key (xem `routes/index.js`) là một trong: `home calendar sessions session assign leaderboard schedules members debts fund profile settings schema`.
 
 Quyền lấy từ `lib/roles.js` + `config/permissions.json` (3 vai: `owner`, `treasurer`, `member`):
 
@@ -258,9 +263,14 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 | Tách 2 hồ sơ & Ghép chọn lọc | ✅ **Đã làm** | Hồ sơ tài khoản (`profiles`) vs Hồ sơ CLB (`club_members`), ghép 6 trường chọn lọc (0009/0010) |
 | Thành viên tự đổi tên | ✅ **Đã làm** | Policy `cm_update_self_name` + trigger guard chỉ cho đổi `name` và `full_name` (0010) |
 | CSV Import & JSON Settings | ✅ **Đã làm** | Nhập/xuất danh sách thành viên bằng CSV (`src/lib/csv.js`), backup/restore cài đặt CLB |
+| Gỡ bỏ kho cầu & đơn giản hoá dòng tiền | ✅ **Đã làm** | Migration 0023: gỡ bỏ kho cầu và Tầng B giá thành buổi. Tiền mua cầu ghi trực tiếp ở Sổ quỹ |
 | Hệ thống Kèo & Chia sân hợp nhất | ✅ **Đã làm** | Tab bar 3 tabs (`SessionDetail.jsx`): Điểm danh, Chia sân & Kèo chờ, Trận đấu. Ghi điểm và tạo kèo độc lập |
 | Bảng xếp hạng Elo & Độ tin cậy | ✅ **Đã làm** | Màn `Leaderboard.jsx` (5 tabs): BXH Mùa giải, Hồ sơ Rating (R1-R5), Tìm trận & Sửa điểm inline, Ma trận H2H, Hiệu chỉnh chéo giới |
-| Responsive Mobile (390px - 768px) | ✅ **Đã làm** | Hook `useMobile.js`, layout stack tự động, cuộn ngang cảm ứng chống tràn cho bảng dữ liệu, tối ưu modal |
+| Rating Engine nâng cấp | ✅ **Đã làm** | Dynamic K-Factor (R1-R5), Margin of Victory, Elo Floor >= 0, 8 bậc Slang Rank Tiers, Inactivity Decay, Playstyle Badges |
+| Cài đặt giảm trừ đi thêm & Nhãn số sân | ✅ **Đã làm** | Migration 0024 (`member_extra_discount`) và Migration 0025 (`court_label`) |
+| Tự khai nợ & Duyệt chuyển khoản | ✅ **Đã làm** | Migration 0018: cột `claimed_at` cho `monthly_dues`, `member_adjustments`, `session_guests` + RPC `claim_payments` |
+| Banner nhắc nợ Trang chủ | ✅ **Đã làm** | Migration 0019: cấu hình kiểu banner nhắc công nợ (`clubs.debt_banner`) |
+| Giao diện Dark Mode & Responsive Mobile | ✅ **Đã làm** | `ThemeContext.jsx` (Dark/Light/System) + `MobileFooterNav.jsx` 5 slot + `MoreSheet.jsx` |
 | Mời vào CLB qua SĐT | **KHÔNG LÀM** (user chốt 2026-09-02) | Phần NHẬN phải gửi SMS thật — tốn tiền, không làm. Người mới vào bằng **mã CLB**. Bảng `club_invites` và cột `clubs.allow_invite` để nguyên dưới DB (xoá schema là việc riêng, phải xin phép), client không đọc |
 | `notifications` / Zalo OA / `audit_logs` | Giai đoạn 2 | Bảng đã có sẵn trong SQL |
 | Realtime cho chia sân | Giai đoạn 2 | Realtime channel theo `session_id` cho `session_lineups` + `matches` |

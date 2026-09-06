@@ -42,10 +42,10 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Sinh link VietQR, parse thông tin ngân hàng từ QR | `lib/vietqr.test.js` |
 | Khách giao lưu đi cùng: logic đồng hành, gom nhóm | `money/companion_guest.test.js` |
 | **Tách biệt dòng tiền**: Giá thành buổi và Quỹ tháng tuyệt đối không bị ảnh hưởng bởi Kèo & Elo | `money/isolation.test.js` |
-| Kèo đấu: Sinh mã C-XXXX · hướng kèo · độ cân · quyền huỷ · thành viên có mặt | `lib/challenge.test.js` |
-| Elo Engine: Expected score · tính delta có upset · R1–R5 · cascade replay sửa điểm | `lib/rating.test.js` |
+| Kèo đấu: Sinh mã C-XXXX · hướng kèo · độ cân · quyền huỷ · thành viên có mặt | `lib/challenge.test.js` · `lib/challenge_full.test.js` |
+| Elo Engine: Expected score · tính delta có upset · R1–R5 · cascade replay sửa điểm | `lib/rating.test.js` · `lib/rating_full.test.js` |
 | **Nâng cấp Rating**: Dynamic K (R1–R5) · Margin of Victory (21-19 vs 21-5) · Elo Floor >= 0 · Rank Tiers · Inactivity Decay | `lib/rating_upgrades.test.js` |
-| Tìm trận & Đối đầu: Lọc A vs B · cùng đội · sát điểm · bất ngờ · ma trận H2H · cặp chưa gặp | `lib/matchSearch.test.js` |
+| Tìm trận & Đối đầu: Lọc A vs B · cùng đội · sát điểm · bất ngờ · ma trận H2H · cặp chưa gặp | `lib/matchSearch.test.js` · `lib/match_search_full.test.js` |
 | Vòng đời Kèo đấu trong appActions: Tạo · Nhận · Xếp sân · Ghi điểm · Sửa tỷ số | `components/app_actions_competitions.test.js` |
 | Tính năng Kèo mở rộng: Cảnh báo lệch trình >250 · tổng hợp H2H · luân chuyển đội | `components/challenge_enhancements.test.js` |
 | Logic Bảng xếp hạng 5 tabs: Cấp tin cậy · ma trận H2H · tìm trận · học chéo giới | `components/leaderboard_logic.test.js` |
@@ -54,6 +54,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Routing & Nav: Định tuyến `/bang-xep-hang` · metadata trang Leaderboard | `components/routes_leaderboard.test.js` |
 | Buổi tập hợp nhất 3 tabs: Xếp sân · Gán kèo lên sân trống · Điểm danh vắng mặt | `components/session_tabs.test.js` |
 | 4 Theme Xếp hạng & Kho Biệt danh: Deterministic badge hash · 8 bậc rank · Quips | `lib/rank_themes.test.js` |
+| Dark Mode: ThemeContext, CSS token dark.css, icon sun/moon, anti-FOUC | `smoke/theme.test.js` |
 
 `fixture.js` — bộ dữ liệu cố định (2 CLB, tháng 08/2026) mọi file dùng chung. App **không**
 import nó; dữ liệu thật nằm ở Supabase.

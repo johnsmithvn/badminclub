@@ -1,9 +1,9 @@
 # Quản lý CLB cầu lông
 
 Web app quản lý một hoặc nhiều câu lạc bộ cầu lông sinh hoạt định kỳ: lịch tập cố định → điểm danh
-từng buổi → khách giao lưu → chốt tiền buổi → quỹ tháng, công nợ, back tiền → kho cầu → báo cáo.
-Kèm module **Chia sân** (kéo thả, xếp thông minh, bấm giờ, đếm số trận) và hệ **tài khoản – nhiều
-CLB – phân quyền 3 vai (Chủ CLB, Thủ quỹ, Thành viên)**.
+từng buổi → khách giao lưu → chốt tiền buổi → quỹ tháng, công nợ, back tiền → báo cáo tài chính.
+Kèm module **Chia sân** (kéo thả, xếp thông minh, bấm giờ, đếm số trận), **Hệ thống Thi đấu & Kèo đấu**
+(Challenge, Elo Rating, 8 bậc Rank, Ma trận H2H) và hệ **tài khoản – nhiều CLB – phân quyền 3 vai (Chủ CLB, Thủ quỹ, Thành viên)**.
 
 Bài toán gốc: CLB đang quản lý bằng Excel + Zalo. Người dùng chính là chủ quỹ, làm việc trên điện
 thoại/laptop ngay tại sân. Vì vậy: **không ai phải nhập thứ mà app tự suy ra được**, và **mọi con
@@ -55,9 +55,8 @@ npm run dev
 
 Mở http://localhost:5173 → `/dang-ky` tạo tài khoản → `/clb` tạo CLB (hoặc nhập mã mời) → vào app.
 
-CLB mới tạo ra gần như **rỗng**: chỉ có bạn (vai `owner`), một loại cầu mặc định, và thang trình
-độ mặc định. Sân · nhóm cố định · thành viên · giá khách phải tự nhập ở **Cài đặt**. Đó là dữ liệu
-thật của CLB bạn, app không bịa hộ.
+CLB mới tạo ra gần như **rỗng**: chỉ có bạn (vai `owner`) và thang trình độ mặc định. Sân · nhóm
+cố định · thành viên · giá khách tự nhập ở **Cài đặt**. Đó là dữ liệu thật của CLB bạn, app không bịa hộ.
 
 ### Muốn xoá sạch DB làm lại từ đầu
 
@@ -82,7 +81,7 @@ npx supabase db reset
 | `npm run dev` | dev server tại http://localhost:5173 |
 | `npm run build` | build production vào `dist/` |
 | `npm run preview` | xem thử bản build |
-| `npm test` | test logic tiền / sổ quỹ / chia sân / ngày tháng / CSV / map ↔ Postgres |
+| `npm test` | test logic tiền / sổ quỹ / chia sân / ngày tháng / CSV / map ↔ Postgres / Elo |
 | `npm run lint` | ESLint |
 | `npm run db:start` · `db:stop` · `db:status` | quản lý Supabase local |
 | `npm run db:migrate` | áp migration còn thiếu lên DB đang chạy (không xoá data) |
@@ -108,25 +107,27 @@ Design system **TDMS** trích từ bộ handoff (29 component). 6 dependency run
 src/
   App.jsx              route + gác quyền          main.jsx  mount
   components/
-    challenge/         CreateChallengeModal · ScoreModal · EditScoreModal · ChallengeDetailModal
-    session/           SessionTabs · CourtAssignmentTab · SessionMatchesTab · SessionCostTab
+    challenge/         CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart
+    session/           CourtAssignmentTab · SessionMatchesTab
+    settings/          SettingsComponents.jsx · tabs/ (Access · Courts · General · Groups · Money · Schedules)
     ds/                design system TDMS (VENDORED — không sửa tay)
-    layout/            AppLayout · Sidebar · AppHeader · ToastHost
-    ui/                primitive của app (Mono, LevelChip, Empty, Bar…)
-  config/              app.json · permissions.json   ← MỌI hằng số
+    layout/            AppLayout · Sidebar · AppHeader · MobileFooterNav · MoreSheet · ToastHost
+    ui/                primitive của app (Mono, LevelChip, Empty, Bar, AvatarUpload, BankAccountSection, QrModal, SearchSelect…)
+  config/              app.json (hằng số, rating cfg) · permissions.json (ma trận quyền)
   contexts/            AuthContext.jsx (phiên + CLB của tôi) · AppContext.jsx (state 1 CLB)
+                       ThemeContext.jsx (Dark / Light / System mode)
                        appActions.js (mọi hành động ghi) · storage.js (I/O duy nhất) · dbmap.js (map ↔ Postgres)
-  data/                schema.js
+  data/                schema.js · rankThemes.js · rankThemes.json
   hooks/               useClock.js · useMobile.js
   i18n/                index.js · vi.json            ← MỌI chữ
   lib/                 assign · challenge · csv · forms · ledger · matchSearch · members · money · rating · roles · schedules · supabase (THUẦN, test được)
-  pages/               14 màn trong CLB (kèm Leaderboard) + Account · Clubs · Login · Register + Dialogs
+  pages/               13 màn trong CLB (kèm Leaderboard) + Account · Clubs · Login · Register + Dialogs
   routes/              bảng route key ↔ URL
-  styles/              index.css + tokens/
-  utils/               dates.js
-  __tests__/           37 file test cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/ (100 tests)
-supabase/               config.toml · migrations/ (0001..0021)
-docs/                   RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS
+  styles/              index.css + tokens/ (dark.css, semantic.css, base.css…)
+  utils/               dates.js · image.js · vietqr.js
+  __tests__/           43 file test cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/ (118 tests)
+supabase/migrations/   SQL cho bản chạy thật (0001..0025)
+docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
 DESIGN.md
 ```
 
@@ -156,9 +157,10 @@ Chi tiết: [docs/RULES.md](docs/RULES.md).
 
 ## Tính năng đã hoàn thành
 
-- **Quản lý vận hành & Tài chính**: Lịch cố định, Buổi tập, Điểm danh, Khách giao lưu, Quỹ CLB, Công nợ chi tiết, Báo cáo Zalo, Nhập danh sách CSV, Kho cầu.
-- **Hợp nhất Buổi tập & Chia sân**: Gộp Chi tiết buổi tập và Chia sân thành 3 tabs trực quan (Chia sân kéo thả/xếp tự động, Kèo đấu & lịch sử trận đấu, Giá thành & Điểm danh).
+- **Quản lý vận hành & Tài chính**: Lịch cố định, Buổi tập, Điểm danh, Khách giao lưu, Quỹ CLB, Công nợ chi tiết, Tự khai nợ/chuyển khoản (`payment_claims`), Nhãn số sân (`court_label`), Ưu đãi giảm trừ đi thêm cho hội viên (`member_extra_discount`), Báo cáo Zalo, Nhập danh sách CSV, Sao lưu cấu hình JSON. Đơn giản hóa dòng tiền (gỡ bỏ kho cầu phức tạp theo Migration 0023, chi tiền mua cầu trực tiếp ở sổ quỹ).
+- **Hợp nhất Buổi tập & Chia sân**: Gộp Chi tiết buổi tập và Chia sân thành 3 tabs trực quan (Chia sân kéo thả/xếp tự động, Kèo đấu & lịch sử trận đấu, Điểm danh & Giá thành).
 - **Hệ thống Kèo đấu & Thi đấu (Challenge)**: Gạ kèo 1v1 / 2v2, dự báo Elo win%, cảnh báo lệch trình (>250 Elo), xếp kèo trực tiếp lên sân trống (`deployChallenge`), nhập điểm nhiều set (Best of 1/3/5), dự báo biến động Elo.
-- **Bảng xếp hạng Elo & Thống kê nâng cao (Leaderboard)**: Khởi điểm 0 Elo, tính điểm chuẩn quốc tế kèm thưởng upset, 5 cấp độ tin cậy R1–R5, Tìm trận đa năng, Sửa điểm trực tiếp có lưu vết kiểm toán và cascade tính lại Elo, Ma trận đối đầu CLB (H2H matrix), Thống kê hiệu chỉnh chéo giới tính (Cross-gender calibration).
-- **100/100 automated test cases pass 100%**.
-- `npm run build` pass (2026-09-02). Responsive tối ưu trên màn hình điện thoại từ 390px đến máy tính bảng/desktop.
+- **Bảng xếp hạng Elo & Thống kê nâng cao (Leaderboard)**: Khởi điểm 0 Elo, tính điểm chuẩn quốc tế kèm thưởng upset, 5 cấp độ tin cậy R1–R5, Dynamic K-Factor, Margin of Victory, Elo Floor >= 0, 8 bậc Slang Rank Tiers (Gà Con -> Độc Cô Cầu Bại), Inactivity Decay, Playstyle Badges, Tìm trận đa năng, Sửa điểm trực tiếp có lưu vết kiểm toán và cascade tính lại Elo, Ma trận đối đầu CLB (H2H matrix), Thống kê hiệu chỉnh chéo giới tính (Cross-gender calibration).
+- **Giao diện Responsive Mobile & Dark Mode**: ThemeContext hỗ trợ Dark/Light/System chống nháy sáng FOUC; điều hướng mobile Driver-App với MobileFooterNav 5 slot và MoreSheet.
+- **118/118 automated test cases pass 100%**.
+- `npm run lint` sạch (0 warning, 0 error). Responsive tối ưu trên màn hình điện thoại từ 390px đến máy tính bảng/desktop.

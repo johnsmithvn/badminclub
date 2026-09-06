@@ -1,8 +1,8 @@
 # DATABASE.md
 
-**Version:** v0.4.0 · **Updated:** 2026-09-02
+**Version:** v0.5.0 · **Updated:** 2026-09-06
 
-Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0016`.
+Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0025`.
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
 localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
@@ -179,6 +179,8 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `playerRatings` | `player_ratings` | Điểm Elo, độ tin cậy (R1-R5), số trận thắng/thua của từng thành viên (0021) |
 | `matchEdits[]` | `match_edits` | Lịch sử audit log sửa điểm trận: lý do sửa, tỷ số cũ/mới, người sửa (0021) |
 | `clubCalibration[]` | `club_calibration` | Hệ số hiệu chỉnh chéo giới tính học từ dữ liệu thực tế CLB (0021) |
+| `club.hasMemberExtraDiscount` · `club.memberExtraDiscount` | `clubs.has_member_extra_discount` · `clubs.member_extra_discount` | Cấu hình ưu đãi giảm trừ cho hội viên cố định khi đi thêm buổi (0024) |
+| `session_courts[].courtLabel` · `schedule_slots[].courtLabel` | `session_courts.court_label` · `schedule_slots.court_label` | Nhãn số sân cụ thể (Sân 1, Sân 2...) của buổi tập và lịch cố định (0025) |
 
 ---
 
@@ -205,7 +207,12 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0017_storage_owner_policy.sql` | Siết quyền ghi bucket `club-assets`: UPDATE/DELETE chỉ cho `owner = auth.uid()` thay vì mọi tài khoản đã đăng nhập. Client bỏ `upsert`. |
 | `0018_payment_claims.sql` | Thành viên tự khai đã chuyển tiền: cột `claimed_at` cho `monthly_dues` · `member_adjustments` · `session_guests`, kèm RPC `claim_payments`. **Không có bảng mới** — ba bảng đã tự giữ cờ `paid` của mình. |
 | `0019_debt_banner_style.sql` | `clubs.debt_banner` (`slim` · `alert` · `bar` · `off`) — kiểu banner nhắc công nợ hiện cho THÀNH VIÊN ở Trang chủ. Cài đặt của CLB, áp cho mọi thành viên. Cả ba kiểu mở cùng một popup chi tiết. |
+| `0020_sync_default_levels.sql` | Chuẩn hoá và đồng bộ thang 10 bậc trình độ mặc định của CLB cho các hàm RPC tạo CLB và thành viên. |
 | `0021_challenge_and_rating.sql` | Hệ thống Kèo đấu (`challenges`, `challenge_players`), Kết quả trận (`matches`, `match_players`), Xếp hạng Elo (`player_ratings`), Audit log sửa điểm (`match_edits`), Hiệu chỉnh chéo giới (`club_calibration`) và RLS policies. |
+| `0022_fix_rating_rls.sql` | Vá chính sách RLS cho phân hệ rating/challenge: cấp quyền đọc cho mọi thành viên CLB và siết quyền cập nhật/sửa trận. |
+| `0023_drop_shuttle.sql` | Gỡ bỏ hoàn toàn module Kho cầu và Tầng B (giá thành từng buổi). Xoá 4 bảng `shuttle_*` / `stock_checks`, dọn các cột `cost_*` trong `sessions` và `quota` trong `member_groups`. Tiền mua cầu ghi trực tiếp ở Sổ quỹ. |
+| `0024_member_extra_discount.sql` | Bổ sung cột `has_member_extra_discount` và `member_extra_discount` cho bảng `clubs` để hỗ trợ giảm trừ giá cho hội viên cố định khi đi thêm buổi. |
+| `0025_court_label.sql` | Bổ sung cột `court_label` cho `session_courts` và `schedule_slots` để gán nhãn/số sân chi tiết (ví dụ: 'Sân 19', 'Sân 20'). |
 
 ---
 

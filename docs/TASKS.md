@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v1.1.0 · **Updated:** 2026-09-05
+**Version:** v1.2.0 · **Updated:** 2026-09-06
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -1003,6 +1003,35 @@ Nâng cấp chuyên sâu hệ thống tính điểm Elo rating câu lạc bộ: 
   - Viết mới `src/__tests__/lib/rating_upgrades.test.js` kiểm tra toán học và logic biên cho toàn bộ 4 tính năng.
   - Cập nhật smoke test `smoke/ds.test.js` và `smoke/i18n.test.js` (1406 keys).
   - Toàn bộ **106/106 tests PASS 100%**!
+
+---
+
+## Đợt 9 — Hoàn thiện Kiến trúc, Tách module Cài đặt, Dark Mode & Gỡ kho cầu · **XONG 2026-09-06**
+
+Hoàn thiện kiến trúc toàn diện cho giai đoạn sản xuất: dọn dẹp các phân hệ dư thừa, đồng bộ hóa 25 migrations, hỗ trợ Dark Mode chống FOUC, module hóa trang Cài đặt, và mở rộng bộ test suite lên 118 tests.
+
+- [x] **Gỡ bỏ dứt điểm Kho cầu & Tầng B giá thành buổi (Migration 0023)**:
+  - Bỏ module `Shuttles.jsx`, bỏ 4 bảng `shuttle_*` / `stock_checks`, dọn sạch các cột `cost_*` trong `sessions` và `quota` trong `member_groups`.
+  - Tiền mua cầu được ghi nhận trực tiếp như các khoản chi thông thường tại Sổ quỹ (`transactions` category `shuttle`). Đơn giản hóa toàn diện dòng tiền.
+- [x] **Ưu đãi giảm trừ đi thêm cho hội viên cố định (Migration 0024)**:
+  - Bổ sung `has_member_extra_discount` và `member_extra_discount` cho bảng `clubs`.
+  - Cấu hình tại Cài đặt → Biểu phí: cho phép giảm trừ một khoản tiền (mặc định 5.000đ) khi hội viên cố định tham gia thêm các buổi khác ngoài nhóm cố định.
+- [x] **Nhãn số sân cụ thể (Migration 0025)**:
+  - Bổ sung `court_label` cho `session_courts` và `schedule_slots` (ví dụ: 'Sân 19', 'Sân 20').
+  - Hỗ trợ gán nhãn chi tiết trong lịch tập cố định và buổi tập thực tế.
+- [x] **Tự khai nợ & Duyệt thanh toán hội viên (Migration 0018)**:
+  - Cột `claimed_at` trên `monthly_dues`, `member_adjustments`, `session_guests` kết hợp RPC `claim_payments`.
+  - Cho phép thành viên tự bấm khai báo đã chuyển khoản; thủ quỹ/chủ CLB kiểm tra và duyệt nhanh trên giao diện Công nợ.
+- [x] **Tách nhỏ & Modular hóa trang Cài đặt (`Settings.jsx`)**:
+  - Chia tách thành `src/components/settings/SettingsComponents.jsx` và các tabs chuyên biệt: `AccessTab`, `CourtsTab`, `GeneralTab`, `GroupsTab`, `MoneyTab`, `SchedulesTab`.
+  - Tách bạch rõ ràng logic xử lý từng khối dữ liệu cấu hình CLB.
+- [x] **Giao diện Dark Mode & Tối ưu Mobile Shell**:
+  - `ThemeContext.jsx` hỗ trợ 3 chế độ (Sáng / Tối / Theo hệ thống), chống chớp sáng FOUC với script trong `index.html`.
+  - Hoàn thiện thanh điều hướng `MobileFooterNav.jsx` 5 slot và ngăn kéo `MoreSheet.jsx` cho trải nghiệm di động chuẩn Driver-App.
+- [x] **Mở rộng & Hoàn thiện Bộ kiểm thử tự động (118 tests pass 100%)**:
+  - 43 file test trải đều trên các phân hệ: `components/` (7), `ledger/` (2), `lib/` (17), `money/` (11), `smoke/` (4), `sync/` (2).
+  - 118/118 test cases pass xanh trong 830ms!
+  - `npm run lint` sạch bóng 0 warning, 0 error.
 
 ---
 

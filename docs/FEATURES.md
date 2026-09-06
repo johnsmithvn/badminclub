@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v0.4.0 · **Updated:** 2026-09-02
+**Version:** v0.5.0 · **Updated:** 2026-09-06
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -15,14 +15,13 @@ Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố 
    *"250.000 ÷ 5 buổi của Cố định Chủ nhật"*.
 3. **Chỉ có MỘT tầng tiền: sổ quỹ** (`DATABASE.md` §3) — tiền đã đổi tay. Chốt buổi chỉ ghi sổ
    đúng ba thứ: sân bán được, sân thuê thêm, và tiền sân nếu CLB trả theo buổi.
-   Chia sân, số trận, bấm giờ **không bao giờ** ảnh hưởng tiền.
+   Chia sân, số trận, bấm giờ, kèo đấu và xếp hạng Elo **không bao giờ** ảnh hưởng tiền.
 
 ---
 
 ## 0. Bắt đầu với một CLB rỗng
 
-CLB vừa tạo chỉ có: bạn (vai `owner`), một loại cầu mặc định, và thang trình độ mặc định. Thứ tự
-nhập liệu **bắt buộc** theo dây phụ thuộc:
+CLB vừa tạo chỉ có: bạn (vai `owner`) và thang trình độ mặc định. Thứ tự nhập liệu **bắt buộc** theo dây phụ thuộc:
 
 | Bước | Ở đâu | Vì sao phải trước |
 | --- | --- | --- |
@@ -261,15 +260,18 @@ Sửa hồ sơ tài khoản **không** đổi gì trong CLB nào, và ngược l
 tự sửa `level` của mình được. Yêu cầu đổi đi qua `member_changes` — SĐT áp dụng ngay khi duyệt,
 trình độ áp dụng từ tháng sau.
 
-**Cài đặt** 6 tab: Chung · Biểu phí · **Sân & Cầu** · Nhóm & mức thu · Lịch tập cố định · **Tài khoản & quyền**.
-- **Tab Chung**: Sửa tên CLB, quỹ mở đầu, ngày khoá sổ, thang trình độ của CLB, sao lưu cấu hình CLB (`Settings Export / Import` dạng file JSON).
-- **Tab Biểu phí**: Mức quỹ cố định, tiền hoàn khi vắng, và bảng giá khách giao lưu dạng ma trận thẻ nhỏ gọn.
-- **Tab Sân**: Quản lý danh sách sân (địa chỉ, link Google Maps, giá/giờ).
+**Cài đặt** 6 tab: **Chung** · **Biểu phí** · **Sân** · **Nhóm & mức thu** · **Lịch tập cố định** · **Tài khoản & quyền**.
+- **Tab Chung**: Sửa tên CLB, quỹ mở đầu, ngày khoá sổ, thang trình độ của CLB, cài đặt kiểu banner nhắc nợ (`debt_banner`: `alert` / `bar` / `slim` / `off`), và sao lưu & khôi phục cài đặt CLB (`Settings Export / Import` dạng file JSON, hỗ trợ tick chọn từng phần).
+- **Tab Biểu phí**: Mức quỹ cố định, tiền hoàn khi vắng, bảng giá khách giao lưu dạng ma trận thẻ nhỏ gọn, và cấu hình ưu đãi giảm trừ cho hội viên cố định khi đi thêm buổi ngoài nhóm (`has_member_extra_discount`, `member_extra_discount`).
+- **Tab Sân**: Quản lý danh sách sân (địa chỉ, link Google Maps, giá/giờ) và gán nhãn số sân (`court_label`) cho từng sân.
+- **Tab Nhóm & mức thu**: Quản lý các nhóm sinh hoạt cố định (ca, giờ, ngày trong tuần, mức đóng nam/nữ, đơn giá buổi nam/nữ).
+- **Tab Lịch tập cố định**: Tạo lịch sinh buổi tự động theo chu kỳ, gán sân và nhãn sân cụ thể.
 - **Tab Tài khoản & quyền**:
   - Mã CLB (`allow_code_join`): người mới nhập mã → yêu cầu chờ → chủ CLB **Ghép vào** bản ghi cũ / **Tạo thành viên mới** / **Từ chối**.
   - Trùng SĐT (`allow_phone_suggest`): so chỉ chữ số, gợi ý màu amber + nút Ghép. Không bao giờ tự ghép.
   - **Chọn 6 trường ghi đè khi ghép**: tên hiển thị, tên đầy đủ, SĐT, email, giới tính, trình độ. Mặc định không tick gì để bảo vệ tính toàn vẹn của CLB.
   - Khi ghép còn có thể chọn chuyển **Avatar** và **thông tin ngân hàng / QR** từ hồ sơ tài khoản sang hồ sơ CLB (0015).
+  - Phân quyền 3 vai (`owner`, `treasurer`, `member`) theo ma trận quyền chuẩn.
 
 **Sơ đồ dữ liệu**: trang tài liệu sống trong app, liệt kê bảng/cột theo schema Postgres thật.
 

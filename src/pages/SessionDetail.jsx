@@ -68,7 +68,6 @@ export default function SessionDetail() {
   const isClosed = s.status === 'closed'
   const isInactive = allSold || isCancelled
 
-  const onCourtCount = Object.keys((db.lineups || {})[s.id] || {}).length
   const sessionMatches = (db.matches || []).filter((m) => m.sessionId === s.id)
   const pendingChallengesCount = (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'pending').length
 
