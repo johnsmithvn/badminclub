@@ -71,4 +71,6 @@
 --shadow-lg:0 8px 24px rgba(0,0,0,.44),0 2px 6px rgba(0,0,0,.30);
 --shadow-overlay:0 24px 60px rgba(0,0,0,.60),0 4px 12px rgba(0,0,0,.40);
 --ring-focus:0 0 0 3px rgba(60,116,196,.42);
+--gender-nam-bg:rgba(60,116,196,.18);--gender-nam-fg:#9FC0EA;
+--gender-nu-bg:rgba(236,72,153,.18);--gender-nu-fg:#F472B6;
 }

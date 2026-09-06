@@ -34,6 +34,26 @@ export function LevelChip({ level, levels }) {
   )
 }
 
+/**
+ * Chip giới tính — màu sắc và bo góc đồng bộ với LevelChip.
+ * Ẩn hoàn toàn nếu không có thông tin giới tính.
+ */
+export function GenderChip({ gender, style }) {
+  if (!gender) return null
+  const isNu = gender === 'nu'
+  return (
+    <span style={{
+      font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
+      whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center',
+      background: isNu ? 'var(--gender-nu-bg)' : 'var(--gender-nam-bg)',
+      color: isNu ? 'var(--gender-nu-fg)' : 'var(--gender-nam-fg)',
+      ...style,
+    }}>
+      {genderTxt(gender)}
+    </span>
+  )
+}
+
 /** Nhãn nhóm nhỏ, chữ hoa — header của bảng tự dựng. */
 export const Overline = ({ children, style }) => (
   <div style={{

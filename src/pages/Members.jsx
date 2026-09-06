@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react'
 import { Avatar, Button, Card, Checkbox, DataTable, Dialog, Icon, IconButton, Input, SearchField, Select, Tabs } from '#ds'
-import { EditGuestDialog, Empty, LevelChip, Mono, Overline, QrModal, TabTrack } from '#ui'
+import { EditGuestDialog, Empty, GenderChip, LevelChip, Mono, Overline, QrModal, TabTrack } from '#ui'
 import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
@@ -263,7 +263,7 @@ function AllMembers({ canEdit }) {
         </div>
       ),
     },
-    { key: 'g', header: sortHead('g', t('members.colGender')), render: (r) => genderTxt(r.gender) },
+    { key: 'g', header: sortHead('g', t('members.colGender')), render: (r) => <GenderChip gender={r.gender} /> },
     {
       key: 'l', header: sortHead('l', t('members.colLevel')),
       render: (r) => (
@@ -281,11 +281,11 @@ function AllMembers({ canEdit }) {
         </div>
       ),
     },
-    { key: 'p', header: sortHead('p', t('members.colPhone')), mono: true, muted: true, render: (r) => r.phone || t('common.unknown') },
+    { key: 'p', header: sortHead('p', t('members.colPhone')), mono: true, muted: true, render: (r) => r.phone || '' },
     {
       key: 'note', header: t('members.colNote'), width: 150,
       render: (r) => {
-        if (!r.note) return <span style={{ color: 'var(--text-disabled)' }}>—</span>
+        if (!r.note) return null
         const isUrl = /^https?:\/\//i.test(r.note) || /^(facebook|fb|zalo)\./i.test(r.note)
         const href = /^https?:\/\//i.test(r.note) ? r.note : 'https://' + r.note
         return isUrl ? (
@@ -536,6 +536,7 @@ function AllMembers({ canEdit }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{r.name}</div>
                       <LevelChip level={levelOf(r, db.month)} levels={db.levels} />
+                      <GenderChip gender={r.gender} />
                       {isInactive ? (
                         <span style={{
                           font: "600 10px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB',
@@ -559,19 +560,26 @@ function AllMembers({ canEdit }) {
                         </span>
                       )}
                     </div>
-                    <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                      {isInactive
-                        ? t('members.mobileInactiveNote', { date: '01/' + db.month.slice(5, 7) })
-                        : (r.fullName || (r.note ? r.note : genderTxt(r.gender)))}
-                    </div>
-                    <div style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                      {r.phone || t('common.unknown')} · {genderTxt(r.gender)}
-                      {st === 'unpaid' && (
-                        <span style={{ color: '#FF9A8F' }}>
-                          {` · ${t('members.duesUnpaid')} ${fmt(duesTotal(unpaid).remain)}`}
-                        </span>
-                      )}
-                    </div>
+                    {isInactive ? (
+                      <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                        {t('members.mobileInactiveNote', { date: '01/' + db.month.slice(5, 7) })}
+                      </div>
+                    ) : (r.fullName || r.note) ? (
+                      <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                        {r.fullName || r.note}
+                      </div>
+                    ) : null}
+                    {(r.phone || st === 'unpaid') && (
+                      <div style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                        {r.phone && <span>{r.phone}</span>}
+                        {st === 'unpaid' && (
+                          <span style={{ color: '#FF9A8F' }}>
+                            {r.phone ? ' · ' : ''}
+                            {`${t('members.duesUnpaid')} ${fmt(duesTotal(unpaid).remain)}`}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions / QR */}
@@ -1302,6 +1310,7 @@ function GuestMembers({ canEdit }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{g.name}</div>
                         <LevelChip level={g.level} levels={db.levels} />
+                        <GenderChip gender={g.gender} />
                         {stats.isRegular ? (
                           <span style={{
                             font: "600 10px/1 'IBM Plex Sans', sans-serif", color: '#5FD9A2',
@@ -1322,7 +1331,8 @@ function GuestMembers({ canEdit }) {
                         {t('members.mobileGuestInviter', { name: topInviterName })}
                       </div>
                       <div style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                        {g.phone || t('common.unknown')} · {t('members.guestSessionsCount', { n: stats.sessionCount })}{lastDate ? ` (${lastDate})` : ''}
+                        {g.phone ? <span>{g.phone} · </span> : null}
+                        {t('members.guestSessionsCount', { n: stats.sessionCount })}{lastDate ? ` (${lastDate})` : ''}
                       </div>
                     </div>
                   </div>
@@ -1455,7 +1465,7 @@ function GuestMembers({ canEdit }) {
           <div style={{ display: 'grid' }}>
             {filteredGuests.map((g) => {
               const stats = guestStats(db, g.id)
-              const lastDate = stats.lastSession ? ddmy(stats.lastSession.date) : '—'
+              const lastDate = stats.lastSession ? ddmy(stats.lastSession.date) : ''
               const topInviterName = stats.topInviter ? stats.topInviter.name : (g.invitedBy ? memberOf(db, g.invitedBy).name : t('debts.clubRecruited'))
               return (
                 <div key={g.id} style={{ ...S.row, borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0, padding: '12px 16px' }}>
@@ -1464,7 +1474,7 @@ function GuestMembers({ canEdit }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ font: 'var(--type-label)', fontWeight: 600 }}>{g.name}</span>
                       <LevelChip level={g.level} levels={db.levels} />
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{genderTxt(g.gender)}</span>
+                      <GenderChip gender={g.gender} />
                       {g.companionOf && (
                         <span style={{
                           fontSize: 11, padding: '2px 6px', borderRadius: 4,
