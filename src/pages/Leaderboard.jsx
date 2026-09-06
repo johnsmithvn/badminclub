@@ -807,17 +807,17 @@ export default function Leaderboard() {
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto', width: '100%' }}>
-                  <div style={{ minWidth: 720 }}>
+                  <div style={{ minWidth: 740 }}>
                     {/* Header Bảng */}
                     <div style={S.seasonTableHead}>
                       <div style={S.thCell}>{t('leaderboard.rank')}</div>
                       <div style={S.thCell}>{t('leaderboard.player')}</div>
                       <div style={S.thCell}>{t('leaderboard.tierCol')}</div>
-                      <div style={{ ...S.thCell, textAlign: 'right' }}>{t('rating.elo')}</div>
+                      <div style={{ ...S.thCell, justifyContent: 'flex-end' }}>{t('rating.elo')}</div>
                       <div style={S.thCell}>{t('rating.confidence.label')}</div>
-                      <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.winLoss')}</div>
-                      <div style={{ ...S.thCell, textAlign: 'right' }}>{t('leaderboard.winRate')}</div>
-                      <div style={{ ...S.thCell, textAlign: 'center' }}>{t('leaderboard.recentForm')}</div>
+                      <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('leaderboard.winLoss')}</div>
+                      <div style={{ ...S.thCell, justifyContent: 'flex-end' }}>{t('leaderboard.winRate')}</div>
+                      <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('leaderboard.recentForm')}</div>
                     </div>
 
                     {/* Danh sách thành viên */}
@@ -1654,7 +1654,7 @@ export default function Leaderboard() {
                               >
                                 {matchCodeOf(db, m)}
                               </span>
-                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <div style={{ display: 'flex', gap: 5, alignItems: 'center', whiteSpace: 'nowrap' }}>
                                 <button
                                   type="button"
                                   onClick={() => setViewingMatch(m)}
@@ -1666,6 +1666,7 @@ export default function Leaderboard() {
                                     color: 'var(--text-link)',
                                     cursor: 'pointer',
                                     textAlign: 'left',
+                                    whiteSpace: 'nowrap',
                                   }}
                                 >
                                   {t('matchSearch.btnDetails')}
@@ -1682,6 +1683,7 @@ export default function Leaderboard() {
                                     color: 'var(--text-link)',
                                     cursor: 'pointer',
                                     textAlign: 'left',
+                                    whiteSpace: 'nowrap',
                                   }}
                                 >
                                   {t('matchSearch.btnEdit')}
@@ -2342,26 +2344,26 @@ const S = {
   },
   seasonTableHead: {
     display: 'grid',
-    gridTemplateColumns: '50px minmax(150px, 1fr) 130px 80px 110px 90px 80px 100px',
+    gridTemplateColumns: '44px minmax(160px, 1fr) 120px 75px 95px 75px 85px 95px',
     background: 'var(--surface-inset)',
     borderBottom: '1px solid var(--border-subtle)',
   },
   seasonTableRow: {
     display: 'grid',
-    gridTemplateColumns: '50px minmax(150px, 1fr) 130px 80px 110px 90px 80px 100px',
+    gridTemplateColumns: '44px minmax(160px, 1fr) 120px 75px 95px 75px 85px 95px',
     borderBottom: '1px solid var(--border-subtle)',
     minHeight: 52,
     alignItems: 'center',
   },
   searchTableHead: {
     display: 'grid',
-    gridTemplateColumns: '72px 88px 1fr 104px 1fr 92px 100px',
+    gridTemplateColumns: '110px 110px 1fr 80px 1fr 90px 90px',
     background: 'var(--surface-inset)',
     borderBottom: '1px solid var(--border-subtle)',
   },
   searchTableRow: {
     display: 'grid',
-    gridTemplateColumns: '72px 88px 1fr 104px 1fr 92px 100px',
+    gridTemplateColumns: '110px 110px 1fr 80px 1fr 90px 90px',
     borderBottom: '1px solid var(--border-subtle)',
     minHeight: 52,
     alignItems: 'center',
@@ -2375,6 +2377,7 @@ const S = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   tdCell: {
     padding: '0 12px',

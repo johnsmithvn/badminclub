@@ -109,6 +109,7 @@ Không bounce, không spring. Tôn trọng `prefers-reduced-motion` (token về 
   ghép vào Vân Anh"*.
 - Trạng thái rỗng = **sự thật + việc cần làm**, không phải minh hoạ.
 - Copy trong handoff `02-screens-ui-spec.md` là **chốt** — đừng dịch lại, đừng "viết hay hơn".
+- **Bảng dữ liệu & console dispatch:** Ưu tiên dùng nhãn thể thao quốc tế hoặc từ viết tắt súc tích (`W-L`, `Win Rate`, `Tier`, `Form`, `+/- Elo`, `#`) cho tiêu đề cột và chip chỉ số, tránh dùng từ tiếng Việt nhiều âm tiết làm tràn chữ hoặc ngắt dòng đôi làm vỡ cấu trúc bảng. Header bảng phải có `white-space: nowrap`.
 
 ## 8. Responsive & Mobile Shell (≤ 768px)
 

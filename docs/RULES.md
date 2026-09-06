@@ -87,6 +87,12 @@ Trình độ (`levels`) là **dữ liệu của từng CLB** (`clubs.levels`), k
 `app.json → levelsDefault` chỉ là danh sách khởi tạo cho CLB mới. Thứ tự trong mảng chính là
 thứ tự mạnh dần mà thuật toán cân sân dùng.
 
+### 3.5 Thuật ngữ ngắn gọn & chống vỡ dòng trên bảng dữ liệu (Data Table)
+
+- Trên header bảng dữ liệu, nhãn chỉ số thể thao, chip/badge gọn: **Ưu tiên dùng thuật ngữ ngắn gọn, chuẩn quốc tế hoặc từ viết tắt** (ví dụ: `W-L`, `Win Rate`, `Tier`, `Form`, `+/- Elo`, `Tin cậy`, `Mã`, `#`) thay vì các cụm từ tiếng Việt dài lê thê khiến cột bị ngắt thành nhiều dòng vụng về (xuống dòng đôi như `THẮNG -` / `THUA`, `TỶ LỆ` / `THẮNG`).
+- Toàn bộ ô tiêu đề bảng (`thCell`) **bắt buộc** có `whiteSpace: 'nowrap'` và được gán `minmax` / `px` độ rộng tương xứng với nội dung dữ liệu.
+- Thuộc tính căn lề của `thCell`: Vì `thCell` dùng `display: flex`, khi căn phải hoặc căn giữa bắt buộc dùng `justifyContent: 'flex-end'` hoặc `justifyContent: 'center'` tương ứng với kiểu căn lề (`textAlign`) của ô dữ liệu (`tdCell`) bên dưới để tránh hiện tượng lệch tiêu đề so với số liệu.
+
 ## 4. Cấu trúc thư mục và import
 
 ```

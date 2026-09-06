@@ -279,16 +279,16 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           ) : (
             /* Table Headers & Rows với scroll ngang an toàn trên desktop */
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <div style={{ minWidth: 680 }}>
+              <div style={{ minWidth: 740 }}>
                 <div style={S.tableHead}>
                   <div style={S.thCell}>{t('matchSearch.colCode')}</div>
                   <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
                   <div style={S.thCell}>{t('matchSearch.colWinner')}</div>
-                  <div style={{ ...S.thCell, textAlign: 'center' }}>{t('matchSearch.colScore')}</div>
+                  <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('matchSearch.colScore')}</div>
                   <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
-                  <div style={S.thCell}>{t('pages.sessions.colDelta')}</div>
+                  <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('pages.sessions.colDelta')}</div>
                   <div style={S.thCell}>{t('matchSearch.colSource')}</div>
-                  <div style={{ ...S.thCell, textAlign: 'right' }}>{t('pages.sessions.colAction')}</div>
+                  <div style={{ ...S.thCell, justifyContent: 'flex-end' }}>{t('pages.sessions.colAction')}</div>
                 </div>
 
                 {/* Rows */}
@@ -308,9 +308,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     }))
                     const courtObj = (s.courts || [])[m.courtIdx]
                     const venue = courtObj ? courtOf(db, courtObj.courtId) : null
-                    const courtLabel = courtObj?.label
-                      ? courtObj.label
-                      : ((s.courts || []).length > 1 ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : (venue?.name || t('units.court')))
+                    const courtLabel = courtObj?.label || t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 })
                     const matchTime = m.at
                       ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                       : (courtObj ? courtObj.from : '')
@@ -365,7 +363,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                             {loserNames}
                           </span>
                         </div>
-                        <div style={S.tdCell}>
+                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
                           <span style={{
                             font: '600 12.5px/1 "IBM Plex Mono", monospace',
                             color: hasElo ? 'var(--status-delivered-fg)' : 'var(--text-disabled)',
@@ -750,7 +748,7 @@ const S = {
   },
   tableHead: {
     display: 'grid',
-    gridTemplateColumns: '88px 84px 1fr 96px 1fr 90px 116px 64px',
+    gridTemplateColumns: '76px 110px 1fr 84px 1fr 84px 96px 64px',
     background: 'var(--surface-inset)',
     borderBottom: '1px solid var(--border-subtle)',
   },
@@ -763,10 +761,11 @@ const S = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   tableRow: {
     display: 'grid',
-    gridTemplateColumns: '88px 84px 1fr 96px 1fr 90px 116px 64px',
+    gridTemplateColumns: '76px 110px 1fr 84px 1fr 84px 96px 64px',
     borderBottom: '1px solid var(--border-subtle)',
     minHeight: 52,
     alignItems: 'center',
