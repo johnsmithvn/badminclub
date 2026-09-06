@@ -74,119 +74,231 @@ export default function SessionDetail() {
   return (
     <>
       {/* ---------------- Unified Session Top Header (Mockup 01 / K1) ---------------- */}
-      <div style={S.sessionHeaderBar}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
-          <button
-            type="button"
-            onClick={() => a.go('sessions')}
-            style={S.backBtn}
-            aria-label={t('session.backToList')}
-          >
-            <Icon name="arrow-left" size={18} color="var(--text-primary)" />
-          </button>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-            <div style={S.sessionTitleText}>
-              {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
+      {isMobile ? (
+        <div style={S.sessionHeaderBarMobile}>
+          {/* Tầng 1: Nút back + Tiêu đề + Badge trạng thái + Nhóm nút phụ (Zalo, Xoá) */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+              <button
+                type="button"
+                onClick={() => a.go('sessions')}
+                style={S.backBtn}
+                aria-label={t('session.backToList')}
+              >
+                <Icon name="arrow-left" size={18} color="var(--text-primary)" />
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
+                <span style={S.sessionTitleText}>
+                  {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
+                </span>
+                <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
+                  <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
+                  <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)' }}>
+                    {s.status === 'open'
+                      ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
+                      : t(`sessionState.${s.status}`)}
+                  </span>
+                </div>
+              </div>
             </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              <IconButton
+                icon="send"
+                size="sm"
+                variant="ghost"
+                label={t('session.copyZalo')}
+                onClick={() => a.copyZalo(s.id)}
+              />
+              {canEdit && s.status !== 'closed' && (
+                <IconButton
+                  icon="trash-2"
+                  size="sm"
+                  variant="ghost"
+                  label={t('session.doDelete')}
+                  onClick={() => a.confirm({
+                    title: t('session.delTitle'),
+                    message: t('session.delMsg', { date: ddmy(s.date) }),
+                    tone: 'danger',
+                    confirmText: t('session.doDelete'),
+                    onConfirm: () => a.deleteSession(s.id),
+                  })}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Tầng 2: Thông tin chi tiết buổi (Thứ, số người, sân, ca) & Nút hành động chính (Mở buổi / Chốt buổi / Mở lại) */}
+          <div style={S.sessionHeaderSubRowMobile}>
             <div style={S.sessionSubText}>
               {`${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`}
             </div>
+            {canEdit && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {s.status === 'draft' && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon="user-round-check"
+                    onClick={() => a.setSessionStatus(s.id, 'open')}
+                  >
+                    {t('session.doOpen')}
+                  </Button>
+                )}
+                {s.status === 'open' && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon="circle-check"
+                    disabled={!canMoney}
+                    onClick={() => a.confirm({
+                      title: t('session.closeTitle'),
+                      message: t('session.closeMsg'),
+                      tone: 'info',
+                      confirmText: t('session.closeOk'),
+                      onConfirm: () => a.setSessionStatus(s.id, 'closed'),
+                    })}
+                  >
+                    {t('session.doClose')}
+                  </Button>
+                )}
+                {(s.status === 'cancelled' || s.status === 'closed') && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="rotate-ccw"
+                    disabled={!canMoney}
+                    onClick={() => a.confirm({
+                      title: t('session.reopenTitle'),
+                      message: t('session.reopenMsg'),
+                      tone: 'warning',
+                      confirmText: t('session.reopenOk'),
+                      onConfirm: () => a.setSessionStatus(s.id, 'open'),
+                    })}
+                  >
+                    {t('session.doReopen')}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
-            <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
-            <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)' }}>
-              {s.status === 'open'
-                ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
-                : t(`status.${s.status}`)}
-            </span>
+      ) : (
+        <div style={S.sessionHeaderBar}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+            <button
+              type="button"
+              onClick={() => a.go('sessions')}
+              style={S.backBtn}
+              aria-label={t('session.backToList')}
+            >
+              <Icon name="arrow-left" size={18} color="var(--text-primary)" />
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+              <div style={S.sessionTitleText}>
+                {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
+              </div>
+              <div style={S.sessionSubText}>
+                {`${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`}
+              </div>
+            </div>
           </div>
 
-          {canEdit && (
-            <>
-              {s.status === 'draft' && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon="user-round-check"
-                  onClick={() => a.setSessionStatus(s.id, 'open')}
-                >
-                  {t('session.doOpen')}
-                </Button>
-              )}
-              {s.status === 'open' && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon="circle-check"
-                  disabled={!canMoney}
-                  onClick={() => a.confirm({
-                    title: t('session.closeTitle'),
-                    message: t('session.closeMsg'),
-                    tone: 'info',
-                    confirmText: t('session.closeOk'),
-                    onConfirm: () => a.setSessionStatus(s.id, 'closed'),
-                  })}
-                >
-                  {t('session.doClose')}
-                </Button>
-              )}
-              {(s.status === 'cancelled' || s.status === 'closed') && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon="rotate-ccw"
-                  disabled={!canMoney}
-                  onClick={() => a.confirm({
-                    title: t('session.reopenTitle'),
-                    message: t('session.reopenMsg'),
-                    tone: 'warning',
-                    confirmText: t('session.reopenOk'),
-                    onConfirm: () => a.setSessionStatus(s.id, 'open'),
-                  })}
-                >
-                  {t('session.doReopen')}
-                </Button>
-              )}
-            </>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
+              <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
+              <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)' }}>
+                {s.status === 'open'
+                  ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
+                  : t(`sessionState.${s.status}`)}
+              </span>
+            </div>
 
-          <IconButton
-            icon="send"
-            size="sm"
-            variant="ghost"
-            label={t('session.copyZalo')}
-            onClick={() => a.copyZalo(s.id)}
-          />
+            {canEdit && (
+              <>
+                {s.status === 'draft' && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon="user-round-check"
+                    onClick={() => a.setSessionStatus(s.id, 'open')}
+                  >
+                    {t('session.doOpen')}
+                  </Button>
+                )}
+                {s.status === 'open' && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon="circle-check"
+                    disabled={!canMoney}
+                    onClick={() => a.confirm({
+                      title: t('session.closeTitle'),
+                      message: t('session.closeMsg'),
+                      tone: 'info',
+                      confirmText: t('session.closeOk'),
+                      onConfirm: () => a.setSessionStatus(s.id, 'closed'),
+                    })}
+                  >
+                    {t('session.doClose')}
+                  </Button>
+                )}
+                {(s.status === 'cancelled' || s.status === 'closed') && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="rotate-ccw"
+                    disabled={!canMoney}
+                    onClick={() => a.confirm({
+                      title: t('session.reopenTitle'),
+                      message: t('session.reopenMsg'),
+                      tone: 'warning',
+                      confirmText: t('session.reopenOk'),
+                      onConfirm: () => a.setSessionStatus(s.id, 'open'),
+                    })}
+                  >
+                    {t('session.doReopen')}
+                  </Button>
+                )}
+              </>
+            )}
 
-          {canEdit && s.status !== 'closed' && (
             <IconButton
-              icon="trash-2"
+              icon="send"
               size="sm"
               variant="ghost"
-              label={t('session.doDelete')}
-              onClick={() => a.confirm({
-                title: t('session.delTitle'),
-                message: t('session.delMsg', { date: ddmy(s.date) }),
-                tone: 'danger',
-                confirmText: t('session.doDelete'),
-                onConfirm: () => a.deleteSession(s.id),
-              })}
+              label={t('session.copyZalo')}
+              onClick={() => a.copyZalo(s.id)}
             />
-          )}
+
+            {canEdit && s.status !== 'closed' && (
+              <IconButton
+                icon="trash-2"
+                size="sm"
+                variant="ghost"
+                label={t('session.doDelete')}
+                onClick={() => a.confirm({
+                  title: t('session.delTitle'),
+                  message: t('session.delMsg', { date: ddmy(s.date) }),
+                  tone: 'danger',
+                  confirmText: t('session.doDelete'),
+                  onConfirm: () => a.deleteSession(s.id),
+                })}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
-      <TabTrack style={S.tabBarWrap}>
-        <div style={S.tabTrack}>
+      <TabTrack style={{ ...S.tabBarWrap, margin: isMobile ? '10px 0 14px' : '14px 0 16px', width: isMobile ? '100%' : 'auto' }}>
+        <div style={{ ...S.tabTrack, width: isMobile ? '100%' : 'auto' }}>
           <button
             type="button"
             onClick={() => setActiveTab('attend')}
             style={{
               ...S.tabBtn,
+              ...(isMobile ? S.tabBtnMobile : {}),
               ...(activeTab === 'attend' ? S.tabBtnActive : {}),
             }}
           >
@@ -198,6 +310,7 @@ export default function SessionDetail() {
             onClick={() => setActiveTab('courts')}
             style={{
               ...S.tabBtn,
+              ...(isMobile ? S.tabBtnMobile : {}),
               ...(activeTab === 'courts' ? S.tabBtnActive : {}),
             }}
           >
@@ -209,6 +322,7 @@ export default function SessionDetail() {
             onClick={() => setActiveTab('matches')}
             style={{
               ...S.tabBtn,
+              ...(isMobile ? S.tabBtnMobile : {}),
               ...(activeTab === 'matches' ? S.tabBtnActive : {}),
             }}
           >
@@ -921,6 +1035,24 @@ const S = {
     border: '1px solid var(--border-subtle)',
     borderRadius: 'var(--radius-lg)',
   },
+  sessionHeaderBarMobile: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    padding: '12px 14px',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-lg)',
+  },
+  sessionHeaderSubRowMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    flexWrap: 'wrap',
+    paddingTop: 8,
+    borderTop: '1px solid var(--border-subtle)',
+  },
   backBtn: {
     width: 36,
     height: 36,
@@ -981,6 +1113,15 @@ const S = {
     borderRadius: 6, border: 'none', background: 'transparent',
     font: '600 13px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)',
     cursor: 'pointer', transition: 'all 0.15s ease',
+  },
+  tabBtnMobile: {
+    flex: '1 1 0',
+    justifyContent: 'center',
+    gap: 4,
+    height: 38,
+    padding: '0 6px',
+    fontSize: 12,
+    whiteSpace: 'nowrap',
   },
   tabBtnActive: { background: 'var(--surface-card)', color: 'var(--text-primary)', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
   tabBadgeMono: { font: '400 11.5px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' },

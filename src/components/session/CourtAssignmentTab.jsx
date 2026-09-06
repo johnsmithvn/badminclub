@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Button, Card, Icon, IconButton, Select, Switch } from '#ds'
-import { LevelChip } from '#ui'
+import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { playerName, genderTxt } from '#lib/money.js'
@@ -501,7 +501,7 @@ export default function CourtAssignmentTab({ s }) {
           <div style={S.searchRow}>
             <input
               type="text"
-              placeholder={t('session.searchMember') + '...'}
+              placeholder={t('session.searchMember')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={S.searchInput}
@@ -514,7 +514,6 @@ export default function CourtAssignmentTab({ s }) {
             {filteredWaiting.map((p) => {
               const plays = matchCountMap[p.key] || 0
               const r = ratingsMap[p.key] || 0
-              const isFemale = p.gender === 'female'
               const isFresh = plays === 0
 
               if (isMobile) {
@@ -528,6 +527,7 @@ export default function CourtAssignmentTab({ s }) {
                     title={`${p.name} · ${genderTxt(p.gender)} · ${r} Elo · ${plays} ${t('units.match')}`}
                   >
                     <span style={S.playerNameText}>{p.name}</span>
+                    <GenderChip gender={p.gender} />
                     <LevelChip level={p.level} levels={db.levels} size="sm" />
                     {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
                     {isFresh ? (
@@ -560,9 +560,7 @@ export default function CourtAssignmentTab({ s }) {
                   {/* Hàng 2: Giới tính · Số trận (nổi bật nếu 0 trận) · Rating Elo */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%', fontSize: 11.5 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      <span style={{ color: isFemale ? 'var(--status-incident-fg)' : 'var(--text-secondary)', fontWeight: 500 }}>
-                        {genderTxt(p.gender)}
-                      </span>
+                      <GenderChip gender={p.gender} />
                       <span style={{ color: 'var(--border-strong-color)' }}>·</span>
                       <span style={isFresh ? S.freshPlayTag : S.playCountTag}>
                         {plays} {t('units.match')}
@@ -585,8 +583,20 @@ export default function CourtAssignmentTab({ s }) {
       {/* ---------------- 2. MẶT SÂN THI ĐẤU VISUAL COURT (SCREEN 01) ---------------- */}
       <div style={{ ...S.courtCard, padding: isMobile ? '12px 10px' : '16px' }}>
         {/* Header Sân */}
-        <div style={S.courtTopBar}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1 }}>
+        <div style={{
+          ...S.courtTopBar,
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          gap: isMobile ? 10 : 12,
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isMobile ? 'space-between' : 'flex-start',
+            gap: 10,
+            flexWrap: 'wrap',
+            flex: 1,
+          }}>
             {courtOptions.length > 1 ? (
               <div style={{ minWidth: 120 }}>
                 <Select
@@ -638,7 +648,15 @@ export default function CourtAssignmentTab({ s }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isMobile ? 'space-between' : 'flex-end',
+            gap: 12,
+            width: isMobile ? '100%' : 'auto',
+            paddingTop: isMobile ? 8 : 0,
+            borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
+          }}>
             <label style={S.switchLabel}>
               <Switch checked={ratingEnabled} onChange={setRatingEnabled} />
               <span style={{ fontSize: 13, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
@@ -666,9 +684,9 @@ export default function CourtAssignmentTab({ s }) {
                 return (
                   <div key={key} style={S.slotFilled}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
                         <span style={S.slotName}>{p.name}</span>
-                        <LevelChip level={p.level} levels={db.levels} />
+                        <LevelChip level={p.level} levels={db.levels} size="sm" />
                         {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
                       </div>
                       <IconButton
@@ -679,7 +697,7 @@ export default function CourtAssignmentTab({ s }) {
                       />
                     </div>
                     <div style={S.slotMeta}>
-                      <span style={{ color: 'var(--text-muted)' }}>{genderTxt(p.gender)}</span>
+                      <GenderChip gender={p.gender} />
                       <span style={{ color: 'var(--border-strong-color)' }}>·</span>
                       <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
                       <span style={{ color: 'var(--border-strong-color)' }}>·</span>
@@ -714,9 +732,9 @@ export default function CourtAssignmentTab({ s }) {
                 return (
                   <div key={key} style={S.slotFilled}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
                         <span style={S.slotName}>{p.name}</span>
-                        <LevelChip level={p.level} levels={db.levels} />
+                        <LevelChip level={p.level} levels={db.levels} size="sm" />
                         {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
                       </div>
                       <IconButton
@@ -727,7 +745,7 @@ export default function CourtAssignmentTab({ s }) {
                       />
                     </div>
                     <div style={S.slotMeta}>
-                      <span style={{ color: 'var(--text-muted)' }}>{genderTxt(p.gender)}</span>
+                      <GenderChip gender={p.gender} />
                       <span style={{ color: 'var(--border-strong-color)' }}>·</span>
                       <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
                       <span style={{ color: 'var(--border-strong-color)' }}>·</span>
@@ -1221,6 +1239,7 @@ const S = {
   touchHint: {
     font: '400 12px/1.3 "IBM Plex Sans", sans-serif',
     color: 'var(--text-muted)',
+    width: '100%',
   },
   poolGrid: {
     display: 'grid',
@@ -1234,7 +1253,7 @@ const S = {
     display: 'flex',
     flexWrap: 'wrap',
     gap: 8,
-    maxHeight: 220,
+    maxHeight: 260,
     overflowY: 'auto',
     padding: '2px 0',
   },
@@ -1404,6 +1423,9 @@ const S = {
   slotName: {
     font: '600 14px/1.2 "IBM Plex Sans", sans-serif',
     color: 'var(--text-primary)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   slotMeta: {
     display: 'flex',
