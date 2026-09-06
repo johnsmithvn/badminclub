@@ -17,12 +17,137 @@ import cfg from '#config/app.json' with { type: 'json' }
 
 export default function Members() {
   const { db, ui, a } = useApp()
+  const isMobile = useMobile()
   const tab = ui.tab.members || 'all'
   const role = db.viewAs || 'owner'
   const canEdit = can(role, 'members')
   const canEditGuest = can(role, 'members') || can(role, 'sessions')
   const rosterM = db.month
   const pendingChanges = db.changes.filter((c) => c.status === 'pending')
+
+  const pendingRosterRows = useMemo(() => {
+    const list = []
+    db.groups.forEach((g) => {
+      const r = (db.roster[rosterM] || {})[g.id] || {}
+      Object.keys(r).forEach((mid) => {
+        if (r[mid] === 'pending') list.push({ g, m: memberOf(db, mid), mid })
+      })
+    })
+    return list
+  }, [db, rosterM])
+
+  const totalPending = pendingChanges.length + pendingRosterRows.length
+
+  if (isMobile) {
+    const activeCount = db.members.filter((m) => m.active !== false).length
+    const inactiveCount = db.members.filter((m) => m.active === false).length
+    const guestsCount = (db.guests || []).length
+    const regularGuestCount = (db.guests || []).filter((g) => guestStats(db, g.id).isRegular).length
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
+        {/* Header */}
+        <div style={{
+          padding: '16px 18px', background: '#080F1C', borderBottom: '1px solid rgba(255,255,255,.10)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 60,
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ font: '600 17px/1.2 Barlow, sans-serif', color: '#E9EFF7' }}>{t('nav.members')}</div>
+            <div style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+              {tab === 'pending'
+                ? t('members.mobilePendingHeaderSub', { n: totalPending })
+                : tab === 'guests'
+                  ? t('members.mobileGuestSub', { total: guestsCount, regular: regularGuestCount })
+                  : t('members.mobileHeaderSub', { active: activeCount, inactive: inactiveCount })}
+            </div>
+          </div>
+          {canEdit && tab === 'all' && (
+            <div
+              onClick={() => a.openDialog('addMember', memberForm(db))}
+              style={{
+                minHeight: 36, padding: '0 12px', display: 'flex', alignItems: 'center',
+                background: '#1D50A0', borderRadius: 6, font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                color: '#FFFFFF', cursor: 'pointer',
+              }}
+            >
+              {t('members.mobileAdd')}
+            </div>
+          )}
+        </div>
+
+        {/* Segmented Control */}
+        <div style={{ padding: '0 14px' }}>
+          <div style={{ display: 'flex', background: '#101927', border: '1px solid #22304A', borderRadius: 8, padding: 3 }}>
+            <div
+              onClick={() => a.setTab('members', 'all')}
+              style={{
+                flex: 1, textTransform: 'none', textAlign: 'center', padding: '9px 6px', borderRadius: 6,
+                background: tab === 'all' ? '#141D2E' : 'transparent',
+                boxShadow: tab === 'all' ? '0 1px 1px rgba(0,0,0,.30)' : 'none',
+                font: `${tab === 'all' ? 600 : 500} 13px/1.2 'IBM Plex Sans', sans-serif`,
+                color: tab === 'all' ? '#E9EFF7' : '#8494AA', cursor: 'pointer',
+              }}
+            >
+              {t('members.tabAll')}
+            </div>
+            <div
+              onClick={() => a.setTab('members', 'guests')}
+              style={{
+                flex: 1, textTransform: 'none', textAlign: 'center', padding: '9px 6px', borderRadius: 6,
+                background: tab === 'guests' ? '#141D2E' : 'transparent',
+                boxShadow: tab === 'guests' ? '0 1px 1px rgba(0,0,0,.30)' : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                font: `${tab === 'guests' ? 600 : 500} 13px/1.2 'IBM Plex Sans', sans-serif`,
+                color: tab === 'guests' ? '#E9EFF7' : '#8494AA', cursor: 'pointer',
+              }}
+            >
+              {t('members.tabGuests')}
+              {guestsCount > 0 && (
+                <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: '#5FD9A2', background: 'rgba(18,168,103,.18)', padding: '3px 6px', borderRadius: 999 }}>
+                  {guestsCount}
+                </span>
+              )}
+            </div>
+            <div
+              onClick={() => a.setTab('members', 'next')}
+              style={{
+                flex: 1, textTransform: 'none', textAlign: 'center', padding: '9px 6px', borderRadius: 6,
+                background: tab === 'next' ? '#141D2E' : 'transparent',
+                boxShadow: tab === 'next' ? '0 1px 1px rgba(0,0,0,.30)' : 'none',
+                font: `${tab === 'next' ? 600 : 500} 13px/1.2 'IBM Plex Sans', sans-serif`,
+                color: tab === 'next' ? '#E9EFF7' : '#8494AA', cursor: 'pointer',
+              }}
+            >
+              {t('members.tabNext')}
+            </div>
+            <div
+              onClick={() => a.setTab('members', 'pending')}
+              style={{
+                flex: 1, textTransform: 'none', textAlign: 'center', padding: '9px 6px', borderRadius: 6,
+                background: tab === 'pending' ? '#141D2E' : 'transparent',
+                boxShadow: tab === 'pending' ? '0 1px 1px rgba(0,0,0,.30)' : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                font: `${tab === 'pending' ? 600 : 500} 13px/1.2 'IBM Plex Sans', sans-serif`,
+                color: tab === 'pending' ? '#E9EFF7' : '#8494AA', cursor: 'pointer',
+              }}
+            >
+              {t('members.tabPending')}
+              {totalPending > 0 && (
+                <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: '#F0B75C', background: 'rgba(224,138,0,.18)', padding: '3px 6px', borderRadius: 999 }}>
+                  {totalPending}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {tab === 'all' && <AllMembers canEdit={canEdit} />}
+        {tab === 'next' && <NextMonth month={rosterM} canEdit={canEdit} />}
+        {tab === 'guests' && <GuestMembers canEdit={canEditGuest} />}
+        {tab === 'pending' && <Pending canEdit={canEdit} pendingRosterRows={pendingRosterRows} month={rosterM} />}
+      </div>
+    )
+  }
 
   return (
     <>
@@ -296,6 +421,212 @@ function AllMembers({ canEdit }) {
     },
   ]
 
+  const exportCsv = () => {
+    const headers = ['ID', 'Tên', 'Họ tên', 'Giới tính', 'Trình độ', 'SĐT', 'Nhóm', 'Trạng thái'] // i18n-ok: Tiêu đề cột CSV
+    const csvRows = rows.map((r) => [
+      r.id,
+      `"${(r.name || '').replace(/"/g, '""')}"`,
+      `"${(r.fullName || '').replace(/"/g, '""')}"`,
+      genderTxt(r.gender),
+      levelOf(r, db.month),
+      `"${r.phone || ''}"`,
+      `"${fixedGroups(db, r.id, db.month).map((g) => g.short || g.name).join(', ')}"`,
+      r.active === false ? t('members.stateInactive') : t('members.stateActive'),
+    ].join(','))
+    const blob = new Blob(['\uFEFF' + [headers.join(','), ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `thanh_vien_${db.month}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Filter chips & Search */}
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Status chips */}
+            <span
+              onClick={() => a.setTab('mstate', 'on')}
+              style={{
+                font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                color: (ui.tab.mstate || 'on') === 'on' ? '#E9EFF7' : '#A8B7CB',
+                background: (ui.tab.mstate || 'on') === 'on' ? '#1D50A0' : '#1A2437',
+                border: (ui.tab.mstate || 'on') === 'on' ? 'none' : '1px solid #2E3E5C',
+                padding: '9px 12px', borderRadius: 999, cursor: 'pointer',
+              }}
+            >
+              {t('members.stateActive')}
+            </span>
+            {off.length > 0 && (
+              <span
+                onClick={() => a.setTab('mstate', 'off')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  color: ui.tab.mstate === 'off' ? '#E9EFF7' : '#A8B7CB',
+                  background: ui.tab.mstate === 'off' ? '#1D50A0' : '#1A2437',
+                  border: ui.tab.mstate === 'off' ? 'none' : '1px solid #2E3E5C',
+                  padding: '9px 12px', borderRadius: 999, cursor: 'pointer',
+                }}
+              >
+                {t('members.mobileInactiveBadge')} ({off.length})
+              </span>
+            )}
+
+            {/* Groups chips */}
+            {db.groups.map((g) => {
+              const active = flt.group === g.id
+              return (
+                <span
+                  key={g.id}
+                  onClick={() => setF('group', active ? '' : g.id)}
+                  style={{
+                    font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                    color: active ? '#E9EFF7' : '#A8B7CB',
+                    background: active ? '#1D50A0' : '#1A2437',
+                    border: active ? 'none' : '1px solid #2E3E5C',
+                    padding: '9px 12px', borderRadius: 999, cursor: 'pointer',
+                  }}
+                >
+                  {g.short || g.name}
+                </span>
+              )
+            })}
+          </div>
+
+          {/* Search box */}
+          <SearchField
+            width="100%"
+            placeholder={t('members.searchPh')}
+            value={flt.q}
+            onChange={(e) => setF('q', e.target.value)}
+            onClear={() => setF('q', '')}
+          />
+        </div>
+
+        {/* Member cards list */}
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {rows.length === 0 ? (
+            hasFilter(flt)
+              ? <Empty icon="search" title={t('members.fltEmpty')} hint={t('members.fltEmptyHint')} />
+              : <Empty icon="users" title={t('members.empty')} hint={t('members.emptyHint')} />
+          ) : (
+            rows.map((r) => {
+              const gs = fixedGroups(db, r.id, db.month)
+              const st = duesStatusOf(db, r.id, db.month)
+              const unpaid = dues.filter((x) => x.memberId === r.id && dueState(x).remain > 0)
+              const isInactive = r.active === false
+
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => canEdit && a.openDialog('editMember', editMemberForm(r))}
+                  style={{
+                    background: '#141D2E', border: '1px solid #22304A', borderRadius: 10,
+                    boxShadow: '0 1px 1px rgba(0,0,0,.30)', padding: '12px 13px',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    opacity: isInactive ? 0.72 : 1, cursor: canEdit ? 'pointer' : 'default',
+                  }}
+                >
+                  <Avatar name={r.name} src={r.avatarUrl} size={40} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{r.name}</div>
+                      <LevelChip level={levelOf(r, db.month)} levels={db.levels} />
+                      {isInactive ? (
+                        <span style={{
+                          font: "600 10px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB',
+                          background: 'rgba(148,164,186,.14)', padding: '4px 8px', borderRadius: 999,
+                        }}>
+                          {t('members.mobileInactiveBadge')}
+                        </span>
+                      ) : gs.length ? (
+                        <span style={{
+                          font: "600 10px/1 'IBM Plex Sans', sans-serif", color: '#9FC0EA',
+                          background: 'rgba(60,116,196,.18)', padding: '4px 8px', borderRadius: 999,
+                        }}>
+                          {gs[0].short || gs[0].name}
+                        </span>
+                      ) : (
+                        <span style={{
+                          font: "600 10px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB',
+                          background: 'rgba(148,164,186,.14)', padding: '4px 8px', borderRadius: 999,
+                        }}>
+                          {t('members.soloShort')}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                      {isInactive
+                        ? t('members.mobileInactiveNote', { date: '01/' + db.month.slice(5, 7) })
+                        : (r.fullName || (r.note ? r.note : genderTxt(r.gender)))}
+                    </div>
+                    <div style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                      {r.phone || t('common.unknown')} · {genderTxt(r.gender)}
+                      {st === 'unpaid' && (
+                        <span style={{ color: '#FF9A8F' }}>
+                          {` · ${t('members.duesUnpaid')} ${fmt(duesTotal(unpaid).remain)}`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions / QR */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {(r.bankName && r.bankNo) && (
+                      <IconButton
+                        icon="qr-code"
+                        size="sm"
+                        variant="ghost"
+                        label={t('bank.viewQr')}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setQrMember(r)
+                        }}
+                      />
+                    )}
+                    <Icon name="chevron-right" size={14} style={{ color: '#8494AA', opacity: 0.6 }} />
+                  </div>
+                </div>
+              )
+            })
+          )}
+
+          {/* Dashed CSV Export Button */}
+          <div
+            onClick={exportCsv}
+            style={{
+              background: '#101927', border: '1px dashed #2E3E5C', borderRadius: 10,
+              minHeight: 56, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              font: "600 15px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB', cursor: 'pointer',
+              marginTop: 4,
+            }}
+          >
+            {t('members.mobileExportCsv')}
+          </div>
+        </div>
+
+        {qrMember && (
+          <QrModal
+            title={t('bank.qrTitle') + ' · ' + qrMember.name}
+            qrUrl={getVietQrUrl({
+              bankCode: (findBank(qrMember.bankName) || {}).bin || qrMember.bankName,
+              accountNo: qrMember.bankNo,
+              accountHolder: qrMember.bankHolder || qrMember.fullName || qrMember.name,
+            })}
+            bankName={qrMember.bankName}
+            accountNo={qrMember.bankNo}
+            accountHolder={qrMember.bankHolder || qrMember.fullName || qrMember.name}
+            onClose={() => setQrMember(null)}
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
     <Card
       title={t('members.listTitle')}
@@ -496,201 +827,7 @@ function AllMembers({ canEdit }) {
         ? (hasFilter(flt)
             ? <Empty icon="search" title={t('members.fltEmpty')} hint={t('members.fltEmptyHint')} />
             : <Empty icon="users" title={t('members.empty')} hint={t('members.emptyHint')} />)
-        : isMobile ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
-            {rows.map((r) => {
-              const gs = fixedGroups(db, r.id, db.month)
-              const st = duesStatusOf(db, r.id, db.month)
-              const isSelected = selectedIds.includes(r.id)
-              const unpaid = dues.filter((x) => x.memberId === r.id && dueState(x).remain > 0)
-              const isBlocked = memberRefs(db, r.id).length > 0
-
-              return (
-                <div
-                  key={r.id}
-                  style={{
-                    background: 'var(--surface-card)',
-                    border: isSelected ? '1px solid var(--border-focus-color)' : '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-card, 8px)',
-                    padding: 12,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    {canEdit && (
-                      <div style={{ paddingTop: 8 }}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectOne(r.id)}
-                          style={{ cursor: 'pointer', margin: 0, width: 18, height: 18 }}
-                        />
-                      </div>
-                    )}
-                    <Avatar name={r.name} src={r.avatarUrl} size={40} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                        <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)', fontSize: 16 }}>
-                          {r.name}
-                        </span>
-                        <div>
-                          {r.active === false ? (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 4,
-                              padding: '2px 6px', borderRadius: 99,
-                              background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
-                              font: '600 11px var(--font-sans)', color: 'var(--text-muted)',
-                            }}>
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-disabled)' }} />
-                              {t('members.stateInactive')}
-                            </span>
-                          ) : (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 4,
-                              padding: '2px 6px', borderRadius: 99,
-                              background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)',
-                              font: '600 11px var(--font-sans)', color: 'var(--teal-700)',
-                            }}>
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-delivered)' }} />
-                              {t('members.stateActive')}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {r.fullName && (
-                        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 2 }}>
-                          {r.fullName}
-                        </div>
-                      )}
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                        <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
-                          {genderTxt(r.gender)}
-                        </span>
-                        <span>·</span>
-                        <LevelChip level={levelOf(r, db.month)} levels={db.levels} />
-                        {nextLevelStep(r, db.month) && (
-                          <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed)' }}>
-                            {t('members.pendingLevel', {
-                              level: nextLevelStep(r, db.month).level,
-                              month: nextLevelStep(r, db.month).from,
-                            })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 8,
-                    padding: '8px 10px',
-                    background: 'var(--surface-inset)',
-                    borderRadius: 6,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: 'var(--type-caption)' }}>
-                      <Icon name="users" size={13} style={{ color: 'var(--text-muted)' }} />
-                      <span style={{ color: gs.length ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
-                        {gs.length ? gs.map((g) => g.short || g.name).join(', ') : t('members.noGroup')}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Icon name="phone" size={13} style={{ color: 'var(--text-muted)' }} />
-                      <span style={{ font: 'var(--type-mono)', fontSize: 13, color: 'var(--text-secondary)' }}>
-                        {r.phone || t('common.unknown')}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                    <div>
-                      {st === 'none' ? (
-                        <span style={{ font: 'var(--type-caption)', color: 'var(--text-disabled)' }}>{t('members.duesNone')}</span>
-                      ) : (
-                        <span style={{
-                          font: 'var(--type-label)',
-                          color: st === 'unpaid' ? 'var(--status-delayed)' : 'var(--status-delivered)',
-                        }}>
-                          {st === 'unpaid'
-                            ? t('members.duesUnpaid') + ' · ' + fmt(duesTotal(unpaid).remain)
-                            : t('members.duesPaid')}
-                        </span>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      {(r.bankName && r.bankNo) && (
-                        <IconButton
-                          icon="qr-code"
-                          size="sm"
-                          variant="ghost"
-                          label={t('bank.viewQr')}
-                          onClick={() => setQrMember(r)}
-                        />
-                      )}
-                      {canEdit && (
-                        <IconButton
-                          icon="settings-2"
-                          size="sm"
-                          variant="ghost"
-                          label={t('common.edit')}
-                          onClick={() => a.openDialog('editMember', editMemberForm(r))}
-                        />
-                      )}
-                      <IconButton
-                        icon={r.active === false ? 'rotate-ccw' : 'user-round-minus'}
-                        size="sm"
-                        variant="ghost"
-                        label={t(r.active === false ? 'members.toActive' : 'members.toInactive')}
-                        onClick={() => {
-                          if (r.active === false) return a.reactivate(r.id)
-                          const s = offBackSuggest(db, r.id)
-                          return s
-                            ? a.openDialog('offBack', { obId: r.id, obAmount: String(s.amount || '') })
-                            : a.deactivate(r.id, 0)
-                        }}
-                      />
-                      {canEdit && (!isBlocked ? (
-                        <IconButton
-                          icon="trash-2"
-                          size="sm"
-                          variant="ghost"
-                          label={t('common.delete')}
-                          onClick={() => a.confirm({
-                            title: t('members.delTitle', { name: r.name }),
-                            message: t('members.delMsg', { name: r.name }),
-                            tone: 'danger',
-                            confirmText: t('members.delOk'),
-                            onConfirm: () => a.deleteMember(r.id),
-                          })}
-                        />
-                      ) : (
-                        <span
-                          title={t('members.delBlocked')}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            opacity: 0.4, cursor: 'not-allowed',
-                          }}
-                        >
-                          <IconButton icon="lock" size="sm" variant="ghost" disabled label={t('members.delBlockedShort')} />
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <DataTable columns={columns} rows={rows} rowKey="id" />
-        )}
+        : <DataTable columns={columns} rows={rows} rowKey="id" />}
 
       {qrMember && (
         <QrModal
@@ -822,9 +959,189 @@ function NextMonth({ month, canEdit }) {
 
 /* ---------------- tab Chờ duyệt ---------------- */
 
-function Pending({ canEdit }) {
+function Pending({ canEdit, pendingRosterRows = [], month }) {
   const { db, a } = useApp()
+  const isMobile = useMobile()
   const rows = db.changes.filter((c) => c.status === 'pending')
+
+  if (isMobile) {
+    const hasRoster = pendingRosterRows.length > 0
+    const hasChanges = rows.length > 0
+    const mMonth = month || db.month
+
+    if (!hasRoster && !hasChanges) {
+      return (
+        <div style={{ padding: '0 14px' }}>
+          <Empty
+            icon="circle-check"
+            title={t('members.mobilePendingAllDone')}
+            hint={t('members.mobilePendingAllDoneHint')}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Section 1: Đăng ký cố định tháng sau */}
+        {hasRoster && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{
+              font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#8494AA',
+            }}>
+              {t('members.mobileSecGroupNext')}
+            </div>
+            {pendingRosterRows.map((x) => (
+              <div
+                key={x.g.id + x.mid}
+                style={{
+                  background: '#141D2E', border: '1px solid #22304A', borderRadius: 10,
+                  boxShadow: '0 1px 1px rgba(0,0,0,.30)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Avatar name={x.m.name} size={36} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{x.m.name}</div>
+                    <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                      {t('members.mobileGroupNextTitle', { group: x.g.name })}
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  background: '#101927', border: '1px solid #22304A', borderRadius: 8,
+                  padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 4,
+                }}>
+                  <div style={{ font: "400 13px/1.45 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                    {t('members.mobileGroupNextDesc', { month: monthTxt(mMonth).toLowerCase(), price: fmt(x.g.price || 0) })}
+                  </div>
+                  <div style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                    {t('members.mobileGroupNextEffect', { date: '01/' + mMonth.slice(5, 7) + '/' + mMonth.slice(0, 4) })}
+                  </div>
+                </div>
+                {canEdit && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div
+                      onClick={() => a.setRoster(mMonth, x.g.id, x.mid, 'fixed')}
+                      style={{
+                        flex: 1, textAlign: 'center', minHeight: 48, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', background: '#1D50A0', borderRadius: 6,
+                        font: "600 15px/1 'IBM Plex Sans', sans-serif", color: '#FFFFFF', cursor: 'pointer',
+                      }}
+                    >
+                      {t('members.approve')}
+                    </div>
+                    <div
+                      onClick={() => a.setRoster(mMonth, x.g.id, x.mid, 'none')}
+                      style={{
+                        minHeight: 48, padding: '0 16px', display: 'flex', alignItems: 'center',
+                        background: '#1A2437', border: '1px solid #2E3E5C', borderRadius: 6,
+                        font: "600 15px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB', cursor: 'pointer',
+                      }}
+                    >
+                      {t('members.reject')}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Section 2: Thay đổi thông tin */}
+        {hasChanges && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{
+              font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#8494AA',
+            }}>
+              {t('members.mobileSecChangeInfo')}
+            </div>
+            {rows.map((c) => {
+              const m = memberOf(db, c.memberId)
+              const isNow = c.effective === 'now'
+
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    background: '#141D2E', border: '1px solid #22304A', borderRadius: 10,
+                    boxShadow: '0 1px 1px rgba(0,0,0,.30)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Avatar name={m.name} size={36} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{m.name}</div>
+                      <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                        {t('members.mobileChangeTitle', { field: t('members.changeField.' + c.field) })}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{
+                      background: '#101927', border: '1px solid #22304A', borderRadius: 8,
+                      padding: '11px 13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                          {t('members.changeField.' + c.field)}
+                        </div>
+                        <div style={{
+                          font: "400 12px/1.3 'IBM Plex Sans', sans-serif",
+                          color: isNow ? '#5FD9A2' : '#F0B75C',
+                        }}>
+                          {t(isNow ? 'members.mobileApplyNow' : 'members.mobileApplyNext')}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {c.field === 'level' ? (
+                          <>
+                            <LevelChip level={c.from} levels={db.levels} />
+                            <span style={{ font: "400 13px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>→</span>
+                            <LevelChip level={c.to} levels={db.levels} />
+                          </>
+                        ) : (
+                          <span style={{ font: "400 13px/1.3 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                            {c.from} → {c.to}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {canEdit && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div
+                        onClick={() => a.approveChange(c.id, true)}
+                        style={{
+                          flex: 1, textAlign: 'center', minHeight: 48, display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', background: '#1D50A0', borderRadius: 6,
+                          font: "600 15px/1 'IBM Plex Sans', sans-serif", color: '#FFFFFF', cursor: 'pointer',
+                        }}
+                      >
+                        {t('members.approve')}
+                      </div>
+                      <div
+                        onClick={() => a.approveChange(c.id, false)}
+                        style={{
+                          minHeight: 48, padding: '0 16px', display: 'flex', alignItems: 'center',
+                          background: '#1A2437', border: '1px solid #2E3E5C', borderRadius: 6,
+                          font: "600 15px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB', cursor: 'pointer',
+                        }}
+                      >
+                        {t('members.reject')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <Card title={t('members.changesTitle')} subtitle={t('members.changesSub')} icon="settings-2" padding="14px 16px">
@@ -865,6 +1182,7 @@ function Pending({ canEdit }) {
 
 function GuestMembers({ canEdit }) {
   const { db, a } = useApp()
+  const isMobile = useMobile()
   const [subTab, setSubTab] = useState('all') // 'all' | 'regular' | 'once'
   const [levelFlt, setLevelFlt] = useState('')
   const [genderFlt, setGenderFlt] = useState('')
@@ -905,6 +1223,196 @@ function GuestMembers({ canEdit }) {
     { value: 'nam', label: genderTxt('nam') },
     { value: 'nu', label: genderTxt('nu') },
   ]
+
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Filter Subtabs & Search */}
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span
+              onClick={() => setSubTab('all')}
+              style={{
+                font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                color: subTab === 'all' ? '#E9EFF7' : '#A8B7CB',
+                background: subTab === 'all' ? '#1D50A0' : '#1A2437',
+                border: subTab === 'all' ? 'none' : '1px solid #2E3E5C',
+                padding: '9px 12px', borderRadius: 999, cursor: 'pointer',
+              }}
+            >
+              {t('members.mobileGuestFltAll')} ({guests.length})
+            </span>
+            <span
+              onClick={() => setSubTab('regular')}
+              style={{
+                font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                color: subTab === 'regular' ? '#E9EFF7' : '#A8B7CB',
+                background: subTab === 'regular' ? '#1D50A0' : '#1A2437',
+                border: subTab === 'regular' ? 'none' : '1px solid #2E3E5C',
+                padding: '9px 12px', borderRadius: 999, cursor: 'pointer',
+              }}
+            >
+              {t('members.mobileGuestFltRegular')} ({regularCount})
+            </span>
+            <span
+              onClick={() => setSubTab('once')}
+              style={{
+                font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                color: subTab === 'once' ? '#E9EFF7' : '#A8B7CB',
+                background: subTab === 'once' ? '#1D50A0' : '#1A2437',
+                border: subTab === 'once' ? 'none' : '1px solid #2E3E5C',
+                padding: '9px 12px', borderRadius: 999, cursor: 'pointer',
+              }}
+            >
+              {t('members.mobileGuestFltOnce')} ({onceCount})
+            </span>
+          </div>
+
+          <SearchField
+            width="100%"
+            placeholder={t('members.mobileGuestSearchPh')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onClear={() => setSearch('')}
+          />
+        </div>
+
+        {/* Guest cards list */}
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filteredGuests.length === 0 ? (
+            <Empty icon="users" title={t('members.guestEmpty')} hint={t('members.guestEmptyHint')} />
+          ) : (
+            filteredGuests.map((g) => {
+              const stats = guestStats(db, g.id)
+              const topInviterName = stats.topInviter ? stats.topInviter.name : (g.invitedBy ? memberOf(db, g.invitedBy).name : t('debts.clubRecruited'))
+              const lastDate = stats.lastSession ? ddmy(stats.lastSession.date) : ''
+
+              return (
+                <div
+                  key={g.id}
+                  style={{
+                    background: '#141D2E', border: '1px solid #22304A', borderRadius: 10,
+                    boxShadow: '0 1px 1px rgba(0,0,0,.30)', padding: 14,
+                    display: 'flex', flexDirection: 'column', gap: 10,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <Avatar name={g.name} size={40} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{g.name}</div>
+                        <LevelChip level={g.level} levels={db.levels} />
+                        {stats.isRegular ? (
+                          <span style={{
+                            font: "600 10px/1 'IBM Plex Sans', sans-serif", color: '#5FD9A2',
+                            background: 'rgba(18,168,103,.18)', padding: '4px 8px', borderRadius: 999,
+                          }}>
+                            {t('members.mobileGuestFltRegular')}
+                          </span>
+                        ) : g.companionOf ? (
+                          <span style={{
+                            font: "600 10px/1 'IBM Plex Sans', sans-serif", color: '#5FDBD3',
+                            background: 'rgba(0,178,169,.18)', padding: '4px 8px', borderRadius: 999,
+                          }}>
+                            {t('members.companionBadge', { name: (db.guests.find((x) => x.id === g.companionOf) || {}).name || '' })}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                        {t('members.mobileGuestInviter', { name: topInviterName })}
+                      </div>
+                      <div style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                        {g.phone || t('common.unknown')} · {t('members.guestSessionsCount', { n: stats.sessionCount })}{lastDate ? ` (${lastDate})` : ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Financial Box */}
+                  <div style={{
+                    background: '#101927', border: '1px solid #22304A', borderRadius: 8,
+                    padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  }}>
+                    <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#5FD9A2' }}>
+                      {t('members.mobileGuestPaidTotal', { amount: fmt(stats.totalPaid) })}
+                    </div>
+                    <div>
+                      {stats.totalDebt > 0 ? (
+                        <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FF9A8F' }}>
+                          {t('members.mobileGuestDebt', { amount: fmt(stats.totalDebt) })}
+                        </span>
+                      ) : (
+                        <span style={{ font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                          {t('members.mobileGuestNoDebt')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 48px Action Buttons */}
+                  {canEdit && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div
+                        onClick={() => setEditingGuest({ ...g })}
+                        style={{
+                          flex: 1, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          gap: 6, background: '#1A2437', border: '1px solid #2E3E5C', borderRadius: 6,
+                          font: "600 15px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB', cursor: 'pointer',
+                        }}
+                      >
+                        <Icon name="pencil" size={15} />
+                        {t('common.edit')}
+                      </div>
+                      <div
+                        onClick={() => a.confirm({
+                          title: t('session.delGuestTitle'),
+                          message: t('session.delGuestMsg', { name: g.name }),
+                          tone: 'danger',
+                          confirmText: t('session.delGuestOk'),
+                          onConfirm: () => a.deleteGuest(g.id),
+                        })}
+                        style={{
+                          minHeight: 48, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: '#1A2437', border: '1px solid #2E3E5C', borderRadius: 6,
+                          font: "600 15px/1 'IBM Plex Sans', sans-serif", color: '#FF9A8F', cursor: 'pointer',
+                        }}
+                      >
+                        <Icon name="trash-2" size={16} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Dialog sửa thông tin khách */}
+        {editingGuest && (
+          <EditGuestDialog
+            guest={editingGuest}
+            levels={db.levels}
+            onClose={() => setEditingGuest(null)}
+            onSave={(patch) => {
+              a.updateGuest(editingGuest.id, patch)
+              setEditingGuest(null)
+            }}
+            onDelete={() => {
+              a.confirm({
+                title: t('session.delGuestTitle'),
+                message: t('session.delGuestMsg', { name: editingGuest.name }),
+                tone: 'danger',
+                confirmText: t('session.delGuestOk'),
+                onConfirm: () => {
+                  a.deleteGuest(editingGuest.id)
+                  setEditingGuest(null)
+                },
+              })
+            }}
+          />
+        )}
+      </div>
+    )
+  }
 
   return (
     <>
