@@ -278,30 +278,12 @@ export default function Fund() {
     const daysWithOut = new Set(monthLedger.filter((r) => r.dir === 'out').map((r) => r.date)).size
     const outTxs = monthLedger.filter((r) => r.dir === 'out')
     const outCount = outTxs.length
-    const dailyAvg = daysWithOut > 0 ? Math.round(flow.out / daysWithOut) : 0
-
-    // Tìm khoản chi lớn nhất trong tháng để hiển thị thẻ "ĐÁNG CHÚ Ý"
-    const topOut = outTxs.slice().sort((a, b) => b.amount - a.amount)[0]
-    let notableText = t('fund.notableBalanced')
-    if (topOut && flow.out > 0) {
-      const pct = Math.round((topOut.amount / flow.out) * 100)
-      notableText = t('fund.notablePeakOut', {
-        name: topOut.label,
-        date: dd(topOut.date),
-        amount: fmt(topOut.amount),
-        percent: pct,
-      })
-    } else if (flow.in > flow.out) {
-      notableText = t('fund.notableSurplus', { amount: fmt(flow.in - flow.out) })
-    }
 
     return {
       outCount,
       daysWithOut,
-      dailyAvg,
-      notableText,
     }
-  }, [monthLedger, flow])
+  }, [monthLedger])
 
   // Cơ cấu các nhóm chi trong kỳ
   const categoryBreakdown = useMemo(() => {
@@ -662,7 +644,7 @@ export default function Fund() {
           ))}
         </div>
 
-        {/* 4 Thẻ chỉ số tổng quan (hoặc 2 thẻ trên Mobile) */}
+        {/* Thẻ chỉ số tổng quan */}
         <div style={S.statGrid}>
           <div style={S.statCard}>
             <div style={S.statOverline}>{t('fund.spentThisPeriod')}</div>
@@ -673,29 +655,12 @@ export default function Fund() {
           </div>
 
           <div style={S.statCard}>
-            <div style={S.statOverline}>{t('fund.dailyAvg')}</div>
-            <div style={S.statBigNumber}>{fmt(stats.dailyAvg)}</div>
+            <div style={S.statOverline}>{t('fund.balanceNow')}</div>
+            <div style={S.statBigNumber}>{fmt(av.balance)}</div>
             <div style={S.statSub}>
-              {t('fund.calcOnDaysWithSpend', { days: stats.daysWithOut })}
+              {t('fund.available')}: {fmt(av.available)}
             </div>
           </div>
-
-          {!isMobile && (
-            <div style={S.statCard}>
-              <div style={S.statOverline}>{t('fund.balanceNow')}</div>
-              <div style={S.statBigNumber}>{fmt(av.balance)}</div>
-              <div style={S.statSub}>
-                {t('fund.available')}: {fmt(av.available)}
-              </div>
-            </div>
-          )}
-
-          {!isMobile && (
-            <div style={S.statNotableCard}>
-              <div style={S.statNotableOverline}>{t('fund.notable')}</div>
-              <div style={S.statNotableText}>{stats.notableText}</div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1558,25 +1523,6 @@ const S = {
     fontSize: 12,
     color: 'var(--text-muted, #8A857D)',
     marginTop: 5,
-  },
-  statNotableCard: {
-    background: 'var(--text-primary, #1C1917)',
-    borderRadius: 14,
-    padding: '14px 18px',
-    color: '#fff',
-  },
-  statNotableOverline: {
-    fontFamily: '"JetBrains Mono", monospace',
-    fontSize: 11,
-    fontWeight: 500,
-    letterSpacing: '0.08em',
-    color: 'rgba(255,255,255,0.65)',
-  },
-  statNotableText: {
-    fontSize: 13.5,
-    fontWeight: 600,
-    lineHeight: 1.4,
-    marginTop: 8,
   },
 
   /* Main Split View */
