@@ -2075,10 +2075,44 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
     undoMatch: (sid) => {
       if (!canAssign()) return
-      const list = (db().matches || []).filter((x) => x.sessionId === sid)
+      const d0 = db()
+      const list = (d0.matches || []).filter((x) => x.sessionId === sid)
       if (!list.length) return toast(t('toast.noMatch'))
       const last = list[list.length - 1]
-      up((d) => ({ matches: (d.matches || []).filter((x) => x.id !== last.id) }))
+      const remainingMatches = (d0.matches || []).filter((x) => x.id !== last.id)
+      const { finalRatings, updatedMatches } = replayRatingCascade(remainingMatches, last.id, d0.members, d0.levels)
+      up((d) => {
+        const nextRatings = { ...(d.playerRatings || {}) }
+        Object.entries(finalRatings || {}).forEach(([mid, r]) => {
+          const old = nextRatings[mid] || {}
+          nextRatings[mid] = {
+            ...old,
+            ...r,
+            id: old.id || r.id || uid(),
+            memberId: mid,
+          }
+        })
+        const memberMap = {}
+        ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        const calList = computeClubCalibration(updatedMatches, memberMap)
+        const prevCals = d.clubCalibration || []
+        const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
+          const item = calList.find((x) => x.bucket === bKey) || { bucket: bKey, sampleSize: 0, observedWinRate: 0, learnedAdjustment: 0 }
+          const existing = prevCals.find((p) => p.bucket === bKey)
+          return {
+            id: existing?.id || uid(),
+            bucket: bKey,
+            sampleSize: item.sampleSize || 0,
+            observedWinRate: item.observedWinRate || 0,
+            learnedAdjustment: item.learnedAdjustment || 0,
+          }
+        })
+        return {
+          matches: updatedMatches,
+          playerRatings: nextRatings,
+          clubCalibration: nextCals,
+        }
+      })
       toast(t('toast.matchUndone'))
     },
 
