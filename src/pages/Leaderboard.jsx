@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button, Card, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -31,6 +32,7 @@ function alphaColor(color, alphaHex, pct) {
 
 export default function Leaderboard() {
   const { db } = useApp()
+  const navigate = useNavigate()
   const isMobile = useMobile()
   const [activeTab, setActiveTab] = useState('season') // 'season' | 'chart' | 'search' | 'matrix' | 'cross'
   const yearFilter = '2026'
@@ -321,7 +323,7 @@ export default function Leaderboard() {
     const memberDeltaMap = new Map()
 
     recentMatches.forEach((m) => {
-      const d = m.eloDelta || 0
+      const d = Math.abs(m.eloDelta || 0)
       if (!d) return
       const wonA = m.winnerTeam === 'A'
 
@@ -457,7 +459,7 @@ export default function Leaderboard() {
       if (aWon) aWins++
       else bWins++
 
-      const delta = m.eloDelta || 0
+      const delta = Math.abs(m.eloDelta || 0)
       netDelta += (aWon ? delta : -delta)
 
       if (m.challengeId || m.sourceType === 'challenge') challengeCount++
@@ -1426,7 +1428,10 @@ export default function Leaderboard() {
                   losePts: aWon ? b : a,
                 }))
                 const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
-                const delta = m.eloDelta || 8
+                const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
+                const isRated = m.ratingEnabled !== false
+                const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
+                const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
                 const ra = m.initialRatingA || 0
                 const rb = m.initialRatingB || 0
                 const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
@@ -1459,27 +1464,47 @@ export default function Leaderboard() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: 8,
+                      background: 'var(--surface-inset)',
                     }}>
-                      <button
-                        type="button"
-                        onClick={() => setViewingMatch(m)}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          padding: 0,
-                          font: '400 12px/1.3 "IBM Plex Mono", monospace',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                      >
-                        <span style={{ textDecoration: 'underline', color: 'var(--text-link)', fontWeight: 600 }}>{matchCodeOf(db, m)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => setViewingMatch(m)}
+                          style={{
+                            border: '1px solid var(--border-subtle)',
+                            background: 'var(--surface-card)',
+                            padding: '2px 7px',
+                            borderRadius: 'var(--radius-sm)',
+                            font: '600 12.5px/1 "IBM Plex Mono", monospace',
+                            color: 'var(--status-transit-fg)',
+                            cursor: 'pointer',
+                          }}
+                          title={t('matchDetail.title')}
+                        >
+                          {matchCodeOf(db, m)}
+                        </button>
                         <span>·</span>
-                        <span>{courtTimeStr}</span>
-                      </button>
+                        {s?.id ? (
+                          <button
+                            type="button"
+                            onClick={() => navigate('/buoi-tap/' + s.id)}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              padding: 0,
+                              font: '500 12.5px/1 "IBM Plex Sans", sans-serif',
+                              color: 'var(--text-link)',
+                              textDecoration: 'underline',
+                              cursor: 'pointer',
+                            }}
+                            title={t('pages.sessions.title')}
+                          >
+                            {courtTimeStr}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{courtTimeStr}</span>
+                        )}
+                      </div>
 
                       <span style={{
                         font: '600 10px/1 "IBM Plex Sans", sans-serif',
@@ -1501,7 +1526,7 @@ export default function Leaderboard() {
                             {winnerNames}
                           </span>
                           <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg)' }}>
-                            +{delta} · +{delta}
+                            {winnerDeltaStr}
                           </span>
                         </div>
 
@@ -1514,12 +1539,12 @@ export default function Leaderboard() {
                             {loserNames}
                           </span>
                           <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-incident-fg)' }}>
-                            −{delta} · −{delta}
+                            {loserDeltaStr}
                           </span>
                         </div>
                       </div>
 
-                      {/* Footer thẻ: Dự đoán, Nguồn, và Nút thao tác */}
+                      {/* Footer thẻ: Dự đoán, Nguồn, và Nút Sửa */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
                         <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                           {scoreSets.length > 1
@@ -1543,28 +1568,14 @@ export default function Leaderboard() {
 
                         <button
                           type="button"
-                          onClick={() => setViewingMatch(m)}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            padding: '4px 6px',
-                            font: '600 13px/1 "IBM Plex Sans", sans-serif',
-                            color: 'var(--text-link)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {t('matchSearch.btnDetails')}
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => setEditingMatch(m)}
                           style={{
-                            border: 'none',
-                            background: 'transparent',
-                            padding: '4px 6px',
-                            font: '600 13px/1 "IBM Plex Sans", sans-serif',
-                            color: 'var(--text-link)',
+                            border: '1px solid var(--border-default)',
+                            background: 'var(--surface-raised)',
+                            padding: '4px 10px',
+                            borderRadius: 4,
+                            font: '600 12px/1 "IBM Plex Sans", sans-serif',
+                            color: 'var(--status-transit-fg)',
                             cursor: 'pointer',
                           }}
                         >
@@ -1603,7 +1614,7 @@ export default function Leaderboard() {
             }}>
               <div style={S.card}>
                 <div style={{ overflowX: 'auto', width: '100%' }}>
-                  <div style={{ minWidth: 780 }}>
+                  <div style={{ minWidth: 860 }}>
                     <div style={S.searchTableHead}>
                       <div style={S.thCell}>{t('matchSearch.colCode')}</div>
                       <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
@@ -1611,7 +1622,7 @@ export default function Leaderboard() {
                       <div style={{ ...S.thCell, textAlign: 'center', justifyContent: 'center' }}>{t('matchSearch.colScore')}</div>
                       <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
                       <div style={{ ...S.thCell, textAlign: 'center', justifyContent: 'center' }}>{t('leaderboard.predLabel')}</div>
-                      <div style={S.thCell}>{t('matchSearch.colSource')}</div>
+                      <div style={{ ...S.thCell, textAlign: 'center', justifyContent: 'center' }}>{t('matchSearch.colSource')}</div>
                     </div>
 
                     <div style={{ display: 'grid' }}>
@@ -1629,7 +1640,10 @@ export default function Leaderboard() {
                           losePts: aWon ? b : a,
                         }))
                         const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
-                        const delta = m.eloDelta || 8
+                        const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
+                        const isRated = m.ratingEnabled !== false
+                        const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
+                        const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
                         const ra = m.initialRatingA || 0
                         const rb = m.initialRatingB || 0
                         const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
@@ -1640,60 +1654,105 @@ export default function Leaderboard() {
                         const venue = courtObj ? courtOf(db, courtObj.courtId) : null
                         const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
                         const dateStr = s?.date ? dd(s.date) : (m.at ? new Date(m.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
-                        const courtTimeStr = courtLabel ? `${dateStr ? dateStr + ' · ' : ''}${courtLabel}` : (dateStr || '—')
+                        const matchTime = courtObj?.from || (m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '')
+                        const courtTimeStr = courtLabel
+                          ? `${dateStr ? dateStr + ' · ' : ''}${courtLabel}${matchTime ? ' · ' + matchTime : ''}`
+                          : (dateStr || '—')
                         const tooltipWhen = `${venue?.name || ''}${courtObj?.from ? ` · ${courtObj.from} → ${courtObj.to}` : ''}`
 
                         return (
-                          <div key={m.id} style={S.searchTableRow}>
-                            {/* Cột 1: Mã trận kèm link Xem chi tiết & Sửa */}
-                            <div style={{ ...S.tdCell, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                              <span
-                                onClick={() => setViewingMatch(m)}
-                                style={{ ...S.monoCode, cursor: 'pointer', textDecoration: 'underline' }}
+                          <div
+                            key={m.id}
+                            onClick={() => setViewingMatch(m)}
+                            style={S.searchTableRow}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--surface-hover)' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                            title={t('matchDetail.title')}
+                          >
+                            {/* Cột 1: Mã trận (click xem chi tiết) & Nút Sửa */}
+                            <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setViewingMatch(m)
+                                }}
+                                style={{
+                                  border: '1px solid var(--border-subtle)',
+                                  background: 'var(--surface-sunken)',
+                                  padding: '3px 8px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  font: '600 12.5px/1 "IBM Plex Mono", monospace',
+                                  color: 'var(--status-transit-fg)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                }}
                                 title={t('matchDetail.title')}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = 'var(--surface-brand-soft)'
+                                  e.currentTarget.style.borderColor = 'var(--teal-500)'
+                                  e.currentTarget.style.textDecoration = 'underline'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'var(--surface-sunken)'
+                                  e.currentTarget.style.borderColor = 'var(--border-subtle)'
+                                  e.currentTarget.style.textDecoration = 'none'
+                                }}
                               >
                                 {matchCodeOf(db, m)}
-                              </span>
-                              <div style={{ display: 'flex', gap: 5, alignItems: 'center', whiteSpace: 'nowrap' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setViewingMatch(m)}
-                                  style={{
-                                    border: 'none',
-                                    background: 'transparent',
-                                    padding: 0,
-                                    font: '600 12px/1 "IBM Plex Sans", sans-serif',
-                                    color: 'var(--text-link)',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {t('matchSearch.btnDetails')}
-                                </button>
-                                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>·</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingMatch(m)}
-                                  style={{
-                                    border: 'none',
-                                    background: 'transparent',
-                                    padding: 0,
-                                    font: '600 12px/1 "IBM Plex Sans", sans-serif',
-                                    color: 'var(--text-link)',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {t('matchSearch.btnEdit')}
-                                </button>
-                              </div>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingMatch(m)
+                                }}
+                                style={S.editBtn}
+                                title={t('matchSearch.btnEdit')}
+                              >
+                                {t('matchSearch.btnEdit')}
+                              </button>
                             </div>
 
-                            {/* Cột 2: Ngày · Sân */}
-                            <div style={S.tdCell}>
-                              <span style={S.monoMeta} title={tooltipWhen}>{courtTimeStr}</span>
+                            {/* Cột 2: Ngày · Sân (link thẳng tới buổi & trận đó) */}
+                            <div style={{ ...S.tdCell, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {s?.id ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigate(`/buoi-tap/${s.id}?tab=matches&matchId=${m.id}`)
+                                  }}
+                                  style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    padding: 0,
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    font: 'inherit',
+                                    maxWidth: '100%',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                  title={tooltipWhen ? `${tooltipWhen} · ${t('pages.sessions.title')}` : t('pages.sessions.title')}
+                                >
+                                  <span
+                                    style={{
+                                      ...S.monoMeta,
+                                      color: 'var(--text-link)',
+                                      textDecoration: 'underline',
+                                      textUnderlineOffset: 3,
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--teal-600)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-link)' }}
+                                  >
+                                    {courtTimeStr}
+                                  </span>
+                                </button>
+                              ) : (
+                                <span style={S.monoMeta} title={tooltipWhen}>{courtTimeStr}</span>
+                              )}
                             </div>
 
                             {/* Cột 3: Đội thắng + delta rating */}
@@ -1702,7 +1761,7 @@ export default function Leaderboard() {
                                 {winnerNames}
                               </span>
                               <span style={{ font: '400 13px/1.2 "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg)' }}>
-                                +{delta} · +{delta}
+                                {winnerDeltaStr}
                               </span>
                             </div>
 
@@ -1717,7 +1776,7 @@ export default function Leaderboard() {
                                 {loserNames}
                               </span>
                               <span style={{ font: '400 13px/1.2 "IBM Plex Mono", monospace', color: 'var(--status-incident-fg)' }}>
-                                −{delta} · −{delta}
+                                {loserDeltaStr}
                               </span>
                             </div>
 
@@ -1732,7 +1791,7 @@ export default function Leaderboard() {
                             </div>
 
                             {/* Cột 7: Nguồn trận */}
-                            <div style={S.tdCell}>
+                            <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
                               <span style={{
                                 font: '600 10px/1 "IBM Plex Sans", sans-serif',
                                 padding: '5px 9px',
@@ -2357,13 +2416,13 @@ const S = {
   },
   searchTableHead: {
     display: 'grid',
-    gridTemplateColumns: '110px 110px 1fr 80px 1fr 90px 90px',
+    gridTemplateColumns: '96px 145px 1fr 80px 1fr 90px 90px',
     background: 'var(--surface-inset)',
     borderBottom: '1px solid var(--border-subtle)',
   },
   searchTableRow: {
     display: 'grid',
-    gridTemplateColumns: '110px 110px 1fr 80px 1fr 90px 90px',
+    gridTemplateColumns: '96px 145px 1fr 80px 1fr 90px 90px',
     borderBottom: '1px solid var(--border-subtle)',
     minHeight: 52,
     alignItems: 'center',

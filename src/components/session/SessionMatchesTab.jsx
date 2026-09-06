@@ -174,7 +174,8 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
                 const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
                 const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
-                const deltaStr = hasElo ? `${m.eloDelta > 0 ? '+' : ''}${m.eloDelta}` : '—'
+                const absDelta = Math.abs(m.eloDelta || 0)
+                const deltaStr = hasElo ? `+${absDelta}` : '—'
 
                 return (
                   <div
@@ -317,7 +318,8 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
                     const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
                     const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
-                    const deltaStr = hasElo ? `${m.eloDelta > 0 ? '+' : ''}${m.eloDelta}` : '—'
+                    const absDelta = Math.abs(m.eloDelta || 0)
+                    const deltaStr = hasElo ? `+${absDelta}` : '—'
 
                     return (
                       <div key={m.id} style={S.tableRow}>

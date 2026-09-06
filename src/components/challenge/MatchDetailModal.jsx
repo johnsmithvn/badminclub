@@ -46,7 +46,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   const dateStr = s?.date ? dd(s.date) : (match?.at ? new Date(match.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
   const matchWhen = `${dateStr ? dateStr + ' · ' : ''}${venue?.name ? venue.name + ' · ' : ''}${courtLabel}`
 
-  const delta = match?.eloDelta || 8
+  const delta = Math.abs(match?.eloDelta != null ? match.eloDelta : 8)
   const ra = match?.initialRatingA || 0
   const rb = match?.initialRatingB || 0
   const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
