@@ -2110,6 +2110,20 @@ function Dues({ dues, canMoney }) {
                       >
                         {t('debts.mobileEdit')}
                       </div>
+                      {canMoney && st.paid > 0 && (
+                        <div
+                          onClick={() => a.clearDue(x.id)}
+                          title={t('debts.undoMark')}
+                          aria-label={t('debts.undoMark')}
+                          style={{
+                            minHeight: 48, width: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: '#1A2437', border: '1px solid #2E3E5C', borderRadius: 6,
+                            color: '#8494AA', cursor: 'pointer',
+                          }}
+                        >
+                          <Icon name="rotate-ccw" size={18} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -2200,18 +2214,36 @@ function Dues({ dues, canMoney }) {
                     padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: 0.85,
                   }}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{mb.name}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {mb.name}
+                    </div>
                     <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                       {t('debts.mobilePaidOn', { date: ddmy(x.paidAt || db.today) })}
                     </div>
                   </div>
-                  <span style={{
-                    font: "600 11px/1 'IBM Plex Sans', sans-serif", color: '#5FD9A2',
-                    background: 'rgba(18,168,103,.18)', padding: '6px 10px', borderRadius: 999,
-                  }}>
-                    {t('debts.mobilePaidFullBadge', { amount: fmt(st.amount) })}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{
+                      font: "600 11px/1 'IBM Plex Sans', sans-serif", color: '#5FD9A2',
+                      background: 'rgba(18,168,103,.18)', padding: '6px 10px', borderRadius: 999,
+                    }}>
+                      {t('debts.mobilePaidFullBadge', { amount: fmt(st.amount) })}
+                    </span>
+                    {canMoney && (
+                      <div
+                        onClick={() => a.clearDue(x.id)}
+                        title={t('debts.undoMark')}
+                        aria-label={t('debts.undoMark')}
+                        style={{
+                          minHeight: 36, minWidth: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: '#1A2437', border: '1px solid #2E3E5C', borderRadius: 6,
+                          color: '#A8B7CB', cursor: 'pointer',
+                        }}
+                      >
+                        <Icon name="rotate-ccw" size={16} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })
