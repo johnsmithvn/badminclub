@@ -17,7 +17,7 @@ import { t } from '#i18n'
 const showVal = (field, v) => {
   if (!v) return ''
   if (field === 'gender') return genderTxt(v)
-  if (field === 'avatarUrl') return t('settings.fAvatar')
+  if (field === 'avatarUrl') return t('members.changeField.avatarUrl') || t('settings.fAvatar')
   if (field === 'qrUrl') return t('settings.qrModalTitle')
   return v
 }
@@ -55,7 +55,7 @@ function JoinRow({ r, canEdit, unlinked, db, ui, a }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Avatar name={u.name || ''} size={36} />
+        <Avatar name={u.name || ''} src={u.avatarUrl} size={36} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)' }}>{u.name}</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>

@@ -133,6 +133,7 @@ export async function uploadImage(file, { folder = 'avatars', maxWidth = 400, ma
       // bật lên thì một INSERT hợp lệ ghi đè được object của người khác (xem migration 0017).
       const { data, error } = await supabase.storage.from('club-assets').upload(fileName, blob, {
         contentType: blob.type || 'image/webp',
+        cacheControl: '86400',
       })
 
       if (!error && data?.path) {

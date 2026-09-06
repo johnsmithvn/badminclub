@@ -91,6 +91,9 @@ export async function load(clubId) {
     users.push({
       id: r.user_id, name: r.name, nick: r.nick, phone: r.phone, email: r.email,
       gender: r.gender, level: r.level, created_at: r.created_at,
+      avatar_url: r.avatar_url || '', qr_url: r.qr_url || '',
+      bank_holder: r.bank_holder || '', bank_no: r.bank_no || '', bank_name: r.bank_name || '',
+      bank_accounts: r.bank_accounts || [],
     })
   })
 

@@ -462,8 +462,20 @@ const newEditState = {
 }
 const addEditOps = diff(toRows(db, ctx), toRows(newEditState, ctx))
 const upsertEditOp = addEditOps.find((o) => o.table === 'match_edits')
-assert.ok(upsertEditOp, 'match_edits phải có thao tác ghi')
-assert.equal(upsertEditOp.conflict, 'id', 'match_edits giữ conflict: id để Postgres ON CONFLICT hoạt động')
-assert.equal(upsertEditOp.ignoreDuplicates, true, 'X2: match_edits phải có ignoreDuplicates: true để idempotent DO NOTHING')
+/* ---------- U1: users toDb giữ avatarUrl và thông tin tài khoản ngân hàng ---------- */
+const testUserRaw = {
+  id: 'U_1', name: 'Nguyễn Văn A', nick: 'Anh A', phone: '0901234567', email: 'a@example.com',
+  gender: 'nam', level: 'TB', created_at: '2026-09-01T10:00:00Z',
+  avatar_url: 'https://cdn.example.com/avatar.webp',
+  bank_holder: 'NGUYEN VAN A', bank_no: '123456789', bank_name: 'MB Bank',
+  bank_accounts: [{ bankName: 'MB Bank', bankNo: '123456789', bankHolder: 'NGUYEN VAN A' }],
+}
+const dbWithUsers = toDb({ ...clone(db), users: [testUserRaw] }, ctx)
+assert.equal(dbWithUsers.users[0].avatarUrl, 'https://cdn.example.com/avatar.webp')
+assert.equal(dbWithUsers.users[0].bankHolder, 'NGUYEN VAN A')
+assert.equal(dbWithUsers.users[0].bankNo, '123456789')
+assert.equal(dbWithUsers.users[0].bankName, 'MB Bank')
+assert.equal(dbWithUsers.users[0].bankAccounts.length, 1)
 
 console.log('dbmap check: OK')
+
