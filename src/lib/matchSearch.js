@@ -124,3 +124,82 @@ export function headToHeadMatrix(members, matches) {
 export function neverMetPairs(members, matches) {
   return buildH2HMatrix(members, matches).neverMet
 }
+
+/**
+ * Tìm các cặp thành viên có chênh lệch thắng - thua nhiều nhất (Cặp lệch nhất - Screen DS3).
+ */
+export function topDisparatePairs(matrix, members, limit = 5) {
+  if (!matrix) return []
+  const activeMembers = (members || []).filter((m) => m.active !== false)
+  const ids = activeMembers.map((m) => m.id)
+  const pairs = []
+
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const p1 = ids[i]
+      const p2 = ids[j]
+      const cell = matrix[p1]?.[p2]
+      if (cell && cell.total > 0) {
+        const disparity = Math.abs(cell.wins - cell.losses)
+        pairs.push({
+          p1,
+          p2,
+          wins1: cell.wins,
+          wins2: cell.losses,
+          total: cell.total,
+          disparity,
+        })
+      }
+    }
+  }
+
+  return pairs
+    .sort((a, b) => b.disparity - a.disparity || b.total - a.total)
+    .slice(0, limit)
+}
+
+/**
+ * Thống kê các cặp chưa từng gặp nhau kèm số buổi cùng tham gia (Screen DS3).
+ */
+export function neverMetWithSessionCount(neverMetList, { sessions = [], attendance = {}, matches = [] } = {}, limit = 10) {
+  if (!neverMetList || !neverMetList.length) return []
+
+  const scoredPairs = neverMetList.map(([id1, id2]) => {
+    let commonSessionsCount = 0
+
+    sessions.forEach((s) => {
+      const att = attendance[s.id] || {}
+      // Thành viên được coi là có mặt nếu attendance[id] !== false hoặc từng có match trong buổi đó
+      const attended1 = att[id1] === true || att[id1] === 'yes' || (att[id1] !== false && att[id1] != null) || (s.participantIds && s.participantIds.includes(id1))
+      const attended2 = att[id2] === true || att[id2] === 'yes' || (att[id2] !== false && att[id2] != null) || (s.participantIds && s.participantIds.includes(id2))
+
+      let played1 = attended1
+      let played2 = attended2
+      if (!played1 || !played2) {
+        matches.forEach((m) => {
+          if (m.sessionId === s.id) {
+            const keys = m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
+            if (keys.includes(id1)) played1 = true
+            if (keys.includes(id2)) played2 = true
+          }
+        })
+      }
+
+      if (played1 && played2) {
+        commonSessionsCount++
+      }
+    })
+
+    return {
+      p1: id1,
+      p2: id2,
+      commonSessionsCount,
+    }
+  })
+
+  // Sắp xếp các cặp cùng đi nhiều buổi nhất lên trước
+  return scoredPairs
+    .sort((a, b) => b.commonSessionsCount - a.commonSessionsCount)
+    .slice(0, limit)
+}
+

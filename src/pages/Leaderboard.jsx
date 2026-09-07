@@ -7,7 +7,7 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { confidenceOf, computeClubCalibration, rankTopCrossGenderPlayers, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf } from '#lib/rating.js'
 import { playerName, courtOf } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
-import { searchMatches, headToHeadMatrix, neverMetPairs } from '#lib/matchSearch.js'
+import { searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
 import { RANK_THEMES, DEFAULT_RANK_THEME } from '#data/rankThemes.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
@@ -305,17 +305,17 @@ export default function Leaderboard() {
   // -------------------------------------------------------------
   // TAB 4: Ma trận Đối đầu H2H
   // -------------------------------------------------------------
-  const [matrixExpanded, setMatrixExpanded] = useState(false)
+  const [matrixMemberLimit, setMatrixMemberLimit] = useState(8)
   const topMembersForMatrix = useMemo(() => {
     const sorted = [...activeMembers].sort((a, b) => {
       const ra = getPlayerRating(db.playerRatings, a.id, a, db.levels).rating
       const rb = getPlayerRating(db.playerRatings, b.id, b, db.levels).rating
       return rb - ra
     })
-    const defaultLimit = isMobile ? 5 : (cfg.rating?.h2hMatrixLimit ?? 8)
-    const limit = matrixExpanded ? (cfg.rating?.h2hMatrixLimit ?? 8) : defaultLimit
+    const limit = matrixMemberLimit === 999 ? sorted.length : matrixMemberLimit
     return sorted.slice(0, limit)
-  }, [activeMembers, db.playerRatings, db.levels, isMobile, matrixExpanded])
+  }, [activeMembers, db.playerRatings, db.levels, matrixMemberLimit])
+
   const matrixData = useMemo(() => {
     return headToHeadMatrix(topMembersForMatrix, db.matches || [])
   }, [topMembersForMatrix, db.matches])
@@ -323,6 +323,18 @@ export default function Leaderboard() {
   const neverMetList = useMemo(() => {
     return neverMetPairs(activeMembers, db.matches || [])
   }, [activeMembers, db.matches])
+
+  const disparatePairsList = useMemo(() => {
+    return topDisparatePairs(matrixData, topMembersForMatrix, 5)
+  }, [matrixData, topMembersForMatrix])
+
+  const neverMetSessionScored = useMemo(() => {
+    return neverMetWithSessionCount(neverMetList, {
+      sessions: db.sessions || [],
+      attendance: db.attendance || {},
+      matches: db.matches || [],
+    }, 6)
+  }, [neverMetList, db.sessions, db.attendance, db.matches])
 
   // -------------------------------------------------------------
   // TAB 5: Thống kê Hiệu chỉnh chéo giới (Calibration)
