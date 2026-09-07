@@ -2727,6 +2727,8 @@
     "matchesSummary": "{{count}} trận {{nameA}} gặp {{nameB}} ở phía đối diện",
     "matchesSummarySingle": "{{count}} trận có {{name}} tham gia",
     "matchesSummaryAll": "{{count}} trận đấu gần nhất",
+    "searchHeaderSub": "Mùa 2026 · tìm trận theo người chơi",
+    "matrixHeaderSub": "{{count}} thành viên đi nhiều nhất · mùa 2026",
     "matchesSub": "Sắp theo ngày gần nhất · bấm Sửa để đổi tỷ số ngay tại đây",
     "editedMatchesCount": "{{count}} trận đã từng sửa",
     "resetFilter": "Xóa bộ lọc",
