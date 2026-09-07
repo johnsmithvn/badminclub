@@ -28,7 +28,7 @@ export default function MemberSeasonLedgerModal({
     recentEvents,
   } = ledgerData
 
-  // Tỷ lệ thanh phân bổ Stacked Bar // i18n-ok: ui
+  // Tỷ lệ thanh phân bổ Stacked Bar
   const total = Math.max(1, totalPoints)
   const pAttendance = Math.round((breakdown.attendancePts / total) * 100)
   const pMatches = Math.round((breakdown.matchPlayPts / total) * 100)
@@ -78,10 +78,10 @@ export default function MemberSeasonLedgerModal({
         >
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
             <div style={{ font: '600 16px/1.25 Barlow, sans-serif', color: '#fff' }}>
-              {t('season.ledgerTitle', { name: member?.name || '' }) || `Sổ điểm mùa · ${member?.name || ''}`} // i18n-ok: ui
+              {t('season.ledgerTitle', { name: member?.name || '' })}
             </div>
             <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-              {season?.name || 'Mùa 3 · 2026'} · {t('season.rankOf', { rank, total: totalMembers }) || `hạng ${rank} / ${totalMembers}`} // i18n-ok: ui
+              {season?.name || 'Mùa 3 · 2026'} · {t('season.rankOf', { rank, total: totalMembers })}
             </div>
           </div>
           <button
@@ -108,11 +108,11 @@ export default function MemberSeasonLedgerModal({
               {totalPoints.toLocaleString()}
             </div>
             <div style={{ paddingBottom: 6, font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-              {t('season.pointsLabel') || 'điểm mùa'} ·{' '} // i18n-ok: ui
-              <span style={{ color: '#5FDBD3' }}>+{latestSessionPts}</span> {t('season.latestSession') || 'buổi gần nhất'} // i18n-ok: ui
+              {t('season.pointsLabel')} ·{' '}
+              <span style={{ color: '#5FDBD3' }}>+{latestSessionPts}</span> {t('season.latestSession')}
               {rank > 1 && (
                 <>
-                  {' '}· {t('season.distanceToNext') || 'cách hạng'} {rank - 1}{' '} // i18n-ok: ui
+                  {' '}· {t('season.distanceToNext')} {rank - 1}{' '}
                   <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>{ptsToNextRank}</span>
                 </>
               )}
@@ -195,19 +195,19 @@ export default function MemberSeasonLedgerModal({
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 9, height: 9, borderRadius: 2, background: '#00B2A9' }} />
-              {t('season.legendAttendance') || 'cần'} {Math.round(breakdown.attendancePts / (season?.pointsConfig?.attendance || 30))}×30 // i18n-ok: ui
+              {t('season.legendAttendance')} {Math.round(breakdown.attendancePts / (season?.pointsConfig?.attendance || 30))}×30
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 9, height: 9, borderRadius: 2, background: '#1D50A0' }} />
-              {t('season.legendMatches') || 'trận'} {Math.round(breakdown.matchPlayPts / (season?.pointsConfig?.matchPlayed || 10))}×10 // i18n-ok: ui
+              {t('season.legendMatches')} {Math.round(breakdown.matchPlayPts / (season?.pointsConfig?.matchPlayed || 10))}×10
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 9, height: 9, borderRadius: 2, background: '#7AA3DC' }} />
-              {t('season.legendWins') || 'thắng'} {Math.round(breakdown.winPts / (season?.pointsConfig?.matchWon || 15))}×15 // i18n-ok: ui
+              {t('season.legendWins')} {Math.round(breakdown.winPts / (season?.pointsConfig?.matchWon || 15))}×15
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 9, height: 9, borderRadius: 2, background: '#C9A227' }} />
-              {t('season.legendUpsets') || 'upset'} {Math.round(breakdown.upsetPts / (season?.pointsConfig?.upsetWon || 25))}×25
+              {t('season.legendUpsets')} {Math.round(breakdown.upsetPts / (season?.pointsConfig?.upsetWon || 25))}×25
             </span>
           </div>
 
@@ -221,7 +221,7 @@ export default function MemberSeasonLedgerModal({
                 color: '#8494AA',
               }}
             >
-              {t('season.recentSessionTitle') || 'Buổi gần nhất'} · +{latestSessionPts} // i18n-ok: ui
+              {t('season.recentSessionTitle')} · +{latestSessionPts}
             </div>
 
             <div style={{ display: 'grid', gap: 6 }}>
@@ -259,7 +259,7 @@ export default function MemberSeasonLedgerModal({
                 ))
               ) : (
                 <div style={{ padding: '8px 10px', color: '#8494AA', font: "400 12px/1.4 'IBM Plex Sans', sans-serif" }}>
-                  Chưa có trận đấu nào trong mùa này. // i18n-ok: ui
+                  Chưa có trận đấu nào trong mùa này.
                 </div>
               )}
             </div>
@@ -284,8 +284,7 @@ export default function MemberSeasonLedgerModal({
                 minWidth: 180,
               }}
             >
-              {t('season.ledgerFooterNote', { name: member?.name || '' }) ||
-                `Elo career của ${member?.name || ''} không đổi khi mùa reset — chỉ cột điểm mùa về 0.`} // i18n-ok: ui
+              {t('season.ledgerFooterNote', { name: member?.name || '' })}
             </span>
             {onViewCareerElo && (
               <button
@@ -304,7 +303,7 @@ export default function MemberSeasonLedgerModal({
                   cursor: 'pointer',
                 }}
               >
-                {t('season.viewCareerElo') || 'Xem Elo career'}
+                {t('season.viewCareerElo')}
               </button>
             )}
           </div>

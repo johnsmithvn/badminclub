@@ -72,10 +72,10 @@ export default function CourtBalanceExplanationModal({
         >
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
             <div style={{ font: '600 16px/1.25 Barlow, sans-serif', color: '#fff' }}>
-              {t('assign.explanationTitle', { court: courtIdx + 1 }) || `Sân ${courtIdx + 1} · vì sao ghép thế này`} // i18n-ok: ui
+              {t('assign.explanationTitle', { court: courtIdx + 1 })}
             </div>
             <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-              {nameA} vs {nameB} — {t('assign.explanationScore', { score: totalScore }) || `điểm ${totalScore}`} // i18n-ok: ui
+              {nameA} vs {nameB} — {t('assign.explanationScore', { score: totalScore })}
             </div>
           </div>
           <button
@@ -117,13 +117,13 @@ export default function CourtBalanceExplanationModal({
               <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{nameA}</span>
               <span style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>{ra}</span>
               <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                {t('assign.teamRating') || 'rating đội'} // i18n-ok: ui
+                {t('assign.teamRating')}
               </span>
             </div>
 
             <div style={{ display: 'grid', gap: 4, justifyItems: 'center' }}>
               <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                {t('assign.diffElo', { delta }) || `lệch ${delta}`} // i18n-ok: ui
+                {t('assign.diffElo', { delta })}
               </span>
               <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>≈ 51/49</span>
             </div>
@@ -141,7 +141,7 @@ export default function CourtBalanceExplanationModal({
               <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{nameB}</span>
               <span style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>{rb}</span>
               <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                {t('assign.teamRating') || 'rating đội'} // i18n-ok: ui
+                {t('assign.teamRating')}
               </span>
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function CourtBalanceExplanationModal({
                 color: '#8494AA',
               }}
             >
-              {t('assign.criteriaBreakdown') || 'Từng tiêu chí cộng trừ'} // i18n-ok: ui
+              {t('assign.criteriaBreakdown')}
             </div>
 
             <div style={{ display: 'grid', gap: 6, font: "400 12px/1.35 'IBM Plex Sans', sans-serif" }}>
@@ -172,8 +172,8 @@ export default function CourtBalanceExplanationModal({
                   border: '1px solid #22304A',
                 }}
               >
-                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionRating') || 'Cân trình'}</span> // i18n-ok: ui
-                <span style={{ color: '#8494AA' }}>{t('assign.criterionRatingDesc', { delta }) || `lệch ${delta} Elo trên tổng ${ra + rb}`}</span> // i18n-ok: ui
+                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionRating')}</span>
+                <span style={{ color: '#8494AA' }}>{t('assign.criterionRatingDesc', { delta })}</span>
                 <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>+30</span>
               </div>
 
@@ -189,8 +189,8 @@ export default function CourtBalanceExplanationModal({
                   border: '1px solid #22304A',
                 }}
               >
-                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionPartner') || 'Đổi partner'}</span> // i18n-ok: ui
-                <span style={{ color: '#8494AA' }}>{t('assign.criterionPartnerDesc') || 'các cặp đôi đều là cặp mới trong buổi'}</span> // i18n-ok: ui
+                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionPartner')}</span>
+                <span style={{ color: '#8494AA' }}>{t('assign.criterionPartnerDesc')}</span>
                 <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>+20</span>
               </div>
 
@@ -206,8 +206,8 @@ export default function CourtBalanceExplanationModal({
                   border: '1px solid #22304A',
                 }}
               >
-                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionOpponent') || 'Đổi đối thủ'}</span> // i18n-ok: ui
-                <span style={{ color: '#8494AA' }}>{t('assign.criterionOpponentDesc') || 'hai đội có người gặp lại đối thủ cũ'}</span> // i18n-ok: ui
+                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionOpponent')}</span>
+                <span style={{ color: '#8494AA' }}>{t('assign.criterionOpponentDesc')}</span>
                 <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: opponent.score < 80 ? '#F1A79D' : '#5FDBD3' }}>
                   {opponent.score < 80 ? '−6' : '+15'}
                 </span>
@@ -225,8 +225,8 @@ export default function CourtBalanceExplanationModal({
                   border: '1px solid #00786F',
                 }}
               >
-                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionH2H') || 'H2H'}</span>
-                <span style={{ color: '#8494AA' }}>{t('assign.criterionH2HDesc') || 'các lần gặp trước tỉ số sát 2 điểm'}</span> // i18n-ok: ui
+                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionH2H')}</span>
+                <span style={{ color: '#8494AA' }}>{t('assign.criterionH2HDesc')}</span>
                 <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>+26</span>
               </div>
 
@@ -242,8 +242,8 @@ export default function CourtBalanceExplanationModal({
                   border: '1px solid #22304A',
                 }}
               >
-                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionTurns') || 'Lượt chờ'}</span> // i18n-ok: ui
-                <span style={{ color: '#8494AA' }}>{t('assign.criterionTurnsDesc') || 'các thành viên chờ đều lượt'}</span> // i18n-ok: ui
+                <span style={{ color: '#A8B7CB' }}>{t('assign.criterionTurns')}</span>
+                <span style={{ color: '#8494AA' }}>{t('assign.criterionTurnsDesc')}</span>
                 <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>+26</span>
               </div>
             </div>
@@ -259,7 +259,7 @@ export default function CourtBalanceExplanationModal({
                 color: '#8494AA',
               }}
             >
-              {t('assign.recentScoresTitle') || 'Lịch sử tỉ số hai cặp này'} // i18n-ok: ui
+              {t('assign.recentScoresTitle')}
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {scores.map((sc, i) => (
@@ -279,8 +279,7 @@ export default function CourtBalanceExplanationModal({
               ))}
             </div>
             <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-              {t('assign.h2hNote') ||
-                'Trận đấu sát điểm nên máy ưu tiên tái đấu. Nếu lịch sử toàn 21–5 một chiều, tiêu chí H2H sẽ bị trừ điểm dù Elo trung bình vẫn cân.'} // i18n-ok: ui
+              {t('assign.h2hNote')}
             </div>
           </div>
 
@@ -308,7 +307,7 @@ export default function CourtBalanceExplanationModal({
                   cursor: 'pointer',
                 }}
               >
-                {t('assign.swapCourt') || 'Đổi sân này'} // i18n-ok: ui
+                {t('assign.swapCourt')}
               </button>
             )}
             {onLockCourt && (
@@ -325,7 +324,7 @@ export default function CourtBalanceExplanationModal({
                   cursor: 'pointer',
                 }}
               >
-                {t('assign.lockCourtAndRetry') || 'Khoá sân này rồi dò lại'} // i18n-ok: ui
+                {t('assign.lockCourtAndRetry')}
               </button>
             )}
             <div style={{ flex: '1 1 0%' }} />
@@ -342,7 +341,7 @@ export default function CourtBalanceExplanationModal({
                 cursor: 'pointer',
               }}
             >
-              {t('assign.agree') || 'Đồng ý'} // i18n-ok: ui
+              {t('assign.agree')}
             </button>
           </div>
         </div>

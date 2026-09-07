@@ -4,13 +4,13 @@ import { t } from '#i18n'
 export default function QuadrantMapModal({
   leaderboardRows = [],
   medianElo = 1596,
-  seasonName = 'Mùa 3', // i18n-ok: ui
+  seasonName = 'Mùa 3',
   onClose,
   onSelectMember,
 }) {
-  // Chuẩn hóa vị trí các điểm (x, y) theo phần trăm // i18n-ok: ui
-  // X: Elo career (từ minElo ~1200 đến maxElo ~2000) // i18n-ok: ui
-  // Y: Điểm mùa (từ 0 đến maxPoints ~1400) - đảo chiều y (top = điểm cao) // i18n-ok: ui
+  // Chuẩn hóa vị trí các điểm (x, y) theo phần trăm
+  // X: Elo career (từ minElo ~1200 đến maxElo ~2000)
+  // Y: Điểm mùa (từ 0 đến maxPoints ~1400) - đảo chiều y (top = điểm cao)
   const plotData = useMemo(() => {
     if (!leaderboardRows.length) return []
     const maxPts = Math.max(...leaderboardRows.map((r) => r.totalSeasonPoints || 0), 1200)
@@ -65,10 +65,10 @@ export default function QuadrantMapModal({
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#fff' }}>
-            {t('season.mapTitle', { season: seasonName }) || `Bản đồ CLB ${seasonName}`} // i18n-ok: ui
+            {t('season.mapTitle', { season: seasonName })}
           </div>
           <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-            {t('season.mapAxes') || 'trục ngang Elo career · trục dọc điểm mùa'} // i18n-ok: ui
+            {t('season.mapAxes')}
           </div>
           <div style={{ flex: '1 1 0%' }} />
           <button
@@ -97,11 +97,11 @@ export default function QuadrantMapModal({
             overflow: 'hidden',
           }}
         >
-          {/* Trục hoành & Trục tung phân chia 4 góc */} // i18n-ok: ui
+          {/* Trục hoành & Trục tung phân chia 4 góc */}
           <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: '#2E3E5C' }} />
           <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: '#2E3E5C' }} />
 
-          {/* 4 Nhãn góc */} // i18n-ok: ui
+          {/* 4 Nhãn góc */}
           <div
             style={{
               position: 'absolute',
@@ -113,7 +113,7 @@ export default function QuadrantMapModal({
               color: '#5FDBD3',
             }}
           >
-            {t('season.quadrantRising') || 'Đang lên'} // i18n-ok: ui
+            {t('season.quadrantRising')}
             <span
               style={{
                 display: 'block',
@@ -123,7 +123,7 @@ export default function QuadrantMapModal({
                 color: '#8494AA',
               }}
             >
-              {t('season.quadrantRisingDesc') || 'đi đều, trình còn thấp'} // i18n-ok: ui
+              {t('season.quadrantRisingDesc')}
             </span>
           </div>
 
@@ -139,7 +139,7 @@ export default function QuadrantMapModal({
               color: '#F0D26A',
             }}
           >
-            {t('season.quadrantLeader') || 'Đầu tàu'} // i18n-ok: ui
+            {t('season.quadrantLeader')}
             <span
               style={{
                 display: 'block',
@@ -149,7 +149,7 @@ export default function QuadrantMapModal({
                 color: '#8494AA',
               }}
             >
-              {t('season.quadrantLeaderDesc') || 'trình cao, có mặt đều'} // i18n-ok: ui
+              {t('season.quadrantLeaderDesc')}
             </span>
           </div>
 
@@ -164,7 +164,7 @@ export default function QuadrantMapModal({
               color: '#8494AA',
             }}
           >
-            {t('season.quadrantHibernating') || 'Ngủ đông'} // i18n-ok: ui
+            {t('season.quadrantHibernating')}
             <span
               style={{
                 display: 'block',
@@ -174,7 +174,7 @@ export default function QuadrantMapModal({
                 color: '#64748B',
               }}
             >
-              {t('season.quadrantHibernatingDesc') || 'cần rủ đi tập'} // i18n-ok: ui
+              {t('season.quadrantHibernatingDesc')}
             </span>
           </div>
 
@@ -190,7 +190,7 @@ export default function QuadrantMapModal({
               color: '#B6CDEC',
             }}
           >
-            {t('season.quadrantAbsentPillar') || 'Trụ cột vắng'} // i18n-ok: ui
+            {t('season.quadrantAbsentPillar')}
             <span
               style={{
                 display: 'block',
@@ -200,7 +200,7 @@ export default function QuadrantMapModal({
                 color: '#8494AA',
               }}
             >
-              {t('season.quadrantAbsentPillarDesc') || 'mạnh nhưng ít ra sân'} // i18n-ok: ui
+              {t('season.quadrantAbsentPillarDesc')}
             </span>
           </div>
 
@@ -234,7 +234,7 @@ export default function QuadrantMapModal({
                   cursor: 'pointer',
                   zIndex: 10,
                 }}
-                title={`${p.name}: Elo ${p.displayRating || p.rating}, Điểm mùa ${p.totalSeasonPoints}`} // i18n-ok: ui
+                title={`${p.name}: Elo ${p.displayRating || p.rating}, Điểm mùa ${p.totalSeasonPoints}`}
               >
                 <span
                   style={{
@@ -270,7 +270,7 @@ export default function QuadrantMapModal({
               color: '#64748B',
             }}
           >
-            Elo {medianElo} (trung vị) // i18n-ok: ui
+            Elo {medianElo} (trung vị)
           </div>
         </div>
 
@@ -287,11 +287,10 @@ export default function QuadrantMapModal({
             }}
           >
             <div style={{ font: "600 12px/1.2 'IBM Plex Sans', sans-serif", color: '#B6CDEC' }}>
-              {t('season.actionBottomRight') || 'Việc cần làm · góc phải dưới'} // i18n-ok: ui
+              {t('season.actionBottomRight')}
             </div>
             <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-              {t('season.actionBottomRightDesc') ||
-                'Thành viên trình cao nhưng ít đi buổi. Nhắc lịch riêng cho nhóm này để các buổi tối trong tuần đủ người đánh.'} // i18n-ok: ui
+              {t('season.actionBottomRightDesc')}
             </div>
           </div>
 
@@ -306,11 +305,10 @@ export default function QuadrantMapModal({
             }}
           >
             <div style={{ font: "600 12px/1.2 'IBM Plex Sans', sans-serif", color: '#5FDBD3' }}>
-              {t('season.actionTopLeft') || 'Việc cần làm · góc trái trên'} // i18n-ok: ui
+              {t('season.actionTopLeft')}
             </div>
             <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-              {t('season.actionTopLeftDesc') ||
-                'Thành viên đi đều, phong độ đang lên nhanh. Thử ghép họ với nhóm Elo cao hơn 1 trận mỗi buổi để tăng cọ xát.'} // i18n-ok: ui
+              {t('season.actionTopLeftDesc')}
             </div>
           </div>
         </div>

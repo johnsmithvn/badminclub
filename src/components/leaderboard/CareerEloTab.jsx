@@ -13,7 +13,7 @@ export default function CareerEloTab({
 }) {
   const [filterMode, setFilterMode] = useState('official') // 'official' | 'all'
 
-  // Chuẩn bị dữ liệu danh sách thành viên // i18n-ok: ui
+  // Chuẩn bị dữ liệu danh sách thành viên
   const { officialList, provisionalList, allList, histogramData, medianElo, middleRangePct } = useMemo(() => {
     const list = (members || []).map((m) => {
       const pr = getPlayerRating(playerRatings, m.id, m, levels)
@@ -22,7 +22,7 @@ export default function CareerEloTab({
       const prov = isProvisional(gamesCount)
       const remaining = Math.max(0, 5 - gamesCount)
 
-      // Thống kê trận // i18n-ok: ui
+      // Thống kê trận
       let wins = 0
       let losses = 0
       let delta30Days = 0
@@ -51,23 +51,23 @@ export default function CareerEloTab({
       const totalGames = wins + losses > 0 ? wins + losses : gamesCount
       const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0
 
-      // Thang độ tin cậy // i18n-ok: ui
-      let confLabel = 'LOW' // i18n-ok: confidence
+      // Thang độ tin cậy
+      let confLabel = 'LOW'
       let confColor = '#8494AA'
       let confBarColor = '#64748B'
       let confBarWidth = '14%'
       if (gamesCount >= 100) {
-        confLabel = 'V.HIGH' // i18n-ok: confidence
+        confLabel = 'V.HIGH'
         confColor = '#F0D26A'
         confBarColor = '#C9A227'
         confBarWidth = '100%'
       } else if (gamesCount >= 30) {
-        confLabel = 'HIGH' // i18n-ok: confidence
+        confLabel = 'HIGH'
         confColor = '#B6CDEC'
         confBarColor = '#1D50A0'
         confBarWidth = '75%'
       } else if (gamesCount >= 5) {
-        confLabel = 'MED' // i18n-ok: confidence
+        confLabel = 'MED'
         confColor = '#B6CDEC'
         confBarColor = '#7AA3DC'
         confBarWidth = '45%'
@@ -107,7 +107,7 @@ export default function CareerEloTab({
 
     const allSorted = [...list].sort((a, b) => b.rating - a.rating)
 
-    // Phổ Elo histogram (1300, 1400, 1500, 1600, 1700, 1800, 1900) // i18n-ok: ui
+    // Phổ Elo histogram (1300, 1400, 1500, 1600, 1700, 1800, 1900)
     const bins = [
       { label: '1300', min: 0, max: 1399, count: 0 },
       { label: '1400', min: 1400, max: 1499, count: 0 },
@@ -130,12 +130,12 @@ export default function CareerEloTab({
       color: b.label >= '1800' ? '#00B2A9' : b.label >= '1500' ? '#1D50A0' : '#2E3E5C',
     }))
 
-    // Trung vị // i18n-ok: ui
+    // Trung vị
     const sortedRatings = list.map((p) => p.rating).sort((a, b) => a - b)
     const mid = Math.floor(sortedRatings.length / 2)
     const med = sortedRatings.length % 2 !== 0 ? sortedRatings[mid] : Math.round(((sortedRatings[mid - 1] || 1500) + (sortedRatings[mid] || 1500)) / 2) || 1500
 
-    // % trong khoảng 1500 - 1700 // i18n-ok: ui
+    // % trong khoảng 1500 - 1700
     const inRange = list.filter((p) => p.rating >= 1500 && p.rating <= 1700).length
     const rangePct = list.length > 0 ? Math.round((inRange / list.length) * 100) : 60
 
@@ -159,7 +159,7 @@ export default function CareerEloTab({
         gap: 16,
       }}
     >
-      {/* FILTER TOGGLE TRÊN CÙNG */} // i18n-ok: ui
+      {/* FILTER TOGGLE TRÊN CÙNG */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: '#141D2E', border: '1px solid #22304A' }}>
           <button
@@ -175,7 +175,7 @@ export default function CareerEloTab({
               cursor: 'pointer',
             }}
           >
-            {t('season.filterOfficial') || 'Xếp hạng chính thức · ≥ 5 trận'} {/* i18n-ok: toggle */}
+            {t('season.filterOfficial')}
           </button>
           <button
             type="button"
@@ -190,12 +190,12 @@ export default function CareerEloTab({
               cursor: 'pointer',
             }}
           >
-            {t('season.filterAll') || 'Tất cả thành viên'} {/* i18n-ok: toggle */}
+            {t('season.filterAll')}
           </button>
         </div>
       </div>
 
-      {/* NỘI DUNG CHÍNH: 2 CỘT */} // i18n-ok: ui
+      {/* NỘI DUNG CHÍNH: 2 CỘT */}
       <div
         style={{
           display: 'grid',
@@ -204,15 +204,15 @@ export default function CareerEloTab({
           alignItems: 'start',
         }}
       >
-        {/* CỘT TRÁI: BẢNG XẾP HẠNG VÀ KHU THẨM ĐỊNH */} // i18n-ok: ui
+        {/* CỘT TRÁI: BẢNG XẾP HẠNG VÀ KHU THẨM ĐỊNH */}
         <div style={{ display: 'grid', gap: 14 }}>
-          {/* Bảng xếp hạng chính thức */} // i18n-ok: ui
+          {/* Bảng xếp hạng chính thức */}
           <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ padding: '10px 13px', borderBottom: '1px solid #22304A', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
                 {filterMode === 'official'
-                  ? `Xếp hạng chính thức · ${officialList.length} người` // i18n-ok: count label
-                  : `Tất cả thành viên · ${allList.length} người`} {/* i18n-ok: count label */}
+                  ? `Xếp hạng chính thức · ${officialList.length} người`
+                  : `Tất cả thành viên · ${allList.length} người`}
               </span>
               {provisionalList.length > 0 && filterMode === 'official' && (
                 <span
@@ -225,16 +225,16 @@ export default function CareerEloTab({
                     color: '#F1A79D',
                   }}
                 >
-                  {provisionalList.length} người đang thẩm định {/* i18n-ok: badge */}
+                  {provisionalList.length} người đang thẩm định
                 </span>
               )}
               <div style={{ flex: '1 1 0%' }} />
               <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                sort: Elo ↓ {/* i18n-ok: sort indicator */}
+                sort: Elo ↓
               </span>
             </div>
 
-            {/* Header hàng */} // i18n-ok: ui
+            {/* Header hàng */}
             <div
               style={{
                 display: 'grid',
@@ -248,15 +248,15 @@ export default function CareerEloTab({
               }}
             >
               <span>#</span>
-              <span>Thành viên</span> {/* i18n-ok: column */}
+              <span>Thành viên</span>
               <span style={{ textAlign: 'right' }}>Elo</span>
-              <span style={{ textAlign: 'right' }}>Trận</span> {/* i18n-ok: column */}
-              <span style={{ textAlign: 'center' }}>Độ tin cậy</span> {/* i18n-ok: column */}
-              <span style={{ textAlign: 'right' }}>Thắng</span> {/* i18n-ok: column */}
-              <span style={{ textAlign: 'right' }}>30 ngày</span> {/* i18n-ok: column */}
+              <span style={{ textAlign: 'right' }}>Trận</span>
+              <span style={{ textAlign: 'center' }}>Độ tin cậy</span>
+              <span style={{ textAlign: 'right' }}>Thắng</span>
+              <span style={{ textAlign: 'right' }}>30 ngày</span>
             </div>
 
-            {/* Danh sách thành viên */} // i18n-ok: ui
+            {/* Danh sách thành viên */}
             {displayList.map((player) => {
               const rankColor = player.rank === 1 ? '#F0D26A' : player.rank === 2 ? '#A8B7CB' : player.rank === 3 ? '#B0562A' : '#A8B7CB'
               const deltaColor = player.delta30Days > 0 ? '#5FDBD3' : player.delta30Days < 0 ? '#F1A79D' : '#8494AA'
@@ -279,14 +279,14 @@ export default function CareerEloTab({
                     {player.rank}
                   </span>
 
-                  {/* Tên & Avatar */} // i18n-ok: ui
+                  {/* Tên & Avatar */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <div
                       style={{
                         width: 24,
                         height: 24,
                         borderRadius: 999,
-                        background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#1D50A0', // i18n-ok: gender check
+                        background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#1D50A0',
                         flex: '0 0 auto',
                         display: 'flex',
                         alignItems: 'center',
@@ -312,7 +312,7 @@ export default function CareerEloTab({
                           color: '#F0D26A',
                         }}
                       >
-                        Top 1 {/* i18n-ok: top badge */}
+                        Top 1
                       </span>
                     )}
                   </div>
@@ -329,12 +329,12 @@ export default function CareerEloTab({
                     {player.rating}
                   </span>
 
-                  {/* Số trận */} // i18n-ok: ui
+                  {/* Số trận */}
                   <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
                     {player.gamesCount}
                   </span>
 
-                  {/* Độ tin cậy */} // i18n-ok: ui
+                  {/* Độ tin cậy */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
                     <div
                       style={{
@@ -359,12 +359,12 @@ export default function CareerEloTab({
                     </span>
                   </div>
 
-                  {/* Thắng % */} // i18n-ok: ui
+                  {/* Thắng % */}
                   <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
                     {player.winRate}%
                   </span>
 
-                  {/* 30 ngày */} // i18n-ok: ui
+                  {/* 30 ngày */}
                   <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: deltaColor }}>
                     {deltaSign}
                   </span>
@@ -373,7 +373,7 @@ export default function CareerEloTab({
             })}
           </div>
 
-          {/* KHU THẨM ĐỊNH (Provisional Section) */} // i18n-ok: ui
+          {/* KHU THẨM ĐỊNH (Provisional Section) */}
           {provisionalList.length > 0 && filterMode === 'official' && (
             <div style={{ background: '#141D2E', border: '1px solid #8E2C20', borderRadius: 10, overflow: 'hidden' }}>
               <div
@@ -387,11 +387,11 @@ export default function CareerEloTab({
                 }}
               >
                 <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#F1A79D' }}>
-                  ⚠ Đang thẩm định · chưa vào podium {/* i18n-ok: provisional header */}
+                  ⚠ Đang thẩm định · chưa vào podium
                 </span>
                 <div style={{ flex: '1 1 0%' }} />
                 <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  Elo vẫn chạy, chỉ chưa xếp hạng chính thức {/* i18n-ok: explanation */}
+                  Elo vẫn chạy, chỉ chưa xếp hạng chính thức
                 </span>
               </div>
 
@@ -421,7 +421,7 @@ export default function CareerEloTab({
                           width: 24,
                           height: 24,
                           borderRadius: 999,
-                          background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#B0562A', // i18n-ok: gender check
+                          background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#B0562A',
                           flex: '0 0 auto',
                           display: 'flex',
                           alignItems: 'center',
@@ -444,7 +444,7 @@ export default function CareerEloTab({
                           color: '#F1A79D',
                         }}
                       >
-                        còn {player.provisionalRemaining} trận {/* i18n-ok: provisional count */}
+                        còn {player.provisionalRemaining} trận
                       </span>
                     </div>
 
@@ -501,9 +501,9 @@ export default function CareerEloTab({
           )}
         </div>
 
-        {/* CỘT PHẢI (RIGHT RAIL) */} // i18n-ok: ui
+        {/* CỘT PHẢI (RIGHT RAIL) */}
         <div style={{ display: 'grid', gap: 12 }}>
-          {/* Card 1: Thang độ tin cậy */} // i18n-ok: ui
+          {/* Card 1: Thang độ tin cậy */}
           <div
             style={{
               background: '#141D2E',
@@ -515,28 +515,28 @@ export default function CareerEloTab({
             }}
           >
             <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-              {t('season.confidenceScaleTitle') || 'Thang độ tin cậy'} {/* i18n-ok: title */}
+              {t('season.confidenceScaleTitle')}
             </div>
             <div style={{ display: 'grid', gap: 8, font: "400 12px/1.3 'IBM Plex Sans', sans-serif" }}>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#64748B' }} />
                 <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>LOW</span>
-                <span style={{ color: '#8494AA' }}>&lt; 5 trận · gắn nhãn thẩm định</span> {/* i18n-ok: explanation */}
+                <span style={{ color: '#8494AA' }}>&lt; 5 trận · gắn nhãn thẩm định</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#7AA3DC' }} />
                 <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>MED</span>
-                <span style={{ color: '#8494AA' }}>5–29 trận · vào bảng chính thức</span> {/* i18n-ok: explanation */}
+                <span style={{ color: '#8494AA' }}>5–29 trận · vào bảng chính thức</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#1D50A0' }} />
                 <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>HIGH</span>
-                <span style={{ color: '#8494AA' }}>30–99 trận · Elo dùng nguyên 100%</span> {/* i18n-ok: explanation */}
+                <span style={{ color: '#8494AA' }}>30–99 trận · Elo dùng nguyên 100%</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#C9A227' }} />
                 <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>V.HIGH</span>
-                <span style={{ color: '#8494AA' }}>≥ 100 trận · số liệu ổn định</span> {/* i18n-ok: explanation */}
+                <span style={{ color: '#8494AA' }}>≥ 100 trận · số liệu ổn định</span>
               </div>
             </div>
             <div
@@ -547,11 +547,11 @@ export default function CareerEloTab({
                 paddingTop: 9,
               }}
             >
-              Elo hiển thị của người LOW có dấu <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>?</span> — con số có thật nhưng biên sai số còn rộng. {/* i18n-ok: footer note */}
+              Elo hiển thị của người LOW có dấu <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>?</span> — con số có thật nhưng biên sai số còn rộng.
             </div>
           </div>
 
-          {/* Card 2: Phổ Elo toàn CLB (Histogram) */} // i18n-ok: ui
+          {/* Card 2: Phổ Elo toàn CLB (Histogram) */}
           <div
             style={{
               background: '#141D2E',
@@ -563,7 +563,7 @@ export default function CareerEloTab({
             }}
           >
             <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-              {t('season.eloDistributionTitle') || 'Phổ Elo toàn CLB'} {/* i18n-ok: title */}
+              {t('season.eloDistributionTitle')}
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 104 }}>
               {histogramData.map((bar) => (
@@ -600,11 +600,11 @@ export default function CareerEloTab({
                 paddingTop: 9,
               }}
             >
-              Trung vị {medianElo} · nhóm 1500–1700 chiếm {middleRangePct}% CLB, đủ dày để ghép sân cân trình mỗi buổi. {/* i18n-ok: distribution note */}
+              Trung vị {medianElo} · nhóm 1500–1700 chiếm {middleRangePct}% CLB, đủ dày để ghép sân cân trình mỗi buổi.
             </div>
           </div>
 
-          {/* Card 3: Hai bảng khác nhau chỗ nào */} // i18n-ok: ui
+          {/* Card 3: Hai bảng khác nhau chỗ nào */}
           <div
             style={{
               background: '#1A2437',
@@ -616,16 +616,16 @@ export default function CareerEloTab({
             }}
           >
             <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-              Hai bảng khác nhau chỗ nào {/* i18n-ok: title */}
+              Hai bảng khác nhau chỗ nào
             </div>
             <div style={{ display: 'grid', gap: 8, font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '78px minmax(0,1fr)', gap: 10 }}>
                 <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>Elo</span>
-                <span>Đo trình độ. Không bao giờ bị xóa. Quyết định ai vào sân với ai.</span> {/* i18n-ok: elo purpose */}
+                <span>Đo trình độ. Không bao giờ bị xóa. Quyết định ai vào sân với ai.</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '78px minmax(0,1fr)', gap: 10 }}>
-                <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: '#F0D26A' }}>Điểm mùa</span> {/* i18n-ok: season pts */}
-                <span>Đo mức tham gia trong quý. Reset 01/10. Quyết định ai nhận thưởng.</span> {/* i18n-ok: season pts purpose */}
+                <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: '#F0D26A' }}>Điểm mùa</span>
+                <span>Đo mức tham gia trong quý. Reset 01/10. Quyết định ai nhận thưởng.</span>
               </div>
             </div>
           </div>

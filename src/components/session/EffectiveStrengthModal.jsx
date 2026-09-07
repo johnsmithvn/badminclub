@@ -2,7 +2,7 @@ import { t } from '#i18n'
 
 export default function EffectiveStrengthModal({
   player = {
-    name: 'Nguyễn Khánh Vy', // i18n-ok: ui
+    name: 'Nguyễn Khánh Vy',
     gamesCount: 3,
     confidence: 'low',
     rating: 1655,
@@ -13,13 +13,13 @@ export default function EffectiveStrengthModal({
 }) {
   if (!player) return null
 
-  const name = player.name || 'VĐV' // i18n-ok: ui
+  const name = player.name || 'VĐV'
   const games = player.gamesCount || 0
   const elo = player.displayRating || player.rating || 1500
   const seed = player.seedRating || 1500
   const eff = player.effectiveStrength || Math.round(seed * 0.6 + elo * 0.4)
 
-  // Tỷ lệ co cụm // i18n-ok: ui
+  // Tỷ lệ co cụm
   const seedPct = games >= 30 ? 0 : games >= 15 ? 15 : games >= 5 ? 35 : 60
   const eloPct = 100 - seedPct
 
@@ -74,7 +74,7 @@ export default function EffectiveStrengthModal({
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
             <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{name}</div>
             <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-              {games} {t('season.matchesCount') || 'trận'} · confidence {(player.confidence || 'low').toUpperCase()} // i18n-ok: ui
+              {games} {t('season.matchesCount')} · confidence {(player.confidence || 'low').toUpperCase()}
             </div>
           </div>
           {games < 5 && (
@@ -88,7 +88,7 @@ export default function EffectiveStrengthModal({
                 color: '#F1A79D',
               }}
             >
-              ⚠ {t('season.provisionalBadge') || 'THẨM ĐỊNH'} // i18n-ok: ui
+              ⚠ {t('season.provisionalBadge')}
             </span>
           )}
           <button
@@ -110,16 +110,16 @@ export default function EffectiveStrengthModal({
         {/* Stats List */}
         <div style={{ display: 'grid', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-            <span>{t('season.currentElo') || 'Elo hiện tại'}</span> // i18n-ok: ui
+            <span>{t('season.currentElo')}</span>
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>{elo}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-            <span>{t('season.seedRating') || 'Seed khi vào CLB'}</span> // i18n-ok: ui
+            <span>{t('season.seedRating')}</span>
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>{seed}</span>
           </div>
           <div style={{ height: 1, background: '#22304A', margin: '2px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-            <span>{t('season.effectiveStrengthForMatchmaking') || 'Dùng để ghép sân'}</span> // i18n-ok: ui
+            <span>{t('season.effectiveStrengthForMatchmaking')}</span>
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F0D26A' }}>{eff}</span>
           </div>
         </div>
@@ -171,11 +171,11 @@ export default function EffectiveStrengthModal({
               color: '#8494AA',
             }}
           >
-            {t('season.shrinkageMatrixTitle') || 'Tỷ lệ co theo số trận'} // i18n-ok: ui
+            {t('season.shrinkageMatrixTitle')}
           </div>
           <div style={{ display: 'grid', gap: 6, font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) 92px', gap: 8, alignItems: 'center' }}>
-              <span>&lt; 5 trận</span> // i18n-ok: ui
+              <span>&lt; 5 trận</span>
               <span style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
                 <span style={{ width: '40%', background: '#1D50A0' }} />
               </span>
@@ -207,8 +207,7 @@ export default function EffectiveStrengthModal({
 
         {/* Note */}
         <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA', borderTop: '1px solid #22304A', paddingTop: 11 }}>
-          {t('season.effectiveStrengthNote', { name }) ||
-            `${name} đánh ít trận nên Elo có thể bị nhiễu do một vài trận may mắn. Co về điểm seed giúp máy không ghép nhầm vào các sân quá sức.`} // i18n-ok: ui
+          {t('season.effectiveStrengthNote', { name })}
         </div>
       </div>
     </div>

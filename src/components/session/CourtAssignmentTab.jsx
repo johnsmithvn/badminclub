@@ -462,7 +462,7 @@ export default function CourtAssignmentTab({ s }) {
               cursor: 'pointer',
             }}
           >
-            Best-of-N thông minh (80 phương án) {/* i18n-ok: view mode tab */}
+            Best-of-N thông minh (80 phương án)
           </button>
           <button
             type="button"
@@ -477,7 +477,7 @@ export default function CourtAssignmentTab({ s }) {
               cursor: 'pointer',
             }}
           >
-            Ghi điểm từng sân {/* i18n-ok: view mode tab */}
+            Ghi điểm từng sân
           </button>
         </div>
       </div>
