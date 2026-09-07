@@ -217,15 +217,39 @@ export default function Sidebar({ route }) {
           </div>
         )}
 
-        <button type="button" style={S.footBtn} onClick={() => setMenu((v) => !v)}
-          aria-haspopup="menu" aria-expanded={menu} aria-label={t('shell.userMenu')}>
-          <Avatar name={meName} src={(currentMember && currentMember.avatarUrl) || (profile && (profile.avatar_url || profile.avatarUrl))} size={30} />
-          <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-            <div style={S.footName}>{meName}</div>
-            <div style={S.footRole}>{t('shell.footRole', { role: roleName(db.myRole || role), club: clubName })}</div>
-          </div>
-          <Icon name="chevron-down" size={15} style={{ color: 'rgba(255,255,255,.55)' }} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+          <button type="button" style={{ ...S.footBtn, flex: 1, minWidth: 0 }} onClick={() => setMenu((v) => !v)}
+            aria-haspopup="menu" aria-expanded={menu} aria-label={t('shell.userMenu')}>
+            <Avatar name={meName} src={(currentMember && currentMember.avatarUrl) || (profile && (profile.avatar_url || profile.avatarUrl))} size={30} />
+            <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+              <div style={S.footName}>{meName}</div>
+              <div style={S.footRole}>{t('shell.footRole', { role: roleName(db.myRole || role), club: clubName })}</div>
+            </div>
+            <Icon name="chevron-down" size={15} style={{ color: 'rgba(255,255,255,.55)' }} />
+          </button>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={isDark ? t('common.themeLight') : t('common.themeDark')}
+            aria-label={t('common.themeToggle')}
+            style={{
+              width: 32,
+              height: 32,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 6,
+              background: 'rgba(255,255,255,.08)',
+              border: '1px solid rgba(255,255,255,.12)',
+              color: '#fff',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Icon name={isDark ? 'sun' : 'moon'} size={15} />
+          </button>
+        </div>
       </div>
     </nav>
   )

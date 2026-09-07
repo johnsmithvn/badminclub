@@ -52,6 +52,27 @@
     "defaultLockDay": 25,
     "codeLength": 8
   },
+  "season": {
+    "id": "2026-Q3",
+    "code": "2026-Q3",
+    "name": "Thu Rực Lửa",
+    "fullName": "Mùa 3 · 2026 — Thu Rực Lửa",
+    "startDate": "2026-07-01",
+    "endDate": "2026-09-30",
+    "cycle": "quarter",
+    "totalSessionsExpected": 14,
+    "pointsConfig": {
+      "attendance": 30,
+      "matchPlayed": 10,
+      "matchWon": 15,
+      "upsetWon": 25,
+      "threeSets": 10,
+      "streakThree": 20
+    },
+    "provisionalThreshold": 5,
+    "fullConfidenceThreshold": 30,
+    "monteCarloCandidates": 80
+  },
   "assign": {
     "balanceThreshold": 0.6,
     "fairnessThreshold": 1

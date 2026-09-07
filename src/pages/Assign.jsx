@@ -1,10 +1,11 @@
 // Chia sân: kéo thả · 5 chế độ xếp · cố định người theo sân · bấm giờ · ghi trận (handoff 05).
 // KHÔNG ảnh hưởng tiền — chỉ là công cụ điều phối tại sân.
 
-import { useRef } from 'react'
+import { useState, useRef } from 'react'
 import { Button, Card, Input, Select, Switch } from '#ds'
 import { Empty, LevelChip, Mono, Overline, playerMeta } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
+import BestOfNArrangementView from '#components/session/BestOfNArrangementView.jsx'
 import { elapsedMin, useClock } from '#hooks/useClock.js'
 import { dd, wd } from '#utils/dates.js'
 import { courtOf, groupOf, headCount } from '#lib/money.js'
@@ -19,6 +20,7 @@ export default function Assign() {
   const { db, ui, a } = useApp()
   const list = assignableSessions(db)
   const s = list.find((x) => x.id === ui.assignId) || list[0] || null
+  const [viewMode, setViewMode] = useState('bestOfN') // 'bestOfN' | 'manual'
 
   // Có sân nào đang bấm giờ thì cần re-render định kỳ để đồng hồ nhảy.
   const anyPlaying = s ? Object.values((db.playing || {})[s.id] || {}).some(Boolean) : false
@@ -100,7 +102,52 @@ export default function Assign() {
         </div>
       )}
 
-      <div style={S.layout}>
+      {/* Switcher Chế độ Best-of-N thông minh vs Kéo thả thủ công */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: '#141D2E', border: '1px solid #22304A' }}>
+          <button
+            type="button"
+            onClick={() => setViewMode('bestOfN')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '8px 14px',
+              borderRadius: 6,
+              background: viewMode === 'bestOfN' ? '#00B2A9' : 'transparent',
+              color: viewMode === 'bestOfN' ? '#04302C' : '#A8B7CB',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {t('season.bestOfNMode')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('manual')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '8px 14px',
+              borderRadius: 6,
+              background: viewMode === 'manual' ? '#1D50A0' : 'transparent',
+              color: viewMode === 'manual' ? '#fff' : '#A8B7CB',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {t('season.manualDragDrop')}
+          </button>
+        </div>
+      </div>
+
+      {viewMode === 'bestOfN' ? (
+        <BestOfNArrangementView
+          session={s}
+          players={players}
+          db={db}
+          onApplyPlan={(chosenLineup) => a.setLineup(s.id, chosenLineup)}
+          onToggleManual={() => setViewMode('manual')}
+        />
+      ) : (
+        <div style={S.layout}>
         {/* ---------------- Cột trái: Danh sách người chờ ---------------- */}
         <Card
           title={groupMode ? t('assign.poolTitleGrouped') : t('assign.poolTitle')}
@@ -329,6 +376,7 @@ export default function Assign() {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }

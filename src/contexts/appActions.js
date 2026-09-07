@@ -2007,6 +2007,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       upUi(() => ({ picked: null }))
       toast(t('toast.lineupCleared'))
     },
+    setLineup: (sid, lineup) => {
+      if (!canAssign()) return
+      up((d) => ({ lineups: { ...(d.lineups || {}), [sid]: lineup } }))
+      toast(t('toast.lineupUpdated'))
+    },
     arrange: (sid, mode) => {
       if (!canAssign()) return
       const d0 = db()

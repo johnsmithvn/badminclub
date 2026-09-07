@@ -11,6 +11,7 @@ import {
   calcPlayerDeltas,
 } from '#lib/rating.js'
 import { t } from '#i18n'
+import BestOfNArrangementView from '#components/session/BestOfNArrangementView.jsx'
 
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
@@ -23,6 +24,7 @@ export default function CourtAssignmentTab({ s }) {
   // Đội A & Đội B (mảng id/key các đấu thủ)
   const [teamA, setTeamA] = useState([])
   const [teamB, setTeamB] = useState([])
+  const [useBestOfN, setUseBestOfN] = useState(false)
 
   // Cài đặt sân & Elo
   const [courtIdx, setCourtIdx] = useState(0)
@@ -47,14 +49,15 @@ export default function CourtAssignmentTab({ s }) {
   // Danh sách tất cả người tham gia buổi (thành viên có mặt + khách)
   const players = useMemo(() => sessionPlayers(db, s), [db, s])
 
-  // Map rating cho tất cả người trong pool
+  // Map rating cho tất cả người trong pool (dùng Effective Strength tầng 3 co cụm Bayes)
   const ratingsMap = useMemo(() => {
     const map = {}
     players.forEach((p) => {
-      map[p.key] = getPlayerRating(db.playerRatings, p.key).rating
+      const pr = getPlayerRating(db.playerRatings, p.key, p, db.levels)
+      map[p.key] = pr.effectiveStrength || pr.rating || 1500
     })
     return map
-  }, [players, db.playerRatings])
+  }, [players, db.playerRatings, db.levels])
 
   // Danh sách các trận đã đấu trong buổi này
   const sessionMatches = useMemo(() => {
@@ -443,7 +446,54 @@ export default function CourtAssignmentTab({ s }) {
   const isCourtFull = teamA.length >= maxPerTeam && teamB.length >= maxPerTeam
 
   return (
-    <div style={S.container}>
+    <div style={{ display: 'grid', gap: 14 }}>
+      {/* Switcher Chế độ Best-of-N thông minh vs Chia sân đơn lẻ */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: '#141D2E', border: '1px solid #22304A' }}>
+          <button
+            type="button"
+            onClick={() => setUseBestOfN(true)}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '8px 14px',
+              borderRadius: 6,
+              background: useBestOfN ? '#00B2A9' : 'transparent',
+              color: useBestOfN ? '#04302C' : '#A8B7CB',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {t('season.bestOfNMode')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setUseBestOfN(false)}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '8px 14px',
+              borderRadius: 6,
+              background: !useBestOfN ? '#1D50A0' : 'transparent',
+              color: !useBestOfN ? '#fff' : '#A8B7CB',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {t('season.scorePerCourtMode')}
+          </button>
+        </div>
+      </div>
+
+      {useBestOfN ? (
+        <BestOfNArrangementView
+          session={s}
+          players={players}
+          db={db}
+          onApplyPlan={(chosenLineup) => a.setLineup(s.id, chosenLineup)}
+          onToggleManual={() => setUseBestOfN(false)}
+          isMobile={isMobile}
+        />
+      ) : (
+        <div style={S.container}>
       {/* ---------------- Banner Kèo đã nhận (nếu có) ---------------- */}
       {acceptedChallenges.length > 0 && (
         <div style={S.chalBanner}>
@@ -1186,6 +1236,8 @@ export default function CourtAssignmentTab({ s }) {
           </div>
         )}
       </div>
+    </div>
+      )}
     </div>
   )
 }
