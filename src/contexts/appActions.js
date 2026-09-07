@@ -2417,13 +2417,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       return newMatch
     },
 
-    editMatchScore: ({ matchId, sets, newSets, reason }) => {
+    editMatchScore: ({ matchId, sets, newSets, reason, at, playedAt }) => {
       if (!canAssign()) return
       const d0 = db()
       const match = (d0.matches || []).find((m) => m.id === matchId)
       if (!match) return
 
       const actualSets = sets || newSets || []
+      const nextAt = at !== undefined && at !== null ? at : (playedAt !== undefined && playedAt !== null ? playedAt : match.at)
       const myMem = myMember(d0)
       const myId = myMem?.id || null
       const editLog = {
@@ -2433,14 +2434,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         editedBy: myId,
         editedAt: new Date().toISOString(),
         fieldChanged: 'sets',
-        oldValue: JSON.stringify(match.sets || []),
-        newValue: JSON.stringify(actualSets),
+        oldValue: JSON.stringify({ sets: match.sets || [], at: match.at }),
+        newValue: JSON.stringify({ sets: actualSets, at: nextAt }),
         reason: reason || t('common.edit'),
         ratingRecalcFromMatchId: matchId,
       }
 
       // Replay cascade tính lại toàn bộ Elo các trận sau đó
-      const updatedMatchList = (d0.matches || []).map((m) => (m.id === matchId ? { ...m, sets: actualSets } : m))
+      const updatedMatchList = (d0.matches || []).map((m) => (m.id === matchId ? { ...m, sets: actualSets, at: nextAt } : m))
       const { finalRatings, updatedMatches } = replayRatingCascade(updatedMatchList, matchId, d0.members, d0.levels)
 
       up((d) => {

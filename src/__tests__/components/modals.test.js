@@ -44,5 +44,17 @@ test('Phase 1 Modals Logic Verification', async (t) => {
     })
     const newWinner = newWonA > newWonB ? 'A' : 'B'
     assert.equal(newWinner, 'B')
+
+    // Timestamp assembly from dateStr and timeStr
+    const dateStr = '2026-09-07'
+    const timeStr = '20:15'
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const [hh, mm] = timeStr.split(':').map(Number)
+    const dt = new Date(y, m - 1, d, hh, mm, 0, 0)
+    assert.equal(dt.getFullYear(), 2026)
+    assert.equal(dt.getMonth(), 8)
+    assert.equal(dt.getDate(), 7)
+    assert.equal(dt.getHours(), 20)
+    assert.equal(dt.getMinutes(), 15)
   })
 })
