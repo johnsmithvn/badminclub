@@ -6,7 +6,6 @@ import { Button, Card, Input, Select, Switch } from '#ds'
 import { Empty, LevelChip, Mono, Overline, playerMeta } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import BestOfNArrangementView from '#components/session/BestOfNArrangementView.jsx'
-import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
 import { elapsedMin, useClock } from '#hooks/useClock.js'
 import { dd, wd } from '#utils/dates.js'
 import { courtOf, groupOf, headCount } from '#lib/money.js'
@@ -21,7 +20,7 @@ export default function Assign() {
   const { db, ui, a } = useApp()
   const list = assignableSessions(db)
   const s = list.find((x) => x.id === ui.assignId) || list[0] || null
-  const [viewMode, setViewMode] = useState('fast') // 'fast' | 'bestOfN' | 'manual'
+  const [viewMode, setViewMode] = useState('bestOfN') // 'bestOfN' | 'manual'
 
   // Có sân nào đang bấm giờ thì cần re-render định kỳ để đồng hồ nhảy.
   const anyPlaying = s ? Object.values((db.playing || {})[s.id] || {}).some(Boolean) : false
@@ -103,24 +102,9 @@ export default function Assign() {
         </div>
       )}
 
-      {/* Switcher Chế độ Chia sân 1 giây vs Best-of-N thông minh vs Kéo thả thủ công */}
+      {/* Switcher Chế độ Best-of-N thông minh vs Kéo thả thủ công */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: 'var(--surface-sunken, #141D2E)', border: '1px solid var(--border-subtle, #22304A)' }}>
-          <button
-            type="button"
-            onClick={() => setViewMode('fast')}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: '8px 14px',
-              borderRadius: 6,
-              background: viewMode === 'fast' ? '#00B2A9' : 'transparent',
-              color: viewMode === 'fast' ? '#04302C' : 'var(--text-muted, #A8B7CB)',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {t('assign.fastAssignMode')}
-          </button>
+        <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: '#141D2E', border: '1px solid #22304A' }}>
           <button
             type="button"
             onClick={() => setViewMode('bestOfN')}
@@ -128,8 +112,8 @@ export default function Assign() {
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
               padding: '8px 14px',
               borderRadius: 6,
-              background: viewMode === 'bestOfN' ? 'var(--navy-500, #1D50A0)' : 'transparent',
-              color: viewMode === 'bestOfN' ? '#fff' : 'var(--text-muted, #A8B7CB)',
+              background: viewMode === 'bestOfN' ? '#00B2A9' : 'transparent',
+              color: viewMode === 'bestOfN' ? '#04302C' : '#A8B7CB',
               border: 'none',
               cursor: 'pointer',
             }}
@@ -143,8 +127,8 @@ export default function Assign() {
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
               padding: '8px 14px',
               borderRadius: 6,
-              background: viewMode === 'manual' ? 'var(--navy-500, #1D50A0)' : 'transparent',
-              color: viewMode === 'manual' ? '#fff' : 'var(--text-muted, #A8B7CB)',
+              background: viewMode === 'manual' ? '#1D50A0' : 'transparent',
+              color: viewMode === 'manual' ? '#fff' : '#A8B7CB',
               border: 'none',
               cursor: 'pointer',
             }}
@@ -154,9 +138,7 @@ export default function Assign() {
         </div>
       </div>
 
-      {viewMode === 'fast' ? (
-        <CourtAssignmentTab s={s} />
-      ) : viewMode === 'bestOfN' ? (
+      {viewMode === 'bestOfN' ? (
         <BestOfNArrangementView
           session={s}
           players={players}
