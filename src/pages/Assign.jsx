@@ -118,7 +118,7 @@ export default function Assign() {
               cursor: 'pointer',
             }}
           >
-            Best-of-N thông minh (80 phương án) {/* i18n-ok: viewMode tab */}
+            {t('season.bestOfNMode')}
           </button>
           <button
             type="button"
@@ -133,7 +133,7 @@ export default function Assign() {
               cursor: 'pointer',
             }}
           >
-            Kéo thả thủ công {/* i18n-ok: viewMode tab */}
+            {t('season.manualDragDrop')}
           </button>
         </div>
       </div>

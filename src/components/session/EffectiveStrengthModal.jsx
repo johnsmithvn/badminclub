@@ -2,7 +2,7 @@ import { t } from '#i18n'
 
 export default function EffectiveStrengthModal({
   player = {
-    name: 'Nguyễn Khánh Vy',
+    name: 'Player',
     gamesCount: 3,
     confidence: 'low',
     rating: 1655,
@@ -13,7 +13,7 @@ export default function EffectiveStrengthModal({
 }) {
   if (!player) return null
 
-  const name = player.name || 'VĐV'
+  const name = player.name || ''
   const games = player.gamesCount || 0
   const elo = player.displayRating || player.rating || 1500
   const seed = player.seedRating || 1500
@@ -175,7 +175,7 @@ export default function EffectiveStrengthModal({
           </div>
           <div style={{ display: 'grid', gap: 6, font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) 92px', gap: 8, alignItems: 'center' }}>
-              <span>&lt; 5 trận</span>
+              <span>&lt; 5 {t('season.matchesCount')}</span>
               <span style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
                 <span style={{ width: '40%', background: '#1D50A0' }} />
               </span>

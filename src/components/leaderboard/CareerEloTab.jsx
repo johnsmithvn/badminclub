@@ -211,8 +211,8 @@ export default function CareerEloTab({
             <div style={{ padding: '10px 13px', borderBottom: '1px solid #22304A', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
                 {filterMode === 'official'
-                  ? `Xếp hạng chính thức · ${officialList.length} người`
-                  : `Tất cả thành viên · ${allList.length} người`}
+                  ? t('season.officialActiveCount', { n: officialList.length })
+                  : t('season.allActiveCount', { n: allList.length })}
               </span>
               {provisionalList.length > 0 && filterMode === 'official' && (
                 <span
@@ -225,12 +225,12 @@ export default function CareerEloTab({
                     color: '#F1A79D',
                   }}
                 >
-                  {provisionalList.length} người đang thẩm định
+                  {t('season.provisionalActiveCount', { n: provisionalList.length })}
                 </span>
               )}
               <div style={{ flex: '1 1 0%' }} />
               <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                sort: Elo ↓
+                {t('season.sortEloDesc')}
               </span>
             </div>
 
@@ -248,12 +248,12 @@ export default function CareerEloTab({
               }}
             >
               <span>#</span>
-              <span>Thành viên</span>
+              <span>{t('season.colMember')}</span>
               <span style={{ textAlign: 'right' }}>Elo</span>
-              <span style={{ textAlign: 'right' }}>Trận</span>
-              <span style={{ textAlign: 'center' }}>Độ tin cậy</span>
-              <span style={{ textAlign: 'right' }}>Thắng</span>
-              <span style={{ textAlign: 'right' }}>30 ngày</span>
+              <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
+              <span style={{ textAlign: 'center' }}>{t('season.colConfidence')}</span>
+              <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
+              <span style={{ textAlign: 'right' }}>{t('season.col30Days')}</span>
             </div>
 
             {/* Danh sách thành viên */}
@@ -286,7 +286,7 @@ export default function CareerEloTab({
                         width: 24,
                         height: 24,
                         borderRadius: 999,
-                        background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#1D50A0',
+                        background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#1D50A0', // i18n-ok: gender check
                         flex: '0 0 auto',
                         display: 'flex',
                         alignItems: 'center',
@@ -387,11 +387,11 @@ export default function CareerEloTab({
                 }}
               >
                 <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#F1A79D' }}>
-                  ⚠ Đang thẩm định · chưa vào podium
+                  {t('season.provisionalSectionTitle')}
                 </span>
                 <div style={{ flex: '1 1 0%' }} />
                 <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  Elo vẫn chạy, chỉ chưa xếp hạng chính thức
+                  {t('season.provisionalSectionSub')}
                 </span>
               </div>
 
@@ -421,7 +421,7 @@ export default function CareerEloTab({
                           width: 24,
                           height: 24,
                           borderRadius: 999,
-                          background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#B0562A',
+                          background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#B0562A', // i18n-ok: gender check
                           flex: '0 0 auto',
                           display: 'flex',
                           alignItems: 'center',
@@ -444,7 +444,7 @@ export default function CareerEloTab({
                           color: '#F1A79D',
                         }}
                       >
-                        còn {player.provisionalRemaining} trận
+                        {t('season.provisionalBadgeCount', { n: player.provisionalRemaining })}
                       </span>
                     </div>
 
@@ -521,22 +521,22 @@ export default function CareerEloTab({
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#64748B' }} />
                 <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>LOW</span>
-                <span style={{ color: '#8494AA' }}>&lt; 5 trận · gắn nhãn thẩm định</span>
+                <span style={{ color: '#8494AA' }}>{t('season.confLowNote')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#7AA3DC' }} />
                 <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>MED</span>
-                <span style={{ color: '#8494AA' }}>5–29 trận · vào bảng chính thức</span>
+                <span style={{ color: '#8494AA' }}>{t('season.confMedNote')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#1D50A0' }} />
                 <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>HIGH</span>
-                <span style={{ color: '#8494AA' }}>30–99 trận · Elo dùng nguyên 100%</span>
+                <span style={{ color: '#8494AA' }}>{t('season.confHighNote')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#C9A227' }} />
                 <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>V.HIGH</span>
-                <span style={{ color: '#8494AA' }}>≥ 100 trận · số liệu ổn định</span>
+                <span style={{ color: '#8494AA' }}>{t('season.confVHighNote')}</span>
               </div>
             </div>
             <div
@@ -547,7 +547,7 @@ export default function CareerEloTab({
                 paddingTop: 9,
               }}
             >
-              Elo hiển thị của người LOW có dấu <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>?</span> — con số có thật nhưng biên sai số còn rộng.
+              {t('season.confQuestionNote')}
             </div>
           </div>
 
@@ -600,11 +600,11 @@ export default function CareerEloTab({
                 paddingTop: 9,
               }}
             >
-              Trung vị {medianElo} · nhóm 1500–1700 chiếm {middleRangePct}% CLB, đủ dày để ghép sân cân trình mỗi buổi.
+              {t('season.medianNote', { median: medianElo, pct: middleRangePct })}
             </div>
           </div>
 
-          {/* Card 3: Hai bảng khác nhau chỗ nào */}
+          {/* Card 3: {t('season.twoTablesDiffTitle')} */}
           <div
             style={{
               background: '#1A2437',
@@ -621,11 +621,11 @@ export default function CareerEloTab({
             <div style={{ display: 'grid', gap: 8, font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '78px minmax(0,1fr)', gap: 10 }}>
                 <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>Elo</span>
-                <span>Đo trình độ. Không bao giờ bị xóa. Quyết định ai vào sân với ai.</span>
+                <span>{t('season.eloPurpose')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '78px minmax(0,1fr)', gap: 10 }}>
-                <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: '#F0D26A' }}>Điểm mùa</span>
-                <span>Đo mức tham gia trong quý. Reset 01/10. Quyết định ai nhận thưởng.</span>
+                <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: '#F0D26A' }}>{t('season.colPoints')}</span>
+                <span>{t('season.seasonPointsPurpose')}</span>
               </div>
             </div>
           </div>

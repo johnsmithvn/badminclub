@@ -42,7 +42,8 @@
     "clear": "Xoá bộ lọc",
     "details": "Chi tiết",
     "noData": "Không có dữ liệu",
-    "exportCsv": "Xuất CSV"
+    "exportCsv": "Xuất CSV",
+    "saveChanges": "Lưu thay đổi"
   },
   "units": {
     "dong": "đ",
@@ -226,7 +227,27 @@
     "criteriaWeights": "Trọng số tiêu chí",
     "rerunBtn": "Dò lại",
     "applyPlanBtn": "Xếp {{plan}} vào sân",
-    "headerAssignMeta": "{{players}} người chờ · {{courts}} sân · máy đã dò {{candidates}} phương án trong {{ms}}ms"
+    "headerAssignMeta": "{{players}} người chờ · {{courts}} sân · máy đã dò {{candidates}} phương án trong {{ms}}ms",
+    "raceTab": "Đua Top Mùa Giải",
+    "careerEloTab": "Bảng Đẳng Cấp Elo",
+    "noMatchesInSeason": "Chưa có trận đấu nào trong mùa này.",
+    "medianLabel": "trung vị",
+    "sessionN": "buổi {{n}}",
+    "assignSessionTitle": "Chia sân · buổi {{date}}",
+    "manualDragDrop": "Kéo thả thủ công",
+    "inspectEffectiveStrength": "Bấm để xem tính toán Effective Strength",
+    "neverPlayed": "chưa từng gặp nhau",
+    "blockRuleDiff100": "Cặp cùng trình độ chênh >100 Elo: giữ hai người ở hai đầu sân.",
+    "blockRuleRestConsecutive": "Nghỉ 1 lượt: người vừa đánh 3 trận liên tiếp được xếp sau.",
+    "bestOfNMode": "Best-of-N thông minh (80 phương án)",
+    "scorePerCourtMode": "Ghi điểm từng sân",
+    "seasonNamePlaceholder": "Tên mùa...",
+    "saveChanges": "Lưu thay đổi",
+    "planDescA": "Lệch Elo trung bình 24 · không cặp nào lặp lại · 4 người chờ lâu nhất đều vào sân.",
+    "planDescB": "Cân trình hơn A nhưng có cặp đánh lại cặp cũ.",
+    "planDescC": "Toàn cặp mới nhưng độ lệch giữa hai đội có thể lớn hơn.",
+    "cancelEdit": "Hủy sửa",
+    "scorePtsPerCourt": "Ghi điểm từng sân"
   },
   "gender": {
     "nam": "Nam",

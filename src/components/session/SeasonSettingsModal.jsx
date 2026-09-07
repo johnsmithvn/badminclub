@@ -5,7 +5,7 @@ export default function SeasonSettingsModal({
   season = {
     id: '2026-Q3',
     code: '2026-Q3',
-    name: 'Thu Rực Lửa',
+    name: '',
     startDate: '2026-07-01',
     endDate: '2026-09-30',
     cycle: 'quarter',
@@ -26,7 +26,7 @@ export default function SeasonSettingsModal({
   onEndSeasonEarly,
 }) {
   const [editing, setEditing] = useState(false)
-  const [seasonName, setSeasonName] = useState(season.name || 'Thu Rực Lửa')
+  const [seasonName, setSeasonName] = useState(season.name || '')
   const [startDate, setStartDate] = useState(season.startDate || '2026-07-01')
   const [endDate, setEndDate] = useState(season.endDate || '2026-09-30')
 
@@ -148,7 +148,7 @@ export default function SeasonSettingsModal({
                   cursor: 'pointer',
                 }}
               >
-                {editing ? 'Hủy sửa' : t('season.editSeason') || 'Sửa mùa'}
+                {editing ? t('season.cancelEdit') : t('season.editSeason')}
               </button>
               <button
                 type="button"
@@ -180,7 +180,7 @@ export default function SeasonSettingsModal({
                     color: '#fff',
                     font: "400 12px 'IBM Plex Sans', sans-serif",
                   }}
-                  placeholder="Tên mùa..."
+                  placeholder={t('season.seasonNamePlaceholder')}
                 />
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
@@ -225,7 +225,7 @@ export default function SeasonSettingsModal({
                     cursor: 'pointer',
                   }}
                 >
-                  Lưu thay đổi
+                  {t('common.saveChanges')}
                 </button>
               </div>
             )}

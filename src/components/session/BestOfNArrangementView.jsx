@@ -97,10 +97,10 @@ export default function BestOfNArrangementView({
       >
         <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{ font: "600 18px/1.25 Barlow, sans-serif", color: '#E9EFF7' }}>
-            Chia sân · buổi {session.date ? session.date.slice(5) : ''}
+            {t('season.assignSessionTitle', { date: session.date ? session.date.slice(5) : '' })}
           </div>
           <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-            {waitingCount} người chờ · {activeIdxs.length} sân · máy đã dò 80 phương án trong {timeMs}ms
+            {t('season.headerAssignMeta', { players: waitingCount, courts: activeIdxs.length, candidates: 80, ms: timeMs })}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -118,7 +118,7 @@ export default function BestOfNArrangementView({
                 cursor: 'pointer',
               }}
             >
-              Kéo thả thủ công
+              {t('season.manualDragDrop')}
             </button>
           )}
           <button
@@ -134,7 +134,7 @@ export default function BestOfNArrangementView({
               cursor: 'pointer',
             }}
           >
-            Dò lại
+            {t('season.rerunBtn')}
           </button>
           <button
             type="button"
@@ -150,7 +150,7 @@ export default function BestOfNArrangementView({
               fontWeight: 600,
             }}
           >
-            Xếp {currentPlan?.title || 'phương án A'} vào sân
+            {t('season.applyPlanBtn', { plan: currentPlan?.title || t('season.planA') })}
           </button>
         </div>
       </div>
@@ -184,7 +184,7 @@ export default function BestOfNArrangementView({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                  Phương án A
+                  {t('season.planA')}
                 </span>
                 <span
                   style={{
@@ -195,7 +195,7 @@ export default function BestOfNArrangementView({
                     color: '#04302C',
                   }}
                 >
-                  TỐT NHẤT
+                  {t('season.bestBadge')}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 7 }}>
@@ -203,14 +203,14 @@ export default function BestOfNArrangementView({
                   {planA?.score || 92}
                 </span>
                 <span style={{ font: "400 11px/1.6 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  / 100 điểm cân
+                  {t('season.planBalancePts')}
                 </span>
               </div>
               <div style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
                 <div style={{ width: `${planA?.score || 92}%`, background: '#00B2A9' }} />
               </div>
               <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                {planA?.desc || 'Lệch Elo trung bình 24 · không cặp nào lặp lại · 4 người chờ lâu nhất đều vào sân.'}
+                {planA?.desc || t('season.planDescA')}
               </div>
             </div>
 
@@ -231,7 +231,7 @@ export default function BestOfNArrangementView({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                    Phương án B
+                    {t('season.planB')}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 7 }}>
@@ -244,7 +244,7 @@ export default function BestOfNArrangementView({
                   <div style={{ width: `${planB?.score || 87}%`, background: '#1D50A0' }} />
                 </div>
                 <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  {planB?.desc || 'Cân trình hơn A nhưng có cặp đánh lại cặp cũ.'}
+                  {planB?.desc || t('season.planDescB')}
                 </div>
               </div>
             )}
@@ -265,7 +265,7 @@ export default function BestOfNArrangementView({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                    Phương án C
+                    {t('season.planC')}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 7 }}>
@@ -278,7 +278,7 @@ export default function BestOfNArrangementView({
                   <div style={{ width: `${planC?.score || 79}%`, background: '#2E3E5C' }} />
                 </div>
                 <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  {planC?.desc || 'Toàn cặp mới nhưng độ lệch giữa hai đội có thể lớn hơn.'}
+                  {planC?.desc || t('season.planDescC')}
                 </div>
               </div>
             )}
@@ -297,10 +297,10 @@ export default function BestOfNArrangementView({
               }}
             >
               <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                {currentPlan?.title || 'Phương án A'} · {courts.length} sân
+                {t('season.courtPlanTitle', { plan: currentPlan?.title || t('season.planA'), n: courts.length })}
               </span>
               <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                số trong ngoặc là effective strength dùng để ghép
+                {t('season.effectiveStrengthSub')}
               </span>
             </div>
 
@@ -329,7 +329,7 @@ export default function BestOfNArrangementView({
                   {/* Sân & Lệch */}
                   <div style={{ display: 'grid', gap: 3 }}>
                     <span style={{ font: "600 14px/1.1 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                      Sân {court.courtIdx !== undefined ? court.courtIdx + 1 : cIdx + 1}
+                      {t('season.courtLabel', { n: court.courtIdx !== undefined ? court.courtIdx + 1 : cIdx + 1 })}
                     </span>
                     <span
                       style={{
@@ -342,7 +342,7 @@ export default function BestOfNArrangementView({
                         justifySelf: 'start',
                       }}
                     >
-                      lệch {diff}
+                      {t('season.diffBadge', { n: diff })}
                     </span>
                   </div>
 
@@ -363,7 +363,7 @@ export default function BestOfNArrangementView({
                               fontSize: 12,
                               cursor: hasShrink ? 'pointer' : 'default',
                             }}
-                            title={hasShrink ? 'Bấm để xem tính toán Effective Strength' : ''}
+                            title={hasShrink ? t('season.inspectEffectiveStrength') : ''}
                           >
                             ({p.effectiveStrength || p.rating}{hasShrink ? '*' : ''})
                           </span>
@@ -371,7 +371,7 @@ export default function BestOfNArrangementView({
                       )
                     })}
                     <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                      tổng {rA}
+                      {t('season.teamTotal', { n: rA })}
                     </span>
                   </div>
 
@@ -397,7 +397,7 @@ export default function BestOfNArrangementView({
                               fontSize: 12,
                               cursor: hasShrink ? 'pointer' : 'default',
                             }}
-                            title={hasShrink ? 'Bấm để xem tính toán Effective Strength' : ''}
+                            title={hasShrink ? t('season.inspectEffectiveStrength') : ''}
                           >
                             ({p.effectiveStrength || p.rating}{hasShrink ? '*' : ''})
                           </span>
@@ -405,7 +405,7 @@ export default function BestOfNArrangementView({
                       )
                     })}
                     <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                      tổng {rB}
+                      {t('season.teamTotal', { n: rB })}
                     </span>
                   </div>
 
@@ -421,11 +421,11 @@ export default function BestOfNArrangementView({
                           textDecoration: 'underline dotted',
                         }}
                       >
-                        * {shrinkedPlayer.name ? shrinkedPlayer.name.split(' ').pop() : ''} đã co về seed
+                        {t('season.shrunkSeed', { name: shrinkedPlayer.name ? shrinkedPlayer.name.split(' ').pop() : '' })}
                       </span>
                     ) : (
                       <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                        {court.h2hSummary || 'chưa từng gặp nhau'}
+                        {court.h2hSummary || t('season.neverPlayed')}
                       </span>
                     )}
 
@@ -442,7 +442,7 @@ export default function BestOfNArrangementView({
                         cursor: 'pointer',
                       }}
                     >
-                      Vì sao?
+                      {t('season.whyBtn')}
                     </button>
                   </div>
                 </div>
@@ -464,11 +464,11 @@ export default function BestOfNArrangementView({
                 }}
               >
                 <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                  Chờ lượt sau · {waitingPlayers.length} người
+                  {t('season.waitingRoster', { n: waitingPlayers.length })}
                 </span>
                 <div style={{ flex: '1 1 0%' }} />
                 <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  sort: chờ lâu nhất trước
+                  {t('season.sortWaitingFirst')}
                 </span>
               </div>
               <div style={{ padding: '11px 13px', display: 'flex', gap: 9, flexWrap: 'wrap' }}>
@@ -491,7 +491,7 @@ export default function BestOfNArrangementView({
                     >
                       {p.name}
                       <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#8494AA', fontWeight: 400 }}>
-                        {p.rating} · chờ {turns} lượt
+                        {p.rating} · {t('season.waitTurns', { n: turns })}
                       </span>
                     </span>
                   )
@@ -515,11 +515,11 @@ export default function BestOfNArrangementView({
             }}
           >
             <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-              Điểm 5 tiêu chí · {currentPlan?.title || 'phương án A'}
+              {t('season.fiveCriteriaTitle', { plan: currentPlan?.title || t('season.planA') })}
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                <span>Cân trình Elo</span>
+                <span>{t('season.critBalance')}</span>
                 <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.ratingBalance || 95}%`, background: '#00B2A9' }} />
                 </span>
@@ -529,7 +529,7 @@ export default function BestOfNArrangementView({
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                <span>Đổi partner</span>
+                <span>{t('season.critPartner')}</span>
                 <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.partnerNovelty || 100}%`, background: '#00B2A9' }} />
                 </span>
@@ -539,7 +539,7 @@ export default function BestOfNArrangementView({
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                <span>Đổi đối thủ</span>
+                <span>{t('season.critOpponent')}</span>
                 <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.opponentNovelty || 82}%`, background: '#1D50A0' }} />
                 </span>
@@ -549,7 +549,7 @@ export default function BestOfNArrangementView({
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                <span>H2H &amp; tỉ số cũ</span>
+                <span>{t('season.critH2H')}</span>
                 <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.h2hHistory || 88}%`, background: '#1D50A0' }} />
                 </span>
@@ -559,7 +559,7 @@ export default function BestOfNArrangementView({
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                <span>Đều lượt chờ</span>
+                <span>{t('season.critWait')}</span>
                 <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.waitFairness || 90}%`, background: '#00B2A9' }} />
                 </span>
@@ -579,14 +579,14 @@ export default function BestOfNArrangementView({
                 color: '#E9EFF7',
               }}
             >
-              <span>Tổng có trọng số</span>
+              <span>{t('season.weightedTotal')}</span>
               <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
                 {currentPlan?.score || 92}
               </span>
             </div>
           </div>
 
-          {/* Card 2: Máy đã dò gì · 80 phương án (Scatter SVG Plot) */}
+          {/* Card 2: {t('season.monteCarloTitle', { n: 80 })} (Scatter SVG Plot) */}
           <div
             style={{
               background: '#141D2E',
@@ -633,7 +633,7 @@ export default function BestOfNArrangementView({
                 A · {planA?.score || 92}
               </text>
               <text x="0" y="116" fill="#8494AA" fontFamily="IBM Plex Mono, monospace" fontSize="10">
-                thứ tự dò →
+                {t('season.searchOrder')}
               </text>
             </svg>
 
@@ -645,7 +645,7 @@ export default function BestOfNArrangementView({
                 paddingTop: 9,
               }}
             >
-              Ngưỡng nét đứt là điểm 90. Ba phương án vượt ngưỡng, máy lấy cái cao nhất và giữ hai cái sau làm lựa chọn thay thế.
+              {t('season.monteCarloSub')}
             </div>
           </div>
 
@@ -661,7 +661,7 @@ export default function BestOfNArrangementView({
             }}
           >
             <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-              Đang bị chặn
+              {t('season.blockedTitle')}
             </div>
             <div style={{ display: 'grid', gap: 7, font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
               {blockedConstraints.length > 0 ? (
@@ -675,11 +675,11 @@ export default function BestOfNArrangementView({
                 <>
                   <div style={{ display: 'flex', gap: 9 }}>
                     <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F1A79D' }}>✕</span>
-                    <span>Cặp cùng trình độ chênh &gt;100 Elo: giữ hai người ở hai đầu sân.</span>
+                    <span>{t('season.blockRuleDiff100')}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 9 }}>
                     <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F1A79D' }}>✕</span>
-                    <span>Nghỉ 1 lượt: người vừa đánh 3 trận liên tiếp được xếp sau.</span>
+                    <span>{t('season.blockRuleRestConsecutive')}</span>
                   </div>
                 </>
               )}
@@ -697,7 +697,7 @@ export default function BestOfNArrangementView({
                 cursor: 'pointer',
               }}
             >
-              Quản lý điều kiện chặn
+              {t('season.manageBlocked')}
             </button>
           </div>
         </div>

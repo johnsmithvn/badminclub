@@ -81,7 +81,7 @@ export default function MemberSeasonLedgerModal({
               {t('season.ledgerTitle', { name: member?.name || '' })}
             </div>
             <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-              {season?.name || 'Mùa 3 · 2026'} · {t('season.rankOf', { rank, total: totalMembers })}
+              {(season?.name ? `${season.name} · ` : '') + t('season.rankOf', { rank, total: totalMembers })}
             </div>
           </div>
           <button
@@ -259,7 +259,7 @@ export default function MemberSeasonLedgerModal({
                 ))
               ) : (
                 <div style={{ padding: '8px 10px', color: '#8494AA', font: "400 12px/1.4 'IBM Plex Sans', sans-serif" }}>
-                  Chưa có trận đấu nào trong mùa này.
+                  {t('season.noMatchesInSeason')}
                 </div>
               )}
             </div>

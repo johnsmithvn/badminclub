@@ -576,14 +576,14 @@ export default function Leaderboard() {
       >
         <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{ font: "600 18px/1.25 Barlow, sans-serif", color: '#fff' }}>
-            {t('leaderboard.title') || 'Bảng xếp hạng'} {/* i18n-ok: header */}
+            {t('leaderboard.title')}
           </div>
           <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
             {activeTab === 'season'
-              ? (t('season.headerSub') || 'Mùa 3 · 2026 — Thu Rực Lửa · 01/07 → 30/09 · còn 23 ngày') // i18n-ok: header sub
+              ? t('season.headerSub')
               : activeTab === 'elo'
-              ? (t('season.eloHeaderSub') || 'Elo career · tích lũy từ 02/2024 · không reset theo mùa') // i18n-ok: header sub
-              : (t('leaderboard.sub') || 'Theo dõi điểm số và xếp hạng CLB')} {/* i18n-ok: header sub */}
+              ? t('season.eloHeaderSub')
+              : t('leaderboard.sub')}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -600,7 +600,7 @@ export default function Leaderboard() {
               cursor: 'pointer',
             }}
           >
-            {t('common.exportCsv') || 'Xuất CSV'} {/* i18n-ok: export button */}
+            {t('common.exportCsv')}
           </button>
           <button
             type="button"
@@ -615,7 +615,7 @@ export default function Leaderboard() {
               cursor: 'pointer',
             }}
           >
-            {t('season.settingsBtn') || 'Cài đặt mùa'} {/* i18n-ok: settings button */}
+            {t('season.settingsBtn')}
           </button>
         </div>
       </div>
@@ -633,7 +633,7 @@ export default function Leaderboard() {
                 : {}),
             }}
           >
-            Đua Top Mùa Giải {/* i18n-ok: tab label */}
+            {t('season.raceTab')}
           </button>
           <button
             type="button"
@@ -645,14 +645,14 @@ export default function Leaderboard() {
                 : {}),
             }}
           >
-            Bảng Đẳng Cấp Elo {/* i18n-ok: tab label */}
+            {t('season.careerEloTab')}
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('matrix')}
             style={{ ...S.tabBtn, ...(activeTab === 'matrix' ? S.tabBtnActive : {}) }}
           >
-            {t('leaderboard.tabMatrix') || 'Đối đầu'} {/* i18n-ok: tab label */}
+            {t('leaderboard.tabMatrix')}
           </button>
           <button
             type="button"
@@ -1777,7 +1777,7 @@ export default function Leaderboard() {
         <QuadrantMapModal
           leaderboardRows={seasonLeaderboardData?.leaderboard || []}
           medianElo={1596}
-          seasonName={cfg.season?.name || 'Mùa 3'} // i18n-ok: default season name
+          seasonName={cfg.season?.name || ''}
           onClose={() => setQuadrantModalOpen(false)}
           onSelectMember={(m) => {
             setQuadrantModalOpen(false)

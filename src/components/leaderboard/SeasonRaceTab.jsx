@@ -91,10 +91,7 @@ export default function SeasonRaceTab({
             }}
           >
             <span>{season?.startDate?.slice(5) || '01/07'}</span>
-            <span>
-              {remainingSessions} {t('season.remainingSessions')} — {t('season.maxPoints')}{' '}
-              +{maxPossiblePts || 190} pts
-            </span>
+            <span>{t('season.remainingSessionDesc', { n: remainingSessions, pts: maxPossiblePts || 190 })}</span>
             <span>{season?.endDate?.slice(5) || '30/09'}</span>
           </div>
         </div>
@@ -463,8 +460,8 @@ export default function SeasonRaceTab({
             <polyline points="8,106 60,70 112,70 164,34 216,34 268,34 318,34" fill="none" stroke="#F0D26A" strokeWidth="2.5" />
             <polyline points="8,34 60,34 112,34 164,70 216,70 268,70 318,70" fill="none" stroke="#7AA3DC" strokeWidth="2.5" />
             <polyline points="8,70 60,106 112,106 164,106 216,106 268,106 318,106" fill="none" stroke="#00B2A9" strokeWidth="2.5" />
-            <text x="0" y="128" fill="#8494AA" fontFamily="IBM Plex Mono, monospace" fontSize="10">buổi 5</text>
-            <text x="278" y="128" fill="#8494AA" fontFamily="IBM Plex Mono, monospace" fontSize="10">buổi 11</text>
+            <text x="0" y="128" fill="#8494AA" fontFamily="IBM Plex Mono, monospace" fontSize="10">{t('season.sessionN', { n: 5 })}</text>
+            <text x="278" y="128" fill="#8494AA" fontFamily="IBM Plex Mono, monospace" fontSize="10">{t('season.sessionN', { n: 11 })}</text>
           </svg>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -539,7 +536,7 @@ export default function SeasonRaceTab({
               <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#5FDBD3' }}>
                 📊 {t('season.openQuadrantMap')}
               </span>
-              <span style={{ font: "400 11px 'IBM Plex Mono', monospace", color: '#8494AA' }}>Elo × Điểm mùa</span>
+              <span style={{ font: "400 11px 'IBM Plex Mono', monospace", color: '#8494AA' }}>{t('season.quadrantMapSub')}</span>
             </div>
             <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
               {t('season.quadrantMapHint')}

@@ -4,7 +4,7 @@ import { t } from '#i18n'
 export default function QuadrantMapModal({
   leaderboardRows = [],
   medianElo = 1596,
-  seasonName = 'Mùa 3',
+  seasonName = '',
   onClose,
   onSelectMember,
 }) {
@@ -234,7 +234,7 @@ export default function QuadrantMapModal({
                   cursor: 'pointer',
                   zIndex: 10,
                 }}
-                title={`${p.name}: Elo ${p.displayRating || p.rating}, Điểm mùa ${p.totalSeasonPoints}`}
+                title={`${p.name}: Elo ${p.displayRating || p.rating}, ${t('season.colPoints')} ${p.totalSeasonPoints}`}
               >
                 <span
                   style={{
@@ -270,7 +270,7 @@ export default function QuadrantMapModal({
               color: '#64748B',
             }}
           >
-            Elo {medianElo} (trung vị)
+            Elo {medianElo} ({t('season.medianLabel')})
           </div>
         </div>
 

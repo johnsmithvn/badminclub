@@ -462,7 +462,7 @@ export default function CourtAssignmentTab({ s }) {
               cursor: 'pointer',
             }}
           >
-            Best-of-N thông minh (80 phương án)
+            {t('season.bestOfNMode')}
           </button>
           <button
             type="button"
@@ -477,7 +477,7 @@ export default function CourtAssignmentTab({ s }) {
               cursor: 'pointer',
             }}
           >
-            Ghi điểm từng sân
+            {t('season.scorePerCourtMode')}
           </button>
         </div>
       </div>
