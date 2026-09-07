@@ -15,6 +15,13 @@ import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MemberProfileTab from '#components/profile/MemberProfileTab.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
+import SeasonRaceTab from '#components/leaderboard/SeasonRaceTab.jsx'
+import CareerEloTab from '#components/leaderboard/CareerEloTab.jsx'
+import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerModal.jsx'
+import QuadrantMapModal from '#components/leaderboard/QuadrantMapModal.jsx'
+import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
+import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
+import { calculateSeasonLeaderboard } from '#lib/xp.js'
 
 /**
  * Trợ thủ ghép màu kèm độ trong suốt (alpha).
@@ -58,9 +65,42 @@ export default function Leaderboard() {
   const [initialTeamA, setInitialTeamA] = useState([])
   const [initialTeamB, setInitialTeamB] = useState([])
 
+  // State cho Hệ 3 tầng (Season & Elo & Matchmaking)
+  const [ledgerMemberId, setLedgerMemberId] = useState(null)
+  const [quadrantModalOpen, setQuadrantModalOpen] = useState(false)
+  const [effectiveStrengthPlayer, setEffectiveStrengthPlayer] = useState(null)
+  const [seasonSettingsOpen, setSeasonSettingsOpen] = useState(false)
+
   const activeMembers = useMemo(() => {
     return (db.members || []).filter((m) => m.active !== false)
   }, [db.members])
+
+  const seasonLeaderboardData = useMemo(() => {
+    return calculateSeasonLeaderboard(db, cfg.season)
+  }, [db])
+
+  const handleExportCsv = () => {
+    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
+    if (activeTab === 'season') {
+      csvContent += 'Thứ hạng,Thành viên,Điểm mùa,Số buổi,Số trận,Thắng,Upset\n' // i18n-ok: csv header
+      const rows = seasonLeaderboardData?.leaderboard || []
+      rows.forEach((r) => {
+        csvContent += `"${r.rank}","${r.name}","${r.totalSeasonPoints}","${r.breakdown?.sessionsCount || 0}","${r.breakdown?.matchesCount || 0}","${r.breakdown?.winsCount || 0}","${r.breakdown?.upsetsCount || 0}"\n`
+      })
+    } else {
+      csvContent += 'Thứ hạng,Thành viên,Elo,Số trận,Độ tin cậy,Thắng %,30 ngày\n' // i18n-ok: csv header
+      leaderboardData.forEach((r) => {
+        csvContent += `"${r.rank}","${r.name}","${r.rating}","${r.gamesCount}","${r.confidence}","${r.winRate}%","${r.delta30Days || 0}"\n`
+      })
+    }
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `badminclub_${activeTab}_leaderboard.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   const memberMap = useMemo(() => {
     const map = {}
@@ -520,22 +560,99 @@ export default function Leaderboard() {
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      {/* ---------------- Header & Thanh công cụ (Handoff SS1/SS2) ---------------- */}
+      <div
+        style={{
+          padding: '14px 20px',
+          background: '#0B1220',
+          border: '1px solid #22304A',
+          borderRadius: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 14,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ font: "600 18px/1.25 Barlow, sans-serif", color: '#fff' }}>
+            {t('leaderboard.title') || 'Bảng xếp hạng'} {/* i18n-ok: header */}
+          </div>
+          <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+            {activeTab === 'season'
+              ? (t('season.headerSub') || 'Mùa 3 · 2026 — Thu Rực Lửa · 01/07 → 30/09 · còn 23 ngày') // i18n-ok: header sub
+              : activeTab === 'elo'
+              ? (t('season.eloHeaderSub') || 'Elo career · tích lũy từ 02/2024 · không reset theo mùa') // i18n-ok: header sub
+              : (t('leaderboard.sub') || 'Theo dõi điểm số và xếp hạng CLB')} {/* i18n-ok: header sub */}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '9px 14px',
+              borderRadius: 6,
+              background: '#1A2437',
+              border: '1px solid #2E3E5C',
+              color: '#E9EFF7',
+              cursor: 'pointer',
+            }}
+          >
+            {t('common.exportCsv') || 'Xuất CSV'} {/* i18n-ok: export button */}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSeasonSettingsOpen(true)}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '9px 14px',
+              borderRadius: 6,
+              background: '#1A2437',
+              border: '1px solid #2E3E5C',
+              color: '#E9EFF7',
+              cursor: 'pointer',
+            }}
+          >
+            {t('season.settingsBtn') || 'Cài đặt mùa'} {/* i18n-ok: settings button */}
+          </button>
+        </div>
+      </div>
+
       {/* ---------------- 1. Tab Bar chính của Leaderboard ---------------- */}
       <TabTrack style={{ marginBottom: 4 }}>
         <div style={S.tabTrack}>
           <button
             type="button"
             onClick={() => setActiveTab('season')}
-            style={{ ...S.tabBtn, ...(activeTab === 'season' ? S.tabBtnActive : {}) }}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'season'
+                ? { ...S.tabBtnActive, background: '#00B2A9', color: '#04302C', fontWeight: 700 }
+                : {}),
+            }}
           >
-            {t('leaderboard.tabSeason', { year: yearFilter })}
+            Đua Top Mùa Giải {/* i18n-ok: tab label */}
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('chart')}
-            style={{ ...S.tabBtn, ...(activeTab === 'chart' ? S.tabBtnActive : {}) }}
+            onClick={() => setActiveTab('elo')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'elo'
+                ? { ...S.tabBtnActive, background: '#1D50A0', color: '#fff', fontWeight: 700 }
+                : {}),
+            }}
           >
-            {t('leaderboard.tabChart')}
+            Bảng Đẳng Cấp Elo {/* i18n-ok: tab label */}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('matrix')}
+            style={{ ...S.tabBtn, ...(activeTab === 'matrix' ? S.tabBtnActive : {}) }}
+          >
+            {t('leaderboard.tabMatrix') || 'Đối đầu'} {/* i18n-ok: tab label */}
           </button>
           <button
             type="button"
@@ -546,740 +663,42 @@ export default function Leaderboard() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('matrix')}
-            style={{ ...S.tabBtn, ...(activeTab === 'matrix' ? S.tabBtnActive : {}) }}
-          >
-            {t('leaderboard.tabMatrix')}
-          </button>
-          <button
-            type="button"
             onClick={() => setActiveTab('cross')}
             style={{ ...S.tabBtn, ...(activeTab === 'cross' ? S.tabBtnActive : {}) }}
           >
             {t('leaderboard.tabCross')}
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('chart')}
+            style={{ ...S.tabBtn, ...(activeTab === 'chart' ? S.tabBtnActive : {}) }}
+          >
+            {t('leaderboard.tabChart')}
+          </button>
         </div>
       </TabTrack>
 
-      {/* ---------------- TAB 1: Bảng xếp hạng Mùa giải ---------------- */}
+      {/* ---------------- TAB 1: Đua Top Mùa Giải (Screen SS1) ---------------- */}
       {activeTab === 'season' && (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {/* 4 StatCards Mùa giải với Typography Barlow 28px */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-            <div style={S.statCardBox}>
-              <span style={S.statCardLabel}>{t('leaderboard.statCurrentSeason')}</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: 'var(--status-transit-fg)' }}>2026 Q3</span>
-              </div>
-              <span style={S.statCardSub}>{t('leaderboard.statSeasonRange')}</span>
-            </div>
-            <div style={S.statCardBox}>
-              <span style={S.statCardLabel}>{t('leaderboard.statTotalMatches')}</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: 'var(--text-primary)' }}>{seasonStats.totalMatches || 284}</span>
-                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>{t('units.match')}</span>
-              </div>
-              <span style={S.statCardSub}>{t('leaderboard.statMatchesDesc')}</span>
-            </div>
-            <div style={S.statCardBox}>
-              <span style={S.statCardLabel}>{t('leaderboard.statRatedPlayers')}</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: 'var(--text-primary)' }}>{seasonStats.ratedPlayersCount || 31}</span>
-                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>{t('units.person')}</span>
-              </div>
-              <span style={S.statCardSub}>{t('leaderboard.statPlayersDesc')}</span>
-            </div>
-            <div style={S.statCardBox}>
-              <span style={S.statCardLabel}>{t('leaderboard.statUpsetMatches')}</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 28px/1.05 Barlow, sans-serif', color: 'var(--status-incident-fg)' }}>{seasonStats.upsetMatchesCount || 19}</span>
-                <span style={{ font: '400 13px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>{t('units.match')}</span>
-              </div>
-              <span style={S.statCardSub}>{t('leaderboard.statUpsetDesc')}</span>
-            </div>
-          </div>
+        <SeasonRaceTab
+          seasonLeaderboardData={seasonLeaderboardData}
+          onOpenLedger={(m) => setLedgerMemberId(m.id)}
+          onOpenQuadrantMap={() => setQuadrantModalOpen(true)}
+          isMobile={isMobile}
+        />
+      )}
 
-          {/* Bố cục 2 Cột chuẩn Handoff D4: Bảng xếp hạng bên trái (minmax 1fr) và 3 Card vệ tinh bên phải (380px) */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px',
-            gap: 16,
-            alignItems: 'start',
-          }}>
-            {/* Cột trái: Card Bảng xếp hạng */}
-            <div style={S.card}>
-              {/* Header & Bộ lọc */}
-              <div style={S.cardHead}>
-                <div style={{ flex: 1, minWidth: 200, display: 'grid', gap: 2 }}>
-                  <div style={S.cardTitle}>{t('leaderboard.title')} · {t('leaderboard.season', { year: yearFilter })}</div>
-                  <div style={S.cardSub}>{t('leaderboard.sub')}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
-                  {/* Switcher Thành viên / Cả khách (Screen 06) */}
-                  <div style={{ display: 'flex', padding: 2, borderRadius: 6, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-                    <button
-                      type="button"
-                      onClick={() => setGuestFilter('members')}
-                      style={{
-                        padding: '4px 10px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        borderRadius: 4,
-                        background: guestFilter === 'members' ? 'var(--surface-card)' : 'transparent',
-                        boxShadow: guestFilter === 'members' ? '0 1px 2px rgba(0,0,0,.25)' : 'none',
-                        font: '600 12px/1 "IBM Plex Sans", sans-serif',
-                        color: guestFilter === 'members' ? 'var(--text-primary)' : 'var(--text-muted)',
-                      }}
-                    >
-                      {t('leaderboard.tabMembers')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setGuestFilter('all')}
-                      style={{
-                        padding: '4px 10px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        borderRadius: 4,
-                        background: guestFilter === 'all' ? 'var(--surface-card)' : 'transparent',
-                        boxShadow: guestFilter === 'all' ? '0 1px 2px rgba(0,0,0,.25)' : 'none',
-                        font: '600 12px/1 "IBM Plex Sans", sans-serif',
-                        color: guestFilter === 'all' ? 'var(--text-primary)' : 'var(--text-muted)',
-                      }}
-                    >
-                      {t('leaderboard.tabAllWithGuests')}
-                    </button>
-                  </div>
-
-                  <Select
-                    size="sm"
-                    value={rankTheme}
-                    onChange={(e) => setRankTheme(e.target.value)}
-                    options={RANK_THEMES.map((th) => ({
-                      value: th.key,
-                      label: th.label,
-                    }))}
-                    style={{ width: isMobile ? '100%' : 165 }}
-                    title={t('leaderboard.themeHint')}
-                  />
-                  <Select
-                    size="sm"
-                    value={activeFilter}
-                    onChange={(e) => setActiveFilter(e.target.value)}
-                    options={[
-                      { value: 'all', label: t('leaderboard.filterAll') },
-                      { value: 'active', label: t('leaderboard.filterActiveOnly') },
-                    ]}
-                    style={{ width: isMobile ? '100%' : 140 }}
-                  />
-                  <Input
-                    size="sm"
-                    placeholder={t('leaderboard.searchPlaceholder')}
-                    value={searchName}
-                    onChange={(e) => setSearchName(e.target.value)}
-                    style={{ width: isMobile ? '100%' : 150 }}
-                  />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      a.confirm({
-                        title: t('leaderboard.recalcConfirmTitle'),
-                        message: t('leaderboard.recalcConfirmMsg'),
-                        tone: 'warning',
-                        confirmText: t('leaderboard.btnRecalc'),
-                        onConfirm: () => a.recalcAllRatings(),
-                      })
-                    }}
-                    title={t('leaderboard.recalcHint')}
-                    style={{ whiteSpace: 'nowrap' }}
-                  >
-                    <Icon name="rotate-ccw" size={13} />
-                    {!isMobile && <span>{t('leaderboard.btnRecalc')}</span>}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Render danh sách thẻ trên mobile hoặc bảng 7 cột chuẩn Handoff trên desktop */}
-              {isMobile ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
-                  {leaderboardData.map((row) => {
-                    const isRank1 = row.rank === 1
-                    const rankColor = isRank1 ? '#5FDBD3' : row.rank <= 3 ? 'var(--status-transit-fg)' : 'var(--text-muted)'
-
-                    return (
-                      <div
-                        key={row.id}
-                        style={{
-                          background: row.isGuest ? 'var(--surface-sunken)' : isRank1 ? 'rgba(0, 178, 169, 0.14)' : 'var(--surface-card)',
-                          border: row.isGuest ? '1px dashed var(--border-default)' : isRank1 ? '1px solid #00786F' : '1px solid var(--border-subtle)',
-                          borderRadius: 'var(--radius-card)',
-                          padding: '12px 14px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 8,
-                        }}
-                      >
-                        {/* Tầng 1: Hạng + Tên + Rating */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                            <span style={{ font: '700 16px/1 Barlow, sans-serif', color: rankColor, width: 28, flexShrink: 0 }}>
-                              {row.isGuest ? '—' : `#${row.rank}`}
-                            </span>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
-                                <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: row.isGuest ? '#A8B7CB' : 'var(--text-primary)' }}>
-                                  {row.name}
-                                </span>
-                                {row.isGuest ? (
-                                  <span style={{
-                                    font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                                    padding: '2px 7px',
-                                    borderRadius: 999,
-                                    background: 'rgba(224,138,0,.18)',
-                                    color: '#F0B75C',
-                                  }}>
-                                    {t('leaderboard.guestTag')}
-                                  </span>
-                                ) : (
-                                  <span style={{
-                                    font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                                    padding: '3px 7px',
-                                    borderRadius: 999,
-                                    background: 'var(--status-delivered-bg)',
-                                    color: 'var(--status-delivered-fg)',
-                                    whiteSpace: 'nowrap',
-                                  }}>
-                                    {row.level || '-'}
-                                  </span>
-                                )}
-                              </div>
-                              <span style={{ font: '400 11.5px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                                {row.isGuest
-                                  ? t('leaderboard.guestMatchesMeta', { n: row.gamesCount })
-                                  : t('leaderboard.memberMatchesMeta', { n: row.gamesCount, winRate: row.winRate })}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <span style={{ font: '700 18px/1 Barlow, sans-serif', color: isRank1 ? '#5FDBD3' : 'var(--text-primary)' }}>
-                              {row.displayRating}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Tầng 2: Tier badge, Thắng/thua, Winrate, Form */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <span style={{
-                              width: 20,
-                              height: 20,
-                              borderRadius: 4,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: alphaColor(row.tier.color, '1E', 12),
-                              border: `1px solid ${alphaColor(row.tier.color, '66', 40)}`,
-                              color: row.tier.color,
-                              flexShrink: 0,
-                            }}>
-                              <Icon name={row.tier.icon} size={11} />
-                            </span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: row.tier.color }}>
-                              {row.tier.label}
-                            </span>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span style={{ font: '500 12px/1 "IBM Plex Mono", monospace', color: 'var(--text-secondary)' }}>
-                              {row.wins}W–{row.losses}L ({row.winRate}%)
-                            </span>
-                            {row.form.length > 0 && (
-                              <div style={{ display: 'flex', gap: 3 }}>
-                                {row.form.map((res, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      width: 16,
-                                      height: 16,
-                                      borderRadius: 999,
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: 9,
-                                      fontWeight: 700,
-                                      background: res === 'W' ? 'var(--status-delivered-bg)' : 'var(--status-incident-bg)',
-                                      color: res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
-                                      border: `1px solid ${res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)'}`,
-                                    }}
-                                  >
-                                    {res}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div style={{ overflowX: 'auto', width: '100%' }}>
-                  <div style={{ minWidth: 740 }}>
-                    {/* Header Bảng */}
-                    <div style={S.seasonTableHead}>
-                      <div style={S.thCell}>{t('leaderboard.rank')}</div>
-                      <div style={S.thCell}>{t('leaderboard.player')}</div>
-                      <div style={S.thCell}>{t('leaderboard.tierCol')}</div>
-                      <div style={{ ...S.thCell, justifyContent: 'flex-end' }}>{t('rating.elo')}</div>
-                      <div style={S.thCell}>{t('rating.confidence.label')}</div>
-                      <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('leaderboard.winLoss')}</div>
-                      <div style={{ ...S.thCell, justifyContent: 'flex-end' }}>{t('leaderboard.winRate')}</div>
-                      <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('leaderboard.recentForm')}</div>
-                    </div>
-
-                    {/* Danh sách thành viên */}
-                    <div style={{ display: 'grid' }}>
-                      {leaderboardData.map((row) => {
-                        const isRank1 = row.rank === 1
-                        const rankColor = isRank1 ? 'var(--podium-gold)' : row.rank === 2 ? 'var(--podium-silver)' : row.rank === 3 ? 'var(--podium-bronze)' : 'var(--text-muted)'
-                        const confLabel = t('rating.confidence.' + (row.confidence || 'low'))
-                        const confPct = row.confidence === 'very_high' ? 100 : row.confidence === 'high' ? 75 : row.confidence === 'medium' ? 50 : 25
-
-                        const rowBg = row.isGuest
-                          ? 'var(--surface-sunken)'
-                          : isRank1
-                            ? 'rgba(0, 178, 169, 0.10)'
-                            : 'transparent'
-                        const rowBorder = row.isGuest
-                          ? '1px dashed var(--border-default)'
-                          : isRank1
-                            ? '1px solid #00786F'
-                            : '1px solid var(--border-subtle)'
-
-                        return (
-                          <div
-                            key={row.id}
-                            style={{
-                              ...S.seasonTableRow,
-                              background: rowBg,
-                              borderBottom: rowBorder,
-                            }}
-                          >
-                            {/* Cột Hạng */}
-                            <div style={S.tdCell}>
-                              <span style={{ font: '700 16px/1 Barlow, sans-serif', color: isRank1 ? '#5FDBD3' : rankColor }}>
-                                {row.isGuest ? '—' : `#${row.rank}`}
-                              </span>
-                            </div>
-
-                            {/* Cột Tên & Trình độ */}
-                            <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: row.isGuest ? '#A8B7CB' : 'var(--text-primary)' }}>
-                                {row.name}
-                              </span>
-                              {row.isGuest ? (
-                                <span
-                                  style={{
-                                    font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                                    padding: '2px 7px',
-                                    borderRadius: 999,
-                                    background: 'rgba(224,138,0,.18)',
-                                    color: '#F0B75C',
-                                  }}
-                                >
-                                  {t('leaderboard.guestTag')}
-                                </span>
-                              ) : (
-                                <>
-                                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>({row.gender})</span>
-                                  <LevelChip level={row.level} levels={db.levels} />
-                                  {row.isInactive && (
-                                    <span
-                                      style={{
-                                        fontSize: 10,
-                                        padding: '2px 6px',
-                                        borderRadius: 4,
-                                        background: 'var(--amber-950)',
-                                        color: 'var(--status-delayed-fg)',
-                                        border: '1px solid var(--amber-700)',
-                                      }}
-                                      title={t('rating.inactivity.days', { n: row.daysInactive })}
-                                    >
-                                      {t('leaderboard.inactiveBadge')}
-                                    </span>
-                                  )}
-                                </>
-                              )}
-                            </div>
-
-                            {/* Cột Cấp bậc Rank */}
-                            <div style={S.tdCell}>
-                              <div
-                                style={{ display: 'flex', alignItems: 'center', gap: 7 }}
-                                title={rankTheme === 'comedy' ? row.tier.quip : undefined}
-                              >
-                                <span style={{
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: 5,
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  background: alphaColor(row.tier.color, '1E', 12),
-                                  border: `1px solid ${alphaColor(row.tier.color, '66', 40)}`,
-                                  color: row.tier.color,
-                                  boxShadow: `0 0 8px ${alphaColor(row.tier.color, '25', 15)}`,
-                                  flexShrink: 0,
-                                }}>
-                                  <Icon name={row.tier.icon} size={12} />
-                                </span>
-                                <span style={{ fontSize: 12.5, fontWeight: 600, color: row.tier.color }}>
-                                  {row.tier.label}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Cột Elo */}
-                            <div style={{ ...S.tdCell, textAlign: 'right' }}>
-                              <span style={{ font: '700 15px/1 "IBM Plex Mono", monospace', color: isRank1 ? '#5FDBD3' : 'var(--status-transit-fg)' }}>
-                                {row.displayRating}
-                              </span>
-                            </div>
-
-                            {/* Cột Độ tin cậy */}
-                            <div style={S.tdCell}>
-                              <div style={{ display: 'grid', gap: 3, maxWidth: 100 }}>
-                                <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}>{confLabel}</span>
-                                <div style={{ height: 4, borderRadius: 999, background: 'var(--surface-page)', overflow: 'hidden' }}>
-                                  <div style={{ width: `${confPct}%`, height: '100%', background: 'var(--teal-500)' }} />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Cột Thắng - Thua */}
-                            <div style={{ ...S.tdCell, textAlign: 'center' }}>
-                              <span style={{ font: '500 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-primary)' }}>
-                                {row.wins} – {row.losses}
-                              </span>
-                            </div>
-
-                            {/* Cột Tỷ lệ thắng */}
-                            <div style={{ ...S.tdCell, textAlign: 'right' }}>
-                              <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: row.winRate >= 60 ? 'var(--status-delivered-fg)' : 'var(--text-primary)' }}>
-                                {row.winRate}%
-                              </span>
-                            </div>
-
-                            {/* Cột Phong độ Form W/L */}
-                            <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 4 }}>
-                              {row.form.length > 0 ? (
-                                row.form.map((res, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      width: 18,
-                                      height: 18,
-                                      borderRadius: 999,
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: 10,
-                                      fontWeight: 700,
-                                      background: res === 'W' ? 'var(--status-delivered-bg)' : 'var(--status-incident-bg)',
-                                      color: res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
-                                      border: `1px solid ${res === 'W' ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)'}`,
-                                    }}
-                                  >
-                                    {res}
-                                  </span>
-                                ))
-                              ) : (
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-
-                      {leaderboardData.length === 0 && (
-                        <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                          {t('leaderboard.empty')}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Card Cách đọc bảng này */}
-              <div
-                style={{
-                  marginTop: 14,
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 10,
-                  boxShadow: 'var(--shadow-xs)',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                }}
-              >
-                <span
-                  style={{
-                    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  {t('leaderboard.howToReadTitle')}
-                </span>
-                <div style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
-                  {t('leaderboard.howToReadDesc')}
-                </div>
-              </div>
-            </div>
-
-            {/* Cột phải: 3 Card vệ tinh chuẩn Handoff D4 */}
-            <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
-              {/* Card 1: Đang bị treo thưởng (Bounty) */}
-              <div style={S.card}>
-                <div style={{ ...S.cardHead, padding: '12px 14px' }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={S.cardTitle}>{t('challenge.bountyTarget')}</div>
-                    <div style={S.cardSub}>
-                      {seasonStats.bountyPlayer
-                        ? t('challenge.bountyStreak', { n: seasonStats.bountyPlayer.streak })
-                        : t('challenge.bountyRule')}
-                    </div>
-                  </div>
-                  <span style={{
-                    font: '700 10px/1 "IBM Plex Sans", sans-serif',
-                    padding: '4px 8px',
-                    borderRadius: 999,
-                    background: 'var(--status-delayed-bg)',
-                    color: 'var(--status-delayed-fg)',
-                    border: '1px solid var(--border-subtle)',
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                  }}>
-                    {t('challenge.bounty')}
-                  </span>
-                </div>
-                <div style={{ padding: 14, display: 'grid', gap: 12 }}>
-                  {!seasonStats.bountyPlayer ? (
-                    <div style={{
-                      padding: '16px 12px',
-                      borderRadius: 8,
-                      background: 'var(--surface-inset)',
-                      border: '1px solid var(--border-subtle)',
-                      fontSize: 12.5,
-                      lineHeight: 1.5,
-                      color: 'var(--text-muted)',
-                      textAlign: 'center',
-                    }}>
-                      {t('challenge.noBountyActive')}
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ font: '700 16px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                            {seasonStats.bountyPlayer.name}
-                          </span>
-                          <span style={{
-                            font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                            padding: '3px 7px',
-                            borderRadius: 999,
-                            background: 'var(--status-delivered-bg)',
-                            color: 'var(--status-delivered-fg)',
-                          }}>
-                            {seasonStats.bountyPlayer.level || '-'}
-                          </span>
-                        </div>
-                        <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--status-transit-fg)' }}>
-                          {seasonStats.bountyPlayer.displayRating}
-                        </span>
-                      </div>
-
-                      <div style={{
-                        padding: '10px 12px',
-                        borderRadius: 8,
-                        background: 'var(--status-delayed-bg)',
-                        border: '1px solid var(--border-subtle)',
-                        fontSize: 12,
-                        lineHeight: 1.45,
-                        color: 'var(--status-delayed-fg)',
-                      }}>
-                        {t('leaderboard.bountyRewardNote')}
-                      </div>
-
-                      <Button
-                        variant="primary"
-                        block
-                        icon="target"
-                        onClick={() => {
-                          setInitialTeamA([])
-                          setInitialTeamB([seasonStats.bountyPlayer.id])
-                          setChallengeModalOpen(true)
-                        }}
-                      >
-                        {t('challenge.btnBounty')}
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 2: Biến động Elo gần đây */}
-              <div style={S.card}>
-                <div style={{ ...S.cardHead, padding: '12px 14px' }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={S.cardTitle}>{t('leaderboard.topChangesTitle')}</div>
-                    <div style={S.cardSub}>{t('leaderboard.topChangesSub')}</div>
-                  </div>
-                  <span style={{
-                    font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                    padding: '4px 8px',
-                    borderRadius: 999,
-                    background: 'var(--surface-inset)',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    textTransform: 'uppercase',
-                  }}>
-                    {t('leaderboard.membersOnly')}
-                  </span>
-                </div>
-                <div style={{ padding: '8px 14px 14px', display: 'grid', gap: 10 }}>
-                  {topRatingChanges.length === 0 ? (
-                    <div style={{
-                      padding: '16px 12px',
-                      borderRadius: 8,
-                      background: 'var(--surface-inset)',
-                      border: '1px solid var(--border-subtle)',
-                      fontSize: 12.5,
-                      lineHeight: 1.5,
-                      color: 'var(--text-muted)',
-                      textAlign: 'center',
-                    }}>
-                      {t('leaderboard.noRecentChanges')}
-                    </div>
-                  ) : (
-                    topRatingChanges.map((item, idx) => (
-                      <div
-                        key={item.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 8,
-                          paddingBottom: idx < topRatingChanges.length - 1 ? 8 : 0,
-                          borderBottom: idx < topRatingChanges.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                        }}
-                      >
-                        <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                              {item.name}
-                            </span>
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                              ({item.gender})
-                            </span>
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {t('leaderboard.changeSummary', { wins: item.wins, losses: item.losses, matches: item.matches })}
-                          </span>
-                        </div>
-                        <span style={{
-                          font: '700 15px/1 "IBM Plex Mono", monospace',
-                          color: item.delta >= 0 ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
-                          flexShrink: 0,
-                        }}>
-                          {item.delta >= 0 ? `+${item.delta}` : item.delta}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Card 3: Thành tựu mới trong mùa */}
-              <div style={S.card}>
-                <div style={{ ...S.cardHead, padding: '12px 14px' }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={S.cardTitle}>{t('leaderboard.achievementsTitle')}</div>
-                    <div style={S.cardSub}>{`${recentSeasonAchievements.length} ${t('leaderboard.achievementsSub')}`}</div>
-                  </div>
-                  <Icon name="award" size={16} color="var(--status-delayed-fg)" />
-                </div>
-                <div style={{ padding: '8px 14px 14px', display: 'grid', gap: 8 }}>
-                  {recentSeasonAchievements.length === 0 ? (
-                    <div style={{
-                      padding: '16px 12px',
-                      borderRadius: 8,
-                      background: 'var(--surface-inset)',
-                      border: '1px solid var(--border-subtle)',
-                      fontSize: 12.5,
-                      lineHeight: 1.5,
-                      color: 'var(--text-muted)',
-                      textAlign: 'center',
-                    }}>
-                      {t('leaderboard.noRecentAchievements')}
-                    </div>
-                  ) : (
-                    recentSeasonAchievements.map((ach, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          padding: '8px 10px',
-                          borderRadius: 6,
-                          background: 'var(--surface-inset)',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
-                        <span style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 999,
-                          background: 'var(--status-delayed-bg)',
-                          color: 'var(--status-delayed-fg)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}>
-                          <Icon name="award" size={14} />
-                        </span>
-                        <div style={{ display: 'grid', gap: 2, minWidth: 0, flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                            <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                              {ach.title}
-                            </span>
-                            {ach.date && (
-                              <span style={{ font: '400 11px "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                                {ach.date}
-                              </span>
-                            )}
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            {ach.name}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* ---------------- TAB 2: Bảng Đẳng Cấp Elo (Screen SS2) ---------------- */}
+      {activeTab === 'elo' && (
+        <CareerEloTab
+          db={db}
+          members={activeMembers}
+          playerRatings={db.playerRatings}
+          matches={db.matches || []}
+          levels={db.levels}
+          onOpenEffectiveStrengthModal={(player) => setEffectiveStrengthPlayer(player)}
+          isMobile={isMobile}
+        />
       )}
 
       {/* ---------------- TAB 2: Thành tích & Đối đầu & XP (Screens 04, 05, 07) ---------------- */}
@@ -2336,6 +1755,54 @@ export default function Leaderboard() {
           onCreated={() => setChallengeModalOpen(false)}
           initialTeamA={initialTeamA}
           initialTeamB={initialTeamB}
+        />
+      )}
+
+      {/* Sổ điểm chi tiết mùa giải VĐV (Screen SS3) */}
+      {ledgerMemberId && (
+        <MemberSeasonLedgerModal
+          memberId={ledgerMemberId}
+          db={db}
+          seasonConfig={cfg.season}
+          onClose={() => setLedgerMemberId(null)}
+          onViewCareerElo={() => {
+            setLedgerMemberId(null)
+            setActiveTab('elo')
+          }}
+        />
+      )}
+
+      {/* Bản đồ 4 góc CLB (Screen SS4) */}
+      {quadrantModalOpen && (
+        <QuadrantMapModal
+          leaderboardRows={seasonLeaderboardData?.leaderboard || []}
+          medianElo={1596}
+          seasonName={cfg.season?.name || 'Mùa 3'} // i18n-ok: default season name
+          onClose={() => setQuadrantModalOpen(false)}
+          onSelectMember={(m) => {
+            setQuadrantModalOpen(false)
+            setLedgerMemberId(m.id)
+          }}
+        />
+      )}
+
+      {/* Modal Thẩm định / Effective Strength (Screen CE3) */}
+      {effectiveStrengthPlayer && (
+        <EffectiveStrengthModal
+          player={effectiveStrengthPlayer}
+          onClose={() => setEffectiveStrengthPlayer(null)}
+        />
+      )}
+
+      {/* Modal Cài đặt Mùa giải & Chốt mùa (Screen CE4) */}
+      {seasonSettingsOpen && (
+        <SeasonSettingsModal
+          season={db.settings?.season || cfg.season}
+          onClose={() => setSeasonSettingsOpen(false)}
+          onSaveSeason={(newSeason) => {
+            a.setSeasonConfig?.(newSeason)
+            setSeasonSettingsOpen(false)
+          }}
         />
       )}
     </div>

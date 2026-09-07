@@ -1,0 +1,1032 @@
+    <div style="font:700 34px/1.1 Barlow, sans-serif;letter-spacing:-0.02em">Hệ 3 tầng · Career Elo · Season Points · Effective Strength</div>
+    <div style="font:400 13px/1.4 'IBM Plex Mono', monospace;color:#8494AA">/bang-xep-hang · /chia-san · /cai-dat · desktop 1440</div>
+  </div>
+  <div style="max-width:900px;font:400 15px/1.6 'IBM Plex Sans', sans-serif;color:#A8B7CB">Một kết quả trận chảy vào hai tầng riêng biệt: <span style="color:#E9EFF7">Career Elo</span> tích lũy vĩnh viễn và <span style="color:#E9EFF7">Season Points</span> reset mỗi quý. Tầng thứ ba, <span style="color:#E9EFF7">Effective Strength</span>, chỉ tồn tại lúc xếp sân — nó co Elo của người ít trận về seed để máy không ghép sai. Nhóm <a href="#8a">8a</a> là bảng xếp hạng hai tab và độ tin cậy; nhóm <a href="#8b">8b</a> là bộ máy ghép sân đọc effective strength và cài đặt mùa giải.</div>
+
+  <div id="8a" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font:600 11px/1 'IBM Plex Mono', monospace;letter-spacing:0.08em;color:#04302C;background:#00B2A9;padding:6px 10px;border-radius:999px">8a</div>
+      <div style="font:400 14px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">Hai bảng xếp hạng song song · nhãn Provisional · sổ điểm mùa giải · biểu đồ bốn góc</div>
+    </div>
+
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+      <!-- ═══ SS1 · ĐUA TOP MÙA GIẢI ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">SS1 · /bang-xep-hang · tab Đua Top Mùa Giải — <span style="font-family:'IBM Plex Mono', monospace;text-transform:none;letter-spacing:0;color:#5FDBD3">Leaderboard.jsx · seasonTab</span></div>
+        <div data-screen-label="SS1 Dua top mua giai" style="width:1440px;height:940px;display:flex;overflow:hidden;background:#0B1220;border:1px solid #22304A;border-radius:12px">
+
+          <div style="width:248px;flex:0 0 auto;display:flex;flex-direction:column;background:#080F1C;border-right:1px solid rgba(255,255,255,.10)">
+            <div style="display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid rgba(255,255,255,.10)">
+              <div style="width:30px;height:30px;flex:0 0 auto;border-radius:8px;background:#00B2A9"></div>
+              <div style="min-width:0;flex:1">
+                <div style="font:700 15px/1.15 Barlow, sans-serif;color:#fff;letter-spacing:-0.015em">CLB Cầu Lông Thứ 4</div>
+                <div style="font:400 13px/1.4 'IBM Plex Mono', monospace;color:rgba(255,255,255,.5)">CLB · B4K9XZ21</div>
+              </div>
+            </div>
+            <div style="padding:8px 10px 8px 6px;flex:1;display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Trang chủ</span>
+              </div>
+              <div style="padding:10px 8px 4px;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:rgba(233,239,247,.42)">Vận hành</div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Lịch tháng</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Buổi tập</span>
+                <span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#04302C;background:#00B2A9;padding:3px 6px;border-radius:999px">2</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px;background:rgba(0,178,169,.16)">
+                <div style="width:16px;height:16px;border-radius:4px;background:#00B2A9"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:#FFFFFF">Bảng xếp hạng</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Thành viên</span>
+              </div>
+              <div style="padding:10px 8px 4px;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:rgba(233,239,247,.42)">Tài chính</div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Công nợ</span>
+                <span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#FFFFFF;background:#D63B2B;padding:3px 6px;border-radius:999px">3</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Sổ quỹ</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+            <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.10);display:flex;align-items:center;gap:14px">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="font:600 18px/1.25 Barlow, sans-serif">Bảng xếp hạng</div>
+                <div style="font:400 13px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">Mùa 3 · 2026 — Thu Rực Lửa · 01/07 → 30/09 · còn 23 ngày</div>
+              </div>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Xuất CSV</span>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Cài đặt mùa</span>
+            </div>
+
+            <div style="padding:12px 20px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;gap:6px;padding:3px;border-radius:8px;background:#141D2E;border:1px solid #22304A">
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:8px 14px;border-radius:6px;background:#00B2A9;color:#04302C">Đua Top Mùa Giải</span>
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:8px 14px;border-radius:6px;color:#A8B7CB">Bảng Đẳng Cấp Elo</span>
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:8px 14px;border-radius:6px;color:#A8B7CB">Đối đầu</span>
+              </div>
+              <div style="flex:1"></div>
+              <span style="font:400 12px/1 'IBM Plex Mono', monospace;color:#8494AA">reset 01/10 · huy chương trao cuối mùa</span>
+            </div>
+
+            <div style="padding:14px 20px 20px;display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:16px;align-items:start">
+
+              <div style="display:grid;gap:12px">
+
+                <!-- tiến trình mùa -->
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px 15px;display:grid;gap:10px">
+                  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                    <span style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Tiến trình mùa</span>
+                    <span style="font:400 12px/1.2 'IBM Plex Mono', monospace;color:#8494AA">buổi 11 / 14 · 74% thời gian đã qua</span>
+                    <div style="flex:1"></div>
+                    <span style="font:600 11px/1 'IBM Plex Mono', monospace;padding:5px 8px;border-radius:999px;background:rgba(0,178,169,.14);border:1px solid #00786F;color:#5FDBD3">đang chạy</span>
+                  </div>
+                  <div style="height:10px;border-radius:999px;background:#0B1220;border:1px solid #22304A;overflow:hidden;display:flex">
+                    <div style="width:74%;background:linear-gradient(90deg,#00786F,#00B2A9)"></div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">
+                    <span>01/07</span><span>3 buổi còn lại — tối đa +190 pts</span><span>30/09</span>
+                  </div>
+                </div>
+
+                <!-- podium -->
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end">
+                  <div style="background:#141D2E;border:1px solid #2E3E5C;border-radius:10px;padding:14px;display:grid;gap:7px">
+                    <div style="font:600 11px/1 'IBM Plex Mono', monospace;color:#A8B7CB">#2</div>
+                    <div style="font:600 15px/1.2 'IBM Plex Sans', sans-serif">Lê Thu Hằng</div>
+                    <div style="font:600 26px/1 Barlow, sans-serif;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">1.185</div>
+                    <div style="font:400 12px/1.3 'IBM Plex Sans', sans-serif;color:#8494AA">10 buổi · 41 trận · 24 thắng</div>
+                  </div>
+                  <div style="background:linear-gradient(180deg,rgba(201,162,39,.16),#141D2E);border:1px solid #C9A227;border-radius:10px;padding:18px 14px;display:grid;gap:7px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <div style="font:600 11px/1 'IBM Plex Mono', monospace;color:#F0D26A">#1</div>
+                      <span style="font:600 10px/1 'IBM Plex Mono', monospace;letter-spacing:.06em;padding:4px 7px;border-radius:999px;background:#C9A227;color:#2A1F00">DẪN ĐẦU</span>
+                    </div>
+                    <div style="font:600 17px/1.2 'IBM Plex Sans', sans-serif;color:#fff">Trần Minh Kiên</div>
+                    <div style="font:600 32px/1 'IBM Plex Mono', monospace;color:#F7E3A1">1.240</div>
+                    <div style="font:400 12px/1.3 'IBM Plex Sans', sans-serif;color:#C6B683">10 buổi · 42 trận · 23 thắng · 4 upset</div>
+                  </div>
+                  <div style="background:#141D2E;border:1px solid #2E3E5C;border-radius:10px;padding:14px;display:grid;gap:7px">
+                    <div style="font:600 11px/1 'IBM Plex Mono', monospace;color:#A8B7CB">#3</div>
+                    <div style="font:600 15px/1.2 'IBM Plex Sans', sans-serif">Ngô Bảo Long</div>
+                    <div style="font:600 26px/1 'IBM Plex Mono', monospace;color:#E9EFF7">1.120</div>
+                    <div style="font:400 12px/1.3 'IBM Plex Sans', sans-serif;color:#8494AA">9 buổi · 38 trận · 26 thắng</div>
+                  </div>
+                </div>
+
+                <!-- bảng -->
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;overflow:hidden">
+                  <div style="padding:10px 13px;border-bottom:1px solid #22304A;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Toàn bảng · 34 thành viên</span>
+                    <div style="flex:1"></div>
+                    <span style="font:600 11px/1 'IBM Plex Sans', sans-serif;padding:6px 10px;border-radius:999px;background:rgba(29,80,160,.20);border:1px solid #1D50A0;color:#B6CDEC">Cột: cần · trận · thắng · upset</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 96px 74px 74px 74px 74px 86px;gap:0;padding:8px 13px;border-bottom:1px solid #22304A;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#8494AA">
+                    <span>#</span><span>Thành viên</span><span style="text-align:right">Điểm mùa</span><span style="text-align:right">Cần</span><span style="text-align:right">Trận</span><span style="text-align:right">Thắng</span><span style="text-align:right">Upset</span><span style="text-align:right">Xu hướng</span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 96px 74px 74px 74px 74px 86px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#F0D26A;font-weight:600">1</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#1D50A0;flex:0 0 auto"></span><span style="font-weight:600">Trần Minh Kiên</span><span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(0,178,169,.14);border:1px solid #00786F;color:#5FDBD3">streak 4</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600;color:#F7E3A1">1.240</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">300</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">420</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">345</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">100</span>
+                    <span style="text-align:right"><svg width="70" height="20" viewBox="0 0 70 20"><polyline points="0,16 12,14 24,11 36,12 48,7 60,4 70,2" fill="none" stroke="#00B2A9" stroke-width="2"></polyline></svg></span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 96px 74px 74px 74px 74px 86px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">2</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#7A3D8F;flex:0 0 auto"></span><span style="font-weight:600">Lê Thu Hằng</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">1.185</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">300</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">410</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">360</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">50</span>
+                    <span style="text-align:right"><svg width="70" height="20" viewBox="0 0 70 20"><polyline points="0,14 12,10 24,12 36,8 48,9 60,6 70,5" fill="none" stroke="#00B2A9" stroke-width="2"></polyline></svg></span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 96px 74px 74px 74px 74px 86px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">3</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#1D50A0;flex:0 0 auto"></span><span style="font-weight:600">Ngô Bảo Long</span><span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(201,162,39,.16);border:1px solid #8A6F16;color:#F0D26A">Elo #1</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">1.120</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">270</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">380</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">390</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">25</span>
+                    <span style="text-align:right"><svg width="70" height="20" viewBox="0 0 70 20"><polyline points="0,10 12,9 24,11 36,10 48,12 60,11 70,13" fill="none" stroke="#8494AA" stroke-width="2"></polyline></svg></span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 96px 74px 74px 74px 74px 86px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif;background:rgba(29,80,160,.10)">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#B6CDEC;font-weight:600">4</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#00786F;flex:0 0 auto"></span><span style="font-weight:600">Phạm Anh Tú</span><span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(29,80,160,.24);border:1px solid #1D50A0;color:#B6CDEC">bạn</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">975</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">330</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">330</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">240</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">75</span>
+                    <span style="text-align:right"><svg width="70" height="20" viewBox="0 0 70 20"><polyline points="0,15 12,13 24,10 36,11 48,8 60,7 70,6" fill="none" stroke="#00B2A9" stroke-width="2"></polyline></svg></span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 96px 74px 74px 74px 74px 86px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">5</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#B0562A;flex:0 0 auto"></span><span style="font-weight:600">Đỗ Quang Huy</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">940</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">240</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">340</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">300</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">50</span>
+                    <span style="text-align:right"><svg width="70" height="20" viewBox="0 0 70 20"><polyline points="0,8 12,10 24,9 36,12 48,11 60,13 70,12" fill="none" stroke="#8494AA" stroke-width="2"></polyline></svg></span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 96px 74px 74px 74px 74px 86px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">6</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#7A3D8F;flex:0 0 auto"></span><span style="font-weight:600">Vũ Thùy Linh</span><span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(0,178,169,.14);border:1px solid #00786F;color:#5FDBD3">11/11 buổi</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">905</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">330</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">290</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">180</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">75</span>
+                    <span style="text-align:right"><svg width="70" height="20" viewBox="0 0 70 20"><polyline points="0,16 12,15 24,12 36,10 48,9 60,7 70,4" fill="none" stroke="#00B2A9" stroke-width="2"></polyline></svg></span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 96px 74px 74px 74px 74px 86px;align-items:center;padding:9px 13px;font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">7</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#1D50A0;flex:0 0 auto"></span><span style="font-weight:600">Bùi Đức Thắng</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">870</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">300</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">280</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">210</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">50</span>
+                    <span style="text-align:right"><svg width="70" height="20" viewBox="0 0 70 20"><polyline points="0,12 12,11 24,13 36,9 48,10 60,8 70,9" fill="none" stroke="#8494AA" stroke-width="2"></polyline></svg></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- rail phải -->
+              <div style="display:grid;gap:12px">
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px 15px;display:grid;gap:11px">
+                  <div style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Điểm đến từ đâu · toàn CLB</div>
+                  <div style="display:grid;gap:9px">
+                    <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Đi buổi +30</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:34%;background:#00B2A9"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">34%</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Ra sân +10</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:27%;background:#1D50A0"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">27%</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Thắng +15</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:22%;background:#7AA3DC"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">22%</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Upset +25</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:9%;background:#C9A227"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">9%</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Thriller +10</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:5%;background:#B0562A"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">5%</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Streak +20</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:3%;background:#7A3D8F"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">3%</span>
+                    </div>
+                  </div>
+                  <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA;border-top:1px solid #22304A;padding-top:9px">Đi đều chiếm hơn một phần ba điểm mùa. Người mới có thể đua top mà không cần thắng nhiều.</div>
+                </div>
+
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px 15px;display:grid;gap:10px">
+                  <div style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Cuộc đua Top 3 · theo buổi</div>
+                  <svg width="326" height="140" viewBox="0 0 326 140">
+                    <line x1="0" y1="34" x2="326" y2="34" stroke="#22304A" stroke-width="1"></line>
+                    <line x1="0" y1="70" x2="326" y2="70" stroke="#22304A" stroke-width="1"></line>
+                    <line x1="0" y1="106" x2="326" y2="106" stroke="#22304A" stroke-width="1"></line>
+                    <polyline points="8,106 60,70 112,70 164,34 216,34 268,34 318,34" fill="none" stroke="#F0D26A" stroke-width="2.5"></polyline>
+                    <polyline points="8,34 60,34 112,34 164,70 216,70 268,70 318,70" fill="none" stroke="#7AA3DC" stroke-width="2.5"></polyline>
+                    <polyline points="8,70 60,106 112,106 164,106 216,106 268,106 318,106" fill="none" stroke="#00B2A9" stroke-width="2.5"></polyline>
+                    <text x="0" y="128" fill="#8494AA" font-family="IBM Plex Mono, monospace" font-size="10">buổi 5</text>
+                    <text x="278" y="128" fill="#8494AA" font-family="IBM Plex Mono, monospace" font-size="10">buổi 11</text>
+                  </svg>
+                  <div style="display:flex;gap:12px;flex-wrap:wrap;font:400 11px/1.2 'IBM Plex Mono', monospace;color:#A8B7CB">
+                    <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:3px;background:#F0D26A"></span>Kiên</span>
+                    <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:3px;background:#7AA3DC"></span>Hằng</span>
+                    <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:3px;background:#00B2A9"></span>Long</span>
+                  </div>
+                  <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA;border-top:1px solid #22304A;padding-top:9px">Kiên vượt lên từ buổi 8 nhờ 4 buổi liên tiếp có mặt.</div>
+                </div>
+
+                <div style="background:#141D2E;border:1px solid #2E3E5C;border-radius:10px;padding:13px 15px;display:grid;gap:9px">
+                  <div style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Sắp trao mùa này</div>
+                  <div style="display:grid;gap:7px;font:400 12px/1.4 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                    <div style="display:flex;justify-content:space-between;gap:10px"><span>Vua điểm mùa</span><span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">Kiên · 1.240</span></div>
+                    <div style="display:flex;justify-content:space-between;gap:10px"><span>Chuyên cần nhất</span><span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">Linh · 11/11</span></div>
+                    <div style="display:flex;justify-content:space-between;gap:10px"><span>Săn upset</span><span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">Kiên · 4 lần</span></div>
+                    <div style="display:flex;justify-content:space-between;gap:10px"><span>Tân binh mùa</span><span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">Vy · 640</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SS3 · SỔ ĐIỂM MÙA GIẢI ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">SS3 · Sổ điểm mùa giải của một người — <span style="font-family:'IBM Plex Mono', monospace;text-transform:none;letter-spacing:0;color:#5FDBD3">getMemberXpLedger(seasonId)</span></div>
+        <div data-screen-label="SS3 So diem mua giai" style="width:560px;background:#1A2437;border:1px solid #2E3E5C;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.60);overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid #22304A;display:flex;align-items:center;gap:12px">
+            <div style="flex:1;min-width:0">
+              <div style="font:600 16px/1.25 Barlow, sans-serif">Sổ điểm mùa · Phạm Anh Tú</div>
+              <div style="font:400 12px/1.4 'IBM Plex Mono', monospace;color:#8494AA">Mùa 3 · 2026 · hạng 4 / 34</div>
+            </div>
+            <span style="font:600 14px/1 'IBM Plex Mono', monospace;color:#8494AA">✕</span>
+          </div>
+          <div style="padding:16px 18px;display:grid;gap:14px">
+            <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
+              <div style="font:600 40px/1 'IBM Plex Mono', monospace;color:#E9EFF7">975</div>
+              <div style="padding-bottom:6px;font:400 12px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">điểm mùa · <span style="color:#5FDBD3">+125</span> buổi gần nhất · cách hạng 3 <span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">145</span></div>
+            </div>
+            <div style="height:26px;border-radius:6px;overflow:hidden;display:flex;border:1px solid #22304A">
+              <div style="width:34%;background:#00B2A9;display:flex;align-items:center;justify-content:center;font:600 10px/1 'IBM Plex Mono', monospace;color:#04302C">330</div>
+              <div style="width:34%;background:#1D50A0;display:flex;align-items:center;justify-content:center;font:600 10px/1 'IBM Plex Mono', monospace;color:#fff">330</div>
+              <div style="width:24%;background:#7AA3DC;display:flex;align-items:center;justify-content:center;font:600 10px/1 'IBM Plex Mono', monospace;color:#0B1220">240</div>
+              <div style="width:8%;background:#C9A227;display:flex;align-items:center;justify-content:center;font:600 10px/1 'IBM Plex Mono', monospace;color:#2A1F00">75</div>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font:400 11px/1.2 'IBM Plex Mono', monospace;color:#A8B7CB">
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#00B2A9"></span>cần 11×30</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#1D50A0"></span>trận 33×10</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#7AA3DC"></span>thắng 16×15</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#C9A227"></span>upset 3×25</span>
+            </div>
+
+            <div style="border-top:1px solid #22304A;padding-top:12px;display:grid;gap:8px">
+              <div style="font:600 12px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#8494AA">Buổi 03/09 · +125</div>
+              <div style="display:grid;gap:6px">
+                <div style="display:grid;grid-template-columns:70px minmax(0,1fr) 56px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #22304A;font:400 12px/1.3 'IBM Plex Sans', sans-serif">
+                  <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA">19:02</span><span>Có mặt · điểm danh</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+30</span>
+                </div>
+                <div style="display:grid;grid-template-columns:70px minmax(0,1fr) 56px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #22304A;font:400 12px/1.3 'IBM Plex Sans', sans-serif">
+                  <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA">19:24</span><span>Trận 1 · thắng 21–17 với Hằng</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+25</span>
+                </div>
+                <div style="display:grid;grid-template-columns:70px minmax(0,1fr) 56px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:rgba(201,162,39,.10);border:1px solid #8A6F16;font:400 12px/1.3 'IBM Plex Sans', sans-serif">
+                  <span style="font-family:'IBM Plex Mono', monospace;color:#C6B683">20:05</span><span>Trận 2 · thắng Long (Elo +178) · <span style="color:#F0D26A">Upset</span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#F0D26A">+50</span>
+                </div>
+                <div style="display:grid;grid-template-columns:70px minmax(0,1fr) 56px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #22304A;font:400 12px/1.3 'IBM Plex Sans', sans-serif">
+                  <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA">20:48</span><span>Trận 3 · thua 19–21 · 3 set</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+20</span>
+                </div>
+                <div style="display:grid;grid-template-columns:70px minmax(0,1fr) 56px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #22304A;font:400 12px/1.3 'IBM Plex Sans', sans-serif;opacity:.75">
+                  <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA">21:30</span><span>Chuỗi thắng dừng ở 2 · chưa đủ 3</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">+0</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="border-top:1px solid #22304A;padding-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span style="font:400 12px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA;flex:1;min-width:180px">Elo career của Tú không đổi khi mùa reset — chỉ cột điểm mùa về 0.</span>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Xem Elo career</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+      <!-- ═══ SS2 · BẢNG ĐẲNG CẤP ELO ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">SS2 · tab Bảng Đẳng Cấp Elo · lọc chính thức ≥ 5 trận — <span style="font-family:'IBM Plex Mono', monospace;text-transform:none;letter-spacing:0;color:#5FDBD3">Leaderboard.jsx · eloTab</span></div>
+        <div data-screen-label="SS2 Bang dang cap Elo" style="width:1440px;height:900px;display:flex;overflow:hidden;background:#0B1220;border:1px solid #22304A;border-radius:12px">
+
+          <div style="width:248px;flex:0 0 auto;display:flex;flex-direction:column;background:#080F1C;border-right:1px solid rgba(255,255,255,.10)">
+            <div style="display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid rgba(255,255,255,.10)">
+              <div style="width:30px;height:30px;flex:0 0 auto;border-radius:8px;background:#00B2A9"></div>
+              <div style="min-width:0;flex:1">
+                <div style="font:700 15px/1.15 Barlow, sans-serif;color:#fff;letter-spacing:-0.015em">CLB Cầu Lông Thứ 4</div>
+                <div style="font:400 13px/1.4 'IBM Plex Mono', monospace;color:rgba(255,255,255,.5)">CLB · B4K9XZ21</div>
+              </div>
+            </div>
+            <div style="padding:8px 10px 8px 6px;flex:1;display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Trang chủ</span>
+              </div>
+              <div style="padding:10px 8px 4px;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:rgba(233,239,247,.42)">Vận hành</div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Lịch tháng</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Buổi tập</span>
+                <span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#04302C;background:#00B2A9;padding:3px 6px;border-radius:999px">2</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px;background:rgba(0,178,169,.16)">
+                <div style="width:16px;height:16px;border-radius:4px;background:#00B2A9"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:#FFFFFF">Bảng xếp hạng</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Thành viên</span>
+              </div>
+              <div style="padding:10px 8px 4px;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:rgba(233,239,247,.42)">Tài chính</div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Công nợ</span>
+                <span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#FFFFFF;background:#D63B2B;padding:3px 6px;border-radius:999px">3</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Sổ quỹ</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+            <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.10);display:flex;align-items:center;gap:14px">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="font:600 18px/1.25 Barlow, sans-serif">Bảng xếp hạng</div>
+                <div style="font:400 13px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">Elo career · tích lũy từ 02/2024 · không reset theo mùa</div>
+              </div>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Xuất CSV</span>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Cách tính Elo</span>
+            </div>
+
+            <div style="padding:12px 20px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;gap:6px;padding:3px;border-radius:8px;background:#141D2E;border:1px solid #22304A">
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:8px 14px;border-radius:6px;color:#A8B7CB">Đua Top Mùa Giải</span>
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:8px 14px;border-radius:6px;background:#1D50A0;color:#fff">Bảng Đẳng Cấp Elo</span>
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:8px 14px;border-radius:6px;color:#A8B7CB">Đối đầu</span>
+              </div>
+              <div style="flex:1"></div>
+              <div style="display:flex;gap:6px;padding:3px;border-radius:8px;background:#141D2E;border:1px solid #22304A">
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:8px 12px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Xếp hạng chính thức · ≥ 5 trận</span>
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:8px 12px;border-radius:6px;color:#A8B7CB">Tất cả thành viên</span>
+              </div>
+            </div>
+
+            <div style="padding:14px 20px 20px;display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:16px;align-items:start">
+
+              <div style="display:grid;gap:12px">
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;overflow:hidden">
+                  <div style="padding:10px 13px;border-bottom:1px solid #22304A;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Xếp hạng chính thức · 27 người</span>
+                    <span style="font:600 11px/1 'IBM Plex Mono', monospace;padding:5px 8px;border-radius:999px;background:rgba(214,59,43,.14);border:1px solid #8E2C20;color:#F1A79D">7 người đang thẩm định</span>
+                    <div style="flex:1"></div>
+                    <span style="font:400 12px/1 'IBM Plex Mono', monospace;color:#8494AA">sort: Elo ↓</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;padding:8px 13px;border-bottom:1px solid #22304A;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#8494AA">
+                    <span>#</span><span>Thành viên</span><span style="text-align:right">Elo</span><span style="text-align:right">Trận</span><span style="text-align:center">Độ tin cậy</span><span style="text-align:right">Thắng</span><span style="text-align:right">30 ngày</span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#F0D26A;font-weight:600">1</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#1D50A0;flex:0 0 auto"></span><span style="font-weight:600">Ngô Bảo Long</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600;color:#F7E3A1">1842</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">86</span>
+                    <span style="display:flex;align-items:center;gap:8px;justify-content:center"><span style="width:56px;height:7px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:78%;background:#1D50A0"></span></span><span style="font:600 10px/1 'IBM Plex Mono', monospace;color:#B6CDEC;letter-spacing:.04em">HIGH</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">68%</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+34</span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">2</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#1D50A0;flex:0 0 auto"></span><span style="font-weight:600">Trần Minh Kiên</span><span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(201,162,39,.16);border:1px solid #8A6F16;color:#F0D26A">Top mùa</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">1795</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">132</span>
+                    <span style="display:flex;align-items:center;gap:8px;justify-content:center"><span style="width:56px;height:7px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:100%;background:#C9A227"></span></span><span style="font:600 10px/1 'IBM Plex Mono', monospace;color:#F0D26A;letter-spacing:.04em">V.HIGH</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">64%</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+52</span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">3</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#B0562A;flex:0 0 auto"></span><span style="font-weight:600">Đỗ Quang Huy</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">1710</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">61</span>
+                    <span style="display:flex;align-items:center;gap:8px;justify-content:center"><span style="width:56px;height:7px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:72%;background:#1D50A0"></span></span><span style="font:600 10px/1 'IBM Plex Mono', monospace;color:#B6CDEC;letter-spacing:.04em">HIGH</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">59%</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#F1A79D">−18</span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif;background:rgba(29,80,160,.10)">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#B6CDEC;font-weight:600">4</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#00786F;flex:0 0 auto"></span><span style="font-weight:600">Phạm Anh Tú</span><span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(29,80,160,.24);border:1px solid #1D50A0;color:#B6CDEC">bạn</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">1664</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">24</span>
+                    <span style="display:flex;align-items:center;gap:8px;justify-content:center"><span style="width:56px;height:7px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:48%;background:#7AA3DC"></span></span><span style="font:600 10px/1 'IBM Plex Mono', monospace;color:#B6CDEC;letter-spacing:.04em">MED</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">54%</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+41</span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">5</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#7A3D8F;flex:0 0 auto"></span><span style="font-weight:600">Lê Thu Hằng</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">1602</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">108</span>
+                    <span style="display:flex;align-items:center;gap:8px;justify-content:center"><span style="width:56px;height:7px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:100%;background:#C9A227"></span></span><span style="font:600 10px/1 'IBM Plex Mono', monospace;color:#F0D26A;letter-spacing:.04em">V.HIGH</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">57%</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+12</span>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;align-items:center;padding:9px 13px;font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#A8B7CB;font-weight:600">6</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#1D50A0;flex:0 0 auto"></span><span style="font-weight:600">Bùi Đức Thắng</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600">1588</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">18</span>
+                    <span style="display:flex;align-items:center;gap:8px;justify-content:center"><span style="width:56px;height:7px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:40%;background:#7AA3DC"></span></span><span style="font:600 10px/1 'IBM Plex Mono', monospace;color:#B6CDEC;letter-spacing:.04em">MED</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">50%</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">+3</span>
+                  </div>
+                </div>
+
+                <!-- khu thẩm định -->
+                <div style="background:#141D2E;border:1px solid #8E2C20;border-radius:10px;overflow:hidden">
+                  <div style="padding:10px 13px;border-bottom:1px solid #22304A;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span style="font:600 14px/1.2 'IBM Plex Sans', sans-serif;color:#F1A79D">⚠ Đang thẩm định · chưa vào podium</span>
+                    <div style="flex:1"></div>
+                    <span style="font:400 12px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">Elo vẫn chạy, chỉ chưa xếp hạng chính thức</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA">—</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#7A3D8F;flex:0 0 auto"></span><span style="font-weight:600">Nguyễn Khánh Vy</span><span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(214,59,43,.14);border:1px solid #8E2C20;color:#F1A79D">còn 2 trận</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600;color:#A8B7CB">1655?</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">3</span>
+                    <span style="display:flex;align-items:center;gap:8px;justify-content:center"><span style="width:56px;height:7px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:14%;background:#64748B"></span></span><span style="font:600 10px/1 'IBM Plex Mono', monospace;color:#8494AA;letter-spacing:.04em">LOW</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">67%</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+155</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:40px minmax(0,1fr) 92px 78px 128px 74px 84px;align-items:center;padding:9px 13px;font:400 13px/1.3 'IBM Plex Sans', sans-serif">
+                    <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA">—</span>
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:24px;height:24px;border-radius:999px;background:#B0562A;flex:0 0 auto"></span><span style="font-weight:600">Trịnh Gia Bảo</span><span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(214,59,43,.14);border:1px solid #8E2C20;color:#F1A79D">còn 3 trận</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;font-weight:600;color:#A8B7CB">1480?</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">2</span>
+                    <span style="display:flex;align-items:center;gap:8px;justify-content:center"><span style="width:56px;height:7px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:9%;background:#64748B"></span></span><span style="font:600 10px/1 'IBM Plex Mono', monospace;color:#8494AA;letter-spacing:.04em">LOW</span></span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#A8B7CB">0%</span>
+                    <span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#F1A79D">−40</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:grid;gap:12px">
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px 15px;display:grid;gap:11px">
+                  <div style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Thang độ tin cậy</div>
+                  <div style="display:grid;gap:8px;font:400 12px/1.3 'IBM Plex Sans', sans-serif">
+                    <div style="display:grid;grid-template-columns:14px 82px minmax(0,1fr);gap:9px;align-items:center"><span style="width:14px;height:14px;border-radius:4px;background:#64748B"></span><span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#E9EFF7">LOW</span><span style="color:#8494AA">&lt; 5 trận · gắn nhãn thẩm định</span></div>
+                    <div style="display:grid;grid-template-columns:14px 82px minmax(0,1fr);gap:9px;align-items:center"><span style="width:14px;height:14px;border-radius:4px;background:#7AA3DC"></span><span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#E9EFF7">MED</span><span style="color:#8494AA">5–29 trận · vào bảng chính thức</span></div>
+                    <div style="display:grid;grid-template-columns:14px 82px minmax(0,1fr);gap:9px;align-items:center"><span style="width:14px;height:14px;border-radius:4px;background:#1D50A0"></span><span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#E9EFF7">HIGH</span><span style="color:#8494AA">30–99 trận · Elo dùng nguyên 100%</span></div>
+                    <div style="display:grid;grid-template-columns:14px 82px minmax(0,1fr);gap:9px;align-items:center"><span style="width:14px;height:14px;border-radius:4px;background:#C9A227"></span><span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#E9EFF7">V.HIGH</span><span style="color:#8494AA">≥ 100 trận · số liệu ổn định</span></div>
+                  </div>
+                  <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA;border-top:1px solid #22304A;padding-top:9px">Elo hiển thị của người LOW có dấu <span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">?</span> — con số có thật nhưng biên sai số còn rộng.</div>
+                </div>
+
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px 15px;display:grid;gap:10px">
+                  <div style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Phổ Elo toàn CLB</div>
+                  <div style="display:flex;align-items:flex-end;gap:5px;height:104px">
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;align-items:center"><span style="width:100%;height:16px;background:#2E3E5C;border-radius:3px 3px 0 0"></span><span style="font:400 9px/1 'IBM Plex Mono', monospace;color:#8494AA">1300</span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;align-items:center"><span style="width:100%;height:34px;background:#2E3E5C;border-radius:3px 3px 0 0"></span><span style="font:400 9px/1 'IBM Plex Mono', monospace;color:#8494AA">1400</span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;align-items:center"><span style="width:100%;height:58px;background:#1D50A0;border-radius:3px 3px 0 0"></span><span style="font:400 9px/1 'IBM Plex Mono', monospace;color:#8494AA">1500</span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;align-items:center"><span style="width:100%;height:76px;background:#1D50A0;border-radius:3px 3px 0 0"></span><span style="font:400 9px/1 'IBM Plex Mono', monospace;color:#8494AA">1600</span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;align-items:center"><span style="width:100%;height:44px;background:#1D50A0;border-radius:3px 3px 0 0"></span><span style="font:400 9px/1 'IBM Plex Mono', monospace;color:#8494AA">1700</span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;align-items:center"><span style="width:100%;height:22px;background:#00B2A9;border-radius:3px 3px 0 0"></span><span style="font:400 9px/1 'IBM Plex Mono', monospace;color:#8494AA">1800</span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;align-items:center"><span style="width:100%;height:10px;background:#00B2A9;border-radius:3px 3px 0 0"></span><span style="font:400 9px/1 'IBM Plex Mono', monospace;color:#8494AA">1900</span></div>
+                  </div>
+                  <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA;border-top:1px solid #22304A;padding-top:9px">Trung vị 1596 · nhóm 1500–1700 chiếm 62% CLB, đủ dày để ghép sân cân trình mỗi buổi.</div>
+                </div>
+
+                <div style="background:#1A2437;border:1px solid #2E3E5C;border-radius:10px;padding:13px 15px;display:grid;gap:9px">
+                  <div style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Hai bảng khác nhau chỗ nào</div>
+                  <div style="display:grid;gap:8px;font:400 12px/1.45 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                    <div style="display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px"><span style="font:600 11px/1.3 'IBM Plex Mono', monospace;color:#5FDBD3">Elo</span><span>Đo trình độ. Không bao giờ bị xóa. Quyết định ai vào sân với ai.</span></div>
+                    <div style="display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px"><span style="font:600 11px/1.3 'IBM Plex Mono', monospace;color:#F0D26A">Điểm mùa</span><span>Đo mức tham gia trong quý. Reset 01/10. Quyết định ai nhận thưởng.</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SS4 · BIỂU ĐỒ BỐN GÓC ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">SS4 · Bản đồ CLB · Elo × Điểm mùa (biểu đồ bốn góc)</div>
+        <div data-screen-label="SS4 Ban do bon goc" style="width:700px;background:#0B1220;border:1px solid #22304A;border-radius:12px;padding:18px;display:grid;gap:14px">
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <div style="font:600 17px/1.25 Barlow, sans-serif">Bản đồ CLB mùa 3</div>
+            <div style="font:400 12px/1.4 'IBM Plex Mono', monospace;color:#8494AA">trục ngang Elo career · trục dọc điểm mùa</div>
+          </div>
+
+          <div style="position:relative;height:400px;border:1px solid #22304A;border-radius:10px;background:#141D2E;overflow:hidden">
+            <div style="position:absolute;left:0;right:0;top:50%;height:1px;background:#2E3E5C"></div>
+            <div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:#2E3E5C"></div>
+
+            <div style="position:absolute;left:12px;top:10px;font:600 11px/1.3 'IBM Plex Sans', sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#5FDBD3">Đang lên<span style="display:block;font:400 11px/1.3 'IBM Plex Sans', sans-serif;letter-spacing:0;text-transform:none;color:#8494AA">đi đều, trình còn thấp</span></div>
+            <div style="position:absolute;right:12px;top:10px;text-align:right;font:600 11px/1.3 'IBM Plex Sans', sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#F0D26A">Đầu tàu<span style="display:block;font:400 11px/1.3 'IBM Plex Sans', sans-serif;letter-spacing:0;text-transform:none;color:#8494AA">trình cao, có mặt đều</span></div>
+            <div style="position:absolute;left:12px;bottom:10px;font:600 11px/1.3 'IBM Plex Sans', sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#8494AA">Ngủ đông<span style="display:block;font:400 11px/1.3 'IBM Plex Sans', sans-serif;letter-spacing:0;text-transform:none;color:#64748B">cần rủ đi tập</span></div>
+            <div style="position:absolute;right:12px;bottom:10px;text-align:right;font:600 11px/1.3 'IBM Plex Sans', sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#B6CDEC">Trụ cột vắng<span style="display:block;font:400 11px/1.3 'IBM Plex Sans', sans-serif;letter-spacing:0;text-transform:none;color:#8494AA">mạnh nhưng ít ra sân</span></div>
+
+            <div style="position:absolute;left:80%;top:12%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:14px;height:14px;border-radius:999px;background:#F0D26A;box-shadow:0 0 0 4px rgba(201,162,39,.20)"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#E9EFF7">Kiên</span></div>
+            <div style="position:absolute;left:56%;top:18%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:12px;height:12px;border-radius:999px;background:#7AA3DC"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#E9EFF7">Hằng</span></div>
+            <div style="position:absolute;left:90%;top:30%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:12px;height:12px;border-radius:999px;background:#00B2A9"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#E9EFF7">Long</span></div>
+            <div style="position:absolute;left:66%;top:44%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:12px;height:12px;border-radius:999px;background:#00786F"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#E9EFF7">Tú</span></div>
+            <div style="position:absolute;left:78%;top:56%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:12px;height:12px;border-radius:999px;background:#B0562A"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#A8B7CB">Huy</span></div>
+            <div style="position:absolute;left:30%;top:34%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:12px;height:12px;border-radius:999px;background:#7A3D8F"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#E9EFF7">Linh</span></div>
+            <div style="position:absolute;left:22%;top:52%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:12px;height:12px;border-radius:999px;border:1.5px dashed #8494AA;background:transparent"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#A8B7CB">Vy ⚠</span></div>
+            <div style="position:absolute;left:34%;top:76%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:11px;height:11px;border-radius:999px;background:#64748B"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#8494AA">Nam</span></div>
+            <div style="position:absolute;left:14%;top:86%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:11px;height:11px;border-radius:999px;background:#64748B"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#8494AA">Bảo ⚠</span></div>
+            <div style="position:absolute;left:62%;top:82%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px"><span style="width:11px;height:11px;border-radius:999px;background:#64748B"></span><span style="font:600 11px/1 'IBM Plex Sans', sans-serif;color:#8494AA">Thắng</span></div>
+
+            <div style="position:absolute;left:50%;bottom:4px;transform:translateX(-50%);font:400 10px/1 'IBM Plex Mono', monospace;color:#64748B">Elo 1596 (trung vị)</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+            <div style="background:#141D2E;border:1px solid #22304A;border-radius:9px;padding:12px;display:grid;gap:5px">
+              <div style="font:600 12px/1.2 'IBM Plex Sans', sans-serif;color:#B6CDEC">Việc cần làm · góc phải dưới</div>
+              <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA">Huy và Thắng trình cao nhưng chỉ đi 5–6 buổi. Nhắc lịch riêng cho hai người này để sân tối thứ 4 đủ trình.</div>
+            </div>
+            <div style="background:#141D2E;border:1px solid #22304A;border-radius:9px;padding:12px;display:grid;gap:5px">
+              <div style="font:600 12px/1.2 'IBM Plex Sans', sans-serif;color:#5FDBD3">Việc cần làm · góc trái trên</div>
+              <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA">Linh và Vy đi đủ buổi, Elo đang lên nhanh. Ghép họ với nhóm 1600+ một trận mỗi buổi để tăng cọ xát.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="8b" style="display:flex;flex-direction:column;gap:20px;padding-top:8px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font:600 11px/1 'IBM Plex Mono', monospace;letter-spacing:0.08em;color:#04302C;background:#00B2A9;padding:6px 10px;border-radius:999px">8b</div>
+      <div style="font:400 14px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">Ghép sân Best-of-N · giải trình 5 tiêu chí · effective strength · cài đặt mùa</div>
+    </div>
+
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+      <!-- ═══ CE1 · CHIA SÂN BEST-OF-N ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">CE1 · /chia-san · máy dò 80 phương án — <span style="font-family:'IBM Plex Mono', monospace;text-transform:none;letter-spacing:0;color:#5FDBD3">assign.js · arrange() best-of-N</span></div>
+        <div data-screen-label="CE1 Chia san best of N" style="width:1440px;height:1000px;display:flex;overflow:hidden;background:#0B1220;border:1px solid #22304A;border-radius:12px">
+
+          <div style="width:248px;flex:0 0 auto;display:flex;flex-direction:column;background:#080F1C;border-right:1px solid rgba(255,255,255,.10)">
+            <div style="display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid rgba(255,255,255,.10)">
+              <div style="width:30px;height:30px;flex:0 0 auto;border-radius:8px;background:#00B2A9"></div>
+              <div style="min-width:0;flex:1">
+                <div style="font:700 15px/1.15 Barlow, sans-serif;color:#fff;letter-spacing:-0.015em">CLB Cầu Lông Thứ 4</div>
+                <div style="font:400 13px/1.4 'IBM Plex Mono', monospace;color:rgba(255,255,255,.5)">CLB · B4K9XZ21</div>
+              </div>
+            </div>
+            <div style="padding:8px 10px 8px 6px;flex:1;display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Trang chủ</span>
+              </div>
+              <div style="padding:10px 8px 4px;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:rgba(233,239,247,.42)">Vận hành</div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Lịch tháng</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px;background:rgba(0,178,169,.16)">
+                <div style="width:16px;height:16px;border-radius:4px;background:#00B2A9"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:#FFFFFF">Chia sân</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Buổi tập</span>
+                <span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#04302C;background:#00B2A9;padding:3px 6px;border-radius:999px">2</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Bảng xếp hạng</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Thành viên</span>
+              </div>
+              <div style="padding:10px 8px 4px;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:rgba(233,239,247,.42)">Tài chính</div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:34px;padding:0 8px;border-radius:6px">
+                <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(233,239,247,.45)"></div>
+                <span style="flex:1;font:600 13px/1.2 'IBM Plex Sans', sans-serif;color:rgba(233,239,247,.72)">Công nợ</span>
+                <span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#FFFFFF;background:#D63B2B;padding:3px 6px;border-radius:999px">3</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+            <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.10);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                <div style="font:600 18px/1.25 Barlow, sans-serif">Chia sân · buổi 03/09</div>
+                <div style="font:400 13px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">12 người chờ · 3 sân · máy đã dò 80 phương án trong 3ms</div>
+              </div>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Trọng số tiêu chí</span>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Dò lại</span>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1D50A0;color:#fff">Xếp phương án A vào sân</span>
+            </div>
+
+            <div style="padding:14px 20px 20px;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start">
+
+              <div style="display:grid;gap:12px">
+
+                <!-- 3 phương án -->
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+                  <div style="background:#141D2E;border:1.5px solid #00B2A9;border-radius:10px;padding:12px;display:grid;gap:9px;box-shadow:0 0 0 3px rgba(0,178,169,.12)">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="font:600 13px/1.2 'IBM Plex Sans', sans-serif">Phương án A</span>
+                      <span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:#00B2A9;color:#04302C">TỐT NHẤT</span>
+                    </div>
+                    <div style="display:flex;align-items:flex-end;gap:7px"><span style="font:600 30px/1 'IBM Plex Mono', monospace;color:#5FDBD3">92</span><span style="font:400 11px/1.6 'IBM Plex Mono', monospace;color:#8494AA">/ 100 điểm cân</span></div>
+                    <div style="height:6px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:92%;background:#00B2A9"></span></div>
+                    <div style="font:400 12px/1.45 'IBM Plex Sans', sans-serif;color:#8494AA">Lệch Elo trung bình 24 · không cặp nào lặp lại · 4 người chờ lâu nhất đều vào sân.</div>
+                  </div>
+                  <div style="background:#141D2E;border:1px solid #2E3E5C;border-radius:10px;padding:12px;display:grid;gap:9px">
+                    <div style="font:600 13px/1.2 'IBM Plex Sans', sans-serif">Phương án B</div>
+                    <div style="display:flex;align-items:flex-end;gap:7px"><span style="font:600 30px/1 'IBM Plex Mono', monospace;color:#B6CDEC">87</span><span style="font:400 11px/1.6 'IBM Plex Mono', monospace;color:#8494AA">/ 100</span></div>
+                    <div style="height:6px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:87%;background:#1D50A0"></span></div>
+                    <div style="font:400 12px/1.45 'IBM Plex Sans', sans-serif;color:#8494AA">Cân trình hơn A nhưng Kiên–Hằng đánh lại cặp cũ lần thứ ba.</div>
+                  </div>
+                  <div style="background:#141D2E;border:1px solid #2E3E5C;border-radius:10px;padding:12px;display:grid;gap:9px">
+                    <div style="font:600 13px/1.2 'IBM Plex Sans', sans-serif">Phương án C</div>
+                    <div style="display:flex;align-items:flex-end;gap:7px"><span style="font:600 30px/1 'IBM Plex Mono', monospace;color:#A8B7CB">79</span><span style="font:400 11px/1.6 'IBM Plex Mono', monospace;color:#8494AA">/ 100</span></div>
+                    <div style="height:6px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:79%;background:#2E3E5C"></span></div>
+                    <div style="font:400 12px/1.45 'IBM Plex Sans', sans-serif;color:#8494AA">Toàn cặp mới nhưng sân 3 lệch 96 Elo — dễ thành trận một chiều.</div>
+                  </div>
+                </div>
+
+                <!-- sân của phương án A -->
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;overflow:hidden">
+                  <div style="padding:10px 13px;border-bottom:1px solid #22304A;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Phương án A · 3 sân</span>
+                    <span style="font:400 12px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">số trong ngoặc là effective strength dùng để ghép</span>
+                  </div>
+
+                  <div style="padding:12px 13px;border-bottom:1px solid rgba(34,48,74,.6);display:grid;grid-template-columns:66px minmax(0,1fr) auto minmax(0,1fr) 128px;gap:12px;align-items:center">
+                    <div style="display:grid;gap:3px">
+                      <span style="font:600 14px/1.1 'IBM Plex Sans', sans-serif">Sân 1</span>
+                      <span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(0,178,169,.14);border:1px solid #00786F;color:#5FDBD3;justify-self:start">lệch 8</span>
+                    </div>
+                    <div style="display:grid;gap:4px;padding:9px 11px;border-radius:8px;background:#0B1220;border:1px solid #22304A">
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Ngô Bảo Long <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1842)</span></span>
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Vũ Thùy Linh <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1508)</span></span>
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">tổng 3350</span>
+                    </div>
+                    <span style="font:600 12px/1 'IBM Plex Mono', monospace;color:#8494AA">vs</span>
+                    <div style="display:grid;gap:4px;padding:9px 11px;border-radius:8px;background:#0B1220;border:1px solid #22304A">
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Trần Minh Kiên <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1795)</span></span>
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Đỗ Thị Mai <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1547)</span></span>
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">tổng 3342</span>
+                    </div>
+                    <div style="display:grid;gap:6px;justify-items:end">
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">H2H 3–2 · 21–19 gần nhất</span>
+                      <span style="font:600 11px/1 'IBM Plex Sans', sans-serif;padding:6px 10px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Vì sao?</span>
+                    </div>
+                  </div>
+
+                  <div style="padding:12px 13px;border-bottom:1px solid rgba(34,48,74,.6);display:grid;grid-template-columns:66px minmax(0,1fr) auto minmax(0,1fr) 128px;gap:12px;align-items:center">
+                    <div style="display:grid;gap:3px">
+                      <span style="font:600 14px/1.1 'IBM Plex Sans', sans-serif">Sân 2</span>
+                      <span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(0,178,169,.14);border:1px solid #00786F;color:#5FDBD3;justify-self:start">lệch 24</span>
+                    </div>
+                    <div style="display:grid;gap:4px;padding:9px 11px;border-radius:8px;background:#0B1220;border:1px solid #22304A">
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Đỗ Quang Huy <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1710)</span></span>
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Bùi Đức Thắng <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1588)</span></span>
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">tổng 3298</span>
+                    </div>
+                    <span style="font:600 12px/1 'IBM Plex Mono', monospace;color:#8494AA">vs</span>
+                    <div style="display:grid;gap:4px;padding:9px 11px;border-radius:8px;background:#0B1220;border:1px solid #2E3E5C">
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Phạm Anh Tú <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1664)</span></span>
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Nguyễn Khánh Vy <span style="font-family:'IBM Plex Mono', monospace;color:#F0D26A;font-weight:400">(1610*)</span></span>
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">tổng 3274</span>
+                    </div>
+                    <div style="display:grid;gap:6px;justify-items:end">
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#F0D26A">* Vy đã co về seed</span>
+                      <span style="font:600 11px/1 'IBM Plex Sans', sans-serif;padding:6px 10px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Vì sao?</span>
+                    </div>
+                  </div>
+
+                  <div style="padding:12px 13px;display:grid;grid-template-columns:66px minmax(0,1fr) auto minmax(0,1fr) 128px;gap:12px;align-items:center">
+                    <div style="display:grid;gap:3px">
+                      <span style="font:600 14px/1.1 'IBM Plex Sans', sans-serif">Sân 3</span>
+                      <span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:4px 6px;border-radius:999px;background:rgba(29,80,160,.20);border:1px solid #1D50A0;color:#B6CDEC;justify-self:start">lệch 41</span>
+                    </div>
+                    <div style="display:grid;gap:4px;padding:9px 11px;border-radius:8px;background:#0B1220;border:1px solid #22304A">
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Lê Thu Hằng <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1602)</span></span>
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Hoàng Nhật Nam <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1495)</span></span>
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">tổng 3097</span>
+                    </div>
+                    <span style="font:600 12px/1 'IBM Plex Mono', monospace;color:#8494AA">vs</span>
+                    <div style="display:grid;gap:4px;padding:9px 11px;border-radius:8px;background:#0B1220;border:1px solid #22304A">
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Trịnh Gia Bảo <span style="font-family:'IBM Plex Mono', monospace;color:#F0D26A;font-weight:400">(1524*)</span></span>
+                      <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Đặng Văn Sơn <span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">(1614)</span></span>
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">tổng 3138</span>
+                    </div>
+                    <div style="display:grid;gap:6px;justify-items:end">
+                      <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#8494AA">chưa từng gặp nhau</span>
+                      <span style="font:600 11px/1 'IBM Plex Sans', sans-serif;padding:6px 10px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Vì sao?</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- người còn chờ -->
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;overflow:hidden">
+                  <div style="padding:10px 13px;border-bottom:1px solid #22304A;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Chờ lượt sau · 4 người</span>
+                    <div style="flex:1"></div>
+                    <span style="font:400 12px/1 'IBM Plex Mono', monospace;color:#8494AA">sort: chờ lâu nhất trước</span>
+                  </div>
+                  <div style="padding:11px 13px;display:flex;gap:9px;flex-wrap:wrap">
+                    <span style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:999px;background:#0B1220;border:1px solid #2E3E5C;font:600 12px/1 'IBM Plex Sans', sans-serif">Vương Tuấn Kiệt<span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">1571 · chờ 2 lượt</span></span>
+                    <span style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:999px;background:#0B1220;border:1px solid #2E3E5C;font:600 12px/1 'IBM Plex Sans', sans-serif">Lý Thu Trang<span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">1462 · chờ 1</span></span>
+                    <span style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:999px;background:#0B1220;border:1px solid #2E3E5C;font:600 12px/1 'IBM Plex Sans', sans-serif">Cao Minh Đức<span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">1689 · vừa xong</span></span>
+                    <span style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:999px;background:#0B1220;border:1px solid #2E3E5C;font:600 12px/1 'IBM Plex Sans', sans-serif">Hà Bảo Ngọc<span style="font-family:'IBM Plex Mono', monospace;color:#8494AA;font-weight:400">1433 · vừa xong</span></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- rail phải: 5 tiêu chí -->
+              <div style="display:grid;gap:12px">
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px 15px;display:grid;gap:11px">
+                  <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                    <span style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Điểm 5 tiêu chí · phương án A</span>
+                  </div>
+                  <div style="display:grid;gap:10px">
+                    <div style="display:grid;grid-template-columns:132px minmax(0,1fr) 40px;gap:9px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Cân trình Elo</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:95%;background:#00B2A9"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">95</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:132px minmax(0,1fr) 40px;gap:9px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Đổi partner</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:100%;background:#00B2A9"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">100</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:132px minmax(0,1fr) 40px;gap:9px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Đổi đối thủ</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:82%;background:#1D50A0"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">82</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:132px minmax(0,1fr) 40px;gap:9px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>H2H &amp; tỉ số cũ</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:88%;background:#1D50A0"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">88</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:132px minmax(0,1fr) 40px;gap:9px;align-items:center;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                      <span>Đều lượt chờ</span><span style="height:8px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:90%;background:#00B2A9"></span></span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#E9EFF7">90</span>
+                    </div>
+                  </div>
+                  <div style="border-top:1px solid #22304A;padding-top:9px;display:flex;justify-content:space-between;font:600 12px/1.2 'IBM Plex Sans', sans-serif"><span>Tổng có trọng số</span><span style="font-family:'IBM Plex Mono', monospace;color:#5FDBD3">92</span></div>
+                </div>
+
+                <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px 15px;display:grid;gap:10px">
+                  <div style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Máy đã dò gì · 80 phương án</div>
+                  <svg width="368" height="120" viewBox="0 0 368 120">
+                    <line x1="0" y1="100" x2="368" y2="100" stroke="#22304A"></line>
+                    <line x1="0" y1="20" x2="368" y2="20" stroke="#22304A" stroke-dasharray="3 4"></line>
+                    <circle cx="18" cy="76" r="3" fill="#4A5B76"></circle><circle cx="40" cy="88" r="3" fill="#4A5B76"></circle><circle cx="62" cy="64" r="3" fill="#4A5B76"></circle><circle cx="84" cy="82" r="3" fill="#4A5B76"></circle><circle cx="106" cy="55" r="3" fill="#4A5B76"></circle><circle cx="128" cy="70" r="3" fill="#4A5B76"></circle><circle cx="150" cy="46" r="3" fill="#4A5B76"></circle><circle cx="172" cy="61" r="3" fill="#4A5B76"></circle><circle cx="194" cy="38" r="3" fill="#4A5B76"></circle><circle cx="216" cy="52" r="3" fill="#4A5B76"></circle><circle cx="238" cy="43" r="3" fill="#4A5B76"></circle><circle cx="260" cy="30" r="3" fill="#7AA3DC"></circle><circle cx="282" cy="47" r="3" fill="#4A5B76"></circle><circle cx="304" cy="26" r="4" fill="#1D50A0"></circle><circle cx="326" cy="35" r="3" fill="#4A5B76"></circle><circle cx="348" cy="16" r="5.5" fill="#00B2A9"></circle>
+                    <text x="300" y="12" fill="#5FDBD3" font-family="IBM Plex Mono, monospace" font-size="10">A · 92</text>
+                    <text x="0" y="116" fill="#8494AA" font-family="IBM Plex Mono, monospace" font-size="10">thứ tự dò →</text>
+                  </svg>
+                  <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA;border-top:1px solid #22304A;padding-top:9px">Ngưỡng nét đứt là điểm 90. Ba phương án vượt ngưỡng, máy lấy cái cao nhất và giữ hai cái sau làm lựa chọn thay thế.</div>
+                </div>
+
+                <div style="background:#1A2437;border:1px solid #2E3E5C;border-radius:10px;padding:13px 15px;display:grid;gap:9px">
+                  <div style="font:600 14px/1.2 'IBM Plex Sans', sans-serif">Đang bị chặn</div>
+                  <div style="display:grid;gap:7px;font:400 12px/1.45 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                    <div style="display:flex;gap:9px"><span style="font-family:'IBM Plex Mono', monospace;color:#F1A79D">✕</span><span>Kiên – Long cùng đội: bị chặn tay, giữ hai người ở hai đầu sân.</span></div>
+                    <div style="display:flex;gap:9px"><span style="font-family:'IBM Plex Mono', monospace;color:#F1A79D">✕</span><span>Ngọc nghỉ 1 lượt: vừa đánh 3 trận liền.</span></div>
+                  </div>
+                  <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7;justify-self:start">Quản lý điều kiện chặn</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ CE2 · VÌ SAO GHÉP THẾ NÀY ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">CE2 · Giải trình một sân — <span style="font-family:'IBM Plex Mono', monospace;text-transform:none;letter-spacing:0;color:#5FDBD3">detailedCourtBalance()</span></div>
+        <div data-screen-label="CE2 Giai trinh mot san" style="width:620px;background:#1A2437;border:1px solid #2E3E5C;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.60);overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid #22304A;display:flex;align-items:center;gap:12px">
+            <div style="flex:1;min-width:0">
+              <div style="font:600 16px/1.25 Barlow, sans-serif">Sân 1 · vì sao ghép thế này</div>
+              <div style="font:400 12px/1.4 'IBM Plex Mono', monospace;color:#8494AA">Long · Linh vs Kiên · Mai — điểm 96</div>
+            </div>
+            <span style="font:600 14px/1 'IBM Plex Mono', monospace;color:#8494AA">✕</span>
+          </div>
+          <div style="padding:16px 18px;display:grid;gap:14px">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:center">
+              <div style="padding:11px;border-radius:9px;background:#141D2E;border:1px solid #22304A;display:grid;gap:5px">
+                <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Long + Linh</span>
+                <span style="font:600 22px/1 'IBM Plex Mono', monospace;color:#E9EFF7">3350</span>
+                <span style="font:400 11px/1.3 'IBM Plex Mono', monospace;color:#8494AA">1842 + 1508</span>
+              </div>
+              <div style="display:grid;gap:4px;justify-items:center">
+                <span style="font:600 11px/1 'IBM Plex Mono', monospace;color:#5FDBD3">lệch 8</span>
+                <span style="font:400 11px/1 'IBM Plex Mono', monospace;color:#8494AA">≈ 51/49</span>
+              </div>
+              <div style="padding:11px;border-radius:9px;background:#141D2E;border:1px solid #22304A;display:grid;gap:5px">
+                <span style="font:600 13px/1.3 'IBM Plex Sans', sans-serif">Kiên + Mai</span>
+                <span style="font:600 22px/1 'IBM Plex Mono', monospace;color:#E9EFF7">3342</span>
+                <span style="font:400 11px/1.3 'IBM Plex Mono', monospace;color:#8494AA">1795 + 1547</span>
+              </div>
+            </div>
+
+            <div style="display:grid;gap:9px">
+              <div style="font:600 12px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#8494AA">Từng tiêu chí cộng trừ</div>
+              <div style="display:grid;gap:6px;font:400 12px/1.35 'IBM Plex Sans', sans-serif">
+                <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #22304A"><span style="color:#A8B7CB">Cân trình</span><span style="color:#8494AA">lệch 8 Elo trên tổng 3.3k</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+30</span></div>
+                <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #22304A"><span style="color:#A8B7CB">Đổi partner</span><span style="color:#8494AA">cả 4 cặp đều là cặp mới trong buổi</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+20</span></div>
+                <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #22304A"><span style="color:#A8B7CB">Đổi đối thủ</span><span style="color:#8494AA">Long gặp Kiên lần 2 trong buổi</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#F1A79D">−6</span></div>
+                <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:rgba(0,178,169,.08);border:1px solid #00786F"><span style="color:#A8B7CB">H2H</span><span style="color:#8494AA">5 lần gặp, 3 lần tỉ số sát 2 điểm</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+26</span></div>
+                <div style="display:grid;grid-template-columns:118px minmax(0,1fr) 52px;gap:10px;align-items:center;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #22304A"><span style="color:#A8B7CB">Lượt chờ</span><span style="color:#8494AA">Linh chờ 2 lượt, Mai chờ 2 lượt</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+26</span></div>
+              </div>
+            </div>
+
+            <div style="display:grid;gap:9px;border-top:1px solid #22304A;padding-top:12px">
+              <div style="font:600 12px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#8494AA">Lịch sử tỉ số hai cặp này</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <span style="font:600 12px/1 'IBM Plex Mono', monospace;padding:8px 10px;border-radius:7px;background:rgba(0,178,169,.12);border:1px solid #00786F;color:#5FDBD3">21–19</span>
+                <span style="font:600 12px/1 'IBM Plex Mono', monospace;padding:8px 10px;border-radius:7px;background:rgba(0,178,169,.12);border:1px solid #00786F;color:#5FDBD3">22–20</span>
+                <span style="font:600 12px/1 'IBM Plex Mono', monospace;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #2E3E5C;color:#A8B7CB">21–15</span>
+                <span style="font:600 12px/1 'IBM Plex Mono', monospace;padding:8px 10px;border-radius:7px;background:rgba(0,178,169,.12);border:1px solid #00786F;color:#5FDBD3">19–21</span>
+                <span style="font:600 12px/1 'IBM Plex Mono', monospace;padding:8px 10px;border-radius:7px;background:#141D2E;border:1px solid #2E3E5C;color:#A8B7CB">21–14</span>
+              </div>
+              <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA">Ba trận sát điểm nên máy ưu tiên tái đấu. Nếu lịch sử toàn 21–5 một chiều, tiêu chí H2H sẽ bị trừ điểm dù Elo trung bình vẫn cân.</div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid #22304A;padding-top:12px">
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:10px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Đổi sân này</span>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:10px 14px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Khoá sân này rồi dò lại</span>
+              <div style="flex:1"></div>
+              <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:10px 14px;border-radius:6px;background:#1D50A0;color:#fff">Đồng ý</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ CE3 · EFFECTIVE STRENGTH ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">CE3 · Thẻ effective strength · người ít trận</div>
+        <div data-screen-label="CE3 Effective strength" style="width:420px;background:#1A2437;border:1px solid #2E3E5C;border-radius:12px;box-shadow:0 20px 48px rgba(0,0,0,.55);padding:16px;display:grid;gap:13px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:36px;height:36px;border-radius:999px;background:#7A3D8F;flex:0 0 auto"></span>
+            <div style="flex:1;min-width:0">
+              <div style="font:600 15px/1.2 'IBM Plex Sans', sans-serif">Nguyễn Khánh Vy</div>
+              <div style="font:400 12px/1.4 'IBM Plex Mono', monospace;color:#8494AA">3 trận · confidence LOW</div>
+            </div>
+            <span style="font:600 10px/1 'IBM Plex Mono', monospace;padding:5px 7px;border-radius:999px;background:rgba(214,59,43,.14);border:1px solid #8E2C20;color:#F1A79D">⚠ THẨM ĐỊNH</span>
+          </div>
+
+          <div style="display:grid;gap:8px">
+            <div style="display:flex;justify-content:space-between;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB"><span>Elo hiện tại</span><span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">1655</span></div>
+            <div style="display:flex;justify-content:space-between;font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#A8B7CB"><span>Seed khi vào CLB</span><span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">1580</span></div>
+            <div style="height:1px;background:#22304A;margin:2px 0"></div>
+            <div style="display:flex;justify-content:space-between;font:600 13px/1.2 'IBM Plex Sans', sans-serif"><span>Dùng để ghép sân</span><span style="font-family:'IBM Plex Mono', monospace;color:#F0D26A">1610</span></div>
+          </div>
+
+          <div style="display:grid;gap:7px">
+            <div style="height:24px;border-radius:6px;overflow:hidden;display:flex;border:1px solid #22304A">
+              <div style="width:60%;background:#7A3D8F;display:flex;align-items:center;justify-content:center;font:600 10px/1 'IBM Plex Mono', monospace;color:#fff">seed 60%</div>
+              <div style="width:40%;background:#1D50A0;display:flex;align-items:center;justify-content:center;font:600 10px/1 'IBM Plex Mono', monospace;color:#fff">Elo 40%</div>
+            </div>
+            <div style="font:400 11px/1.4 'IBM Plex Mono', monospace;color:#8494AA">1580 × 0.6 + 1655 × 0.4 = 1610</div>
+          </div>
+
+          <div style="border-top:1px solid #22304A;padding-top:11px;display:grid;gap:8px">
+            <div style="font:600 12px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#8494AA">Tỷ lệ co theo số trận</div>
+            <div style="display:grid;gap:6px;font:400 11px/1.3 'IBM Plex Mono', monospace;color:#A8B7CB">
+              <div style="display:grid;grid-template-columns:64px minmax(0,1fr) 92px;gap:8px;align-items:center"><span>&lt; 5 trận</span><span style="height:6px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:40%;background:#1D50A0"></span></span><span style="text-align:right">Elo 40%</span></div>
+              <div style="display:grid;grid-template-columns:64px minmax(0,1fr) 92px;gap:8px;align-items:center"><span>5–14</span><span style="height:6px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:65%;background:#1D50A0"></span></span><span style="text-align:right">Elo 65%</span></div>
+              <div style="display:grid;grid-template-columns:64px minmax(0,1fr) 92px;gap:8px;align-items:center"><span>15–29</span><span style="height:6px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:85%;background:#1D50A0"></span></span><span style="text-align:right">Elo 85%</span></div>
+              <div style="display:grid;grid-template-columns:64px minmax(0,1fr) 92px;gap:8px;align-items:center"><span>≥ 30</span><span style="height:6px;border-radius:999px;background:#0B1220;overflow:hidden;display:flex"><span style="width:100%;background:#00B2A9"></span></span><span style="text-align:right;color:#5FDBD3">Elo 100%</span></div>
+            </div>
+          </div>
+
+          <div style="font:400 12px/1.5 'IBM Plex Sans', sans-serif;color:#8494AA;border-top:1px solid #22304A;padding-top:11px">Vy thắng 2/3 trận đầu nên Elo vọt lên 1655. Co về seed để một buổi may mắn không đẩy cô vào sân của nhóm 1800.</div>
+        </div>
+      </div>
+
+      <!-- ═══ CE4 · CÀI ĐẶT MÙA GIẢI ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">CE4 · /cai-dat/mua-giai · công thức điểm &amp; kết mùa</div>
+        <div data-screen-label="CE4 Cai dat mua giai" style="width:760px;background:#0B1220;border:1px solid #22304A;border-radius:12px;padding:18px;display:grid;gap:14px">
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <div style="font:600 17px/1.25 Barlow, sans-serif">Mùa giải &amp; công thức điểm</div>
+            <div style="font:400 12px/1.4 'IBM Plex Mono', monospace;color:#8494AA">chỉ chủ CLB sửa được</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+            <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px;display:grid;gap:9px">
+              <div style="font:600 13px/1.2 'IBM Plex Sans', sans-serif">Mùa đang chạy</div>
+              <div style="display:grid;gap:7px;font:400 12px/1.3 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                <div style="display:flex;justify-content:space-between;gap:10px"><span>Mã mùa</span><span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">2026-Q3</span></div>
+                <div style="display:flex;justify-content:space-between;gap:10px"><span>Tên</span><span style="color:#E9EFF7">Thu Rực Lửa</span></div>
+                <div style="display:flex;justify-content:space-between;gap:10px"><span>Từ → đến</span><span style="font-family:'IBM Plex Mono', monospace;color:#E9EFF7">01/07 → 30/09</span></div>
+                <div style="display:flex;justify-content:space-between;gap:10px"><span>Chu kỳ</span><span style="color:#E9EFF7">Theo quý · tự mở mùa mới</span></div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid #22304A;padding-top:9px">
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 13px;border-radius:6px;background:#1A2437;border:1px solid #2E3E5C;color:#E9EFF7">Sửa mùa</span>
+                <span style="font:600 12px/1 'IBM Plex Sans', sans-serif;padding:9px 13px;border-radius:6px;background:rgba(214,59,43,.14);border:1px solid #8E2C20;color:#F1A79D">Kết mùa sớm</span>
+              </div>
+            </div>
+
+            <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;padding:13px;display:grid;gap:9px">
+              <div style="font:600 13px/1.2 'IBM Plex Sans', sans-serif">Khi kết mùa</div>
+              <div style="display:grid;gap:8px;font:400 12px/1.4 'IBM Plex Sans', sans-serif;color:#A8B7CB">
+                <div style="display:flex;gap:9px;align-items:flex-start"><span style="width:15px;height:15px;border-radius:4px;background:#00B2A9;flex:0 0 auto;margin-top:1px"></span><span>Chốt bảng, lưu ảnh top 10 vào lịch sử mùa</span></div>
+                <div style="display:flex;gap:9px;align-items:flex-start"><span style="width:15px;height:15px;border-radius:4px;background:#00B2A9;flex:0 0 auto;margin-top:1px"></span><span>Reset điểm mùa về 0 cho toàn CLB</span></div>
+                <div style="display:flex;gap:9px;align-items:flex-start"><span style="width:15px;height:15px;border-radius:4px;border:1.5px solid #4A5B76;flex:0 0 auto;margin-top:1px"></span><span>Trao huy chương ảo cho top 3 và giải chuyên cần</span></div>
+                <div style="display:flex;gap:9px;align-items:flex-start"><span style="width:15px;height:15px;border-radius:4px;border:1.5px solid #4A5B76;flex:0 0 auto;margin-top:1px"></span><span>Gửi tổng kết mùa cho từng thành viên</span></div>
+              </div>
+              <div style="font:400 12px/1.45 'IBM Plex Sans', sans-serif;color:#F0D26A;border-top:1px solid #22304A;padding-top:9px">Elo career, số trận và lịch sử H2H không bị ảnh hưởng.</div>
+            </div>
+          </div>
+
+          <div style="background:#141D2E;border:1px solid #22304A;border-radius:10px;overflow:hidden">
+            <div style="padding:10px 13px;border-bottom:1px solid #22304A;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span style="font:600 13px/1.2 'IBM Plex Sans', sans-serif">Công thức điểm mùa</span>
+              <div style="flex:1"></div>
+              <span style="font:400 12px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">sửa xong áp dụng từ buổi kế tiếp</span>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px 132px;padding:8px 13px;border-bottom:1px solid #22304A;font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#8494AA">
+              <span>Hành động</span><span style="text-align:right">Điểm</span><span style="text-align:right">Mùa này</span>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px 132px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif"><span>Tham gia buổi</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+30</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">7.980 pts</span></div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px 132px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif"><span>Mỗi trận ra sân</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+10</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">6.340 pts</span></div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px 132px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif"><span>Thắng trận</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+15</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">5.160 pts</span></div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px 132px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif"><span>Thắng đối thủ Elo cao hơn · upset</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#F0D26A">+25</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">2.100 pts</span></div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px 132px;align-items:center;padding:9px 13px;border-bottom:1px solid rgba(34,48,74,.6);font:400 13px/1.3 'IBM Plex Sans', sans-serif"><span>Trận 3 set kịch tính</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+10</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">1.170 pts</span></div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px 132px;align-items:center;padding:9px 13px;font:400 13px/1.3 'IBM Plex Sans', sans-serif"><span>Chuỗi 3 trận thắng liên tiếp</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#5FDBD3">+20</span><span style="text-align:right;font-family:'IBM Plex Mono', monospace;color:#8494AA">700 pts</span></div>
+          </div>
+
+          <div style="background:#1A2437;border:1px solid #2E3E5C;border-radius:10px;padding:13px;display:grid;gap:9px">
+            <div style="font:600 13px/1.2 'IBM Plex Sans', sans-serif">Ngưỡng thẩm định &amp; co Elo</div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+              <div style="display:grid;gap:4px"><span style="font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#8494AA">Đủ trận vào bảng chính thức</span><span style="font:600 20px/1 'IBM Plex Mono', monospace;color:#E9EFF7">5</span></div>
+              <div style="display:grid;gap:4px"><span style="font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#8494AA">Dùng Elo nguyên 100% từ</span><span style="font:600 20px/1 'IBM Plex Mono', monospace;color:#E9EFF7">30</span></div>
+              <div style="display:grid;gap:4px"><span style="font:400 12px/1.2 'IBM Plex Sans', sans-serif;color:#8494AA">Số phương án máy dò</span><span style="font:600 20px/1 'IBM Plex Mono', monospace;color:#E9EFF7">80</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section style="padding:48px 48px 96px;display:flex;flex-direction:column;gap:30px">
+
+  <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+    <div style="font:700 34px/1.1 Barlow, sans-serif;letter-spacing:-0.02em">Copy cặp · dán thẳng vào sân</div>
+    <div style="font:400 13px/1.4 'IBM Plex Mono', monospace;color:#8494AA;padding-bottom:5px">/buoi-tap/:id · tab Sân &amp; Trận · desktop</div>
+  </div>
+  <div style="max-width:860px;font:400 15px/1.6 'IBM Plex Sans', sans-serif;color:#A8B7CB">Cùng một cặp thường đánh lại nhiều lượt trong buổi. Mỗi trận, mỗi kèo và mỗi sân đang đánh có nút copy đưa cặp vào khay; sân trống biến thành ô dán. Khay giữ một cặp, hiện ở rail phải và theo người xếp qua cả ba tab. Dán không sinh trận — trận chỉ tạo khi bấm Xếp vào sân. Bàn phím: <span style="font-family:'IBM Plex Mono', monospace;color:#5FDBD3">C</span> copy cặp đang chọn, <span style="font-family:'IBM Plex Mono', monospace;color:#5FDBD3">V</span> dán vào sân trống đầu tiên.</div>
+
+  <div id="7b" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font:600 11px/1 'IBM Plex Mono', monospace;letter-spacing:0.08em;color:#04302C;background:#00B2A9;padding:6px 10px;border-radius:999px">7b</div>
+      <div style="font:400 14px/1.4 'IBM Plex Sans', sans-serif;color:#8494AA">Bàn sân với khay cặp · ô dán trên sân trống · modal ba cách dựng lại cặp</div>
+    </div>
+
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+      <!-- ═══ CPD1 BÀN SÂN · KHAY CẶP ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 'IBM Plex Sans', sans-serif;letter-spacing:0.08em;text-transform:uppercase;color:#8494AA">CPD1 · Bàn sân · khay cặp và ô dán — <span style="font-family:'IBM Plex Mono', monospace;text-transform:none;letter-spacing:0;color:#5FDBD3">CourtAssignmentTab.jsx</span></div>

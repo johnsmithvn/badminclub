@@ -11,6 +11,7 @@ import {
   calcPlayerDeltas,
 } from '#lib/rating.js'
 import { t } from '#i18n'
+import BestOfNArrangementView from '#components/session/BestOfNArrangementView.jsx'
 
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
@@ -23,6 +24,7 @@ export default function CourtAssignmentTab({ s }) {
   // Đội A & Đội B (mảng id/key các đấu thủ)
   const [teamA, setTeamA] = useState([])
   const [teamB, setTeamB] = useState([])
+  const [useBestOfN, setUseBestOfN] = useState(false)
 
   // Cài đặt sân & Elo
   const [courtIdx, setCourtIdx] = useState(0)
@@ -443,7 +445,54 @@ export default function CourtAssignmentTab({ s }) {
   const isCourtFull = teamA.length >= maxPerTeam && teamB.length >= maxPerTeam
 
   return (
-    <div style={S.container}>
+    <div style={{ display: 'grid', gap: 14 }}>
+      {/* Switcher Chế độ Best-of-N thông minh vs Chia sân đơn lẻ */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: '#141D2E', border: '1px solid #22304A' }}>
+          <button
+            type="button"
+            onClick={() => setUseBestOfN(true)}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '8px 14px',
+              borderRadius: 6,
+              background: useBestOfN ? '#00B2A9' : 'transparent',
+              color: useBestOfN ? '#04302C' : '#A8B7CB',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Best-of-N thông minh (80 phương án) {/* i18n-ok: view mode tab */}
+          </button>
+          <button
+            type="button"
+            onClick={() => setUseBestOfN(false)}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '8px 14px',
+              borderRadius: 6,
+              background: !useBestOfN ? '#1D50A0' : 'transparent',
+              color: !useBestOfN ? '#fff' : '#A8B7CB',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Ghi điểm từng sân {/* i18n-ok: view mode tab */}
+          </button>
+        </div>
+      </div>
+
+      {useBestOfN ? (
+        <BestOfNArrangementView
+          session={s}
+          players={players}
+          db={db}
+          onApplyPlan={(chosenLineup) => a.setLineup(s.id, chosenLineup)}
+          onToggleManual={() => setUseBestOfN(false)}
+          isMobile={isMobile}
+        />
+      ) : (
+        <div style={S.container}>
       {/* ---------------- Banner Kèo đã nhận (nếu có) ---------------- */}
       {acceptedChallenges.length > 0 && (
         <div style={S.chalBanner}>
@@ -1186,6 +1235,8 @@ export default function CourtAssignmentTab({ s }) {
           </div>
         )}
       </div>
+    </div>
+      )}
     </div>
   )
 }

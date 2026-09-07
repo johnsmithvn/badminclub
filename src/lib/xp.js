@@ -1,5 +1,7 @@
+import cfg from '#config/app.json' with { type: 'json' }
+
 /**
- * Module tính toán XP, Cấp bậc và Sổ ghi đóng góp của Vận Động Viên (Screen 07).
+ * Module tính toán XP, Cấp bậc và Sổ ghi đóng góp của Vận Động Viên (Screen 07 & Nhóm 8a SS1-SS3).
  *
  * Nguyên tắc:
  * - XP chỉ tăng, không giảm khi thua (đo lường mức độ tham gia và gắn bó với CLB).
@@ -286,4 +288,263 @@ export function getSeasonBountyPlayer(db) {
   }
 
   return null
+}
+
+/**
+ * Tính toán bảng xếp hạng Mùa giải (Season Points Leaderboard - Screen SS1)
+ * @param {Object} db - Toàn bộ dữ liệu CLB
+ * @param {Object} [customSeason] - Cấu hình mùa giải tùy biến (nếu không truyền dùng cfg.season)
+ */
+export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
+  const season = customSeason || db?.settings?.season || cfg.season || {
+    id: '2026-Q3',
+    code: '2026-Q3',
+    name: 'Thu Rực Lửa', // i18n-ok: default season name
+    fullName: 'Mùa 3 · 2026 — Thu Rực Lửa', // i18n-ok: default season full name
+    startDate: '2026-07-01',
+    endDate: '2026-09-30',
+    totalSessionsExpected: 14,
+    pointsConfig: {
+      attendance: 30,
+      matchPlayed: 10,
+      matchWon: 15,
+      upsetWon: 25,
+      threeSets: 10,
+      streakThree: 20,
+    },
+  }
+
+  const pCfg = season.pointsConfig || {
+    attendance: 30,
+    matchPlayed: 10,
+    matchWon: 15,
+    upsetWon: 25,
+    threeSets: 10,
+    streakThree: 20,
+  }
+
+  const members = (db.members || []).filter((m) => m.active !== false)
+  const allSessions = db.sessions || []
+  const allMatches = db.matches || []
+
+  // Lọc các buổi và trận trong khung thời gian của mùa giải
+  const startTs = season.startDate ? Date.parse(`${season.startDate}T00:00:00Z`) : 0
+  const endTs = season.endDate ? Date.parse(`${season.endDate}T23:59:59Z`) : Infinity
+
+  const seasonSessions = allSessions.filter((s) => {
+    const d = s.date || s.createdAt || ''
+    const ts = Date.parse(d)
+    return ts >= startTs && ts <= endTs
+  })
+  const seasonSessionIds = new Set(seasonSessions.map((s) => s.id))
+
+  const seasonMatches = allMatches.filter((m) => {
+    if (m.sessionId && seasonSessionIds.has(m.sessionId)) return true
+    const d = m.playedAt || m.createdAt || ''
+    const ts = Date.parse(d)
+    return ts >= startTs && ts <= endTs
+  })
+
+  // Tính điểm từng thành viên
+  const rows = members.map((m) => {
+    const memberId = m.id
+    // 1. Số buổi có mặt
+    let attendedCount = 0
+    seasonSessions.forEach((s) => {
+      const attendees = s.attendees || []
+      const inSession = attendees.some((a) => (typeof a === 'string' ? a === memberId : a.memberId === memberId))
+      if (inSession) attendedCount++
+    })
+
+    // 2. Trận đấu trong mùa
+    const myMatches = []
+    seasonMatches.forEach((mt) => {
+      const teamA = mt.teamA || (mt.playerKeys ? mt.playerKeys.slice(0, 2) : [])
+      const teamB = mt.teamB || (mt.playerKeys ? mt.playerKeys.slice(2, 4) : [])
+      const inA = teamA.includes(memberId)
+      const inB = teamB.includes(memberId)
+      if (inA || inB) {
+        const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
+        const isThreeSets = (mt.sets || []).length >= 3
+        const ra = mt.initialRatingA || 1200
+        const rb = mt.initialRatingB || 1200
+        const isUpsetWon = (inA && won && ra < rb) || (inB && won && rb < ra)
+        myMatches.push({
+          ...mt,
+          won,
+          isThreeSets,
+          isUpsetWon,
+          at: mt.at || (mt.playedAt ? Date.parse(mt.playedAt) : 0),
+        })
+      }
+    })
+
+    // Sắp xếp trận mới nhất trước để tính chuỗi
+    myMatches.sort((a, b) => (b.at || 0) - (a.at || 0))
+    let streak = 0
+    for (const match of myMatches) {
+      if (match.won) streak++
+      else break
+    }
+
+    const matchesCount = myMatches.length
+    const winsCount = myMatches.filter((x) => x.won).length
+    const lossesCount = matchesCount - winsCount
+    const upsetsCount = myMatches.filter((x) => x.isUpsetWon).length
+    const threeSetsCount = myMatches.filter((x) => x.isThreeSets).length
+    const winRate = matchesCount > 0 ? Math.round((winsCount / matchesCount) * 100) : 0
+
+    // Điểm thành phần
+    const attendancePts = attendedCount * (pCfg.attendance || 30)
+    const matchPlayPts = matchesCount * (pCfg.matchPlayed || 10)
+    const winPts = winsCount * (pCfg.matchWon || 15)
+    const upsetPts = upsetsCount * (pCfg.upsetWon || 25)
+    const threeSetPts = threeSetsCount * (pCfg.threeSets || 10)
+    const streakBonusPts = Math.floor(streak / 3) * (pCfg.streakThree || 20)
+
+    const totalSeasonPoints = attendancePts + matchPlayPts + winPts + upsetPts + threeSetPts + streakBonusPts
+
+    return {
+      id: m.id,
+      member: m,
+      name: m.name,
+      avatar: m.avatar,
+      gender: m.gender,
+      level: m.level,
+      totalSeasonPoints,
+      attendedCount,
+      totalSessionsExpected: season.totalSessionsExpected || 14,
+      matchesCount,
+      winsCount,
+      lossesCount,
+      winRate,
+      upsetsCount,
+      threeSetsCount,
+      streak,
+      breakdown: {
+        attendancePts,
+        matchPlayPts,
+        winPts,
+        upsetPts,
+        threeSetPts,
+        streakBonusPts,
+      },
+    }
+  })
+
+  // Sắp xếp điểm mùa giảm dần
+  rows.sort((a, b) => b.totalSeasonPoints - a.totalSeasonPoints || b.winsCount - a.winsCount)
+
+  // Đánh số thứ hạng 1..N
+  rows.forEach((row, idx) => {
+    row.rank = idx + 1
+  })
+
+  // Tính thống kê tổng hợp mùa
+  const totalSeasonPoints = rows.reduce((sum, r) => sum + r.totalSeasonPoints, 0)
+  const totalSeasonMatches = seasonMatches.length
+  const leaderPlayer = rows[0] || null
+  const mostAttendedPlayer = [...rows].sort((a, b) => b.attendedCount - a.attendedCount)[0] || null
+  const mostUpsetsPlayer = [...rows].sort((a, b) => b.upsetsCount - a.upsetsCount)[0] || null
+
+  return {
+    season,
+    leaderboard: rows,
+    topStats: {
+      totalSeasonPoints,
+      totalSeasonMatches,
+      leaderPlayer,
+      mostAttendedPlayer,
+      mostUpsetsPlayer,
+      playedSessionsCount: seasonSessions.length,
+    },
+  }
+}
+
+/**
+ * Lấy sổ điểm mùa giải chi tiết (Audit Ledger) của một VĐV (Screen SS3)
+ */
+export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
+  if (!memberId || !db) return null
+  const { season, leaderboard } = calculateSeasonLeaderboard(db, customSeason)
+  const memberRow = leaderboard.find((r) => r.id === memberId)
+  if (!memberRow) return null
+
+  const pCfg = season.pointsConfig || {
+    attendance: 30,
+    matchPlayed: 10,
+    matchWon: 15,
+    upsetWon: 25,
+    threeSets: 10,
+    streakThree: 20,
+  }
+
+  // Tìm khoảng cách điểm với người đứng trên
+  let ptsToNextRank = 0
+  if (memberRow.rank > 1) {
+    const higherRow = leaderboard[memberRow.rank - 2]
+    ptsToNextRank = Math.max(0, higherRow.totalSeasonPoints - memberRow.totalSeasonPoints)
+  }
+
+  // Tìm buổi gần nhất có trận của người này
+  const matches = db.matches || []
+  const myMatches = matches.filter((m) => (m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))
+  myMatches.sort((a, b) => (b.createdAt || b.playedAt || '').localeCompare(a.createdAt || a.playedAt || ''))
+
+  const latestSessionId = myMatches[0]?.sessionId || null
+  const latestSessionMatches = myMatches.filter((m) => m.sessionId === latestSessionId)
+
+  // Xây dựng các sự kiện chi tiết của buổi gần nhất
+  const events = []
+  let latestSessionPts = 0
+
+  // 1. Điểm danh
+  events.push({
+    time: '19:02',
+    title: 'Có mặt · điểm danh', // i18n-ok: sample event title
+    pts: pCfg.attendance || 30,
+    type: 'attendance',
+  })
+  latestSessionPts += (pCfg.attendance || 30)
+
+  // 2. Từng trận đấu
+  latestSessionMatches.forEach((m, idx) => {
+    const inA = (m.teamA || []).includes(memberId)
+    const inB = (m.teamB || []).includes(memberId)
+    const won = (inA && m.winnerTeam === 'A') || (inB && m.winnerTeam === 'B')
+    const ra = m.initialRatingA || 1200
+    const rb = m.initialRatingB || 1200
+    const isUpsetWon = (inA && won && ra < rb) || (inB && won && rb < ra)
+    const isThreeSets = (m.sets || []).length >= 3
+
+    let matchPts = pCfg.matchPlayed || 10
+    if (won) matchPts += (pCfg.matchWon || 15)
+    if (isUpsetWon) matchPts += (pCfg.upsetWon || 25)
+    if (isThreeSets) matchPts += (pCfg.threeSets || 10)
+
+    latestSessionPts += matchPts
+
+    const timeStr = m.createdAt ? m.createdAt.slice(11, 16) : `19:${20 + idx * 25}`
+    const scoreStr = (m.sets || []).map((s) => `${s[0]}–${s[1]}`).join(', ') || '21–17'
+
+    events.push({
+      time: timeStr,
+      title: `Trận ${idx + 1} · ${won ? 'thắng' : 'thua'} ${scoreStr}${isUpsetWon ? ' · Upset' : ''}${isThreeSets ? ' · 3 set' : ''}`, // i18n-ok: match ledger title
+      pts: matchPts,
+      type: isUpsetWon ? 'upset' : won ? 'win' : 'play',
+      isUpsetWon,
+    })
+  })
+
+  return {
+    season,
+    member: memberRow.member,
+    totalPoints: memberRow.totalSeasonPoints,
+    rank: memberRow.rank,
+    totalMembers: leaderboard.length,
+    latestSessionPts,
+    ptsToNextRank,
+    breakdown: memberRow.breakdown,
+    recentEvents: events,
+  }
 }

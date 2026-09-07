@@ -152,8 +152,44 @@ export function expectedScore(ra, rb) {
  * @param {Object|Array} playerRatings
  * @param {string} memberId
  * @param {Object} [member]
+/**
+ * Kiểm tra xem thành viên có đang ở giai đoạn thẩm định (< 5 trận) hay không.
+ */
+export function isProvisional(gamesCount = 0) {
+  return (gamesCount || 0) < 5
+}
+
+/**
+ * Tính điểm sức mạnh hiệu dụng (Effective Strength) dùng cho thuật toán xếp sân.
+ * Co cụm Elo về điểm seed ban đầu đối với người ít trận:
+ * - < 5 trận: Seed 60% + Elo 40% (co mạnh nhất để tránh overfit vì vài trận may mắn)
+ * - 5–14 trận: Seed 35% + Elo 65%
+ * - 15–29 trận: Seed 15% + Elo 85%
+ * - ≥ 30 trận: Elo 100% (dữ liệu đã tin cậy hoàn toàn)
+ * @param {number} rating - Elo hiện tại
+ * @param {number} seedRating - Điểm seed khi vào CLB (theo level)
+ * @param {number} gamesCount - Số trận đã đấu
+ * @returns {number}
+ */
+export function effectiveStrengthOf(rating = 0, seedRating = 0, gamesCount = 0) {
+  const r = Math.round(rating || 0)
+  const seed = Math.round(seedRating || r)
+  const g = Math.max(0, gamesCount || 0)
+  if (g >= 30) return r
+  if (g >= 15) return Math.round(seed * 0.15 + r * 0.85)
+  if (g >= 5) return Math.round(seed * 0.35 + r * 0.65)
+  return Math.round(seed * 0.60 + r * 0.40)
+}
+
+/**
+ * Lấy an toàn thông tin rating của 1 người chơi từ playerRatings (hỗ trợ cả Object Map lẫn Array).
+ * Trả về rating kỹ thuật và displayRating luôn >= MIN_RATING (0).
+ * Nếu chưa đấu trận nào, dùng seed rating gắn với trình độ của thành viên (member.level).
+ * @param {Object|Array} playerRatings
+ * @param {string} memberId
+ * @param {Object} [member]
  * @param {Array<string>} [levels]
- * @returns {{ rating: number, displayRating: number, gamesCount: number, confidence: string, winsCount: number, lossesCount: number, tier: Object }}
+ * @returns {{ rating: number, displayRating: number, effectiveStrength: number, seedRating: number, gamesCount: number, confidence: string, isProvisional: boolean, provisionalRemaining: number, winsCount: number, lossesCount: number, tier: Object }}
  */
 export function getPlayerRating(playerRatings, memberId, member = null, levels = null) {
   const seedRating = member?.level ? initialRatingOf(member.level, levels) : DEFAULT_RATING
@@ -161,8 +197,12 @@ export function getPlayerRating(playerRatings, memberId, member = null, levels =
     return {
       rating: seedRating,
       displayRating: Math.max(MIN_RATING, seedRating),
+      effectiveStrength: seedRating,
+      seedRating,
       gamesCount: 0,
       confidence: 'low',
+      isProvisional: true,
+      provisionalRemaining: 5,
       winsCount: 0,
       lossesCount: 0,
       tier: rankTierOf(seedRating),
@@ -178,8 +218,12 @@ export function getPlayerRating(playerRatings, memberId, member = null, levels =
     return {
       rating: seedRating,
       displayRating: Math.max(MIN_RATING, seedRating),
+      effectiveStrength: seedRating,
+      seedRating,
       gamesCount: 0,
       confidence: 'low',
+      isProvisional: true,
+      provisionalRemaining: 5,
       winsCount: 0,
       lossesCount: 0,
       tier: rankTierOf(seedRating),
@@ -187,11 +231,16 @@ export function getPlayerRating(playerRatings, memberId, member = null, levels =
   }
   const r = Math.round(found.rating ?? seedRating)
   const gCount = found.gamesCount ?? found.games_count ?? 0
+  const eff = effectiveStrengthOf(r, seedRating, gCount)
   return {
     ...found,
     rating: r,
     displayRating: Math.max(MIN_RATING, r),
+    effectiveStrength: eff,
+    seedRating,
     gamesCount: gCount,
+    isProvisional: isProvisional(gCount),
+    provisionalRemaining: Math.max(0, 5 - gCount),
     winsCount: found.winsCount ?? found.wins_count ?? 0,
     lossesCount: found.lossesCount ?? found.losses_count ?? 0,
     confidence: found.confidence ?? found.confidence_label ?? confidenceOf(gCount),
