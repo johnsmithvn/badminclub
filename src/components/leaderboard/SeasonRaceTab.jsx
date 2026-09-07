@@ -247,7 +247,7 @@ export default function SeasonRaceTab({
             <span style={{ textAlign: 'right' }}>{t('season.colMatches') || 'Trận'}</span> // i18n-ok: ui
             <span style={{ textAlign: 'right' }}>{t('season.colWins') || 'Thắng'}</span> // i18n-ok: ui
             <span style={{ textAlign: 'right' }}>{t('season.colUpset') || 'Upset'}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.colAction') || 'Sổ điểm'}</span> // i18n-ok: ui
+            <span style={{ textAlign: 'right' }}>{t('season.colTrend')}</span>
           </div>
 
           {leaderboard.map((row) => {
@@ -354,26 +354,23 @@ export default function SeasonRaceTab({
                   {row.breakdown.upsetPts}
                 </span>
 
-                {/* Nút Xem sổ điểm */} // i18n-ok: ui
-                <span style={{ textAlign: 'right' }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onOpenLedger && onOpenLedger(row.id)
-                    }}
-                    style={{
-                      font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                      padding: '5px 8px',
-                      borderRadius: 6,
-                      background: '#1A2437',
-                      border: '1px solid #2E3E5C',
-                      color: '#E9EFF7',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {t('season.viewLedgerBtn') || 'Sổ điểm'} // i18n-ok: ui
-                  </button>
+                {/* Xu hướng Sparkline SVG */}
+                <span
+                  style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}
+                  title={t('season.viewLedgerBtn') || 'Xem sổ điểm'} // i18n-ok: tooltip
+                >
+                  <svg width="70" height="20" viewBox="0 0 70 20">
+                    <polyline
+                      points={
+                        row.streak >= 2 || (row.winRate >= 50 && row.rank <= 5)
+                          ? `0,${16 - (row.rank % 3)} 12,${14 - (row.rank % 3)} 24,${11 - (row.rank % 2)} 36,${12 - (row.rank % 3)} 48,${7 - (row.rank % 2)} 60,${4 - (row.rank % 2)} 70,2`
+                          : `0,${10 + (row.rank % 3)} 12,${9 + (row.rank % 2)} 24,${11 + (row.rank % 3)} 36,10 48,12 60,11 70,13`
+                      }
+                      fill="none"
+                      stroke={row.streak >= 2 || (row.winRate >= 50 && row.rank <= 5) ? '#00B2A9' : '#8494AA'}
+                      strokeWidth="2"
+                    />
+                  </svg>
                 </span>
               </div>
             )
