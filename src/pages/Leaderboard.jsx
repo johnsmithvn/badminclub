@@ -327,26 +327,57 @@ export default function Leaderboard() {
   // TAB 4: Ma trận Đối đầu H2H
   // -------------------------------------------------------------
   const [matrixMemberLimit, setMatrixMemberLimit] = useState(() => (isMobile ? 5 : 8))
+
+  // Đếm số trận đối đầu của từng thành viên với các thành viên khác trong CLB
+  const memberH2HCounts = useMemo(() => {
+    const counts = {}
+    const activeIds = new Set((activeMembers || []).map((m) => m.id))
+    activeIds.forEach((id) => { counts[id] = 0 })
+
+    ;(db.matches || []).forEach((m) => {
+      const teamA = (m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])).filter((id) => activeIds.has(id))
+      const teamB = (m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])).filter((id) => activeIds.has(id))
+      if (teamA.length && teamB.length && m.winnerTeam) {
+        teamA.forEach((idA) => {
+          teamB.forEach((idB) => {
+            counts[idA] = (counts[idA] || 0) + 1
+            counts[idB] = (counts[idB] || 0) + 1
+          })
+        })
+      }
+    })
+    return counts
+  }, [activeMembers, db.matches])
+
   const topMembersForMatrix = useMemo(() => {
     const sorted = [...activeMembers].filter(Boolean).sort((a, b) => {
+      // 1. Ưu tiên thành viên có nhiều trận đối đầu với người khác nhất (chuẩn "hay gặp nhau nhất")
+      const countA = memberH2HCounts[a.id] || 0
+      const countB = memberH2HCounts[b.id] || 0
+      if (countB !== countA) return countB - countA
+      // 2. Thứ nhì là rating Elo
       const ra = getPlayerRating(db.playerRatings, a.id, a, db.levels).rating
       const rb = getPlayerRating(db.playerRatings, b.id, b, db.levels).rating
       return rb - ra
     })
     const limit = matrixMemberLimit === 999 ? sorted.length : matrixMemberLimit
     return sorted.slice(0, limit)
-  }, [activeMembers, db.playerRatings, db.levels, matrixMemberLimit])
+  }, [activeMembers, memberH2HCounts, db.playerRatings, db.levels, matrixMemberLimit])
 
   const matrixData = useMemo(() => {
     return headToHeadMatrix(topMembersForMatrix, db.matches || []) || {}
   }, [topMembersForMatrix, db.matches])
+
+  const fullClubMatrix = useMemo(() => {
+    return headToHeadMatrix(activeMembers, db.matches || []) || {}
+  }, [activeMembers, db.matches])
 
   const neverMetList = useMemo(() => {
     return neverMetPairs(activeMembers, db.matches || [])
   }, [activeMembers, db.matches])
 
   const disparatePairsList = useMemo(() => {
-    const raw = topDisparatePairs(matrixData, topMembersForMatrix, 5)
+    const raw = topDisparatePairs(fullClubMatrix, activeMembers, 5)
     return (raw || []).map((item) => {
       const p1Obj = memberMap[item.p1] || (db.members || []).find((m) => m.id === item.p1) || { id: item.p1, name: item.p1 }
       const p2Obj = memberMap[item.p2] || (db.members || []).find((m) => m.id === item.p2) || { id: item.p2, name: item.p2 }
@@ -358,7 +389,7 @@ export default function Leaderboard() {
         losses: item.wins2 ?? 0,
       }
     })
-  }, [matrixData, topMembersForMatrix, memberMap, db.members])
+  }, [fullClubMatrix, activeMembers, memberMap, db.members])
 
   const neverMetSessionScored = useMemo(() => {
     const raw = neverMetWithSessionCount(neverMetList, {
@@ -746,9 +777,11 @@ export default function Leaderboard() {
               : activeTab === 'search'
               ? t('matchSearch.searchHeaderSub')
               : activeTab === 'matrix'
-              ? (isMobile && matrixMemberLimit === 5
+              ? (matrixMemberLimit === 5
                   ? t('matchSearch.matrixSubMobile5')
-                  : t('matchSearch.matrixHeaderSub', { count: matrixMemberLimit === 999 ? activeMembers.length : matrixMemberLimit }))
+                  : matrixMemberLimit === 999
+                  ? t('matchSearch.matrixHeaderSub', { count: activeMembers.length })
+                  : t('matchSearch.matrixSubTopN', { count: matrixMemberLimit }))
               : t('leaderboard.sub')}
           </div>
         </div>
@@ -831,7 +864,7 @@ export default function Leaderboard() {
                 border: '1px solid var(--border-subtle)',
                 alignItems: 'center',
               }}>
-                {(isMobile ? [5, 8, 999] : [8, 12, 999]).map((limit) => (
+                {[5, 8, 12, 999].map((limit) => (
                   <button
                     key={limit}
                     type="button"
@@ -850,8 +883,10 @@ export default function Leaderboard() {
                     }}
                   >
                     {limit === 999
-                      ? (isMobile ? t('matchSearch.clubAll') : t('common.all'))
-                      : (isMobile && limit === 5 ? t('matchSearch.filterTop5') : `Top ${limit}`)}
+                      ? t('matchSearch.clubAll')
+                      : isMobile
+                      ? limit
+                      : `Top ${limit}`}
                   </button>
                 ))}
               </div>
@@ -1801,25 +1836,59 @@ export default function Leaderboard() {
         }}>
           {/* Cột trái: Ma trận */}
           <div style={{ ...S.card, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
-            <div style={{ ...S.cardHead, padding: isMobile ? '12px 14px' : '14px 16px' }}>
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ ...S.cardHead, padding: isMobile ? '12px 14px' : '14px 16px', gap: 10 }}>
+              <div style={{ flex: '1 1 180px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={S.cardTitle}>{t('matchSearch.matrixTitle')}</div>
                 <div style={S.cardSub}>
-                  {isMobile && matrixMemberLimit === 5
+                  {matrixMemberLimit === 5
                     ? t('matchSearch.matrixSubMobile5')
-                    : t('matchSearch.matrixSubtitle')}
+                    : matrixMemberLimit === 999
+                    ? t('matchSearch.matrixHeaderSub', { count: activeMembers.length })
+                    : t('matchSearch.matrixSubTopN', { count: matrixMemberLimit })}
                 </div>
               </div>
-              <span style={{
-                font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                padding: '5px 9px',
-                borderRadius: 999,
-                background: 'rgba(0,178,169,.18)',
-                color: isDark ? '#5FDBD3' : 'var(--teal-700)',
-                whiteSpace: 'nowrap',
-              }}>
-                {t('matchSearch.matrixReadByRow')}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{
+                  display: 'flex',
+                  padding: 2,
+                  borderRadius: 6,
+                  background: 'var(--surface-inset)',
+                  border: '1px solid var(--border-subtle)',
+                  alignItems: 'center',
+                }}>
+                  {[5, 8, 12, 999].map((limit) => (
+                    <button
+                      key={limit}
+                      type="button"
+                      onClick={() => setMatrixMemberLimit(limit)}
+                      style={{
+                        padding: isMobile ? '4px 7px' : '4px 9px',
+                        borderRadius: 4,
+                        border: 'none',
+                        background: matrixMemberLimit === limit ? 'var(--surface-card)' : 'transparent',
+                        color: matrixMemberLimit === limit ? 'var(--text-primary)' : 'var(--text-muted)',
+                        font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                        cursor: 'pointer',
+                        boxShadow: matrixMemberLimit === limit ? 'var(--shadow-xs)' : 'none',
+                        transition: 'all 0.15s ease',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {limit === 999 ? t('matchSearch.clubAll') : limit}
+                    </button>
+                  ))}
+                </div>
+                <span style={{
+                  font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                  padding: '5px 9px',
+                  borderRadius: 999,
+                  background: 'rgba(0,178,169,.18)',
+                  color: isDark ? '#5FDBD3' : 'var(--teal-700)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {t('matchSearch.matrixReadByRow')}
+                </span>
+              </div>
             </div>
 
             <div style={{
