@@ -676,7 +676,7 @@ export default function SessionDetail() {
       </div>
       )}
 
-      {activeTab === 'courts' && <CourtAssignmentTab s={s} />}
+      {activeTab === 'courts' && <CourtAssignmentTab s={s} onSwitchTab={setActiveTab} activeTab={activeTab} />}
       {activeTab === 'matches' && <SessionMatchesTab s={s} onSwitchTab={setActiveTab} />}
 
       {editingGuest && (
