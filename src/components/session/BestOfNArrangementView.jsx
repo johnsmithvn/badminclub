@@ -18,12 +18,12 @@ export default function BestOfNArrangementView({
   const [inspectingPlayer, setInspectingPlayer] = useState(null)
   const [rerunTrigger, setRerunTrigger] = useState(0)
 
-  // Map rating cho tất cả người chơi
+  // Map rating cho tất cả người chơi (dùng Effective Strength tầng 3 co cụm Bayes cho người mới)
   const ratingsMap = useMemo(() => {
     const map = {}
     players.forEach((p) => {
       const pr = getPlayerRating(db.playerRatings, p.key, p, db.levels)
-      map[p.key] = pr.rating || 1500
+      map[p.key] = pr.effectiveStrength || pr.rating || 1500
     })
     return map
   }, [players, db.playerRatings, db.levels])
@@ -62,7 +62,25 @@ export default function BestOfNArrangementView({
   const { planA, planB, planC, scatterPoints = [], waitingPlayers = [], blockedConstraints = [], timeMs = 3 } = bestOfNResult
 
   const currentPlan = activePlanKey === 'planB' && planB ? planB : activePlanKey === 'planC' && planC ? planC : planA
-  const courts = currentPlan?.courts || []
+
+  const courts = useMemo(() => {
+    if (!currentPlan) return []
+    if (currentPlan.courts && currentPlan.courts.length) return currentPlan.courts
+    return (currentPlan.courtDetails || []).map((cd) => {
+      const getP = (k) => {
+        const base = players.find((x) => x.key === k) || { key: k, name: k }
+        const pr = getPlayerRating(db.playerRatings, k, base, db.levels)
+        return { ...base, ...pr }
+      }
+      return {
+        courtIdx: cd.ci,
+        diff: cd.canRating?.delta || 0,
+        teamA: (cd.teamA || []).map(getP),
+        teamB: (cd.teamB || []).map(getP),
+        ...cd,
+      }
+    })
+  }, [currentPlan, players, db.playerRatings, db.levels])
 
   const activeIdxs = activeCourtIdxs(session)
   const waitingCount = waitingPlayers.length
@@ -85,8 +103,8 @@ export default function BestOfNArrangementView({
       <div
         style={{
           padding: '14px 20px',
-          background: '#0B1220',
-          border: '1px solid #22304A',
+          background: 'var(--surface-sunken, #0B1220)',
+          border: '1px solid var(--border-subtle, #22304A)',
           borderRadius: 10,
           display: 'flex',
           alignItems: 'center',
@@ -96,10 +114,10 @@ export default function BestOfNArrangementView({
         }}
       >
         <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ font: "600 18px/1.25 Barlow, sans-serif", color: '#E9EFF7' }}>
+          <div style={{ font: "600 18px/1.25 Barlow, sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
             {t('season.assignSessionTitle', { date: session.date ? session.date.slice(5) : '' })}
           </div>
-          <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+          <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted, #8494AA)' }}>
             {t('season.headerAssignMeta', { players: waitingCount, courts: activeIdxs.length, candidates: 80, ms: timeMs })}
           </div>
         </div>
@@ -112,9 +130,9 @@ export default function BestOfNArrangementView({
                 font: "600 12px/1 'IBM Plex Sans', sans-serif",
                 padding: '9px 14px',
                 borderRadius: 6,
-                background: '#141D2E',
-                border: '1px solid #22304A',
-                color: '#A8B7CB',
+                background: 'var(--surface-card, #141D2E)',
+                border: '1px solid var(--border-subtle, #22304A)',
+                color: 'var(--text-secondary, #A8B7CB)',
                 cursor: 'pointer',
               }}
             >
@@ -128,9 +146,9 @@ export default function BestOfNArrangementView({
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
               padding: '9px 14px',
               borderRadius: 6,
-              background: '#1A2437',
-              border: '1px solid #2E3E5C',
-              color: '#E9EFF7',
+              background: 'var(--surface-overlay, #1A2437)',
+              border: '1px solid var(--border-default, #2E3E5C)',
+              color: 'var(--text-primary, #E9EFF7)',
               cursor: 'pointer',
             }}
           >
@@ -172,8 +190,8 @@ export default function BestOfNArrangementView({
             <div
               onClick={() => setActivePlanKey('planA')}
               style={{
-                background: '#141D2E',
-                border: activePlanKey === 'planA' ? '1.5px solid #00B2A9' : '1px solid #2E3E5C',
+                background: 'var(--surface-card, #141D2E)',
+                border: activePlanKey === 'planA' ? '1.5px solid #00B2A9' : '1px solid var(--border-default, #2E3E5C)',
                 borderRadius: 10,
                 padding: 12,
                 display: 'grid',
@@ -183,7 +201,7 @@ export default function BestOfNArrangementView({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
                   {t('season.planA')}
                 </span>
                 <span
@@ -199,17 +217,17 @@ export default function BestOfNArrangementView({
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 7 }}>
-                <span style={{ font: "600 30px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                <span style={{ font: "600 30px/1 'IBM Plex Mono', monospace", color: '#00B2A9' }}>
                   {planA?.score || 92}
                 </span>
-                <span style={{ font: "400 11px/1.6 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                <span style={{ font: "400 11px/1.6 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
                   {t('season.planBalancePts')}
                 </span>
               </div>
-              <div style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+              <div style={{ height: 6, borderRadius: 999, background: 'var(--surface-sunken, #0B1220)', overflow: 'hidden', display: 'flex' }}>
                 <div style={{ width: `${planA?.score || 92}%`, background: '#00B2A9' }} />
               </div>
-              <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+              <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted, #8494AA)' }}>
                 {planA?.desc || t('season.planDescA')}
               </div>
             </div>
@@ -219,8 +237,8 @@ export default function BestOfNArrangementView({
               <div
                 onClick={() => setActivePlanKey('planB')}
                 style={{
-                  background: '#141D2E',
-                  border: activePlanKey === 'planB' ? '1.5px solid #1D50A0' : '1px solid #2E3E5C',
+                  background: 'var(--surface-card, #141D2E)',
+                  border: activePlanKey === 'planB' ? '1.5px solid #1D50A0' : '1px solid var(--border-default, #2E3E5C)',
                   borderRadius: 10,
                   padding: 12,
                   display: 'grid',
@@ -230,20 +248,20 @@ export default function BestOfNArrangementView({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                  <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
                     {t('season.planB')}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 7 }}>
-                  <span style={{ font: "600 30px/1 'IBM Plex Mono', monospace", color: '#B6CDEC' }}>
+                  <span style={{ font: "600 30px/1 'IBM Plex Mono', monospace", color: 'var(--navy-500, #1D50A0)' }}>
                     {planB?.score || 87}
                   </span>
-                  <span style={{ font: "400 11px/1.6 'IBM Plex Mono', monospace", color: '#8494AA' }}>/ 100</span>
+                  <span style={{ font: "400 11px/1.6 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>/ 100</span>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                <div style={{ height: 6, borderRadius: 999, background: 'var(--surface-sunken, #0B1220)', overflow: 'hidden', display: 'flex' }}>
                   <div style={{ width: `${planB?.score || 87}%`, background: '#1D50A0' }} />
                 </div>
-                <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted, #8494AA)' }}>
                   {planB?.desc || t('season.planDescB')}
                 </div>
               </div>
@@ -254,8 +272,8 @@ export default function BestOfNArrangementView({
               <div
                 onClick={() => setActivePlanKey('planC')}
                 style={{
-                  background: '#141D2E',
-                  border: activePlanKey === 'planC' ? '1.5px solid #2E3E5C' : '1px solid #22304A',
+                  background: 'var(--surface-card, #141D2E)',
+                  border: activePlanKey === 'planC' ? '1.5px solid var(--border-default, #2E3E5C)' : '1px solid var(--border-subtle, #22304A)',
                   borderRadius: 10,
                   padding: 12,
                   display: 'grid',
@@ -264,20 +282,20 @@ export default function BestOfNArrangementView({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                  <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
                     {t('season.planC')}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 7 }}>
-                  <span style={{ font: "600 30px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                  <span style={{ font: "600 30px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary, #A8B7CB)' }}>
                     {planC?.score || 79}
                   </span>
-                  <span style={{ font: "400 11px/1.6 'IBM Plex Mono', monospace", color: '#8494AA' }}>/ 100</span>
+                  <span style={{ font: "400 11px/1.6 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>/ 100</span>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                  <div style={{ width: `${planC?.score || 79}%`, background: '#2E3E5C' }} />
+                <div style={{ height: 6, borderRadius: 999, background: 'var(--surface-sunken, #0B1220)', overflow: 'hidden', display: 'flex' }}>
+                  <div style={{ width: `${planC?.score || 79}%`, background: 'var(--border-default, #2E3E5C)' }} />
                 </div>
-                <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted, #8494AA)' }}>
                   {planC?.desc || t('season.planDescC')}
                 </div>
               </div>
@@ -285,21 +303,21 @@ export default function BestOfNArrangementView({
           </div>
 
           {/* Danh sách các sân của phương án được chọn */}
-          <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-card, #141D2E)', border: '1px solid var(--border-subtle, #22304A)', borderRadius: 10, overflow: 'hidden' }}>
             <div
               style={{
                 padding: '10px 13px',
-                borderBottom: '1px solid #22304A',
+                borderBottom: '1px solid var(--border-subtle, #22304A)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
                 flexWrap: 'wrap',
               }}
             >
-              <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+              <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
                 {t('season.courtPlanTitle', { plan: currentPlan?.title || t('season.planA'), n: courts.length })}
               </span>
-              <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+              <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted, #8494AA)' }}>
                 {t('season.effectiveStrengthSub')}
               </span>
             </div>
@@ -319,7 +337,7 @@ export default function BestOfNArrangementView({
                   key={cIdx}
                   style={{
                     padding: '12px 13px',
-                    borderBottom: cIdx < courts.length - 1 ? '1px solid rgba(34,48,74,.6)' : 'none',
+                    borderBottom: cIdx < courts.length - 1 ? '1px solid var(--border-subtle, rgba(34,48,74,.6))' : 'none',
                     display: 'grid',
                     gridTemplateColumns: isMobile ? '1fr' : '66px minmax(0,1fr) auto minmax(0,1fr) 130px',
                     gap: 12,
@@ -328,7 +346,7 @@ export default function BestOfNArrangementView({
                 >
                   {/* Sân & Lệch */}
                   <div style={{ display: 'grid', gap: 3 }}>
-                    <span style={{ font: "600 14px/1.1 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                    <span style={{ font: "600 14px/1.1 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
                       {t('season.courtLabel', { n: court.courtIdx !== undefined ? court.courtIdx + 1 : cIdx + 1 })}
                     </span>
                     <span
@@ -338,7 +356,7 @@ export default function BestOfNArrangementView({
                         borderRadius: 999,
                         background: diff <= 15 ? 'rgba(0,178,169,.14)' : 'rgba(29,80,160,.20)',
                         border: diff <= 15 ? '1px solid #00786F' : '1px solid #1D50A0',
-                        color: diff <= 15 ? '#5FDBD3' : '#B6CDEC',
+                        color: diff <= 15 ? '#00B2A9' : '#1D50A0',
                         justifySelf: 'start',
                       }}
                     >
@@ -347,19 +365,19 @@ export default function BestOfNArrangementView({
                   </div>
 
                   {/* Đội A */}
-                  <div style={{ display: 'grid', gap: 4, padding: '9px 11px', borderRadius: 8, background: '#0B1220', border: '1px solid #22304A' }}>
+                  <div style={{ display: 'grid', gap: 4, padding: '9px 11px', borderRadius: 8, background: 'var(--surface-sunken, #0B1220)', border: '1px solid var(--border-subtle, #22304A)' }}>
                     {teamA.map((p) => {
                       const hasShrink = p.gamesCount < 30
                       return (
                         <div key={p.key || p.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                          <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                          <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
                             {p.name}
                           </span>
                           <span
                             onClick={() => hasShrink && setInspectingPlayer(p)}
                             style={{
                               fontFamily: "'IBM Plex Mono', monospace",
-                              color: hasShrink ? '#F0D26A' : '#8494AA',
+                              color: hasShrink ? '#E08A00' : 'var(--text-muted, #8494AA)',
                               fontSize: 12,
                               cursor: hasShrink ? 'pointer' : 'default',
                             }}
@@ -370,30 +388,30 @@ export default function BestOfNArrangementView({
                         </div>
                       )
                     })}
-                    <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                    <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
                       {t('season.teamTotal', { n: rA })}
                     </span>
                   </div>
 
                   {/* vs */}
-                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#8494AA', textAlign: 'center' }}>
+                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)', textAlign: 'center' }}>
                     vs
                   </span>
 
                   {/* Đội B */}
-                  <div style={{ display: 'grid', gap: 4, padding: '9px 11px', borderRadius: 8, background: '#0B1220', border: '1px solid #22304A' }}>
+                  <div style={{ display: 'grid', gap: 4, padding: '9px 11px', borderRadius: 8, background: 'var(--surface-sunken, #0B1220)', border: '1px solid var(--border-subtle, #22304A)' }}>
                     {teamB.map((p) => {
                       const hasShrink = p.gamesCount < 30
                       return (
                         <div key={p.key || p.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                          <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                          <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
                             {p.name}
                           </span>
                           <span
                             onClick={() => hasShrink && setInspectingPlayer(p)}
                             style={{
                               fontFamily: "'IBM Plex Mono', monospace",
-                              color: hasShrink ? '#F0D26A' : '#8494AA',
+                              color: hasShrink ? '#E08A00' : 'var(--text-muted, #8494AA)',
                               fontSize: 12,
                               cursor: hasShrink ? 'pointer' : 'default',
                             }}
@@ -404,7 +422,7 @@ export default function BestOfNArrangementView({
                         </div>
                       )
                     })}
-                    <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                    <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
                       {t('season.teamTotal', { n: rB })}
                     </span>
                   </div>
@@ -416,7 +434,7 @@ export default function BestOfNArrangementView({
                         onClick={() => setInspectingPlayer(shrinkedPlayer)}
                         style={{
                           font: "400 11px/1.2 'IBM Plex Mono', monospace",
-                          color: '#F0D26A',
+                          color: '#E08A00',
                           cursor: 'pointer',
                           textDecoration: 'underline dotted',
                         }}
@@ -424,7 +442,7 @@ export default function BestOfNArrangementView({
                         {t('season.shrunkSeed', { name: shrinkedPlayer.name ? shrinkedPlayer.name.split(' ').pop() : '' })}
                       </span>
                     ) : (
-                      <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                      <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
                         {court.h2hSummary || t('season.neverPlayed')}
                       </span>
                     )}
@@ -436,9 +454,9 @@ export default function BestOfNArrangementView({
                         font: "600 11px/1 'IBM Plex Sans', sans-serif",
                         padding: '6px 10px',
                         borderRadius: 6,
-                        background: '#1A2437',
-                        border: '1px solid #2E3E5C',
-                        color: '#E9EFF7',
+                        background: 'var(--surface-overlay, #1A2437)',
+                        border: '1px solid var(--border-default, #2E3E5C)',
+                        color: 'var(--text-primary, #E9EFF7)',
                         cursor: 'pointer',
                       }}
                     >
@@ -452,22 +470,22 @@ export default function BestOfNArrangementView({
 
           {/* Chờ lượt sau */}
           {waitingPlayers.length > 0 && (
-            <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--surface-card, #141D2E)', border: '1px solid var(--border-subtle, #22304A)', borderRadius: 10, overflow: 'hidden' }}>
               <div
                 style={{
                   padding: '10px 13px',
-                  borderBottom: '1px solid #22304A',
+                  borderBottom: '1px solid var(--border-subtle, #22304A)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
                   flexWrap: 'wrap',
                 }}
               >
-                <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
                   {t('season.waitingRoster', { n: waitingPlayers.length })}
                 </span>
                 <div style={{ flex: '1 1 0%' }} />
-                <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
                   {t('season.sortWaitingFirst')}
                 </span>
               </div>
@@ -483,14 +501,14 @@ export default function BestOfNArrangementView({
                         gap: 8,
                         padding: '8px 11px',
                         borderRadius: 999,
-                        background: '#0B1220',
-                        border: '1px solid #2E3E5C',
+                        background: 'var(--surface-sunken, #0B1220)',
+                        border: '1px solid var(--border-default, #2E3E5C)',
                         font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                        color: '#E9EFF7',
+                        color: 'var(--text-primary, #E9EFF7)',
                       }}
                     >
                       {p.name}
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#8494AA', fontWeight: 400 }}>
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)', fontWeight: 400 }}>
                         {p.rating} · {t('season.waitTurns', { n: turns })}
                       </span>
                     </span>
@@ -506,64 +524,64 @@ export default function BestOfNArrangementView({
           {/* Card 1: Điểm 5 tiêu chí */}
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: 'var(--surface-card, #141D2E)',
+              border: '1px solid var(--border-subtle, #22304A)',
               borderRadius: 10,
               padding: '13px 15px',
               display: 'grid',
               gap: 11,
             }}
           >
-            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
               {t('season.fiveCriteriaTitle', { plan: currentPlan?.title || t('season.planA') })}
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary, #A8B7CB)' }}>
                 <span>{t('season.critBalance')}</span>
-                <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                <span style={{ height: 8, borderRadius: 999, background: 'var(--surface-sunken, #0B1220)', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.ratingBalance || 95}%`, background: '#00B2A9' }} />
                 </span>
-                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary, #E9EFF7)' }}>
                   {currentPlan?.criteria?.ratingBalance || 95}
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary, #A8B7CB)' }}>
                 <span>{t('season.critPartner')}</span>
-                <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                <span style={{ height: 8, borderRadius: 999, background: 'var(--surface-sunken, #0B1220)', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.partnerNovelty || 100}%`, background: '#00B2A9' }} />
                 </span>
-                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary, #E9EFF7)' }}>
                   {currentPlan?.criteria?.partnerNovelty || 100}
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary, #A8B7CB)' }}>
                 <span>{t('season.critOpponent')}</span>
-                <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                <span style={{ height: 8, borderRadius: 999, background: 'var(--surface-sunken, #0B1220)', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.opponentNovelty || 82}%`, background: '#1D50A0' }} />
                 </span>
-                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary, #E9EFF7)' }}>
                   {currentPlan?.criteria?.opponentNovelty || 82}
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary, #A8B7CB)' }}>
                 <span>{t('season.critH2H')}</span>
-                <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                <span style={{ height: 8, borderRadius: 999, background: 'var(--surface-sunken, #0B1220)', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.h2hHistory || 88}%`, background: '#1D50A0' }} />
                 </span>
-                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary, #E9EFF7)' }}>
                   {currentPlan?.criteria?.h2hHistory || 88}
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0,1fr) 40px', gap: 9, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary, #A8B7CB)' }}>
                 <span>{t('season.critWait')}</span>
-                <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                <span style={{ height: 8, borderRadius: 999, background: 'var(--surface-sunken, #0B1220)', overflow: 'hidden', display: 'flex' }}>
                   <span style={{ width: `${currentPlan?.criteria?.waitFairness || 90}%`, background: '#00B2A9' }} />
                 </span>
-                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary, #E9EFF7)' }}>
                   {currentPlan?.criteria?.waitFairness || 90}
                 </span>
               </div>
@@ -571,16 +589,16 @@ export default function BestOfNArrangementView({
 
             <div
               style={{
-                borderTop: '1px solid #22304A',
+                borderTop: '1px solid var(--border-subtle, #22304A)',
                 paddingTop: 9,
                 display: 'flex',
                 justifyContent: 'space-between',
                 font: "600 12px/1.2 'IBM Plex Sans', sans-serif",
-                color: '#E9EFF7',
+                color: 'var(--text-primary, #E9EFF7)',
               }}
             >
               <span>{t('season.weightedTotal')}</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#00B2A9' }}>
                 {currentPlan?.score || 92}
               </span>
             </div>
@@ -589,22 +607,22 @@ export default function BestOfNArrangementView({
           {/* Card 2: {t('season.monteCarloTitle', { n: 80 })} (Scatter SVG Plot) */}
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: 'var(--surface-card, #141D2E)',
+              border: '1px solid var(--border-subtle, #22304A)',
               borderRadius: 10,
               padding: '13px 15px',
               display: 'grid',
               gap: 10,
             }}
           >
-            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
               {t('season.monteCarloTitle', { n: 80 })}
             </div>
 
             <svg width="100%" height="120" viewBox="0 0 368 120" style={{ overflow: 'visible' }}>
-              <line x1="0" y1="100" x2="368" y2="100" stroke="#22304A" />
+              <line x1="0" y1="100" x2="368" y2="100" stroke="var(--border-subtle, #22304A)" />
               {/* Ngưỡng nét đứt 90 điểm */}
-              <line x1="0" y1="20" x2="368" y2="20" stroke="#22304A" strokeDasharray="3 4" />
+              <line x1="0" y1="20" x2="368" y2="20" stroke="var(--border-subtle, #22304A)" strokeDasharray="3 4" />
 
               {scatterPoints.length > 0 ? (
                 scatterPoints.map((pt, i) => {
@@ -629,10 +647,10 @@ export default function BestOfNArrangementView({
                 </>
               )}
 
-              <text x="300" y="12" fill="#5FDBD3" fontFamily="IBM Plex Mono, monospace" fontSize="10">
+              <text x="300" y="12" fill="#00B2A9" fontFamily="IBM Plex Mono, monospace" fontSize="10">
                 A · {planA?.score || 92}
               </text>
-              <text x="0" y="116" fill="#8494AA" fontFamily="IBM Plex Mono, monospace" fontSize="10">
+              <text x="0" y="116" fill="var(--text-muted, #8494AA)" fontFamily="IBM Plex Mono, monospace" fontSize="10">
                 {t('season.searchOrder')}
               </text>
             </svg>
@@ -640,8 +658,8 @@ export default function BestOfNArrangementView({
             <div
               style={{
                 font: "400 12px/1.5 'IBM Plex Sans', sans-serif",
-                color: '#8494AA',
-                borderTop: '1px solid #22304A',
+                color: 'var(--text-muted, #8494AA)',
+                borderTop: '1px solid var(--border-subtle, #22304A)',
                 paddingTop: 9,
               }}
             >
@@ -652,33 +670,33 @@ export default function BestOfNArrangementView({
           {/* Card 3: Đang bị chặn */}
           <div
             style={{
-              background: '#1A2437',
-              border: '1px solid #2E3E5C',
+              background: 'var(--surface-overlay, #1A2437)',
+              border: '1px solid var(--border-default, #2E3E5C)',
               borderRadius: 10,
               padding: '13px 15px',
               display: 'grid',
               gap: 9,
             }}
           >
-            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
               {t('season.blockedTitle')}
             </div>
-            <div style={{ display: 'grid', gap: 7, font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+            <div style={{ display: 'grid', gap: 7, font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary, #A8B7CB)' }}>
               {blockedConstraints.length > 0 ? (
                 blockedConstraints.map((c, i) => (
                   <div key={i} style={{ display: 'flex', gap: 9 }}>
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F1A79D' }}>✕</span>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--status-delayed, #F1A79D)' }}>✕</span>
                     <span>{c.text || c.desc || c}</span>
                   </div>
                 ))
               ) : (
                 <>
                   <div style={{ display: 'flex', gap: 9 }}>
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F1A79D' }}>✕</span>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--status-delayed, #F1A79D)' }}>✕</span>
                     <span>{t('season.blockRuleDiff100')}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 9 }}>
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F1A79D' }}>✕</span>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--status-delayed, #F1A79D)' }}>✕</span>
                     <span>{t('season.blockRuleRestConsecutive')}</span>
                   </div>
                 </>
@@ -690,9 +708,9 @@ export default function BestOfNArrangementView({
                 font: "600 12px/1 'IBM Plex Sans', sans-serif",
                 padding: '8px 12px',
                 borderRadius: 6,
-                background: '#141D2E',
-                border: '1px solid #22304A',
-                color: '#E9EFF7',
+                background: 'var(--surface-card, #141D2E)',
+                border: '1px solid var(--border-subtle, #22304A)',
+                color: 'var(--text-primary, #E9EFF7)',
                 justifySelf: 'start',
                 cursor: 'pointer',
               }}

@@ -49,14 +49,15 @@ export default function CourtAssignmentTab({ s }) {
   // Danh sách tất cả người tham gia buổi (thành viên có mặt + khách)
   const players = useMemo(() => sessionPlayers(db, s), [db, s])
 
-  // Map rating cho tất cả người trong pool
+  // Map rating cho tất cả người trong pool (dùng Effective Strength tầng 3 co cụm Bayes)
   const ratingsMap = useMemo(() => {
     const map = {}
     players.forEach((p) => {
-      map[p.key] = getPlayerRating(db.playerRatings, p.key).rating
+      const pr = getPlayerRating(db.playerRatings, p.key, p, db.levels)
+      map[p.key] = pr.effectiveStrength || pr.rating || 1500
     })
     return map
-  }, [players, db.playerRatings])
+  }, [players, db.playerRatings, db.levels])
 
   // Danh sách các trận đã đấu trong buổi này
   const sessionMatches = useMemo(() => {
