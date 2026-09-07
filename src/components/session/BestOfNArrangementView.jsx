@@ -598,7 +598,7 @@ export default function BestOfNArrangementView({
             }}
           >
             <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-              Máy đã dò gì · 80 phương án
+              {t('season.monteCarloTitle', { n: 80 })}
             </div>
 
             <svg width="100%" height="120" viewBox="0 0 368 120" style={{ overflow: 'visible' }}>

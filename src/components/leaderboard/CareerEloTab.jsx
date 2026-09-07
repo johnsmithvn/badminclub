@@ -616,7 +616,7 @@ export default function CareerEloTab({
             }}
           >
             <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-              Hai bảng khác nhau chỗ nào
+              {t('season.twoTablesDiffTitle')}
             </div>
             <div style={{ display: 'grid', gap: 8, font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '78px minmax(0,1fr)', gap: 10 }}>
