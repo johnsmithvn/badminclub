@@ -710,7 +710,7 @@ export default function Leaderboard() {
       {activeTab === 'season' && (
         <SeasonRaceTab
           seasonLeaderboardData={seasonLeaderboardData}
-          onOpenLedger={(m) => setLedgerMemberId(m.id)}
+          onOpenLedger={(m) => setLedgerMemberId(m?.id || m)}
           onOpenQuadrantMap={() => setQuadrantModalOpen(true)}
           isMobile={isMobile}
         />

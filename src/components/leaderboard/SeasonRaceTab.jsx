@@ -109,6 +109,7 @@ export default function SeasonRaceTab({
             {/* #2 Á Quân */}
             <div
               onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
+              title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
               style={{
                 background: '#141D2E',
                 border: '1px solid #2E3E5C',
@@ -133,6 +134,7 @@ export default function SeasonRaceTab({
             {/* #1 Dẫn Đầu (Gold Card) */}
             <div
               onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
+              title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
               style={{
                 background: 'linear-gradient(180deg, rgba(201,162,39,.16), #141D2E)',
                 border: '1px solid #C9A227',
@@ -171,6 +173,7 @@ export default function SeasonRaceTab({
             {/* #3 Quý Quân */}
             <div
               onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
+              title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
               style={{
                 background: '#141D2E',
                 border: '1px solid #2E3E5C',
@@ -256,6 +259,7 @@ export default function SeasonRaceTab({
               <div
                 key={row.id}
                 onClick={() => onOpenLedger && onOpenLedger(row.id)}
+                title={`${t('season.viewLedgerBtn')}: ${row.name}`}
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '40px minmax(0, 1fr) 96px 74px 74px 74px 74px 86px',

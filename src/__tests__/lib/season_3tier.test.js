@@ -120,4 +120,36 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     assert.ok(res.waitingPlayers.length >= 2)
     assert.equal(res.scatterPoints.length, 20)
   })
+
+  await t.test('5. getMemberSeasonLedger generates full data for Screen SS3 modal', () => {
+    const mockDb = {
+      members: [
+        { id: 'm1', name: 'Phạm Anh Tú', active: true },
+        { id: 'm2', name: 'Đặng Tuấn', active: true },
+      ],
+      sessions: [
+        { id: 's1', date: '2026-07-05', attendees: ['m1', 'm2'] },
+      ],
+      matches: [
+        {
+          id: 'mt1',
+          sessionId: 's1',
+          teamA: ['m1'],
+          teamB: ['m2'],
+          winnerTeam: 'A',
+          sets: [[21, 15]],
+        },
+      ],
+    }
+
+    const ledger = getMemberSeasonLedger('m1', mockDb)
+    assert.ok(ledger)
+    assert.equal(ledger.member.name, 'Phạm Anh Tú')
+    assert.equal(ledger.totalPoints, 55) // 30 attend + 10 match + 15 win
+    assert.equal(ledger.breakdown.attendancePts, 30)
+    assert.equal(ledger.breakdown.matchPlayPts, 10)
+    assert.equal(ledger.breakdown.winPts, 15)
+    assert.ok(Array.isArray(ledger.recentEvents))
+    assert.ok(ledger.recentEvents.length > 0)
+  })
 })
