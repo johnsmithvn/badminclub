@@ -19,8 +19,8 @@ export default function AppHeader({ route }) {
   const isSettings = route === 'settings'
   const canEditSettings = can(db.viewAs || 'owner', 'settings')
 
-  // Màn SessionDetail và Giao dịch (Fund) có header riêng chuẩn thiết kế -> ẩn AppHeader mặc định để tránh 2 header
-  if (route === 'session' || route === 'fund') {
+  // Màn SessionDetail, Giao dịch (Fund) và Bảng xếp hạng (Leaderboard) có header riêng chuẩn thiết kế -> ẩn AppHeader mặc định để tránh 2 header
+  if (route === 'session' || route === 'fund' || route === 'leaderboard') {
     return null
   }
 

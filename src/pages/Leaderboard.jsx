@@ -590,10 +590,10 @@ export default function Leaderboard() {
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      {/* ---------------- Header & Thanh công cụ (Handoff SS1/SS2) ---------------- */}
+      {/* ---------------- Header trang Bảng xếp hạng (Duy nhất) ---------------- */}
       <div
         style={{
-          padding: '14px 20px',
+          padding: isMobile ? '12px 16px' : '14px 20px',
           background: 'var(--surface-card)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 10,
@@ -605,10 +605,10 @@ export default function Leaderboard() {
           boxShadow: 'var(--shadow-xs)',
         }}
       >
-        <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ font: "600 18px/1.25 Barlow, sans-serif", color: 'var(--text-primary)' }}>
+        <div style={{ flex: '1 1 240px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+          <h1 style={{ font: "700 20px/1.25 Barlow, sans-serif", color: 'var(--text-primary)', margin: 0 }}>
             {t('leaderboard.title')}
-          </div>
+          </h1>
           <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
             {activeTab === 'season'
               ? t('season.headerSub')
@@ -622,9 +622,32 @@ export default function Leaderboard() {
             type="button"
             onClick={toggleTheme}
             title={isDark ? t('common.themeLight') : t('common.themeDark')}
+            aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
             style={{
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: '9px 12px',
+              padding: isMobile ? '8px 10px' : '8px 12px',
+              borderRadius: 6,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Icon name={isDark ? 'sun' : 'moon'} size={15} />
+            {!isMobile && <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            title={t('common.exportCsv')}
+            aria-label={t('common.exportCsv')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: isMobile ? '8px 10px' : '8px 14px',
               borderRadius: 6,
               background: 'var(--surface-raised)',
               border: '1px solid var(--border-default)',
@@ -636,38 +659,30 @@ export default function Leaderboard() {
               transition: 'all 0.15s ease',
             }}
           >
-            <Icon name={isDark ? 'sun' : 'moon'} size={15} />
-            <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: '9px 14px',
-              borderRadius: 6,
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-            }}
-          >
-            {t('common.exportCsv')}
+            <Icon name="download" size={14} />
+            <span>{t('common.exportCsv')}</span>
           </button>
           <button
             type="button"
             onClick={() => setSeasonSettingsOpen(true)}
+            title={t('season.settingsBtn')}
+            aria-label={t('season.settingsBtn')}
             style={{
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: '9px 14px',
+              padding: isMobile ? '8px 10px' : '8px 14px',
               borderRadius: 6,
               background: 'var(--surface-raised)',
               border: '1px solid var(--border-default)',
               color: 'var(--text-primary)',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
             }}
           >
-            {t('season.settingsBtn')}
+            <Icon name="settings" size={14} />
+            <span>{t('season.settingsBtn')}</span>
           </button>
         </div>
       </div>
