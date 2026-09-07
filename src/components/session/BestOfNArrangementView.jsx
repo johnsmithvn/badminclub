@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { arrangeBestOfN, activeCourtIdxs } from '#lib/assign.js'
 import { getPlayerRating, effectiveStrengthOf } from '#lib/rating.js'
+import { playerName } from '#lib/money.js'
 import CourtBalanceExplanationModal from '#components/session/CourtBalanceExplanationModal.jsx'
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
 
@@ -65,22 +66,45 @@ export default function BestOfNArrangementView({
 
   const courts = useMemo(() => {
     if (!currentPlan) return []
-    if (currentPlan.courts && currentPlan.courts.length) return currentPlan.courts
-    return (currentPlan.courtDetails || []).map((cd) => {
+    const details = currentPlan.courts && currentPlan.courts.length ? currentPlan.courts : (currentPlan.courtDetails || [])
+    return details.map((cd, cdIdx) => {
       const getP = (k) => {
-        const base = players.find((x) => x.key === k) || { key: k, name: k }
-        const pr = getPlayerRating(db.playerRatings, k, base, db.levels)
-        return { ...base, ...pr }
+        const key = typeof k === 'object' ? (k.key || k.id) : k
+        const base = (players || []).find((x) => x.key === key) || (typeof k === 'object' ? k : {})
+        const pr = getPlayerRating(db.playerRatings, key, base, db.levels)
+        const name = base.name || (typeof k === 'object' && k.name) || playerName(db, key) || key || '—'
+        const eff = pr.effectiveStrength || pr.rating || 1500
+        const elo = pr.rating || 1500
+        const gCount = pr.gamesCount !== undefined ? pr.gamesCount : 0
+
+        return {
+          ...base,
+          ...pr,
+          key,
+          name,
+          effectiveStrength: eff,
+          rating: elo,
+          gamesCount: gCount,
+        }
       }
+
+      const rawTeamA = cd.teamA || []
+      const rawTeamB = cd.teamB || []
+      const mappedTeamA = rawTeamA.map(getP)
+      const mappedTeamB = rawTeamB.map(getP)
+
+      // Bóc tách teamA, teamB ra để tránh ...cd ghi đè mảng objects thành mảng string ID
+      const { teamA: _origA, teamB: _origB, ...restCd } = cd
+
       return {
-        courtIdx: cd.ci,
-        diff: cd.canRating?.delta || 0,
-        teamA: (cd.teamA || []).map(getP),
-        teamB: (cd.teamB || []).map(getP),
-        ...cd,
+        ...restCd,
+        courtIdx: cd.ci !== undefined ? cd.ci : (cd.courtIdx !== undefined ? cd.courtIdx : cdIdx),
+        diff: cd.canRating?.delta !== undefined ? cd.canRating.delta : (cd.diff || 0),
+        teamA: mappedTeamA,
+        teamB: mappedTeamB,
       }
     })
-  }, [currentPlan, players, db.playerRatings, db.levels])
+  }, [currentPlan, players, db.playerRatings, db.levels, db.members, db.guests])
 
   const activeIdxs = activeCourtIdxs(session)
   const waitingCount = waitingPlayers.length
@@ -366,15 +390,19 @@ export default function BestOfNArrangementView({
 
                   {/* Đội A */}
                   <div style={{ display: 'grid', gap: 4, padding: '9px 11px', borderRadius: 8, background: 'var(--surface-sunken, #0B1220)', border: '1px solid var(--border-subtle, #22304A)' }}>
-                    {teamA.map((p) => {
-                      const hasShrink = p.gamesCount < 30
+                    {teamA.map((p, pIdx) => {
+                      const pKey = typeof p === 'object' ? (p.key || p.id) : p
+                      const pName = (typeof p === 'object' && p.name) || playerName(db, pKey) || pKey || '—'
+                      const pRating = (typeof p === 'object' && (p.effectiveStrength || p.rating)) || ratingsMap[pKey] || 1500
+                      const pGames = typeof p === 'object' && p.gamesCount !== undefined ? p.gamesCount : (db.playerRatings?.[pKey]?.gamesCount || 0)
+                      const hasShrink = pGames < 30
                       return (
-                        <div key={p.key || p.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <div key={pKey || pName + pIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                           <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
-                            {p.name}
+                            {pName}
                           </span>
                           <span
-                            onClick={() => hasShrink && setInspectingPlayer(p)}
+                            onClick={() => hasShrink && setInspectingPlayer(typeof p === 'object' ? p : { key: pKey, name: pName, rating: pRating, gamesCount: pGames })}
                             style={{
                               fontFamily: "'IBM Plex Mono', monospace",
                               color: hasShrink ? '#E08A00' : 'var(--text-muted, #8494AA)',
@@ -383,7 +411,7 @@ export default function BestOfNArrangementView({
                             }}
                             title={hasShrink ? t('season.inspectEffectiveStrength') : ''}
                           >
-                            ({p.effectiveStrength || p.rating}{hasShrink ? '*' : ''})
+                            ({pRating}{hasShrink ? '*' : ''})
                           </span>
                         </div>
                       )
@@ -400,15 +428,19 @@ export default function BestOfNArrangementView({
 
                   {/* Đội B */}
                   <div style={{ display: 'grid', gap: 4, padding: '9px 11px', borderRadius: 8, background: 'var(--surface-sunken, #0B1220)', border: '1px solid var(--border-subtle, #22304A)' }}>
-                    {teamB.map((p) => {
-                      const hasShrink = p.gamesCount < 30
+                    {teamB.map((p, pIdx) => {
+                      const pKey = typeof p === 'object' ? (p.key || p.id) : p
+                      const pName = (typeof p === 'object' && p.name) || playerName(db, pKey) || pKey || '—'
+                      const pRating = (typeof p === 'object' && (p.effectiveStrength || p.rating)) || ratingsMap[pKey] || 1500
+                      const pGames = typeof p === 'object' && p.gamesCount !== undefined ? p.gamesCount : (db.playerRatings?.[pKey]?.gamesCount || 0)
+                      const hasShrink = pGames < 30
                       return (
-                        <div key={p.key || p.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <div key={pKey || pName + pIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                           <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>
-                            {p.name}
+                            {pName}
                           </span>
                           <span
-                            onClick={() => hasShrink && setInspectingPlayer(p)}
+                            onClick={() => hasShrink && setInspectingPlayer(typeof p === 'object' ? p : { key: pKey, name: pName, rating: pRating, gamesCount: pGames })}
                             style={{
                               fontFamily: "'IBM Plex Mono', monospace",
                               color: hasShrink ? '#E08A00' : 'var(--text-muted, #8494AA)',
@@ -417,7 +449,7 @@ export default function BestOfNArrangementView({
                             }}
                             title={hasShrink ? t('season.inspectEffectiveStrength') : ''}
                           >
-                            ({p.effectiveStrength || p.rating}{hasShrink ? '*' : ''})
+                            ({pRating}{hasShrink ? '*' : ''})
                           </span>
                         </div>
                       )

@@ -152,4 +152,50 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     assert.ok(Array.isArray(ledger.recentEvents))
     assert.ok(ledger.recentEvents.length > 0)
   })
+
+  await t.test('6. courtDetails mapping preserves player names and effectiveStrength without empty fallback', () => {
+    const rawCourt = {
+      ci: 0,
+      teamA: ['p1', 'p2'],
+      teamB: ['p3', 'p4'],
+      canRating: { delta: 12 },
+    }
+    const players = [
+      { key: 'p1', name: 'Nguyễn Văn A' },
+      { key: 'p2', name: 'Trần Thị B' },
+      { key: 'p3', name: 'Lê Văn C' },
+      { key: 'p4', name: 'Phạm Thị D' },
+    ]
+    const playerRatings = {
+      p1: { rating: 1620, gamesCount: 40 },
+      p2: { rating: 1510, gamesCount: 20 },
+      p3: { rating: 1580, gamesCount: 10 },
+      p4: { rating: 1540, gamesCount: 50 },
+    }
+
+    const getP = (k) => {
+      const base = players.find((x) => x.key === k) || { key: k, name: k }
+      const pr = getPlayerRating(playerRatings, k, base, {})
+      return {
+        ...base,
+        ...pr,
+        name: base.name || k,
+        effectiveStrength: pr.effectiveStrength || pr.rating || 1500,
+      }
+    }
+
+    const { teamA: _ta, teamB: _tb, ...restCd } = rawCourt
+    const mapped = {
+      ...restCd,
+      teamA: rawCourt.teamA.map(getP),
+      teamB: rawCourt.teamB.map(getP),
+    }
+
+    assert.equal(mapped.teamA[0].name, 'Nguyễn Văn A')
+    assert.equal(mapped.teamA[0].rating, 1620)
+    assert.equal(mapped.teamB[0].name, 'Lê Văn C')
+    assert.ok(mapped.teamA[0].name.length > 0)
+    assert.ok(mapped.teamB[0].name.length > 0)
+  })
 })
+
