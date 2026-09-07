@@ -7,7 +7,7 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { confidenceOf, computeClubCalibration, rankTopCrossGenderPlayers, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf } from '#lib/rating.js'
 import { playerName, courtOf } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
-import { searchMatches, headToHeadMatrix, neverMetPairs } from '#lib/matchSearch.js'
+import { searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
 import { RANK_THEMES, DEFAULT_RANK_THEME } from '#data/rankThemes.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
@@ -305,17 +305,17 @@ export default function Leaderboard() {
   // -------------------------------------------------------------
   // TAB 4: Ma trận Đối đầu H2H
   // -------------------------------------------------------------
-  const [matrixExpanded, setMatrixExpanded] = useState(false)
+  const [matrixMemberLimit, setMatrixMemberLimit] = useState(8)
   const topMembersForMatrix = useMemo(() => {
     const sorted = [...activeMembers].sort((a, b) => {
       const ra = getPlayerRating(db.playerRatings, a.id, a, db.levels).rating
       const rb = getPlayerRating(db.playerRatings, b.id, b, db.levels).rating
       return rb - ra
     })
-    const defaultLimit = isMobile ? 5 : (cfg.rating?.h2hMatrixLimit ?? 8)
-    const limit = matrixExpanded ? (cfg.rating?.h2hMatrixLimit ?? 8) : defaultLimit
+    const limit = matrixMemberLimit === 999 ? sorted.length : matrixMemberLimit
     return sorted.slice(0, limit)
-  }, [activeMembers, db.playerRatings, db.levels, isMobile, matrixExpanded])
+  }, [activeMembers, db.playerRatings, db.levels, matrixMemberLimit])
+
   const matrixData = useMemo(() => {
     return headToHeadMatrix(topMembersForMatrix, db.matches || [])
   }, [topMembersForMatrix, db.matches])
@@ -323,6 +323,93 @@ export default function Leaderboard() {
   const neverMetList = useMemo(() => {
     return neverMetPairs(activeMembers, db.matches || [])
   }, [activeMembers, db.matches])
+
+  const disparatePairsList = useMemo(() => {
+    return topDisparatePairs(matrixData, topMembersForMatrix, 5)
+  }, [matrixData, topMembersForMatrix])
+
+  const neverMetSessionScored = useMemo(() => {
+    return neverMetWithSessionCount(neverMetList, {
+      sessions: db.sessions || [],
+      attendance: db.attendance || {},
+      matches: db.matches || [],
+    }, 6)
+  }, [neverMetList, db.sessions, db.attendance, db.matches])
+
+  const editedMatchesCount = useMemo(() => {
+    const matchEdits = db.matchEdits || []
+    const editedIds = new Set(matchEdits.map((e) => e.matchId))
+    return searchResults.filter((m) => editedIds.has(m.id)).length
+  }, [db.matchEdits, searchResults])
+
+  const searchHeaderTitle = useMemo(() => {
+    if (playerA && playerB) {
+      return t('matchSearch.matchesSummary', {
+        count: searchResults.length,
+        nameA: memberNameOf(playerA),
+        nameB: memberNameOf(playerB),
+      })
+    }
+    if (playerA) {
+      return t('matchSearch.matchesSummarySingle', {
+        count: searchResults.length,
+        name: memberNameOf(playerA),
+      })
+    }
+    if (playerB) {
+      return t('matchSearch.matchesSummarySingle', {
+        count: searchResults.length,
+        name: memberNameOf(playerB),
+      })
+    }
+    return t('matchSearch.matchesSummaryAll', { count: searchResults.length })
+  }, [playerA, playerB, searchResults.length, db.members])
+
+  const handleExportFilteredMatchesCsv = () => {
+    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
+    csvContent += 'Mã trận,Thời gian,Đội thắng,Tỷ số,Đội thua,Dự đoán,Nguồn\n' // i18n-ok: csv header
+    searchResults.forEach((m) => {
+      const teamA = m.teamA || []
+      const teamB = m.teamB || []
+      const aWon = m.winnerTeam === 'A'
+      const winnerTeam = aWon ? teamA : teamB
+      const loserTeam = aWon ? teamB : teamA
+      const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
+      const loserNames = loserTeam.map(memberNameOf).join(' · ')
+      const scoreSets = (m.sets || []).map(([a, b]) => `${aWon ? a : b}-${aWon ? b : a}`).join('; ')
+      const source = (m.challengeId || m.sourceType === 'challenge') ? 'Kèo' : 'Buổi CLB' // i18n-ok: csv source
+      const time = m.at ? new Date(m.at).toLocaleString('vi-VN') : ''
+      csvContent += `"${matchCodeOf(db, m)}","${time}","${winnerNames}","${scoreSets}","${loserNames}","${m.predictedWinner || ''}","${source}"\n`
+    })
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `badminclub_tim_tran_${searchResults.length}_tran.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleExportMatrixCsv = () => {
+    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
+    const names = topMembersForMatrix.map((m) => m.name)
+    csvContent += `Thành viên,${names.map((n) => `"${n}"`).join(',')}\n` // i18n-ok: csv header
+    topMembersForMatrix.forEach((p1) => {
+      const rowCells = topMembersForMatrix.map((p2) => {
+        if (p1.id === p2.id) return '"—"'
+        const cell = matrixData[p1.id]?.[p2.id] || { wins: 0, losses: 0 }
+        return `"${cell.wins}-${cell.losses}"`
+      })
+      csvContent += `"${p1.name}",${rowCells.join(',')}\n`
+    })
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', 'badminclub_ma_tran_doi_dau.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   // -------------------------------------------------------------
   // TAB 5: Thống kê Hiệu chỉnh chéo giới (Calibration)
@@ -614,6 +701,10 @@ export default function Leaderboard() {
               ? t('season.headerSub')
               : activeTab === 'elo'
               ? t('season.eloHeaderSub')
+              : activeTab === 'search'
+              ? t('matchSearch.searchHeaderSub')
+              : activeTab === 'matrix'
+              ? t('matchSearch.matrixHeaderSub', { count: matrixMemberLimit === 999 ? activeMembers.length : matrixMemberLimit })
               : t('leaderboard.sub')}
           </div>
         </div>
@@ -640,50 +731,153 @@ export default function Leaderboard() {
             <Icon name={isDark ? 'sun' : 'moon'} size={15} />
             {!isMobile && <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>}
           </button>
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            title={t('common.exportCsv')}
-            aria-label={t('common.exportCsv')}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: isMobile ? '8px 10px' : '8px 14px',
-              borderRadius: 6,
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <Icon name="download" size={14} />
-            <span>{t('common.exportCsv')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSeasonSettingsOpen(true)}
-            title={t('season.settingsBtn')}
-            aria-label={t('season.settingsBtn')}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: isMobile ? '8px 10px' : '8px 14px',
-              borderRadius: 6,
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <Icon name="settings" size={14} />
-            <span>{t('season.settingsBtn')}</span>
-          </button>
+
+          {activeTab === 'search' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setActiveTab('matrix')}
+                title={t('leaderboard.tabMatrix')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: isMobile ? '8px 10px' : '8px 14px',
+                  borderRadius: 6,
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="grid" size={14} />
+                <span>{t('leaderboard.tabMatrix')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportFilteredMatchesCsv}
+                title={t('matchSearch.exportFilteredCsv', { count: searchResults.length })}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: isMobile ? '8px 10px' : '8px 14px',
+                  borderRadius: 6,
+                  background: '#1D50A0',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="download" size={14} />
+                <span>{t('matchSearch.exportFilteredCsv', { count: searchResults.length })}</span>
+              </button>
+            </>
+          ) : activeTab === 'matrix' ? (
+            <>
+              <div style={{
+                display: 'flex',
+                padding: 2,
+                borderRadius: 6,
+                background: 'var(--surface-inset)',
+                border: '1px solid var(--border-subtle)',
+                alignItems: 'center',
+              }}>
+                {[8, 12, 999].map((limit) => (
+                  <button
+                    key={limit}
+                    type="button"
+                    onClick={() => setMatrixMemberLimit(limit)}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: 4,
+                      border: 'none',
+                      background: matrixMemberLimit === limit ? 'var(--surface-card)' : 'transparent',
+                      color: matrixMemberLimit === limit ? 'var(--text-primary)' : 'var(--text-muted)',
+                      font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                      cursor: 'pointer',
+                      boxShadow: matrixMemberLimit === limit ? 'var(--shadow-xs)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {limit === 999 ? t('common.all') : `Top ${limit}`}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={handleExportMatrixCsv}
+                title={t('common.exportCsv')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: isMobile ? '8px 10px' : '8px 14px',
+                  borderRadius: 6,
+                  background: '#1D50A0',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="download" size={14} />
+                <span>{t('common.exportCsv')}</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                title={t('common.exportCsv')}
+                aria-label={t('common.exportCsv')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: isMobile ? '8px 10px' : '8px 14px',
+                  borderRadius: 6,
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="download" size={14} />
+                <span>{t('common.exportCsv')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeasonSettingsOpen(true)}
+                title={t('season.settingsBtn')}
+                aria-label={t('season.settingsBtn')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: isMobile ? '8px 10px' : '8px 14px',
+                  borderRadius: 6,
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="settings" size={14} />
+                <span>{t('season.settingsBtn')}</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -792,28 +986,57 @@ export default function Leaderboard() {
           {/* Bộ lọc Tìm trận */}
           <div style={S.card}>
             <div style={{ padding: '14px 16px', display: 'grid', gap: 12 }}>
-              <div style={S.cardTitle}>{t('matchSearch.title')}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={S.cardTitle}>{t('matchSearch.title')}</div>
+                  <div style={S.cardSub}>{t('matchSearch.sub')}</div>
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Select
                   value={playerA}
-                  options={[{ value: '', label: `-- ${t('matchSearch.playerA')} --` }, ...activeMembers.map((m) => ({ value: m.id, label: m.name }))]}
+                  options={[
+                    { value: '', label: `-- ${t('matchSearch.playerA')} --` },
+                    ...activeMembers.map((m) => {
+                      const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
+                      const elo = pr.displayRating || pr.rating || 1500
+                      return { value: m.id, label: `${m.name} (${elo})` }
+                    }),
+                  ]}
                   onChange={(e) => setPlayerA(e.target.value)}
-                  style={{ width: isMobile ? '100%' : 170 }}
+                  style={{ width: isMobile ? '100%' : 190 }}
                 />
                 <Select
                   value={searchMode}
                   options={[
-                    { value: 'vs', label: t('matchSearch.modeH2H') },
-                    { value: 'team', label: t('matchSearch.modeTeammate') },
+                    {
+                      value: 'vs',
+                      label: h2hSummary
+                        ? `${t('matchSearch.modeH2H')} (${h2hSummary.totalVs})`
+                        : t('matchSearch.modeH2H'),
+                    },
+                    {
+                      value: 'team',
+                      label: h2hSummary
+                        ? `${t('matchSearch.modeTeammate')} (${h2hSummary.tmTotal})`
+                        : t('matchSearch.modeTeammate'),
+                    },
                   ]}
                   onChange={(e) => setSearchMode(e.target.value)}
-                  style={{ width: isMobile ? '100%' : 120 }}
+                  style={{ width: isMobile ? '100%' : 150 }}
                 />
                 <Select
                   value={playerB}
-                  options={[{ value: '', label: `-- ${t('matchSearch.playerB')} --` }, ...activeMembers.map((m) => ({ value: m.id, label: m.name }))]}
+                  options={[
+                    { value: '', label: `-- ${t('matchSearch.playerB')} --` },
+                    ...activeMembers.map((m) => {
+                      const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
+                      const elo = pr.displayRating || pr.rating || 1500
+                      return { value: m.id, label: `${m.name} (${elo})` }
+                    }),
+                  ]}
                   onChange={(e) => setPlayerB(e.target.value)}
-                  style={{ width: isMobile ? '100%' : 170 }}
+                  style={{ width: isMobile ? '100%' : 190 }}
                 />
                 <Select
                   value={qualityFilter}
@@ -823,8 +1046,35 @@ export default function Leaderboard() {
                     { value: 'upset', label: t('matchSearch.qualityUpset') },
                   ]}
                   onChange={(e) => setQualityFilter(e.target.value)}
-                  style={{ width: isMobile ? '100%' : 180 }}
+                  style={{ width: isMobile ? '100%' : 170 }}
                 />
+                {(playerA || playerB || qualityFilter !== 'all' || searchMode !== 'vs') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlayerA('')
+                      setPlayerB('')
+                      setSearchMode('vs')
+                      setQualityFilter('all')
+                    }}
+                    style={{
+                      font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      background: 'transparent',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                    title={t('matchSearch.resetFilter')}
+                  >
+                    <Icon name="x" size={13} />
+                    <span>{t('matchSearch.resetFilter')}</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1115,11 +1365,34 @@ export default function Leaderboard() {
             /* Desktop view: Cột kép bảng tìm trận + thẻ H2H bên phải */
             <div style={{
               display: 'grid',
-              gridTemplateColumns: h2hSummary ? 'minmax(0, 1fr) 380px' : '1fr',
+              gridTemplateColumns: h2hSummary ? 'minmax(0, 1fr) 340px' : '1fr',
               gap: 16,
               alignItems: 'start',
             }}>
               <div style={S.card}>
+                <div style={{ ...S.cardHead, padding: '12px 14px' }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div style={S.cardTitle}>
+                      {searchHeaderTitle}
+                    </div>
+                    <div style={S.cardSub}>
+                      {t('matchSearch.matchesSub')}
+                    </div>
+                  </div>
+                  {editedMatchesCount > 0 && (
+                    <span style={{
+                      font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                      padding: '5px 9px',
+                      borderRadius: 999,
+                      background: 'rgba(224,138,0,.18)',
+                      color: 'var(--status-delayed-fg)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {t('matchSearch.editedMatchesCount', { count: editedMatchesCount })}
+                    </span>
+                  )}
+                </div>
+
                 <div style={{ overflowX: 'auto', width: '100%' }}>
                   <div style={{ minWidth: 860 }}>
                     <div style={S.searchTableHead}>
@@ -1133,7 +1406,7 @@ export default function Leaderboard() {
                     </div>
 
                     <div style={{ display: 'grid' }}>
-                      {searchResults.map((m) => {
+                      {searchResults.slice(0, searchCardLimit).map((m) => {
                         const teamA = m.teamA || []
                         const teamB = m.teamB || []
                         const aWon = m.winnerTeam === 'A'
@@ -1322,6 +1595,30 @@ export default function Leaderboard() {
                     </div>
                   </div>
                 </div>
+
+                {/* Table footer with count & view more */}
+                <div style={{
+                  padding: '12px 14px',
+                  borderTop: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}>
+                  <span style={{ font: '400 13px/1.4 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                    {t('common.showingOf', { n: Math.min(searchCardLimit, searchResults.length), total: searchResults.length })}
+                  </span>
+                  {searchResults.length > searchCardLimit && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setSearchCardLimit((prev) => prev + 10)}
+                      style={{ minHeight: 34 }}
+                    >
+                      {t('matchSearch.viewMoreMatches', { n: Math.min(10, searchResults.length - searchCardLimit) })}
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Cột phải: 2 Thẻ tóm tắt Đối đầu H2H chuẩn DS1 (nếu chọn đủ 2 người) */}
@@ -1410,15 +1707,23 @@ export default function Leaderboard() {
                         <span style={{ color: 'var(--status-delivered-fg)' }}>{h2hSummary.tmWinRate}%</span>
                       </div>
                       {h2hSummary.lastDate && (
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                           {t('leaderboard.lastTeammateMatch')}: {h2hSummary.lastDate} ({h2hSummary.lastWon ? t('leaderboard.wonStatus') : t('leaderboard.lostStatus')})
                         </div>
                       )}
                       <Button
+                        variant="secondary"
+                        block
+                        onClick={() => setSearchMode('team')}
+                        style={{ marginTop: 4, fontSize: 12.5 }}
+                      >
+                        {t('matchSearch.switchTeammateBtn', { count: h2hSummary.tmTotal })}
+                      </Button>
+                      <Button
                         variant="primary"
                         block
                         icon="target"
-                        style={{ marginTop: 14 }}
+                        style={{ marginTop: 6 }}
                         onClick={() => {
                           setInitialTeamA([playerA])
                           setInitialTeamB([playerB])
@@ -1436,15 +1741,31 @@ export default function Leaderboard() {
         </div>
       )}
 
-      {/* ---------------- TAB 4: Ma trận Đối đầu H2H ---------------- */}
+      {/* ---------------- TAB 4: Ma trận Đối đầu H2H (DS3) ---------------- */}
       {activeTab === 'matrix' && (
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 340px',
+          gap: 16,
+          alignItems: 'start',
+        }}>
+          {/* Cột trái: Ma trận */}
           <div style={S.card}>
-            <div style={S.cardHead}>
-              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
+            <div style={{ ...S.cardHead, padding: '12px 14px' }}>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={S.cardTitle}>{t('matchSearch.matrixTitle')}</div>
-                <div style={S.cardSub}>{t('matchSearch.matrixDesc')}</div>
+                <div style={S.cardSub}>{t('matchSearch.matrixSubtitle')}</div>
               </div>
+              <span style={{
+                font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                padding: '5px 9px',
+                borderRadius: 999,
+                background: 'rgba(0,178,169,.18)',
+                color: '#5FDBD3',
+                whiteSpace: 'nowrap',
+              }}>
+                {t('matchSearch.matrixReadByRow')}
+              </span>
             </div>
 
             <div style={{ padding: 16, overflowX: 'auto' }}>
@@ -1467,30 +1788,44 @@ export default function Leaderboard() {
                         }
                         const cell = matrixData[p1.id]?.[p2.id] || { wins: 0, losses: 0 }
                         const net = cell.wins - cell.losses
+                        const total = cell.wins + cell.losses
+                        const isDisparate = Math.abs(net) >= 4
                         const cellColor = net > 0 ? 'var(--status-delivered-fg)' : net < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)'
-                        const cellBg = net > 0 ? 'var(--status-delivered-bg)' : net < 0 ? 'var(--status-incident-bg)' : 'transparent'
-                        const hasMatches = (cell.wins + cell.losses) > 0
+                        const cellBg = net > 0 ? 'rgba(18,168,103,.18)' : net < 0 ? 'rgba(225,68,52,.18)' : 'transparent'
+                        const borderStyle = isDisparate
+                          ? (net > 0 ? '2px solid #5FD9A2' : '2px solid #FF9A8F')
+                          : '1px solid var(--border-subtle)'
+
                         return (
                           <td
                             key={p2.id}
                             onClick={() => {
-                              if (hasMatches) {
+                              if (total > 0) {
                                 setPlayerA(p1.id)
                                 setPlayerB(p2.id)
                                 setSearchMode('vs')
                                 setActiveTab('search')
                               }
                             }}
-                            title={hasMatches ? `${p1.name} vs ${p2.name}: ${cell.wins}-${cell.losses} (${t('matchSearch.title')})` : undefined}
+                            title={total > 0 ? `${p1.name} vs ${p2.name}: ${cell.wins}-${cell.losses} (${t('matchSearch.title')})` : undefined}
                             style={{
                               ...S.matrixCell,
                               color: cellColor,
                               background: cellBg,
-                              cursor: hasMatches ? 'pointer' : 'default',
-                              transition: 'opacity 0.15s ease',
+                              border: borderStyle,
+                              cursor: total > 0 ? 'pointer' : 'default',
+                              transition: 'all 0.15s ease',
+                              padding: '6px 8px',
                             }}
                           >
-                            {cell.wins}-{cell.losses}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                              <span style={{ font: '600 13px/1 "IBM Plex Mono", monospace' }}>{cell.wins}-{cell.losses}</span>
+                              {total > 0 && (
+                                <span style={{ font: '400 10px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                                  {total}
+                                </span>
+                              )}
+                            </div>
                           </td>
                         )
                       })}
@@ -1498,53 +1833,180 @@ export default function Leaderboard() {
                   ))}
                 </tbody>
               </table>
-            </div>
 
-            {isMobile && !matrixExpanded && activeMembers.length > 5 && (
-              <div style={{ padding: '0 16px 16px', textAlign: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setMatrixExpanded(true)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: 6,
-                    border: '1px solid var(--border-default)',
-                    background: 'var(--surface-raised)',
-                    color: 'var(--text-primary)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t('common.more')}
-                </button>
+              {/* Legend underneath matrix */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 14, flexWrap: 'wrap' }}>
+                <span style={{
+                  font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(18,168,103,.18)',
+                  color: 'var(--status-delivered-fg)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {t('matchSearch.legendMoreWins')}
+                </span>
+                <span style={{
+                  font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(225,68,52,.18)',
+                  color: 'var(--status-incident-fg)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {t('matchSearch.legendMoreLosses')}
+                </span>
+                <span style={{
+                  font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  background: 'var(--surface-inset)',
+                  color: 'var(--text-muted)',
+                  border: '1px solid var(--border-subtle)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {t('matchSearch.legendBalanced')}
+                </span>
+                <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                  {t('matchSearch.legendDisparateBorder')}
+                </span>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Cặp chưa từng gặp nhau */}
-          <div style={S.card}>
-            <div style={{ padding: '14px 16px', display: 'grid', gap: 8 }}>
-              <div style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                {t('matchSearch.neverMet')} ({neverMetList.length} {t('matchSearch.pairs')})
+          {/* Cột phải: 2 Thẻ (Cặp lệch nhất & Chưa gặp nhau) */}
+          <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+            {/* Card 1: Cặp lệch nhất */}
+            <div style={S.card}>
+              <div style={{ ...S.cardHead, padding: '12px 14px' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={S.cardTitle}>{t('matchSearch.disparateTitle')}</div>
+                  <div style={S.cardSub}>{t('matchSearch.disparateSub')}</div>
+                </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {neverMetList.slice(0, 15).map(([id1, id2], idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setInitialTeamA([id1])
-                      setInitialTeamB([id2])
-                      setChallengeModalOpen(true)
-                    }}
-                    style={{ ...S.pairBadge, cursor: 'pointer' }}
-                    title={t('leaderboard.challengePair')}
-                  >
-                    <Icon name="target" size={13} />
-                    <span>{memberNameOf(id1)} · {memberNameOf(id2)}</span>
-                  </button>
-                ))}
+              <div style={{ padding: 14, display: 'grid', gap: 8 }}>
+                {disparatePairsList.length === 0 ? (
+                  <div style={{ padding: '12px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    {t('common.noData')}
+                  </div>
+                ) : (
+                  disparatePairsList.map((item, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setPlayerA(item.player1.id)
+                        setPlayerB(item.player2.id)
+                        setSearchMode('vs')
+                        setActiveTab('search')
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        background: 'var(--surface-inset)',
+                        border: '1px solid var(--border-subtle)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--teal-500)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)' }}
+                      title={t('matchSearch.title')}
+                    >
+                      <span style={{ flex: 1, minWidth: 0, font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                        {t('matchSearch.cardH2HTitle', { nameA: item.player1.name, nameB: item.player2.name })}
+                      </span>
+                      <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                        {item.total} {t('units.match')}
+                      </span>
+                      <span style={{
+                        font: '600 13px/1.3 "IBM Plex Mono", monospace',
+                        color: item.wins > item.losses ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
+                      }}>
+                        {item.wins}-{item.losses}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Card 2: Chưa gặp nhau */}
+            <div style={S.card}>
+              <div style={{ ...S.cardHead, padding: '12px 14px' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={S.cardTitle}>{t('matchSearch.neverMet')}</div>
+                  <div style={S.cardSub}>{t('matchSearch.neverMetSub')}</div>
+                </div>
+                <span style={{
+                  font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                  padding: '5px 9px',
+                  borderRadius: 999,
+                  background: 'rgba(224,138,0,.18)',
+                  color: 'var(--status-delayed-fg)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {neverMetSessionScored.length} {t('matchSearch.pairs')}
+                </span>
+              </div>
+              <div style={{ padding: 14, display: 'grid', gap: 8 }}>
+                {neverMetSessionScored.length === 0 ? (
+                  <div style={{ padding: '12px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    {t('common.noData')}
+                  </div>
+                ) : (
+                  neverMetSessionScored.map((item, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        background: 'var(--surface-inset)',
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                        {item.p1.name} · {item.p2.name}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ font: '400 12.5px/1.4 "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg)' }}>
+                          {t('matchSearch.commonSessions', { count: item.commonSessions })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInitialTeamA([item.p1.id])
+                            setInitialTeamB([item.p2.id])
+                            setChallengeModalOpen(true)
+                          }}
+                          style={{
+                            border: '1px solid var(--border-default)',
+                            background: 'var(--surface-card)',
+                            color: 'var(--status-transit-fg)',
+                            padding: '3px 8px',
+                            borderRadius: 4,
+                            font: '600 11px/1 "IBM Plex Sans", sans-serif',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                          title={t('challenge.challenge')}
+                        >
+                          <Icon name="target" size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <span style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
+                  {t('matchSearch.neverMetPriorityNotice')}
+                </span>
               </div>
             </div>
           </div>
@@ -1810,6 +2272,8 @@ export default function Leaderboard() {
       {editingMatch && (
         <EditScoreModal
           match={editingMatch}
+          allMatches={searchResults}
+          onNavigateMatch={(nextM) => setEditingMatch(nextM)}
           onClose={() => setEditingMatch(null)}
           onSaved={() => setEditingMatch(null)}
         />

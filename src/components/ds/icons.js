@@ -72,6 +72,7 @@ export const ICONS = {
   layers: Layers,
   'layout-dashboard': LayoutDashboard,
   'layout-grid': LayoutGrid,
+  grid: LayoutGrid,
   link: Link,
   list: List,
   'loader-circle': LoaderCircle,

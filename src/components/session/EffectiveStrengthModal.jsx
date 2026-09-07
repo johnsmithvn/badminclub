@@ -77,7 +77,7 @@ export default function EffectiveStrengthModal({
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
             <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{name}</div>
             <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-              {games} {t('season.matchesCount')} · confidence {(player.confidence || 'low').toUpperCase()}
+              {t('season.matchesCount', { n: games })} · confidence {(player.confidence || 'low').toUpperCase()}
             </div>
           </div>
           {games < 5 && (
@@ -91,7 +91,7 @@ export default function EffectiveStrengthModal({
                 color: isDark ? '#F1A79D' : '#DC2626',
               }}
             >
-              ⚠ {t('season.provisionalBadge')}
+              ⚠ {t('season.provisionalBadge', { n: Math.max(0, 5 - games) })}
             </span>
           )}
           <button
@@ -179,7 +179,7 @@ export default function EffectiveStrengthModal({
           </div>
           <div style={{ display: 'grid', gap: 6, font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) 92px', gap: 8, alignItems: 'center' }}>
-              <span>&lt; 5 {t('season.matchesCount')}</span>
+              <span>&lt; 5 {t('units.match')}</span>
               <span style={{ height: 6, borderRadius: 999, background: 'var(--surface-inset)', overflow: 'hidden', display: 'flex' }}>
                 <span style={{ width: '40%', background: '#1D50A0' }} />
               </span>

@@ -355,6 +355,8 @@ export default function BestOfNArrangementView({
 
               // Kiểm tra xem có ai bị co về seed không (< 30 trận)
               const shrinkedPlayer = [...teamA, ...teamB].find((p) => p.gamesCount < 30)
+              const rawSeedName = shrinkedPlayer?.name ? shrinkedPlayer.name.trim().split(/\s+/).pop() : ''
+              const seedName = rawSeedName ? (rawSeedName.charAt(0).toUpperCase() + rawSeedName.slice(1)) : ''
 
               return (
                 <div
@@ -363,7 +365,7 @@ export default function BestOfNArrangementView({
                     padding: '12px 13px',
                     borderBottom: cIdx < courts.length - 1 ? '1px solid var(--border-subtle, rgba(34,48,74,.6))' : 'none',
                     display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : '66px minmax(0,1fr) auto minmax(0,1fr) 130px',
+                    gridTemplateColumns: isMobile ? '1fr' : '66px minmax(0,1fr) auto minmax(0,1fr) auto',
                     gap: 12,
                     alignItems: 'center',
                   }}
@@ -460,7 +462,7 @@ export default function BestOfNArrangementView({
                   </div>
 
                   {/* H2H & Nút Vì sao */}
-                  <div style={{ display: 'grid', gap: 6, justifyItems: isMobile ? 'start' : 'end' }}>
+                  <div style={{ display: 'grid', gap: 6, justifyItems: isMobile ? 'start' : 'end', whiteSpace: 'nowrap', minWidth: 120 }}>
                     {shrinkedPlayer ? (
                       <span
                         onClick={() => setInspectingPlayer(shrinkedPlayer)}
@@ -471,7 +473,7 @@ export default function BestOfNArrangementView({
                           textDecoration: 'underline dotted',
                         }}
                       >
-                        {t('season.shrunkSeed', { name: shrinkedPlayer.name ? shrinkedPlayer.name.split(' ').pop() : '' })}
+                        {t('season.shrunkSeed', { name: seedName })}
                       </span>
                     ) : (
                       <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
@@ -490,6 +492,7 @@ export default function BestOfNArrangementView({
                         border: '1px solid var(--border-default, #2E3E5C)',
                         color: 'var(--text-primary, #E9EFF7)',
                         cursor: 'pointer',
+                        justifySelf: isMobile ? 'start' : 'end',
                       }}
                     >
                       {t('season.whyBtn')}
