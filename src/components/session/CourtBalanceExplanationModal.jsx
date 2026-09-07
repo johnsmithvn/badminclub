@@ -21,13 +21,28 @@ export default function CourtBalanceExplanationModal({
     fairness = { score: 90 },
     teamA = [],
     teamB = [],
-    ra = 3350,
-    rb = 3342,
+    ra: initialRa,
+    rb: initialRb,
   } = data
 
   const nameA = teamA.map((p) => (typeof p === 'object' ? p.name : p)).join(' + ') || 'Team A'
   const nameB = teamB.map((p) => (typeof p === 'object' ? p.name : p)).join(' + ') || 'Team B'
-  const delta = Math.abs(ra - rb)
+
+  const pA1 = teamA[0] ? (typeof teamA[0] === 'object' ? (teamA[0].effectiveStrength || teamA[0].rating || teamA[0].seedRating || 0) : teamA[0]) : 0
+  const pA2 = teamA[1] ? (typeof teamA[1] === 'object' ? (teamA[1].effectiveStrength || teamA[1].rating || teamA[1].seedRating || 0) : teamA[1]) : 0
+  const pB1 = teamB[0] ? (typeof teamB[0] === 'object' ? (teamB[0].effectiveStrength || teamB[0].rating || teamB[0].seedRating || 0) : teamB[0]) : 0
+  const pB2 = teamB[1] ? (typeof teamB[1] === 'object' ? (teamB[1].effectiveStrength || teamB[1].rating || teamB[1].seedRating || 0) : teamB[1]) : 0
+
+  const calcTotA = (pA1 && pA2) ? (pA1 + pA2) : 0
+  const calcTotB = (pB1 && pB2) ? (pB1 + pB2) : 0
+  const calcAvgA = teamA.length ? Math.round((calcTotA || pA1) / teamA.length) : 0
+  const calcAvgB = teamB.length ? Math.round((calcTotB || pB1) / teamB.length) : 0
+
+  const ra = initialRa || data.ra || data.rA || calcAvgA || 1500
+  const rb = initialRb || data.rb || data.rB || calcAvgB || 1500
+  const totA = calcTotA || ra
+  const totB = calcTotB || rb
+  const delta = data.canRating?.delta !== undefined ? data.canRating.delta : Math.abs(ra - rb)
   const scores = (h2h.recentScores && h2h.recentScores.length)
     ? h2h.recentScores
     : ['21–19', '22–20', '21–15', '19–21', '21–14']
@@ -78,7 +93,7 @@ export default function CourtBalanceExplanationModal({
               {t('assign.explanationTitle', { court: courtIdx + 1 })}
             </div>
             <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
-              {nameA} vs {nameB} — {t('assign.explanationScore', { score: totalScore })}
+              {nameA} vs {nameB} — {t('assign.explanationScore', { score: totalScore, tA: nameA, tB: nameB })}
             </div>
           </div>
           <button
@@ -120,13 +135,15 @@ export default function CourtBalanceExplanationModal({
               <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>{nameA}</span>
               <span style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary, #E9EFF7)' }}>{ra}</span>
               <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
-                {t('assign.teamRating')}
+                {pA1 && pA2
+                  ? t('assign.teamRating', { total: totA, p1: pA1, p2: pA2 })
+                  : t('season.teamTotal', { n: totA })}
               </span>
             </div>
 
             <div style={{ display: 'grid', gap: 4, justifyItems: 'center' }}>
               <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#00B2A9' }}>
-                {t('assign.diffElo', { delta })}
+                {t('assign.diffElo', { diff: delta, delta })}
               </span>
               <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>≈ 51/49</span>
             </div>
@@ -144,7 +161,9 @@ export default function CourtBalanceExplanationModal({
               <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary, #E9EFF7)' }}>{nameB}</span>
               <span style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary, #E9EFF7)' }}>{rb}</span>
               <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
-                {t('assign.teamRating')}
+                {pB1 && pB2
+                  ? t('assign.teamRating', { total: totB, p1: pB1, p2: pB2 })
+                  : t('season.teamTotal', { n: totB })}
               </span>
             </div>
           </div>
@@ -176,7 +195,7 @@ export default function CourtBalanceExplanationModal({
                 }}
               >
                 <span style={{ color: 'var(--text-secondary, #A8B7CB)' }}>{t('assign.criterionRating')}</span>
-                <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('assign.criterionRatingDesc', { delta })}</span>
+                <span style={{ color: 'var(--text-muted, #8494AA)' }}>{t('assign.criterionRatingDesc', { diff: delta, delta })}</span>
                 <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#00B2A9' }}>+30</span>
               </div>
 

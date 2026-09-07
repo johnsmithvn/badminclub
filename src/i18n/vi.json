@@ -517,7 +517,7 @@
       }
     },
     "explanationTitle": "Sân {{court}} · vì sao ghép thế này",
-    "explanationScore": "{{tA}} vs {{tB}} — điểm {{score}}",
+    "explanationScore": "điểm {{score}}",
     "teamRating": "tổng {{total}} · {{p1}} + {{p2}}",
     "diffElo": "lệch {{diff}} Elo",
     "criteriaBreakdown": "Điểm chi tiết 5 tiêu chí",
