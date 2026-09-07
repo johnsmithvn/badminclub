@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 
 export default function QuadrantMapModal({
   leaderboardRows = [],
@@ -8,6 +9,8 @@ export default function QuadrantMapModal({
   onClose,
   onSelectMember,
 }) {
+  const { isDark } = useTheme()
+
   // Chuẩn hóa vị trí các điểm (x, y) theo phần trăm
   // Trục ngang (X): Elo career — medianElo nằm ở giữa (50%)
   // Trục dọc (Y): Điểm mùa (Season Points) — phân chia ở 50%, điểm cao nằm trên (top: 12%..48%)
@@ -93,7 +96,7 @@ export default function QuadrantMapModal({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(0,0,0,.70)',
+        background: 'rgba(0,0,0,.65)',
         backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
@@ -107,34 +110,35 @@ export default function QuadrantMapModal({
         style={{
           width: 700,
           maxWidth: '100%',
-          background: '#0B1220',
-          border: '1px solid #22304A',
+          background: 'var(--surface-overlay)',
+          border: '1px solid var(--border-default)',
           borderRadius: 12,
           padding: 18,
           display: 'grid',
           gap: 14,
-          boxShadow: '0 24px 60px rgba(0,0,0,.60)',
+          boxShadow: 'var(--shadow-overlay)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#fff' }}>
+          <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: 'var(--text-primary)' }}>
             {seasonName ? t('season.mapTitleWithSeason', { season: seasonName }) : t('season.mapTitle')}
           </div>
-          <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+          <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
             {t('season.mapAxes')}
           </div>
           <div style={{ flex: '1 1 0%' }} />
           <button
             type="button"
             onClick={onClose}
+            aria-label={t('common.close')}
             style={{
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               font: "600 16px/1 'IBM Plex Mono', monospace",
-              color: '#8494AA',
+              color: 'var(--text-muted)',
             }}
           >
             ✕
@@ -146,15 +150,15 @@ export default function QuadrantMapModal({
           style={{
             position: 'relative',
             height: 400,
-            border: '1px solid #22304A',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 10,
-            background: '#141D2E',
+            background: 'var(--surface-inset)',
             overflow: 'hidden',
           }}
         >
           {/* Trục hoành & Trục tung phân chia 4 góc */}
-          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: '#2E3E5C' }} />
-          <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: '#2E3E5C' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--border-default)' }} />
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: 'var(--border-default)' }} />
 
           {/* 4 Nhãn góc */}
           <div
@@ -165,7 +169,7 @@ export default function QuadrantMapModal({
               font: "600 11px/1.3 'IBM Plex Sans', sans-serif",
               letterSpacing: '.05em',
               textTransform: 'uppercase',
-              color: '#5FDBD3',
+              color: isDark ? '#5FDBD3' : 'var(--teal-700)',
             }}
           >
             {t('season.quadrantRising')}
@@ -175,7 +179,7 @@ export default function QuadrantMapModal({
                 font: "400 11px/1.3 'IBM Plex Sans', sans-serif",
                 letterSpacing: 0,
                 textTransform: 'none',
-                color: '#8494AA',
+                color: 'var(--text-muted)',
               }}
             >
               {t('season.quadrantRisingDesc')}
@@ -191,7 +195,7 @@ export default function QuadrantMapModal({
               font: "600 11px/1.3 'IBM Plex Sans', sans-serif",
               letterSpacing: '.05em',
               textTransform: 'uppercase',
-              color: '#F0D26A',
+              color: isDark ? '#F0D26A' : '#B45309',
             }}
           >
             {t('season.quadrantLeader')}
@@ -201,7 +205,7 @@ export default function QuadrantMapModal({
                 font: "400 11px/1.3 'IBM Plex Sans', sans-serif",
                 letterSpacing: 0,
                 textTransform: 'none',
-                color: '#8494AA',
+                color: 'var(--text-muted)',
               }}
             >
               {t('season.quadrantLeaderDesc')}
@@ -216,7 +220,7 @@ export default function QuadrantMapModal({
               font: "600 11px/1.3 'IBM Plex Sans', sans-serif",
               letterSpacing: '.05em',
               textTransform: 'uppercase',
-              color: '#8494AA',
+              color: 'var(--text-muted)',
             }}
           >
             {t('season.quadrantHibernating')}
@@ -226,7 +230,8 @@ export default function QuadrantMapModal({
                 font: "400 11px/1.3 'IBM Plex Sans', sans-serif",
                 letterSpacing: 0,
                 textTransform: 'none',
-                color: '#64748B',
+                color: 'var(--text-muted)',
+                opacity: 0.8,
               }}
             >
               {t('season.quadrantHibernatingDesc')}
@@ -242,7 +247,7 @@ export default function QuadrantMapModal({
               font: "600 11px/1.3 'IBM Plex Sans', sans-serif",
               letterSpacing: '.05em',
               textTransform: 'uppercase',
-              color: '#B6CDEC',
+              color: isDark ? '#B6CDEC' : '#1D50A0',
             }}
           >
             {t('season.quadrantAbsentPillar')}
@@ -252,7 +257,7 @@ export default function QuadrantMapModal({
                 font: "400 11px/1.3 'IBM Plex Sans', sans-serif",
                 letterSpacing: 0,
                 textTransform: 'none',
-                color: '#8494AA',
+                color: 'var(--text-muted)',
               }}
             >
               {t('season.quadrantAbsentPillarDesc')}
@@ -271,10 +276,10 @@ export default function QuadrantMapModal({
               : p.xPct > 50
               ? p.yPct < 50
                 ? '#F0D26A'
-                : '#B6CDEC'
+                : (isDark ? '#B6CDEC' : '#1D50A0')
               : p.yPct < 50
               ? '#00B2A9'
-              : '#64748B'
+              : (isDark ? '#64748B' : '#94A3B8')
 
             return (
               <div
@@ -299,16 +304,17 @@ export default function QuadrantMapModal({
                     height: isTop ? 14 : 12,
                     borderRadius: 999,
                     background: dotColor,
-                    border: p.isProvisional ? '1.5px dashed #8494AA' : 'none',
-                    boxShadow: isTop ? '0 0 0 4px rgba(201,162,39,.20)' : 'none',
+                    border: p.isProvisional ? '1.5px dashed var(--text-muted)' : 'none',
+                    boxShadow: isTop ? '0 0 0 4px rgba(201,162,39,.25)' : '0 1px 3px rgba(0,0,0,.2)',
                     flex: '0 0 auto',
                   }}
                 />
                 <span
                   style={{
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: isTop ? '#F7E3A1' : p.isProvisional ? '#A8B7CB' : '#E9EFF7',
+                    color: isTop ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
                     whiteSpace: 'nowrap',
+                    textShadow: isDark ? '0 1px 2px rgba(0,0,0,.6)' : 'none',
                   }}
                 >
                   {p.name ? p.name.split(' ').pop() : ''} {p.isProvisional ? '⚠' : ''}
@@ -324,7 +330,7 @@ export default function QuadrantMapModal({
               bottom: 4,
               transform: 'translateX(-50%)',
               font: "400 10px/1 'IBM Plex Mono', monospace",
-              color: '#64748B',
+              color: 'var(--text-muted)',
             }}
           >
             Elo {medianElo} ({t('season.medianLabel')})
@@ -335,36 +341,38 @@ export default function QuadrantMapModal({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 9,
               padding: 12,
               display: 'grid',
               gap: 5,
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <div style={{ font: "600 12px/1.2 'IBM Plex Sans', sans-serif", color: '#B6CDEC' }}>
+            <div style={{ font: "600 12px/1.2 'IBM Plex Sans', sans-serif", color: isDark ? '#B6CDEC' : '#1D50A0' }}>
               {t('season.actionBottomRightTitle')}
             </div>
-            <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+            <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
               {t('season.actionBottomRightDescHandoff', { names: brNames })}
             </div>
           </div>
 
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 9,
               padding: 12,
               display: 'grid',
               gap: 5,
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <div style={{ font: "600 12px/1.2 'IBM Plex Sans', sans-serif", color: '#5FDBD3' }}>
+            <div style={{ font: "600 12px/1.2 'IBM Plex Sans', sans-serif", color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>
               {t('season.actionTopLeftTitle')}
             </div>
-            <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+            <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
               {t('season.actionTopLeftDescHandoff', { names: tlNames, median: medianElo || 1600 })}
             </div>
           </div>

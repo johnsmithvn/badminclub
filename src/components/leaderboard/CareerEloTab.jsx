@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, effectiveStrengthOf, isProvisional } from '#lib/rating.js'
 
 export default function CareerEloTab({
@@ -11,6 +12,7 @@ export default function CareerEloTab({
   onOpenEffectiveStrengthModal,
   isMobile = false,
 }) {
+  const { isDark } = useTheme()
   const [filterMode, setFilterMode] = useState('official') // 'official' | 'all'
 
   // Chuẩn bị dữ liệu danh sách thành viên
@@ -53,22 +55,22 @@ export default function CareerEloTab({
 
       // Thang độ tin cậy
       let confLabel = 'LOW'
-      let confColor = '#8494AA'
+      let confColor = 'var(--text-muted)'
       let confBarColor = '#64748B'
       let confBarWidth = '14%'
       if (gamesCount >= 100) {
         confLabel = 'V.HIGH'
-        confColor = '#F0D26A'
+        confColor = isDark ? '#F0D26A' : '#B45309'
         confBarColor = '#C9A227'
         confBarWidth = '100%'
       } else if (gamesCount >= 30) {
         confLabel = 'HIGH'
-        confColor = '#B6CDEC'
+        confColor = isDark ? '#B6CDEC' : '#1D50A0'
         confBarColor = '#1D50A0'
         confBarWidth = '75%'
       } else if (gamesCount >= 5) {
         confLabel = 'MED'
-        confColor = '#B6CDEC'
+        confColor = isDark ? '#B6CDEC' : '#2563EB'
         confBarColor = '#7AA3DC'
         confBarWidth = '45%'
       }
@@ -127,7 +129,7 @@ export default function CareerEloTab({
     const histogramWithHeights = bins.map((b) => ({
       ...b,
       heightPx: Math.max(10, Math.round((b.count / maxCount) * 80)),
-      color: b.label >= '1800' ? '#00B2A9' : b.label >= '1500' ? '#1D50A0' : '#2E3E5C',
+      color: b.label >= '1800' ? '#00B2A9' : b.label >= '1500' ? '#1D50A0' : (isDark ? '#2E3E5C' : '#94A3B8'),
     }))
 
     // Trung vị
@@ -147,7 +149,7 @@ export default function CareerEloTab({
       medianElo: med,
       middleRangePct: rangePct,
     }
-  }, [members, playerRatings, matches, levels])
+  }, [members, playerRatings, matches, levels, isDark])
 
   const displayList = filterMode === 'official' ? officialList : allList
 
@@ -161,7 +163,7 @@ export default function CareerEloTab({
     >
       {/* FILTER TOGGLE TRÊN CÙNG */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: '#141D2E', border: '1px solid #22304A' }}>
+        <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
           <button
             type="button"
             onClick={() => setFilterMode('official')}
@@ -169,10 +171,12 @@ export default function CareerEloTab({
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
               padding: '8px 12px',
               borderRadius: 6,
-              background: filterMode === 'official' ? '#1A2437' : 'transparent',
-              border: filterMode === 'official' ? '1px solid #2E3E5C' : '1px solid transparent',
-              color: filterMode === 'official' ? '#E9EFF7' : '#A8B7CB',
+              background: filterMode === 'official' ? 'var(--surface-card)' : 'transparent',
+              border: filterMode === 'official' ? '1px solid var(--border-default)' : '1px solid transparent',
+              color: filterMode === 'official' ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: filterMode === 'official' ? 'var(--shadow-xs)' : 'none',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             {t('season.filterOfficial')}
@@ -184,10 +188,12 @@ export default function CareerEloTab({
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
               padding: '8px 12px',
               borderRadius: 6,
-              background: filterMode === 'all' ? '#1A2437' : 'transparent',
-              border: filterMode === 'all' ? '1px solid #2E3E5C' : '1px solid transparent',
-              color: filterMode === 'all' ? '#E9EFF7' : '#A8B7CB',
+              background: filterMode === 'all' ? 'var(--surface-card)' : 'transparent',
+              border: filterMode === 'all' ? '1px solid var(--border-default)' : '1px solid transparent',
+              color: filterMode === 'all' ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: filterMode === 'all' ? 'var(--shadow-xs)' : 'none',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             {t('season.filterAll')}
@@ -207,9 +213,9 @@ export default function CareerEloTab({
         {/* CỘT TRÁI: BẢNG XẾP HẠNG VÀ KHU THẨM ĐỊNH */}
         <div style={{ display: 'grid', gap: 14 }}>
           {/* Bảng xếp hạng chính thức */}
-          <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ padding: '10px 13px', borderBottom: '1px solid #22304A', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
+            <div style={{ padding: '10px 13px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
                 {filterMode === 'official'
                   ? t('season.officialActiveCount', { n: officialList.length })
                   : t('season.allActiveCount', { n: allList.length })}
@@ -220,16 +226,16 @@ export default function CareerEloTab({
                     font: "600 11px/1 'IBM Plex Mono', monospace",
                     padding: '5px 8px',
                     borderRadius: 999,
-                    background: 'rgba(214,59,43,.14)',
-                    border: '1px solid #8E2C20',
-                    color: '#F1A79D',
+                    background: isDark ? 'rgba(214,59,43,.14)' : 'rgba(214,59,43,.10)',
+                    border: '1px solid #D63B2B',
+                    color: isDark ? '#F1A79D' : '#D63B2B',
                   }}
                 >
                   {t('season.provisionalActiveCount', { n: provisionalList.length })}
                 </span>
               )}
               <div style={{ flex: '1 1 0%' }} />
-              <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+              <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
                 {t('season.sortEloDesc')}
               </span>
             </div>
@@ -240,11 +246,11 @@ export default function CareerEloTab({
                 display: 'grid',
                 gridTemplateColumns: '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
                 padding: '8px 13px',
-                borderBottom: '1px solid #22304A',
+                borderBottom: '1px solid var(--border-subtle)',
                 font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
                 letterSpacing: '.06em',
                 textTransform: 'uppercase',
-                color: '#8494AA',
+                color: 'var(--text-muted)',
               }}
             >
               <span>#</span>
@@ -258,8 +264,9 @@ export default function CareerEloTab({
 
             {/* Danh sách thành viên */}
             {displayList.map((player) => {
-              const rankColor = player.rank === 1 ? '#F0D26A' : player.rank === 2 ? '#A8B7CB' : player.rank === 3 ? '#B0562A' : '#A8B7CB'
-              const deltaColor = player.delta30Days > 0 ? '#5FDBD3' : player.delta30Days < 0 ? '#F1A79D' : '#8494AA'
+              const isRank1 = player.rank === 1
+              const rankColor = isRank1 ? '#D97706' : player.rank === 2 || player.rank === 3 ? 'var(--text-secondary)' : 'var(--text-muted)'
+              const deltaColor = player.delta30Days > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : player.delta30Days < 0 ? (isDark ? '#F1A79D' : '#DC2626') : 'var(--text-muted)'
               const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
 
               return (
@@ -270,7 +277,7 @@ export default function CareerEloTab({
                     gridTemplateColumns: '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
                     alignItems: 'center',
                     padding: '9px 13px',
-                    borderBottom: '1px solid rgba(34,48,74,.6)',
+                    borderBottom: '1px solid var(--border-subtle)',
                     font: "400 13px/1.3 'IBM Plex Sans', sans-serif",
                   }}
                 >
@@ -298,7 +305,7 @@ export default function CareerEloTab({
                     >
                       {player.name ? player.name.charAt(0).toUpperCase() : '?'}
                     </div>
-                    <span style={{ fontWeight: 600, color: '#E9EFF7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {player.name}
                     </span>
                     {player.rank === 1 && (
@@ -307,9 +314,9 @@ export default function CareerEloTab({
                           font: "600 10px/1 'IBM Plex Mono', monospace",
                           padding: '3px 6px',
                           borderRadius: 999,
-                          background: 'rgba(201,162,39,.16)',
-                          border: '1px solid #8A6F16',
-                          color: '#F0D26A',
+                          background: isDark ? 'rgba(201,162,39,.16)' : 'rgba(245,158,11,.14)',
+                          border: '1px solid #C9A227',
+                          color: isDark ? '#F0D26A' : '#B45309',
                         }}
                       >
                         Top 1
@@ -323,14 +330,14 @@ export default function CareerEloTab({
                       textAlign: 'right',
                       fontFamily: "'IBM Plex Mono', monospace",
                       fontWeight: 600,
-                      color: player.rank === 1 ? '#F7E3A1' : '#E9EFF7',
+                      color: player.rank === 1 ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
                     }}
                   >
                     {player.rating}
                   </span>
 
                   {/* Số trận */}
-                  <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                  <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
                     {player.gamesCount}
                   </span>
 
@@ -341,7 +348,8 @@ export default function CareerEloTab({
                         width: 56,
                         height: 7,
                         borderRadius: 999,
-                        background: '#0B1220',
+                        background: 'var(--surface-inset)',
+                        border: '1px solid var(--border-subtle)',
                         overflow: 'hidden',
                         display: 'flex',
                       }}
@@ -360,7 +368,7 @@ export default function CareerEloTab({
                   </div>
 
                   {/* Thắng % */}
-                  <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                  <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
                     {player.winRate}%
                   </span>
 
@@ -375,28 +383,28 @@ export default function CareerEloTab({
 
           {/* KHU THẨM ĐỊNH (Provisional Section) */}
           {provisionalList.length > 0 && filterMode === 'official' && (
-            <div style={{ background: '#141D2E', border: '1px solid #8E2C20', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--surface-card)', border: '1px solid #D63B2B', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
               <div
                 style={{
                   padding: '10px 13px',
-                  borderBottom: '1px solid #22304A',
+                  borderBottom: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
                   flexWrap: 'wrap',
                 }}
               >
-                <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#F1A79D' }}>
+                <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: isDark ? '#F1A79D' : '#DC2626' }}>
                   {t('season.provisionalSectionTitle')}
                 </span>
                 <div style={{ flex: '1 1 0%' }} />
-                <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
                   {t('season.provisionalSectionSub')}
                 </span>
               </div>
 
               {provisionalList.map((player) => {
-                const deltaColor = player.delta30Days > 0 ? '#5FDBD3' : player.delta30Days < 0 ? '#F1A79D' : '#8494AA'
+                const deltaColor = player.delta30Days > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : player.delta30Days < 0 ? (isDark ? '#F1A79D' : '#DC2626') : 'var(--text-muted)'
                 const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
 
                 return (
@@ -409,12 +417,15 @@ export default function CareerEloTab({
                       gridTemplateColumns: '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
                       alignItems: 'center',
                       padding: '9px 13px',
-                      borderBottom: '1px solid rgba(34,48,74,.6)',
+                      borderBottom: '1px solid var(--border-subtle)',
                       font: "400 13px/1.3 'IBM Plex Sans', sans-serif",
                       cursor: 'pointer',
+                      transition: 'background 0.15s ease',
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#8494AA' }}>—</span>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>—</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                       <div
                         style={{
@@ -433,15 +444,15 @@ export default function CareerEloTab({
                       >
                         {player.name ? player.name.charAt(0).toUpperCase() : '?'}
                       </div>
-                      <span style={{ fontWeight: 600, color: '#E9EFF7' }}>{player.name}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{player.name}</span>
                       <span
                         style={{
                           font: "600 10px/1 'IBM Plex Mono', monospace",
                           padding: '3px 6px',
                           borderRadius: 999,
-                          background: 'rgba(214,59,43,.14)',
-                          border: '1px solid #8E2C20',
-                          color: '#F1A79D',
+                          background: isDark ? 'rgba(214,59,43,.14)' : 'rgba(214,59,43,.10)',
+                          border: '1px solid #D63B2B',
+                          color: isDark ? '#F1A79D' : '#DC2626',
                         }}
                       >
                         {t('season.provisionalBadgeCount', { n: player.provisionalRemaining })}
@@ -453,13 +464,13 @@ export default function CareerEloTab({
                         textAlign: 'right',
                         fontFamily: "'IBM Plex Mono', monospace",
                         fontWeight: 600,
-                        color: '#A8B7CB',
+                        color: 'var(--text-secondary)',
                       }}
                     >
                       {player.rating}?
                     </span>
 
-                    <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                    <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
                       {player.gamesCount}
                     </span>
 
@@ -469,7 +480,8 @@ export default function CareerEloTab({
                           width: 56,
                           height: 7,
                           borderRadius: 999,
-                          background: '#0B1220',
+                          background: 'var(--surface-inset)',
+                          border: '1px solid var(--border-subtle)',
                           overflow: 'hidden',
                           display: 'flex',
                         }}
@@ -487,7 +499,7 @@ export default function CareerEloTab({
                       </span>
                     </div>
 
-                    <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                    <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
                       {player.winRate}%
                     </span>
 
@@ -506,44 +518,45 @@ export default function CareerEloTab({
           {/* Card 1: Thang độ tin cậy */}
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 10,
               padding: '13px 15px',
               display: 'grid',
               gap: 11,
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
               {t('season.confidenceScaleTitle')}
             </div>
             <div style={{ display: 'grid', gap: 8, font: "400 12px/1.3 'IBM Plex Sans', sans-serif" }}>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#64748B' }} />
-                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>LOW</span>
-                <span style={{ color: '#8494AA' }}>{t('season.confLowNote')}</span>
+                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>LOW</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('season.confLowNote')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#7AA3DC' }} />
-                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>MED</span>
-                <span style={{ color: '#8494AA' }}>{t('season.confMedNote')}</span>
+                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>MED</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('season.confMedNote')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#1D50A0' }} />
-                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>HIGH</span>
-                <span style={{ color: '#8494AA' }}>{t('season.confHighNote')}</span>
+                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>HIGH</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('season.confHighNote')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '14px 82px minmax(0,1fr)', gap: 9, alignItems: 'center' }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: '#C9A227' }} />
-                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>V.HIGH</span>
-                <span style={{ color: '#8494AA' }}>{t('season.confVHighNote')}</span>
+                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>V.HIGH</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('season.confVHighNote')}</span>
               </div>
             </div>
             <div
               style={{
                 font: "400 12px/1.5 'IBM Plex Sans', sans-serif",
-                color: '#8494AA',
-                borderTop: '1px solid #22304A',
+                color: 'var(--text-muted)',
+                borderTop: '1px solid var(--border-subtle)',
                 paddingTop: 9,
               }}
             >
@@ -554,15 +567,16 @@ export default function CareerEloTab({
           {/* Card 2: Phổ Elo toàn CLB (Histogram) */}
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 10,
               padding: '13px 15px',
               display: 'grid',
               gap: 10,
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
               {t('season.eloDistributionTitle')}
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 104 }}>
@@ -586,7 +600,7 @@ export default function CareerEloTab({
                       borderRadius: '3px 3px 0 0',
                     }}
                   />
-                  <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                  <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
                     {bar.label}
                   </span>
                 </div>
@@ -595,8 +609,8 @@ export default function CareerEloTab({
             <div
               style={{
                 font: "400 12px/1.5 'IBM Plex Sans', sans-serif",
-                color: '#8494AA',
-                borderTop: '1px solid #22304A',
+                color: 'var(--text-muted)',
+                borderTop: '1px solid var(--border-subtle)',
                 paddingTop: 9,
               }}
             >
@@ -604,27 +618,28 @@ export default function CareerEloTab({
             </div>
           </div>
 
-          {/* Card 3: {t('season.twoTablesDiffTitle')} */}
+          {/* Card 3: Hai Bảng Khác Nhau Thế Nào */}
           <div
             style={{
-              background: '#1A2437',
-              border: '1px solid #2E3E5C',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-default)',
               borderRadius: 10,
               padding: '13px 15px',
               display: 'grid',
               gap: 9,
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
               {t('season.twoTablesDiffTitle')}
             </div>
-            <div style={{ display: 'grid', gap: 8, font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+            <div style={{ display: 'grid', gap: 8, font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '78px minmax(0,1fr)', gap: 10 }}>
-                <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>Elo</span>
+                <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>Elo</span>
                 <span>{t('season.eloPurpose')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '78px minmax(0,1fr)', gap: 10 }}>
-                <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: '#F0D26A' }}>{t('season.colPoints')}</span>
+                <span style={{ font: "600 11px/1.3 'IBM Plex Mono', monospace", color: isDark ? '#F0D26A' : '#B45309' }}>{t('season.colPoints')}</span>
                 <span>{t('season.seasonPointsPurpose')}</span>
               </div>
             </div>

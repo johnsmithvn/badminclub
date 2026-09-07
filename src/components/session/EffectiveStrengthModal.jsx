@@ -1,4 +1,5 @@
 import { t } from '#i18n'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 
 export default function EffectiveStrengthModal({
   player = {
@@ -11,6 +12,8 @@ export default function EffectiveStrengthModal({
   },
   onClose,
 }) {
+  const { isDark } = useTheme()
+
   if (!player) return null
 
   const name = player.name || ''
@@ -29,7 +32,7 @@ export default function EffectiveStrengthModal({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(0,0,0,.70)',
+        background: 'rgba(0,0,0,.65)',
         backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
@@ -43,10 +46,10 @@ export default function EffectiveStrengthModal({
         style={{
           width: 420,
           maxWidth: '100%',
-          background: '#1A2437',
-          border: '1px solid #2E3E5C',
+          background: 'var(--surface-overlay)',
+          border: '1px solid var(--border-default)',
           borderRadius: 12,
-          boxShadow: '0 20px 48px rgba(0,0,0,.55)',
+          boxShadow: 'var(--shadow-overlay)',
           padding: 18,
           display: 'grid',
           gap: 13,
@@ -72,8 +75,8 @@ export default function EffectiveStrengthModal({
             {name.charAt(0)}
           </span>
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-            <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{name}</div>
-            <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+            <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{name}</div>
+            <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
               {games} {t('season.matchesCount')} · confidence {(player.confidence || 'low').toUpperCase()}
             </div>
           </div>
@@ -83,9 +86,9 @@ export default function EffectiveStrengthModal({
                 font: "600 10px/1 'IBM Plex Mono', monospace",
                 padding: '5px 7px',
                 borderRadius: 999,
-                background: 'rgba(214,59,43,.14)',
-                border: '1px solid #8E2C20',
-                color: '#F1A79D',
+                background: isDark ? 'rgba(214,59,43,.14)' : 'rgba(214,59,43,.10)',
+                border: '1px solid #D63B2B',
+                color: isDark ? '#F1A79D' : '#DC2626',
               }}
             >
               ⚠ {t('season.provisionalBadge')}
@@ -94,12 +97,13 @@ export default function EffectiveStrengthModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label={t('common.close')}
             style={{
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               font: "600 16px/1 'IBM Plex Mono', monospace",
-              color: '#8494AA',
+              color: 'var(--text-muted)',
               padding: 2,
             }}
           >
@@ -109,24 +113,24 @@ export default function EffectiveStrengthModal({
 
         {/* Stats List */}
         <div style={{ display: 'grid', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
             <span>{t('season.currentElo')}</span>
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>{elo}</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary)', fontWeight: 600 }}>{elo}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
             <span>{t('season.seedRating')}</span>
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#E9EFF7' }}>{seed}</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary)', fontWeight: 600 }}>{seed}</span>
           </div>
-          <div style={{ height: 1, background: '#22304A', margin: '2px 0' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+          <div style={{ height: 1, background: 'var(--border-subtle)', margin: '2px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
             <span>{t('season.effectiveStrengthForMatchmaking')}</span>
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F0D26A' }}>{eff}</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#F0D26A' : '#B45309', fontWeight: 700 }}>{eff}</span>
           </div>
         </div>
 
         {/* Two-tone Bar */}
         <div style={{ display: 'grid', gap: 7 }}>
-          <div style={{ height: 24, borderRadius: 6, overflow: 'hidden', display: 'flex', border: '1px solid #22304A' }}>
+          <div style={{ height: 24, borderRadius: 6, overflow: 'hidden', display: 'flex', border: '1px solid var(--border-subtle)' }}>
             {seedPct > 0 && (
               <div
                 style={{
@@ -156,57 +160,57 @@ export default function EffectiveStrengthModal({
               Elo {eloPct}%
             </div>
           </div>
-          <div style={{ font: "400 11px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+          <div style={{ font: "400 11px/1.4 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
             {seed} × {(seedPct / 100).toFixed(2)} + {elo} × {(eloPct / 100).toFixed(2)} = {eff}
           </div>
         </div>
 
         {/* Shrinkage Matrix Table */}
-        <div style={{ borderTop: '1px solid #22304A', paddingTop: 11, display: 'grid', gap: 8 }}>
+        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 11, display: 'grid', gap: 8 }}>
           <div
             style={{
               font: "600 12px/1.2 'IBM Plex Sans', sans-serif",
               letterSpacing: '.06em',
               textTransform: 'uppercase',
-              color: '#8494AA',
+              color: 'var(--text-muted)',
             }}
           >
             {t('season.shrinkageMatrixTitle')}
           </div>
-          <div style={{ display: 'grid', gap: 6, font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+          <div style={{ display: 'grid', gap: 6, font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) 92px', gap: 8, alignItems: 'center' }}>
               <span>&lt; 5 {t('season.matchesCount')}</span>
-              <span style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+              <span style={{ height: 6, borderRadius: 999, background: 'var(--surface-inset)', overflow: 'hidden', display: 'flex' }}>
                 <span style={{ width: '40%', background: '#1D50A0' }} />
               </span>
-              <span style={{ textAlign: 'right' }}>Elo 40%</span>
+              <span style={{ textAlign: 'right', color: 'var(--text-primary)' }}>Elo 40%</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) 92px', gap: 8, alignItems: 'center' }}>
               <span>5–14</span>
-              <span style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+              <span style={{ height: 6, borderRadius: 999, background: 'var(--surface-inset)', overflow: 'hidden', display: 'flex' }}>
                 <span style={{ width: '65%', background: '#1D50A0' }} />
               </span>
-              <span style={{ textAlign: 'right' }}>Elo 65%</span>
+              <span style={{ textAlign: 'right', color: 'var(--text-primary)' }}>Elo 65%</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) 92px', gap: 8, alignItems: 'center' }}>
               <span>15–29</span>
-              <span style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+              <span style={{ height: 6, borderRadius: 999, background: 'var(--surface-inset)', overflow: 'hidden', display: 'flex' }}>
                 <span style={{ width: '85%', background: '#1D50A0' }} />
               </span>
-              <span style={{ textAlign: 'right' }}>Elo 85%</span>
+              <span style={{ textAlign: 'right', color: 'var(--text-primary)' }}>Elo 85%</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) 92px', gap: 8, alignItems: 'center' }}>
               <span>≥ 30</span>
-              <span style={{ height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+              <span style={{ height: 6, borderRadius: 999, background: 'var(--surface-inset)', overflow: 'hidden', display: 'flex' }}>
                 <span style={{ width: '100%', background: '#00B2A9' }} />
               </span>
-              <span style={{ textAlign: 'right', color: '#5FDBD3' }}>Elo 100%</span>
+              <span style={{ textAlign: 'right', color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>Elo 100%</span>
             </div>
           </div>
         </div>
 
         {/* Note */}
-        <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA', borderTop: '1px solid #22304A', paddingTop: 11 }}>
+        <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: 11 }}>
           {t('season.effectiveStrengthNote', { name })}
         </div>
       </div>

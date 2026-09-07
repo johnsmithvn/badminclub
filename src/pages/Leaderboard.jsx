@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button, Card, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { confidenceOf, computeClubCalibration, rankTopCrossGenderPlayers, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf } from '#lib/rating.js'
 import { playerName, courtOf } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
@@ -39,6 +40,7 @@ function alphaColor(color, alphaHex, pct) {
 
 export default function Leaderboard() {
   const { db, a } = useApp()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const isMobile = useMobile()
   const [activeTab, setActiveTab] = useState('season') // 'season' | 'chart' | 'search' | 'matrix' | 'cross'
@@ -592,21 +594,22 @@ export default function Leaderboard() {
       <div
         style={{
           padding: '14px 20px',
-          background: '#0B1220',
-          border: '1px solid #22304A',
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 10,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 14,
           flexWrap: 'wrap',
+          boxShadow: 'var(--shadow-xs)',
         }}
       >
         <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ font: "600 18px/1.25 Barlow, sans-serif", color: '#fff' }}>
+          <div style={{ font: "600 18px/1.25 Barlow, sans-serif", color: 'var(--text-primary)' }}>
             {t('leaderboard.title')}
           </div>
-          <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+          <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
             {activeTab === 'season'
               ? t('season.headerSub')
               : activeTab === 'elo'
@@ -614,7 +617,28 @@ export default function Leaderboard() {
               : t('leaderboard.sub')}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={isDark ? t('common.themeLight') : t('common.themeDark')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '9px 12px',
+              borderRadius: 6,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Icon name={isDark ? 'sun' : 'moon'} size={15} />
+            <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>
+          </button>
           <button
             type="button"
             onClick={handleExportCsv}
@@ -622,9 +646,9 @@ export default function Leaderboard() {
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
               padding: '9px 14px',
               borderRadius: 6,
-              background: '#1A2437',
-              border: '1px solid #2E3E5C',
-              color: '#E9EFF7',
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
               cursor: 'pointer',
             }}
           >
@@ -637,9 +661,9 @@ export default function Leaderboard() {
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
               padding: '9px 14px',
               borderRadius: 6,
-              background: '#1A2437',
-              border: '1px solid #2E3E5C',
-              color: '#E9EFF7',
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
               cursor: 'pointer',
             }}
           >
