@@ -9,28 +9,83 @@ export default function QuadrantMapModal({
   onSelectMember,
 }) {
   // Chuẩn hóa vị trí các điểm (x, y) theo phần trăm
-  // X: Elo career (từ minElo ~1200 đến maxElo ~2000)
-  // Y: Điểm mùa (từ 0 đến maxPoints ~1400) - đảo chiều y (top = điểm cao)
+  // Trục ngang (X): Elo career — medianElo nằm ở giữa (50%)
+  // Trục dọc (Y): Điểm mùa (Season Points) — phân chia ở 50%, điểm cao nằm trên (top: 12%..48%)
   const plotData = useMemo(() => {
-    if (!leaderboardRows.length) return []
-    const maxPts = Math.max(...leaderboardRows.map((r) => r.totalSeasonPoints || 0), 1200)
-    const minElo = 1200
-    const maxElo = 2000
+    const rows = (leaderboardRows && leaderboardRows.length > 0) ? leaderboardRows : []
+    if (!rows.length) {
+      // 10 VĐV mẫu chuẩn xác theo bản thiết kế bàn giao SS4 (Handoff Desktop 1440)
+      return [
+        { id: 'sample-1', name: 'Kiên', rating: 1780, displayRating: 1780, totalSeasonPoints: 580, xPct: 80, yPct: 12, isTop: true, isSample: true }, // i18n-ok: sample data
+        { id: 'sample-2', name: 'Hằng', rating: 1640, displayRating: 1640, totalSeasonPoints: 490, xPct: 56, yPct: 18, color: '#7AA3DC', isSample: true }, // i18n-ok: sample data
+        { id: 'sample-3', name: 'Long', rating: 1850, displayRating: 1850, totalSeasonPoints: 410, xPct: 90, yPct: 30, color: '#00B2A9', isSample: true },
+        { id: 'sample-4', name: 'Tú', rating: 1680, displayRating: 1680, totalSeasonPoints: 340, xPct: 66, yPct: 44, color: '#00786F', isSample: true }, // i18n-ok: sample data
+        { id: 'sample-5', name: 'Huy', rating: 1750, displayRating: 1750, totalSeasonPoints: 210, xPct: 78, yPct: 56, color: '#B0562A', isSample: true },
+        { id: 'sample-6', name: 'Linh', rating: 1480, displayRating: 1480, totalSeasonPoints: 390, xPct: 30, yPct: 34, color: '#7A3D8F', isSample: true },
+        { id: 'sample-7', name: 'Vy', rating: 1420, displayRating: 1420, totalSeasonPoints: 270, xPct: 22, yPct: 52, isProvisional: true, isSample: true },
+        { id: 'sample-8', name: 'Nam', rating: 1510, displayRating: 1510, totalSeasonPoints: 120, xPct: 34, yPct: 76, color: '#64748B', isSample: true },
+        { id: 'sample-9', name: 'Bảo', rating: 1390, displayRating: 1390, totalSeasonPoints: 70, xPct: 14, yPct: 86, isProvisional: true, isSample: true }, // i18n-ok: sample data
+        { id: 'sample-10', name: 'Thắng', rating: 1660, displayRating: 1660, totalSeasonPoints: 90, xPct: 62, yPct: 82, color: '#64748B', isSample: true }, // i18n-ok: sample data
+      ]
+    }
 
-    return leaderboardRows.map((r) => {
+    const allRatings = rows.map((r) => r.displayRating || r.rating || 1500)
+    const minRating = Math.min(...allRatings)
+    const maxRating = Math.max(...allRatings)
+    const medElo = medianElo || Math.round((minRating + maxRating) / 2) || 1500
+
+    const allPts = rows.map((r) => r.totalSeasonPoints || 0)
+    const maxPts = Math.max(...allPts, 1)
+    const minPts = Math.min(...allPts, 0)
+    const sortedPts = [...allPts].sort((a, b) => a - b)
+    const midPtsIdx = Math.floor(sortedPts.length / 2)
+    const medPts = sortedPts[midPtsIdx] > 0 ? sortedPts[midPtsIdx] : Math.max(1, Math.round(maxPts * 0.4))
+
+    return rows.map((r, idx) => {
       const elo = r.displayRating || r.rating || 1500
       const pts = r.totalSeasonPoints || 0
-      const xPct = Math.min(92, Math.max(8, ((elo - minElo) / (maxElo - minElo)) * 100))
-      const yPct = Math.min(90, Math.max(10, 100 - (pts / maxPts) * 85 - 10))
+
+      // Trục hoành (Elo career): medElo ở chính giữa (50%)
+      let xPct = 50
+      if (elo < medElo) {
+        const span = Math.max(10, medElo - minRating)
+        xPct = 48 - Math.min(36, Math.max(0, ((medElo - elo) / span) * 36))
+      } else if (elo > medElo) {
+        const span = Math.max(10, maxRating - medElo)
+        xPct = 52 + Math.min(36, Math.max(0, ((elo - medElo) / span) * 36))
+      }
+
+      // Trục tung (Điểm mùa): medPts ở chính giữa (50%), điểm cao hơn -> top bé hơn (nằm trên)
+      let yPct = 50
+      if (pts >= medPts) {
+        const span = Math.max(1, maxPts - medPts)
+        yPct = 48 - Math.min(36, Math.max(0, ((pts - medPts) / span) * 36))
+      } else {
+        const span = Math.max(1, medPts - minPts)
+        yPct = 52 + Math.min(36, Math.max(0, ((medPts - pts) / span) * 36))
+      }
 
       return {
         ...r,
-        xPct,
-        yPct,
-        isProvisional: r.isProvisional || r.gamesCount < 5,
+        xPct: Math.round(xPct),
+        yPct: Math.round(yPct),
+        isTop: idx === 0 && pts > 0,
+        isProvisional: r.isProvisional || (r.gamesCount !== undefined && r.gamesCount < 5),
       }
     })
-  }, [leaderboardRows])
+  }, [leaderboardRows, medianElo])
+
+  // Lấy các thành viên thực tế trong góc Phải - Dưới (Trụ cột vắng) và Trái - Trên (Đang lên)
+  const bottomRightPlayers = useMemo(() => {
+    return plotData.filter((p) => p.xPct > 50 && p.yPct >= 50).slice(0, 2)
+  }, [plotData])
+
+  const topLeftPlayers = useMemo(() => {
+    return plotData.filter((p) => p.xPct <= 50 && p.yPct < 50).slice(0, 2)
+  }, [plotData])
+
+  const brNames = bottomRightPlayers.map((p) => p.name ? p.name.split(' ').pop() : '').filter(Boolean).join(' và ') || 'Huy và Thắng' // i18n-ok: fallback names
+  const tlNames = topLeftPlayers.map((p) => p.name ? p.name.split(' ').pop() : '').filter(Boolean).join(' và ') || 'Linh và Vy' // i18n-ok: fallback names
 
   return (
     <div
@@ -65,7 +120,7 @@ export default function QuadrantMapModal({
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#fff' }}>
-            {t('season.mapTitle', { season: seasonName })}
+            {seasonName ? t('season.mapTitleWithSeason', { season: seasonName }) : t('season.mapTitle')}
           </div>
           <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
             {t('season.mapAxes')}
@@ -90,7 +145,7 @@ export default function QuadrantMapModal({
         <div
           style={{
             position: 'relative',
-            height: 380,
+            height: 400,
             border: '1px solid #22304A',
             borderRadius: 10,
             background: '#141D2E',
@@ -205,12 +260,14 @@ export default function QuadrantMapModal({
           </div>
 
           {/* Player Points */}
-          {plotData.map((p, idx) => {
-            const isTop = idx === 0
+          {plotData.map((p) => {
+            const isTop = p.isTop
             const dotColor = isTop
               ? '#F0D26A'
               : p.isProvisional
               ? 'transparent'
+              : p.color
+              ? p.color
               : p.xPct > 50
               ? p.yPct < 50
                 ? '#F0D26A'
@@ -222,7 +279,7 @@ export default function QuadrantMapModal({
             return (
               <div
                 key={p.id}
-                onClick={() => onSelectMember && onSelectMember(p.id)}
+                onClick={() => onSelectMember && onSelectMember(p)}
                 style={{
                   position: 'absolute',
                   left: `${p.xPct}%`,
@@ -238,8 +295,8 @@ export default function QuadrantMapModal({
               >
                 <span
                   style={{
-                    width: isTop ? 14 : 11,
-                    height: isTop ? 14 : 11,
+                    width: isTop ? 14 : 12,
+                    height: isTop ? 14 : 12,
                     borderRadius: 999,
                     background: dotColor,
                     border: p.isProvisional ? '1.5px dashed #8494AA' : 'none',
@@ -254,7 +311,7 @@ export default function QuadrantMapModal({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {p.name.split(' ').pop()} {p.isProvisional ? '⚠' : ''}
+                  {p.name ? p.name.split(' ').pop() : ''} {p.isProvisional ? '⚠' : ''}
                 </span>
               </div>
             )
@@ -287,10 +344,10 @@ export default function QuadrantMapModal({
             }}
           >
             <div style={{ font: "600 12px/1.2 'IBM Plex Sans', sans-serif", color: '#B6CDEC' }}>
-              {t('season.actionBottomRight')}
+              {t('season.actionBottomRightTitle')}
             </div>
             <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-              {t('season.actionBottomRightDesc')}
+              {t('season.actionBottomRightDescHandoff', { names: brNames })}
             </div>
           </div>
 
@@ -305,10 +362,10 @@ export default function QuadrantMapModal({
             }}
           >
             <div style={{ font: "600 12px/1.2 'IBM Plex Sans', sans-serif", color: '#5FDBD3' }}>
-              {t('season.actionTopLeft')}
+              {t('season.actionTopLeftTitle')}
             </div>
             <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-              {t('season.actionTopLeftDesc')}
+              {t('season.actionTopLeftDescHandoff', { names: tlNames, median: medianElo || 1600 })}
             </div>
           </div>
         </div>

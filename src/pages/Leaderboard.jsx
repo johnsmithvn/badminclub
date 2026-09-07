@@ -76,8 +76,36 @@ export default function Leaderboard() {
   }, [db.members])
 
   const seasonLeaderboardData = useMemo(() => {
-    return calculateSeasonLeaderboard(db, cfg.season)
+    const raw = calculateSeasonLeaderboard(db, cfg.season)
+    const enrichedList = (raw.leaderboard || []).map((row) => {
+      const pr = getPlayerRating(db.playerRatings, row.id, row.member || row, db.levels)
+      const elo = pr.displayRating || pr.rating || 1500
+      const isProv = pr.isProvisional || (pr.gamesCount || 0) < 5
+      return {
+        ...row,
+        rating: elo,
+        displayRating: elo,
+        gamesCount: pr.gamesCount || 0,
+        isProvisional: isProv,
+        confidence: pr.confidence || 'low',
+      }
+    })
+    return {
+      ...raw,
+      leaderboard: enrichedList,
+    }
   }, [db])
+
+  const seasonMedianElo = useMemo(() => {
+    const list = (seasonLeaderboardData?.leaderboard || [])
+      .map((r) => r.displayRating || r.rating || 1500)
+      .sort((a, b) => a - b)
+    if (!list.length) return 1596
+    const mid = Math.floor(list.length / 2)
+    return list.length % 2 !== 0
+      ? list[mid]
+      : Math.round(((list[mid - 1] || 1500) + (list[mid] || 1500)) / 2) || 1500
+  }, [seasonLeaderboardData])
 
   const handleExportCsv = () => {
     let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
@@ -1776,12 +1804,12 @@ export default function Leaderboard() {
       {quadrantModalOpen && (
         <QuadrantMapModal
           leaderboardRows={seasonLeaderboardData?.leaderboard || []}
-          medianElo={1596}
-          seasonName={cfg.season?.name || ''}
+          medianElo={seasonMedianElo}
+          seasonName={seasonLeaderboardData?.season?.name || cfg.season?.name || ''}
           onClose={() => setQuadrantModalOpen(false)}
           onSelectMember={(m) => {
             setQuadrantModalOpen(false)
-            setLedgerMemberId(m.id)
+            setLedgerMemberId(m?.id || m)
           }}
         />
       )}

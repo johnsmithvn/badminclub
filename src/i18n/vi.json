@@ -247,7 +247,12 @@
     "planDescB": "Cân trình hơn A nhưng có cặp đánh lại cặp cũ.",
     "planDescC": "Toàn cặp mới nhưng độ lệch giữa hai đội có thể lớn hơn.",
     "cancelEdit": "Hủy sửa",
-    "scorePtsPerCourt": "Ghi điểm từng sân"
+    "scorePtsPerCourt": "Ghi điểm từng sân",
+    "actionBottomRightTitle": "Việc cần làm · góc phải dưới",
+    "actionBottomRightDescHandoff": "{{names}} trình cao nhưng ít ra sân. Nhắc lịch riêng cho nhóm này để các buổi đủ trình.",
+    "actionTopLeftTitle": "Việc cần làm · góc trái trên",
+    "actionTopLeftDescHandoff": "{{names}} đi đủ buổi, Elo đang lên nhanh. Ghép họ với nhóm {{median}}+ một trận mỗi buổi để tăng cọ xát.",
+    "mapTitleWithSeason": "Bản đồ CLB {{season}}"
   },
   "gender": {
     "nam": "Nam",
