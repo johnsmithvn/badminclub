@@ -77,16 +77,24 @@ export function kFactorOf(gamesCount = 0) {
  * Thắng sát nút (21-19) nhân ~1.05.
  * Thắng áp đảo (21-5) nhân tối đa ~1.40.
  */
-export function marginMultiplier(sets) {
+export function marginMultiplier(sets, customOptions = null) {
   if (!sets || !sets.length || cfg.rating?.marginOfVictory?.enabled === false) return 1.0
   const played = sets.filter((s) => (s[0] || 0) + (s[1] || 0) > 0)
   if (!played.length) return 1.0
   const diffSum = played.reduce((acc, s) => acc + Math.abs((s[0] || 0) - (s[1] || 0)), 0)
   const avgDiff = diffSum / played.length
-  const maxMult = cfg.rating?.marginOfVictory?.maxMultiplier ?? 1.4
-  const divisor = cfg.rating?.marginOfVictory?.divisor ?? 40
+  const maxMult = customOptions?.maxMultiplier ?? cfg.rating?.marginOfVictory?.maxMultiplier ?? 1.4
+  const divisor = customOptions?.divisor ?? cfg.rating?.marginOfVictory?.divisor ?? 40
   const mult = 1 + (avgDiff / divisor)
   return Math.min(maxMult, Math.max(1.0, Math.round(mult * 100) / 100))
+}
+
+/**
+ * Phiên bản MOV vNext (Divisor 75, trần 1.20) giúp làm mềm hệ số cách biệt mượt mà,
+ * tránh để trận 21-10 chạm kịch trần ngang với trận vỡ trận 21-3.
+ */
+export function marginMultiplierVNext(sets, maxMult = 1.20, divisor = 75) {
+  return marginMultiplier(sets, { maxMultiplier: maxMult, divisor })
 }
 
 export const TIER_EMOJIS = {
@@ -699,5 +707,471 @@ export function matchCodeOf(db, m) {
     .sort((a, b) => (a.at || 0) - (b.at || 0) || (a.createdAt || '').localeCompare(b.createdAt || ''))
   const gIdx = allMatches.findIndex((x) => x.id === m.id)
   return gIdx >= 0 ? `M-${String(gIdx + 1).padStart(2, '0')}` : 'M-01'
+}
+
+/* ==========================================================================
+ * TẦNG CẶP & KHẮC CHẾ (PAIR SYNERGY & OPPONENT MATCHUP - vNext Spec)
+ * Nguyên tắc: Expected vs Actual (Kỳ vọng vs Thực tế) & Đơn vị Impact: pp
+ * ========================================================================== */
+
+/**
+ * Phân cấp bậc độ tin cậy R1 – R4 theo số trận mẫu.
+ * R1: < 5 trận (●○○○, trọng số 0.0, thẩm định)
+ * R2: 5–11 trận (●●○○, trọng số 0.5, vừa)
+ * R3: 12–29 trận (●●●○, trọng số 1.0, cao)
+ * R4: >= 30 trận (●●●●, trọng số 1.0, rất cao)
+ * @param {number} gamesCount
+ * @returns {{ tier: 'R1'|'R2'|'R3'|'R4', dots: string, weight: number, isProvisional: boolean, labelKey: string }}
+ */
+export function confidenceLevelOf(gamesCount = 0) {
+  const g = Math.max(0, gamesCount || 0)
+  if (g < 5) return { tier: 'R1', dots: '●○○○', weight: 0.0, isProvisional: true, labelKey: 'rating.confidence.r1' }
+  if (g < 12) return { tier: 'R2', dots: '●●○○', weight: 0.5, isProvisional: false, labelKey: 'rating.confidence.r2' }
+  if (g < 30) return { tier: 'R3', dots: '●●●○', weight: 1.0, isProvisional: false, labelKey: 'rating.confidence.r3' }
+  return { tier: 'R4', dots: '●●●●', weight: 1.0, isProvisional: false, labelKey: 'rating.confidence.r4' }
+}
+
+/**
+ * Chuẩn hóa độ lệch kỳ vọng (pairImpact) thành Điểm Ăn Ý (SynergyScore 0–100).
+ * Áp dụng Bayesian Shrinkage để co cụm về mức trung tính 50 khi ít trận.
+ * - pairImpact = +17pp với 18 trận -> Ăn ý 91 (khớp design AY1/AY2).
+ * - pairImpact = -17pp với 15 trận -> Ăn ý 38 (khớp design AY1).
+ * @param {number} pairImpact - Điểm phần trăm chênh lệch giữa thực tế và kỳ vọng (pp)
+ * @param {number} gamesCount - Số trận của cặp
+ * @returns {number} Điểm ăn ý từ 10 đến 99 (50 là trung tính)
+ */
+export function normalizeSynergyScore(pairImpact = 0, gamesCount = 0) {
+  if (!gamesCount || gamesCount <= 0) return 50
+  const c = Math.min(1.0, gamesCount / 15)
+  let scaled = 50
+  if (pairImpact >= 0) {
+    scaled = 50 + pairImpact * 2.41 * c
+  } else {
+    scaled = 50 + pairImpact * 0.70 * c
+  }
+  return Math.max(10, Math.min(99, Math.round(scaled)))
+}
+
+/**
+ * Tính toán hiệu quả thực tế của cặp đôi (Pair Impact & Synergy).
+ * @param {Array} matches - Danh sách trận đấu
+ * @param {string} playerAKey - ID người chơi A
+ * @param {string} playerBKey - ID người chơi B
+ * @param {Object} [ratingsMap] - Map ID -> rating
+ */
+export function calcPairImpact(matches = [], playerAKey, playerBKey, ratingsMap = {}) {
+  if (!playerAKey || !playerBKey || playerAKey === playerBKey) {
+    return {
+      playerA: playerAKey,
+      playerB: playerBKey,
+      pairKey: '',
+      gamesCount: 0,
+      winsCount: 0,
+      lossesCount: 0,
+      actualWinPct: 50,
+      expectedWinPct: 50,
+      pairImpact: 0,
+      synergyScore: 50,
+      recentResults: [],
+      formKey: 'stable',
+      confidence: confidenceLevelOf(0),
+      pairMatches: [],
+    }
+  }
+
+  const pairKey = [playerAKey, playerBKey].sort().join('::')
+  const pairMatches = []
+
+  ;(matches || []).forEach((m) => {
+    if (!m || !m.winnerTeam) return
+    const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+
+    const inA = teamA.includes(playerAKey) && teamA.includes(playerBKey)
+    const inB = teamB.includes(playerAKey) && teamB.includes(playerBKey)
+    if (!inA && !inB) return
+
+    const won = inA ? m.winnerTeam === 'A' : m.winnerTeam === 'B'
+
+    let expA = 0.5
+    if (m.initialRatingA != null && m.initialRatingB != null) {
+      expA = expectedScore(m.initialRatingA, m.initialRatingB)
+    } else if (ratingsMap && Object.keys(ratingsMap).length > 0) {
+      const ra = teamRating(teamA, ratingsMap)
+      const rb = teamRating(teamB, ratingsMap)
+      expA = expectedScore(ra, rb)
+    }
+    const myExpected = inA ? expA : (1 - expA)
+    const at = m.at || (m.playedAt ? Date.parse(m.playedAt) : 0) || (m.createdAt ? Date.parse(m.createdAt) : 0)
+
+    pairMatches.push({
+      id: m.id,
+      at,
+      won,
+      myExpected,
+      sets: m.sets || [],
+      opponentTeam: inA ? teamB : teamA,
+    })
+  })
+
+  pairMatches.sort((a, b) => (a.at || 0) - (b.at || 0))
+
+  const gamesCount = pairMatches.length
+  const winsCount = pairMatches.filter((x) => x.won).length
+  const lossesCount = gamesCount - winsCount
+
+  const actualWinPct = gamesCount > 0 ? Math.round((winsCount / gamesCount) * 100) : 50
+  const sumExp = pairMatches.reduce((acc, x) => acc + x.myExpected, 0)
+  const expectedWinPct = gamesCount > 0 ? Math.round((sumExp / gamesCount) * 100) : 50
+  const pairImpact = actualWinPct - expectedWinPct
+
+  const confidence = confidenceLevelOf(gamesCount)
+  const synergyScore = normalizeSynergyScore(pairImpact, gamesCount)
+
+  const recentResults = pairMatches.slice(-5).map((x) => (x.won ? 'W' : 'L'))
+  const recentWins = recentResults.filter((r) => r === 'W').length
+
+  let formKey = 'stable'
+  if (recentResults.length >= 4 && recentWins >= 4) formKey = 'hot'
+  else if (recentResults.length >= 4 && recentWins <= 1) formKey = 'slump'
+
+  return {
+    playerA: playerAKey,
+    playerB: playerBKey,
+    pairKey,
+    gamesCount,
+    winsCount,
+    lossesCount,
+    actualWinPct,
+    expectedWinPct,
+    pairImpact,
+    synergyScore,
+    recentResults,
+    formKey,
+    confidence,
+    pairMatches,
+  }
+}
+
+/**
+ * Tính xu hướng ăn ý gần đây của cặp (Synergy Trend: 'up' | 'down' | 'steady').
+ */
+export function calcSynergyTrend(matches = [], playerAKey, playerBKey, ratingsMap = {}) {
+  const info = calcPairImpact(matches, playerAKey, playerBKey, ratingsMap)
+  if (info.gamesCount < 5) return 'steady'
+
+  const pairMatches = info.pairMatches || []
+  const recentWindow = pairMatches.slice(-5)
+  const priorWindow = pairMatches.slice(0, -5)
+  if (!priorWindow.length) return 'steady'
+
+  const rateOf = (arr) => arr.filter((x) => x.won).length / arr.length
+  const recentRate = rateOf(recentWindow)
+  const priorRate = rateOf(priorWindow)
+  const diff = recentRate - priorRate
+
+  if (diff >= 0.15) return 'up'
+  if (diff <= -0.15) return 'down'
+  return 'steady'
+}
+
+/**
+ * Tính hệ số khắc chế / kỵ giơ đối đầu có hướng (Opponent Matchup Edge) giữa Cặp A và Cặp B.
+ * H2H ≠ Matchup: H2H ghi lịch sử, Matchup ghi lợi thế kỳ vọng thực tế.
+ */
+export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ratingsMap = {}) {
+  if (!pairAKeys?.length || !pairBKeys?.length) {
+    return {
+      gamesCount: 0,
+      winsCount: 0,
+      actualWinPct: 50,
+      expectedWinPct: 50,
+      matchupImpact: 0,
+      advantageScore: 50,
+      confidence: confidenceLevelOf(0),
+      recentScores: [],
+    }
+  }
+
+  const pA1 = pairAKeys[0]
+  const pA2 = pairAKeys[1]
+  const pB1 = pairBKeys[0]
+  const pB2 = pairBKeys[1]
+
+  const h2hMatches = []
+  ;(matches || []).forEach((m) => {
+    if (!m || !m.winnerTeam) return
+    const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+
+    const aInA = pA2 ? (teamA.includes(pA1) && teamA.includes(pA2)) : teamA.includes(pA1)
+    const bInB = pB2 ? (teamB.includes(pB1) && teamB.includes(pB2)) : teamB.includes(pB1)
+
+    const aInB = pA2 ? (teamB.includes(pA1) && teamB.includes(pA2)) : teamB.includes(pA1)
+    const bInA = pB2 ? (teamA.includes(pB1) && teamA.includes(pB2)) : teamA.includes(pB1)
+
+    if ((aInA && bInB) || (aInB && bInA)) {
+      const won = aInA ? m.winnerTeam === 'A' : m.winnerTeam === 'B'
+      
+      let expA = 0.5
+      if (m.initialRatingA != null && m.initialRatingB != null) {
+        expA = expectedScore(m.initialRatingA, m.initialRatingB)
+      } else if (ratingsMap && Object.keys(ratingsMap).length > 0) {
+        const ra = teamRating(teamA, ratingsMap)
+        const rb = teamRating(teamB, ratingsMap)
+        expA = expectedScore(ra, rb)
+      }
+      const pairAExp = aInA ? expA : (1 - expA)
+
+      h2hMatches.push({
+        id: m.id,
+        won,
+        pairAExp,
+        sets: m.sets || [],
+        at: m.at || (m.playedAt ? Date.parse(m.playedAt) : 0),
+      })
+    }
+  })
+
+  h2hMatches.sort((a, b) => (a.at || 0) - (b.at || 0))
+  const gamesCount = h2hMatches.length
+  if (gamesCount === 0) {
+    return {
+      gamesCount: 0,
+      winsCount: 0,
+      actualWinPct: 50,
+      expectedWinPct: 50,
+      matchupImpact: 0,
+      advantageScore: 50,
+      confidence: confidenceLevelOf(0),
+      recentScores: [],
+    }
+  }
+
+  const winsCount = h2hMatches.filter((x) => x.won).length
+  const actualWinPct = Math.round((winsCount / gamesCount) * 100)
+  const sumExp = h2hMatches.reduce((acc, x) => acc + x.pairAExp, 0)
+  const expectedWinPct = Math.round((sumExp / gamesCount) * 100)
+  const matchupImpact = actualWinPct - expectedWinPct
+
+  const c = Math.min(1.0, gamesCount / 10)
+  const advantageScore = Math.max(10, Math.min(99, Math.round(50 + matchupImpact * 1.2 * c)))
+
+  const recentScores = []
+  h2hMatches.slice(-5).forEach((m) => {
+    (m.sets || []).forEach(([sa, sb]) => {
+      if (sa != null && sb != null) recentScores.push(`${sa}–${sb}`)
+    })
+  })
+
+  return {
+    gamesCount,
+    winsCount,
+    actualWinPct,
+    expectedWinPct,
+    matchupImpact,
+    advantageScore,
+    confidence: confidenceLevelOf(gamesCount),
+    recentScores,
+  }
+}
+
+/**
+ * Tổng hợp và xếp hạng toàn bộ các cặp đấu trong CLB (Tab Ăn ý & Khắc chế - AY1).
+ */
+export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, options = {}) {
+  const { formatFilter = 'all', minGames = 1 } = options
+  const pairMap = new Map()
+
+  ;(matches || []).forEach((m) => {
+    if (!m || !m.winnerTeam) return
+    const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+
+    if (teamA.length >= 2) {
+      const k = [teamA[0], teamA[1]].sort().join('::')
+      pairMap.set(k, [teamA[0], teamA[1]])
+    }
+    if (teamB.length >= 2) {
+      const k = [teamB[0], teamB[1]].sort().join('::')
+      pairMap.set(k, [teamB[0], teamB[1]])
+    }
+  })
+
+  const list = []
+  pairMap.forEach(([p1, p2]) => {
+    const info = calcPairImpact(matches, p1, p2, ratingsMap)
+    if (info.gamesCount < minGames) return
+
+    const m1 = membersMap[p1] || { id: p1, name: p1 }
+    const m2 = membersMap[p2] || { id: p2, name: p2 }
+
+    const isF1 = m1.gender === 'nu' || m1.gender === 'Nữ' // i18n-ok: gender check
+    const isF2 = m2.gender === 'nu' || m2.gender === 'Nữ' // i18n-ok: gender check
+    let format = 'MD'
+    if (isF1 && isF2) format = 'WD'
+    else if (isF1 || isF2) format = 'XD'
+
+    if (formatFilter !== 'all' && format !== formatFilter) return
+
+    const trend = calcSynergyTrend(matches, p1, p2, ratingsMap)
+    const r1 = ratingsMap[p1] || 1500
+    const r2 = ratingsMap[p2] || 1500
+
+    list.push({
+      ...info,
+      memberA: m1,
+      memberB: m2,
+      format,
+      trend,
+      combinedRating: r1 + r2,
+      r1,
+      r2,
+    })
+  })
+
+  list.sort((a, b) => {
+    if (a.confidence.tier === 'R1' && b.confidence.tier !== 'R1') return 1
+    if (a.confidence.tier !== 'R1' && b.confidence.tier === 'R1') return -1
+    return b.synergyScore - a.synergyScore || b.gamesCount - a.gamesCount
+  })
+
+  const rankedPairs = list.map((item, idx) => ({ ...item, rank: idx + 1 }))
+  const qualified = rankedPairs.filter((p) => p.gamesCount >= 5)
+
+  const topPair = qualified[0] || rankedPairs[0] || null
+  const underperformingPair = qualified.length > 1
+    ? [...qualified].sort((a, b) => a.synergyScore - b.synergyScore)[0]
+    : null
+  const provisionalPairs = rankedPairs.filter((p) => p.gamesCount < 5)
+
+  return {
+    rankedPairs,
+    topPair,
+    underperformingPair,
+    provisionalPairs,
+    totalPairsCount: rankedPairs.length,
+  }
+}
+
+/**
+ * Thống kê năng lực theo từng thể thức (Format Ratings: Career, Doubles, Mixed, Singles - AY3).
+ */
+export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, membersMap = {}) {
+  const careerElo = ratingsMap[memberId] || DEFAULT_RATING
+
+  const buckets = {
+    doubles: { wins: 0, total: 0 },
+    mixed: { wins: 0, total: 0 },
+    singles: { wins: 0, total: 0 },
+  }
+
+  ;(matches || []).forEach((m) => {
+    if (!m || !m.winnerTeam) return
+    const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+
+    const inA = teamA.includes(memberId)
+    const inB = teamB.includes(memberId)
+    if (!inA && !inB) return
+
+    const isWon = inA ? m.winnerTeam === 'A' : m.winnerTeam === 'B'
+    const isSingles = teamA.length === 1 && teamB.length === 1
+    const myTeam = inA ? teamA : teamB
+
+    if (isSingles) {
+      buckets.singles.total++
+      if (isWon) buckets.singles.wins++
+    } else {
+      buckets.doubles.total++
+      if (isWon) buckets.doubles.wins++
+
+      const teamPlayers = myTeam.map((id) => membersMap[id]).filter(Boolean)
+      const hasFemale = teamPlayers.some((p) => p.gender === 'nu' || p.gender === 'Nữ') // i18n-ok: gender check
+      const hasMale = teamPlayers.some((p) => p.gender !== 'nu' && p.gender !== 'Nữ') // i18n-ok: gender check
+      if (hasFemale && hasMale) {
+        buckets.mixed.total++
+        if (isWon) buckets.mixed.wins++
+      }
+    }
+  })
+
+  const calcShrinkRating = (wins, total) => {
+    if (!total) return { rating: careerElo, gamesCount: 0, winsCount: 0, lossesCount: 0, winPct: 0, confidence: confidenceLevelOf(0), isProvisional: true }
+    const winRate = wins / total
+    const rawDelta = (winRate - 0.5) * 300
+    const weight = Math.min(0.85, total / 30)
+    const r = Math.round(careerElo + rawDelta * weight)
+    return {
+      rating: r,
+      gamesCount: total,
+      winsCount: wins,
+      lossesCount: total - wins,
+      winPct: Math.round(winRate * 100),
+      confidence: confidenceLevelOf(total),
+      isProvisional: total < 5,
+    }
+  }
+
+  return {
+    career: { rating: careerElo, gamesCount: buckets.doubles.total + buckets.singles.total },
+    doubles: calcShrinkRating(buckets.doubles.wins, buckets.doubles.total),
+    mixed: calcShrinkRating(buckets.mixed.wins, buckets.mixed.total),
+    singles: calcShrinkRating(buckets.singles.wins, buckets.singles.total),
+  }
+}
+
+/**
+ * Tìm bạn đấu hợp nhất (Best Partners) và đối thủ kỵ giơ nhất (Nemeses) của một thành viên (AY3).
+ */
+export function getPlayerPartnersAndMatchups(matches = [], memberId, membersMap = {}, ratingsMap = {}) {
+  const partnerKeys = new Set()
+  const opponentKeys = new Set()
+
+  ;(matches || []).forEach((m) => {
+    if (!m || !m.winnerTeam) return
+    const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+
+    const inA = teamA.includes(memberId)
+    const inB = teamB.includes(memberId)
+    if (!inA && !inB) return
+
+    const myTeam = inA ? teamA : teamB
+    const oppTeam = inA ? teamB : teamA
+
+    myTeam.forEach((id) => { if (id !== memberId) partnerKeys.add(id) })
+    oppTeam.forEach((id) => opponentKeys.add(id))
+  })
+
+  const partners = []
+  partnerKeys.forEach((partnerId) => {
+    const info = calcPairImpact(matches, memberId, partnerId, ratingsMap)
+    if (!info.gamesCount) return
+    partners.push({
+      ...info,
+      partner: membersMap[partnerId] || { id: partnerId, name: partnerId },
+    })
+  })
+  partners.sort((a, b) => b.synergyScore - a.synergyScore || b.gamesCount - a.gamesCount)
+
+  const opponents = []
+  opponentKeys.forEach((oppId) => {
+    const edge = calcMatchupEdge(matches, [memberId], [oppId], ratingsMap)
+    if (!edge.gamesCount) return
+    opponents.push({
+      ...edge,
+      opponent: membersMap[oppId] || { id: oppId, name: oppId },
+    })
+  })
+
+  const favoriteOpponents = opponents.filter((x) => x.matchupImpact >= 0).sort((a, b) => b.actualWinPct - a.actualWinPct)
+  const nemeses = opponents.filter((x) => x.matchupImpact < 0).sort((a, b) => a.actualWinPct - b.actualWinPct)
+
+  return {
+    bestPartners: partners,
+    favoriteOpponents,
+    nemeses,
+  }
 }
 

@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react'
 import { Icon, Select, StatCard } from '#ds'
 import { LevelChip } from '#ui'
 import { playerName } from '#lib/money.js'
-import { getPlayerRating, rankTierOf, applyInactivityDecay } from '#lib/rating.js'
+import { getPlayerRating, rankTierOf, applyInactivityDecay, getPlayerFormatRatings, getPlayerPartnersAndMatchups } from '#lib/rating.js'
 import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger, getMemberAchievements, getSeasonBountyPlayer } from '#lib/xp.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
+import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
 import { t } from '#i18n'
 
 function alphaColor(color, alphaHex, pct) {
@@ -26,10 +27,29 @@ export default function MemberProfileTab({
   isMobile,
   onChallenge,
 }) {
-  const [subTab, setSubTab] = useState('overview') // 'overview' | 'h2h' | 'xp'
+  const [subTab, setSubTab] = useState('overview') // 'overview' | 'ratings' | 'h2h' | 'xp'
+  const [inspectingPair, setInspectingPair] = useState(null)
 
   const matches = useMemo(() => db.matches || [], [db.matches])
   const mid = member?.id
+
+  const membersMap = useMemo(() => {
+    const map = {}
+    ;(allMembers || db.members || []).forEach((m) => {
+      map[m.id] = m
+    })
+    return map
+  }, [allMembers, db.members])
+
+  const formatRatings = useMemo(() => {
+    if (!mid) return null
+    return getPlayerFormatRatings(matches, mid, db.playerRatings || {}, membersMap)
+  }, [matches, mid, db.playerRatings, membersMap])
+
+  const partnersAndMatchups = useMemo(() => {
+    if (!mid) return null
+    return getPlayerPartnersAndMatchups(matches, mid, membersMap, db.playerRatings || {})
+  }, [matches, mid, membersMap, db.playerRatings])
 
   // 1. Lọc và chuẩn hóa toàn bộ trận của VĐV này
   const memberMatches = useMemo(() => {
@@ -313,8 +333,8 @@ export default function MemberProfileTab({
           </div>
         </div>
 
-        {/* 3 SUB-TABS TRONG PROFILE */}
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: 8 }}>
+        {/* 4 SUB-TABS TRONG PROFILE */}
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => setSubTab('overview')}
@@ -324,6 +344,16 @@ export default function MemberProfileTab({
             }}
           >
             {t('home.tabs.overview')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('ratings')}
+            style={{
+              ...S.subTabBtn,
+              ...(subTab === 'ratings' ? S.subTabBtnActive : {}),
+            }}
+          >
+            {t('profile.formatRatingsTitle')}
           </button>
           <button
             type="button"
@@ -495,6 +525,366 @@ export default function MemberProfileTab({
                 isMobile={isMobile}
               />
             </>
+          )}
+
+          {/* TAB: SỨC MẠNH THEO NỘI DUNG & ĂN Ý (Screen AY3) */}
+          {subTab === 'ratings' && (
+            <div
+              data-screen-label="AY3 Ho so noi dung"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) 400px',
+                gap: 16,
+                alignItems: 'start',
+              }}
+            >
+              {/* Left Column: Sức mạnh theo nội dung + Ai hợp với VĐV */}
+              <div style={{ display: 'grid', gap: 14 }}>
+                {/* Card Sức mạnh theo nội dung */}
+                <div
+                  style={{
+                    background: '#141D2E',
+                    border: '1px solid #22304A',
+                    borderRadius: 10,
+                    padding: 15,
+                    display: 'grid',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+                      {t('profile.formatRatingsTitle')}
+                    </span>
+                    <span style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                      {t('profile.formatRatingsSubtitle')}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '172px minmax(0,1fr)', gap: 16, alignItems: 'center' }}>
+                    {/* Elo tổng */}
+                    <div
+                      style={{
+                        background: 'linear-gradient(180deg, rgba(29,80,160,.24), #101927)',
+                        border: '1px solid #3C74C4',
+                        borderRadius: 10,
+                        padding: 14,
+                        display: 'grid',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: '#8494AA' }}>
+                        {t('profile.careerElo')}
+                      </div>
+                      <div style={{ font: '700 34px/1 Barlow, sans-serif', color: '#fff' }}>
+                        {formatRatings?.overall?.rating || 1500}
+                      </div>
+                      <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#7AA3DC' }}>
+                        {formatRatings?.overall?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {formatRatings?.overall?.confidence || 'R1'}
+                      </div>
+                    </div>
+
+                    {/* 3 Thanh rating theo nội dung */}
+                    <div style={{ display: 'grid', gap: 9 }}>
+                      {/* Đôi nam */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
+                        <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('profile.doublesFormat')}</span>
+                        <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
+                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.doubles?.rating || 1500) - 1000) / 12)))}%`, background: '#00B2A9' }} />
+                        </span>
+                        <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>
+                          {formatRatings?.doubles?.rating || 1500}
+                        </span>
+                        <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                          {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {formatRatings?.doubles?.confidence || 'R1'}
+                        </span>
+                      </div>
+
+                      {/* Nam-nữ */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
+                        <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('profile.mixedFormat')}</span>
+                        <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
+                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.mixed?.rating || 1500) - 1000) / 12)))}%`, background: '#3C74C4' }} />
+                        </span>
+                        <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>
+                          {formatRatings?.mixed?.rating || 1500}
+                        </span>
+                        <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                          {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {formatRatings?.mixed?.confidence || 'R1'}
+                        </span>
+                      </div>
+
+                      {/* Đơn nam */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
+                        <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>{t('profile.singlesFormat')}</span>
+                        <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
+                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.singles?.rating || 1500) - 1000) / 12)))}%`, background: '#2E3E5C' }} />
+                        </span>
+                        <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                          ~{formatRatings?.singles?.rating || 1500}
+                        </span>
+                        <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
+                          {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {formatRatings?.singles?.confidence || 'R1'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {formatRatings?.insight && (
+                    <div
+                      style={{
+                        font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif",
+                        color: '#8494AA',
+                        borderTop: '1px solid #22304A',
+                        paddingTop: 11,
+                      }}
+                    >
+                      {formatRatings.insight}
+                    </div>
+                  )}
+                </div>
+
+                {/* Card Ai hợp với VĐV */}
+                <div
+                  style={{
+                    background: '#141D2E',
+                    border: '1px solid #22304A',
+                    borderRadius: 10,
+                    padding: 15,
+                    display: 'grid',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
+                      {t('profile.whoSynergizes', { name: member.name })}
+                    </span>
+                    <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                      {t('profile.partnerFilterMin5', { count: (partnersAndMatchups?.partners || []).length })}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {(partnersAndMatchups?.partners || []).length > 0 ? (
+                      (partnersAndMatchups?.partners || []).map((part, pIdx) => {
+                        const isTopPartner = pIdx === 0 && part.synergyScore >= 80
+                        const isLowPartner = part.pairImpact <= -10 && part.games >= 5
+                        const absImpact = Math.min(50, Math.abs(part.pairImpact || 0))
+                        const barWidthPct = Math.round((absImpact / 50) * 45)
+
+                        return (
+                          <div
+                            key={part.id || pIdx}
+                            onClick={() => {
+                              const pairKey = [mid, part.id].sort().join(':')
+                              setInspectingPair({
+                                key: pairKey,
+                                names: [member.name, part.name],
+                                gamesCount: part.games,
+                                wins: part.wins,
+                                losses: part.losses,
+                                actualWinPct: part.actualWinPct,
+                                expectedWinPct: part.expectedWinPct,
+                                pairImpact: part.pairImpact,
+                                synergyScore: part.synergyScore,
+                                confidence: part.games >= 30 ? 'R4' : part.games >= 12 ? 'R3' : part.games >= 5 ? 'R2' : 'R1',
+                                format: part.format || 'MD',
+                              })
+                            }}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '26px minmax(0,1fr) 46px 110px 118px 42px',
+                              gap: 10,
+                              alignItems: 'center',
+                              padding: '10px 12px',
+                              borderRadius: 8,
+                              background: isTopPartner ? 'rgba(0,178,169,.09)' : isLowPartner ? 'rgba(224,138,0,.07)' : '#101927',
+                              border: isTopPartner ? '1px solid #00786F' : '1px solid #22304A',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <span style={{ width: 26, height: 26, borderRadius: 999, background: isTopPartner ? '#00786F' : '#1D50A0' }} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+                                {part.name}
+                              </div>
+                              <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                                {part.format === 'XD' ? t('leaderboard.filterXD') : t('leaderboard.filterMD')} · {part.games} {t('leaderboard.matchesAbbr')}
+                              </div>
+                            </div>
+                            <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                              {part.wins}–{part.losses}
+                            </span>
+                            <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                              {part.expectedWinPct}% → {part.actualWinPct}%
+                            </span>
+                            <span style={{ position: 'relative', height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', display: 'block' }}>
+                              <span style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: '#2E3E5C' }} />
+                              {part.pairImpact >= 0 ? (
+                                <span style={{ position: 'absolute', left: '50%', top: 1, bottom: 1, width: `${barWidthPct}%`, background: '#00B2A9', borderRadius: '0 999px 999px 0' }} />
+                              ) : (
+                                <span style={{ position: 'absolute', right: '50%', top: 1, bottom: 1, width: `${barWidthPct}%`, background: '#D63B2B', borderRadius: '999px 0 0 999px' }} />
+                              )}
+                            </span>
+                            <span
+                              style={{
+                                textAlign: 'right',
+                                font: '700 16px/1 Barlow, sans-serif',
+                                color: isTopPartner ? '#5FDBD3' : isLowPartner ? '#F09A8E' : part.synergyScore >= 50 ? '#fff' : '#F0B75C',
+                              }}
+                            >
+                              {part.synergyScore}
+                            </span>
+                          </div>
+                        )
+                      })
+                    ) : (
+                      <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                        {t('common.noData')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Đồng đội tốt nhất, Khắc chế & kỵ giơ, Phân tích dưới kỳ vọng, Phong độ 10 trận */}
+              <div style={{ display: 'grid', gap: 14 }}>
+                {/* Đồng đội tốt nhất */}
+                {partnersAndMatchups?.bestPartner && (
+                  <div
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(0,178,169,.14), #141D2E)',
+                      border: '1px solid #00786F',
+                      borderRadius: 10,
+                      padding: 15,
+                      display: 'grid',
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: '#8494AA' }}>
+                      {t('profile.bestPartnerBox')}
+                    </div>
+                    <div style={{ font: '700 22px/1.2 Barlow, sans-serif', color: '#fff' }}>
+                      {partnersAndMatchups.bestPartner.name}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <span style={{ font: '700 26px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
+                        {partnersAndMatchups.bestPartner.synergyScore}
+                      </span>
+                      <span style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                        {t('leaderboard.synergyCol')} · {partnersAndMatchups.bestPartner.games} {t('leaderboard.matchesAbbr')} · {t('rating.confidence.high')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Khắc chế & kỵ giơ */}
+                <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{ padding: '11px 14px', background: '#101927', borderBottom: '1px solid #22304A', font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+                    {t('profile.matchupSection')}
+                  </div>
+                  <div style={{ padding: '13px 14px', display: 'grid', gap: 12 }}>
+                    {/* Thích gặp */}
+                    <div style={{ display: 'grid', gap: 7 }}>
+                      <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: '#5FDBD3' }}>
+                        {t('profile.favoriteMatchup')}
+                      </div>
+                      {(partnersAndMatchups?.matchups?.favorite || []).length > 0 ? (
+                        (partnersAndMatchups?.matchups?.favorite || []).map((fav, fIdx) => (
+                          <div
+                            key={fIdx}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                              padding: '8px 10px',
+                              borderRadius: 6,
+                              background: 'rgba(0,178,169,.09)',
+                              font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif",
+                              color: '#fff',
+                            }}
+                          >
+                            <span>{fav.pairName} vs {fav.oppName}</span>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>{fav.winRate}%</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>{t('common.noData')}</div>
+                      )}
+                    </div>
+
+                    {/* Kỵ giơ */}
+                    <div style={{ display: 'grid', gap: 7, borderTop: '1px solid #22304A', paddingTop: 11 }}>
+                      <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: '#F0B75C' }}>
+                        {t('profile.nemesisMatchup')}
+                      </div>
+                      {(partnersAndMatchups?.matchups?.nemesis || []).length > 0 ? (
+                        (partnersAndMatchups?.matchups?.nemesis || []).map((nem, nIdx) => (
+                          <div
+                            key={nIdx}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                              padding: '8px 10px',
+                              borderRadius: 6,
+                              background: 'rgba(224,138,0,.10)',
+                              font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif",
+                              color: '#fff',
+                            }}
+                          >
+                            <span>{nem.pairName} vs {nem.oppName}</span>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F0B75C' }}>{nem.winRate}%</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>{t('common.noData')}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vì sao dưới kỳ vọng */}
+                {partnersAndMatchups?.matchups?.underperformingAnalysis && (
+                  <div style={{ background: '#141D2E', border: '1px solid #E08A00', borderRadius: 10, padding: 14, display: 'grid', gap: 9 }}>
+                    <div style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#F0B75C' }}>
+                      {t('profile.whyUnderperforming', {
+                        name: member.name,
+                        partner: partnersAndMatchups.matchups.underperformingAnalysis.partnerName || '',
+                      })}
+                    </div>
+                    <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                      {partnersAndMatchups.matchups.underperformingAnalysis.analysisText}
+                    </div>
+                    <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA', borderTop: '1px solid #22304A', paddingTop: 9 }}>
+                      {t('leaderboard.underperformingDisclaimer')}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phong độ 10 trận */}
+                <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, padding: 14, display: 'grid', gap: 8 }}>
+                  <div style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+                    {t('profile.form10Title')}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {(partnersAndMatchups?.last10Form || stats.last10 || []).map((item, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          flex: 1,
+                          height: 26,
+                          borderRadius: 4,
+                          background: (typeof item === 'object' ? item.won : item === 'W') ? '#00B2A9' : '#2E3E5C',
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                    {stats.wins10}T – {stats.losses10}B · {t('profile.form10OldestLeft')}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* TAB 2: ĐỐI ĐẦU & PARTNER (Screen 05) */}
@@ -721,6 +1111,16 @@ export default function MemberProfileTab({
           )}
         </div>
       </div>
+
+      {/* Modal AY2: Chi tiết cặp từ hồ sơ */}
+      {inspectingPair && (
+        <PairDetailModal
+          pair={{ ...inspectingPair, membersMap }}
+          onClose={() => setInspectingPair(null)}
+          ratingsMap={db.playerRatings || {}}
+          matches={matches}
+        />
+      )}
     </div>
   )
 }

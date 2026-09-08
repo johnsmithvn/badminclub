@@ -6,6 +6,7 @@ import { monthOf } from '#utils/dates.js'
 import { isPresent, levelIdx, levelOf, sGuestsOnly, sessionMembers } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
+import { calcPairImpact, expectedScore } from '#lib/rating.js'
 
 /** Năm chế độ xếp. Nhãn và mô tả lấy từ i18n theo key. */
 export const MODE_KEYS = ['balance', 'fewest', 'rest', 'same', 'random']
@@ -152,13 +153,41 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
     return null
   }
 
-  // 1. Cân rating
-  const ra = teamA.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamA.length
-  const rb = teamB.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamB.length
+  // 1. Cân rating & Tích hợp Pair Synergy (vNext)
+  // Tính Pair Synergy của từng cặp đôi (nếu có đủ 2 người và đạt R2 trở lên)
+  let synergyBonusA = 0
+  let synergyBonusB = 0
+  let pairAInfo = null
+  let pairBInfo = null
+
+  if (teamA.length === 2) {
+    pairAInfo = calcPairImpact(matches, teamA[0], teamA[1], ratingsMap)
+    if (pairAInfo && pairAInfo.gamesCount >= 5) {
+      synergyBonusA = Math.max(-35, Math.min(35, Math.round(pairAInfo.pairImpact * 1.2 * pairAInfo.confidence.weight)))
+    }
+  }
+
+  if (teamB.length === 2) {
+    pairBInfo = calcPairImpact(matches, teamB[0], teamB[1], ratingsMap)
+    if (pairBInfo && pairBInfo.gamesCount >= 5) {
+      synergyBonusB = Math.max(-35, Math.min(35, Math.round(pairBInfo.pairImpact * 1.2 * pairBInfo.confidence.weight)))
+    }
+  }
+
+  const rawRa = teamA.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamA.length
+  const rawRb = teamB.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamB.length
+
+  const ra = Math.round(rawRa + synergyBonusA)
+  const rb = Math.round(rawRb + synergyBonusB)
   const delta = Math.round(Math.abs(ra - rb))
   const canRatingScore = Math.max(10, Math.min(100, Math.round(100 - (delta / 50) * 6)))
 
-  // 2. Đổi partner (Cặp đôi đã đánh cùng nhau bao nhiêu lần)
+  // Dự đoán xác suất thắng & độ lệch cân bằng kỳ vọng (Expected Balance)
+  const expectedA = expectedScore(ra, rb)
+  const expectedB = 1 - expectedA
+  const expectedGapPp = Math.round(Math.abs(expectedA - expectedB) * 100)
+
+  // 2. Đổi partner (Partner Diversity - ưu tiên đổi bạn chơi mới trong buổi)
   let partnerPlayCount = 0
   matches.forEach((m) => {
     const ma = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
@@ -170,9 +199,9 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
       partnerPlayCount++
     }
   })
-  const partnerScore = Math.max(50, Math.min(100, 100 - partnerPlayCount * 12))
+  const partnerScore = Math.max(40, Math.min(100, 100 - partnerPlayCount * 12))
 
-  // 3. Đổi đối thủ (Team A vs Team B đã đối đầu bao nhiêu lần)
+  // 3. Đổi đối thủ (Opponent Diversity - tránh lặp lại đối đầu quá nhiều)
   let opponentPlayCount = 0
   matches.forEach((m) => {
     const ma = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
@@ -187,7 +216,7 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
   })
   const opponentScore = Math.max(40, Math.min(100, 100 - opponentPlayCount * 15))
 
-  // 4. H2H & Lịch sử tỉ số (CE2: H2H 5 lần gặp, tỉ số sát 2 điểm: +26, áp đảo một chiều: -15)
+  // 4. H2H & Lịch sử tỉ số (Tránh thế trận kỵ giơ một chiều)
   const h2hMatches = []
   matches.forEach((m) => {
     const ma = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
@@ -222,7 +251,6 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
   }
 
   // 5. Đều lượt đánh
-  // So sánh số trận của người trên sân với người đang chờ có ít trận nhất
   const onCourtKeys = [...teamA, ...teamB]
   const waitingPlayers = players.filter((p) => !onCourtKeys.includes(p.key))
   const waitingCounts = waitingPlayers.map((p) => ({ player: p, n: stats[p.key]?.n || 0 }))
@@ -233,9 +261,9 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
   const waitDiff = minWaiting ? Math.max(0, maxOnCourt - minWaiting.n) : 0
   const fairScore = Math.max(40, Math.min(100, 100 - waitDiff * 14))
 
-  // Điểm tổng hợp 5 tiêu chí (Cân trình 30%, Partner 20%, Đối thủ 15%, H2H 20%, Fairness 15%)
+  // Điểm tổng hợp 5 tiêu chí chuẩn vNext (Cân Elo 35%, Fairness 20%, Partner 15%, Opponent 15%, Matchup 15%)
   const totalScore = Math.round(
-    canRatingScore * 0.30 + partnerScore * 0.20 + opponentScore * 0.15 + h2hScore * 0.20 + fairScore * 0.15
+    canRatingScore * 0.35 + fairScore * 0.20 + partnerScore * 0.15 + opponentScore * 0.15 + h2hScore * 0.15
   )
 
   let note = t('assign.balanceNoteGeneral', { delta })
@@ -245,6 +273,23 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
       name: minWaiting.player.name,
       turns: waitDiff,
     })
+  }
+
+  // Quick Why tags hiển thị trên Card Sân (Screen 11a DV1)
+  const quickWhy = []
+  if (canRatingScore >= 80) quickWhy.push('balanced')
+  if (partnerPlayCount === 0) quickWhy.push('new_partner')
+  if (h2hScore >= 80) quickWhy.push('no_counter')
+  if (waitDiff <= 1) quickWhy.push('rotation_ok')
+
+  // CE2 Giải trình cộng dồn (Screen 11a DV3)
+  const breakdown = {
+    canRating: Math.round(canRatingScore * 0.35),
+    partner: Math.round(partnerScore * 0.15),
+    opponent: Math.round(opponentScore * 0.15),
+    matchup: Math.round(h2hScore * 0.15),
+    fairness: Math.round(fairScore * 0.20),
+    total: totalScore,
   }
 
   return {
@@ -257,8 +302,75 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
     note,
     teamA,
     teamB,
-    ra: Math.round(ra),
-    rb: Math.round(rb),
+    ra,
+    rb,
+    rawRa: Math.round(rawRa),
+    rawRb: Math.round(rawRb),
+    synergyBonusA,
+    synergyBonusB,
+    expectedA,
+    expectedB,
+    expectedGapPp,
+    quickWhy,
+    breakdown,
+    pairAInfo,
+    pairBInfo,
+  }
+}
+
+/**
+ * Mô phỏng việc đổi 1 người vào vị trí trên sân và đánh giá sự thay đổi (What-if Comparison - Screen 11a DV2).
+ * @param {Object} params
+ * @param {Object} params.lineup - Lineup hiện tại
+ * @param {number} params.ci - Index của sân đang xem xét
+ * @param {string} params.slotFrom - Mã slot cần đổi (ví dụ: 'c0t0s1')
+ * @param {string} params.playerToKey - Key của người chơi thay thế
+ * @param {Object} params.ratingsMap - Map ID -> rating
+ * @param {Array} params.matches - Danh sách trận đấu
+ * @param {Array} params.players - Danh sách người chơi trong buổi
+ * @param {Object} params.stats - Thống kê số trận trong buổi
+ * @returns {Object|null} Kết quả phân tích before -> after, độ chênh lệch pp, và BalanceScore
+ */
+export function simulateWhatIfSwap({
+  lineup = {},
+  ci = 0,
+  slotFrom,
+  playerToKey,
+  ratingsMap = {},
+  matches = [],
+  players = [],
+  stats = {},
+}) {
+  const currentBalance = detailedCourtBalance({ lineup, ci, ratingsMap, matches, players, stats })
+  if (!currentBalance || !slotFrom || !playerToKey) return null
+
+  const newLineup = { ...lineup, [slotFrom]: playerToKey }
+  const newBalance = detailedCourtBalance({ lineup: newLineup, ci, ratingsMap, matches, players, stats })
+  if (!newBalance) return null
+
+  const expBeforeA = currentBalance.expectedA ?? 0.5
+  const expAfterA = newBalance.expectedA ?? 0.5
+
+  const imbBefore = Math.abs(expBeforeA - 0.5) * 100
+  const imbAfter = Math.abs(expAfterA - 0.5) * 100
+  const improvementPp = Math.round(imbBefore - imbAfter)
+
+  const balanceScoreBefore = currentBalance.totalScore
+  const balanceScoreAfter = newBalance.totalScore
+  const scoreDelta = balanceScoreAfter - balanceScoreBefore
+
+  return {
+    slotFrom,
+    playerToKey,
+    currentBalance,
+    newBalance,
+    expectedBefore: [Math.round(expBeforeA * 100), Math.round((1 - expBeforeA) * 100)],
+    expectedAfter: [Math.round(expAfterA * 100), Math.round((1 - expAfterA) * 100)],
+    improvementPp,
+    isBetter: improvementPp > 0 || scoreDelta > 0,
+    balanceScoreBefore,
+    balanceScoreAfter,
+    scoreDelta,
   }
 }
 
