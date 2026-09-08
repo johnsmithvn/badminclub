@@ -15,8 +15,6 @@ export default function SessionStatsSheet({
 }) {
   const [activeTab, setActiveTab] = useState('matches') // 'matches' | 'waiting' | 'pairs'
 
-  if (!open) return null
-
   // Thống kê Số trận
   const statsMatches = useMemo(() => {
     if (!players.length) return { avg: 0, min: 0, max: 0, list: [] }
@@ -44,6 +42,7 @@ export default function SessionStatsSheet({
 
   // Thống kê Phút chờ
   const statsWaiting = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now()
     const list = players.map((p) => {
       // Tìm trận gần nhất của p
@@ -128,6 +127,8 @@ export default function SessionStatsSheet({
   }, [sessionMatches, db, ratingsMap])
 
   const dateStr = session ? dd(session.date) : ''
+
+  if (!open) return null
 
   return (
     <div

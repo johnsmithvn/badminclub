@@ -17,6 +17,10 @@ export default function CareerEloTab({
 
   // Chuẩn bị dữ liệu danh sách thành viên
   const { officialList, provisionalList, allList, histogramData, medianElo, middleRangePct } = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now()
+    const thirtyDaysAgo = now - 30 * 86400000
+
     const list = (members || []).map((m) => {
       const pr = getPlayerRating(playerRatings, m.id, m, levels)
       const gamesCount = pr.gamesCount || 0
@@ -28,8 +32,6 @@ export default function CareerEloTab({
       let wins = 0
       let losses = 0
       let delta30Days = 0
-      const now = Date.now()
-      const thirtyDaysAgo = now - 30 * 86400000
 
       matches.forEach((mt) => {
         const teamA = mt.teamA || (mt.playerKeys ? mt.playerKeys.slice(0, 2) : [])

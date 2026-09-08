@@ -4,7 +4,7 @@ import { Button, Card, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
-import { confidenceOf, computeClubCalibration, rankTopCrossGenderPlayers, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf } from '#lib/rating.js'
+import { confidenceOf, computeClubCalibration, rankTopCrossGenderPlayers, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf, rankPairs } from '#lib/rating.js'
 import { playerName, courtOf } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
 import { searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
@@ -18,6 +18,7 @@ import MemberProfileTab from '#components/profile/MemberProfileTab.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
 import SeasonRaceTab from '#components/leaderboard/SeasonRaceTab.jsx'
 import CareerEloTab from '#components/leaderboard/CareerEloTab.jsx'
+import PairsTab from '#components/leaderboard/PairsTab.jsx'
 import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerModal.jsx'
 import QuadrantMapModal from '#components/leaderboard/QuadrantMapModal.jsx'
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
@@ -137,6 +138,12 @@ export default function Leaderboard() {
       const rows = seasonLeaderboardData?.leaderboard || []
       rows.forEach((r) => {
         csvContent += `"${r.rank}","${r.name}","${r.totalSeasonPoints}","${r.breakdown?.sessionsCount || 0}","${r.breakdown?.matchesCount || 0}","${r.breakdown?.winsCount || 0}","${r.breakdown?.upsetsCount || 0}"\n`
+      })
+    } else if (activeTab === 'pairs') {
+      csvContent += 'Thứ hạng,Cặp,Số trận,Kỳ vọng %,Thực tế %,Lệch (pp),Ăn ý,Độ tin cậy\n' // i18n-ok: csv header
+      const pData = rankPairs(db.matches || [], memberMap, db.playerRatings || {}, { format: 'all', minGames: 1 })
+      ;(pData.rankedPairs || []).forEach((r, idx) => {
+        csvContent += `"${idx + 1}","${r.names.join(' - ')}","${r.gamesCount}","${r.expectedWinPct}%","${r.actualWinPct}%","${r.pairImpact}","${r.synergyScore}","${r.confidence}"\n`
       })
     } else {
       csvContent += 'Thứ hạng,Thành viên,Elo,Số trận,Độ tin cậy,Thắng %,30 ngày\n' // i18n-ok: csv header
@@ -939,6 +946,32 @@ export default function Leaderboard() {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (window.confirm(t('leaderboard.recalcConfirmMsg'))) {
+                    a.recalcAllRatings?.()
+                  }
+                }}
+                title={t('leaderboard.recalcHint')}
+                aria-label={t('leaderboard.btnRecalc')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: isMobile ? '8px 10px' : '8px 14px',
+                  borderRadius: 6,
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="rotate-ccw" size={14} />
+                <span>{t('leaderboard.btnRecalc')}</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setSeasonSettingsOpen(true)}
                 title={t('season.settingsBtn')}
                 aria-label={t('season.settingsBtn')}
@@ -993,6 +1026,18 @@ export default function Leaderboard() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab('pairs')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'pairs'
+                ? { ...S.tabBtnActive, background: '#00B2A9', color: '#04302C', fontWeight: 700 }
+                : {}),
+            }}
+          >
+            {t('leaderboard.tabPairs')}
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('matrix')}
             style={{ ...S.tabBtn, ...(activeTab === 'matrix' ? S.tabBtnActive : {}) }}
           >
@@ -1042,6 +1087,23 @@ export default function Leaderboard() {
           levels={db.levels}
           onOpenEffectiveStrengthModal={(player) => setEffectiveStrengthPlayer(player)}
           isMobile={isMobile}
+        />
+      )}
+
+      {/* ---------------- TAB PAIRS: Ăn ý & Khắc chế (Screen AY1) ---------------- */}
+      {activeTab === 'pairs' && (
+        <PairsTab
+          matches={db.matches || []}
+          membersMap={memberMap}
+          ratingsMap={db.playerRatings || {}}
+          onExportCsv={handleExportCsv}
+          onViewPairMatches={(pair) => {
+            const [p1, p2] = (pair.key || '').split(':')
+            setPlayerA(p1 || '')
+            setPlayerB(p2 || '')
+            setSearchMode('team')
+            setActiveTab('search')
+          }}
         />
       )}
 

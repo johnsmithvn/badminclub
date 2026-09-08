@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -40,6 +40,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
   const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (match.courtIdx ?? 0) + 1 }) : '')
 
   const { initDateStr, initTimeStr } = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     const ts = match.at || (session?.date ? new Date(session.date).getTime() : Date.now())
     const d = new Date(ts)
     const y = d.getFullYear()
@@ -51,16 +52,34 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
       initDateStr: `${y}-${m}-${day}`,
       initTimeStr: `${hh}:${mm}`,
     }
-  }, [match.at, session?.date])
+  }, [match.at, session])
 
   const [dateStr, setDateStr] = useState(initDateStr)
   const [timeStr, setTimeStr] = useState(initTimeStr)
 
-  // Cập nhật date/time khi chuyển trận
-  useMemo(() => {
+  // 2. Quản lý điểm các set
+  const oldSets = match.sets || []
+  const [sets, setSets] = useState(() => {
+    if (oldSets.length > 0) {
+      return oldSets.map((s) => [s[0], s[1]])
+    }
+    return [[21, 19]]
+  })
+  const [activeSetIdx, setActiveSetIdx] = useState(0)
+
+  // Đồng bộ khi chuyển trận (pattern chuẩn React: adjusting state when prop changes)
+  const [prevMatchId, setPrevMatchId] = useState(match.id)
+  if (match.id !== prevMatchId) {
+    setPrevMatchId(match.id)
     setDateStr(initDateStr)
     setTimeStr(initTimeStr)
-  }, [initDateStr, initTimeStr])
+    if (oldSets.length > 0) {
+      setSets(oldSets.map((s) => [s[0], s[1]]))
+    } else {
+      setSets([[21, 19]])
+    }
+    setActiveSetIdx(0)
+  }
 
   // Điều chỉnh giờ nhanh (-15p, +15p, Bây giờ)
   const adjustMinutes = (delta) => {
@@ -85,32 +104,13 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
   }
 
   const finalTimestamp = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     if (!dateStr || !timeStr) return match.at || Date.now()
     const [y, m, d] = dateStr.split('-').map(Number)
     const [hh, mm] = timeStr.split(':').map(Number)
     const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0)
     return dt.getTime()
   }, [dateStr, timeStr, match.at])
-
-  // 2. Quản lý điểm các set
-  const oldSets = match.sets || []
-  const [sets, setSets] = useState(() => {
-    if (oldSets.length > 0) {
-      return oldSets.map((s) => [s[0], s[1]])
-    }
-    return [[21, 19]]
-  })
-  const [activeSetIdx, setActiveSetIdx] = useState(0)
-
-  // Reset sets khi đổi trận
-  useMemo(() => {
-    if (oldSets.length > 0) {
-      setSets(oldSets.map((s) => [s[0], s[1]]))
-    } else {
-      setSets([[21, 19]])
-    }
-    setActiveSetIdx(0)
-  }, [match.id])
 
   const teamA = match.teamA || []
   const teamB = match.teamB || []
