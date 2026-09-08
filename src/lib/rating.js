@@ -334,7 +334,7 @@ export function confidenceOf(gamesCount, deviation) {
  * @param {Array} matches - Danh sách tất cả các trận có kết quả
  * @param {Object} membersMap - Map memberId -> member object { gender, ... }
  */
-export function computeClubCalibration(matches, membersMap) {
+export function computeClubCalibration(matches = [], membersMap = {}, ratingsMap = {}) {
   const buckets = {
     '<100': { sampleSize: 0, femaleWins: 0 },
     '100-300': { sampleSize: 0, femaleWins: 0 },
@@ -342,23 +342,32 @@ export function computeClubCalibration(matches, membersMap) {
   }
   const topCross = {}
 
+  const checkFemale = (p) => {
+    const g = String(p?.gender || '').toLowerCase().trim()
+    return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: data matching
+  }
+
   // Phân loại các trận có sự tham gia của cả nam và nữ
   ;(matches || []).forEach((m) => {
-    if (!m.sets || !m.sets.length || !m.winnerTeam) return
+    if (!m || !m.winnerTeam) return
     const teamAIds = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
     const teamBIds = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
 
-    const teamAPlayers = teamAIds.map((id) => membersMap[id]).filter(Boolean)
-    const teamBPlayers = teamBIds.map((id) => membersMap[id]).filter(Boolean)
+    const teamAPlayers = teamAIds.map((id) => membersMap[id] || { id, name: id })
+    const teamBPlayers = teamBIds.map((id) => membersMap[id] || { id, name: id })
     if (!teamAPlayers.length || !teamBPlayers.length) return
 
-    const teamAFemale = teamAPlayers.some((p) => p.gender === 'nu' || p.gender === 'Nữ') // i18n-ok: data matching
-    const teamBFemale = teamBPlayers.some((p) => p.gender === 'nu' || p.gender === 'Nữ') // i18n-ok: data matching
+    const teamAFemale = teamAPlayers.some(checkFemale)
+    const teamBFemale = teamBPlayers.some(checkFemale)
 
     // Trận đấu chéo giới tính (1 bên có nữ, bên kia toàn nam)
     if ((teamAFemale && !teamBFemale) || (!teamAFemale && teamBFemale)) {
-      const ra = m.initialRatingA || 0
-      const rb = m.initialRatingB || 0
+      let ra = m.initialRatingA != null ? m.initialRatingA : null
+      let rb = m.initialRatingB != null ? m.initialRatingB : null
+      if (ra == null || rb == null) {
+        ra = teamRating(teamAIds, ratingsMap)
+        rb = teamRating(teamBIds, ratingsMap)
+      }
       const gap = Math.abs(ra - rb)
       const bKey = gap < 100 ? '<100' : gap <= 300 ? '100-300' : '>300'
       buckets[bKey].sampleSize += 1
@@ -1078,12 +1087,18 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
  * Thống kê năng lực theo từng thể thức (Format Ratings: Career, Doubles, Mixed, Singles - AY3).
  */
 export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, membersMap = {}) {
-  const careerElo = ratingsMap[memberId] || DEFAULT_RATING
+  const rawElo = ratingsMap && ratingsMap[memberId] != null ? ratingsMap[memberId] : DEFAULT_RATING
+  const careerElo = typeof rawElo === 'number' ? rawElo : (typeof rawElo?.rating === 'number' ? rawElo.rating : DEFAULT_RATING)
 
   const buckets = {
     doubles: { wins: 0, total: 0 },
     mixed: { wins: 0, total: 0 },
     singles: { wins: 0, total: 0 },
+  }
+
+  const checkFemale = (p) => {
+    const g = String(p?.gender || '').toLowerCase().trim()
+    return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: gender check
   }
 
   ;(matches || []).forEach((m) => {
@@ -1106,9 +1121,9 @@ export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, 
       buckets.doubles.total++
       if (isWon) buckets.doubles.wins++
 
-      const teamPlayers = myTeam.map((id) => membersMap[id]).filter(Boolean)
-      const hasFemale = teamPlayers.some((p) => p.gender === 'nu' || p.gender === 'Nữ') // i18n-ok: gender check
-      const hasMale = teamPlayers.some((p) => p.gender !== 'nu' && p.gender !== 'Nữ') // i18n-ok: gender check
+      const teamPlayers = myTeam.map((id) => membersMap[id] || { id, name: id })
+      const hasFemale = teamPlayers.some(checkFemale)
+      const hasMale = teamPlayers.some((p) => !checkFemale(p))
       if (hasFemale && hasMale) {
         buckets.mixed.total++
         if (isWon) buckets.mixed.wins++
@@ -1117,7 +1132,19 @@ export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, 
   })
 
   const calcShrinkRating = (wins, total) => {
-    if (!total) return { rating: careerElo, gamesCount: 0, winsCount: 0, lossesCount: 0, winPct: 0, confidence: confidenceLevelOf(0), isProvisional: true }
+    const conf = confidenceLevelOf(total)
+    if (!total) {
+      return {
+        rating: careerElo,
+        gamesCount: 0,
+        winsCount: 0,
+        lossesCount: 0,
+        winPct: 0,
+        confidence: conf.tier,
+        confidenceObj: conf,
+        isProvisional: true,
+      }
+    }
     const winRate = wins / total
     const rawDelta = (winRate - 0.5) * 300
     const weight = Math.min(0.85, total / 30)
@@ -1128,13 +1155,28 @@ export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, 
       winsCount: wins,
       lossesCount: total - wins,
       winPct: Math.round(winRate * 100),
-      confidence: confidenceLevelOf(total),
+      confidence: conf.tier,
+      confidenceObj: conf,
       isProvisional: total < 5,
     }
   }
 
+  const overallTotal = buckets.doubles.total + buckets.singles.total
+  const overallWins = buckets.doubles.wins + buckets.singles.wins
+  const overallConf = confidenceLevelOf(overallTotal)
+  const overallData = {
+    rating: careerElo,
+    gamesCount: overallTotal,
+    winsCount: overallWins,
+    lossesCount: overallTotal - overallWins,
+    confidence: overallConf.tier,
+    confidenceObj: overallConf,
+    isProvisional: overallTotal < 5,
+  }
+
   return {
-    career: { rating: careerElo, gamesCount: buckets.doubles.total + buckets.singles.total },
+    career: overallData,
+    overall: overallData,
     doubles: calcShrinkRating(buckets.doubles.wins, buckets.doubles.total),
     mixed: calcShrinkRating(buckets.mixed.wins, buckets.mixed.total),
     singles: calcShrinkRating(buckets.singles.wins, buckets.singles.total),
@@ -1168,9 +1210,15 @@ export function getPlayerPartnersAndMatchups(matches = [], memberId, membersMap 
   partnerKeys.forEach((partnerId) => {
     const info = calcPairImpact(matches, memberId, partnerId, ratingsMap)
     if (!info.gamesCount) return
+    const partnerObj = membersMap[partnerId] || { id: partnerId, name: partnerId }
     partners.push({
       ...info,
-      partner: membersMap[partnerId] || { id: partnerId, name: partnerId },
+      id: partnerId,
+      name: partnerObj.name || partnerId,
+      games: info.gamesCount,
+      wins: info.winsCount,
+      losses: info.lossesCount,
+      partner: partnerObj,
     })
   })
   partners.sort((a, b) => b.synergyScore - a.synergyScore || b.gamesCount - a.gamesCount)
@@ -1179,19 +1227,31 @@ export function getPlayerPartnersAndMatchups(matches = [], memberId, membersMap 
   opponentKeys.forEach((oppId) => {
     const edge = calcMatchupEdge(matches, [memberId], [oppId], ratingsMap)
     if (!edge.gamesCount) return
+    const oppObj = membersMap[oppId] || { id: oppId, name: oppId }
     opponents.push({
       ...edge,
-      opponent: membersMap[oppId] || { id: oppId, name: oppId },
+      opponent: oppObj,
+      pairName: membersMap[memberId]?.name || memberId,
+      oppName: oppObj.name || oppId,
+      winRate: edge.actualWinPct,
     })
   })
 
   const favoriteOpponents = opponents.filter((x) => x.matchupImpact >= 0).sort((a, b) => b.actualWinPct - a.actualWinPct)
   const nemeses = opponents.filter((x) => x.matchupImpact < 0).sort((a, b) => a.actualWinPct - b.actualWinPct)
 
+  const bestPartner = partners[0] || null
+
   return {
+    partners,
     bestPartners: partners,
+    bestPartner,
     favoriteOpponents,
     nemeses,
+    matchups: {
+      favorite: favoriteOpponents,
+      nemesis: nemeses,
+    },
   }
 }
 

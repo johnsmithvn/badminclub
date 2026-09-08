@@ -533,8 +533,8 @@ export default function Leaderboard() {
   // TAB 5: Thống kê Hiệu chỉnh chéo giới (Calibration)
   // -------------------------------------------------------------
   const calibrationStats = useMemo(() => {
-    return computeClubCalibration(db.matches || [], memberMap)
-  }, [db.matches, memberMap])
+    return computeClubCalibration(db.matches || [], memberMap, normalizedRatingsMap)
+  }, [db.matches, memberMap, normalizedRatingsMap])
 
   const topCrossPlayers = useMemo(() => {
     return rankTopCrossGenderPlayers(calibrationStats.topCrossGenderPlayers, memberMap, 8)
@@ -2465,7 +2465,7 @@ export default function Leaderboard() {
                 <div style={S.thCell}>{t('rating.calibration.colSample')}</div>
               </div>
 
-              {calibrationStats.map((item, idx) => {
+              {(Array.isArray(calibrationStats) ? calibrationStats : []).map((item, idx) => {
                 const isLast = idx === calibrationStats.length - 1
                 const hasData = item.sampleSize > 0
                 const winRatePct = hasData ? Math.round(item.observedWinRate * 100) : null

@@ -35,11 +35,26 @@ export default function MemberProfileTab({
 
   const membersMap = useMemo(() => {
     const map = {}
-    ;(allMembers || db.members || []).forEach((m) => {
-      map[m.id] = m
+    ;(db?.members || []).forEach((m) => { if (m?.id) map[m.id] = m })
+    ;(db?.guests || []).forEach((g) => { if (g?.id) map[g.id] = g })
+    ;(db?.sessionGuests || []).forEach((sg) => {
+      if (sg.guestId) {
+        const g = (db?.guests || []).find((x) => x.id === sg.guestId)
+        if (g) map[sg.id] = g
+      }
+      if (sg.memberId) {
+        const m = (db?.members || []).find((x) => x.id === sg.memberId)
+        if (m) map[sg.id] = m
+      }
+      if (!map[sg.id] && sg.id) {
+        map[sg.id] = { id: sg.id, name: sg.name || playerName(db, sg.id) || sg.id }
+      }
     })
+    ;(allMembers || []).forEach((m) => { if (m?.id) map[m.id] = m })
     return map
-  }, [allMembers, db.members])
+  }, [allMembers, db?.members, db?.guests, db?.sessionGuests, db])
+
+  const confTierOf = (c) => (typeof c === 'string' ? c : c?.tier || 'R1')
 
   const formatRatings = useMemo(() => {
     if (!mid) return null
@@ -579,7 +594,7 @@ export default function MemberProfileTab({
                         {formatRatings?.overall?.rating || 1500}
                       </div>
                       <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#7AA3DC' }}>
-                        {formatRatings?.overall?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {formatRatings?.overall?.confidence || 'R1'}
+                        {formatRatings?.overall?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.overall?.confidence)}
                       </div>
                     </div>
 
@@ -595,7 +610,7 @@ export default function MemberProfileTab({
                           {formatRatings?.doubles?.rating || 1500}
                         </span>
                         <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                          {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {formatRatings?.doubles?.confidence || 'R1'}
+                          {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.doubles?.confidence)}
                         </span>
                       </div>
 
@@ -609,7 +624,7 @@ export default function MemberProfileTab({
                           {formatRatings?.mixed?.rating || 1500}
                         </span>
                         <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                          {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {formatRatings?.mixed?.confidence || 'R1'}
+                          {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.mixed?.confidence)}
                         </span>
                       </div>
 
@@ -623,7 +638,7 @@ export default function MemberProfileTab({
                           ~{formatRatings?.singles?.rating || 1500}
                         </span>
                         <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
-                          {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {formatRatings?.singles?.confidence || 'R1'}
+                          {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.singles?.confidence)}
                         </span>
                       </div>
                     </div>
