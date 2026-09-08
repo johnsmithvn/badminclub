@@ -56,5 +56,48 @@ test('Phase 1 Modals Logic Verification', async (t) => {
     assert.equal(dt.getDate(), 7)
     assert.equal(dt.getHours(), 20)
     assert.equal(dt.getMinutes(), 15)
+
+    // Test ratingsMap calculation with Object Map (standard client db format)
+    const dbPlayerRatingsMap = {
+      'm1': { rating: 1650, gamesCount: 12 },
+      'm2': { rating: 1550, gamesCount: 8 },
+    }
+    const teamA = ['m1']
+    const teamB = ['m2']
+    const getRatingsMap = (playerRatings) => {
+      const map = {}
+      if (Array.isArray(playerRatings)) {
+        playerRatings.forEach((r) => {
+          const mid = r.memberId || r.playerId || r.id
+          if (mid) map[mid] = r.rating
+        })
+      } else if (playerRatings && typeof playerRatings === 'object') {
+        Object.entries(playerRatings).forEach(([mid, r]) => {
+          map[mid] = typeof r === 'object' && r !== null ? r.rating : r
+        })
+      }
+      ;[...teamA, ...teamB].forEach((id) => {
+        if (map[id] == null) map[id] = 1500
+      })
+      return map
+    }
+
+    const mapFromObj = getRatingsMap(dbPlayerRatingsMap)
+    assert.equal(mapFromObj['m1'], 1650)
+    assert.equal(mapFromObj['m2'], 1550)
+
+    // Test with Array format (raw Postgres / legacy)
+    const dbPlayerRatingsArray = [
+      { memberId: 'm1', rating: 1650 },
+      { memberId: 'm2', rating: 1550 },
+    ]
+    const mapFromArr = getRatingsMap(dbPlayerRatingsArray)
+    assert.equal(mapFromArr['m1'], 1650)
+    assert.equal(mapFromArr['m2'], 1550)
+
+    // Test with undefined / null / empty
+    const mapFromEmpty = getRatingsMap(null)
+    assert.equal(mapFromEmpty['m1'], 1500)
+    assert.equal(mapFromEmpty['m2'], 1500)
   })
 })
