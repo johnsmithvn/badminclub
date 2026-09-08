@@ -12,6 +12,8 @@ import {
 } from '#lib/rating.js'
 import { t } from '#i18n'
 import BestOfNArrangementView from '#components/session/BestOfNArrangementView.jsx'
+import CourtWaitingFilterSheet from '#components/session/CourtWaitingFilterSheet.jsx'
+import SessionStatsSheet from '#components/session/SessionStatsSheet.jsx'
 
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
@@ -45,6 +47,18 @@ export default function CourtAssignmentTab({ s }) {
 
   // Tìm kiếm trong khu vực chờ
   const [searchQuery, setSearchQuery] = useState('')
+
+  // CS2 & CS3 Sheets & Sort/Filter state
+  const [showSortSheet, setShowSortSheet] = useState(false)
+  const [showStatsSheet, setShowStatsSheet] = useState(false)
+  const [sortOption, setSortOption] = useState('fewest') // 'fewest' | 'wait' | 'level' | 'az'
+  const [filters, setFilters] = useState({
+    gender: null, // 'female' | 'male' | null
+    sameLevel: false,
+    notPlayedWith: false,
+    noRest: false,
+  })
+  const [activeSlot, setActiveSlot] = useState({ team: 'A', idx: 0 })
 
   // Danh sách tất cả người tham gia buổi (thành viên có mặt + khách)
   const players = useMemo(() => sessionPlayers(db, s), [db, s])
@@ -108,16 +122,132 @@ export default function CourtAssignmentTab({ s }) {
     return players.filter((p) => !teamA.includes(p.key) && !teamB.includes(p.key))
   }, [players, teamA, teamB])
 
-  // Lọc người chờ theo ô tìm kiếm
-  const filteredWaiting = useMemo(() => {
-    if (!searchQuery.trim()) return waitingPlayers
-    const q = searchQuery.toLowerCase()
-    return waitingPlayers.filter((p) => {
-      const nameMatch = (p.name || '').toLowerCase().includes(q)
-      const levelMatch = (p.level || '').toLowerCase().includes(q)
-      return nameMatch || levelMatch
+  const waitingFemaleCount = useMemo(() => waitingPlayers.filter((p) => p.gender === 'female').length, [waitingPlayers])
+  const waitingMaleCount = useMemo(() => waitingPlayers.filter((p) => p.gender === 'male').length, [waitingPlayers])
+
+  // Map tính thời gian chờ (phút từ trận gần nhất)
+  const playerWaitTimeMap = useMemo(() => {
+    const now = Date.now()
+    const map = {}
+    players.forEach((p) => {
+      let lastTime = null
+      for (const m of sessionMatches) {
+        const keys = m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
+        if (keys.includes(p.key)) {
+          lastTime = m.at || m.createdAt || null
+          break
+        }
+      }
+      map[p.key] = lastTime ? (now - lastTime) : Infinity
     })
-  }, [waitingPlayers, searchQuery])
+    return map
+  }, [players, sessionMatches])
+
+  const playersOnCourtKeys = useMemo(() => [...teamA, ...teamB], [teamA, teamB])
+  const playerOnCourtName = useMemo(() => {
+    if (teamA[0]) return playerName(db, teamA[0])
+    if (teamB[0]) return playerName(db, teamB[0])
+    return ''
+  }, [teamA, teamB, db])
+
+  // Lọc và sắp xếp người chờ (CS1 + CS2)
+  const processedWaiting = useMemo(() => {
+    let list = [...waitingPlayers]
+
+    // 1. Tìm kiếm theo tên hoặc trình độ
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      list = list.filter((p) => {
+        const nameMatch = (p.name || '').toLowerCase().includes(q)
+        const levelMatch = (p.level || '').toLowerCase().includes(q)
+        return nameMatch || levelMatch
+      })
+    }
+
+    // 2. Lọc giới tính
+    if (filters.gender === 'female') {
+      list = list.filter((p) => p.gender === 'female')
+    } else if (filters.gender === 'male') {
+      list = list.filter((p) => p.gender === 'male')
+    }
+
+    // 3. Lọc cùng trình ô đang xếp
+    if (filters.sameLevel) {
+      const refKey = teamA[0] || teamB[0]
+      const refLevel = refKey ? (players.find((x) => x.key === refKey) || {}).level : null
+      if (refLevel) {
+        list = list.filter((p) => p.level === refLevel)
+      }
+    }
+
+    // 4. Lọc chưa đánh cùng người trên sân
+    if (filters.notPlayedWith && playersOnCourtKeys.length > 0) {
+      list = list.filter((p) => {
+        for (const m of sessionMatches) {
+          const tA = m.teamA || []
+          const tB = m.teamB || []
+          for (const ck of playersOnCourtKeys) {
+            if ((tA.includes(p.key) && tA.includes(ck)) || (tB.includes(p.key) && tB.includes(ck))) {
+              return false
+            }
+          }
+        }
+        return true
+      })
+    }
+
+    // 5. Lọc chưa nghỉ quả nào
+    if (filters.noRest && sessionMatches.length > 0) {
+      const lastMatch = sessionMatches[0]
+      const lastKeys = lastMatch.playerKeys || [...(lastMatch.teamA || []), ...(lastMatch.teamB || [])]
+      list = list.filter((p) => lastKeys.includes(p.key))
+    }
+
+    // Sắp xếp
+    if (sortOption === 'wait') {
+      list.sort((p1, p2) => (playerWaitTimeMap[p2.key] || 0) - (playerWaitTimeMap[p1.key] || 0))
+    } else if (sortOption === 'level') {
+      list.sort((p1, p2) => (ratingsMap[p2.key] || 0) - (ratingsMap[p1.key] || 0))
+    } else if (sortOption === 'az') {
+      list.sort((p1, p2) => (p1.name || '').localeCompare(p2.name || '', 'vi'))
+    } else {
+      // Mặc định: fewest (ít trận nhất)
+      list.sort((p1, p2) => (matchCountMap[p1.key] || 0) - (matchCountMap[p2.key] || 0) || (p1.name || '').localeCompare(p2.name || '', 'vi'))
+    }
+
+    return list
+  }, [waitingPlayers, searchQuery, filters, sortOption, playersOnCourtKeys, sessionMatches, playerWaitTimeMap, ratingsMap, matchCountMap, teamA, teamB, players])
+
+  // Gom nhóm theo số trận cho chế độ 'fewest' (CS1)
+  const fewestGroups = useMemo(() => {
+    if (sortOption !== 'fewest') return null
+    const groups = {}
+    processedWaiting.forEach((p) => {
+      const count = matchCountMap[p.key] || 0
+      if (!groups[count]) groups[count] = []
+      groups[count].push(p)
+    })
+    const sortedCounts = Object.keys(groups).map(Number).sort((a, b) => a - b)
+    return sortedCounts.map((count) => ({
+      count,
+      players: groups[count],
+    }))
+  }, [sortOption, processedWaiting, matchCountMap])
+
+  // Danh sách ứng viên ít trận nhất cho CS2 auto-pick
+  const fewestCandidates = useMemo(() => {
+    const unselected = [...waitingPlayers]
+    unselected.sort((p1, p2) => (matchCountMap[p1.key] || 0) - (matchCountMap[p2.key] || 0))
+    return unselected
+  }, [waitingPlayers, matchCountMap])
+
+  // Nhãn tiêu chí sắp xếp hiện tại
+  const sortLabel = useMemo(() => {
+    if (sortOption === 'wait') return t('assign.sortWaiting')
+    if (sortOption === 'level') return t('assign.sortLevel')
+    if (sortOption === 'az') return t('assign.sortAz')
+    return t('assign.sortFewest')
+  }, [sortOption])
 
   // Đổi mode đơn / đôi
   const handleSwitchMode = (newMode) => {
@@ -125,26 +255,69 @@ export default function CourtAssignmentTab({ s }) {
     const newMax = newMode === 'doubles' ? 2 : 1
     if (teamA.length > newMax) setTeamA(teamA.slice(0, newMax))
     if (teamB.length > newMax) setTeamB(teamB.slice(0, newMax))
+    setActiveSlot({ team: 'A', idx: Math.min(teamA.length, newMax - 1) })
   }
 
-  // Chạm vào người trong danh sách chờ: tự động đưa vào slot trống
+  // Chạm vào người trong danh sách chờ: tự động đưa vào slot đang chọn (highlighted slot)
   const handleTapPlayer = useCallback((key) => {
     if (teamA.includes(key)) {
+      const idx = teamA.indexOf(key)
       setTeamA((prev) => prev.filter((k) => k !== key))
+      setActiveSlot({ team: 'A', idx })
       return
     }
     if (teamB.includes(key)) {
+      const idx = teamB.indexOf(key)
       setTeamB((prev) => prev.filter((k) => k !== key))
+      setActiveSlot({ team: 'B', idx })
       return
     }
-    if (teamA.length < maxPerTeam) {
-      setTeamA((prev) => [...prev, key])
-    } else if (teamB.length < maxPerTeam) {
-      setTeamB((prev) => [...prev, key])
-    } else {
-      a.toast(t('quickMatch.errFullSlots', { req: maxPerTeam }))
+
+    // Tìm ô target
+    let target = activeSlot
+    const isTargetEmpty = target && (
+      (target.team === 'A' && !teamA[target.idx] && target.idx < maxPerTeam) ||
+      (target.team === 'B' && !teamB[target.idx] && target.idx < maxPerTeam)
+    )
+
+    if (!isTargetEmpty) {
+      if (teamA.length < maxPerTeam) {
+        target = { team: 'A', idx: teamA.length }
+      } else if (teamB.length < maxPerTeam) {
+        target = { team: 'B', idx: teamB.length }
+      } else {
+        a.toast(t('quickMatch.errFullSlots', { req: maxPerTeam }))
+        return
+      }
     }
-  }, [teamA, teamB, maxPerTeam, a])
+
+    if (target.team === 'A') {
+      const nextA = [...teamA]
+      nextA[target.idx] = key
+      const filteredA = nextA.filter(Boolean)
+      setTeamA(filteredA)
+      // Tự động nhảy sang ô trống tiếp theo
+      if (filteredA.length < maxPerTeam) {
+        setActiveSlot({ team: 'A', idx: filteredA.length })
+      } else if (teamB.length < maxPerTeam) {
+        setActiveSlot({ team: 'B', idx: teamB.length })
+      } else {
+        setActiveSlot(null)
+      }
+    } else {
+      const nextB = [...teamB]
+      nextB[target.idx] = key
+      const filteredB = nextB.filter(Boolean)
+      setTeamB(filteredB)
+      if (teamA.length < maxPerTeam) {
+        setActiveSlot({ team: 'A', idx: teamA.length })
+      } else if (filteredB.length < maxPerTeam) {
+        setActiveSlot({ team: 'B', idx: filteredB.length })
+      } else {
+        setActiveSlot(null)
+      }
+    }
+  }, [teamA, teamB, activeSlot, maxPerTeam, a])
 
   // Nút "Ai ít trận nhất": tự động xếp những người đánh ít nhất vào các slot trống
   const handleAutoPickFewest = () => {
@@ -531,21 +704,34 @@ export default function CourtAssignmentTab({ s }) {
       )}
 
       {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - TĂNG CƯỜNG THÔNG TIN) ---------------- */}
+      {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - GIAO DIỆN CS1) ---------------- */}
       <Card
-        title={t('assign.waitingPool')}
+        title={t('assign.waitingCount', { n: waitingPlayers.length })}
         subtitle={t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
         icon="users"
-        padding="14px 16px"
+        padding="12px 14px"
         actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            icon="wand-sparkles"
-            onClick={handleAutoPickFewest}
-            disabled={waitingPlayers.length === 0 || isCourtFull}
-          >
-            {t('assign.fewestBtn')}
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Nút ▤ Thống kê mở CS3 */}
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="table"
+              onClick={() => setShowStatsSheet(true)}
+              title={t('assign.statsSheetSub')}
+            >
+              ▤ {t('assign.tabStats')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="wand-sparkles"
+              onClick={handleAutoPickFewest}
+              disabled={waitingPlayers.length === 0 || isCourtFull}
+            >
+              {t('assign.fewestBtn')}
+            </Button>
+          </div>
         }
       >
         <div style={{ display: 'grid', gap: 10 }}>
@@ -553,7 +739,7 @@ export default function CourtAssignmentTab({ s }) {
           <div style={S.searchRow}>
             <input
               type="text"
-              placeholder={t('session.searchMember')}
+              placeholder={t('assign.searchPlayerPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={S.searchInput}
@@ -561,71 +747,177 @@ export default function CourtAssignmentTab({ s }) {
             <span style={S.touchHint}>{t('assign.poolTouchHint')}</span>
           </div>
 
-          {/* Danh sách người chờ: trên mobile là hàng pill cuộn tự nhiên (Screen 01), trên desktop là lưới card 2 dòng */}
-          <div style={isMobile ? S.poolPillWrap : S.poolGrid}>
-            {filteredWaiting.map((p) => {
-              const plays = matchCountMap[p.key] || 0
-              const r = ratingsMap[p.key] || 0
-              const isFresh = plays === 0
+          {/* Hàng sort & lọc dính ở đầu (CS1 mockup) */}
+          <div style={S.stickyBar}>
+            {/* Chip Sort chính -> Mở CS2 */}
+            <button
+              type="button"
+              onClick={() => setShowSortSheet(true)}
+              style={{
+                ...S.sortChipMain,
+                ...(sortOption !== 'fewest' ? S.sortChipMainActive : {}),
+              }}
+            >
+              {sortLabel}
+            </button>
 
-              if (isMobile) {
+            {/* Chip Chờ lâu */}
+            <button
+              type="button"
+              onClick={() => setSortOption((prev) => prev === 'wait' ? 'fewest' : 'wait')}
+              style={{
+                ...S.quickChip,
+                ...(sortOption === 'wait' ? S.quickChipActive : {}),
+              }}
+            >
+              {t('assign.sortWaiting')}
+            </button>
+
+            {/* Chip Trình */}
+            <button
+              type="button"
+              onClick={() => setSortOption((prev) => prev === 'level' ? 'fewest' : 'level')}
+              style={{
+                ...S.quickChip,
+                ...(sortOption === 'level' ? S.quickChipActive : {}),
+              }}
+            >
+              {t('assign.sortLevel')}
+            </button>
+
+            <div style={S.chipDivider} />
+
+            {/* Chip Nữ */}
+            <button
+              type="button"
+              onClick={() => setFilters((prev) => ({ ...prev, gender: prev.gender === 'female' ? null : 'female' }))}
+              style={{
+                ...S.genderChipFemale,
+                ...(filters.gender === 'female' ? S.genderChipFemaleActive : {}),
+              }}
+            >
+              {t('assign.filterFemale', { n: waitingFemaleCount })}
+            </button>
+
+            {/* Chip Nam */}
+            <button
+              type="button"
+              onClick={() => setFilters((prev) => ({ ...prev, gender: prev.gender === 'male' ? null : 'male' }))}
+              style={{
+                ...S.genderChipMale,
+                ...(filters.gender === 'male' ? S.genderChipMaleActive : {}),
+              }}
+            >
+              {t('assign.filterMale', { n: waitingMaleCount })}
+            </button>
+
+            {/* Chỉ báo bộ lọc nâng cao đang bật */}
+            {(filters.sameLevel || filters.notPlayedWith || filters.noRest) && (
+              <button
+                type="button"
+                onClick={() => setShowSortSheet(true)}
+                style={S.activeFilterBadge}
+              >
+                ⚙ {t('assign.filteringActive', { n: [filters.sameLevel, filters.notPlayedWith, filters.noRest].filter(Boolean).length })}
+              </button>
+            )}
+          </div>
+
+          {/* Danh sách người chờ dạng grid 2 cột (CS1) */}
+          <div style={S.poolContainerScroll}>
+            {sortOption === 'fewest' && fewestGroups ? (
+              fewestGroups.map((grp) => {
+                let badgeColor = '#A8B7CB'
+                if (grp.count === 0 || grp.count <= 2) badgeColor = '#F0B75C'
+                else if (grp.count >= 6) badgeColor = '#5B6B81'
+
                 return (
-                  <div
-                    key={p.key}
-                    onClick={() => handleTapPlayer(p.key)}
-                    style={S.playerPillMobile}
-                    role="button"
-                    tabIndex={0}
-                    title={`${p.name} · ${genderTxt(p.gender)} · ${r} Elo · ${plays} ${t('units.match')}`}
-                  >
-                    <span style={S.playerNameText}>{p.name}</span>
-                    <GenderChip gender={p.gender} />
-                    <LevelChip level={p.level} levels={db.levels} size="sm" />
-                    {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
-                    {isFresh ? (
-                      <span style={S.freshPlayTag}>0 {t('units.match')}</span>
-                    ) : (
-                      <span style={S.playCountTagPill}>{plays}t</span>
-                    )}
+                  <div key={`grp-${grp.count}`} style={S.groupWrapper}>
+                    {/* Header nhóm số trận */}
+                    <div style={S.groupDivider}>
+                      <div style={{ ...S.groupBadge, color: badgeColor }}>
+                        {grp.count} {t('units.match')}
+                      </div>
+                      <div style={S.groupLine} />
+                      <div style={S.groupCount}>
+                        {grp.players.length} {t('units.people')}
+                      </div>
+                    </div>
+
+                    {/* Grid 2 cột */}
+                    <div style={S.twoColGrid}>
+                      {grp.players.map((p) => {
+                        const plays = matchCountMap[p.key] || 0
+                        const isFemale = p.gender === 'female'
+                        return (
+                          <div
+                            key={p.key}
+                            onClick={() => handleTapPlayer(p.key)}
+                            style={{
+                              ...S.cs1PlayerCard,
+                              borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            title={p.name}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={S.cs1PlayerName}>{p.name}</div>
+                              <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
+                                {genderTxt(p.gender)} · {p.level || 'TB'}
+                                {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
+                              </div>
+                            </div>
+                            <div style={{ ...S.cs1MatchCount, color: badgeColor }}>
+                              {plays}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 )
-              }
+              })
+            ) : (
+              <div style={S.twoColGrid}>
+                {processedWaiting.map((p) => {
+                  const plays = matchCountMap[p.key] || 0
+                  const isFemale = p.gender === 'female'
+                  let badgeColor = '#A8B7CB'
+                  if (plays === 0 || plays <= 2) badgeColor = '#F0B75C'
+                  else if (plays >= 6) badgeColor = '#5B6B81'
 
-              return (
-                <div
-                  key={p.key}
-                  onClick={() => handleTapPlayer(p.key)}
-                  style={S.playerChip}
-                  role="button"
-                  tabIndex={0}
-                  title={p.name}
-                >
-                  {/* Hàng 1: Tên VĐV to rõ không bị cắt + LevelChip + Tag Khách */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                      <span style={S.playerNameText}>{p.name}</span>
-                      {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                  return (
+                    <div
+                      key={p.key}
+                      onClick={() => handleTapPlayer(p.key)}
+                      style={{
+                        ...S.cs1PlayerCard,
+                        borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      title={p.name}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={S.cs1PlayerName}>{p.name}</div>
+                        <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
+                          {genderTxt(p.gender)} · {p.level || 'TB'}
+                          {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
+                        </div>
+                      </div>
+                      <div style={{ ...S.cs1MatchCount, color: badgeColor }}>
+                        {plays}
+                      </div>
                     </div>
-                    <LevelChip level={p.level} levels={db.levels} size="sm" />
-                  </div>
+                  )
+                })}
+              </div>
+            )}
 
-                  {/* Hàng 2: Giới tính · Số trận (nổi bật nếu 0 trận) · Rating Elo */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%', fontSize: 11.5 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      <GenderChip gender={p.gender} />
-                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
-                      <span style={isFresh ? S.freshPlayTag : S.playCountTag}>
-                        {plays} {t('units.match')}
-                      </span>
-                    </div>
-                    <span style={S.playerRatingMono}>{r}</span>
-                  </div>
-                </div>
-              )
-            })}
-            {filteredWaiting.length === 0 && (
+            {processedWaiting.length === 0 && (
               <div style={S.emptyPoolMsg}>
-                {waitingPlayers.length === 0 ? t('session.guestEmpty') : t('common.noData')}
+                {waitingPlayers.length === 0 ? t('session.guestEmpty') : t('assign.noWaitingFiltered')}
               </div>
             )}
           </div>
@@ -723,18 +1015,24 @@ export default function CourtAssignmentTab({ s }) {
           </div>
         </div>
 
-        {/* Khung mặt sân thi đấu */}
+        {/* Khung mặt sân thi đấu (với UX Highlight Slot chọn) */}
         <div style={S.courtSurface}>
           {/* Đội A (Top) */}
           <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : '1fr 1fr' }}>
             {Array.from({ length: maxPerTeam }).map((_, idx) => {
               const key = teamA[idx]
+              const isTargetSlot = activeSlot?.team === 'A' && activeSlot?.idx === idx
+
               if (key) {
                 const p = players.find((x) => x.key === key) || {}
                 const r = ratingsMap[key] || 0
                 const plays = matchCountMap[key] || 0
                 return (
-                  <div key={key} style={S.slotFilled}>
+                  <div
+                    key={key}
+                    style={S.slotFilled}
+                    onClick={() => setActiveSlot({ team: 'A', idx })}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
                         <span style={S.slotName}>{p.name}</span>
@@ -745,7 +1043,11 @@ export default function CourtAssignmentTab({ s }) {
                         icon="x"
                         size="sm"
                         variant="ghost"
-                        onClick={() => setTeamA((prev) => prev.filter((k) => k !== key))}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setTeamA((prev) => prev.filter((k) => k !== key))
+                          setActiveSlot({ team: 'A', idx })
+                        }}
                       />
                     </div>
                     <div style={S.slotMeta}>
@@ -758,9 +1060,28 @@ export default function CourtAssignmentTab({ s }) {
                   </div>
                 )
               }
+
+              if (isTargetSlot) {
+                return (
+                  <div
+                    key={`slot-A-${idx}`}
+                    onClick={() => setActiveSlot({ team: 'A', idx })}
+                    style={S.slotActiveHighlight}
+                  >
+                    <div style={S.slotActiveText}>{t('assign.tapNameHint')}</div>
+                    <div style={S.slotActiveSub}>{t('assign.slotTeamLabel', { team: 'A', n: idx + 1 })}</div>
+                  </div>
+                )
+              }
+
               return (
-                <div key={idx} style={S.slotEmpty}>
-                  <span style={S.slotEmptyText}>{t('assign.courtEmptySlot')}</span>
+                <div
+                  key={`slot-A-${idx}`}
+                  onClick={() => setActiveSlot({ team: 'A', idx })}
+                  style={S.slotDashedEmpty}
+                >
+                  <div style={S.slotEmptyTitle}>{t('assign.slotEmptyLabel')}</div>
+                  <div style={S.slotEmptySub}>{t('assign.slotTeamLabel', { team: 'A', n: idx + 1 })}</div>
                 </div>
               )
             })}
@@ -777,12 +1098,18 @@ export default function CourtAssignmentTab({ s }) {
           <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : '1fr 1fr' }}>
             {Array.from({ length: maxPerTeam }).map((_, idx) => {
               const key = teamB[idx]
+              const isTargetSlot = activeSlot?.team === 'B' && activeSlot?.idx === idx
+
               if (key) {
                 const p = players.find((x) => x.key === key) || {}
                 const r = ratingsMap[key] || 0
                 const plays = matchCountMap[key] || 0
                 return (
-                  <div key={key} style={S.slotFilled}>
+                  <div
+                    key={key}
+                    style={S.slotFilled}
+                    onClick={() => setActiveSlot({ team: 'B', idx })}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
                         <span style={S.slotName}>{p.name}</span>
@@ -793,7 +1120,11 @@ export default function CourtAssignmentTab({ s }) {
                         icon="x"
                         size="sm"
                         variant="ghost"
-                        onClick={() => setTeamB((prev) => prev.filter((k) => k !== key))}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setTeamB((prev) => prev.filter((k) => k !== key))
+                          setActiveSlot({ team: 'B', idx })
+                        }}
                       />
                     </div>
                     <div style={S.slotMeta}>
@@ -806,9 +1137,28 @@ export default function CourtAssignmentTab({ s }) {
                   </div>
                 )
               }
+
+              if (isTargetSlot) {
+                return (
+                  <div
+                    key={`slot-B-${idx}`}
+                    onClick={() => setActiveSlot({ team: 'B', idx })}
+                    style={S.slotActiveHighlight}
+                  >
+                    <div style={S.slotActiveText}>{t('assign.tapNameHint')}</div>
+                    <div style={S.slotActiveSub}>{t('assign.slotTeamLabel', { team: 'B', n: idx + 1 })}</div>
+                  </div>
+                )
+              }
+
               return (
-                <div key={idx} style={S.slotEmpty}>
-                  <span style={S.slotEmptyText}>{t('assign.courtEmptySlot')}</span>
+                <div
+                  key={`slot-B-${idx}`}
+                  onClick={() => setActiveSlot({ team: 'B', idx })}
+                  style={S.slotDashedEmpty}
+                >
+                  <div style={S.slotEmptyTitle}>{t('assign.slotEmptyLabel')}</div>
+                  <div style={S.slotEmptySub}>{t('assign.slotTeamLabel', { team: 'B', n: idx + 1 })}</div>
                 </div>
               )
             })}
@@ -1240,6 +1590,46 @@ export default function CourtAssignmentTab({ s }) {
       </div>
     </div>
       )}
+
+      {/* CS2: Sheet sort & lọc */}
+      <CourtWaitingFilterSheet
+        open={showSortSheet}
+        onClose={() => setShowSortSheet(false)}
+        sortOption={sortOption}
+        onSelectSort={(opt) => {
+          setSortOption(opt)
+          setShowSortSheet(false)
+        }}
+        filters={{
+          ...filters,
+          femaleCount: waitingFemaleCount,
+          maleCount: waitingMaleCount,
+        }}
+        onToggleFilter={(fKey, val) => {
+          setFilters((prev) => ({ ...prev, [fKey]: val }))
+        }}
+        onResetDefault={() => {
+          setSortOption('fewest')
+          setFilters({ gender: null, sameLevel: false, notPlayedWith: false, noRest: false })
+          setShowSortSheet(false)
+        }}
+        onAutoPickFewest={handleAutoPickFewest}
+        fewestCandidates={fewestCandidates}
+        courtLabel={courtOptions.find((c) => c.value === courtIdx)?.label || t('session.courtNum', { n: courtIdx + 1 })}
+        playerOnCourtName={playerOnCourtName}
+      />
+
+      {/* CS3: Sheet thống kê buổi · không rời màn */}
+      <SessionStatsSheet
+        open={showStatsSheet}
+        onClose={() => setShowStatsSheet(false)}
+        session={s}
+        players={players}
+        sessionMatches={sessionMatches}
+        matchCountMap={matchCountMap}
+        ratingsMap={ratingsMap}
+        db={db}
+      />
     </div>
   )
 }
@@ -1295,21 +1685,222 @@ const S = {
     color: 'var(--text-muted)',
     width: '100%',
   },
-  poolGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-    gap: 8,
-    maxHeight: 280,
+  stickyBar: {
+    display: 'flex',
+    gap: 7,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    padding: '4px 0 2px',
+  },
+  sortChipMain: {
+    minHeight: 34,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '0 12px',
+    borderRadius: 999,
+    background: 'rgba(0,178,169,.20)',
+    border: '1px solid #00B2A9',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    color: '#5FDBD3',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+  },
+  sortChipMainActive: {
+    background: '#00B2A9',
+    color: '#04302C',
+  },
+  quickChip: {
+    minHeight: 34,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    borderRadius: 999,
+    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'transparent',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-secondary, #A8B7CB)',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+  },
+  quickChipActive: {
+    background: 'var(--surface-raised, #1A2437)',
+    borderColor: 'var(--border-default, #2E3E5C)',
+    color: '#E9EFF7',
+  },
+  chipDivider: {
+    width: 1,
+    height: 22,
+    background: 'var(--border-subtle, #22304A)',
+    margin: '0 2px',
+  },
+  genderChipFemale: {
+    minHeight: 34,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    borderRadius: 999,
+    border: '1px solid rgba(232,107,168,.45)',
+    background: 'transparent',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    color: '#E86BA8',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+  },
+  genderChipFemaleActive: {
+    background: 'rgba(232,107,168,.25)',
+    borderColor: '#E86BA8',
+    color: '#F48CBF',
+  },
+  genderChipMale: {
+    minHeight: 34,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    borderRadius: 999,
+    border: '1px solid var(--border-subtle, #22304A)',
+    background: 'transparent',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-secondary, #A8B7CB)',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+  },
+  genderChipMaleActive: {
+    background: 'rgba(60,116,196,.20)',
+    borderColor: '#3C74C4',
+    color: '#9FC0EA',
+  },
+  activeFilterBadge: {
+    minHeight: 34,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0 10px',
+    borderRadius: 999,
+    background: 'rgba(240,183,92,.18)',
+    border: '1px solid rgba(240,183,92,.45)',
+    color: '#F0B75C',
+    font: '600 11.5px/1 "IBM Plex Sans", sans-serif',
+    cursor: 'pointer',
+  },
+  poolContainerScroll: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    maxHeight: 360,
     overflowY: 'auto',
     paddingRight: 4,
   },
-  poolPillWrap: {
+  groupWrapper: {
     display: 'flex',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
+    gap: 7,
+  },
+  groupDivider: {
+    display: 'flex',
+    alignItems: 'center',
     gap: 8,
-    maxHeight: 260,
-    overflowY: 'auto',
-    padding: '2px 0',
+  },
+  groupBadge: {
+    font: '700 12px/1 "IBM Plex Mono", monospace',
+    whiteSpace: 'nowrap',
+  },
+  groupLine: {
+    flex: 1,
+    height: 1,
+    background: 'var(--border-subtle, #22304A)',
+  },
+  groupCount: {
+    font: '400 11px/1 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-disabled, #5B6B81)',
+    whiteSpace: 'nowrap',
+  },
+  twoColGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 7,
+  },
+  cs1PlayerCard: {
+    minHeight: 52,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 10px',
+    borderRadius: 10,
+    background: 'var(--surface-card, #141D2E)',
+    border: '1px solid #2E3E5C',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  cs1PlayerName: {
+    font: '600 14px/1.2 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-primary, #E9EFF7)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  cs1PlayerMeta: {
+    font: '400 11px/1.3 "IBM Plex Mono", monospace',
+    whiteSpace: 'nowrap',
+    marginTop: 2,
+  },
+  cs1GuestBadge: {
+    marginLeft: 4,
+    fontSize: 9.5,
+    padding: '1px 4px',
+    borderRadius: 4,
+    background: 'rgba(224,138,0,.18)',
+    color: '#F0B75C',
+  },
+  cs1MatchCount: {
+    font: '700 18px/1 Barlow, sans-serif',
+    flex: '0 0 auto',
+  },
+  slotActiveHighlight: {
+    minHeight: 56,
+    padding: '7px 10px',
+    borderRadius: 8,
+    background: 'rgba(60,116,196,.16)',
+    border: '1.5px solid #9FC0EA',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: 2,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+    boxShadow: '0 0 0 2px rgba(159,192,234,.2)',
+  },
+  slotActiveText: {
+    font: '600 12.5px/1.2 "IBM Plex Sans", sans-serif',
+    color: '#9FC0EA',
+    whiteSpace: 'nowrap',
+  },
+  slotActiveSub: {
+    font: '400 10px/1.2 "IBM Plex Mono", monospace',
+    color: '#9FC0EA',
+    whiteSpace: 'nowrap',
+  },
+  slotDashedEmpty: {
+    minHeight: 56,
+    padding: '7px 10px',
+    borderRadius: 8,
+    border: '1px dashed #2E3E5C',
+    background: 'var(--surface-sunken, #101927)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: 2,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  slotEmptyTitle: {
+    font: '600 12.5px/1.2 "IBM Plex Sans", sans-serif',
+    color: '#5B6B81',
+    whiteSpace: 'nowrap',
+  },
+  slotEmptySub: {
+    font: '400 10px/1.2 "IBM Plex Mono", monospace',
+    color: '#5B6B81',
+    whiteSpace: 'nowrap',
   },
   playerPillMobile: {
     display: 'inline-flex',
