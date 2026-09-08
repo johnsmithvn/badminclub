@@ -30,7 +30,26 @@ export default function Home() {
           variant="underline"
           items={[
             { value: 'overview', label: t('home.tabs.overview') },
-            { value: 'match', label: t('home.tabMatch') },
+            {
+              value: 'match',
+              label: (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {t('home.tabMatch')}
+                  <span
+                    style={{
+                      font: "600 10px/1 'IBM Plex Sans', sans-serif",
+                      padding: '2px 6px',
+                      borderRadius: 999,
+                      background: 'rgba(224,138,0,.18)',
+                      color: '#F0B75C',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('home.tagNew')}
+                  </span>
+                </span>
+              ),
+            },
             { value: 'transactions', label: t('home.tabTransactions') },
             { value: 'report', label: t('home.tabReport') },
           ]}

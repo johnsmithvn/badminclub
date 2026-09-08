@@ -137,7 +137,7 @@ export default function Leaderboard() {
       csvContent += 'Thứ hạng,Thành viên,Điểm mùa,Số buổi,Số trận,Thắng,Upset\n' // i18n-ok: csv header
       const rows = seasonLeaderboardData?.leaderboard || []
       rows.forEach((r) => {
-        csvContent += `"${r.rank}","${r.name}","${r.totalSeasonPoints}","${r.breakdown?.sessionsCount || 0}","${r.breakdown?.matchesCount || 0}","${r.breakdown?.winsCount || 0}","${r.breakdown?.upsetsCount || 0}"\n`
+        csvContent += `"${r.rank}","${r.name}","${r.totalSeasonPoints}","${r.attendedCount || 0}","${r.matchesCount || 0}","${r.winsCount || 0}","${r.upsetsCount || 0}"\n`
       })
     } else if (activeTab === 'pairs') {
       csvContent += 'Thứ hạng,Cặp,Số trận,Kỳ vọng %,Thực tế %,Lệch (pp),Ăn ý,Độ tin cậy\n' // i18n-ok: csv header
@@ -1098,7 +1098,8 @@ export default function Leaderboard() {
           ratingsMap={db.playerRatings || {}}
           onExportCsv={handleExportCsv}
           onViewPairMatches={(pair) => {
-            const [p1, p2] = (pair.key || '').split(':')
+            const pairKey = pair?.key || (pair?.playerA && pair?.playerB ? `${pair.playerA}:${pair.playerB}` : '')
+            const [p1, p2] = pairKey.split(':')
             setPlayerA(p1 || '')
             setPlayerB(p2 || '')
             setSearchMode('team')

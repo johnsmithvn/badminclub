@@ -1,4 +1,5 @@
 import cfg from '#config/app.json' with { type: 'json' }
+import { isPresent } from '#lib/money.js'
 
 /**
  * Module tính toán XP, Cấp bậc và Sổ ghi đóng góp của Vận Động Viên (Screen 07 & Nhóm 8a SS1-SS3).
@@ -48,9 +49,17 @@ export function calculateMemberXp(memberId, db) {
 
   // 1. Số buổi tham gia
   const attendedSessions = new Set()
+  const attendance = db.attendance || {}
   sessions.forEach((s) => {
+    const attMap = attendance[s.id] || (typeof s.attendance === 'object' && !Array.isArray(s.attendance) ? s.attendance : {})
+    if (isPresent(attMap[memberId])) {
+      attendedSessions.add(s.id)
+    }
     const attendees = s.attendees || []
     if (attendees.some((a) => (typeof a === 'string' ? a === memberId : a.memberId === memberId))) {
+      attendedSessions.add(s.id)
+    }
+    if (Array.isArray(s.attendance) && s.attendance.some((a) => (a.memberId === memberId || a.id === memberId) && (a.status === 'present' || a.present === true))) {
       attendedSessions.add(s.id)
     }
   })
@@ -58,8 +67,10 @@ export function calculateMemberXp(memberId, db) {
   // 2. Lọc các trận của người này
   const memberMatches = []
   matches.forEach((m) => {
-    const inA = (m.teamA || []).includes(memberId)
-    const inB = (m.teamB || []).includes(memberId)
+    const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+    const inA = teamA.includes(memberId)
+    const inB = teamB.includes(memberId)
     if (inA || inB) {
       if (m.sessionId) attendedSessions.add(m.sessionId)
       const won = (inA && m.winnerTeam === 'A') || (inB && m.winnerTeam === 'B')
@@ -346,24 +357,20 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
   })
 
   // Tính điểm từng thành viên
+  const attendance = db.attendance || {}
   const rows = members.map((m) => {
     const memberId = m.id
-    // 1. Số buổi có mặt
-    let attendedCount = 0
-    seasonSessions.forEach((s) => {
-      const attendees = s.attendees || []
-      const inSession = attendees.some((a) => (typeof a === 'string' ? a === memberId : a.memberId === memberId))
-      if (inSession) attendedCount++
-    })
 
-    // 2. Trận đấu trong mùa
+    // 1. Trận đấu trong mùa & các buổi có tham gia thi đấu
     const myMatches = []
+    const myMatchSessionIds = new Set()
     seasonMatches.forEach((mt) => {
       const teamA = mt.teamA || (mt.playerKeys ? mt.playerKeys.slice(0, 2) : [])
       const teamB = mt.teamB || (mt.playerKeys ? mt.playerKeys.slice(2, 4) : [])
       const inA = teamA.includes(memberId)
       const inB = teamB.includes(memberId)
       if (inA || inB) {
+        if (mt.sessionId) myMatchSessionIds.add(mt.sessionId)
         const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
         const isThreeSets = (mt.sets || []).length >= 3
         const ra = mt.initialRatingA || 1200
@@ -376,6 +383,20 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
           isUpsetWon,
           at: mt.at || (mt.playedAt ? Date.parse(mt.playedAt) : 0),
         })
+      }
+    })
+
+    // 2. Số buổi có mặt
+    let attendedCount = 0
+    seasonSessions.forEach((s) => {
+      const attMap = attendance[s.id] || (typeof s.attendance === 'object' && !Array.isArray(s.attendance) ? s.attendance : {})
+      const inAttMap = isPresent(attMap[memberId])
+      const inAttendees = (s.attendees || []).some((a) => (typeof a === 'string' ? a === memberId : a.memberId === memberId))
+      const inAttArr = Array.isArray(s.attendance) && s.attendance.some((a) => (a.memberId === memberId || a.id === memberId) && (a.status === 'present' || a.present === true))
+      const playedInSession = myMatchSessionIds.has(s.id)
+
+      if (inAttMap || inAttendees || inAttArr || playedInSession) {
+        attendedCount++
       }
     })
 
@@ -488,7 +509,11 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
 
   // Tìm buổi gần nhất có trận của người này
   const matches = db.matches || []
-  const myMatches = matches.filter((m) => (m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))
+  const myMatches = matches.filter((m) => {
+    const tA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const tB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+    return tA.includes(memberId) || tB.includes(memberId)
+  })
   myMatches.sort((a, b) => (b.createdAt || b.playedAt || '').localeCompare(a.createdAt || a.playedAt || ''))
 
   const latestSessionId = myMatches[0]?.sessionId || null
@@ -509,8 +534,10 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
 
   // 2. Từng trận đấu
   latestSessionMatches.forEach((m, idx) => {
-    const inA = (m.teamA || []).includes(memberId)
-    const inB = (m.teamB || []).includes(memberId)
+    const tA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const tB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+    const inA = tA.includes(memberId)
+    const inB = tB.includes(memberId)
     const won = (inA && m.winnerTeam === 'A') || (inB && m.winnerTeam === 'B')
     const ra = m.initialRatingA || 1200
     const rb = m.initialRatingB || 1200

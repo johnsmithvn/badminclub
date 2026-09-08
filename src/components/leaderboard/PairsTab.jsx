@@ -60,30 +60,57 @@ export default function PairsTab({
     return list
   }, [allPairsData.rankedPairs])
 
+function getPairNames(pair) {
+  if (Array.isArray(pair?.names) && pair.names.length > 0) return pair.names
+  const a = pair?.memberA?.name || pair?.playerA || '—'
+  const b = pair?.memberB?.name || pair?.playerB || '—'
+  return [a, b]
+}
+
+function getPairKey(pair) {
+  if (pair?.key) return pair.key
+  if (pair?.playerA && pair?.playerB) return `${pair.playerA}:${pair.playerB}`
+  if (pair?.pairKey) return pair.pairKey.replace('::', ':')
+  return ''
+}
+
+function getPairConfTier(pair) {
+  if (typeof pair?.confidence === 'string') return pair.confidence
+  return pair?.confidence?.tier || 'R1'
+}
+
   // Dữ liệu mẫu danh sách khắc chế có hướng (Subcard 1)
   const directionalMatchups = useMemo(() => {
-    if (rankedPairs.length < 2) return []
+    if (!rankedPairs || rankedPairs.length < 2) return []
     const results = []
     for (let i = 0; i < Math.min(4, rankedPairs.length); i++) {
       for (let j = i + 1; j < Math.min(4, rankedPairs.length); j++) {
         const pA = rankedPairs[i]
         const pB = rankedPairs[j]
-        const keysA = pA.key.split(':')
-        const keysB = pB.key.split(':')
+        if (!pA || !pB) continue
+        const pKeyA = getPairKey(pA)
+        const pKeyB = getPairKey(pB)
+        const keysA = (pKeyA ? pKeyA.split(':') : [pA.playerA, pA.playerB]).filter(Boolean)
+        const keysB = (pKeyB ? pKeyB.split(':') : [pB.playerA, pB.playerB]).filter(Boolean)
+        if (keysA.length < 2 || keysB.length < 2) continue
+
+        const namesA = getPairNames(pA)
+        const namesB = getPairNames(pB)
+
         const edgeAB = calcMatchupEdge(matches, keysA, keysB, ratingsMap)
         if (edgeAB.games >= 2) {
           const edgeBA = calcMatchupEdge(matches, keysB, keysA, ratingsMap)
           results.push({
-            fromName: pA.names.join('·'),
-            toName: pB.names.join('·'),
+            fromName: namesA.join(' · '),
+            toName: namesB.join(' · '),
             games: edgeAB.games,
             expected: edgeAB.expectedA,
             actual: edgeAB.actualA,
             score: edgeAB.edgeScore,
           })
           results.push({
-            fromName: pB.names.join('·'),
-            toName: pA.names.join('·'),
+            fromName: namesB.join(' · '),
+            toName: namesA.join(' · '),
             games: edgeBA.games,
             expected: edgeBA.expectedA,
             actual: edgeBA.actualA,
@@ -324,10 +351,11 @@ export default function PairsTab({
                 const absImpact = Math.min(50, Math.abs(impactVal))
                 const barWidthPct = Math.round((absImpact / 50) * 45) // scale to max 45% on either side of 50%
 
+                const confTier = getPairConfTier(pair)
                 const confBadgeColor =
-                  pair.confidence === 'R4' || pair.confidence === 'R3'
+                  confTier === 'R4' || confTier === 'R3'
                     ? { bg: 'rgba(0,178,169,.16)', text: '#5FDBD3' }
-                    : pair.confidence === 'R2'
+                    : confTier === 'R2'
                       ? { bg: 'rgba(240,183,92,.16)', text: '#F0B75C' }
                       : { bg: 'rgba(214,59,43,.18)', text: '#F09A8E' }
 
@@ -345,7 +373,7 @@ export default function PairsTab({
 
                 return (
                   <div
-                    key={pair.key || idx}
+                    key={getPairKey(pair) || idx}
                     onClick={() => setSelectedPair(pair)}
                     style={{
                       display: 'grid',
@@ -393,7 +421,7 @@ export default function PairsTab({
                       </span>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ font: "600 14px/1.25 'IBM Plex Sans', sans-serif", color: '#fff' }}>
-                          {pair.names.join(' · ')}
+                          {getPairNames(pair).join(' · ')}
                         </div>
                         <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                           {pair.combinedRating ? `${pair.combinedRating} · ` : ''}
@@ -506,7 +534,7 @@ export default function PairsTab({
                           color: confBadgeColor.text,
                         }}
                       >
-                        {pair.confidence} · {t(`rating.confidence.${pair.confidence.toLowerCase()}`)}
+                        {confTier} · {t(`rating.confidence.${confTier.toLowerCase()}`)}
                       </span>
                     </span>
                   </div>
@@ -604,7 +632,7 @@ export default function PairsTab({
                   <div style={{ display: 'grid', gap: 5, padding: '9px 11px', borderRadius: 7, background: '#101927', border: '1px solid #22304A' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                       <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
-                        {topPair.names.join(' · ')}
+                        {getPairNames(topPair).join(' · ')}
                       </span>
                       <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                         {t('leaderboard.oppExpectedPct', { exp: topPair.expectedWinPct })}
@@ -622,17 +650,17 @@ export default function PairsTab({
                         sign: '+',
                         pp: topPair.pairImpact,
                         games: topPair.gamesCount,
-                        conf: topPair.confidence,
+                        conf: getPairConfTier(topPair),
                       })}
                     </div>
                   </div>
                 )}
 
-                {underperformingPair && underperformingPair.key !== topPair?.key && (
+                {underperformingPair && getPairKey(underperformingPair) !== getPairKey(topPair) && (
                   <div style={{ display: 'grid', gap: 5, padding: '9px 11px', borderRadius: 7, background: '#101927', border: '1px solid #22304A' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                       <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
-                        {underperformingPair.names.join(' · ')}
+                        {getPairNames(underperformingPair).join(' · ')}
                       </span>
                       <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                         {t('leaderboard.oppExpectedPct', { exp: underperformingPair.expectedWinPct })}
@@ -650,7 +678,7 @@ export default function PairsTab({
                         sign: '',
                         pp: underperformingPair.pairImpact,
                         games: underperformingPair.gamesCount,
-                        conf: underperformingPair.confidence,
+                        conf: getPairConfTier(underperformingPair),
                       })}
                     </div>
                   </div>
@@ -688,7 +716,7 @@ export default function PairsTab({
                 {t('leaderboard.pairBestOfSeason')}
               </span>
               <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: '#fff' }}>
-                {topPair.names.join(' · ')}
+                {getPairNames(topPair).join(' · ')}
               </div>
               <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
                 {t('leaderboard.pairBestDesc', {
@@ -744,7 +772,7 @@ export default function PairsTab({
 
                 <div>
                   <div style={{ font: "600 14px/1.25 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                    {topPair.confidence} ●●●○
+                    {getPairConfTier(topPair)} {typeof topPair.confidence === 'object' ? topPair.confidence?.dots || '●●●○' : '●●●○'}
                   </div>
                   <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                     {t('rating.confidence.label')}
@@ -797,7 +825,7 @@ export default function PairsTab({
               <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
                 {underperformingPair
                   ? t('leaderboard.underperformingLossSummary', {
-                      names: underperformingPair.names.join(' · '),
+                      names: getPairNames(underperformingPair).join(' · '),
                       losses: underperformingPair.losses,
                       games: underperformingPair.gamesCount,
                       exp: underperformingPair.expectedWinPct,
@@ -816,7 +844,7 @@ export default function PairsTab({
                       font: "400 12px/1.4 'IBM Plex Mono', monospace",
                     }}
                   >
-                    <span style={{ color: '#8494AA' }}>{p.names.join(' · ')}</span>
+                    <span style={{ color: '#8494AA' }}>{getPairNames(p).join(' · ')}</span>
                     <span style={{ color: p.pairImpact <= -12 ? '#F09A8E' : '#F0B75C' }}>
                       {p.pairImpact} {t('leaderboard.pointsPct')}
                     </span>
@@ -852,7 +880,7 @@ export default function PairsTab({
               {t('leaderboard.provisionalPairsTitle')}
             </div>
             <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-              {t('leaderboard.provisionalPairsDesc', { count: provisionalPairs.length || 37 })}
+              {t('leaderboard.provisionalPairsDesc', { count: provisionalPairs.length })}
             </div>
             <div style={{ display: 'grid', gap: 6 }}>
               {provisionalPairs.slice(0, 3).map((p, pIdx) => (
@@ -870,7 +898,7 @@ export default function PairsTab({
                   }}
                 >
                   <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#fff' }}>
-                    {p.names.join(' · ')}
+                    {getPairNames(p).join(' · ')}
                   </span>
                   <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
                     {p.gamesCount}/5 {t('leaderboard.matchesAbbr')}

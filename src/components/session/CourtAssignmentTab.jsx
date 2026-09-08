@@ -3,7 +3,7 @@ import { Button, Card, Icon, IconButton, Select, Switch } from '#ds'
 import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { playerName, genderTxt } from '#lib/money.js'
+import { playerName, genderTxt, isFemaleGender, isMaleGender } from '#lib/money.js'
 import { sessionPlayers, detailedCourtBalance, courtSlotIds } from '#lib/assign.js'
 import {
   expectedScore, getPlayerRating,
@@ -122,8 +122,8 @@ export default function CourtAssignmentTab({ s }) {
     return players.filter((p) => !teamA.includes(p.key) && !teamB.includes(p.key))
   }, [players, teamA, teamB])
 
-  const waitingFemaleCount = useMemo(() => waitingPlayers.filter((p) => p.gender === 'female').length, [waitingPlayers])
-  const waitingMaleCount = useMemo(() => waitingPlayers.filter((p) => p.gender === 'male').length, [waitingPlayers])
+  const waitingFemaleCount = useMemo(() => waitingPlayers.filter((p) => isFemaleGender(p.gender)).length, [waitingPlayers])
+  const waitingMaleCount = useMemo(() => waitingPlayers.filter((p) => isMaleGender(p.gender)).length, [waitingPlayers])
 
   // Map tính thời gian chờ (phút từ trận gần nhất)
   const playerWaitTimeMap = useMemo(() => {
@@ -145,11 +145,97 @@ export default function CourtAssignmentTab({ s }) {
   }, [players, sessionMatches])
 
   const playersOnCourtKeys = useMemo(() => [...teamA, ...teamB], [teamA, teamB])
+
+  // Xác định người đối chiếu trên sân theo ô đang chọn (activeSlot), ưu tiên bạn cùng đội
+  const refPlayerKey = useMemo(() => {
+    if (activeSlot) {
+      const isTeamA = activeSlot.team === 'A'
+      const partnerKey = isTeamA
+        ? (activeSlot.idx === 0 ? teamA[1] : teamA[0])
+        : (activeSlot.idx === 0 ? teamB[1] : teamB[0])
+      if (partnerKey) return partnerKey
+
+      const oppTeam = isTeamA ? teamB : teamA
+      if (oppTeam[0]) return oppTeam[0]
+      if (oppTeam[1]) return oppTeam[1]
+    }
+    return teamA[0] || teamA[1] || teamB[0] || teamB[1] || null
+  }, [activeSlot, teamA, teamB])
+
+  const refPlayer = useMemo(() => {
+    if (!refPlayerKey) return null
+    return players.find((p) => p.key === refPlayerKey) || null
+  }, [refPlayerKey, players])
+
+  const refLevel = refPlayer?.level || null
+  const targetKey = refPlayerKey || teamA[0] || teamB[0] || null
+
   const playerOnCourtName = useMemo(() => {
-    if (teamA[0]) return playerName(db, teamA[0])
-    if (teamB[0]) return playerName(db, teamB[0])
+    if (targetKey) return playerName(db, targetKey)
     return ''
-  }, [teamA, teamB, db])
+  }, [targetKey, db])
+
+  // Đếm số người cùng trình độ với ô đang xếp
+  const sameLevelCount = useMemo(() => {
+    if (!refLevel) return 0
+    const targetLvl = refLevel.trim().toLowerCase()
+    return waitingPlayers.filter((p) => (p.level || '').trim().toLowerCase() === targetLvl).length
+  }, [refLevel, waitingPlayers])
+
+  // Tập hợp người đã từng đánh cặp cùng đối tượng đối chiếu trong buổi
+  const partneredKeys = useMemo(() => {
+    const keysToCheck = targetKey ? [targetKey] : playersOnCourtKeys
+    if (!keysToCheck.length) return new Set()
+    const set = new Set()
+    sessionMatches.forEach((m) => {
+      const tA = (m.teamA && m.teamA.length) ? m.teamA : (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+      const tB = (m.teamB && m.teamB.length) ? m.teamB : (m.playerKeys ? m.playerKeys.slice(tA.length, tA.length + 2) : [])
+      keysToCheck.forEach((tk) => {
+        if (tA.includes(tk)) {
+          tA.forEach((k) => { if (k !== tk) set.add(k) })
+        }
+        if (tB.includes(tk)) {
+          tB.forEach((k) => { if (k !== tk) set.add(k) })
+        }
+      })
+    })
+    return set
+  }, [targetKey, playersOnCourtKeys, sessionMatches])
+
+  // Đếm số người chưa từng đánh cặp cùng người trên sân
+  const notPlayedWithCount = useMemo(() => {
+    if (!targetKey && !playersOnCourtKeys.length) return 0
+    return waitingPlayers.filter((p) => !partneredKeys.has(p.key)).length
+  }, [targetKey, playersOnCourtKeys.length, waitingPlayers, partneredKeys])
+
+  // Tập hợp người vừa tham gia lượt trận gần nhất của buổi (chưa được nghỉ)
+  const recentRoundPlayerKeys = useMemo(() => {
+    if (!sessionMatches.length) return new Set()
+    const latestMatchPerCourt = {}
+    sessionMatches.forEach((m) => {
+      const ci = m.courtIdx ?? 0
+      if (!latestMatchPerCourt[ci] || (m.at || 0) > (latestMatchPerCourt[ci].at || 0)) {
+        latestMatchPerCourt[ci] = m
+      }
+    })
+    const maxAt = Math.max(...sessionMatches.map((m) => m.at || 0))
+    const set = new Set()
+    sessionMatches.forEach((m) => {
+      const isLatestForCourt = Object.values(latestMatchPerCourt).some((lm) => lm.id === m.id)
+      const isRecent = maxAt > 0 && (maxAt - (m.at || 0)) < 15 * 60 * 1000
+      if (isLatestForCourt || isRecent) {
+        const keys = m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
+        keys.forEach((k) => set.add(k))
+      }
+    })
+    return set
+  }, [sessionMatches])
+
+  // Đếm số người vừa đánh xong ở lượt gần nhất
+  const noRestCount = useMemo(() => {
+    if (!sessionMatches.length) return 0
+    return waitingPlayers.filter((p) => recentRoundPlayerKeys.has(p.key)).length
+  }, [sessionMatches.length, waitingPlayers, recentRoundPlayerKeys])
 
   // Lọc và sắp xếp người chờ (CS1 + CS2)
   const processedWaiting = useMemo(() => {
@@ -166,42 +252,26 @@ export default function CourtAssignmentTab({ s }) {
     }
 
     // 2. Lọc giới tính
-    if (filters.gender === 'female') {
-      list = list.filter((p) => p.gender === 'female')
-    } else if (filters.gender === 'male') {
-      list = list.filter((p) => p.gender === 'male')
+    if (filters.gender === 'female' || filters.gender === 'nu') {
+      list = list.filter((p) => isFemaleGender(p.gender))
+    } else if (filters.gender === 'male' || filters.gender === 'nam') {
+      list = list.filter((p) => isMaleGender(p.gender))
     }
 
     // 3. Lọc cùng trình ô đang xếp
-    if (filters.sameLevel) {
-      const refKey = teamA[0] || teamB[0]
-      const refLevel = refKey ? (players.find((x) => x.key === refKey) || {}).level : null
-      if (refLevel) {
-        list = list.filter((p) => p.level === refLevel)
-      }
+    if (filters.sameLevel && refLevel) {
+      const targetLvl = refLevel.trim().toLowerCase()
+      list = list.filter((p) => (p.level || '').trim().toLowerCase() === targetLvl)
     }
 
     // 4. Lọc chưa đánh cùng người trên sân
-    if (filters.notPlayedWith && playersOnCourtKeys.length > 0) {
-      list = list.filter((p) => {
-        for (const m of sessionMatches) {
-          const tA = m.teamA || []
-          const tB = m.teamB || []
-          for (const ck of playersOnCourtKeys) {
-            if ((tA.includes(p.key) && tA.includes(ck)) || (tB.includes(p.key) && tB.includes(ck))) {
-              return false
-            }
-          }
-        }
-        return true
-      })
+    if (filters.notPlayedWith && (targetKey || playersOnCourtKeys.length > 0)) {
+      list = list.filter((p) => !partneredKeys.has(p.key))
     }
 
     // 5. Lọc chưa nghỉ quả nào
-    if (filters.noRest && sessionMatches.length > 0) {
-      const lastMatch = sessionMatches[0]
-      const lastKeys = lastMatch.playerKeys || [...(lastMatch.teamA || []), ...(lastMatch.teamB || [])]
-      list = list.filter((p) => lastKeys.includes(p.key))
+    if (filters.noRest) {
+      list = list.filter((p) => recentRoundPlayerKeys.has(p.key))
     }
 
     // Sắp xếp
@@ -217,7 +287,7 @@ export default function CourtAssignmentTab({ s }) {
     }
 
     return list
-  }, [waitingPlayers, searchQuery, filters, sortOption, playersOnCourtKeys, sessionMatches, playerWaitTimeMap, ratingsMap, matchCountMap, teamA, teamB, players])
+  }, [waitingPlayers, searchQuery, filters, sortOption, refLevel, targetKey, playersOnCourtKeys.length, partneredKeys, recentRoundPlayerKeys, playerWaitTimeMap, ratingsMap, matchCountMap])
 
   // Gom nhóm theo số trận cho chế độ 'fewest' (CS1)
   const fewestGroups = useMemo(() => {
@@ -476,8 +546,8 @@ export default function CourtAssignmentTab({ s }) {
     // Đếm giới tính
     const gA = teamA.map((k) => (players.find((p) => p.key === k) || {}).gender)
     const gB = teamB.map((k) => (players.find((p) => p.key === k) || {}).gender)
-    const hasFemaleA = gA.includes('female')
-    const hasFemaleB = gB.includes('female')
+    const hasFemaleA = gA.some(isFemaleGender)
+    const hasFemaleB = gB.some(isFemaleGender)
     const isCrossGender = hasFemaleA !== hasFemaleB || (hasFemaleA && hasFemaleB)
 
     // Lấy dữ liệu hiệu chỉnh chéo giới tính của CLB
@@ -791,10 +861,13 @@ export default function CourtAssignmentTab({ s }) {
             {/* Chip Nữ */}
             <button
               type="button"
-              onClick={() => setFilters((prev) => ({ ...prev, gender: prev.gender === 'female' ? null : 'female' }))}
+              onClick={() => setFilters((prev) => ({
+                ...prev,
+                gender: (prev.gender === 'female' || prev.gender === 'nu') ? null : 'female',
+              }))}
               style={{
                 ...S.genderChipFemale,
-                ...(filters.gender === 'female' ? S.genderChipFemaleActive : {}),
+                ...((filters.gender === 'female' || filters.gender === 'nu') ? S.genderChipFemaleActive : {}),
               }}
             >
               {t('assign.filterFemale', { n: waitingFemaleCount })}
@@ -803,23 +876,61 @@ export default function CourtAssignmentTab({ s }) {
             {/* Chip Nam */}
             <button
               type="button"
-              onClick={() => setFilters((prev) => ({ ...prev, gender: prev.gender === 'male' ? null : 'male' }))}
+              onClick={() => setFilters((prev) => ({
+                ...prev,
+                gender: (prev.gender === 'male' || prev.gender === 'nam') ? null : 'male',
+              }))}
               style={{
                 ...S.genderChipMale,
-                ...(filters.gender === 'male' ? S.genderChipMaleActive : {}),
+                ...((filters.gender === 'male' || filters.gender === 'nam') ? S.genderChipMaleActive : {}),
               }}
             >
               {t('assign.filterMale', { n: waitingMaleCount })}
             </button>
 
-            {/* Chỉ báo bộ lọc nâng cao đang bật */}
+            {/* Chips cho các bộ lọc nâng cao nếu đang bật */}
+            {filters.sameLevel && (
+              <button
+                type="button"
+                onClick={() => setFilters((prev) => ({ ...prev, sameLevel: false }))}
+                style={S.activeFilterChip}
+                title={t('common.clear')}
+              >
+                {refLevel ? t('assign.filterSameLevel', { level: refLevel }) : `${t('assign.sameLevelSlot')} ✕`}
+              </button>
+            )}
+
+            {filters.notPlayedWith && (
+              <button
+                type="button"
+                onClick={() => setFilters((prev) => ({ ...prev, notPlayedWith: false }))}
+                style={S.activeFilterChip}
+                title={t('common.clear')}
+              >
+                {playerOnCourtName ? t('assign.filterNotPlayed', { name: playerOnCourtName }) : t('assign.filterNotPlayedGeneric')}
+              </button>
+            )}
+
+            {filters.noRest && (
+              <button
+                type="button"
+                onClick={() => setFilters((prev) => ({ ...prev, noRest: false }))}
+                style={S.activeFilterChip}
+                title={t('common.clear')}
+              >
+                {t('assign.filterNoRest')}
+              </button>
+            )}
+
+            {/* Nút xoá tất cả bộ lọc nếu có bộ lọc nâng cao */}
             {(filters.sameLevel || filters.notPlayedWith || filters.noRest) && (
               <button
                 type="button"
-                onClick={() => setShowSortSheet(true)}
-                style={S.activeFilterBadge}
+                onClick={() => setFilters({ gender: null, sameLevel: false, notPlayedWith: false, noRest: false })}
+                style={S.clearFiltersBtn}
+                title={t('assign.clearAllFilters')}
               >
-                ⚙ {t('assign.filteringActive', { n: [filters.sameLevel, filters.notPlayedWith, filters.noRest].filter(Boolean).length })}
+                {t('assign.clearAllFilters')}
               </button>
             )}
           </div>
@@ -849,7 +960,7 @@ export default function CourtAssignmentTab({ s }) {
                     <div style={S.twoColGrid}>
                       {grp.players.map((p) => {
                         const plays = matchCountMap[p.key] || 0
-                        const isFemale = p.gender === 'female'
+                        const isFemale = isFemaleGender(p.gender)
                         return (
                           <div
                             key={p.key}
@@ -883,7 +994,7 @@ export default function CourtAssignmentTab({ s }) {
               <div style={S.twoColGrid}>
                 {processedWaiting.map((p) => {
                   const plays = matchCountMap[p.key] || 0
-                  const isFemale = p.gender === 'female'
+                  const isFemale = isFemaleGender(p.gender)
                   let badgeColor = '#A8B7CB'
                   if (plays === 0 || plays <= 2) badgeColor = '#F0B75C'
                   else if (plays >= 6) badgeColor = '#5B6B81'
@@ -918,7 +1029,16 @@ export default function CourtAssignmentTab({ s }) {
 
             {processedWaiting.length === 0 && (
               <div style={S.emptyPoolMsg}>
-                {waitingPlayers.length === 0 ? t('session.guestEmpty') : t('assign.noWaitingFiltered')}
+                <div>{waitingPlayers.length === 0 ? t('session.guestEmpty') : t('assign.noWaitingFiltered')}</div>
+                {waitingPlayers.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFilters({ gender: null, sameLevel: false, notPlayedWith: false, noRest: false })}
+                    style={S.emptyResetBtn}
+                  >
+                    {t('assign.clearAllFilters')}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1605,6 +1725,10 @@ export default function CourtAssignmentTab({ s }) {
           ...filters,
           femaleCount: waitingFemaleCount,
           maleCount: waitingMaleCount,
+          sameLevelCount,
+          refLevel,
+          notPlayedWithCount,
+          noRestCount,
         }}
         onToggleFilter={(fKey, val) => {
           setFilters((prev) => ({ ...prev, [fKey]: val }))
@@ -1781,6 +1905,47 @@ const S = {
     border: '1px solid rgba(240,183,92,.45)',
     color: '#F0B75C',
     font: '600 11.5px/1 "IBM Plex Sans", sans-serif',
+    cursor: 'pointer',
+  },
+  activeFilterChip: {
+    minHeight: 34,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '0 10px',
+    borderRadius: 999,
+    background: 'rgba(0,178,169,.18)',
+    border: '1px solid #00B2A9',
+    color: '#5FDBD3',
+    font: '600 11.5px/1 "IBM Plex Sans", sans-serif',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  clearFiltersBtn: {
+    minHeight: 34,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0 10px',
+    borderRadius: 999,
+    font: '600 11.5px/1 "IBM Plex Sans", sans-serif',
+    background: 'rgba(235,87,87,.14)',
+    border: '1px solid rgba(235,87,87,.35)',
+    color: '#FF8080',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  emptyResetBtn: {
+    display: 'inline-block',
+    marginTop: 8,
+    minHeight: 30,
+    padding: '6px 14px',
+    borderRadius: 6,
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    background: 'rgba(0,178,169,.16)',
+    border: '1px solid #00B2A9',
+    color: '#5FDBD3',
     cursor: 'pointer',
   },
   poolContainerScroll: {

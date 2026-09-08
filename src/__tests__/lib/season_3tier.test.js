@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { effectiveStrengthOf, isProvisional, getPlayerRating } from '../../lib/rating.js'
 import { calculateSeasonLeaderboard, getMemberSeasonLedger } from '../../lib/xp.js'
 import { arrangeBestOfN, detailedCourtBalance } from '../../lib/assign.js'
+import { t as translate } from '../../i18n/index.js'
 
 test('Season 3-Tier Core Engine Tests', async (t) => {
   await t.test('1. effectiveStrengthOf and isProvisional', () => {
@@ -83,6 +84,56 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     assert.equal(kien.breakdown.winPts, 15)
     assert.equal(kien.breakdown.upsetPts, 25)
     assert.equal(topStats.leaderPlayer.name, 'Kiên')
+  })
+
+  await t.test('3b. calculateSeasonLeaderboard with db.attendance map and playedInSession', () => {
+    const mockDb = {
+      members: [
+        { id: 'm1', name: 'Kuro', active: true },
+        { id: 'm2', name: 'Mai', active: true },
+      ],
+      sessions: [
+        { id: 's1', date: '2026-07-05' }, // không có s.attendees
+        { id: 's2', date: '2026-07-12' },
+        { id: 's3', date: '2026-07-19' },
+      ],
+      attendance: {
+        s1: { m1: true, m2: false },
+        s2: { m1: 'extra', m2: true },
+      },
+      matches: [
+        // Trận ở s3: m1 không có trong attendance map, nhưng có đánh trận ở s3
+        {
+          id: 'mt1',
+          sessionId: 's3',
+          playerKeys: ['m1', 'm2'],
+          winnerTeam: 'A',
+          sets: [[21, 15]],
+        },
+      ],
+    }
+
+    const { leaderboard } = calculateSeasonLeaderboard(mockDb)
+    const kuro = leaderboard.find((r) => r.id === 'm1')
+    const mai = leaderboard.find((r) => r.id === 'm2')
+
+    // Kuro: s1 (true) + s2 ('extra') + s3 (đánh trận) = 3 buổi -> 3 * 30 = 90 CC
+    assert.equal(kuro.attendedCount, 3)
+    assert.equal(kuro.breakdown.attendancePts, 90)
+
+    // Mai: s1 (false) + s2 (true) + s3 (đánh trận) = 2 buổi -> 2 * 30 = 60 CC
+    assert.equal(mai.attendedCount, 2)
+    assert.equal(mai.breakdown.attendancePts, 60)
+
+    // Kiểm tra các chuỗi i18n không còn bị dính template tag {{...}}
+    const strTotal = translate('season.tableTotal', { total: leaderboard.length, count: leaderboard.length })
+    assert.equal(strTotal.includes('{{total}}'), false)
+    assert.equal(strTotal, 'BXH Điểm mùa · 2 người')
+
+    const strLead = translate('season.leadSurgeDesc', { name: 'Kuro', chaser: 'Mai' })
+    assert.equal(strLead.includes('{{name}}'), false)
+    assert.equal(strLead.includes('{{chaser}}'), false)
+    assert.equal(strLead, 'Kuro bứt phá với chuỗi thắng; Mai bám đuổi sát nút.')
   })
 
   await t.test('4. arrangeBestOfN produces candidate plans and criteria scores', () => {

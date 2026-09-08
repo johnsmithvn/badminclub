@@ -1139,5 +1139,17 @@ export function statusMeta(st) {
   return { ...STATUS_STYLE[key], label: t('sessionState.' + key) }
 }
 
+export const isFemaleGender = (g) => {
+  if (!g) return false
+  const s = String(g).trim().toLowerCase()
+  return s === 'nu' || s === 'nữ' || s === 'female' || s === 'f' // i18n-ok: normalize gender value
+}
+
+export const isMaleGender = (g) => {
+  if (!g) return false
+  const s = String(g).trim().toLowerCase()
+  return s === 'nam' || s === 'male' || s === 'm'
+}
+
 /** Nhãn giới tính — dùng khắp nơi, đừng viết lại 'Nam'/'Nữ' trong màn hình. */
-export const genderTxt = (g) => t('gender.' + (g === 'nu' ? 'nu' : 'nam'))
+export const genderTxt = (g) => t('gender.' + (isFemaleGender(g) ? 'nu' : 'nam'))

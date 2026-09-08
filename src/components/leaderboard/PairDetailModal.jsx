@@ -18,10 +18,12 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
     lastMatchDate,
     key,
   } = pair || {}
+  const pairNames = (names && names.length) ? names : [pair?.memberA?.name || pair?.playerA, pair?.memberB?.name || pair?.playerB].filter(Boolean)
 
   const impactSign = pairImpact > 0 ? `+${pairImpact}` : `${pairImpact}`
   const impactColor = pairImpact > 0 ? '#5FDBD3' : pairImpact < 0 ? '#F09A8E' : '#A8B7CB'
-  const confidenceLabel = t(`rating.confidence.${confidence.toLowerCase()}`) || confidence
+  const confTier = typeof confidence === 'string' ? confidence : confidence?.tier || 'R1'
+  const confidenceLabel = t(`rating.confidence.${confTier.toLowerCase()}`) || confTier
 
   const formatText =
     format === 'MD'
@@ -41,8 +43,10 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
 
   // Lấy danh sách các cặp đối thủ mà cặp này từng gặp
   const opponentMatchups = useMemo(() => {
-    if (!key) return []
-    const [p1, p2] = key.split(':')
+    const pairKeyStr = key || pair?.pairKey?.replace('::', ':') || (pair?.playerA && pair?.playerB ? `${pair.playerA}:${pair.playerB}` : '')
+    if (!pairKeyStr) return []
+    const [p1, p2] = pairKeyStr.split(':')
+    if (!p1 || !p2) return []
     const pairKeys = [p1, p2]
 
     const oppMap = new Map()
@@ -146,7 +150,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
           </span>
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
             <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#fff' }}>
-              {names.join(' · ')}
+              {pairNames.join(' · ')}
             </div>
             <div style={{ font: "400 13px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
               {dateSub}
@@ -197,7 +201,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
                 {synergyScore}
               </div>
               <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                {confidence} · {confidenceLabel}
+                {confTier} · {confidenceLabel}
               </div>
             </div>
 

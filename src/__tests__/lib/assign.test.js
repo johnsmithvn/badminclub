@@ -4,7 +4,7 @@ import { seed } from '../fixture.js'
 import {
   ASSIGN_MODES, MODE_KEYS, activeCourtIdxs, arrange, assignableSessions, autoSplit, courtBalance, courtSlotIds, fairness, firstEmptyCourtIdx, matchStats, modeToast, place, removePlayer, sessionPlayers, slotCourtIdx, slotIds,
 } from '#lib/assign.js'
-import { levelIdx } from '#lib/money.js'
+import { levelIdx, isFemaleGender, isMaleGender } from '#lib/money.js'
 
 const db = { ...seed(), today: '2026-08-19' }
 const S = (id) => db.sessions.find((s) => s.id === id)
@@ -218,5 +218,45 @@ ASSIGN_MODES.forEach((x) => {
 MODE_KEYS.forEach((k) => {
   assert.ok(modeToast(k) && !modeToast(k).includes('assign.modes.'), 'thiếu câu toast cho chế độ ' + k)
 })
+
+/* ---------- Lọc nhanh · cộng dồn (Quick Filters) ---------- */
+assert.ok(isFemaleGender('nu'))
+assert.ok(isFemaleGender('nữ')) // i18n-ok: gender test
+assert.ok(isFemaleGender('female'))
+assert.ok(isFemaleGender('F'))
+assert.ok(!isFemaleGender('nam'))
+assert.ok(!isFemaleGender('male'))
+
+assert.ok(isMaleGender('nam'))
+assert.ok(isMaleGender('male'))
+assert.ok(isMaleGender('M'))
+assert.ok(!isMaleGender('nu'))
+assert.ok(!isMaleGender('female'))
+
+// Test lọc cặp: không bỏ sót match lưu dưới dạng playerKeys
+const sampleMatches = [
+  { sessionId: 'S1', courtIdx: 0, playerKeys: ['P1', 'P2', 'P3', 'P4'], at: 1000 },
+  { sessionId: 'S1', courtIdx: 1, teamA: ['P5', 'P6'], teamB: ['P7', 'P8'], at: 1100 },
+]
+
+const getPartneredKeys = (targetKey, matches) => {
+  const set = new Set()
+  matches.forEach((m) => {
+    const tA = (m.teamA && m.teamA.length) ? m.teamA : (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const tB = (m.teamB && m.teamB.length) ? m.teamB : (m.playerKeys ? m.playerKeys.slice(tA.length, tA.length + 2) : [])
+    if (tA.includes(targetKey)) tA.forEach((k) => { if (k !== targetKey) set.add(k) })
+    if (tB.includes(targetKey)) tB.forEach((k) => { if (k !== targetKey) set.add(k) })
+  })
+  return set
+}
+
+// P1 đã đánh cặp cùng P2 (trong playerKeys)
+assert.ok(getPartneredKeys('P1', sampleMatches).has('P2'))
+assert.ok(!getPartneredKeys('P1', sampleMatches).has('P3'), 'P3 là đối thủ, không phải bạn cặp')
+assert.ok(!getPartneredKeys('P1', sampleMatches).has('P4'), 'P4 là đối thủ, không phải bạn cặp')
+
+// P5 đã đánh cặp cùng P6 (trong teamA/teamB)
+assert.ok(getPartneredKeys('P5', sampleMatches).has('P6'))
+assert.ok(!getPartneredKeys('P5', sampleMatches).has('P7'), 'P7 là đối thủ, không phải bạn cặp')
 
 console.log('assign check: OK')

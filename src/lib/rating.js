@@ -1018,8 +1018,17 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
     const r1 = ratingsMap[p1] || 1500
     const r2 = ratingsMap[p2] || 1500
 
+    const firstMatch = info.pairMatches?.[0]
+    const lastMatch = info.pairMatches?.[info.pairMatches.length - 1]
+
     list.push({
       ...info,
+      key: `${p1}:${p2}`,
+      names: [m1.name || p1, m2.name || p2],
+      wins: info.winsCount,
+      losses: info.lossesCount,
+      firstMatchDate: firstMatch?.at || firstMatch?.playedAt || firstMatch?.createdAt || null,
+      lastMatchDate: lastMatch?.at || lastMatch?.playedAt || lastMatch?.createdAt || null,
       memberA: m1,
       memberB: m2,
       format,

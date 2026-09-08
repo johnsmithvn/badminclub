@@ -117,10 +117,10 @@ export default function CourtWaitingFilterSheet({
             {/* Chip Lọc Nữ */}
             <button
               type="button"
-              onClick={() => onToggleFilter('gender', filters.gender === 'female' ? null : 'female')}
+              onClick={() => onToggleFilter('gender', (filters.gender === 'female' || filters.gender === 'nu') ? null : 'female')}
               style={{
                 ...S.filterChip,
-                ...(filters.gender === 'female' ? S.filterChipFemaleActive : S.filterChipFemale),
+                ...((filters.gender === 'female' || filters.gender === 'nu') ? S.filterChipFemaleActive : S.filterChipFemale),
               }}
             >
               {t('assign.filterFemaleTag', { n: filters.femaleCount ?? 0 })}
@@ -129,29 +129,46 @@ export default function CourtWaitingFilterSheet({
             {/* Chip Lọc Nam */}
             <button
               type="button"
-              onClick={() => onToggleFilter('gender', filters.gender === 'male' ? null : 'male')}
+              onClick={() => onToggleFilter('gender', (filters.gender === 'male' || filters.gender === 'nam') ? null : 'male')}
               style={{
                 ...S.filterChip,
-                ...(filters.gender === 'male' ? S.filterChipMaleActive : S.filterChipMale),
+                ...((filters.gender === 'male' || filters.gender === 'nam') ? S.filterChipMaleActive : S.filterChipMale),
               }}
             >
               {t('assign.filterMaleTag', { n: filters.maleCount ?? 0 })}
             </button>
 
             {/* Chip Cùng trình ô đang xếp */}
-            <button
-              type="button"
-              onClick={() => onToggleFilter('sameLevel', !filters.sameLevel)}
-              style={{
-                ...S.filterChip,
-                ...(filters.sameLevel ? S.filterChipActive : S.filterChipDefault),
-              }}
-            >
-              {t('assign.sameLevelSlot')}
-            </button>
+            {filters.refLevel ? (
+              <button
+                type="button"
+                onClick={() => onToggleFilter('sameLevel', !filters.sameLevel)}
+                style={{
+                  ...S.filterChip,
+                  ...(filters.sameLevel ? S.filterChipActive : S.filterChipDefault),
+                }}
+                title={t('assign.sameLevelSlot')}
+              >
+                {`${t('assign.sameLevelSlot')} (${filters.refLevel} · ${filters.sameLevelCount ?? 0})`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{
+                  ...S.filterChip,
+                  ...S.filterChipDefault,
+                  opacity: 0.5,
+                  cursor: 'not-allowed',
+                }}
+                title={t('assign.sameLevelNoPlayer')}
+              >
+                {t('assign.sameLevelNoPlayer')}
+              </button>
+            )}
 
             {/* Chip Chưa đánh cùng (nếu trên sân đã có người) */}
-            {playerOnCourtName && (
+            {playerOnCourtName ? (
               <button
                 type="button"
                 onClick={() => onToggleFilter('notPlayedWith', !filters.notPlayedWith)}
@@ -159,8 +176,23 @@ export default function CourtWaitingFilterSheet({
                   ...S.filterChip,
                   ...(filters.notPlayedWith ? S.filterChipActive : S.filterChipDefault),
                 }}
+                title={t('assign.notPlayedWithTeam', { name: playerOnCourtName })}
               >
-                {t('assign.notPlayedWithTeam', { name: playerOnCourtName })}
+                {`${t('assign.notPlayedWithTeam', { name: playerOnCourtName })} (${filters.notPlayedWithCount ?? 0})`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{
+                  ...S.filterChip,
+                  ...S.filterChipDefault,
+                  opacity: 0.5,
+                  cursor: 'not-allowed',
+                }}
+                title={t('assign.notPlayedNoPlayer')}
+              >
+                {t('assign.notPlayedNoPlayer')}
               </button>
             )}
 
@@ -171,9 +203,11 @@ export default function CourtWaitingFilterSheet({
               style={{
                 ...S.filterChip,
                 ...(filters.noRest ? S.filterChipActive : S.filterChipDefault),
+                ...(filters.noRestCount === 0 && !filters.noRest ? { opacity: 0.6 } : {}),
               }}
+              title={t('assign.noRestYet')}
             >
-              {t('assign.noRestYet')}
+              {`${t('assign.noRestYet')} (${filters.noRestCount ?? 0})`}
             </button>
           </div>
           <div style={S.filterHint}>

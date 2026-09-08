@@ -222,7 +222,7 @@ export default function SeasonRaceTab({
             }}
           >
             <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-              {t('season.tableTotal', { count: leaderboard.length })}
+              {t('season.tableTotal', { total: leaderboard.length, count: leaderboard.length, n: leaderboard.length })}
             </span>
             <div style={{ flex: '1 1 0%' }} />
             <span
@@ -496,7 +496,7 @@ export default function SeasonRaceTab({
             </span>
           </div>
           <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: 9 }}>
-            {top1?.name} {t('season.leadSurgeDesc')}
+            {t('season.leadSurgeDesc', { name: top1?.name || 'Top 1', chaser: top2?.name || 'Top 2' })}
           </div>
         </div>
 
