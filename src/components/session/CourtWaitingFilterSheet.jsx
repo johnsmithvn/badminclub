@@ -14,8 +14,6 @@ export default function CourtWaitingFilterSheet({
   courtLabel = '',
   playerOnCourtName = '',
 }) {
-  if (!open) return null
-
   const sortItems = [
     {
       id: 'fewest',
@@ -44,6 +42,8 @@ export default function CourtWaitingFilterSheet({
     if (!fewestCandidates.length) return ''
     return fewestCandidates.slice(0, 4).map((c) => c.name).join(' · ')
   }, [fewestCandidates])
+
+  if (!open) return null
 
   return (
     <div

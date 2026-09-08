@@ -12,10 +12,8 @@ export default function CourtBalanceExplanationModal({
   onLockCourt,
   onAgree,
 }) {
-  const data = courtBalance || courtData
-  if (!data) return null
-
   const [activeTab, setActiveTab] = useState(initialTab)
+  const data = courtBalance || courtData
 
   const {
     totalScore = 96,
@@ -80,6 +78,8 @@ export default function CourtBalanceExplanationModal({
   }, [pairAKeys, pairBKeys, matches])
 
   const isMatchupIgnored = matchup.games < 5
+
+  if (!data) return null
 
   return (
     <div

@@ -127,6 +127,7 @@ export default function CourtAssignmentTab({ s }) {
 
   // Map tính thời gian chờ (phút từ trận gần nhất)
   const playerWaitTimeMap = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now()
     const map = {}
     players.forEach((p) => {

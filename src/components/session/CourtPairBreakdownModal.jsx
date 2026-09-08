@@ -12,7 +12,6 @@ export default function CourtPairBreakdownModal({
   onAgree,
 }) {
   const data = courtBalance || courtData
-  if (!data) return null
 
   const {
     totalScore = 86,
@@ -67,6 +66,8 @@ export default function CourtPairBreakdownModal({
   }, [pairAKeys, pairBKeys, matches])
 
   const isMatchupIgnored = matchup.games < 5
+
+  if (!data) return null
 
   return (
     <div
