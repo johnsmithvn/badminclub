@@ -28,7 +28,7 @@ export default function CourtBalanceExplanationModal({
     rb: initialRb,
     pairAInfo,
     pairBInfo,
-  } = data
+  } = data || {}
 
   const nameA = teamA.map((p) => (typeof p === 'object' ? p.name : p)).join(' + ') || 'Team A'
   const nameB = teamB.map((p) => (typeof p === 'object' ? p.name : p)).join(' + ') || 'Team B'
@@ -43,11 +43,11 @@ export default function CourtBalanceExplanationModal({
   const calcAvgA = teamA.length ? Math.round((calcTotA || pA1) / teamA.length) : 0
   const calcAvgB = teamB.length ? Math.round((calcTotB || pB1) / teamB.length) : 0
 
-  const ra = initialRa || data.ra || data.rA || calcAvgA || 1500
-  const rb = initialRb || data.rb || data.rB || calcAvgB || 1500
+  const ra = initialRa || data?.ra || data?.rA || calcAvgA || 1500
+  const rb = initialRb || data?.rb || data?.rB || calcAvgB || 1500
   const totA = calcTotA || ra
   const totB = calcTotB || rb
-  const delta = data.canRating?.delta !== undefined ? data.canRating.delta : Math.abs(ra - rb)
+  const delta = data?.canRating?.delta !== undefined ? data.canRating.delta : Math.abs(ra - rb)
   const scores = (h2h.recentScores && h2h.recentScores.length)
     ? h2h.recentScores
     : ['21–19', '22–20', '21–15', '19–21', '21–14']
@@ -58,24 +58,26 @@ export default function CourtBalanceExplanationModal({
   const nameB1 = (typeof teamB[0] === 'object' ? teamB[0].name : teamB[0]) || 'Người 3' // i18n-ok
   const nameB2 = (typeof teamB[1] === 'object' ? teamB[1].name : teamB[1]) || 'Người 4' // i18n-ok
 
-  const gamesA = pairAInfo?.gamesCount ?? (data.gamesA ?? 9)
-  const synA = pairAInfo?.synergyScore ?? (data.synergyA ?? 52)
+  const gamesA = pairAInfo?.gamesCount ?? (data?.gamesA ?? 9)
+  const synA = pairAInfo?.synergyScore ?? (data?.synergyA ?? 52)
   const hasSynA = gamesA >= 5
 
-  const gamesB = pairBInfo?.gamesCount ?? (data.gamesB ?? 1)
-  const synB = pairBInfo?.synergyScore ?? (data.synergyB ?? null)
+  const gamesB = pairBInfo?.gamesCount ?? (data?.gamesB ?? 1)
+  const synB = pairBInfo?.synergyScore ?? (data?.synergyB ?? null)
   const hasSynB = gamesB >= 5 && synB != null
 
   const pairAKeys = teamA.map((p) => (typeof p === 'object' ? (p.key || p.id) : p)).filter(Boolean)
   const pairBKeys = teamB.map((p) => (typeof p === 'object' ? (p.key || p.id) : p)).filter(Boolean)
-  const matches = data.matches || []
+  const pairAKey = pairAKeys.join(':')
+  const pairBKey = pairBKeys.join(':')
+  const matches = data?.matches || []
 
   const matchup = useMemo(() => {
     if (pairAKeys.length === 2 && pairBKeys.length === 2 && matches.length > 0) {
       return calcMatchupEdge(matches, pairAKeys, pairBKeys)
     }
     return { games: 1, edgeScore: 50, confidence: confidenceLevelOf(1) }
-  }, [pairAKeys, pairBKeys, matches])
+  }, [pairAKey, pairBKey, matches])
 
   const isMatchupIgnored = matchup.games < 5
 

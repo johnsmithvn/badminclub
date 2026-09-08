@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -40,6 +40,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
   const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (match.courtIdx ?? 0) + 1 }) : '')
 
   const { initDateStr, initTimeStr } = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     const ts = match.at || (session?.date ? new Date(session.date).getTime() : Date.now())
     const d = new Date(ts)
     const y = d.getFullYear()
@@ -57,7 +58,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
   const [timeStr, setTimeStr] = useState(initTimeStr)
 
   // Cập nhật date/time khi chuyển trận
-  useMemo(() => {
+  useEffect(() => {
     setDateStr(initDateStr)
     setTimeStr(initTimeStr)
   }, [initDateStr, initTimeStr])
@@ -85,6 +86,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
   }
 
   const finalTimestamp = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     if (!dateStr || !timeStr) return match.at || Date.now()
     const [y, m, d] = dateStr.split('-').map(Number)
     const [hh, mm] = timeStr.split(':').map(Number)
@@ -103,14 +105,14 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
   const [activeSetIdx, setActiveSetIdx] = useState(0)
 
   // Reset sets khi đổi trận
-  useMemo(() => {
+  useEffect(() => {
     if (oldSets.length > 0) {
       setSets(oldSets.map((s) => [s[0], s[1]]))
     } else {
       setSets([[21, 19]])
     }
     setActiveSetIdx(0)
-  }, [match.id])
+  }, [match.id, oldSets])
 
   const teamA = match.teamA || []
   const teamB = match.teamB || []

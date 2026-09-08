@@ -20,9 +20,9 @@ export default function CourtPairBreakdownModal({
     canRating = {},
     pairAInfo,
     pairBInfo,
-  } = data
+  } = data || {}
 
-  const delta = canRating.delta !== undefined ? canRating.delta : (data.delta || 22)
+  const delta = canRating.delta !== undefined ? canRating.delta : (data?.delta || 22)
 
   // Tên và rating của đội A
   const pA1Obj = teamA[0] || {}
@@ -45,25 +45,27 @@ export default function CourtPairBreakdownModal({
   const avgB = Math.round(totB / 2)
 
   // Ăn ý cặp A và B
-  const gamesA = pairAInfo?.gamesCount ?? (data.gamesA ?? 9)
-  const synA = pairAInfo?.synergyScore ?? (data.synergyA ?? 52)
+  const gamesA = pairAInfo?.gamesCount ?? (data?.gamesA ?? 9)
+  const synA = pairAInfo?.synergyScore ?? (data?.synergyA ?? 52)
   const hasSynA = gamesA >= 5
 
-  const gamesB = pairBInfo?.gamesCount ?? (data.gamesB ?? 1)
-  const synB = pairBInfo?.synergyScore ?? (data.synergyB ?? null)
+  const gamesB = pairBInfo?.gamesCount ?? (data?.gamesB ?? 1)
+  const synB = pairBInfo?.synergyScore ?? (data?.synergyB ?? null)
   const hasSynB = gamesB >= 5 && synB != null
 
   // Khắc chế cặp A vs cặp B
   const pairAKeys = teamA.map((p) => (typeof p === 'object' ? (p.key || p.id) : p)).filter(Boolean)
   const pairBKeys = teamB.map((p) => (typeof p === 'object' ? (p.key || p.id) : p)).filter(Boolean)
-  const matches = data.matches || []
+  const pairAKey = pairAKeys.join(':')
+  const pairBKey = pairBKeys.join(':')
+  const matches = data?.matches || []
 
   const matchup = useMemo(() => {
     if (pairAKeys.length === 2 && pairBKeys.length === 2 && matches.length > 0) {
       return calcMatchupEdge(matches, pairAKeys, pairBKeys)
     }
     return { games: 1, edgeScore: 50, confidence: confidenceLevelOf(1) }
-  }, [pairAKeys, pairBKeys, matches])
+  }, [pairAKey, pairBKey, matches])
 
   const isMatchupIgnored = matchup.games < 5
 

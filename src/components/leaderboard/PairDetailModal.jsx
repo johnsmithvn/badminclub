@@ -3,8 +3,6 @@ import { t } from '#i18n'
 import { calcMatchupEdge } from '#lib/rating.js'
 
 export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsMap, matches = [] }) {
-  if (!pair) return null
-
   const {
     names = [],
     gamesCount = 0,
@@ -19,7 +17,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
     firstMatchDate,
     lastMatchDate,
     key,
-  } = pair
+  } = pair || {}
 
   const impactSign = pairImpact > 0 ? `+${pairImpact}` : `${pairImpact}`
   const impactColor = pairImpact > 0 ? '#5FDBD3' : pairImpact < 0 ? '#F09A8E' : '#A8B7CB'
@@ -83,6 +81,8 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
 
     return list.sort((a, b) => b.matches.length - a.matches.length).slice(0, 4)
   }, [key, matches, ratingsMap])
+
+  if (!pair) return null
 
   return (
     <div
