@@ -121,11 +121,25 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
   // Rating trung bình 2 đội
   const ratingsMap = useMemo(() => {
     const map = {}
-    ;(db.playerRatings || []).forEach((r) => {
-      map[r.memberId] = r.rating
+    if (Array.isArray(db.playerRatings)) {
+      db.playerRatings.forEach((r) => {
+        const mid = r.memberId || r.playerId || r.id
+        if (mid) map[mid] = r.rating
+      })
+    } else if (db.playerRatings && typeof db.playerRatings === 'object') {
+      Object.entries(db.playerRatings).forEach(([mid, r]) => {
+        map[mid] = typeof r === 'object' && r !== null ? r.rating : r
+      })
+    }
+    ;[...teamA, ...teamB].forEach((id) => {
+      if (map[id] == null) {
+        const mem = (db.members || []).find((m) => m.id === id) || (db.guests || []).find((g) => g.id === id)
+        const pr = getPlayerRating(db.playerRatings, id, mem, db.levels)
+        map[id] = pr?.rating || 1500
+      }
     })
     return map
-  }, [db.playerRatings])
+  }, [db.playerRatings, db.members, db.guests, db.levels, teamA, teamB])
 
   const ratingA = useMemo(() => teamRating(teamA, ratingsMap), [teamA, ratingsMap])
   const ratingB = useMemo(() => teamRating(teamB, ratingsMap), [teamB, ratingsMap])
@@ -291,7 +305,8 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
     try {
       const gamesCountMap = {}
       ;[...teamA, ...teamB].forEach((id) => {
-        const pr = getPlayerRating(db.playerRatings, id)
+        const mem = (db.members || []).find((m) => m.id === id) || (db.guests || []).find((g) => g.id === id)
+        const pr = getPlayerRating(db.playerRatings, id, mem, db.levels)
         gamesCountMap[id] = pr?.gamesCount || 0
       })
       const validSets = sets.filter(([a, b]) => a > 0 || b > 0)
@@ -306,7 +321,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
     } catch {
       return null
     }
-  }, [newWinnerTeam, teamA, teamB, sets, ratingsMap, db.playerRatings, match.ratingEnabled])
+  }, [newWinnerTeam, teamA, teamB, sets, ratingsMap, db.playerRatings, db.members, db.guests, db.levels, match.ratingEnabled])
 
   // Thống kê tác động Cascade (Screen DS2: Sửa trận cũ ảnh hưởng gì)
   const subsequentStats = useMemo(() => {
@@ -322,14 +337,18 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
     const monthsSet = new Set()
     if (match.at) {
       const d = new Date(match.at)
-      monthsSet.add(`T${String(d.getMonth() + 1).padStart(2, '0')}`)
+      if (!isNaN(d.getTime())) {
+        monthsSet.add(`T${String(d.getMonth() + 1).padStart(2, '0')}`)
+      }
     }
     subsequent.forEach((m) => {
       const keys = m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
       keys.forEach((k) => playerSet.add(k))
       if (m.at) {
         const d = new Date(m.at)
-        monthsSet.add(`T${String(d.getMonth() + 1).padStart(2, '0')}`)
+        if (!isNaN(d.getTime())) {
+          monthsSet.add(`T${String(d.getMonth() + 1).padStart(2, '0')}`)
+        }
       }
     })
     return {
@@ -348,7 +367,8 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
     const newDelta = Math.abs(playerDeltasPreview?.delta != null ? playerDeltasPreview.delta : 8)
 
     const computeRow = (id, inTeamA) => {
-      const pr = getPlayerRating(db.playerRatings, id, null, db.levels)
+      const mem = (db.members || []).find((m) => m.id === id) || (db.guests || []).find((g) => g.id === id)
+      const pr = getPlayerRating(db.playerRatings, id, mem, db.levels)
       const baseRating = inTeamA
         ? (match.initialRatingA ? Math.round(match.initialRatingA) : pr.rating)
         : (match.initialRatingB ? Math.round(match.initialRatingB) : pr.rating)
@@ -356,7 +376,8 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
       const oldChange = (inTeamA && oldWonA) || (!inTeamA && !oldWonA) ? oldDelta : -oldDelta
       const oldAfter = baseRating + oldChange
 
-      const newChange = (inTeamA && newWonA) || (!inTeamA && !newWonA) ? newDelta : -newDelta
+      const pDelta = playerDeltasPreview?.deltas?.[id]
+      const newChange = pDelta != null ? pDelta : ((inTeamA && newWonA) || (!inTeamA && !newWonA) ? newDelta : -newDelta)
       const newAfter = baseRating + newChange
 
       return {
@@ -374,7 +395,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
       teamA: teamA.map((id) => computeRow(id, true)),
       teamB: teamB.map((id) => computeRow(id, false)),
     }
-  }, [match, teamA, teamB, newWinnerTeam, playerDeltasPreview, db.playerRatings, db.levels, db])
+  }, [match, teamA, teamB, newWinnerTeam, playerDeltasPreview, db.playerRatings, db.members, db.guests, db.levels, db])
 
   // Lưu điểm & giờ
   const handleSave = async () => {
