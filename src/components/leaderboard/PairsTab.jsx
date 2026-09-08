@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { rankPairs, calcMatchupEdge } from '#lib/rating.js'
+import { playerName } from '#lib/money.js'
 import PairDetailModal from './PairDetailModal.jsx'
 import RatingFormulaModal from './RatingFormulaModal.jsx'
 
@@ -10,6 +11,7 @@ export default function PairsTab({
   ratingsMap = {},
   onExportCsv,
   onViewPairMatches,
+  db,
 }) {
   const [formatFilter, setFormatFilter] = useState('all') // 'all' | 'MD' | 'WD' | 'XD'
   const [min5Only, setMin5Only] = useState(false)
@@ -20,6 +22,7 @@ export default function PairsTab({
   const pairsData = useMemo(() => {
     return rankPairs(matches, membersMap, ratingsMap, {
       format: formatFilter,
+      formatFilter,
       minGames: min5Only ? 5 : 1,
     })
   }, [matches, membersMap, ratingsMap, formatFilter, min5Only])
@@ -28,6 +31,7 @@ export default function PairsTab({
   const allPairsData = useMemo(() => {
     return rankPairs(matches, membersMap, ratingsMap, {
       format: 'all',
+      formatFilter: 'all',
       minGames: 1,
     })
   }, [matches, membersMap, ratingsMap])
@@ -60,12 +64,28 @@ export default function PairsTab({
     return list
   }, [allPairsData.rankedPairs])
 
-function getPairNames(pair) {
-  if (Array.isArray(pair?.names) && pair.names.length > 0) return pair.names
-  const a = pair?.memberA?.name || pair?.playerA || '—'
-  const b = pair?.memberB?.name || pair?.playerB || '—'
-  return [a, b]
-}
+  function getPairNames(pair) {
+    const p1 = pair?.playerA || pair?.memberA?.id
+    const p2 = pair?.playerB || pair?.memberB?.id
+    const resolve = (n, id) => {
+      if (!n || (typeof n === 'string' && n.length > 20 && n.includes('-'))) {
+        const fromMap = membersMap?.[id]?.name
+        if (fromMap) return fromMap
+        if (db) {
+          const fromDb = playerName(db, id)
+          if (fromDb && fromDb !== id) return fromDb
+        }
+      }
+      return n || '—'
+    }
+
+    if (Array.isArray(pair?.names) && pair.names.length >= 2) {
+      return [resolve(pair.names[0], p1), resolve(pair.names[1], p2)]
+    }
+    const a = resolve(pair?.memberA?.name, p1)
+    const b = resolve(pair?.memberB?.name, p2)
+    return [a, b]
+  }
 
 function getPairKey(pair) {
   if (pair?.key) return pair.key
@@ -424,7 +444,7 @@ function getPairConfTier(pair) {
                           {getPairNames(pair).join(' · ')}
                         </div>
                         <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                          {pair.combinedRating ? `${pair.combinedRating} · ` : ''}
+                          {typeof pair.combinedRating === 'number' && !isNaN(pair.combinedRating) ? `${pair.combinedRating} · ` : ''}
                           {dateStr}
                         </div>
                       </div>
@@ -928,7 +948,9 @@ function getPairConfTier(pair) {
       {/* Modal AY2: Thẻ chi tiết cặp đôi */}
       {selectedPair && (
         <PairDetailModal
-          pair={{ ...selectedPair, membersMap }}
+          pair={{ ...selectedPair, membersMap: selectedPair.membersMap || membersMap }}
+          db={db}
+          membersMap={membersMap}
           onClose={() => setSelectedPair(null)}
           onViewMatches={onViewPairMatches}
           ratingsMap={ratingsMap}

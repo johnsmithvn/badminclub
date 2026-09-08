@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
 import { calcMatchupEdge } from '#lib/rating.js'
+import { playerName } from '#lib/money.js'
 
-export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsMap, matches = [] }) {
+export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsMap, matches = [], db, membersMap }) {
   const {
     names = [],
     gamesCount = 0,
@@ -18,7 +19,24 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
     lastMatchDate,
     key,
   } = pair || {}
-  const pairNames = (names && names.length) ? names : [pair?.memberA?.name || pair?.playerA, pair?.memberB?.name || pair?.playerB].filter(Boolean)
+
+  const resolvePlayerName = (id) => {
+    if (!id) return ''
+    const m = (pair?.membersMap && pair.membersMap[id]) || (membersMap && membersMap[id])
+    if (m?.name) return m.name
+    if (db) return playerName(db, id)
+    return id
+  }
+
+  const pairNames = useMemo(() => {
+    const p1 = pair?.playerA || pair?.memberA?.id
+    const p2 = pair?.playerB || pair?.memberB?.id
+    const n1 = (names && names[0]) ? names[0] : resolvePlayerName(p1)
+    const n2 = (names && names[1]) ? names[1] : resolvePlayerName(p2)
+    const cleanN1 = (n1 && n1.length > 20 && n1.includes('-')) ? resolvePlayerName(p1) : n1
+    const cleanN2 = (n2 && n2.length > 20 && n2.includes('-')) ? resolvePlayerName(p2) : n2
+    return [cleanN1, cleanN2].filter(Boolean)
+  }, [names, pair, db, membersMap])
 
   const impactSign = pairImpact > 0 ? `+${pairImpact}` : `${pairImpact}`
   const impactColor = pairImpact > 0 ? '#5FDBD3' : pairImpact < 0 ? '#F09A8E' : '#A8B7CB'
@@ -378,10 +396,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
                   const oppActual = oppEdge?.actualA || Math.round((opp.wins / opp.matches.length) * 100)
                   const oppScore = oppEdge?.edgeScore || 50
                   const isLowConf = (opp.matches.length || 0) < 5
-                  const oppNames = (opp.oppKeys || []).map((k) => {
-                    const m = (pair?.membersMap && pair.membersMap[k]) || null
-                    return m?.name || k
-                  }).join(' · ')
+                  const oppNames = (opp.oppKeys || []).map((k) => resolvePlayerName(k)).join(' · ')
 
                   return (
                     <div

@@ -162,9 +162,47 @@ export default function Leaderboard() {
 
   const memberMap = useMemo(() => {
     const map = {}
-    activeMembers.forEach((m) => { map[m.id] = m })
+    ;(db?.members || []).forEach((m) => { if (m?.id) map[m.id] = m })
+    ;(db?.guests || []).forEach((g) => { if (g?.id) map[g.id] = g })
+    ;(db?.sessionGuests || []).forEach((sg) => {
+      if (sg.guestId) {
+        const g = (db?.guests || []).find((x) => x.id === sg.guestId)
+        if (g) map[sg.id] = g
+      }
+      if (sg.memberId) {
+        const m = (db?.members || []).find((x) => x.id === sg.memberId)
+        if (m) map[sg.id] = m
+      }
+      if (!map[sg.id] && sg.id) {
+        map[sg.id] = { id: sg.id, name: sg.name || playerName(db, sg.id) || sg.id }
+      }
+    })
     return map
-  }, [activeMembers])
+  }, [db?.members, db?.guests, db?.sessionGuests, db])
+
+  const normalizedRatingsMap = useMemo(() => {
+    const map = {}
+    ;(db?.members || []).forEach((m) => {
+      if (m?.id) {
+        const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
+        map[m.id] = pr.rating
+      }
+    })
+    ;(db?.guests || []).forEach((g) => {
+      if (g?.id) {
+        const pr = getPlayerRating(db.playerRatings, g.id, g, db.levels)
+        map[g.id] = pr.rating
+      }
+    })
+    ;(db?.sessionGuests || []).forEach((sg) => {
+      if (sg?.id && !map[sg.id]) {
+        const realId = sg.guestId || sg.memberId || sg.id
+        const pr = getPlayerRating(db.playerRatings, realId, sg, db.levels)
+        map[sg.id] = pr.rating
+      }
+    })
+    return map
+  }, [db?.members, db?.guests, db?.sessionGuests, db?.playerRatings, db?.levels])
 
   const memberNameOf = (id) => playerName(db, id)
 
@@ -1093,9 +1131,10 @@ export default function Leaderboard() {
       {/* ---------------- TAB PAIRS: Ăn ý & Khắc chế (Screen AY1) ---------------- */}
       {activeTab === 'pairs' && (
         <PairsTab
+          db={db}
           matches={db.matches || []}
           membersMap={memberMap}
-          ratingsMap={db.playerRatings || {}}
+          ratingsMap={normalizedRatingsMap}
           onExportCsv={handleExportCsv}
           onViewPairMatches={(pair) => {
             const pairKey = pair?.key || (pair?.playerA && pair?.playerB ? `${pair.playerA}:${pair.playerB}` : '')

@@ -260,7 +260,8 @@ export function getPlayerRating(playerRatings, memberId, member = null, levels =
 export function teamRating(playerIds, ratingsMap) {
   if (!playerIds || !playerIds.length) return DEFAULT_RATING
   const sum = playerIds.reduce((acc, id) => {
-    const r = ratingsMap && ratingsMap[id] != null ? ratingsMap[id] : DEFAULT_RATING
+    const raw = ratingsMap && ratingsMap[id] != null ? ratingsMap[id] : DEFAULT_RATING
+    const r = typeof raw === 'number' ? raw : (typeof raw?.rating === 'number' ? raw.rating : DEFAULT_RATING)
     return acc + r
   }, 0)
   return Math.round(sum / playerIds.length)
@@ -980,7 +981,8 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
  * Tổng hợp và xếp hạng toàn bộ các cặp đấu trong CLB (Tab Ăn ý & Khắc chế - AY1).
  */
 export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, options = {}) {
-  const { formatFilter = 'all', minGames = 1 } = options
+  const filterFormat = options.formatFilter || options.format || 'all'
+  const { minGames = 1 } = options
   const pairMap = new Map()
 
   ;(matches || []).forEach((m) => {
@@ -998,6 +1000,11 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
     }
   })
 
+  const checkFemale = (m) => {
+    const g = String(m?.gender || '').toLowerCase().trim()
+    return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: gender check
+  }
+
   const list = []
   pairMap.forEach(([p1, p2]) => {
     const info = calcPairImpact(matches, p1, p2, ratingsMap)
@@ -1006,17 +1013,20 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
     const m1 = membersMap[p1] || { id: p1, name: p1 }
     const m2 = membersMap[p2] || { id: p2, name: p2 }
 
-    const isF1 = m1.gender === 'nu' || m1.gender === 'Nữ' // i18n-ok: gender check
-    const isF2 = m2.gender === 'nu' || m2.gender === 'Nữ' // i18n-ok: gender check
+    const isF1 = checkFemale(m1)
+    const isF2 = checkFemale(m2)
     let format = 'MD'
     if (isF1 && isF2) format = 'WD'
     else if (isF1 || isF2) format = 'XD'
 
-    if (formatFilter !== 'all' && format !== formatFilter) return
+    if (filterFormat !== 'all' && format !== filterFormat) return
 
     const trend = calcSynergyTrend(matches, p1, p2, ratingsMap)
-    const r1 = ratingsMap[p1] || 1500
-    const r2 = ratingsMap[p2] || 1500
+    const rawR1 = ratingsMap && ratingsMap[p1] != null ? ratingsMap[p1] : 1500
+    const rawR2 = ratingsMap && ratingsMap[p2] != null ? ratingsMap[p2] : 1500
+    const r1 = typeof rawR1 === 'number' ? rawR1 : (typeof rawR1?.rating === 'number' ? rawR1.rating : 1500)
+    const r2 = typeof rawR2 === 'number' ? rawR2 : (typeof rawR2?.rating === 'number' ? rawR2.rating : 1500)
+    const combinedRating = Math.round(r1 + r2)
 
     const firstMatch = info.pairMatches?.[0]
     const lastMatch = info.pairMatches?.[info.pairMatches.length - 1]
@@ -1033,9 +1043,10 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
       memberB: m2,
       format,
       trend,
-      combinedRating: r1 + r2,
+      combinedRating,
       r1,
       r2,
+      membersMap,
     })
   })
 

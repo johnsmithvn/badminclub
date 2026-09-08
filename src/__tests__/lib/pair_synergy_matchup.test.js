@@ -229,6 +229,32 @@ test('Pair Synergy, Opponent Matchup & What-if Core Logic Suite (vNext)', async 
     assert.equal(res.underperformingPair.playerA, 'pMinh')
     assert.equal(res.underperformingPair.playerB, 'pThao')
     assert.equal(res.underperformingPair.synergyScore, 38)
+    assert.equal(typeof res.topPair.combinedRating, 'number')
+    assert.ok(!isNaN(res.topPair.combinedRating))
+
+    // Kiểm tra ratingsMap dạng object { rating: number } không gây lỗi [object Object]
+    const objectRatingsMap = {
+      pMinh: { rating: 1795 },
+      pNam: { rating: 1700 },
+      pThao: { rating: 1500 },
+      pOpp1: { rating: 1600 },
+      pOpp2: { rating: 1600 },
+    }
+    const resWithObjRatings = rankPairs(allMatches, membersMap, objectRatingsMap)
+    assert.equal(typeof resWithObjRatings.topPair.combinedRating, 'number')
+    assert.equal(resWithObjRatings.topPair.combinedRating, 1795 + 1700)
+
+    // Kiểm tra bộ lọc format (Đôi nam, Đôi nữ, Nam-nữ)
+    const resMD = rankPairs(allMatches, membersMap, ratingsMap, { format: 'MD' })
+    assert.ok(resMD.rankedPairs.every((p) => p.format === 'MD'), 'Lọc MD phải chỉ chứa đôi nam')
+    assert.ok(resMD.rankedPairs.some((p) => p.playerA === 'pMinh' && p.playerB === 'pNam'))
+
+    const resXD = rankPairs(allMatches, membersMap, ratingsMap, { formatFilter: 'XD' })
+    assert.ok(resXD.rankedPairs.every((p) => p.format === 'XD'), 'Lọc XD phải chỉ chứa đôi nam-nữ')
+    assert.ok(resXD.rankedPairs.some((p) => p.playerA === 'pMinh' && p.playerB === 'pThao'))
+
+    const resWD = rankPairs(allMatches, membersMap, ratingsMap, { format: 'WD' })
+    assert.equal(resWD.rankedPairs.length, 0, 'Không có đôi nữ nào trong dữ liệu mẫu này')
   })
 
   await t.test('6. getPlayerFormatRatings handles doubles, mixed and singles with Bayesian shrinkage', () => {
