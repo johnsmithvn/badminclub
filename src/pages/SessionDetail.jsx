@@ -71,76 +71,99 @@ export default function SessionDetail() {
   const sessionMatches = (db.matches || []).filter((m) => m.sessionId === s.id)
   const pendingChallengesCount = (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'pending').length
 
+  const courtNames = (s.courts || [])
+    .filter((c) => !c.sold)
+    .map((c) => c.label || courtOf(db, c.courtId).name)
+    .join(', ')
+  const timeRange = s.courts && s.courts[0] ? `${s.courts[0].from} → ${s.courts[0].to}` : ''
+  const sSubTitle = timeRange && courtNames
+    ? t('session.courtTimeSub', { time: timeRange, courts: courtNames })
+    : `${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`
+
   return (
     <>
-      {/* ---------------- Unified Session Top Header (Mockup 01 / K1) ---------------- */}
+      {/* ---------------- Unified Session Top Header (Mockup 01 / K1 / W1) ---------------- */}
       {isMobile ? (
         <div style={S.sessionHeaderBarMobile}>
-          {/* Tầng 1: Nút back + Tiêu đề + Badge trạng thái + Nhóm nút phụ (Zalo, Xoá) */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-              <button
-                type="button"
-                onClick={() => a.go('sessions')}
-                style={S.backBtn}
-                aria-label={t('session.backToList')}
-              >
-                <Icon name="arrow-left" size={18} color="var(--text-primary)" />
-              </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
-                <span style={S.sessionTitleText}>
-                  {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
-                </span>
-                <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
-                  <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
-                  <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)' }}>
-                    {s.status === 'open'
-                      ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
-                      : t(`sessionState.${s.status}`)}
-                  </span>
-                </div>
+          {/* Tầng 1: Nút back + Tiêu đề & Subtitle + Badge trạng thái + Xóa */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, width: '100%' }}>
+            <button
+              type="button"
+              onClick={() => a.go('sessions')}
+              style={S.backBtn}
+              aria-label={t('session.backToList')}
+            >
+              <Icon name="arrow-left" size={18} color="var(--text-primary)" />
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+              <div style={S.sessionTitleText}>
+                {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
+              </div>
+              <div style={{ ...S.sessionSubText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {sSubTitle}
               </div>
             </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
+              <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
+              <span style={{ font: '600 11px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {s.status === 'open'
+                  ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
+                  : t(`sessionState.${s.status}`)}
+              </span>
+            </div>
+            {canEdit && s.status !== 'closed' && (
               <IconButton
-                icon="send"
+                icon="trash-2"
                 size="sm"
                 variant="ghost"
-                label={t('session.copyZalo')}
-                onClick={() => a.copyZalo(s.id)}
+                label={t('session.doDelete')}
+                onClick={() => a.confirm({
+                  title: t('session.delTitle'),
+                  message: t('session.delMsg', { date: ddmy(s.date) }),
+                  tone: 'danger',
+                  confirmText: t('session.doDelete'),
+                  onConfirm: () => a.deleteSession(s.id),
+                })}
               />
-              {canEdit && s.status !== 'closed' && (
-                <IconButton
-                  icon="trash-2"
-                  size="sm"
-                  variant="ghost"
-                  label={t('session.doDelete')}
-                  onClick={() => a.confirm({
-                    title: t('session.delTitle'),
-                    message: t('session.delMsg', { date: ddmy(s.date) }),
-                    tone: 'danger',
-                    confirmText: t('session.doDelete'),
-                    onConfirm: () => a.deleteSession(s.id),
-                  })}
-                />
-              )}
-            </div>
+            )}
           </div>
 
-          {/* Tầng 2: Thông tin chi tiết buổi (Thứ, số người, sân, ca) & Nút hành động chính (Mở buổi / Chốt buổi / Mở lại) */}
-          <div style={S.sessionHeaderSubRowMobile}>
-            <div style={S.sessionSubText}>
-              {`${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`}
-            </div>
+          {/* Tầng 2: Action Bar (Copy Zalo + Nút hành động chính Mở / Chốt / Mở lại) */}
+          <div style={{ display: 'flex', gap: 8, width: '100%', paddingTop: 4 }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="send"
+              onClick={() => a.copyZalo(s.id)}
+              style={{
+                flex: 1,
+                height: 34,
+                background: 'var(--surface-inset, #1A2437)',
+                border: '1px solid var(--border-default, #2E3E5C)',
+                color: 'var(--text-primary, #E9EFF7)',
+                fontSize: 12,
+                fontWeight: 600,
+                justifyContent: 'center',
+              }}
+            >
+              {t('session.copyZalo')}
+            </Button>
             {canEdit && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <>
                 {s.status === 'draft' && (
                   <Button
                     variant="primary"
                     size="sm"
                     icon="user-round-check"
                     onClick={() => a.setSessionStatus(s.id, 'open')}
+                    style={{
+                      height: 34,
+                      flex: '0 0 auto',
+                      background: 'var(--teal-600)',
+                      color: '#FFFFFF',
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
                   >
                     {t('session.doOpen')}
                   </Button>
@@ -158,6 +181,15 @@ export default function SessionDetail() {
                       confirmText: t('session.closeOk'),
                       onConfirm: () => a.setSessionStatus(s.id, 'closed'),
                     })}
+                    style={{
+                      height: 34,
+                      flex: '0 0 auto',
+                      background: '#0D5E3A',
+                      border: '1px solid #00875A',
+                      color: '#FFFFFF',
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
                   >
                     {t('session.doClose')}
                   </Button>
@@ -175,11 +207,20 @@ export default function SessionDetail() {
                       confirmText: t('session.reopenOk'),
                       onConfirm: () => a.setSessionStatus(s.id, 'open'),
                     })}
+                    style={{
+                      height: 34,
+                      flex: '0 0 auto',
+                      background: 'var(--surface-inset, #1A2437)',
+                      border: '1px solid var(--border-default, #2E3E5C)',
+                      color: 'var(--text-primary, #E9EFF7)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
                   >
                     {t('session.doReopen')}
                   </Button>
                 )}
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -199,7 +240,7 @@ export default function SessionDetail() {
                 {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
               </div>
               <div style={S.sessionSubText}>
-                {`${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`}
+                {sSubTitle}
               </div>
             </div>
           </div>
@@ -291,7 +332,7 @@ export default function SessionDetail() {
       )}
 
       {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
-      <TabTrack style={{ ...S.tabBarWrap, margin: isMobile ? '10px 0 14px' : '14px 0 16px', width: isMobile ? '100%' : 'auto' }}>
+      <TabTrack style={{ ...S.tabBarWrap, margin: isMobile ? '10px 0 6px' : '14px 0 8px', width: isMobile ? '100%' : 'auto' }}>
         <div style={{ ...S.tabTrack, width: isMobile ? '100%' : 'auto' }}>
           <button
             type="button"
@@ -303,7 +344,12 @@ export default function SessionDetail() {
             }}
           >
             <span>{t('sessionTabs.attend')}</span>
-            <span style={S.tabBadgeMono}>{presentCount(db, s)}/{members.length}</span>
+            <span style={{
+              ...S.tabBadgeMono,
+              color: activeTab === 'attend' ? '#5FDBD3' : 'var(--text-muted)',
+            }}>
+              {presentCount(db, s)}/{members.length}
+            </span>
           </button>
           <button
             type="button"
@@ -315,7 +361,12 @@ export default function SessionDetail() {
             }}
           >
             <span>{t('sessionTabs.courts')}</span>
-            <span style={{ ...S.tabBadgeMono, color: 'var(--status-transit-fg)' }}>{sessionMatches.length}</span>
+            <span style={{
+              ...S.tabBadgeMono,
+              color: '#5FDBD3',
+            }}>
+              {sessionMatches.length}
+            </span>
           </button>
           <button
             type="button"
@@ -327,15 +378,26 @@ export default function SessionDetail() {
             }}
           >
             <span>{t('sessionTabs.matches')}</span>
-            <span style={{ ...S.tabBadgeMono, color: 'var(--status-delayed-fg)' }}>
+            <span style={{
+              ...S.tabBadgeMono,
+              color: '#F0B75C',
+            }}>
               {sessionMatches.length}{pendingChallengesCount > 0 ? `/${pendingChallengesCount}` : ''}
             </span>
           </button>
         </div>
       </TabTrack>
+      <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', margin: '0 0 14px' }}>
+        {activeTab === 'attend' ? t('sessionTabs.hintAttend') : activeTab === 'courts' ? t('sessionTabs.hintCourts') : t('sessionTabs.hintMatches')}
+      </div>
 
       {activeTab === 'attend' && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit,minmax(380px,1fr))', gap: 16, alignItems: 'start' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)',
+          gap: 16,
+          alignItems: 'start',
+        }}>
         {/* ---------------- điểm danh ---------------- */}
         <Card
           title={t('session.attendTitle')}
@@ -343,35 +405,66 @@ export default function SessionDetail() {
           icon="user-round-check"
           padding="14px 16px"
           actions={canEdit && !isInactive && !isClosed && (
-            <div style={{ display: 'flex', gap: 6 }}>
-              <Button variant="secondary" size="sm" onClick={() => a.markAll(s.id, true)}>{t('session.allPresent')}</Button>
-              <Button variant="ghost" size="sm" onClick={() => a.markAll(s.id, false)}>{t('session.allAbsent')}</Button>
+            <div style={{ display: 'flex', gap: 6, width: isMobile ? '100%' : 'auto' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                style={{
+                  flex: isMobile ? 1 : 'none',
+                  height: 32,
+                  background: 'var(--surface-inset, #1A2437)',
+                  border: '1px solid var(--border-default, #2E3E5C)',
+                  color: 'var(--text-primary, #E9EFF7)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  justifyContent: 'center',
+                }}
+                onClick={() => a.markAll(s.id, true)}
+              >
+                {t('session.allPresent')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                style={{
+                  flex: isMobile ? 1 : 'none',
+                  height: 32,
+                  border: '1px solid var(--border-subtle, #2E3E5C)',
+                  color: 'var(--text-secondary, #A8B7CB)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  justifyContent: 'center',
+                }}
+                onClick={() => a.markAll(s.id, false)}
+              >
+                {t('session.allAbsent')}
+              </Button>
             </div>
           )}
         >
           <div style={{ display: 'grid', gap: 7 }}>
             {isCancelled && <Alert tone="danger">{t('session.cancelledNotice')}</Alert>}
             {allSold && <Alert tone="warning">{t('session.allSoldNotice')}</Alert>}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 4 }}>
               <span style={{
-                font: '700 11.5px/1 var(--font-sans)',
-                color: 'var(--teal-700)',
-                background: 'var(--teal-50)',
-                padding: '3px 8px',
+                font: "700 11.5px/1 'IBM Plex Sans', sans-serif",
+                color: '#5FDBD3',
+                background: 'rgba(0,178,169,.14)',
+                padding: '4px 8px',
                 borderRadius: 4,
-                border: '1px solid var(--teal-200)',
+                border: '1px solid rgba(0,178,169,.35)',
               }}>
                 {t('session.attendSummary', { total: headCount(db, s) })}
               </span>
-              <span style={{ font: '600 12px/1 var(--font-sans)', color: 'var(--text-secondary)' }}>
+              <span style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary, #A8B7CB)' }}>
                 {t('session.attendCount', { present: presentCount(db, s), total: members.length })}
               </span>
               {guests.length > 0 && (
                 <span style={{
-                  font: '700 11.5px/1 var(--font-sans)',
-                  color: 'var(--amber-700)',
-                  background: 'var(--amber-100)',
-                  padding: '2px 7px',
+                  font: "700 11.5px/1 'IBM Plex Sans', sans-serif",
+                  color: '#F0B75C',
+                  background: 'rgba(224,138,0,.18)',
+                  padding: '3px 7px',
                   borderRadius: 4,
                 }}>
                   {t('session.guestCountTag', { n: guests.length })}
@@ -384,121 +477,149 @@ export default function SessionDetail() {
               const state = att[m.id]
               const extra = state === 'extra'
               const due = dues.find((d) => d.memberId === m.id && d.groupId === s.groupId)
-              // Buổi đột xuất: dòng thu sinh theo điểm danh (money.js: adhocCharges).
               const charge = adhoc ? charges.find((c) => c.memberId === m.id) : null
+
+              let dueText = ''
+              let dueColor = 'var(--text-muted)'
+              if (charge) {
+                dueText = charge.paid ? t('session.guestPaid') : t('session.guestDebt')
+                if (!charge.paid) dueColor = '#F0B75C'
+              } else if (extra) {
+                dueText = t('session.extraDueTag')
+              } else if (due) {
+                const ds = dueState(due)
+                if (ds.state === 'full') {
+                  dueText = t('session.duePaidTag')
+                  dueColor = 'var(--text-muted)'
+                } else if (ds.state === 'partial') {
+                  dueText = t('session.duePartialTag', { amount: fmtK(ds.remain) })
+                  dueColor = '#F0B75C'
+                } else {
+                  dueText = t('session.dueUnpaidTag')
+                  dueColor = '#F0B75C'
+                }
+              } else {
+                dueText = t('session.noDueTag')
+              }
+
+              const isPresent = state === true
+              const isAbsent = state === false || allSold
+
+              let rowBg = 'var(--surface-card)'
+              let rowBorder = '1px solid var(--border-subtle)'
+              let statusText = t('attend.unmarked')
+              let statusColor = 'var(--text-disabled)'
+
+              if (allSold) {
+                rowBg = 'var(--surface-sunken)'
+                rowBorder = '1px solid var(--border-subtle)'
+                statusText = t('attend.absent')
+                statusColor = 'var(--text-muted)'
+              } else if (isPresent) {
+                rowBg = 'rgba(0,178,169,.14)'
+                rowBorder = '1px solid var(--teal-500)'
+                statusText = t('attend.present')
+                statusColor = '#5FDBD3'
+              } else if (isAbsent) {
+                rowBg = 'var(--surface-sunken)'
+                rowBorder = '1px solid var(--border-subtle)'
+                statusText = t('attend.absent')
+                statusColor = 'var(--text-muted)'
+              } else if (extra) {
+                rowBg = 'rgba(0,178,169,.08)'
+                rowBorder = '1px solid var(--teal-500)'
+                statusText = t('attend.extra')
+                statusColor = '#5FDBD3'
+              }
+
               return (
-                <div key={m.id} style={{
-                  ...S.attRow,
-                  flexDirection: isMobile ? 'column' : 'row',
-                  alignItems: isMobile ? 'stretch' : 'center',
-                  gap: isMobile ? 6 : 10,
-                  background: allSold ? 'var(--surface-sunken)' : state === true ? 'var(--surface-accent-soft)'
-                    : extra ? 'var(--status-scheduled-bg)'
-                      : state === false ? 'var(--surface-sunken)' : 'var(--surface-card)',
-                  borderColor: allSold ? 'var(--border-subtle)' : state === true ? 'var(--teal-500)'
-                    : extra ? 'var(--status-scheduled-fg)' : 'var(--border-subtle)',
-                  opacity: isInactive ? 0.75 : 1,
-                }}>
-                  <button type="button" disabled={!canEdit || extra || isInactive || isClosed}
+                <div
+                  key={m.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 11px',
+                    borderRadius: 8,
+                    background: rowBg,
+                    border: rowBorder,
+                    opacity: isInactive ? 0.75 : 1,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <button
+                    type="button"
+                    disabled={!canEdit || extra || isInactive || isClosed}
                     onClick={() => a.toggleAtt(s.id, m.id)}
                     style={{
-                      ...S.attBtn,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      flex: 1,
+                      minWidth: 0,
+                      background: 'none',
+                      border: 0,
+                      padding: 0,
+                      textAlign: 'left',
                       cursor: canEdit && !extra && !isInactive && !isClosed ? 'pointer' : 'default',
-                      width: '100%',
-                    }}>
-                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={S.label}>{m.name}</div>
-                      <div style={S.caption}>{genderTxt(m.gender) + ' · ' + levelOf(m, month)}</div>
+                      <div style={{
+                        ...S.caption,
+                        color: dueColor,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {genderTxt(m.gender) + ' · ' + levelOf(m, month) + ' · ' + dueText}
+                      </div>
                     </div>
                     <LevelChip level={levelOf(m, month)} levels={db.levels} />
                     <span style={{
-                      font: 'var(--type-label)', minWidth: 74, textAlign: 'right',
-                      color: allSold ? 'var(--text-muted)' : state === true ? 'var(--status-transit)'
-                        : extra ? 'var(--status-scheduled-fg)'
-                          : state === false ? 'var(--text-muted)' : 'var(--text-disabled)',
+                      font: "600 13px/1.2 'IBM Plex Sans', sans-serif",
+                      color: statusColor,
+                      whiteSpace: 'nowrap',
+                      minWidth: 56,
+                      textAlign: 'right',
                     }}>
-                      {allSold ? t('attend.absent') : extra ? t('attend.extra')
-                        : state === true ? t('attend.present')
-                          : state === false ? t('attend.absent') : t('attend.unmarked')}
+                      {statusText}
                     </span>
                   </button>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: isMobile ? 'space-between' : 'flex-end',
-                    borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
-                    paddingTop: isMobile ? 4 : 0,
-                    gap: 8,
-                  }}>
-                    {charge
-                      ? <>
-                          <Mono weight={600} color="var(--text-primary)">{fmt(charge.price)}</Mono>
-                          {/* CHỈ HIỂN THỊ. Thu tiền và gạch nợ nằm hết ở màn Công nợ — một khoản
-                              tiền chỉ được sửa ở MỘT chỗ, không thì hai màn nói hai kiểu. */}
-                          <span style={charge.paid ? S.tagGreen : S.tagAmber}>
-                            {t(charge.paid ? 'session.guestPaid' : 'session.guestDebt')}
-                          </span>
-                          {extra && canEdit && !isClosed && (
-                            <IconButton
-                              icon="trash-2"
-                              size="sm"
-                              variant="ghost"
-                              style={{ color: 'var(--status-incident)' }}
-                              label={t('common.delete')}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                a.confirm({
-                                  title: t('session.dropExtraTitle'),
-                                  message: t('session.dropExtraMsg', { name: m.name }),
-                                  tone: 'danger',
-                                  confirmText: t('session.dropExtraOk'),
-                                  onConfirm: () => a.removeExtra(s.id, m.id),
-                                })
-                              }}
-                            />
-                          )}
-                        </>
-                      : adhoc
-                      ? <span style={{ ...S.caption, minWidth: isMobile ? 0 : 96, textAlign: 'right' }} />
-                      : extra
-                      ? <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ ...S.caption, minWidth: isMobile ? 0 : 96, textAlign: 'right' }}>{t('session.extraDueTag')}</span>
-                          {canEdit && !isClosed && (
-                            <IconButton
-                              icon="trash-2"
-                              size="sm"
-                              variant="ghost"
-                              style={{ color: 'var(--status-incident)' }}
-                              label={t('common.delete')}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                a.confirm({
-                                  title: t('session.dropExtraTitle'),
-                                  message: t('session.dropExtraMsg', { name: m.name }),
-                                  tone: 'danger',
-                                  confirmText: t('session.dropExtraOk'),
-                                  onConfirm: () => a.removeExtra(s.id, m.id),
-                                })
-                              }}
-                            />
-                          )}
-                        </div>
-                      : <span style={{
-                          font: 'var(--type-caption)', minWidth: isMobile ? 0 : 96, textAlign: 'right',
-                          color: !due ? 'var(--text-disabled)'
-                            : dueState(due).state === 'full' ? 'var(--status-delivered)' : 'var(--status-delayed)',
-                        }}>
-                          {!due ? t('session.noDueTag')
-                            : dueState(due).state === 'full' ? t('session.duePaidTag')
-                              : dueState(due).state === 'partial'
-                                ? t('session.duePartialTag', { amount: fmtK(dueState(due).remain) })
-                                : t('session.dueUnpaidTag')}
-                        </span>}
-                  </div>
+
+                  {charge && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <Mono weight={600} color="var(--text-primary)">{fmt(charge.price)}</Mono>
+                      <span style={charge.paid ? S.tagGreen : S.tagAmber}>
+                        {t(charge.paid ? 'session.guestPaid' : 'session.guestDebt')}
+                      </span>
+                    </div>
+                  )}
+
+                  {extra && canEdit && !isClosed && (
+                    <IconButton
+                      icon="trash-2"
+                      size="sm"
+                      variant="ghost"
+                      style={{ color: 'var(--status-incident)' }}
+                      label={t('common.delete')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        a.confirm({
+                          title: t('session.dropExtraTitle'),
+                          message: t('session.dropExtraMsg', { name: m.name }),
+                          tone: 'danger',
+                          confirmText: t('session.dropExtraOk'),
+                          onConfirm: () => a.removeExtra(s.id, m.id),
+                        })
+                      }}
+                    />
+                  )}
                 </div>
               )
             })}
-            {canEdit && !isInactive && !isClosed && <ExtraPicker s={s} members={members} />}
+            {canEdit && !isInactive && !isClosed && <ExtraPicker s={s} members={members} isMobile={isMobile} />}
           </div>
         </Card>
 
@@ -510,15 +631,39 @@ export default function SessionDetail() {
             icon="map-pin"
             padding="14px 16px"
             actions={canEdit && !isClosed && (
-              <Button variant="secondary" size="sm" icon="plus"
-                onClick={() => a.openDialog('addcourt', addCourtForm(db, s))}>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="plus"
+                onClick={() => a.openDialog('addcourt', addCourtForm(db, s))}
+                style={{
+                  height: 32,
+                  background: 'var(--surface-inset, #1A2437)',
+                  border: '1px solid var(--border-default, #2E3E5C)',
+                  color: 'var(--text-primary, #E9EFF7)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
                 {t('session.addCourt')}
               </Button>
             )}
           >
             <div style={{ display: 'grid', gap: 9 }}>
               {(s.courts || []).map((c, i) => (
-                <div key={i} style={S.courtRow}>
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    flexWrap: 'wrap',
+                    padding: '9px 11px',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 8,
+                    background: 'var(--surface-inset, #101927)',
+                  }}
+                >
                   <div style={{ flex: 1, minWidth: 140 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                       <span style={S.label}>
@@ -570,37 +715,66 @@ export default function SessionDetail() {
                     </div>
                     <Mono color="var(--text-muted)">{c.from + ' → ' + c.to}</Mono>
                   </div>
-                  <Mono weight={600} color={c.sold ? 'var(--text-muted)' : 'var(--text-primary)'}
-                    style={c.sold ? { textDecoration: 'line-through' } : undefined}>
+                  <Mono
+                    weight={600}
+                    color={c.sold ? 'var(--text-muted)' : 'var(--text-primary)'}
+                    style={c.sold ? { textDecoration: 'line-through' } : undefined}
+                  >
                     {fmt(rowCost(db, c))}
                   </Mono>
                   {canEdit && !isClosed && (
                     <>
-                      <Button variant={c.sold ? 'ghost' : 'secondary'} size="sm"
-                        onClick={() => a.toggleCourtSold(s.id, i)}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => a.toggleCourtSold(s.id, i)}
+                        style={{
+                          height: 30,
+                          padding: '0 10px',
+                          background: 'var(--surface-card, #1A2437)',
+                          border: '1px solid var(--border-default, #2E3E5C)',
+                          color: 'var(--text-primary, #E9EFF7)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
                         {c.sold ? t('session.unsell') : t('session.sell')}
                       </Button>
                       {c.extra && (
-                        <IconButton icon="trash-2" size="sm" variant="ghost"
-                          label={t('common.delete')} onClick={() => a.confirm({
+                        <IconButton
+                          icon="trash-2"
+                          size="sm"
+                          variant="ghost"
+                          label={t('common.delete')}
+                          onClick={() => a.confirm({
                             title: t('session.delCourtTitle'),
                             message: t('session.delCourtMsg', { from: c.from, to: c.to }),
                             tone: 'danger',
                             confirmText: t('session.delCourtOk'),
                             onConfirm: () => a.removeSessionCourt(s.id, i),
-                          })} />
+                          })}
+                        />
                       )}
                     </>
                   )}
                   {c.sold && (
                     <div style={S.soldBox}>
-                      <Input label={t('session.soldAmount')} mono suffix={t('units.dong')}
-                        value={String(c.soldAmount || 0)} disabled={!canEdit || isClosed}
+                      <Input
+                        label={t('session.soldAmount')}
+                        mono
+                        suffix={t('units.dong')}
+                        value={String(c.soldAmount || 0)}
+                        disabled={!canEdit || isClosed}
                         onChange={(e) => a.setSold(s.id, i, 'soldAmount', e.target.value)}
-                        style={{ width: 140 }} />
-                      <Input label={t('session.soldTo')} value={c.soldTo || ''} disabled={!canEdit || isClosed}
+                        style={{ width: 140 }}
+                      />
+                      <Input
+                        label={t('session.soldTo')}
+                        value={c.soldTo || ''}
+                        disabled={!canEdit || isClosed}
                         onChange={(e) => a.setSold(s.id, i, 'soldTo', e.target.value)}
-                        style={{ width: 170 }} />
+                        style={{ width: 170 }}
+                      />
                     </div>
                   )}
                 </div>
@@ -612,63 +786,83 @@ export default function SessionDetail() {
           <Card title={t('session.guestsTitle')} subtitle={t('session.guestsSub')} icon="user-round-plus" padding="14px 16px">
             {isCancelled && <Alert tone="danger">{t('session.cancelledGuestNotice')}</Alert>}
             {allSold && <Alert tone="warning">{t('session.allSoldGuestNotice')}</Alert>}
-            {canEdit && !isInactive && !isClosed && <GuestForm s={s} />}
+            {canEdit && !isInactive && !isClosed && <GuestForm s={s} isMobile={isMobile} />}
             <div style={{ display: 'grid', gap: 8, marginTop: guests.length ? 12 : 0 }}>
               {guests.length === 0
                 ? <Empty icon="user-round-plus" title={t('session.guestEmpty')} hint={t('session.guestEmptyHint')} />
                 : guests.map((g) => (
-                    <div key={g.id} style={{ ...S.guestRow, opacity: isInactive ? 0.75 : 1 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={S.label}>{guestOf(db, g.guestId).name}</div>
-                        <div style={S.caption}>{genderTxt(g.gender) + ' · ' + g.level}</div>
-                      </div>
-                      <SearchSelect
-                        size="sm"
-                        menuWidth={240}
-                        placeholder={t('session.guestByShort')}
-                        searchPlaceholder={t('session.searchMember')}
-                        options={db.members.filter((m) => m.active !== false).map((m) => ({
-                          value: m.id,
-                          label: m.name,
-                          level: levelOf(m, s.date.slice(0, 7)),
-                          sub: m.phone || undefined,
-                        }))}
-                        levels={db.levels}
-                        clearable
-                        disabled={!canEdit || isInactive || isClosed}
-                        value={g.invitedBy || ''}
-                        onChange={(val) => a.setGuestInviter(g.id, val)}
-                      />
-                      <Mono weight={600} color="var(--text-primary)">{fmt(g.price)}</Mono>
-                      <span style={g.paid ? S.tagGreen : S.tagAmber}>
-                        {t(g.paid ? 'session.guestPaid' : 'session.guestDebt')}
-                      </span>
-                      {canEdit && !isInactive && !isClosed && (
-                        <div style={{ display: 'flex', gap: 2 }}>
-                          <IconButton
-                            icon="pencil"
-                            size="sm"
-                            variant="ghost"
-                            label={t('common.edit')}
-                            onClick={() => setEditingGuest(guestOf(db, g.guestId))}
-                          />
-                          <IconButton
-                            icon="trash-2"
-                            size="sm"
-                            variant="ghost"
-                            label={t('common.delete')}
-                            onClick={() => a.confirm({
-                              title: t('session.delGuestTitle'),
-                              message: t('session.delGuestMsg', { name: guestOf(db, g.guestId).name }),
-                              tone: 'danger',
-                              confirmText: t('session.delGuestOk'),
-                              onConfirm: () => a.removeGuest(g.id),
-                            })}
-                          />
+                    <div
+                      key={g.id}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        padding: '10px 12px',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 8,
+                        background: 'var(--surface-inset, #101927)',
+                        opacity: isInactive ? 0.75 : 1,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={S.label}>{guestOf(db, g.guestId).name}</div>
+                          <div style={S.caption}>{genderTxt(g.gender) + ' · ' + g.level}</div>
                         </div>
-                      )}
+                        <Mono weight={600} color="var(--text-primary)">{fmt(g.price)}</Mono>
+                        <span style={g.paid ? S.tagGreen : S.tagAmber}>
+                          {t(g.paid ? 'session.guestPaid' : 'session.guestDebt')}
+                        </span>
+                        {canEdit && !isInactive && !isClosed && (
+                          <div style={{ display: 'flex', gap: 2 }}>
+                            <IconButton
+                              icon="pencil"
+                              size="sm"
+                              variant="ghost"
+                              label={t('common.edit')}
+                              onClick={() => setEditingGuest(guestOf(db, g.guestId))}
+                            />
+                            <IconButton
+                              icon="trash-2"
+                              size="sm"
+                              variant="ghost"
+                              label={t('common.delete')}
+                              onClick={() => a.confirm({
+                                title: t('session.delGuestTitle'),
+                                message: t('session.delGuestMsg', { name: guestOf(db, g.guestId).name }),
+                                tone: 'danger',
+                                confirmText: t('session.delGuestOk'),
+                                onConfirm: () => a.removeGuest(g.id),
+                              })}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <SearchSelect
+                          size="sm"
+                          style={{ width: '100%' }}
+                          menuWidth={240}
+                          placeholder={t('session.guestByShort')}
+                          searchPlaceholder={t('session.searchMember')}
+                          options={db.members.filter((m) => m.active !== false).map((m) => ({
+                            value: m.id,
+                            label: m.name,
+                            level: levelOf(m, s.date.slice(0, 7)),
+                            sub: m.phone || undefined,
+                          }))}
+                          levels={db.levels}
+                          clearable
+                          disabled={!canEdit || isInactive || isClosed}
+                          value={g.invitedBy || ''}
+                          onChange={(val) => a.setGuestInviter(g.id, val)}
+                        />
+                      </div>
                     </div>
                   ))}
+            </div>
+            <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', marginTop: 8 }}>
+              {t('session.guestNoChallenge')}
             </div>
           </Card>
 
@@ -713,7 +907,7 @@ export default function SessionDetail() {
  * là nhét họ vào danh sách khách với giá khách — sai người, thu vượt, và phồng báo cáo khách.
  * Giờ họ trả theo ĐƠN GIÁ MỘT BUỔI của nhóm, hiện ở tab Đối chiếu bên Công nợ.
  */
-function ExtraPicker({ s, members }) {
+function ExtraPicker({ s, members, isMobile }) {
   const { db, ui, a } = useApp()
   const inSession = new Set(members.map((m) => m.id))
   const rest = db.members.filter((m) => m.active !== false && !inSession.has(m.id))
@@ -736,11 +930,15 @@ function ExtraPicker({ s, members }) {
   }
 
   return (
-    <div style={S.extraBox}>
+    <div style={{
+      ...S.extraBox,
+      flexDirection: isMobile ? 'column' : 'row',
+      alignItems: isMobile ? 'stretch' : 'center',
+    }}>
       <SearchSelect
         multiple
         size="sm"
-        style={{ flex: 1, minWidth: 200 }}
+        style={{ flex: 1, minWidth: isMobile ? '100%' : 200 }}
         menuWidth={280}
         value={selectedMembers}
         placeholder={t('session.extraPick')}
@@ -755,6 +953,14 @@ function ExtraPicker({ s, members }) {
         size="sm"
         icon="user-round-plus"
         disabled={count === 0}
+        style={{
+          height: 34,
+          justifyContent: 'center',
+          background: 'var(--surface-inset, #1A2437)',
+          border: '1px solid var(--border-default, #2E3E5C)',
+          color: 'var(--text-primary, #E9EFF7)',
+          fontWeight: 600,
+        }}
         onClick={handleAdd}
       >
         {count > 1 ? t('session.extraAddMany', { n: count }) : t('session.extraAdd')}
@@ -765,7 +971,7 @@ function ExtraPicker({ s, members }) {
 
 /* ---------------- form thêm khách ---------------- */
 
-function GuestForm({ s }) {
+function GuestForm({ s, isMobile }) {
   const { db, ui, a } = useApp()
   const [open, setOpen] = useState(false)
   const [showExtra, setShowExtra] = useState(false)
@@ -814,9 +1020,14 @@ function GuestForm({ s }) {
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
-      <div style={S.guestForm}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : '1.4fr 110px 95px minmax(180px, 1.6fr) auto',
+        gap: 9,
+        alignItems: 'flex-end',
+      }}>
         {/* Ô Tìm / Nhập tên khách với Autocomplete */}
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', gridColumn: isMobile ? '1 / -1' : 'auto' }}>
           <Input
             label={t('session.guestName')}
             placeholder={t('session.guestSearchPlaceholder')}
@@ -878,27 +1089,33 @@ function GuestForm({ s }) {
           )}
         </div>
 
-        <GenderSegment
-          label={t('session.guestGender')}
-          value={f.gGender || 'nam'}
-          onChange={(val) => set('gGender', val)}
-        />
-        <Select
-          label={t('session.guestLevel')}
-          value={f.gLevel}
-          options={db.levels.map((l) => ({ value: l, label: l }))}
-          onChange={(e) => set('gLevel', e.target.value)}
-        />
-        <SearchSelect
-          label={t('session.guestBy')}
-          value={f.gBy || ''}
-          placeholder={t('debts.clubRecruited')}
-          searchPlaceholder={t('session.searchMember')}
-          options={memberOptions}
-          levels={db.levels}
-          clearable
-          onChange={(val) => set('gBy', val)}
-        />
+        <div style={{ gridColumn: isMobile ? '1' : 'auto' }}>
+          <GenderSegment
+            label={t('session.guestGender')}
+            value={f.gGender || 'nam'}
+            onChange={(val) => set('gGender', val)}
+          />
+        </div>
+        <div style={{ gridColumn: isMobile ? '2' : 'auto' }}>
+          <Select
+            label={t('session.guestLevel')}
+            value={f.gLevel}
+            options={db.levels.map((l) => ({ value: l, label: l }))}
+            onChange={(e) => set('gLevel', e.target.value)}
+          />
+        </div>
+        <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
+          <SearchSelect
+            label={t('session.guestBy')}
+            value={f.gBy || ''}
+            placeholder={t('debts.clubRecruited')}
+            searchPlaceholder={t('session.searchMember')}
+            options={memberOptions}
+            levels={db.levels}
+            clearable
+            onChange={(val) => set('gBy', val)}
+          />
+        </div>
         <Button
           variant="primary"
           icon="plus"
@@ -908,6 +1125,8 @@ function GuestForm({ s }) {
             fontWeight: 600,
             minWidth: 90,
             justifyContent: 'center',
+            gridColumn: isMobile ? '1 / -1' : 'auto',
+            height: isMobile ? 36 : undefined,
           }}
           onClick={() => { setOpen(false); a.addGuest() }}
         >
@@ -955,35 +1174,53 @@ function GuestForm({ s }) {
       {f.gHasCompanion && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1.5fr 1fr 1fr',
+          gridTemplateColumns: isMobile ? '1fr 1fr' : '1.5fr 1fr 1fr',
           gap: 10,
           padding: '10px 12px',
           borderRadius: 8,
           background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, rgba(14, 165, 233, 0.08) 100%)',
           border: '1px solid rgba(2, 132, 199, 0.25)',
         }}>
-          <Input
-            label={t('session.companionName')}
-            placeholder={t('session.companionDefault', { name: (f.gName || '').trim() || '...' })}
-            value={f.gCompanionName || ''}
-            onChange={(e) => set('gCompanionName', e.target.value)}
-          />
-          <GenderSegment
-            label={t('session.guestGender')}
-            value={f.gCompanionGender || 'nu'}
-            onChange={(val) => set('gCompanionGender', val)}
-          />
-          <Select
-            label={t('session.guestLevel')}
-            value={f.gCompanionLevel || f.gLevel || db.levels[0]}
-            options={db.levels.map((l) => ({ value: l, label: l }))}
-            onChange={(e) => set('gCompanionLevel', e.target.value)}
-          />
+          <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
+            <Input
+              label={t('session.companionName')}
+              placeholder={t('session.companionDefault', { name: (f.gName || '').trim() || '...' })}
+              value={f.gCompanionName || ''}
+              onChange={(e) => set('gCompanionName', e.target.value)}
+            />
+          </div>
+          <div style={{ gridColumn: isMobile ? '1' : 'auto' }}>
+            <GenderSegment
+              label={t('session.guestGender')}
+              value={f.gCompanionGender || 'nu'}
+              onChange={(val) => set('gCompanionGender', val)}
+            />
+          </div>
+          <div style={{ gridColumn: isMobile ? '2' : 'auto' }}>
+            <Select
+              label={t('session.guestLevel')}
+              value={f.gCompanionLevel || f.gLevel || db.levels[0]}
+              options={db.levels.map((l) => ({ value: l, label: l }))}
+              onChange={(e) => set('gCompanionLevel', e.target.value)}
+            />
+          </div>
+          <div style={{
+            gridColumn: isMobile ? '1 / -1' : 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            paddingBottom: 4,
+          }}>
+            <Icon name="link" size={12} />
+            <span>{t('session.companionTag', { name: f.gName || t('session.guestName') })}</span>
+          </div>
         </div>
       )}
 
       {showExtra && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 9 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.5fr', gap: 9 }}>
           <Input
             label={t('members.guestPhone')}
             placeholder={t('session.phGuestPhone2')}
@@ -1039,10 +1276,11 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    padding: '12px 14px',
-    background: 'var(--surface-card)',
+    padding: '14px 16px',
+    background: '#080F1C',
     border: '1px solid var(--border-subtle)',
-    borderRadius: 'var(--radius-lg)',
+    borderRadius: 10,
+    margin: '0 0 12px',
   },
   sessionHeaderSubRowMobile: {
     display: 'flex',
@@ -1067,12 +1305,12 @@ const S = {
     flexShrink: 0,
   },
   sessionTitleText: {
-    font: '700 18px/1.2 Barlow, sans-serif',
+    font: '600 17px/1.2 Barlow, sans-serif',
     letterSpacing: '-0.01em',
     color: 'var(--text-primary)',
   },
   sessionSubText: {
-    font: '400 12.5px/1.3 "IBM Plex Mono", monospace',
+    font: '400 12px/1.4 "IBM Plex Sans", sans-serif',
     color: 'var(--text-muted)',
   },
   statusBadgeTeal: {
@@ -1081,8 +1319,10 @@ const S = {
     gap: 6,
     padding: '5px 10px',
     borderRadius: 999,
-    background: 'rgba(0, 178, 169, 0.16)',
+    background: 'rgba(0, 178, 169, 0.18)',
     border: '1px solid rgba(0, 178, 169, 0.3)',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   statusDotTeal: {
     width: 6,
@@ -1099,6 +1339,8 @@ const S = {
     borderRadius: 999,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   statusDotDefault: {
     width: 6,
@@ -1106,28 +1348,28 @@ const S = {
     borderRadius: '50%',
     background: 'var(--text-muted)',
   },
-  tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 16px' },
-  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', gap: 2 },
+  tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 6px' },
+  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: '#101927', border: '1px solid #22304A', gap: 2 },
   tabBtn: {
-    display: 'flex', alignItems: 'center', gap: 8, height: 34, padding: '0 14px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 36, padding: '0 12px',
     borderRadius: 6, border: 'none', background: 'transparent',
-    font: '600 13px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif', color: '#A8B7CB',
     cursor: 'pointer', transition: 'all 0.15s ease',
   },
   tabBtnMobile: {
     flex: '1 1 0',
     justifyContent: 'center',
     gap: 4,
-    height: 38,
-    padding: '0 6px',
+    minHeight: 38,
+    padding: '0 4px',
     fontSize: 12,
     whiteSpace: 'nowrap',
   },
-  tabBtnActive: { background: 'var(--surface-card)', color: 'var(--text-primary)', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
-  tabBadgeMono: { font: '400 11.5px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' },
+  tabBtnActive: { background: '#1A2437', border: '1px solid #2E3E5C', color: '#E9EFF7', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
+  tabBadgeMono: { font: '400 11px/1 "IBM Plex Mono", monospace', color: '#8494AA' },
   headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
-  label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
-  caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
+  label: { font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' },
+  caption: { font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' },
   attRow: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', width: '100%',
     border: '1px solid', borderRadius: 8, font: 'inherit',
@@ -1138,13 +1380,13 @@ const S = {
   },
   extraBox: {
     display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3,
-    padding: '9px 11px', borderRadius: 8, border: '1px dashed var(--border-subtle)',
+    padding: '10px', borderRadius: 8, border: '1px dashed var(--border-subtle)',
   },
   courtRow: {
     display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', padding: '9px 11px',
     border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-card)',
   },
-  soldBox: { display: 'flex', gap: 9, flexBasis: '100%', flexWrap: 'wrap' },
+  soldBox: { display: 'flex', gap: 9, flexBasis: '100%', flexWrap: 'wrap', marginTop: 6 },
   guestForm: { display: 'grid', gridTemplateColumns: '1.4fr 110px 95px minmax(180px, 1.6fr) auto', gap: 9, alignItems: 'flex-end' },
   guestDropdown: {
     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
@@ -1180,11 +1422,11 @@ const S = {
     background: 'var(--surface-card)',
   },
   tagAmber: {
-    font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
-    background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap',
+    font: '700 11px/1 var(--font-sans)', padding: '3px 7px', borderRadius: 4,
+    background: 'rgba(224,138,0,.18)', color: '#F0B75C', whiteSpace: 'nowrap',
   },
   tagGreen: {
-    font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
-    background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)', whiteSpace: 'nowrap',
+    font: '700 11px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 4,
+    background: 'rgba(18,168,103,.18)', color: '#5FD9A2', whiteSpace: 'nowrap',
   },
 }

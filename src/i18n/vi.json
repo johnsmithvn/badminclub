@@ -1126,6 +1126,7 @@
     "editCourtLabelTitle": "Sửa số sân",
     "editCourtLabelDesc": "Nhập số sân hoặc tên sân cụ thể trong tổ hợp (VD: Sân 19, Sân 20...)",
     "courtNum": "Sân {{n}}",
+    "courtTimeSub": "{{time}} · sân {{courts}}",
     "sell": "Bán sân",
     "unsell": "Bỏ bán",
     "soldAmount": "Bán được",
@@ -1159,6 +1160,7 @@
     "guestNote": "Ghi chú",
     "guestEmpty": "Chưa có khách giao lưu nào",
     "guestEmptyHint": "Nhập tên, chọn trình độ và người rủ rồi bấm Thêm. Giá tự tính theo bảng giá của CLB.",
+    "guestNoChallenge": "Khách không tham gia kèo, chỉ đánh trong các sân của buổi.",
     "doClose": "Chốt buổi",
     "doOpen": "Mở điểm danh",
     "doReopen": "Mở lại buổi",
@@ -2479,9 +2481,9 @@
     "errDupPhone": "Trùng SĐT với {{name}}"
   },
   "sessionTabs": {
-    "attend": "Điểm danh & tiền",
-    "courts": "Ghi kết quả",
-    "matches": "Trận & kèo",
+    "attend": "Điểm danh",
+    "courts": "Sân",
+    "matches": "Trận",
     "hintAttend": "Khối điểm danh và tiền giữ nguyên như bản đang chạy.",
     "hintCourts": "Ghi kết quả trận nhanh (đơn & đôi), tự động tính Elo.",
     "hintMatches": "Mọi trận đổ về một bảng, kèo chỉ là nguồn thứ hai."
