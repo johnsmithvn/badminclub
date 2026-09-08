@@ -52,16 +52,34 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
       initDateStr: `${y}-${m}-${day}`,
       initTimeStr: `${hh}:${mm}`,
     }
-  }, [match.at, session?.date])
+  }, [match.at, session])
 
   const [dateStr, setDateStr] = useState(initDateStr)
   const [timeStr, setTimeStr] = useState(initTimeStr)
 
-  // Cập nhật date/time khi chuyển trận
-  useEffect(() => {
+  // 2. Quản lý điểm các set
+  const oldSets = match.sets || []
+  const [sets, setSets] = useState(() => {
+    if (oldSets.length > 0) {
+      return oldSets.map((s) => [s[0], s[1]])
+    }
+    return [[21, 19]]
+  })
+  const [activeSetIdx, setActiveSetIdx] = useState(0)
+
+  // Đồng bộ khi chuyển trận (pattern chuẩn React: adjusting state when prop changes)
+  const [prevMatchId, setPrevMatchId] = useState(match.id)
+  if (match.id !== prevMatchId) {
+    setPrevMatchId(match.id)
     setDateStr(initDateStr)
     setTimeStr(initTimeStr)
-  }, [initDateStr, initTimeStr])
+    if (oldSets.length > 0) {
+      setSets(oldSets.map((s) => [s[0], s[1]]))
+    } else {
+      setSets([[21, 19]])
+    }
+    setActiveSetIdx(0)
+  }
 
   // Điều chỉnh giờ nhanh (-15p, +15p, Bây giờ)
   const adjustMinutes = (delta) => {
@@ -93,26 +111,6 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
     const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0)
     return dt.getTime()
   }, [dateStr, timeStr, match.at])
-
-  // 2. Quản lý điểm các set
-  const oldSets = match.sets || []
-  const [sets, setSets] = useState(() => {
-    if (oldSets.length > 0) {
-      return oldSets.map((s) => [s[0], s[1]])
-    }
-    return [[21, 19]]
-  })
-  const [activeSetIdx, setActiveSetIdx] = useState(0)
-
-  // Reset sets khi đổi trận
-  useEffect(() => {
-    if (oldSets.length > 0) {
-      setSets(oldSets.map((s) => [s[0], s[1]]))
-    } else {
-      setSets([[21, 19]])
-    }
-    setActiveSetIdx(0)
-  }, [match.id, oldSets])
 
   const teamA = match.teamA || []
   const teamB = match.teamB || []
