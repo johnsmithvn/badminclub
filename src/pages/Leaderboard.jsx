@@ -946,6 +946,32 @@ export default function Leaderboard() {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (window.confirm(t('leaderboard.recalcConfirmMsg'))) {
+                    a.recalcAllRatings?.()
+                  }
+                }}
+                title={t('leaderboard.recalcHint')}
+                aria-label={t('leaderboard.btnRecalc')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: isMobile ? '8px 10px' : '8px 14px',
+                  borderRadius: 6,
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="rotate-ccw" size={14} />
+                <span>{t('leaderboard.btnRecalc')}</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setSeasonSettingsOpen(true)}
                 title={t('season.settingsBtn')}
                 aria-label={t('season.settingsBtn')}
