@@ -21,7 +21,7 @@ import {
   Send, Settings, Settings2, Shield, ShoppingCart, Shuffle, Split, Tags, Trash2, TrendingDown,
   TrendingUp, TriangleAlert, Trophy, Truck, Undo2, Unlink, Upload, UserRound, UserRoundCheck,
   UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X, Zap,
-  Filter,
+  Filter, Table,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -104,6 +104,7 @@ export const ICONS = {
   shuffle: Shuffle,
   split: Split,
   sun: Sun,
+  table: Table,
   tags: Tags,
   target: Target,
   'trash-2': Trash2,
