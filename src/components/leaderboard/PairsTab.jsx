@@ -1027,36 +1027,62 @@ function getConfidenceDots(tier) {
                     </div>
 
                     {/* Cột 4: Kỳ vọng → Thực tế */}
-                    <div style={{ display: 'grid', gap: 3, width: '100%' }}>
-                      <div style={{
-                        position: 'relative',
-                        height: 7,
-                        borderRadius: 999,
-                        background: '#0B1220',
-                        border: '1px solid #22304A',
-                        overflow: 'hidden',
-                      }}>
-                        <div style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: `${pair.expectedWinPct}%`,
-                          background: '#2E3E5C',
-                        }} />
-                        <div style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: `${pair.actualWinPct}%`,
-                          background: impactVal >= 0 ? '#00B2A9' : (isLow ? '#D63B2B' : '#E08A00'),
-                        }} />
-                      </div>
-                      <div style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                        {pair.expectedWinPct}% → <span style={{ color: '#fff', fontWeight: 600 }}>{pair.actualWinPct}%</span>
-                      </div>
-                    </div>
+                    {(() => {
+                      const exp = pair.expectedWinPct ?? 50
+                      const act = pair.actualWinPct ?? 50
+                      const barColor = impactVal >= 0 ? '#00B2A9' : (isLow ? '#D63B2B' : '#E08A00')
+                      const loFill = Math.min(exp, act)
+                      const hiFill = Math.max(exp, act)
+                      const isOver = act >= exp
+                      return (
+                        <div style={{ display: 'grid', gap: 4, width: '100%' }}>
+                          {/* Track */}
+                          <div style={{
+                            position: 'relative',
+                            height: 8,
+                            borderRadius: 999,
+                            background: '#0B1220',
+                            border: '1px solid #22304A',
+                          }}>
+                            {/* Segment "đến min(exp,act)" — luôn hiện */}
+                            <div style={{
+                              position: 'absolute', left: 0, top: 0, bottom: 0,
+                              width: `${loFill}%`,
+                              borderRadius: '999px 0 0 999px',
+                              background: isOver ? '#1A3A55' : barColor,
+                            }} />
+                            {/* Segment "khoảng lệch" — màu nổi bật */}
+                            <div style={{
+                              position: 'absolute', left: `${loFill}%`, top: 0, bottom: 0,
+                              width: `${hiFill - loFill}%`,
+                              borderRadius: loFill === 0 ? '999px 0 0 999px' : '0',
+                              background: barColor,
+                            }} />
+                            {/* Needle kỳ vọng — vạch trắng thẳng đứng */}
+                            <div style={{
+                              position: 'absolute',
+                              left: `${exp}%`,
+                              top: -1, bottom: -1,
+                              width: 2,
+                              marginLeft: -1,
+                              background: '#fff',
+                              borderRadius: 1,
+                              opacity: 0.7,
+                            }} />
+                          </div>
+                          {/* Labels */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#5B6B81' }}>
+                              kv {exp}%
+                            </span>
+                            <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#5B6B81' }}>·</span>
+                            <span style={{ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: barColor }}>
+                              tt {act}%
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* Cột 5: Lệch pp */}
                     <div style={{ textAlign: 'right' }}>
