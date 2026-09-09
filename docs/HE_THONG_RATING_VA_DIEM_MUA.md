@@ -1,4 +1,4 @@
-﻿# HỆ THỐNG ĐIỂM ELO CAREER VÀ CƠ CHẾ ĐIỂM MÙA GIẢI (SEASON POINTS) — BADMINCLUB
+# HỆ THỐNG ĐIỂM ELO CAREER VÀ CƠ CHẾ ĐIỂM MÙA GIẢI (SEASON POINTS) — BADMINCLUB
 
 > **Tài liệu kỹ thuật đặc tả kiến trúc, công thức toán học, cơ chế lưu trữ và tác động nghiệp vụ**  
 > *Được trích xuất và chuẩn hoá trực tiếp từ mã nguồn thực tế của dự án BadminClub (`src/lib/rating.js`, `src/lib/xp.js`, `src/lib/assign.js`, `src/config/app.json`, `supabase/migrations/`).*
@@ -38,6 +38,7 @@
 7. [Tác động đến Bảng xếp hạng (Leaderboard)](#7-tác-động-đến-bảng-xếp-hạng-leaderboard)
    - 7.1. [Cấu trúc 5 Tab Bảng Xếp Hạng](#71-cấu-trúc-5-tab-bảng-xếp-hạng)
    - 7.2. [Khu vực Thẩm định Trình độ (Provisional R1)](#72-khu-vực-thẩm-định-trình-độ-provisional-r1)
+   - 7.3. [Công thức Ăn ý, Khắc chế & Đối đầu cặp (Synergy & Matchup)](#73-công-thức-ăn-ý-khắc-chế--đối-đầu-cặp-synergy--matchup)
 8. [Bảng tổng hợp tham chiếu cấu hình (`app.json`)](#8-bảng-tổng-hợp-tham-chiếu-cấu-hình-appjson)
 
 ---
@@ -584,9 +585,93 @@ Những người chơi có dưới 5 trận thi đấu chính thức ($< 5$ tr�
 
 ---
 
+### 7.3. Công thức Ăn ý, Khắc chế & Đối đầu cặp (Synergy & Matchup)
+
+*(File nguồn: `src/lib/rating.js` — các hàm `calcPairImpact`, `normalizeSynergyScore`, `calcMatchupEdge`, `rankPairs`, `confidenceLevelOf`)*
+
+#### 7.3.1. Hiệu quả thực tế của cặp đôi (`calcPairImpact`)
+
+Đo lường mức độ "ăn ý" của hai người khi đứng cùng đội, so với kỳ vọng Elo:
+
+1. **Lọc trận**: Tìm tất cả trận mà 2 người chơi cùng đội (cùng Team A hoặc cùng Team B).
+2. **Kỳ vọng từng trận**: Dùng `initialRatingA/B` nếu có (Elo đóng băng lúc bắt đầu trận), fallback sang `teamRating(ratingsMap)` nếu trận nhập tay thiếu field.
+3. **Công thức**:
+
+$$\text{actualWinPct} = \text{round}\left(\frac{\text{wins}}{\text{gamesCount}} \times 100\right)$$
+$$\text{expectedWinPct} = \text{round}\left(\frac{\sum_{i=1}^{n} E_{\text{team},i}}{n} \times 100\right)$$
+$$\text{pairImpact} = \text{actualWinPct} - \text{expectedWinPct} \quad \text{(đơn vị: pp — percentage point)}$$
+
+*Ví dụ:* Cặp Mai·Vân Anh được Elo dự đoán thắng 55% nhưng thực tế thắng 100% → pairImpact = **+45pp**.
+
+---
+
+#### 7.3.2. Điểm Ăn ý (Synergy Score) — `normalizeSynergyScore`
+
+Chuyển đổi `pairImpact` (có thể âm/dương) thành thang điểm **10 – 99** (50 = trung tính) với Bayesian Shrinkage:
+
+$$c = \min\left(1.0, \frac{\text{gamesCount}}{15}\right)$$
+
+$$\text{synergyScore} = \begin{cases}
+50 + \text{pairImpact} \times 2.41 \times c & \text{nếu pairImpact} \ge 0 \\
+50 + \text{pairImpact} \times 0.70 \times c & \text{nếu pairImpact} < 0
+\end{cases}$$
+
+$$\text{synergyScore} = \text{clamp}(10, 99)$$
+
+| pairImpact | Trận | Shrinkage $c$ | Synergy Score | Ý nghĩa |
+| :---: | :---: | :---: | :---: | :--- |
+| +17pp | 18 trận | 1.0 | **91** | Cặp ăn ý xuất sắc |
+| +17pp | 5 trận | 0.33 | **64** | Có tín hiệu tốt, chưa đủ data |
+| −17pp | 15 trận | 1.0 | **38** | Cặp dưới kỳ vọng |
+| 0pp | bất kỳ | bất kỳ | **50** | Cặp bình thường |
+
+> **Tại sao hệ số bất đối xứng (2.41 vs 0.70)?**  
+> Thiết kế chủ ý: phạt nhẹ cặp thua vì thua có thể do ghép kèo không công bằng (đối thủ mạnh hơn), nhưng thưởng nặng cặp thắng vượt kỳ vọng vì đó là tín hiệu ăn ý thật sự.
+
+---
+
+#### 7.3.3. Độ tin cậy cặp đôi — `confidenceLevelOf`
+
+| Bậc | Số trận cặp | Trọng số | Provisional? | Ý nghĩa |
+| :---: | :---: | :---: | :---: | :--- |
+| **R1** | < 5 trận | 0.0 | Có | Data quá ít, Synergy Score bị co mạnh về 50 |
+| **R2** | 5 – 11 trận | 0.5 | Không | Bắt đầu có tín hiệu, xếp hạng xuống cuối bảng |
+| **R3** | 12 – 29 trận | 1.0 | Không | Data đáng tin cậy |
+| **R4** | ≥ 30 trận | 1.0 | Không | Tin cậy hoàn toàn |
+
+Trong bảng xếp hạng Ăn ý, cặp R1 luôn bị **đẩy xuống cuối** dù Synergy Score cao, để tránh cặp đánh 2 trận thắng cả 2 nhảy lên top.
+
+---
+
+#### 7.3.4. Khắc chế / Kỵ giơ đối đầu có hướng (`calcMatchupEdge`)
+
+Đo lường lợi thế của **Cặp A** khi chạm trán **Cặp B** cụ thể (có hướng: A→B ≠ B→A):
+
+1. **Lọc trận**: Tìm tất cả trận mà Cặp A đối đầu Cặp B (khác đội).
+2. **Kỳ vọng**: Dùng `initialRatingA/B` hoặc fallback `teamRating`.
+3. **Công thức**:
+
+$$\text{matchupImpact} = \text{actualWinPct} - \text{expectedWinPct}$$
+$$c_{\text{matchup}} = \min\left(1.0, \frac{\text{gamesCount}}{10}\right)$$
+$$\text{advantageScore} = \text{clamp}\left(10, 99, \; 50 + \text{matchupImpact} \times 1.2 \times c_{\text{matchup}}\right)$$
+
+> **Khác biệt với Synergy (7.3.2):**  
+> Shrinkage tại `gamesCount/10` (thay vì `/15`) vì matchup cặp-vs-cặp có ít data hơn nên cần ít trận hơn để đạt full weight. Hệ số scale `1.2` (thay vì `2.41/0.70`) đối xứng vì cả thắng lẫn thua trong H2H đều có ý nghĩa ngang nhau.
+
+---
+
+#### 7.3.5. Xếp hạng toàn bộ cặp CLB (`rankPairs`)
+
+Tổng hợp tất cả cặp đôi từng đánh cùng đội, tính `calcPairImpact` cho từng cặp, sau đó:
+- Phân loại thể thức: **MD** (Đôi nam), **WD** (Đôi nữ), **XD** (Nam-nữ).
+- Tính Synergy Trend: `'up'` / `'down'` / `'steady'` bằng so sánh tỷ lệ thắng 5 trận gần nhất vs các trận trước đó (ngưỡng ±15%).
+- Sort: R1 xuống cuối → sau đó theo `synergyScore` giảm dần → tie-break theo `gamesCount`.
+
+---
+
 ## 8. BẢNG TỔNG HỢP THAM CHIẾU CẤU HÌNH (`app.json`)
 
-Mọi hằng số và trọng số trong tài liệu này đều được quản lý tập trung và có thể tuỳ biến tại `src/config/app.json`:
+Mọi hằng số quan trọng quy định thuật toán Elo, điểm mùa, ghép sân và phân bổ thời gian đều được cấu hình tập trung trong `src/config/app.json`:
 
 ```json
 {
