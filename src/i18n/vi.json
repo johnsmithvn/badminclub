@@ -3273,6 +3273,17 @@
     "avgDiffWinLabel": "Thắng cách biệt trung bình",
     "recent3Matches": "3 trận gần nhất",
     "p6FooterNote": "Đối đầu là lịch sử thô, trọng số 4 trong cân sân. Chỉ số khắc chế {{score}} mới là thứ vào Điểm cân bằng.",
-    "exportCsv": "Xuất CSV"
+    "exportCsv": "Xuất CSV",
+    "player1": "Người 1",
+    "player2": "Người 2",
+    "player3": "Người 3",
+    "player4": "Người 4",
+    "swapSides": "Đổi bên",
+    "frequentPartners": "Bạn cặp quen",
+    "historicOpponents": "Đối thủ từng gặp",
+    "topRivalries": "Kình địch CLB",
+    "gamesCountLabel": "{{n}} trận",
+    "noH2HYet": "Chưa từng chạm trán trực tiếp · Dự đoán theo Elo",
+    "pickPlayerPrompt": "Chọn người chơi..."
   }
 }
