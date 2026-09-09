@@ -8,6 +8,7 @@ import {
   calcEloDelta,
   confidenceOf,
   computeClubCalibration,
+  rankTopCrossGenderPlayers,
   effectiveRating,
   replayRatingCascade,
   evalBalance,
@@ -120,6 +121,41 @@ test('Comprehensive Rating & Elo Engine Tests', async (t) => {
     assert.equal(bLess100.femaleWins, 4)
     assert.equal(bLess100.observedWinRate, 0.8)
     assert.ok(bLess100.learnedAdjustment > 0) // Nữ thắng 80% -> adjustment dương
+  })
+
+  await t.test('computeClubCalibration handles mixed doubles and ranks top cross-gender players', () => {
+    const membersMap = {
+      m1: { id: 'm1', name: 'Minh', gender: 'nam' },
+      m2: { id: 'm2', name: 'Hải', gender: 'nam' },
+      f1: { id: 'f1', name: 'Lan', gender: 'nu' },
+      f2: { id: 'f2', name: 'Mai', gender: 'Nữ' },
+    }
+
+    const matches = [
+      // 4 trận Đôi Nam Nữ (1M1F vs 1M1F)
+      { teamA: ['m1', 'f1'], teamB: ['m2', 'f2'], initialRatingA: 1500, initialRatingB: 1520, winnerTeam: 'A', sets: [[21, 19]] },
+      { teamA: ['m1', 'f1'], teamB: ['m2', 'f2'], initialRatingA: 1500, initialRatingB: 1530, winnerTeam: 'B', sets: [[18, 21]] },
+      { teamA: ['m1', 'f1'], teamB: ['m2', 'f2'], initialRatingA: 1500, initialRatingB: 1510, winnerTeam: 'A', sets: [[21, 17]] },
+      { teamA: ['m1', 'f1'], teamB: ['m2', 'f2'], initialRatingA: 1500, initialRatingB: 1540, winnerTeam: 'B', sets: [[19, 21]] },
+    ]
+
+    const calib = computeClubCalibration(matches, membersMap)
+    const bLess100 = calib.find((c) => c.bucket === '<100')
+    assert.equal(bLess100.sampleSize, 4)
+    assert.equal(bLess100.observedWinRate, 0.5)
+    assert.equal(calib.totalCrossMatches, 4)
+    assert.equal(calib.mixedDoublesCount, 4)
+
+    // Tất cả 4 người tham gia đều được ghi nhận 4 trận chéo
+    assert.equal(calib.topCrossGenderPlayers['m1'], 4)
+    assert.equal(calib.topCrossGenderPlayers['f1'], 4)
+    assert.equal(calib.topCrossGenderPlayers['m2'], 4)
+    assert.equal(calib.topCrossGenderPlayers['f2'], 4)
+
+    // rankTopCrossGenderPlayers xếp hạng chính xác
+    const ranked = rankTopCrossGenderPlayers(calib.topCrossGenderPlayers, membersMap)
+    assert.equal(ranked.length, 4)
+    assert.ok(ranked.every((p) => p.count === 4))
   })
 
   await t.test('effectiveRating logic', () => {
