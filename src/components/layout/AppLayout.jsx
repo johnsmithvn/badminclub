@@ -49,9 +49,9 @@ const S = {
     background: 'var(--surface-page)', font: 'var(--type-body)', color: 'var(--text-primary)',
   },
   col: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 },
-  main: { flex: 1, overflowY: 'auto', padding: '20px 22px 60px' },
-  mainMobile: { padding: '14px', paddingBottom: '80px' },
-  wrap: { maxWidth: cfg.ui.contentMaxWidth, margin: '0 auto', display: 'grid', gap: 16 },
-  wrapMobile: { width: '100%', gridTemplateColumns: '1fr', gap: 12 },
+  main: { flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 22px 60px' },
+  mainMobile: { padding: '14px', paddingBottom: '80px', overflowX: 'hidden' },
+  wrap: { maxWidth: cfg.ui.contentMaxWidth, margin: '0 auto', display: 'grid', gap: 16, minWidth: 0 },
+  wrapMobile: { width: '100%', minWidth: 0, gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 },
 }
 

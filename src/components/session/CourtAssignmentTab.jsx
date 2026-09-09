@@ -799,7 +799,7 @@ export default function CourtAssignmentTab({ s }) {
       {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - GIAO DIỆN CS1) ---------------- */}
       <Card
         title={t('assign.waitingCount', { n: waitingPlayers.length })}
-        subtitle={t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
+        subtitle={isMobile ? `${waitingPlayers.length}/${players.length}` : t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
         icon="users"
         padding="12px 14px"
         actions={
@@ -811,8 +811,9 @@ export default function CourtAssignmentTab({ s }) {
               icon="table"
               onClick={() => setShowStatsSheet(true)}
               title={t('assign.statsSheetSub')}
+              style={{ padding: isMobile ? '0 8px' : '0 12px' }}
             >
-              ▤ {t('assign.tabStats')}
+              {isMobile ? '▤' : `▤ ${t('assign.tabStats')}`}
             </Button>
             <Button
               variant="secondary"
@@ -820,8 +821,9 @@ export default function CourtAssignmentTab({ s }) {
               icon="wand-sparkles"
               onClick={handleAutoPickFewest}
               disabled={waitingPlayers.length === 0 || isCourtFull}
+              style={{ padding: isMobile ? '0 8px' : '0 12px' }}
             >
-              {t('assign.fewestBtn')}
+              {isMobile ? t('assign.fewestBtnShort') : t('assign.fewestBtn')}
             </Button>
           </div>
         }
@@ -1160,7 +1162,7 @@ export default function CourtAssignmentTab({ s }) {
         {/* Khung mặt sân thi đấu (với UX Highlight Slot chọn) */}
         <div style={S.courtSurface}>
           {/* Đội A (Top) */}
-          <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : '1fr 1fr' }}>
+          <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
             {Array.from({ length: maxPerTeam }).map((_, idx) => {
               const key = teamA[idx]
               const isTargetSlot = activeSlot?.team === 'A' && activeSlot?.idx === idx
@@ -1262,7 +1264,7 @@ export default function CourtAssignmentTab({ s }) {
           </div>
 
           {/* Đội B (Bottom) */}
-          <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : '1fr 1fr' }}>
+          <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
             {Array.from({ length: maxPerTeam }).map((_, idx) => {
               const key = teamB[idx]
               const isTargetSlot = activeSlot?.team === 'B' && activeSlot?.idx === idx
@@ -1391,26 +1393,54 @@ export default function CourtAssignmentTab({ s }) {
 
             <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
               {/* Rating thô */}
-              <div style={S.barCompareRow}>
-                <span style={S.barCompareLabel}>{t('assign.rawRating')}</span>
-                <div style={S.barCompareTrack}>
-                  <div style={{ width: `${pctA}%`, height: '100%', background: '#2E3E5C' }} />
-                  <div style={{ width: `${pctB}%`, height: '100%', background: '#1A2437' }} />
+              {isMobile ? (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                    <span style={S.barCompareLabel}>{t('assign.rawRating')}</span>
+                    <span style={S.barCompareValue}>{ratingA} vs {ratingB} · {t('assign.skewDiff', { d: effectiveAnalysis.rawDelta })}</span>
+                  </div>
+                  <div style={S.barCompareTrack}>
+                    <div style={{ width: `${pctA}%`, height: '100%', background: '#2E3E5C' }} />
+                    <div style={{ width: `${pctB}%`, height: '100%', background: '#1A2437' }} />
+                  </div>
                 </div>
-                <span style={S.barCompareValue}>{ratingA} vs {ratingB} · {t('assign.skewDiff', { d: effectiveAnalysis.rawDelta })}</span>
-              </div>
+              ) : (
+                <div style={S.barCompareRow}>
+                  <span style={S.barCompareLabel}>{t('assign.rawRating')}</span>
+                  <div style={S.barCompareTrack}>
+                    <div style={{ width: `${pctA}%`, height: '100%', background: '#2E3E5C' }} />
+                    <div style={{ width: `${pctB}%`, height: '100%', background: '#1A2437' }} />
+                  </div>
+                  <span style={S.barCompareValue}>{ratingA} vs {ratingB} · {t('assign.skewDiff', { d: effectiveAnalysis.rawDelta })}</span>
+                </div>
+              )}
 
               {/* Effective rating */}
-              <div style={S.barCompareRow}>
-                <span style={{ ...S.barCompareLabel, color: '#5FDBD3' }}>{t('assign.effectiveRating')}</span>
-                <div style={S.barCompareTrack}>
-                  <div style={{ width: `${Math.round((effectiveAnalysis.effA / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#00B2A9' }} />
-                  <div style={{ width: `${Math.round((effectiveAnalysis.effB / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#2E3E5C' }} />
+              {isMobile ? (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                    <span style={{ ...S.barCompareLabel, color: '#5FDBD3' }}>{t('assign.effectiveRating')}</span>
+                    <span style={{ ...S.barCompareValue, color: '#5FDBD3' }}>
+                      {effectiveAnalysis.effA} vs {effectiveAnalysis.effB} · {t('assign.skewDiff', { d: effectiveAnalysis.effDelta })}
+                    </span>
+                  </div>
+                  <div style={S.barCompareTrack}>
+                    <div style={{ width: `${Math.round((effectiveAnalysis.effA / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#00B2A9' }} />
+                    <div style={{ width: `${Math.round((effectiveAnalysis.effB / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#2E3E5C' }} />
+                  </div>
                 </div>
-                <span style={{ ...S.barCompareValue, color: '#5FDBD3' }}>
-                  {effectiveAnalysis.effA} vs {effectiveAnalysis.effB} · {t('assign.skewDiff', { d: effectiveAnalysis.effDelta })}
-                </span>
-              </div>
+              ) : (
+                <div style={S.barCompareRow}>
+                  <span style={{ ...S.barCompareLabel, color: '#5FDBD3' }}>{t('assign.effectiveRating')}</span>
+                  <div style={S.barCompareTrack}>
+                    <div style={{ width: `${Math.round((effectiveAnalysis.effA / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#00B2A9' }} />
+                    <div style={{ width: `${Math.round((effectiveAnalysis.effB / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#2E3E5C' }} />
+                  </div>
+                  <span style={{ ...S.barCompareValue, color: '#5FDBD3' }}>
+                    {effectiveAnalysis.effA} vs {effectiveAnalysis.effB} · {t('assign.skewDiff', { d: effectiveAnalysis.effDelta })}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div style={S.effDescText}>
@@ -1448,7 +1478,7 @@ export default function CourtAssignmentTab({ s }) {
             </div>
 
             {/* 2 Thẻ Đội A và Đội B */}
-            <div style={S.teamsChoiceGrid}>
+            <div style={{ ...S.teamsChoiceGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
               {/* Thẻ Đội A */}
               <div
                 onClick={() => handleSelectWinner('A')}
@@ -2030,11 +2060,14 @@ const S = {
   },
   twoColGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: 7,
+    width: '100%',
+    minWidth: 0,
   },
   cs1PlayerCard: {
     minHeight: 52,
+    minWidth: 0,
     display: 'flex',
     alignItems: 'center',
     gap: 8,
@@ -2044,6 +2077,7 @@ const S = {
     border: '1px solid #2E3E5C',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
+    overflow: 'hidden',
   },
   cs1PlayerName: {
     font: '600 14px/1.2 "IBM Plex Sans", sans-serif',
@@ -2055,6 +2089,8 @@ const S = {
   cs1PlayerMeta: {
     font: '400 11px/1.3 "IBM Plex Mono", monospace',
     whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     marginTop: 2,
   },
   cs1GuestBadge: {
@@ -2071,6 +2107,8 @@ const S = {
   },
   slotActiveHighlight: {
     minHeight: 56,
+    minWidth: 0,
+    overflow: 'hidden',
     padding: '7px 10px',
     borderRadius: 8,
     background: 'rgba(60,116,196,.16)',
@@ -2095,6 +2133,8 @@ const S = {
   },
   slotDashedEmpty: {
     minHeight: 56,
+    minWidth: 0,
+    overflow: 'hidden',
     padding: '7px 10px',
     borderRadius: 8,
     border: '1px dashed #2E3E5C',
@@ -2214,6 +2254,8 @@ const S = {
     flexDirection: 'column',
     gap: 12,
     padding: '16px',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
   },
   courtTopBar: {
     display: 'flex',
@@ -2261,14 +2303,21 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
   },
   teamRow: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-    gap: 10,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(0, 1fr))',
+    gap: 8,
+    width: '100%',
+    minWidth: 0,
   },
   slotFilled: {
     minHeight: 64,
+    minWidth: 0,
+    overflow: 'hidden',
     borderRadius: 8,
     padding: '10px',
     background: 'var(--surface-card)',
@@ -2291,9 +2340,14 @@ const S = {
     alignItems: 'center',
     gap: 6,
     fontSize: 12,
+    flexWrap: 'wrap',
+    minWidth: 0,
+    overflow: 'hidden',
   },
   slotEmpty: {
     minHeight: 64,
+    minWidth: 0,
+    overflow: 'hidden',
     borderRadius: 8,
     background: 'var(--surface-card)',
     border: '1.5px dashed var(--border-strong-color)',
@@ -2503,8 +2557,10 @@ const S = {
   },
   teamsChoiceGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(0, 1fr))',
     gap: 10,
+    width: '100%',
+    minWidth: 0,
   },
   teamChoiceCard: {
     borderRadius: 10,
@@ -2517,6 +2573,8 @@ const S = {
     gap: 10,
     cursor: 'pointer',
     transition: 'all 0.15s ease',
+    minWidth: 0,
+    overflow: 'hidden',
   },
   teamChoiceCardWon: {
     background: 'var(--status-transit-bg)',

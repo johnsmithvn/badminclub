@@ -405,12 +405,11 @@ export default function SessionDetail() {
           icon="user-round-check"
           padding="14px 16px"
           actions={canEdit && !isInactive && !isClosed && (
-            <div style={{ display: 'flex', gap: 6, width: isMobile ? '100%' : 'auto' }}>
+            <div style={{ display: 'flex', gap: 6, width: isMobile ? 'auto' : 'auto' }}>
               <Button
                 variant="secondary"
                 size="sm"
                 style={{
-                  flex: isMobile ? 1 : 'none',
                   height: 32,
                   background: 'var(--surface-inset, #1A2437)',
                   border: '1px solid var(--border-default, #2E3E5C)',
@@ -418,26 +417,27 @@ export default function SessionDetail() {
                   fontSize: 12,
                   fontWeight: 600,
                   justifyContent: 'center',
+                  padding: isMobile ? '0 8px' : '0 12px',
                 }}
                 onClick={() => a.markAll(s.id, true)}
               >
-                {t('session.allPresent')}
+                {isMobile ? t('session.allPresentShort') : t('session.allPresent')}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 style={{
-                  flex: isMobile ? 1 : 'none',
                   height: 32,
                   border: '1px solid var(--border-subtle, #2E3E5C)',
                   color: 'var(--text-secondary, #A8B7CB)',
                   fontSize: 12,
                   fontWeight: 600,
                   justifyContent: 'center',
+                  padding: isMobile ? '0 8px' : '0 12px',
                 }}
                 onClick={() => a.markAll(s.id, false)}
               >
-                {t('session.allAbsent')}
+                {isMobile ? t('session.allAbsentShort') : t('session.allAbsent')}
               </Button>
             </div>
           )}
@@ -1281,6 +1281,9 @@ const S = {
     border: '1px solid var(--border-subtle)',
     borderRadius: 10,
     margin: '0 0 12px',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
   },
   sessionHeaderSubRowMobile: {
     display: 'flex',
@@ -1317,7 +1320,7 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
-    padding: '5px 10px',
+    padding: '4px 8px',
     borderRadius: 999,
     background: 'rgba(0, 178, 169, 0.18)',
     border: '1px solid rgba(0, 178, 169, 0.3)',
@@ -1335,7 +1338,7 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
-    padding: '5px 10px',
+    padding: '4px 8px',
     borderRadius: 999,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
@@ -1348,8 +1351,8 @@ const S = {
     borderRadius: '50%',
     background: 'var(--text-muted)',
   },
-  tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 6px' },
-  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: '#101927', border: '1px solid #22304A', gap: 2 },
+  tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 6px', maxWidth: '100%' },
+  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: '#101927', border: '1px solid #22304A', gap: 2, maxWidth: '100%', boxSizing: 'border-box' },
   tabBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 36, padding: '0 12px',
     borderRadius: 6, border: 'none', background: 'transparent',
@@ -1358,12 +1361,15 @@ const S = {
   },
   tabBtnMobile: {
     flex: '1 1 0',
+    minWidth: 0,
     justifyContent: 'center',
     gap: 4,
     minHeight: 38,
     padding: '0 4px',
     fontSize: 12,
     whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   tabBtnActive: { background: '#1A2437', border: '1px solid #2E3E5C', color: '#E9EFF7', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
   tabBadgeMono: { font: '400 11px/1 "IBM Plex Mono", monospace', color: '#8494AA' },

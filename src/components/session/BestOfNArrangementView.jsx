@@ -209,7 +209,7 @@ export default function BestOfNArrangementView({
         {/* CỘT TRÁI: 3 PHƯƠNG ÁN & CÁC SÂN & NGƯỜI CHỜ */}
         <div style={{ display: 'grid', gap: 14 }}>
           {/* 3 Phương án lựa chọn (A / B / C) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
             {/* Phương án A */}
             <div
               onClick={() => setActivePlanKey('planA')}
