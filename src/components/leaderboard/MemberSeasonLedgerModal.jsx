@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { getMemberSeasonLedger } from '#lib/xp.js'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 
 export default function MemberSeasonLedgerModal({
   memberId,
@@ -9,8 +10,11 @@ export default function MemberSeasonLedgerModal({
   seasonConfig,
   onClose,
   onViewCareerElo,
+  isMobile: isMobileProp,
 }) {
   const { isDark } = useTheme()
+  const isMobileHook = useMobile()
+  const isMobile = isMobileProp !== undefined ? isMobileProp : isMobileHook
 
   const ledgerData = useMemo(() => {
     if (!memberId || !db) return null
@@ -47,28 +51,36 @@ export default function MemberSeasonLedgerModal({
         background: 'rgba(0,0,0,.65)',
         backdropFilter: 'blur(4px)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: isMobile ? 'flex-end' : 'center',
         justifyContent: 'center',
-        padding: 16,
+        padding: isMobile ? 0 : 16,
       }}
       onClick={onClose}
     >
       <div
-        data-screen-label="SS3 So diem mua giai"
+        data-screen-label={isMobile ? 'SS3-M So diem mua giai' : 'SS3 So diem mua giai'}
         style={{
-          width: 560,
+          width: isMobile ? '100%' : 560,
           maxWidth: '100%',
           background: 'var(--surface-overlay)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 12,
-          boxShadow: 'var(--shadow-overlay)',
+          border: isMobile ? 'none' : '1px solid var(--border-default)',
+          borderTop: '1px solid var(--border-default)',
+          borderRadius: isMobile ? '18px 18px 0 0' : 12,
+          boxShadow: isMobile ? '0 -18px 44px rgba(0,0,0,.55)' : 'var(--shadow-overlay)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '90vh',
+          maxHeight: isMobile ? '88vh' : '90vh',
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Drag handle on mobile */}
+        {isMobile && (
+          <div style={{ padding: '10px 0 0', display: 'flex', justifyContent: 'center' }}>
+            <span style={{ width: 38, height: 4, borderRadius: 999, background: 'var(--border-default)' }} />
+          </div>
+        )}
+
         {/* Header */}
         <div
           style={{
@@ -277,17 +289,17 @@ export default function MemberSeasonLedgerModal({
               borderTop: '1px solid var(--border-subtle)',
               paddingTop: 12,
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: isMobile ? 'column' : 'row',
+              alignItems: isMobile ? 'stretch' : 'center',
               gap: 10,
-              flexWrap: 'wrap',
             }}
           >
             <span
               style={{
-                font: "400 12px/1.4 'IBM Plex Sans', sans-serif",
+                font: "400 12px/1.45 'IBM Plex Sans', sans-serif",
                 color: 'var(--text-muted)',
-                flex: '1 1 180px',
-                minWidth: 180,
+                flex: isMobile ? 'none' : '1 1 180px',
+                minWidth: isMobile ? 'auto' : 180,
               }}
             >
               {t('season.ledgerFooterNote', { name: member?.name || '' })}
@@ -300,13 +312,15 @@ export default function MemberSeasonLedgerModal({
                   onViewCareerElo(memberId)
                 }}
                 style={{
-                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                  padding: '9px 14px',
-                  borderRadius: 6,
+                  font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                  padding: isMobile ? '13px 14px' : '9px 14px',
+                  borderRadius: isMobile ? 8 : 6,
                   background: 'var(--surface-raised)',
                   border: '1px solid var(--border-default)',
                   color: 'var(--text-primary)',
                   cursor: 'pointer',
+                  textAlign: 'center',
+                  width: isMobile ? '100%' : 'auto',
                   transition: 'all 0.15s ease',
                 }}
               >

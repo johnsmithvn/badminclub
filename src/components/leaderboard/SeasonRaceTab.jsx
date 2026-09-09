@@ -4,7 +4,6 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 export default function SeasonRaceTab({
   seasonLeaderboardData,
   onOpenLedger,
-  onOpenQuadrantMap,
   isMobile = false,
 }) {
   const { isDark } = useTheme()
@@ -102,111 +101,229 @@ export default function SeasonRaceTab({
 
         {/* 2. Podium Top 3 */}
         {leaderboard.length >= 3 && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-              gap: 12,
-              alignItems: 'end',
-            }}
-          >
-            {/* #2 Á Quân */}
-            <div
-              onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
-              title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
-              style={{
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 10,
-                padding: 14,
-                display: 'grid',
-                gap: 7,
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-xs)',
-                transition: 'transform 0.15s ease, border-color 0.15s ease',
-              }}
-            >
-              <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#2</div>
-              <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top2?.name}</div>
-              <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-                {top2?.totalSeasonPoints?.toLocaleString()}
+          isMobile ? (
+            /* Mobile Podium: Card #1 to ở trên, #2 và #3 chia 2 cột ở dưới */
+            <div style={{ display: 'grid', gap: 10 }}>
+              {/* #1 Dẫn Đầu (Gold Card) */}
+              <div
+                onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
+                title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
+                style={{
+                  background: isDark
+                    ? 'linear-gradient(180deg, rgba(201,162,39,.18), var(--surface-card))'
+                    : 'linear-gradient(180deg, rgba(245,158,11,.14), var(--surface-card))',
+                  border: '1px solid #C9A227',
+                  borderRadius: 10,
+                  padding: 14,
+                  display: 'grid',
+                  gap: 7,
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0D26A' : '#B45309' }}>#1</div>
+                  <span
+                    style={{
+                      font: "600 10px/1 'IBM Plex Mono', monospace",
+                      letterSpacing: '.06em',
+                      padding: '4px 7px',
+                      borderRadius: 999,
+                      background: '#C9A227',
+                      color: '#2A1F00',
+                    }}
+                  >
+                    {t('season.leaderBadge')}
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  {top1?.streak > 0 && (
+                    <span
+                      style={{
+                        font: "600 10px/1 'IBM Plex Mono', monospace",
+                        padding: '4px 7px',
+                        borderRadius: 999,
+                        background: 'rgba(0,178,169,.14)',
+                        border: '1px solid #00786F',
+                        color: '#5FDBD3',
+                      }}
+                    >
+                      streak {top1.streak}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
+                  <span style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top1?.name}</span>
+                  <span style={{ font: "600 32px/1 'IBM Plex Mono', monospace", color: isDark ? '#F7E3A1' : '#B45309' }}>
+                    {top1?.totalSeasonPoints?.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#C6B683' : '#92400E' }}>
+                  {top1?.attendedCount} {t('units.session')} · {top1?.matchesCount} {t('units.match')} ·{' '}
+                  {top1?.winsCount} {t('units.win')} · {top1?.upsetsCount} upset
+                </div>
               </div>
-              <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                {top2?.attendedCount} {t('units.session')} · {top2?.matchesCount} {t('units.match')} ·{' '}
-                {top2?.winsCount} {t('units.win')}
-              </div>
-            </div>
 
-            {/* #1 Dẫn Đầu (Gold Card) */}
-            <div
-              onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
-              title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
-              style={{
-                background: isDark
-                  ? 'linear-gradient(180deg, rgba(201,162,39,.18), var(--surface-card))'
-                  : 'linear-gradient(180deg, rgba(245,158,11,.14), var(--surface-card))',
-                border: '1px solid #C9A227',
-                borderRadius: 10,
-                padding: '18px 14px',
-                display: 'grid',
-                gap: 7,
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-sm)',
-                transition: 'transform 0.15s ease, border-color 0.15s ease',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0D26A' : '#B45309' }}>#1</div>
-                <span
+              {/* #2 Á Quân & #3 Quý Quân chia 2 cột */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div
+                  onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
+                  title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
                   style={{
-                    font: "600 10px/1 'IBM Plex Mono', monospace",
-                    letterSpacing: '.06em',
-                    padding: '4px 7px',
-                    borderRadius: 999,
-                    background: '#C9A227',
-                    color: '#2A1F00',
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 10,
+                    padding: 12,
+                    display: 'grid',
+                    gap: 5,
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-xs)',
                   }}
                 >
-                  {t('season.leaderBadge')}
-                </span>
-              </div>
-              <div style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top1?.name}</div>
-              <div style={{ font: "600 32px/1 'IBM Plex Mono', monospace", color: isDark ? '#F7E3A1' : '#B45309' }}>
-                {top1?.totalSeasonPoints?.toLocaleString()}
-              </div>
-              <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#C6B683' : '#92400E' }}>
-                {top1?.attendedCount} {t('units.session')} · {top1?.matchesCount} {t('units.match')} ·{' '}
-                {top1?.winsCount} {t('units.win')} · {top1?.upsetsCount} upset
+                  <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#2</div>
+                  <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top2?.name}</div>
+                  <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                    {top2?.totalSeasonPoints?.toLocaleString()}
+                  </div>
+                  <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                    {top2?.attendedCount} {t('units.session')} · {top2?.matchesCount} {t('units.match')} ·{' '}
+                    {top2?.winsCount} {t('units.win')}
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
+                  title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
+                  style={{
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 10,
+                    padding: 12,
+                    display: 'grid',
+                    gap: 5,
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-xs)',
+                  }}
+                >
+                  <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#3</div>
+                  <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top3?.name}</div>
+                  <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                    {top3?.totalSeasonPoints?.toLocaleString()}
+                  </div>
+                  <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                    {top3?.attendedCount} {t('units.session')} · {top3?.matchesCount} {t('units.match')} ·{' '}
+                    {top3?.winsCount} {t('units.win')}
+                  </div>
+                </div>
               </div>
             </div>
-
-            {/* #3 Quý Quân */}
+          ) : (
+            /* Desktop Podium: 3 cột ngang */
             <div
-              onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
-              title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
               style={{
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 10,
-                padding: 14,
                 display: 'grid',
-                gap: 7,
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-xs)',
-                transition: 'transform 0.15s ease, border-color 0.15s ease',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gap: 12,
+                alignItems: 'end',
               }}
             >
-              <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#3</div>
-              <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top3?.name}</div>
-              <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-                {top3?.totalSeasonPoints?.toLocaleString()}
+              {/* #2 Á Quân */}
+              <div
+                onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
+                title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
+                style={{
+                  background: 'var(--surface-card)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 10,
+                  padding: 14,
+                  display: 'grid',
+                  gap: 7,
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-xs)',
+                  transition: 'transform 0.15s ease, border-color 0.15s ease',
+                }}
+              >
+                <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#2</div>
+                <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top2?.name}</div>
+                <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                  {top2?.totalSeasonPoints?.toLocaleString()}
+                </div>
+                <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                  {top2?.attendedCount} {t('units.session')} · {top2?.matchesCount} {t('units.match')} ·{' '}
+                  {top2?.winsCount} {t('units.win')}
+                </div>
               </div>
-              <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                {top3?.attendedCount} {t('units.session')} · {top3?.matchesCount} {t('units.match')} ·{' '}
-                {top3?.winsCount} {t('units.win')}
+
+              {/* #1 Dẫn Đầu (Gold Card) */}
+              <div
+                onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
+                title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
+                style={{
+                  background: isDark
+                    ? 'linear-gradient(180deg, rgba(201,162,39,.18), var(--surface-card))'
+                    : 'linear-gradient(180deg, rgba(245,158,11,.14), var(--surface-card))',
+                  border: '1px solid #C9A227',
+                  borderRadius: 10,
+                  padding: '18px 14px',
+                  display: 'grid',
+                  gap: 7,
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'transform 0.15s ease, border-color 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0D26A' : '#B45309' }}>#1</div>
+                  <span
+                    style={{
+                      font: "600 10px/1 'IBM Plex Mono', monospace",
+                      letterSpacing: '.06em',
+                      padding: '4px 7px',
+                      borderRadius: 999,
+                      background: '#C9A227',
+                      color: '#2A1F00',
+                    }}
+                  >
+                    {t('season.leaderBadge')}
+                  </span>
+                </div>
+                <div style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top1?.name}</div>
+                <div style={{ font: "600 32px/1 'IBM Plex Mono', monospace", color: isDark ? '#F7E3A1' : '#B45309' }}>
+                  {top1?.totalSeasonPoints?.toLocaleString()}
+                </div>
+                <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#C6B683' : '#92400E' }}>
+                  {top1?.attendedCount} {t('units.session')} · {top1?.matchesCount} {t('units.match')} ·{' '}
+                  {top1?.winsCount} {t('units.win')} · {top1?.upsetsCount} upset
+                </div>
+              </div>
+
+              {/* #3 Quý Quân */}
+              <div
+                onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
+                title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
+                style={{
+                  background: 'var(--surface-card)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 10,
+                  padding: 14,
+                  display: 'grid',
+                  gap: 7,
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-xs)',
+                  transition: 'transform 0.15s ease, border-color 0.15s ease',
+                }}
+              >
+                <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#3</div>
+                <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top3?.name}</div>
+                <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                  {top3?.totalSeasonPoints?.toLocaleString()}
+                </div>
+                <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                  {top3?.attendedCount} {t('units.session')} · {top3?.matchesCount} {t('units.match')} ·{' '}
+                  {top3?.winsCount} {t('units.win')}
+                </div>
               </div>
             </div>
-          </div>
+          )
         )}
 
         {/* 3. Bảng Xếp Hạng Toàn Bộ */}
@@ -223,49 +340,154 @@ export default function SeasonRaceTab({
           >
             <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
               {t('season.tableTotal', { total: leaderboard.length, count: leaderboard.length, n: leaderboard.length })}
-            </span>
-            <div style={{ flex: '1 1 0%' }} />
-            <span
-              style={{
-                font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                padding: '6px 10px',
-                borderRadius: 999,
-                background: isDark ? 'rgba(29,80,160,.20)' : 'rgba(29,80,160,.10)',
-                border: '1px solid #1D50A0',
-                color: isDark ? '#B6CDEC' : '#1D50A0',
-              }}
-            >
-              {t('season.columnsLegend')}
-            </span>
+            {isMobile ? (
+              <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                {t('season.legendFormulaShort')}
+              </span>
+            ) : (
+              <span
+                style={{
+                  font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  background: isDark ? 'rgba(29,80,160,.20)' : 'rgba(29,80,160,.10)',
+                  border: '1px solid #1D50A0',
+                  color: isDark ? '#B6CDEC' : '#1D50A0',
+                }}
+              >
+                {t('season.columnsLegend')}
+              </span>
+            )}
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '40px minmax(0, 1fr) 96px 74px 74px 74px 74px 86px',
-              padding: '8px 13px',
-              borderBottom: '1px solid var(--border-subtle)',
-              font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
-              letterSpacing: '.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <span>#</span>
-            <span>{t('season.colMember')}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.colPoints')}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.colAttendance')}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.colUpset')}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.colTrend')}</span>
-          </div>
+          {!isMobile && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '40px minmax(0, 1fr) 96px 74px 74px 74px 74px 86px',
+                padding: '8px 13px',
+                borderBottom: '1px solid var(--border-subtle)',
+                font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                letterSpacing: '.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <span>#</span>
+              <span>{t('season.colMember')}</span>
+              <span style={{ textAlign: 'right' }}>{t('season.colPoints')}</span>
+              <span style={{ textAlign: 'right' }}>{t('season.colAttendance')}</span>
+              <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
+              <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
+              <span style={{ textAlign: 'right' }}>{t('season.colUpset')}</span>
+              <span style={{ textAlign: 'right' }}>{t('season.colTrend')}</span>
+            </div>
+          )}
 
           {leaderboard.map((row) => {
             const isRank1 = row.rank === 1
             const isRank2 = row.rank === 2
             const isRank3 = row.rank === 3
-            const rankColor = isRank1 ? '#D97706' : isRank2 || isRank3 ? 'var(--text-secondary)' : 'var(--text-muted)'
+            const rankColor = isRank1
+              ? '#D97706'
+              : isRank2 || isRank3
+                ? (isDark ? '#A8B7CB' : 'var(--text-secondary)')
+                : 'var(--text-muted)'
+
+            if (isMobile) {
+              return (
+                <div
+                  key={row.id}
+                  onClick={() => onOpenLedger && onOpenLedger(row.id)}
+                  title={`${t('season.viewLedgerBtn')}: ${row.name}`}
+                  style={{
+                    padding: '11px 14px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 5,
+                    cursor: 'pointer',
+                    background: 'transparent',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  {/* Dòng 1: Hạng + Avatar + Tên + Điểm mùa */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: rankColor }}>
+                      {row.rank}
+                    </span>
+                    <span
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 999,
+                        background: isRank1 ? '#C9A227' : (row.gender === 'Nữ' || row.gender === 'F' ? '#7A3D8F' : '#1D50A0'), // i18n-ok: gender check
+                        flex: '0 0 auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isRank1 ? '#2A1F00' : '#fff',
+                        fontSize: 10,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {row.name.charAt(0)}
+                    </span>
+                    <span style={{ flex: '1 1 0%', minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {row.name}
+                    </span>
+                    <span
+                      style={{
+                        font: "600 15px/1 'IBM Plex Mono', monospace",
+                        color: isRank1 ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
+                      }}
+                    >
+                      {row.totalSeasonPoints.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Dòng 2: Chi tiết các loại điểm (cần·trận·thắng·upset) + Badges */}
+                  <div style={{ paddingLeft: 29, display: 'flex', alignItems: 'center', gap: 8, font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                    <span>
+                      {row.breakdown.attendancePts} · {row.breakdown.matchPlayPts} · {row.breakdown.winPts} ·{' '}
+                      <span style={{ color: row.breakdown.upsetPts > 0 ? (isDark ? '#5FDBD3' : 'var(--teal-700)') : 'inherit', fontWeight: row.breakdown.upsetPts > 0 ? 600 : 400 }}>
+                        {row.breakdown.upsetPts}
+                      </span>
+                    </span>
+                    {row.streak >= 3 && (
+                      <span
+                        style={{
+                          font: "600 10px/1 'IBM Plex Mono', monospace",
+                          padding: '2px 6px',
+                          borderRadius: 999,
+                          background: isDark ? 'rgba(0,178,169,.14)' : 'rgba(0,178,169,.10)',
+                          border: '1px solid var(--teal-500)',
+                          color: isDark ? '#5FDBD3' : 'var(--teal-700)',
+                        }}
+                      >
+                        streak {row.streak}
+                      </span>
+                    )}
+                    {isRank1 && (
+                      <span
+                        style={{
+                          font: "600 10px/1 'IBM Plex Mono', monospace",
+                          padding: '2px 6px',
+                          borderRadius: 999,
+                          background: isDark ? 'rgba(201,162,39,.16)' : 'rgba(245,158,11,.14)',
+                          border: '1px solid #C9A227',
+                          color: isDark ? '#F0D26A' : '#B45309',
+                        }}
+                      >
+                        Top 1
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            }
 
             return (
               <div
@@ -390,7 +612,7 @@ export default function SeasonRaceTab({
         </div>
       </div>
 
-      {/* CỘT PHẢI (SẮP TRAO, ĐIỂM ĐẾN TỪ ĐÂU, MINI CHART & BẢN ĐỒ 4 GÓC) */}
+      {/* CỘT PHẢI (SẮP TRAO, ĐIỂM ĐẾN TỪ ĐÂU, MINI CHART) */}
       <div style={{ display: 'grid', gap: 12 }}>
         {/* 1. Điểm đến từ đâu · toàn CLB */}
         <div
@@ -407,7 +629,7 @@ export default function SeasonRaceTab({
           <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
             {t('season.pointSourceTitle')}
           </div>
-          <div style={{ display: 'grid', gap: 9 }}>
+          <div style={{ display: 'grid', gap: 8 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '118px minmax(0,1fr) 52px', gap: 10, alignItems: 'center', font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
               <span>{t('season.actAttendance')} +30</span>
               <span style={{ height: 8, borderRadius: 999, background: 'var(--surface-inset)', overflow: 'hidden', display: 'flex' }}>
@@ -536,34 +758,6 @@ export default function SeasonRaceTab({
             </div>
           </div>
         </div>
-
-        {/* 4. Bản đồ CLB 4 góc Preview (Clickable to open full SS4) */}
-        {onOpenQuadrantMap && (
-          <div
-            onClick={onOpenQuadrantMap}
-            style={{
-              background: 'var(--surface-card)',
-              border: '1px solid var(--teal-500)',
-              borderRadius: 10,
-              padding: '13px 15px',
-              display: 'grid',
-              gap: 8,
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-xs)',
-              transition: 'transform 0.15s ease, background 0.15s ease',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>
-                📊 {t('season.openQuadrantMap')}
-              </span>
-              <span style={{ font: "400 11px 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>{t('season.quadrantMapSub')}</span>
-            </div>
-            <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
-              {t('season.quadrantMapHint')}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

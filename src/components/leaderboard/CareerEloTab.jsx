@@ -172,34 +172,34 @@ export default function CareerEloTab({
             onClick={() => setFilterMode('official')}
             style={{
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: '8px 12px',
-              borderRadius: 6,
-              background: filterMode === 'official' ? 'var(--surface-card)' : 'transparent',
-              border: filterMode === 'official' ? '1px solid var(--border-default)' : '1px solid transparent',
+              padding: isMobile ? '8px 12px' : '8px 12px',
+              borderRadius: isMobile ? 999 : 6,
+              background: filterMode === 'official' ? (isMobile ? 'var(--surface-raised)' : 'var(--surface-card)') : 'transparent',
+              border: filterMode === 'official' ? '1px solid var(--border-default)' : (isMobile ? '1px solid var(--border-subtle)' : '1px solid transparent'),
               color: filterMode === 'official' ? 'var(--text-primary)' : 'var(--text-muted)',
               boxShadow: filterMode === 'official' ? 'var(--shadow-xs)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
           >
-            {t('season.filterOfficial')}
+            {isMobile ? t('season.filterOfficialShort') : t('season.filterOfficial')}
           </button>
           <button
             type="button"
             onClick={() => setFilterMode('all')}
             style={{
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: '8px 12px',
-              borderRadius: 6,
-              background: filterMode === 'all' ? 'var(--surface-card)' : 'transparent',
-              border: filterMode === 'all' ? '1px solid var(--border-default)' : '1px solid transparent',
+              padding: isMobile ? '8px 12px' : '8px 12px',
+              borderRadius: isMobile ? 999 : 6,
+              background: filterMode === 'all' ? (isMobile ? 'var(--surface-raised)' : 'var(--surface-card)') : 'transparent',
+              border: filterMode === 'all' ? '1px solid var(--border-default)' : (isMobile ? '1px solid var(--border-subtle)' : '1px solid transparent'),
               color: filterMode === 'all' ? 'var(--text-primary)' : 'var(--text-muted)',
               boxShadow: filterMode === 'all' ? 'var(--shadow-xs)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
           >
-            {t('season.filterAll')}
+            {isMobile ? t('season.filterAllShort') : t('season.filterAll')}
           </button>
         </div>
       </div>
@@ -243,34 +243,153 @@ export default function CareerEloTab({
               </span>
             </div>
 
-            {/* Header hàng */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
-                padding: '8px 13px',
-                borderBottom: '1px solid var(--border-subtle)',
-                font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
-                letterSpacing: '.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <span>#</span>
-              <span>{t('season.colMember')}</span>
-              <span style={{ textAlign: 'right' }}>Elo</span>
-              <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
-              <span style={{ textAlign: 'center' }}>{t('season.colConfidence')}</span>
-              <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
-              <span style={{ textAlign: 'right' }}>{t('season.col30Days')}</span>
-            </div>
+            {/* Header hàng (Desktop only) */}
+            {!isMobile && (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
+                  padding: '8px 13px',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                  letterSpacing: '.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <span>#</span>
+                <span>{t('season.colMember')}</span>
+                <span style={{ textAlign: 'right' }}>Elo</span>
+                <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
+                <span style={{ textAlign: 'center' }}>{t('season.colConfidence')}</span>
+                <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
+                <span style={{ textAlign: 'right' }}>{t('season.col30Days')}</span>
+              </div>
+            )}
 
             {/* Danh sách thành viên */}
             {displayList.map((player) => {
               const isRank1 = player.rank === 1
-              const rankColor = isRank1 ? '#D97706' : player.rank === 2 || player.rank === 3 ? 'var(--text-secondary)' : 'var(--text-muted)'
+              const rankColor = isRank1
+                ? '#D97706'
+                : player.rank === 2 || player.rank === 3
+                  ? (isDark ? '#A8B7CB' : 'var(--text-secondary)')
+                  : 'var(--text-muted)'
               const deltaColor = player.delta30Days > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : player.delta30Days < 0 ? (isDark ? '#F1A79D' : '#DC2626') : 'var(--text-muted)'
               const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
+
+              if (isMobile) {
+                return (
+                  <div
+                    key={player.id}
+                    onClick={() => onSelectMember && onSelectMember(player)}
+                    title={onSelectMember ? t('leaderboard.tabChart') : undefined}
+                    style={{
+                      padding: '11px 14px',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      cursor: onSelectMember ? 'pointer' : 'default',
+                      background: 'transparent',
+                      transition: 'background 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (onSelectMember) e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)'
+                    }}
+                    onMouseLeave={(e) => {
+                      if (onSelectMember) e.currentTarget.style.background = 'transparent'
+                    }}
+                  >
+                    {/* Dòng 1: Hạng + Avatar + Tên + Badge Top 1 + Elo */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: rankColor }}>
+                        {player.rank}
+                      </span>
+                      <div
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 999,
+                          background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#1D50A0', // i18n-ok: gender check
+                          flex: '0 0 auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: 10,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {player.name ? player.name.charAt(0).toUpperCase() : '?'}
+                      </div>
+                      <span style={{ flex: '1 1 0%', minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {player.name}
+                      </span>
+                      {player.rank === 1 && (
+                        <span
+                          style={{
+                            font: "600 10px/1 'IBM Plex Mono', monospace",
+                            padding: '2px 6px',
+                            borderRadius: 999,
+                            background: isDark ? 'rgba(201,162,39,.16)' : 'rgba(245,158,11,.14)',
+                            border: '1px solid #C9A227',
+                            color: isDark ? '#F0D26A' : '#B45309',
+                          }}
+                        >
+                          Top 1
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          font: "600 15px/1 'IBM Plex Mono', monospace",
+                          color: player.rank === 1 ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
+                        }}
+                      >
+                        {player.rating}
+                      </span>
+                    </div>
+
+                    {/* Dòng 2: Mini confidence bar + Nhãn + {games} trận · {winRate}% · {delta} */}
+                    <div style={{ paddingLeft: 29, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span
+                        style={{
+                          width: 52,
+                          height: 7,
+                          borderRadius: 999,
+                          background: 'var(--surface-inset)',
+                          border: '1px solid var(--border-subtle)',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          flex: '0 0 auto',
+                        }}
+                      >
+                        <span style={{ width: player.confBarWidth, background: player.confBarColor }} />
+                      </span>
+                      <span
+                        style={{
+                          font: "600 10px/1 'IBM Plex Mono', monospace",
+                          color: player.confColor,
+                          letterSpacing: '.04em',
+                        }}
+                      >
+                        {player.confLabel}
+                      </span>
+                      <span
+                        style={{
+                          flex: '1 1 0%',
+                          font: "400 11px/1.3 'IBM Plex Mono', monospace",
+                          color: 'var(--text-muted)',
+                          textAlign: 'right',
+                        }}
+                      >
+                        {player.gamesCount} {t('units.match')} · {player.winRate}% ·{' '}
+                        <span style={{ color: deltaColor, fontWeight: 600 }}>{deltaSign}</span>
+                      </span>
+                    </div>
+                  </div>
+                )
+              }
 
               return (
                 <div
@@ -397,28 +516,123 @@ export default function CareerEloTab({
           {/* KHU THẨM ĐỊNH (Provisional Section) */}
           {provisionalList.length > 0 && filterMode === 'official' && (
             <div style={{ background: 'var(--surface-card)', border: '1px solid #D63B2B', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
-              <div
-                style={{
-                  padding: '10px 13px',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: isDark ? '#F1A79D' : '#DC2626' }}>
-                  {t('season.provisionalSectionTitle')}
-                </span>
-                <div style={{ flex: '1 1 0%' }} />
-                <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                  {t('season.provisionalSectionSub')}
-                </span>
-              </div>
+              {isMobile ? (
+                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ font: "600 14px/1.25 'IBM Plex Sans', sans-serif", color: isDark ? '#F1A79D' : '#DC2626' }}>
+                    {t('season.provisionalUnderReviewMobile', { n: provisionalList.length })}
+                  </span>
+                  <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                    {t('season.provisionalSectionSub')}
+                  </span>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '10px 13px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: isDark ? '#F1A79D' : '#DC2626' }}>
+                    {t('season.provisionalSectionTitle')}
+                  </span>
+                  <div style={{ flex: '1 1 0%' }} />
+                  <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                    {t('season.provisionalSectionSub')}
+                  </span>
+                </div>
+              )}
 
               {provisionalList.map((player) => {
                 const deltaColor = player.delta30Days > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : player.delta30Days < 0 ? (isDark ? '#F1A79D' : '#DC2626') : 'var(--text-muted)'
                 const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
+
+                if (isMobile) {
+                  return (
+                    <div
+                      key={player.id}
+                      onClick={() => (onSelectMember ? onSelectMember(player) : onOpenEffectiveStrengthModal && onOpenEffectiveStrengthModal(player))}
+                      title={onSelectMember ? t('leaderboard.tabChart') : t('season.clickToInspectProvisional')}
+                      style={{
+                        padding: '11px 14px',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        cursor: 'pointer',
+                        background: 'transparent',
+                        transition: 'background 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {/* Dòng 1: — + Avatar + Tên + Elo? */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>—</span>
+                        <div
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 999,
+                            background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#B0562A', // i18n-ok: gender check
+                            flex: '0 0 auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: 10,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {player.name ? player.name.charAt(0).toUpperCase() : '?'}
+                        </div>
+                        <span style={{ flex: '1 1 0%', minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {player.name}
+                        </span>
+                        <span style={{ font: "600 15px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                          {player.rating}?
+                        </span>
+                      </div>
+
+                      {/* Dòng 2: Tag còn n trận + {games} trận · {winRate}% · {delta} */}
+                      <div style={{ paddingLeft: 29, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span
+                          onClick={(e) => {
+                            if (onOpenEffectiveStrengthModal) {
+                              e.stopPropagation()
+                              onOpenEffectiveStrengthModal(player)
+                            }
+                          }}
+                          style={{
+                            font: "600 10px/1 'IBM Plex Mono', monospace",
+                            padding: '3px 6px',
+                            borderRadius: 999,
+                            background: isDark ? 'rgba(214,59,43,.14)' : 'rgba(214,59,43,.10)',
+                            border: '1px solid #D63B2B',
+                            color: isDark ? '#F1A79D' : '#DC2626',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {t('season.provisionalBadgeCount', { n: player.provisionalRemaining })}
+                        </span>
+                        <span
+                          style={{
+                            flex: '1 1 0%',
+                            font: "400 11px/1.3 'IBM Plex Mono', monospace",
+                            color: 'var(--text-muted)',
+                            textAlign: 'right',
+                          }}
+                        >
+                          {player.gamesCount} {t('units.match')} · {player.winRate}% ·{' '}
+                          <span style={{ color: deltaColor, fontWeight: 600 }}>{deltaSign}</span>
+                        </span>
+                      </div>
+                    </div>
+                  )
+                }
 
                 return (
                   <div

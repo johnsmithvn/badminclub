@@ -20,7 +20,6 @@ import SeasonRaceTab from '#components/leaderboard/SeasonRaceTab.jsx'
 import CareerEloTab from '#components/leaderboard/CareerEloTab.jsx'
 import PairsTab from '#components/leaderboard/PairsTab.jsx'
 import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerModal.jsx'
-import QuadrantMapModal from '#components/leaderboard/QuadrantMapModal.jsx'
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
 import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
 import { calculateSeasonLeaderboard } from '#lib/xp.js'
@@ -91,7 +90,6 @@ export default function Leaderboard() {
 
   // State cho Hệ 3 tầng (Season & Elo & Matchmaking)
   const [ledgerMemberId, setLedgerMemberId] = useState(null)
-  const [quadrantModalOpen, setQuadrantModalOpen] = useState(false)
   const [effectiveStrengthPlayer, setEffectiveStrengthPlayer] = useState(null)
   const [seasonSettingsOpen, setSeasonSettingsOpen] = useState(false)
 
@@ -1075,7 +1073,6 @@ export default function Leaderboard() {
         <SeasonRaceTab
           seasonLeaderboardData={seasonLeaderboardData}
           onOpenLedger={(m) => setLedgerMemberId(m?.id || m)}
-          onOpenQuadrantMap={() => setQuadrantModalOpen(true)}
           isMobile={isMobile}
         />
       )}
@@ -2371,6 +2368,7 @@ export default function Leaderboard() {
           memberId={ledgerMemberId}
           db={db}
           seasonConfig={cfg.season}
+          isMobile={isMobile}
           onClose={() => setLedgerMemberId(null)}
           onViewCareerElo={() => {
             setLedgerMemberId(null)
@@ -2379,19 +2377,6 @@ export default function Leaderboard() {
         />
       )}
 
-      {/* Bản đồ 4 góc CLB (Screen SS4) */}
-      {quadrantModalOpen && (
-        <QuadrantMapModal
-          leaderboardRows={seasonLeaderboardData?.leaderboard || []}
-          medianElo={seasonMedianElo}
-          seasonName={seasonLeaderboardData?.season?.name || cfg.season?.name || ''}
-          onClose={() => setQuadrantModalOpen(false)}
-          onSelectMember={(m) => {
-            setQuadrantModalOpen(false)
-            setLedgerMemberId(m?.id || m)
-          }}
-        />
-      )}
 
       {/* Modal Thẩm định / Effective Strength (Screen CE3) */}
       {effectiveStrengthPlayer && (
