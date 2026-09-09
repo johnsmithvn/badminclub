@@ -552,7 +552,9 @@ export default function CourtAssignmentTab({ s }) {
 
     // Lấy dữ liệu hiệu chỉnh chéo giới tính của CLB
     const memberMap = {}
-    players.forEach((p) => { memberMap[p.key] = p })
+    ;(db?.members || []).forEach((m) => { if (m?.id) memberMap[m.id] = m })
+    ;(db?.guests || []).forEach((g) => { if (g?.id) memberMap[g.id] = g })
+    players.forEach((p) => { if (p?.key) memberMap[p.key] = { ...(memberMap[p.key] || {}), ...p } })
     const cals = computeClubCalibration(db.matches || [], memberMap)
     const midBucket = cals.find((c) => c.bucket === '100-300') || { observedWinRate: 27, sampleSize: 40, learnedAdjustment: 38 }
 

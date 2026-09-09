@@ -167,14 +167,14 @@ export default function Leaderboard() {
     ;(db?.sessionGuests || []).forEach((sg) => {
       if (sg.guestId) {
         const g = (db?.guests || []).find((x) => x.id === sg.guestId)
-        if (g) map[sg.id] = g
+        if (g) map[sg.id] = { ...g, ...sg, gender: g.gender || sg.gender }
       }
       if (sg.memberId) {
         const m = (db?.members || []).find((x) => x.id === sg.memberId)
-        if (m) map[sg.id] = m
+        if (m) map[sg.id] = { ...m, ...sg, gender: m.gender || sg.gender }
       }
       if (!map[sg.id] && sg.id) {
-        map[sg.id] = { id: sg.id, name: sg.name || playerName(db, sg.id) || sg.id }
+        map[sg.id] = { id: sg.id, name: sg.name || playerName(db, sg.id) || sg.id, gender: sg.gender }
       }
     })
     return map
@@ -551,10 +551,13 @@ export default function Leaderboard() {
     const winRate = totalSample > 0 ? Math.round((totalFemaleWins / totalSample) * 100) : 0
     return {
       totalSample,
-      totalFemaleWins,
+      totalFemaleWins: Math.round(totalFemaleWins),
       winRate,
+      totalCrossMatches: calibrationStats.totalCrossMatches || totalSample,
+      mixedDoublesCount: calibrationStats.mixedDoublesCount || 0,
+      asymmetricCrossCount: calibrationStats.asymmetricCrossCount || 0,
     }
-  }, [calibrationStats.buckets])
+  }, [calibrationStats])
 
   // Thống kê Mùa giải cho Tab 1
   const seasonStats = useMemo(() => {

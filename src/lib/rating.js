@@ -332,62 +332,136 @@ export function confidenceOf(gamesCount, deviation) {
 /**
  * Tính toán hiệu chỉnh giới tính dựa trên mô hình dữ liệu quan sát được.
  * @param {Array} matches - Danh sách tất cả các trận có kết quả
- * @param {Object} membersMap - Map memberId -> member object { gender, ... }
+ * @param {Object|Array} membersMap - Map memberId -> member object { gender, ... } hoặc Array members
+ * @param {Object} ratingsMap - Map memberId -> Elo rating
  */
 export function computeClubCalibration(matches = [], membersMap = {}, ratingsMap = {}) {
   const buckets = {
-    '<100': { sampleSize: 0, femaleWins: 0 },
-    '100-300': { sampleSize: 0, femaleWins: 0 },
-    '>300': { sampleSize: 0, femaleWins: 0 },
+    '<100': { sampleSize: 0, femaleWins: 0, pureCount: 0, pureWins: 0 },
+    '100-300': { sampleSize: 0, femaleWins: 0, pureCount: 0, pureWins: 0 },
+    '>300': { sampleSize: 0, femaleWins: 0, pureCount: 0, pureWins: 0 },
   }
   const topCross = {}
 
+  // Hỗ trợ cả Object map và Array
+  const memMap = Array.isArray(membersMap)
+    ? membersMap.reduce((acc, m) => { if (m?.id) acc[m.id] = m; return acc }, {})
+    : (membersMap || {})
+
   const checkFemale = (p) => {
-    const g = String(p?.gender || '').toLowerCase().trim()
+    if (!p) return false
+    const g = String(p.gender || p.profile?.gender || p.sex || '').toLowerCase().trim()
     return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: data matching
   }
 
+  const resolveWinner = (m) => {
+    const w = String(m?.winnerTeam || m?.winner_team || '').trim().toUpperCase()
+    if (w === 'A' || w === 'TEAMA' || w === '0') return 'A'
+    if (w === 'B' || w === 'TEAMB' || w === '1') return 'B'
+    if (Array.isArray(m?.sets) && m.sets.length > 0) {
+      let aWins = 0, bWins = 0
+      m.sets.forEach((s) => {
+        if (Array.isArray(s) && s.length >= 2) {
+          if (Number(s[0]) > Number(s[1])) aWins++
+          else if (Number(s[1]) > Number(s[0])) bWins++
+        }
+      })
+      if (aWins > bWins) return 'A'
+      if (bWins > aWins) return 'B'
+    }
+    return null
+  }
+
+  let totalCrossMatches = 0
+  let mixedDoublesCount = 0
+  let asymmetricCrossCount = 0
+
   // Phân loại các trận có sự tham gia của cả nam và nữ
   ;(matches || []).forEach((m) => {
-    if (!m || !m.winnerTeam) return
-    const teamAIds = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
-    const teamBIds = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+    if (!m) return
+    const winner = resolveWinner(m)
+    if (!winner) return
 
-    const teamAPlayers = teamAIds.map((id) => membersMap[id] || { id, name: id })
-    const teamBPlayers = teamBIds.map((id) => membersMap[id] || { id, name: id })
-    if (!teamAPlayers.length || !teamBPlayers.length) return
+    const rawA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const rawB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
 
-    const teamAFemale = teamAPlayers.some(checkFemale)
-    const teamBFemale = teamBPlayers.some(checkFemale)
+    const teamAIds = rawA.map((p) => (typeof p === 'object' && p !== null ? (p.id || p.key || p.playerId) : p)).filter(Boolean)
+    const teamBIds = rawB.map((p) => (typeof p === 'object' && p !== null ? (p.id || p.key || p.playerId) : p)).filter(Boolean)
+    if (!teamAIds.length || !teamBIds.length) return
 
-    // Trận đấu chéo giới tính (1 bên có nữ, bên kia toàn nam)
-    if ((teamAFemale && !teamBFemale) || (!teamAFemale && teamBFemale)) {
-      let ra = m.initialRatingA != null ? m.initialRatingA : null
-      let rb = m.initialRatingB != null ? m.initialRatingB : null
-      if (ra == null || rb == null) {
-        ra = teamRating(teamAIds, ratingsMap)
-        rb = teamRating(teamBIds, ratingsMap)
+    const teamAPlayers = teamAIds.map((id) => memMap[id] || { id, name: id })
+    const teamBPlayers = teamBIds.map((id) => memMap[id] || { id, name: id })
+
+    const countFemaleA = teamAPlayers.filter(checkFemale).length
+    const countFemaleB = teamBPlayers.filter(checkFemale).length
+    const countMaleA = teamAPlayers.length - countFemaleA
+    const countMaleB = teamBPlayers.length - countFemaleB
+
+    const totalFemale = countFemaleA + countFemaleB
+    const totalMale = countMaleA + countMaleB
+
+    // Trận đấu chéo giới tính: có sự hiện diện của cả VĐV Nam và VĐV Nữ trên sân
+    const isCrossMatch = totalFemale > 0 && totalMale > 0
+    if (!isCrossMatch) return
+
+    totalCrossMatches += 1
+
+    // Tất cả người chơi trong trận chéo giới (kể cả Đôi Nam Nữ) đều được ghi nhận số trận chéo giới
+    ;[...teamAIds, ...teamBIds].forEach((id) => {
+      topCross[id] = (topCross[id] || 0) + 1
+    })
+
+    let ra = m.initialRatingA != null ? m.initialRatingA : null
+    let rb = m.initialRatingB != null ? m.initialRatingB : null
+    if (ra == null || rb == null) {
+      ra = teamRating(teamAIds, ratingsMap)
+      rb = teamRating(teamBIds, ratingsMap)
+    }
+    const gap = Math.abs(ra - rb)
+    const bKey = gap < 100 ? '<100' : gap <= 300 ? '100-300' : '>300'
+
+    buckets[bKey].sampleSize += 1
+
+    // Phân loại thể thức:
+    // 1. Kèo lệch giới tính (Đội có Nữ gặp Đội toàn Nam: 1M1F vs 2M, 2F vs 2M, 1F vs 1M)
+    const isPureCross = (countFemaleA > 0 && countFemaleB === 0) || (countFemaleB > 0 && countFemaleA === 0)
+    // 2. Kèo Đôi Nam Nữ chuẩn (1M1F vs 1M1F)
+    const isMixedDoubles = countFemaleA === 1 && countFemaleB === 1
+
+    if (isPureCross) {
+      asymmetricCrossCount += 1
+      buckets[bKey].pureCount += 1
+      const femaleWon = (countFemaleA > 0 && winner === 'A') || (countFemaleB > 0 && winner === 'B')
+      if (femaleWon) {
+        buckets[bKey].femaleWins += 1
+        buckets[bKey].pureWins += 1
       }
-      const gap = Math.abs(ra - rb)
-      const bKey = gap < 100 ? '<100' : gap <= 300 ? '100-300' : '>300'
-      buckets[bKey].sampleSize += 1
-
-      const femaleWon = (teamAFemale && m.winnerTeam === 'A') || (teamBFemale && m.winnerTeam === 'B')
-      if (femaleWon) buckets[bKey].femaleWins += 1
-
-      ;[...teamAIds, ...teamBIds].forEach((id) => {
-        topCross[id] = (topCross[id] || 0) + 1
-      })
+    } else if (isMixedDoubles) {
+      mixedDoublesCount += 1
+      // Đôi nam nữ: cả 2 đội đều có 1 VĐV Nữ. 1 Nữ thắng và 1 Nữ thua -> đóng góp 0.5 chiến thắng (50% cân bằng)
+      buckets[bKey].femaleWins += 0.5
+    } else {
+      // Các trường hợp khác (ví dụ 2 Nữ vs 1 Nam 1 Nữ)
+      const femaleDominantWon = (countFemaleA > countFemaleB && winner === 'A') || (countFemaleB > countFemaleA && winner === 'B')
+      if (femaleDominantWon) buckets[bKey].femaleWins += 1
     }
   })
 
   const list = Object.entries(buckets).map(([bucket, val]) => {
     const winRate = val.sampleSize > 0 ? val.femaleWins / val.sampleSize : 0
-    const learnedAdjustment = val.sampleSize >= 5 ? Math.round((winRate - 0.5) * 200) : 0
+    // Học máy hiệu chỉnh: ưu tiên học từ các trận pureCross (nữ gặp toàn nam) nếu có >= 5 trận
+    let learnedAdjustment = 0
+    if (val.pureCount >= 5) {
+      const pureRate = val.pureWins / val.pureCount
+      learnedAdjustment = Math.round((pureRate - 0.5) * 200)
+    } else if (val.sampleSize >= 5 && asymmetricCrossCount >= 5) {
+      learnedAdjustment = Math.round((winRate - 0.5) * 200)
+    }
     return {
       bucket,
       sampleSize: val.sampleSize,
-      femaleWins: val.femaleWins,
+      femaleWins: Math.round(val.femaleWins),
+      rawFemaleWins: val.femaleWins,
       observedWinRate: winRate,
       learnedAdjustment,
     }
@@ -395,6 +469,9 @@ export function computeClubCalibration(matches = [], membersMap = {}, ratingsMap
 
   list.buckets = buckets
   list.topCrossGenderPlayers = topCross
+  list.totalCrossMatches = totalCrossMatches
+  list.mixedDoublesCount = mixedDoublesCount
+  list.asymmetricCrossCount = asymmetricCrossCount
   return list
 }
 

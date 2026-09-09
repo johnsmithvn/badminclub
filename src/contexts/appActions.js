@@ -2099,6 +2099,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
         const memberMap = {}
         ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        ;(d0.guests || []).forEach((g) => { memberMap[g.id] = g })
         const calList = computeClubCalibration(updatedMatches, memberMap)
         const prevCals = d.clubCalibration || []
         const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
@@ -2388,6 +2389,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         const nextMatches = (d.matches || []).concat([newMatch])
         const memberMap = {}
         ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        ;(d0.guests || []).forEach((g) => { memberMap[g.id] = g })
         const calList = computeClubCalibration(nextMatches, memberMap)
         const prevCals = d.clubCalibration || []
         const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
@@ -2457,6 +2459,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
         const memberMap = {}
         ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        ;(d0.guests || []).forEach((g) => { memberMap[g.id] = g })
         const calList = computeClubCalibration(updatedMatches, memberMap)
         const prevCals = d.clubCalibration || []
         const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
@@ -2519,6 +2522,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
         const memberMap = {}
         ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        ;(d0.guests || []).forEach((g) => { memberMap[g.id] = g })
         const calList = computeClubCalibration(updatedMatches, memberMap)
         const prevCals = d.clubCalibration || []
         const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
@@ -2561,6 +2565,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
         const memberMap = {}
         ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
+        ;(d0.guests || []).forEach((g) => { memberMap[g.id] = g })
         const calList = computeClubCalibration(updatedMatches, memberMap)
         const prevCals = d.clubCalibration || []
         const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
