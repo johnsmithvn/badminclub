@@ -1,4 +1,4 @@
-# HỆ THỐNG ĐIỂM ELO CAREER VÀ CƠ CHẾ ĐIỂM MÙA GIẢI (SEASON POINTS) — BADMINCLUB
+﻿# HỆ THỐNG ĐIỂM ELO CAREER VÀ CƠ CHẾ ĐIỂM MÙA GIẢI (SEASON POINTS) — BADMINCLUB
 
 > **Tài liệu kỹ thuật đặc tả kiến trúc, công thức toán học, cơ chế lưu trữ và tác động nghiệp vụ**  
 > *Được trích xuất và chuẩn hoá trực tiếp từ mã nguồn thực tế của dự án BadminClub (`src/lib/rating.js`, `src/lib/xp.js`, `src/lib/assign.js`, `src/config/app.json`, `supabase/migrations/`).*
@@ -35,10 +35,9 @@
    - 6.1. [Kèo thách đấu (Challenge) chuyển thành Trận đấu (Match)](#61-kèo-thách-đấu-challenge-chuyển-thành-trận-đấu-match)
    - 6.2. [Đóng băng Elo tại thời điểm bắt đầu trận](#62-đóng-băng-elo-tại-thời-điểm-bắt-đầu-trận)
    - 6.3. [Các chế độ trận: Bo1, Bo3, Unrated (Đánh tập)](#63-các-chế-độ-trận-bo1-bo3-unrated-đánh-tập)
-7. [Tác động đến Bảng xếp hạng (Leaderboard) & Bản đồ 4 Góc (Quadrant Map)](#7-tác-động-đến-bảng-xếp-hạng-leaderboard--bản-đồ-4-góc-quadrant-map)
-   - 7.1. [Cấu trúc 3 Tab Bảng Xếp Hạng](#71-cấu-trúc-3-tab-bảng-xếp-hạng)
+7. [Tác động đến Bảng xếp hạng (Leaderboard)](#7-tác-động-đến-bảng-xếp-hạng-leaderboard)
+   - 7.1. [Cấu trúc 5 Tab Bảng Xếp Hạng](#71-cấu-trúc-5-tab-bảng-xếp-hạng)
    - 7.2. [Khu vực Thẩm định Trình độ (Provisional R1)](#72-khu-vực-thẩm-định-trình-độ-provisional-r1)
-   - 7.3. [Bản đồ 4 Góc CLB (Quadrant Map: Elo Career × Điểm Mùa)](#73-bản-đồ-4-góc-clb-quadrant-map-elo-career--điểm-mùa)
 8. [Bảng tổng hợp tham chiếu cấu hình (`app.json`)](#8-bảng-tổng-hợp-tham-chiếu-cấu-hình-appjson)
 
 ---
@@ -545,27 +544,30 @@ Thành viên CLB có thể trực tiếp gạ kèo thách đấu nhau qua màn h
 
 ---
 
-## 7. TÁC ĐỘNG ĐẾN BẢNG XẾP HẠNG (LEADERBOARD) & BẢN ĐỒ 4 GÓC (QUADRANT MAP)
+## 7. TÁC ĐỘNG ĐẾN BẢNG XẾP HẠNG (LEADERBOARD)
 
-*(File nguồn: `src/pages/Leaderboard.jsx`, `src/components/leaderboard/QuadrantMapModal.jsx`, `src/components/leaderboard/SeasonRaceTab.jsx`)*
+*(File nguồn: `src/pages/Leaderboard.jsx`, `src/components/leaderboard/SeasonRaceTab.jsx`, `src/components/leaderboard/CareerEloTab.jsx`, `src/components/leaderboard/PairsTab.jsx`, `src/components/leaderboard/PairH2HTab.jsx`)*
 
-### 7.1. Cấu trúc 3 Tab Bảng Xếp Hạng
+### 7.1. Cấu trúc 5 Tab Bảng Xếp Hạng
 
-Trang Bảng Xếp Hạng của CLB được phân định rành mạch thành 3 màn hình chuyên biệt:
+Trang Bảng Xếp Hạng của CLB được phân định rành mạch thành **5 màn hình chuyên biệt**:
 
 ```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                           BẢNG XẾP HẠNG CLB                               │
-├─────────────────────┬───────────────────────┬─────────────────────────────┤
-│ TAB 1: ĐUA ĐIỂM MÙA │  TAB 2: ELO CAREER    │     TAB 3: ĐỐI ĐẦU H2H      │
-│  (Season Points)    │  (Đẳng Cấp Vĩnh Viễn) │  (Ma Trận Thắng / Thua)     │
-├─────────────────────┴───────────────────────┴─────────────────────────────┤
-│ • Xếp theo Điểm Mùa │ • Xếp theo Elo Career │ • Ma trận đối đầu giữa      │
-│ • Có thưởng Streak  │ • Huy hiệu Rank Tier  │   các cặp đấu               │
-│ • Vinh danh Upset   │ • Thanh tiến trình R  │ • Tỷ số các trận gần nhất   │
-│ • Nút mở Bản đồ 4 góc│ • Khu thẩm định riêng │ • Đếm số trận thắng áp đảo   │
-└───────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    BẢNG XẾP HẠNG CLB                                        │
+├──────────────┬─────────────────┬────────────────────┬────────────────┬──────────────────────┤
+│ TAB 1: ĐUA   │ TAB 2: ELO      │ TAB 3: ĂN Ý &      │ TAB 4: ĐỐI    │ TAB 5: TÌM TRẬN &    │
+│ ĐIỂM MÙA     │ CAREER          │ KHẮC CHẾ           │ ĐẦU CẶP       │ MA TRẬN H2H          │
+├──────────────┴─────────────────┴────────────────────┴────────────────┴──────────────────────┤
+│ • Xếp theo   │ • Xếp theo Elo  │ • Synergy Score    │ • Lịch sử đối │ • Tìm trận theo tên  │
+│   Điểm Mùa  │   Career        │   cặp đôi          │   đầu hai cặp │ • Ma trận N×N H2H    │
+│ • Streak,    │ • Huy hiệu Rank │ • Kỳ vọng vs thực  │ • Confidence   │ • Bộ lọc upset/close │
+│   Upset, XP │ • Thanh tiến    │   tế mỗi cặp       │   bar R1-R4   │                      │
+│              │   trình R1-R5   │ • Trend ↑↓ ổn định │               │                      │
+└──────────────┴─────────────────┴────────────────────┴────────────────┴──────────────────────┘
 ```
+
+> **Lưu ý:** Bản đồ 4 Góc (Quadrant Map) đã được **xóa bỏ** khỏi giao diện.
 
 ---
 
@@ -578,54 +580,7 @@ Những người chơi có dưới 5 trận thi đấu chính thức ($< 5$ tr�
 
 ---
 
-### 7.3. Bản đồ 4 Góc CLB (Quadrant Map: Elo Career × Điểm Mùa)
-
-*(Màn hình SS4 - Điểm nhấn chiến lược quản trị CLB)*
-
-Bằng việc kết hợp 2 trục toạ độ độc lập, hệ thống trực quan hoá toàn bộ thành viên lên **Bản đồ 4 góc CLB**:
-- **Trục hoành (X):** Điểm Elo Career (với giá trị trung vị $\text{Median Elo}$ nằm chính giữa 50%).
-- **Trục tung (Y):** Điểm Mùa giải (với giá trị trung vị $\text{Median Points}$ nằm chính giữa 50%).
-
-```
-                      Điểm Mùa (Season Points)
-                                 ▲
-                     CAO         │         CAO
-                                 │
-                 ĐANG LÊN        │        ĐẦU TÀU
-               (Rising Stars)    │       (Leaders)
-         • Đi tập rất đều        │ • Trình độ cao
-         • Đam mê, nhiệt huyết   │ • Đi sinh hoạt đều đặn
-         • Cần rèn thêm kỹ thuật │ • Trụ cột văn hoá & chuyên môn
-                                 │
-  ◄──────────────────────────────┼──────────────────────────────► Elo Career
-                                 │
-                 NGỦ ĐÔNG        │       TRỤ CỘT VẮNG
-               (Hibernating)     │     (Absent Pillars)
-         • Mới vào hoặc ít đi    │ • Đánh rất hay, trình cao
-         • Trình độ còn thấp     │ • Bận rộn, lười đi tập
-         • Cần rủ rê, động viên  │ • Cần kích cầu lôi kéo lại sân
-                                 │
-                     THẤP        │         THẤP
-                                 ▼
-```
-
-#### Ý nghĩa chiến lược của 4 phân khu đối với Ban Chủ Nhiệm CLB:
-
-1. **Góc Phải - Trên: "ĐẦU TÀU" (Leaders):**
-   - *Đặc điểm:* Elo cao + Điểm mùa cao.
-   - *Chiến lược:* Đây là linh hồn của CLB. Bố trí nhóm này làm Đội trưởng, người hướng dẫn các buổi giao lưu, hạt giống trong các giải đấu mở rộng.
-
-2. **Góc Trái - Trên: "ĐANG LÊN" (Rising Stars):**
-   - *Đặc điểm:* Elo thấp/trung bình + Điểm mùa rất cao.
-   - *Chiến lược:* Thành phần chăm chỉ nhất CLB. Ban chủ nhiệm cần ghép họ cặp với các "Đầu tàu" trong các trận chia sân để họ học hỏi chiến thuật, nhanh chóng thăng hạng.
-
-3. **Góc Phải - Dưới: "TRỤ CỘT VẮNG" (Absent Pillars):**
-   - *Đặc điểm:* Elo rất cao + Điểm mùa thấp.
-   - *Chiến lược:* Các tay vợt cứng cựa nhưng hay vắng mặt. Ban chủ nhiệm dùng tính năng **Kèo thách đấu (Challenge)** hoặc thông báo có đối thủ xứng tầm để kích cầu mời họ trở lại sân.
-
-4. **Góc Trái - Dưới: "NGỦ ĐÔNG" (Hibernating):**
-   - *Đặc điểm:* Elo thấp + Điểm mùa thấp.
-   - *Chiến lược:* Nhóm có nguy cơ bỏ sinh hoạt cao nhất. Cần sự quan tâm của ban cán sự, xếp vào các sân chơi vui vẻ, không áp lực điểm số để lấy lại cảm hứng vận động.
+> **~~7.3. Bản đồ 4 Góc CLB (Quadrant Map)~~** — Tính năng đã bị **xóa bỏ** khỏi giao diện. Thay thế bằng tab **Ăn ý & Khắc chế** và tab **Đối đầu cặp** chuyên sâu hơn.
 
 ---
 
@@ -706,3 +661,4 @@ Mọi hằng số và trọng số trong tài liệu này đều được quản
 
 ---
 *Tài liệu được biên soạn đồng bộ với phiên bản BadminClub v2.0 · Đảm bảo tính nhất quán giữa Codebase, Database Schema và Logic nghiệp vụ thực tế.*
+

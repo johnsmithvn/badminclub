@@ -14,7 +14,7 @@ export default function PairH2HTab({
 
   // Danh sách toàn bộ các cặp đôi từ database
   const allPairs = useMemo(() => {
-    return rankPairs(matches, membersMap, ratingsMap, { minGames: 1 })
+    return rankPairs(matches, membersMap, ratingsMap, { minGames: 1 }).rankedPairs || []
   }, [matches, membersMap, ratingsMap])
 
   // Lấy 2 cặp đôi mặc định: Cặp 1 và cặp hay gặp cặp 1 nhất
