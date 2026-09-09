@@ -13,8 +13,14 @@ import { t } from '#i18n'
  */
 export default function BalanceScore({
   balanceDetails,
+  effectiveAnalysis = null,
+  ratingA = 0,
+  ratingB = 0,
+  pctA = 50,
+  pctB = 50,
   teamAName = '',
   teamBName = '',
+  onApplySuggestion,
   onClose,
 }) {
   if (!balanceDetails) return null
@@ -278,6 +284,125 @@ export default function BalanceScore({
             {[...synergyNotes, matchupNote].filter(Boolean).join(' ')}
           </div>
         </div>
+
+        {/* 7. [NẾU LÀ TRẬN CHÉO GIỚI] KHỐI EFFECTIVE RATING (SO SÁNH 2 CÁCH TÍNH) */}
+        {effectiveAnalysis && effectiveAnalysis.isCrossGender && (
+          <div
+            style={{
+              display: 'grid',
+              gap: 10,
+              padding: '12px 14px',
+              borderRadius: 8,
+              background: '#101927',
+              border: '1px solid #00B2A9',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div>
+                <div style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                  {t('assign.twoWayBalance')}
+                </div>
+                <div style={{ font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA', marginTop: 2 }}>
+                  {t('assign.twoWaySub')}
+                </div>
+              </div>
+              <span
+                style={{
+                  font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(0,178,169,.18)',
+                  color: '#5FDBD3',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t('assign.calibratedTag')}
+              </span>
+            </div>
+
+            {/* 2 thanh so sánh: Rating thô vs Effective rating */}
+            <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
+              {/* Rating thô */}
+              <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                  <span style={{ font: '400 12px/1 "IBM Plex Mono", monospace', color: '#8494AA' }}>
+                    {t('assign.rawRating')}
+                  </span>
+                  <span style={{ font: '400 12px/1 "IBM Plex Mono", monospace', color: '#A8B7CB' }}>
+                    {ratingA} vs {ratingB} · {t('assign.skewDiff', { d: effectiveAnalysis.rawDelta })}
+                  </span>
+                </div>
+                <div style={{ height: 6, borderRadius: 999, overflow: 'hidden', background: '#22304A', display: 'flex' }}>
+                  <div style={{ width: `${pctA}%`, height: '100%', background: '#3D5478' }} />
+                  <div style={{ width: `${pctB}%`, height: '100%', background: '#1F2C42' }} />
+                </div>
+              </div>
+
+              {/* Effective rating */}
+              <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                  <span style={{ font: '600 12px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                    {t('assign.effectiveRating')}
+                  </span>
+                  <span style={{ font: '600 12px/1 "IBM Plex Mono", monospace', color: '#5FDBD3' }}>
+                    {effectiveAnalysis.effA} vs {effectiveAnalysis.effB} · {t('assign.skewDiff', { d: effectiveAnalysis.effDelta })}
+                  </span>
+                </div>
+                <div style={{ height: 6, borderRadius: 999, overflow: 'hidden', background: '#22304A', display: 'flex' }}>
+                  <div style={{ width: `${Math.round((effectiveAnalysis.effA / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#00B2A9' }} />
+                  <div style={{ width: `${Math.round((effectiveAnalysis.effB / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#22304A' }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
+              {t('assign.effectiveDesc', { n: effectiveAnalysis.sampleMatches, pct: effectiveAnalysis.femaleWinRate })}
+            </div>
+
+            {/* Gợi ý xếp khác */}
+            {effectiveAnalysis.suggestion && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  background: '#141D2E',
+                  border: '1px solid #2E3E5C',
+                  marginTop: 2,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: '#E9EFF7' }}>
+                    {t('assign.swapAction', { p1: effectiveAnalysis.suggestion.p1Name, p2: effectiveAnalysis.suggestion.p2Name })}
+                  </div>
+                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: '#5FDBD3', marginTop: 2 }}>
+                    {t('assign.skewDiff', { d: effectiveAnalysis.suggestion.newDelta })}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onApplySuggestion && onApplySuggestion(effectiveAnalysis.suggestion)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 6,
+                    background: '#00B2A9',
+                    border: 'none',
+                    font: '600 12.5px/1 "IBM Plex Sans", sans-serif',
+                    color: '#04302C',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  {t('assign.swapNow')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Khối hướng dẫn Đọc thanh thế nào */}
         <div

@@ -10,6 +10,7 @@ export default function CareerEloTab({
   matches = [],
   levels = {},
   onOpenEffectiveStrengthModal,
+  onSelectMember,
   isMobile = false,
 }) {
   const { isDark } = useTheme()
@@ -274,6 +275,8 @@ export default function CareerEloTab({
               return (
                 <div
                   key={player.id}
+                  onClick={() => onSelectMember && onSelectMember(player)}
+                  title={onSelectMember ? t('leaderboard.tabChart') : undefined}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
@@ -281,6 +284,14 @@ export default function CareerEloTab({
                     padding: '9px 13px',
                     borderBottom: '1px solid var(--border-subtle)',
                     font: "400 13px/1.3 'IBM Plex Sans', sans-serif",
+                    cursor: onSelectMember ? 'pointer' : 'default',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (onSelectMember) e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (onSelectMember) e.currentTarget.style.background = 'transparent'
                   }}
                 >
                   {/* Rank */}
@@ -412,8 +423,8 @@ export default function CareerEloTab({
                 return (
                   <div
                     key={player.id}
-                    onClick={() => onOpenEffectiveStrengthModal && onOpenEffectiveStrengthModal(player)}
-                    title={t('season.clickToInspectProvisional')}
+                    onClick={() => (onSelectMember ? onSelectMember(player) : onOpenEffectiveStrengthModal && onOpenEffectiveStrengthModal(player))}
+                    title={onSelectMember ? t('leaderboard.tabChart') : t('season.clickToInspectProvisional')}
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
@@ -448,6 +459,13 @@ export default function CareerEloTab({
                       </div>
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{player.name}</span>
                       <span
+                        onClick={(e) => {
+                          if (onOpenEffectiveStrengthModal) {
+                            e.stopPropagation()
+                            onOpenEffectiveStrengthModal(player)
+                          }
+                        }}
+                        title={t('season.clickToInspectProvisional')}
                         style={{
                           font: "600 10px/1 'IBM Plex Mono', monospace",
                           padding: '3px 6px',
@@ -455,6 +473,7 @@ export default function CareerEloTab({
                           background: isDark ? 'rgba(214,59,43,.14)' : 'rgba(214,59,43,.10)',
                           border: '1px solid #D63B2B',
                           color: isDark ? '#F1A79D' : '#DC2626',
+                          cursor: 'pointer',
                         }}
                       >
                         {t('season.provisionalBadgeCount', { n: player.provisionalRemaining })}

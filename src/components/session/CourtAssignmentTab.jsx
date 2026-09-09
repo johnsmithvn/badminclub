@@ -1370,7 +1370,24 @@ export default function CourtAssignmentTab({ s }) {
               style={S.balanceBanner}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={S.balanceBannerTitle}>{t('assign.balanceScore')}</div>
+                <div style={S.balanceBannerTitle}>
+                  {t('assign.balanceScore')}
+                  {effectiveAnalysis?.suggestion && (
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        font: '600 10.5px/1 "IBM Plex Mono", monospace',
+                        padding: '3px 7px',
+                        borderRadius: 4,
+                        background: 'rgba(0,178,169,.18)',
+                        color: '#5FDBD3',
+                        verticalAlign: 'middle',
+                      }}
+                    >
+                      💡 {t('assign.swapSuggestion')}
+                    </span>
+                  )}
+                </div>
                 <div style={S.balanceBannerSub}>
                   {t('assign.balanceIndicatorsCount', { n: 6, newCount: 2 })}
                 </div>
@@ -1381,99 +1398,6 @@ export default function CourtAssignmentTab({ s }) {
           )}
         </div>
 
-        {/* ---------------- 4. KHỐI EFFECTIVE RATING (MOCKUP R3) ---------------- */}
-        {effectiveAnalysis && effectiveAnalysis.isCrossGender && (
-          <div style={S.effCard}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <div>
-                <div style={{ font: '600 15px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                  {t('assign.twoWayBalance')}
-                </div>
-                <div style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
-                  {t('assign.twoWaySub')}
-                </div>
-              </div>
-              <span style={S.calibratedBadge}>{t('assign.calibratedTag')}</span>
-            </div>
-
-            <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-              {/* Rating thô */}
-              {isMobile ? (
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                    <span style={S.barCompareLabel}>{t('assign.rawRating')}</span>
-                    <span style={S.barCompareValue}>{ratingA} vs {ratingB} · {t('assign.skewDiff', { d: effectiveAnalysis.rawDelta })}</span>
-                  </div>
-                  <div style={S.barCompareTrack}>
-                    <div style={{ width: `${pctA}%`, height: '100%', background: '#2E3E5C' }} />
-                    <div style={{ width: `${pctB}%`, height: '100%', background: '#1A2437' }} />
-                  </div>
-                </div>
-              ) : (
-                <div style={S.barCompareRow}>
-                  <span style={S.barCompareLabel}>{t('assign.rawRating')}</span>
-                  <div style={S.barCompareTrack}>
-                    <div style={{ width: `${pctA}%`, height: '100%', background: '#2E3E5C' }} />
-                    <div style={{ width: `${pctB}%`, height: '100%', background: '#1A2437' }} />
-                  </div>
-                  <span style={S.barCompareValue}>{ratingA} vs {ratingB} · {t('assign.skewDiff', { d: effectiveAnalysis.rawDelta })}</span>
-                </div>
-              )}
-
-              {/* Effective rating */}
-              {isMobile ? (
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                    <span style={{ ...S.barCompareLabel, color: '#5FDBD3' }}>{t('assign.effectiveRating')}</span>
-                    <span style={{ ...S.barCompareValue, color: '#5FDBD3' }}>
-                      {effectiveAnalysis.effA} vs {effectiveAnalysis.effB} · {t('assign.skewDiff', { d: effectiveAnalysis.effDelta })}
-                    </span>
-                  </div>
-                  <div style={S.barCompareTrack}>
-                    <div style={{ width: `${Math.round((effectiveAnalysis.effA / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#00B2A9' }} />
-                    <div style={{ width: `${Math.round((effectiveAnalysis.effB / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#2E3E5C' }} />
-                  </div>
-                </div>
-              ) : (
-                <div style={S.barCompareRow}>
-                  <span style={{ ...S.barCompareLabel, color: '#5FDBD3' }}>{t('assign.effectiveRating')}</span>
-                  <div style={S.barCompareTrack}>
-                    <div style={{ width: `${Math.round((effectiveAnalysis.effA / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#00B2A9' }} />
-                    <div style={{ width: `${Math.round((effectiveAnalysis.effB / (effectiveAnalysis.effA + effectiveAnalysis.effB)) * 100)}%`, height: '100%', background: '#2E3E5C' }} />
-                  </div>
-                  <span style={{ ...S.barCompareValue, color: '#5FDBD3' }}>
-                    {effectiveAnalysis.effA} vs {effectiveAnalysis.effB} · {t('assign.skewDiff', { d: effectiveAnalysis.effDelta })}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div style={S.effDescText}>
-              {t('assign.effectiveDesc', { n: effectiveAnalysis.sampleMatches, pct: effectiveAnalysis.femaleWinRate })}
-            </div>
-
-            {/* Gợi ý xếp khác */}
-            {effectiveAnalysis.suggestion && (
-              <div style={S.suggestionBox}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                    {t('assign.swapAction', { p1: effectiveAnalysis.suggestion.p1Name, p2: effectiveAnalysis.suggestion.p2Name })}
-                  </div>
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
-                    {t('assign.skewDiff', { d: effectiveAnalysis.suggestion.newDelta })}
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => handleApplySuggestion(effectiveAnalysis.suggestion)}
-                >
-                  {t('assign.swapNow')}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
         {teamA.length > 0 && teamB.length > 0 && (
@@ -1855,8 +1779,17 @@ export default function CourtAssignmentTab({ s }) {
       {showBalanceSheet && balanceDetails && (
         <BalanceScore
           balanceDetails={balanceDetails}
+          effectiveAnalysis={effectiveAnalysis}
+          ratingA={ratingA}
+          ratingB={ratingB}
+          pctA={pctA}
+          pctB={pctB}
           teamAName={teamAName}
           teamBName={teamBName}
+          onApplySuggestion={(sug) => {
+            handleApplySuggestion(sug)
+            setShowBalanceSheet(false)
+          }}
           onClose={() => setShowBalanceSheet(false)}
         />
       )}

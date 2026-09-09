@@ -65,7 +65,7 @@ export default function Leaderboard() {
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const isMobile = useMobile()
-  const [activeTab, setActiveTab] = useState('season') // 'season' | 'chart' | 'search' | 'matrix' | 'pairs'
+  const [activeTab, setActiveTab] = useState('season') // 'season' | 'elo' | 'pairs' | 'matrix' | 'search'
   const yearFilter = '2026'
   const [searchName, setSearchName] = useState('')
   const [activeFilter, setActiveFilter] = useState('all') // 'all' | 'active'
@@ -343,12 +343,17 @@ export default function Leaderboard() {
   }, [activeMembers, db.guests, db.playerRatings, db.matches, searchName, activeFilter, guestFilter, rankTheme, db.levels])
 
   // -------------------------------------------------------------
-  // TAB 2: Thành viên hiện tại được chọn cho Profile
+  // Thành viên được chọn để mở Modal Hồ sơ / Biểu đồ Elo
   // -------------------------------------------------------------
   const currentMember = useMemo(() => {
-    const targetId = selectedMemberId || leaderboardData[0]?.id || activeMembers[0]?.id
-    return activeMembers.find((m) => m.id === targetId) || null
-  }, [selectedMemberId, leaderboardData, activeMembers])
+    if (!selectedMemberId) return null
+    return (
+      activeMembers.find((m) => m.id === selectedMemberId) ||
+      (db?.members || []).find((m) => m.id === selectedMemberId) ||
+      (db?.guests || []).find((g) => g.id === selectedMemberId) ||
+      null
+    )
+  }, [selectedMemberId, activeMembers, db?.members, db?.guests])
 
   // -------------------------------------------------------------
   // TAB 3: Dữ liệu Tìm trận
@@ -1062,13 +1067,6 @@ export default function Leaderboard() {
           >
             {t('leaderboard.tabSearch')}
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('chart')}
-            style={{ ...S.tabBtn, ...(activeTab === 'chart' ? S.tabBtnActive : {}) }}
-          >
-            {t('leaderboard.tabChart')}
-          </button>
         </div>
       </TabTrack>
 
@@ -1091,6 +1089,7 @@ export default function Leaderboard() {
           matches={db.matches || []}
           levels={db.levels}
           onOpenEffectiveStrengthModal={(player) => setEffectiveStrengthPlayer(player)}
+          onSelectMember={(player) => setSelectedMemberId(player?.id || player)}
           isMobile={isMobile}
         />
       )}
@@ -1110,24 +1109,6 @@ export default function Leaderboard() {
             setPlayerB(p2 || '')
             setSearchMode('team')
             setActiveTab('search')
-          }}
-        />
-      )}
-
-      {/* ---------------- TAB 2: Thành tích & Đối đầu & XP (Screens 04, 05, 07) ---------------- */}
-      {activeTab === 'chart' && currentMember && (
-        <MemberProfileTab
-          member={currentMember}
-          allMembers={activeMembers}
-          onSelectMember={(id) => setSelectedMemberId(id)}
-          db={db}
-          rankTheme={rankTheme}
-          onSelectTheme={(themeKey) => setRankTheme(themeKey)}
-          isMobile={isMobile}
-          onChallenge={(targetId) => {
-            setInitialTeamA([])
-            setInitialTeamB([targetId])
-            setChallengeModalOpen(true)
           }}
         />
       )}
@@ -2430,6 +2411,99 @@ export default function Leaderboard() {
             setSeasonSettingsOpen(false)
           }}
         />
+      )}
+
+      {/* Modal Chi tiết Hồ sơ & Biểu đồ Elo của thành viên */}
+      {selectedMemberId && currentMember && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: isMobile ? 8 : 20,
+          }}
+          onClick={() => setSelectedMemberId(null)}
+        >
+          <div
+            data-screen-label="Member Profile & Rating Chart Modal"
+            style={{
+              width: 1040,
+              maxWidth: '100%',
+              maxHeight: '92vh',
+              background: 'var(--surface-overlay)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 12,
+              boxShadow: 'var(--shadow-overlay)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 18px',
+                borderBottom: '1px solid var(--border-subtle)',
+                background: 'var(--surface-card)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ font: "700 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  {currentMember.name}
+                </span>
+                <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                  · {t('leaderboard.tabChart')}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedMemberId(null)}
+                aria-label={t('common.close')}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 4,
+                }}
+              >
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: isMobile ? 12 : 20, overflowY: 'auto', flex: 1 }}>
+              <MemberProfileTab
+                member={currentMember}
+                allMembers={activeMembers}
+                onSelectMember={(id) => setSelectedMemberId(id)}
+                db={db}
+                rankTheme={rankTheme}
+                onSelectTheme={(themeKey) => setRankTheme(themeKey)}
+                isMobile={isMobile}
+                onChallenge={(targetId) => {
+                  setSelectedMemberId(null)
+                  setInitialTeamA([])
+                  setInitialTeamB([targetId])
+                  setChallengeModalOpen(true)
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

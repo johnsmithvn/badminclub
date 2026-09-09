@@ -819,7 +819,7 @@ export default function MemberProfileTab({
                               color: '#fff',
                             }}
                           >
-                            <span>{fav.pairName} vs {fav.oppName}</span>
+                            <span>vs {fav.oppName}</span>
                             <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>{fav.winRate}%</span>
                           </div>
                         ))
@@ -848,7 +848,7 @@ export default function MemberProfileTab({
                               color: '#fff',
                             }}
                           >
-                            <span>{nem.pairName} vs {nem.oppName}</span>
+                            <span>vs {nem.oppName}</span>
                             <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F0B75C' }}>{nem.winRate}%</span>
                           </div>
                         ))
