@@ -19,6 +19,7 @@ import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
 import SeasonRaceTab from '#components/leaderboard/SeasonRaceTab.jsx'
 import CareerEloTab from '#components/leaderboard/CareerEloTab.jsx'
 import PairsTab from '#components/leaderboard/PairsTab.jsx'
+import PairH2HTab from '#components/leaderboard/PairH2HTab.jsx'
 import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerModal.jsx'
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
 import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
@@ -1053,6 +1054,18 @@ export default function Leaderboard() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab('h2h')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'h2h'
+                ? { ...S.tabBtnActive, background: '#7C3AED', color: '#fff', fontWeight: 700 }
+                : {}),
+            }}
+          >
+            {t('leaderboard.tabH2H')}
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('matrix')}
             style={{ ...S.tabBtn, ...(activeTab === 'matrix' ? S.tabBtnActive : {}) }}
           >
@@ -1107,6 +1120,16 @@ export default function Leaderboard() {
             setSearchMode('team')
             setActiveTab('search')
           }}
+        />
+      )}
+
+      {/* ---------------- TAB H2H: Đối đầu cặp (Screen AY1c / P6) ---------------- */}
+      {activeTab === 'h2h' && (
+        <PairH2HTab
+          db={db}
+          matches={db.matches || []}
+          membersMap={memberMap}
+          ratingsMap={normalizedRatingsMap}
         />
       )}
 

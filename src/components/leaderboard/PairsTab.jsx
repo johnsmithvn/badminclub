@@ -5,6 +5,7 @@ import { rankPairs, calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 import PairDetailModal from './PairDetailModal.jsx'
 import RatingFormulaModal from './RatingFormulaModal.jsx'
+import PairH2HModal from './PairH2HModal.jsx'
 
 export function ConfidenceExplainerSheet({ onClose }) {
   return (
@@ -142,6 +143,7 @@ export default function PairsTab({
   const [formulaModalOpen, setFormulaModalOpen] = useState(false)
   const [confidenceSheetOpen, setConfidenceSheetOpen] = useState(false)
   const [mobileSubTab, setMobileSubTab] = useState('pairs') // 'pairs' | 'h2h'
+  const [selectedH2HPair, setSelectedH2HPair] = useState(null)
 
   // Tính bảng xếp hạng cặp đôi theo logic core vNext
   const pairsData = useMemo(() => {
@@ -252,23 +254,29 @@ function getConfidenceDots(tier) {
         const namesB = getPairNames(pB)
 
         const edgeAB = calcMatchupEdge(matches, keysA, keysB, ratingsMap)
-        if (edgeAB.games >= 2) {
+        const gamesAB = edgeAB.gamesCount != null ? edgeAB.gamesCount : (edgeAB.games || 0)
+        if (gamesAB >= 1) {
           const edgeBA = calcMatchupEdge(matches, keysB, keysA, ratingsMap)
+          const gamesBA = edgeBA.gamesCount != null ? edgeBA.gamesCount : (edgeBA.games || 0)
           results.push({
+            pairA: keysA,
+            pairB: keysB,
             fromName: namesA.join(' · '),
             toName: namesB.join(' · '),
-            games: edgeAB.games,
-            expected: edgeAB.expectedA,
-            actual: edgeAB.actualA,
-            score: edgeAB.edgeScore,
+            games: gamesAB,
+            expected: edgeAB.expectedWinPct != null ? edgeAB.expectedWinPct : (edgeAB.expectedA || 50),
+            actual: edgeAB.actualWinPct != null ? edgeAB.actualWinPct : (edgeAB.actualA || 50),
+            score: edgeAB.advantageScore != null ? edgeAB.advantageScore : (edgeAB.edgeScore || 50),
           })
           results.push({
+            pairA: keysB,
+            pairB: keysA,
             fromName: namesB.join(' · '),
             toName: namesA.join(' · '),
-            games: edgeBA.games,
-            expected: edgeBA.expectedA,
-            actual: edgeBA.actualA,
-            score: edgeBA.edgeScore,
+            games: gamesBA,
+            expected: edgeBA.expectedWinPct != null ? edgeBA.expectedWinPct : (edgeBA.expectedA || 50),
+            actual: edgeBA.actualWinPct != null ? edgeBA.actualWinPct : (edgeBA.actualA || 50),
+            score: edgeBA.advantageScore != null ? edgeBA.advantageScore : (edgeBA.edgeScore || 50),
           })
         }
       }
@@ -609,6 +617,7 @@ function getConfidenceDots(tier) {
                 directionalMatchups.map((m, mIdx) => (
                   <div
                     key={mIdx}
+                    onClick={() => setSelectedH2HPair({ pairA: m.pairA, pairB: m.pairB })}
                     style={{
                       background: '#141D2E',
                       border: '1px solid #22304A',
@@ -616,6 +625,7 @@ function getConfidenceDots(tier) {
                       padding: 13,
                       display: 'grid',
                       gap: 8,
+                      cursor: 'pointer',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1494,6 +1504,18 @@ function getConfidenceDots(tier) {
       {confidenceSheetOpen && (
         <ConfidenceExplainerSheet
           onClose={() => setConfidenceSheetOpen(false)}
+        />
+      )}
+
+      {/* Modal P6: Sheet đối đầu hai cặp */}
+      {selectedH2HPair && (
+        <PairH2HModal
+          pairA={selectedH2HPair.pairA}
+          pairB={selectedH2HPair.pairB}
+          matches={matches}
+          membersMap={membersMap}
+          ratingsMap={ratingsMap}
+          onClose={() => setSelectedH2HPair(null)}
         />
       )}
     </div>

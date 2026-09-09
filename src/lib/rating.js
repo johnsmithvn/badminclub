@@ -1016,6 +1016,7 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
         pairAExp,
         sets: m.sets || [],
         at: m.at || (m.playedAt ? Date.parse(m.playedAt) : 0),
+        match: m,
       })
     }
   })
@@ -1032,6 +1033,10 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
       advantageScore: 50,
       confidence: confidenceLevelOf(0),
       recentScores: [],
+      matches: [],
+      firstMatchDate: null,
+      lastMatchDate: null,
+      avgScoreDiff: '0.0',
     }
   }
 
@@ -1051,6 +1056,19 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
     })
   })
 
+  let totalScoreDiff = 0
+  let diffCount = 0
+  h2hMatches.forEach((hm) => {
+    (hm.sets || []).forEach(([sa, sb]) => {
+      if (sa != null && sb != null) {
+        const diff = hm.won ? Math.abs(sa - sb) : -Math.abs(sa - sb)
+        totalScoreDiff += diff
+        diffCount++
+      }
+    })
+  })
+  const avgScoreDiff = diffCount > 0 ? (totalScoreDiff / diffCount).toFixed(1) : '0.0'
+
   return {
     gamesCount,
     winsCount,
@@ -1060,6 +1078,10 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
     advantageScore,
     confidence: confidenceLevelOf(gamesCount),
     recentScores,
+    matches: h2hMatches,
+    firstMatchDate: h2hMatches[0]?.at || null,
+    lastMatchDate: h2hMatches[h2hMatches.length - 1]?.at || null,
+    avgScoreDiff: Number(avgScoreDiff) > 0 ? `+${avgScoreDiff}` : avgScoreDiff,
   }
 }
 
