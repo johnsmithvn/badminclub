@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict'
 import {
   FILTER0, MERGE_FIELDS, duesStatusOf, filterMembers, fixedGroups, hasFilter, mergeRows,
-  nextSort, sortMembers,
+  nextSort, sortMembers, attendanceTier, compareVietnameseNames, sortAttendanceMembers,
 } from '#lib/members.js'
 
 const MONTH = '2026-09'
@@ -230,5 +230,86 @@ assert.equal(mergeRows(null, null, db.levels).length, MERGE_FIELDS.length,
 assert.ok(mergeRows(null, null, db.levels).every((r) => r.block === 'empty'))
 
 console.log('members merge check: OK')
+
+/* ---------- Sắp xếp danh sách ở màn điểm danh ---------- */
+// 1. Thứ tự tier trạng thái: Chưa điểm danh (1) -> Điểm danh (2) -> Vắng (3) -> Đi thêm (4)
+assert.equal(attendanceTier(undefined), 1, 'chưa điểm danh phải có tier = 1')
+assert.equal(attendanceTier(null), 1, 'null xem như chưa điểm danh = 1')
+assert.equal(attendanceTier(true), 2, 'có mặt / điểm danh phải có tier = 2')
+assert.equal(attendanceTier(false), 3, 'vắng phải có tier = 3')
+assert.equal(attendanceTier('extra'), 4, 'đi thêm luôn ở cuối phải có tier = 4')
+
+// 2. So sánh tên tiếng Việt: ưu tiên tên gọi cuối cùng A-Z, trùng tên xét họ đệm
+assert.ok(compareVietnameseNames('Nguyễn Văn An', 'Trần Thị Bình') < 0, 'An phải đứng trước Bình')
+assert.ok(compareVietnameseNames('Trần Văn An', 'Bùi Tuấn') < 0, 'An (vần A) phải đứng trước Tuấn (vần T)')
+assert.ok(compareVietnameseNames('Lê Văn An', 'Nguyễn Văn An') < 0, 'Cùng tên An thì Lê Văn đứng trước Nguyễn Văn')
+assert.ok(compareVietnameseNames('Vân Anh', 'Trần Thị Bình') < 0, 'Vân Anh (tên Anh) phải đứng trước Bình')
+
+// 3. Sắp xếp toàn diện danh sách thành viên ở màn điểm danh
+const sampleMembers = [
+  { id: 'm_extra_nam', name: 'Bùi Văn Ích', gender: 'nam' },
+  { id: 'm_vang_nu', name: 'Vũ Thị Gấm', gender: 'nu' },
+  { id: 'm_chua_nam', name: 'Nguyễn Văn An', gender: 'nam' },
+  { id: 'm_diem_nu', name: 'Lê Thị Chi', gender: 'nu' },
+  { id: 'm_extra_nu', name: 'Phạm Thị Hà', gender: 'nu' },
+  { id: 'm_vang_nam', name: 'Mai Văn Em', gender: 'nam' },
+  { id: 'm_chua_nu', name: 'Trần Thị Bình', gender: 'nu' },
+  { id: 'm_diem_nam', name: 'Hoàng Văn Đạt', gender: 'nam' },
+]
+
+const initialAtt = {
+  m_diem_nu: true,
+  m_diem_nam: true,
+  m_vang_nu: false,
+  m_vang_nam: false,
+  m_extra_nu: 'extra',
+  m_extra_nam: 'extra',
+  // m_chua_nu và m_chua_nam không có trong map (chưa điểm danh)
+}
+
+const sorted1 = sortAttendanceMembers(sampleMembers, initialAtt)
+const sortedIds1 = sorted1.map((m) => m.id)
+
+assert.deepEqual(
+  sortedIds1,
+  [
+    'm_chua_nu',    // Chưa điểm danh, Nữ: Bình
+    'm_chua_nam',   // Chưa điểm danh, Nam: An
+    'm_diem_nu',    // Điểm danh, Nữ: Chi
+    'm_diem_nam',   // Điểm danh, Nam: Đạt
+    'm_vang_nu',    // Vắng, Nữ: Gấm
+    'm_vang_nam',   // Vắng, Nam: Em
+    'm_extra_nu',   // Đi thêm, Nữ: Hà
+    'm_extra_nam',  // Đi thêm, Nam: Ích
+  ],
+  'màn điểm danh phải sort: Chưa điểm danh -> Điểm danh -> Vắng -> Đi thêm; trong từng nhóm Nữ trước Nam sau, tên A-Z'
+)
+
+// 4. Reactive test: khi đang chưa điểm danh, điểm danh xong (true) thì nhảy xuống đúng vị trí
+// m_chua_nam (An - Nam) được điểm danh -> chuyển sang true
+const updatedAtt = {
+  ...initialAtt,
+  m_chua_nam: true,
+}
+
+const sorted2 = sortAttendanceMembers(sampleMembers, updatedAtt)
+const sortedIds2 = sorted2.map((m) => m.id)
+
+assert.deepEqual(
+  sortedIds2,
+  [
+    'm_chua_nu',    // Chưa điểm danh: chỉ còn Bình (Nữ)
+    'm_diem_nu',    // Điểm danh: Chi (Nữ)
+    'm_chua_nam',   // Điểm danh: An (Nam, An < Đạt nên đứng trước Đạt)
+    'm_diem_nam',   // Điểm danh: Đạt (Nam)
+    'm_vang_nu',    // Vắng, Nữ: Gấm
+    'm_vang_nam',   // Vắng, Nam: Em
+    'm_extra_nu',   // Đi thêm, Nữ: Hà
+    'm_extra_nam',  // Đi thêm, Nam: Ích
+  ],
+  'khi điểm danh thành viên thì người đó phải tự động nhảy xuống đúng vị trí trong nhóm điểm danh'
+)
+
+console.log('attendance auto-sort check: OK')
 
 console.log('members filter/sort check: OK')

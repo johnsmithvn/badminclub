@@ -18,6 +18,7 @@ import {
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
+import { sortAttendanceMembers } from '#lib/members.js'
 import { t } from '#i18n'
 
 export default function SessionDetail() {
@@ -54,8 +55,8 @@ export default function SessionDetail() {
   const group = groupOf(db, s.groupId)
   // Cố định của nhóm + người đi thêm hôm nay. Người đi thêm trả tiền theo ĐƠN GIÁ MỘT BUỔI
   // của nhóm, không phải giá khách — họ là người nhà, xem tab Đối chiếu ở Công nợ.
-  const members = sessionMembers(db, s)
   const att = db.attendance[s.id] || {}
+  const members = sortAttendanceMembers(sessionMembers(db, s), att)
   // Khối "Khách giao lưu" chỉ liệt kê khách NGOÀI CLB. Dòng thu của thành viên đi buổi đột xuất
   // nằm trong bảng điểm danh, ngay cạnh tên họ — không tách ra hai chỗ cho cùng một người.
   const guests = sGuestsOnly(db, s.id)

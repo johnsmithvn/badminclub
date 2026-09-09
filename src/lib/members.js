@@ -164,3 +164,72 @@ export function sortMembers(db, rows, sort, month) {
 /** Bấm lại cột đang sắp → đảo chiều; bấm cột khác → xuôi từ đầu. */
 export const nextSort = (sort, key) =>
   ((sort || {}).key === key && sort.dir === 'asc' ? { key, dir: 'desc' } : { key, dir: 'asc' })
+
+/**
+ * Thứ tự ưu tiên trạng thái điểm danh tại màn điểm danh:
+ * 1. Chưa điểm danh (undefined/null)
+ * 2. Điểm danh (có mặt: true)
+ * 3. Vắng (false)
+ * 4. Đi thêm (luôn ở cuối: 'extra')
+ */
+export function attendanceTier(state) {
+  if (state === 'extra') return 4
+  if (state === true) return 2
+  if (state === false) return 3
+  return 1
+}
+
+export const isFemaleGender = (gender) => {
+  const g = String(gender || '').toLowerCase()
+  return g === 'nu' || g === 'female' || g === 'f' || g === 'nữ' // i18n-ok: check gender data
+}
+
+/**
+ * So sánh tên tiếng Việt: ưu tiên tên chính (từ cuối cùng), nếu trùng tên thì so sánh toàn bộ chuỗi họ tên.
+ */
+export function compareVietnameseNames(nameA = '', nameB = '') {
+  const cleanA = String(nameA).trim()
+  const cleanB = String(nameB).trim()
+  if (!cleanA && !cleanB) return 0
+  if (!cleanA) return 1
+  if (!cleanB) return -1
+
+  const partsA = cleanA.split(/\s+/)
+  const partsB = cleanB.split(/\s+/)
+  const lastNameA = partsA[partsA.length - 1]
+  const lastNameB = partsB[partsB.length - 1]
+
+  const cmpLast = lastNameA.localeCompare(lastNameB, 'vi', { sensitivity: 'base' })
+  if (cmpLast !== 0) return cmpLast
+
+  return cleanA.localeCompare(cleanB, 'vi', { sensitivity: 'base' })
+}
+
+/**
+ * Sắp xếp danh sách thành viên ở màn điểm danh:
+ * 1. Nhóm trạng thái: Chưa điểm danh -> Điểm danh -> Vắng -> Đi thêm (ở cuối)
+ * 2. Trong từng nhóm: Nữ trước, Nam sau
+ * 3. Cùng giới tính: Tên từ A -> Z
+ */
+export function sortAttendanceMembers(members = [], attMap = {}) {
+  return [...members].sort((a, b) => {
+    const stateA = attMap[a.id]
+    const stateB = attMap[b.id]
+
+    // 1. Nhóm trạng thái điểm danh
+    const tierA = attendanceTier(stateA)
+    const tierB = attendanceTier(stateB)
+    if (tierA !== tierB) return tierA - tierB
+
+    // 2. Nữ trước, Nam sau
+    const femaleA = isFemaleGender(a.gender) ? 0 : 1
+    const femaleB = isFemaleGender(b.gender) ? 0 : 1
+    if (femaleA !== femaleB) return femaleA - femaleB
+
+    // 3. Tên A -> Z
+    const cmpName = compareVietnameseNames(a.name, b.name)
+    if (cmpName !== 0) return cmpName
+
+    return String(a.id || '').localeCompare(String(b.id || ''))
+  })
+}
