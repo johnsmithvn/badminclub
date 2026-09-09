@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
-import { initialRatingOf, confidenceProgress } from '#lib/rating.js'
+import { initialRatingOf, confidenceProgress, confidenceOf } from '#lib/rating.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
 /**
@@ -9,6 +9,7 @@ import cfg from '#config/app.json' with { type: 'json' }
  */
 export default function RatingLineChart({
   member,
+  members = [],
   matches = [],
   matchEdits = [],
   sessions = [],
@@ -19,7 +20,80 @@ export default function RatingLineChart({
 
   const memberId = member?.id
 
-  // 1. Lọc và sắp xếp các trận đấu của member theo context
+  // Map nhanh ID thành viên để tra cứu giới tính
+  const membersMap = useMemo(() => {
+    const map = {}
+    ;(members || []).forEach((m) => { if (m?.id) map[m.id] = m })
+    return map
+  }, [members])
+
+  const isFemale = (id, m) => {
+    if (m?.genders?.[id]) {
+      const g = String(m.genders[id]).toLowerCase().trim()
+      return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: data matching
+    }
+    const mem = membersMap[id]
+    if (mem) {
+      const g = String(mem.gender || mem.sex || '').toLowerCase().trim()
+      return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: data matching
+    }
+    return false
+  }
+
+  // 1. Thống kê theo 4 ngữ cảnh cho các Card ở dưới (GD3)
+  const contextStats = useMemo(() => {
+    if (!memberId || !matches) {
+      return {
+        vsMale: { wins: 0, losses: 0, total: 0, conf: 'low' },
+        vsFemale: { wins: 0, losses: 0, total: 0, conf: 'low' },
+        doubles: { wins: 0, losses: 0, total: 0, conf: 'low' },
+        singles: { wins: 0, losses: 0, total: 0, conf: 'low' },
+      }
+    }
+
+    const calc = (predicate) => {
+      let wins = 0
+      let losses = 0
+      matches.forEach((m) => {
+        const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+        const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+        const inA = teamA.includes(memberId)
+        const inB = teamB.includes(memberId)
+        if (!inA && !inB) return
+
+        if (!predicate(m, inA, teamA, teamB)) return
+
+        const won = (inA && m.winnerTeam === 'A') || (!inA && m.winnerTeam === 'B')
+        if (won) wins++
+        else losses++
+      })
+      const total = wins + losses
+      const conf = confidenceOf(total)
+      return { wins, losses, total, conf }
+    }
+
+    const vsMale = calc((m, inA, teamA, teamB) => {
+      const opp = inA ? teamB : teamA
+      return opp.some((id) => !isFemale(id, m))
+    })
+
+    const vsFemale = calc((m, inA, teamA, teamB) => {
+      const opp = inA ? teamB : teamA
+      return opp.some((id) => isFemale(id, m))
+    })
+
+    const doubles = calc((m, inA, teamA, teamB) => {
+      return teamA.length >= 2 || teamB.length >= 2
+    })
+
+    const singles = calc((m, inA, teamA, teamB) => {
+      return teamA.length === 1 && teamB.length === 1
+    })
+
+    return { vsMale, vsFemale, doubles, singles }
+  }, [matches, memberId, membersMap])
+
+  // 2. Lọc và sắp xếp các trận đấu của member theo context được chọn
   const filteredMatches = useMemo(() => {
     if (!memberId) return []
     return (matches || [])
@@ -36,12 +110,11 @@ export default function RatingLineChart({
           if (teamA.length !== 1 || teamB.length !== 1) return false
         } else if (filter === 'vsMale') {
           const opp = inA ? teamB : teamA
-          // Đối thủ có ít nhất 1 nam (hoặc mặc định nam)
-          const hasMale = opp.some((id) => (m.genders?.[id] || 'nam').toLowerCase() !== 'nu')
+          const hasMale = opp.some((id) => !isFemale(id, m))
           if (!hasMale) return false
         } else if (filter === 'vsFemale') {
           const opp = inA ? teamB : teamA
-          const hasFemale = opp.some((id) => (m.genders?.[id] || '').toLowerCase() === 'nu')
+          const hasFemale = opp.some((id) => isFemale(id, m))
           if (!hasFemale) return false
         }
 
@@ -49,9 +122,9 @@ export default function RatingLineChart({
       })
       .slice()
       .sort((a, b) => (a.at || 0) - (b.at || 0))
-  }, [matches, memberId, filter])
+  }, [matches, memberId, filter, membersMap])
 
-  // 2. Gom theo buổi hoặc mốc trận đấu (tối đa 14 buổi gần nhất)
+  // 3. Gom theo buổi hoặc mốc trận đấu (tối đa 14 buổi gần nhất)
   const chartData = useMemo(() => {
     if (!member) return { points: [], delta: 0, sessionsCount: 0, latestRating: 0, band: 8, confLevel: 'R5' }
 
@@ -139,7 +212,7 @@ export default function RatingLineChart({
 
   const { points, delta, sessionsCount, latestRating, band, confLevel } = chartData
 
-  // 3. Tính toán tọa độ SVG Line Chart
+  // 4. Tính toán tọa độ SVG Line Chart chuẩn tỉ lệ GD3 (840 x 240)
   const svgMetrics = useMemo(() => {
     if (points.length === 0) return null
 
@@ -158,13 +231,13 @@ export default function RatingLineChart({
 
     const svgW = 840
     const svgH = 240
-    const padL = 44
+    const padL = 40
     const padR = 40
-    const padT = 24
-    const padB = 40
+    const padT = 20
+    const padB = 30
 
-    const plotW = svgW - padL - padR
-    const plotH = svgH - padT - padB
+    const plotW = svgW - padL - padR // 760 (từ x=40 đến x=800)
+    const plotH = 190 // yTop=20 đến yBot=210
 
     const getX = (idx) => {
       if (points.length === 1) return padL + plotW / 2
@@ -204,9 +277,9 @@ export default function RatingLineChart({
       coords,
       polylinePts,
       bandPath,
-      yTop: padT,
-      yMid: padT + plotH / 2,
-      yBot: padT + plotH,
+      yTop: 20,
+      yMid: 115,
+      yBot: 210,
     }
   }, [points])
 
@@ -252,7 +325,7 @@ export default function RatingLineChart({
         </div>
       </div>
 
-      {/* Thẻ hiển thị số liệu & Biểu đồ SVG */}
+      {/* Thẻ hiển thị số liệu & Biểu đồ SVG (Chuẩn GD3) */}
       <div style={S.chartCard}>
         <div style={S.metricsRow}>
           <span style={S.bigRating}>{latestRating}</span>
@@ -283,24 +356,24 @@ export default function RatingLineChart({
             aria-label={t('leaderboard.chartAriaLabel', { name: member?.name })}
             style={{ display: 'block', overflow: 'visible' }}
           >
-            {/* Lưới ngang Grid Lines */}
+            {/* Lưới ngang Grid Lines (3 đường nét liền chuẩn GD3) */}
             <g stroke="var(--border-subtle)" strokeWidth="1">
-              <line x1="40" y1={svgMetrics.yTop} x2="810" y2={svgMetrics.yTop} />
-              <line x1="40" y1={svgMetrics.yMid} x2="810" y2={svgMetrics.yMid} strokeDasharray="3 3" />
-              <line x1="40" y1={svgMetrics.yBot} x2="810" y2={svgMetrics.yBot} />
+              <line x1="40" y1={svgMetrics.yTop} x2="820" y2={svgMetrics.yTop} />
+              <line x1="40" y1={svgMetrics.yMid} x2="820" y2={svgMetrics.yMid} />
+              <line x1="40" y1={svgMetrics.yBot} x2="820" y2={svgMetrics.yBot} />
             </g>
 
-            {/* Nhãn trục Y */}
+            {/* Nhãn trục Y (tại x=0) */}
             <g fill="var(--text-muted)" fontFamily="var(--font-mono)" fontSize="11">
-              <text x="2" y={svgMetrics.yTop + 4}>{svgMetrics.maxR}</text>
-              <text x="2" y={svgMetrics.yMid + 4}>{svgMetrics.midR}</text>
-              <text x="2" y={svgMetrics.yBot + 4}>{svgMetrics.minR}</text>
+              <text x="0" y={svgMetrics.yTop + 4}>{svgMetrics.maxR}</text>
+              <text x="0" y={svgMetrics.yMid + 4}>{svgMetrics.midR}</text>
+              <text x="0" y={svgMetrics.yBot + 4}>{svgMetrics.minR}</text>
             </g>
 
-            {/* Dải mờ Confidence Interval Band */}
-            <path d={svgMetrics.bandPath} fill="var(--border-focus-color)" fillOpacity="0.16" />
+            {/* Dải mờ Confidence Interval Band (#3C74C4 opacity 0.16) */}
+            <path d={svgMetrics.bandPath} fill="rgba(60, 116, 196, 0.16)" />
 
-            {/* Đường polyline rating chính */}
+            {/* Đường polyline rating chính (stroke teal #5FDBD3) */}
             <polyline
               points={svgMetrics.polylinePts}
               fill="none"
@@ -320,7 +393,7 @@ export default function RatingLineChart({
                     cx={c.x}
                     cy={c.y}
                     r="5"
-                    fill="var(--surface-page)"
+                    fill="var(--surface-card)"
                     stroke="var(--status-delayed-fg)"
                     strokeWidth="2"
                   >
@@ -334,7 +407,7 @@ export default function RatingLineChart({
                   cx={c.x}
                   cy={c.y}
                   r={isLast ? '4.5' : '3.5'}
-                  fill={isLast ? 'var(--status-transit-fg)' : 'var(--surface-page)'}
+                  fill={isLast ? 'var(--status-transit-fg)' : 'var(--surface-card)'}
                   stroke="var(--status-transit-fg)"
                   strokeWidth="2"
                 >
@@ -343,7 +416,7 @@ export default function RatingLineChart({
               )
             })}
 
-            {/* Nhãn trục X mốc ngày */}
+            {/* Nhãn trục X mốc ngày (tại y=230) */}
             <g fill="var(--text-muted)" fontFamily="var(--font-sans)" fontSize="11">
               {svgMetrics.coords.map((c, i) => {
                 // Chỉ hiện một số mốc ngày để không bị đè chữ
@@ -354,7 +427,7 @@ export default function RatingLineChart({
                   i === Math.floor((svgMetrics.coords.length * 2) / 3)
                 if (!shouldShow) return null
                 return (
-                  <text key={i} x={c.x - 12} y={svgMetrics.svgH - 8}>
+                  <text key={i} x={c.x - 14} y={230}>
                     {c.label}
                   </text>
                 )
@@ -383,6 +456,47 @@ export default function RatingLineChart({
           </span>
         </div>
       </div>
+
+      {/* 4 Card thống kê theo ngữ cảnh (GD3) */}
+      <div style={S.contextGrid(isMobile)}>
+        {[
+          { key: 'vsMale', label: t('leaderboard.filterVsMale'), stat: contextStats.vsMale },
+          { key: 'vsFemale', label: t('leaderboard.filterVsFemale'), stat: contextStats.vsFemale },
+          { key: 'doubles', label: t('leaderboard.filterDoubles'), stat: contextStats.doubles },
+          { key: 'singles', label: t('leaderboard.filterSingles'), stat: contextStats.singles },
+        ].map((item) => {
+          const isSelected = filter === item.key
+          const conf = item.stat.conf
+          const confColor =
+            conf === 'very_high' || conf === 'high'
+              ? 'var(--status-delivered-fg)'
+              : conf === 'medium'
+                ? 'var(--status-delayed-fg)'
+                : 'var(--status-incident-fg)'
+
+          return (
+            <div
+              key={item.key}
+              onClick={() => setFilter(isSelected ? 'overall' : item.key)}
+              style={{
+                ...S.contextCard,
+                ...(isSelected ? S.contextCardActive : {}),
+              }}
+            >
+              <span style={S.contextCardLabel}>{item.label}</span>
+              <span style={S.contextCardScore}>
+                {item.stat.wins}W – {item.stat.losses}L
+              </span>
+              <span style={{ ...S.contextCardMeta, color: confColor }}>
+                {t('leaderboard.contextCardMeta', {
+                  n: item.stat.total,
+                  conf: t('rating.confidence.' + conf).toLowerCase(),
+                })}
+              </span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -390,7 +504,7 @@ export default function RatingLineChart({
 const S = {
   container: {
     display: 'grid',
-    gap: 12,
+    gap: 14,
   },
   headerRow: {
     display: 'flex',
@@ -428,10 +542,10 @@ const S = {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 10,
-    boxShadow: 'var(--shadow-xs)',
+    boxShadow: '0 1px 1px rgba(0,0,0,0.30)',
     padding: 16,
     display: 'grid',
-    gap: 14,
+    gap: 12,
   },
   metricsRow: {
     display: 'flex',
@@ -455,8 +569,9 @@ const S = {
     alignItems: 'center',
     gap: 18,
     flexWrap: 'wrap',
-    paddingTop: 8,
+    paddingTop: 2,
     borderTop: '1px solid var(--border-subtle)',
+    marginTop: 2,
   },
   legendItem: {
     display: 'flex',
@@ -465,4 +580,35 @@ const S = {
     font: '400 12px/1 "IBM Plex Sans", sans-serif',
     color: 'var(--text-secondary)',
   },
+  contextGrid: (isMobile) => ({
+    display: 'grid',
+    gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+    gap: 12,
+  }),
+  contextCard: {
+    display: 'grid',
+    gap: 6,
+    padding: '11px 13px',
+    borderRadius: 8,
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    cursor: 'pointer',
+    transition: 'border-color 0.15s ease, background 0.15s ease',
+  },
+  contextCardActive: {
+    borderColor: 'var(--status-transit-fg)',
+    background: 'var(--surface-inset)',
+  },
+  contextCardLabel: {
+    font: '600 12px/1.3 "IBM Plex Sans", sans-serif',
+    color: 'var(--text-muted)',
+  },
+  contextCardScore: {
+    font: '700 18px/1 Barlow, sans-serif',
+    color: 'var(--text-primary)',
+  },
+  contextCardMeta: {
+    font: '400 12px/1.4 "IBM Plex Mono", monospace',
+  },
 }
+

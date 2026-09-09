@@ -3039,6 +3039,7 @@
     "chartLegendBand": "Khoảng không chắc — hẹp dần khi đủ trận",
     "chartLegendEdited": "Buổi có trận bị sửa tỷ số",
     "chartNoData": "Chưa đủ dữ liệu trận để vẽ biểu đồ rating",
+    "contextCardMeta": "{{n}} trận · {{conf}}",
     "h2hTitle": "{{nameA}} gặp {{nameB}}",
     "h2hSubtitle": "Từ đầu mùa giải 2026",
     "toughOpponent": "Đối thủ khó",

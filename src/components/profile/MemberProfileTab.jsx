@@ -533,6 +533,7 @@ export default function MemberProfileTab({
               {/* Biểu đồ Rating SVG */}
               <RatingLineChart
                 member={member}
+                members={db?.members || allMembers || []}
                 matches={db.matches || []}
                 matchEdits={db.matchEdits || []}
                 sessions={db.sessions || []}
