@@ -6,7 +6,7 @@ import { monthOf } from '#utils/dates.js'
 import { isPresent, levelIdx, levelOf, sGuestsOnly, sessionMembers } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
-import { calcPairImpact, expectedScore } from '#lib/rating.js'
+import { calcPairImpact, calcMatchupEdge, expectedScore } from '#lib/rating.js'
 
 /** Năm chế độ xếp. Nhãn và mô tả lấy từ i18n theo key. */
 export const MODE_KEYS = ['balance', 'fewest', 'rest', 'same', 'random']
@@ -144,7 +144,7 @@ export function courtBalance(lineup, ci, levelOfKey, levels) {
  * 3. Đổi đối thủ (độ mới của đối đầu)
  * 4. Đều lượt đánh (so sánh lượt chơi với người đang chờ)
  */
-export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, matches = [], players = [], stats = {} }) {
+export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, matches = [], allMatches = null, players = [], stats = {} }) {
   const ids = courtSlotIds(ci)
   const teamA = [ids[0], ids[1]].map((s) => lineup[s]).filter(Boolean)
   const teamB = [ids[2], ids[3]].map((s) => lineup[s]).filter(Boolean)
@@ -152,6 +152,8 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
   if (teamA.length < 2 || teamB.length < 2) {
     return null
   }
+
+  const historyMatches = allMatches || matches
 
   // 1. Cân rating & Tích hợp Pair Synergy (vNext)
   // Tính Pair Synergy của từng cặp đôi (nếu có đủ 2 người và đạt R2 trở lên)
@@ -161,14 +163,14 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
   let pairBInfo = null
 
   if (teamA.length === 2) {
-    pairAInfo = calcPairImpact(matches, teamA[0], teamA[1], ratingsMap)
+    pairAInfo = calcPairImpact(historyMatches, teamA[0], teamA[1], ratingsMap)
     if (pairAInfo && pairAInfo.gamesCount >= 5) {
       synergyBonusA = Math.max(-35, Math.min(35, Math.round(pairAInfo.pairImpact * 1.2 * pairAInfo.confidence.weight)))
     }
   }
 
   if (teamB.length === 2) {
-    pairBInfo = calcPairImpact(matches, teamB[0], teamB[1], ratingsMap)
+    pairBInfo = calcPairImpact(historyMatches, teamB[0], teamB[1], ratingsMap)
     if (pairBInfo && pairBInfo.gamesCount >= 5) {
       synergyBonusB = Math.max(-35, Math.min(35, Math.round(pairBInfo.pairImpact * 1.2 * pairBInfo.confidence.weight)))
     }
@@ -315,6 +317,9 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
     breakdown,
     pairAInfo,
     pairBInfo,
+    matchup: (teamA.length === 2 && teamB.length === 2)
+      ? calcMatchupEdge(historyMatches, teamA, teamB, ratingsMap)
+      : null,
   }
 }
 

@@ -8,12 +8,13 @@ import { sessionPlayers, detailedCourtBalance, courtSlotIds } from '#lib/assign.
 import {
   expectedScore, getPlayerRating,
   teamRating, computeClubCalibration,
-  calcPlayerDeltas,
+  calcPlayerDeltas, calcPairImpact,
 } from '#lib/rating.js'
 import { t } from '#i18n'
 import BestOfNArrangementView from '#components/session/BestOfNArrangementView.jsx'
 import CourtWaitingFilterSheet from '#components/session/CourtWaitingFilterSheet.jsx'
 import SessionStatsSheet from '#components/session/SessionStatsSheet.jsx'
+import BalanceScore from '#components/session/BalanceScore.jsx'
 
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
@@ -51,6 +52,7 @@ export default function CourtAssignmentTab({ s }) {
   // CS2 & CS3 Sheets & Sort/Filter state
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showStatsSheet, setShowStatsSheet] = useState(false)
+  const [showBalanceSheet, setShowBalanceSheet] = useState(false)
   const [sortOption, setSortOption] = useState('fewest') // 'fewest' | 'wait' | 'level' | 'az'
   const [filters, setFilters] = useState({
     gender: null, // 'female' | 'male' | null
@@ -522,7 +524,23 @@ export default function CourtAssignmentTab({ s }) {
   const ratingB = useMemo(() => teamRating(teamB, ratingsMap), [teamB, ratingsMap])
   const deltaRating = Math.abs(ratingA - ratingB)
 
-  // Điểm cân bằng chi tiết (Detailed Balance Score - Mockup 01)
+  // Tên đội A & B dạng chuỗi
+  const teamAName = useMemo(() => teamA.map((k) => playerName(db, k)).join(' · '), [teamA, db])
+  const teamBName = useMemo(() => teamB.map((k) => playerName(db, k)).join(' · '), [teamB, db])
+
+  // Chỉ số ăn ý cặp đồng đội (Dòng ăn ý là của cặp đồng đội, không phải của cả 4 ô)
+  // 2 người cùng bên -> 1 dòng ăn ý; Đủ 4 người -> 2 dòng; 1 người -> không có dòng; Đánh đơn -> không bao giờ có
+  const pairAInfo = useMemo(() => {
+    if (mode === 'singles' || teamA.length < 2) return null
+    return calcPairImpact(db.matches || [], teamA[0], teamA[1], ratingsMap)
+  }, [mode, teamA, db.matches, ratingsMap])
+
+  const pairBInfo = useMemo(() => {
+    if (mode === 'singles' || teamB.length < 2) return null
+    return calcPairImpact(db.matches || [], teamB[0], teamB[1], ratingsMap)
+  }, [mode, teamB, db.matches, ratingsMap])
+
+  // Điểm cân bằng chi tiết (Detailed Balance Score - Mockup 01 & M2)
   const balanceDetails = useMemo(() => {
     if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) return null
     const mockLineup = {}
@@ -534,10 +552,11 @@ export default function CourtAssignmentTab({ s }) {
       ci: courtIdx,
       ratingsMap,
       matches: sessionMatches,
+      allMatches: db.matches || [],
       players,
       stats: statsObj,
     })
-  }, [teamA, teamB, maxPerTeam, courtIdx, ratingsMap, sessionMatches, players, statsObj])
+  }, [teamA, teamB, maxPerTeam, courtIdx, ratingsMap, sessionMatches, db.matches, players, statsObj])
 
   // Phân tích Effective Rating & Học chéo giới tính (Mockup R3)
   const effectiveAnalysis = useMemo(() => {
@@ -1208,6 +1227,31 @@ export default function CourtAssignmentTab({ s }) {
             })}
           </div>
 
+          {/* Dòng Ăn ý cặp Team A (chỉ hiển thị khi đủ 2 người cùng bên, không áp dụng đánh đơn) */}
+          {pairAInfo && (
+            <div style={pairAInfo.gamesCount >= 5 ? S.synergyRowActive : S.synergyRowNeutral}>
+              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
+                <div style={pairAInfo.gamesCount >= 5 ? S.synergyTitleActive : S.synergyTitleNeutral}>
+                  {pairAInfo.gamesCount >= 5
+                    ? t('assign.synergyTitle', { names: teamAName, score: pairAInfo.synergyScore })
+                    : t('assign.synergyNotEnoughData', { names: teamAName })}
+                </div>
+                <div style={pairAInfo.gamesCount >= 5 ? S.synergySubActive : S.synergySubNeutral}>
+                  {pairAInfo.gamesCount >= 5
+                    ? t('assign.synergyDetail', {
+                        n: pairAInfo.gamesCount,
+                        exp: pairAInfo.expectedWinPct,
+                        act: pairAInfo.actualWinPct,
+                      })
+                    : t('assign.synergyNeedMoreGames', {
+                        n: pairAInfo.gamesCount,
+                        min: 5,
+                      })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Vạch LƯỚI Phân Cách */}
           <div style={S.netDivider}>
             <div style={S.netLine} />
@@ -1284,57 +1328,49 @@ export default function CourtAssignmentTab({ s }) {
               )
             })}
           </div>
+
+          {/* Dòng Ăn ý cặp Team B (chỉ hiển thị khi đủ 2 người cùng bên, không áp dụng đánh đơn) */}
+          {pairBInfo && (
+            <div style={pairBInfo.gamesCount >= 5 ? S.synergyRowActive : S.synergyRowNeutral}>
+              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
+                <div style={pairBInfo.gamesCount >= 5 ? S.synergyTitleActive : S.synergyTitleNeutral}>
+                  {pairBInfo.gamesCount >= 5
+                    ? t('assign.synergyTitle', { names: teamBName, score: pairBInfo.synergyScore })
+                    : t('assign.synergyNotEnoughData', { names: teamBName })}
+                </div>
+                <div style={pairBInfo.gamesCount >= 5 ? S.synergySubActive : S.synergySubNeutral}>
+                  {pairBInfo.gamesCount >= 5
+                    ? t('assign.synergyDetail', {
+                        n: pairBInfo.gamesCount,
+                        exp: pairBInfo.expectedWinPct,
+                        act: pairBInfo.actualWinPct,
+                      })
+                    : t('assign.synergyNeedMoreGames', {
+                        n: pairBInfo.gamesCount,
+                        min: 5,
+                      })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Banner Điểm cân bằng M1 (bấm vào mở Sheet M2 BalanceScore) */}
+          {balanceDetails && (
+            <div
+              onClick={() => setShowBalanceSheet(true)}
+              style={S.balanceBanner}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={S.balanceBannerTitle}>{t('assign.balanceScore')}</div>
+                <div style={S.balanceBannerSub}>
+                  {t('assign.balanceIndicatorsCount', { n: 6, newCount: 2 })}
+                </div>
+              </div>
+              <span style={S.balanceBannerScore}>{balanceDetails.totalScore}</span>
+              <span style={S.balanceBannerChevron}>›</span>
+            </div>
+          )}
         </div>
-
-        {/* ---------------- 3. KHỐI ĐIỂM CÂN BẰNG (BALANCE SCORE - MOCKUP 01) ---------------- */}
-        {balanceDetails && (
-          <div style={S.balanceBox}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={S.balanceTitle}>{t('assign.balanceScore')}</span>
-              <span style={S.balanceBigScore}>{balanceDetails.totalScore}</span>
-            </div>
-
-            {/* 4 thanh đo sub-metrics */}
-            <div style={{ display: 'grid', gap: 6, marginTop: 4 }}>
-              {/* 1. Cân rating */}
-              <div style={S.metricRow}>
-                <span style={S.metricLabel}>{t('assign.canRating')}</span>
-                <div style={S.metricTrack}>
-                  <div style={{ width: `${balanceDetails.canRating.score}%`, height: '100%', background: '#00B2A9' }} />
-                </div>
-                <span style={S.metricValueMono}>Δ{balanceDetails.canRating.delta}</span>
-              </div>
-              {/* 2. Đổi partner */}
-              <div style={S.metricRow}>
-                <span style={S.metricLabel}>{t('assign.partnerVariety')}</span>
-                <div style={S.metricTrack}>
-                  <div style={{ width: `${balanceDetails.partner.score}%`, height: '100%', background: '#00B2A9' }} />
-                </div>
-                <span style={S.metricValueMono}>{balanceDetails.partner.score}</span>
-              </div>
-              {/* 3. Đổi đối thủ */}
-              <div style={S.metricRow}>
-                <span style={S.metricLabel}>{t('assign.opponentVariety')}</span>
-                <div style={S.metricTrack}>
-                  <div style={{ width: `${balanceDetails.opponent.score}%`, height: '100%', background: '#00B2A9' }} />
-                </div>
-                <span style={S.metricValueMono}>{balanceDetails.opponent.score}</span>
-              </div>
-              {/* 4. Đều lượt đánh */}
-              <div style={S.metricRow}>
-                <span style={S.metricLabel}>{t('assign.fairnessPlays')}</span>
-                <div style={S.metricTrack}>
-                  <div style={{ width: `${balanceDetails.fairness.score}%`, height: '100%', background: balanceDetails.fairness.score < 80 ? '#E08A00' : '#00B2A9' }} />
-                </div>
-                <span style={{ ...S.metricValueMono, color: balanceDetails.fairness.score < 80 ? '#F0B75C' : '#8494AA' }}>
-                  {balanceDetails.fairness.score}
-                </span>
-              </div>
-            </div>
-
-            <div style={S.balanceNoteText}>{balanceDetails.note}</div>
-          </div>
-        )}
 
         {/* ---------------- 4. KHỐI EFFECTIVE RATING (MOCKUP R3) ---------------- */}
         {effectiveAnalysis && effectiveAnalysis.isCrossGender && (
@@ -1755,6 +1791,16 @@ export default function CourtAssignmentTab({ s }) {
         ratingsMap={ratingsMap}
         db={db}
       />
+
+      {/* M2 · Sheet Điểm cân bằng · BalanceScore.jsx */}
+      {showBalanceSheet && balanceDetails && (
+        <BalanceScore
+          balanceDetails={balanceDetails}
+          teamAName={teamAName}
+          teamBName={teamBName}
+          onClose={() => setShowBalanceSheet(false)}
+        />
+      )}
     </div>
   )
 }
@@ -2274,6 +2320,69 @@ const S = {
     letterSpacing: '1.5px',
     color: 'var(--text-muted)',
     padding: '0 8px',
+  },
+  balanceBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 11,
+    padding: '11px 12px',
+    borderRadius: 6,
+    background: '#101927',
+    border: '1px solid #22304A',
+    cursor: 'pointer',
+    marginTop: 2,
+  },
+  balanceBannerTitle: {
+    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
+    letterSpacing: '.08em',
+    textTransform: 'uppercase',
+    color: '#8494AA',
+  },
+  balanceBannerSub: {
+    font: '400 12px/1.4 "IBM Plex Sans", sans-serif',
+    color: '#5B6B81',
+  },
+  balanceBannerScore: {
+    font: '700 28px/1 Barlow, sans-serif',
+    color: '#E9EFF7',
+  },
+  balanceBannerChevron: {
+    font: '400 16px/1 "IBM Plex Sans", sans-serif',
+    color: '#5B6B81',
+  },
+  synergyRowActive: {
+    padding: '9px 11px',
+    borderRadius: 6,
+    background: 'rgba(0,178,169,.12)',
+    border: '1px solid #00786F',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  synergyRowNeutral: {
+    padding: '9px 11px',
+    borderRadius: 6,
+    background: 'rgba(148,164,186,.08)',
+    border: '1px solid #2E3E5C',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  synergyTitleActive: {
+    font: '600 12.5px/1.35 "IBM Plex Sans", sans-serif',
+    color: '#5FDBD3',
+  },
+  synergyTitleNeutral: {
+    font: '600 12.5px/1.35 "IBM Plex Sans", sans-serif',
+    color: '#E9EFF7',
+  },
+  synergySubActive: {
+    font: '400 12.5px/1.45 "IBM Plex Sans", sans-serif',
+    color: '#A8B7CB',
+  },
+  synergySubNeutral: {
+    font: '400 12.5px/1.45 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
   },
   balanceBox: {
     background: 'var(--surface-card)',
