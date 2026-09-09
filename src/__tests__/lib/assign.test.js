@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
 import {
-  ASSIGN_MODES, MODE_KEYS, activeCourtIdxs, arrange, assignableSessions, autoSplit, courtBalance, courtSlotIds, fairness, firstEmptyCourtIdx, matchStats, modeToast, place, removePlayer, sessionPlayers, slotCourtIdx, slotIds,
+  ASSIGN_MODES, MODE_KEYS, activeCourtIdxs, arrange, assignableSessions, autoSplit, courtBalance, courtSlotIds, fairness, firstEmptyCourtIdx, matchStats, modeToast, place, removePlayer, sessionPlayers, slotCourtIdx, slotIds, calculatePlayerWaitTime,
 } from '#lib/assign.js'
 import { levelIdx, isFemaleGender, isMaleGender } from '#lib/money.js'
 
@@ -259,4 +259,76 @@ assert.ok(!getPartneredKeys('P1', sampleMatches).has('P4'), 'P4 là đối thủ
 assert.ok(getPartneredKeys('P5', sampleMatches).has('P6'))
 assert.ok(!getPartneredKeys('P5', sampleMatches).has('P7'), 'P7 là đối thủ, không phải bạn cặp')
 
+/* ---------- calculatePlayerWaitTime: tính thời gian chờ chuẩn ---------- */
+const tBase = 1700000000000
+const testPlayers = [
+  { key: 'A', name: 'An' },
+  { key: 'B', name: 'Bình' },
+  { key: 'C', name: 'Cường' },
+  { key: 'D', name: 'Dũng' },
+  { key: 'E', name: 'Em' }, // Chưa đánh trận nào
+]
+
+// 1. Buổi chưa có trận nào trong lịch sử: tất cả chờ 0 phút
+const emptyRes = calculatePlayerWaitTime({
+  players: testPlayers,
+  sessionMatches: [],
+  now: tBase + 30 * 60000,
+})
+assert.equal(emptyRes.firstMatchTime, null)
+assert.equal(emptyRes.waitMap['A'], 0)
+assert.equal(emptyRes.waitMap['E'], 0)
+assert.equal(emptyRes.statsList.find((p) => p.key === 'E').waitMin, 0)
+assert.equal(emptyRes.statsList.find((p) => p.key === 'E').hasPlayed, false)
+
+// 2. Trận đầu tiên được ghi nhận lúc tBase:
+// A & B vs C & D. E ngồi ngoài chờ.
+const m1 = {
+  id: 'm1',
+  at: tBase,
+  teamA: ['A', 'B'],
+  teamB: ['C', 'D'],
+  playerKeys: ['A', 'B', 'C', 'D'],
+}
+const res15 = calculatePlayerWaitTime({
+  players: testPlayers,
+  sessionMatches: [m1],
+  now: tBase + 15 * 60000,
+})
+assert.equal(res15.firstMatchTime, tBase)
+assert.equal(res15.statsList.find((p) => p.key === 'A').waitMin, 15)
+assert.equal(res15.statsList.find((p) => p.key === 'A').hasPlayed, true)
+assert.equal(res15.statsList.find((p) => p.key === 'E').waitMin, 15, 'Người chưa đánh tính từ trận đầu tiên được ghi')
+assert.equal(res15.statsList.find((p) => p.key === 'E').hasPlayed, false)
+
+// 3. Trận thứ hai lúc tBase + 20p: A & E vs C & D. B không đánh trận 2.
+// Kiểm tra tại thời điểm tBase + 35p:
+const m2 = {
+  id: 'm2',
+  at: tBase + 20 * 60000,
+  teamA: ['A', 'E'],
+  teamB: ['C', 'D'],
+  playerKeys: ['A', 'E', 'C', 'D'],
+}
+const pF = { key: 'F', name: 'Phúc' } // Người thứ 6 chưa đánh trận nào
+const res35 = calculatePlayerWaitTime({
+  players: [...testPlayers, pF],
+  sessionMatches: [m2, m1], // danh sách trận có thể xếp bất kỳ
+  now: tBase + 35 * 60000,
+})
+assert.equal(res35.firstMatchTime, tBase, 'Phải tìm đúng m1 là trận sớm nhất')
+assert.equal(res35.statsList.find((p) => p.key === 'E').waitMin, 15, 'E vừa đánh trận 2 lúc +20p -> chờ 15p')
+assert.equal(res35.statsList.find((p) => p.key === 'B').waitMin, 35, 'B chỉ đánh trận 1 lúc +0p -> chờ 35p')
+assert.equal(res35.statsList.find((p) => p.key === 'F').waitMin, 35, 'F chưa đánh trận nào -> tính từ trận đầu tiên (+0p) -> chờ 35p')
+
+// 4. Buổi đã chốt (status === closed): chặn mốc thời gian tại closedAt
+const resClosed = calculatePlayerWaitTime({
+  players: [...testPlayers, pF],
+  sessionMatches: [m1, m2],
+  session: { status: 'closed', closedAt: new Date(tBase + 60 * 60000).toISOString() },
+  now: tBase + 10000 * 60000, // xem lại sau nhiều ngày
+})
+assert.equal(resClosed.statsList.find((p) => p.key === 'F').waitMin, 60, 'Không bị nhảy lên hàng nghìn phút khi buổi đã chốt')
+
 console.log('assign check: OK')
+

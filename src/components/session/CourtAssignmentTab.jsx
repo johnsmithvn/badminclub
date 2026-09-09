@@ -4,7 +4,7 @@ import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { playerName, genderTxt, isFemaleGender, isMaleGender } from '#lib/money.js'
-import { sessionPlayers, detailedCourtBalance, courtSlotIds } from '#lib/assign.js'
+import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWaitTime } from '#lib/assign.js'
 import {
   expectedScore, getPlayerRating,
   teamRating, computeClubCalibration,
@@ -53,6 +53,7 @@ export default function CourtAssignmentTab({ s }) {
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showStatsSheet, setShowStatsSheet] = useState(false)
   const [showBalanceSheet, setShowBalanceSheet] = useState(false)
+  const [showChangesBox, setShowChangesBox] = useState(false)
   const [sortOption, setSortOption] = useState('fewest') // 'fewest' | 'wait' | 'level' | 'az'
   const [filters, setFilters] = useState({
     gender: null, // 'female' | 'male' | null
@@ -127,24 +128,18 @@ export default function CourtAssignmentTab({ s }) {
   const waitingFemaleCount = useMemo(() => waitingPlayers.filter((p) => isFemaleGender(p.gender)).length, [waitingPlayers])
   const waitingMaleCount = useMemo(() => waitingPlayers.filter((p) => isMaleGender(p.gender)).length, [waitingPlayers])
 
-  // Map tính thời gian chờ (phút từ trận gần nhất)
+  // Map tính thời gian chờ: tính từ trận đầu tiên được ghi trong lịch sử nếu chưa đánh, hoặc từ trận gần nhất
   const playerWaitTimeMap = useMemo(() => {
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now()
-    const map = {}
-    players.forEach((p) => {
-      let lastTime = null
-      for (const m of sessionMatches) {
-        const keys = m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
-        if (keys.includes(p.key)) {
-          lastTime = m.at || m.createdAt || null
-          break
-        }
-      }
-      map[p.key] = lastTime ? (now - lastTime) : Infinity
+    const { waitMap } = calculatePlayerWaitTime({
+      players,
+      sessionMatches,
+      session: s,
+      now,
     })
-    return map
-  }, [players, sessionMatches])
+    return waitMap
+  }, [players, sessionMatches, s])
 
   const playersOnCourtKeys = useMemo(() => [...teamA, ...teamB], [teamA, teamB])
 
@@ -278,7 +273,14 @@ export default function CourtAssignmentTab({ s }) {
 
     // Sắp xếp
     if (sortOption === 'wait') {
-      list.sort((p1, p2) => (playerWaitTimeMap[p2.key] || 0) - (playerWaitTimeMap[p1.key] || 0))
+      list.sort((p1, p2) => {
+        const diff = (playerWaitTimeMap[p2.key] || 0) - (playerWaitTimeMap[p1.key] || 0)
+        if (diff !== 0) return diff
+        const cnt1 = matchCountMap[p1.key] || 0
+        const cnt2 = matchCountMap[p2.key] || 0
+        if (cnt1 !== cnt2) return cnt1 - cnt2
+        return (p1.name || '').localeCompare(p2.name || '', 'vi')
+      })
     } else if (sortOption === 'level') {
       list.sort((p1, p2) => (ratingsMap[p2.key] || 0) - (ratingsMap[p1.key] || 0))
     } else if (sortOption === 'az') {
@@ -1038,6 +1040,9 @@ export default function CourtAssignmentTab({ s }) {
                         <div style={S.cs1PlayerName}>{p.name}</div>
                         <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
                           {genderTxt(p.gender)} · {p.level || 'TB'}
+                          {sortOption === 'wait' && (playerWaitTimeMap[p.key] || 0) > 0 && (
+                            <> · {t('assign.waitingMinutes', { m: Math.round((playerWaitTimeMap[p.key] || 0) / 60000) })}</>
+                          )}
                           {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
                         </div>
                       </div>
@@ -1726,44 +1731,66 @@ export default function CourtAssignmentTab({ s }) {
               )}
             </div>
 
-            {/* Box thay đổi Elo & XP */}
+            {/* Box thay đổi Elo & XP - Dạng Collapsible Accordion (mặc định đóng) */}
             <div style={S.changesBox}>
-              <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                {t('scoreModal.postMatchChanges')}
-              </span>
-              <div style={{ display: 'grid', gap: 6, marginTop: 4 }}>
-                {[...teamA, ...teamB].map((k) => {
-                  const inA = teamA.includes(k)
-                  const isWon = (inA && winnerTeam === 'A') || (!inA && winnerTeam === 'B')
-                  const dVal = playerDeltas[k]
-                  const deltaTxt = dVal != null ? (dVal > 0 ? `+${dVal}` : `${dVal}`) : (isWon ? '+8' : '−8')
-                  const xpVal = isWon ? '+30' : '+15'
-                  return (
-                    <div key={k} style={S.changeRow}>
-                      <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                        {playerName(db, k)}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        {ratingEnabled ? (
-                          <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
-                            {t('scoreModal.ratingChange', { d: deltaTxt })}
-                          </span>
-                        ) : (
-                          <span style={{ font: '500 12px "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                            {t('scoreModal.unratedChange')}
-                          </span>
-                        )}
-                        <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
-                          {t('scoreModal.xpChange', { xp: xpVal })}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowChangesBox((prev) => !prev)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowChangesBox((prev) => !prev) }}
+                style={S.changesToggleHeader}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                  <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                    {t('scoreModal.postMatchChanges')}
+                  </span>
+                  <span style={{ font: '500 11px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                    · {ratingEnabled ? t('scoreModal.changesPreviewTag') : t('scoreModal.unratedChange')}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--teal-600, #00B2A9)' }}>
+                  <span>{showChangesBox ? t('scoreModal.collapseChanges') : t('scoreModal.expandChanges')}</span>
+                  <span style={{ fontSize: 13, transform: showChangesBox ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▾</span>
+                </div>
               </div>
-              <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
-                {ratingEnabled ? t('scoreModal.xpExplain') : t('scoreModal.xpExplainUnrated')}
-              </div>
+
+              {showChangesBox && (
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {[...teamA, ...teamB].map((k) => {
+                      const inA = teamA.includes(k)
+                      const isWon = (inA && winnerTeam === 'A') || (!inA && winnerTeam === 'B')
+                      const dVal = playerDeltas[k]
+                      const deltaTxt = dVal != null ? (dVal > 0 ? `+${dVal}` : `${dVal}`) : (isWon ? '+8' : '−8')
+                      const xpVal = isWon ? '+30' : '+15'
+                      return (
+                        <div key={k} style={S.changeRow}>
+                          <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                            {playerName(db, k)}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            {ratingEnabled ? (
+                              <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
+                                {t('scoreModal.ratingChange', { d: deltaTxt })}
+                              </span>
+                            ) : (
+                              <span style={{ font: '500 12px "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                                {t('scoreModal.unratedChange')}
+                              </span>
+                            )}
+                            <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
+                              {t('scoreModal.xpChange', { xp: xpVal })}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
+                    {ratingEnabled ? t('scoreModal.xpExplain') : t('scoreModal.xpExplainUnrated')}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* NÚT LƯU KẾT QUẢ TO 56px */}
@@ -2769,10 +2796,19 @@ const S = {
     background: 'var(--surface-sunken)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 8,
-    padding: '12px',
+    padding: '10px 12px',
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
+  },
+  changesToggleHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    cursor: 'pointer',
+    userSelect: 'none',
+    gap: 8,
+    minHeight: 26,
   },
   changeRow: {
     display: 'flex',

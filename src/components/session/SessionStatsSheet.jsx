@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { dd } from '#utils/dates.js'
 import { playerName } from '#lib/money.js'
+import { calculatePlayerWaitTime } from '#lib/assign.js'
 import { t } from '#i18n'
 
 export default function SessionStatsSheet({
@@ -40,47 +41,51 @@ export default function SessionStatsSheet({
     return { avg, min, max, list }
   }, [players, matchCountMap])
 
-  // Thống kê Phút chờ
+  // Thống kê Phút chờ (tính từ trận đầu tiên được ghi trong lịch sử hoặc trận gần nhất)
   const statsWaiting = useMemo(() => {
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now()
-    const list = players.map((p) => {
-      // Tìm trận gần nhất của p
-      let lastMatchTime = null
-      for (const m of sessionMatches) {
-        const keys = m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
-        if (keys.includes(p.key)) {
-          lastMatchTime = m.at || m.createdAt || null
-          break
-        }
-      }
+    const { statsList } = calculatePlayerWaitTime({
+      players,
+      sessionMatches,
+      session,
+      now,
+    })
 
-      let waitMin = 0
+    const list = statsList.map((item) => {
       let statusText = ''
-      if (!lastMatchTime) {
-        waitMin = 999 // Chưa vào sân trận nào, ưu tiên cao nhất
-        statusText = t('assign.notPlayedYet')
-      } else {
-        waitMin = Math.max(0, Math.round((now - lastMatchTime) / 60000))
-        if (waitMin < 5) {
+      if (item.hasPlayed) {
+        if (item.waitMin < 5) {
           statusText = t('assign.justFinished')
         } else {
-          statusText = t('assign.waitingMinutes', { m: waitMin })
+          statusText = t('assign.waitingMinutes', { m: item.waitMin })
         }
+      } else if (item.firstMatchTime) {
+        if (item.waitMin === 0) {
+          statusText = t('assign.notPlayedYet')
+        } else {
+          statusText = t('assign.waitingMinutes', { m: item.waitMin })
+        }
+      } else {
+        statusText = t('assign.notPlayedYet')
       }
 
       return {
-        key: p.key,
-        name: p.name,
-        waitMin,
+        key: item.key,
+        name: item.name,
+        waitMin: item.waitMin,
         statusText,
-        count: matchCountMap[p.key] || 0,
+        count: matchCountMap[item.key] || 0,
       }
     })
 
-    list.sort((a, b) => b.waitMin - a.waitMin || a.name.localeCompare(b.name, 'vi'))
+    list.sort((a, b) => {
+      if (b.waitMin !== a.waitMin) return b.waitMin - a.waitMin
+      if (a.count !== b.count) return a.count - b.count
+      return a.name.localeCompare(b.name, 'vi')
+    })
     return list
-  }, [players, sessionMatches, matchCountMap])
+  }, [players, sessionMatches, matchCountMap, session])
 
   // Thống kê Cặp đã đánh
   const statsPairs = useMemo(() => {
@@ -264,7 +269,7 @@ export default function SessionStatsSheet({
                   <span
                     style={{
                       ...S.waitingBadge,
-                      ...(item.waitMin > 20 || item.waitMin === 999 ? S.waitingBadgeUrgent : {}),
+                      ...(item.waitMin > 20 ? S.waitingBadgeUrgent : {}),
                     }}
                   >
                     {item.statusText}

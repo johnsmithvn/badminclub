@@ -680,3 +680,95 @@ export function removePlayer(lineup, key) {
   Object.keys(lu).forEach((k) => { if (lu[k] === key) delete lu[k] })
   return lu
 }
+
+/**
+ * Trích xuất timestamp kết thúc / ghi nhận của trận đấu.
+ */
+function matchTimeOf(m) {
+  if (!m) return 0
+  if (typeof m.at === 'number' && m.at > 0) return m.at
+  if (m.createdAt) {
+    const t = new Date(m.createdAt).getTime()
+    if (!Number.isNaN(t) && t > 0) return t
+  }
+  return 0
+}
+
+/**
+ * Tính thời gian chờ (ms) và số phút chờ cho từng người trong buổi tập.
+ * Quy tắc cốt lõi:
+ * 1. Buổi chưa có trận nào được ghi trong lịch sử: thời gian chờ = 0 (chưa bắt đầu đếm).
+ * 2. Người đã đánh ít nhất 1 trận: tính từ thời điểm trận gần nhất của họ kết thúc.
+ * 3. Người chưa đánh trận nào: tính từ thời điểm TRẬN ĐẦU TIÊN bắt đầu được ghi trong lịch sử buổi (firstMatchTime).
+ * 4. Nếu buổi đã kết thúc (status === 'closed'), mốc thời gian lấy theo s.closedAt hoặc trận cuối thay vì Date.now().
+ */
+export function calculatePlayerWaitTime({
+  players = [],
+  sessionMatches = [],
+  session = null,
+  now = Date.now(),
+}) {
+  const referenceNow = (session?.status === 'closed' && (session?.closedAt || sessionMatches[0]?.at))
+    ? (session.closedAt ? new Date(session.closedAt).getTime() : sessionMatches[0].at)
+    : now
+
+  // Tìm thời điểm trận đầu tiên được ghi trong lịch sử buổi
+  let firstMatchTime = null
+  for (const m of sessionMatches) {
+    const t = matchTimeOf(m)
+    if (t > 0 && (firstMatchTime === null || t < firstMatchTime)) {
+      firstMatchTime = t
+    }
+  }
+
+  const waitMap = {}
+  const statsList = []
+
+  players.forEach((p) => {
+    let lastTime = null
+    for (const m of sessionMatches) {
+      const keys = m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
+      if (keys.includes(p.key)) {
+        const t = matchTimeOf(m)
+        if (t > 0 && (lastTime === null || t > lastTime)) {
+          lastTime = t
+        }
+      }
+    }
+
+    let waitMs = 0
+    let waitMin = 0
+    const hasPlayed = lastTime !== null
+
+    if (hasPlayed) {
+      waitMs = Math.max(0, referenceNow - lastTime)
+      waitMin = Math.round(waitMs / 60000)
+    } else if (firstMatchTime) {
+      // Tính từ trận đầu tiên bắt đầu được ghi trong lịch sử
+      waitMs = Math.max(0, referenceNow - firstMatchTime)
+      waitMin = Math.round(waitMs / 60000)
+    } else {
+      // Buổi chưa có trận nào được ghi trong lịch sử
+      waitMs = 0
+      waitMin = 0
+    }
+
+    waitMap[p.key] = waitMs
+    statsList.push({
+      key: p.key,
+      name: p.name,
+      waitMs,
+      waitMin,
+      hasPlayed,
+      lastMatchTime: lastTime,
+      firstMatchTime,
+    })
+  })
+
+  return {
+    waitMap,
+    firstMatchTime,
+    statsList,
+  }
+}
+
