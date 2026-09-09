@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
-import useMobile from '#hooks/useMobile.js'
+import { useMobile } from '#hooks/useMobile.js'
 import { rankPairs, calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 import PairDetailModal from './PairDetailModal.jsx'
@@ -1464,9 +1464,10 @@ function getConfidenceDots(tier) {
               {t('leaderboard.prioritizePairTonight')}
             </button>
           </div>
-          </div>
-        </>
-      )}
+        </div>
+      </div>
+    </>
+  )}
 
       {/* Modal AY2: Thẻ chi tiết cặp đôi */}
       {selectedPair && (

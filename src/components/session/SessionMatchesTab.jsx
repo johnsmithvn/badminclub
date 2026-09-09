@@ -680,7 +680,6 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
             {t('challenge.railChallengeNote')}
           </div>
         </div>
-        </div>
 
         {/* Card Kèo nối vào buổi thế nào */}
         <div style={S.card}>

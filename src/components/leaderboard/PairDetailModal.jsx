@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
-import useMobile from '#hooks/useMobile.js'
+import { useMobile } from '#hooks/useMobile.js'
 import { calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 

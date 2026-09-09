@@ -340,6 +340,7 @@ export default function SeasonRaceTab({
           >
             <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
               {t('season.tableTotal', { total: leaderboard.length, count: leaderboard.length, n: leaderboard.length })}
+            </span>
             {isMobile ? (
               <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
                 {t('season.legendFormulaShort')}
