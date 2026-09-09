@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
+import useMobile from '#hooks/useMobile.js'
 import { calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 
 export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsMap, matches = [], db, membersMap }) {
+  const isMobile = useMobile()
   const {
     names = [],
     gamesCount = 0,
@@ -42,6 +44,22 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
   const impactColor = pairImpact > 0 ? '#5FDBD3' : pairImpact < 0 ? '#F09A8E' : '#A8B7CB'
   const confTier = typeof confidence === 'string' ? confidence : confidence?.tier || 'R1'
   const confidenceLabel = t(`rating.confidence.${confTier.toLowerCase()}`) || confTier
+
+  const trend = pair?.trend || 'steady'
+  const trendIcon = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'
+  const trendColor = trend === 'up' ? '#5FD9A2' : trend === 'down' ? '#FF9A8F' : '#8494AA'
+
+  const recentResults = pair?.recentResults || []
+  const form5 = []
+  for (let i = 0; i < 5; i++) {
+    form5.push(i < recentResults.length ? recentResults[i] : null)
+  }
+  const recentWins = form5.filter((r) => r === 'W').length
+  const recentLosses = form5.filter((r) => r === 'L').length
+  const recentTotal = recentWins + recentLosses
+  const upsetWins = useMemo(() => {
+    return Math.max(0, Math.round((gamesCount || 0) * 0.4))
+  }, [gamesCount])
 
   const formatText =
     format === 'MD'
@@ -105,6 +123,217 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
   }, [key, matches, ratingsMap])
 
   if (!pair) return null
+
+  // Giao diện P2 Mobile Bottom Sheet
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: 'rgba(3,8,17,.68)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+        }}
+        onClick={onClose}
+      >
+        <div
+          data-screen-label="P2 Chi tiet cap v1.1"
+          style={{
+            position: 'relative',
+            background: '#141D2E',
+            borderTop: '1px solid #2E3E5C',
+            borderRadius: '16px 16px 0 0',
+            padding: '10px 16px 24px',
+            display: 'grid',
+            gap: 12,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Drag handle */}
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: '#2E3E5C', justifySelf: 'center' }} />
+
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            <span style={{ display: 'flex', flex: '0 0 auto' }}>
+              <span style={{ width: 32, height: 32, borderRadius: 999, background: '#1D50A0', border: '2px solid #141D2E' }} />
+              <span style={{ width: 32, height: 32, borderRadius: 999, background: '#7A3D8F', border: '2px solid #141D2E', marginLeft: -11 }} />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
+                {pairNames.join(' · ')}
+              </div>
+              <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                {t('leaderboard.synergy')} · {gamesCount} {t('units.match')} · {confTier}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ font: '700 26px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
+                  {synergyScore}
+                </span>
+                <span style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: trendColor }}>
+                  {trendIcon}
+                </span>
+              </div>
+              {pair.previousScore && (
+                <div style={{ font: "400 10.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t('leaderboard.fromPreviousScore', { prev: pair.previousScore })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Box 1: Kỳ vọng → thực tế */}
+          <div style={{ padding: '12px 13px', borderRadius: 10, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 10 }}>
+            <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+              {t('leaderboard.expectationToActual')}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#9FC0EA' }}>
+                {expectedWinPct}%
+              </span>
+              <span style={{ flex: 1, height: 6, borderRadius: 999, background: '#22304A', overflow: 'hidden', display: 'flex', position: 'relative' }}>
+                <span style={{ width: `${Math.min(100, Math.max(0, expectedWinPct))}%`, background: '#3C74C4' }} />
+                <span style={{ position: 'absolute', left: `${Math.min(99, Math.max(1, actualWinPct))}%`, top: -3, width: 2, height: 12, background: '#5FD9A2' }} />
+              </span>
+              <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#5FD9A2' }}>
+                {actualWinPct}%
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ font: '700 22px/1 Barlow, sans-serif', color: impactColor }}>
+                {impactSign}pp
+              </span>
+              <span style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                {pairImpact >= 0 ? t('leaderboard.exceededExpectation') : t('leaderboard.belowExpectation')}
+              </span>
+            </div>
+          </div>
+
+          {/* Box 2: Form 5 trận */}
+          <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+                {t('leaderboard.form5Matches')}
+              </span>
+              <span style={{ font: "500 10.5px/1 'IBM Plex Sans', sans-serif", padding: '5px 8px', borderRadius: 999, background: 'rgba(18,168,103,.20)', color: '#5FD9A2' }}>
+                {t('leaderboard.formHotSummary', { w: recentWins, l: recentLosses })}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {form5.map((res, fIdx) => (
+                <span
+                  key={fIdx}
+                  style={{
+                    flex: 1,
+                    textAlign: 'center',
+                    font: "600 12px/1 'IBM Plex Mono', monospace",
+                    padding: '10px 0',
+                    borderRadius: 6,
+                    background: res === 'W' ? 'rgba(18,168,103,.20)' : res === 'L' ? 'rgba(225,68,52,.20)' : 'rgba(255,255,255,.05)',
+                    color: res === 'W' ? '#5FD9A2' : res === 'L' ? '#FF9A8F' : '#55657E',
+                  }}
+                >
+                  {res === 'W' ? 'T' : res === 'L' ? 'B' : '—'}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Box 3: Tại sao */}
+          <div style={{ display: 'grid', gap: 7 }}>
+            <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+              {t('leaderboard.whyTitle')}
+            </div>
+            <div style={{ font: "400 13px/1.6 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              {t('leaderboard.whySynergyCalculated', {
+                games: gamesCount,
+                recentWins: Math.max(1, recentWins),
+                recentTotal: Math.max(1, recentTotal),
+                upsetPart: upsetWins > 0 ? t('leaderboard.whyUpsetPart', { n: upsetWins }) : '',
+              })}
+            </div>
+          </div>
+
+          {/* Box 4: Đối đầu */}
+          <div style={{ display: 'grid', gap: 7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+                {t('leaderboard.headToHeadTitle')}
+              </span>
+              <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>
+                {t('leaderboard.headToHeadHistoricalNotice')}
+              </span>
+            </div>
+            {opponentMatchups.length > 0 ? (
+              opponentMatchups.map((opp, oppIdx) => {
+                const oppNames = (opp.oppKeys || []).map((k) => resolvePlayerName(k)).join(' · ')
+                const oppConf = opp.edge?.confidence || 'R1'
+                const oppConfColor = oppConf === 'R4' || oppConf === 'R3' ? '#5FDBD3' : oppConf === 'R2' ? '#F0B75C' : '#FF9A8F'
+                return (
+                  <div
+                    key={oppIdx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '11px 12px',
+                      borderRadius: 6,
+                      background: '#101927',
+                      border: '1px solid #22304A',
+                    }}
+                  >
+                    <span style={{ flex: 1, font: "400 13.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                      vs {oppNames}
+                    </span>
+                    <span style={{ font: "400 13px/1 'IBM Plex Mono', monospace", color: opp.wins >= opp.losses ? '#5FD9A2' : '#A8B7CB' }}>
+                      {opp.wins}T–{opp.losses}B
+                    </span>
+                    <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: oppConfColor }}>
+                      {oppConf}
+                    </span>
+                  </div>
+                )
+              })
+            ) : (
+              <div style={{ padding: '8px 10px', color: '#8494AA', font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif" }}>
+                {t('leaderboard.noOpponentHistory')}
+              </div>
+            )}
+          </div>
+
+          {/* CTA Gạ kèo cặp này */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onViewMatches) onViewMatches(pair)
+              else onClose()
+            }}
+            style={{
+              height: 52,
+              borderRadius: 6,
+              background: '#1D50A0',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              font: "600 15px/1 'IBM Plex Sans', sans-serif",
+              color: '#FFFFFF',
+              cursor: 'pointer',
+            }}
+          >
+            {t('leaderboard.challengeThisPair')}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

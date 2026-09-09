@@ -155,7 +155,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const acceptedTimeStr = c.acceptedAt
     ? new Date(c.acceptedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : createdTimeStr
-  const courtName = c.courtId ? (courtOf(db, c.courtId)?.name || `Sân ${c.courtId}`) : (c.courtName ? `Sân ${c.courtName}` : '')
+  const courtName = c.courtId
+    ? (courtOf(db, c.courtId)?.name || `${t('units.court')} ${c.courtId}`)
+    : (c.courtName ? `${t('units.court')} ${c.courtName}` : '')
   const matchTimeStr = matchObj?.createdAt
     ? new Date(matchObj.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : ''
@@ -195,7 +197,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: 'var(--radius-md)',
-                  background: 'var(--brand-primary, #0E7A4D)',
+                  background: 'var(--status-delivered)',
                   border: 'none',
                   font: '700 15px/1 "IBM Plex Sans", sans-serif',
                   color: 'var(--gray-0)',
@@ -239,7 +241,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: 'var(--radius-md)',
-                background: 'var(--brand-primary, #0E7A4D)',
+                background: 'var(--status-delivered)',
                 border: 'none',
                 font: '700 15px/1 "IBM Plex Sans", sans-serif',
                 color: 'var(--gray-0)',
@@ -268,7 +270,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: 'var(--radius-md)',
-                    background: 'var(--brand-primary, #0E7A4D)',
+                    background: 'var(--status-delivered)',
                     border: 'none',
                     font: '700 15px/1 "IBM Plex Sans", sans-serif',
                     color: 'var(--gray-0)',
@@ -341,7 +343,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                 alignItems: 'center',
                 padding: '0 16px',
                 borderRadius: 'var(--radius-md)',
-                background: 'var(--brand-primary, #0E7A4D)',
+                background: 'var(--status-delivered)',
                 border: 'none',
                 font: '600 14px/1 "IBM Plex Sans", sans-serif',
                 color: 'var(--gray-0)',
@@ -405,7 +407,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                 <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{pctB}%</span>
               </div>
               <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-sunken)' }}>
-                <div style={{ width: `${pctA}%`, background: 'var(--brand-primary, #0E7A4D)', height: '100%' }} />
+                <div style={{ width: `${pctA}%`, background: 'var(--action-accent-bg, var(--teal-500))', height: '100%' }} />
                 <div style={{ width: `${pctB}%`, background: 'var(--border-default)', height: '100%' }} />
               </div>
             </div>
@@ -526,7 +528,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
               {
                 title: t('challenge.step3WaitCourt'),
                 sub: (courtName || c.deployedAt || isPlayed)
-                  ? t('challenge.step3Sub', { time: c.deployedAt ? new Date(c.deployedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : acceptedTimeStr, court: courtName || 'Sân' })
+                  ? t('challenge.step3Sub', { time: c.deployedAt ? new Date(c.deployedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : acceptedTimeStr, court: courtName || t('units.court') })
                   : t('challenge.step3SubPending'),
                 status: (isPlayed || courtName || c.deployedAt) ? 'done' : (isAccepted ? 'current' : 'pending'),
               },
@@ -548,20 +550,20 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                       height: 12,
                       borderRadius: 999,
                       marginTop: 3,
-                      background: st.status === 'done' ? 'var(--brand-primary, #0E7A4D)' : st.status === 'current' ? 'var(--surface-card)' : 'var(--surface-sunken)',
+                      background: st.status === 'done' ? 'var(--status-delivered)' : st.status === 'current' ? 'var(--surface-card)' : 'var(--surface-sunken)',
                       border: st.status === 'done'
-                        ? '2px solid var(--brand-primary, #0E7A4D)'
+                        ? '2px solid var(--status-delivered)'
                         : st.status === 'current'
-                        ? '2px solid var(--brand-primary, #0E7A4D)'
+                        ? '2px solid var(--status-delivered)'
                         : '2px solid var(--border-default)',
-                      boxShadow: st.status === 'current' ? '0 0 0 3px rgba(14, 122, 77, 0.16)' : 'none',
+                      boxShadow: st.status === 'current' ? '0 0 0 3px rgba(14, 138, 85, 0.16)' : 'none',
                       zIndex: 1,
                     }} />
                     {!isLast && (
                       <div style={{
                         flex: 1,
                         width: 2,
-                        background: st.status === 'done' ? 'var(--brand-primary, #0E7A4D)' : 'var(--border-subtle)',
+                        background: st.status === 'done' ? 'var(--status-delivered)' : 'var(--border-subtle)',
                         margin: '2px 0',
                       }} />
                     )}
@@ -605,8 +607,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
               <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaMatch')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: matchCode ? 'var(--brand-primary, #0E7A4D)' : 'var(--text-disabled)' }}>
-                {matchCode ? `${matchCode} (đã sinh)` : 'null (chưa sinh)'}
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: matchCode ? 'var(--status-delivered-fg)' : 'var(--text-disabled)' }}>
+                {matchCode ? t('challenge.techMetaMatchCreated', { code: matchCode }) : t('challenge.techMetaMatchPending')}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>

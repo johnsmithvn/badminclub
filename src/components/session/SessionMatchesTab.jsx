@@ -622,7 +622,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                         }}
                         style={{
                           ...S.smallPrimaryBtn,
-                          background: 'var(--brand-primary, #0E7A4D)',
+                          background: 'var(--status-delivered)',
                         }}
                       >
                         {t('challenge.btnAccept')}
