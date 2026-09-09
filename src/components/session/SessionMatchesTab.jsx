@@ -521,6 +521,24 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const isPending = c.status === 'pending'
               const isAccepted = c.status === 'accepted'
 
+              // DT2 countdown hết hạn
+              const expTime = c.expiresAt ? new Date(c.expiresAt).getTime() : (c.createdAt ? new Date(c.createdAt).getTime() + 60 * 60 * 1000 : null)
+              let expStr = '24:12'
+              if (expTime) {
+                const diff = expTime - Date.now()
+                if (diff <= 0) {
+                  expStr = '00:00'
+                } else {
+                  const mins = Math.floor(diff / 60000)
+                  const secs = Math.floor((diff % 60000) / 1000)
+                  expStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`
+                }
+              }
+
+              const statusText = isPending
+                ? `${t('challenge.status.pending')} · ${t('challenge.expiresIn', { time: expStr })}`
+                : (t('challenge.status.' + c.status) || c.status)
+
               return (
                 <div
                   key={c.id}
@@ -540,22 +558,33 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                       borderColor: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--teal-700)' : 'var(--border-subtle)',
                       color: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--status-transit-fg)' : 'var(--status-delayed-fg)',
                     }}>
-                      {c.status}
+                      {statusText}
                     </span>
                   </div>
 
-                  {/* 2 Đội */}
+                  {/* 2 Đội với TB rating */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>{namesA}</div>
-                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>{ratA}</div>
+                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                        {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
+                      </div>
                     </div>
                     <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)' }}>VS</span>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                       <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>{namesB}</div>
-                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>{ratB ? `${ratB}` : '—'}</div>
+                      <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                        {ratB > 0 ? t('challenge.avgRating', { r: ratB.toLocaleString('vi-VN') }) : '—'}
+                      </div>
                     </div>
                   </div>
+
+                  {/* DT2: Cảnh báo lệch điểm */}
+                  {gap > 0 && ratA > 0 && ratB > 0 && (
+                    <div style={S.warnBox}>
+                      {t('challenge.gapWarningNotBlocked', { gap: gap.toLocaleString('vi-VN') })}
+                    </div>
+                  )}
 
                   {/* Win% Bar */}
                   {!isPlayed && ratB > 0 && (
@@ -575,25 +604,38 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                   {/* H2H Tag nếu có lịch sử */}
                   {h2hMatches.length > 0 && (
                     <div style={S.h2hRow}>
-                      <span style={{ color: 'var(--text-muted)' }}>{t('challenge.h2hRecord')}:</span>
-                      <span style={{ color: 'var(--status-delivered-fg)', fontWeight: 600 }}>{h2hWinsA}W</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('challenge.matchupH2H')}:</span>
+                      <span style={{ color: 'var(--status-delivered-fg)', fontWeight: 600 }}>{h2hWinsA}T</span>
                       <span style={{ color: 'var(--text-disabled)' }}>–</span>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{h2hWinsB}L</span>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{h2hWinsB}B</span>
                     </div>
                   )}
 
-                  {/* Action buttons tuỳ trạng thái */}
+                  {/* DT2 Action buttons tuỳ trạng thái: Nhận / Từ chối trực tiếp trên thẻ Pending */}
                   {isPending && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
-                          setSelectedChallenge(c)
+                          a.respondChallenge(c.id, true)
+                        }}
+                        style={{
+                          ...S.smallPrimaryBtn,
+                          background: 'var(--brand-primary, #0E7A4D)',
+                        }}
+                      >
+                        {t('challenge.btnAccept')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          a.respondChallenge(c.id, false)
                         }}
                         style={S.smallGhostBtn}
                       >
-                        {t('challenge.details')}
+                        {t('challenge.btnDecline')}
                       </button>
                     </div>
                   )}
@@ -632,6 +674,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               </div>
             )}
           </div>
+
+          {/* DT2: Dòng chú thích đáy rail */}
+          <div style={{ padding: '0 14px 12px', font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+            {t('challenge.railChallengeNote')}
+          </div>
+        </div>
         </div>
 
         {/* Card Kèo nối vào buổi thế nào */}
@@ -692,6 +740,10 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           onScoreInput={(c) => {
             setSelectedChallenge(null)
             setScoringChallenge(c)
+          }}
+          onOpenMatch={(m) => {
+            setSelectedChallenge(null)
+            setEditingMatch(m)
           }}
         />
       )}
@@ -893,5 +945,13 @@ const S = {
     borderRadius: 4,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
+  },
+  warnBox: {
+    padding: '6px 10px',
+    borderRadius: 'var(--radius-sm)',
+    background: 'rgba(217, 119, 6, 0.08)',
+    border: '1px solid rgba(217, 119, 6, 0.25)',
+    color: 'var(--status-delayed-fg)',
+    font: '500 11.5px/1.4 "IBM Plex Sans", sans-serif',
   },
 }
