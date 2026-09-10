@@ -68,7 +68,7 @@ export function toDb(raw, ctx) {
     return {
       id: m.id, name: m.name, fullName: m.full_name || '',
       phone: m.phone || '', email: m.email || '', gender: m.gender, level: m.level,
-      avatarUrl: m.avatar_url || '', qrUrl: m.qr_url || '',
+      avatarUrl: m.avatar_url || (m.profile && (m.profile.avatar_url || m.profile.avatarUrl)) || '', qrUrl: m.qr_url || '',
       bankHolder: m.bank_holder || '', bankNo: m.bank_no || '', bankName: m.bank_name || '',
       bankAccounts: m.bank_accounts || [],
       role: m.role, joined: m.joined_at, active: m.active, userId: m.user_id || null,

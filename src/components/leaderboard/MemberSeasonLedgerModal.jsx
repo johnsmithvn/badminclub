@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Avatar } from '#ds'
 import { getMemberSeasonLedger } from '#lib/xp.js'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -91,6 +92,7 @@ export default function MemberSeasonLedgerModal({
             gap: 12,
           }}
         >
+          <Avatar name={member?.name} src={member?.avatarUrl || member?.avatar} size={36} />
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
             <div style={{ font: '600 16px/1.25 Barlow, sans-serif', color: 'var(--text-primary)' }}>
               {t('season.ledgerTitle', { name: member?.name || '' })}

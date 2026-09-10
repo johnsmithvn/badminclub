@@ -1,3 +1,4 @@
+import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 
@@ -419,23 +420,7 @@ export default function SeasonRaceTab({
                     <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: rankColor }}>
                       {row.rank}
                     </span>
-                    <span
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: 999,
-                        background: isRank1 ? '#C9A227' : (row.gender === 'Nữ' || row.gender === 'F' ? '#7A3D8F' : '#1D50A0'), // i18n-ok: gender check
-                        flex: '0 0 auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: isRank1 ? '#2A1F00' : '#fff',
-                        fontSize: 10,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {row.name.charAt(0)}
-                    </span>
+                    <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={22} />
                     <span style={{ flex: '1 1 0%', minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {row.name}
                     </span>
@@ -515,23 +500,7 @@ export default function SeasonRaceTab({
 
                 {/* Thành viên + Badge */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                  <span
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 999,
-                      background: isRank1 ? '#C9A227' : '#1D50A0',
-                      flex: '0 0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: isRank1 ? '#2A1F00' : '#fff',
-                      fontSize: 11,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {row.name.charAt(0)}
-                  </span>
+                  <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={24} />
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {row.name}
                   </span>

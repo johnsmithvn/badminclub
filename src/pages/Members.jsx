@@ -943,7 +943,7 @@ function NextMonth({ month, canEdit }) {
           <div style={{ display: 'grid', gap: 8 }}>
             {pendingRows.map((x) => (
               <div key={x.g.id + x.mid} style={S.row}>
-                <Avatar name={x.m.name} size={30} />
+                <Avatar name={x.m.name} src={x.m.avatarUrl} size={30} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={S.label}>{x.m.name}</div>
                   <Mono color="var(--text-muted)">{x.g.name + ' · ' + monthTxt(month).toLowerCase()}</Mono>
@@ -1009,7 +1009,7 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Avatar name={x.m.name} size={36} />
+                  <Avatar name={x.m.name} src={x.m.avatarUrl} size={36} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{x.m.name}</div>
                     <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
@@ -1079,7 +1079,7 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Avatar name={m.name} size={36} />
+                    <Avatar name={m.name} src={m.avatarUrl} size={36} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{m.name}</div>
                       <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
@@ -1160,7 +1160,7 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
               const m = memberOf(db, c.memberId)
               return (
                 <div key={c.id} style={S.row}>
-                  <Avatar name={m.name} size={30} />
+                  <Avatar name={m.name} src={m.avatarUrl} size={30} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={S.label}>
                       {m.name + ' · ' + t('members.changeField.' + c.field)}

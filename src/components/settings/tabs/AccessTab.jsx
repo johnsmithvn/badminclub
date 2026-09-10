@@ -412,7 +412,7 @@ export default function AccessTab({
                   }}
                 >
                   <div data-label={t('settings.colMemberCaps')} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <Avatar name={m.name} size={30} />
+                    <Avatar name={m.name} src={m.avatarUrl} size={30} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
                       {m.fullName && <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{m.fullName}</div>}

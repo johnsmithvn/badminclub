@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Card, Icon, Input, Select, StatCard } from '#ds'
+import { Avatar, Button, Card, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -226,6 +226,7 @@ export default function Leaderboard() {
       return {
         id: m.id,
         name: m.name,
+        avatarUrl: m.avatarUrl || m.avatar || '',
         gender: m.gender,
         level: m.level,
         rating: pr.rating,
@@ -2233,6 +2234,7 @@ export default function Leaderboard() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Avatar name={currentMember.name} src={currentMember.avatarUrl || currentMember.avatar} size={28} />
                 <span style={{ font: "700 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
                   {currentMember.name}
                 </span>

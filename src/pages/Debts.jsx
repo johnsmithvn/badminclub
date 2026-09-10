@@ -1861,7 +1861,7 @@ function Advances({ rows, canMoney }) {
         <RefundConfirm target={refundTarget} onClose={() => setRefundTarget(null)} />
         {rows.map((r) => (
           <div key={r.kind + r.id} style={{ ...S.row, opacity: r.repaidAt ? 0.6 : 1 }}>
-            <Avatar name={r.name} size={30} />
+            <Avatar name={r.name} src={r.avatarUrl} size={30} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={S.label}>{r.name}</div>
               <div style={S.caption}>
@@ -2366,7 +2366,7 @@ function Dues({ dues, canMoney }) {
                   <tr key={x.id} style={{ borderBottom: '1px solid var(--border-subtle)', background: st.remain > 0 ? 'var(--surface-card)' : 'transparent' }}>
                     <td style={S.td}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <Avatar name={mb.name} size={28} />
+                        <Avatar name={mb.name} src={mb.avatarUrl} size={28} />
                         <div>
                           <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mb.name}</div>
                           <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
@@ -2485,7 +2485,7 @@ function Dues({ dues, canMoney }) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-                    <Avatar name={mb.name} size={32} />
+                    <Avatar name={mb.name} src={mb.avatarUrl} size={32} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {mb.name}

@@ -42,7 +42,7 @@ export default function Clubs() {
         <div style={{ flex: 1 }} />
         {profile && (
           <div style={S.me}>
-            <Avatar name={meName} size={28} />
+            <Avatar name={meName} src={profile.avatar_url || profile.avatarUrl} size={28} />
             <div style={{ minWidth: 0 }}>
               <div style={S.meName}>{meName}</div>
               <Mono color="var(--text-muted)">{profile.email}</Mono>

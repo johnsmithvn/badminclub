@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, effectiveStrengthOf, isProvisional } from '#lib/rating.js'
@@ -80,6 +81,7 @@ export default function CareerEloTab({
       return {
         id: m.id,
         name: m.name,
+        avatarUrl: m.avatarUrl || m.avatar || '',
         gender: m.gender,
         level: m.level,
         gamesCount,
@@ -305,23 +307,7 @@ export default function CareerEloTab({
                       <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: rankColor }}>
                         {player.rank}
                       </span>
-                      <div
-                        style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: 999,
-                          background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#1D50A0', // i18n-ok: gender check
-                          flex: '0 0 auto',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontSize: 10,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {player.name ? player.name.charAt(0).toUpperCase() : '?'}
-                      </div>
+                      <Avatar name={player.name} src={player.avatarUrl} size={22} />
                       <span style={{ flex: '1 1 0%', minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {player.name}
                       </span>
@@ -419,23 +405,7 @@ export default function CareerEloTab({
 
                   {/* Tên & Avatar */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                    <div
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 999,
-                        background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#1D50A0', // i18n-ok: gender check
-                        flex: '0 0 auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                        fontSize: 10,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {player.name ? player.name.charAt(0).toUpperCase() : '?'}
-                    </div>
+                    <Avatar name={player.name} src={player.avatarUrl} size={24} />
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {player.name}
                     </span>
@@ -571,23 +541,7 @@ export default function CareerEloTab({
                       {/* Dòng 1: — + Avatar + Tên + Elo? */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                         <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>—</span>
-                        <div
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: 999,
-                            background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#B0562A', // i18n-ok: gender check
-                            flex: '0 0 auto',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#fff',
-                            fontSize: 10,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {player.name ? player.name.charAt(0).toUpperCase() : '?'}
-                        </div>
+                        <Avatar name={player.name} src={player.avatarUrl} size={22} />
                         <span style={{ flex: '1 1 0%', minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {player.name}
                         </span>
@@ -653,23 +607,7 @@ export default function CareerEloTab({
                   >
                     <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>—</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: 999,
-                          background: player.gender === 'Nữ' || player.gender === 'F' ? '#7A3D8F' : '#B0562A', // i18n-ok: gender check
-                          flex: '0 0 auto',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontSize: 10,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {player.name ? player.name.charAt(0).toUpperCase() : '?'}
-                      </div>
+                      <Avatar name={player.name} src={player.avatarUrl} size={24} />
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{player.name}</span>
                       <span
                         onClick={(e) => {

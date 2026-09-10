@@ -478,5 +478,14 @@ assert.equal(dbWithUsers.users[0].bankNo, '123456789')
 assert.equal(dbWithUsers.users[0].bankName, 'MB Bank')
 assert.equal(dbWithUsers.users[0].bankAccounts.length, 1)
 
+/* ---------- U2: members toDb fallback avatarUrl từ linked profile ---------- */
+const rawMemberWithProfile = {
+  id: 'M_PRO', name: 'Member Profile Test', role: 'member', gender: 'nam', level: 'TB',
+  avatar_url: null,
+  profile: { id: 'U_1', avatar_url: 'https://cdn.example.com/profile-avatar.webp' },
+}
+const dbWithMemberProfile = toDb({ ...clone(db), members: [rawMemberWithProfile] }, ctx)
+assert.equal(dbWithMemberProfile.members[0].avatarUrl, 'https://cdn.example.com/profile-avatar.webp', 'Member phải kế thừa avatarUrl từ linked profile khi avatar_url của member rỗng')
+
 console.log('dbmap check: OK')
 

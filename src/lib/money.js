@@ -223,7 +223,8 @@ export function advanceRows(db) {
     if (!(amount > 0) || isVault(db, x.payerId)) return
     out.push({
       kind, id: x.id, date: x.date, amount, label,
-      memberId: x.payerId, name: memberOf(db, x.payerId).name, repaidAt: x.repaidAt || '',
+      memberId: x.payerId, name: memberOf(db, x.payerId).name,
+      avatarUrl: memberOf(db, x.payerId).avatarUrl || '', repaidAt: x.repaidAt || '',
     })
   }
   ;(db.courtBills || []).forEach((b) => add('court', b, b.amount, resolveVenue(db, b.venue)))

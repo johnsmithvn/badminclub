@@ -26,7 +26,7 @@ import { t } from '#i18n'
 
 export default function Profile() {
   const { db, a } = useApp()
-  const { clubs: myClubs, setActiveClub } = useAuth()
+  const { clubs: myClubs, setActiveClub, profile } = useAuth()
   const navigate = useNavigate()
 
   const me = (db.members || []).find((m) => m.userId === db.currentUserId) || null
@@ -233,7 +233,7 @@ function MeCard({ me, myGroups, db, a }) {
         ? <Empty icon="unlink" title={t('profile.changeNoMember')} hint={t('profile.changeNoMemberHint')} />
         : <div style={{ display: 'grid', gap: 13 }}>
             <div style={S.idRow}>
-              <Avatar name={me.name} size={46} />
+              <Avatar name={me.name} src={me.avatarUrl || (profile && (profile.avatar_url || profile.avatarUrl))} size={46} />
               <div style={{ minWidth: 0 }}>
                 <div style={S.h3}>{me.name}</div>
                 {me.fullName && <div style={S.caption}>{me.fullName}</div>}

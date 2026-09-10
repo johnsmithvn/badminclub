@@ -94,6 +94,7 @@ function Overview() {
       debtorMap[k] = {
         id: k,
         name: who.name,
+        avatarUrl: who.avatarUrl || '',
         isMember: !!sg.memberId,
         gender: who.gender || sg.gender,
         level: who.level || sg.level,
@@ -113,6 +114,7 @@ function Overview() {
       debtorMap[k] = {
         id: k,
         name: who.name,
+        avatarUrl: who.avatarUrl || '',
         isMember: true,
         gender: who.gender,
         level: who.level,
@@ -133,6 +135,7 @@ function Overview() {
       debtorMap[k] = {
         id: k,
         name: who.name,
+        avatarUrl: who.avatarUrl || '',
         isMember: true,
         gender: who.gender,
         level: who.level,
@@ -156,6 +159,7 @@ function Overview() {
       creditorMap[k] = {
         id: k,
         name: adv.name,
+        avatarUrl: adv.avatarUrl || memberOf(db, k)?.avatarUrl || '',
         owed: 0,
         desc: [],
       }
@@ -175,6 +179,7 @@ function Overview() {
       creditorMap[k] = {
         id: k,
         name: who.name,
+        avatarUrl: who.avatarUrl || '',
         owed: 0,
         desc: [],
       }
@@ -220,7 +225,7 @@ function Overview() {
       const member = memberOf(db, mid)
       if (!member || !member.name) return
       if (!map[mid]) {
-        map[mid] = { id: mid, name: member.name, count: 0, guests: new Set() }
+        map[mid] = { id: mid, name: member.name, avatarUrl: member.avatarUrl || '', count: 0, guests: new Set() }
       }
       map[mid].count += 1
       const gName = (guestOf(db, sg.guestId) || {}).name || t('debts.guestFallback')
@@ -232,7 +237,7 @@ function Overview() {
       const member = memberOf(db, mid)
       if (!member || !member.name) return
       if (!map[mid]) {
-        map[mid] = { id: mid, name: member.name, count: 0, guests: new Set() }
+        map[mid] = { id: mid, name: member.name, avatarUrl: member.avatarUrl || '', count: 0, guests: new Set() }
       }
       map[mid].count += 1
     })
@@ -403,7 +408,7 @@ function Overview() {
                   const st = dueState(d)
                   return (
                     <div key={d.id} style={{ ...SS.chip, minHeight: 32 }}>
-                      <Avatar name={memberOf(db, d.memberId).name} size={22} />
+                      <Avatar name={memberOf(db, d.memberId).name} src={memberOf(db, d.memberId).avatarUrl} size={22} />
                       <span style={SS.label}>{memberOf(db, d.memberId).name}</span>
                       <Mono color="var(--status-delayed)">{fmt(st.remain)}</Mono>
                       {st.paid > 0 && <span style={SS.caption}>{t('home.duePartialTag', { amount: fmtK(st.paid) })}</span>}
@@ -437,7 +442,7 @@ function Overview() {
           <div style={{ display: 'grid', gap: 9 }}>
             {debtors.slice(0, cfg.ui.topDebtCount || 5).map((r) => (
               <div key={r.id} style={SS.debtRow}>
-                <Avatar name={r.name} size={28} />
+                <Avatar name={r.name} src={r.avatarUrl} size={28} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={SS.label}>{r.name}</span>
@@ -478,7 +483,7 @@ function Overview() {
           <div style={{ display: 'grid', gap: 9 }}>
             {creditors.slice(0, cfg.ui.topDebtCount || 5).map((r) => (
               <div key={r.id} style={SS.debtRow}>
-                <Avatar name={r.name} size={28} />
+                <Avatar name={r.name} src={r.avatarUrl} size={28} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={SS.label}>{r.name}</span>
                   <div style={isMobile ? SS.caption : { ...SS.caption, ...SS.ellipsis }}>
@@ -504,7 +509,7 @@ function Overview() {
               .map((k, i) => (
                 <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Mono style={{ width: 16, textAlign: 'right' }} color="var(--text-muted)">{i + 1}</Mono>
-                  <Avatar name={memberOf(db, k).name} size={26} />
+                  <Avatar name={memberOf(db, k).name} src={memberOf(db, k).avatarUrl} size={26} />
                   <span style={{ ...SS.label, flex: '0 0 96px', ...SS.ellipsis }}>{memberOf(db, k).name}</span>
                   <Bar pct={Math.round((attend[k] / maxAtt) * 100)}
                     color={i === 0 ? 'var(--teal-500)' : 'var(--navy-500)'} />
@@ -527,7 +532,7 @@ function Overview() {
             {topInviters.slice(0, cfg.ui.topAttendCount || 5).map((r, i) => (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Mono style={{ width: 16, textAlign: 'right' }} color="var(--text-muted)">{i + 1}</Mono>
-                <Avatar name={r.name} size={26} />
+                <Avatar name={r.name} src={r.avatarUrl} size={26} />
                 <div style={{ flex: '0 0 105px', minWidth: 0 }}>
                   <div style={{ ...SS.label, ...SS.ellipsis }}>{r.name}</div>
                   <div style={{ font: '10px var(--font-sans)', color: 'var(--text-muted)' }}>
