@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v0.5.0 · **Updated:** 2026-09-06
+**Version:** v0.6.0 · **Updated:** 2026-09-10
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -130,28 +130,37 @@ Chi tiết buổi tập được thiết kế lại thành thanh Tab Bar 3 tabs 
 
 ---
 
-## 5. Bảng xếp hạng Elo & Lịch sử Thi đấu (`/bang-xep-hang`)
+## 5. Bảng xếp hạng & Lịch sử Thi đấu (`/bang-xep-hang`)
 
-Màn hình Bảng xếp hạng 5 tabs toàn diện:
+Màn hình Bảng xếp hạng **5 tabs** toàn diện:
 
-1. **Mùa giải (`season`)**:
+1. **Mùa giải (`season` — `SeasonRaceTab`)**:
+   - Xếp hạng thành viên theo điểm mùa giải (điểm tham gia + thưởng thắng + upset). Logic tại `src/lib/xp.js: calculateSeasonLeaderboard`.
+   - Thẻ top 1/2/3 nổi bật, bảng chi tiết điểm mùa, thanh tiến độ mùa giải.
+   - Hệ thống XP và Cấp bậc: XP chỉ tăng (Danh xưng 6 bậc: Tân thủ → Tập sự → Quen sân → Thực chiến → Hảo thủ → Cao thủ).
+   - Xuất CSV mùa giải.
+
+2. **Elo/Profile (`elo` — `CareerEloTab`)**:
    - Xếp hạng thành viên theo Elo Rating giảm dần.
-   - Hiển thị Rank (#1, #2, #3 nổi bật), Tên, Giới tính, LevelChip, Điểm Elo, Thanh độ tin cậy (Confidence Bar), Tỷ số Thắng-Thua, Tỷ lệ thắng %, Form 5 trận gần nhất (W/L badge).
-2. **Biểu đồ & Hồ sơ Rating (`chart`)**:
-   - Thẻ hồ sơ thành viên với điểm Elo lớn, cấp độ độ tin cậy R1 -> R5, thanh tiến trình % và số trận cần thêm để nâng cấp.
-   - Nút **⚔️ Gạ kèo** mở popup tạo kèo với thành viên đang xem.
-   - 4 card phân rã ngữ cảnh thực chiến: Gặp Nam, Gặp Nữ, Đánh Đôi, Đánh Đơn.
-3. **Tìm trận & Sửa tỷ số inline (`search`)**:
-   - Tìm kiếm trận đấu theo Người chơi A và B (Chế độ Đối đầu hoặc Cùng đội).
-   - Lọc trận chất lượng: Trận sát điểm (≤ 3 điểm), Trận bất ngờ (Upset).
-   - Nút **⚔️ Gạ kèo giữa 2 bạn** khi chọn đủ 2 đấu thủ.
-   - Nút **Sửa** mở `EditScoreModal`: Sửa tỷ số trực tiếp, bắt buộc nhập lý do sửa, ghi audit log và tự động chạy `replayRatingCascade` để tính lại chuỗi Elo các trận sau đó.
-4. **Ma trận Đối đầu H2H (`matrix`)**:
+   - Hiển thị Rank, Tên, Giới tính, LevelChip, Điểm Elo, Thanh độ tin cậy (Confidence Bar), Tỷ số Thắng-Thua, Tỷ lệ thắng %, Form 5 trận gần nhất (W/L badge).
+   - Histogram phân bố Elo toàn CLB.
+   - Bấm vào thành viên → mở `MemberProfileTab` (hồ sơ cá nhân chi tiết).
+
+3. **Cặp đôi/Đối tác (`pairs` — `PairsTab`)**:
+   - Xếp hạng các cặp đôi theo synergy (tỷ lệ thắng khi cùng đội, số trận chung, độ tin cậy).
+   - Mở `PairDetailModal`: lịch sử các trận đã đấu cùng nhau.
+   - `RatingFormulaModal`: giải thích công thức Elo.
+
+4. **Đối đầu H2H (`matrix` — `PairH2HTab`)**:
    - Bảng đối đầu NxN giữa các đấu thủ hàng đầu CLB với tỷ số thắng-thua màu sắc trực quan.
    - Danh sách các cặp thành viên chưa từng chạm trán kèm nút click gạ kèo nhanh.
-5. **Thống kê Hiệu chỉnh chéo giới (`cross`)**:
-   - Tỷ lệ Nữ thắng Nam theo các khoảng lệch Elo (<100, 100-300, >300).
-   - Học tự động từ dữ liệu thi đấu thực chiến của CLB.
+   - `PairH2HModal`: xem chi tiết lịch sử đối đầu giữa 2 người.
+
+5. **Tìm trận / Chéo giới (`search`)**:
+   - Tìm kiếm trận đấu theo Người chơi A và B (Chế độ Đối đầu hoặc Cùng đội).
+   - Lọc trận chất lượng: Trận sát điểm (≤ 3 điểm), Trận bất ngờ (Upset).
+   - Nút **Sửa** mở `EditScoreModal`: Sửa tỷ số trực tiếp, bắt buộc nhập lý do sửa, ghi audit log và tự động chạy `replayRatingCascade`.
+   - Thống kê Hiệu chỉnh chéo giới: Tỷ lệ Nữ thắng Nam theo các khoảng lệch Elo (<100, 100-300, >300); học tự động từ dữ liệu thi đấu thực chiến của CLB.
 
 ---
 

@@ -1,8 +1,8 @@
 # DATABASE.md
 
-**Version:** v0.5.0 · **Updated:** 2026-09-06
+**Version:** v0.6.0 · **Updated:** 2026-09-10
 
-Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0025`.
+Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0026`.
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
 localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
@@ -213,6 +213,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0023_drop_shuttle.sql` | Gỡ bỏ hoàn toàn module Kho cầu và Tầng B (giá thành từng buổi). Xoá 4 bảng `shuttle_*` / `stock_checks`, dọn các cột `cost_*` trong `sessions` và `quota` trong `member_groups`. Tiền mua cầu ghi trực tiếp ở Sổ quỹ. |
 | `0024_member_extra_discount.sql` | Bổ sung cột `has_member_extra_discount` và `member_extra_discount` cho bảng `clubs` để hỗ trợ giảm trừ giá cho hội viên cố định khi đi thêm buổi. |
 | `0025_court_label.sql` | Bổ sung cột `court_label` cho `session_courts` và `schedule_slots` để gán nhãn/số sân chi tiết (ví dụ: 'Sân 19', 'Sân 20'). |
+| `0026_pending_requests_avatar_and_bank.sql` | Cập nhật RPC `club_pending_requests` trả về thêm `avatar_url`, `qr_url`, `bank_holder`, `bank_no`, `bank_name`, `bank_accounts` từ `profiles` — giúp chủ CLB thấy đầy đủ hồ sơ người xin vào khi duyệt (0015 đã thêm cột nhưng RPC chưa cập nhật). |
 
 ---
 
