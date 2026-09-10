@@ -3051,6 +3051,7 @@
     "impactCol": "Lệch",
     "synergyCol": "Ăn ý",
     "confidenceCol": "Độ tin",
+    "pairCombinedElo": "Tổng Elo {{n}}",
     "pairBestOfSeason": "CẶP ĂN Ý NHẤT MÙA",
     "underperformingTitle": "Dưới kỳ vọng nhiều nhất",
     "provisionalPairsTitle": "Chưa đủ dữ liệu",

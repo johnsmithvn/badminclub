@@ -838,9 +838,11 @@ export function matchCodeOf(db, m) {
 
 /**
  * Phân cấp bậc độ tin cậy R1 – R4 theo số trận mẫu.
+ * Mốc 5 / 15 / 30 dùng CHUNG với kFactorOf, confidenceOf và confidenceProgress — trước đây
+ * hàm này lấy mốc 12 nên cùng một người 13 trận, tab cặp ghi R3 còn tab Elo ghi "medium".
  * R1: < 5 trận (●○○○, trọng số 0.0, thẩm định)
- * R2: 5–11 trận (●●○○, trọng số 0.5, vừa)
- * R3: 12–29 trận (●●●○, trọng số 1.0, cao)
+ * R2: 5–14 trận (●●○○, trọng số 0.5, vừa)
+ * R3: 15–29 trận (●●●○, trọng số 1.0, cao)
  * R4: >= 30 trận (●●●●, trọng số 1.0, rất cao)
  * @param {number} gamesCount
  * @returns {{ tier: 'R1'|'R2'|'R3'|'R4', dots: string, weight: number, isProvisional: boolean, labelKey: string }}
@@ -848,7 +850,7 @@ export function matchCodeOf(db, m) {
 export function confidenceLevelOf(gamesCount = 0) {
   const g = Math.max(0, gamesCount || 0)
   if (g < 5) return { tier: 'R1', dots: '●○○○', weight: 0.0, isProvisional: true, labelKey: 'rating.confidence.r1' }
-  if (g < 12) return { tier: 'R2', dots: '●●○○', weight: 0.5, isProvisional: false, labelKey: 'rating.confidence.r2' }
+  if (g < 15) return { tier: 'R2', dots: '●●○○', weight: 0.5, isProvisional: false, labelKey: 'rating.confidence.r2' }
   if (g < 30) return { tier: 'R3', dots: '●●●○', weight: 1.0, isProvisional: false, labelKey: 'rating.confidence.r3' }
   return { tier: 'R4', dots: '●●●●', weight: 1.0, isProvisional: false, labelKey: 'rating.confidence.r4' }
 }
@@ -906,6 +908,9 @@ export function calcPairImpact(matches = [], playerAKey, playerBKey, ratingsMap 
 
   ;(matches || []).forEach((m) => {
     if (!m || !m.winnerTeam) return
+    // Trận giao lưu đứng ngoài mọi thống kê dẫn xuất từ Elo — khớp với điểm mùa và Elo.
+    // (saveMatchScore vẫn ghi initialRatingA/B cho trận này nên không lọc là nó lọt vào bảng.)
+    if (m.ratingEnabled === false) return
     const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
     const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
 
@@ -942,10 +947,14 @@ export function calcPairImpact(matches = [], playerAKey, playerBKey, ratingsMap 
   const winsCount = pairMatches.filter((x) => x.won).length
   const lossesCount = gamesCount - winsCount
 
-  const actualWinPct = gamesCount > 0 ? Math.round((winsCount / gamesCount) * 100) : 50
+  // Trừ trước, làm tròn sau. Làm tròn cả hai vế rồi mới trừ đẩy sai số lên tới ±1pp,
+  // mà pairImpact còn được nhân ×2.41 khi quy ra điểm ăn ý.
   const sumExp = pairMatches.reduce((acc, x) => acc + x.myExpected, 0)
-  const expectedWinPct = gamesCount > 0 ? Math.round((sumExp / gamesCount) * 100) : 50
-  const pairImpact = actualWinPct - expectedWinPct
+  const actualRate = gamesCount > 0 ? (winsCount / gamesCount) * 100 : 50
+  const expectedRate = gamesCount > 0 ? (sumExp / gamesCount) * 100 : 50
+  const actualWinPct = Math.round(actualRate)
+  const expectedWinPct = Math.round(expectedRate)
+  const pairImpact = gamesCount > 0 ? Math.round(actualRate - expectedRate) : 0
 
   const confidence = confidenceLevelOf(gamesCount)
   const synergyScore = normalizeSynergyScore(pairImpact, gamesCount)
@@ -1023,6 +1032,7 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
   const h2hMatches = []
   ;(matches || []).forEach((m) => {
     if (!m || !m.winnerTeam) return
+    if (m.ratingEnabled === false) return // Trận giao lưu không vào thống kê khắc chế
     const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
     const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
 
@@ -1049,6 +1059,7 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
         id: m.id,
         won,
         pairAExp,
+        pairAIsTeamA: aInA, // cần để đọc đúng vế tỷ số của cặp A trong từng set
         sets: m.sets || [],
         at: m.at || (m.playedAt ? Date.parse(m.playedAt) : 0),
         match: m,
@@ -1076,10 +1087,13 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
   }
 
   const winsCount = h2hMatches.filter((x) => x.won).length
-  const actualWinPct = Math.round((winsCount / gamesCount) * 100)
+  // Trừ trước, làm tròn sau (xem giải thích ở calcPairImpact)
   const sumExp = h2hMatches.reduce((acc, x) => acc + x.pairAExp, 0)
-  const expectedWinPct = Math.round((sumExp / gamesCount) * 100)
-  const matchupImpact = actualWinPct - expectedWinPct
+  const actualRate = (winsCount / gamesCount) * 100
+  const expectedRate = (sumExp / gamesCount) * 100
+  const actualWinPct = Math.round(actualRate)
+  const expectedWinPct = Math.round(expectedRate)
+  const matchupImpact = Math.round(actualRate - expectedRate)
 
   const c = Math.min(1.0, gamesCount / 10)
   const advantageScore = Math.max(10, Math.min(99, Math.round(50 + matchupImpact * 1.2 * c)))
@@ -1091,13 +1105,17 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
     })
   })
 
+  // Cách biệt điểm trung bình MỖI SET, tính theo đúng vế của cặp A.
+  // Cách cũ lấy dấu theo kết quả TRẬN (`hm.won ? +|sa-sb| : -|sa-sb|`) nên set đã THUA
+  // trong một trận thắng 2-1 vẫn bị cộng dương — thổi phồng mức áp đảo.
   let totalScoreDiff = 0
   let diffCount = 0
   h2hMatches.forEach((hm) => {
     (hm.sets || []).forEach(([sa, sb]) => {
       if (sa != null && sb != null) {
-        const diff = hm.won ? Math.abs(sa - sb) : -Math.abs(sa - sb)
-        totalScoreDiff += diff
+        const myScore = hm.pairAIsTeamA ? sa : sb
+        const oppScore = hm.pairAIsTeamA ? sb : sa
+        totalScoreDiff += (myScore - oppScore)
         diffCount++
       }
     })
@@ -1130,6 +1148,7 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
 
   ;(matches || []).forEach((m) => {
     if (!m || !m.winnerTeam) return
+    if (m.ratingEnabled === false) return // Cặp chỉ đánh giao lưu thì không lập bảng
     const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
     const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
 

@@ -919,7 +919,7 @@ function getConfidenceDots(tier) {
                           )}
                         </div>
                         <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                          {typeof pair.combinedRating === 'number' && !isNaN(pair.combinedRating) ? `${pair.combinedRating} Elo · ` : ''}
+                          {typeof pair.combinedRating === 'number' && !isNaN(pair.combinedRating) ? `${t('leaderboard.pairCombinedElo', { n: pair.combinedRating })} · ` : ''}
                           {pair.gamesCount} {t('units.match')} · {dateStr}
                         </div>
                       </div>

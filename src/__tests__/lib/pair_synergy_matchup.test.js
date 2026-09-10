@@ -24,14 +24,14 @@ test('Pair Synergy, Opponent Matchup & What-if Core Logic Suite (vNext)', async 
     assert.equal(r1.weight, 0.0)
     assert.equal(r1.isProvisional, true)
 
-    // R2: 5 - 11 trận
+    // R2: 5 - 14 trận (dùng chung mốc với kFactorOf / confidenceOf)
     const r2 = confidenceLevelOf(8)
     assert.equal(r2.tier, 'R2')
     assert.equal(r2.dots, '●●○○')
     assert.equal(r2.weight, 0.5)
     assert.equal(r2.isProvisional, false)
 
-    // R3: 12 - 29 trận
+    // R3: 15 - 29 trận
     const r3 = confidenceLevelOf(18)
     assert.equal(r3.tier, 'R3')
     assert.equal(r3.dots, '●●●○')
@@ -162,8 +162,12 @@ test('Pair Synergy, Opponent Matchup & What-if Core Logic Suite (vNext)', async 
     assert.equal(edgeMNtoKD.winsCount, 7)
     assert.equal(edgeMNtoKD.actualWinPct, 88)
     assert.equal(edgeMNtoKD.expectedWinPct, 55)
-    assert.ok(edgeMNtoKD.matchupImpact > 30) // +33pp
-    assert.equal(edgeMNtoKD.advantageScore, 82, 'Minh+Nam should have decisive advantage')
+    // Kỳ vọng thật 55.0199%, thực tế 87.5% -> lệch 32.48pp -> làm tròn 32.
+    // Bản cũ làm tròn CẢ HAI VẾ rồi mới trừ (88 - 55 = 33) nên phồng lên 1pp và ra 82.
+    // advantage = 50 + 32 × 1.2 × min(1, 8/10) = 50 + 30.72 = 80.7 -> 81
+    assert.ok(edgeMNtoKD.matchupImpact > 30) // +32pp
+    assert.equal(edgeMNtoKD.matchupImpact, 32, 'Trừ trước làm tròn sau — không được ra 33')
+    assert.equal(edgeMNtoKD.advantageScore, 81, 'Minh+Nam should have decisive advantage')
 
     // Chiều ngược lại Kien+Dat -> Minh+Nam
     const edgeKDtoMN = calcMatchupEdge(h2hMatches, ['pKien', 'pDat'], ['pMinh', 'pNam'])
@@ -382,5 +386,83 @@ test('Pair Synergy, Opponent Matchup & What-if Core Logic Suite (vNext)', async 
 
     // 21-2 (diff 19): Giữ trần 1.20 an toàn
     assert.equal(marginMultiplierVNext([[21, 2]]), 1.20)
+  })
+})
+
+/* ==========================================================================
+ * Rà tầng Ăn ý / Khắc chế cho khớp với Elo và điểm mùa.
+ * Ba thứ dưới đây từng lệch âm thầm: trận giao lưu vẫn vào bảng, sai số làm
+ * tròn, và dấu cách biệt điểm lấy theo kết quả TRẬN thay vì theo từng SET.
+ * ========================================================================== */
+test('Pair Stats — Đồng bộ với Elo & điểm mùa', async (t) => {
+  const mk = (id, at, winner, extra = {}) => ({
+    id, at, teamA: ['p1', 'p2'], teamB: ['p3', 'p4'],
+    winnerTeam: winner, initialRatingA: 500, initialRatingB: 500,
+    sets: [[21, 15]], ...extra,
+  })
+
+  await t.test('11. Trận giao lưu không được tính vào ăn ý', () => {
+    // saveMatchScore vẫn ghi initialRatingA/B cho trận ratingEnabled=false,
+    // nên không lọc là nó lặng lẽ lọt vào bảng cặp trong khi Elo và điểm mùa đều bỏ qua.
+    const rated = [mk('a', 1000, 'A'), mk('b', 2000, 'A')]
+    const mixed = [...rated, mk('c', 3000, 'B', { ratingEnabled: false })]
+
+    const r = calcPairImpact(rated, 'p1', 'p2')
+    const m = calcPairImpact(mixed, 'p1', 'p2')
+    assert.equal(r.gamesCount, 2)
+    assert.equal(m.gamesCount, 2, 'Trận giao lưu phải bị loại khỏi số trận của cặp')
+    assert.equal(m.actualWinPct, 100, 'Thua 1 trận giao lưu không được kéo tỷ lệ thắng xuống')
+  })
+
+  await t.test('12. Khắc chế cũng loại trận giao lưu', () => {
+    const mixed = [mk('a', 1000, 'A'), mk('b', 2000, 'B', { ratingEnabled: false })]
+    const edge = calcMatchupEdge(mixed, ['p1', 'p2'], ['p3', 'p4'])
+    assert.equal(edge.gamesCount, 1)
+    assert.equal(edge.winsCount, 1)
+  })
+
+  await t.test('13. Lệch kỳ vọng trừ trước rồi mới làm tròn', () => {
+    // 7 thắng / 8 trận = 87.5%; Elo 1750 vs 1715 -> kỳ vọng 55.0199%
+    // Đúng: round(87.5 - 55.0199) = round(32.48) = 32
+    // Sai (làm tròn cả hai vế trước): 88 - 55 = 33
+    const h2h = Array.from({ length: 8 }, (_, i) => ({
+      id: `h_${i}`, at: 2000 + i * 10,
+      teamA: ['pM', 'pN'], teamB: ['pK', 'pD'],
+      winnerTeam: i < 7 ? 'A' : 'B',
+      initialRatingA: 1750, initialRatingB: 1715,
+      sets: [[21, 18]],
+    }))
+    const edge = calcMatchupEdge(h2h, ['pM', 'pN'], ['pK', 'pD'])
+    assert.equal(edge.matchupImpact, 32, 'Làm tròn hai lần sẽ ra 33 — sai 1pp')
+
+    const pair = calcPairImpact(h2h, 'pM', 'pN')
+    assert.equal(pair.pairImpact, 32, 'calcPairImpact phải cùng quy tắc làm tròn')
+  })
+
+  await t.test('14. Cách biệt điểm tính theo TỪNG SET, không theo kết quả trận', () => {
+    // Thắng trận 2-1 nhưng set giữa thua đậm: 21-19, 5-21, 21-19.
+    // Cách biệt thật = (2 - 16 + 2) / 3 = -4.0 (thắng chật vật, thua đậm 1 set).
+    // Cách cũ lấy dấu theo TRẬN nên cộng dương cả set đã thua: (2 + 16 + 2)/3 = +6.7.
+    const h2h = [{
+      id: 'x1', at: 1000,
+      teamA: ['pM', 'pN'], teamB: ['pK', 'pD'],
+      winnerTeam: 'A',
+      initialRatingA: 500, initialRatingB: 500,
+      sets: [[21, 19], [5, 21], [21, 19]],
+    }]
+    const edge = calcMatchupEdge(h2h, ['pM', 'pN'], ['pK', 'pD'])
+    assert.equal(edge.avgScoreDiff, '-4.0', 'Set đã thua phải mang dấu âm')
+
+    // Chiều ngược lại phải đối xứng
+    const back = calcMatchupEdge(h2h, ['pK', 'pD'], ['pM', 'pN'])
+    assert.equal(back.avgScoreDiff, '+4.0')
+  })
+
+  await t.test('15. Thang R dùng chung mốc 5/15/30 với phần còn lại của hệ thống', () => {
+    assert.equal(confidenceLevelOf(13).tier, 'R2', '13 trận: trước đây hàm này ghi R3 còn tab Elo ghi medium')
+    assert.equal(confidenceLevelOf(14).tier, 'R2')
+    assert.equal(confidenceLevelOf(15).tier, 'R3')
+    assert.equal(confidenceLevelOf(29).tier, 'R3')
+    assert.equal(confidenceLevelOf(30).tier, 'R4')
   })
 })
