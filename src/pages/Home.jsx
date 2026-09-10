@@ -267,11 +267,11 @@ function Overview() {
                     <span style={{
                       display: 'inline-flex', alignItems: 'center', gap: 4,
                       padding: '2px 7px', borderRadius: 4,
-                      background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(14, 165, 233, 0.12) 100%)',
-                      border: '1px solid rgba(2, 132, 199, 0.2)',
-                      color: 'var(--navy-800)', fontWeight: 600, fontSize: 12,
+                      background: 'var(--status-transit-bg, rgba(0, 178, 169, 0.12))',
+                      border: '1px solid rgba(0, 178, 169, 0.25)',
+                      color: 'var(--status-transit-fg, #5FDBD3)', fontWeight: 600, fontSize: 12,
                     }}>
-                      <Icon name="users" size={11} style={{ color: 'var(--teal-600)' }} />
+                      <Icon name="users" size={11} style={{ color: 'var(--status-transit-fg, #5FDBD3)' }} />
                       <span>{groupOf(db, s.groupId).name}</span>
                     </span>
                     <SessionPill status={s.status} size="sm" />
@@ -287,14 +287,14 @@ function Overview() {
                     }}>
                     <span style={{
                       fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11.5,
-                      color: 'var(--navy-700)', padding: '1px 5px', borderRadius: 3,
-                      background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 3,
+                      background: 'var(--surface-sunken)', border: '1px solid var(--border-subtle)',
                     }}>
                       {timeTxt(s)}
                     </span>
                     <span style={{ color: 'var(--text-muted)' }}>·</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <Icon name="map-pin" size={11} style={{ color: 'var(--teal-600)', flexShrink: 0 }} />
+                      <Icon name="map-pin" size={11} style={{ color: 'var(--status-transit-fg, #5FDBD3)', flexShrink: 0 }} />
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{courtTxt(db, s)}</span>
                     </span>
                   </div>

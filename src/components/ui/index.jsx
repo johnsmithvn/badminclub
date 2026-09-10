@@ -82,17 +82,33 @@ export const Bar = ({ pct, color = 'var(--navy-500)', height = 8 }) => (
 )
 
 /** Khối ngày 56px (buổi tới, dòng lịch) hiển thị ngày/tháng rõ ràng. */
-export const DayBox = ({ iso }) => (
-  <div style={{
-    width: 56, flex: '0 0 auto', textAlign: 'center', padding: '5px 2px',
-    borderRadius: 8, background: 'var(--surface-brand-soft)',
-  }}>
-    <div style={{ font: '700 16px/1 var(--font-display)', color: 'var(--navy-700)' }}>
-      {iso.slice(8, 10)}<span style={{ fontSize: 11, fontWeight: 500, color: 'var(--navy-500)' }}>/{iso.slice(5, 7)}</span>
+export const DayBox = ({ iso }) => {
+  const isSunday = wd(iso) === 'CN'
+  return (
+    <div style={{
+      width: 56, flex: '0 0 auto', textAlign: 'center', padding: '5px 2px',
+      borderRadius: 8,
+      background: isSunday ? 'var(--status-incident-bg, rgba(225, 68, 52, 0.14))' : 'var(--status-scheduled-bg, rgba(60, 116, 196, 0.14))',
+      border: `1px solid ${isSunday ? 'rgba(239, 68, 68, 0.25)' : 'rgba(99, 102, 241, 0.25)'}`,
+    }}>
+      <div style={{
+        font: '700 16px/1 var(--font-display)',
+        color: isSunday ? 'var(--status-incident-fg, #FF9A8F)' : 'var(--status-scheduled-fg, #9FC0EA)',
+      }}>
+        {iso.slice(8, 10)}
+        <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginLeft: 1 }}>
+          /{iso.slice(5, 7)}
+        </span>
+      </div>
+      <Overline style={{
+        color: isSunday ? 'var(--status-incident-fg, #FF9A8F)' : 'var(--status-scheduled-fg, #9FC0EA)',
+        marginTop: 2, fontWeight: 700,
+      }}>
+        {wd(iso)}
+      </Overline>
     </div>
-    <Overline style={{ color: 'var(--navy-600)', marginTop: 2 }}>{wd(iso)}</Overline>
-  </div>
-)
+  )
+}
 
 /** Trạng thái rỗng: một câu sự thật + một câu việc cần làm (DESIGN.md §7). */
 export const Empty = ({ icon = 'inbox', title, hint }) => (
@@ -137,9 +153,9 @@ export function sessionColumns(db) {
               font: '700 11px/1 var(--font-sans)',
               padding: '3px 6px',
               borderRadius: 4,
-              background: isSunday ? 'rgba(239, 68, 68, 0.12)' : 'var(--surface-brand-soft)',
-              color: isSunday ? '#dc2626' : 'var(--navy-700)',
-              border: `1px solid ${isSunday ? 'rgba(239, 68, 68, 0.25)' : 'rgba(30, 58, 138, 0.15)'}`,
+              background: isSunday ? 'var(--status-incident-bg, rgba(225, 68, 52, 0.14))' : 'var(--status-scheduled-bg, rgba(60, 116, 196, 0.14))',
+              color: isSunday ? 'var(--status-incident-fg, #FF9A8F)' : 'var(--status-scheduled-fg, #9FC0EA)',
+              border: `1px solid ${isSunday ? 'rgba(239, 68, 68, 0.28)' : 'rgba(99, 102, 241, 0.25)'}`,
             }}>
               {wd(r.date)}
             </span>
@@ -155,12 +171,12 @@ export function sessionColumns(db) {
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
             padding: '3px 9px', borderRadius: 6,
-            background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(14, 165, 233, 0.12) 100%)',
-            border: '1px solid rgba(2, 132, 199, 0.22)',
-            color: 'var(--teal-700)', fontWeight: 600, fontSize: 12,
+            background: 'var(--status-transit-bg, rgba(0, 178, 169, 0.12))',
+            border: '1px solid rgba(0, 178, 169, 0.25)',
+            color: 'var(--status-transit-fg, #5FDBD3)', fontWeight: 600, fontSize: 12,
             whiteSpace: 'nowrap',
           }}>
-            <Icon name="users" size={12} style={{ color: 'var(--teal-600)' }} />
+            <Icon name="users" size={12} style={{ color: 'var(--status-transit-fg, #5FDBD3)' }} />
             <span>{grp.name}</span>
           </span>
         )
@@ -172,8 +188,8 @@ export function sessionColumns(db) {
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
           <span style={{
             fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700,
-            color: 'var(--navy-700)', padding: '2px 7px', borderRadius: 4,
-            background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+            color: 'var(--text-primary)', padding: '2px 7px', borderRadius: 4,
+            background: 'var(--surface-sunken)', border: '1px solid var(--border-subtle)',
             whiteSpace: 'nowrap',
           }}>
             {timeTxt(r)}
@@ -182,7 +198,7 @@ export function sessionColumns(db) {
             fontSize: 12, color: 'var(--text-secondary)',
             display: 'inline-flex', alignItems: 'center', gap: 4,
           }}>
-            <Icon name="map-pin" size={12} style={{ color: 'var(--teal-600)', flexShrink: 0 }} />
+            <Icon name="map-pin" size={12} style={{ color: 'var(--status-transit-fg, #5FDBD3)', flexShrink: 0 }} />
             <span style={{ fontWeight: 500 }}>{courtTxt(db, r)}</span>
           </span>
         </div>
@@ -200,9 +216,9 @@ export function sessionColumns(db) {
           <span style={{
             fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12,
             padding: '2px 8px', borderRadius: 99,
-            background: p > 0 ? 'rgba(16, 185, 129, 0.12)' : 'var(--surface-inset)',
-            color: p > 0 ? '#047857' : 'var(--text-muted)',
-            border: `1px solid ${p > 0 ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-subtle)'}`,
+            background: p > 0 ? 'var(--status-delivered-bg, rgba(16, 185, 129, 0.14))' : 'var(--surface-inset)',
+            color: p > 0 ? 'var(--status-delivered-fg, #5FD9A2)' : 'var(--text-muted)',
+            border: `1px solid ${p > 0 ? 'rgba(18, 168, 103, 0.3)' : 'var(--border-subtle)'}`,
           }}>
             {p}/{tot}
           </span>
@@ -218,9 +234,9 @@ export function sessionColumns(db) {
           <span style={{
             fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12,
             padding: '2px 8px', borderRadius: 99,
-            background: 'rgba(245, 158, 11, 0.12)',
-            color: '#b45309',
-            border: '1px solid rgba(245, 158, 11, 0.28)',
+            background: 'var(--status-delayed-bg, rgba(245, 158, 11, 0.14))',
+            color: 'var(--status-delayed-fg, #F0B75C)',
+            border: '1px solid rgba(224, 138, 0, 0.3)',
           }}>
             +{gCount}
           </span>
@@ -239,9 +255,9 @@ export function sessionColumns(db) {
           <span style={{
             fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12,
             padding: '2px 8px', borderRadius: 99,
-            background: 'rgba(99, 102, 241, 0.12)',
-            color: '#4338ca',
-            border: '1px solid rgba(99, 102, 241, 0.25)',
+            background: 'var(--status-scheduled-bg, rgba(99, 102, 241, 0.14))',
+            color: 'var(--status-scheduled-fg, #9FC0EA)',
+            border: '1px solid rgba(60, 116, 196, 0.3)',
           }}>
             {total}
           </span>
@@ -262,7 +278,7 @@ export function sessionColumns(db) {
         const rev = guestRev(db, r.id)
         if (rev > 0) {
           return (
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12.5, color: '#059669' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12.5, color: 'var(--status-delivered-fg, #5FD9A2)' }}>
               +{fmtK(rev)}
             </span>
           )
