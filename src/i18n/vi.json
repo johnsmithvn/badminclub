@@ -1104,6 +1104,8 @@
     "statCourtSession": "Trả theo từng buổi đã chốt",
     "statGuest": "Thu khách giao lưu",
     "statGuestCaption": "{{paid}} đã trả · {{debt}} còn nợ",
+    "statGuestPaid": "{{amount}} đã trả",
+    "statGuestDebt": "{{amount}} còn nợ",
     "emptyTitle": "Chưa có buổi nào trong tháng này",
     "emptyHint": "Bấm Tạo lịch hàng loạt để sinh buổi cho cả kỳ, hoặc Buổi đột xuất cho một buổi lẻ.",
     "attendTitle": "Điểm danh thành viên",

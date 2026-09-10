@@ -25,6 +25,56 @@ export default function AppHeader({ route }) {
   }
 
   if (isMobile) {
+    if (route === 'sessions') {
+      return (
+        <header style={S.mobileHeaderSingleRow}>
+          <div style={S.mobileLeftSingleRow}>
+            <span style={S.mobileTitleSingleRow}>{page.title}</span>
+            <div style={S.mobileMonthNavCompact}>
+              <button
+                type="button"
+                aria-label={t('common.prevMonth')}
+                onClick={() => a.shiftMonth(-1)}
+                style={S.mobileMonthBtnCompact}
+              >
+                <Icon name="chevron-left" size={13} />
+              </button>
+              <span style={S.mobileMonthLabelCompact}>{monthTxt(db.month)}</span>
+              <button
+                type="button"
+                aria-label={t('common.nextMonth')}
+                onClick={() => a.shiftMonth(1)}
+                style={S.mobileMonthBtnCompact}
+              >
+                <Icon name="chevron-right" size={13} />
+              </button>
+            </div>
+          </div>
+
+          <div style={S.mobileRight}>
+            <IconButton
+              icon={isDark ? 'sun' : 'moon'}
+              size="sm"
+              variant="ghost"
+              style={S.themeBtn}
+              label={isDark ? t('common.themeLight') : t('common.themeDark')}
+              onClick={toggleTheme}
+            />
+            {can(role, 'sessions') && (
+              <IconButton
+                icon="calendar-plus"
+                size="sm"
+                variant="primary"
+                style={S.adhocIconBtn}
+                label={t('shell.adhoc')}
+                onClick={() => a.openDialog('adhoc', adhocForm(db))}
+              />
+            )}
+          </div>
+        </header>
+      )
+    }
+
     return (
       <header style={S.mobileHeader}>
         <div style={S.mobileLeft}>
@@ -91,16 +141,6 @@ export default function AppHeader({ route }) {
                 onClick={a.exportSettings}
               />
             </div>
-          )}
-          {route === 'sessions' && can(role, 'sessions') && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon="calendar-plus"
-              onClick={() => a.openDialog('adhoc', adhocForm(db))}
-            >
-              {t('shell.adhoc')}
-            </Button>
           )}
           {route === 'members' && can(role, 'members') && (
             <Button
@@ -282,6 +322,76 @@ const S = {
     alignItems: 'center',
     gap: 8,
     flexShrink: 0,
+  },
+  mobileHeaderSingleRow: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 30,
+    minHeight: 52,
+    height: 52,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 16px',
+    background: 'var(--surface-nav)',
+    borderBottom: '1px solid var(--border-nav)',
+  },
+  mobileLeftSingleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
+    flex: 1,
+  },
+  mobileTitleSingleRow: {
+    font: '700 18px/1.2 var(--font-display, Barlow, sans-serif)',
+    color: 'var(--text-on-nav-active)',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  mobileMonthNavCompact: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 2,
+    padding: '2px 4px',
+    borderRadius: 8,
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+    flexShrink: 0,
+  },
+  mobileMonthLabelCompact: {
+    font: '600 12px/1 var(--font-mono)',
+    color: 'var(--text-on-nav)',
+    whiteSpace: 'nowrap',
+    padding: '0 3px',
+  },
+  mobileMonthBtnCompact: {
+    background: 'transparent',
+    border: 0,
+    color: 'var(--text-on-nav)',
+    cursor: 'pointer',
+    width: 26,
+    height: 26,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    padding: 0,
+    lineHeight: 1,
+    flexShrink: 0,
+  },
+  adhocIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    background: 'var(--action-primary-bg, #3B82F6)',
+    color: '#FFFFFF',
+    border: '1px solid #60A5FA',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
   },
 }
 
