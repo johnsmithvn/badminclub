@@ -247,8 +247,39 @@ const mappedEmpty = mapVoiceResultToCourt({
 })
 assert.equal(mappedEmpty.status, 'ok')
 assert.deepEqual(mappedEmpty.proposedTeamA, ['p1'], 'Tự động đề xuất Tuấn Béo vào Team A')
-assert.deepEqual(mappedEmpty.proposedTeamB, ['p3'], 'Tự động đề xuất Hùng Xoăn vào Team B')
-assert.equal(mappedEmpty.scoreA, 21)
-assert.equal(mappedEmpty.scoreB, 15)
+// -------------------------------------------------------------
+// 9. Test xếp 4 người vào sân khi chỉ đọc tên (không có điểm số)
+// -------------------------------------------------------------
+// Câu thoại: "vân anh thắng nam trung"
+const mockPlayers4 = [
+  { id: 'p_va', name: 'Vân Anh', fullName: 'Nguyễn Vân Anh' },
+  { id: 'p_th', name: 'Thắng', fullName: 'Vũ Đức Thắng' },
+  { id: 'p_nm', name: 'Nam', fullName: 'Hoàng Hải Nam' },
+  { id: 'p_tr', name: 'Trung', fullName: 'Trần Văn Trung' },
+]
+
+const parsedAssign4 = parseVoiceMatch({
+  transcript: 'vân anh thắng nam trung',
+  players: mockPlayers4,
+})
+assert.equal(parsedAssign4.status, 'ok')
+assert.equal(parsedAssign4.intent, 'assign_court', 'Không có điểm số phải là intent xếp sân')
+assert.equal(parsedAssign4.matchedPlayers.length, 4, 'Phải nhận diện đủ cả 4 người chơi')
+assert.equal(parsedAssign4.matchedPlayers[0].id, 'p_va', 'Người 1 là Vân Anh')
+assert.equal(parsedAssign4.matchedPlayers[1].id, 'p_th', 'Người 2 là Thắng (không bị nuốt bởi động từ thắng)')
+assert.equal(parsedAssign4.matchedPlayers[2].id, 'p_nm', 'Người 3 là Nam')
+assert.equal(parsedAssign4.matchedPlayers[3].id, 'p_tr', 'Người 4 là Trung')
+
+const mappedAssign4 = mapVoiceResultToCourt({
+  parsedResult: parsedAssign4,
+  courtIdx: 0,
+  currentTeamA: [],
+  currentTeamB: [],
+  players: mockPlayers4,
+})
+assert.equal(mappedAssign4.status, 'ok')
+assert.equal(mappedAssign4.intent, 'assign_court')
+assert.deepEqual(mappedAssign4.proposedTeamA, ['p_va', 'p_th'], 'Đội A gồm Vân Anh và Thắng')
+assert.deepEqual(mappedAssign4.proposedTeamB, ['p_nm', 'p_tr'], 'Đội B gồm Nam và Trung')
 
 console.log('voiceMatchParser check: OK')

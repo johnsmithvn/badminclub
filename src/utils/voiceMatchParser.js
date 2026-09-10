@@ -333,10 +333,17 @@ export function parseVoiceMatch({ transcript, players = [], currentCourt: _curre
   // 2. Bóc tách điểm số
   const scores = extractScores(textWithDigits)
 
-  // 3. Cô lập động từ kết quả (Thắng/Thua/Win/Lose) để bảo vệ từ đồng âm
-  const { actionType, processedText } = isolateActionWord(textWithDigits)
+  // 3. Cô lập động từ kết quả (Thắng/Thua/Win/Lose) để bảo vệ từ đồng âm (chỉ áp dụng khi có tỷ số)
+  let actionType = null
+  let processedText = textWithDigits
 
-  // 4. Tìm kiếm người chơi trên chuỗi đã cô lập động từ
+  if (scores) {
+    const isolated = isolateActionWord(textWithDigits)
+    actionType = isolated.actionType
+    processedText = isolated.processedText
+  }
+
+  // 4. Tìm kiếm người chơi trên chuỗi đã qua xử lý
   const { matched, ambiguous } = matchPlayersInText(processedText, players)
 
   if (ambiguous) {
@@ -470,11 +477,40 @@ export function mapVoiceResultToCourt({
   } = parsedResult
 
   if (intent === 'assign_court') {
+    const matched = parsedResult.matchedPlayers || []
+    let proposedTeamA = [...currentTeamA]
+    let proposedTeamB = [...currentTeamB]
+
+    if (matched.length >= 4) {
+      // 4 người: chia đều 2 người đội A, 2 người đội B
+      proposedTeamA = [matched[0].id || matched[0].key, matched[1].id || matched[1].key]
+      proposedTeamB = [matched[2].id || matched[2].key, matched[3].id || matched[3].key]
+    } else if (matched.length === 2) {
+      if (proposedTeamA.length === 0 && proposedTeamB.length === 0) {
+        proposedTeamA = [matched[0].id || matched[0].key]
+        proposedTeamB = [matched[1].id || matched[1].key]
+      } else {
+        const toAdd = matched.map((p) => p.id || p.key)
+        let idx = 0
+        while (proposedTeamA.length < 2 && idx < toAdd.length) {
+          proposedTeamA.push(toAdd[idx++])
+        }
+        while (proposedTeamB.length < 2 && idx < toAdd.length) {
+          proposedTeamB.push(toAdd[idx++])
+        }
+      }
+    } else if (matched.length === 3) {
+      proposedTeamA = [matched[0].id || matched[0].key, matched[1].id || matched[1].key]
+      proposedTeamB = [matched[2].id || matched[2].key]
+    }
+
     return {
       status: 'ok',
       intent: 'assign_court',
       courtIdx,
-      matchedPlayers: parsedResult.matchedPlayers || [],
+      matchedPlayers: matched,
+      proposedTeamA,
+      proposedTeamB,
     }
   }
 

@@ -2748,7 +2748,10 @@
     "sandboxHint": "Thử nghiệm: Bạn có thể vừa nói qua Micro vừa gõ trực tiếp câu thoại để kiểm tra bộ lọc phân tích.",
     "exTeamA": "A thắng 21 15",
     "exTeamBLose": "B thua 21 18",
-    "exMatch": "{{p1}} thắng {{p2}} 21 17"
+    "exMatch": "{{p1}} thắng {{p2}} 21 17",
+    "statusAssignOk": "Nhận diện {{n}} người chơi",
+    "btnAssignToCourt": "Xếp vào sân",
+    "toastAssigned": "Đã xếp {{n}} người vào sân"
   },
   "courtAssign": {
     "waitingPool": "Đang chờ · {{n}} người",

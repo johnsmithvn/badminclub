@@ -106,7 +106,11 @@ export default function VoiceMatchModal({
       scoreB: mapped.scoreB,
       winnerTeam: mapped.winnerTeam,
     })
-    a.toast(t('voiceMatch.toastApplied'))
+    if (mapped.intent === 'assign_court') {
+      a.toast(t('voiceMatch.toastAssigned', { n: mapped.matchedPlayers?.length || 0 }))
+    } else {
+      a.toast(t('voiceMatch.toastApplied'))
+    }
     onClose()
   }
 
@@ -337,7 +341,12 @@ export default function VoiceMatchModal({
               </span>
 
               {/* Status Badge */}
-              {isOk && (
+              {isOk && mapped?.intent === 'assign_court' && (
+                <span style={{ font: '600 11.5px var(--font-sans)', color: 'var(--status-delivered-fg)', background: 'var(--status-delivered-bg, rgba(16, 185, 129, 0.15))', padding: '2px 8px', borderRadius: 999 }}>
+                  ✓ {t('voiceMatch.statusAssignOk', { n: mapped.matchedPlayers?.length || 0 })}
+                </span>
+              )}
+              {isOk && mapped?.intent !== 'assign_court' && (
                 <span style={{ font: '600 11.5px var(--font-sans)', color: 'var(--status-delivered-fg)', background: 'var(--status-delivered-bg, rgba(16, 185, 129, 0.15))', padding: '2px 8px', borderRadius: 999 }}>
                   ✓ {t('voiceMatch.statusOk')}
                 </span>
@@ -389,9 +398,11 @@ export default function VoiceMatchModal({
                     <div style={{ font: '600 13px/1.3 var(--font-sans)', color: mapped.winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-primary)' }}>
                       {previewTeamANames}
                     </div>
-                    <div style={{ font: '700 20px/1.2 "IBM Plex Mono", monospace', color: mapped.winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-muted)' }}>
-                      {mapped.scoreA}
-                    </div>
+                    {mapped.intent === 'record_score' && (
+                      <div style={{ font: '700 20px/1.2 "IBM Plex Mono", monospace', color: mapped.winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-muted)' }}>
+                        {mapped.scoreA}
+                      </div>
+                    )}
                   </div>
 
                   <span style={{ font: '600 12px var(--font-sans)', color: 'var(--text-muted)', padding: '0 10px' }}>vs</span>
@@ -401,9 +412,11 @@ export default function VoiceMatchModal({
                     <div style={{ font: '600 13px/1.3 var(--font-sans)', color: mapped.winnerTeam === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-primary)' }}>
                       {previewTeamBNames}
                     </div>
-                    <div style={{ font: '700 20px/1.2 "IBM Plex Mono", monospace', color: mapped.winnerTeam === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-muted)' }}>
-                      {mapped.scoreB}
-                    </div>
+                    {mapped.intent === 'record_score' && (
+                      <div style={{ font: '700 20px/1.2 "IBM Plex Mono", monospace', color: mapped.winnerTeam === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-muted)' }}>
+                        {mapped.scoreB}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -430,17 +443,19 @@ export default function VoiceMatchModal({
           {isOk && (
             <>
               <Button
-                variant="secondary"
+                variant={mapped.intent === 'assign_court' ? 'primary' : 'secondary'}
                 onClick={handleApply}
               >
-                {t('voiceMatch.applyToCourt')}
+                {mapped.intent === 'assign_court' ? t('voiceMatch.btnAssignToCourt') : t('voiceMatch.applyToCourt')}
               </Button>
-              <Button
-                variant="primary"
-                onClick={handleSaveDirect}
-              >
-                {t('voiceMatch.saveDirect')}
-              </Button>
+              {mapped.intent === 'record_score' && (
+                <Button
+                  variant="primary"
+                  onClick={handleSaveDirect}
+                >
+                  {t('voiceMatch.saveDirect')}
+                </Button>
+              )}
             </>
           )}
         </div>
