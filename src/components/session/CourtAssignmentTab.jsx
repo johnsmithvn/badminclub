@@ -4,6 +4,7 @@ import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { playerName, genderTxt, isFemaleGender, isMaleGender } from '#lib/money.js'
+import { can } from '#lib/roles.js'
 import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWaitTime } from '#lib/assign.js'
 import {
   expectedScore, getPlayerRating,
@@ -18,6 +19,8 @@ import BalanceScore from '#components/session/BalanceScore.jsx'
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
   const isMobile = useMobile(768)
+  const role = db.viewAs || 'owner'
+  const canManage = can(role, 'assign')
 
   // Mode: 'doubles' (2 vs 2) hoặc 'singles' (1 vs 1)
   const [mode, setMode] = useState('doubles')
@@ -756,27 +759,31 @@ export default function CourtAssignmentTab({ s }) {
         padding="12px 14px"
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {/* Nút ▤ Thống kê mở CS3 */}
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="table"
-              onClick={() => setShowStatsSheet(true)}
-              title={t('assign.statsSheetSub')}
-              style={{ padding: isMobile ? '0 8px' : '0 12px' }}
-            >
-              {isMobile ? '▤' : `▤ ${t('assign.tabStats')}`}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="wand-sparkles"
-              onClick={handleAutoPickFewest}
-              disabled={waitingPlayers.length === 0 || isCourtFull}
-              style={{ padding: isMobile ? '0 8px' : '0 12px' }}
-            >
-              {isMobile ? t('assign.fewestBtnShort') : t('assign.fewestBtn')}
-            </Button>
+            {/* Nút ▤ Thống kê mở CS3 - chỉ hiển thị với Ban tổ chức / Quản lý */}
+            {canManage && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="table"
+                onClick={() => setShowStatsSheet(true)}
+                title={t('assign.statsSheetSub')}
+                style={{ padding: isMobile ? '0 8px' : '0 12px' }}
+              >
+                {isMobile ? '▤' : `▤ ${t('assign.tabStats')}`}
+              </Button>
+            )}
+            {canManage && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="wand-sparkles"
+                onClick={handleAutoPickFewest}
+                disabled={waitingPlayers.length === 0 || isCourtFull}
+                style={{ padding: isMobile ? '0 8px' : '0 12px' }}
+              >
+                {isMobile ? t('assign.fewestBtnShort') : t('assign.fewestBtn')}
+              </Button>
+            )}
           </div>
         }
       >
@@ -912,23 +919,96 @@ export default function CourtAssignmentTab({ s }) {
 
           {/* Danh sách người chờ dạng grid 2 cột (CS1) */}
           <div style={S.poolContainerScroll}>
-            {sortOption === 'fewest' && fewestGroups ? (
+            {canManage && sortOption === 'fewest' && fewestGroups ? (
               fewestGroups.map((grp) => {
                 let badgeColor = '#A8B7CB'
-                if (grp.count === 0 || grp.count <= 2) badgeColor = '#F0B75C'
-                else if (grp.count >= 6) badgeColor = '#5B6B81'
+                let badgeBg = 'var(--surface-sunken, rgba(255,255,255,0.05))'
+                let border = '1px solid var(--border-subtle, rgba(255,255,255,0.1))'
+                let lineGradient = 'linear-gradient(90deg, var(--border-subtle, rgba(255,255,255,0.15)) 0%, transparent 100%)'
+                let dotColor = '#7E92B2'
+
+                if (grp.count === 0 || grp.count <= 2) {
+                  badgeColor = '#F0B75C'
+                  badgeBg = 'rgba(240,183,92,0.12)'
+                  border = '1px solid rgba(240,183,92,0.3)'
+                  lineGradient = 'linear-gradient(90deg, rgba(240,183,92,0.35) 0%, transparent 100%)'
+                  dotColor = '#F0B75C'
+                } else if (grp.count >= 6) {
+                  badgeColor = '#5B6B81'
+                  badgeBg = 'rgba(91,107,129,0.12)'
+                  border = '1px solid rgba(91,107,129,0.25)'
+                  lineGradient = 'linear-gradient(90deg, rgba(91,107,129,0.3) 0%, transparent 100%)'
+                  dotColor = '#5B6B81'
+                } else {
+                  badgeColor = '#5FDBD3'
+                  badgeBg = 'rgba(0,178,169,0.12)'
+                  border = '1px solid rgba(0,178,169,0.3)'
+                  lineGradient = 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)'
+                  dotColor = 'var(--teal-500, #00B2A9)'
+                }
 
                 return (
                   <div key={`grp-${grp.count}`} style={S.groupWrapper}>
-                    {/* Header nhóm số trận */}
-                    <div style={S.groupDivider}>
-                      <div style={{ ...S.groupBadge, color: badgeColor }}>
-                        {grp.count} {t('units.match')}
+                    {/* Header nhóm số trận: Dải phân cách Pill Badge + Dot + Line gradient đồng bộ với Điểm danh */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        margin: '6px 0 2px',
+                        padding: '0 2px',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '2px 8px',
+                          borderRadius: 99,
+                          background: badgeBg,
+                          border,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                          transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: '50%',
+                            background: dotColor,
+                            display: 'inline-block',
+                          }}
+                        />
+                        <span
+                          style={{
+                            font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                            color: badgeColor,
+                            letterSpacing: '0.3px',
+                          }}
+                        >
+                          {grp.count} {t('units.match')}
+                        </span>
+                        <span
+                          style={{
+                            font: "700 10.5px/1.2 'IBM Plex Mono', monospace",
+                            color: badgeColor,
+                            opacity: 0.85,
+                            marginLeft: 2,
+                          }}
+                        >
+                          {grp.players.length}
+                        </span>
                       </div>
-                      <div style={S.groupLine} />
-                      <div style={S.groupCount}>
-                        {grp.players.length} {t('units.people')}
-                      </div>
+                      <div
+                        style={{
+                          flex: 1,
+                          height: 1,
+                          background: lineGradient,
+                        }}
+                      />
                     </div>
 
                     {/* Grid 2 cột */}
@@ -966,42 +1046,109 @@ export default function CourtAssignmentTab({ s }) {
                 )
               })
             ) : (
-              <div style={S.twoColGrid}>
-                {processedWaiting.map((p) => {
-                  const plays = matchCountMap[p.key] || 0
-                  const isFemale = isFemaleGender(p.gender)
-                  let badgeColor = '#A8B7CB'
-                  if (plays === 0 || plays <= 2) badgeColor = '#F0B75C'
-                  else if (plays >= 6) badgeColor = '#5B6B81'
-
-                  return (
+              <div style={S.groupWrapper}>
+                {processedWaiting.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      margin: '6px 0 2px',
+                      padding: '0 2px',
+                      userSelect: 'none',
+                    }}
+                  >
                     <div
-                      key={p.key}
-                      onClick={() => handleTapPlayer(p.key)}
                       style={{
-                        ...S.cs1PlayerCard,
-                        borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '2px 8px',
+                        borderRadius: 99,
+                        background: 'rgba(0,178,169,0.12)',
+                        border: '1px solid rgba(0,178,169,0.3)',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                        transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
                       }}
-                      role="button"
-                      tabIndex={0}
-                      title={p.name}
                     >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={S.cs1PlayerName}>{p.name}</div>
-                        <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
-                          {genderTxt(p.gender)} · {p.level || 'TB'}
-                          {sortOption === 'wait' && (playerWaitTimeMap[p.key] || 0) > 0 && (
-                            <> · {t('assign.waitingMinutes', { m: Math.round((playerWaitTimeMap[p.key] || 0) / 60000) })}</>
-                          )}
-                          {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
-                        </div>
-                      </div>
-                      <div style={{ ...S.cs1MatchCount, color: badgeColor }}>
-                        {plays}
-                      </div>
+                      <span
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: '50%',
+                          background: 'var(--teal-500, #00B2A9)',
+                          display: 'inline-block',
+                        }}
+                      />
+                      <span
+                        style={{
+                          font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                          color: '#5FDBD3',
+                          letterSpacing: '0.3px',
+                        }}
+                      >
+                        {t('assign.waitingPool')}
+                      </span>
+                      <span
+                        style={{
+                          font: "700 10.5px/1.2 'IBM Plex Mono', monospace",
+                          color: '#5FDBD3',
+                          opacity: 0.85,
+                          marginLeft: 2,
+                        }}
+                      >
+                        {processedWaiting.length}
+                      </span>
                     </div>
-                  )
-                })}
+                    <div
+                      style={{
+                        flex: 1,
+                        height: 1,
+                        background: 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)',
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div style={S.twoColGrid}>
+                  {processedWaiting.map((p) => {
+                    const plays = matchCountMap[p.key] || 0
+                    const isFemale = isFemaleGender(p.gender)
+                    let badgeColor = '#A8B7CB'
+                    if (plays === 0 || plays <= 2) badgeColor = '#F0B75C'
+                    else if (plays >= 6) badgeColor = '#5B6B81'
+
+                    return (
+                      <div
+                        key={p.key}
+                        onClick={() => handleTapPlayer(p.key)}
+                        style={{
+                          ...S.cs1PlayerCard,
+                          borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        title={p.name}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={S.cs1PlayerName}>{p.name}</div>
+                          <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
+                            {genderTxt(p.gender)} · {p.level || 'TB'}
+                            {canManage && sortOption === 'wait' && (playerWaitTimeMap[p.key] || 0) > 0 && (
+                              <> · {t('assign.waitingMinutes', { m: Math.round((playerWaitTimeMap[p.key] || 0) / 60000) })}</>
+                            )}
+                            {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
+                          </div>
+                        </div>
+                        {canManage && (
+                          <div style={{ ...S.cs1MatchCount, color: badgeColor }}>
+                            {plays}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 
@@ -1153,8 +1300,12 @@ export default function CourtAssignmentTab({ s }) {
                       <GenderChip gender={p.gender} />
                       <span style={{ color: 'var(--border-strong-color)' }}>·</span>
                       <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
-                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
-                      <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
+                      {canManage && (
+                        <>
+                          <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                          <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 )
@@ -1255,8 +1406,12 @@ export default function CourtAssignmentTab({ s }) {
                       <GenderChip gender={p.gender} />
                       <span style={{ color: 'var(--border-strong-color)' }}>·</span>
                       <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
-                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
-                      <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
+                      {canManage && (
+                        <>
+                          <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                          <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 )
@@ -1712,17 +1867,19 @@ export default function CourtAssignmentTab({ s }) {
         playerOnCourtName={playerOnCourtName}
       />
 
-      {/* CS3: Sheet thống kê buổi · không rời màn */}
-      <SessionStatsSheet
-        open={showStatsSheet}
-        onClose={() => setShowStatsSheet(false)}
-        session={s}
-        players={players}
-        sessionMatches={sessionMatches}
-        matchCountMap={matchCountMap}
-        ratingsMap={ratingsMap}
-        db={db}
-      />
+      {/* CS3: Sheet thống kê buổi · không rời màn - chỉ mở cho Ban tổ chức / Quản lý */}
+      {canManage && (
+        <SessionStatsSheet
+          open={showStatsSheet}
+          onClose={() => setShowStatsSheet(false)}
+          session={s}
+          players={players}
+          sessionMatches={sessionMatches}
+          matchCountMap={matchCountMap}
+          ratingsMap={ratingsMap}
+          db={db}
+        />
+      )}
 
       {/* M2 · Sheet Điểm cân bằng · BalanceScore.jsx */}
       {showBalanceSheet && balanceDetails && (
