@@ -1331,12 +1331,21 @@ export default function CourtAssignmentTab({ s }) {
             paddingTop: isMobile ? 8 : 0,
             borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
           }}>
-            <label style={S.switchLabel}>
-              <Switch checked={ratingEnabled} onChange={setRatingEnabled} />
-              <span style={{ fontSize: 13, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <Switch
+                checked={Boolean(ratingEnabled)}
+                onChange={(e) => {
+                  const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
+                  setRatingEnabled(Boolean(nextVal))
+                }}
+              />
+              <span
+                onClick={() => setRatingEnabled((v) => !v)}
+                style={{ fontSize: 13, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)', userSelect: 'none' }}
+              >
                 {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
               </span>
-            </label>
+            </div>
             <Button
               variant="secondary"
               size="sm"
@@ -1833,13 +1842,47 @@ export default function CourtAssignmentTab({ s }) {
 
             {/* Dự đoán trước trận & Thay đổi sau khi lưu */}
             <div style={S.preMatchBox}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
                   {t('scoreModal.predictTitle')}
                 </span>
-                <span style={ratingEnabled ? S.balancedTag : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
-                  {ratingEnabled ? t('scoreModal.balancedTag') : t('scoreModal.unratedTag')}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div
+                    onClick={() => setRatingEnabled((v) => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <Switch
+                      size="sm"
+                      checked={Boolean(ratingEnabled)}
+                      onChange={(e) => {
+                        const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
+                        setRatingEnabled(Boolean(nextVal))
+                      }}
+                    />
+                    <span style={{ fontSize: 12, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
+                    </span>
+                  </div>
+                  <span
+                    style={
+                      ratingEnabled
+                        ? (deltaRating > 200
+                            ? { ...S.balancedTag, background: 'rgba(225,68,52,.12)', color: '#FF9A8F', borderColor: 'rgba(225,68,52,.4)' }
+                            : deltaRating > 80
+                              ? { ...S.balancedTag, background: 'rgba(224,138,0,.12)', color: '#F0B75C', borderColor: 'rgba(224,138,0,.4)' }
+                              : S.balancedTag)
+                        : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }
+                    }
+                  >
+                    {ratingEnabled
+                      ? (deltaRating > 200
+                          ? t('scoreModal.imbalancedTag')
+                          : deltaRating > 80
+                            ? t('scoreModal.slightTag')
+                            : t('scoreModal.balancedTag'))
+                      : t('scoreModal.unratedTag')}
+                  </span>
+                </div>
               </div>
               {ratingEnabled ? (
                 <>

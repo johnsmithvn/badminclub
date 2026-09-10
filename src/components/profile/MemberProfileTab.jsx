@@ -365,16 +365,6 @@ export default function MemberProfileTab({
           </button>
           <button
             type="button"
-            onClick={() => setSubTab('ratings')}
-            style={{
-              ...S.subTabBtn,
-              ...(subTab === 'ratings' ? S.subTabBtnActive : {}),
-            }}
-          >
-            {t('profile.formatRatingsTitle')}
-          </button>
-          <button
-            type="button"
             onClick={() => setSubTab('h2h')}
             style={{
               ...S.subTabBtn,
@@ -546,10 +536,11 @@ export default function MemberProfileTab({
             </>
           )}
 
-          {/* TAB: SỨC MẠNH THEO NỘI DUNG & ĂN Ý (Screen AY3) */}
-          {subTab === 'ratings' && (
-            <div
-              data-screen-label="AY3 Ho so noi dung"
+          {/* TAB 2: ĐỐI ĐẦU & PARTNER (Bao gồm Sức mạnh theo nội dung, Ăn ý & Lịch sử H2H) */}
+          {subTab === 'h2h' && (
+            <>
+              <div
+                data-screen-label="AY3 Ho so noi dung & H2H"
               style={{
                 display: 'grid',
                 gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) 380px',
@@ -1023,12 +1014,9 @@ export default function MemberProfileTab({
                 </div>
               </div>
             </div>
-          )}
 
-          {/* TAB 2: ĐỐI ĐẦU & PARTNER (Screen 05) */}
-          {subTab === 'h2h' && (
-            <>
-              {/* Gặp nhiều nhất */}
+            {/* Thống kê đối đầu trực tiếp H2H */}
+            {/* Gặp nhiều nhất */}
               {h2hData.mostMet ? (
                 <div style={{ ...S.cardBox, gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>

@@ -316,3 +316,47 @@ test('Rating Input Consistency Suite', async (t) => {
     assert.equal(initialRatingOf('yeu'), 200)
   })
 })
+
+/* ==========================================================================
+ * Nút "Tính lại toàn bộ Elo" chạy replayRatingCascade. Nó CHỈ đáng tin nếu
+ * replay tái tạo đúng những gì đường ghi trực tiếp (saveMatchScore) đã làm.
+ * Khác biệt duy nhất còn sót: khách giao lưu.
+ * ========================================================================== */
+test('Replay Cascade — Khách giao lưu không tích luỹ Elo', async (t) => {
+  const members = [{ id: 'm1', level: 'tb' }, { id: 'm2', level: 'tb' }, { id: 'm3', level: 'tb' }]
+  const guests = [{ id: 'g1', level: 'tb' }]
+  const mk = (id, at, winner) => ({
+    id, at, sessionId: 's1', teamA: ['m1', 'g1'], teamB: ['m2', 'm3'],
+    winnerTeam: winner, sets: [[21, 10]], ratingEnabled: true,
+  })
+
+  await t.test('11. Khách không vào bảng Elo và trận đầu cả hai đều ở seed', () => {
+    const matches = [mk('a', 1000, 'A'), mk('b', 2000, 'A'), mk('c', 3000, 'A'), mk('d', 4000, 'A')]
+    const { updatedMatches, finalRatings } = replayRatingCascade(matches, null, members, null, guests)
+    const seed = initialRatingOf('tb')
+
+    assert.equal(updatedMatches[0].initialRatingA, seed, 'Trận đầu: cả m1 lẫn g1 đều ở seed')
+    assert.equal(finalRatings.g1, undefined, 'Khách giao lưu không được vào bảng xếp hạng Elo CLB')
+    assert.ok(finalRatings.m1, 'Hội viên thì phải có')
+    assert.equal(finalRatings.m1.gamesCount, 4, 'Hội viên vẫn đếm đủ 4 trận')
+  })
+
+  await t.test('12. Số trận của khách không làm tụt K-factor của chính họ', () => {
+    // Nếu khách được cộng gamesCount, K của họ tụt 48 -> 36 sau 5 trận và delta đội đổi theo.
+    const many = Array.from({ length: 6 }, (_, i) => mk(`m${i}`, 1000 + i * 100, 'A'))
+    const withGuest = replayRatingCascade(many, null, members, null, guests)
+    // Đối chứng: chạy lại y hệt nhưng khai báo g1 LÀ hội viên -> khách được tích luỹ
+    const asMember = replayRatingCascade(many, null, [...members, { id: 'g1', level: 'tb' }], null, [])
+
+    // Khách đóng băng ở seed -> đội A bị đánh giá YẾU hơn -> thắng được cộng NHIỀU hơn.
+    // Nếu khách tích luỹ, đội A trông mạnh dần lên và m1 ăn ít điểm đi.
+    assert.ok(
+      withGuest.finalRatings.m1.rating > asMember.finalRatings.m1.rating,
+      'Đóng băng khách phải cho m1 điểm cao hơn là để khách trôi điểm'
+    )
+    assert.equal(withGuest.finalRatings.m1.gamesCount, 6)
+    // Chốt luôn con số để lần sau đổi công thức là biết ngay
+    assert.equal(withGuest.finalRatings.m1.rating, 630)
+    assert.equal(asMember.finalRatings.m1.rating, 619)
+  })
+})

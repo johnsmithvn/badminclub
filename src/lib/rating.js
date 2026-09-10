@@ -541,6 +541,12 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels, 
   ;(members || []).forEach((m) => { seedOf[m.id] = initialRatingOf(m?.level, levels) })
   ;(guests || []).forEach((g) => { seedOf[g.id] = initialRatingOf(g?.level, levels) })
 
+  // Chỉ hội viên chính thức mới tích luỹ Elo. Khách giao lưu đứng yên ở seed suốt cả replay,
+  // đúng như saveMatchScore: bảng player_ratings có khoá ngoại sang club_members nên điểm của
+  // khách không bao giờ lưu được, mỗi trận live họ lại vào bằng seed. Nếu replay cho khách
+  // trôi điểm thì Team Elo các trận sau lệch -> Elo hội viên lệch -> điểm mùa lệch theo.
+  const memberIdSet = new Set((members || []).map((m) => m.id))
+
   // Khởi tạo bảng rating tính toán
   const ratings = {}
   const gamesCount = {}
@@ -597,23 +603,15 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels, 
         sets: m.sets,
       })
       delta = deltas[teamA[0]] || 0
-      teamA.forEach((id) => {
+      const accrue = (id, won) => {
+        if (!memberIdSet.has(id)) return // Khách giao lưu: không cộng dồn, giữ nguyên seed
         ratings[id] = (ratings[id] || DEFAULT_RATING) + (deltas[id] || 0)
-      })
-      teamB.forEach((id) => {
-        ratings[id] = (ratings[id] || DEFAULT_RATING) + (deltas[id] || 0)
-      })
-      // Tăng số trận Elo
-      teamA.forEach((id) => {
         gamesCount[id] = (gamesCount[id] || 0) + 1
-        if (aWon) winsCount[id] = (winsCount[id] || 0) + 1
+        if (won) winsCount[id] = (winsCount[id] || 0) + 1
         else lossesCount[id] = (lossesCount[id] || 0) + 1
-      })
-      teamB.forEach((id) => {
-        gamesCount[id] = (gamesCount[id] || 0) + 1
-        if (!aWon) winsCount[id] = (winsCount[id] || 0) + 1
-        else lossesCount[id] = (lossesCount[id] || 0) + 1
-      })
+      }
+      teamA.forEach((id) => accrue(id, aWon))
+      teamB.forEach((id) => accrue(id, !aWon))
     }
 
     return {
@@ -628,7 +626,6 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels, 
   })
 
   // Dựng kết quả ratings cuối cùng cho từng người (kèm tier & displayRating)
-  const memberIdSet = new Set((members || []).map((m) => m.id))
   const finalRatings = {}
   Object.keys(ratings).forEach((id) => {
     if (!memberIdSet.has(id)) return

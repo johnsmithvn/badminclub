@@ -2733,6 +2733,8 @@
     "customScoreTitle": "Tùy chỉnh tỷ số",
     "predictTitle": "Dự đoán & Tỷ lệ",
     "balancedTag": "Trận cân bằng",
+    "slightTag": "Chênh nhẹ",
+    "imbalancedTag": "Kèo lệch",
     "predictSub": "Xác suất thắng trước trận",
     "predictSubUnrated": "Trận giao lưu · Không tính biến động điểm Elo BXH",
     "unratedTag": "Giao lưu",
