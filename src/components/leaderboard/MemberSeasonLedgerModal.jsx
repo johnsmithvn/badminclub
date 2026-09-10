@@ -38,10 +38,9 @@ export default function MemberSeasonLedgerModal({
 
   // Tỷ lệ thanh phân bổ Stacked Bar
   const total = Math.max(1, totalPoints)
-  const pAttendance = Math.round((breakdown.attendancePts / total) * 100)
-  const pMatches = Math.round((breakdown.matchPlayPts / total) * 100)
-  const pWins = Math.round((breakdown.winPts / total) * 100)
-  const pUpsets = Math.max(0, 100 - pAttendance - pMatches - pWins)
+  const pMatchNet = Math.round((Math.max(0, breakdown.matchNetPts ?? breakdown.winPts ?? 0) / total) * 100)
+  const pStreak = Math.round(((breakdown.streakBonusPts ?? 0) / total) * 100)
+  const pUpsets = Math.max(0, 100 - pMatchNet - pStreak)
 
   return (
     <div
@@ -149,20 +148,20 @@ export default function MemberSeasonLedgerModal({
           >
             <div
               style={{
-                width: `${pAttendance}%`,
+                width: `${pMatchNet}%`,
                 background: '#00B2A9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 font: "600 10px/1 'IBM Plex Mono', monospace",
-                color: '#04302C',
+                color: '#fff',
               }}
             >
-              {breakdown.attendancePts}
+              {breakdown.matchNetPts ?? 0}
             </div>
             <div
               style={{
-                width: `${pMatches}%`,
+                width: `${pStreak}%`,
                 background: '#1D50A0',
                 display: 'flex',
                 alignItems: 'center',
@@ -171,20 +170,7 @@ export default function MemberSeasonLedgerModal({
                 color: '#fff',
               }}
             >
-              {breakdown.matchPlayPts}
-            </div>
-            <div
-              style={{
-                width: `${pWins}%`,
-                background: '#7AA3DC',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                font: "600 10px/1 'IBM Plex Mono', monospace",
-                color: '#0B1220',
-              }}
-            >
-              {breakdown.winPts}
+              {breakdown.streakBonusPts ?? 0}
             </div>
             <div
               style={{
@@ -197,7 +183,7 @@ export default function MemberSeasonLedgerModal({
                 color: '#2A1F00',
               }}
             >
-              {breakdown.upsetPts}
+              {breakdown.upsetBonusPts ?? 0}
             </div>
           </div>
 
@@ -213,19 +199,15 @@ export default function MemberSeasonLedgerModal({
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 9, height: 9, borderRadius: 2, background: '#00B2A9' }} />
-              {t('season.legendAttendance')} {Math.round(breakdown.attendancePts / (season?.pointsConfig?.attendance || 30))}×30
+              {t('season.actMatchPlay')}: {breakdown.matchNetPts ?? 0}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 9, height: 9, borderRadius: 2, background: '#1D50A0' }} />
-              {t('season.legendMatches')} {Math.round(breakdown.matchPlayPts / (season?.pointsConfig?.matchPlayed || 10))}×10
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 9, height: 9, borderRadius: 2, background: '#7AA3DC' }} />
-              {t('season.legendWins')} {Math.round(breakdown.winPts / (season?.pointsConfig?.matchWon || 15))}×15
+              {t('season.actStreakMilestones')}: +{breakdown.streakBonusPts ?? 0}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 9, height: 9, borderRadius: 2, background: '#C9A227' }} />
-              {t('season.legendUpsets')} {Math.round(breakdown.upsetPts / (season?.pointsConfig?.upsetWon || 25))}×25
+              {t('season.actUpsetMilestone')}: +{breakdown.upsetBonusPts ?? 0}
             </span>
           </div>
 
@@ -239,7 +221,7 @@ export default function MemberSeasonLedgerModal({
                 color: 'var(--text-muted)',
               }}
             >
-              {t('season.recentSessionTitle')} · +{latestSessionPts}
+              {t('season.recentSessionTitle')} · {latestSessionPts >= 0 ? `+${latestSessionPts}` : `${latestSessionPts}`}
             </div>
 
             <div style={{ display: 'grid', gap: 6 }}>
@@ -254,26 +236,40 @@ export default function MemberSeasonLedgerModal({
                       alignItems: 'center',
                       padding: '8px 10px',
                       borderRadius: 7,
-                      background: ev.isUpsetWon
+                      background: ev.isUpset
                         ? (isDark ? 'rgba(201,162,39,.12)' : 'rgba(245,158,11,.10)')
                         : 'var(--surface-inset)',
-                      border: ev.isUpsetWon ? '1px solid #C9A227' : '1px solid var(--border-subtle)',
+                      border: ev.isUpset ? '1px solid #C9A227' : '1px solid var(--border-subtle)',
                       font: "400 12px/1.3 'IBM Plex Sans', sans-serif",
                     }}
                   >
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: ev.isUpsetWon ? (isDark ? '#F0D26A' : '#92400E') : 'var(--text-muted)' }}>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: ev.isUpset ? (isDark ? '#F0D26A' : '#92400E') : 'var(--text-muted)' }}>
                       {ev.time}
                     </span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{ev.title}</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {t(ev.titleKey, { score: ev.scoreText, gap: ev.gapText })}
+                      {ev.streakBonus > 0 && (
+                        <span style={{ marginLeft: 6, color: isDark ? '#5FDBD3' : '#0D9488', fontWeight: 600 }}>
+                          {t('season.ledgerStreakBonus', { pts: ev.streakBonus })}
+                        </span>
+                      )}
+                      {ev.upsetBonus > 0 && (
+                        <span style={{ marginLeft: 6, color: isDark ? '#F0D26A' : '#B45309', fontWeight: 600 }}>
+                          {t('season.ledgerUpsetBonus', { pts: ev.upsetBonus })}
+                        </span>
+                      )}
+                    </span>
                     <span
                       style={{
                         textAlign: 'right',
                         fontFamily: "'IBM Plex Mono', monospace",
-                        color: ev.isUpsetWon ? (isDark ? '#F0D26A' : '#B45309') : ev.pts > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : 'var(--text-muted)',
-                        fontWeight: ev.isUpsetWon ? 700 : 500,
+                        color: ev.isUpset
+                          ? (isDark ? '#F0D26A' : '#B45309')
+                          : (ev.numPts > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : (isDark ? '#F87171' : '#DC2626')),
+                        fontWeight: 600,
                       }}
                     >
-                      +{ev.pts}
+                      {ev.pts}
                     </span>
                   </div>
                 ))

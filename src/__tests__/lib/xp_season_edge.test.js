@@ -33,20 +33,21 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
     },
   }
 
-  // ── 1. Streak bonus: mỗi 3 trận thắng liền đem về 1 lần +20 ──
-  await t.test('1. streakThree bonus: chuỗi 6 thắng liền → 2 lần +20', () => {
-    // m1 có 6 trận thắng liên tiếp → streak=6, floor(6/3)=2 → +40 pts
-    // Điểm: 1 buổi (30) + 6 trận (60) + 6 thắng (90) + 2×20 streak (40) = 220
+  // ── 1. Streak bonus: thưởng mốc streak 3 (+5) và streak 5 (+10) ──
+  await t.test('1. streakThree bonus: chuỗi 6 thắng liền → streak 3 (+5) & streak 5 (+10)', () => {
+    // m1 có 6 trận thắng liên tiếp kèo cân (+14/trận)
+    // Thưởng streak 3 (+5) + streak 5 (+10) = 15
+    // Tổng = 6 × 14 + 15 = 99
     const db = {
       members: [{ id: 'm1', name: 'Streaker', active: true }],
       sessions: [{ id: 's1', date: '2026-08-01', attendees: ['m1'] }],
       matches: [
-        { id: 'mt1', sessionId: 's1', at: 100, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 15]] },
-        { id: 'mt2', sessionId: 's1', at: 200, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A', sets: [[21, 18]] },
-        { id: 'mt3', sessionId: 's1', at: 300, teamA: ['m1'], teamB: ['m4'], winnerTeam: 'A', sets: [[21, 12]] },
-        { id: 'mt4', sessionId: 's1', at: 400, teamA: ['m1'], teamB: ['m5'], winnerTeam: 'A', sets: [[21, 10]] },
-        { id: 'mt5', sessionId: 's1', at: 500, teamA: ['m1'], teamB: ['m6'], winnerTeam: 'A', sets: [[21, 17]] },
-        { id: 'mt6', sessionId: 's1', at: 600, teamA: ['m1'], teamB: ['m7'], winnerTeam: 'A', sets: [[21, 16]] },
+        { id: 'mt1', sessionId: 's1', at: 100, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 15]], initialRatingA: 1500, initialRatingB: 1500 },
+        { id: 'mt2', sessionId: 's1', at: 200, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A', sets: [[21, 18]], initialRatingA: 1500, initialRatingB: 1500 },
+        { id: 'mt3', sessionId: 's1', at: 300, teamA: ['m1'], teamB: ['m4'], winnerTeam: 'A', sets: [[21, 12]], initialRatingA: 1500, initialRatingB: 1500 },
+        { id: 'mt4', sessionId: 's1', at: 400, teamA: ['m1'], teamB: ['m5'], winnerTeam: 'A', sets: [[21, 10]], initialRatingA: 1500, initialRatingB: 1500 },
+        { id: 'mt5', sessionId: 's1', at: 500, teamA: ['m1'], teamB: ['m6'], winnerTeam: 'A', sets: [[21, 17]], initialRatingA: 1500, initialRatingB: 1500 },
+        { id: 'mt6', sessionId: 's1', at: 600, teamA: ['m1'], teamB: ['m7'], winnerTeam: 'A', sets: [[21, 16]], initialRatingA: 1500, initialRatingB: 1500 },
       ],
     }
 
@@ -56,13 +57,13 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
     assert.equal(row.streak, 6, 'Chuỗi thắng phải là 6 — sai là mất điểm thưởng')
     assert.equal(
       row.breakdown.streakBonusPts,
-      40,
-      'floor(6/3) × 20 = 40 — thiếu điểm streak là hiển thị sai trên BXH'
+      15,
+      'streak 3 (+5) + streak 5 (+10) = 15'
     )
     assert.equal(
       row.totalSeasonPoints,
-      220,
-      '30 attend + 60 played + 90 won + 40 streak = 220 — sai là xếp hạng sai'
+      99,
+      '6 x 14 + 15 streak = 99'
     )
   })
 
@@ -97,16 +98,11 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
     const row = leaderboard[0]
 
     assert.equal(row.attendedCount, 1, 'Chỉ 1 buổi trong mùa — tính buổi ngoài mùa là cộng điểm oan')
-    assert.equal(row.breakdown.attendancePts, 30)
+    assert.equal(row.totalSeasonPoints, 0, 'Chưa đánh trận nào điểm bằng 0')
   })
 
   // ── 4. Tie-breaking: cùng điểm → người nhiều thắng hơn xếp trước ──
   await t.test('4. Tie-breaking: cùng điểm mùa → người thắng nhiều hơn đứng trước', () => {
-    // m1: 1 attend (30) + 1 win (10+15) = 55 pts, 1 win
-    // m2: 1 attend (30) + 1 play(10) + 1 play (10) = 50 pts — điểm thấp hơn, tiebreak không cần
-    // Tạo scenario: m1 và m2 cùng 55 điểm nhưng m1 thắng 1, m2 thắng 1... hmmm
-    // Simpler: m1=55 pts (1 thắng), m3=55 pts (1 thắng) → cùng điểm, tie = winsCount bằng nhau
-    // → rank của cả hai đều ok, chỉ cần kiểm rank[0].totalSeasonPoints >= rank[1].totalSeasonPoints
     const db = {
       members: [
         { id: 'm1', name: 'Alpha', active: true },
@@ -115,18 +111,14 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
       ],
       sessions: [{ id: 's1', date: '2026-08-01', attendees: ['m1', 'm2', 'm3'] }],
       matches: [
-        // m1 thắng 2 trận (điểm cao hơn m2)
-        { id: 'mt1', sessionId: 's1', at: 100, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 18]] },
-        { id: 'mt2', sessionId: 's1', at: 200, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A', sets: [[21, 15]] },
-        // m2 thắng 0
-        { id: 'mt3', sessionId: 's1', at: 300, teamA: ['m2'], teamB: ['m3'], winnerTeam: 'B', sets: [[18, 21]] },
+        { id: 'mt1', sessionId: 's1', at: 100, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 18]], initialRatingA: 1500, initialRatingB: 1500 },
+        { id: 'mt2', sessionId: 's1', at: 200, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A', sets: [[21, 15]], initialRatingA: 1500, initialRatingB: 1500 },
+        { id: 'mt3', sessionId: 's1', at: 300, teamA: ['m2'], teamB: ['m3'], winnerTeam: 'B', sets: [[18, 21]], initialRatingA: 1500, initialRatingB: 1500 },
       ],
     }
 
     const { leaderboard } = calculateSeasonLeaderboard(db, SEASON_CFG)
-    // Xếp theo điểm giảm dần, m1 phải đứng đầu
     assert.equal(leaderboard[0].id, 'm1', 'Người thắng nhiều phải đứng đầu — xếp sai là hiển thị BXH sai')
-    // Đảm bảo thứ tự hợp lệ
     assert.ok(
       leaderboard[0].totalSeasonPoints >= leaderboard[1].totalSeasonPoints,
       'BXH phải sắp xếp điểm giảm dần'
@@ -135,7 +127,6 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
       leaderboard[1].totalSeasonPoints >= leaderboard[2].totalSeasonPoints,
       'BXH phải sắp xếp điểm giảm dần'
     )
-    // rank field
     leaderboard.forEach((row, idx) => {
       assert.equal(row.rank, idx + 1, `rank field phải bằng vị trí 1-indexed — sai là hiển thị #${row.rank} sai`)
     })
@@ -148,9 +139,9 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
       sessions: [{ id: 's1', date: '2026-08-01', attendees: ['m1'] }],
       matches: [
         // Trận TRONG mùa (qua sessionId thuộc mùa)
-        { id: 'mt_in',  sessionId: 's1', at: 100, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 15]] },
+        { id: 'mt_in',  sessionId: 's1', at: 100, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 15]], initialRatingA: 1500, initialRatingB: 1500 },
         // Trận NGOÀI mùa (không có sessionId, playedAt ngoài khung)
-        { id: 'mt_out', playedAt: '2025-06-15T10:00:00Z', at: 0, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 15]] },
+        { id: 'mt_out', playedAt: '2025-06-15T10:00:00Z', at: 0, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 15]], initialRatingA: 1500, initialRatingB: 1500 },
       ],
     }
 
@@ -159,8 +150,7 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
 
     assert.equal(row.matchesCount, 1, 'Chỉ 1 trận trong mùa — tính trận ngoài mùa là điểm ảo')
     assert.equal(row.winsCount, 1)
-    // 1 attend + 1 match + 1 win = 30+10+15 = 55
-    assert.equal(row.totalSeasonPoints, 55)
+    assert.equal(row.totalSeasonPoints, 14, '1 trận thắng kèo cân = 14')
   })
 })
 

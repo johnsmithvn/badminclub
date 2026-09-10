@@ -73,16 +73,9 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     assert.equal(leaderboard.length, 3)
 
     const kien = leaderboard.find((r) => r.name === 'Kiên')
-    // 2 sessions * 30 = 60
-    // 1 match played * 10 = 10
-    // 1 win * 15 = 15
-    // 1 upset * 25 = 25
-    // Total = 110
-    assert.equal(kien.totalSeasonPoints, 110)
-    assert.equal(kien.breakdown.attendancePts, 60)
-    assert.equal(kien.breakdown.matchPlayPts, 10)
-    assert.equal(kien.breakdown.winPts, 15)
-    assert.equal(kien.breakdown.upsetPts, 25)
+    // 1 match won (underdog: 1500 vs 1600, gap -100) -> +17 pts
+    assert.equal(kien.totalSeasonPoints, 17)
+    assert.equal(kien.breakdown.matchNetPts, 17)
     assert.equal(topStats.leaderPlayer.name, 'Kiên')
   })
 
@@ -117,13 +110,13 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     const kuro = leaderboard.find((r) => r.id === 'm1')
     const mai = leaderboard.find((r) => r.id === 'm2')
 
-    // Kuro: s1 (true) + s2 ('extra') + s3 (đánh trận) = 3 buổi -> 3 * 30 = 90 CC
+    // Kuro: s1 (true) + s2 ('extra') + s3 (đánh trận) = 3 buổi
     assert.equal(kuro.attendedCount, 3)
-    assert.equal(kuro.breakdown.attendancePts, 90)
+    assert.equal(kuro.totalSeasonPoints, 14, 'Kuro thắng 1 trận kèo cân -> 14 điểm')
 
-    // Mai: s1 (false) + s2 (true) + s3 (đánh trận) = 2 buổi -> 2 * 30 = 60 CC
+    // Mai: s1 (false) + s2 (true) + s3 (đánh trận) = 2 buổi
     assert.equal(mai.attendedCount, 2)
-    assert.equal(mai.breakdown.attendancePts, 60)
+    assert.equal(mai.totalSeasonPoints, 0, 'Mai thua 1 trận kèo cân -> sàn 0 điểm')
 
     // Kiểm tra các chuỗi i18n không còn bị dính template tag {{...}}
     const strTotal = translate('season.tableTotal', { total: leaderboard.length, count: leaderboard.length })
@@ -196,10 +189,8 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     const ledger = getMemberSeasonLedger('m1', mockDb)
     assert.ok(ledger)
     assert.equal(ledger.member.name, 'Phạm Anh Tú')
-    assert.equal(ledger.totalPoints, 55) // 30 attend + 10 match + 15 win
-    assert.equal(ledger.breakdown.attendancePts, 30)
-    assert.equal(ledger.breakdown.matchPlayPts, 10)
-    assert.equal(ledger.breakdown.winPts, 15)
+    assert.equal(ledger.totalPoints, 14) // 1 win kèo cân -> 14
+    assert.equal(ledger.breakdown.matchNetPts, 14)
     assert.ok(Array.isArray(ledger.recentEvents))
     assert.ok(ledger.recentEvents.length > 0)
   })

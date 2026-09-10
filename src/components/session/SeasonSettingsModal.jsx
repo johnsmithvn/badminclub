@@ -10,14 +10,9 @@ export default function SeasonSettingsModal({
     startDate: '2026-07-01',
     endDate: '2026-09-30',
     cycle: 'quarter',
-    pointsConfig: {
-      attendance: 30,
-      matchPlayed: 10,
-      matchWon: 15,
-      upsetWon: 25,
-      threeSets: 10,
-      streakThree: 20,
-    },
+    minMatchesOfficial: 20,
+    inactiveDays: 21,
+    bonusConfig: { streak3: 5, streak5: 10, upset150: 5 },
     provisionalThreshold: 5,
     fullConfidenceThreshold: 30,
     monteCarloCandidates: 80,
@@ -307,7 +302,7 @@ export default function SeasonSettingsModal({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1fr) 96px 132px',
+              gridTemplateColumns: 'minmax(0, 1fr) 110px 110px',
               padding: '8px 13px',
               borderBottom: '1px solid var(--border-subtle)',
               font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
@@ -316,40 +311,43 @@ export default function SeasonSettingsModal({
               color: 'var(--text-muted)',
             }}
           >
-            <span>{t('season.action')}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.points')}</span>
-            <span style={{ textAlign: 'right' }}>{t('season.thisSeason')}</span>
+            <span>{t('season.tierCol')}</span>
+            <span style={{ textAlign: 'right' }}>{t('season.winDeltaCol')}</span>
+            <span style={{ textAlign: 'right' }}>{t('season.lossDeltaCol')}</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 96px 132px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-            <span>{t('season.actAttendance')}</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+30</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>7.980 pts</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 96px 132px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-            <span>{t('season.actMatchPlay')}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px 110px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+            <span>{t('season.tierHeavyFavored')}</span>
             <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+10</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>6.340 pts</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-12</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 96px 132px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-            <span>{t('season.actWin')}</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+15</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>5.160 pts</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px 110px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+            <span>{t('season.tierFavored')}</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+12</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-10</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 96px 132px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-            <span>{t('season.actUpset')}</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#F0D26A' : '#B45309', fontWeight: 600 }}>+25</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>2.100 pts</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px 110px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', background: isDark ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.02)' }}>
+            <span>{t('season.tierBalanced')}</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 700 }}>+14</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-8</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 96px 132px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-            <span>{t('season.actThreeSets')}</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+10</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>1.170 pts</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px 110px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+            <span>{t('season.tierUnderdog')}</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+17</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-5</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 96px 132px', alignItems: 'center', padding: '9px 13px', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-            <span>{t('season.actStreakThree')}</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+20</span>
-            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>700 pts</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px 110px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+            <span>{t('season.tierDeepUnderdog')}</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+22</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-3</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 220px', alignItems: 'center', padding: '9px 13px', borderBottom: '1px solid var(--border-subtle)', font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
+            <span>{t('season.ruleStreakMilestone')}</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#F0D26A' : '#B45309', fontWeight: 600 }}>+5 / +10 pts</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 220px', alignItems: 'center', padding: '9px 13px', font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
+            <span>{t('season.ruleUpsetMilestone')}</span>
+            <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#F0D26A' : '#B45309', fontWeight: 600 }}>+5 pts</span>
           </div>
         </div>
 

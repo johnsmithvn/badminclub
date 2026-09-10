@@ -61,13 +61,20 @@
     "endDate": "2026-09-30",
     "cycle": "quarter",
     "totalSessionsExpected": 14,
-    "pointsConfig": {
-      "attendance": 30,
-      "matchPlayed": 10,
-      "matchWon": 15,
-      "upsetWon": 25,
-      "threeSets": 10,
-      "streakThree": 20
+    "minMatchesOfficial": 20,
+    "inactiveDays": 21,
+    "bonusConfig": {
+      "streak3": 5,
+      "streak5": 10,
+      "upset150": 5,
+      "upsetMinGap": 150
+    },
+    "deltaScale": {
+      "heavyFavored": { "minGap": 150, "win": 10, "loss": -12 },
+      "favored": { "minGap": 50, "win": 12, "loss": -10 },
+      "balanced": { "minGap": -49, "win": 14, "loss": -8 },
+      "underdog": { "minGap": -149, "win": 17, "loss": -5 },
+      "deepUnderdog": { "minGap": -9999, "win": 22, "loss": -3 }
     },
     "provisionalThreshold": 5,
     "fullConfidenceThreshold": 30,
