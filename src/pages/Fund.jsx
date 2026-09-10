@@ -534,7 +534,15 @@ export default function Fund() {
             </button>
 
             {filterOpen && (
-              <div style={S.filterDropdown}>
+              <div style={{
+                ...S.filterDropdown,
+                ...(isMobile ? {
+                  left: 'auto',
+                  right: 0,
+                  width: 'min(280px, calc(100vw - 32px))',
+                  maxWidth: 'calc(100vw - 32px)',
+                } : {}),
+              }}>
                 <div style={S.filterDropdownTitle}>{t('fund.filterDir')}</div>
                 <div style={S.filterOptionGroup}>
                   {[
@@ -759,18 +767,34 @@ export default function Fund() {
           ...S.statGrid,
           ...(isMobile ? { gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 } : {}),
         }}>
-          <div style={{ ...S.statCard, ...(isMobile ? { padding: '10px 12px' } : {}) }}>
+          <div style={{ ...S.statCard, ...(isMobile ? { padding: '10px 12px', minWidth: 0, overflow: 'hidden' } : {}) }}>
             <div style={S.statOverline}>{t('fund.spentThisPeriod')}</div>
-            <div style={{ ...S.statBigNumber, ...(isMobile ? { fontSize: 18, marginTop: 4 } : {}) }}>−{fmt(flow.out)}</div>
-            <div style={{ ...S.statSub, ...(isMobile ? { fontSize: 11, marginTop: 3 } : {}) }}>
+            <div style={{
+              ...S.statBigNumber,
+              ...(isMobile ? { fontSize: 16, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : {}),
+            }}>
+              −{fmt(flow.out)}
+            </div>
+            <div style={{
+              ...S.statSub,
+              ...(isMobile ? { fontSize: 11, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : {}),
+            }}>
               {t('fund.txCountInDays', { n: stats.outCount, days: stats.daysWithOut })}
             </div>
           </div>
 
-          <div style={{ ...S.statCard, ...(isMobile ? { padding: '10px 12px' } : {}) }}>
+          <div style={{ ...S.statCard, ...(isMobile ? { padding: '10px 12px', minWidth: 0, overflow: 'hidden' } : {}) }}>
             <div style={S.statOverline}>{t('fund.balanceNow')}</div>
-            <div style={{ ...S.statBigNumber, ...(isMobile ? { fontSize: 18, marginTop: 4 } : {}) }}>{fmt(av.balance)}</div>
-            <div style={{ ...S.statSub, ...(isMobile ? { fontSize: 11, marginTop: 3 } : {}) }}>
+            <div style={{
+              ...S.statBigNumber,
+              ...(isMobile ? { fontSize: 16, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : {}),
+            }}>
+              {fmt(av.balance)}
+            </div>
+            <div style={{
+              ...S.statSub,
+              ...(isMobile ? { fontSize: 11, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : {}),
+            }}>
               {t('fund.available')}: {fmt(av.available)}
             </div>
           </div>
@@ -789,9 +813,13 @@ export default function Fund() {
           ) : (
             dateGroups.map((g) => (
               <div key={g.date} style={S.dateGroup}>
-                <div style={S.dateGroupHead}>
-                  <span style={S.dateGroupTitle}>{g.head}</span>
-                  <span style={S.dateGroupTotal}>{g.total}</span>
+                <div style={{ ...S.dateGroupHead, minWidth: 0, gap: 8 }}>
+                  <span style={{ ...S.dateGroupTitle, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {g.head}
+                  </span>
+                  <span style={{ ...S.dateGroupTotal, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    {g.total}
+                  </span>
                 </div>
 
                 <div style={S.groupCardContainer}>
@@ -812,13 +840,25 @@ export default function Fund() {
                       >
                         <div style={{
                           ...S.txRow,
-                          ...(isMobile ? { padding: '10px 12px', gap: 10 } : {}),
+                          ...(isMobile ? { padding: '10px 10px', gap: 8 } : {}),
                         }}>
                           <span style={{ ...S.colorIndicator, background: catColor }} />
 
-                          <div style={S.txMainInfo}>
-                            <div style={S.txTitleRow}>
-                              <span style={S.txTitleText}>{it.label}</span>
+                          <div style={{ ...S.txMainInfo, minWidth: 0 }}>
+                            <div style={{
+                              ...S.txTitleRow,
+                              minWidth: 0,
+                              flexWrap: isMobile ? 'wrap' : 'nowrap',
+                              gap: 5,
+                            }}>
+                              <span style={{
+                                ...S.txTitleText,
+                                minWidth: 0,
+                                flex: isMobile ? '1 1 auto' : '0 1 auto',
+                                ...(isMobile ? { fontSize: 13.5 } : {})
+                              }}>
+                                {it.label}
+                              </span>
                               {it.isCluster && (
                                 <span style={S.clusterTag}>{t('fund.clusterTag')}</span>
                               )}
@@ -826,12 +866,20 @@ export default function Fund() {
                                 <span style={S.advanceTag}>{t('fund.advanceTag')}</span>
                               )}
                             </div>
-                            <div style={S.txSubtitleText}>
+                            <div style={{
+                              ...S.txSubtitleText,
+                              minWidth: 0,
+                              ...(isMobile ? { fontSize: 11.5 } : {})
+                            }}>
                               {catLabel(it.cat)} · {it.by}
                             </div>
                           </div>
 
-                          <div style={{ ...S.txAmountText, color: it.dir === 'in' ? '#059669' : 'var(--text-primary, #1C1917)' }}>
+                          <div style={{
+                            ...S.txAmountText,
+                            ...(isMobile ? { fontSize: 13.5 } : {}),
+                            color: it.dir === 'in' ? '#059669' : 'var(--text-primary, #1C1917)'
+                          }}>
                             {it.dir === 'in' ? '+' : '−'}{fmt(it.amount)}
                           </div>
 
@@ -853,7 +901,7 @@ export default function Fund() {
                         {it.isCluster && isExpanded && it.kids && (
                           <div style={{
                             ...S.clusterKidsBox,
-                            ...(isMobile ? { margin: '0 10px 10px 20px', paddingLeft: 10 } : {}),
+                            ...(isMobile ? { margin: '0 8px 10px 16px', paddingLeft: 8 } : {}),
                           }}>
                             {it.kids.map((kid) => (
                               <div
@@ -862,11 +910,27 @@ export default function Fund() {
                                   e.stopPropagation()
                                   handleSelectTx(kid)
                                 }}
-                                style={S.clusterKidRow}
+                                style={{ ...S.clusterKidRow, ...(isMobile ? { gap: 6 } : {}) }}
                               >
-                                <span style={S.kidNameText}>{kid.label}</span>
-                                <span style={S.kidByText}>{kid.by}</span>
-                                <span style={S.kidAmountText}>
+                                <div style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  display: 'flex',
+                                  flexDirection: isMobile ? 'column' : 'row',
+                                  alignItems: isMobile ? 'flex-start' : 'center',
+                                  gap: isMobile ? 1 : 8,
+                                }}>
+                                  <span style={{ ...S.kidNameText, ...(isMobile ? { fontSize: 12 } : {}) }}>
+                                    {kid.label}
+                                  </span>
+                                  <span style={{ ...S.kidByText, ...(isMobile ? { fontSize: 11 } : {}) }}>
+                                    {kid.by}
+                                  </span>
+                                </div>
+                                <span style={{
+                                  ...S.kidAmountText,
+                                  ...(isMobile ? { fontSize: 12 } : {})
+                                }}>
                                   {kid.dir === 'in' ? '+' : '−'}{fmt(kid.amount)}
                                 </span>
                               </div>
@@ -986,7 +1050,7 @@ export default function Fund() {
                 </div>
                 <div style={S.detailFieldRow}>
                   <span style={S.fieldKey}>{t('fund.fieldRef')}</span>
-                  <span style={S.fieldVal}>{selectedTx.id}</span>
+                  <span style={{ ...S.fieldVal, wordBreak: 'break-all' }}>{selectedTx.id}</span>
                 </div>
               </div>
 
@@ -1103,7 +1167,7 @@ export default function Fund() {
               </div>
               <div style={S.detailFieldRow}>
                 <span style={S.fieldKey}>{t('fund.fieldRef')}</span>
-                <span style={S.fieldVal}>{selectedTx.id}</span>
+                <span style={{ ...S.fieldVal, wordBreak: 'break-all' }}>{selectedTx.id}</span>
               </div>
             </div>
 
@@ -1200,7 +1264,7 @@ export function FundOverviewCards() {
   const bal = av.balance
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
       <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>{t('fund.colTotalIn')}</div>
         <div style={{ font: 'var(--type-h2)', color: 'var(--status-delivered)', marginTop: 4 }}>
@@ -1253,7 +1317,7 @@ export function FundBalanceColumns() {
   const outGroups = groups.filter((g) => g.dir === 'out')
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
       <div style={{ background: 'var(--surface-card)', borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
         <div style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--border-subtle)' }}>
           {t('fund.inTitle')}
@@ -1313,6 +1377,10 @@ const S = {
     flexDirection: 'column',
     gap: 0,
     width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
+    overflowX: 'hidden',
     fontFamily: '"Be Vietnam Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   topHeader: {
@@ -1663,45 +1731,73 @@ const S = {
   listColumn: {
     flex: 1,
     minWidth: 0,
+    width: '100%',
+    maxWidth: '100%',
     display: 'flex',
     flexDirection: 'column',
     gap: 18,
+    boxSizing: 'border-box',
   },
   dateGroup: {
     display: 'flex',
     flexDirection: 'column',
+    width: '100%',
+    minWidth: 0,
+    maxWidth: '100%',
   },
   dateGroupHead: {
     display: 'flex',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     padding: '0 2px 8px',
+    gap: 8,
+    minWidth: 0,
+    width: '100%',
+    boxSizing: 'border-box',
   },
   dateGroupTitle: {
     fontSize: 13,
     fontWeight: 600,
     color: 'var(--text-secondary, #57534E)',
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   dateGroupTotal: {
     fontSize: 13,
     fontWeight: 500,
     color: 'var(--text-primary, #1C1917)',
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
   },
   groupCardContainer: {
     background: 'var(--surface-card, #fff)',
     border: '1px solid var(--border-subtle, #EDEAE4)',
     borderRadius: 14,
     overflow: 'hidden',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
   },
   txRowContainer: {
     transition: 'background 0.15s ease',
     cursor: 'pointer',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
   },
   txRow: {
     display: 'flex',
     alignItems: 'center',
     gap: 14,
     padding: '12px 16px',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
   },
   colorIndicator: {
     width: 4,
@@ -1712,11 +1808,14 @@ const S = {
   txMainInfo: {
     flex: 1,
     minWidth: 0,
+    overflow: 'hidden',
   },
   txTitleRow: {
     display: 'flex',
     alignItems: 'center',
     gap: 7,
+    minWidth: 0,
+    maxWidth: '100%',
   },
   txTitleText: {
     fontSize: 14,
@@ -1725,6 +1824,7 @@ const S = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    minWidth: 0,
   },
   clusterTag: {
     fontSize: 10.5,
@@ -1753,11 +1853,14 @@ const S = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    minWidth: 0,
   },
   txAmountText: {
     fontSize: 14.5,
     fontWeight: 600,
     flexShrink: 0,
+    whiteSpace: 'nowrap',
+    textAlign: 'right',
   },
   chevronIcon: {
     fontSize: 15,
@@ -1932,6 +2035,9 @@ const S = {
     fontWeight: 500,
     color: 'var(--text-secondary, #44403C)',
     textAlign: 'right',
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
+    minWidth: 0,
   },
 
   detailTrendBox: {
@@ -2060,6 +2166,9 @@ const S = {
     gap: 14,
     maxHeight: '88vh',
     overflowY: 'auto',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
   },
   mobileSheetHandle: {
     width: 38,
@@ -2072,6 +2181,7 @@ const S = {
     display: 'flex',
     gap: 8,
     marginTop: 6,
+    flexWrap: 'wrap',
   },
   mobilePrimaryActionBtn: {
     flex: 1,
