@@ -14,7 +14,7 @@ import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
-import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration } from '#lib/rating.js'
+import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
@@ -2332,6 +2332,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
               displayRating: Math.max(MIN_RATING, newR),
               tier: rankTierOf(newR),
               gamesCount: cur.gamesCount + 1,
+              // Ghi luôn ở đây cho khớp replayRatingCascade — thiếu dòng này thì nhãn độ tin cậy
+              // đứng yên cho tới khi có người bấm "Tính lại toàn bộ Elo".
+              confidence: confidenceOf(cur.gamesCount + 1),
               winsCount: aWon ? cur.winsCount + 1 : cur.winsCount,
               lossesCount: !aWon ? cur.lossesCount + 1 : cur.lossesCount,
             }
@@ -2349,6 +2352,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
               displayRating: Math.max(MIN_RATING, newR),
               tier: rankTierOf(newR),
               gamesCount: cur.gamesCount + 1,
+              // Ghi luôn ở đây cho khớp replayRatingCascade — thiếu dòng này thì nhãn độ tin cậy
+              // đứng yên cho tới khi có người bấm "Tính lại toàn bộ Elo".
+              confidence: confidenceOf(cur.gamesCount + 1),
               winsCount: !aWon ? cur.winsCount + 1 : cur.winsCount,
               lossesCount: aWon ? cur.lossesCount + 1 : cur.lossesCount,
             }

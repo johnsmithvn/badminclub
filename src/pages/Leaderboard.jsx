@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Avatar, Button, Card, Icon, Input, Select, StatCard } from '#ds'
+import { Alert, Avatar, Button, Card, Dialog, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -75,6 +75,7 @@ export default function Leaderboard() {
   const [ledgerMemberId, setLedgerMemberId] = useState(null)
   const [effectiveStrengthPlayer, setEffectiveStrengthPlayer] = useState(null)
   const [seasonSettingsOpen, setSeasonSettingsOpen] = useState(false)
+  const [recalcConfirmOpen, setRecalcConfirmOpen] = useState(false)
 
   const activeMembers = useMemo(() => {
     return (db.members || []).filter((m) => m.active !== false)
@@ -731,11 +732,7 @@ export default function Leaderboard() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm(t('leaderboard.recalcConfirmMsg'))) {
-                    a.recalcAllRatings?.()
-                  }
-                }}
+                onClick={() => setRecalcConfirmOpen(true)}
                 title={t('leaderboard.recalcHint')}
                 aria-label={t('leaderboard.btnRecalc')}
                 style={{
@@ -2188,6 +2185,49 @@ export default function Leaderboard() {
             setSeasonSettingsOpen(false)
           }}
         />
+      )}
+
+      {/* Modal xác nhận Đồng bộ lại Elo — thay window.confirm để nói rõ nó đụng cả điểm mùa */}
+      {recalcConfirmOpen && (
+        <Dialog
+          open
+          width={560}
+          sheet={isMobile}
+          title={t('leaderboard.recalcConfirmTitle')}
+          description={t('leaderboard.recalcConfirmMsg')}
+          onClose={() => setRecalcConfirmOpen(false)}
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, width: '100%' }}>
+              <Button variant="secondary" onClick={() => setRecalcConfirmOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                icon="rotate-ccw"
+                onClick={() => {
+                  setRecalcConfirmOpen(false)
+                  a.recalcAllRatings?.()
+                }}
+              >
+                {t('leaderboard.recalcConfirmBtn')}
+              </Button>
+            </div>
+          }
+        >
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Alert tone="warning" title={t('leaderboard.recalcWarnTitle')}>
+              <ul style={{ margin: '4px 0 0', paddingLeft: 18, display: 'grid', gap: 4 }}>
+                <li>{t('leaderboard.recalcAffect1')}</li>
+                <li>{t('leaderboard.recalcAffect2')}</li>
+                <li>{t('leaderboard.recalcAffect3')}</li>
+                <li>{t('leaderboard.recalcAffect4')}</li>
+              </ul>
+            </Alert>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+              {t('leaderboard.recalcSafeNote')}
+            </div>
+          </div>
+        </Dialog>
       )}
 
       {/* Modal Chi tiết Hồ sơ & Biểu đồ Elo của thành viên */}
