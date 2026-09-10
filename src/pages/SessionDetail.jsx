@@ -81,6 +81,219 @@ export default function SessionDetail() {
     ? t('session.courtTimeSub', { time: timeRange, courts: courtNames })
     : `${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`
 
+  // Nhóm thành viên theo 4 trạng thái điểm danh và chỉ giữ lại section có thành viên
+  const unmarked = []
+  const present = []
+  const absent = []
+  const extra = []
+
+  members.forEach((m) => {
+    const state = att[m.id]
+    if (state === 'extra') {
+      extra.push(m)
+    } else if (allSold || state === false) {
+      absent.push(m)
+    } else if (state === true) {
+      present.push(m)
+    } else {
+      unmarked.push(m)
+    }
+  })
+
+  const attendanceSections = [
+    {
+      id: 'unmarked',
+      label: t('attend.unmarked'),
+      count: unmarked.length,
+      members: unmarked,
+      dotColor: 'var(--text-disabled, #7E92B2)',
+      textColor: 'var(--text-secondary, #A8B7CB)',
+      badgeBg: 'var(--surface-sunken, rgba(255,255,255,0.05))',
+      border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
+      lineGradient: 'linear-gradient(90deg, var(--border-subtle, rgba(255,255,255,0.15)) 0%, transparent 100%)',
+    },
+    {
+      id: 'present',
+      label: t('attend.present'),
+      count: present.length,
+      members: present,
+      dotColor: 'var(--teal-500, #00B2A9)',
+      textColor: '#5FDBD3',
+      badgeBg: 'rgba(0,178,169,0.12)',
+      border: '1px solid rgba(0,178,169,0.3)',
+      lineGradient: 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)',
+    },
+    {
+      id: 'absent',
+      label: t('attend.absent'),
+      count: absent.length,
+      members: absent,
+      dotColor: 'var(--text-disabled, #64748B)',
+      textColor: 'var(--text-muted, #7E92B2)',
+      badgeBg: 'var(--surface-sunken, rgba(255,255,255,0.04))',
+      border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+      lineGradient: 'linear-gradient(90deg, var(--border-subtle, rgba(255,255,255,0.1)) 0%, transparent 100%)',
+    },
+    {
+      id: 'extra',
+      label: t('attend.extra'),
+      count: extra.length,
+      members: extra,
+      dotColor: '#F0B75C',
+      textColor: '#F0B75C',
+      badgeBg: 'rgba(224,138,0,0.15)',
+      border: '1px solid rgba(240,183,92,0.3)',
+      lineGradient: 'linear-gradient(90deg, rgba(240,183,92,0.3) 0%, transparent 100%)',
+    },
+  ].filter((sec) => sec.count > 0)
+
+  const renderMemberRow = (m) => {
+    const state = att[m.id]
+    const extra = state === 'extra'
+    const due = dues.find((d) => d.memberId === m.id && d.groupId === s.groupId)
+    const charge = adhoc ? charges.find((c) => c.memberId === m.id) : null
+
+    let dueText = ''
+    let dueColor = 'var(--text-muted)'
+    if (charge) {
+      dueText = charge.paid ? t('session.guestPaid') : t('session.guestDebt')
+      if (!charge.paid) dueColor = '#F0B75C'
+    } else if (extra) {
+      dueText = t('session.extraDueTag')
+    } else if (due) {
+      const ds = dueState(due)
+      if (ds.state === 'full') {
+        dueText = t('session.duePaidTag')
+        dueColor = 'var(--text-muted)'
+      } else if (ds.state === 'partial') {
+        dueText = t('session.duePartialTag', { amount: fmtK(ds.remain) })
+        dueColor = '#F0B75C'
+      } else {
+        dueText = t('session.dueUnpaidTag')
+        dueColor = '#F0B75C'
+      }
+    } else {
+      dueText = t('session.noDueTag')
+    }
+
+    const isPresent = state === true
+    const isAbsent = state === false || allSold
+
+    let rowBg = 'var(--surface-card)'
+    let rowBorder = '1px solid var(--border-subtle)'
+    let statusText = t('attend.unmarked')
+    let statusColor = 'var(--text-disabled)'
+
+    if (allSold) {
+      rowBg = 'var(--surface-sunken)'
+      rowBorder = '1px solid var(--border-subtle)'
+      statusText = t('attend.absent')
+      statusColor = 'var(--text-muted)'
+    } else if (isPresent) {
+      rowBg = 'rgba(0,178,169,.14)'
+      rowBorder = '1px solid var(--teal-500)'
+      statusText = t('attend.present')
+      statusColor = '#5FDBD3'
+    } else if (isAbsent) {
+      rowBg = 'var(--surface-sunken)'
+      rowBorder = '1px solid var(--border-subtle)'
+      statusText = t('attend.absent')
+      statusColor = 'var(--text-muted)'
+    } else if (extra) {
+      rowBg = 'rgba(0,178,169,.08)'
+      rowBorder = '1px solid var(--teal-500)'
+      statusText = t('attend.extra')
+      statusColor = '#5FDBD3'
+    }
+
+    return (
+      <div
+        key={m.id}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '9px 11px',
+          borderRadius: 8,
+          background: rowBg,
+          border: rowBorder,
+          opacity: isInactive ? 0.75 : 1,
+          transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+      >
+        <button
+          type="button"
+          disabled={!canEdit || extra || isInactive || isClosed}
+          onClick={() => a.toggleAtt(s.id, m.id)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flex: 1,
+            minWidth: 0,
+            background: 'none',
+            border: 0,
+            padding: 0,
+            textAlign: 'left',
+            cursor: canEdit && !extra && !isInactive && !isClosed ? 'pointer' : 'default',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={S.label}>{m.name}</div>
+            <div style={{
+              ...S.caption,
+              color: dueColor,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {genderTxt(m.gender) + ' · ' + levelOf(m, month) + ' · ' + dueText}
+            </div>
+          </div>
+          <LevelChip level={levelOf(m, month)} levels={db.levels} />
+          <span style={{
+            font: "600 13px/1.2 'IBM Plex Sans', sans-serif",
+            color: statusColor,
+            whiteSpace: 'nowrap',
+            minWidth: 56,
+            textAlign: 'right',
+          }}>
+            {statusText}
+          </span>
+        </button>
+
+        {charge && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <Mono weight={600} color="var(--text-primary)">{fmt(charge.price)}</Mono>
+            <span style={charge.paid ? S.tagGreen : S.tagAmber}>
+              {t(charge.paid ? 'session.guestPaid' : 'session.guestDebt')}
+            </span>
+          </div>
+        )}
+
+        {extra && canEdit && !isClosed && (
+          <IconButton
+            icon="trash-2"
+            size="sm"
+            variant="ghost"
+            style={{ color: 'var(--status-incident)' }}
+            label={t('common.delete')}
+            onClick={(e) => {
+              e.stopPropagation()
+              a.confirm({
+                title: t('session.dropExtraTitle'),
+                message: t('session.dropExtraMsg', { name: m.name }),
+                tone: 'danger',
+                confirmText: t('session.dropExtraOk'),
+                onConfirm: () => a.removeExtra(s.id, m.id),
+              })
+            }}
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
     <>
       {/* ---------------- Unified Session Top Header (Mockup 01 / K1 / W1) ---------------- */}
@@ -474,152 +687,72 @@ export default function SessionDetail() {
             </div>
             {adhoc && <Alert tone="info">{t('session.adhocChargeNote')}</Alert>}
             {members.length === 0 && <Empty icon="users" title={t('members.emptyGroup')} hint={t('members.emptyGroupHint')} />}
-            {members.map((m) => {
-              const state = att[m.id]
-              const extra = state === 'extra'
-              const due = dues.find((d) => d.memberId === m.id && d.groupId === s.groupId)
-              const charge = adhoc ? charges.find((c) => c.memberId === m.id) : null
-
-              let dueText = ''
-              let dueColor = 'var(--text-muted)'
-              if (charge) {
-                dueText = charge.paid ? t('session.guestPaid') : t('session.guestDebt')
-                if (!charge.paid) dueColor = '#F0B75C'
-              } else if (extra) {
-                dueText = t('session.extraDueTag')
-              } else if (due) {
-                const ds = dueState(due)
-                if (ds.state === 'full') {
-                  dueText = t('session.duePaidTag')
-                  dueColor = 'var(--text-muted)'
-                } else if (ds.state === 'partial') {
-                  dueText = t('session.duePartialTag', { amount: fmtK(ds.remain) })
-                  dueColor = '#F0B75C'
-                } else {
-                  dueText = t('session.dueUnpaidTag')
-                  dueColor = '#F0B75C'
-                }
-              } else {
-                dueText = t('session.noDueTag')
-              }
-
-              const isPresent = state === true
-              const isAbsent = state === false || allSold
-
-              let rowBg = 'var(--surface-card)'
-              let rowBorder = '1px solid var(--border-subtle)'
-              let statusText = t('attend.unmarked')
-              let statusColor = 'var(--text-disabled)'
-
-              if (allSold) {
-                rowBg = 'var(--surface-sunken)'
-                rowBorder = '1px solid var(--border-subtle)'
-                statusText = t('attend.absent')
-                statusColor = 'var(--text-muted)'
-              } else if (isPresent) {
-                rowBg = 'rgba(0,178,169,.14)'
-                rowBorder = '1px solid var(--teal-500)'
-                statusText = t('attend.present')
-                statusColor = '#5FDBD3'
-              } else if (isAbsent) {
-                rowBg = 'var(--surface-sunken)'
-                rowBorder = '1px solid var(--border-subtle)'
-                statusText = t('attend.absent')
-                statusColor = 'var(--text-muted)'
-              } else if (extra) {
-                rowBg = 'rgba(0,178,169,.08)'
-                rowBorder = '1px solid var(--teal-500)'
-                statusText = t('attend.extra')
-                statusColor = '#5FDBD3'
-              }
-
-              return (
+            {attendanceSections.map((sec, secIdx) => (
+              <div key={sec.id} style={{ display: 'grid', gap: 7 }}>
                 <div
-                  key={m.id}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 10,
-                    padding: '9px 11px',
-                    borderRadius: 8,
-                    background: rowBg,
-                    border: rowBorder,
-                    opacity: isInactive ? 0.75 : 1,
-                    transition: 'all 0.15s ease',
+                    gap: 8,
+                    margin: secIdx === 0 ? '2px 0 3px' : '10px 0 3px',
+                    padding: '0 2px',
+                    userSelect: 'none',
                   }}
                 >
-                  <button
-                    type="button"
-                    disabled={!canEdit || extra || isInactive || isClosed}
-                    onClick={() => a.toggleAtt(s.id, m.id)}
+                  <div
                     style={{
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 10,
-                      flex: 1,
-                      minWidth: 0,
-                      background: 'none',
-                      border: 0,
-                      padding: 0,
-                      textAlign: 'left',
-                      cursor: canEdit && !extra && !isInactive && !isClosed ? 'pointer' : 'default',
+                      gap: 6,
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      background: sec.badgeBg,
+                      border: sec.border,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                      transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
                     }}
                   >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={S.label}>{m.name}</div>
-                      <div style={{
-                        ...S.caption,
-                        color: dueColor,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}>
-                        {genderTxt(m.gender) + ' · ' + levelOf(m, month) + ' · ' + dueText}
-                      </div>
-                    </div>
-                    <LevelChip level={levelOf(m, month)} levels={db.levels} />
-                    <span style={{
-                      font: "600 13px/1.2 'IBM Plex Sans', sans-serif",
-                      color: statusColor,
-                      whiteSpace: 'nowrap',
-                      minWidth: 56,
-                      textAlign: 'right',
-                    }}>
-                      {statusText}
-                    </span>
-                  </button>
-
-                  {charge && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      <Mono weight={600} color="var(--text-primary)">{fmt(charge.price)}</Mono>
-                      <span style={charge.paid ? S.tagGreen : S.tagAmber}>
-                        {t(charge.paid ? 'session.guestPaid' : 'session.guestDebt')}
-                      </span>
-                    </div>
-                  )}
-
-                  {extra && canEdit && !isClosed && (
-                    <IconButton
-                      icon="trash-2"
-                      size="sm"
-                      variant="ghost"
-                      style={{ color: 'var(--status-incident)' }}
-                      label={t('common.delete')}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        a.confirm({
-                          title: t('session.dropExtraTitle'),
-                          message: t('session.dropExtraMsg', { name: m.name }),
-                          tone: 'danger',
-                          confirmText: t('session.dropExtraOk'),
-                          onConfirm: () => a.removeExtra(s.id, m.id),
-                        })
+                    <span
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: sec.dotColor,
+                        display: 'inline-block',
                       }}
                     />
-                  )}
+                    <span
+                      style={{
+                        font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                        color: sec.textColor,
+                        letterSpacing: '0.3px',
+                      }}
+                    >
+                      {sec.label}
+                    </span>
+                    <span
+                      style={{
+                        font: "700 10.5px/1.2 'IBM Plex Mono', monospace",
+                        color: sec.textColor,
+                        opacity: 0.85,
+                        marginLeft: 2,
+                      }}
+                    >
+                      {sec.count}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 1,
+                      background: sec.lineGradient,
+                    }}
+                  />
                 </div>
-              )
-            })}
+
+                {sec.members.map(renderMemberRow)}
+              </div>
+            ))}
             {canEdit && !isInactive && !isClosed && <ExtraPicker s={s} members={members} isMobile={isMobile} />}
           </div>
         </Card>
