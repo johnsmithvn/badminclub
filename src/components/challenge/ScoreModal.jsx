@@ -3,7 +3,7 @@ import { Dialog } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
-import { playerName } from '#lib/money.js'
+import { playerName, playerOf } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -105,9 +105,9 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
     const ratingsMap = {}
     const gamesCountMap = {}
     ;[...teamA, ...teamB].forEach((id) => {
-      const pr = getPlayerRating(db.playerRatings, id)
+      const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
       ratingsMap[id] = pr.rating
-      gamesCountMap[id] = pr.matchesCount || 0
+      gamesCountMap[id] = pr.gamesCount || 0
     })
     return calcPlayerDeltas({
       teamA,
@@ -117,7 +117,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       gamesCountMap,
       sets,
     })
-  }, [winnerTeam, teamA, teamB, sets, db.playerRatings])
+  }, [winnerTeam, teamA, teamB, sets, db])
 
   const ratingDeltaPreview = useMemo(() => {
     if (!playerDeltasPreview) return null

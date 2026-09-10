@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Button, Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
-import { playerName, courtOf } from '#lib/money.js'
+import { playerName, courtOf, playerOf } from '#lib/money.js'
 import {
   matchCodeOf,
   getPlayerRating,
@@ -10,6 +10,7 @@ import {
   normalizeSynergyScore,
   calcMatchupEdge,
   confidenceLevelOf,
+  DEFAULT_RATING,
 } from '#lib/rating.js'
 import { dd } from '#utils/dates.js'
 import { t } from '#i18n'
@@ -44,10 +45,11 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
 
   // Rating từng người
-  const rA0 = teamA[0] ? getPlayerRating(db.playerRatings, teamA[0], null, db.levels).rating : 1795
-  const rA1 = teamA[1] ? getPlayerRating(db.playerRatings, teamA[1], null, db.levels).rating : 1710
-  const rB0 = teamB[0] ? getPlayerRating(db.playerRatings, teamB[0], null, db.levels).rating : 1668
-  const rB1 = teamB[1] ? getPlayerRating(db.playerRatings, teamB[1], null, db.levels).rating : 1520
+  const ratingOf = (id) => (id ? getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels).rating : DEFAULT_RATING)
+  const rA0 = ratingOf(teamA[0])
+  const rA1 = ratingOf(teamA[1])
+  const rB0 = ratingOf(teamB[0])
+  const rB1 = ratingOf(teamB[1])
 
   const avgRa = teamA.length > 1 ? Math.round((rA0 + rA1) / 2) : rA0
   const avgRb = teamB.length > 1 ? Math.round((rB0 + rB1) / 2) : rB0
@@ -69,7 +71,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   // Tính rating từng người trước và sau trận
   const playerDeltas = useMemo(() => {
     const listA = teamA.map((id) => {
-      const pr = getPlayerRating(db.playerRatings, id, null, db.levels)
+      const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
       const baseRating = match?.initialRatingA ? Math.round(match.initialRatingA) : pr.rating
       const change = aWon ? delta : -delta
       return {
@@ -82,7 +84,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
     })
 
     const listB = teamB.map((id) => {
-      const pr = getPlayerRating(db.playerRatings, id, null, db.levels)
+      const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
       const baseRating = match?.initialRatingB ? Math.round(match.initialRatingB) : pr.rating
       const change = !aWon ? delta : -delta
       return {

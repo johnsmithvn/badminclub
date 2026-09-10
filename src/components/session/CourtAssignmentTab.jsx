@@ -9,7 +9,7 @@ import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWait
 import {
   expectedScore, getPlayerRating,
   teamRating, computeClubCalibration,
-  calcPlayerDeltas, calcPairImpact,
+  calcPlayerDeltas, calcPairImpact, DEFAULT_RATING,
 } from '#lib/rating.js'
 import { t } from '#i18n'
 import CourtWaitingFilterSheet from '#components/session/CourtWaitingFilterSheet.jsx'
@@ -74,7 +74,7 @@ export default function CourtAssignmentTab({ s }) {
     const map = {}
     players.forEach((p) => {
       const pr = getPlayerRating(db.playerRatings, p.key, p, db.levels)
-      map[p.key] = pr.effectiveStrength || pr.rating || 1500
+      map[p.key] = pr.effectiveStrength ?? pr.rating ?? DEFAULT_RATING
     })
     return map
   }, [players, db.playerRatings, db.levels])
@@ -640,7 +640,7 @@ export default function CourtAssignmentTab({ s }) {
     try {
       const gamesCountMap = {}
       players.forEach((p) => {
-        gamesCountMap[p.key] = getPlayerRating(db.playerRatings, p.key).gamesCount || 0
+        gamesCountMap[p.key] = getPlayerRating(db.playerRatings, p.key, p, db.levels).gamesCount || 0
       })
       const playedSets = isBo3
         ? bo3Sets.filter(([sa, sb]) => sa > 0 || sb > 0)
@@ -657,7 +657,7 @@ export default function CourtAssignmentTab({ s }) {
     } catch {
       return {}
     }
-  }, [teamA, teamB, ratingEnabled, winnerTeam, ratingsMap, players, db.playerRatings, isBo3, bo3Sets, scoreA, scoreB])
+  }, [teamA, teamB, ratingEnabled, winnerTeam, ratingsMap, players, db.playerRatings, db.levels, isBo3, bo3Sets, scoreA, scoreB])
 
   // Lưu kết quả trận đấu
   const handleSaveResult = () => {

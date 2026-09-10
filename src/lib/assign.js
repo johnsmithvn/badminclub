@@ -6,7 +6,7 @@ import { monthOf } from '#utils/dates.js'
 import { isPresent, levelIdx, levelOf, sGuestsOnly, sessionMembers } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
-import { calcPairImpact, calcMatchupEdge, expectedScore } from '#lib/rating.js'
+import { calcPairImpact, calcMatchupEdge, expectedScore, DEFAULT_RATING } from '#lib/rating.js'
 
 /** Năm chế độ xếp. Nhãn và mô tả lấy từ i18n theo key. */
 export const MODE_KEYS = ['balance', 'fewest', 'rest', 'same', 'random']
@@ -518,7 +518,7 @@ export function arrangeBestOfN({
     .map((p) => ({
       ...p,
       waitTurns: Math.max(1, Math.max(...onCourtA.map((k) => cnt(k)), 0) - cnt(p.key)),
-      elo: ratingsMap[p.key] || 1500,
+      elo: ratingsMap[p.key] ?? DEFAULT_RATING,
     }))
     .sort((a, b) => b.waitTurns - a.waitTurns)
 

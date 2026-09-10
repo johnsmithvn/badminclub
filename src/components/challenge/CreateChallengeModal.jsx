@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { expectedScore, calcEloDelta, getPlayerRating, confidenceProgress } from '#lib/rating.js'
-import { playerName } from '#lib/money.js'
+import { playerName, playerOf } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -25,13 +25,13 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   }, [db.attendance, db.members, session])
 
   // Lấy rating của từng người (an toàn với cả Map lẫn Array)
-  const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
+  const getRating = (mid) => getPlayerRating(db.playerRatings, mid, playerOf(db, mid), db.levels).rating
 
   // Kiểm tra thành viên có độ tin cậy thấp (R1/R2: < 15 trận)
   const unreliableMember = useMemo(() => {
     const allIds = [...teamA, ...teamB]
     for (const id of allIds) {
-      const pr = getPlayerRating(db.playerRatings, id)
+      const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
       if ((pr.gamesCount || 0) < 15) {
         return {
           id,
@@ -66,15 +66,15 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   // Tính rating trung bình
   const avgRatingA = useMemo(() => {
     if (!teamA.length) return 0
-    const sum = teamA.reduce((acc, id) => acc + getPlayerRating(db.playerRatings, id).rating, 0)
+    const sum = teamA.reduce((acc, id) => acc + getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels).rating, 0)
     return Math.round(sum / teamA.length)
-  }, [teamA, db.playerRatings])
+  }, [teamA, db])
 
   const avgRatingB = useMemo(() => {
     if (!teamB.length) return 0
-    const sum = teamB.reduce((acc, id) => acc + getPlayerRating(db.playerRatings, id).rating, 0)
+    const sum = teamB.reduce((acc, id) => acc + getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels).rating, 0)
     return Math.round(sum / teamB.length)
-  }, [teamB, db.playerRatings])
+  }, [teamB, db])
 
   const gap = Math.abs(avgRatingA - avgRatingB)
   const isImbalanced = gap > (cfg.rating?.thresholds?.imbalanced || 250)
@@ -141,7 +141,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               {teamA.length > 0 && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                   {teamA.map((id) => {
-                    const pr = getPlayerRating(db.playerRatings, id)
+                    const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
                     const conf = confidenceProgress(pr.gamesCount || 0)
                     return (
                       <span key={id} style={confTagStyle(conf.level)}>
@@ -165,7 +165,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               {teamB.length > 0 && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                   {teamB.map((id) => {
-                    const pr = getPlayerRating(db.playerRatings, id)
+                    const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
                     const conf = confidenceProgress(pr.gamesCount || 0)
                     return (
                       <span key={id} style={confTagStyle(conf.level)}>
@@ -188,7 +188,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                 const inA = teamA.includes(m.id)
                 const inB = teamB.includes(m.id)
                 const r = getRating(m.id)
-                const pr = getPlayerRating(db.playerRatings, m.id)
+                const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
                 const conf = confidenceProgress(pr.gamesCount || 0)
                 return (
                   <button

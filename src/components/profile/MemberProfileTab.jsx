@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Icon, Select, StatCard } from '#ds'
 import { LevelChip } from '#ui'
 import { playerName } from '#lib/money.js'
-import { getPlayerRating, rankTierOf, applyInactivityDecay, getPlayerFormatRatings, getPlayerPartnersAndMatchups } from '#lib/rating.js'
+import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger, getMemberAchievements, getSeasonBountyPlayer } from '#lib/xp.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
@@ -256,7 +256,7 @@ export default function MemberProfileTab({
 
   // 5. Rating & Tier & Inactivity
   const pr = getPlayerRating(db.playerRatings, mid, member, db.levels)
-  const lastMatchIso = memberMatches[0]?.at ? new Date(memberMatches[0].at).toISOString() : pr.lastMatchAt
+  const lastMatchIso = lastMatchAtOf(matches, mid)
   const decayInfo = applyInactivityDecay(pr.rating, lastMatchIso)
   const tier = rankTierOf(decayInfo.rating, rankTheme)
   const badge = getMemberBadge(mid)
@@ -592,7 +592,7 @@ export default function MemberProfileTab({
                         {t('profile.careerElo')}
                       </div>
                       <div style={{ font: '700 34px/1 Barlow, sans-serif', color: '#fff' }}>
-                        {formatRatings?.overall?.rating || 1500}
+                        {formatRatings?.overall?.rating ?? DEFAULT_RATING}
                       </div>
                       <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#7AA3DC' }}>
                         {formatRatings?.overall?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.overall?.confidence)}
@@ -605,10 +605,10 @@ export default function MemberProfileTab({
                       <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
                         <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('profile.doublesFormat')}</span>
                         <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.doubles?.rating || 1500) - 1000) / 12)))}%`, background: '#00B2A9' }} />
+                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.doubles?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: '#00B2A9' }} />
                         </span>
                         <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>
-                          {formatRatings?.doubles?.rating || 1500}
+                          {formatRatings?.doubles?.rating ?? DEFAULT_RATING}
                         </span>
                         <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
                           {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.doubles?.confidence)}
@@ -619,10 +619,10 @@ export default function MemberProfileTab({
                       <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
                         <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('profile.mixedFormat')}</span>
                         <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.mixed?.rating || 1500) - 1000) / 12)))}%`, background: '#3C74C4' }} />
+                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.mixed?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: '#3C74C4' }} />
                         </span>
                         <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>
-                          {formatRatings?.mixed?.rating || 1500}
+                          {formatRatings?.mixed?.rating ?? DEFAULT_RATING}
                         </span>
                         <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
                           {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.mixed?.confidence)}
@@ -633,10 +633,10 @@ export default function MemberProfileTab({
                       <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
                         <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>{t('profile.singlesFormat')}</span>
                         <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.singles?.rating || 1500) - 1000) / 12)))}%`, background: '#2E3E5C' }} />
+                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.singles?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: '#2E3E5C' }} />
                         </span>
                         <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
-                          ~{formatRatings?.singles?.rating || 1500}
+                          ~{formatRatings?.singles?.rating ?? DEFAULT_RATING}
                         </span>
                         <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
                           {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.singles?.confidence)}

@@ -2085,7 +2085,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (!list.length) return toast(t('toast.noMatch'))
       const last = list[list.length - 1]
       const remainingMatches = (d0.matches || []).filter((x) => x.id !== last.id)
-      const { finalRatings, updatedMatches } = replayRatingCascade(remainingMatches, last.id, d0.members, d0.levels)
+      const { finalRatings, updatedMatches } = replayRatingCascade(remainingMatches, last.id, d0.members, d0.levels, d0.guests)
       up((d) => {
         const nextRatings = { ...(d.playerRatings || {}) }
         Object.entries(finalRatings || {}).forEach(([mid, r]) => {
@@ -2319,7 +2319,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           })
           delta = deltas[teamA[0]] || 0
           const memberIdSet = new Set((d0.members || []).map((x) => x.id))
-          const nowIso = new Date().toISOString()
           teamA.forEach((id) => {
             if (!memberIdSet.has(id)) return // Khách giao lưu không tích luỹ bảng xếp hạng Elo CLB
             const memA = (d0.members || []).find((x) => x.id === id)
@@ -2335,7 +2334,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
               gamesCount: cur.gamesCount + 1,
               winsCount: aWon ? cur.winsCount + 1 : cur.winsCount,
               lossesCount: !aWon ? cur.lossesCount + 1 : cur.lossesCount,
-              lastMatchAt: nowIso,
             }
           })
           teamB.forEach((id) => {
@@ -2353,7 +2351,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
               gamesCount: cur.gamesCount + 1,
               winsCount: !aWon ? cur.winsCount + 1 : cur.winsCount,
               lossesCount: aWon ? cur.lossesCount + 1 : cur.lossesCount,
-              lastMatchAt: nowIso,
             }
           })
         }
@@ -2444,7 +2441,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       // Replay cascade tính lại toàn bộ Elo các trận sau đó
       const updatedMatchList = (d0.matches || []).map((m) => (m.id === matchId ? { ...m, sets: actualSets, at: nextAt } : m))
-      const { finalRatings, updatedMatches } = replayRatingCascade(updatedMatchList, matchId, d0.members, d0.levels)
+      const { finalRatings, updatedMatches } = replayRatingCascade(updatedMatchList, matchId, d0.members, d0.levels, d0.guests)
 
       up((d) => {
         const nextRatings = { ...(d.playerRatings || {}) }
@@ -2507,7 +2504,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }
 
       const remainingMatches = (d0.matches || []).filter((m) => m.id !== matchId)
-      const { finalRatings, updatedMatches } = replayRatingCascade(remainingMatches, matchId, d0.members, d0.levels)
+      const { finalRatings, updatedMatches } = replayRatingCascade(remainingMatches, matchId, d0.members, d0.levels, d0.guests)
 
       up((d) => {
         const nextRatings = { ...(d.playerRatings || {}) }
@@ -2551,7 +2548,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     recalcAllRatings: () => {
       if (!canAssign()) return
       const d0 = db()
-      const { finalRatings, updatedMatches } = replayRatingCascade(d0.matches || [], null, d0.members, d0.levels)
+      const { finalRatings, updatedMatches } = replayRatingCascade(d0.matches || [], null, d0.members, d0.levels, d0.guests)
       up((d) => {
         const nextRatings = { ...(d.playerRatings || {}) }
         Object.entries(finalRatings || {}).forEach(([mid, r]) => {

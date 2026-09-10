@@ -51,25 +51,33 @@ export const payerName = (db, payerId, legacy) => {
   return (m && m.name) || legacy || t('fund.payerFund')
 }
 export const guestOf = (db, id) => db.guests.find((g) => g.id === id) || { name: t('common.unknown') }
-/** Tên của một người chơi bất kỳ trong CLB (thành viên hoặc khách giao lưu). */
-export const playerName = (db, id) => {
-  if (!id) return ''
+/**
+ * Hồ sơ của một người chơi bất kỳ trong CLB (thành viên hoặc khách giao lưu), null nếu không thấy.
+ * Dùng để lấy `level` khi tính Elo — thiếu nó thì getPlayerRating rơi về seed 0.
+ */
+export const playerOf = (db, id) => {
+  if (!id) return null
   const m = (db?.members || []).find((x) => x.id === id)
-  if (m?.name) return m.name
+  if (m) return m
   const g = (db?.guests || []).find((x) => x.id === id)
-  if (g?.name) return g.name
+  if (g) return g
   const sg = (db?.sessionGuests || []).find((x) => x.id === id || x.guestId === id)
   if (sg) {
     if (sg.guestId) {
       const g2 = (db?.guests || []).find((x) => x.id === sg.guestId)
-      if (g2?.name) return g2.name
+      if (g2) return g2
     }
     if (sg.memberId) {
       const m2 = (db?.members || []).find((x) => x.id === sg.memberId)
-      if (m2?.name) return m2.name
+      if (m2) return m2
     }
   }
-  return id
+  return null
+}
+/** Tên của một người chơi bất kỳ trong CLB (thành viên hoặc khách giao lưu). */
+export const playerName = (db, id) => {
+  if (!id) return ''
+  return playerOf(db, id)?.name || id
 }
 export const sessionOf = (db, id) => db.sessions.find((s) => s.id === id)
 

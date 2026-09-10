@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Dialog } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { courtOf, myMember, playerName } from '#lib/money.js'
+import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { t } from '#i18n'
@@ -42,7 +42,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
     return (db.members || []).filter((m) => m.active !== false && att[m.id] === true && !busyIds.has(m.id))
   }, [db.attendance, db.members, session, teamA, myId])
 
-  const getRating = (id) => getPlayerRating(db.playerRatings, id).rating
+  const getRating = (id) => getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels).rating
 
   // Calculate ratings
   const ratA = teamA.length ? Math.round(teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length) : 0

@@ -524,10 +524,22 @@ export function effectiveRating(member, opponentHasOppositeGender, calibrationLi
  * @param {Array} allMatches - Toàn bộ các trận trong CLB, sắp xếp theo thời gian
  * @param {string} editedMatchId - ID của trận vừa bị sửa
  * @param {Array} members - Danh sách thành viên CLB
+ * @param {Array<string>} [levels] - Danh sách trình độ của CLB
+ * @param {Array} [guests] - Khách giao lưu; phải truyền để seed khớp với lúc lưu trận trực tiếp
  */
-export function replayRatingCascade(allMatches, editedMatchId, members, levels) {
-  // Sắp xếp các trận theo thời gian tăng dần
-  const sorted = [...(allMatches || [])].sort((a, b) => (a.at || 0) - (b.at || 0))
+export function replayRatingCascade(allMatches, editedMatchId, members, levels, guests = []) {
+  // Sắp xếp các trận theo thời gian tăng dần.
+  // Tie-break theo id để 2 trận lưu cùng mili-giây luôn replay ra cùng một kết quả.
+  const sorted = [...(allMatches || [])].sort(
+    (a, b) => (a.at || 0) - (b.at || 0) || String(a.id || '').localeCompare(String(b.id || ''))
+  )
+
+  // Seed điểm xuất phát cho MỌI người có thể ra sân (hội viên + khách).
+  // Trước đây khách bị seed cứng 'TB' (500) trong khi saveMatchScore seed theo guest.level
+  // -> mỗi lần recalc là Elo cả CLB lệch. Giờ hai đường dùng chung một nguồn seed.
+  const seedOf = {}
+  ;(members || []).forEach((m) => { seedOf[m.id] = initialRatingOf(m?.level, levels) })
+  ;(guests || []).forEach((g) => { seedOf[g.id] = initialRatingOf(g?.level, levels) })
 
   // Khởi tạo bảng rating tính toán
   const ratings = {}
@@ -535,7 +547,7 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
   const winsCount = {}
   const lossesCount = {}
   ;(members || []).forEach((m) => {
-    ratings[m.id] = initialRatingOf(m?.level, levels)
+    ratings[m.id] = seedOf[m.id]
     gamesCount[m.id] = 0
     winsCount[m.id] = 0
     lossesCount[m.id] = 0
@@ -549,7 +561,8 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
 
     ;[...teamA, ...teamB].forEach((id) => {
       if (ratings[id] === undefined) {
-        ratings[id] = initialRatingOf('TB', levels)
+        // Khớp đúng nhánh fallback của saveMatchScore: không tra được trình độ thì dùng DEFAULT_RATING
+        ratings[id] = seedOf[id] ?? DEFAULT_RATING
         gamesCount[id] = 0
       }
     })
@@ -633,6 +646,31 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels) 
   })
 
   return { finalRatings, updatedMatches }
+}
+
+/**
+ * Thời điểm ra sân gần nhất của một người chơi, suy trực tiếp từ lịch sử trận.
+ *
+ * Cột `last_match_at` KHÔNG tồn tại trong bảng player_ratings, nên field `lastMatchAt`
+ * ghi trong state sẽ mất sau mỗi lần tải lại. Suy từ `matches` vừa luôn đúng sau khi
+ * sửa/huỷ trận, vừa không cần thêm cột — mọi nơi cần mốc này phải dùng chung hàm đây.
+ *
+ * @param {Array} matches - Toàn bộ trận đấu
+ * @param {string} playerId
+ * @returns {string|null} ISO string, hoặc null nếu chưa ra sân trận nào
+ */
+export function lastMatchAtOf(matches = [], playerId) {
+  if (!playerId) return null
+  let latest = 0
+  ;(matches || []).forEach((m) => {
+    if (!m) return
+    const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+    if (!teamA.includes(playerId) && !teamB.includes(playerId)) return
+    const at = m.at || (m.playedAt ? Date.parse(m.playedAt) : 0) || (m.createdAt ? Date.parse(m.createdAt) : 0)
+    if (at > latest) latest = at
+  })
+  return latest > 0 ? new Date(latest).toISOString() : null
 }
 
 /**
@@ -1130,10 +1168,10 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
     if (filterFormat !== 'all' && format !== filterFormat) return
 
     const trend = calcSynergyTrend(matches, p1, p2, ratingsMap)
-    const rawR1 = ratingsMap && ratingsMap[p1] != null ? ratingsMap[p1] : 1500
-    const rawR2 = ratingsMap && ratingsMap[p2] != null ? ratingsMap[p2] : 1500
-    const r1 = typeof rawR1 === 'number' ? rawR1 : (typeof rawR1?.rating === 'number' ? rawR1.rating : 1500)
-    const r2 = typeof rawR2 === 'number' ? rawR2 : (typeof rawR2?.rating === 'number' ? rawR2.rating : 1500)
+    const rawR1 = ratingsMap && ratingsMap[p1] != null ? ratingsMap[p1] : DEFAULT_RATING
+    const rawR2 = ratingsMap && ratingsMap[p2] != null ? ratingsMap[p2] : DEFAULT_RATING
+    const r1 = typeof rawR1 === 'number' ? rawR1 : (typeof rawR1?.rating === 'number' ? rawR1.rating : DEFAULT_RATING)
+    const r2 = typeof rawR2 === 'number' ? rawR2 : (typeof rawR2?.rating === 'number' ? rawR2.rating : DEFAULT_RATING)
     const combinedRating = Math.round(r1 + r2)
 
     const firstMatch = info.pairMatches?.[0]

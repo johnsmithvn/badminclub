@@ -3,7 +3,7 @@ import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { playerName } from '#lib/money.js'
-import { matchCodeOf, teamRating, calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
+import { matchCodeOf, teamRating, calcPlayerDeltas, getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
 import { t } from '#i18n'
 
 export default function EditScoreModal({ match: initialMatch, onClose, onSaved, onNavigateMatch }) {
@@ -135,7 +135,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
       if (map[id] == null) {
         const mem = (db.members || []).find((m) => m.id === id) || (db.guests || []).find((g) => g.id === id)
         const pr = getPlayerRating(db.playerRatings, id, mem, db.levels)
-        map[id] = pr?.rating || 1500
+        map[id] = pr?.rating ?? DEFAULT_RATING
       }
     })
     return map

@@ -4,7 +4,7 @@ import { Avatar, Button, Card, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
-import { confidenceOf, getPlayerRating, rankTierOf, applyInactivityDecay, kFactorOf, MIN_RATING, matchCodeOf, rankPairs } from '#lib/rating.js'
+import { confidenceOf, getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, kFactorOf, MIN_RATING, DEFAULT_RATING, matchCodeOf, rankPairs } from '#lib/rating.js'
 import { playerName, courtOf } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
 import { searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
@@ -84,7 +84,7 @@ export default function Leaderboard() {
     const raw = calculateSeasonLeaderboard(db, cfg.season)
     const enrichedList = (raw.leaderboard || []).map((row) => {
       const pr = getPlayerRating(db.playerRatings, row.id, row.member || row, db.levels)
-      const elo = pr.displayRating || pr.rating || 1500
+      const elo = pr.displayRating ?? pr.rating ?? DEFAULT_RATING
       const isProv = pr.isProvisional || (pr.gamesCount || 0) < 5
       return {
         ...row,
@@ -217,7 +217,7 @@ export default function Leaderboard() {
       const totalGames = wins + losses
       const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0
 
-      const lastMatchDate = myMatches[0]?.at ? new Date(myMatches[0].at).toISOString() : (pr.lastMatchAt || null)
+      const lastMatchDate = lastMatchAtOf(db.matches || [], m.id)
       const decay = applyInactivityDecay(pr.rating, lastMatchDate)
       const displayRating = Math.max(MIN_RATING, decay.rating)
       const tier = rankTierOf(displayRating, rankTheme)
@@ -921,7 +921,7 @@ export default function Leaderboard() {
                     { value: '', label: `-- ${t('matchSearch.playerA')} --` },
                     ...activeMembers.map((m) => {
                       const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
-                      const elo = pr.displayRating || pr.rating || 1500
+                      const elo = pr.displayRating ?? pr.rating ?? DEFAULT_RATING
                       return { value: m.id, label: `${m.name} (${elo})` }
                     }),
                   ]}
@@ -953,7 +953,7 @@ export default function Leaderboard() {
                     { value: '', label: `-- ${t('matchSearch.playerB')} --` },
                     ...activeMembers.map((m) => {
                       const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
-                      const elo = pr.displayRating || pr.rating || 1500
+                      const elo = pr.displayRating ?? pr.rating ?? DEFAULT_RATING
                       return { value: m.id, label: `${m.name} (${elo})` }
                     }),
                   ]}

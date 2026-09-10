@@ -9,6 +9,8 @@ import {
   calcEloDelta,
   getPlayerRating,
   initialRatingOf,
+  replayRatingCascade,
+  lastMatchAtOf,
 } from '../../lib/rating.js'
 
 
@@ -217,5 +219,100 @@ test('Rating Upgrades Suite', async (t) => {
     assert.ok(deltas['m_mid1'] < 0)
     assert.ok(deltas['m_mid2'] < 0)
     assert.equal(deltas['m_mid1'], deltas['m_mid2'])
+  })
+})
+
+/* ==========================================================================
+ * Nhóm sửa lỗi "đầu vào Elo" — 4 blocker khiến cùng một người ra hai con số
+ * khác nhau tuỳ màn hình. Sai ở đây là chia sai bucket chênh lệch và trao
+ * nhầm điểm mùa, nên mỗi assert dưới đây khoá một đường rò rỉ cụ thể.
+ * ========================================================================== */
+test('Rating Input Consistency Suite', async (t) => {
+  await t.test('A1. getPlayerRating: người chưa có row phải rơi về seed theo trình độ, không phải 0', () => {
+    // Không truyền member -> không tra được level -> seed 0. Đây là lý do các màn
+    // quên truyền member hiển thị Elo 0 cho hội viên mới trong khi Leaderboard hiện 720.
+    const noMember = getPlayerRating({}, 'm_new')
+    assert.equal(noMember.rating, 0, 'Thiếu member thì hàm không thể biết seed — call site PHẢI truyền member')
+
+    const withMember = getPlayerRating({}, 'm_new', { level: 'tbk' })
+    assert.equal(withMember.rating, 720, 'Có member thì seed phải bằng levelInitialRatings.tbk = 720')
+    assert.equal(withMember.effectiveStrength, 720, 'Chưa đấu trận nào thì sức mạnh hiệu dụng = seed')
+  })
+
+  await t.test('A1b. effectiveStrength co cụm về seed thật khi có member', () => {
+    const prMap = { m1: { rating: 1000, gamesCount: 3 } }
+    // < 5 trận: 60% seed + 40% Elo. Seed 'kha' = 800 -> 800*0.6 + 1000*0.4 = 880
+    const withMember = getPlayerRating(prMap, 'm1', { level: 'kha' })
+    assert.equal(withMember.effectiveStrength, 880, 'Co cụm sai seed là xếp sân sai trình')
+
+    // BẪY CÒN LẠI: thiếu member -> seedRating = 0, mà effectiveStrengthOf dùng
+    // `seedRating || r` nên số 0 hợp lệ bị nuốt và seed rơi về chính rating
+    // -> KHÔNG co cụm chút nào. Người mới 3 trận bị xếp sân như người đã 30 trận.
+    // Sửa `||` thành `??` sẽ đổi sức mạnh hiệu dụng của mọi người có seed = 0,
+    // tức đổi cách chia đội — cần user quyết trước, xem báo cáo.
+    const noMember = getPlayerRating(prMap, 'm1')
+    assert.equal(noMember.effectiveStrength, 1000, 'Hành vi HIỆN TẠI: thiếu member thì không co cụm')
+    assert.notEqual(noMember.effectiveStrength, withMember.effectiveStrength)
+  })
+
+  await t.test('A5. replayRatingCascade seed khách theo guest.level, không phải 500 cứng', () => {
+    const members = [{ id: 'm1', level: 'tb' }, { id: 'm2', level: 'tb' }]
+    const guests = [{ id: 'g1', level: 'tot' }, { id: 'g2', level: 'tot' }]
+    // m1+m2 (seed 500 mỗi người) THUA g1+g2. Nếu khách bị seed 500 như cũ thì đội
+    // ngang nhau -> m1 mất nhiều điểm. Seed đúng (tot = 1000) thì thua là đúng kèo
+    // -> m1 chỉ mất ít điểm. Chênh lệch này chính là chỗ recalc làm lệch cả CLB.
+    const matches = [{
+      id: 'x1', at: 1000, teamA: ['m1', 'm2'], teamB: ['g1', 'g2'],
+      winnerTeam: 'B', sets: [[15, 21]], ratingEnabled: true,
+    }]
+
+    const withGuests = replayRatingCascade(matches, null, members, null, guests)
+    const withoutGuests = replayRatingCascade(matches, null, members, null, [])
+
+    assert.ok(
+      withGuests.finalRatings.m1.rating > withoutGuests.finalRatings.m1.rating,
+      'Thua đội mạnh hơn phải mất ít điểm hơn thua đội ngang cơ'
+    )
+    assert.equal(withGuests.updatedMatches[0].initialRatingB, 1000, 'Team khách phải mang seed tot = 1000')
+    assert.equal(withoutGuests.updatedMatches[0].initialRatingB, 0, 'Không truyền guests thì rơi về DEFAULT_RATING = 0')
+  })
+
+  await t.test('A5b. cascade replay hai lần cho cùng kết quả dù trận trùng mốc thời gian', () => {
+    const members = [{ id: 'm1', level: 'tb' }, { id: 'm2', level: 'tb' }, { id: 'm3', level: 'kha' }, { id: 'm4', level: 'kha' }]
+    // Hai trận CÙNG `at` — trước khi có tie-break theo id, thứ tự replay không xác định
+    const matches = [
+      { id: 'b_second', at: 500, teamA: ['m1', 'm2'], teamB: ['m3', 'm4'], winnerTeam: 'A', sets: [[21, 12]], ratingEnabled: true },
+      { id: 'a_first', at: 500, teamA: ['m1', 'm2'], teamB: ['m3', 'm4'], winnerTeam: 'B', sets: [[9, 21]], ratingEnabled: true },
+    ]
+    const run1 = replayRatingCascade(matches, null, members, null, [])
+    const run2 = replayRatingCascade([...matches].reverse(), null, members, null, [])
+    assert.equal(run1.finalRatings.m1.rating, run2.finalRatings.m1.rating, 'Recalc phải ổn định, không phụ thuộc thứ tự mảng đầu vào')
+  })
+
+  await t.test('C4. lastMatchAtOf suy mốc ra sân gần nhất từ lịch sử trận', () => {
+    const matches = [
+      { id: '1', at: Date.parse('2026-01-10T10:00:00Z'), teamA: ['m1', 'm2'], teamB: ['m3', 'm4'] },
+      { id: '2', at: Date.parse('2026-03-20T10:00:00Z'), teamA: ['m3', 'm4'], teamB: ['m5', 'm6'] },
+      { id: '3', at: Date.parse('2026-02-15T10:00:00Z'), teamA: ['m1', 'm5'], teamB: ['m3', 'm6'] },
+    ]
+    assert.equal(lastMatchAtOf(matches, 'm1'), '2026-02-15T10:00:00.000Z', 'Phải lấy trận mới nhất, không phải trận đầu mảng')
+    assert.equal(lastMatchAtOf(matches, 'm3'), '2026-03-20T10:00:00.000Z')
+    assert.equal(lastMatchAtOf(matches, 'm_never'), null, 'Chưa ra sân thì không có mốc — decay không được tính bừa')
+    assert.equal(lastMatchAtOf([], 'm1'), null)
+
+    // Nối thẳng vào decay: nghỉ quá 45 ngày mới bắt đầu trừ
+    const decay = applyInactivityDecay(800, lastMatchAtOf(matches, 'm1'), new Date('2026-05-01T00:00:00Z'))
+    assert.ok(decay.isInactive, 'Nghỉ 75 ngày phải bị gắn cờ tạm nghỉ')
+    assert.ok(decay.decayAmount > 0)
+  })
+
+  await t.test('B4. fallback 0 hợp lệ không bị nuốt thành 1500/1200', () => {
+    // Elo 0 là giá trị HỢP LỆ (defaultRating = 0, tier novice bắt đầu từ 0).
+    // Dùng `||` ở call site sẽ biến 0 thành 1500 -> gap 1500 -> chia sai bucket.
+    const pr = getPlayerRating({ m1: { rating: 0, gamesCount: 10 } }, 'm1', { level: 'yeu' })
+    assert.equal(pr.rating, 0, 'Elo 0 phải giữ nguyên 0')
+    assert.equal(pr.displayRating, 0)
+    assert.equal(pr.tier.key, 'novice')
+    assert.equal(initialRatingOf('yeu'), 200)
   })
 })

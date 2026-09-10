@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
-import { courtOf, myMember, playerName } from '#lib/money.js'
+import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { firstEmptyCourtIdx } from '#lib/assign.js'
@@ -87,7 +87,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
 
   const memberNameOf = (id) => playerName(db, id)
 
-  const getRating = (mid) => getPlayerRating(db.playerRatings, mid).rating
+  const getRating = (mid) => getPlayerRating(db.playerRatings, mid, playerOf(db, mid), db.levels).rating
 
   // Đếm số trận từ nguồn
   const fromSessionCount = matches.filter((m) => m.sourceType === 'session' || (!m.sourceType && !m.challengeId)).length

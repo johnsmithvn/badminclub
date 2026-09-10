@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { dd } from '#utils/dates.js'
 import { playerName } from '#lib/money.js'
 import { calculatePlayerWaitTime } from '#lib/assign.js'
+import { DEFAULT_RATING } from '#lib/rating.js'
 import { t } from '#i18n'
 
 export default function SessionStatsSheet({
@@ -103,8 +104,8 @@ export default function SessionStatsSheet({
             pairLastAt[pairKey] = m.at || null
           }
           if (!pairRatings[pairKey]) {
-            const r1 = ratingsMap[k1] || 1500
-            const r2 = ratingsMap[k2] || 1500
+            const r1 = ratingsMap[k1] ?? DEFAULT_RATING
+            const r2 = ratingsMap[k2] ?? DEFAULT_RATING
             pairRatings[pairKey] = Math.round((r1 + r2) / 2)
           }
         }
@@ -123,7 +124,7 @@ export default function SessionStatsSheet({
         name2,
         count,
         lastAt: pairLastAt[pairKey],
-        avgRating: pairRatings[pairKey] || 1500,
+        avgRating: pairRatings[pairKey] ?? DEFAULT_RATING,
       }
     })
 

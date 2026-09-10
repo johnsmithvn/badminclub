@@ -1,5 +1,6 @@
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
+import { DEFAULT_RATING } from '#lib/rating.js'
 
 export default function EffectiveStrengthModal({
   player = {
@@ -18,8 +19,8 @@ export default function EffectiveStrengthModal({
 
   const name = player.name || ''
   const games = player.gamesCount || 0
-  const elo = player.displayRating || player.rating || 1500
-  const seed = player.seedRating || 1500
+  const elo = player.displayRating ?? player.rating ?? DEFAULT_RATING
+  const seed = player.seedRating ?? DEFAULT_RATING
   const eff = player.effectiveStrength || Math.round(seed * 0.6 + elo * 0.4)
 
   // Tỷ lệ co cụm

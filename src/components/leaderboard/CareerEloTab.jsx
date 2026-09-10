@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
-import { getPlayerRating, effectiveStrengthOf, isProvisional } from '#lib/rating.js'
+import { getPlayerRating, isProvisional, DEFAULT_RATING } from '#lib/rating.js'
 
 export default function CareerEloTab({
   members = [],
@@ -25,7 +25,7 @@ export default function CareerEloTab({
     const list = (members || []).map((m) => {
       const pr = getPlayerRating(playerRatings, m.id, m, levels)
       const gamesCount = pr.gamesCount || 0
-      const rating = pr.rating || 1500
+      const rating = pr.rating ?? DEFAULT_RATING
       const prov = isProvisional(gamesCount)
       const remaining = Math.max(0, 5 - gamesCount)
 
@@ -86,7 +86,7 @@ export default function CareerEloTab({
         level: m.level,
         gamesCount,
         rating,
-        effectiveStrength: pr.effectiveStrength || effectiveStrengthOf(rating, gamesCount, pr.seedRating || 1500),
+        effectiveStrength: pr.effectiveStrength ?? rating,
         isProvisional: prov,
         provisionalRemaining: remaining,
         wins,
@@ -139,7 +139,9 @@ export default function CareerEloTab({
     // Trung vị
     const sortedRatings = list.map((p) => p.rating).sort((a, b) => a - b)
     const mid = Math.floor(sortedRatings.length / 2)
-    const med = sortedRatings.length % 2 !== 0 ? sortedRatings[mid] : Math.round(((sortedRatings[mid - 1] || 1500) + (sortedRatings[mid] || 1500)) / 2) || 1500
+    const med = sortedRatings.length % 2 !== 0
+      ? (sortedRatings[mid] ?? DEFAULT_RATING)
+      : Math.round(((sortedRatings[mid - 1] ?? DEFAULT_RATING) + (sortedRatings[mid] ?? DEFAULT_RATING)) / 2)
 
     // % trong khoảng 1500 - 1700
     const inRange = list.filter((p) => p.rating >= 1500 && p.rating <= 1700).length

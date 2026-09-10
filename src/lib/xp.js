@@ -1,5 +1,6 @@
 import cfg from '#config/app.json' with { type: 'json' }
 import { isPresent } from '#lib/money.js'
+import { DEFAULT_RATING } from '#lib/rating.js'
 
 /**
  * Module tính toán XP, Cấp bậc và Sổ ghi đóng góp của Vận Động Viên (Screen 07 & Nhóm 8a SS1-SS3).
@@ -75,8 +76,8 @@ export function calculateMemberXp(memberId, db) {
       if (m.sessionId) attendedSessions.add(m.sessionId)
       const won = (inA && m.winnerTeam === 'A') || (inB && m.winnerTeam === 'B')
       const isThreeSets = (m.sets || []).length >= 3
-      const ra = m.initialRatingA || 1200
-      const rb = m.initialRatingB || 1200
+      const ra = m.initialRatingA ?? DEFAULT_RATING
+      const rb = m.initialRatingB ?? DEFAULT_RATING
       const isUpsetWon = (inA && won && ra < rb) || (inB && won && rb < ra)
 
       memberMatches.push({
@@ -154,8 +155,8 @@ export function getMemberXpLedger(memberId, db) {
     const inA = (m.teamA || []).includes(memberId)
     const inB = (m.teamB || []).includes(memberId)
     const won = (inA && m.winnerTeam === 'A') || (inB && m.winnerTeam === 'B')
-    const ra = m.initialRatingA || 1200
-    const rb = m.initialRatingB || 1200
+    const ra = m.initialRatingA ?? DEFAULT_RATING
+    const rb = m.initialRatingB ?? DEFAULT_RATING
     const isUpsetWon = (inA && won && ra < rb) || (inB && won && rb < ra)
 
     // Ra sân
@@ -373,8 +374,8 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
         if (mt.sessionId) myMatchSessionIds.add(mt.sessionId)
         const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
         const isThreeSets = (mt.sets || []).length >= 3
-        const ra = mt.initialRatingA || 1200
-        const rb = mt.initialRatingB || 1200
+        const ra = mt.initialRatingA ?? DEFAULT_RATING
+        const rb = mt.initialRatingB ?? DEFAULT_RATING
         const isUpsetWon = (inA && won && ra < rb) || (inB && won && rb < ra)
         myMatches.push({
           ...mt,
@@ -540,8 +541,8 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     const inA = tA.includes(memberId)
     const inB = tB.includes(memberId)
     const won = (inA && m.winnerTeam === 'A') || (inB && m.winnerTeam === 'B')
-    const ra = m.initialRatingA || 1200
-    const rb = m.initialRatingB || 1200
+    const ra = m.initialRatingA ?? DEFAULT_RATING
+    const rb = m.initialRatingB ?? DEFAULT_RATING
     const isUpsetWon = (inA && won && ra < rb) || (inB && won && rb < ra)
     const isThreeSets = (m.sets || []).length >= 3
 
