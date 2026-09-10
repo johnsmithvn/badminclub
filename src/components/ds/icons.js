@@ -21,7 +21,7 @@ import {
   Send, Settings, Settings2, Shield, ShoppingCart, Shuffle, Split, Tags, Trash2, TrendingDown,
   TrendingUp, TriangleAlert, Trophy, Truck, Undo2, Unlink, Upload, UserRound, UserRoundCheck,
   UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X, Zap,
-  Filter, Table,
+  Filter, Table, Mic,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -78,6 +78,7 @@ export const ICONS = {
   'loader-circle': LoaderCircle,
   'map-pin': MapPin,
   medal: Medal,
+  mic: Mic,
   minus: Minus,
   moon: Moon,
   package: Package,

@@ -15,6 +15,7 @@ import { t } from '#i18n'
 import CourtWaitingFilterSheet from '#components/session/CourtWaitingFilterSheet.jsx'
 import SessionStatsSheet from '#components/session/SessionStatsSheet.jsx'
 import BalanceScore from '#components/session/BalanceScore.jsx'
+import VoiceMatchModal from '#components/session/VoiceMatchModal.jsx'
 
 export default function CourtAssignmentTab({ s }) {
   const { db, a } = useApp()
@@ -55,6 +56,7 @@ export default function CourtAssignmentTab({ s }) {
   const [showStatsSheet, setShowStatsSheet] = useState(false)
   const [showBalanceSheet, setShowBalanceSheet] = useState(false)
   const [showChangesBox, setShowChangesBox] = useState(false)
+  const [showVoiceModal, setShowVoiceModal] = useState(false)
   const [sortOption, setSortOption] = useState('fewest') // 'fewest' | 'wait' | 'level' | 'az'
   const [filters, setFilters] = useState({
     gender: null, // 'female' | 'male' | null
@@ -711,6 +713,53 @@ export default function CourtAssignmentTab({ s }) {
     a.toast(t('assign.swapSuggestion') + ': ' + sug.p1Name + ' ⇄ ' + sug.p2Name)
   }
 
+  // Xử lý áp dụng kết quả từ Voice Recognition vào sân
+  const handleApplyVoiceResult = ({ teamA: nextA, teamB: nextB, scoreA: nextSa, scoreB: nextSb, winnerTeam: nextW }) => {
+    if (nextA?.length) setTeamA(nextA)
+    if (nextB?.length) setTeamB(nextB)
+    if (nextSa != null) setScoreA(nextSa)
+    if (nextSb != null) setScoreB(nextSb)
+    if (nextW) setWinnerTeam(nextW)
+    setPresetScore('custom')
+  }
+
+  // Xử lý xác nhận và lưu trực tiếp từ Voice Recognition
+  const handleDirectSaveVoiceResult = ({ teamA: nextA, teamB: nextB, scoreA: nextSa, scoreB: nextSb }) => {
+    const finalA = nextA?.length ? nextA : teamA
+    const finalB = nextB?.length ? nextB : teamB
+    const finalSa = nextSa != null ? nextSa : scoreA
+    const finalSb = nextSb != null ? nextSb : scoreB
+
+    if (finalA.length < maxPerTeam || finalB.length < maxPerTeam) {
+      a.toast(t('quickMatch.errNotEnough', { req: maxPerTeam }))
+      return
+    }
+
+    if (finalSa === finalSb) {
+      a.toast(t('quickMatch.errTie'))
+      return
+    }
+
+    a.saveMatchScore({
+      sid: s.id,
+      ci: courtIdx,
+      teamA: finalA,
+      teamB: finalB,
+      sets: [[Number(finalSa), Number(finalSb)]],
+      challengeId: selectedChallengeId,
+      ratingEnabled,
+    })
+
+    setTeamA([])
+    setTeamB([])
+    setSelectedChallengeId(null)
+    setWinnerTeam('A')
+    setPresetScore('21-19')
+    setScoreA(21)
+    setScoreB(19)
+    a.toast(t('quickMatch.saveSuccess'))
+  }
+
   const isCourtFull = teamA.length >= maxPerTeam && teamB.length >= maxPerTeam
 
   return (
@@ -1253,6 +1302,14 @@ export default function CourtAssignmentTab({ s }) {
                 {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
               </span>
             </label>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="mic"
+              onClick={() => setShowVoiceModal(true)}
+            >
+              {t('voiceMatch.btnVoiceRecord')}
+            </Button>
             {(teamA.length > 0 || teamB.length > 0) && (
               <Button variant="ghost" size="sm" icon="eraser" onClick={handleClearLineup}>
                 {t('assign.clearCourt')}
@@ -1507,8 +1564,18 @@ export default function CourtAssignmentTab({ s }) {
         {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
         {teamA.length > 0 && teamB.length > 0 && (
           <div style={S.scoreLoggerBox}>
-            <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-              {t('scoreModal.instruction')}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                {t('scoreModal.instruction')}
+              </div>
+              <Button
+                variant="secondary"
+                size="xs"
+                icon="mic"
+                onClick={() => setShowVoiceModal(true)}
+              >
+                {t('voiceMatch.btnVoiceRecord')}
+              </Button>
             </div>
 
             {/* 2 Thẻ Đội A và Đội B */}
@@ -1899,6 +1966,18 @@ export default function CourtAssignmentTab({ s }) {
           onClose={() => setShowBalanceSheet(false)}
         />
       )}
+
+      {/* Modal Nhập kết quả bằng giọng nói (Voice Match Scoring) */}
+      <VoiceMatchModal
+        open={showVoiceModal}
+        onClose={() => setShowVoiceModal(false)}
+        players={players}
+        courtIdx={courtIdx}
+        currentTeamA={teamA}
+        currentTeamB={teamB}
+        onApplyResult={handleApplyVoiceResult}
+        onDirectSave={handleDirectSaveVoiceResult}
+      />
     </div>
   )
 }
