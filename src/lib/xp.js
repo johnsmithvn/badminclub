@@ -151,7 +151,8 @@ export function getMemberXpLedger(memberId, db) {
 
   memberMatches.forEach((m) => {
     const code = m.code || `M-${String(m.id || '').slice(0, 4)}`
-    const dateStr = m.createdAt ? m.createdAt.slice(0, 10) : ''
+    // `at` là epoch ms — trận từ Supabase KHÔNG có createdAt (dbmap chỉ map `ended_at` -> `at`)
+    const dateStr = m.at ? new Date(m.at).toISOString().slice(0, 10) : ''
     const inA = (m.teamA || []).includes(memberId)
     const inB = (m.teamB || []).includes(memberId)
     const won = (inA && m.winnerTeam === 'A') || (inB && m.winnerTeam === 'B')
@@ -165,7 +166,7 @@ export function getMemberXpLedger(memberId, db) {
       titleKey: 'xpPlayedMatch',
       source: `${code} · ${dateStr}`,
       amount: 10,
-      date: m.createdAt || m.playedAt || '',
+      date: m.at || 0,
     })
 
     // Trận 3 set
@@ -175,7 +176,7 @@ export function getMemberXpLedger(memberId, db) {
         titleKey: 'xpThreeSets',
         source: `${code} · ${dateStr}`,
         amount: 20,
-        date: m.createdAt || m.playedAt || '',
+        date: m.at || 0,
       })
     }
 
@@ -186,13 +187,13 @@ export function getMemberXpLedger(memberId, db) {
         titleKey: 'xpBeatStronger',
         source: `${code} · ${dateStr}`,
         amount: 30,
-        date: m.createdAt || m.playedAt || '',
+        date: m.at || 0,
       })
     }
   })
 
-  // Sắp xếp mới nhất lên đầu, giới hạn 10 dòng
-  ledger.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+  // Sắp xếp mới nhất lên đầu, giới hạn 8 dòng
+  ledger.sort((a, b) => (b.date || 0) - (a.date || 0))
   return ledger.slice(0, 8)
 }
 
@@ -210,9 +211,11 @@ export function getMemberAchievements(memberId, db) {
   let currentStreak = 0
   let maxStreak = 0
 
+  // Cũ -> mới để dò chuỗi thắng dài nhất. Sort theo `at`, KHÔNG theo createdAt:
+  // trận không có field đó nên sort cũ là lệnh rỗng, chỉ đúng nhờ ăn may dbmap đã sort sẵn.
   const sortedMatches = [...matches]
     .filter((m) => (m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))
-    .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''))
+    .sort((a, b) => (a.at || 0) - (b.at || 0))
 
   sortedMatches.forEach((m) => {
     memberMatchesCount++
@@ -270,9 +273,12 @@ export function getSeasonBountyPlayer(db) {
   let maxStreak = 0
 
   members.forEach((m) => {
+    // Sắp xếp MỚI NHẤT trước để đếm chuỗi thắng ĐANG chạy.
+    // Trận không có `createdAt` (dbmap chỉ map `at`), sort theo createdAt là lệnh rỗng —
+    // mảng giữ nguyên thứ tự tăng dần của dbmap và vòng lặp dưới đếm nhầm chuỗi từ trận CŨ NHẤT.
     const memberMatches = matches
       .filter((mt) => (mt.teamA || []).includes(m.id) || (mt.teamB || []).includes(m.id))
-      .sort((a, b) => (b.createdAt || b.playedAt || '').localeCompare(a.createdAt || a.playedAt || ''))
+      .sort((a, b) => (b.at || 0) - (a.at || 0))
 
     let streak = 0
     for (const mt of memberMatches) {
@@ -300,6 +306,16 @@ export function getSeasonBountyPlayer(db) {
   }
 
   return null
+}
+
+/**
+ * Cấu hình mùa giải đang áp dụng: ưu tiên cài đặt riêng của CLB, fallback app.json.
+ * Gom về một chỗ để engine, màn xếp sân và BXH luôn đọc cùng một nguồn.
+ * @param {Object} [db]
+ * @returns {Object}
+ */
+export function seasonConfigOf(db) {
+  return db?.settings?.season || cfg?.season || {}
 }
 
 /**
@@ -646,8 +662,11 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
 
   // Trả về KEY + tham số, không dựng sẵn câu chữ — cùng pattern với getMemberXpLedger ở trên.
   // lib/ là hàm thuần, câu chữ do component render bằng t() (RULES §3.1).
-  const events = recentLogs.map((m, idx) => {
-    const timeStr = m.createdAt ? m.createdAt.slice(11, 16) : `19:${20 + idx * 20}`
+  const events = recentLogs.map((m) => {
+    // Giờ thật của trận, giờ địa phương. Nhánh cũ đọc `m.createdAt` (không tồn tại trên
+    // trận lấy từ Supabase) nên luôn rơi vào chuỗi bịa `19:${20 + idx*20}` — từ dòng thứ 3
+    // trở đi in ra "19:60", "19:80", "19:100"… là giờ không có thật.
+    const timeStr = m.at ? new Date(m.at).toTimeString().slice(0, 5) : ''
     const scoreStr = (m.sets || []).map((s) => `${s[0]}–${s[1]}`).join(', ') || ''
     const gapStr = m.gap >= 0 ? `+${m.gap}` : `${m.gap}`
     const sign = m.effectiveChange > 0 ? `+${m.effectiveChange}` : `${m.effectiveChange}`

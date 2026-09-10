@@ -7,6 +7,7 @@ import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger, getMemberAchievements, getSeasonBountyPlayer } from '#lib/xp.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 
 function alphaColor(color, alphaHex, pct) {
@@ -24,9 +25,11 @@ export default function MemberProfileTab({
   db,
   rankTheme,
   onSelectTheme,
-  isMobile,
+  isMobile: propIsMobile,
   onChallenge,
 }) {
+  const isMobileHook = useMobile()
+  const isMobile = propIsMobile !== undefined ? Boolean(propIsMobile) : isMobileHook
   const [subTab, setSubTab] = useState('overview') // 'overview' | 'ratings' | 'h2h' | 'xp'
   const [inspectingPair, setInspectingPair] = useState(null)
 
@@ -549,13 +552,13 @@ export default function MemberProfileTab({
               data-screen-label="AY3 Ho so noi dung"
               style={{
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) 400px',
+                gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) 380px',
                 gap: 16,
                 alignItems: 'start',
               }}
             >
               {/* Left Column: Sức mạnh theo nội dung + Ai hợp với VĐV */}
-              <div style={{ display: 'grid', gap: 14 }}>
+              <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
                 {/* Card Sức mạnh theo nội dung */}
                 <div
                   style={{
@@ -565,6 +568,7 @@ export default function MemberProfileTab({
                     padding: 15,
                     display: 'grid',
                     gap: 12,
+                    minWidth: 0,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -576,7 +580,7 @@ export default function MemberProfileTab({
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '172px minmax(0,1fr)', gap: 16, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '160px minmax(0,1fr)', gap: 16, alignItems: 'center' }}>
                     {/* Elo tổng */}
                     <div
                       style={{
@@ -600,47 +604,80 @@ export default function MemberProfileTab({
                     </div>
 
                     {/* 3 Thanh rating theo nội dung */}
-                    <div style={{ display: 'grid', gap: 9 }}>
+                    <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
                       {/* Đôi nam */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
-                        <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('profile.doublesFormat')}</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '76px minmax(0,1fr) 48px' : '92px minmax(0,1fr) 52px 64px', gap: isMobile ? 8 : 10, alignItems: 'center' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {t('profile.doublesFormat')}
+                          </div>
+                          {isMobile && (
+                            <div style={{ font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                              {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.doubles?.confidence)}
+                            </div>
+                          )}
+                        </div>
                         <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
                           <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.doubles?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: '#00B2A9' }} />
                         </span>
                         <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>
                           {formatRatings?.doubles?.rating ?? DEFAULT_RATING}
                         </span>
-                        <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                          {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.doubles?.confidence)}
-                        </span>
+                        {!isMobile && (
+                          <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                            {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.doubles?.confidence)}
+                          </span>
+                        )}
                       </div>
 
                       {/* Nam-nữ */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
-                        <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('profile.mixedFormat')}</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '76px minmax(0,1fr) 48px' : '92px minmax(0,1fr) 52px 64px', gap: isMobile ? 8 : 10, alignItems: 'center' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {t('profile.mixedFormat')}
+                          </div>
+                          {isMobile && (
+                            <div style={{ font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                              {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.mixed?.confidence)}
+                            </div>
+                          )}
+                        </div>
                         <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
                           <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.mixed?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: '#3C74C4' }} />
                         </span>
                         <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>
                           {formatRatings?.mixed?.rating ?? DEFAULT_RATING}
                         </span>
-                        <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                          {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.mixed?.confidence)}
-                        </span>
+                        {!isMobile && (
+                          <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                            {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.mixed?.confidence)}
+                          </span>
+                        )}
                       </div>
 
                       {/* Đơn nam */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 56px 70px', gap: 10, alignItems: 'center' }}>
-                        <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>{t('profile.singlesFormat')}</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '76px minmax(0,1fr) 48px' : '92px minmax(0,1fr) 52px 64px', gap: isMobile ? 8 : 10, alignItems: 'center' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {t('profile.singlesFormat')}
+                          </div>
+                          {isMobile && (
+                            <div style={{ font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
+                              {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.singles?.confidence)}
+                            </div>
+                          )}
+                        </div>
                         <span style={{ height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
                           <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.singles?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: '#2E3E5C' }} />
                         </span>
                         <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
                           ~{formatRatings?.singles?.rating ?? DEFAULT_RATING}
                         </span>
-                        <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
-                          {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.singles?.confidence)}
-                        </span>
+                        {!isMobile && (
+                          <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
+                            {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.singles?.confidence)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -668,10 +705,11 @@ export default function MemberProfileTab({
                     padding: 15,
                     display: 'grid',
                     gap: 12,
+                    minWidth: 0,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                    <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", flex: '1 1 auto', color: '#fff' }}>
                       {t('profile.whoSynergizes', { name: member.name })}
                     </span>
                     <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
@@ -679,7 +717,7 @@ export default function MemberProfileTab({
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
                     {(partnersAndMatchups?.partners || []).length > 0 ? (
                       (partnersAndMatchups?.partners || []).map((part, pIdx) => {
                         const isTopPartner = pIdx === 0 && part.synergyScore >= 80
@@ -687,7 +725,85 @@ export default function MemberProfileTab({
                         const absImpact = Math.min(50, Math.abs(part.pairImpact || 0))
                         const barWidthPct = Math.round((absImpact / 50) * 45)
 
-                        return (
+                        return isMobile ? (
+                          /* Mobile Layout: 2 tầng co giãn tự nhiên, không bao giờ tràn ngang */
+                          <div
+                            key={part.id || pIdx}
+                            onClick={() => {
+                              const pairKey = [mid, part.id].sort().join(':')
+                              setInspectingPair({
+                                key: pairKey,
+                                names: [member.name, part.name],
+                                gamesCount: part.games,
+                                wins: part.wins,
+                                losses: part.losses,
+                                actualWinPct: part.actualWinPct,
+                                expectedWinPct: part.expectedWinPct,
+                                pairImpact: part.pairImpact,
+                                synergyScore: part.synergyScore,
+                                confidence: part.games >= 30 ? 'R4' : part.games >= 12 ? 'R3' : part.games >= 5 ? 'R2' : 'R1',
+                                format: part.format || 'MD',
+                              })
+                            }}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 8,
+                              padding: '10px 12px',
+                              borderRadius: 8,
+                              background: isTopPartner ? 'rgba(0,178,169,.09)' : isLowPartner ? 'rgba(224,138,0,.07)' : '#101927',
+                              border: isTopPartner ? '1px solid #00786F' : '1px solid #22304A',
+                              cursor: 'pointer',
+                              minWidth: 0,
+                            }}
+                          >
+                            {/* Hàng 1: Avatar + Tên + (Thể thức · Số trận) bên trái | W-L + Synergy bên phải */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 auto' }}>
+                                <span style={{ width: 24, height: 24, borderRadius: 999, background: isTopPartner ? '#00786F' : '#1D50A0', flexShrink: 0 }} />
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {part.name}
+                                  </div>
+                                  <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                                    {part.format === 'XD' ? t('leaderboard.filterXD') : t('leaderboard.filterMD')} · {part.games} {t('leaderboard.matchesAbbr')}
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                                  {part.wins}–{part.losses}
+                                </span>
+                                <span
+                                  style={{
+                                    textAlign: 'right',
+                                    font: '700 17px/1 Barlow, sans-serif',
+                                    color: isTopPartner ? '#5FDBD3' : isLowPartner ? '#F09A8E' : part.synergyScore >= 50 ? '#fff' : '#F0B75C',
+                                    minWidth: 26,
+                                  }}
+                                >
+                                  {part.synergyScore}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Hàng 2: Kỳ vọng vs Thực tế + Thanh Pair Impact */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                              <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                {part.expectedWinPct}% → {part.actualWinPct}%
+                              </span>
+                              <span style={{ position: 'relative', height: 7, flex: 1, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden' }}>
+                                <span style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: '#2E3E5C' }} />
+                                {part.pairImpact >= 0 ? (
+                                  <span style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: `${barWidthPct}%`, background: '#00B2A9', borderRadius: '0 999px 999px 0' }} />
+                                ) : (
+                                  <span style={{ position: 'absolute', right: '50%', top: 0, bottom: 0, width: `${barWidthPct}%`, background: '#D63B2B', borderRadius: '999px 0 0 999px' }} />
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Desktop Layout: Hàng 6 cột cân đối, không tràn */
                           <div
                             key={part.id || pIdx}
                             onClick={() => {
@@ -708,29 +824,30 @@ export default function MemberProfileTab({
                             }}
                             style={{
                               display: 'grid',
-                              gridTemplateColumns: '26px minmax(0,1fr) 46px 110px 118px 42px',
-                              gap: 10,
+                              gridTemplateColumns: '26px minmax(80px,1fr) 42px 96px 100px 38px',
+                              gap: 8,
                               alignItems: 'center',
                               padding: '10px 12px',
                               borderRadius: 8,
                               background: isTopPartner ? 'rgba(0,178,169,.09)' : isLowPartner ? 'rgba(224,138,0,.07)' : '#101927',
                               border: isTopPartner ? '1px solid #00786F' : '1px solid #22304A',
                               cursor: 'pointer',
+                              minWidth: 0,
                             }}
                           >
-                            <span style={{ width: 26, height: 26, borderRadius: 999, background: isTopPartner ? '#00786F' : '#1D50A0' }} />
+                            <span style={{ width: 26, height: 26, borderRadius: 999, background: isTopPartner ? '#00786F' : '#1D50A0', flexShrink: 0 }} />
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+                              <div style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {part.name}
                               </div>
-                              <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                              <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {part.format === 'XD' ? t('leaderboard.filterXD') : t('leaderboard.filterMD')} · {part.games} {t('leaderboard.matchesAbbr')}
                               </div>
                             </div>
-                            <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                            <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#A8B7CB', whiteSpace: 'nowrap' }}>
                               {part.wins}–{part.losses}
                             </span>
-                            <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                            <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA', whiteSpace: 'nowrap' }}>
                               {part.expectedWinPct}% → {part.actualWinPct}%
                             </span>
                             <span style={{ position: 'relative', height: 9, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', display: 'block' }}>
@@ -763,7 +880,7 @@ export default function MemberProfileTab({
               </div>
 
               {/* Right Column: Đồng đội tốt nhất, Khắc chế & kỵ giơ, Phân tích dưới kỳ vọng, Phong độ 10 trận */}
-              <div style={{ display: 'grid', gap: 14 }}>
+              <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
                 {/* Đồng đội tốt nhất */}
                 {partnersAndMatchups?.bestPartner && (
                   <div
@@ -774,15 +891,16 @@ export default function MemberProfileTab({
                       padding: 15,
                       display: 'grid',
                       gap: 8,
+                      minWidth: 0,
                     }}
                   >
                     <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: '#8494AA' }}>
                       {t('profile.bestPartnerBox')}
                     </div>
-                    <div style={{ font: '700 22px/1.2 Barlow, sans-serif', color: '#fff' }}>
+                    <div style={{ font: '700 22px/1.2 Barlow, sans-serif', color: '#fff', wordBreak: 'break-word' }}>
                       {partnersAndMatchups.bestPartner.name}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ font: '700 26px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
                         {partnersAndMatchups.bestPartner.synergyScore}
                       </span>
@@ -794,13 +912,13 @@ export default function MemberProfileTab({
                 )}
 
                 {/* Khắc chế & kỵ giơ */}
-                <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+                <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden', minWidth: 0 }}>
                   <div style={{ padding: '11px 14px', background: '#101927', borderBottom: '1px solid #22304A', font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#fff' }}>
                     {t('profile.matchupSection')}
                   </div>
                   <div style={{ padding: '13px 14px', display: 'grid', gap: 12 }}>
                     {/* Thích gặp */}
-                    <div style={{ display: 'grid', gap: 7 }}>
+                    <div style={{ display: 'grid', gap: 7, minWidth: 0 }}>
                       <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: '#5FDBD3' }}>
                         {t('profile.favoriteMatchup')}
                       </div>
@@ -811,16 +929,18 @@ export default function MemberProfileTab({
                             style={{
                               display: 'flex',
                               justifyContent: 'space-between',
+                              alignItems: 'center',
                               gap: 8,
                               padding: '8px 10px',
                               borderRadius: 6,
                               background: 'rgba(0,178,169,.09)',
                               font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif",
                               color: '#fff',
+                              minWidth: 0,
                             }}
                           >
-                            <span>vs {fav.oppName}</span>
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3' }}>{fav.winRate}%</span>
+                            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vs {fav.oppName}</span>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#5FDBD3', flexShrink: 0 }}>{fav.winRate}%</span>
                           </div>
                         ))
                       ) : (
@@ -829,7 +949,7 @@ export default function MemberProfileTab({
                     </div>
 
                     {/* Kỵ giơ */}
-                    <div style={{ display: 'grid', gap: 7, borderTop: '1px solid #22304A', paddingTop: 11 }}>
+                    <div style={{ display: 'grid', gap: 7, borderTop: '1px solid #22304A', paddingTop: 11, minWidth: 0 }}>
                       <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: '#F0B75C' }}>
                         {t('profile.nemesisMatchup')}
                       </div>
@@ -840,16 +960,18 @@ export default function MemberProfileTab({
                             style={{
                               display: 'flex',
                               justifyContent: 'space-between',
+                              alignItems: 'center',
                               gap: 8,
                               padding: '8px 10px',
                               borderRadius: 6,
                               background: 'rgba(224,138,0,.10)',
                               font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif",
                               color: '#fff',
+                              minWidth: 0,
                             }}
                           >
-                            <span>vs {nem.oppName}</span>
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F0B75C' }}>{nem.winRate}%</span>
+                            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vs {nem.oppName}</span>
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: '#F0B75C', flexShrink: 0 }}>{nem.winRate}%</span>
                           </div>
                         ))
                       ) : (

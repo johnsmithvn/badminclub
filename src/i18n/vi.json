@@ -2739,12 +2739,12 @@
     "postMatchChanges": "Biến động sau trận",
     "expandChanges": "Xem chi tiết",
     "collapseChanges": "Thu gọn",
-    "changesPreviewTag": "Dự kiến Elo & XP",
+    "changesPreviewTag": "Dự kiến Elo & Điểm mùa",
     "ratingChange": "{{d}} Elo",
     "unratedChange": "Không tính Elo",
-    "xpChange": "{{xp}} XP",
-    "xpExplain": "Thắng: +30 XP · Thua: +15 XP",
-    "xpExplainUnrated": "Trận giao lưu: Không thay đổi Elo, người chơi vẫn nhận XP tích luỹ",
+    "seasonPointChange": "{{pts}} điểm mùa",
+    "seasonPointExplain": "Điểm mùa theo chênh lệch Team Elo · Sàn 0 điểm · Chưa gồm thưởng mốc chuỗi thắng",
+    "unratedExplain": "Trận giao lưu: không tính Elo và không tính điểm mùa giải",
     "saveResult": "Lưu kết quả trận đấu"
   },
   "voiceMatch": {

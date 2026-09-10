@@ -319,3 +319,56 @@ test('Season Rank Engine — Trận không tính rating', async (t) => {
     assert.equal(row.totalSeasonPoints, 14, 'Chỉ loại khi cờ === false, không loại khi thiếu cờ')
   })
 })
+
+/* ==========================================================================
+ * Panel "Biến động sau trận" ở màn xếp sân dự báo điểm mùa bằng
+ * calcSeasonMatchDelta + thưởng Upset. Nhóm test này khoá contract đó:
+ * con số hiện TRƯỚC khi bấm Lưu phải đúng bằng con số engine trao SAU khi lưu.
+ * ========================================================================== */
+test('Season Rank Engine — Dự báo trước trận khớp điểm thực trao', async (t) => {
+  const season = { startDate: '2026-07-01', endDate: '2026-09-30', minMatchesOfficial: 20, inactiveDays: 21 }
+  const baseDb = {
+    members: [{ id: 'm1', name: 'A' }, { id: 'm2', name: 'B' }, { id: 'm3', name: 'C' }, { id: 'm4', name: 'D' }],
+    sessions: [{ id: 's1', date: '2026-07-05' }],
+  }
+  const oneMatch = (ra, rb, winner) => ({
+    ...baseDb,
+    matches: [{
+      id: 'x1', at: 1000, sessionId: 's1', teamA: ['m1', 'm2'], teamB: ['m3', 'm4'],
+      winnerTeam: winner, sets: [[21, 15]], initialRatingA: ra, initialRatingB: rb,
+    }],
+  })
+  // Đúng công thức panel dùng: delta theo dải + thưởng Upset khi thắng cách biệt >= 150
+  const preview = (myElo, oppElo, won) => {
+    const { delta } = calcSeasonMatchDelta(myElo, oppElo, won)
+    return delta + (won && oppElo - myElo >= 150 ? 5 : 0)
+  }
+
+  await t.test('14. Kèo cân — thắng +14, thua -8 (kẹp sàn 0)', () => {
+    const res = calculateSeasonLeaderboard(oneMatch(500, 500, 'A'), season)
+    assert.equal(preview(500, 500, true), 14)
+    assert.equal(res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, 14)
+    // Bên thua: preview -8, nhưng điểm hiển thị bị sàn 0 kẹp lại
+    assert.equal(preview(500, 500, false), -8)
+    assert.equal(res.leaderboard.find((r) => r.id === 'm3').totalSeasonPoints, 0)
+  })
+
+  await t.test('15. Lật kèo sâu — preview +27 và engine trao đúng +27', () => {
+    // Đội A yếu hơn 200 Elo mà thắng: dải deepUnderdog (+22) + thưởng Upset (+5)
+    const res = calculateSeasonLeaderboard(oneMatch(400, 600, 'A'), season)
+    assert.equal(preview(400, 600, true), 27, 'Panel phải hiện +27')
+    assert.equal(
+      res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, 27,
+      'Số hiện trước khi Lưu mà lệch số trao sau khi Lưu là mất niềm tin vào cả hệ điểm'
+    )
+    // Đội cửa trên sâu thua: -12
+    assert.equal(preview(600, 400, false), -12)
+  })
+
+  await t.test('16. Cửa trên thắng — chỉ +10, không có thưởng Upset', () => {
+    const res = calculateSeasonLeaderboard(oneMatch(700, 500, 'A'), season)
+    assert.equal(preview(700, 500, true), 10)
+    assert.equal(res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, 10)
+    assert.equal(res.leaderboard.find((r) => r.id === 'm1').upsetsCount, 0)
+  })
+})

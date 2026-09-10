@@ -110,3 +110,64 @@ test('XP & Contributions Engine Test Suite', async (t) => {
     assert.equal(bounty.streak, 4)
   })
 })
+
+/* ==========================================================================
+ * Trận lấy từ Supabase KHÔNG có `createdAt` / `playedAt` — dbmap chỉ map
+ * `matches.ended_at` -> `at` (dbmap.js:141). Mọi chỗ sort/format theo createdAt
+ * đều là lệnh rỗng và âm thầm trả kết quả sai. Nhóm test này khoá lại mốc `at`.
+ * ========================================================================== */
+test('XP Engine — Mốc thời gian trận phải đọc từ `at`', async (t) => {
+  const mk = (id, at, winner) => ({
+    id, at, sessionId: 's1', teamA: ['m1', 'm2'], teamB: ['m3', 'm4'],
+    winnerTeam: winner, sets: [[21, 15]], initialRatingA: 500, initialRatingB: 500,
+  })
+  // dbmap luôn trả db.matches theo thứ tự TĂNG DẦN của `at` (dbmap.js:176)
+  const db = {
+    members: [{ id: 'm1', name: 'Kiên' }, { id: 'm2', name: 'B' }, { id: 'm3', name: 'C' }, { id: 'm4', name: 'D' }],
+    sessions: [{ id: 's1', date: '2026-07-05' }],
+    matches: [
+      mk('t1', 1000, 'A'), mk('t2', 2000, 'A'), mk('t3', 3000, 'A'), mk('t4', 4000, 'A'),
+      mk('t5', 5000, 'B'), mk('t6', 6000, 'B'), mk('t7', 7000, 'B'),
+    ],
+  }
+
+  await t.test('A. getSeasonBountyPlayer đếm chuỗi thắng ĐANG chạy, không phải chuỗi cũ nhất', () => {
+    // m1 thắng 4 trận đầu rồi THUA 3 trận gần nhất -> không còn chuỗi.
+    // m3 thắng 3 trận gần nhất -> đây mới là người đáng treo thưởng.
+    const bounty = getSeasonBountyPlayer(db)
+    assert.ok(bounty, 'Phải tìm ra người đang có chuỗi >= 3')
+    assert.equal(bounty.member.id, 'm3', 'Treo thưởng nhầm người đang thua 3 trận liền là mất uy tín giải')
+    assert.equal(bounty.streak, 3)
+  })
+
+  await t.test('B. getMemberXpLedger trả 8 dòng MỚI NHẤT, không phải 8 dòng cũ nhất', () => {
+    const ledger = getMemberXpLedger('m1', db)
+    assert.ok(ledger.length > 0)
+    assert.ok(
+      ledger[0].id.startsWith('t7'),
+      'Dòng đầu phải là trận mới nhất (t7); sort theo createdAt rỗng sẽ trả t1'
+    )
+    // date phải là số epoch để so sánh được, và giảm dần
+    for (let i = 1; i < ledger.length; i++) {
+      assert.ok(ledger[i - 1].date >= ledger[i].date, 'Sổ XP phải giảm dần theo thời gian')
+    }
+    assert.ok(ledger[0].source.includes('1970-01-01'), 'Ngày trong dòng sổ phải suy từ `at`, không để trống')
+  })
+
+  await t.test('C. getMemberAchievements dò chuỗi dài nhất theo đúng trục thời gian', () => {
+    // Theo trục `at`: W W L W W  -> chuỗi dài nhất = 2.
+    // Nhưng mảng truyền vào bị xáo, trận thua nằm CUỐI: W W W W L -> nếu không sort
+    // theo `at` thì ra chuỗi 4, thổi phồng thành tựu. (Đảo ngược mảng không bắt được
+    // lỗi này vì phép đảo giữ nguyên độ dài mọi chuỗi — phải xáo thật.)
+    const scrambled = {
+      ...db,
+      matches: [
+        mk('s1_w', 1000, 'A'), mk('s2_w', 2000, 'A'),
+        mk('s4_w', 4000, 'A'), mk('s5_w', 5000, 'A'),
+        mk('s3_l', 3000, 'B'),
+      ],
+    }
+    const streak5 = getMemberAchievements('m1', scrambled).find((x) => x.id === 'streak_5')
+    assert.equal(streak5.progressText, '2/5', 'Chuỗi dài nhất theo thời gian thật là 2, không phải 4')
+  })
+})

@@ -11,6 +11,7 @@ import {
   teamRating, computeClubCalibration,
   calcPlayerDeltas, calcPairImpact, DEFAULT_RATING,
 } from '#lib/rating.js'
+import { calcSeasonMatchDelta, seasonConfigOf } from '#lib/xp.js'
 import { t } from '#i18n'
 import CourtWaitingFilterSheet from '#components/session/CourtWaitingFilterSheet.jsx'
 import SessionStatsSheet from '#components/session/SessionStatsSheet.jsx'
@@ -69,12 +70,24 @@ export default function CourtAssignmentTab({ s }) {
   // Danh sách tất cả người tham gia buổi (thành viên có mặt + khách)
   const players = useMemo(() => sessionPlayers(db, s), [db, s])
 
-  // Map rating cho tất cả người trong pool (dùng Effective Strength tầng 3 co cụm Bayes)
+  // Map rating cho tất cả người trong pool (dùng Effective Strength tầng 3 co cụm Bayes).
+  // CHỈ dùng để CÂN SÂN — không dùng để dự báo biến động điểm.
   const ratingsMap = useMemo(() => {
     const map = {}
     players.forEach((p) => {
       const pr = getPlayerRating(db.playerRatings, p.key, p, db.levels)
       map[p.key] = pr.effectiveStrength ?? pr.rating ?? DEFAULT_RATING
+    })
+    return map
+  }, [players, db.playerRatings, db.levels])
+
+  // Map Elo THÔ. Bắt buộc tách riêng: saveMatchScore tính initialRatingA/B từ Elo thô,
+  // nên mọi dự báo (+/- Elo, +/- điểm mùa) phải dùng đúng nguồn này thì con số hiện
+  // trước khi bấm Lưu mới khớp với con số thực sự được ghi.
+  const rawRatingsMap = useMemo(() => {
+    const map = {}
+    players.forEach((p) => {
+      map[p.key] = getPlayerRating(db.playerRatings, p.key, p, db.levels).rating ?? DEFAULT_RATING
     })
     return map
   }, [players, db.playerRatings, db.levels])
@@ -649,7 +662,7 @@ export default function CourtAssignmentTab({ s }) {
         teamA,
         teamB,
         aWon: winnerTeam === 'A',
-        ratingsMap,
+        ratingsMap: rawRatingsMap,
         gamesCountMap,
         sets: playedSets,
       })
@@ -657,7 +670,29 @@ export default function CourtAssignmentTab({ s }) {
     } catch {
       return {}
     }
-  }, [teamA, teamB, ratingEnabled, winnerTeam, ratingsMap, players, db.playerRatings, db.levels, isBo3, bo3Sets, scoreA, scoreB])
+  }, [teamA, teamB, ratingEnabled, winnerTeam, rawRatingsMap, players, db.playerRatings, db.levels, isBo3, bo3Sets, scoreA, scoreB])
+
+  // Dự báo điểm mùa giải của trận: delta theo dải chênh lệch Team Elo + thưởng Upset.
+  // KHÔNG dự báo thưởng mốc chuỗi thắng (3/5) vì nó cần toàn bộ lịch sử mùa của từng người —
+  // chạy calculateSeasonLeaderboard ở đây là quét lại cả mùa sau mỗi lần gõ điểm.
+  const seasonDeltas = useMemo(() => {
+    if (!teamA.length || !teamB.length || !winnerTeam || !ratingEnabled) return {}
+    const seasonCfg = seasonConfigOf(db)
+    const upsetMinGap = seasonCfg.bonusConfig?.upsetMinGap ?? 150
+    const upsetBonus = seasonCfg.bonusConfig?.upset150 ?? 5
+    const ra = teamRating(teamA, rawRatingsMap)
+    const rb = teamRating(teamB, rawRatingsMap)
+
+    const out = {}
+    const put = (ids, myElo, oppElo, won) => {
+      const { delta } = calcSeasonMatchDelta(myElo, oppElo, won, seasonCfg.deltaScale)
+      const bonus = won && (oppElo - myElo >= upsetMinGap) ? upsetBonus : 0
+      ids.forEach((id) => { out[id] = delta + bonus })
+    }
+    put(teamA, ra, rb, winnerTeam === 'A')
+    put(teamB, rb, ra, winnerTeam === 'B')
+    return out
+  }, [teamA, teamB, winnerTeam, ratingEnabled, rawRatingsMap, db])
 
   // Lưu kết quả trận đấu
   const handleSaveResult = () => {
@@ -1857,8 +1892,9 @@ export default function CourtAssignmentTab({ s }) {
                       const inA = teamA.includes(k)
                       const isWon = (inA && winnerTeam === 'A') || (!inA && winnerTeam === 'B')
                       const dVal = playerDeltas[k]
-                      const deltaTxt = dVal != null ? (dVal > 0 ? `+${dVal}` : `${dVal}`) : (isWon ? '+8' : '−8')
-                      const xpVal = isWon ? '+30' : '+15'
+                      const deltaTxt = dVal != null ? (dVal > 0 ? `+${dVal}` : `${dVal}`) : '—'
+                      const sVal = seasonDeltas[k]
+                      const seasonTxt = sVal != null ? (sVal > 0 ? `+${sVal}` : `${sVal}`) : '—'
                       return (
                         <div key={k} style={S.changeRow}>
                           <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
@@ -1874,16 +1910,18 @@ export default function CourtAssignmentTab({ s }) {
                                 {t('scoreModal.unratedChange')}
                               </span>
                             )}
-                            <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>
-                              {t('scoreModal.xpChange', { xp: xpVal })}
-                            </span>
+                            {ratingEnabled && (
+                              <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: sVal > 0 ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
+                                {t('scoreModal.seasonPointChange', { pts: seasonTxt })}
+                              </span>
+                            )}
                           </div>
                         </div>
                       )
                     })}
                   </div>
                   <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
-                    {ratingEnabled ? t('scoreModal.xpExplain') : t('scoreModal.xpExplainUnrated')}
+                    {ratingEnabled ? t('scoreModal.seasonPointExplain') : t('scoreModal.unratedExplain')}
                   </div>
                 </div>
               )}
