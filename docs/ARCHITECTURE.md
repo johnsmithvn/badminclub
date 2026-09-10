@@ -42,7 +42,7 @@ src/
     home/             HomeMatchTab
     leaderboard/      SeasonRaceTab · CareerEloTab · PairsTab · PairH2HTab · MemberSeasonLedgerModal · PairDetailModal · PairH2HModal · RatingFormulaModal
     profile/          MemberProfileTab
-    session/          CourtAssignmentTab · SessionMatchesTab · BalanceScore · BestOfNArrangementView · CourtBalanceExplanationModal · CourtPairBreakdownModal · CourtWaitingFilterSheet · EffectiveStrengthModal · SeasonSettingsModal · SessionStatsSheet
+    session/          CourtAssignmentTab · SessionMatchesTab · BalanceScore · CourtWaitingFilterSheet · EffectiveStrengthModal · SeasonSettingsModal · SessionStatsSheet
     settings/         SettingsComponents.jsx · tabs/ (AccessTab · CourtsTab · GeneralTab · GroupsTab · MoneyTab · SchedulesTab)
     ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar, AvatarUpload, BankAccountSection, QrModal, SearchSelect · MyDebtPanel · PayDebtsDialog
   config/             app.json (hằng số, rating cfg) · permissions.json (ma trận quyền)

@@ -237,7 +237,7 @@ export default function RatingLineChart({
     const padB = 30
 
     const plotW = svgW - padL - padR // 760 (từ x=40 đến x=800)
-    const plotH = 190 // yTop=20 đến yBot=210
+    const plotH = svgH - padT - padB // 190 (yTop=20 đến yBot=210)
 
     const getX = (idx) => {
       if (points.length === 1) return padL + plotW / 2

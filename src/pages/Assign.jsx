@@ -1,7 +1,7 @@
 // Chia sân: kéo thả · 5 chế độ xếp · cố định người theo sân · bấm giờ · ghi trận (handoff 05).
 // KHÔNG ảnh hưởng tiền — chỉ là công cụ điều phối tại sân.
 
-import { useState, useRef } from 'react'
+import { useRef } from 'react'
 import { Button, Card, Input, Select, Switch } from '#ds'
 import { Empty, LevelChip, Mono, Overline, playerMeta } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'

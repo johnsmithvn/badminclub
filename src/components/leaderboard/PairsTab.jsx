@@ -7,7 +7,7 @@ import PairDetailModal from './PairDetailModal.jsx'
 import RatingFormulaModal from './RatingFormulaModal.jsx'
 import PairH2HModal from './PairH2HModal.jsx'
 
-export function ConfidenceExplainerSheet({ onClose }) {
+function ConfidenceExplainerSheet({ onClose }) {
   return (
     <div
       style={{

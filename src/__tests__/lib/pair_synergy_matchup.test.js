@@ -2,15 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   confidenceLevelOf,
-  normalizeSynergyScore,
   calcPairImpact,
   calcSynergyTrend,
   calcMatchupEdge,
   rankPairs,
   getPlayerFormatRatings,
-  getPlayerPartnersAndMatchups,
   marginMultiplierVNext,
-  expectedScore,
 } from '../../lib/rating.js'
 import {
   detailedCourtBalance,

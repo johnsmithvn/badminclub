@@ -18,6 +18,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   const [searchParams] = useSearchParams()
   const targetMatchId = searchParams.get('matchId')
   const [showCreate, setShowCreate] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
   const [editingMatch, setEditingMatch] = useState(null)
   const [challengeTab, setChallengeTab] = useState('my')
   const [selectedChallenge, setSelectedChallenge] = useState(null)
@@ -525,7 +531,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const expTime = c.expiresAt ? new Date(c.expiresAt).getTime() : (c.createdAt ? new Date(c.createdAt).getTime() + 60 * 60 * 1000 : null)
               let expStr = '24:12'
               if (expTime) {
-                const diff = expTime - Date.now()
+                const diff = expTime - now
                 if (diff <= 0) {
                   expStr = '00:00'
                 } else {

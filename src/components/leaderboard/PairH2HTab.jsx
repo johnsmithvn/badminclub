@@ -42,7 +42,7 @@ export default function PairH2HTab({
         }
       })
     return list.sort((a, b) => a.label.localeCompare(b.label, 'vi'))
-  }, [db?.members, membersMap, ratingsMap])
+  }, [db, membersMap, ratingsMap])
 
   // Lấy 2 cặp đôi mặc định từ allPairs
   const defaultPairA = allPairs[0]?.key || ''
@@ -251,7 +251,6 @@ export default function PairH2HTab({
     actualWinPct = 50,
     expectedWinPct = 50,
     matchupImpact = 0,
-    advantageScore = 50,
     firstMatchDate = null,
     avgScoreDiff = '0.0',
     matches: h2hMatches = [],

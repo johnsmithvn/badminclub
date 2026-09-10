@@ -146,8 +146,6 @@ const KEY = {
   d: (db, m, month) => DUES_ORDER[duesStatusOf(db, m.id, month)],
 }
 
-export const SORTABLE = Object.keys(KEY)
-
 /** `sort` = { key, dir: 'asc' | 'desc' }. Key lạ hoặc rỗng → giữ nguyên thứ tự gốc. */
 export function sortMembers(db, rows, sort, month) {
   const get = KEY[(sort || {}).key]
@@ -179,7 +177,7 @@ export function attendanceTier(state) {
   return 1
 }
 
-export const isFemaleGender = (gender) => {
+const isFemaleGender = (gender) => {
   const g = String(gender || '').toLowerCase()
   return g === 'nu' || g === 'female' || g === 'f' || g === 'nữ' // i18n-ok: check gender data
 }

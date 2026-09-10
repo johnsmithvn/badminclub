@@ -53,9 +53,6 @@ export function pathOf(key, id) {
 }
 
 /** URL hiện tại → route key. */
-/** Đường dẫn này có nằm ngoài phạm vi một CLB không. */
-export const isPublicPath = (pathname) =>
-  Object.values(PUBLIC_PATHS).indexOf(pathname) >= 0
 
 export function keyOfPath(pathname) {
   if (pathname.startsWith('/buoi-tap/')) return 'session'

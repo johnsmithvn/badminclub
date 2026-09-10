@@ -104,14 +104,11 @@ export const Empty = ({ icon = 'inbox', title, hint }) => (
 )
 
 /** Grid auto-fit: G(cfg.ui.topStatMin) cho StatCard, G(cfg.ui.cardPairMin) cho Card đôi. */
-export const G = (min, gap = 16) => ({
+const G = (min, gap = 16) => ({
   display: 'grid', gridTemplateColumns: `repeat(auto-fit,minmax(${min}px,1fr))`, gap,
 })
 export const GRID_STAT = G(cfg.ui.topStatMin, 12)
 export const GRID_PAIR = G(cfg.ui.cardPairMin, 16)
-
-/** Nhãn ngày trong bảng buổi: '16/08 · CN' */
-export const dateLabel = (iso) => dd(iso) + ' · ' + wd(iso)
 
 /** Meta người: 'Nam · Khách · 3 trận' */
 export const playerMeta = (p, matches) =>

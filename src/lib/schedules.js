@@ -40,19 +40,13 @@ export const BLOCK_KEYS = {
 /** Buổi đã mở/chốt/huỷ thì bất khả xâm phạm — chỉ đếm để báo, không bao giờ xoá. */
 const LOCKED_STATUS = ['open', 'closed', 'cancelled']
 
-export const isLocked = (s) => LOCKED_STATUS.indexOf(s.status) >= 0
+const isLocked = (s) => LOCKED_STATUS.indexOf(s.status) >= 0
 
 /**
  * Buổi này có được sửa/xoá không: phải còn `draft` VÀ nằm ở tương lai.
  * `today` so bằng chuỗi ISO — cùng kiểu so sánh với `money.js: remainSessions`.
  */
 export const isEditable = (s, today) => !isLocked(s) && s.date > today
-
-/**
- * Lịch này còn "mềm" không: chưa buổi nào mở, chốt, huỷ, hay qua ngày. Mềm thì đổi nhóm được
- * và xoá hẳn được; cứng rồi thì chỉ sửa được phần tương lai.
- */
-export const canRebind = (plan) => plan.locked.length === 0 && plan.past.length === 0
 
 /**
  * Kế hoạch XOÁ HẲN một lịch. Chỉ cho khi lịch còn mềm: xoá lịch mà còn buổi đã chốt thì hoặc

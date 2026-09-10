@@ -13,34 +13,38 @@
    - 2.2. [Công thức xác suất thắng Elo](#22-công-thức-xác-suất-thắng-elo)
    - 2.3. [Hệ số biến thiên động K-Factor theo độ dày trận đấu (R1 → R5)](#23-hệ-số-biến-thiên-động-k-factor-theo-độ-dày-trận-đấu-r1--r5)
    - 2.4. [Hệ số cách biệt tỷ số (Margin of Victory Multiplier)](#24-hệ-số-cách-biệt-tỷ-số-margin-of-victory-multiplier)
-   - 2.5. [Công thức tính biến thiên Elo ($\Delta$ Elo) cho từng VĐV](#25-công-thức-tính-biến-thiên-elo-delta-elo-cho-từng-vđv)
+   - 2.5. [Công thức tính biến thiên Elo (\Delta Elo) cho từng VĐV](#25-công-thức-tính-biến-thiên-elo-delta-elo-cho-từng-vđv)
    - 2.6. [Co cụm hạt nhân Bayes (Bayes Shrinkage) & Sức mạnh hiệu dụng](#26-co-cụm-hạt-nhân-bayes-bayes-shrinkage--sức-mạnh-hiệu-dụng)
-   - 2.7. [Hệ thống phân hạng (8 Rank Tiers & 4 Bộ Theme)](#27-hệ-thống-phân-hạng-8-rank-tiers--4-bộ-theme)
+   - 2.7. [Hệ thống phân hạng (8 Rank Tiers, 4 Bộ Theme & 10 Playstyle Badges)](#27-hệ-thống-phân-hạng-8-rank-tiers-4-bộ-theme--10-playstyle-badges)
    - 2.8. [Suy hao phong độ khi vắng mặt lâu ngày (Inactivity Decay)](#28-suy-hao-phong-độ-khi-vắng-mặt-lâu-ngày-inactivity-decay)
    - 2.9. [Máy học hiệu chỉnh chéo giới tính (Cross-Gender Calibration)](#29-máy-học-hiệu-chỉnh-chéo-giới-tính-cross-gender-calibration)
+   - 2.10. [Đánh giá Elo theo Thể thức (Format Ratings: Đôi, Nam-Nữ, Đơn)](#210-đánh-giá-elo-theo-thể-thức-format-ratings-đôi-nam-nữ-đơn)
+   - 2.11. [Phân tích Bạn đấu hợp nhất & Đối thủ kỵ giơ (Partners & Nemeses)](#211-phân-tích-bạn-đấu-hợp-nhất--đối-thủ-kỵ-giơ-partners--nemeses)
 3. [Cơ chế Điểm Mùa giải (Season Points) & Cấp độ XP](#3-cơ-chế-điểm-mùa-giải-season-points--cấp-độ-xp)
-   - 3.1. [Bảng điểm cộng Điểm Mùa chi tiết](#31-bảng-điểm-cộng-điểm-mùa-chi-tiết)
+   - 3.1. [Bảng điểm cộng Điểm Mùa chi tiết (Season Points)](#31-bảng-điểm-cộng-điểm-mùa-chi-tiết-season-points)
    - 3.2. [Cơ chế Vua Lì Đòn (Bounty Player)](#32-cơ-chế-vua-lì-đòn-bounty-player)
    - 3.3. [Quy tắc Reset điểm theo Quý (Quarterly Reset)](#33-quy-tắc-reset-điểm-theo-quý-quarterly-reset)
-   - 3.4. [Hệ thống cấp độ và danh xưng XP tích lũy](#34-hệ-thống-cấp-độ-và-danh-xưng-xp-tích-lũy)
+   - 3.4. [Hệ thống cấp độ và danh xưng XP tích lũy (Lifetime XP)](#34-hệ-thống-cấp-độ-và-danh-xưng-xp-tích-lũy-lifetime-xp)
 4. [Cơ chế Lưu trữ Cơ sở dữ liệu & Tính lại Dây chuyền (Persistence & Cascade Recalculation)](#4-cơ-chế-lưu-trữ-cơ-sở-dữ-liệu--tính-lại-dây-chuyền-persistence--cascade-recalculation)
    - 4.1. [Lược đồ Cơ sở dữ liệu (Supabase Database Schema)](#41-lược-đồ-cơ-sở-dữ-liệu-supabase-database-schema)
    - 4.2. [Thuật toán Replay tính lại toàn bộ khi sửa hoặc huỷ trận (`replayRatingCascade`)](#42-thuật-toán-replay-tính-lại-toàn-bộ-khi-sửa-hoặc-huỷ-trận-replayratingcascade)
    - 4.3. [Sổ kiểm toán chỉnh sửa tỷ số (`match_edits`)](#43-sổ-kiểm-toán-chỉnh-sửa-tỷ-số-matchedits)
 5. [Tác động toàn diện đến Thuật toán Chia sân (Matchmaking & Best-of-N)](#5-tác-động-toàn-diện-đến-thuật-toán-chia-sân-matchmaking--best-of-n)
-   - 5.1. [5 Tiêu chí cân bằng trận đấu](#51-5-tiêu-chí-cân-bằng-trận-đấu)
+   - 5.1. [5 Tiêu chí cân bằng trận đấu (Trọng số 35/20/15/15/15 & Tích hợp Synergy)](#51-5-tiêu-chí-cân-bằng-trận-đấu-trọng-số-3520151515--tích-hợp-synergy)
    - 5.2. [Thuật toán Monte Carlo Best-of-N (80 Phương án)](#52-thuật-toán-monte-carlo-best-of-n-80-phương-án)
    - 5.3. [Trực quan hoá Lineup, Highlight Slot và Danh sách chờ](#53-trực-quan-hoá-lineup-highlight-slot-và-danh-sách-chờ)
+   - 5.4. [Mô phỏng đổi người What-If (`simulateWhatIfSwap`)](#54-mô-phỏng-đổi-người-what-if-simulatewhatifswap)
 6. [Tác động đến Nghiệp vụ Trận đấu & Kèo đấu (Match & Challenge)](#6-tác-động-đến-nghiệp-vụ-trận-đấu--kèo-đấu-match--challenge)
    - 6.1. [Kèo thách đấu (Challenge) chuyển thành Trận đấu (Match)](#61-kèo-thách-đấu-challenge-chuyển-thành-trận-đấu-match)
    - 6.2. [Đóng băng Elo tại thời điểm bắt đầu trận](#62-đóng-băng-elo-tại-thời-điểm-bắt-đầu-trận)
    - 6.3. [Các chế độ trận: Bo1, Bo3, Unrated (Đánh tập)](#63-các-chế-độ-trận-bo1-bo3-unrated-đánh-tập)
 7. [Tác động đến Bảng xếp hạng (Leaderboard)](#7-tác-động-đến-bảng-xếp-hạng-leaderboard)
-   - 7.1. [Cấu trúc 5 Tab Bảng Xếp Hạng](#71-cấu-trúc-5-tab-bảng-xếp-hạng)
+   - 7.1. [Cấu trúc 6 Tab Bảng Xếp Hạng](#71-cấu-trúc-6-tab-bảng-xếp-hạng)
    - 7.2. [Khu vực Thẩm định Trình độ (Provisional R1)](#72-khu-vực-thẩm-định-trình-độ-provisional-r1)
    - 7.3. [Công thức Ăn ý, Khắc chế & Đối đầu cặp (Synergy & Matchup)](#73-công-thức-ăn-ý-khắc-chế--đối-đầu-cặp-synergy--matchup)
+   - 7.4. [Ma trận Đối đầu H2H N×N & Gợi ý Gạ kèo (`neverMetWithSessionCount`)](#74-ma-trận-đối-đầu-h2h-nn--gợi-ý-gạ-kèo-nevermetwithsessioncount)
+   - 7.5. [Công cụ Tìm kiếm Trận đấu Đa chiều (`filterMatches`)](#75-công-cụ-tìm-kiếm-trận-đấu-đa-chiều-filtermatches)
 8. [Bảng tổng hợp tham chiếu cấu hình (`app.json`)](#8-bảng-tổng-hợp-tham-chiếu-cấu-hình-appjson)
-
 ---
 
 ## 1. TỔNG QUAN KIẾN TRÚC: MÔ HÌNH 2 TẦNG ĐIỂM ĐỘC LẬP
@@ -183,26 +187,45 @@ $$\text{EffectiveStrength} = \text{round}\left(\text{Seed} \times W_{\text{seed}
 
 ---
 
-### 2.7. Hệ thống phân hạng (8 Rank Tiers & 4 Bộ Theme)
+### 2.7. Hệ thống phân hạng (8 Rank Tiers, 4 Bộ Theme & 10 Playstyle Badges)
 
 Hệ thống tự động xếp hạng thành viên vào 8 bậc Rank dựa trên điểm Elo hiện tại:
 
 ```
 [0 ──────── 200 ──────── 400 ──────── 600 ──────── 800 ──────── 1000 ─────── 1200 ─────── 1400 ─────── ∞]
   Novice      Rookie      Regular     Solid      Net Master   Coverage    Heavy Hitter   Court Boss
-  (Tập sự)   (Tân binh)  (Chính quy) (Chắc tay)  (Thánh lưới) (Bao sân)   (Đập sấm sét)  (Trùm sân)
 ```
 
-| Key Phân hạng | Khoảng điểm Elo | Token Giao diện | Biểu tượng | Bộ Street (Đường phố) | Bộ Comedy (Hài hước) | Bộ Slang (Bụi bặm) |
-| :--- | :---: | :--- | :---: | :--- | :--- | :--- |
-| `novice` | 0 – 199 | `--rank-novice` | ✨ | Tập sự | Tay cầm vợt ngược | Nhập môn |
-| `rookie` | 200 – 399 | `--rank-rookie` | 🏸 | Tân binh | Chạy chỗ đâm nhau | Vợt gỗ |
-| `regular` | 400 – 599 | `--rank-regular` | 🛡️ | Chính quy | Đỡ được quả phát | Tay ngang |
-| `solid` | 600 – 799 | `--rank-solid` | ⚔️ | Chắc tay | Hết hiệp chưa thở | Chiến binh |
-| `net_master` | 800 – 999 | `--rank-net-master`| ⚡ | Thánh lưới | Vợt chạm lưới kêu oan | Cao thủ |
-| `coverage` | 1000 – 1199 | `--rank-coverage` | 🔥 | Bao sân | Chân chạy không chạm đất | Lão làng |
-| `heavy_hitter`| 1200 – 1399 | `--rank-heavy-hitter`| 🏆 | Đập sấm sét | Đập gãy khung vợt | Quái vật |
-| `court_boss` | 1400+ | `--rank-court-boss`| 👑 | Trùm sân | Trọng tài cũng phải chào | Bất khả chiến bại |
+Bảng danh xưng chuẩn theo 4 Bộ Theme (`src/data/rankThemes.json`):
+
+| Key | Khoảng Elo | Token | Icon | Bộ 1: Dân Chơi Khét Tiếng (`street`) | Bộ 2: Tấu Hài Sân Cầu (`comedy`) | Bộ 3: Cỗ Máy Hủy Diệt (`destroyer`) | Bộ 4: Sân Cầu Thực Chiến (`slang`) |
+| :--- | :---: | :--- | :---: | :--- | :--- | :--- | :--- |
+| `novice` | 0 – 199 | `--rank-novice` | ✨ | **Tập Sự** | Bậc Thầy Đứng Nhìn | Kẻ Hủy Diệt Không Khí | Mới Cầm Vợt |
+| `rookie` | 200 – 399 | `--rank-rookie` | 🏸 | **Có Tiềm Năng** | Chuyên gia vồ hụt | Chúa Tể Cạch Khung | Vào Sân |
+| `regular` | 400 – 599 | `--rank-regular` | 🛡️ | **Cũng Ra Gì** | Thợ Múa Đường Cầu | Vua Phá Lưới | Quen Sân |
+| `solid` | 600 – 799 | `--rank-solid` | ⚔️ | **Không Phải Dạng Vừa** | Đại Sứ Giao Cầu | Thần Đồng Cày Sân | Cứng Tay |
+| `net_master` | 800 – 999 | `--rank-net-master`| ⚡ | **Có Số Má** | Chuyên Gia Mớm Cầu | Kẻ Hủy Diệt Lông Ngỗng | Khó Lói |
+| `coverage` | 1000 – 1199 | `--rank-coverage` | 🔥 | **Có Tiếng** | Thợ Săn Rùa | Cỗ Máy Đứt Cước | Bao Sân |
+| `heavy_hitter`| 1200 – 1399 | `--rank-heavy-hitter`| 🏆 | **Chưa Biết Sợ** | Chúa Tể Phản Tạt | Trùm Bào Thể Lực | Tay To |
+| `court_boss` | 1400+ | `--rank-court-boss`| 👑 | **Thấy Là Chạy** | Máy Đập Bằng Cơm | Kẻ Phá Giá Giải Đấu | Trùm Sân |
+
+*Hệ thống câu châm biếm hài hước (`comedyQuips`):* Mỗi bậc rank có một câu mô tả dí dỏm đặc trưng (VD: Novice — *"Cầu rơi sát chân vẫn đứng khoanh tay ngó xem nó trong hay ngoài"*; Court Boss — *"Bật cao như lò xo, trận nào cũng đập rách cầu, đứt cước làm đối thủ khiếp vía"*).
+
+#### Hệ thống 10 Huy hiệu Lối chơi (Playstyle Badges)
+Mỗi thành viên được định danh một huy hiệu lối chơi duy nhất bằng hàm băm tất định `getMemberBadge(memberId)`:
+
+| Tag | Tên Huy hiệu | Icon | Mô tả tính cách |
+| :--- | :--- | :---: | :--- |
+| `VỒ HỤT` | **Chuyên Gia Vồ Hụt** | ⚡ | Rình trên lưới như mãnh thú nhưng toàn vồ trúng không khí. |
+| `THỂ LỰC` | **Thánh lau sàn** | 🏃 | Cứu cầu như thợ lặn chuyên nghiệp, trượt thảm mòn cả đầu gối. |
+| `TÂM LÝ CHIẾN` | **Hề Chúa Sân Cầu** | ✨ | Kỹ năng đánh cầu thì ít, nhưng tấu hài gây cười làm đội bạn mất tập trung thì vô địch. |
+| `TRANH CÃI` | **Chích chòe** | ⚖️ | Cầu ra ngoài 2 mét vẫn khẳng định như đinh đóng cột là cầu trong sân. |
+| `TRANG BỊ` | **Đại Gia Đổi Vợt** | 🏆 | Cứ đánh hỏng 1 quả là đổi vợt khác, đổ lỗi vợt chưa căng đủ ký. |
+| `DƯỠNG SINH` | **Đại Sứ Khởi Động** | 🏋️ | Khởi động ép dẻo xoay khớp cả tiếng đồng hồ, vào đánh đúng 1 set là chuột rút. |
+| `ĐỒNG ĐỘI` | **Thần Tài Chia Sân** | 🎖️ | Bao sân bạn thì ít mà bỏ trống nửa sân mình thì nhiều, nhường hết phần gánh cho đồng đội. |
+| `PHÒNG THỦ` | **Bức Tường Bê Tông** | 🛡️ | Cầu đập mạnh như đạn bắn qua vẫn kê đẩy nhẹ nhàng trả về sân đối thủ. |
+| `LẬT KÈO` | **Chúa Lội Ngược Dòng** | 👑 | Bị dẫn trước 15-20 vẫn bình chân như vại, ăn liền 7 điểm lật kèo ngoạn mục. |
+| `SÁT THƯƠNG` | **Sát Thủ Bắn Chim** | 🎯 | Đập cầu uy lực kinh hoàng nhưng điểm rơi toàn nằm trên trần nhà hoặc nóc nhà thi đấu. |
 
 ---
 
@@ -232,6 +255,35 @@ Trong các trận đánh đôi có sự kết hợp giữa Nam và Nữ, các th
 $$\text{learnedAdjustment} = \text{round}\left((\text{observedWinRate} - 0.50) \times 200\right)$$
 5. Khi chia sân hoặc dự đoán kèo chéo giới tính, điểm hiệu dụng của thành viên Nữ sẽ được tự động cộng thêm $\text{learnedAdjustment}$ để đảm bảo độ cân bằng tối ưu trên lưới.
 
+
+---
+
+### 2.10. Đánh giá Elo theo Thể thức (Format Ratings: Đôi, Nam-Nữ, Đơn)
+
+*(Hàm `getPlayerFormatRatings` trong `src/lib/rating.js`)*
+
+Mỗi thành viên có sở trường khác nhau (người đánh đôi nam rất hay nhưng đôi nam-nữ lại vụng về, hoặc chuyên đánh đơn). Hệ thống phân tách lịch sử thi đấu thành 3 nhánh thể thức độc lập:
+- **Đôi (`doubles`):** Gồm Đôi Nam và Đôi Nữ.
+- **Đôi Nam-Nữ (`mixed`):** Trận đấu mà mỗi đội có đủ 1 Nam và 1 Nữ.
+- **Đơn (`singles`):** Trận đấu 1 vs 1.
+
+Điểm Elo của từng thể thức được ngoại suy từ điểm Elo Career kết hợp với tỷ lệ thắng thực tế của thể thức đó qua công thức Co cụm Bayes:
+$\text{rawDelta} = (\text{winRate} - 0.50) \times 300$
+$\text{weight} = \min\left(0.85, \frac{\text{gamesCount}}{30}\right)$
+$R_{\text{format}} = \text{round}\left(R_{\text{career}} + \text{rawDelta} \times \text{weight}\right)$
+- Khi số trận thể thức còn ít ($< 5$), điểm được gắn cờ thẩm định (`isProvisional = true`).
+- Khi tích luỹ đủ 30 trận, trọng số đạt mức tối đa 85%, phản ánh năng lực chuyên biệt của thành viên ở thể thức đó.
+
+---
+
+### 2.11. Phân tích Bạn đấu hợp nhất & Đối thủ kỵ giơ (Partners & Nemeses)
+
+*(Hàm `getPlayerPartnersAndMatchups` trong `src/lib/rating.js`)*
+
+Hệ thống tự động rà soát toàn bộ lịch sử đấu của một cá nhân để xác định 3 nhóm nhân tố quan trọng phục vụ phân tích hồ sơ VĐV (Screen AY3):
+1. **Bạn đấu hợp nhất (Best Partners):** Các đồng đội từng đứng cặp, được xếp hạng theo `synergyScore` giảm dần (kết hợp số trận). Giúp nhận diện cặp đôi vàng của CLB.
+2. **Đối thủ ưa thích (Favorite Opponents):** Những đối thủ mà thành viên có tỷ lệ thắng vượt kỳ vọng ($\text{matchupImpact} \ge 0$).
+3. **Đối thủ kỵ giơ nhất (Nemeses):** Những đối thủ mà thành viên thường xuyên thất bại dưới mức kỳ vọng ($\text{matchupImpact} < 0$), được sắp xếp theo tỷ lệ thắng thực tế thấp nhất. Giúp gợi ý các cặp đấu đầy duyên nợ.
 ---
 
 ## 3. CƠ CHẾ ĐIỂM MÙA GIẢI (SEASON POINTS) & CẤP ĐỘ XP
@@ -269,8 +321,9 @@ Khác với Elo Career (thước đo kỹ thuật), **Điểm Mùa giải (Seaso
 *(Hàm `getSeasonBountyPlayer(db)`)*
 
 Để tạo kịch tính cho các buổi tập, hệ thống tự động quét toàn bộ CLB để tìm ra **VĐV đang nắm giữ chuỗi thắng dài nhất hiện tại** ($\text{streak} \ge 3$ trận gần nhất):
-- VĐV này sẽ được gắn huy hiệu **Bounty Player** (Mục tiêu săn thưởng).
-- Bất kỳ cặp đấu nào hạ gục được Bounty Player sẽ được thưởng điểm Mùa và hiển thị hiệu ứng vinh danh đặc biệt trên bảng tin CLB.
+- VĐV này sẽ được gắn huy hiệu **Bounty Player** (Mục tiêu săn thưởng vinh danh).
+- Khi đối đầu và hạ gục đội có người đang giữ chuỗi thắng hoặc rating cao hơn $\ge 100$ Elo, người thắng sẽ được thưởng điểm **Lật kèo (Upset)** (+25 Điểm Mùa, +30 XP).
+- Thành tích chuỗi thắng được hiển thị trực tiếp trên thẻ VĐV và Bảng xếp hạng để kích thích phong trào "săn thưởng" trong buổi tập.
 
 ---
 
@@ -285,10 +338,26 @@ Khác với Elo Career (thước đo kỹ thuật), **Điểm Mùa giải (Seaso
 
 ---
 
-### 3.4. Hệ thống cấp độ và danh xưng XP tích lũy
+### 3.4. Hệ thống cấp độ và danh xưng XP tích lũy (Lifetime XP)
 
-Ngoài điểm mùa theo quý, mỗi thành viên còn có điểm **Kinh nghiệm trọn đời (Lifetime XP)** để lên Cấp (Level):
-$$\text{Level} = \left\lfloor \frac{\text{TotalXP}}{600} \right\rfloor + 1$$
+*(File nguồn: `src/lib/xp.js` — các hàm `calculateMemberXp`, `titleOfLevel`, `getMemberXpLedger`)*
+
+Khác với Điểm Mùa (reset mỗi quý), **XP Tích Lũy Trọn Đời (Lifetime XP)** không bao giờ reset, đo lường toàn bộ thời gian gắn bó và cống hiến của thành viên với CLB.
+
+#### Bảng quy đổi tích lũy Lifetime XP (`calculateMemberXp`)
+| Hoạt động | XP Cộng | Ghi chú |
+| :--- | :---: | :--- |
+| **Mỗi buổi tham gia điểm danh** | **+50 XP** | Cao hơn điểm mùa (+30) nhằm tôn vinh độ bền bỉ |
+| **Mỗi trận ra sân thi đấu** | **+10 XP** | Dù thắng hay thua |
+| **Trận 3 set kịch tính** | **+20 XP** | Gấp đôi điểm mùa (+10) vì tiêu hao thể lực |
+| **Hạ đối thủ Elo cao hơn (Upset)** | **+30 XP** | Phần thưởng cho nỗ lực vượt khó |
+| **Thưởng thâm niên cơ bản** | **+15 XP/trận** | $\max(0, \text{historicalGames} - \text{matchCount}) \times 15$ |
+
+#### Công thức Cấp độ (Level) và 6 Bậc Danh Xưng
+$\text{Level} = \left\lfloor \frac{\text{TotalXP}}{600} \right\rfloor + 1$
+
+- Mỗi Level yêu cầu chính xác **600 XP**.
+- Tiến trình trong Level: $\text{progress} = \text{round}\left(\frac{\text{TotalXP} \pmod{600}}{600} \times 100\right)\%$.
 
 | Cấp độ (Level) | Danh xưng (Title) | Điểm XP tích lũy tương ứng |
 | :---: | :--- | :--- |
@@ -298,7 +367,6 @@ $$\text{Level} = \left\lfloor \frac{\text{TotalXP}}{600} \right\rfloor + 1$$
 | **Lv 15 – 19** | **Thực chiến** | 8,400 – 11,399 XP |
 | **Lv 20 – 24** | **Hảo thủ** | 11,400 – 14,399 XP |
 | **Lv 25+** | **Cao thủ** | $\ge 14,400$ XP |
-
 ---
 
 ## 4. CƠ CHẾ LƯU TRỮ CƠ SỞ DỮ LIỆU & TÍNH LẠI DÂY CHUYỀN (PERSISTENCE & CASCADE RECALCULATION)
@@ -374,6 +442,10 @@ Chi tiết các trường cốt lõi:
    - `rating_enabled`: Cờ cho phép tính Elo (`true`/`false`).
 3. `match_edits`:
    - Bảng log bất biến (append-only) ghi lại người sửa tỷ số, thời gian, lý do và mốc trận bị kích hoạt cascade recalculation.
+4. `player_rating_context`:
+   - Lưu trữ số liệu thống kê rating chuyên sâu theo ngữ cảnh thi đấu (`overall`, `doubles`, `singles`, `vs_male`, `vs_female`).
+5. `club_calibration`:
+   - Lưu hệ số hiệu chỉnh học máy chéo giới tính theo từng dải chênh lệch Elo (`<100`, `100-300`, `>300`).
 
 ---
 
@@ -435,11 +507,11 @@ Mỗi khi sửa kết quả tỷ số hoặc xoá một trận đấu, một b�
 
 Thuật toán chia sân của BadminClub là trái tim điều hành buổi tập, vận dụng trực tiếp hệ thống điểm Elo và dữ liệu lịch sử để đảm bảo các trận đấu công bằng và hấp dẫn nhất.
 
-### 5.1. 5 Tiêu chí cân bằng trận đấu
+### 5.1. 5 Tiêu chí cân bằng trận đấu (Trọng số 35/20/15/15/15 & Tích hợp Synergy)
 
-Mỗi sân đấu (gồm 4 người: Team A vs Team B) được chấm điểm theo thang **100 điểm** dựa trên 5 tiêu chí với trọng số tối ưu:
+Mỗi sân đấu (gồm 4 người: Team A vs Team B) được chấm điểm theo thang **100 điểm** dựa trên 5 tiêu chí với trọng số chuẩn xác (`src/lib/assign.js` dòng 267-295):
 
-$$\text{TotalScore} = S_{\text{Elo}} \times 30\% + S_{\text{Partner}} \times 20\% + S_{\text{Opponent}} \times 15\% + S_{\text{H2H}} \times 20\% + S_{\text{Fairness}} \times 15\%$$
+$\text{TotalScore} = S_{\text{Elo}} \times 35\% + S_{\text{Fairness}} \times 20\% + S_{\text{Partner}} \times 15\% + S_{\text{Opponent}} \times 15\% + S_{\text{H2H}} \times 15\%$
 
 ```
                          ┌──────────────────────────────────────────────┐
@@ -448,47 +520,55 @@ $$\text{TotalScore} = S_{\text{Elo}} \times 30\% + S_{\text{Partner}} \times 20\
                                                 │
          ┌──────────────────┬───────────────────┼───────────────────┬──────────────────┐
          ▼                  ▼                   ▼                   ▼                  ▼
-   [Cân Trình Elo]    [Đổi Partner]       [Đổi Đối Thủ]        [Lịch sử H2H]      [Đều Lượt Chờ]
-     Trọng số 30%       Trọng số 20%        Trọng số 15%        Trọng số 20%       Trọng số 15%
-  Lệch Elo càng bé    Tránh lặp lại đôi   Tránh gặp lại đối   Lịch sử đối đầu    Ưu tiên người ngồi
-   điểm càng cao      vừa đánh cùng nhau   thủ trong buổi     sát điểm (+), xa (-) chờ lâu nhất vào sân
+   [Cân Trình Elo]    [Đều Lượt Chờ]      [Đổi Partner]       [Đổi Đối Thủ]      [Lịch sử H2H]
+     Trọng số 35%       Trọng số 20%        Trọng số 15%        Trọng số 15%       Trọng số 15%
+   (Cộng Synergy)   Ưu tiên người chờ   Tránh lặp lại đôi   Tránh gặp lại đối   Lịch sử đối đầu
+    Lệch càng bé     lâu nhất vào sân    vừa đánh cùng nhau   thủ trong buổi     sát điểm (+), xa (-)
 ```
 
 Chi tiết công thức từng tiêu chí:
 
-#### 1. Tiêu chí Cân trình Elo ($S_{\text{Elo}}$ - Trọng số 30%)
+#### 1. Tiêu chí Cân trình Elo ($S_{\text{Elo}}$ - Trọng số 35%) & Tích hợp Pair Synergy
+- **Tích hợp độ ăn ý cặp đôi (Pair Synergy Bonus):** Nếu 2 người trong đội đã đánh cùng nhau $\ge 5$ trận (đạt bậc tin cậy R2 trở lên), điểm của đội được cộng thêm hệ số cộng hưởng ăn ý:
+$\text{synergyBonus} = \text{clamp}\left(-35, 35, \text{round}(\text{pairImpact} \times 1.2 \times \text{confidence.weight})\right)$
+$R_A = \text{round}(R_{A,\text{raw}} + \text{synergyBonus}_A), \quad R_B = \text{round}(R_{B,\text{raw}} + \text{synergyBonus}_B)$
 - Độ chênh lệch rating giữa 2 đội: $\Delta = |R_A - R_B|$.
-- Sử dụng điểm **Effective Strength** (đã co cụm Bayes) để tránh lệch trình ẩn.
 - Công thức:
-$$S_{\text{Elo}} = \max\left(10, \min\left(100, \text{round}\left(100 - \frac{\Delta}{50} \times 6\right)\right)\right)$$
+$S_{\text{Elo}} = \max\left(10, \min\left(100, \text{round}\left(100 - \frac{\Delta}{50} \times 6\right)\right)\right)$
 - *Quy chuẩn hiển thị:*
   - $\Delta \le 120$ điểm: **Cân bằng** (Balanced - Nhãn xanh lá).
-  - $120 < \Delta \le 250$ điểm: **Hơi lệch** (Slight gap - Nhãn vàng cam).
+  - ### 5.1. 5 Tiêu chí cân bằng trận đấu20 < \Delta \le 250$ điểm: **Hơi lệch** (Slight gap - Nhãn vàng cam).
   - $\Delta > 250$ điểm: **Lệch nhiều** (Imbalanced - Nhãn đỏ cảnh báo).
 
-#### 2. Tiêu chí Đổi Partner ($S_{\text{Partner}}$ - Trọng số 20%)
-- Đếm số lần cặp đôi ở Team A và Team B đã từng đứng cặp với nhau trong lịch sử buổi: $\text{playCount}$.
-- Công thức:
-$$S_{\text{Partner}} = \max(50, \min(100, 100 - \text{playCount} \times 12))$$
-- Giúp các thành viên được giao lưu với nhiều đồng đội mới, tránh tình trạng "bao sân bè cánh".
-
-#### 3. Tiêu chí Đổi Đối thủ ($S_{\text{Opponent}}$ - Trọng số 15%)
-- Đếm số lần các tay vợt bên Team A đã chạm trán với các tay vợt Team B trong cùng buổi tập.
-- Công thức:
-$$S_{\text{Opponent}} = \max(40, \min(100, 100 - \text{opponentPlayCount} \times 15))$$
-
-#### 4. Tiêu chí Lịch sử Đối đầu & Tỷ số H2H ($S_{\text{H2H}}$ - Trọng số 20%)
-- Phân tích các trận hai bên từng gặp nhau:
-  - Trận sát nút (cách biệt set $\le 3$ quả, ví dụ $21\text{–}19$): Thể hiện kèo cực hay $\implies$ **+5 điểm/trận**.
-  - Trận áp đảo một chiều (cách biệt set $\ge 12$ quả, ví dụ $21\text{–}6$): Thể hiện kèo nhàm chán $\implies$ **-8 điểm/trận**.
-- Công thức:
-$$S_{\text{H2H}} = \max(40, \min(100, 80 + \text{closeMatches} \times 5 - \text{blowoutMatches} \times 8))$$
-
-#### 5. Tiêu chí Đều Lượt Đánh ($S_{\text{Fairness}}$ - Trọng số 15%)
+#### 2. Tiêu chí Đều Lượt Đánh ($S_{\text{Fairness}}$ - Trọng số 20%)
 - Đo khoảng cách số trận giữa người chơi nhiều nhất trên sân so với người đang ngồi chờ ít trận nhất: $\text{waitDiff} = \max(\text{onCourt}) - \min(\text{waiting})$.
 - Công thức:
-$$S_{\text{Fairness}} = \max(40, \min(100, 100 - \text{waitDiff} \times 14))$$
+$S_{\text{Fairness}} = \max(40, \min(100, 100 - \text{waitDiff} \times 14))$
 - Nếu $\text{waitDiff} \ge 2$, hệ thống lập tức xuất cảnh báo nhắc nhở Quản trị viên ưu tiên cho người chờ vào sân.
+
+#### 3. Tiêu chí Đổi Partner ($S_{\text{Partner}}$ - Trọng số 15%)
+- Đếm số lần cặp đôi ở Team A và Team B đã từng đứng cặp với nhau trong lịch sử buổi: $\text{playCount}$.
+- Công thức:
+$S_{\text{Partner}} = \max(40, \min(100, 100 - \text{partnerPlayCount} \times 12))$
+- Giúp các thành viên được giao lưu với nhiều đồng đội mới, tránh tình trạng "bao sân bè cánh".
+
+#### 4. Tiêu chí Đổi Đối thủ ($S_{\text{Opponent}}$ - Trọng số 15%)
+- Đếm số lần các tay vợt bên Team A đã chạm trán với các tay vợt Team B trong cùng buổi tập.
+- Công thức:
+$S_{\text{Opponent}} = \max(40, \min(100, 100 - \text{opponentPlayCount} \times 15))$
+
+#### 5. Tiêu chí Lịch sử Đối đầu & Tỷ số H2H ($S_{\text{H2H}}$ - Trọng số 15%)
+- Phân tích các trận hai bên từng gặp nhau:
+  - Trận sát nút (cách biệt set $\le 3$ quả, ví dụ 
+---
+
+### 5.2.1\text{–}19$): Thể hiện kèo cực hay $\implies$ **+5 điểm/trận**.
+  - Trận áp đảo một chiều (cách biệt set $\ge 12$ quả, ví dụ 
+---
+
+### 5.2.1\text{–}6$): Thể hiện kèo nhàm chán $\implies$ **-8 điểm/trận**.
+- Công thức (mặc định 88 nếu chưa từng gặp):
+$S_{\text{H2H}} = \max(40, \min(100, 80 + \text{closeMatches} \times 5 - \text{blowoutMatches} \times 8))$
 
 ---
 
@@ -514,6 +594,17 @@ Giao diện chia sân tích hợp chặt chẽ với hệ thống điểm:
   - Hiển thị số lượt đã chờ (`waitTurns`).
   - Badge phân hạng Elo và nhãn Thẩm định (`Provisional`).
   - Phân loại bộ lọc: Cần vào sân gấp, Nữ, Khách giao lưu, Trình độ tương đồng.
+
+---
+
+### 5.4. Mô phỏng đổi người What-If (`simulateWhatIfSwap`)
+
+*(Hàm `simulateWhatIfSwap` trong `src/lib/assign.js` — Screen 11a DV2)*
+
+Trước khi quyết định tráo đổi một người từ hàng chờ vào sân hoặc đổi vị trí giữa hai người, Quản trị viên có thể bấm thử để hệ thống chạy mô phỏng "What-If":
+- Tính toán tức thì bảng điểm Before vs After cho cả 5 tiêu chí.
+- Đánh giá sự thay đổi xác suất thắng dự kiến: $\Delta P(A)$ và $\Delta P(B)$ theo đơn vị pp (percentage point).
+- Đưa ra khuyến nghị: Đổi vị trí này làm trận đấu cân bằng hơn hay phá vỡ thế cân bằng.
 
 ---
 
@@ -549,26 +640,25 @@ Thành viên CLB có thể trực tiếp gạ kèo thách đấu nhau qua màn h
 
 *(File nguồn: `src/pages/Leaderboard.jsx`, `src/components/leaderboard/SeasonRaceTab.jsx`, `src/components/leaderboard/CareerEloTab.jsx`, `src/components/leaderboard/PairsTab.jsx`, `src/components/leaderboard/PairH2HTab.jsx`)*
 
-### 7.1. Cấu trúc 5 Tab Bảng Xếp Hạng
+### 7.1. Cấu trúc 6 Tab Bảng Xếp Hạng
 
-Trang Bảng Xếp Hạng của CLB được phân định rành mạch thành **5 màn hình chuyên biệt**:
+Trang Bảng Xếp Hạng của CLB được phân định rành mạch thành **6 màn hình chuyên biệt** (`src/pages/Leaderboard.jsx`):
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    BẢNG XẾP HẠNG CLB                                        │
-├──────────────┬─────────────────┬────────────────────┬────────────────┬──────────────────────┤
-│ TAB 1: ĐUA   │ TAB 2: ELO      │ TAB 3: ĂN Ý &      │ TAB 4: ĐỐI    │ TAB 5: TÌM TRẬN &    │
-│ ĐIỂM MÙA     │ CAREER          │ KHẮC CHẾ           │ ĐẦU CẶP       │ MA TRẬN H2H          │
-├──────────────┴─────────────────┴────────────────────┴────────────────┴──────────────────────┤
-│ • Xếp theo   │ • Xếp theo Elo  │ • Synergy Score    │ • Lịch sử đối │ • Tìm trận theo tên  │
-│   Điểm Mùa  │   Career        │   cặp đôi          │   đầu hai cặp │ • Ma trận N×N H2H    │
-│ • Streak,    │ • Huy hiệu Rank │ • Kỳ vọng vs thực  │ • Confidence   │ • Bộ lọc upset/close │
-│   Upset, XP │ • Thanh tiến    │   tế mỗi cặp       │   bar R1-R4   │                      │
-│              │   trình R1-R5   │ • Trend ↑↓ ổn định │               │                      │
-└──────────────┴─────────────────┴────────────────────┴────────────────┴──────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                             BẢNG XẾP HẠNG CLB                                             │
+├───────────────┬────────────────┬─────────────────┬─────────────────┬───────────────────┬──────────────────┤
+│ TAB 1: ĐUA    │ TAB 2: ELO     │ TAB 3: ĂN Ý &   │ TAB 4: ĐỐI      │ TAB 5: MA TRẬN    │ TAB 6: TÌM TRẬN  │
+│ ĐIỂM MÙA      │ CAREER         │ KHẮC CHẾ        │ ĐẦU CẶP         │ ĐỐI ĐẦU H2H       │ & LỊCH SỬ ĐẤU    │
+├───────────────┴────────────────┴─────────────────┴─────────────────┴───────────────────┴──────────────────┤
+│ • Xếp theo    │ • Xếp theo Elo │ • Synergy Score │ • Lịch sử đối   │ • Ma trận N×N H2H │ • Tìm trận theo  │
+│   Điểm Mùa    │   Career       │   cặp đôi (AY1) │   đầu hai cặp   │ • Cặp lệch nhất   │   người chơi     │
+│ • Streak,     │ • Huy hiệu Rank│ • Kỳ vọng vs    │ • Advantage     │ • Cặp chưa gặp    │ • Lọc Upset,     │
+│   Upset, XP   │ • Thanh tiến   │   thực tế (pp)  │   Score (10-99) │   cùng đi nhiều   │   Close match    │
+│ • Audit Ledger│   trình R1-R5  │ • Trend ↑↓      │ • Confidence    │   buổi tập        │ • Sửa tỷ số      │
+│   buổi gần    │ • 4 Bộ Theme   │ • Lọc MD/WD/XD  │   bar R1-R4     │   (gợi ý gạ kèo)  │   inline         │
+└───────────────┴────────────────┴─────────────────┴─────────────────┴───────────────────┴──────────────────┘
 ```
-
-> **Lưu ý:** Bản đồ 4 Góc (Quadrant Map) đã được **xóa bỏ** khỏi giao diện.
 
 ---
 
@@ -667,6 +757,36 @@ Tổng hợp tất cả cặp đôi từng đánh cùng đội, tính `calcPairI
 - Tính Synergy Trend: `'up'` / `'down'` / `'steady'` bằng so sánh tỷ lệ thắng 5 trận gần nhất vs các trận trước đó (ngưỡng ±15%).
 - Sort: R1 xuống cuối → sau đó theo `synergyScore` giảm dần → tie-break theo `gamesCount`.
 
+
+---
+
+### 7.4. Ma trận Đối đầu H2H N×N & Gợi ý Gạ kèo (`neverMetWithSessionCount`)
+
+*(File nguồn: `src/lib/matchSearch.js` — Screen DS3)*
+
+Tab Ma trận đối đầu cung cấp góc nhìn toàn cảnh về tương quan giữa mọi thành viên chính thức trong CLB:
+1. **Ma trận N×N (`buildH2HMatrix`):** Hiển thị số trận Thắng - Thua trực tiếp giữa bất kỳ 2 thành viên nào.
+2. **Top cặp chênh lệch nhất (`topDisparatePairs`):** Tìm ra 5 cặp đấu có hiệu số một chiều lớn nhất ($\text{disparity} = |\text{wins}_1 - \text{wins}_2|$), thể hiện mối quan hệ "khắc tinh" rõ rệt.
+3. **Cặp chưa từng chạm trán (`neverMetWithSessionCount`):**
+   - Lọc tất cả các cặp thành viên chưa từng gặp nhau đối đầu trên sân.
+   - Đếm số buổi sinh hoạt mà cả hai cùng có mặt: $\text{commonSessionsCount}$.
+   - Sắp xếp cặp cùng đi nhiều buổi nhất lên đầu: Đây chính là **danh sách vàng để gợi ý gạ kèo thách đấu**, giúp kết nối các thành viên chưa từng có cơ hội cọ xát.
+
+---
+
+### 7.5. Công cụ Tìm kiếm Trận đấu Đa chiều (`filterMatches`)
+
+*(File nguồn: `src/lib/matchSearch.js`, `src/components/challenge/EditScoreModal.jsx`)*
+
+Tab Tìm trận cho phép tra cứu linh hoạt toàn bộ lịch sử đấu của CLB theo nhiều chiều:
+- **Người chơi:** Tìm các trận có mặt Player A, hoặc Player B, hoặc cả hai.
+- **Chế độ quan hệ:** Đối đầu trực tiếp (`h2h`) hoặc Cùng đứng chung một đội (`teammate`).
+- **Chất lượng trận đấu:**
+  - *Tất cả (`all`)*
+  - *Sát nút kịch tính (`close`):* Trận có ít nhất 1 set cách biệt $\le 3$ quả hoặc trận kéo dài đủ 3 set.
+  - *Lật kèo bất ngờ (`upset`):* Trận mà đội cửa dưới (Elo thấp hơn $\ge 100$ điểm) giành chiến thắng chung cuộc.
+- **Thời gian:** Lọc theo khoảng ngày (`fromDate`, `toDate`).
+- **Sửa tỷ số Inline:** Hỗ trợ Quản trị viên sửa nhanh kết quả khi nhập nhầm, tự động kích hoạt chuỗi tính lại Elo cascade (`replayRatingCascade`) và ghi log kiểm toán (`match_edits`).
 ---
 
 ## 8. BẢNG TỔNG HỢP THAM CHIẾU CẤU HÌNH (`app.json`)

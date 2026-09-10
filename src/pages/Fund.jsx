@@ -256,7 +256,7 @@ export default function Fund() {
   }, [allDisplayItems, selectedId])
 
   // Dữ liệu biểu đồ nhịp chi 30 ngày trong tháng
-  const { sparkDays, maxDailyOut } = useMemo(() => {
+  const sparkDays = useMemo(() => {
     const spendByDay = {}
     monthLedger.forEach((r) => {
       const d = parseInt(r.date.slice(8, 10), 10)
@@ -268,7 +268,7 @@ export default function Fund() {
 
     const max = Math.max(...Object.values(spendByDay).map((x) => x.out), 1)
 
-    const days = Array.from({ length: daysInMonth }, (_, i) => {
+    return Array.from({ length: daysInMonth }, (_, i) => {
       const d = i + 1
       const data = spendByDay[d] || { out: 0, in: 0, total: 0 }
       const hasOut = data.out > 0
@@ -290,8 +290,6 @@ export default function Fund() {
         isPicked,
       }
     })
-
-    return { sparkDays: days, maxDailyOut: max }
   }, [monthLedger, daysInMonth, selectedDay])
 
   // Thống kê thẻ chỉ số
@@ -1250,7 +1248,6 @@ export function FundOverviewCards() {
 
 export function FundBalanceColumns() {
   const { db } = useApp()
-  const flow = monthFlow(db, db.month)
   const groups = ledgerGrouped(db, db.month)
   const inGroups = groups.filter((g) => g.dir === 'in' && g.cat !== 'opening')
   const outGroups = groups.filter((g) => g.dir === 'out')
@@ -1302,17 +1299,7 @@ export function FundBalanceColumns() {
   )
 }
 
-export function MonthSummary() {
-  const { db } = useApp()
-  return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      <FundOverviewCards />
-      <FundBalanceColumns />
-    </div>
-  )
-}
-
-export function Detail({ canMoney }) {
+export function Detail() {
   return <Fund />
 }
 

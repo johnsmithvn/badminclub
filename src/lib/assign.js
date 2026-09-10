@@ -400,9 +400,9 @@ export function arrangeBestOfN({
   matches = [],
   stats = {},
   constraints = [],
-  groupMode = false,
-  courtGroups = {},
-  levels,
+  _groupMode = false,
+  _courtGroups = {},
+  _levels,
 }) {
   const startTime = Date.now()
   const idxs = activeCourtIdxs(session)

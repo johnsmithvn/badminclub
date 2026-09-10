@@ -462,6 +462,7 @@ const newEditState = {
 }
 const addEditOps = diff(toRows(db, ctx), toRows(newEditState, ctx))
 const upsertEditOp = addEditOps.find((o) => o.table === 'match_edits')
+assert.ok(upsertEditOp, 'match_edits sinh op upsert')
 /* ---------- U1: users toDb giữ avatarUrl và thông tin tài khoản ngân hàng ---------- */
 const testUserRaw = {
   id: 'U_1', name: 'Nguyễn Văn A', nick: 'Anh A', phone: '0901234567', email: 'a@example.com',

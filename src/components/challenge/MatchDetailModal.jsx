@@ -28,23 +28,6 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   const aWon = match?.winnerTeam === 'A'
   const sets = useMemo(() => match?.sets || [], [match])
 
-  // Tính số set thắng
-  const setsWon = useMemo(() => {
-    let wonA = 0
-    let wonB = 0
-    sets.forEach(([sa, sb]) => {
-      if (sa > sb) wonA++
-      else if (sb > sa) wonB++
-    })
-    return { wonA, wonB }
-  }, [sets])
-
-  const isMultiSet = sets.length > 1
-  const displayScore = isMultiSet
-    ? `${setsWon.wonA} – ${setsWon.wonB}`
-    : sets.length === 1
-      ? `${sets[0][0]} – ${sets[0][1]}`
-      : '21 – 19'
 
   // Thông tin buổi và sân
   const s = useMemo(() => (db.sessions || []).find((x) => x.id === match?.sessionId), [db.sessions, match?.sessionId])

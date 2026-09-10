@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { effectiveStrengthOf, isProvisional, getPlayerRating } from '../../lib/rating.js'
 import { calculateSeasonLeaderboard, getMemberSeasonLedger } from '../../lib/xp.js'
-import { arrangeBestOfN, detailedCourtBalance } from '../../lib/assign.js'
+import { arrangeBestOfN } from '../../lib/assign.js'
 import { t as translate } from '../../i18n/index.js'
 
 test('Season 3-Tier Core Engine Tests', async (t) => {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Icon, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
@@ -24,20 +24,6 @@ import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerM
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
 import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
 import { calculateSeasonLeaderboard } from '#lib/xp.js'
-
-/**
- * Trợ thủ ghép màu kèm độ trong suốt (alpha).
- */
-function alphaColor(color, alphaHex, pct) {
-  if (!color) return 'transparent'
-  const isVar = typeof color === 'string' && color.startsWith('var(')
-  if (!isVar) {
-    return `${color}${alphaHex}`
-  }
-
-  const p = pct ?? Math.min(100, Math.max(0, Math.round((parseInt(alphaHex, 16) / 255) * 100)))
-  return `color-mix(in srgb, ${color} ${p}%, transparent)`
-}
 
 /**
  * Lấy tên gọi ngắn gọn của thành viên (ưu tiên tên chính, kèm chữ lót nếu trùng)
@@ -66,10 +52,6 @@ export default function Leaderboard() {
   const navigate = useNavigate()
   const isMobile = useMobile()
   const [activeTab, setActiveTab] = useState('season') // 'season' | 'elo' | 'pairs' | 'matrix' | 'search'
-  const yearFilter = '2026'
-  const [searchName, setSearchName] = useState('')
-  const [activeFilter, setActiveFilter] = useState('all') // 'all' | 'active'
-  const [guestFilter, setGuestFilter] = useState('members') // 'members' | 'all'
   const [rankTheme, setRankTheme] = useState(DEFAULT_RANK_THEME)
 
   // State cho Tab 2 (Biểu đồ / Profile)
@@ -119,17 +101,6 @@ export default function Leaderboard() {
     }
   }, [db])
 
-  const seasonMedianElo = useMemo(() => {
-    const list = (seasonLeaderboardData?.leaderboard || [])
-      .map((r) => r.displayRating || r.rating || 1500)
-      .sort((a, b) => a - b)
-    if (!list.length) return 1596
-    const mid = Math.floor(list.length / 2)
-    return list.length % 2 !== 0
-      ? list[mid]
-      : Math.round(((list[mid - 1] || 1500) + (list[mid] || 1500)) / 2) || 1500
-  }, [seasonLeaderboardData])
-
   const handleExportCsv = () => {
     let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
     if (activeTab === 'season') {
@@ -177,7 +148,7 @@ export default function Leaderboard() {
       }
     })
     return map
-  }, [db?.members, db?.guests, db?.sessionGuests, db])
+  }, [db])
 
   const normalizedRatingsMap = useMemo(() => {
     const map = {}
@@ -203,7 +174,7 @@ export default function Leaderboard() {
     return map
   }, [db?.members, db?.guests, db?.sessionGuests, db?.playerRatings, db?.levels])
 
-  const memberNameOf = (id) => playerName(db, id)
+  const memberNameOf = useCallback((id) => playerName(db, id), [db])
 
   // -------------------------------------------------------------
   // TAB 1: Dữ liệu Bảng xếp hạng Mùa giải
@@ -281,65 +252,8 @@ export default function Leaderboard() {
       row.rank = idx + 1
     })
 
-    let combined = memberRows
-
-    if (guestFilter === 'all') {
-      const guests = db.guests || []
-      const guestRows = guests.map((g) => {
-        const pr = getPlayerRating(db.playerRatings, g.id, g, db.levels)
-        let wins = 0
-        let losses = 0
-        const guestMatches = []
-        matches.forEach((mt) => {
-          const teamA = mt.teamA || (mt.playerKeys ? mt.playerKeys.slice(0, 2) : [])
-          const teamB = mt.teamB || (mt.playerKeys ? mt.playerKeys.slice(2, 4) : [])
-          const inA = teamA.includes(g.id)
-          const inB = teamB.includes(g.id)
-          if (inA || inB) {
-            const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
-            if (won) wins++
-            else losses++
-            guestMatches.push({ ...mt, won, at: mt.at || (mt.playedAt ? Date.parse(mt.playedAt) : 0) })
-          }
-        })
-        guestMatches.sort((a, b) => (b.at || 0) - (a.at || 0))
-        const form = guestMatches.slice(0, 5).map((x) => (x.won ? 'W' : 'L')).reverse()
-        const totalGames = wins + losses
-        const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0
-        const tier = rankTierOf(pr.rating, rankTheme)
-
-        return {
-          id: g.id,
-          name: g.name,
-          gender: g.gender || 'Nam',
-          level: g.level || 'TB',
-          rating: pr.rating,
-          displayRating: pr.rating,
-          tier,
-          isGuest: true,
-          rank: '—',
-          isInactive: false,
-          daysInactive: 0,
-          decayAmount: 0,
-          k: 32,
-          gamesCount: totalGames || pr.gamesCount || 0,
-          wins,
-          losses,
-          winRate,
-          confidence: 'low',
-          form,
-        }
-      })
-
-      combined = [...memberRows, ...guestRows].sort((a, b) => b.displayRating - a.displayRating)
-    }
-
-    return combined.filter((row) => {
-      if (activeFilter === 'active' && row.isInactive) return false
-      if (!searchName.trim()) return true
-      return row.name.toLowerCase().includes(searchName.toLowerCase())
-    })
-  }, [activeMembers, db.guests, db.playerRatings, db.matches, searchName, activeFilter, guestFilter, rankTheme, db.levels])
+    return memberRows
+  }, [activeMembers, db.playerRatings, db.matches, rankTheme, db.levels])
 
   // -------------------------------------------------------------
   // Thành viên được chọn để mở Modal Hồ sơ / Biểu đồ Elo
@@ -485,7 +399,7 @@ export default function Leaderboard() {
       })
     }
     return t('matchSearch.matchesSummaryAll', { count: searchResults.length })
-  }, [playerA, playerB, searchResults.length, db.members])
+  }, [playerA, playerB, searchResults.length, memberNameOf])
 
   const handleExportFilteredMatchesCsv = () => {
     let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
@@ -532,152 +446,6 @@ export default function Leaderboard() {
     link.click()
     document.body.removeChild(link)
   }
-
-
-  // Thống kê Mùa giải cho Tab 1
-  const seasonStats = useMemo(() => {
-    const matches = db.matches || []
-    const totalMatches = matches.length
-    const ratedPlayersCount = leaderboardData.filter((r) => r.gamesCount > 0).length
-
-    let upsetMatchesCount = 0
-    matches.forEach((m) => {
-      const ra = m.initialRatingA || 0
-      const rb = m.initialRatingB || 0
-      if (Math.abs(ra - rb) > 100 && ((ra < rb && m.winnerTeam === 'A') || (rb < ra && m.winnerTeam === 'B'))) {
-        upsetMatchesCount++
-      }
-    })
-
-    // Tìm người có chuỗi thắng (streak W) dài nhất hiện tại (chỉ thành viên chính thức)
-    let maxStreak = 0
-    let bountyPlayer = null
-    leaderboardData.forEach((row) => {
-      if (row.isGuest) return
-      const streak = row.streak || 0
-      if (streak >= 3 && streak > maxStreak) {
-        maxStreak = streak
-        bountyPlayer = { ...row, streak }
-      }
-    })
-
-    return {
-      totalMatches,
-      ratedPlayersCount,
-      upsetMatchesCount,
-      bountyPlayer,
-    }
-  }, [db.matches, leaderboardData])
-
-  // Top người có rating biến động nhiều nhất (Card vệ tinh 2 của Tab 1) - CHỈ THÀNH VIÊN, KHÔNG TÍNH KHÁCH
-  const topRatingChanges = useMemo(() => {
-    const matches = (db.matches || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0))
-    const recentMatches = matches.slice(0, 10)
-    const memberDeltaMap = new Map()
-
-    recentMatches.forEach((m) => {
-      const d = Math.abs(m.eloDelta || 0)
-      if (!d) return
-      const wonA = m.winnerTeam === 'A'
-
-      const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
-      const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
-
-      teamA.forEach((pid) => {
-        const mem = memberMap[pid] || (db.members || []).find((x) => x.id === pid)
-        if (!mem || mem.active === false) return
-        const cur = memberDeltaMap.get(pid) || { delta: 0, wins: 0, losses: 0, matches: 0, mem }
-        memberDeltaMap.set(pid, {
-          ...cur,
-          delta: cur.delta + (wonA ? d : -d),
-          wins: cur.wins + (wonA ? 1 : 0),
-          losses: cur.losses + (wonA ? 0 : 1),
-          matches: cur.matches + 1,
-        })
-      })
-
-      teamB.forEach((pid) => {
-        const mem = memberMap[pid] || (db.members || []).find((x) => x.id === pid)
-        if (!mem || mem.active === false) return
-        const cur = memberDeltaMap.get(pid) || { delta: 0, wins: 0, losses: 0, matches: 0, mem }
-        memberDeltaMap.set(pid, {
-          ...cur,
-          delta: cur.delta + (!wonA ? d : -d),
-          wins: cur.wins + (!wonA ? 1 : 0),
-          losses: cur.losses + (!wonA ? 0 : 1),
-          matches: cur.matches + 1,
-        })
-      })
-    })
-
-    const arr = Array.from(memberDeltaMap.entries()).map(([pid, val]) => {
-      return {
-        id: pid,
-        name: val.mem.name,
-        gender: val.mem.gender === 'Nữ' || val.mem.gender === 'F' ? 'F' : 'M', // i18n-ok: gender check
-        delta: val.delta,
-        wins: val.wins,
-        losses: val.losses,
-        matches: val.matches,
-      }
-    }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 4)
-
-    return arr
-  }, [db.matches, memberMap, db.members])
-
-  // Thành tựu mới trong mùa giải (Card vệ tinh 3 của Tab 1) - CHỈ TÍNH TỪ DATA THỰC TẾ CLB
-  const recentSeasonAchievements = useMemo(() => {
-    const achs = []
-    // 1. Chuỗi thắng >= 3 từ thành viên
-    if (seasonStats.bountyPlayer) {
-      const p = seasonStats.bountyPlayer
-      const dateStr = p.lastMatchDate ? new Date(p.lastMatchDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : ''
-      achs.push({
-        name: p.name,
-        title: t('leaderboard.achieveStreak', { n: p.streak }),
-        date: dateStr,
-      })
-    }
-
-    // 2. Cột mốc số trận đấu của thành viên (>= 50 trận)
-    leaderboardData.forEach((row) => {
-      if (!row.isGuest && row.gamesCount >= 50 && achs.length < 3) {
-        const dateStr = row.lastMatchDate ? new Date(row.lastMatchDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : ''
-        achs.push({
-          name: row.name,
-          title: t('leaderboard.achieveMatches', { n: row.gamesCount }),
-          date: dateStr,
-        })
-      }
-    })
-
-    // 3. Trận thắng bất ngờ gần đây (upset) từ thành viên
-    const matches = (db.matches || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0))
-    for (const m of matches) {
-      if (achs.length >= 4) break
-      const ra = m.initialRatingA || 0
-      const rb = m.initialRatingB || 0
-      const wonA = m.winnerTeam === 'A'
-      const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && wonA) || (rb < ra && !wonA))
-      if (isUpset) {
-        const winningPids = wonA ? (m.teamA || []) : (m.teamB || [])
-        for (const pid of winningPids) {
-          const mem = memberMap[pid] || (db.members || []).find((x) => x.id === pid)
-          if (mem && mem.active !== false && !achs.some((a) => a.name === mem.name && a.title === t('leaderboard.achieveBeatStronger'))) {
-            const dateStr = m.at ? new Date(m.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : ''
-            achs.push({
-              name: mem.name,
-              title: t('leaderboard.achieveBeatStronger'),
-              date: dateStr,
-            })
-            break
-          }
-        }
-      }
-    }
-
-    return achs.slice(0, 4)
-  }, [seasonStats.bountyPlayer, leaderboardData, db.matches, memberMap, db.members])
 
   // Thống kê Đối đầu H2H chi tiết giữa Player A và Player B cho Tab 3
   const h2hSummary = useMemo(() => {

@@ -4,7 +4,6 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, effectiveStrengthOf, isProvisional } from '#lib/rating.js'
 
 export default function CareerEloTab({
-  db,
   members = [],
   playerRatings = {},
   matches = [],
