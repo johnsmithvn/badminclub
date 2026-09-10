@@ -517,9 +517,13 @@ export default function Fund() {
               style={{
                 ...S.filterBtn,
                 ...(isMobile ? { padding: '0 10px', height: 34 } : {}),
-                background: (catFilter.length > 0 || dirFilter !== 'all') ? '#F4F2FF' : 'var(--surface-card, #fff)',
-                borderColor: (catFilter.length > 0 || dirFilter !== 'all') ? '#6C5CE7' : '#E3DFD8',
-                color: (catFilter.length > 0 || dirFilter !== 'all') ? '#4F3FD1' : 'var(--text-primary, #1C1917)',
+                background: (catFilter.length > 0 || dirFilter !== 'all')
+                  ? (isDark ? 'rgba(108, 92, 231, 0.25)' : '#F4F2FF')
+                  : 'var(--surface-card, #fff)',
+                borderColor: (catFilter.length > 0 || dirFilter !== 'all') ? '#6C5CE7' : 'var(--border-subtle, #E3DFD8)',
+                color: (catFilter.length > 0 || dirFilter !== 'all')
+                  ? (isDark ? '#A29BFE' : '#4F3FD1')
+                  : 'var(--text-primary, #1C1917)',
               }}
               title={t('common.filter')}
               aria-label={t('common.filter')}
@@ -580,9 +584,13 @@ export default function Fund() {
                         }}
                         style={{
                           ...S.catPickChip,
-                          background: isPicked ? '#F4F2FF' : 'var(--surface-inset, #F3F0EB)',
+                          background: isPicked
+                            ? (isDark ? 'rgba(108, 92, 231, 0.25)' : '#F4F2FF')
+                            : 'var(--surface-inset, #F3F0EB)',
                           borderColor: isPicked ? '#6C5CE7' : 'transparent',
-                          color: isPicked ? '#4F3FD1' : 'var(--text-secondary, #57534E)',
+                          color: isPicked
+                            ? (isDark ? '#A29BFE' : '#4F3FD1')
+                            : 'var(--text-secondary, #57534E)',
                         }}
                       >
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: CAT_COLORS[cat] || '#A8A29E' }} />
@@ -618,9 +626,13 @@ export default function Fund() {
                   ...S.filterBtn,
                   padding: '0 10px',
                   height: 34,
-                  background: quickDate !== 'all' ? '#F4F2FF' : 'var(--surface-card, #fff)',
+                  background: quickDate !== 'all'
+                    ? (isDark ? 'rgba(108, 92, 231, 0.25)' : '#F4F2FF')
+                    : 'var(--surface-card, #fff)',
                   borderColor: quickDate !== 'all' ? '#6C5CE7' : 'var(--border-subtle, #E3DFD8)',
-                  color: quickDate !== 'all' ? '#4F3FD1' : 'var(--text-primary, #1C1917)',
+                  color: quickDate !== 'all'
+                    ? (isDark ? '#A29BFE' : '#4F3FD1')
+                    : 'var(--text-primary, #1C1917)',
                 }}
                 title={quickTabs.find((tab) => tab.id === quickDate)?.label || t('fund.tabAll')}
                 aria-label={quickTabs.find((tab) => tab.id === quickDate)?.label || t('fund.tabAll')}
@@ -745,7 +757,7 @@ export default function Fund() {
                       ? '#6C5CE7'
                       : d.hasOut
                         ? 'var(--text-primary, #1C1917)'
-                        : '#E7E3DC',
+                        : (isDark ? 'var(--border-subtle, #22304A)' : '#E7E3DC'),
                   }}
                 />
                 <span
@@ -1070,7 +1082,7 @@ export default function Fund() {
                           height: `${m.h}%`,
                           background: m.isCurrent
                             ? (CAT_COLORS[selectedTx.cat] || '#6C5CE7')
-                            : '#E7E3DC',
+                            : (isDark ? 'var(--border-subtle, #22304A)' : '#E7E3DC'),
                         }}
                       />
                       <span style={S.trendBarLabel}>{m.lbl}</span>
@@ -1186,7 +1198,7 @@ export default function Fund() {
                         height: `${m.h}%`,
                         background: m.isCurrent
                           ? (CAT_COLORS[selectedTx.cat] || '#6C5CE7')
-                          : '#E7E3DC',
+                          : (isDark ? 'var(--border-subtle, #22304A)' : '#E7E3DC'),
                       }}
                     />
                     <span style={S.trendBarLabel}>{m.lbl}</span>
@@ -1448,10 +1460,10 @@ const S = {
     height: 36,
     padding: '0 16px',
     borderRadius: 9,
-    background: 'var(--text-primary, #1C1917)',
+    background: 'var(--action-primary-bg, #0D2B5E)',
     fontSize: 13,
     fontWeight: 600,
-    color: '#fff',
+    color: 'var(--action-primary-fg, #fff)',
     border: 'none',
     display: 'inline-flex',
     alignItems: 'center',
@@ -1994,8 +2006,8 @@ const S = {
     height: 34,
     flex: 1,
     borderRadius: 9,
-    background: 'var(--text-primary, #1C1917)',
-    color: '#fff',
+    background: 'var(--action-primary-bg, #0D2B5E)',
+    color: 'var(--action-primary-fg, #fff)',
     border: 'none',
     fontSize: 13,
     fontWeight: 600,
@@ -2005,7 +2017,7 @@ const S = {
     width: 34,
     height: 34,
     borderRadius: 9,
-    border: '1px solid #F3D6D6',
+    border: '1px solid var(--border-subtle, rgba(220,38,38,0.3))',
     background: 'var(--surface-card, #fff)',
     display: 'flex',
     alignItems: 'center',
@@ -2174,7 +2186,7 @@ const S = {
     width: 38,
     height: 4,
     borderRadius: 2,
-    background: '#DDD8D0',
+    background: 'var(--border-subtle, #DDD8D0)',
     alignSelf: 'center',
   },
   mobileActionsRow: {
@@ -2187,8 +2199,8 @@ const S = {
     flex: 1,
     height: 44,
     borderRadius: 11,
-    background: 'var(--text-primary, #1C1917)',
-    color: '#fff',
+    background: 'var(--action-primary-bg, #0D2B5E)',
+    color: 'var(--action-primary-fg, #fff)',
     border: 'none',
     fontSize: 14,
     fontWeight: 600,
@@ -2198,7 +2210,7 @@ const S = {
     width: 44,
     height: 44,
     borderRadius: 11,
-    border: '1px solid #F3D6D6',
+    border: '1px solid var(--border-subtle, rgba(220,38,38,0.3))',
     background: 'var(--surface-card, #fff)',
     display: 'flex',
     alignItems: 'center',
