@@ -111,7 +111,7 @@ export default function Leaderboard() {
         csvContent += `"${r.rank}","${r.name}","${r.totalSeasonPoints}","${r.attendedCount || 0}","${r.matchesCount || 0}","${r.winsCount || 0}","${r.upsetsCount || 0}"\n`
       })
     } else if (activeTab === 'pairs') {
-      csvContent += 'Thứ hạng,Cặp,Số trận,Kỳ vọng %,Thực tế %,Lệch (pp),Ăn ý,Độ tin cậy\n' // i18n-ok: csv header
+      csvContent += 'Thứ hạng,Cặp,Số trận,Kỳ vọng %,Thực tế %,Lệch (pp),Độ hợp cạ,Độ tin cậy\n' // i18n-ok: csv header
       const pData = rankPairs(db.matches || [], memberMap, db.playerRatings || {}, { format: 'all', minGames: 1 })
       ;(pData.rankedPairs || []).forEach((r, idx) => {
         csvContent += `"${idx + 1}","${r.names.join(' - ')}","${r.gamesCount}","${r.expectedWinPct}%","${r.actualWinPct}%","${r.pairImpact}","${r.synergyScore}","${r.confidence}"\n`
