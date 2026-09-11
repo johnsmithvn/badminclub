@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Avatar } from '#ds'
-import { getMemberSeasonLedger } from '#lib/xp.js'
+import { getMemberSeasonLedger } from '#lib/season.js'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'

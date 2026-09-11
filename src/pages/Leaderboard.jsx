@@ -23,7 +23,7 @@ import PairH2HTab from '#components/leaderboard/PairH2HTab.jsx'
 import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerModal.jsx'
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
 import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
-import { calculateSeasonLeaderboard } from '#lib/xp.js'
+import { calculateSeasonLeaderboard } from '#lib/season.js'
 
 /**
  * Lấy tên gọi ngắn gọn của thành viên (ưu tiên tên chính, kèm chữ lót nếu trùng)

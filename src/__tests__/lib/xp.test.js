@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { titleOfLevel, calculateMemberXp, getMemberXpLedger, getMemberAchievements, getSeasonBountyPlayer } from '../../lib/xp.js'
+import { titleOfLevel, calculateMemberXp, getMemberXpLedger, getMemberAchievements } from '../../lib/xp.js'
+import { getSeasonBountyPlayer } from '../../lib/season.js'
 
 test('XP & Contributions Engine Test Suite', async (t) => {
   await t.test('1. titleOfLevel maps correct friendly tiers without game cliches', () => {
@@ -13,50 +14,57 @@ test('XP & Contributions Engine Test Suite', async (t) => {
     assert.equal(titleOfLevel(30), 'Cao thủ')
   })
 
-  await t.test('2. calculateMemberXp correctly aggregates session, match, 3-sets, and upset bonuses', () => {
+  await t.test('2. calculateMemberXp — XP là trục GẮN BÓ, không hỏi thắng thua', () => {
     const mockDb = {
-      members: [{ id: 'm1', name: 'Minh' }],
+      members: [{ id: 'm1', name: 'Minh', joined: '2026-01-11' }],
       sessions: [
         { id: 's1', attendees: ['m1'] },
         { id: 's2', attendees: ['m1'] },
       ],
       matches: [
-        // Match 1: Won in 2 sets, normal win (+10)
+        // Thắng 2 set thường
         { id: 'mt1', teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 15], [21, 18]], initialRatingA: 1300, initialRatingB: 1200 },
-        // Match 2: Won in 3 sets, upset win (+10 + 20 + 30 = +60)
+        // Thắng 3 set VÀ lật kèo — dưới hệ cũ được +20 +30, giờ KHÔNG được gì thêm
         { id: 'mt2', teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A', sets: [[21, 19], [18, 21], [22, 20]], initialRatingA: 1300, initialRatingB: 1500 },
-        // Match 3: Lost in 2 sets (+10)
+        // Thua 2 set — vẫn được đủ điểm ra sân như trận thắng
         { id: 'mt3', teamA: ['m1'], teamB: ['m4'], winnerTeam: 'B', sets: [[15, 21], [18, 21]], initialRatingA: 1300, initialRatingB: 1400 },
+      ],
+      guests: [
+        { id: 'g1', name: 'Khách 1', invitedBy: 'm1' },
+        { id: 'g2', name: 'Khách 2', invitedBy: 'm9' },
       ],
     }
 
-    const xpData = calculateMemberXp('m1', mockDb)
-    // Sessions: 2 * 50 = 100 XP
-    // Matches:
-    //   mt1: 10
-    //   mt2: 10 + 20 + 30 = 60
-    //   mt3: 10
-    // Total match XP: 80
-    // Total XP: 180
-    assert.equal(xpData.totalXp, 180)
-    assert.equal(xpData.level, 1) // 180 / 600 + 1 = 1
-    assert.equal(xpData.title, 'Tân thủ')
-    assert.equal(xpData.levelProgressPct, Math.round((180 / 600) * 100))
+    const xpData = calculateMemberXp('m1', mockDb, new Date('2026-09-11T00:00:00Z'))
+    // Buổi:      2 × 50  = 100
+    // Trận:      3 × 10  =  30   (thắng, thua, 3 set, lật kèo — đều 10)
+    // Thâm niên: 8 × 20  = 160   (11/01 -> 11/09 = 8 tháng tròn)
+    // Rủ khách:  1 × 25  =  25   (g2 do người khác rủ, không tính)
+    // Tổng               = 315
+    assert.equal(xpData.breakdown.sessionXp, 100)
+    assert.equal(xpData.breakdown.matchXp, 30, 'Trận 3 set và lật kèo KHÔNG được cộng thêm — đó là trục thi đấu')
+    assert.equal(xpData.breakdown.tenureXp, 160)
+    assert.equal(xpData.breakdown.inviteXp, 25, 'Chỉ đếm khách do chính mình rủ')
+    assert.equal(xpData.totalXp, 315)
+    assert.equal(xpData.tenureMonths, 8)
+    assert.equal(xpData.invitedCount, 1)
+    assert.equal(xpData.level, 1) // floor(315/600) + 1
     assert.equal(xpData.matchCount, 3)
     assert.equal(xpData.sessionCount, 2)
   })
 
-  await t.test('3. getMemberXpLedger produces transparent audit lines', () => {
+  await t.test('3. getMemberXpLedger chỉ ghi khoản theo sự kiện, khớp với công thức', () => {
     const mockDb = {
+      sessions: [{ id: 's1', date: '2026-09-03', attendees: ['m1'] }],
       matches: [
         {
           id: 'mt1',
           code: 'M-0184',
-          createdAt: '2026-09-03T21:04:00Z',
+          at: Date.parse('2026-09-03T21:04:00Z'),
           teamA: ['m1'],
           teamB: ['m2'],
           winnerTeam: 'A',
-          sets: [[21, 18], [19, 21], [21, 19]],
+          sets: [[21, 18], [19, 21], [21, 19]], // 3 set + lật kèo: KHÔNG còn sinh dòng riêng
           initialRatingA: 1200,
           initialRatingB: 1400,
         },
@@ -64,11 +72,19 @@ test('XP & Contributions Engine Test Suite', async (t) => {
     }
 
     const ledger = getMemberXpLedger('m1', mockDb)
-    assert.ok(ledger.length >= 3)
     const titles = ledger.map((l) => l.titleKey)
-    assert.ok(titles.includes('xpPlayedMatch'))
-    assert.ok(titles.includes('xpThreeSets'))
-    assert.ok(titles.includes('xpBeatStronger'))
+    assert.ok(titles.includes('xpPlayedMatch'), 'Ra sân một trận')
+    assert.ok(titles.includes('xpFullSession'), 'Có mặt một buổi')
+    assert.ok(!titles.includes('xpThreeSets'), 'Dòng "trận 3 set" phải biến mất khỏi sổ XP')
+    assert.ok(!titles.includes('xpBeatStronger'), 'Dòng "hạ đối thủ mạnh hơn" phải biến mất khỏi sổ XP')
+
+    // Tổng các dòng trên sổ phải khớp phần sự kiện của công thức (2 buổi/trận ở đây)
+    const sumLedger = ledger.reduce((acc, x) => acc + x.amount, 0)
+    const xp = calculateMemberXp('m1', mockDb)
+    assert.equal(
+      sumLedger, xp.breakdown.sessionXp + xp.breakdown.matchXp,
+      'Sổ XP mà không cộng ra đúng phần sự kiện thì nó không còn là sổ minh bạch'
+    )
   })
 
   await t.test('4. getMemberAchievements computes 4 progress milestones', () => {

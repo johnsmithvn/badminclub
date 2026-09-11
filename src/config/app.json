@@ -80,6 +80,13 @@
     "fullConfidenceThreshold": 30,
     "monteCarloCandidates": 80
   },
+  "xp": {
+    "perSession": 50,
+    "perMatch": 10,
+    "perTenureMonth": 20,
+    "perGuestInvited": 25,
+    "levelSize": 600
+  },
   "assign": {
     "balanceThreshold": 0.6,
     "fairnessThreshold": 1

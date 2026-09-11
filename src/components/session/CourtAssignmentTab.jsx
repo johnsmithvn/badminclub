@@ -11,7 +11,7 @@ import {
   teamRating, computeClubCalibration,
   calcPlayerDeltas, calcPairImpact, DEFAULT_RATING,
 } from '#lib/rating.js'
-import { calcSeasonMatchDelta, seasonConfigOf } from '#lib/xp.js'
+import { calcSeasonMatchDelta, seasonConfigOf } from '#lib/season.js'
 import { t } from '#i18n'
 import CourtWaitingFilterSheet from '#components/session/CourtWaitingFilterSheet.jsx'
 import SessionStatsSheet from '#components/session/SessionStatsSheet.jsx'

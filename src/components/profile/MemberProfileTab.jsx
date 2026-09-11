@@ -4,7 +4,8 @@ import { LevelChip } from '#ui'
 import { playerName } from '#lib/money.js'
 import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
-import { calculateMemberXp, getMemberXpLedger, getMemberAchievements, getSeasonBountyPlayer } from '#lib/xp.js'
+import { calculateMemberXp, getMemberXpLedger, getMemberAchievements } from '#lib/xp.js'
+import { getSeasonBountyPlayer } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -1148,6 +1149,24 @@ export default function MemberProfileTab({
                   <span style={{ font: '400 13px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
                     {t('leaderboard.xpProgressDesc')}
                   </span>
+
+                  {/* Cơ cấu XP: 4 nguồn của trục GẮN BÓ, không có khoản nào hỏi thắng thua */}
+                  <div style={{ display: 'grid', gap: 4, marginTop: 4 }}>
+                    <span style={{ font: '600 11px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', letterSpacing: '.04em', textTransform: 'uppercase' }}>
+                      {t('leaderboard.xpBreakdownTitle')}
+                    </span>
+                    {[
+                      { k: 'xpFromSessions', n: xpData.sessionCount, v: xpData.breakdown?.sessionXp },
+                      { k: 'xpFromMatches', n: xpData.matchCount, v: xpData.breakdown?.matchXp },
+                      { k: 'xpFromTenure', n: xpData.tenureMonths, v: xpData.breakdown?.tenureXp },
+                      { k: 'xpFromInvites', n: xpData.invitedCount, v: xpData.breakdown?.inviteXp },
+                    ].filter((r) => (r.v || 0) > 0).map((r) => (
+                      <div key={r.k} style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px/1.5 "IBM Plex Mono", monospace' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{t(`leaderboard.${r.k}`, { n: r.n })}</span>
+                        <span style={{ color: '#5FDBD3' }}>+{r.v}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1168,7 +1187,7 @@ export default function MemberProfileTab({
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                       <span style={{ font: '600 15px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                        {t('leaderboard.xpBountyDesc', { name: seasonBounty.member.name, streak: seasonBounty.streak, xp: 40 })}
+                        {t('leaderboard.xpBountyDesc', { name: seasonBounty.member.name, streak: seasonBounty.streak })}
                       </span>
                     </div>
                   </div>

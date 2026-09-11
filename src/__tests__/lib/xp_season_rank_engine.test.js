@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { calcSeasonMatchDelta, calculateSeasonLeaderboard, getMemberSeasonLedger } from '../../lib/xp.js'
+import { calcSeasonMatchDelta, calculateSeasonLeaderboard, getMemberSeasonLedger, getSeasonBountyPlayer } from '../../lib/season.js'
 
 test('Season Points Rank-Climbing Engine Tests', async (t) => {
   // ── 1. Test 5 dải chênh lệch Team Elo ──
@@ -370,5 +370,46 @@ test('Season Rank Engine — Dự báo trước trận khớp điểm thực tra
     assert.equal(preview(700, 500, true), 10)
     assert.equal(res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, 10)
     assert.equal(res.leaderboard.find((r) => r.id === 'm1').upsetsCount, 0)
+  })
+})
+
+/* ==========================================================================
+ * Treo thưởng chuỗi thắng nằm ở TRỤC THI ĐẤU (season.js). Trận giao lưu
+ * đã bị loại khỏi điểm mùa và mốc 20 trận, nên nó cũng không được quyền
+ * cắt đứt chuỗi đang treo thưởng.
+ * ========================================================================== */
+test('Bounty — Trận giao lưu không cắt chuỗi thắng', async (t) => {
+  const mk = (id, at, winner, ratingEnabled) => ({
+    id, at, sessionId: 's1', teamA: ['m1', 'm2'], teamB: ['m3', 'm4'],
+    winnerTeam: winner, sets: [[21, 15]], initialRatingA: 500, initialRatingB: 500,
+    ...(ratingEnabled === undefined ? {} : { ratingEnabled }),
+  })
+  const members = [{ id: 'm1', name: 'A' }, { id: 'm2', name: 'B' }, { id: 'm3', name: 'C' }, { id: 'm4', name: 'D' }]
+
+  await t.test('17. Thua trận giao lưu sau 3 trận thắng vẫn giữ nguyên chuỗi', () => {
+    const db = {
+      members,
+      matches: [
+        mk('a', 1000, 'A', true), mk('b', 2000, 'A', true), mk('c', 3000, 'A', true),
+        mk('d', 4000, 'B', false), // giao lưu, m1 thua — KHÔNG được cắt chuỗi
+      ],
+    }
+    const bounty = getSeasonBountyPlayer(db)
+    assert.ok(bounty, 'Phải vẫn tìm ra người đang treo thưởng')
+    assert.equal(bounty.member.id, 'm1')
+    assert.equal(bounty.streak, 3, 'Thua giao lưu mà mất chuỗi là phạt oan người không đá giải')
+  })
+
+  await t.test('18. Thua trận TÍNH RATING thì chuỗi đứt thật', () => {
+    const db = {
+      members,
+      matches: [
+        mk('a', 1000, 'A', true), mk('b', 2000, 'A', true), mk('c', 3000, 'A', true),
+        mk('d', 4000, 'B', true), // tính rating, m1 thua -> hết chuỗi
+      ],
+    }
+    const bounty = getSeasonBountyPlayer(db)
+    // m1 hết chuỗi; m3+m4 mới thắng 1 trận nên chưa đủ mốc 3
+    assert.equal(bounty, null, 'Không còn ai đủ chuỗi >= 3')
   })
 })

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { effectiveStrengthOf, isProvisional, getPlayerRating } from '../../lib/rating.js'
-import { calculateSeasonLeaderboard, getMemberSeasonLedger } from '../../lib/xp.js'
+import { calculateSeasonLeaderboard, getMemberSeasonLedger } from '../../lib/season.js'
 import { arrangeBestOfN } from '../../lib/assign.js'
 import { t as translate } from '../../i18n/index.js'
 

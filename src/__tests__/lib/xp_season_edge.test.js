@@ -1,10 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  titleOfLevel,
-  calculateMemberXp,
-  calculateSeasonLeaderboard,
-} from '../../lib/xp.js'
+import { titleOfLevel, calculateMemberXp } from '../../lib/xp.js'
+import { calculateSeasonLeaderboard } from '../../lib/season.js'
 
 /**
  * Edge cases của calculateSeasonLeaderboard và calculateMemberXp chưa được test:
@@ -198,37 +195,30 @@ test('xp.js — calculateMemberXp Edge Cases', async (t) => {
     assert.equal(titleOfLevel(99), 'Cao thủ',  'Level 99 = Cao thủ')
   })
 
-  // ── 8. baseBonus từ playerRatings.gamesCount thâm niên ──
-  await t.test('8. baseBonus: gamesCount lớn hơn matchCount → thêm thâm niên XP', () => {
-    // Thành viên có 50 trận lịch sử trong DB nhưng session hiện tại chỉ có 10 trận
-    // baseBonus = (50 - 10) * 15 = 600 XP thâm niên
+  // ── 8. Thâm niên tính từ ngày vào CLB, không từ số trận lịch sử ──
+  await t.test('8. Thâm niên: XP cộng theo tháng kể từ joined, không theo gamesCount', () => {
+    // `baseBonus = (gamesCount - matchCount) × 15` cũ là code chết: không đường dữ liệu
+    // nào ghi gamesCount ngoài saveMatchScore (khởi tạo 0) và cascade. Thay bằng mốc
+    // `member.joined` — thứ Supabase thực sự có (`club_members.joined_at`).
     const db = {
-      sessions: [{ id: 's1', attendees: ['m1'] }], // 1 buổi × 50 = 50 XP session
+      members: [{ id: 'm1', joined: '2026-03-11' }],
+      sessions: [{ id: 's1', attendees: ['m1'] }],
       matches: Array.from({ length: 10 }, (_, i) => ({
-        id: `mt${i}`,
-        teamA: ['m1'],
-        teamB: ['m2'],
-        winnerTeam: 'A',
-        sets: [[21, 15]],
+        id: `mt${i}`, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', sets: [[21, 15]],
       })),
-      playerRatings: {
-        m1: { gamesCount: 50 },
-      },
+      playerRatings: { m1: { gamesCount: 50 } }, // phải bị BỎ QUA hoàn toàn
     }
 
-    const xp = calculateMemberXp('m1', db)
-    // Session: 1 × 50 = 50
-    // Matches: 10 × 10 = 100
-    // baseBonus: (50-10) × 15 = 600
-    // Total: 750
+    const xp = calculateMemberXp('m1', db, new Date('2026-09-11T00:00:00Z'))
+    // Buổi 1 × 50 = 50 · Trận 10 × 10 = 100 · Thâm niên 6 tháng × 20 = 120
     assert.equal(xp.sessionCount, 1)
     assert.equal(xp.matchCount, 10)
+    assert.equal(xp.tenureMonths, 6, '11/03 -> 11/09 là 6 tháng tròn')
+    assert.equal(xp.breakdown.tenureXp, 120)
     assert.equal(
-      xp.totalXp,
-      750,
-      'baseBonus (gamesCount - matchCount) × 15 = 600 phải được cộng vào — sai là thành viên lâu năm mất điểm thâm niên'
+      xp.totalXp, 270,
+      'gamesCount=50 trong playerRatings không được sinh ra XP nào — thâm niên đo bằng thời gian, không bằng số trận'
     )
-    assert.equal(xp.level, 2, '750 XP / 600 + 1 = 2')
   })
 
   // ── 9. Thành viên không có trận nào, không có buổi nào ──
