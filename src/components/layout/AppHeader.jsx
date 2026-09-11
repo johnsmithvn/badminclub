@@ -27,48 +27,62 @@ export default function AppHeader({ route }) {
   if (isMobile) {
     if (route === 'sessions') {
       return (
-        <header style={S.mobileHeaderSingleRow}>
-          <div style={S.mobileLeftSingleRow}>
-            <span style={S.mobileTitleSingleRow}>{page.title}</span>
-            <div style={S.mobileMonthNavCompact}>
-              <button
-                type="button"
-                aria-label={t('common.prevMonth')}
-                onClick={() => a.shiftMonth(-1)}
-                style={S.mobileMonthBtnCompact}
-              >
-                <Icon name="chevron-left" size={13} />
-              </button>
-              <span style={S.mobileMonthLabelCompact}>{monthTxt(db.month)}</span>
-              <button
-                type="button"
-                aria-label={t('common.nextMonth')}
-                onClick={() => a.shiftMonth(1)}
-                style={S.mobileMonthBtnCompact}
-              >
-                <Icon name="chevron-right" size={13} />
-              </button>
-            </div>
-          </div>
+        <header style={S.mobileHeaderH4}>
+          {/* Vòng hào quang góc phải theo thiết kế H4 */}
+          <div style={S.glowCircleH4} />
 
-          <div style={S.mobileRight}>
-            <IconButton
-              icon={isDark ? 'sun' : 'moon'}
-              size="sm"
-              variant="ghost"
-              style={S.themeBtn}
-              label={isDark ? t('common.themeLight') : t('common.themeDark')}
+          <div style={S.mobileContentH4}>
+            {/* Nút lùi 1 tháng ‹ */}
+            <button
+              type="button"
+              aria-label={t('common.prevMonth')}
+              onClick={() => a.shiftMonth(-1)}
+              style={S.monthArrowBtnH4}
+            >
+              <Icon name="chevron-left" size={16} />
+            </button>
+
+            {/* Khối tháng trung tâm: Tháng MM/YYYY + vạch teal */}
+            <div style={S.monthCenterH4}>
+              <span style={S.monthTextH4}>
+                {monthTxt(db.month)}
+              </span>
+              <span style={S.monthIndicatorH4} />
+            </div>
+
+            {/* Nút tiến 1 tháng › */}
+            <button
+              type="button"
+              aria-label={t('common.nextMonth')}
+              onClick={() => a.shiftMonth(1)}
+              style={S.monthArrowBtnH4}
+            >
+              <Icon name="chevron-right" size={16} />
+            </button>
+
+            {/* Thanh phân cách */}
+            <span style={S.dividerH4} />
+
+            {/* Nút chuyển theme sáng/tối */}
+            <button
+              type="button"
+              aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
               onClick={toggleTheme}
-            />
+              style={S.themeBtnH4}
+            >
+              <Icon name={isDark ? 'sun' : 'moon'} size={15} />
+            </button>
+
+            {/* Nút thêm buổi đột xuất tròn teal */}
             {can(role, 'sessions') && (
-              <IconButton
-                icon="calendar-plus"
-                size="sm"
-                variant="primary"
-                style={S.adhocIconBtn}
-                label={t('shell.adhoc')}
+              <button
+                type="button"
+                aria-label={t('shell.adhoc')}
                 onClick={() => a.openDialog('adhoc', adhocForm(db))}
-              />
+                style={S.adhocBtnH4}
+              >
+                <Icon name="plus" size={16} strokeWidth={2.6} />
+              </button>
             )}
           </div>
         </header>
@@ -323,75 +337,105 @@ const S = {
     gap: 8,
     flexShrink: 0,
   },
-  mobileHeaderSingleRow: {
+  mobileHeaderH4: {
     position: 'sticky',
     top: 0,
     zIndex: 30,
-    minHeight: 52,
-    height: 52,
+    background: 'linear-gradient(168deg, #12203A 0%, #0D1526 70%)',
+    borderBottom: '1px solid #2A3A58',
+    overflow: 'hidden',
+  },
+  glowCircleH4: {
+    position: 'absolute',
+    top: -56,
+    right: -44,
+    width: 178,
+    height: 178,
+    borderRadius: 999,
+    background: 'radial-gradient(circle, rgba(0, 178, 169, 0.22), transparent 68%)',
+    pointerEvents: 'none',
+  },
+  mobileContentH4: {
+    position: 'relative',
+    padding: '12px 14px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 16px',
-    background: 'var(--surface-nav)',
-    borderBottom: '1px solid var(--border-nav)',
+    gap: 8,
   },
-  mobileLeftSingleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    minWidth: 0,
-    flex: 1,
-  },
-  mobileTitleSingleRow: {
-    font: '700 18px/1.2 var(--font-display, Barlow, sans-serif)',
-    color: 'var(--text-on-nav-active)',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  },
-  mobileMonthNavCompact: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 2,
-    padding: '2px 4px',
-    borderRadius: 8,
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-    flexShrink: 0,
-  },
-  mobileMonthLabelCompact: {
-    font: '600 12px/1 var(--font-mono)',
-    color: 'var(--text-on-nav)',
-    whiteSpace: 'nowrap',
-    padding: '0 3px',
-  },
-  mobileMonthBtnCompact: {
-    background: 'transparent',
-    border: 0,
-    color: 'var(--text-on-nav)',
+  monthArrowBtnH4: {
+    width: 34,
+    height: 34,
+    flex: '0 0 auto',
+    borderRadius: 9,
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid #2A3A58',
+    color: '#C5D3E6',
+    display: 'grid',
+    placeItems: 'center',
     cursor: 'pointer',
-    width: 26,
-    height: 26,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
     padding: 0,
-    lineHeight: 1,
-    flexShrink: 0,
+    transition: 'background 0.15s ease, border-color 0.15s ease',
   },
-  adhocIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    background: 'var(--action-primary-bg, #3B82F6)',
-    color: '#FFFFFF',
-    border: '1px solid #60A5FA',
-    display: 'inline-flex',
+  monthCenterH4: {
+    flex: '1 1 auto',
+    minWidth: 0,
+    height: 34,
+    padding: '0 4px',
+    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
+  },
+  monthTextH4: {
+    font: "600 15.5px/1 var(--font-mono, 'IBM Plex Mono', monospace)",
+    color: '#FFFFFF',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  monthIndicatorH4: {
+    width: 34,
+    height: 2,
+    borderRadius: 2,
+    background: 'var(--teal-500, #00B2A9)',
+    flexShrink: 0,
+  },
+  dividerH4: {
+    width: 1,
+    height: 24,
+    flex: '0 0 auto',
+    background: '#2A3A58',
+    margin: '0 2px',
+  },
+  themeBtnH4: {
+    width: 34,
+    height: 34,
+    flex: '0 0 auto',
+    borderRadius: 999,
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid #3A4C71',
+    color: '#C5D3E6',
+    display: 'grid',
+    placeItems: 'center',
     cursor: 'pointer',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+    padding: 0,
+    transition: 'background 0.15s ease, border-color 0.15s ease',
+  },
+  adhocBtnH4: {
+    width: 34,
+    height: 34,
+    flex: '0 0 auto',
+    borderRadius: 999,
+    background: 'var(--teal-500, #00B2A9)',
+    border: 'none',
+    color: '#04221F',
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 6px 16px rgba(0, 178, 169, 0.30)',
+    padding: 0,
+    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
   },
 }
 
