@@ -289,6 +289,7 @@ function getPairConfTier(pair) {
         impact: Math.round(impact),
         expected: Math.round(expected),
         actual: Math.round(actual),
+        avgScoreDiff: dominant.avgScoreDiff != null ? dominant.avgScoreDiff : '0.0',
         intensity,
         confidence: dominant.confidence?.tier || 'R1',
         recentScores: dominant.recentScores || [],
@@ -888,38 +889,90 @@ function getPairConfTier(pair) {
             /* Subtab H2H trên Mobile */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {clubRivalries.length > 0 ? (
-                clubRivalries.map((m, mIdx) => (
-                  <div
-                    key={mIdx}
-                    onClick={() => setSelectedH2HPair({ pairA: m.pairA, pairB: m.pairB })}
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(245, 158, 11, 0.08) 50%, #141D2E 100%)',
-                      border: mIdx === 0 ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid #22304A',
-                      borderRadius: 10,
-                      padding: 13,
-                      display: 'grid',
-                      gap: 8,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ font: "600 15px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7', flex: 1 }}>
-                        {m.fromName} vs {m.toName}
-                      </span>
-                      <span style={{ font: "700 15px/1 Barlow, sans-serif", color: '#FF7A45' }}>
-                        {m.score} 🔥
-                      </span>
+                clubRivalries.map((m, mIdx) => {
+                  const isDominant = m.score >= 60
+                  return (
+                    <div
+                      key={mIdx}
+                      onClick={() => setSelectedH2HPair({ pairA: m.pairA, pairB: m.pairB })}
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(245, 158, 11, 0.08) 50%, #141D2E 100%)',
+                        border: mIdx === 0 ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid #22304A',
+                        borderRadius: 10,
+                        padding: 13,
+                        display: 'grid',
+                        gap: 8,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7', flex: 1, minWidth: 0 }}>
+                          {m.fromName} ⚔️ {m.toName}
+                        </span>
+                        <span
+                          style={{
+                            font: "700 10px/1 'IBM Plex Sans', sans-serif",
+                            letterSpacing: '0.04em',
+                            padding: '3px 7px',
+                            borderRadius: 4,
+                            background: isDominant ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                            color: isDominant ? '#FF7A45' : '#F0B75C',
+                            border: `1px solid ${isDominant ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isDominant ? t('leaderboard.rivalryDominant') : t('leaderboard.rivalryAdvantageBadge')}
+                        </span>
+                        <span style={{ font: "700 15px/1 Barlow, sans-serif", color: '#FF7A45', whiteSpace: 'nowrap' }}>
+                          {m.score} 🔥
+                        </span>
+                      </div>
+                      <div style={{ font: "400 11.5px/1.45 'IBM Plex Mono', monospace", color: '#8494AA', display: 'flex', flexWrap: 'wrap', gap: '4px 8px', alignItems: 'center' }}>
+                        <span style={{ color: '#C5D3E8' }}>
+                          {t('leaderboard.rivalryStats', { wins: m.wins, losses: m.losses, games: m.games })}
+                        </span>
+                        <span style={{ color: '#5B6B81' }}>•</span>
+                        <span style={{ color: m.impact >= 0 ? '#5FD9A2' : '#FF9A8F' }}>
+                          {m.impact >= 0 ? `+${m.impact}pp` : `${m.impact}pp`} {t('leaderboard.advantageEdge')}
+                        </span>
+                        <span style={{ color: '#5B6B81' }}>•</span>
+                        <span>
+                          {t('leaderboard.expToActual', { exp: m.expected, actual: m.actual })}
+                        </span>
+                        {m.avgScoreDiff && m.avgScoreDiff !== '0.0' && (
+                          <>
+                            <span style={{ color: '#5B6B81' }}>•</span>
+                            <span style={{ color: m.avgScoreDiff.startsWith('+') ? '#5FD9A2' : '#FF9A8F' }}>
+                              {t('leaderboard.scoreDiffPerSet', { diff: m.avgScoreDiff })}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {m.recentScores?.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', paddingTop: 2 }}>
+                          <span style={{ font: "400 11px/1 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>
+                            {t('leaderboard.recentSets')}:
+                          </span>
+                          {m.recentScores.slice(-3).map((sc, scIdx) => (
+                            <span
+                              key={scIdx}
+                              style={{
+                                font: "500 11px/1 'IBM Plex Mono', monospace",
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: '#101927',
+                                border: '1px solid #22304A',
+                                color: '#A8B7CB',
+                              }}
+                            >
+                              {sc}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                      <span>
-                        {t('leaderboard.gamesCountShort', { n: m.games })} · {m.wins}T–{m.losses}B
-                      </span>
-                      <span style={{ color: m.impact >= 0 ? '#5FD9A2' : '#FF9A8F' }}>
-                        {m.impact >= 0 ? `+${m.impact}pp` : `${m.impact}pp`} {t('leaderboard.advantageEdge')}
-                      </span>
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               ) : (
                 <div style={{ padding: 20, textAlign: 'center', color: '#8494AA', font: "400 13px/1.4 'IBM Plex Sans', sans-serif" }}>
                   {t('leaderboard.noCrossMatchupHistory')}
@@ -1387,45 +1440,105 @@ function getPairConfTier(pair) {
               <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                 {t('leaderboard.directionalMatchupDesc')}
               </div>
-              <div style={{ display: 'grid', gap: 7 }}>
+              <div style={{ display: 'grid', gap: 8 }}>
                 {directionalMatchups.length > 0 ? (
-                  directionalMatchups.map((mItem, mIdx) => (
-                    <div
-                      key={mIdx}
-                      onClick={() => setSelectedH2HPair({ pairA: mItem.pairA, pairB: mItem.pairB })}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'minmax(0,1fr) 44px 54px 44px',
-                        gap: 8,
-                        alignItems: 'center',
-                        padding: '8px 10px',
-                        borderRadius: 7,
-                        background: '#101927',
-                        border: '1px solid #22304A',
-                        cursor: 'pointer',
-                        transition: 'border-color 0.15s ease',
-                      }}
-                    >
-                      <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", minWidth: 0, color: '#fff' }}>
-                        {mItem.fromName} → {mItem.toName}
-                      </span>
-                      <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                        {mItem.games} {t('leaderboard.matchesAbbr')}
-                      </span>
-                      <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                        {mItem.expected}→{mItem.actual}%
-                      </span>
-                      <span
+                  directionalMatchups.map((mItem, mIdx) => {
+                    const isDominant = mItem.score >= 60
+                    return (
+                      <div
+                        key={mIdx}
+                        onClick={() => setSelectedH2HPair({ pairA: mItem.pairA, pairB: mItem.pairB })}
+                        title={t('leaderboard.viewH2HDetail')}
                         style={{
-                          textAlign: 'right',
-                          font: '700 15px/1 Barlow, sans-serif',
-                          color: mItem.score >= 60 ? '#FF7A45' : mItem.score >= 45 ? '#F0B75C' : '#8494AA',
+                          display: 'grid',
+                          gap: 6,
+                          padding: '10px 12px',
+                          borderRadius: 8,
+                          background: '#101927',
+                          border: '1px solid #22304A',
+                          cursor: 'pointer',
+                          transition: 'border-color 0.15s ease, background 0.15s ease',
                         }}
                       >
-                        {mItem.score}
-                      </span>
-                    </div>
-                  ))
+                        {/* Dòng 1: Cặp A ⚔️ Cặp B + Tag + Điểm kình địch */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#fff', flex: 1, minWidth: 0 }}>
+                            {mItem.fromName} ⚔️ {mItem.toName}
+                          </span>
+                          <span
+                            style={{
+                              font: "700 9.5px/1 'IBM Plex Sans', sans-serif",
+                              letterSpacing: '0.04em',
+                              padding: '2.5px 6px',
+                              borderRadius: 4,
+                              background: isDominant ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                              color: isDominant ? '#FF7A45' : '#F0B75C',
+                              border: `1px solid ${isDominant ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {isDominant ? t('leaderboard.rivalryDominant') : t('leaderboard.rivalryAdvantageBadge')}
+                          </span>
+                          <span
+                            style={{
+                              font: '700 15px/1 Barlow, sans-serif',
+                              color: mItem.score >= 60 ? '#FF7A45' : mItem.score >= 45 ? '#F0B75C' : '#8494AA',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {mItem.score} 🔥
+                          </span>
+                        </div>
+
+                        {/* Dòng 2: Chi tiết chỉ số */}
+                        <div style={{ font: "400 11px/1.4 'IBM Plex Mono', monospace", color: '#8494AA', display: 'flex', flexWrap: 'wrap', gap: '3px 8px', alignItems: 'center' }}>
+                          <span style={{ color: '#C5D3E8' }}>
+                            {t('leaderboard.rivalryStats', { wins: mItem.wins, losses: mItem.losses, games: mItem.games })}
+                          </span>
+                          <span style={{ color: '#5B6B81' }}>•</span>
+                          <span style={{ color: mItem.impact >= 0 ? '#5FD9A2' : '#FF9A8F' }}>
+                            {mItem.impact >= 0 ? `+${mItem.impact}pp` : `${mItem.impact}pp`} {t('leaderboard.advantageEdge')}
+                          </span>
+                          <span style={{ color: '#5B6B81' }}>•</span>
+                          <span>
+                            {t('leaderboard.expToActual', { exp: mItem.expected, actual: mItem.actual })}
+                          </span>
+                          {mItem.avgScoreDiff && mItem.avgScoreDiff !== '0.0' && (
+                            <>
+                              <span style={{ color: '#5B6B81' }}>•</span>
+                              <span style={{ color: mItem.avgScoreDiff.startsWith('+') ? '#5FD9A2' : '#FF9A8F' }}>
+                                {t('leaderboard.scoreDiffPerSet', { diff: mItem.avgScoreDiff })}
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Dòng 3: Set gần nhất (nếu có) */}
+                        {mItem.recentScores?.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', paddingTop: 2 }}>
+                            <span style={{ font: "400 10.5px/1 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>
+                              {t('leaderboard.recentSets')}:
+                            </span>
+                            {mItem.recentScores.slice(-3).map((sc, scIdx) => (
+                              <span
+                                key={scIdx}
+                                style={{
+                                  font: "500 10.5px/1 'IBM Plex Mono', monospace",
+                                  padding: '1.5px 5px',
+                                  borderRadius: 4,
+                                  background: '#141D2E',
+                                  border: '1px solid #22304A',
+                                  color: '#A8B7CB',
+                                }}
+                              >
+                                {sc}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
                 ) : (
                   <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                     {t('leaderboard.noCrossMatchupHistory')}
