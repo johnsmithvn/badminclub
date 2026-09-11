@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Icon, Select, StatCard } from '#ds'
-import { LevelChip } from '#ui'
+import { ConfidenceChip, LevelChip } from '#ui'
 import { playerName } from '#lib/money.js'
 import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
@@ -57,8 +57,6 @@ export default function MemberProfileTab({
     ;(allMembers || []).forEach((m) => { if (m?.id) map[m.id] = m })
     return map
   }, [allMembers, db?.members, db?.guests, db?.sessionGuests, db])
-
-  const confTierOf = (c) => (typeof c === 'string' ? c : c?.tier || 'R1')
 
   const formatRatings = useMemo(() => {
     if (!mid) return null
@@ -590,8 +588,9 @@ export default function MemberProfileTab({
                       <div style={{ font: '700 34px/1 Barlow, sans-serif', color: '#fff' }}>
                         {formatRatings?.overall?.rating ?? DEFAULT_RATING}
                       </div>
-                      <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#7AA3DC' }}>
-                        {formatRatings?.overall?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.overall?.confidence)}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#7AA3DC' }}>
+                        <span>{formatRatings?.overall?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
+                        <ConfidenceChip confidence={formatRatings?.overall?.confidence} games={formatRatings?.overall?.gamesCount} dots={false} />
                       </div>
                     </div>
 
@@ -604,8 +603,9 @@ export default function MemberProfileTab({
                             {t('profile.doublesFormat')}
                           </div>
                           {isMobile && (
-                            <div style={{ font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                              {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.doubles?.confidence)}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                              <span>{formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
+                              <ConfidenceChip confidence={formatRatings?.doubles?.confidence} games={formatRatings?.doubles?.gamesCount} dots={false} />
                             </div>
                           )}
                         </div>
@@ -616,8 +616,9 @@ export default function MemberProfileTab({
                           {formatRatings?.doubles?.rating ?? DEFAULT_RATING}
                         </span>
                         {!isMobile && (
-                          <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                            {formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.doubles?.confidence)}
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                            <span>{formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
+                            <ConfidenceChip confidence={formatRatings?.doubles?.confidence} games={formatRatings?.doubles?.gamesCount} dots={false} />
                           </span>
                         )}
                       </div>
@@ -629,8 +630,9 @@ export default function MemberProfileTab({
                             {t('profile.mixedFormat')}
                           </div>
                           {isMobile && (
-                            <div style={{ font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                              {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.mixed?.confidence)}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                              <span>{formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
+                              <ConfidenceChip confidence={formatRatings?.mixed?.confidence} games={formatRatings?.mixed?.gamesCount} dots={false} />
                             </div>
                           )}
                         </div>
@@ -641,8 +643,9 @@ export default function MemberProfileTab({
                           {formatRatings?.mixed?.rating ?? DEFAULT_RATING}
                         </span>
                         {!isMobile && (
-                          <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                            {formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.mixed?.confidence)}
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                            <span>{formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
+                            <ConfidenceChip confidence={formatRatings?.mixed?.confidence} games={formatRatings?.mixed?.gamesCount} dots={false} />
                           </span>
                         )}
                       </div>
@@ -654,8 +657,9 @@ export default function MemberProfileTab({
                             {t('profile.singlesFormat')}
                           </div>
                           {isMobile && (
-                            <div style={{ font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
-                              {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.singles?.confidence)}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
+                              <span>{formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
+                              <ConfidenceChip confidence={formatRatings?.singles?.confidence} games={formatRatings?.singles?.gamesCount} dots={false} />
                             </div>
                           )}
                         </div>
@@ -666,8 +670,9 @@ export default function MemberProfileTab({
                           ~{formatRatings?.singles?.rating ?? DEFAULT_RATING}
                         </span>
                         {!isMobile && (
-                          <span style={{ textAlign: 'right', font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
-                            {formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')} · {confTierOf(formatRatings?.singles?.confidence)}
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
+                            <span>{formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
+                            <ConfidenceChip confidence={formatRatings?.singles?.confidence} games={formatRatings?.singles?.gamesCount} dots={false} />
                           </span>
                         )}
                       </div>
@@ -896,8 +901,9 @@ export default function MemberProfileTab({
                       <span style={{ font: '700 26px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
                         {partnersAndMatchups.bestPartner.synergyScore}
                       </span>
-                      <span style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                        {t('leaderboard.synergyCol')} · {partnersAndMatchups.bestPartner.games} {t('leaderboard.matchesAbbr')} · {t('rating.confidence.high')}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                        <span>{t('leaderboard.synergyCol')} · {partnersAndMatchups.bestPartner.games} {t('leaderboard.matchesAbbr')}</span>
+                        <ConfidenceChip games={partnersAndMatchups.bestPartner.games} dots={false} />
                       </span>
                     </div>
                   </div>

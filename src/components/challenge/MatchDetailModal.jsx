@@ -7,11 +7,11 @@ import {
   getPlayerRating,
   marginMultiplierVNext,
   calcPairImpact,
-  normalizeSynergyScore,
   calcMatchupEdge,
   confidenceLevelOf,
   DEFAULT_RATING,
 } from '#lib/rating.js'
+import { calcSeasonMatchDelta } from '#lib/season.js'
 import { dd } from '#utils/dates.js'
 import { t } from '#i18n'
 
@@ -116,6 +116,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
     h2hP2,
     h2hWins1,
     h2hWins2,
+    seasonDelta,
   } = useMemo(() => {
     const winnerKeys = aWon ? teamA : teamB
     const loserKeys = aWon ? teamB : teamA
@@ -128,33 +129,33 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
     const pastMatches = allMatches.filter((m) => m.id !== match?.id)
 
     // Tầng 2: Ăn ý cặp thắng
-    let sBefore = 89
-    let sAfter = 91
-    let gCount = 18
-    let actWin = 72
-    let expWin = 55
+    let sBefore = 50
+    let sAfter = 50
+    let gCount = 0
+    let actWin = 50
+    let expWin = 50
     if (winnerKeys.length === 2) {
       const impBefore = calcPairImpact(pastMatches, winnerKeys[0], winnerKeys[1])
       const impAfter = calcPairImpact(allMatches, winnerKeys[0], winnerKeys[1])
-      sBefore = normalizeSynergyScore(impBefore.pairImpact, impBefore.gamesCount)
-      sAfter = normalizeSynergyScore(impAfter.pairImpact, impAfter.gamesCount)
-      gCount = impAfter.gamesCount
-      actWin = gCount > 0 ? Math.round((impAfter.winsCount / gCount) * 100) : 72
-      expWin = gCount > 0 ? Math.round((impAfter.expectedWins / gCount) * 100) : 55
+      sBefore = impBefore.synergyScore ?? 50
+      sAfter = impAfter.synergyScore ?? 50
+      gCount = impAfter.gamesCount ?? 0
+      actWin = impAfter.actualWinPct ?? 50
+      expWin = impAfter.expectedWinPct ?? 50
     }
 
     // Tầng 3: Khắc chế
-    let eBefore = 58
-    let eAfter = 64
-    let mGames = 5
-    let mConf = confidenceLevelOf(5)
+    let eBefore = 50
+    let eAfter = 50
+    let mGames = 0
+    let mConf = confidenceLevelOf(0)
     if (winnerKeys.length === 2 && loserKeys.length === 2) {
       const edBefore = calcMatchupEdge(pastMatches, winnerKeys, loserKeys)
       const edAfter = calcMatchupEdge(allMatches, winnerKeys, loserKeys)
-      eBefore = edBefore.edgeScore
-      eAfter = edAfter.edgeScore
-      mGames = edAfter.games
-      mConf = edAfter.confidence
+      eBefore = edBefore.advantageScore ?? 50
+      eAfter = edAfter.advantageScore ?? 50
+      mGames = edAfter.gamesCount ?? 0
+      mConf = edAfter.confidence || confidenceLevelOf(mGames)
     }
 
     // H2H cá nhân
@@ -177,10 +178,13 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
         }
       })
     }
-    if (w1 === 0 && w2 === 0) {
-      w1 = aWon ? 12 : 7
-      w2 = aWon ? 7 : 12
-    }
+
+    // Tầng 4: Điểm mùa giải
+    const winElo = aWon ? ra : rb
+    const loseElo = aWon ? rb : ra
+    const seasonDelta = match?.ratingEnabled !== false
+      ? calcSeasonMatchDelta(winElo, loseElo, true).delta
+      : 0
 
     return {
       winPairName: wName,
@@ -198,8 +202,9 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
       h2hP2: nameP2,
       h2hWins1: w1,
       h2hWins2: w2,
+      seasonDelta,
     }
-  }, [teamA, teamB, match, db, aWon, nameTeamA, nameTeamB])
+  }, [teamA, teamB, match, db, aWon, nameTeamA, nameTeamB, ra, rb])
 
   const isDoubles = teamA.length === 2 && teamB.length === 2
   const matchCategory = isDoubles ? 'Đôi nam' : 'Đơn nam' // i18n-ok
@@ -440,7 +445,9 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                 }}
               >
                 <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                  3 điểm trận thắng, 1 điểm trận đánh — chỉ khi có công tắc Tính Elo BXH {/* i18n-ok */}
+                  {match?.ratingEnabled === false
+                    ? t('matchDetail.tier4Casual')
+                    : t('matchDetail.tier4PointsEarned', { pts: seasonDelta })}
                 </div>
                 <div
                   style={{
@@ -449,7 +456,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  86 → 89
+                  {match?.ratingEnabled === false ? '+0' : (seasonDelta >= 0 ? `+${seasonDelta}` : `${seasonDelta}`)}
                 </div>
               </div>
 
@@ -484,7 +491,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                 }}
               >
                 <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                  {winPairName} → {losePairName}: {matchupGames} trận, lên đủ mẫu {matchupConf.level} {/* i18n-ok */}
+                  {winPairName} → {losePairName}: {matchupGames} trận, lên đủ mẫu {matchupConf?.tier || 'R1'} {/* i18n-ok */}
                 </div>
                 <div
                   style={{

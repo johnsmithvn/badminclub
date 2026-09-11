@@ -3,6 +3,7 @@ import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
 import { rankPairs, calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
+import { ConfidenceChip } from '#ui'
 import PairDetailModal from './PairDetailModal.jsx'
 import RatingFormulaModal from './RatingFormulaModal.jsx'
 import PairH2HModal from './PairH2HModal.jsx'
@@ -225,14 +226,6 @@ function getPairConfTier(pair) {
   return pair?.confidence?.tier || 'R1'
 }
 
-function getConfidenceDots(tier) {
-  switch (tier) {
-    case 'R4': return '●●●●'
-    case 'R3': return '●●●○'
-    case 'R2': return '●●○○'
-    default: return '●○○○'
-  }
-}
 
   // Dữ liệu mẫu danh sách khắc chế có hướng (Subcard 1)
   const directionalMatchups = useMemo(() => {
@@ -451,9 +444,6 @@ function getConfidenceDots(tier) {
                     ? { background: 'rgba(18, 168, 103, 0.20)', color: '#5FD9A2' }
                     : { background: 'rgba(148, 164, 186, 0.16)', color: '#A8B7CB' }
 
-                  const confDots = getConfidenceDots(confTier)
-                  const confColor = (confTier === 'R4' || confTier === 'R3') ? '#5FDBD3' : (confTier === 'R2' ? '#F0B75C' : '#FF9A8F')
-
                   const recentResults = pair.recentResults || []
                   const form5 = []
                   for (let i = 0; i < 5; i++) {
@@ -526,12 +516,11 @@ function getConfidenceDots(tier) {
                               background: 'transparent',
                               border: 'none',
                               padding: 0,
+                              marginTop: 2,
                               cursor: 'pointer',
-                              font: "400 12px/1.3 'IBM Plex Mono', monospace",
-                              color: confColor,
                             }}
                           >
-                            {confTier} {confDots}
+                            <ConfidenceChip confidence={confTier} />
                           </button>
                         </div>
                       </div>
@@ -769,12 +758,6 @@ function getConfidenceDots(tier) {
 
                 const impactVal = pair.pairImpact || 0
                 const confTier = getPairConfTier(pair)
-                const confBadgeColor =
-                  confTier === 'R4' || confTier === 'R3'
-                    ? { text: '#5FDBD3' }
-                    : confTier === 'R2'
-                      ? { text: '#F0B75C' }
-                      : { text: '#F09A8E' }
 
                 const rowBg = isTop
                   ? 'rgba(0,178,169,.07)'
@@ -1059,19 +1042,7 @@ function getConfidenceDots(tier) {
 
                     {/* Cột 6: Độ tin cậy */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                      <span style={{
-                        font: "600 10.5px/1 'IBM Plex Mono', monospace",
-                        color: confBadgeColor.text,
-                      }}>
-                        {confTier}
-                      </span>
-                      <span style={{
-                        font: "400 11px/1 'IBM Plex Mono', monospace",
-                        letterSpacing: '0.08em',
-                        color: confBadgeColor.text,
-                      }}>
-                        {getConfidenceDots(confTier)}
-                      </span>
+                      <ConfidenceChip confidence={confTier} />
                     </div>
                   </div>
                 )
@@ -1312,8 +1283,8 @@ function getConfidenceDots(tier) {
                 </div>
 
                 <div>
-                  <div style={{ font: "600 14px/1.25 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                    {getPairConfTier(topPair)} {typeof topPair.confidence === 'object' ? topPair.confidence?.dots || '●●●○' : '●●●○'}
+                  <div style={{ marginBottom: 2 }}>
+                    <ConfidenceChip confidence={getPairConfTier(topPair)} />
                   </div>
                   <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                     {t('rating.confidence.label')}

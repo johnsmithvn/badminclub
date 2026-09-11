@@ -1,3 +1,4 @@
+import { ConfidenceChip } from '#ui'
 import { t } from '#i18n'
 
 /**
@@ -50,6 +51,17 @@ export default function BalanceScore({
     pairSynergyScore = pairBInfo.synergyScore
   }
   const hasPairSynergy = pairSynergyScore !== null
+
+  // Độ tin của Ăn ý = cặp YẾU mẫu hơn khi cả hai cùng đủ trận (điểm là trung bình của hai cặp,
+  // nên chỉ đáng tin tới mức cặp ít trận hơn). Chưa cặp nào đủ thì lấy cặp nhiều trận nhất,
+  // khớp với câu "còn thiếu mấy trận" ở phần giải trình bên dưới.
+  const synGamesA = pairAInfo?.gamesCount || 0
+  const synGamesB = pairBInfo?.gamesCount || 0
+  const synConfGames = hasSynA && hasSynB
+    ? Math.min(synGamesA, synGamesB)
+    : hasSynA ? synGamesA
+      : hasSynB ? synGamesB
+        : Math.max(synGamesA, synGamesB)
 
   // 6. Khắc chế (chỉ số mới - không cộng vào điểm tổng)
   const matchupGames = matchup?.gamesCount || 0
@@ -228,13 +240,16 @@ export default function BalanceScore({
             >
               {t('assign.pairChemistry')}
             </span>
-            {hasPairSynergy ? (
-              <span style={{ height: 5, borderRadius: 999, background: '#22304A', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: `${pairSynergyScore}%`, background: '#00B2A9', height: '100%' }} />
-              </span>
-            ) : (
-              <span style={{ height: 5, borderRadius: 999, background: '#101927', border: '1px dashed #2E3E5C', display: 'flex' }} />
-            )}
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <ConfidenceChip games={synConfGames} />
+              {hasPairSynergy ? (
+                <span style={{ flex: 1, height: 5, borderRadius: 999, background: '#22304A', overflow: 'hidden', display: 'flex' }}>
+                  <span style={{ width: `${pairSynergyScore}%`, background: '#00B2A9', height: '100%' }} />
+                </span>
+              ) : (
+                <span style={{ flex: 1, height: 5, borderRadius: 999, background: '#101927', border: '1px dashed #2E3E5C', display: 'flex' }} />
+              )}
+            </span>
             <span
               style={{
                 textAlign: 'right',
@@ -256,13 +271,16 @@ export default function BalanceScore({
             >
               {t('assign.matchupEdge')}
             </span>
-            {hasMatchup ? (
-              <span style={{ height: 5, borderRadius: 999, background: '#22304A', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: `${matchupScore}%`, background: '#00B2A9', height: '100%' }} />
-              </span>
-            ) : (
-              <span style={{ height: 5, borderRadius: 999, background: '#101927', border: '1px dashed #2E3E5C', display: 'flex' }} />
-            )}
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <ConfidenceChip games={matchupGames} />
+              {hasMatchup ? (
+                <span style={{ flex: 1, height: 5, borderRadius: 999, background: '#22304A', overflow: 'hidden', display: 'flex' }}>
+                  <span style={{ width: `${matchupScore}%`, background: '#00B2A9', height: '100%' }} />
+                </span>
+              ) : (
+                <span style={{ flex: 1, height: 5, borderRadius: 999, background: '#101927', border: '1px dashed #2E3E5C', display: 'flex' }} />
+              )}
+            </span>
             <span
               style={{
                 textAlign: 'right',

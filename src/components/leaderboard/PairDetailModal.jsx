@@ -3,6 +3,7 @@ import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
 import { calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
+import { ConfidenceChip } from '#ui'
 
 export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsMap, matches = [], db, membersMap }) {
   const isMobile = useMobile()
@@ -43,7 +44,6 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
   const impactSign = pairImpact > 0 ? `+${pairImpact}` : `${pairImpact}`
   const impactColor = pairImpact > 0 ? '#5FDBD3' : pairImpact < 0 ? '#F09A8E' : '#A8B7CB'
   const confTier = typeof confidence === 'string' ? confidence : confidence?.tier || 'R1'
-  const confidenceLabel = t(`rating.confidence.${confTier.toLowerCase()}`) || confTier
 
   const trend = pair?.trend || 'steady'
   const trendIcon = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'
@@ -57,9 +57,13 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
   const recentWins = form5.filter((r) => r === 'W').length
   const recentLosses = form5.filter((r) => r === 'L').length
   const recentTotal = recentWins + recentLosses
+  const pairMatches = pair?.pairMatches
   const upsetWins = useMemo(() => {
-    return Math.max(0, Math.round((gamesCount || 0) * 0.4))
-  }, [gamesCount])
+    if (Array.isArray(pairMatches) && pairMatches.length > 0) {
+      return pairMatches.filter((m) => m.won && m.myExpected < 0.5).length
+    }
+    return 0
+  }, [pairMatches])
 
   const formatText =
     format === 'MD'
@@ -168,8 +172,9 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
               <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
                 {pairNames.join(' · ')}
               </div>
-              <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                {t('leaderboard.synergy')} · {gamesCount} {t('units.match')} · {confTier}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                <span>{t('leaderboard.synergy')} · {gamesCount} {t('units.match')}</span>
+                <ConfidenceChip confidence={confTier} dots={false} />
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -274,7 +279,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
             {opponentMatchups.length > 0 ? (
               opponentMatchups.map((opp, oppIdx) => {
                 const oppNames = (opp.oppKeys || []).map((k) => resolvePlayerName(k)).join(' · ')
-                const oppConf = opp.edge?.confidence || 'R1'
+                const oppConf = typeof opp.edge?.confidence === 'string' ? opp.edge.confidence : (opp.edge?.confidence?.tier || 'R1')
                 const oppConfColor = oppConf === 'R4' || oppConf === 'R3' ? '#5FDBD3' : oppConf === 'R2' ? '#F0B75C' : '#FF9A8F'
                 return (
                   <div
@@ -447,8 +452,8 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
               <div style={{ font: '700 30px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
                 {synergyScore}
               </div>
-              <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                {confTier} · {confidenceLabel}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 3 }}>
+                <ConfidenceChip confidence={confTier} />
               </div>
             </div>
 
@@ -621,9 +626,9 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
               {opponentMatchups.length > 0 ? (
                 opponentMatchups.map((opp, idx) => {
                   const oppEdge = opp.edge
-                  const oppExpected = oppEdge?.expectedA || 50
-                  const oppActual = oppEdge?.actualA || Math.round((opp.wins / opp.matches.length) * 100)
-                  const oppScore = oppEdge?.edgeScore || 50
+                  const oppExpected = oppEdge?.expectedWinPct != null ? oppEdge.expectedWinPct : 50
+                  const oppActual = oppEdge?.actualWinPct != null ? oppEdge.actualWinPct : (opp.matches.length > 0 ? Math.round((opp.wins / opp.matches.length) * 100) : 50)
+                  const oppScore = oppEdge?.advantageScore != null ? oppEdge.advantageScore : 50
                   const isLowConf = (opp.matches.length || 0) < 5
                   const oppNames = (opp.oppKeys || []).map((k) => resolvePlayerName(k)).join(' · ')
 

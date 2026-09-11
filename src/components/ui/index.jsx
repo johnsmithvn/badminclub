@@ -8,6 +8,7 @@ import {
   courtNet, courtTxt, fmtK, genderTxt, groupMembers, groupOf, guestRev, headCount, levelStyle,
   presentCount, sGuestsOnly, statusMeta, timeTxt,
 } from '#lib/money.js'
+import { confidenceLevelOf } from '#lib/rating.js'
 import { dd, monthOf, wd } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -50,6 +51,51 @@ export function GenderChip({ gender, style }) {
       ...style,
     }}>
       {genderTxt(gender)}
+    </span>
+  )
+}
+
+/**
+ * Bậc độ tin cậy R1–R4 của Ăn ý cặp / Khắc chế (thang `confidenceLevelOf`, mốc 5/15/30 trận).
+ * KHÔNG dùng cho thang R1–R5 của Elo cá nhân (`confidenceProgress`, có thêm mốc 50) — trùng tên
+ * nhưng khác nghĩa: R4 ở đây là cao nhất, R4 bên Elo thì vẫn còn R5 ở trên.
+ *
+ * Màu đi theo HÀNH VI chứ không theo bậc, để nhìn phát biết chỉ số có được tính hay không:
+ * R1 xám (trọng số 0, không tính) · R2 amber (trọng số 0.5, tính nửa) · R3–R4 xanh (trọng số 1).
+ * Vì vậy R3 và R4 cùng màu — phân biệt bằng số chấm, đúng như trọng số của chúng bằng nhau.
+ */
+const CONF_TIERS = {
+  R1: { dots: '●○○○', bg: 'var(--status-idle-bg)', fg: 'var(--status-idle-fg)' },
+  R2: { dots: '●●○○', bg: 'var(--status-delayed-bg)', fg: 'var(--status-delayed-fg)' },
+  R3: { dots: '●●●○', bg: 'var(--status-delivered-bg)', fg: 'var(--status-delivered-fg)' },
+  R4: { dots: '●●●●', bg: 'var(--status-delivered-bg)', fg: 'var(--status-delivered-fg)' },
+}
+
+/**
+ * Chip độ tin cậy. Nhận một trong ba dạng, theo thứ tự ưu tiên:
+ * - `confidence` là object của `confidenceLevelOf()`  → lấy `.tier`
+ * - `confidence` là chuỗi bậc ('R1'…'R4')
+ * - `games` là số trận                                 → tự quy ra bậc
+ * `dots={false}` cho chỗ hẹp (ô bảng), chỉ hiện mã bậc.
+ */
+export function ConfidenceChip({ confidence, games, dots = true, style }) {
+  let tier = null
+  if (confidence && typeof confidence === 'object') tier = confidence.tier
+  else if (typeof confidence === 'string') tier = confidence
+  if (!CONF_TIERS[tier]) tier = confidenceLevelOf(games || 0).tier
+
+  const c = CONF_TIERS[tier]
+  return (
+    <span
+      title={t('rating.confidence.' + tier.toLowerCase())}
+      style={{
+        font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
+        whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5,
+        background: c.bg, color: c.fg, ...style,
+      }}
+    >
+      {tier}
+      {dots && <span style={{ font: '600 9px/1 var(--font-mono)', letterSpacing: 1 }}>{c.dots}</span>}
     </span>
   )
 }

@@ -3317,6 +3317,8 @@
     "tier3MatchupSub": "tầng 3",
     "tier4Season": "Điểm mùa giải",
     "tier4SeasonSub": "tầng 4",
+    "tier4PointsEarned": "+{{pts}} điểm mùa giải cho đội thắng",
+    "tier4Casual": "Trận giao lưu — không tích lũy điểm mùa giải",
     "tierH2H": "H2H",
     "tierH2HSub": "bổ sung",
     "movSoftenedNote": "Cả hai set đều dưới {{diff}} điểm chênh — hệ số biên thắng chỉ ×{{mult}}, gần như trận sát nút thuần.",
