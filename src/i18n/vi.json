@@ -2764,7 +2764,8 @@
     "statusNotFound": "Không tìm thấy thông tin",
     "statusInvalidScore": "Điểm số không hợp lệ",
     "warningNotOnCourt": "Người chơi không có trên sân hiện tại",
-    "selectCandidate": "Chọn người bạn muốn ghi điểm:",
+    "sayMoreClearlyHint": "Nói rõ hơn:",
+    "or": "hoặc",
     "previewTitle": "Xem trước kết quả",
     "winnerLabel": "Đội thắng",
     "scoreLabel": "Tỷ số",
@@ -2777,7 +2778,14 @@
     "exMatch": "{{p1}} thắng {{p2}} 21 17",
     "statusAssignOk": "Nhận diện {{n}} người chơi",
     "btnAssignToCourt": "Xếp vào sân",
-    "toastAssigned": "Đã xếp {{n}} người vào sân"
+    "toastAssigned": "Đã xếp {{n}} người vào sân",
+    "heardRaw": "Nghe được",
+    "understoodAs": "Hiểu là",
+    "grammarHint": "Nói theo mẫu: [Đội Thắng] WIN [Đội Thua] [Tỷ số] (hoặc dùng THẮNG / THUA)",
+    "courtQuickHint": "Sân đang đánh chỉ cần đọc tỷ số: 21 19 · hoặc: A win 21 19 · B thua 21 19",
+    "winningTeamLabel": "Đội thắng",
+    "losingTeamLabel": "Đội thua",
+    "resetMic": "Nói lại"
   },
   "courtAssign": {
     "waitingPool": "Đang chờ · {{n}} người",

@@ -1,16 +1,25 @@
 /**
  * Bộ phân tích cú pháp giọng nói ghi tỷ số trận đấu cầu lông (Voice Match Parser).
  * Hàm thuần (Pure function), không phụ thuộc React, không phụ thuộc Supabase.
- * Trả về structured data tường minh theo hợp đồng MVP:
- * - status: 'ok' | 'ambiguous' | 'not_found' | 'invalid_score'
+ *
+ * Triển khai Formal Grammar với 5 luật cứng:
+ * <Tên A> [Tên B] THẮNG <Tên C> [Tên D] <Số 1> <Số 2>
+ * (Kèm biến thể sân: "A THẮNG [Số 1] [Số 2]" hoặc "[Tên người thắng] THẮNG [Số 1] [Số 2]")
+ *
+ * 5 Luật cứng:
+ * 1. Bắt buộc đúng 1 động từ "thắng" phân cách giữa vế Thắng và vế Thua.
+ * 2. Cắt bỏ toàn bộ từ lóng (ăn, hạ, đè, bại, dưới, win, beat...).
+ * 3. Chỉ nhận diện số ở 2 token cuối câu (Trailing Numeric Tokens).
+ * 4. Loại bỏ các từ trùng tên người chơi ra khỏi từ điển số trước khi convert.
+ * 5. Validate luật điểm số cầu lông (max 30, chạm 20 cách biệt 2 hoặc chạm trần 30).
  */
 
 /** Chuẩn hóa chuỗi: lowercase, bỏ dấu tiếng Việt, bỏ ký tự đặc biệt, chuẩn hóa khoảng trắng */
 export function normalizeText(str) {
   return String(str || '')
     .toLowerCase()
-    .replace(/đ/g, 'd') // i18n-ok: chuẩn hóa bỏ dấu đ -> d
-    .replace(/Đ/g, 'd') // i18n-ok: chuẩn hóa bỏ dấu Đ -> d
+    .replace(/đ/g, 'd') // i18n-ok: chuẩn hóa đ -> d
+    .replace(/Đ/g, 'd') // i18n-ok: chuẩn hóa Đ -> d
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s]/g, ' ')
@@ -18,7 +27,7 @@ export function normalizeText(str) {
     .replace(/\s+/g, ' ')
 }
 
-/** Từ điển số chữ tiếng Việt (0 - 30) sắp xếp theo độ dài giảm dần */
+/** Từ điển số chữ tiếng Việt (0 - 30) */
 const VIETNAMESE_NUMBERS = [
   // 20 - 30
   { word: 'hai muoi chin', val: 29 },
@@ -62,7 +71,7 @@ const VIETNAMESE_NUMBERS = [
   { word: 'muoi mot', val: 11 },
   { word: 'muoi', val: 10 },
 
-  // 0 - 9
+  // 0 - 9 (từ đơn)
   { word: 'khong', val: 0 },
   { word: 'mot', val: 1 },
   { word: 'hai', val: 2 },
@@ -70,394 +79,522 @@ const VIETNAMESE_NUMBERS = [
   { word: 'bon', val: 4 },
   { word: 'tu', val: 4 },
   { word: 'lam', val: 5 },
+  { word: 'nam', val: 5 },
   { word: 'sau', val: 6 },
   { word: 'bay', val: 7 },
   { word: 'tam', val: 8 },
   { word: 'chin', val: 9 },
 ]
 
-/** Thay thế các chữ số tiếng Việt bằng chữ số Ả Rập trong chuỗi đã chuẩn hóa */
-export function convertNumberWordsToDigits(normText) {
+/**
+ * Luật 4: Thay thế các chữ số tiếng Việt sang số Ả Rập trong chuỗi,
+ * đồng thời LOẠI BỎ các từ đơn trùng với tên của thành viên trong danh sách.
+ */
+export function convertNumberWordsToDigits(normText, excludeWords = new Set()) {
   let res = ' ' + normText + ' '
   for (const { word, val } of VIETNAMESE_NUMBERS) {
+    // Nếu từ đơn này trùng với tên/biệt danh của người chơi (ví dụ 'ba', 'sau', 'nam') -> bỏ qua không convert
+    if (!word.includes(' ') && excludeWords.has(word)) {
+      continue
+    }
     const regex = new RegExp(`(?<=\\s)${word}(?=\\s)`, 'g')
     res = res.replace(regex, String(val))
   }
   return res.trim().replace(/\s+/g, ' ')
 }
 
-/** Từ khóa phân định Thắng / Thua */
-const WIN_WORDS = ['thang', 'an', 'ha', 'de', 'win', 'won', 'beat']
-const LOSE_WORDS = ['thua', 'bai', 'duoi', 'lose', 'lost']
-
-/** Từ xưng hô nữ rõ ràng */
-const FEMALE_HONORIFICS = ['chi', 'co', 'ba', 'nu']
-/** Từ xưng hô nam rõ ràng */
-const MALE_HONORIFICS = ['anh', 'chu', 'bac', 'ong', 'nam']
-
 /**
- * Trích xuất điểm số từ chuỗi.
- * Điểm cầu lông hợp lệ nằm trong khoảng 0 - 30.
+ * Luật 5: Validate luật điểm số cầu lông.
+ * - Điểm từ 0 đến 30.
+ * - Không hòa.
+ * - Điểm thắng phải >= 21.
+ * - Nếu chạm 21: điểm thua <= 19.
+ * - Nếu > 21 và < 30: cách biệt đúng 2 điểm (22-20, 23-21... 29-27).
+ * - Nếu chạm 30: điểm thua 28 hoặc 29 (30-28, 30-29).
  */
-export function extractScores(text) {
-  const matches = text.match(/\b([0-9]{1,2})\b/g)
-  if (!matches || matches.length < 2) return null
+export function isValidBadmintonScore(s1, s2) {
+  if (!Number.isInteger(s1) || !Number.isInteger(s2)) return false
+  if (s1 < 0 || s1 > 30 || s2 < 0 || s2 > 30) return false
+  if (s1 === s2) return false
 
-  const validScores = []
-  for (const m of matches) {
-    const num = parseInt(m, 10)
-    if (num >= 0 && num <= 30) {
-      validScores.push(num)
-      if (validScores.length === 2) break
-    }
-  }
+  const w = Math.max(s1, s2)
+  const l = Math.min(s1, s2)
 
-  if (validScores.length < 2) return null
-  return [validScores[0], validScores[1]]
+  if (w < 21) return false
+  if (w === 21) return l <= 19
+  if (w > 21 && w < 30) return w - l === 2
+  if (w === 30) return l === 28 || l === 29
+
+  return false
 }
 
 /**
- * Tách biệt động từ kết quả (Action Word) ra khỏi chuỗi để tránh bị ăn nhầm vào tên người.
- * Đặc biệt giải quyết edge case từ đồng âm "Thắng" (tên người vs động từ thắng).
+ * Bóc tách 1 số từ đuôi chuỗi (chữ hoặc số Ả Rập 0-30).
  */
-export function isolateActionWord(textWithDigits) {
-  const words = textWithDigits.split(/\s+/)
-  let actionType = null // 'win' | 'lose' | null
-  let actionWordIndex = -1
+function extractOneTrailingScore(text) {
+  const trimmed = text.trim()
+  if (!trimmed) return null
 
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i]
-    if (WIN_WORDS.includes(w)) {
-      if (w === 'thang' && i + 1 < words.length && WIN_WORDS.includes(words[i + 1])) {
-        // Trường hợp 'thang thang': từ thứ 1 là tên người, từ thứ 2 là động từ
-        actionType = 'win'
-        actionWordIndex = i + 1
-        break
-      } else {
-        actionType = 'win'
-        actionWordIndex = i
-        break
-      }
-    } else if (LOSE_WORDS.includes(w)) {
-      actionType = 'lose'
-      actionWordIndex = i
-      break
+  // 1. Kiểm tra nếu token cuối cùng là số Ả Rập (\d{1,2})
+  const digitMatch = trimmed.match(/(?<=\s|^)(\d{1,2})$/)
+  if (digitMatch) {
+    const val = parseInt(digitMatch[1], 10)
+    const remaining = trimmed.slice(0, digitMatch.index).trim()
+    return { val, remaining }
+  }
+
+  // 2. Kiểm tra các mẫu số bằng chữ (từ cụm dài đến từ đơn)
+  for (const { word, val } of VIETNAMESE_NUMBERS) {
+    const regex = new RegExp(`(?<=\\s|^)${word}$`)
+    const match = trimmed.match(regex)
+    if (match) {
+      const remaining = trimmed.slice(0, match.index).trim()
+      return { val, remaining }
     }
   }
 
-  if (actionWordIndex !== -1) {
-    const placeholder = actionType === 'win' ? '__ACTION_WIN__' : '__ACTION_LOSE__'
-    words[actionWordIndex] = placeholder
-  }
+  return null
+}
+
+/**
+ * Luật 3: Chỉ nhận diện số ở đuôi câu (Trailing Numeric Tokens).
+ * Bóc tách 2 số ở cuối và trả về { scores: [s1, s2], textWithoutScores }.
+ * Hỗ trợ cả số Ả Rập (21 19) và chữ số tiếng Việt (hai mốt mười chín, hai mốt năm...).
+ */
+export function extractTrailingScores(text) {
+  if (!text || typeof text !== 'string') return null
+  let working = text.trim()
+  // Cho phép từ đệm nhẹ ở cuối câu nếu có (ví dụ "nhe", "a", "di", "roi")
+  working = working.replace(/(?<=\s)(nhe|a|di|roi)$/, '').trim()
+
+  // Bóc số thứ 2 (ở ngoài cùng bên phải)
+  const res2 = extractOneTrailingScore(working)
+  if (!res2) return null
+
+  // Bóc số thứ 1 (ngay trước số thứ 2)
+  const res1 = extractOneTrailingScore(res2.remaining)
+  if (!res1) return null
 
   return {
-    actionType,
-    processedText: words.join(' '),
+    scores: [res1.val, res2.val],
+    textWithoutScores: res1.remaining,
   }
 }
 
 /**
- * Phân tích người chơi trong câu.
- * Thứ tự ưu tiên nghiêm ngặt theo hợp đồng MVP:
- * 1. fullName exact (dài nhất) / name exact (nếu name đó duy nhất trong danh sách)
- * 2. Tên + honorific / gender (khi tên bị trùng nhiều người)
- * 3. Tên riêng unique
- * 4. Trùng lặp không phân biệt được ➔ ambiguous
+ * Xây dựng danh sách N-gram Aliases (Biệt danh & Cụm tên gọi con) cho từng người chơi.
+ * Ưu tiên các cụm con dài nhất ("Minh Tùng" trong "Nguyễn Minh Tùng", "Thắng em").
  */
-export function matchPlayersInText(text, players = []) {
-  if (!players.length) return { matched: [], ambiguous: null }
+export function buildPlayerAliases(players = []) {
+  const aliasList = []
+  const singleNameTokens = new Set()
 
-  // Chuẩn bị metadata cho từng player
-  const playerTokens = players.map((p) => {
+  for (const p of players) {
     const id = p.id || p.key
     const fullNameNorm = normalizeText(p.fullName || '')
     const nameNorm = normalizeText(p.name || '')
-    const parts = (fullNameNorm || nameNorm).split(' ').filter(Boolean)
-    const firstName = parts[parts.length - 1] || ''
+    const candidateTerms = new Set()
 
-    return {
-      player: p,
-      id,
-      fullNameNorm,
-      nameNorm,
-      firstName,
-      gender: p.gender,
+    if (fullNameNorm) candidateTerms.add(fullNameNorm)
+    if (nameNorm) candidateTerms.add(nameNorm)
+
+    // Bóc tách cụm con từ fullName (ví dụ: "nguyen minh tung" -> "minh tung", "tung")
+    if (fullNameNorm) {
+      const parts = fullNameNorm.split(' ').filter(Boolean)
+      if (parts.length >= 2) {
+        candidateTerms.add(parts.slice(-2).join(' ')) // Tên đệm + tên chính: "minh tung"
+      }
+      if (parts.length >= 3) {
+        candidateTerms.add(parts.slice(-3).join(' ')) // 3 từ cuối
+      }
+      if (parts.length >= 1) {
+        candidateTerms.add(parts[parts.length - 1])
+      }
+      for (const part of parts) {
+        if (part) singleNameTokens.add(part)
+      }
     }
-  })
 
-  // Đếm tần suất xuất hiện của các chuỗi tên để nhận diện trùng lặp
-  const fullNameCounts = {}
-  const nameCounts = {}
-  const firstNameCounts = {}
+    if (nameNorm) {
+      const parts = nameNorm.split(' ').filter(Boolean)
+      if (parts.length >= 2) {
+        candidateTerms.add(parts.slice(-2).join(' '))
+      }
+      if (parts.length >= 1) {
+        candidateTerms.add(parts[parts.length - 1])
+      }
+      for (const part of parts) {
+        if (part) singleNameTokens.add(part)
+      }
+    }
 
-  for (const pt of playerTokens) {
-    if (pt.fullNameNorm) fullNameCounts[pt.fullNameNorm] = (fullNameCounts[pt.fullNameNorm] || 0) + 1
-    if (pt.nameNorm) nameCounts[pt.nameNorm] = (nameCounts[pt.nameNorm] || 0) + 1
-    if (pt.firstName) firstNameCounts[pt.firstName] = (firstNameCounts[pt.firstName] || 0) + 1
+    // Đặc cách phiên âm tiếng Nhật cho Kuro ("Kư rô", "cu ro", "curo")
+    if (nameNorm === 'kuro' || fullNameNorm.includes('kuro')) {
+      candidateTerms.add('ku ro')
+      candidateTerms.add('cu ro')
+      candidateTerms.add('curo')
+    }
+
+    for (const term of candidateTerms) {
+      if (!term) continue
+      aliasList.push({
+        term,
+        wordCount: term.split(' ').length,
+        charLength: term.length,
+        player: p,
+        id,
+      })
+    }
   }
 
-  // Danh sách các ứng viên exact duy nhất
-  const exactCandidates = []
-  for (const pt of playerTokens) {
-    if (pt.fullNameNorm && fullNameCounts[pt.fullNameNorm] === 1) {
-      exactCandidates.push({ norm: pt.fullNameNorm, pt, type: 'fullName' })
-    }
-    // Chỉ đưa nameNorm vào exact nếu nameNorm đó không bị trùng giữa nhiều người
-    if (pt.nameNorm && pt.nameNorm !== pt.fullNameNorm && nameCounts[pt.nameNorm] === 1) {
-      exactCandidates.push({ norm: pt.nameNorm, pt, type: 'name' })
-    }
-  }
-  // Sắp xếp chuỗi dài nhất khớp trước
-  exactCandidates.sort((a, b) => b.norm.length - a.norm.length)
+  // Sắp xếp: Ưu tiên cụm nhiều từ trước, chuỗi dài hơn trước
+  aliasList.sort((a, b) => b.wordCount - a.wordCount || b.charLength - a.charLength)
 
+  return {
+    aliasList,
+    singleNameTokens,
+  }
+}
+
+/**
+ * Nhận diện người chơi trong một cụm câu nói (vế thắng hoặc vế thua).
+ * Ưu tiên khớp cụm dài trước ("Minh Tùng", "Thắng em"), sau đó mới đến từ đơn.
+ */
+export function matchPlayersInPhrase(phrase, aliasList = [], allowedPlayerIds = null) {
+  if (!phrase || !phrase.trim()) return { matched: [], ambiguous: null }
+
+  let trackingText = phrase.trim()
   const foundPlayers = []
   const foundIds = new Set()
-  let trackingText = text
 
-  // 1. Khớp cụm fullName / name exact DUY NHẤT dài nhất trước
-  for (const cand of exactCandidates) {
-    const regex = new RegExp(`(?<=^|\\s)${cand.norm}(?=\\s|$)`, 'g')
+  // 1. Quét các alias đa từ (wordCount >= 2) trước
+  for (const item of aliasList) {
+    if (item.wordCount < 2) continue
+    if (allowedPlayerIds && !allowedPlayerIds.has(item.id)) continue
+    if (foundIds.has(item.id)) continue
+
+    const regex = new RegExp(`(?<=^|\\s)${item.term}(?=\\s|$)`, 'g')
     const match = regex.exec(trackingText)
     if (match) {
-      if (!foundIds.has(cand.pt.id)) {
-        foundPlayers.push({
-          player: cand.pt.player,
-          matchType: cand.type,
-          matchedTerm: cand.norm,
-          startIndex: match.index,
-        })
-        foundIds.add(cand.pt.id)
-      }
-      trackingText = trackingText.replace(regex, ' '.repeat(cand.norm.length))
+      foundPlayers.push({
+        player: item.player,
+        matchedTerm: item.term,
+        startIndex: match.index,
+      })
+      foundIds.add(item.id)
+      trackingText = trackingText.replace(regex, ' '.repeat(item.term.length))
     }
   }
 
-  // 2. Tìm các từ còn lại trong câu (bao gồm tên riêng, hoặc name bị trùng cần lọc gender)
-  const words = text.split(/\s+/).filter(Boolean)
-  const wordOffsets = []
-  let searchIdx = 0
-  for (const w of words) {
-    const idx = text.indexOf(w, searchIdx)
-    wordOffsets.push(idx)
-    searchIdx = idx + w.length
-  }
-  const trackingWords = trackingText.trim().split(/\s+/).filter(Boolean)
+  // 2. Quét các từ đơn còn lại trong câu
+  const remainingWords = trackingText.split(/\s+/).filter(Boolean)
 
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i]
-    if (
-      word.startsWith('__ACTION_') ||
-      /^\d+$/.test(word) ||
-      FEMALE_HONORIFICS.includes(word) ||
-      MALE_HONORIFICS.includes(word)
-    ) {
-      continue
-    }
-
-    // Chỉ xét các từ còn tồn tại trong trackingWords (chưa bị ăn bởi exact)
-    if (!trackingWords.includes(word)) {
-      continue
-    }
-
-    // Tìm các player khớp với từ này qua nameNorm hoặc firstName
-    const matchingPts = playerTokens.filter(
-      (pt) => !foundIds.has(pt.id) && (pt.firstName === word || pt.nameNorm === word)
+  for (const word of remainingWords) {
+    // Bỏ qua các từ phụ trợ, đại từ xưng hô thông thường nếu không phải là alias hợp lệ
+    const singleMatches = aliasList.filter(
+      (item) =>
+        item.wordCount === 1 &&
+        item.term === word &&
+        (!allowedPlayerIds || allowedPlayerIds.has(item.id)) &&
+        !foundIds.has(item.id)
     )
 
-    if (matchingPts.length === 1) {
-      // Tên riêng duy nhất
-      foundPlayers.push({
-        player: matchingPts[0].player,
-        matchType: 'unique_firstname',
-        matchedTerm: word,
-        startIndex: wordOffsets[i] >= 0 ? wordOffsets[i] : 0,
-      })
-      foundIds.add(matchingPts[0].id)
-    } else if (matchingPts.length > 1) {
-      // Trùng tên (≥ 2 người): Kiểm tra từ xưng hô đứng liền trước
-      const prevWord = i > 0 ? words[i - 1] : ''
-      let filteredByGender = null
-
-      if (FEMALE_HONORIFICS.includes(prevWord)) {
-        filteredByGender = matchingPts.filter((pt) => pt.gender === 'nu')
-      } else if (MALE_HONORIFICS.includes(prevWord)) {
-        filteredByGender = matchingPts.filter((pt) => pt.gender === 'nam')
+    // Loại bỏ các bản ghi trùng lặp cùng 1 player id
+    const uniquePlayers = []
+    const seenPid = new Set()
+    for (const m of singleMatches) {
+      if (!seenPid.has(m.id)) {
+        seenPid.add(m.id)
+        uniquePlayers.push(m)
       }
+    }
 
-      if (filteredByGender && filteredByGender.length === 1) {
-        foundPlayers.push({
-          player: filteredByGender[0].player,
-          matchType: 'honorific_filtered',
-          matchedTerm: `${prevWord} ${word}`,
-          startIndex: i > 0 ? wordOffsets[i - 1] : wordOffsets[i],
-        })
-        foundIds.add(filteredByGender[0].id)
-      } else {
-        return {
-          matched: foundPlayers,
-          ambiguous: {
-            reason: 'duplicate_name',
-            queryName: word,
-            candidates: matchingPts.map((pt) => pt.player),
-          },
-        }
+    if (uniquePlayers.length === 1) {
+      foundPlayers.push({
+        player: uniquePlayers[0].player,
+        matchedTerm: word,
+        startIndex: phrase.indexOf(word),
+      })
+      foundIds.add(uniquePlayers[0].id)
+    } else if (uniquePlayers.length > 1) {
+      // Trùng tên trong phạm vi cho phép mà không phân biệt được
+      return {
+        matched: foundPlayers,
+        ambiguous: {
+          reason: 'duplicate_name',
+          queryName: word,
+          candidates: uniquePlayers.map((u) => u.player),
+        },
       }
     }
   }
 
-  // Sắp xếp người chơi theo đúng thứ tự xuất hiện từ trái qua phải trong câu nói
+  // Sắp xếp theo thứ tự xuất hiện từ trái qua phải
   foundPlayers.sort((a, b) => a.startIndex - b.startIndex)
 
   return { matched: foundPlayers, ambiguous: null }
 }
 
 /**
- * Hàm phân tích chính (Main Entrypoint).
+ * Hàm phân tích chính theo Formal Grammar:
+ * <Vế Thắng> THẮNG <Vế Thua> <Số 1> <Số 2>
  *
  * @param {Object} params
- * @param {string} params.transcript Câu nói thô từ Micro
- * @param {Array} params.players Danh sách người chơi trong buổi tập
- * @param {Object} [params.currentCourt] Thông tin sân hiện tại (nếu có teamA, teamB)
- * @returns {Object} Structured output theo hợp đồng
+ * @param {string} params.transcript Chuỗi giọng nói từ Micro
+ * @param {Array} [params.players=[]] Danh sách toàn bộ người chơi trong buổi (thành viên + khách)
+ * @param {Array} [params.courtPlayers=[]] Danh sách 4 người đang có mặt trên sân
+ * @param {Object} [params.currentCourt=null] Thông tin sân hiện tại
  */
-export function parseVoiceMatch({ transcript, players = [], currentCourt: _currentCourt = null }) {
+export function parseVoiceMatch({
+  transcript,
+  players = [],
+  courtPlayers = [],
+  _currentCourt = null,
+}) {
   if (!transcript || typeof transcript !== 'string' || !transcript.trim()) {
     return { status: 'not_found', reason: 'empty_transcript' }
   }
 
-  // 1. Chuẩn hóa chuỗi
+  // 1. Chuẩn hóa chuỗi thô
   const rawNorm = normalizeText(transcript)
-  // Chuyển các từ số tiếng Việt sang số Ả Rập
-  const textWithDigits = convertNumberWordsToDigits(rawNorm)
 
-  // 2. Bóc tách điểm số
-  const scores = extractScores(textWithDigits)
+  // 2. Xây dựng danh sách Alias và tập hợp tên đơn để bảo vệ từ điển số (Luật 4)
+  const allPlayersPool = players.length > 0 ? players : courtPlayers
+  const { aliasList, singleNameTokens } = buildPlayerAliases(allPlayersPool)
 
-  // 3. Cô lập động từ kết quả (Thắng/Thua/Win/Lose) để bảo vệ từ đồng âm (chỉ áp dụng khi có tỷ số)
-  let actionType = null
-  let processedText = textWithDigits
-
-  if (scores) {
-    const isolated = isolateActionWord(textWithDigits)
-    actionType = isolated.actionType
-    processedText = isolated.processedText
+  // 3. Luật 3: Bóc tách 2 số điểm ở đuôi câu (Trailing Scores) trực tiếp từ rawNorm
+  // Hỗ trợ cả số Ả Rập lẫn chữ số tiếng Việt từ đuôi chuỗi mà không làm méo mó chuỗi tên phía trước
+  let textWithDigits = rawNorm
+  let scoreResult = extractTrailingScores(rawNorm)
+  if (!scoreResult) {
+    textWithDigits = convertNumberWordsToDigits(rawNorm, singleNameTokens)
+    scoreResult = extractTrailingScores(textWithDigits)
   }
 
-  // 4. Tìm kiếm người chơi trên chuỗi đã qua xử lý
-  const { matched, ambiguous } = matchPlayersInText(processedText, players)
-
-  if (ambiguous) {
-    return {
-      status: 'ambiguous',
-      ...ambiguous,
-    }
-  }
-
-  // 5. Kiểm tra trường hợp chỉ đọc tỷ số trên sân đang có người (Case: "21 19" hoặc "A thắng 21 19")
-  const words = textWithDigits.split(/\s+/)
-  const teamAWord = words.includes('a') || textWithDigits.includes('doi a') || textWithDigits.includes('phe a')
-  const teamBWord = words.includes('b') || textWithDigits.includes('doi b') || textWithDigits.includes('phe b')
-
-  if (!scores) {
-    // Không có tỷ số: Nếu có tìm thấy người chơi ➔ Intent xếp sân
+  if (!scoreResult) {
+    // Không có 2 số ở cuối: Kiểm tra intent gán người vào sân (nếu người dùng đọc tên)
+    const { matched } = matchPlayersInPhrase(rawNorm, aliasList)
     if (matched.length >= 2) {
       return {
         status: 'ok',
         intent: 'assign_court',
         matchedPlayers: matched.map((m) => m.player),
-        raw: { transcript, textWithDigits },
+        raw: { transcript, textWithDigits: rawNorm },
       }
     }
     return {
       status: 'invalid_score',
-      reason: 'no_score_detected',
-      raw: { transcript, textWithDigits },
+      reason: 'no_trailing_scores',
+      raw: { transcript, textWithDigits: rawNorm },
     }
   }
 
-  const [s1, s2] = scores
-  if (s1 === s2) {
+  const [s1, s2] = scoreResult.scores
+
+  // 5. Luật 5: Validate luật điểm số cầu lông
+  if (!isValidBadmintonScore(s1, s2)) {
     return {
       status: 'invalid_score',
-      reason: 'tie_score',
+      reason: 'badminton_rules_violation',
       scoreA: s1,
       scoreB: s2,
+      raw: { transcript, textWithDigits, scores: [s1, s2] },
     }
   }
 
   const winnerScore = Math.max(s1, s2)
   const loserScore = Math.min(s1, s2)
 
-  // Xử lý xác định người thắng / kẻ thua
-  let winnerPlayer = null
-  let loserPlayer = null
-  const isWinnerInverted = actionType === 'lose'
-
-  if (matched.length >= 2) {
-    const p1 = matched[0].player
-    const p2 = matched[1].player
-
-    if (actionType === 'lose') {
-      winnerPlayer = p2
-      loserPlayer = p1
-    } else {
-      winnerPlayer = p1
-      loserPlayer = p2
-    }
-  } else if (matched.length === 1) {
-    const p = matched[0].player
-    if (actionType === 'lose') {
-      loserPlayer = p
-    } else {
-      winnerPlayer = p
+  // 6. Trường hợp chỉ đọc số điểm (dành cho sân đã có sẵn người: "21 19" hoặc "18 21")
+  const textWithoutScores = scoreResult.textWithoutScores.trim()
+  const cleanedPrefix = textWithoutScores.replace(/^(ty so|ket qua|diem|san|tran)\s*/g, '').trim()
+  if (!cleanedPrefix) {
+    return {
+      status: 'ok',
+      intent: 'record_score',
+      scoreOnly: true,
+      scoreA: s1,
+      scoreB: s2,
+      winnerScore,
+      loserScore,
+      raw: { transcript, textWithDigits },
     }
   }
 
-  // Trường hợp nói tên Đội A / Đội B: "A thắng 21 19" hoặc "B thua 21 19"
-  let declaredTeam = null
-  if (teamAWord) declaredTeam = 'A'
-  else if (teamBWord) declaredTeam = 'B'
+  // Bảo vệ các cụm tên riêng có chứa chữ "thang" (như "thang em", "le minh thang", "quyet thang")
+  // bằng cách thay thế tạm thời bằng placeholder __PLAYER_THANG_i__
+  const thangAliases = aliasList.filter(
+    (item) => item.wordCount >= 2 && item.term.includes('thang')
+  )
+  let protectedText = textWithoutScores
+  const protectedMap = new Map()
+  let pIdx = 0
 
-  let winnerTeam = declaredTeam
-  if (declaredTeam && actionType === 'lose') {
-    winnerTeam = declaredTeam === 'A' ? 'B' : 'A'
+  for (const ta of thangAliases) {
+    const regex = new RegExp(`(?<=^|\\s)${ta.term}(?=\\s|$)`, 'g')
+    if (regex.test(protectedText)) {
+      const ph = `__PROTECTED_NAME_${pIdx++}__`
+      protectedText = protectedText.replace(regex, ph)
+      protectedMap.set(ph, ta.term)
+    }
+  }
+
+  // Tìm từ khóa hành động: Thắng (win, uyn, thang) hoặc Thua (thua, lose)
+  let actionMatch = protectedText.match(/(?<=^|\s)(win|uyn|thang|thua|lose)(?=\s|$)/)
+  if (!actionMatch) {
+    return {
+      status: 'invalid_syntax',
+      reason: 'missing_win_keyword',
+      raw: { transcript, textWithDigits },
+    }
+  }
+
+  // Nếu match đầu tiên rơi vào index 0 (clause1 sẽ rỗng), kiểm tra xem đằng sau có từ khóa hành động nào khác không
+  // (ví dụ: "Thắng thắng Thành" -> từ "thang" đầu là tên người chơi, từ "thang" thứ hai là động từ)
+  if (actionMatch.index === 0) {
+    const afterFirst = protectedText.slice(actionMatch[0].length)
+    const secondMatch = afterFirst.match(/(?<=\s)(win|uyn|thang|thua|lose)(?=\s|$)/)
+    if (secondMatch) {
+      actionMatch = {
+        0: secondMatch[0],
+        1: secondMatch[1],
+        index: actionMatch[0].length + secondMatch.index,
+      }
+    }
+  }
+
+  const actionWord = actionMatch[1]
+  const isLoseAction = actionWord === 'thua' || actionWord === 'lose'
+
+  const splitIdx = actionMatch.index
+  let clause1 = protectedText.slice(0, splitIdx).trim()
+  let clause2 = protectedText.slice(splitIdx + actionMatch[0].length).trim()
+
+  // Khôi phục lại các placeholder tên riêng trong vế
+  for (const [ph, orig] of protectedMap.entries()) {
+    clause1 = clause1.replace(ph, orig)
+    clause2 = clause2.replace(ph, orig)
+  }
+
+  // Phân định vế Thắng và vế Thua dựa theo hành động
+  let winnerRaw = isLoseAction ? clause2 : clause1
+  let loserRaw = isLoseAction ? clause1 : clause2
+
+  // 7. Nhận diện Đội A / Đội B trên sân hiện tại
+  const isTeamAWinner =
+    winnerRaw === 'a' || winnerRaw === 'doi a' || winnerRaw === 'phe a' || winnerRaw === 'ben a'
+  const isTeamBWinner =
+    winnerRaw === 'b' || winnerRaw === 'doi b' || winnerRaw === 'phe b' || winnerRaw === 'ben b'
+
+  const isTeamALoser =
+    loserRaw === 'a' || loserRaw === 'doi a' || loserRaw === 'phe a' || loserRaw === 'ben a'
+  const isTeamBLoser =
+    loserRaw === 'b' || loserRaw === 'doi b' || loserRaw === 'phe b' || loserRaw === 'ben b'
+
+  if (isTeamAWinner || isTeamBLoser) {
+    return {
+      status: 'ok',
+      intent: 'record_score',
+      winnerTeam: 'A',
+      winnerScore,
+      loserScore,
+      confidence: 'team_label',
+      raw: { transcript, textWithDigits, winnerScore, loserScore },
+    }
+  }
+
+  if (isTeamBWinner || isTeamALoser) {
+    return {
+      status: 'ok',
+      intent: 'record_score',
+      winnerTeam: 'B',
+      winnerScore,
+      loserScore,
+      confidence: 'team_label',
+      raw: { transcript, textWithDigits, winnerScore, loserScore },
+    }
+  }
+
+  // 8. Nhận diện người chơi trong vế Thắng và vế Thua
+  // Ưu tiên phạm vi người trên sân (courtPlayers) nếu có
+  const courtIds =
+    courtPlayers.length > 0
+      ? new Set(courtPlayers.map((p) => p.id || p.key))
+      : null
+
+  // Tìm ở vế Thắng
+  let winMatchRes = matchPlayersInPhrase(winnerRaw, aliasList, courtIds)
+  if (winMatchRes.ambiguous) {
+    return { status: 'ambiguous', ...winMatchRes.ambiguous }
+  }
+
+  // Nếu không tìm thấy trong courtPlayers, mở rộng ra allPlayersPool
+  if (!winMatchRes.matched.length && courtIds) {
+    winMatchRes = matchPlayersInPhrase(winnerRaw, aliasList, null)
+    if (winMatchRes.ambiguous) {
+      return { status: 'ambiguous', ...winMatchRes.ambiguous }
+    }
+  }
+
+  // Tìm ở vế Thua
+  let loseMatchRes = matchPlayersInPhrase(loserRaw, aliasList, courtIds)
+  if (loseMatchRes.ambiguous) {
+    return { status: 'ambiguous', ...loseMatchRes.ambiguous }
+  }
+  if (!loseMatchRes.matched.length && courtIds && loserRaw) {
+    loseMatchRes = matchPlayersInPhrase(loserRaw, aliasList, null)
+    if (loseMatchRes.ambiguous) {
+      return { status: 'ambiguous', ...loseMatchRes.ambiguous }
+    }
+  }
+
+  const winnerMatched = winMatchRes.matched
+  const loserMatched = loseMatchRes.matched
+
+  if (!winnerMatched.length && !loserMatched.length) {
+    return {
+      status: 'not_found',
+      reason: 'no_players_matched',
+      raw: { transcript, textWithDigits },
+    }
+  }
+
+  // Nếu không nhận diện được người thắng nào mà vế thua lại có >= 2 người
+  // (dấu hiệu câu bị cắt sai vế hoặc thiếu người thắng) -> báo lỗi cú pháp thay vì đoán mò đảo ngược
+  if (!winnerMatched.length && loserMatched.length > 1) {
+    return {
+      status: 'invalid_syntax',
+      reason: 'missing_winner',
+      raw: { transcript, textWithDigits },
+    }
   }
 
   return {
     status: 'ok',
     intent: 'record_score',
-    winnerPlayerId: winnerPlayer ? (winnerPlayer.id || winnerPlayer.key) : null,
-    loserPlayerId: loserPlayer ? (loserPlayer.id || loserPlayer.key) : null,
-    winnerTeam,
+    winnerPlayers: winnerMatched.map((m) => m.player),
+    loserPlayers: loserMatched.map((m) => m.player),
     winnerScore,
     loserScore,
-    confidence: matched.length > 0 ? matched[0].matchType : 'team_label',
     raw: {
       transcript,
-      actionWord: actionType,
-      isWinnerInverted,
-      matchedCount: matched.length,
+      textWithDigits,
+      winnerClause: winnerRaw,
+      loserClause: loserRaw,
     },
   }
 }
 
 /**
  * Ánh xạ kết quả parse giọng nói vào sân hiện tại.
- *
- * @param {Object} params
- * @param {Object} params.parsedResult Kết quả từ parseVoiceMatch
- * @param {number} [params.courtIdx=0] Index sân đang chọn
- * @param {Array<string>} [params.currentTeamA=[]] Danh sách key người chơi đội A trên sân
- * @param {Array<string>} [params.currentTeamB=[]] Danh sách key người chơi đội B trên sân
- * @param {Array<Object>} [params.players=[]] Danh sách tất cả người chơi trong buổi
- * @returns {Object} Kết quả ánh xạ gồm winnerTeam, scoreA, scoreB, partner, warning
+ * Luôn trả về cấu trúc tường minh để UI hiển thị "Nghe được" vs "Hiểu là" trước khi người dùng xác nhận lưu.
  */
 export function mapVoiceResultToCourt({
   parsedResult,
   courtIdx = 0,
   currentTeamA = [],
   currentTeamB = [],
-  players = [],
+  _players = [],
 }) {
   if (!parsedResult || parsedResult.status !== 'ok') {
     return {
@@ -469,135 +606,158 @@ export function mapVoiceResultToCourt({
 
   const {
     intent,
-    winnerPlayerId,
-    loserPlayerId,
     winnerTeam: declaredWinnerTeam,
+    winnerPlayers = [],
+    loserPlayers = [],
     winnerScore,
     loserScore,
   } = parsedResult
 
+  // Trường hợp Intent: Xếp sân
   if (intent === 'assign_court') {
     const matched = parsedResult.matchedPlayers || []
     let proposedTeamA = [...currentTeamA]
     let proposedTeamB = [...currentTeamB]
 
     if (matched.length >= 4) {
-      // 4 người: chia đều 2 người đội A, 2 người đội B
       proposedTeamA = [matched[0].id || matched[0].key, matched[1].id || matched[1].key]
       proposedTeamB = [matched[2].id || matched[2].key, matched[3].id || matched[3].key]
     } else if (matched.length === 2) {
-      if (proposedTeamA.length === 0 && proposedTeamB.length === 0) {
+      if (!proposedTeamA.length && !proposedTeamB.length) {
         proposedTeamA = [matched[0].id || matched[0].key]
         proposedTeamB = [matched[1].id || matched[1].key]
-      } else {
-        const toAdd = matched.map((p) => p.id || p.key)
-        let idx = 0
-        while (proposedTeamA.length < 2 && idx < toAdd.length) {
-          proposedTeamA.push(toAdd[idx++])
-        }
-        while (proposedTeamB.length < 2 && idx < toAdd.length) {
-          proposedTeamB.push(toAdd[idx++])
-        }
       }
-    } else if (matched.length === 3) {
-      proposedTeamA = [matched[0].id || matched[0].key, matched[1].id || matched[1].key]
-      proposedTeamB = [matched[2].id || matched[2].key]
     }
 
     return {
       status: 'ok',
       intent: 'assign_court',
       courtIdx,
-      matchedPlayers: matched,
       proposedTeamA,
       proposedTeamB,
+      matchedPlayers: matched,
     }
   }
 
-  // Trường hợp: intent === 'record_score'
-  let targetWinnerTeam = declaredWinnerTeam || null
-  let partner = null
-  let isOnCurrentCourt = true
-  let warning = null
+  // Trường hợp Intent: Ghi kết quả trận đấu (Record score)
+  const teamASet = new Set(currentTeamA)
+  const teamBSet = new Set(currentTeamB)
 
-  // 1. Kiểm tra winnerPlayerId trên sân hiện tại
-  if (winnerPlayerId) {
-    const inTeamA = currentTeamA.includes(winnerPlayerId)
-    const inTeamB = currentTeamB.includes(winnerPlayerId)
-
-    if (inTeamA) {
-      targetWinnerTeam = 'A'
-      // Tìm đồng đội trong Team A
-      const partnerKey = currentTeamA.find((k) => k !== winnerPlayerId)
-      partner = partnerKey ? players.find((p) => (p.id || p.key) === partnerKey) || null : null
-    } else if (inTeamB) {
-      targetWinnerTeam = 'B'
-      // Tìm đồng đội trong Team B
-      const partnerKey = currentTeamB.find((k) => k !== winnerPlayerId)
-      partner = partnerKey ? players.find((p) => (p.id || p.key) === partnerKey) || null : null
-    } else {
-      // Người thắng không có trên sân hiện tại
-      isOnCurrentCourt = false
-      warning = 'player_not_on_court'
+  // 1. Trường hợp chỉ đọc điểm số (scoreOnly) trên sân đã có người
+  if (parsedResult.scoreOnly) {
+    const hasCourtPlayers = currentTeamA.length > 0 || currentTeamB.length > 0
+    if (!hasCourtPlayers) {
+      return {
+        status: 'invalid_syntax',
+        reason: 'empty_court_score_only',
+        raw: parsedResult.raw,
+      }
+    }
+    const scoreA = parsedResult.scoreA
+    const scoreB = parsedResult.scoreB
+    const finalWinnerTeam = scoreA > scoreB ? 'A' : 'B'
+    return {
+      status: 'ok',
+      intent: 'record_score',
+      courtIdx,
+      winnerTeam: finalWinnerTeam,
+      scoreA,
+      scoreB,
+      winnerScore: Math.max(scoreA, scoreB),
+      loserScore: Math.min(scoreA, scoreB),
+      winnerNames: finalWinnerTeam === 'A' ? 'A' : 'B', // i18n-ok: team code fallback
+      loserNames: finalWinnerTeam === 'A' ? 'B' : 'A', // i18n-ok: team code fallback
+      proposedTeamA: currentTeamA,
+      proposedTeamB: currentTeamB,
+      raw: parsedResult.raw,
     }
   }
 
-  // 2. Nếu winnerPlayerId không trên sân nhưng loserPlayerId lại trên sân
-  if (!targetWinnerTeam && loserPlayerId) {
-    if (currentTeamA.includes(loserPlayerId)) {
-      targetWinnerTeam = 'B'
-      isOnCurrentCourt = true
-      warning = null
-    } else if (currentTeamB.includes(loserPlayerId)) {
-      targetWinnerTeam = 'A'
-      isOnCurrentCourt = true
-      warning = null
-    }
-  }
-
-  // 3. Nếu trên sân chưa có người, nhưng câu nói có đủ người (ví dụ: "Tuấn thắng Hùng 21 15")
+  let finalWinnerTeam = declaredWinnerTeam || null
   let proposedTeamA = [...currentTeamA]
   let proposedTeamB = [...currentTeamB]
 
-  if (currentTeamA.length === 0 && currentTeamB.length === 0 && winnerPlayerId) {
-    proposedTeamA = [winnerPlayerId]
-    if (loserPlayerId) {
-      proposedTeamB = [loserPlayerId]
+  // Nếu người dùng gọi tên người thắng
+  if (!finalWinnerTeam && winnerPlayers.length > 0) {
+    const p0Id = winnerPlayers[0].id || winnerPlayers[0].key
+    if (teamASet.has(p0Id)) {
+      finalWinnerTeam = 'A'
+    } else if (teamBSet.has(p0Id)) {
+      finalWinnerTeam = 'B'
     }
-    targetWinnerTeam = 'A'
-    isOnCurrentCourt = true
-    warning = null
   }
 
-  // 4. Tính scoreA và scoreB
-  let scoreA = null
-  let scoreB = null
+  // Nếu người dùng gọi tên người thua
+  if (!finalWinnerTeam && loserPlayers.length > 0) {
+    const p0Id = loserPlayers[0].id || loserPlayers[0].key
+    if (teamASet.has(p0Id)) {
+      finalWinnerTeam = 'B'
+    } else if (teamBSet.has(p0Id)) {
+      finalWinnerTeam = 'A'
+    }
+  }
 
-  if (targetWinnerTeam === 'A') {
+  // Nếu trên sân chưa có người (sân trống), nhưng câu nói có người thắng (và người thua)
+  // Tự động đề xuất người vào sân và gán người thắng vào Đội A
+  if (!finalWinnerTeam && currentTeamA.length === 0 && currentTeamB.length === 0 && winnerPlayers.length > 0) {
+    proposedTeamA = winnerPlayers.map((p) => p.id || p.key)
+    if (loserPlayers.length > 0) {
+      proposedTeamB = loserPlayers.map((p) => p.id || p.key)
+    }
+    finalWinnerTeam = 'A'
+  }
+
+  // Nếu vẫn không xác định được đội thắng (người được gọi tên không có trên sân hiện tại)
+  if (!finalWinnerTeam) {
+    return {
+      status: 'warning',
+      warning: 'player_not_on_court',
+      intent: 'record_score',
+      courtIdx,
+      winnerTeam: null,
+      scoreA: null,
+      scoreB: null,
+      winnerScore,
+      loserScore,
+      winnerNames: winnerPlayers.map((p) => p.name).join(' & '),
+      loserNames: loserPlayers.map((p) => p.name).join(' & '),
+      proposedTeamA: currentTeamA,
+      proposedTeamB: currentTeamB,
+      raw: parsedResult.raw,
+    }
+  }
+
+  // Xác định điểm số gán cho Đội A và Đội B
+  let scoreA = 0
+  let scoreB = 0
+
+  if (finalWinnerTeam === 'A') {
     scoreA = winnerScore
     scoreB = loserScore
-  } else if (targetWinnerTeam === 'B') {
+  } else if (finalWinnerTeam === 'B') {
     scoreA = loserScore
     scoreB = winnerScore
-  } else {
-    // Mặc định team A nếu không xác định được bên nào
-    scoreA = winnerScore
-    scoreB = loserScore
-    targetWinnerTeam = 'A'
   }
+
+  // Tên hiển thị người chiến thắng & kẻ thua cuộc
+  const winnerNames =
+    winnerPlayers.map((p) => p.name).join(' & ') ||
+    (finalWinnerTeam === 'A' ? 'A' : finalWinnerTeam === 'B' ? 'B' : '') // i18n-ok: team code fallback
+  const loserNames =
+    loserPlayers.map((p) => p.name).join(' & ') ||
+    (finalWinnerTeam === 'A' ? 'B' : finalWinnerTeam === 'B' ? 'A' : '') // i18n-ok: team code fallback
 
   return {
     status: 'ok',
     intent: 'record_score',
     courtIdx,
-    winnerTeam: targetWinnerTeam,
+    winnerTeam: finalWinnerTeam,
     scoreA,
     scoreB,
-    winnerPlayerId,
-    loserPlayerId,
-    partner,
-    isOnCurrentCourt,
-    warning,
+    winnerScore,
+    loserScore,
+    winnerNames,
+    loserNames,
     proposedTeamA,
     proposedTeamB,
     raw: parsedResult.raw,

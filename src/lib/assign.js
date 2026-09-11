@@ -36,12 +36,12 @@ export function sessionPlayers(db, s) {
   // sessionMembers chứ không groupMembers: người đi thêm cũng ra sân, cũng phải được xếp.
   const mem = sessionMembers(db, s)
     .filter((m) => isPresent(att[m.id]))
-    .map((m) => ({ key: m.id, name: m.name, level: levelOf(m, month), gender: m.gender, guest: false }))
+    .map((m) => ({ key: m.id, name: m.name, fullName: m.fullName || '', level: levelOf(m, month), gender: m.gender, guest: false }))
   // sGuestsOnly: thành viên đi buổi đột xuất đã có mặt trong `mem` qua bảng điểm danh. Lấy cả
   // dòng thu của họ nữa là họ đứng được hai ô trên sân cùng lúc, và matchStats đếm gấp đôi.
   const gs = sGuestsOnly(db, s.id).map((sg) => {
     const g = db.guests.find((x) => x.id === sg.guestId) || { name: '—' }
-    return { key: sg.guestId, name: g.name, level: sg.level, gender: sg.gender, guest: true }
+    return { key: sg.guestId, name: g.name, fullName: g.fullName || g.name || '', level: sg.level, gender: sg.gender, guest: true }
   })
   return mem.concat(gs)
 }
