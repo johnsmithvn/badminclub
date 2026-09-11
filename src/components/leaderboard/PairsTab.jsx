@@ -735,8 +735,11 @@ function getPairConfTier(pair) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
               {rankedPairs.length > 0 ? (
                 rankedPairs.map((pair, idx) => {
-                  const isTop = idx === 0 && pair.synergyScore >= 80
+                  const isTop = idx === 0 && (pair.synergyScore || 50) >= 80
                   const isProvisional = (pair.gamesCount || 0) < 5
+                  const displayScore = typeof pair.synergyScore === 'number' && !isNaN(pair.synergyScore)
+                    ? pair.synergyScore
+                    : 50
                   const confTier = getPairConfTier(pair)
                   const trend = pair.trend || 'steady'
                   const impactVal = pair.pairImpact || 0
@@ -792,16 +795,27 @@ function getPairConfTier(pair) {
                       {/* Điểm ăn ý + trend + số trận + confidence */}
                       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                            <span style={{ font: '700 30px/1 Barlow, sans-serif', color: isTop ? '#5FDBD3' : '#E9EFF7' }}>
-                              {isProvisional ? '~' : pair.synergyScore}
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                            <span style={{ font: '700 30px/1 Barlow, sans-serif', color: isTop ? '#5FDBD3' : isProvisional ? '#A8B7CB' : '#E9EFF7' }}>
+                              {displayScore}
                             </span>
+                            {isProvisional && (
+                              <span
+                                style={{
+                                  font: "600 16px/1 'IBM Plex Mono', monospace",
+                                  color: '#F0B75C',
+                                  marginRight: 2,
+                                }}
+                              >
+                                ~
+                              </span>
+                            )}
                             <span style={{ font: "600 15px/1 'IBM Plex Mono', monospace", color: trend === 'up' ? '#5FD9A2' : trend === 'down' ? '#FF9A8F' : '#8494AA' }}>
                               {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}
                             </span>
                           </div>
                           <div style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                            {pair.previousScore ? t('leaderboard.synergyFromScore', { prev: pair.previousScore }) : t('leaderboard.synergy')}
+                            {pair.previousScore ? t('leaderboard.synergyFromScore', { prev: pair.previousScore }) : t('leaderboard.synergyCol')}
                           </div>
                         </div>
 
