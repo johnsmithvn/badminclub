@@ -3,7 +3,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { pageOf } from '#routes'
-import { can } from '#lib/roles.js'
+import { can, footerSlots } from '#lib/roles.js'
 import { monthTxt } from '#utils/dates.js'
 import { adhocForm, scheduleForm, memberForm } from '#lib/forms.js'
 import { t } from '#i18n'
@@ -17,7 +17,6 @@ export default function AppHeader({ route }) {
   const page = pageOf(route)
 
   const isSettings = route === 'settings'
-  const canEditSettings = can(db.viewAs || 'owner', 'settings')
 
   // Màn SessionDetail, Giao dịch (Fund) và Bảng xếp hạng (Leaderboard) có header riêng chuẩn thiết kế -> ẩn AppHeader mặc định để tránh 2 header
   if (route === 'session' || route === 'fund' || route === 'leaderboard') {
@@ -25,149 +24,17 @@ export default function AppHeader({ route }) {
   }
 
   if (isMobile) {
-    if (route === 'sessions') {
-      return (
-        <header style={S.mobileHeaderH4}>
-          {/* Vòng hào quang góc phải theo thiết kế H4 */}
-          <div style={S.glowCircleH4} />
-
-          <div style={S.mobileContentH4}>
-            {/* Nút lùi 1 tháng ‹ */}
-            <button
-              type="button"
-              aria-label={t('common.prevMonth')}
-              onClick={() => a.shiftMonth(-1)}
-              style={S.monthArrowBtnH4}
-            >
-              <Icon name="chevron-left" size={16} />
-            </button>
-
-            {/* Khối tháng trung tâm: Tháng MM/YYYY + vạch teal */}
-            <div style={S.monthCenterH4}>
-              <span style={S.monthTextH4}>
-                {monthTxt(db.month)}
-              </span>
-              <span style={S.monthIndicatorH4} />
-            </div>
-
-            {/* Nút tiến 1 tháng › */}
-            <button
-              type="button"
-              aria-label={t('common.nextMonth')}
-              onClick={() => a.shiftMonth(1)}
-              style={S.monthArrowBtnH4}
-            >
-              <Icon name="chevron-right" size={16} />
-            </button>
-
-            {/* Thanh phân cách */}
-            <span style={S.dividerH4} />
-
-            {/* Nút chuyển theme sáng/tối */}
-            <button
-              type="button"
-              aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
-              onClick={toggleTheme}
-              style={S.themeBtnH4}
-            >
-              <Icon name={isDark ? 'sun' : 'moon'} size={15} />
-            </button>
-
-            {/* Nút thêm buổi đột xuất tròn teal */}
-            {can(role, 'sessions') && (
-              <button
-                type="button"
-                aria-label={t('shell.adhoc')}
-                onClick={() => a.openDialog('adhoc', adhocForm(db))}
-                style={S.adhocBtnH4}
-              >
-                <Icon name="plus" size={16} strokeWidth={2.6} />
-              </button>
-            )}
-          </div>
-        </header>
-      )
-    }
-
     return (
-      <header style={S.mobileHeader}>
-        <div style={S.mobileLeft}>
-          <div style={S.mobileTitle}>{page.title}</div>
-          <div style={S.mobileSubtitleRow}>
-            <span style={S.mobileClubName}>{db.club.name}</span>
-            {!isSettings ? (
-              <>
-                <span style={S.mobileDot}>·</span>
-                <div style={S.mobileMonthNav}>
-                  <button
-                    type="button"
-                    aria-label={t('common.prevMonth')}
-                    onClick={() => a.shiftMonth(-1)}
-                    style={S.mobileMonthBtn}
-                  >
-                    <Icon name="chevron-left" size={15} />
-                  </button>
-                  <span style={S.mobileMonthLabel}>{monthTxt(db.month)}</span>
-                  <button
-                    type="button"
-                    aria-label={t('common.nextMonth')}
-                    onClick={() => a.shiftMonth(1)}
-                    style={S.mobileMonthBtn}
-                  >
-                    <Icon name="chevron-right" size={15} />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <span style={S.mobileDot}>·</span>
-                <span style={S.mobileMonthLabel}>{monthTxt(db.month)}</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div style={S.mobileRight}>
-          <IconButton
-            icon={isDark ? 'sun' : 'moon'}
-            size="sm"
-            variant="ghost"
-            style={S.themeBtn}
-            label={isDark ? t('common.themeLight') : t('common.themeDark')}
-            onClick={toggleTheme}
-          />
-          {isSettings && canEditSettings && (
-            <div style={{ display: 'flex', gap: 4 }}>
-              <IconButton
-                icon="upload"
-                size="sm"
-                variant="ghost"
-                style={S.themeBtn}
-                label={t('settings.ioImport')}
-                onClick={() => a.openDialog('importSettings', {})}
-              />
-              <IconButton
-                icon="download"
-                size="sm"
-                variant="ghost"
-                style={S.themeBtn}
-                label={t('settings.ioExport')}
-                onClick={a.exportSettings}
-              />
-            </div>
-          )}
-          {route === 'members' && can(role, 'members') && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon="user-round-plus"
-              onClick={() => a.openDialog('member', memberForm(db))}
-            >
-              {t('common.add')}
-            </Button>
-          )}
-        </div>
-      </header>
+      <MobileUnifiedHeader
+        route={route}
+        page={page}
+        role={role}
+        db={db}
+        a={a}
+        isDark={isDark}
+        toggleTheme={toggleTheme}
+        isSettings={isSettings}
+      />
     )
   }
 
@@ -198,31 +65,120 @@ export default function AppHeader({ route }) {
           onClick={toggleTheme}
         />
 
-        {isSettings
-          ? canEditSettings && (
-            <>
-              <Button variant="secondary" icon="upload"
-                onClick={() => a.openDialog('importSettings', {})}>
-                {t('settings.ioImport')}
-              </Button>
-              <Button variant="secondary" icon="download"
-                onClick={a.exportSettings}>
-                {t('settings.ioExport')}
-              </Button>
-            </>
-          )
-          : can(role, 'sessions') && (
-            <>
-              <Button variant="secondary" icon="calendar-plus"
-                onClick={() => a.openDialog('adhoc', adhocForm(db))}>
-                {t('shell.adhoc')}
-              </Button>
-              <Button variant="primary" icon="repeat"
-                onClick={() => a.openDialog('schedule', scheduleForm(db))}>
-                {t('shell.bulkSchedule')}
-              </Button>
-            </>
-          )}
+        {!isSettings && can(role, 'sessions') && (
+          <>
+            <Button variant="secondary" icon="calendar-plus"
+              onClick={() => a.openDialog('adhoc', adhocForm(db))}>
+              {t('shell.adhoc')}
+            </Button>
+            <Button variant="primary" icon="repeat"
+              onClick={() => a.openDialog('schedule', scheduleForm(db))}>
+              {t('shell.bulkSchedule')}
+            </Button>
+          </>
+        )}
+      </div>
+    </header>
+  )
+}
+
+function MobileUnifiedHeader({
+  route,
+  page,
+  role,
+  db,
+  a,
+  isDark,
+  toggleTheme,
+  isSettings,
+}) {
+  const inMobileNav = footerSlots(role).includes(route)
+  const hasTitle = !inMobileNav
+
+  return (
+    <header style={S.mobileHeaderH4}>
+      {/* Vòng hào quang góc phải theo thiết kế H4 */}
+      <div style={S.glowCircleH4} />
+
+      <div style={hasTitle ? S.mobileContentH4Compact : S.mobileContentH4}>
+        {/* Tên màn nhỏ ở đầu giống H1 cho các màn không hiện ở sidebar/tabbar mobile */}
+        {hasTitle && (
+          <span style={S.screenTitleH1} title={page.title}>
+            {page.title}
+          </span>
+        )}
+
+        {/* Cụm chọn tháng (không hiện ở màn Cài đặt) */}
+        {!isSettings ? (
+          <>
+            {/* Nút lùi 1 tháng ‹ */}
+            <button
+              type="button"
+              aria-label={t('common.prevMonth')}
+              onClick={() => a.shiftMonth(-1)}
+              style={hasTitle ? S.monthArrowBtnCompact : S.monthArrowBtnH4}
+            >
+              <Icon name="chevron-left" size={hasTitle ? 14 : 16} />
+            </button>
+
+            {/* Khối tháng trung tâm: Tháng MM/YYYY + vạch teal */}
+            <div style={hasTitle ? S.monthCenterCompact : S.monthCenterH4}>
+              <span style={hasTitle ? S.monthTextCompact : S.monthTextH4}>
+                {monthTxt(db.month)}
+              </span>
+              <span style={hasTitle ? S.monthIndicatorCompact : S.monthIndicatorH4} />
+            </div>
+
+            {/* Nút tiến 1 tháng › */}
+            <button
+              type="button"
+              aria-label={t('common.nextMonth')}
+              onClick={() => a.shiftMonth(1)}
+              style={hasTitle ? S.monthArrowBtnCompact : S.monthArrowBtnH4}
+            >
+              <Icon name="chevron-right" size={hasTitle ? 14 : 16} />
+            </button>
+          </>
+        ) : (
+          <div style={{ flex: '1 1 auto' }} />
+        )}
+
+        {/* Thanh phân cách */}
+        {!isSettings && <span style={hasTitle ? S.dividerCompact : S.dividerH4} />}
+
+        {/* Nút chuyển theme sáng/tối */}
+        <button
+          type="button"
+          aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
+          onClick={toggleTheme}
+          style={hasTitle ? S.themeBtnCompact : S.themeBtnH4}
+        >
+          <Icon name={isDark ? 'sun' : 'moon'} size={hasTitle ? 14 : 15} />
+        </button>
+
+        {/* Nút thêm buổi đột xuất tròn teal ở màn Buổi tập */}
+        {route === 'sessions' && can(role, 'sessions') && (
+          <button
+            type="button"
+            aria-label={t('shell.adhoc')}
+            onClick={() => a.openDialog('adhoc', adhocForm(db))}
+            style={hasTitle ? S.actionBtnCompact : S.adhocBtnH4}
+          >
+            <Icon name="plus" size={hasTitle ? 15 : 16} strokeWidth={2.6} />
+          </button>
+        )}
+
+        {/* Nút thêm thành viên tròn teal ở màn Thành viên */}
+        {route === 'members' && can(role, 'members') && (
+          <button
+            type="button"
+            aria-label={t('common.add')}
+            onClick={() => a.openDialog('member', memberForm(db))}
+            style={hasTitle ? S.actionBtnCompact : S.adhocBtnH4}
+          >
+            <Icon name="user-round-plus" size={hasTitle ? 14 : 16} strokeWidth={2.4} />
+          </button>
+        )}
       </div>
     </header>
   )
@@ -255,87 +211,97 @@ const S = {
     border: '1px solid var(--border-subtle)', borderRadius: 6,
     color: 'var(--text-secondary)',
   },
-  mobileHeader: {
-    position: 'sticky',
-    top: 0,
-    zIndex: 30,
-    minHeight: 'var(--topbar-h, 60px)',
+  screenTitleH1: {
+    font: "700 15.5px/1.2 var(--font-sans, 'IBM Plex Sans', sans-serif)",
+    letterSpacing: '-0.015em',
+    color: '#FFFFFF',
+    whiteSpace: 'nowrap',
+    flex: '0 0 auto',
+    maxWidth: 125,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  mobileContentH4Compact: {
+    position: 'relative',
+    padding: '10px 12px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 18px',
-    background: 'var(--surface-nav)',
-    borderBottom: '1px solid var(--border-nav)',
+    gap: 6,
   },
-  mobileLeft: {
+  monthArrowBtnCompact: {
+    width: 28,
+    height: 28,
+    flex: '0 0 auto',
+    borderRadius: 7,
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid #2A3A58',
+    color: '#C5D3E6',
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'background 0.15s ease, border-color 0.15s ease',
+  },
+  monthCenterCompact: {
+    flex: '1 1 auto',
+    minWidth: 0,
+    height: 28,
+    padding: '0 2px',
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
-    minWidth: 0,
-    flex: 1,
-  },
-  mobileTitle: {
-    font: '600 17px/1.2 var(--font-display, Barlow, sans-serif)',
-    color: 'var(--text-on-nav-active)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  mobileSubtitleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    minWidth: 0,
-  },
-  mobileClubName: {
-    font: '400 12px/1.3 var(--font-mono)',
-    color: 'var(--text-on-nav)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    minWidth: 0,
-    flex: '1 1 auto',
-  },
-  mobileDot: {
-    color: 'var(--text-on-nav)',
-    opacity: 0.6,
-    flexShrink: 0,
-    font: '400 12px/1.3 var(--font-mono)',
-  },
-  mobileMonthNav: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    flexShrink: 0,
-    gap: 2,
-  },
-  mobileMonthLabel: {
-    fontWeight: 600,
-    font: '600 12px/1 var(--font-mono)',
-    color: 'var(--text-on-nav)',
-    flexShrink: 0,
-    whiteSpace: 'nowrap',
-    padding: '0 2px',
-  },
-  mobileMonthBtn: {
-    background: 'transparent',
-    border: 0,
-    color: 'var(--text-on-nav)',
-    cursor: 'pointer',
-    minWidth: 44,
-    minHeight: 44,
-    display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
-    padding: 0,
-    lineHeight: 1,
+    gap: 2,
+  },
+  monthTextCompact: {
+    font: "600 13px/1 var(--font-mono, 'IBM Plex Mono', monospace)",
+    color: '#FFFFFF',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  monthIndicatorCompact: {
+    width: 24,
+    height: 2,
+    borderRadius: 2,
+    background: 'var(--teal-500, #00B2A9)',
     flexShrink: 0,
   },
-  mobileRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
+  dividerCompact: {
+    width: 1,
+    height: 20,
+    flex: '0 0 auto',
+    background: '#2A3A58',
+    margin: '0 1px',
+  },
+  themeBtnCompact: {
+    width: 28,
+    height: 28,
+    flex: '0 0 auto',
+    borderRadius: 999,
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid #3A4C71',
+    color: '#C5D3E6',
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'background 0.15s ease, border-color 0.15s ease',
+  },
+  actionBtnCompact: {
+    width: 28,
+    height: 28,
+    flex: '0 0 auto',
+    borderRadius: 999,
+    background: 'var(--teal-500, #00B2A9)',
+    border: 'none',
+    color: '#04221F',
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0, 178, 169, 0.30)',
+    padding: 0,
+    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
   },
   mobileHeaderH4: {
     position: 'sticky',

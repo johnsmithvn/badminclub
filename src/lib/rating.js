@@ -10,6 +10,10 @@ export const K_FACTOR = cfg.rating?.kFactor ?? 32
 export const K_DYNAMIC = cfg.rating?.kDynamic || { r1: 48, r2: 36, r3: 28, r4: 20, r5: 16 }
 export const BALANCE_THRESHOLD = cfg.rating?.balanceThreshold ?? 120
 export const IMBALANCE_THRESHOLD = cfg.rating?.imbalanceThreshold ?? 250
+// Ngưỡng riêng của nhãn độ cân trên màn Chia sân. Thấp hơn cặp trên vì màn này đo bằng
+// rating đã hiệu chỉnh chéo nam-nữ (khoảng cách bị thu hẹp lại so với rating thô).
+export const COURT_BALANCE_THRESHOLD = cfg.rating?.courtBalanceThreshold ?? 80
+export const COURT_IMBALANCE_THRESHOLD = cfg.rating?.courtImbalanceThreshold ?? 200
 export const TIERS = cfg.rating?.tiers || [
   { key: 'novice', min: 0, max: 199, token: 'rank-novice', icon: 'sparkles' },
   { key: 'rookie', min: 200, max: 399, token: 'rank-rookie', icon: 'play' },

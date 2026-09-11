@@ -5,7 +5,7 @@ import { t } from '#i18n'
 
 /** Route bên trong một CLB — cần đăng nhập VÀ đã chọn CLB. */
 export const ROUTE_KEYS = [
-  'home', 'calendar', 'sessions', 'session', 'assign', 'leaderboard', 'schedules', 'members',
+  'home', 'calendar', 'sessions', 'session', 'assign', 'leaderboard', 'members',
   'debts', 'fund', 'profile', 'settings', 'schema',
 ]
 
@@ -27,7 +27,6 @@ const PATHS = {
   session: '/buoi-tap/:id',
   assign: '/chia-san',
   leaderboard: '/bang-xep-hang',
-  schedules: '/lich-co-dinh',
   members: '/thanh-vien',
   debts: '/cong-no',
   fund: '/so-quy',
@@ -56,6 +55,7 @@ export function pathOf(key, id) {
 
 export function keyOfPath(pathname) {
   if (pathname.startsWith('/buoi-tap/')) return 'session'
+  if (pathname === '/lich-co-dinh') return 'settings'
   const hit = ROUTE_KEYS.find((k) => PATHS[k] === pathname)
   return hit || 'home'
 }

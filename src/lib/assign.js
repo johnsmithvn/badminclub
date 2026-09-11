@@ -144,7 +144,17 @@ export function courtBalance(lineup, ci, levelOfKey, levels) {
  * 3. Đổi đối thủ (độ mới của đối đầu)
  * 4. Đều lượt đánh (so sánh lượt chơi với người đang chờ)
  */
-export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, matches = [], allMatches = null, players = [], stats = {} }) {
+export function detailedCourtBalance({
+  lineup = {},
+  ci = 0,
+  ratingsMap = {},
+  matches = [],
+  allMatches = null,
+  players = [],
+  stats = {},
+  effectiveRatingA = null,
+  effectiveRatingB = null,
+}) {
   const ids = courtSlotIds(ci)
   const teamA = [ids[0], ids[1]].map((s) => lineup[s]).filter(Boolean)
   const teamB = [ids[2], ids[3]].map((s) => lineup[s]).filter(Boolean)
@@ -179,15 +189,23 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
   const rawRa = teamA.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamA.length
   const rawRb = teamB.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamB.length
 
-  const ra = Math.round(rawRa + synergyBonusA)
-  const rb = Math.round(rawRb + synergyBonusB)
+  // Nếu có effective rating được truyền vào (hiệu chỉnh chéo nam-nữ từ lịch sử CLB),
+  // sử dụng effective rating để tính độ cân bằng và tỷ lệ thắng thực chiến
+  const baseRa = effectiveRatingA != null ? effectiveRatingA : rawRa
+  const baseRb = effectiveRatingB != null ? effectiveRatingB : rawRb
+
+  const ra = Math.round(baseRa + synergyBonusA)
+  const rb = Math.round(baseRb + synergyBonusB)
   const delta = Math.round(Math.abs(ra - rb))
-  const canRatingScore = Math.max(10, Math.min(100, Math.round(100 - (delta / 50) * 6)))
+  const rawDelta = Math.round(Math.abs(rawRa - rawRb))
 
   // Dự đoán xác suất thắng & độ lệch cân bằng kỳ vọng (Expected Balance)
   const expectedA = expectedScore(ra, rb)
   const expectedB = 1 - expectedA
   const expectedGapPp = Math.round(Math.abs(expectedA - expectedB) * 100)
+
+  // 1. Cân rating: dùng thẳng expectedGapPp từ xác suất thắng Elo tự nhiên (0..100)
+  const canRatingScore = Math.max(0, Math.min(100, 100 - expectedGapPp))
 
   // 2. Đổi partner (Partner Diversity - ưu tiên đổi bạn chơi mới trong buổi)
   let partnerPlayCount = 0
@@ -263,9 +281,10 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
   const waitDiff = minWaiting ? Math.max(0, maxOnCourt - minWaiting.n) : 0
   const fairScore = Math.max(40, Math.min(100, 100 - waitDiff * 14))
 
-  // Điểm tổng hợp 5 tiêu chí chuẩn vNext (Cân Elo 35%, Fairness 20%, Partner 15%, Opponent 15%, Matchup 15%)
+  // Điểm tổng hợp chuẩn: Cân Elo 55%, Đều lượt 20%, Đổi partner 15%, Đổi đối thủ 10% (Tổng = 100%)
+  // Ăn ý cặp & Khắc chế (H2H) thuộc nhóm [MỚI] không cộng vào điểm tổng (theo cam kết UI)
   const totalScore = Math.round(
-    canRatingScore * 0.35 + fairScore * 0.20 + partnerScore * 0.15 + opponentScore * 0.15 + h2hScore * 0.15
+    canRatingScore * 0.55 + fairScore * 0.20 + partnerScore * 0.15 + opponentScore * 0.10
   )
 
   let note = t('assign.balanceNoteGeneral', { delta })
@@ -286,17 +305,17 @@ export function detailedCourtBalance({ lineup = {}, ci = 0, ratingsMap = {}, mat
 
   // CE2 Giải trình cộng dồn (Screen 11a DV3)
   const breakdown = {
-    canRating: Math.round(canRatingScore * 0.35),
+    canRating: Math.round(canRatingScore * 0.55),
     partner: Math.round(partnerScore * 0.15),
-    opponent: Math.round(opponentScore * 0.15),
-    matchup: Math.round(h2hScore * 0.15),
+    opponent: Math.round(opponentScore * 0.10),
+    matchup: 0,
     fairness: Math.round(fairScore * 0.20),
     total: totalScore,
   }
 
   return {
     totalScore,
-    canRating: { delta, score: canRatingScore, deltaElo: delta },
+    canRating: { delta, score: canRatingScore, deltaElo: delta, rawDelta, isEffective: effectiveRatingA != null },
     partner: { score: partnerScore, playCount: partnerPlayCount },
     opponent: { score: opponentScore, playCount: opponentPlayCount },
     h2h: { score: h2hScore, matchesCount: h2hMatches.length, recentScores: recentScores.slice(0, 5), closeMatchesCount },
@@ -525,11 +544,12 @@ export function arrangeBestOfN({
   // 5 tiêu chí trung bình cho Plan A
   const cd = planA.courtDetails || []
   const criteria = {
-    canRating: Math.round(cd.reduce((s, c) => s + (c.canRating?.score || 90), 0) / (cd.length || 1)),
-    partner: Math.round(cd.reduce((s, c) => s + (c.partner?.score || 95), 0) / (cd.length || 1)),
-    opponent: Math.round(cd.reduce((s, c) => s + (c.opponent?.score || 85), 0) / (cd.length || 1)),
-    h2h: Math.round(cd.reduce((s, c) => s + (c.h2h?.score || 88), 0) / (cd.length || 1)),
-    fairness: Math.round(cd.reduce((s, c) => s + (c.fairness?.score || 90), 0) / (cd.length || 1)),
+    // `??` chứ không `||`: canRating có thể bằng 0 khi kèo lệch tuyệt đối, `||` sẽ nuốt mất số 0
+    canRating: Math.round(cd.reduce((s, c) => s + (c.canRating?.score ?? 90), 0) / (cd.length || 1)),
+    partner: Math.round(cd.reduce((s, c) => s + (c.partner?.score ?? 95), 0) / (cd.length || 1)),
+    opponent: Math.round(cd.reduce((s, c) => s + (c.opponent?.score ?? 85), 0) / (cd.length || 1)),
+    h2h: Math.round(cd.reduce((s, c) => s + (c.h2h?.score ?? 88), 0) / (cd.length || 1)),
+    fairness: Math.round(cd.reduce((s, c) => s + (c.fairness?.score ?? 90), 0) / (cd.length || 1)),
   }
 
   return {

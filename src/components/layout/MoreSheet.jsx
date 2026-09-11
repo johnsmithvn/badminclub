@@ -52,7 +52,6 @@ export default function MoreSheet({ open, onClose, route }) {
           badge: counts.pendingChanges > 0 ? counts.pendingChanges : null,
         },
         { value: 'calendar', icon: 'calendar-days' },
-        { value: 'schedules', icon: 'repeat' },
         ...(!currentSlots.includes('profile') ? [{
           value: 'profile',
           icon: 'user-round',

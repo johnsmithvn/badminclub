@@ -27,7 +27,6 @@ import Login from '#pages/Login.jsx'
 import Members from '#pages/Members.jsx'
 import Profile from '#pages/Profile.jsx'
 import Register from '#pages/Register.jsx'
-import Schedules from '#pages/Schedules.jsx'
 import Schema from '#pages/Schema.jsx'
 import SessionDetail from '#pages/SessionDetail.jsx'
 import Sessions from '#pages/Sessions.jsx'
@@ -35,7 +34,7 @@ import Settings from '#pages/Settings.jsx'
 
 const SCREEN = {
   home: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail, assign: Assign,
-  leaderboard: Leaderboard, schedules: Schedules, members: Members, debts: Debts, fund: Fund,
+  leaderboard: Leaderboard, members: Members, debts: Debts, fund: Fund,
   profile: Profile, settings: Settings, schema: Schema,
 }
 
@@ -102,6 +101,7 @@ function InClub() {
           const C = SCREEN[p.key]
           return <Route key={p.key} path={p.path} element={<C />} />
         })}
+        <Route path="/lich-co-dinh" element={<Navigate to="/cai-dat" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppLayout>

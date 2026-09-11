@@ -133,4 +133,60 @@ test('Screen M1 & M2 Balance Score and Pair Synergy Logic Suite', async (t) => {
     assert.ok(edge.gamesCount >= 5, 'Đủ mẫu >= 5 trận')
     assert.ok(edge.advantageScore > 50, 'Cặp A thắng áp đảo thì advantageScore > 50')
   })
+
+  await t.test('5. detailedCourtBalance uses natural expectedGapPp curve, 55% Elo weight, and supports effective rating', () => {
+    const ratingsMap = {
+      pA1: 460,
+      pA2: 663, // Team A = 561.5 ~ 562
+      pB1: 242,
+      pB2: 247, // Team B = 244.5 ~ 245
+    }
+    const players = [
+      { key: 'pA1', name: 'Anh Quân' },
+      { key: 'pA2', name: 'Kuro' },
+      { key: 'pB1', name: 'Vân Anh' },
+      { key: 'pB2', name: 'Mai' },
+    ]
+    const lineup = {
+      c0t0s0: 'pA1',
+      c0t0s1: 'pA2',
+      c0t1s0: 'pB1',
+      c0t1s1: 'pB2',
+    }
+
+    // 1. Raw ratings calculation
+    const rawRes = detailedCourtBalance({
+      lineup,
+      ci: 0,
+      ratingsMap,
+      matches: [],
+      players,
+      stats: {},
+    })
+
+    assert.ok(rawRes !== null)
+    // Team A ~ 562 vs Team B ~ 245 -> delta ~ 317 -> expectedGapPp around 72 -> canRating.score around 28
+    assert.ok(rawRes.canRating.score < 50, 'Lệch trình độ sâu thì canRating.score phải dưới 50')
+    assert.ok(rawRes.totalScore < 70, 'Điểm tổng trận lệch sâu phải dưới 70, không bị vọt lên 87 như trước')
+    assert.equal(rawRes.breakdown.matchup, 0, 'H2H không được âm thầm cộng vào breakdown')
+
+    // 2. Effective ratings calculation (truyền effective ratings đã hiệu chỉnh chéo giới tính)
+    const effRes = detailedCourtBalance({
+      lineup,
+      ci: 0,
+      ratingsMap,
+      matches: [],
+      players,
+      stats: {},
+      effectiveRatingA: 502,
+      effectiveRatingB: 321,
+    })
+
+    assert.ok(effRes !== null)
+    assert.equal(effRes.canRating.delta, 181, 'Delta phải dùng theo effective delta 181')
+    assert.equal(effRes.canRating.isEffective, true, 'isEffective phải là true')
+    assert.ok(effRes.canRating.score > rawRes.canRating.score, 'Effective rating thu hẹp khoảng cách thì canRating.score phải cao hơn raw')
+    assert.ok(effRes.totalScore >= 70, 'Trận được hiệu chỉnh chéo giới tính đạt mức điểm cân bằng hợp lý ~70-74')
+  })
 })
+

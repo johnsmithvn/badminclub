@@ -173,7 +173,7 @@ export default function Profile() {
     }}>
       {/* Cột trái: Hồ sơ cá nhân trong CLB, xin đổi thông tin và tài khoản */}
       <div style={{ display: 'grid', gap: 16 }}>
-        <MeCard me={me} myGroups={myGroups} db={db} a={a} />
+        <MeCard me={me} myGroups={myGroups} db={db} a={a} profile={profile} />
         <ChangeCard me={me} pending={pending} db={db} a={a} />
         <AccountCard myClubs={myClubs} setActiveClub={setActiveClub} db={db} navigate={navigate} />
       </div>
@@ -206,7 +206,7 @@ export default function Profile() {
  * `a.renameMe` ghi thẳng DB rồi `reload()` chứ không đi qua đồng bộ ngầm — lý do nằm ở chính
  * action đó (upsert cần policy INSERT mà thành viên thường không có).
  */
-function MeCard({ me, myGroups, db, a }) {
+function MeCard({ me, myGroups, db, a, profile }) {
   const [loadedFor, setLoadedFor] = useState(null)
   const [name, setName] = useState('')
   const [full, setFull] = useState('')

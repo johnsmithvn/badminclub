@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react'
 import { Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
-import { expectedScore, calcEloDelta, getPlayerRating, confidenceProgress } from '#lib/rating.js'
+import {
+  expectedScore, calcEloDelta, getPlayerRating, confidenceProgress,
+  BALANCE_THRESHOLD, IMBALANCE_THRESHOLD,
+} from '#lib/rating.js'
 import { playerName, playerOf } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -77,7 +80,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   }, [teamB, db])
 
   const gap = Math.abs(avgRatingA - avgRatingB)
-  const isImbalanced = gap > (cfg.rating?.thresholds?.imbalanced || 250)
+  const isImbalanced = gap > IMBALANCE_THRESHOLD
 
   // Elo win%
   const [pctA, pctB] = useMemo(() => {
@@ -275,10 +278,10 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               <div style={{
                 fontSize: 12,
                 fontWeight: 600,
-                color: isImbalanced ? 'var(--status-delayed-fg)' : gap <= 120 ? 'var(--status-delivered-fg)' : 'var(--status-transit-fg)',
+                color: isImbalanced ? 'var(--status-delayed-fg)' : gap <= BALANCE_THRESHOLD ? 'var(--status-delivered-fg)' : 'var(--status-transit-fg)',
                 marginTop: 2,
               }}>
-                {isImbalanced ? t('challenge.imbalancedWarn') : gap <= 120 ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
+                {isImbalanced ? t('challenge.imbalancedWarn') : gap <= BALANCE_THRESHOLD ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
               </div>
               {unreliableMember && (
                 <>

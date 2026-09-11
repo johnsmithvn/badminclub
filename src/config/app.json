@@ -105,6 +105,8 @@
     "defaultDeviation": 350,
     "balanceThreshold": 120,
     "imbalanceThreshold": 250,
+    "courtBalanceThreshold": 80,
+    "courtImbalanceThreshold": 200,
     "marginOfVictory": {
       "enabled": true,
       "maxMultiplier": 1.4,

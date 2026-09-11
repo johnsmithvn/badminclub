@@ -10,6 +10,7 @@ import {
   expectedScore, getPlayerRating,
   teamRating, computeClubCalibration,
   calcPlayerDeltas, calcPairImpact, DEFAULT_RATING,
+  COURT_BALANCE_THRESHOLD, COURT_IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
 import { calcSeasonMatchDelta, seasonConfigOf } from '#lib/season.js'
 import { t } from '#i18n'
@@ -558,24 +559,6 @@ export default function CourtAssignmentTab({ s }) {
     return calcPairImpact(db.matches || [], teamB[0], teamB[1], ratingsMap)
   }, [mode, teamB, db.matches, ratingsMap])
 
-  // Điểm cân bằng chi tiết (Detailed Balance Score - Mockup 01 & M2)
-  const balanceDetails = useMemo(() => {
-    if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) return null
-    const mockLineup = {}
-    const ids = courtSlotIds(courtIdx)
-    teamA.forEach((k, idx) => { mockLineup[ids[idx]] = k })
-    teamB.forEach((k, idx) => { mockLineup[ids[2 + idx]] = k })
-    return detailedCourtBalance({
-      lineup: mockLineup,
-      ci: courtIdx,
-      ratingsMap,
-      matches: sessionMatches,
-      allMatches: db.matches || [],
-      players,
-      stats: statsObj,
-    })
-  }, [teamA, teamB, maxPerTeam, courtIdx, ratingsMap, sessionMatches, db.matches, players, statsObj])
-
   // Phân tích Effective Rating & Học chéo giới tính (Mockup R3)
   const effectiveAnalysis = useMemo(() => {
     if (teamA.length < 2 || teamB.length < 2) return null
@@ -605,7 +588,7 @@ export default function CourtAssignmentTab({ s }) {
 
     // Gợi ý đổi người: thử swap 1 người để tìm cặp cân hơn
     let suggestion = null
-    if (deltaRating > 80 || effDelta > 80) {
+    if (deltaRating > COURT_BALANCE_THRESHOLD || effDelta > COURT_BALANCE_THRESHOLD) {
       const p1 = teamA[1]
       const p2 = teamB[1]
       if (p1 && p2) {
@@ -639,13 +622,42 @@ export default function CourtAssignmentTab({ s }) {
     }
   }, [teamA, teamB, players, ratingA, ratingB, deltaRating, db, ratingsMap])
 
-  // Win rate dự đoán từ Elo
+  // Điểm cân bằng chi tiết (Detailed Balance Score - Mockup 01 & M2)
+  const balanceDetails = useMemo(() => {
+    if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) return null
+    const mockLineup = {}
+    const ids = courtSlotIds(courtIdx)
+    teamA.forEach((k, idx) => { mockLineup[ids[idx]] = k })
+    teamB.forEach((k, idx) => { mockLineup[ids[2 + idx]] = k })
+
+    const useEffective = Boolean(effectiveAnalysis?.isCrossGender && (effectiveAnalysis.sampleMatches || 0) >= 15)
+
+    return detailedCourtBalance({
+      lineup: mockLineup,
+      ci: courtIdx,
+      ratingsMap,
+      matches: sessionMatches,
+      allMatches: db.matches || [],
+      players,
+      stats: statsObj,
+      effectiveRatingA: useEffective ? effectiveAnalysis.effA : null,
+      effectiveRatingB: useEffective ? effectiveAnalysis.effB : null,
+    })
+  }, [teamA, teamB, maxPerTeam, courtIdx, ratingsMap, sessionMatches, db.matches, players, statsObj, effectiveAnalysis])
+
+  // Win rate dự đoán từ Elo (đồng bộ với balanceDetails nếu có hiệu chỉnh)
   const [pctA, pctB] = useMemo(() => {
     if (!teamA.length || !teamB.length) return [50, 50]
+    if (balanceDetails?.expectedA != null) {
+      const rA = Math.round(balanceDetails.expectedA * 100)
+      return [rA, 100 - rA]
+    }
     const pA = expectedScore(ratingA, ratingB)
     const rA = Math.round(pA * 100)
     return [rA, 100 - rA]
-  }, [ratingA, ratingB, teamA, teamB])
+  }, [ratingA, ratingB, teamA, teamB, balanceDetails])
+
+  const activeDelta = balanceDetails?.canRating?.delta ?? deltaRating
 
   // Biến động Elo dự kiến theo thuật toán cho từng người
   const playerDeltas = useMemo(() => {
@@ -1569,6 +1581,73 @@ export default function CourtAssignmentTab({ s }) {
             </div>
           )}
 
+          {/* Dự đoán trước trận & Tỷ lệ (nằm trên Điểm cân bằng) */}
+          {teamA.length > 0 && teamB.length > 0 && (
+            <div style={S.preMatchBox}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  {t('scoreModal.predictTitle')}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div
+                    onClick={() => setRatingEnabled((v) => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <Switch
+                      size="sm"
+                      checked={Boolean(ratingEnabled)}
+                      onChange={(e) => {
+                        const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
+                        setRatingEnabled(Boolean(nextVal))
+                      }}
+                    />
+                    <span style={{ fontSize: 12, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
+                    </span>
+                  </div>
+                  <span
+                    style={
+                      ratingEnabled
+                        ? (activeDelta > COURT_IMBALANCE_THRESHOLD
+                            ? { ...S.balancedTag, background: 'rgba(225,68,52,.12)', color: '#FF9A8F', borderColor: 'rgba(225,68,52,.4)' }
+                            : activeDelta > COURT_BALANCE_THRESHOLD
+                              ? { ...S.balancedTag, background: 'rgba(224,138,0,.12)', color: '#F0B75C', borderColor: 'rgba(224,138,0,.4)' }
+                              : S.balancedTag)
+                        : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }
+                    }
+                  >
+                    {ratingEnabled
+                      ? (activeDelta > COURT_IMBALANCE_THRESHOLD
+                          ? t('scoreModal.imbalancedTag')
+                          : activeDelta > COURT_BALANCE_THRESHOLD
+                            ? t('scoreModal.slightTag')
+                            : t('scoreModal.balancedTag'))
+                      : t('scoreModal.unratedTag')}
+                  </span>
+                </div>
+              </div>
+              {ratingEnabled ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px "IBM Plex Mono", monospace', marginTop: 4 }}>
+                    <span style={{ color: 'var(--status-transit-fg)' }}>A {pctA}%</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{pctB}% B</span>
+                  </div>
+                  <div style={S.predictBarTrack}>
+                    <div style={{ width: `${pctA}%`, height: '100%', background: 'var(--action-accent-bg, #00B2A9)' }} />
+                    <div style={{ width: `${pctB}%`, height: '100%', background: 'var(--border-subtle)' }} />
+                  </div>
+                  <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
+                    {t('scoreModal.predictSub', { delta: activeDelta })}
+                  </div>
+                </>
+              ) : (
+                <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
+                  {t('scoreModal.predictSubUnrated')}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Banner Điểm cân bằng M1 (bấm vào mở Sheet M2 BalanceScore) */}
           {balanceDetails && (
             <div
@@ -1840,70 +1919,7 @@ export default function CourtAssignmentTab({ s }) {
               </div>
             )}
 
-            {/* Dự đoán trước trận & Thay đổi sau khi lưu */}
-            <div style={S.preMatchBox}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                  {t('scoreModal.predictTitle')}
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div
-                    onClick={() => setRatingEnabled((v) => !v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}
-                  >
-                    <Switch
-                      size="sm"
-                      checked={Boolean(ratingEnabled)}
-                      onChange={(e) => {
-                        const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
-                        setRatingEnabled(Boolean(nextVal))
-                      }}
-                    />
-                    <span style={{ fontSize: 12, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                      {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
-                    </span>
-                  </div>
-                  <span
-                    style={
-                      ratingEnabled
-                        ? (deltaRating > 200
-                            ? { ...S.balancedTag, background: 'rgba(225,68,52,.12)', color: '#FF9A8F', borderColor: 'rgba(225,68,52,.4)' }
-                            : deltaRating > 80
-                              ? { ...S.balancedTag, background: 'rgba(224,138,0,.12)', color: '#F0B75C', borderColor: 'rgba(224,138,0,.4)' }
-                              : S.balancedTag)
-                        : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }
-                    }
-                  >
-                    {ratingEnabled
-                      ? (deltaRating > 200
-                          ? t('scoreModal.imbalancedTag')
-                          : deltaRating > 80
-                            ? t('scoreModal.slightTag')
-                            : t('scoreModal.balancedTag'))
-                      : t('scoreModal.unratedTag')}
-                  </span>
-                </div>
-              </div>
-              {ratingEnabled ? (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px "IBM Plex Mono", monospace', marginTop: 4 }}>
-                    <span style={{ color: 'var(--status-transit-fg)' }}>A {pctA}%</span>
-                    <span style={{ color: 'var(--text-muted)' }}>{pctB}% B</span>
-                  </div>
-                  <div style={S.predictBarTrack}>
-                    <div style={{ width: `${pctA}%`, height: '100%', background: 'var(--action-accent-bg, #00B2A9)' }} />
-                    <div style={{ width: `${pctB}%`, height: '100%', background: 'var(--border-subtle)' }} />
-                  </div>
-                  <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
-                    {t('scoreModal.predictSub', { delta: deltaRating })}
-                  </div>
-                </>
-              ) : (
-                <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {t('scoreModal.predictSubUnrated')}
-                </div>
-              )}
-            </div>
+
 
             {/* Box thay đổi Elo & XP - Dạng Collapsible Accordion (mặc định đóng) */}
             <div style={S.changesBox}>
@@ -2968,13 +2984,14 @@ const S = {
     cursor: 'pointer',
   },
   preMatchBox: {
-    background: 'var(--surface-sunken)',
+    background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
-    borderRadius: 8,
-    padding: '12px',
+    borderRadius: 6,
+    padding: '10px 12px',
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
+    marginTop: 2,
   },
   balancedTag: {
     font: '600 10.5px/1 "IBM Plex Sans", sans-serif',
