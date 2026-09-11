@@ -152,8 +152,13 @@ export default function SeasonRaceTab({
                     </span>
                   )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
-                  <span style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top1?.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={34} />
+                    <span style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {top1?.name}
+                    </span>
+                  </div>
                   <span style={{ font: "600 32px/1 'IBM Plex Mono', monospace", color: isDark ? '#F7E3A1' : '#B45309' }}>
                     {top1?.totalSeasonPoints?.toLocaleString()}
                   </span>
@@ -180,7 +185,12 @@ export default function SeasonRaceTab({
                   }}
                 >
                   <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#2</div>
-                  <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top2?.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={26} />
+                    <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {top2?.name}
+                    </div>
+                  </div>
                   <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
                     {top2?.totalSeasonPoints?.toLocaleString()}
                   </div>
@@ -204,7 +214,12 @@ export default function SeasonRaceTab({
                   }}
                 >
                   <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#3</div>
-                  <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top3?.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={26} />
+                    <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {top3?.name}
+                    </div>
+                  </div>
                   <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
                     {top3?.totalSeasonPoints?.toLocaleString()}
                   </div>
@@ -241,7 +256,12 @@ export default function SeasonRaceTab({
                 }}
               >
                 <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#2</div>
-                <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top2?.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                  <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={30} />
+                  <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {top2?.name}
+                  </div>
+                </div>
                 <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
                   {top2?.totalSeasonPoints?.toLocaleString()}
                 </div>
@@ -283,7 +303,12 @@ export default function SeasonRaceTab({
                     {t('season.leaderBadge')}
                   </span>
                 </div>
-                <div style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top1?.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={36} />
+                  <div style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {top1?.name}
+                  </div>
+                </div>
                 <div style={{ font: "600 32px/1 'IBM Plex Mono', monospace", color: isDark ? '#F7E3A1' : '#B45309' }}>
                   {top1?.totalSeasonPoints?.toLocaleString()}
                 </div>
@@ -309,7 +334,12 @@ export default function SeasonRaceTab({
                 }}
               >
                 <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#3</div>
-                <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>{top3?.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                  <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={30} />
+                  <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {top3?.name}
+                  </div>
+                </div>
                 <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
                   {top3?.totalSeasonPoints?.toLocaleString()}
                 </div>
