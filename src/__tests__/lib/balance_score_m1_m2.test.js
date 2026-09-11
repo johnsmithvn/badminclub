@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { calcPairImpact, calcMatchupEdge } from '../../lib/rating.js'
+import {
+  calcPairImpact, calcMatchupEdge, normalizeSynergyScore, SYNERGY_CFG, MATCHUP_CFG,
+} from '../../lib/rating.js'
 import { detailedCourtBalance } from '../../lib/assign.js'
 
 test('Screen M1 & M2 Balance Score and Pair Synergy Logic Suite', async (t) => {
@@ -187,6 +189,57 @@ test('Screen M1 & M2 Balance Score and Pair Synergy Logic Suite', async (t) => {
     assert.equal(effRes.canRating.isEffective, true, 'isEffective phải là true')
     assert.ok(effRes.canRating.score > rawRes.canRating.score, 'Effective rating thu hẹp khoảng cách thì canRating.score phải cao hơn raw')
     assert.ok(effRes.totalScore >= 70, 'Trận được hiệu chỉnh chéo giới tính đạt mức điểm cân bằng hợp lý ~70-74')
+  })
+
+  await t.test('6. recentScores đọc theo đúng vế của cặp mình, không lật ngược khi đứng đội B', () => {
+    // Cặp [a1,a2] đánh 2 trận với cặp [b1,b2]:
+    //   m1: đứng đội A, THẮNG 21-15
+    //   m2: đứng đội B, THUA  15-21  (sets luôn ghi theo [điểm đội A, điểm đội B] của trận đó)
+    const matches = [
+      { id: 'm1', winnerTeam: 'A', teamA: ['a1', 'a2'], teamB: ['b1', 'b2'], sets: [[21, 15]], initialRatingA: 500, initialRatingB: 500, at: 1 },
+      { id: 'm2', winnerTeam: 'A', teamA: ['b1', 'b2'], teamB: ['a1', 'a2'], sets: [[21, 15]], initialRatingA: 500, initialRatingB: 500, at: 2 },
+    ]
+
+    const edge = calcMatchupEdge(matches, ['a1', 'a2'], ['b1', 'b2'], {})
+    assert.equal(edge.gamesCount, 2, 'Phải bắt được cả 2 trận dù đổi vế')
+    assert.equal(edge.winsCount, 1, 'Cặp a chỉ thắng 1 trong 2')
+    assert.deepEqual(
+      edge.recentScores,
+      ['21–15', '15–21'],
+      'Trận đứng đội B phải in 15–21 chứ không phải 21–15'
+    )
+    assert.equal(edge.avgScoreDiff, '0.0', 'Thắng 6 và thua 6 thì cách biệt trung bình bằng 0')
+
+    // Cùng luật đó áp cho khối h2h của detailedCourtBalance
+    const lineup = { c0t0s0: 'a1', c0t0s1: 'a2', c0t1s0: 'b1', c0t1s1: 'b2' }
+    const res = detailedCourtBalance({
+      lineup,
+      ci: 0,
+      ratingsMap: { a1: 500, a2: 500, b1: 500, b2: 500 },
+      matches,
+      allMatches: matches,
+      players: [{ key: 'a1' }, { key: 'a2' }, { key: 'b1' }, { key: 'b2' }],
+      stats: {},
+    })
+    assert.equal(res.h2h.matchesCount, 2, 'Đổi cấu trúc h2hMatches không được làm hụt số trận')
+    assert.deepEqual(res.h2h.recentScores, ['21–15', '15–21'], 'h2h.recentScores cũng phải theo vế đội A của sân')
+  })
+
+  await t.test('7. Hằng số ăn ý / khắc chế lấy từ config, giá trị giữ nguyên', () => {
+    assert.equal(SYNERGY_CFG.minGames, 5)
+    assert.equal(SYNERGY_CFG.shrinkGames, 15)
+    assert.equal(SYNERGY_CFG.positiveMultiplier, 2.41)
+    assert.equal(SYNERGY_CFG.negativeMultiplier, 0.7)
+    assert.equal(SYNERGY_CFG.ratingBonusMultiplier, 1.2)
+    assert.equal(SYNERGY_CFG.ratingBonusCap, 35)
+    assert.equal(MATCHUP_CFG.shrinkGames, 10)
+    assert.equal(MATCHUP_CFG.multiplier, 1.2)
+
+    // Đưa hằng số ra config KHÔNG được làm đổi một điểm nào
+    assert.equal(normalizeSynergyScore(17, 20), 91, '+17pp đủ mẫu vẫn phải ra 91 như design AY2')
+    assert.equal(normalizeSynergyScore(-17, 15), 38, '-17pp 15 trận vẫn phải ra 38 như design AY1')
+    assert.equal(normalizeSynergyScore(17, 10), 77, 'Co cụm khi chưa đủ 15 trận giữ nguyên')
+    assert.equal(normalizeSynergyScore(30, 20), 99, 'Vẫn chạm trần 99')
   })
 })
 

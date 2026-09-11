@@ -143,6 +143,22 @@
       { "key": "heavy_hitter", "min": 1200, "max": 1399, "token": "rank-heavy-hitter", "icon": "trophy" },
       { "key": "court_boss", "min": 1400, "max": 99999, "token": "rank-court-boss", "icon": "crown" }
     ],
+    "synergy": {
+      "minGames": 5,
+      "shrinkGames": 15,
+      "positiveMultiplier": 2.41,
+      "negativeMultiplier": 0.7,
+      "scoreMin": 10,
+      "scoreMax": 99,
+      "ratingBonusMultiplier": 1.2,
+      "ratingBonusCap": 35
+    },
+    "matchup": {
+      "shrinkGames": 10,
+      "multiplier": 1.2,
+      "scoreMin": 10,
+      "scoreMax": 99
+    },
     "h2hMatrixLimit": 8,
     "crossGenderConfidence": {
       "low": 5,

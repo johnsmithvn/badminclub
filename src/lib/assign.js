@@ -6,7 +6,7 @@ import { monthOf } from '#utils/dates.js'
 import { isPresent, levelIdx, levelOf, sGuestsOnly, sessionMembers } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
-import { calcPairImpact, calcMatchupEdge, expectedScore, DEFAULT_RATING } from '#lib/rating.js'
+import { calcPairImpact, calcMatchupEdge, expectedScore, DEFAULT_RATING, SYNERGY_CFG } from '#lib/rating.js'
 
 /** Năm chế độ xếp. Nhãn và mô tả lấy từ i18n theo key. */
 export const MODE_KEYS = ['balance', 'fewest', 'rest', 'same', 'random']
@@ -172,18 +172,23 @@ export function detailedCourtBalance({
   let pairAInfo = null
   let pairBInfo = null
 
+  // Lưu ý: hệ số ở đây (ratingBonusMultiplier) KHÁC hệ số quy ra điểm ăn ý hiển thị
+  // (positiveMultiplier / negativeMultiplier) — cùng một pairImpact cho ra hai con số khác nhau.
+  const synergyBonusOf = (info) => {
+    if (!info || info.gamesCount < SYNERGY_CFG.minGames) return 0
+    const cap = SYNERGY_CFG.ratingBonusCap
+    const raw = info.pairImpact * SYNERGY_CFG.ratingBonusMultiplier * info.confidence.weight
+    return Math.max(-cap, Math.min(cap, Math.round(raw)))
+  }
+
   if (teamA.length === 2) {
     pairAInfo = calcPairImpact(historyMatches, teamA[0], teamA[1], ratingsMap)
-    if (pairAInfo && pairAInfo.gamesCount >= 5) {
-      synergyBonusA = Math.max(-35, Math.min(35, Math.round(pairAInfo.pairImpact * 1.2 * pairAInfo.confidence.weight)))
-    }
+    synergyBonusA = synergyBonusOf(pairAInfo)
   }
 
   if (teamB.length === 2) {
     pairBInfo = calcPairImpact(historyMatches, teamB[0], teamB[1], ratingsMap)
-    if (pairBInfo && pairBInfo.gamesCount >= 5) {
-      synergyBonusB = Math.max(-35, Math.min(35, Math.round(pairBInfo.pairImpact * 1.2 * pairBInfo.confidence.weight)))
-    }
+    synergyBonusB = synergyBonusOf(pairBInfo)
   }
 
   const rawRa = teamA.reduce((sum, k) => sum + (ratingsMap[k] || 0), 0) / teamA.length
@@ -246,7 +251,8 @@ export function detailedCourtBalance({
     const aInB = teamA.some((k) => mb.includes(k))
     const bInA = teamB.some((k) => ma.includes(k))
     if ((aInA && bInB) || (aInB && bInA)) {
-      h2hMatches.push(m)
+      // Ghi lại vế mà đội A của sân này đứng trong trận đó, để đọc tỷ số không bị lật ngược.
+      h2hMatches.push({ match: m, aIsTeamA: aInA })
     }
   })
 
@@ -255,10 +261,11 @@ export function detailedCourtBalance({
   let blowoutMatchesCount = 0
   const recentScores = []
 
-  h2hMatches.forEach((m) => {
+  h2hMatches.forEach(({ match: m, aIsTeamA }) => {
     (m.sets || []).forEach(([sa, sb]) => {
       if (sa != null && sb != null) {
-        recentScores.push(`${sa}–${sb}`)
+        recentScores.push(aIsTeamA ? `${sa}–${sb}` : `${sb}–${sa}`)
+        // diff là trị tuyệt đối nên không phụ thuộc vế — giữ nguyên.
         const diff = Math.abs(sa - sb)
         if (diff <= 3) closeMatchesCount++
         if (diff >= 12) blowoutMatchesCount++

@@ -14,6 +14,32 @@ export const IMBALANCE_THRESHOLD = cfg.rating?.imbalanceThreshold ?? 250
 // rating đã hiệu chỉnh chéo nam-nữ (khoảng cách bị thu hẹp lại so với rating thô).
 export const COURT_BALANCE_THRESHOLD = cfg.rating?.courtBalanceThreshold ?? 80
 export const COURT_IMBALANCE_THRESHOLD = cfg.rating?.courtImbalanceThreshold ?? 200
+
+/**
+ * Hằng số quy đổi Ăn ý cặp (pairImpact tính bằng pp → điểm 0-100 và → rating cộng thêm).
+ * `positiveMultiplier` khác `negativeMultiplier` là CỐ Ý theo design AY1/AY2 (thưởng đậm hơn phạt),
+ * nên thang điểm không đối xứng quanh 50 — xem README/RULES trước khi chỉnh.
+ */
+export const SYNERGY_CFG = {
+  minGames: 5,
+  shrinkGames: 15,
+  positiveMultiplier: 2.41,
+  negativeMultiplier: 0.7,
+  scoreMin: 10,
+  scoreMax: 99,
+  ratingBonusMultiplier: 1.2,
+  ratingBonusCap: 35,
+  ...(cfg.rating?.synergy || {}),
+}
+
+/** Hằng số quy đổi Khắc chế. Đối xứng, và co cụm theo mốc trận riêng (không dùng chung với Ăn ý). */
+export const MATCHUP_CFG = {
+  shrinkGames: 10,
+  multiplier: 1.2,
+  scoreMin: 10,
+  scoreMax: 99,
+  ...(cfg.rating?.matchup || {}),
+}
 export const TIERS = cfg.rating?.tiers || [
   { key: 'novice', min: 0, max: 199, token: 'rank-novice', icon: 'sparkles' },
   { key: 'rookie', min: 200, max: 399, token: 'rank-rookie', icon: 'play' },
@@ -870,14 +896,10 @@ export function confidenceLevelOf(gamesCount = 0) {
  */
 export function normalizeSynergyScore(pairImpact = 0, gamesCount = 0) {
   if (!gamesCount || gamesCount <= 0) return 50
-  const c = Math.min(1.0, gamesCount / 15)
-  let scaled = 50
-  if (pairImpact >= 0) {
-    scaled = 50 + pairImpact * 2.41 * c
-  } else {
-    scaled = 50 + pairImpact * 0.70 * c
-  }
-  return Math.max(10, Math.min(99, Math.round(scaled)))
+  const c = Math.min(1.0, gamesCount / SYNERGY_CFG.shrinkGames)
+  const mult = pairImpact >= 0 ? SYNERGY_CFG.positiveMultiplier : SYNERGY_CFG.negativeMultiplier
+  const scaled = 50 + pairImpact * mult * c
+  return Math.max(SYNERGY_CFG.scoreMin, Math.min(SYNERGY_CFG.scoreMax, Math.round(scaled)))
 }
 
 /**
@@ -1099,13 +1121,19 @@ export function calcMatchupEdge(matches = [], pairAKeys = [], pairBKeys = [], ra
   const expectedWinPct = Math.round(expectedRate)
   const matchupImpact = Math.round(actualRate - expectedRate)
 
-  const c = Math.min(1.0, gamesCount / 10)
-  const advantageScore = Math.max(10, Math.min(99, Math.round(50 + matchupImpact * 1.2 * c)))
+  const c = Math.min(1.0, gamesCount / MATCHUP_CFG.shrinkGames)
+  const advantageScore = Math.max(
+    MATCHUP_CFG.scoreMin,
+    Math.min(MATCHUP_CFG.scoreMax, Math.round(50 + matchupImpact * MATCHUP_CFG.multiplier * c))
+  )
 
+  // Đọc tỷ số theo đúng vế của cặp A (giống avgScoreDiff bên dưới). Bỏ `pairAIsTeamA` ra là
+  // trận cặp A đứng bên đội B bị in ngược: thua 15–21 hiện thành "21–15".
   const recentScores = []
-  h2hMatches.slice(-5).forEach((m) => {
-    (m.sets || []).forEach(([sa, sb]) => {
-      if (sa != null && sb != null) recentScores.push(`${sa}–${sb}`)
+  h2hMatches.slice(-5).forEach((hm) => {
+    (hm.sets || []).forEach(([sa, sb]) => {
+      if (sa == null || sb == null) return
+      recentScores.push(hm.pairAIsTeamA ? `${sa}–${sb}` : `${sb}–${sa}`)
     })
   })
 
