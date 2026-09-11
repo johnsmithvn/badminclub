@@ -541,242 +541,308 @@ export default function Leaderboard() {
     }
   }, [playerA, playerB, db.matches])
 
+  const headerSubText = activeTab === 'season'
+    ? t('season.headerSub')
+    : activeTab === 'elo'
+    ? t('season.eloHeaderSub')
+    : activeTab === 'search'
+    ? t('matchSearch.searchHeaderSub')
+    : activeTab === 'matrix'
+    ? (matrixMemberLimit === 5
+        ? t('matchSearch.matrixSubMobile5')
+        : matrixMemberLimit === 999
+        ? t('matchSearch.matrixHeaderSub', { count: activeMembers.length })
+        : t('matchSearch.matrixSubTopN', { count: matrixMemberLimit }))
+    : t('leaderboard.sub')
+
+  const headerActionButtons = (
+    <>
+      <button
+        type="button"
+        onClick={toggleTheme}
+        title={isDark ? t('common.themeLight') : t('common.themeDark')}
+        aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
+        style={{
+          font: "600 12px/1 'IBM Plex Sans', sans-serif",
+          width: isMobile ? 32 : undefined,
+          height: isMobile ? 32 : undefined,
+          padding: isMobile ? 0 : '8px 12px',
+          borderRadius: 6,
+          background: 'var(--surface-raised)',
+          border: '1px solid var(--border-default)',
+          color: 'var(--text-secondary)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          transition: 'all 0.15s ease',
+          flexShrink: 0,
+        }}
+      >
+        <Icon name={isDark ? 'sun' : 'moon'} size={15} />
+        {!isMobile && <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>}
+      </button>
+
+      {activeTab === 'search' ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setActiveTab('matrix')}
+            title={t('leaderboard.tabMatrix')}
+            aria-label={t('leaderboard.tabMatrix')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              width: isMobile ? 32 : undefined,
+              height: isMobile ? 32 : undefined,
+              padding: isMobile ? 0 : '8px 14px',
+              borderRadius: 6,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="grid" size={14} />
+            {!isMobile && <span>{t('leaderboard.tabMatrix')}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={handleExportFilteredMatchesCsv}
+            title={t('matchSearch.exportFilteredCsv', { count: searchResults.length })}
+            aria-label={t('matchSearch.exportFilteredCsv', { count: searchResults.length })}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              width: isMobile ? 32 : undefined,
+              height: isMobile ? 32 : undefined,
+              padding: isMobile ? 0 : '8px 14px',
+              borderRadius: 6,
+              background: '#1D50A0',
+              border: 'none',
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="download" size={14} />
+            {!isMobile && <span>{t('matchSearch.exportFilteredCsv', { count: searchResults.length })}</span>}
+          </button>
+        </>
+      ) : activeTab === 'matrix' ? (
+        <>
+          <div style={{
+            display: 'flex',
+            padding: 2,
+            borderRadius: 6,
+            background: 'var(--surface-inset)',
+            border: '1px solid var(--border-subtle)',
+            alignItems: 'center',
+          }}>
+            {[5, 8, 12, 999].map((limit) => (
+              <button
+                key={limit}
+                type="button"
+                onClick={() => setMatrixMemberLimit(limit)}
+                style={{
+                  padding: isMobile ? '4px 7px' : '5px 10px',
+                  borderRadius: 4,
+                  border: 'none',
+                  background: matrixMemberLimit === limit ? 'var(--surface-card)' : 'transparent',
+                  color: matrixMemberLimit === limit ? 'var(--text-primary)' : 'var(--text-muted)',
+                  font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                  cursor: 'pointer',
+                  boxShadow: matrixMemberLimit === limit ? 'var(--shadow-xs)' : 'none',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {limit === 999
+                  ? t('matchSearch.clubAll')
+                  : isMobile
+                  ? limit
+                  : `Top ${limit}`}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={handleExportMatrixCsv}
+            title={t('common.exportCsv')}
+            aria-label={t('common.exportCsv')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              width: isMobile ? 32 : undefined,
+              height: isMobile ? 32 : undefined,
+              padding: isMobile ? 0 : '8px 14px',
+              borderRadius: 6,
+              background: '#1D50A0',
+              border: 'none',
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="download" size={14} />
+            {!isMobile && <span>{t('common.exportCsv')}</span>}
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            title={t('common.exportCsv')}
+            aria-label={t('common.exportCsv')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              width: isMobile ? 32 : undefined,
+              height: isMobile ? 32 : undefined,
+              padding: isMobile ? 0 : '8px 14px',
+              borderRadius: 6,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="download" size={14} />
+            {!isMobile && <span>{t('common.exportCsv')}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRecalcConfirmOpen(true)}
+            title={t('leaderboard.recalcHint')}
+            aria-label={t('leaderboard.btnRecalc')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              width: isMobile ? 32 : undefined,
+              height: isMobile ? 32 : undefined,
+              padding: isMobile ? 0 : '8px 14px',
+              borderRadius: 6,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="rotate-ccw" size={14} />
+            {!isMobile && <span>{t('leaderboard.btnRecalc')}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSeasonSettingsOpen(true)}
+            title={t('season.settingsBtn')}
+            aria-label={t('season.settingsBtn')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              width: isMobile ? 32 : undefined,
+              height: isMobile ? 32 : undefined,
+              padding: isMobile ? 0 : '8px 14px',
+              borderRadius: 6,
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="settings" size={14} />
+            {!isMobile && <span>{t('season.settingsBtn')}</span>}
+          </button>
+        </>
+      )}
+    </>
+  )
+
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {/* ---------------- Header trang Bảng xếp hạng (Duy nhất) ---------------- */}
       <div
         style={{
-          padding: isMobile ? '12px 16px' : '14px 20px',
+          padding: isMobile ? '12px 14px' : '14px 20px',
           background: 'var(--surface-card)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 10,
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
           justifyContent: 'space-between',
-          gap: 14,
-          flexWrap: 'wrap',
+          gap: isMobile ? 8 : 14,
           boxShadow: 'var(--shadow-xs)',
         }}
       >
-        <div style={{ flex: '1 1 240px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-          <h1 style={{ font: "700 20px/1.25 Barlow, sans-serif", color: 'var(--text-primary)', margin: 0 }}>
-            {t('leaderboard.title')}
-          </h1>
-          <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-            {activeTab === 'season'
-              ? t('season.headerSub')
-              : activeTab === 'elo'
-              ? t('season.eloHeaderSub')
-              : activeTab === 'search'
-              ? t('matchSearch.searchHeaderSub')
-              : activeTab === 'matrix'
-              ? (matrixMemberLimit === 5
-                  ? t('matchSearch.matrixSubMobile5')
-                  : matrixMemberLimit === 999
-                  ? t('matchSearch.matrixHeaderSub', { count: activeMembers.length })
-                  : t('matchSearch.matrixSubTopN', { count: matrixMemberLimit }))
-              : t('leaderboard.sub')}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            title={isDark ? t('common.themeLight') : t('common.themeDark')}
-            aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: isMobile ? '8px 10px' : '8px 12px',
-              borderRadius: 6,
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <Icon name={isDark ? 'sun' : 'moon'} size={15} />
-            {!isMobile && <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>}
-          </button>
-
-          {activeTab === 'search' ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setActiveTab('matrix')}
-                title={t('leaderboard.tabMatrix')}
-                style={{
-                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                  padding: isMobile ? '8px 10px' : '8px 14px',
-                  borderRadius: 6,
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon name="grid" size={14} />
-                <span>{t('leaderboard.tabMatrix')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleExportFilteredMatchesCsv}
-                title={t('matchSearch.exportFilteredCsv', { count: searchResults.length })}
-                style={{
-                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                  padding: isMobile ? '8px 10px' : '8px 14px',
-                  borderRadius: 6,
-                  background: '#1D50A0',
-                  border: 'none',
-                  color: '#FFFFFF',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon name="download" size={14} />
-                <span>{t('matchSearch.exportFilteredCsv', { count: searchResults.length })}</span>
-              </button>
-            </>
-          ) : activeTab === 'matrix' ? (
-            <>
-              <div style={{
-                display: 'flex',
-                padding: 2,
-                borderRadius: 6,
-                background: 'var(--surface-inset)',
-                border: '1px solid var(--border-subtle)',
-                alignItems: 'center',
-              }}>
-                {[5, 8, 12, 999].map((limit) => (
-                  <button
-                    key={limit}
-                    type="button"
-                    onClick={() => setMatrixMemberLimit(limit)}
-                    style={{
-                      padding: isMobile ? '5px 8px' : '5px 10px',
-                      borderRadius: 4,
-                      border: 'none',
-                      background: matrixMemberLimit === limit ? 'var(--surface-card)' : 'transparent',
-                      color: matrixMemberLimit === limit ? 'var(--text-primary)' : 'var(--text-muted)',
-                      font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                      cursor: 'pointer',
-                      boxShadow: matrixMemberLimit === limit ? 'var(--shadow-xs)' : 'none',
-                      transition: 'all 0.15s ease',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {limit === 999
-                      ? t('matchSearch.clubAll')
-                      : isMobile
-                      ? limit
-                      : `Top ${limit}`}
-                  </button>
-                ))}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            flexWrap: isMobile ? 'nowrap' : 'wrap',
+            minWidth: 0,
+            flex: isMobile ? undefined : '1 1 240px',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+            <h1 style={{ font: isMobile ? "700 18px/1.2 Barlow, sans-serif" : "700 20px/1.25 Barlow, sans-serif", color: 'var(--text-primary)', margin: 0 }}>
+              {t('leaderboard.title')}
+            </h1>
+            {!isMobile && (
+              <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {headerSubText}
               </div>
-              <button
-                type="button"
-                onClick={handleExportMatrixCsv}
-                title={t('common.exportCsv')}
-                aria-label={t('common.exportCsv')}
-                style={{
-                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                  padding: isMobile ? '8px 10px' : '8px 14px',
-                  borderRadius: 6,
-                  background: '#1D50A0',
-                  border: 'none',
-                  color: '#FFFFFF',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon name="download" size={14} />
-                {!isMobile && <span>{t('common.exportCsv')}</span>}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                title={t('common.exportCsv')}
-                aria-label={t('common.exportCsv')}
-                style={{
-                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                  padding: isMobile ? '8px 10px' : '8px 14px',
-                  borderRadius: 6,
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon name="download" size={14} />
-                <span>{t('common.exportCsv')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecalcConfirmOpen(true)}
-                title={t('leaderboard.recalcHint')}
-                aria-label={t('leaderboard.btnRecalc')}
-                style={{
-                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                  padding: isMobile ? '8px 10px' : '8px 14px',
-                  borderRadius: 6,
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon name="rotate-ccw" size={14} />
-                <span>{t('leaderboard.btnRecalc')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSeasonSettingsOpen(true)}
-                title={t('season.settingsBtn')}
-                aria-label={t('season.settingsBtn')}
-                style={{
-                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                  padding: isMobile ? '8px 10px' : '8px 14px',
-                  borderRadius: 6,
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon name="settings" size={14} />
-                <span>{t('season.settingsBtn')}</span>
-              </button>
-            </>
+            )}
+          </div>
+          {isMobile && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+              {headerActionButtons}
+            </div>
           )}
         </div>
+
+        {isMobile && (
+          <div style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+            {headerSubText}
+          </div>
+        )}
+
+        {!isMobile && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {headerActionButtons}
+          </div>
+        )}
       </div>
 
       {/* ---------------- 1. Tab Bar chính của Leaderboard ---------------- */}

@@ -3227,6 +3227,8 @@
     "xpNextAt": "Lv {{level}} ở {{xp}} XP",
     "memberMatchesMeta": "{{n}} trận · {{winRate}}% thắng",
     "doublesMatchesCount": "{{matches}} trận đôi đã ghi · {{pairs}} cặp từng ra sân",
+    "doublesMatchesUnit": "trận đôi đã ghi",
+    "pairsPlayedUnit": "cặp từng ra sân",
     "synergyNotWinrate": "Hợp cạ không phải tỷ lệ thắng",
     "synergyNotWinrateDesc": "Một cặp thắng 72% chưa chắc hợp cạ — nếu Elo đã dự đoán họ thắng 70% thì đó là bình thường. Độ hợp cạ đọc phần vượt kỳ vọng: hệ thống dự 55% mà thực tế 72% mới là tín hiệu.",
     "expectedFormulaBadge": "kỳ vọng = f(Elo hiệu dụng 4 người)",

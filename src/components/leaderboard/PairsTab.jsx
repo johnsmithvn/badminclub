@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
+import { Icon } from '#ds'
 import { rankPairs, calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 import { ConfidenceChip } from '#ui'
@@ -133,7 +134,7 @@ export default function PairsTab({
   matches = [],
   membersMap = {},
   ratingsMap = {},
-  onExportCsv,
+  onExportCsv: _onExportCsv,
   onViewPairMatches,
   db,
 }) {
@@ -319,57 +320,97 @@ function getPairConfTier(pair) {
       {/* Sub-Header */}
       <div
         style={{
-          padding: '14px 20px',
-          borderBottom: '1px solid rgba(255,255,255,.10)',
+          padding: isMobile ? '12px 14px' : '14px 20px',
+          borderBottom: '1px solid rgba(255,255,255,.08)',
           display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-          flexWrap: 'wrap',
+          flexDirection: 'column',
+          gap: 10,
         }}
       >
-        <div style={{ flex: '1 1 0%', minWidth: 200, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ font: '600 18px/1.25 Barlow, sans-serif', color: '#fff' }}>
+        {/* Row 1: Title + Cách tính button */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <div style={{ font: '700 18px/1.25 Barlow, sans-serif', color: '#FFFFFF', letterSpacing: '-0.01em' }}>
             {t('leaderboard.tabPairs')}
           </div>
-          <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-            {t('leaderboard.doublesMatchesCount', {
-              matches: totalDoublesMatches,
-              pairs: totalPairsCount,
-            })}
-          </div>
+
+          <button
+            type="button"
+            onClick={() => setFormulaModalOpen(true)}
+            title={t('leaderboard.howCalculated')}
+            style={{
+              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+              padding: '6px 11px',
+              borderRadius: 6,
+              background: '#141D2E',
+              border: '1px solid #2E3E5C',
+              color: '#5FDBD3',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="calculator" size={13} style={{ color: '#5FDBD3' }} />
+            <span>{t('leaderboard.howCalculated')}</span>
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onExportCsv}
+        {/* Row 2: Compact Highlighted Metrics */}
+        <div
           style={{
-            font: "600 12px/1 'IBM Plex Sans', sans-serif",
-            padding: '9px 14px',
-            borderRadius: 6,
-            background: '#1A2437',
-            border: '1px solid #2E3E5C',
-            color: '#E9EFF7',
-            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
           }}
         >
-          {t('leaderboard.exportCsv')}
-        </button>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '3px 9px',
+              borderRadius: 6,
+              background: 'rgba(95,219,211,.08)',
+              border: '1px solid rgba(95,219,211,.22)',
+              font: "400 12px/1.3 'IBM Plex Sans', sans-serif",
+              color: '#A8B7CB',
+            }}
+          >
+            <span style={{ font: "700 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+              {totalDoublesMatches}
+            </span>
+            <span>{t('leaderboard.doublesMatchesUnit')}</span>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => setFormulaModalOpen(true)}
-          style={{
-            font: "600 12px/1 'IBM Plex Sans', sans-serif",
-            padding: '9px 14px',
-            borderRadius: 6,
-            background: '#1A2437',
-            border: '1px solid #2E3E5C',
-            color: '#E9EFF7',
-            cursor: 'pointer',
-          }}
-        >
-          {t('leaderboard.howCalculated')}
-        </button>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '3px 9px',
+              borderRadius: 6,
+              background: 'rgba(240,183,92,.08)',
+              border: '1px solid rgba(240,183,92,.22)',
+              font: "400 12px/1.3 'IBM Plex Sans', sans-serif",
+              color: '#A8B7CB',
+            }}
+          >
+            <span style={{ font: "700 13px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
+              {totalPairsCount}
+            </span>
+            <span>{t('leaderboard.pairsPlayedUnit')}</span>
+          </div>
+        </div>
       </div>
 
       {/* 2 Highlight Cards: Hiển thị trên cả Mobile và Desktop */}
