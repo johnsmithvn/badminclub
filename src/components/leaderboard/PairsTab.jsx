@@ -137,8 +137,7 @@ export default function PairsTab({
   db,
 }) {
   const isMobile = useMobile()
-  const [formatFilter, setFormatFilter] = useState('all') // 'all' | 'MD' | 'WD' | 'XD'
-  const [min5Only, setMin5Only] = useState(false)
+  const [formatFilter, setFormatFilter] = useState('MD') // 'MD' | 'WD' | 'XD'
   const [selectedPair, setSelectedPair] = useState(null)
   const [formulaModalOpen, setFormulaModalOpen] = useState(false)
   const [confidenceSheetOpen, setConfidenceSheetOpen] = useState(false)
@@ -150,9 +149,9 @@ export default function PairsTab({
     return rankPairs(matches, membersMap, ratingsMap, {
       format: formatFilter,
       formatFilter,
-      minGames: min5Only ? 5 : 1,
+      minGames: 1,
     })
-  }, [matches, membersMap, ratingsMap, formatFilter, min5Only])
+  }, [matches, membersMap, ratingsMap, formatFilter])
 
   // Toàn bộ cặp (không lọc format/trận) để tìm top/underperforming và đếm tổng
   const allPairsData = useMemo(() => {
@@ -407,7 +406,6 @@ function getConfidenceDots(tier) {
               }}
             >
               {[
-                { key: 'all', label: t('leaderboard.filterAllFormats') },
                 { key: 'MD', label: t('leaderboard.filterMD') },
                 { key: 'WD', label: t('leaderboard.filterWD') },
                 { key: 'XD', label: t('leaderboard.filterXD') },
@@ -433,23 +431,6 @@ function getConfidenceDots(tier) {
                 )
               })}
             </div>
-
-            <button
-              type="button"
-              onClick={() => setMin5Only(!min5Only)}
-              style={{
-                font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                padding: '6px 10px',
-                borderRadius: 6,
-                border: '1px solid #22304A',
-                cursor: 'pointer',
-                background: min5Only ? '#00B2A9' : '#141D2E',
-                color: min5Only ? '#04302C' : '#A8B7CB',
-                fontWeight: min5Only ? 700 : 600,
-              }}
-            >
-              {t('leaderboard.min5Games')}
-            </button>
           </div>
 
           {mobileSubTab === 'pairs' ? (
@@ -664,7 +645,6 @@ function getConfidenceDots(tier) {
               }}
             >
               {[
-                { key: 'all', label: t('leaderboard.filterAllFormats') },
                 { key: 'MD', label: t('leaderboard.filterMD') },
                 { key: 'WD', label: t('leaderboard.filterWD') },
                 { key: 'XD', label: t('leaderboard.filterXD') },
@@ -690,23 +670,6 @@ function getConfidenceDots(tier) {
                 )
               })}
             </div>
-
-            <button
-              type="button"
-              onClick={() => setMin5Only(!min5Only)}
-              style={{
-                font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                padding: '8px 12px',
-                borderRadius: 6,
-                border: '1px solid #22304A',
-                cursor: 'pointer',
-                background: min5Only ? '#00B2A9' : '#141D2E',
-                color: min5Only ? '#04302C' : '#A8B7CB',
-                fontWeight: min5Only ? 700 : 600,
-              }}
-            >
-              {t('leaderboard.min5Games')}
-            </button>
           </div>
 
           {/* Main Grid: Left Column & Right Column Desktop */}
