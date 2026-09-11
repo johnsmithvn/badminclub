@@ -139,7 +139,7 @@ export default function PairsTab({
   db,
 }) {
   const isMobile = useMobile()
-  const [formatFilter, setFormatFilter] = useState('MD') // 'MD' | 'WD' | 'XD'
+  const [formatFilter, setFormatFilter] = useState('all') // 'all' | 'MD' | 'WD' | 'XD'
   const [selectedPair, setSelectedPair] = useState(null)
   const [formulaModalOpen, setFormulaModalOpen] = useState(false)
   const [confidenceSheetOpen, setConfidenceSheetOpen] = useState(false)
@@ -226,6 +226,44 @@ function getPairConfTier(pair) {
   if (typeof pair?.confidence === 'string') return pair.confidence
   return pair?.confidence?.tier || 'R1'
 }
+
+function getScoreVisuals(score, isTop) {
+  if (isTop || score >= 75) {
+    return {
+      color: '#5FDBD3',
+      textShadow: '0 0 16px rgba(95, 219, 211, 0.55), 0 0 4px rgba(95, 219, 211, 0.8)',
+      bg: 'rgba(0, 178, 169, 0.14)',
+      border: '1px solid rgba(95, 219, 211, 0.35)',
+      boxShadow: '0 0 12px rgba(95, 219, 211, 0.18)',
+    }
+  }
+  if (score >= 65) {
+    return {
+      color: '#5FD9A2',
+      textShadow: '0 0 14px rgba(95, 217, 162, 0.45)',
+      bg: 'rgba(18, 168, 103, 0.14)',
+      border: '1px solid rgba(95, 217, 162, 0.30)',
+      boxShadow: '0 0 10px rgba(95, 217, 162, 0.15)',
+    }
+  }
+  if (score >= 50) {
+    return {
+      color: '#F0B75C',
+      textShadow: '0 0 10px rgba(240, 183, 92, 0.35)',
+      bg: 'rgba(240, 183, 92, 0.10)',
+      border: '1px solid rgba(240, 183, 92, 0.25)',
+      boxShadow: 'none',
+    }
+  }
+  return {
+    color: '#FF9A8F',
+    textShadow: '0 0 10px rgba(255, 154, 143, 0.30)',
+    bg: 'rgba(225, 68, 52, 0.10)',
+    border: '1px solid rgba(255, 154, 143, 0.25)',
+    boxShadow: 'none',
+  }
+}
+
 
 
   // Tính toán tất cả các cặp đối đầu (kình địch) trong CLB từ lịch sử trận đấu
@@ -344,9 +382,10 @@ function getPairConfTier(pair) {
             type="button"
             onClick={() => setFormulaModalOpen(true)}
             title={t('leaderboard.howCalculated')}
+            aria-label={t('leaderboard.howCalculated')}
             style={{
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: '6px 11px',
+              padding: isMobile ? '7px 8px' : '6px 11px',
               borderRadius: 6,
               background: '#141D2E',
               border: '1px solid #2E3E5C',
@@ -354,13 +393,14 @@ function getPairConfTier(pair) {
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 5,
               transition: 'all 0.15s ease',
               flexShrink: 0,
             }}
           >
-            <Icon name="calculator" size={13} style={{ color: '#5FDBD3' }} />
-            <span>{t('leaderboard.howCalculated')}</span>
+            <Icon name="calculator" size={14} style={{ color: '#5FDBD3' }} />
+            {!isMobile && <span>{t('leaderboard.howCalculated')}</span>}
           </button>
         </div>
 
@@ -413,7 +453,109 @@ function getPairConfTier(pair) {
         </div>
       </div>
 
-      {/* 2 Highlight Cards: Hiển thị trên cả Mobile và Desktop */}
+      {/* Mobile Controls: Sub-tab switcher + Format Filter (đẩy lên trên highlight card) */}
+      {isMobile && (
+        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Subtab Switcher: Cặp bài trùng vs Kình địch */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 4,
+              padding: 3,
+              borderRadius: 8,
+              background: '#101927',
+              border: '1px solid #22304A',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setMobileSubTab('pairs')}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                padding: '9px 6px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                background: mobileSubTab === 'pairs' ? '#141D2E' : 'transparent',
+                color: mobileSubTab === 'pairs' ? '#5FDBD3' : '#8494AA',
+                boxShadow: mobileSubTab === 'pairs' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {t('leaderboard.subtabPairs')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileSubTab('h2h')}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                padding: '9px 6px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                background: mobileSubTab === 'h2h' ? '#141D2E' : 'transparent',
+                color: mobileSubTab === 'h2h' ? '#F0B75C' : '#8494AA',
+                boxShadow: mobileSubTab === 'h2h' ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {t('leaderboard.subtabH2H')}
+            </button>
+          </div>
+
+          {/* Quick Filters Mobile: Tất cả (Cả nam nữ) / Đôi nam / Đôi nữ / Nam-nữ */}
+          {mobileSubTab === 'pairs' && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 4,
+                padding: 2,
+                borderRadius: 8,
+                background: '#101927',
+                border: '1px solid #22304A',
+              }}
+            >
+              {[
+                { key: 'all', label: t('leaderboard.filterAllFormats') },
+                { key: 'MD', label: t('leaderboard.filterMD') },
+                { key: 'WD', label: t('leaderboard.filterWD') },
+                { key: 'XD', label: t('leaderboard.filterXD') },
+              ].map((item) => {
+                const active = formatFilter === item.key
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setFormatFilter(item.key)}
+                    style={{
+                      flex: 1,
+                      font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                      padding: '7px 4px',
+                      borderRadius: 6,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: active ? '#1D50A0' : 'transparent',
+                      color: active ? '#fff' : '#A8B7CB',
+                      boxShadow: active ? '0 2px 6px rgba(29,80,160,0.35)' : 'none',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2 Highlight Cards: Lọc theo tab trên Mobile, Hiện cả 2 trên Desktop */}
       <div
         style={{
           padding: isMobile ? '0 14px' : '0 20px',
@@ -422,14 +564,14 @@ function getPairConfTier(pair) {
           gap: 14,
         }}
       >
-        {/* Card 1: Cặp bài trùng của mùa (Cyan #00B2A9) */}
-        {topPair ? (
+        {/* Card 1: Cặp bài trùng của mùa (Hiện trên Desktop, hoặc trên Mobile khi chọn tab 'pairs') */}
+        {(!isMobile || mobileSubTab === 'pairs') && (topPair ? (
           <div
             onClick={() => setSelectedPair(topPair)}
             style={{
-              background: 'linear-gradient(180deg, rgba(0,178,169,.16), #141D2E)',
-              border: '1px solid #00786F',
-              boxShadow: '0 4px 20px rgba(0, 178, 169, 0.08)',
+              background: 'linear-gradient(180deg, rgba(0,178,169,.18), #141D2E)',
+              border: '1px solid #00B2A9',
+              boxShadow: '0 4px 22px rgba(0, 178, 169, 0.16)',
               borderRadius: 10,
               padding: '14px 16px',
               display: 'grid',
@@ -440,7 +582,7 @@ function getPairConfTier(pair) {
           >
             <span
               style={{
-                font: "600 10px/1 'IBM Plex Mono', monospace",
+                font: "700 10px/1 'IBM Plex Mono', monospace",
                 letterSpacing: '.06em',
                 padding: '4px 8px',
                 borderRadius: 999,
@@ -476,32 +618,40 @@ function getPairConfTier(pair) {
             >
               <div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
+                  <span style={{
+                    font: '800 24px/1 Barlow, sans-serif',
+                    color: '#5FDBD3',
+                    textShadow: '0 0 16px rgba(95, 219, 211, 0.6), 0 0 4px rgba(95, 219, 211, 0.9)',
+                  }}>
                     {topPair.synergyScore}
                   </span>
-                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#5FD9A2' }}>
+                  <span style={{ font: "700 14px/1 'IBM Plex Mono', monospace", color: '#5FD9A2', textShadow: '0 0 8px rgba(95, 217, 162, 0.5)' }}>
                     ↑
                   </span>
                 </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', marginTop: 2 }}>
                   {t('leaderboard.pairBestFrom', { from: Math.max(50, topPair.synergyScore - 7) })}
                 </div>
               </div>
 
               <div>
-                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
-                  +{topPair.pairImpact}pp
+                <div style={{
+                  font: '800 20px/1 Barlow, sans-serif',
+                  color: topPair.pairImpact >= 0 ? '#5FD9A2' : '#FF9A8F',
+                  textShadow: topPair.pairImpact >= 0 ? '0 0 12px rgba(95, 217, 162, 0.4)' : 'none',
+                }}>
+                  {topPair.pairImpact >= 0 ? `+${topPair.pairImpact}pp` : `${topPair.pairImpact}pp`}
                 </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', marginTop: 2 }}>
                   impact
                 </div>
               </div>
 
               <div>
-                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
+                <div style={{ font: '800 20px/1 Barlow, sans-serif', color: '#FFFFFF' }}>
                   {topPair.gamesCount}
                 </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', marginTop: 2 }}>
                   {t('leaderboard.games')}
                 </div>
               </div>
@@ -510,7 +660,7 @@ function getPairConfTier(pair) {
                 <div style={{ marginBottom: 2 }}>
                   <ConfidenceChip confidence={getPairConfTier(topPair)} />
                 </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', marginTop: 2 }}>
                   {t('rating.confidence.label')}
                 </div>
               </div>
@@ -523,12 +673,14 @@ function getPairConfTier(pair) {
                     <span
                       key={rIdx}
                       style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 3,
-                        background: res === 'W' ? 'rgba(18,168,103,.24)' : 'rgba(225,68,52,.22)',
+                        width: 20,
+                        height: 20,
+                        borderRadius: 4,
+                        background: res === 'W' ? 'rgba(18,168,103,.32)' : 'rgba(225,68,52,.28)',
                         color: res === 'W' ? '#5FD9A2' : '#FF9A8F',
-                        font: "600 10px/18px 'IBM Plex Mono', monospace",
+                        border: res === 'W' ? '1px solid rgba(95,217,162,.4)' : '1px solid rgba(255,154,143,.4)',
+                        boxShadow: res === 'W' ? '0 0 8px rgba(95,217,162,.3)' : 'none',
+                        font: "700 11px/19px 'IBM Plex Mono', monospace",
                         textAlign: 'center',
                       }}
                     >
@@ -536,7 +688,7 @@ function getPairConfTier(pair) {
                     </span>
                   ))}
                 </span>
-                <span style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <span style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
                   form 5 · {t('leaderboard.formHot', {
                     w: (topPair.recentResults || []).filter(r => r === 'W').length || (topPair.wins != null ? topPair.wins : 1),
                     l: (topPair.recentResults || []).filter(r => r === 'L').length || (topPair.losses != null ? topPair.losses : 0)
@@ -545,238 +697,162 @@ function getPairConfTier(pair) {
               </div>
             </div>
           </div>
-        ) : null}
+        ) : null)}
 
-        {/* Card 2: Kình địch tiêu biểu (Hiệu ứng rực cháy 🔥) */}
-        {topRivalry ? (
-          <div
-            onClick={() => setSelectedH2HPair({ pairA: topRivalry.pairA, pairB: topRivalry.pairB })}
-            style={{
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.20) 0%, rgba(245, 158, 11, 0.14) 50%, #141D2E 100%)',
-              border: '1px solid rgba(245, 158, 11, 0.45)',
-              boxShadow: '0 4px 22px rgba(239, 68, 68, 0.12)',
-              borderRadius: 10,
-              padding: '14px 16px',
-              display: 'grid',
-              gap: 9,
-              cursor: 'pointer',
-              transition: 'transform 0.15s ease, border-color 0.15s ease',
-            }}
-          >
-            <span
+        {/* Card 2: Kình địch tiêu biểu (Hiện trên Desktop, hoặc trên Mobile khi chọn tab 'h2h') */}
+        {(!isMobile || mobileSubTab === 'h2h') && (
+          topRivalry ? (
+            <div
+              onClick={() => setSelectedH2HPair({ pairA: topRivalry.pairA, pairB: topRivalry.pairB })}
               style={{
-                font: "700 10px/1 'IBM Plex Mono', monospace",
-                letterSpacing: '.06em',
-                padding: '4px 9px',
-                borderRadius: 999,
-                background: 'linear-gradient(90deg, #FF5722 0%, #FF9800 100%)',
-                color: '#FFFFFF',
-                boxShadow: '0 2px 8px rgba(255, 87, 34, 0.35)',
-                justifySelf: 'start',
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.20) 0%, rgba(245, 158, 11, 0.14) 50%, #141D2E 100%)',
+                border: '1px solid rgba(245, 158, 11, 0.45)',
+                boxShadow: '0 4px 22px rgba(239, 68, 68, 0.12)',
+                borderRadius: 10,
+                padding: '14px 16px',
+                display: 'grid',
+                gap: 9,
+                cursor: 'pointer',
+                transition: 'transform 0.15s ease, border-color 0.15s ease',
               }}
             >
-              {t('leaderboard.topRivalryBadge')}
-            </span>
+              <span
+                style={{
+                  font: "700 10px/1 'IBM Plex Mono', monospace",
+                  letterSpacing: '.06em',
+                  padding: '4px 9px',
+                  borderRadius: 999,
+                  background: 'linear-gradient(90deg, #FF5722 0%, #FF9800 100%)',
+                  color: '#FFFFFF',
+                  boxShadow: '0 2px 8px rgba(255, 87, 34, 0.35)',
+                  justifySelf: 'start',
+                }}
+              >
+                {t('leaderboard.topRivalryBadge')}
+              </span>
 
-            <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: '#fff', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span>{topRivalry.fromName}</span>
-              <span style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#FF7A45' }}>⚔️</span>
-              <span style={{ color: '#E9EFF7' }}>{topRivalry.toName}</span>
+              <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: '#fff', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span>{topRivalry.fromName}</span>
+                <span style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#FF7A45' }}>⚔️</span>
+                <span style={{ color: '#E9EFF7' }}>{topRivalry.toName}</span>
+              </div>
+
+              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                {t('leaderboard.topRivalryDesc', {
+                  from: topRivalry.fromName,
+                  to: topRivalry.toName,
+                  score: topRivalry.score,
+                  games: topRivalry.games,
+                  exp: topRivalry.expected,
+                  wins: topRivalry.wins,
+                })}
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 16,
+                  paddingTop: 8,
+                  borderTop: '1px solid #22304A',
+                  marginTop: 2,
+                  flexWrap: 'wrap',
+                  alignItems: 'flex-end',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#FF7A45' }}>
+                      {topRivalry.score}
+                    </span>
+                    <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#FFA940' }}>
+                      🔥
+                    </span>
+                  </div>
+                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                    {t('leaderboard.rivalryAdvantage')}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
+                    {topRivalry.impact >= 0 ? `+${topRivalry.impact}pp` : `${topRivalry.impact}pp`}
+                  </div>
+                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                    {t('leaderboard.advantageEdge')}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
+                    {topRivalry.games}
+                  </div>
+                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                    {t('leaderboard.games')}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#5FD9A2', marginBottom: 2 }}>
+                    {topRivalry.wins}T – {topRivalry.losses}B
+                  </div>
+                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                    {t('leaderboard.h2hRecord')}
+                  </div>
+                </div>
+
+                <div style={{ flex: '1 1 0%' }} />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#F0B75C' }}>
+                    {t('leaderboard.viewH2HDetail')} →
+                  </span>
+                </div>
+              </div>
             </div>
-
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-              {t('leaderboard.topRivalryDesc', {
-                from: topRivalry.fromName,
-                to: topRivalry.toName,
-                score: topRivalry.score,
-                games: topRivalry.games,
-                exp: topRivalry.expected,
-                wins: topRivalry.wins,
-              })}
-            </div>
-
+          ) : (
             <div
               style={{
-                display: 'flex',
-                gap: 16,
-                paddingTop: 8,
-                borderTop: '1px solid #22304A',
-                marginTop: 2,
-                flexWrap: 'wrap',
-                alignItems: 'flex-end',
+                background: '#141D2E',
+                border: '1px dashed #2E3E5C',
+                borderRadius: 10,
+                padding: '14px 16px',
+                display: 'grid',
+                gap: 8,
+                alignContent: 'center',
               }}
             >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#FF7A45' }}>
-                    {topRivalry.score}
-                  </span>
-                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#FFA940' }}>
-                    🔥
-                  </span>
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  {t('leaderboard.rivalryAdvantage')}
-                </div>
+              <span
+                style={{
+                  font: "600 10px/1 'IBM Plex Mono', monospace",
+                  letterSpacing: '.06em',
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  color: '#F0B75C',
+                  justifySelf: 'start',
+                }}
+              >
+                {t('leaderboard.topRivalryBadge')}
+              </span>
+              <div style={{ font: '600 16px/1.2 Barlow, sans-serif', color: '#E9EFF7' }}>
+                {t('leaderboard.topRivalryEmptyTitle')}
               </div>
-
-              <div>
-                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
-                  {topRivalry.impact >= 0 ? `+${topRivalry.impact}pp` : `${topRivalry.impact}pp`}
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  {t('leaderboard.advantageEdge')}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
-                  {topRivalry.games}
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  {t('leaderboard.games')}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#5FD9A2', marginBottom: 2 }}>
-                  {topRivalry.wins}T – {topRivalry.losses}B
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  {t('leaderboard.h2hRecord')}
-                </div>
-              </div>
-
-              <div style={{ flex: '1 1 0%' }} />
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#F0B75C' }}>
-                  {t('leaderboard.viewH2HDetail')} →
-                </span>
+              <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                {t('leaderboard.topRivalryEmptyDesc')}
               </div>
             </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              background: '#141D2E',
-              border: '1px dashed #2E3E5C',
-              borderRadius: 10,
-              padding: '14px 16px',
-              display: 'grid',
-              gap: 8,
-              alignContent: 'center',
-            }}
-          >
-            <span
-              style={{
-                font: "600 10px/1 'IBM Plex Mono', monospace",
-                letterSpacing: '.06em',
-                padding: '3px 8px',
-                borderRadius: 999,
-                background: 'rgba(245, 158, 11, 0.15)',
-                color: '#F0B75C',
-                justifySelf: 'start',
-              }}
-            >
-              {t('leaderboard.topRivalryBadge')}
-            </span>
-            <div style={{ font: '600 16px/1.2 Barlow, sans-serif', color: '#E9EFF7' }}>
-              {t('leaderboard.topRivalryEmptyTitle')}
-            </div>
-            <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-              {t('leaderboard.topRivalryEmptyDesc')}
-            </div>
-          </div>
+          )
         )}
       </div>
 
       {/* Giao diện Mobile P1 vs Desktop */}
       {isMobile ? (
         <div data-screen-label="P1 Tab an y v1.1" style={{ display: 'flex', flexDirection: 'column', gap: 11, padding: '0 14px' }}>
-          {/* Segmented Switch */}
-          <div style={{ display: 'flex', gap: 3, padding: 3, borderRadius: 8, background: '#101927', border: '1px solid #22304A' }}>
-            <button
-              type="button"
-              onClick={() => setMobileSubTab('pairs')}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                font: "600 13px/1 'IBM Plex Sans', sans-serif",
-                padding: '10px 4px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                background: mobileSubTab === 'pairs' ? '#141D2E' : 'transparent',
-                color: mobileSubTab === 'pairs' ? '#E9EFF7' : '#8494AA',
-              }}
-            >
-              {t('leaderboard.subtabPairs')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileSubTab('h2h')}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                font: "600 13px/1 'IBM Plex Sans', sans-serif",
-                padding: '10px 4px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                background: mobileSubTab === 'h2h' ? '#141D2E' : 'transparent',
-                color: mobileSubTab === 'h2h' ? '#E9EFF7' : '#8494AA',
-              }}
-            >
-              {t('leaderboard.subtabH2H')}
-            </button>
-          </div>
-
-          {/* Quick Filters Mobile */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div
-              style={{
-                display: 'flex',
-                gap: 4,
-                padding: 2,
-                borderRadius: 8,
-                background: '#141D2E',
-                border: '1px solid #22304A',
-              }}
-            >
-              {[
-                { key: 'MD', label: t('leaderboard.filterMD') },
-                { key: 'WD', label: t('leaderboard.filterWD') },
-                { key: 'XD', label: t('leaderboard.filterXD') },
-              ].map((item) => {
-                const active = formatFilter === item.key
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setFormatFilter(item.key)}
-                    style={{
-                      font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                      padding: '6px 9px',
-                      borderRadius: 6,
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: active ? '#1D50A0' : 'transparent',
-                      color: active ? '#fff' : '#A8B7CB',
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           {mobileSubTab === 'pairs' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
               {rankedPairs.length > 0 ? (
                 rankedPairs.map((pair, idx) => {
-                  const isTop = idx === 0 && (pair.synergyScore || 50) >= 80
+                  const isTop = idx === 0
                   const isProvisional = (pair.gamesCount || 0) < 5
                   const displayScore = typeof pair.synergyScore === 'number' && !isNaN(pair.synergyScore)
                     ? pair.synergyScore
@@ -786,11 +862,13 @@ function getPairConfTier(pair) {
                   const impactVal = pair.pairImpact || 0
                   const impactSign = impactVal > 0 ? `+${impactVal}pp` : `${impactVal}pp`
 
+                  const scoreVis = getScoreVisuals(displayScore, isTop)
+
                   const tagLabel = isTop ? t('leaderboard.tagTop1') : (pair.formKey === 'hot' || trend === 'up' ? t('leaderboard.tagHot') : t('leaderboard.tagStable'))
                   const tagStyle = isTop
-                    ? { background: 'rgba(0, 178, 169, 0.20)', color: '#5FDBD3' }
+                    ? { background: 'rgba(0, 178, 169, 0.20)', color: '#5FDBD3', border: '1px solid rgba(0, 178, 169, 0.4)' }
                     : tagLabel === t('leaderboard.tagHot')
-                    ? { background: 'rgba(18, 168, 103, 0.20)', color: '#5FD9A2' }
+                    ? { background: 'rgba(18, 168, 103, 0.20)', color: '#5FD9A2', border: '1px solid rgba(18, 168, 103, 0.35)' }
                     : { background: 'rgba(148, 164, 186, 0.16)', color: '#A8B7CB' }
 
                   const recentResults = pair.recentResults || []
@@ -807,13 +885,27 @@ function getPairConfTier(pair) {
                       key={getPairKey(pair) || idx}
                       onClick={() => setSelectedPair(pair)}
                       style={{
-                        background: '#141D2E',
-                        border: isTop ? '1px solid #00786F' : '1px solid #22304A',
+                        background: isTop
+                          ? 'linear-gradient(135deg, rgba(0, 178, 169, 0.12) 0%, #141D2E 100%)'
+                          : displayScore >= 65
+                          ? 'linear-gradient(135deg, rgba(0, 178, 169, 0.05) 0%, #141D2E 100%)'
+                          : '#141D2E',
+                        border: isTop
+                          ? '1px solid #00B2A9'
+                          : displayScore >= 65
+                          ? '1px solid rgba(95, 219, 211, 0.3)'
+                          : '1px solid #22304A',
                         borderRadius: 10,
                         padding: 13,
                         display: 'grid',
                         gap: 10,
                         cursor: 'pointer',
+                        boxShadow: isTop
+                          ? '0 4px 20px rgba(0, 178, 169, 0.14)'
+                          : displayScore >= 65
+                          ? '0 2px 12px rgba(95, 219, 211, 0.08)'
+                          : 'none',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       {/* Header: Tên cặp + Tag */}
@@ -823,7 +915,7 @@ function getPairConfTier(pair) {
                         </span>
                         <span
                           style={{
-                            font: "500 10.5px/1 'IBM Plex Sans', sans-serif",
+                            font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
                             padding: '5px 8px',
                             borderRadius: 999,
                             ...tagStyle,
@@ -836,26 +928,51 @@ function getPairConfTier(pair) {
                       {/* Điểm ăn ý + trend + số trận + confidence */}
                       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                            <span style={{ font: '700 30px/1 Barlow, sans-serif', color: isTop ? '#5FDBD3' : isProvisional ? '#A8B7CB' : '#E9EFF7' }}>
-                              {displayScore}
-                            </span>
-                            {isProvisional && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'baseline',
+                                gap: 5,
+                                padding: '4px 10px',
+                                borderRadius: 8,
+                                background: scoreVis.bg,
+                                border: scoreVis.border,
+                                boxShadow: scoreVis.boxShadow,
+                              }}
+                            >
                               <span
                                 style={{
-                                  font: "600 16px/1 'IBM Plex Mono', monospace",
-                                  color: '#F0B75C',
-                                  marginRight: 2,
+                                  font: '800 28px/1 Barlow, sans-serif',
+                                  color: scoreVis.color,
+                                  textShadow: scoreVis.textShadow,
+                                  letterSpacing: '-0.01em',
                                 }}
                               >
-                                ~
+                                {displayScore}
                               </span>
-                            )}
-                            <span style={{ font: "600 15px/1 'IBM Plex Mono', monospace", color: trend === 'up' ? '#5FD9A2' : trend === 'down' ? '#FF9A8F' : '#8494AA' }}>
-                              {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}
-                            </span>
+                              {isProvisional && (
+                                <span
+                                  style={{
+                                    font: "700 15px/1 'IBM Plex Mono', monospace",
+                                    color: '#F0B75C',
+                                    marginRight: 2,
+                                  }}
+                                >
+                                  ~
+                                </span>
+                              )}
+                              <span
+                                style={{
+                                  font: "700 14px/1 'IBM Plex Mono', monospace",
+                                  color: trend === 'up' ? '#5FD9A2' : trend === 'down' ? '#FF9A8F' : '#8494AA',
+                                }}
+                              >
+                                {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}
+                              </span>
+                            </div>
                           </div>
-                          <div style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                          <div style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA', marginTop: 4 }}>
                             {pair.previousScore ? t('leaderboard.synergyFromScore', { prev: pair.previousScore }) : t('leaderboard.synergyCol')}
                           </div>
                         </div>
@@ -863,7 +980,7 @@ function getPairConfTier(pair) {
                         <div style={{ flex: 1 }} />
 
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ font: "400 13px/1.3 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                          <div style={{ font: "500 13px/1.3 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
                             {t('leaderboard.gamesCountShort', { n: pair.gamesCount })}
                           </div>
                           <button
@@ -876,7 +993,7 @@ function getPairConfTier(pair) {
                               background: 'transparent',
                               border: 'none',
                               padding: 0,
-                              marginTop: 2,
+                              marginTop: 3,
                               cursor: 'pointer',
                             }}
                           >
@@ -1051,6 +1168,7 @@ function getPairConfTier(pair) {
               }}
             >
               {[
+                { key: 'all', label: t('leaderboard.filterAllFormats') },
                 { key: 'MD', label: t('leaderboard.filterMD') },
                 { key: 'WD', label: t('leaderboard.filterWD') },
                 { key: 'XD', label: t('leaderboard.filterXD') },
@@ -1169,9 +1287,10 @@ function getPairConfTier(pair) {
             {/* Rows */}
             {rankedPairs.length > 0 ? (
               rankedPairs.map((pair, idx) => {
-                const isTop = idx === 0 && pair.synergyScore >= 80
+                const isTop = idx === 0
                 const isLow = pair.pairImpact <= -10 && pair.gamesCount >= 5
                 const isProvisional = (pair.gamesCount || 0) < 5
+                const scoreVis = getScoreVisuals(pair.synergyScore || 50, isTop)
 
                 const impactVal = pair.pairImpact || 0
                 const confTier = getPairConfTier(pair)
@@ -1293,8 +1412,9 @@ function getPairConfTier(pair) {
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
                         <span
                           style={{
-                            font: '700 17px/1 Barlow, sans-serif',
-                            color: isTop ? '#5FDBD3' : isLow ? '#F09A8E' : isProvisional ? '#A8B7CB' : '#E9EFF7',
+                            font: '800 18px/1 Barlow, sans-serif',
+                            color: scoreVis.color,
+                            textShadow: scoreVis.textShadow,
                           }}
                         >
                           {pair.synergyScore}

@@ -179,7 +179,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <span style={{ font: '700 26px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
+                <span style={{ font: '800 26px/1 Barlow, sans-serif', color: '#5FDBD3', textShadow: '0 0 14px rgba(95, 219, 211, 0.6), 0 0 4px rgba(95, 219, 211, 0.8)' }}>
                   {synergyScore}
                 </span>
                 <span style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: trendColor }}>
@@ -449,7 +449,11 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
               >
                 {t('leaderboard.synergyCol')}
               </div>
-              <div style={{ font: '700 30px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
+              <div style={{
+                font: '800 32px/1 Barlow, sans-serif',
+                color: '#5FDBD3',
+                textShadow: '0 0 16px rgba(95, 219, 211, 0.6), 0 0 4px rgba(95, 219, 211, 0.9)',
+              }}>
                 {synergyScore}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 3 }}>
