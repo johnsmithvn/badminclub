@@ -227,54 +227,80 @@ function getPairConfTier(pair) {
 }
 
 
-  // Dữ liệu mẫu danh sách khắc chế có hướng (Subcard 1)
-  const directionalMatchups = useMemo(() => {
-    if (!rankedPairs || rankedPairs.length < 2) return []
-    const results = []
-    for (let i = 0; i < Math.min(4, rankedPairs.length); i++) {
-      for (let j = i + 1; j < Math.min(4, rankedPairs.length); j++) {
-        const pA = rankedPairs[i]
-        const pB = rankedPairs[j]
-        if (!pA || !pB) continue
-        const pKeyA = getPairKey(pA)
-        const pKeyB = getPairKey(pB)
-        const keysA = (pKeyA ? pKeyA.split(':') : [pA.playerA, pA.playerB]).filter(Boolean)
-        const keysB = (pKeyB ? pKeyB.split(':') : [pB.playerA, pB.playerB]).filter(Boolean)
-        if (keysA.length < 2 || keysB.length < 2) continue
+  // Tính toán tất cả các cặp đối đầu (kình địch) trong CLB từ lịch sử trận đấu
+  const clubRivalries = useMemo(() => {
+    if (!matches || matches.length === 0) return []
+    const matchupMap = new Map()
 
-        const namesA = getPairNames(pA)
-        const namesB = getPairNames(pB)
+    for (const m of matches) {
+      if (!m || !m.winnerTeam || m.ratingEnabled === false) continue
+      const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+      const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+      if (teamA.length < 2 || teamB.length < 2) continue
 
-        const edgeAB = calcMatchupEdge(matches, keysA, keysB, ratingsMap)
-        const gamesAB = edgeAB.gamesCount != null ? edgeAB.gamesCount : (edgeAB.games || 0)
-        if (gamesAB >= 1) {
-          const edgeBA = calcMatchupEdge(matches, keysB, keysA, ratingsMap)
-          const gamesBA = edgeBA.gamesCount != null ? edgeBA.gamesCount : (edgeBA.games || 0)
-          results.push({
-            pairA: keysA,
-            pairB: keysB,
-            fromName: namesA.join(' · '),
-            toName: namesB.join(' · '),
-            games: gamesAB,
-            expected: edgeAB.expectedWinPct != null ? edgeAB.expectedWinPct : (edgeAB.expectedA || 50),
-            actual: edgeAB.actualWinPct != null ? edgeAB.actualWinPct : (edgeAB.actualA || 50),
-            score: edgeAB.advantageScore != null ? edgeAB.advantageScore : (edgeAB.edgeScore || 50),
-          })
-          results.push({
-            pairA: keysB,
-            pairB: keysA,
-            fromName: namesB.join(' · '),
-            toName: namesA.join(' · '),
-            games: gamesBA,
-            expected: edgeBA.expectedWinPct != null ? edgeBA.expectedWinPct : (edgeBA.expectedA || 50),
-            actual: edgeBA.actualWinPct != null ? edgeBA.actualWinPct : (edgeBA.actualA || 50),
-            score: edgeBA.advantageScore != null ? edgeBA.advantageScore : (edgeBA.edgeScore || 50),
-          })
-        }
+      const pA = [...teamA].sort()
+      const pB = [...teamB].sort()
+      const keyA = pA.join(':')
+      const keyB = pB.join(':')
+      if (keyA === keyB) continue
+
+      const comboKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`
+      if (!matchupMap.has(comboKey)) {
+        matchupMap.set(comboKey, { pA, pB })
       }
     }
-    return results.slice(0, 3)
-  }, [rankedPairs, matches, ratingsMap])
+
+    const results = []
+    for (const item of matchupMap.values()) {
+      const edgeAB = calcMatchupEdge(matches, item.pA, item.pB, ratingsMap)
+      const games = edgeAB.gamesCount != null ? edgeAB.gamesCount : (edgeAB.games || 0)
+      if (games < 1) continue
+
+      const edgeBA = calcMatchupEdge(matches, item.pB, item.pA, ratingsMap)
+
+      const namesA = item.pA.map((id) => membersMap?.[id]?.name || (db ? playerName(db, id) : id) || id).join(' · ')
+      const namesB = item.pB.map((id) => membersMap?.[id]?.name || (db ? playerName(db, id) : id) || id).join(' · ')
+
+      const aAdvantage = (edgeAB.advantageScore || 50) >= (edgeBA.advantageScore || 50)
+      const dominant = aAdvantage ? edgeAB : edgeBA
+      const fromKeys = aAdvantage ? item.pA : item.pB
+      const toKeys = aAdvantage ? item.pB : item.pA
+      const fromName = aAdvantage ? namesA : namesB
+      const toName = aAdvantage ? namesB : namesA
+
+      const score = dominant.advantageScore != null ? dominant.advantageScore : 50
+      const impact = dominant.matchupImpact != null ? dominant.matchupImpact : (dominant.actualWinPct - dominant.expectedWinPct)
+      const wins = dominant.winsCount != null ? dominant.winsCount : 0
+      const losses = games - wins
+      const expected = dominant.expectedWinPct != null ? dominant.expectedWinPct : 50
+      const actual = dominant.actualWinPct != null ? dominant.actualWinPct : 50
+
+      const intensity = games * 15 + Math.abs(score - 50) * 1.8
+
+      results.push({
+        pairA: fromKeys,
+        pairB: toKeys,
+        fromName,
+        toName,
+        games,
+        wins,
+        losses,
+        score,
+        impact: Math.round(impact),
+        expected: Math.round(expected),
+        actual: Math.round(actual),
+        intensity,
+        confidence: dominant.confidence?.tier || 'R1',
+        recentScores: dominant.recentScores || [],
+      })
+    }
+
+    results.sort((a, b) => b.intensity - a.intensity)
+    return results
+  }, [matches, membersMap, ratingsMap, db])
+
+  const topRivalry = clubRivalries[0] || null
+  const directionalMatchups = clubRivalries.slice(0, 4)
 
   return (
     <div
@@ -343,6 +369,284 @@ function getPairConfTier(pair) {
         >
           {t('leaderboard.howCalculated')}
         </button>
+      </div>
+
+      {/* 2 Highlight Cards: Hiển thị trên cả Mobile và Desktop */}
+      <div
+        style={{
+          padding: isMobile ? '0 14px' : '0 20px',
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+          gap: 14,
+        }}
+      >
+        {/* Card 1: Cặp bài trùng của mùa (Cyan #00B2A9) */}
+        {topPair ? (
+          <div
+            onClick={() => setSelectedPair(topPair)}
+            style={{
+              background: 'linear-gradient(180deg, rgba(0,178,169,.16), #141D2E)',
+              border: '1px solid #00786F',
+              boxShadow: '0 4px 20px rgba(0, 178, 169, 0.08)',
+              borderRadius: 10,
+              padding: '14px 16px',
+              display: 'grid',
+              gap: 9,
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease, border-color 0.15s ease',
+            }}
+          >
+            <span
+              style={{
+                font: "600 10px/1 'IBM Plex Mono', monospace",
+                letterSpacing: '.06em',
+                padding: '4px 8px',
+                borderRadius: 999,
+                background: '#00B2A9',
+                color: '#04302C',
+                justifySelf: 'start',
+              }}
+            >
+              {t('leaderboard.pairBestOfSeason')}
+            </span>
+            <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: '#fff' }}>
+              {getPairNames(topPair).join(' · ')}
+            </div>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              {t('leaderboard.pairBestDesc', {
+                pp: topPair.pairImpact,
+                matches: topPair.gamesCount,
+                exp: topPair.expectedWinPct,
+                wins: topPair.wins != null ? topPair.wins : (topPair.winsCount || 0),
+              })}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 16,
+                paddingTop: 8,
+                borderTop: '1px solid #22304A',
+                marginTop: 2,
+                flexWrap: 'wrap',
+                alignItems: 'flex-end',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
+                    {topPair.synergyScore}
+                  </span>
+                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#5FD9A2' }}>
+                    ↑
+                  </span>
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t('leaderboard.pairBestFrom', { from: Math.max(50, topPair.synergyScore - 7) })}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
+                  +{topPair.pairImpact}pp
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  impact
+                </div>
+              </div>
+
+              <div>
+                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
+                  {topPair.gamesCount}
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t('leaderboard.games')}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ marginBottom: 2 }}>
+                  <ConfidenceChip confidence={getPairConfTier(topPair)} />
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t('rating.confidence.label')}
+                </div>
+              </div>
+
+              <div style={{ flex: '1 1 0%' }} />
+
+              <div style={{ display: 'grid', gap: 4, justifyItems: 'end' }}>
+                <span style={{ display: 'flex', gap: 3 }}>
+                  {(topPair.recentResults || ['W', 'W', 'W']).map((res, rIdx) => (
+                    <span
+                      key={rIdx}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 3,
+                        background: res === 'W' ? 'rgba(18,168,103,.24)' : 'rgba(225,68,52,.22)',
+                        color: res === 'W' ? '#5FD9A2' : '#FF9A8F',
+                        font: "600 10px/18px 'IBM Plex Mono', monospace",
+                        textAlign: 'center',
+                      }}
+                    >
+                      {res === 'W' ? 'T' : 'B'}
+                    </span>
+                  ))}
+                </span>
+                <span style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  form 5 · {t('leaderboard.formHot', {
+                    w: (topPair.recentResults || []).filter(r => r === 'W').length || (topPair.wins != null ? topPair.wins : 1),
+                    l: (topPair.recentResults || []).filter(r => r === 'L').length || (topPair.losses != null ? topPair.losses : 0)
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Card 2: Kình địch tiêu biểu (Hiệu ứng rực cháy 🔥) */}
+        {topRivalry ? (
+          <div
+            onClick={() => setSelectedH2HPair({ pairA: topRivalry.pairA, pairB: topRivalry.pairB })}
+            style={{
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.20) 0%, rgba(245, 158, 11, 0.14) 50%, #141D2E 100%)',
+              border: '1px solid rgba(245, 158, 11, 0.45)',
+              boxShadow: '0 4px 22px rgba(239, 68, 68, 0.12)',
+              borderRadius: 10,
+              padding: '14px 16px',
+              display: 'grid',
+              gap: 9,
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease, border-color 0.15s ease',
+            }}
+          >
+            <span
+              style={{
+                font: "700 10px/1 'IBM Plex Mono', monospace",
+                letterSpacing: '.06em',
+                padding: '4px 9px',
+                borderRadius: 999,
+                background: 'linear-gradient(90deg, #FF5722 0%, #FF9800 100%)',
+                color: '#FFFFFF',
+                boxShadow: '0 2px 8px rgba(255, 87, 34, 0.35)',
+                justifySelf: 'start',
+              }}
+            >
+              {t('leaderboard.topRivalryBadge')}
+            </span>
+
+            <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: '#fff', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>{topRivalry.fromName}</span>
+              <span style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#FF7A45' }}>⚔️</span>
+              <span style={{ color: '#E9EFF7' }}>{topRivalry.toName}</span>
+            </div>
+
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              {t('leaderboard.topRivalryDesc', {
+                from: topRivalry.fromName,
+                to: topRivalry.toName,
+                score: topRivalry.score,
+                games: topRivalry.games,
+                exp: topRivalry.expected,
+                wins: topRivalry.wins,
+              })}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 16,
+                paddingTop: 8,
+                borderTop: '1px solid #22304A',
+                marginTop: 2,
+                flexWrap: 'wrap',
+                alignItems: 'flex-end',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#FF7A45' }}>
+                    {topRivalry.score}
+                  </span>
+                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#FFA940' }}>
+                    🔥
+                  </span>
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t('leaderboard.rivalryAdvantage')}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
+                  {topRivalry.impact >= 0 ? `+${topRivalry.impact}pp` : `${topRivalry.impact}pp`}
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t('leaderboard.advantageEdge')}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
+                  {topRivalry.games}
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t('leaderboard.games')}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#5FD9A2', marginBottom: 2 }}>
+                  {topRivalry.wins}T – {topRivalry.losses}B
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t('leaderboard.h2hRecord')}
+                </div>
+              </div>
+
+              <div style={{ flex: '1 1 0%' }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#F0B75C' }}>
+                  {t('leaderboard.viewH2HDetail')} →
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              background: '#141D2E',
+              border: '1px dashed #2E3E5C',
+              borderRadius: 10,
+              padding: '14px 16px',
+              display: 'grid',
+              gap: 8,
+              alignContent: 'center',
+            }}
+          >
+            <span
+              style={{
+                font: "600 10px/1 'IBM Plex Mono', monospace",
+                letterSpacing: '.06em',
+                padding: '3px 8px',
+                borderRadius: 999,
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#F0B75C',
+                justifySelf: 'start',
+              }}
+            >
+              {t('leaderboard.topRivalryBadge')}
+            </span>
+            <div style={{ font: '600 16px/1.2 Barlow, sans-serif', color: '#E9EFF7' }}>
+              {t('leaderboard.topRivalryEmptyTitle')}
+            </div>
+            <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+              {t('leaderboard.topRivalryEmptyDesc')}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Giao diện Mobile P1 vs Desktop */}
@@ -583,14 +887,14 @@ function getPairConfTier(pair) {
           ) : (
             /* Subtab H2H trên Mobile */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {directionalMatchups.length > 0 ? (
-                directionalMatchups.map((m, mIdx) => (
+              {clubRivalries.length > 0 ? (
+                clubRivalries.map((m, mIdx) => (
                   <div
                     key={mIdx}
                     onClick={() => setSelectedH2HPair({ pairA: m.pairA, pairB: m.pairB })}
                     style={{
-                      background: '#141D2E',
-                      border: '1px solid #22304A',
+                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(245, 158, 11, 0.08) 50%, #141D2E 100%)',
+                      border: mIdx === 0 ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid #22304A',
                       borderRadius: 10,
                       padding: 13,
                       display: 'grid',
@@ -602,12 +906,17 @@ function getPairConfTier(pair) {
                       <span style={{ font: "600 15px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7', flex: 1 }}>
                         {m.fromName} vs {m.toName}
                       </span>
-                      <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FD9A2' }}>
-                        +{m.score}
+                      <span style={{ font: "700 15px/1 Barlow, sans-serif", color: '#FF7A45' }}>
+                        {m.score} 🔥
                       </span>
                     </div>
-                    <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                      {t('leaderboard.gamesCountShort', { n: m.games })} · {t('leaderboard.expectedCol')} {m.expected}% → {t('leaderboard.actualCol')} {m.actual}%
+                    <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                      <span>
+                        {t('leaderboard.gamesCountShort', { n: m.games })} · {m.wins}T–{m.losses}B
+                      </span>
+                      <span style={{ color: m.impact >= 0 ? '#5FD9A2' : '#FF9A8F' }}>
+                        {m.impact >= 0 ? `+${m.impact}pp` : `${m.impact}pp`} {t('leaderboard.advantageEdge')}
+                      </span>
                     </div>
                   </div>
                 ))
@@ -1083,6 +1392,7 @@ function getPairConfTier(pair) {
                   directionalMatchups.map((mItem, mIdx) => (
                     <div
                       key={mIdx}
+                      onClick={() => setSelectedH2HPair({ pairA: mItem.pairA, pairB: mItem.pairB })}
                       style={{
                         display: 'grid',
                         gridTemplateColumns: 'minmax(0,1fr) 44px 54px 44px',
@@ -1092,6 +1402,8 @@ function getPairConfTier(pair) {
                         borderRadius: 7,
                         background: '#101927',
                         border: '1px solid #22304A',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.15s ease',
                       }}
                     >
                       <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", minWidth: 0, color: '#fff' }}>
@@ -1107,7 +1419,7 @@ function getPairConfTier(pair) {
                         style={{
                           textAlign: 'right',
                           font: '700 15px/1 Barlow, sans-serif',
-                          color: mItem.score >= 60 ? '#5FDBD3' : mItem.score >= 45 ? '#F0B75C' : '#F09A8E',
+                          color: mItem.score >= 60 ? '#FF7A45' : mItem.score >= 45 ? '#F0B75C' : '#8494AA',
                         }}
                       >
                         {mItem.score}
@@ -1200,127 +1512,9 @@ function getPairConfTier(pair) {
           </div>
         </div>
 
-        {/* Right Side: 3 Rail Cards */}
+        {/* Right Side: 2 Rail Cards */}
         <div style={{ display: 'grid', gap: 12 }}>
-          {/* Card 1: Cặp ăn ý nhất mùa */}
-          {topPair ? (
-            <div
-              style={{
-                background: 'linear-gradient(180deg, rgba(0,178,169,.16), #141D2E)',
-                border: '1px solid #00786F',
-                borderRadius: 10,
-                padding: 15,
-                display: 'grid',
-                gap: 9,
-              }}
-            >
-              <span
-                style={{
-                  font: "600 10px/1 'IBM Plex Mono', monospace",
-                  letterSpacing: '.06em',
-                  padding: '4px 7px',
-                  borderRadius: 999,
-                  background: '#00B2A9',
-                  color: '#04302C',
-                  justifySelf: 'start',
-                }}
-              >
-                {t('leaderboard.pairBestOfSeason')}
-              </span>
-              <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: '#fff' }}>
-                {getPairNames(topPair).join(' · ')}
-              </div>
-              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                {t('leaderboard.pairBestDesc', {
-                  pp: topPair.pairImpact,
-                  matches: topPair.gamesCount,
-                  exp: topPair.expectedWinPct,
-                  wins: topPair.wins,
-                })}
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 16,
-                  paddingTop: 4,
-                  borderTop: '1px solid #22304A',
-                  marginTop: 2,
-                  flexWrap: 'wrap',
-                  alignItems: 'flex-end',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                    <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#5FDBD3' }}>
-                      {topPair.synergyScore}
-                    </span>
-                    <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#5FD9A2' }}>
-                      ↑
-                    </span>
-                  </div>
-                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                    {t('leaderboard.pairBestFrom', { from: Math.max(50, topPair.synergyScore - 7) })}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
-                    +{topPair.pairImpact}pp
-                  </div>
-                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                    impact
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ font: '700 18px/1 Barlow, sans-serif', color: '#fff' }}>
-                    {topPair.gamesCount}
-                  </div>
-                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                    {t('leaderboard.games')}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ marginBottom: 2 }}>
-                    <ConfidenceChip confidence={getPairConfTier(topPair)} />
-                  </div>
-                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                    {t('rating.confidence.label')}
-                  </div>
-                </div>
-
-                <div style={{ flex: '1 1 0%' }} />
-
-                <div style={{ display: 'grid', gap: 4, justifyItems: 'end' }}>
-                  <span style={{ display: 'flex', gap: 3 }}>
-                    {(topPair.recentResults || ['W', 'W', 'L', 'W', 'W']).map((res, rIdx) => (
-                      <span
-                        key={rIdx}
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: 3,
-                          background: res === 'W' ? 'rgba(18,168,103,.24)' : 'rgba(225,68,52,.22)',
-                          color: res === 'W' ? '#5FD9A2' : '#FF9A8F',
-                          font: "600 10px/18px 'IBM Plex Mono', monospace",
-                          textAlign: 'center',
-                        }}
-                      >
-                        {res === 'W' ? 'T' : 'B'}
-                      </span>
-                    ))}
-                  </span>
-                  <span style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                    form 5 · {t('leaderboard.formHot', { w: 4, l: 1 })}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Card 2: Dưới kỳ vọng nhiều nhất */}
+          {/* Card 1: Dưới kỳ vọng nhiều nhất */}
           <div style={{ background: '#141D2E', border: '1px solid #E08A00', borderRadius: 10, overflow: 'hidden' }}>
             <div
               style={{
