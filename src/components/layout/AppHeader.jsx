@@ -10,7 +10,7 @@ import { t } from '#i18n'
 
 export default function AppHeader({ route }) {
   const { db, a } = useApp()
-  const { isDark, toggleTheme } = useTheme()
+  const { isDark, toggleTheme, isGlamorous, toggleThemeMode } = useTheme()
   const isMobile = useMobile(768)
 
   const role = db.myRole || db.viewAs || 'owner'
@@ -63,6 +63,22 @@ export default function AppHeader({ route }) {
           style={S.themeBtn}
           label={isDark ? t('common.themeLight') : t('common.themeDark')}
           onClick={toggleTheme}
+        />
+
+        <IconButton
+          icon="sparkles"
+          size="sm"
+          variant={isGlamorous ? 'primary' : 'ghost'}
+          style={{
+            ...S.themeBtn,
+            ...(isGlamorous ? {
+              background: 'linear-gradient(135deg, #FFE24B, #FF9E00)',
+              color: '#140109',
+              borderColor: '#D4A836',
+            } : {}),
+          }}
+          label={isGlamorous ? t('settings.themeModeSimple') : t('settings.themeModeGlamorous')}
+          onClick={toggleThemeMode}
         />
 
         {!isSettings && can(role, 'sessions') && (
