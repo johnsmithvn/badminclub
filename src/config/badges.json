@@ -132,7 +132,7 @@
     "ben_suc": {
       "key": "ben_suc",
       "groupId": 0,
-      "glyph": "crystal",
+      "glyph": "moon",
       "badgeIds": ["ben_suc_5", "ben_suc_15", "ben_suc_30", "ben_suc_50"]
     },
     "ke_di_san": {
@@ -182,7 +182,7 @@
     {
       "id": "bat_bai_x",
       "groupId": 0,
-      "tier": "legend",
+      "tier": "epic",
       "glyph": "flame",
       "checkType": "win_streak",
       "threshold": 10,
@@ -465,7 +465,7 @@
       "revealedTier": "legend",
       "glyph": "horn",
       "checkType": "win_streak",
-      "threshold": 15,
+      "threshold": 20,
       "reward": {
         "xp": 400,
         "seasonPts": 50
