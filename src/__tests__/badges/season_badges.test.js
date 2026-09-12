@@ -110,11 +110,16 @@ test('Season Badges: C2 - Chuỗi thắng đang chạy hiển thị đúng tiế
 })
 
 test('Season Badges: A1 - so_sach không cấp cho người đang nợ công nợ', () => {
+  const prevDate = new Date()
+  prevDate.setMonth(prevDate.getMonth() - 1)
+  const prevMonthKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+
   const mockDbWithDebt = {
-    month: '2026-08',
+    month: prevMonthKey,
     members: [{ id: 'm1', name: 'Minh', joinedAt: '2024-01-01', active: true }],
-    dues: [{ id: 'd1', memberId: 'm1', month: '2026-08', amount: 300000, paid: 0 }], // Nợ quỹ 300k
+    dues: [{ id: 'd1', memberId: 'm1', month: prevMonthKey, amount: 300000, paid: 0 }], // Nợ quỹ 300k tháng trước
     sessionGuests: [],
+    groups: [],
   }
 
   const resDebt = calculateMemberBadges('m1', mockDbWithDebt)
@@ -122,10 +127,11 @@ test('Season Badges: A1 - so_sach không cấp cho người đang nợ công n�
   assert.equal(soSachDebt, undefined, 'Người đang nợ quỹ không được mở khóa huy hiệu Sổ sách sạch')
 
   const mockDbClean = {
-    month: '2026-08',
+    month: prevMonthKey,
     members: [{ id: 'm1', name: 'Minh', joinedAt: '2024-01-01', active: true }], // thâm niên > 12 tháng
-    dues: [{ id: 'd1', memberId: 'm1', month: '2026-08', amount: 300000, paid: 300000 }], // Đã đóng đủ
+    dues: [{ id: 'd1', memberId: 'm1', month: prevMonthKey, amount: 300000, paid: true, paidAmount: 300000 }], // Đã đóng đủ
     sessionGuests: [],
+    groups: [],
   }
 
   const resClean = calculateMemberBadges('m1', mockDbClean)

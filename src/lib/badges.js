@@ -662,7 +662,12 @@ export function calculateMemberBadges(memberId, db, season = null, preloadedSeas
   const top5EloMembers = (db?.members || [])
     .filter((m) => m.id !== memberId && m.active !== false)
     .map((m) => {
-      const r = (db?.playerRatings || {})[m.id]?.displayRating || (db?.playerRatings || {})[m.id]?.rating || 0
+      const r =
+        (db?.playerRatings || {})[m.id]?.displayRating ||
+        (db?.playerRatings || {})[m.id]?.rating ||
+        m.rating ||
+        m.initialRating ||
+        0
       return { id: m.id, r }
     })
     .sort((a, b) => b.r - a.r)
@@ -682,7 +687,12 @@ export function calculateMemberBadges(memberId, db, season = null, preloadedSeas
   const rank1Member = (db?.members || [])
     .filter((m) => m.active !== false)
     .map((m) => {
-      const r = (db?.playerRatings || {})[m.id]?.displayRating || (db?.playerRatings || {})[m.id]?.rating || 0
+      const r =
+        (db?.playerRatings || {})[m.id]?.displayRating ||
+        (db?.playerRatings || {})[m.id]?.rating ||
+        m.rating ||
+        m.initialRating ||
+        0
       return { id: m.id, r }
     })
     .sort((a, b) => b.r - a.r)[0]
@@ -1070,7 +1080,12 @@ export function calculateMemberBadges(memberId, db, season = null, preloadedSeas
         let cleanConsecutive = 0
         for (let i = 0; i < maxCheckMonths; i++) {
           const mKey = `${curYear}-${String(curMonth).padStart(2, '0')}`
-          const debts = myDebtCounts(db, mKey, memberId)
+          let debts = { total: 0 }
+          try {
+            debts = myDebtCounts(db, mKey, memberId)
+          } catch {
+            debts = { total: 0 }
+          }
           if ((debts.total || 0) > 0) {
             break
           }

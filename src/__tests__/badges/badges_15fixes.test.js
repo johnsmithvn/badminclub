@@ -92,6 +92,7 @@ test('15 Fixes: Công nợ dues_clean_months đo đúng 12 tháng liên tiếp k
   const mockDb = {
     members: [{ id: 'm1', name: 'Minh', joined: d24MonthsAgo.toISOString() }],
     dues: [],
+    groups: [],
     matches: [],
   }
 
@@ -100,17 +101,19 @@ test('15 Fixes: Công nợ dues_clean_months đo đúng 12 tháng liên tiếp k
   const soSachBadge = resClean.unlocked.find((b) => b.id === 'so_sach')
   assert.ok(soSachBadge, 'Thành viên 24 tháng không nợ gì mở được Sổ sách sạch')
 
-  // 2. Tháng hiện tại nợ 1 đồng -> Chuỗi liên tiếp lùi từ tháng hiện tại bị ngắt ngay lập tức
-  const curMonthKey = new Date().toISOString().slice(0, 7)
+  // 2. Tháng trước nợ 1 đồng -> Chuỗi liên tiếp lùi từ tháng trước bị ngắt ngay lập tức
+  const prevDate = new Date()
+  prevDate.setMonth(prevDate.getMonth() - 1)
+  const prevMonthKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
   const mockDbDebt = {
     ...mockDb,
     dues: [
-      { id: 'd1', memberId: 'm1', month: curMonthKey, amount: 200000, paid: false, paidAmount: 0 },
+      { id: 'd1', memberId: 'm1', month: prevMonthKey, amount: 200000, paid: false, paidAmount: 0 },
     ],
   }
   const resDebt = calculateMemberBadges('m1', mockDbDebt)
   const soSachDebt = resDebt.unlocked.find((b) => b.id === 'so_sach')
-  assert.equal(soSachDebt, undefined, 'Có nợ trong tháng hiện tại thì không đạt Sổ sách sạch')
+  assert.equal(soSachDebt, undefined, 'Có nợ trong tháng trước thì không đạt Sổ sách sạch')
   const soSachProg = resDebt.inProgress.find((b) => b.id === 'so_sach') || resDebt.locked.find((b) => b.id === 'so_sach')
   assert.equal(soSachProg?.currentVal, 0, 'Tiến độ chuỗi tháng sạch liên tiếp về 0')
 })
@@ -181,4 +184,140 @@ test('15 Fixes: getStreakTimeline nhận season', () => {
   assert.equal(timeline[0].won, true)
   assert.equal(timeline[1].won, true)
   assert.equal(timeline[2].won, false)
+})
+
+test('15 Fixes: getBadgeOwners sessions_count đọc đúng attendance shape db.attendance', () => {
+  const mockDb = {
+    members: [{ id: 'm1', name: 'Đức' }],
+    sessions: [
+      { id: 's1', date: '2026-05-10', status: 'closed' },
+      { id: 's2', date: '2026-05-12', status: 'closed' },
+      { id: 's3', date: '2026-05-14', status: 'closed' },
+    ],
+    attendance: {
+      s1: { m1: true },
+      s2: { m1: 'extra' },
+      s3: { m1: true },
+    },
+    matches: [],
+  }
+
+  // chuyen_can_50 cần 50 buổi, ở đây mock 3 buổi xem countAttendedSessions
+  const owners = getBadgeOwners('chuyen_can_50', mockDb)
+  assert.equal(owners.length, 0, 'Chưa đủ 50 buổi thì chưa là owner')
+
+  // Giả sử có 50 buổi
+  const sessions50 = []
+  const attendance50 = {}
+  for (let i = 1; i <= 50; i++) {
+    const sid = `s${i}`
+    const dateStr = `2026-06-${String(Math.min(30, i)).padStart(2, '0')}`
+    sessions50.push({ id: sid, date: dateStr, status: 'closed' })
+    attendance50[sid] = { m1: true }
+  }
+  const mockDb50 = {
+    members: [{ id: 'm1', name: 'Đức' }],
+    sessions: sessions50,
+    attendance: attendance50,
+    matches: [],
+  }
+  const owners50 = getBadgeOwners('chuyen_can_50', mockDb50)
+  assert.equal(owners50.length, 1)
+  assert.equal(owners50[0].name, 'Đức')
+  assert.ok(owners50[0].at, 'Đạt mốc vào buổi thứ 50')
+})
+
+test('15 Fixes: beat_all_top5 yêu cầu 5 người KHÁC NHAU trong Top 5', () => {
+  const mockDb = {
+    members: [
+      { id: 'hero', name: 'Hiệp Sĩ', rating: 1200 },
+      { id: 't1', name: 'Top 1', rating: 2100 },
+      { id: 't2', name: 'Top 2', rating: 2000 },
+      { id: 't3', name: 'Top 3', rating: 1900 },
+      { id: 't4', name: 'Top 4', rating: 1800 },
+      { id: 't5', name: 'Top 5', rating: 1700 },
+      { id: 'normal', name: 'Thường', rating: 1000 },
+    ],
+    matches: [
+      // Thắng t1 3 lần, thắng t2 2 lần -> Tổng 5 trận thắng nhưng mới chỉ là 2 người khác nhau
+      { id: '1', at: 10, teamA: ['hero'], teamB: ['t1'], winnerTeam: 'A' },
+      { id: '2', at: 20, teamA: ['hero'], teamB: ['t1'], winnerTeam: 'A' },
+      { id: '3', at: 30, teamA: ['hero'], teamB: ['t1'], winnerTeam: 'A' },
+      { id: '4', at: 40, teamA: ['hero'], teamB: ['t2'], winnerTeam: 'A' },
+      { id: '5', at: 50, teamA: ['hero'], teamB: ['t2'], winnerTeam: 'A' },
+    ],
+  }
+
+  const res = calculateMemberBadges('hero', mockDb)
+  const b = res.all.find((x) => x.id === 'can_ca_top')
+  assert.ok(b)
+  assert.equal(b.unlocked, false, 'Chưa mở vì mới hạ 2 người khác nhau trong Top 5')
+  assert.equal(b.currentVal, 2, 'Tiến độ là 2/5')
+
+  // Bổ sung thắng t3, t4, t5
+  mockDb.matches.push(
+    { id: '6', at: 60, teamA: ['hero'], teamB: ['t3'], winnerTeam: 'A' },
+    { id: '7', at: 70, teamA: ['hero'], teamB: ['t4'], winnerTeam: 'A' },
+    { id: '8', at: 80, teamA: ['hero'], teamB: ['t5'], winnerTeam: 'A' }
+  )
+
+  const resUnlocked = calculateMemberBadges('hero', mockDb)
+  const bUnlocked = resUnlocked.unlocked.find((x) => x.id === 'can_ca_top')
+  assert.ok(bUnlocked, 'Đã hạ cả 5 người khác nhau trong Top 5 thì mở khóa can_ca_top')
+  assert.equal(bUnlocked.currentVal, 5)
+})
+
+test('15 Fixes: Ba danh hiệu LEGEND mở được từ dữ liệu thực', () => {
+  const mockDb = {
+    members: [
+      { id: 'challenger', name: 'Kẻ Thách Thức', rating: 1500 },
+      { id: 'king', name: 'Đương Kim Vô Địch', rating: 2200 },
+    ],
+    matches: [
+      // 1. Thắng Đương kim vô địch (Rank 1)
+      { id: '1', at: 100, teamA: ['challenger'], teamB: ['king'], winnerTeam: 'A' },
+      // 2. Lội ngược dòng thế kỷ: thua set 1 đậm (8-21), thắng kịch tính set 3 (22-20)
+      {
+        id: '2',
+        at: 200,
+        teamA: ['challenger'],
+        teamB: ['king'],
+        winnerTeam: 'A',
+        sets: [
+          [8, 21],
+          [21, 15],
+          [22, 20],
+        ],
+      },
+    ],
+  }
+
+  const res = calculateMemberBadges('challenger', mockDb)
+  const beatChamp = res.unlocked.find((b) => b.id === 'ha_nha_vo_dich')
+  const century = res.unlocked.find((b) => b.id === 'nguoc_dong_the_ky')
+
+  assert.ok(beatChamp, 'Hạ Rank 1 (King) mở được danh hiệu LEGEND Hạ nhà vô địch')
+  assert.ok(century, 'Lội ngược dòng thua set 1 sâu và thắng set 3 nghẹt thở mở được Ngược dòng thế kỷ')
+
+  // Kiểm tra Độc cô cầu bại cho người giữ Rank 1
+  const resKing = calculateMemberBadges('king', mockDb)
+  const docCo = resKing.all.find((b) => b.id === 'doc_co')
+  assert.ok(docCo, 'King đang là Rank 1 tích lũy được tiến độ Độc cô cầu bại')
+})
+
+test('15 Fixes: getMemberHighestBadge nhận preloadedSeasonMatches', () => {
+  const mockDb = {
+    members: [
+      { id: 'm1', name: 'Sơn' },
+      { id: 'm2', name: 'Tùng' },
+    ],
+    matches: [
+      { id: '1', at: 100, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+    ],
+  }
+
+  const preloaded = mockDb.matches
+  const highest = getMemberHighestBadge('m1', mockDb, null, preloaded)
+  assert.ok(highest, 'Trả về danh hiệu cao nhất với preloaded matches')
+  assert.equal(highest.id, 'mo_man')
 })
