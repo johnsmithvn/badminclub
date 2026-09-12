@@ -660,21 +660,31 @@ export function computeClubBadgeStats(db, season = null, seasonMatches = null) {
   // (dbmap trả null) nhờ vậy vẫn có mốc so sánh, thay vì biến mọi người thành vô hạng.
   // Đây là gán TĨNH, không cộng dồn — nên không tái hiện lỗi Rank 1 ảo của bản mô phỏng.
   const observedRatings = new Map(memberRatings.map((m) => [m.id, m.r]))
+  // Trả null khi KHÔNG có người dẫn đầu rõ ràng: CLB một người, hoặc hai người trở lên cùng
+  // đứng nhất. "Giữ hạng 1" giữa một mình mình, hay khi cả CLB cùng 0 điểm, là vô nghĩa —
+  // trả đại một id ở đây là cách CLB mới lập tự phát LEGEND cho người đứng đầu danh sách.
   const highestObservedId = () => {
     let maxR = -Infinity
+    let runnerUpR = -Infinity
     let bestId = null
     observedRatings.forEach((r, id) => {
       if (r > maxR) {
+        runnerUpR = maxR
         maxR = r
         bestId = id
+      } else if (r > runnerUpR) {
+        runnerUpR = r
       }
     })
+    if (runnerUpR === -Infinity || maxR === runnerUpR) return null
     return bestId
   }
 
   const seasonStartTs = resolvedSeason?.startDate ? new Date(resolvedSeason.startDate).getTime() : 0
   let currentRank1Id = null
-  let lastTs = seasonStartTs > 0 ? seasonStartTs : (ascMatches[0] ? getMatchTimestamp(ascMatches[0], db) : 0)
+  // Đồng hồ giữ hạng 1 chỉ chạy TỪ TRẬN ĐẦU TIÊN của mùa, không phải từ ngày khai mùa:
+  // trước khi có trận nào thì chưa có thứ hạng nào được xác lập để mà giữ.
+  let lastTs = ascMatches[0] ? getMatchTimestamp(ascMatches[0], db) : 0
 
   ascMatches.forEach((mt, idx) => {
     const matchTs = getMatchTimestamp(mt, db)
@@ -706,8 +716,16 @@ export function computeClubBadgeStats(db, season = null, seasonMatches = null) {
   const seasonEndRaw = resolvedSeason?.endDate ? new Date(resolvedSeason.endDate).getTime() : NaN
   const endTs = Math.min(Date.now(), Number.isFinite(seasonEndRaw) ? seasonEndRaw : Infinity)
 
-  if (rank1Member?.id && seasonStartTs > 0 && lastTs >= seasonStartTs && endTs > lastTs) {
-    daysRank1Map.set(rank1Member.id, (daysRank1Map.get(rank1Member.id) || 0) + (endTs - lastTs) / DAY_MS)
+  // Người giữ hạng 1 ở đoạn đuôi phải là người dẫn đầu THẬT SỰ, cùng chuẩn với trong vòng lặp.
+  const tailRank1Id = highestObservedId()
+  if (
+    tailRank1Id &&
+    ascMatches.length > 0 &&           // CLB chưa đánh trận nào thì không ai đang giữ hạng gì
+    seasonStartTs > 0 &&
+    lastTs >= seasonStartTs &&
+    endTs > lastTs
+  ) {
+    daysRank1Map.set(tailRank1Id, (daysRank1Map.get(tailRank1Id) || 0) + (endTs - lastTs) / DAY_MS)
   }
 
   return {

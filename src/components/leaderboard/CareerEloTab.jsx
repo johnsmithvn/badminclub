@@ -1,12 +1,57 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, isProvisional, DEFAULT_RATING } from '#lib/rating.js'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
-import { getMemberHighestBadge, computeClubBadgeStats } from '#lib/badges.js'
+import { getMemberHighestBadge, getMemberStreak, computeClubBadgeStats } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
+
+function BountyBadgeTag({ streak = 0 }) {
+  if (streak < 5) return null
+  return (
+    <span
+      style={{
+        font: "700 10px/1 'Oswald', sans-serif",
+        letterSpacing: '.06em',
+        padding: '3px 7px',
+        borderRadius: 999,
+        background: 'linear-gradient(135deg, rgba(255,46,126,.25), rgba(255,226,75,.15))',
+        border: '1px solid #FF2E7E',
+        color: '#FF2E7E',
+        boxShadow: '0 0 10px rgba(255,46,126,.35)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        flexShrink: 0,
+      }}
+    >
+      <span>⚡</span>
+      <span>{t('badges.bountyTag')} · {streak}W</span>
+    </span>
+  )
+}
+
+function SingleBadgeSlot({ badge, size = 18 }) {
+  if (badge) {
+    return <BadgeHex tier={badge.tier} glyph={badge.glyph} size={size} />
+  }
+  return (
+    <span
+      style={{
+        position: 'relative',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: 5,
+        border: '1px dashed rgba(255,255,255,.14)',
+        background: 'rgba(255,255,255,.03)',
+        display: 'inline-block',
+      }}
+    />
+  )
+}
 
 export default function CareerEloTab({
   db,
@@ -14,7 +59,7 @@ export default function CareerEloTab({
   playerRatings = {},
   matches = [],
   levels = {},
-  onOpenEffectiveStrengthModal,
+  _onOpenEffectiveStrengthModal,
   onSelectMember,
   isMobile = false,
 }) {
@@ -110,6 +155,7 @@ export default function CareerEloTab({
         confBarColor,
         confBarWidth,
         highestBadge: db ? getMemberHighestBadge(m.id, db, null, preloadedMatches, preloadedClubStats) : null,
+        streak: db ? (getMemberStreak(m.id, db, null, preloadedMatches).streak || 0) : 0,
       }
     })
 
@@ -287,10 +333,8 @@ export default function CareerEloTab({
                       </div>
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 5 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        {allList[0].highestBadge && (
-                          <BadgeHex tier={allList[0].highestBadge.tier} glyph={allList[0].highestBadge.glyph} size={19} />
-                        )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <SingleBadgeSlot badge={allList[0].highestBadge} size={19} />
                         <span style={{ font: "700 15.5px/1.15 'Barlow', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {allList[0].name}
                         </span>
@@ -299,6 +343,13 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
+                        {allList[0].streak >= 5 ? (
+                          <BountyBadgeTag streak={allList[0].streak} />
+                        ) : allList[0].streak >= 3 ? (
+                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
+                            streak {allList[0].streak}
+                          </span>
+                        ) : null}
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
                           {allList[0].rating}
@@ -371,10 +422,8 @@ export default function CareerEloTab({
                       </div>
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        {allList[1].highestBadge && (
-                          <BadgeHex tier={allList[1].highestBadge.tier} glyph={allList[1].highestBadge.glyph} size={18} />
-                        )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <SingleBadgeSlot badge={allList[1].highestBadge} size={18} />
                         <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {allList[1].name}
                         </span>
@@ -383,6 +432,13 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
+                        {allList[1].streak >= 5 ? (
+                          <BountyBadgeTag streak={allList[1].streak} />
+                        ) : allList[1].streak >= 3 ? (
+                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
+                            streak {allList[1].streak}
+                          </span>
+                        ) : null}
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
                           {allList[1].rating}
@@ -452,10 +508,8 @@ export default function CareerEloTab({
                       </div>
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        {allList[2].highestBadge && (
-                          <BadgeHex tier={allList[2].highestBadge.tier} glyph={allList[2].highestBadge.glyph} size={18} />
-                        )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <SingleBadgeSlot badge={allList[2].highestBadge} size={18} />
                         <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {allList[2].name}
                         </span>
@@ -464,6 +518,13 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
+                        {allList[2].streak >= 5 ? (
+                          <BountyBadgeTag streak={allList[2].streak} />
+                        ) : allList[2].streak >= 3 ? (
+                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
+                            streak {allList[2].streak}
+                          </span>
+                        ) : null}
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
                           {allList[2].rating}
@@ -785,11 +846,9 @@ export default function CareerEloTab({
                       {player.rank}
                     </span>
                     <Avatar name={player.name} src={player.avatarUrl} size={30} />
-                    {player.highestBadge && (
-                      <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={18} />
-                    )}
+                    <SingleBadgeSlot badge={player.highestBadge} size={18} />
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 2 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {player.name}
                         </span>
@@ -798,6 +857,13 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
+                        {player.streak >= 5 ? (
+                          <BountyBadgeTag streak={player.streak} />
+                        ) : player.streak >= 3 ? (
+                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
+                            streak {player.streak}
+                          </span>
+                        ) : null}
                       </div>
                       <div style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                         {player.gamesCount} {t('units.match')} · {player.confLabel} ·{' '}
