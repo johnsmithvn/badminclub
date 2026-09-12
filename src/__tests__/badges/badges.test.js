@@ -132,9 +132,11 @@ test('Badges Engine: Bảng xếp hạng Collector Leaderboard sắp xếp chu�
   assert.equal(lb[0].name, 'Minh')
   assert.equal(lb[0].rank, 1)
   assert.equal(lb[0].score, 30)
+  assert.equal(lb[0].count, 1, 'Minh chỉ có 1 huy hiệu chính thức (Bất bại V), không tính danh hiệu tự phong')
   assert.equal(lb[1].name, 'Tuấn')
   assert.equal(lb[1].rank, 2)
   assert.equal(lb[1].score, 0)
+  assert.equal(lb[1].count, 0, 'Tuấn chưa mở huy hiệu chính thức nào, không tính tự phong')
 })
 
 test('Badges Engine: Streak timeline 10 ô W/L', () => {

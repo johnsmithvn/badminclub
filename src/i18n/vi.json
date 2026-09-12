@@ -3513,7 +3513,7 @@
     },
     "leaderboard": {
       "title": "Xếp hạng sưu tập",
-      "sub": "xếp theo Điểm sưu tập · danh hiệu tự phong tính 0 điểm",
+      "sub": "xếp theo Điểm sưu tập · không tính danh hiệu tự phong",
       "colRank": "HẠNG",
       "colMember": "THÀNH VIÊN",
       "colShelf": "KỆ ĐANG GẮN",
@@ -3521,7 +3521,7 @@
       "colScore": "ĐIỂM SƯU TẬP",
       "rarestTitle": "HIẾM NHẤT CLB",
       "scoringTitle": "CÁCH TÍNH ĐIỂM",
-      "scoringNote": "Danh hiệu ẩn tính theo bậc thật sau khi mở. Tự phong không cộng điểm, chỉ để gắn kệ cho vui."
+      "scoringNote": "Danh hiệu ẩn tính theo bậc thật sau khi mở. Danh hiệu tự phong là danh hiệu vui, 0 điểm và không tính vào BXH sưu tập."
     },
     "items": {
       "bat_bai_v": { "name": "Bất bại V", "cond": "Thắng 5 trận liên tiếp trong cùng một mùa" },

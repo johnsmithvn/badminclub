@@ -137,10 +137,12 @@ export default function Badges() {
     }))
   }, [memberBadges.all])
 
-  // Thống kê số lượng danh hiệu
-  const unlockedCount = memberBadges.unlocked?.length || 0
+  // Thống kê số lượng danh hiệu chính thức (không tính tự phong)
+  const officialUnlockedCount =
+    memberBadges.officialUnlocked?.length ??
+    (memberBadges.unlocked || []).filter((b) => b.tier !== 'fun').length
   const inProgressCount = memberBadges.inProgress?.length || 0
-  const totalBadgesCount = memberBadges.all?.length || 42
+  const totalOfficialCount = (memberBadges.all || []).filter((b) => b.tier !== 'fun').length
 
   // Thao tác gắn danh hiệu lên kệ
   const handleToggleShelf = (badgeId) => {
@@ -347,8 +349,8 @@ export default function Badges() {
 
         <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
           {t('badges.collectionSummary', {
-            opened: unlockedCount,
-            total: totalBadgesCount,
+            opened: officialUnlockedCount,
+            total: totalOfficialCount,
             chasing: inProgressCount,
           })}
         </span>
@@ -558,7 +560,7 @@ export default function Badges() {
 
                   <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                     <span style={{ font: '700 26px/1 Oswald, sans-serif', color: '#7FE7FF' }}>
-                      {unlockedCount} / {totalBadgesCount}
+                      {officialUnlockedCount} / {totalOfficialCount}
                     </span>
                     <span style={{ font: '600 9.5px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#7E6FA0' }}>
                       {t('badges.collectorProfile.unlockedLabel')}

@@ -618,8 +618,11 @@ export function calculateMemberBadges(memberId, db) {
     return item
   })
 
-  // Tính điểm sưu tập: chỉ tính các huy hiệu đã mở
-  const collectionScore = unlocked.reduce((acc, b) => {
+  // Danh hiệu chính thức đã mở (loại trừ nhóm Tự phong 'fun')
+  const officialUnlocked = unlocked.filter((b) => b.tier !== 'fun')
+
+  // Tính điểm sưu tập: chỉ tính các huy hiệu chính thức đã mở
+  const collectionScore = officialUnlocked.reduce((acc, b) => {
     return acc + (ANIME_TIERS[b.tier]?.pts || 0)
   }, 0)
 
@@ -640,6 +643,7 @@ export function calculateMemberBadges(memberId, db) {
   return {
     all: processed,
     unlocked,
+    officialUnlocked,
     inProgress,
     locked,
     collectionScore,
@@ -652,7 +656,8 @@ export function calculateMemberBadges(memberId, db) {
 }
 
 /**
- * Lấy Bảng xếp hạng Người sưu tập (Collector Leaderboard - Màn A5)
+ * Lấy Bảng xếp hạng Người sưu tập (Collector Leaderboard - Màn A5).
+ * Tuyệt đối không tính danh hiệu Tự phong (fun) vào điểm hoặc số lượng huy hiệu.
  * @param {Object} db
  * @returns {Array<Object>}
  */
@@ -661,13 +666,14 @@ export function getCollectorLeaderboard(db) {
   const members = db.members || []
   const list = members.map((m) => {
     const res = calculateMemberBadges(m.id, db)
+    const officialCount = (res.officialUnlocked || res.unlocked.filter((b) => b.tier !== 'fun')).length
     return {
       id: m.id,
       name: m.name,
       initial: m.name ? m.name.charAt(0).toUpperCase() : '?',
       signature: m.signature || '',
-      count: res.unlocked.length,
-      unlockedCount: res.unlocked.length,
+      count: officialCount,
+      unlockedCount: officialCount,
       score: res.collectionScore,
       scoreFormatted: res.collectionScore.toLocaleString('vi-VN'),
       shelf: res.shelfBadges.map((b) => ({
@@ -677,7 +683,7 @@ export function getCollectorLeaderboard(db) {
     }
   })
 
-  // Sắp xếp theo score giảm dần, sau đó theo số huy hiệu đã mở
+  // Sắp xếp theo score giảm dần, sau đó theo số huy hiệu chính thức đã mở
   list.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
     return b.unlockedCount - a.unlockedCount
