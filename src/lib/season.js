@@ -118,6 +118,22 @@ export function calcSeasonMatchDelta(teamElo, opponentTeamElo, won, scaleConfig 
 }
 
 /**
+ * Tìm cấu hình mùa giải áp dụng (active season) với đầy đủ fallback.
+ * @param {Object} [db]
+ * @param {Object} [season]
+ * @returns {Object|null}
+ */
+export function resolveSeason(db, season = null) {
+  if (season && (season.id || season.startDate || season.code)) return season
+  const active = (db?.seasons || []).find((s) => s.active)
+  if (active) return active
+  if (db?.settings?.season) return db.settings.season
+  if (Array.isArray(db?.seasons) && db.seasons.length > 0) return db.seasons[0]
+  if (db?.club || db?.settings) return cfg?.season || null
+  return null
+}
+
+/**
  * Lọc danh sách các trận đấu thuộc mùa giải đang xét (hoặc mùa giải hiện tại).
  * @param {Object} db
  * @param {Object} [season]
@@ -128,6 +144,12 @@ export function seasonMatchesOf(db, season = null) {
   const allSessions = db.sessions || []
   const allMatches = db.matches || []
   if (allMatches.length === 0) return []
+
+  // Nếu caller không truyền season và db không có bất kỳ cấu hình season nào,
+  // thì db đang ở chế độ unsegmented/all-time (hoặc mockDb test) -> trả về allMatches
+  if (!season && (!Array.isArray(db.seasons) || db.seasons.length === 0) && !db.settings?.season) {
+    return allMatches
+  }
 
   const getMatchTs = (m) => {
     if (typeof m.at === 'number' && Number.isFinite(m.at)) return m.at
@@ -147,22 +169,7 @@ export function seasonMatchesOf(db, season = null) {
 
   const isWithin = (ts, start, end) => ts >= start && ts <= end
 
-  const targetSeason =
-    season ||
-    (db.seasons || []).find((s) => s.active) ||
-    db?.settings?.season ||
-    (Array.isArray(db.seasons) && db.seasons.length > 0 ? db.seasons[0] : null)
-
-  const checkSeasonMatches = (sDef) => {
-    if (!sDef || (!sDef.startDate && !sDef.endDate)) return false
-    const sTs = sDef.startDate ? Date.parse(`${sDef.startDate}T00:00:00Z`) : 0
-    const eTs = sDef.endDate ? Date.parse(`${sDef.endDate}T23:59:59Z`) : Infinity
-    return allMatches.some((m) => isWithin(getMatchTs(m), sTs, eTs))
-  }
-
-  const resolvedSeason = targetSeason || (
-    cfg?.season && checkSeasonMatches(cfg.season) ? cfg.season : null
-  )
+  const resolvedSeason = resolveSeason(db, season)
 
   if (!resolvedSeason || (!resolvedSeason.startDate && !resolvedSeason.endDate)) {
     return allMatches

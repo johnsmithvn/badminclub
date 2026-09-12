@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   calculateMemberBadges,
+  computeClubBadgeStats,
   getBadgeOwners,
   getBadgeChasers,
   getMemberHighestBadge,
@@ -303,6 +304,17 @@ test('15 Fixes: Ba danh hiệu LEGEND mở được từ dữ liệu thực', ()
   const resKing = calculateMemberBadges('king', mockDb)
   const docCo = resKing.all.find((b) => b.id === 'doc_co')
   assert.ok(docCo, 'King đang là Rank 1 tích lũy được tiến độ Độc cô cầu bại')
+  assert.ok(docCo.currentVal > 0, 'King tích lũy được số ngày giữ Rank 1 > 0')
+
+  // Nếu King giữ Rank 1 đủ 60 ngày thì mở khóa doc_co
+  const seasonOld = {
+    id: 's1',
+    startDate: new Date(Date.now() - 70 * 86400000).toISOString().slice(0, 10),
+  }
+  const resKing60 = calculateMemberBadges('king', mockDb, seasonOld)
+  const docCo60 = resKing60.unlocked.find((b) => b.id === 'doc_co')
+  assert.ok(docCo60, 'King giữ Rank 1 >= 60 ngày mở khóa được danh hiệu LEGEND Độc cô cầu bại')
+  assert.equal(docCo60.unlocked, true)
 })
 
 test('15 Fixes: getMemberHighestBadge nhận preloadedSeasonMatches', () => {
@@ -320,4 +332,113 @@ test('15 Fixes: getMemberHighestBadge nhận preloadedSeasonMatches', () => {
   const highest = getMemberHighestBadge('m1', mockDb, null, preloaded)
   assert.ok(highest, 'Trả về danh hiệu cao nhất với preloaded matches')
   assert.equal(highest.id, 'mo_man')
+})
+
+test('15 Fixes: trum_giai (LEGEND) mở khóa khi là Quán quân CLB / Mùa giải', () => {
+  const mockDb = {
+    members: [
+      { id: 'champ1', name: 'Vô Địch 1' },
+      { id: 'player2', name: 'Người Chơi 2' },
+    ],
+    club: {
+      championId: 'champ1',
+    },
+    matches: [],
+  }
+
+  // champ1 là championId của CLB -> mở trum_giai
+  const resChamp1 = calculateMemberBadges('champ1', mockDb)
+  const badge1 = resChamp1.unlocked.find((b) => b.id === 'trum_giai')
+  assert.ok(badge1, 'Thành viên là quán quân CLB mở được trum_giai')
+  assert.equal(badge1.unlocked, true)
+
+  // player2 không phải quán quân -> không mở
+  const resPlayer2 = calculateMemberBadges('player2', mockDb)
+  const badge2 = resPlayer2.unlocked.find((b) => b.id === 'trum_giai')
+  assert.equal(badge2, undefined, 'Người chơi thường không mở được trum_giai')
+
+  // Mở qua previousChampion của season
+  const mockDbSeason = {
+    members: [{ id: 'seasonChamp', name: 'Quán Quân Mùa' }],
+    matches: [],
+  }
+  const season = { id: 's1', previousChampion: 'seasonChamp' }
+  const resSeason = calculateMemberBadges('seasonChamp', mockDbSeason, season)
+  const badgeSeason = resSeason.unlocked.find((b) => b.id === 'trum_giai')
+  assert.ok(badgeSeason, 'Quán quân mùa giải mở được trum_giai')
+})
+
+test('15 Fixes: sat_than_doi (beat_top_pair) xét cặp đôi uy tín và mở khóa khi đánh bại', () => {
+  const mockDb = {
+    members: [
+      { id: 'u1', name: 'User 1' },
+      { id: 'u2', name: 'User 2' },
+      { id: 'pairA1', name: 'A1' },
+      { id: 'pairA2', name: 'A2' },
+    ],
+    matches: [
+      // Cặp A1 & A2 thắng 5 trận liên tiếp (uy tín cao: 5 trận, winrate 100%)
+      { id: 'm1', at: 10, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
+      { id: 'm2', at: 20, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
+      { id: 'm3', at: 30, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
+      { id: 'm4', at: 40, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
+      { id: 'm5', at: 50, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
+      // u1 & u2 hạ cặp đôi số 1 CLB
+      { id: 'm6', at: 60, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A' },
+    ],
+  }
+
+  const resU1 = calculateMemberBadges('u1', mockDb)
+  const satThanDoi = resU1.unlocked.find((b) => b.id === 'sat_than_doi')
+  assert.ok(satThanDoi, 'Đánh bại cặp đôi top 1 CLB mở được danh hiệu LEGEND Sát Thần Đôi')
+  assert.equal(satThanDoi.unlocked, true)
+})
+
+test('15 Fixes: hasRevengeWin và hasFirstTryBounty tối ưu O(M) chạy chính xác', () => {
+  const mockDb = {
+    members: [
+      { id: 'hunter', name: 'Thợ Săn' },
+      { id: 'target', name: 'Con Mồi' },
+    ],
+    matches: [
+      // 1. hunter gặp target lần 1: target đang có bounty và hunter thắng ngay lần đầu -> first_try_bounty
+      { id: 'm1', at: 10, teamA: ['hunter'], teamB: ['target'], winnerTeam: 'A', bountyBroken: true },
+      // 2. hunter gặp target lần 2: hunter thua
+      { id: 'm2', at: 20, teamA: ['hunter'], teamB: ['target'], winnerTeam: 'B' },
+      // 3. hunter gặp target lần 3: hunter thắng phục thù -> revenge_win
+      { id: 'm3', at: 30, teamA: ['hunter'], teamB: ['target'], winnerTeam: 'A' },
+    ],
+  }
+
+  const res = calculateMemberBadges('hunter', mockDb)
+  const firstTry = res.unlocked.find((b) => b.id === 'tho_san_hoan_hao')
+  const revenge = res.unlocked.find((b) => b.id === 'doi_no')
+
+  assert.ok(firstTry, 'Mở được Thợ Săn Hoàn Hảo (first_try_bounty)')
+  assert.ok(revenge, 'Mở được Đòi Nợ (revenge_win)')
+})
+
+test('15 Fixes: computeClubBadgeStats tổng hợp dữ liệu CLB chuẩn xác', () => {
+  const mockDb = {
+    members: [
+      { id: 'm1', name: 'Rank 1', rating: 2100 },
+      { id: 'm2', name: 'Rank 2', rating: 2000 },
+      { id: 'm3', name: 'Rank 3', rating: 1900 },
+      { id: 'm4', name: 'Rank 4', rating: 1800 },
+      { id: 'm5', name: 'Rank 5', rating: 1700 },
+      { id: 'm6', name: 'Rank 6', rating: 1600 },
+    ],
+    club: { championId: 'm1' },
+    matches: [
+      { id: 'm1', at: 100, teamA: ['m1', 'm2'], teamB: ['m3', 'm4'], winnerTeam: 'A' },
+    ],
+  }
+
+  const stats = computeClubBadgeStats(mockDb)
+  assert.equal(stats.rank1Member.id, 'm1')
+  assert.equal(stats.seasonChampionId, 'm1')
+  assert.equal(stats.top5EloMemberIds.length, 5)
+  assert.equal(stats.top5EloMemberIds[0], 'm1')
+  assert.equal(stats.top5EloMemberIds.includes('m6'), false)
+  assert.ok(stats.daysRank1Map.get('m1') > 0)
 })

@@ -70,6 +70,12 @@
     }
   ],
   "shelfSlots": 3,
+  "significantEloGap": 50,
+  "minPairMatches": 5,
+  "topEloRankCount": 5,
+  "minMatchesWinRate": 30,
+  "sweepOpponentMaxScore": 0,
+  "cleanSessionMinMatches": 3,
   "groups": [
     {
       "id": 0,

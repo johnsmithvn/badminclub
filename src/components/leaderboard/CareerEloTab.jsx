@@ -4,7 +4,7 @@ import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, isProvisional, DEFAULT_RATING } from '#lib/rating.js'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
-import { getMemberHighestBadge } from '#lib/badges.js'
+import { getMemberHighestBadge, computeClubBadgeStats } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 
@@ -31,6 +31,7 @@ export default function CareerEloTab({
     const now = Date.now()
     const thirtyDaysAgo = now - 30 * 86400000
     const preloadedMatches = db ? (seasonMatchesOf(db) || []) : []
+    const preloadedClubStats = db ? computeClubBadgeStats(db, null, preloadedMatches) : null
 
     const list = (members || []).map((m) => {
       const pr = getPlayerRating(playerRatings, m.id, m, levels)
@@ -108,7 +109,7 @@ export default function CareerEloTab({
         confColor,
         confBarColor,
         confBarWidth,
-        highestBadge: db ? getMemberHighestBadge(m.id, db, null, preloadedMatches) : null,
+        highestBadge: db ? getMemberHighestBadge(m.id, db, null, preloadedMatches, preloadedClubStats) : null,
       }
     })
 

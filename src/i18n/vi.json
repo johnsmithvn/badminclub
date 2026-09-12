@@ -81,7 +81,7 @@
     "topEloTitle14a": "Tốp đẳng cấp",
     "topEloSubtitle14a": "ba Elo cao nhất · cập nhật sau mỗi buổi",
     "singleHighestBadgeLegend14a": "chỉ 1 ô huy hiệu bậc cao nhất",
-    "officialRankCount14a": "Bảng đẳng cấp Elo · {{n}} người",
+    "officialRankCount14a": "Bảng Elo · {{n}} người",
     "statsDetail14a": "{{matches}} trận · {{conf}} · {{delta}} / 30 ngày",
     "countdownNote": "3 buổi còn lại — tối đa +190 pts",
     "leaderBadge": "Đang dẫn đầu mùa",
@@ -3793,7 +3793,7 @@
       },
       "sat_gio": {
         "name": "Sát giờ",
-        "cond": "Thắng trận cuối cùng của buổi 3 lần liên tiếp"
+        "cond": "Thắng trận đấu cuối của mình trong buổi sinh hoạt 3 lần"
       },
       "bat_bai_mot_buoi": {
         "name": "Bất bại một buổi",

@@ -14,6 +14,7 @@ import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.
 import AchievementFeed from '#components/badges/AchievementFeed.jsx'
 import {
   calculateMemberBadges,
+  computeClubBadgeStats,
   getActiveBounties,
   getStreakTimeline,
   getBadgeOwners,
@@ -26,57 +27,47 @@ import {
   NOTCH_S_CLIP,
 } from '#lib/badges.js'
 import { calculateMemberXp } from '#lib/xp.js'
-import { getSeasonRankLeaderboard } from '#lib/season.js'
+import { getSeasonRankLeaderboard, seasonMatchesOf } from '#lib/season.js'
 import { myMember } from '#lib/money.js'
 import badgesConfig from '#config/badges.json'
 
 /**
  * Trang Master: Danh hiệu & Treo thưởng (Bản Anime).
  * Triển khai chuẩn xác theo file thiết kế:
- * - A1: Bộ sưu tập danh hiệu, Wanted Hero poster (Avatar thật), Collector Profile (Data thật),
- *       Sáu bậc khung lục giác, Kệ 3 ô của tôi, Lưới 4 nhóm danh hiệu.
- * - A2: Modal chi tiết danh hiệu, điều kiện, 10-slot tracker, owners, chasers.
- * - A3: Tab Bảng treo thưởng (Bảng truy nã), luật, hunter badges, Elo integrity.
- * - A4: Modal Mở khóa danh hiệu.
- * - A5: Tab Xếp hạng sưu tập, Top 1 vinh danh, rarest badges, quy tắc tính điểm.
+ * - A1: Bộ sưu tập Anime + Danh hiệu Tinh hoa
+ * - A2: Modal Chi tiết Huy hiệu
+ * - A3: Đổi Kệ trưng bày
+ * - A4: Bảng treo thưởng Bounty Hunters
+ * - A5: BXH Người sưu tập & Huy hiệu Hiếm
+ * - Bảng tin Thành tích & Tương tác CLB (Feed)
  */
 export default function Badges() {
-  const { db, a } = useApp()
+  const { db, activeSessionId, me } = useApp()
   const navigate = useNavigate()
 
-  // Tab hiện tại: 'collection' (A1), 'bounty' (A3), 'leaderboard' (A5), 'feed'
+  // Tab đang kích hoạt: collection | bounty | leaderboard | feed
   const [activeTab, setActiveTab] = useState('collection')
 
-  // Modals state
+  // Quản lý Modal
   const [selectedBadge, setSelectedBadge] = useState(null)
-  const [unlockingBadge, setUnlockingBadge] = useState(null)
-  const [isEditingSignature, setIsEditingSignature] = useState(false)
-  const [signatureDraft, setSignatureDraft] = useState('')
-  const [viewingMemberId, setViewingMemberId] = useState(null)
-  const [showRulesModal, setShowRulesModal] = useState(false)
   const [showShelfModal, setShowShelfModal] = useState(false)
+  const [unlockedForModal, setUnlockedForModal] = useState(null)
+  const [showRulesModal, setShowRulesModal] = useState(false)
 
-  // Thành viên hiện tại (tài khoản đang đăng nhập)
-  const currentMember = useMemo(() => {
-    if (!db || !db.members || db.members.length === 0) {
-      return null
-    }
-    return myMember(db) || db.members[0] || null
-  }, [db])
+  // Thành viên người dùng hiện tại (đăng nhập)
+  const currentMember = useMemo(() => myMember(db, me), [db, me])
 
-  // Thành viên đang được xem bộ sưu tập (mặc định là chính mình)
+  // Thành viên đang được xem hồ sơ danh hiệu (mặc định là người dùng hiện tại, hoặc người đầu tiên)
+  const [activeMemberId, setActiveMemberId] = useState(null)
   const activeMember = useMemo(() => {
-    if (viewingMemberId && db && db.members) {
-      const found = db.members.find((m) => m.id === viewingMemberId)
-      if (found) return found
+    if (activeMemberId) {
+      return (db?.members || []).find((m) => m.id === activeMemberId) || currentMember
     }
-    return currentMember
-  }, [viewingMemberId, db, currentMember])
+    return currentMember || (db?.members || [])[0] || null
+  }, [activeMemberId, currentMember, db?.members])
 
-  const isViewingSelf = Boolean(activeMember && currentMember && activeMember.id === currentMember.id)
-
-  // 1. Dữ liệu XP THẬT của thành viên đang xem
-  const memberXpData = useMemo(() => {
+  // 1. Cấp độ & XP của thành viên đang xem
+  const memberXp = useMemo(() => {
     if (!activeMember?.id) return { xp: 0, level: 1, currentLevel: 1, progressPct: 0 }
     return calculateMemberXp(activeMember.id, db)
   }, [activeMember?.id, db])
@@ -87,43 +78,54 @@ export default function Badges() {
     return seasons.find((s) => s.active) || seasons[0] || {}
   }, [db?.seasons])
 
+  // Trận đấu thuộc mùa giải đang xét
+  const preloadedSeasonMatches = useMemo(() => {
+    return seasonMatchesOf(db, currentSeason) || []
+  }, [db, currentSeason])
+
+  // Thống kê cấp CLB dùng chung
+  const preloadedClubStats = useMemo(() => {
+    return computeClubBadgeStats(db, currentSeason, preloadedSeasonMatches)
+  }, [db, currentSeason, preloadedSeasonMatches])
+
   // 3. Bảng xếp hạng mùa giải để lấy Điểm Mùa & Hạng Mùa THẬT
   const seasonRows = useMemo(() => {
     return getSeasonRankLeaderboard(db, currentSeason)
   }, [db, currentSeason])
 
   const memberSeasonData = useMemo(() => {
-    const found = seasonRows.find((r) => r.id === activeMember.id)
+    const found = seasonRows.find((r) => r.id === activeMember?.id)
     return {
       seasonPoints: found?.totalSeasonPoints ?? found?.seasonPoints ?? 0,
       rank: found?.rank ?? '—',
     }
-  }, [seasonRows, activeMember.id])
+  }, [seasonRows, activeMember?.id])
 
   // 4. Bảng xếp hạng Collector THẬT
   const collectors = useMemo(() => {
-    return getCollectorLeaderboard(db)
-  }, [db])
+    return getCollectorLeaderboard(db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   const memberCollectorRank = useMemo(() => {
-    const idx = collectors.findIndex((c) => c.id === activeMember.id)
+    const idx = collectors.findIndex((c) => c.id === activeMember?.id)
     return idx >= 0 ? idx + 1 : '—'
-  }, [collectors, activeMember.id])
+  }, [collectors, activeMember?.id])
 
   // 5. Tính toán toàn bộ danh hiệu của thành viên đang xem
   const memberBadges = useMemo(() => {
-    return calculateMemberBadges(activeMember.id, db)
-  }, [activeMember.id, db])
+    if (!activeMember?.id) return { all: [], unlocked: [], inProgress: [] }
+    return calculateMemberBadges(activeMember.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [activeMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   // 6. Danh sách các Bounty đang mở từ DB THẬT
   const bounties = useMemo(() => {
-    return getActiveBounties(db)
-  }, [db])
+    return getActiveBounties(db, currentSeason, preloadedSeasonMatches)
+  }, [db, currentSeason, preloadedSeasonMatches])
 
   // 7. Top huy hiệu hiếm nhất CLB
   const rarestBadges = useMemo(() => {
-    return getRarestBadges(db)
-  }, [db])
+    return getRarestBadges(db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   // 8. 4 nhóm danh hiệu
   const catalogGroups = useMemo(() => {
@@ -179,13 +181,13 @@ export default function Badges() {
   // Dữ liệu cho Modal A2 Chi tiết danh hiệu (tối ưu tránh tính toán lại trong render)
   const selectedBadgeOwners = useMemo(() => {
     if (!selectedBadge?.id || !db) return []
-    return getBadgeOwners(selectedBadge.id, db)
-  }, [selectedBadge?.id, db])
+    return getBadgeOwners(selectedBadge.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [selectedBadge?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   const selectedBadgeChasers = useMemo(() => {
     if (!selectedBadge?.id || !db) return []
-    return getBadgeChasers(selectedBadge.id, currentMember?.id, db)
-  }, [selectedBadge?.id, currentMember?.id, db])
+    return getBadgeChasers(selectedBadge.id, currentMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [selectedBadge?.id, currentMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   const streakTimeline = useMemo(() => {
     if (!selectedBadge || !currentMember?.id || !db) return []

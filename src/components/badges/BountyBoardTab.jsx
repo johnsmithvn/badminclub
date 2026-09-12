@@ -383,7 +383,7 @@ export default function BountyBoardTab({
                 </div>
               </div>
             )
-          })}
+          }))}
         </div>
 
         {/* Cột phải: Luật treo thưởng & 2 Huy hiệu Thợ săn & Elo Integrity */}
