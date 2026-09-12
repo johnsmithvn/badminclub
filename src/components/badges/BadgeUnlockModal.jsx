@@ -373,7 +373,7 @@ export default function BadgeUnlockModal({
             <button
               type="button"
               onClick={() => {
-                if (onViewCollection) onViewCollection()
+                if (onViewCollection) onViewCollection(badge)
                 else if (onClose) onClose()
               }}
               style={{

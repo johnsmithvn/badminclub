@@ -140,10 +140,28 @@ export default function GlobalBadgeUnlockHost() {
   )
 
   // Xem bộ sưu tập cá nhân
-  const handleViewCollection = useCallback(() => {
-    handleClose()
-    navigate('/danh-hieu')
-  }, [handleClose, navigate])
+  const handleViewCollection = useCallback(
+    (badge) => {
+      const targetBadge = badge || activeBadge
+      const badgeId = targetBadge?.id
+      handleClose()
+
+      const search = new URLSearchParams()
+      search.set('tab', 'collection')
+      if (badgeId) search.set('highlight', badgeId)
+      search.set('t', String(Date.now()))
+
+      navigate(`/danh-hieu?${search.toString()}`, {
+        state: {
+          tab: 'collection',
+          badgeId,
+          memberId: me?.id,
+          t: Date.now(),
+        },
+      })
+    },
+    [handleClose, navigate, activeBadge, me?.id],
+  )
 
   if (!activeBadge || !me) return null
 

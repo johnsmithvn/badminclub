@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { t } from '#i18n'
 import { useApp } from '#contexts/AppContext.jsx'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Avatar } from '#ds'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
 import BadgeCard from '#components/badges/BadgeCard.jsx'
@@ -44,6 +44,7 @@ import badgesConfig from '#config/badges.json'
 export default function Badges() {
   const { db, a, me } = useApp()
   const navigate = useNavigate()
+  const location = useLocation()
 
   // Tab đang kích hoạt: collection | bounty | leaderboard | feed
   const [activeTab, setActiveTab] = useState('collection')
@@ -53,6 +54,7 @@ export default function Badges() {
   const [showShelfModal, setShowShelfModal] = useState(false)
   const [unlockingBadge, setUnlockingBadge] = useState(null)
   const [showRulesModal, setShowRulesModal] = useState(false)
+  const [highlightedBadgeId, setHighlightedBadgeId] = useState(null)
 
   // Sửa châm ngôn cá nhân
   const [isEditingSignature, setIsEditingSignature] = useState(false)
@@ -72,6 +74,44 @@ export default function Badges() {
 
   // Đang xem hồ sơ của chính mình hay của người khác
   const isViewingSelf = !!activeMember?.id && activeMember.id === currentMember?.id
+
+  // Đồng bộ tab và cuộn/highlight danh hiệu khi được điều hướng từ modal mở khóa hoặc link ngoài
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const tabParam = params.get('tab') || location.state?.tab
+    const highlightParam = params.get('highlight') || location.state?.badgeId
+
+    if (tabParam) {
+      setActiveTab(tabParam)
+    }
+
+    if (tabParam === 'collection' || location.state?.memberId !== undefined) {
+      setViewingMemberId(null)
+    }
+
+    if (highlightParam) {
+      setHighlightedBadgeId(highlightParam)
+      setSelectedBadge(null)
+      setUnlockingBadge(null)
+      setShowShelfModal(false)
+
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`badge-card-${highlightParam}`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 150)
+
+      const clearTimer = setTimeout(() => {
+        setHighlightedBadgeId(null)
+      }, 4500)
+
+      return () => {
+        clearTimeout(timer)
+        clearTimeout(clearTimer)
+      }
+    }
+  }, [location.search, location.state])
 
   // 1. Cấp độ & XP của thành viên đang xem.
   // Giá trị rỗng phải cùng hình dạng với `calculateMemberXp` trả về, nếu không JSX đọc
@@ -814,6 +854,7 @@ export default function Badges() {
                       <BadgeCard
                         key={badge.id}
                         badge={badge}
+                        isHighlighted={highlightedBadgeId === badge.id}
                         onClick={(b) => setSelectedBadge(b)}
                       />
                     ))}
@@ -886,7 +927,24 @@ export default function Badges() {
             handleToggleShelf(b?.id || unlockingBadge.id)
             setUnlockingBadge(null)
           }}
-          onViewCollection={() => setUnlockingBadge(null)}
+          onViewCollection={(b) => {
+            const badgeId = b?.id || unlockingBadge?.id
+            setUnlockingBadge(null)
+            setSelectedBadge(null)
+            setShowShelfModal(false)
+            setActiveTab('collection')
+            setViewingMemberId(null)
+            if (badgeId) {
+              setHighlightedBadgeId(badgeId)
+              setTimeout(() => {
+                const el = document.getElementById(`badge-card-${badgeId}`)
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 120)
+              setTimeout(() => {
+                setHighlightedBadgeId(null)
+              }, 4500)
+            }
+          }}
           onClose={() => setUnlockingBadge(null)}
         />
       )}

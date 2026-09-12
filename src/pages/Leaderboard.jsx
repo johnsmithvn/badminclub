@@ -113,9 +113,9 @@ export default function Leaderboard() {
     } else if (activeTab === 'pairs') {
       csvContent += 'Thứ hạng,Cặp,Số trận,Kỳ vọng %,Thực tế %,Lệch (pp),Độ hợp cạ,Độ tin cậy\n' // i18n-ok: csv header
       const pData = rankPairs(db.matches || [], memberMap, db.playerRatings || {}, { format: 'all', minGames: 1 })
-      ;(pData.rankedPairs || []).forEach((r, idx) => {
-        csvContent += `"${idx + 1}","${r.names.join(' - ')}","${r.gamesCount}","${r.expectedWinPct}%","${r.actualWinPct}%","${r.pairImpact}","${r.synergyScore}","${r.confidence}"\n`
-      })
+        ; (pData.rankedPairs || []).forEach((r, idx) => {
+          csvContent += `"${idx + 1}","${r.names.join(' - ')}","${r.gamesCount}","${r.expectedWinPct}%","${r.actualWinPct}%","${r.pairImpact}","${r.synergyScore}","${r.confidence}"\n`
+        })
     } else {
       csvContent += 'Thứ hạng,Thành viên,Elo,Số trận,Độ tin cậy,Thắng %,30 ngày\n' // i18n-ok: csv header
       leaderboardData.forEach((r) => {
@@ -133,45 +133,45 @@ export default function Leaderboard() {
 
   const memberMap = useMemo(() => {
     const map = {}
-    ;(db?.members || []).forEach((m) => { if (m?.id) map[m.id] = m })
-    ;(db?.guests || []).forEach((g) => { if (g?.id) map[g.id] = g })
-    ;(db?.sessionGuests || []).forEach((sg) => {
-      if (sg.guestId) {
-        const g = (db?.guests || []).find((x) => x.id === sg.guestId)
-        if (g) map[sg.id] = { ...g, ...sg, gender: g.gender || sg.gender }
-      }
-      if (sg.memberId) {
-        const m = (db?.members || []).find((x) => x.id === sg.memberId)
-        if (m) map[sg.id] = { ...m, ...sg, gender: m.gender || sg.gender }
-      }
-      if (!map[sg.id] && sg.id) {
-        map[sg.id] = { id: sg.id, name: sg.name || playerName(db, sg.id) || sg.id, gender: sg.gender }
-      }
-    })
+      ; (db?.members || []).forEach((m) => { if (m?.id) map[m.id] = m })
+      ; (db?.guests || []).forEach((g) => { if (g?.id) map[g.id] = g })
+      ; (db?.sessionGuests || []).forEach((sg) => {
+        if (sg.guestId) {
+          const g = (db?.guests || []).find((x) => x.id === sg.guestId)
+          if (g) map[sg.id] = { ...g, ...sg, gender: g.gender || sg.gender }
+        }
+        if (sg.memberId) {
+          const m = (db?.members || []).find((x) => x.id === sg.memberId)
+          if (m) map[sg.id] = { ...m, ...sg, gender: m.gender || sg.gender }
+        }
+        if (!map[sg.id] && sg.id) {
+          map[sg.id] = { id: sg.id, name: sg.name || playerName(db, sg.id) || sg.id, gender: sg.gender }
+        }
+      })
     return map
   }, [db])
 
   const normalizedRatingsMap = useMemo(() => {
     const map = {}
-    ;(db?.members || []).forEach((m) => {
-      if (m?.id) {
-        const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
-        map[m.id] = pr.rating
-      }
-    })
-    ;(db?.guests || []).forEach((g) => {
-      if (g?.id) {
-        const pr = getPlayerRating(db.playerRatings, g.id, g, db.levels)
-        map[g.id] = pr.rating
-      }
-    })
-    ;(db?.sessionGuests || []).forEach((sg) => {
-      if (sg?.id && !map[sg.id]) {
-        const realId = sg.guestId || sg.memberId || sg.id
-        const pr = getPlayerRating(db.playerRatings, realId, sg, db.levels)
-        map[sg.id] = pr.rating
-      }
-    })
+      ; (db?.members || []).forEach((m) => {
+        if (m?.id) {
+          const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
+          map[m.id] = pr.rating
+        }
+      })
+      ; (db?.guests || []).forEach((g) => {
+        if (g?.id) {
+          const pr = getPlayerRating(db.playerRatings, g.id, g, db.levels)
+          map[g.id] = pr.rating
+        }
+      })
+      ; (db?.sessionGuests || []).forEach((sg) => {
+        if (sg?.id && !map[sg.id]) {
+          const realId = sg.guestId || sg.memberId || sg.id
+          const pr = getPlayerRating(db.playerRatings, realId, sg, db.levels)
+          map[sg.id] = pr.rating
+        }
+      })
     return map
   }, [db?.members, db?.guests, db?.sessionGuests, db?.playerRatings, db?.levels])
 
@@ -299,18 +299,18 @@ export default function Leaderboard() {
     const activeIds = new Set((activeMembers || []).map((m) => m.id))
     activeIds.forEach((id) => { counts[id] = 0 })
 
-    ;(db.matches || []).forEach((m) => {
-      const teamA = (m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])).filter((id) => activeIds.has(id))
-      const teamB = (m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])).filter((id) => activeIds.has(id))
-      if (teamA.length && teamB.length && m.winnerTeam) {
-        teamA.forEach((idA) => {
-          teamB.forEach((idB) => {
-            counts[idA] = (counts[idA] || 0) + 1
-            counts[idB] = (counts[idB] || 0) + 1
+      ; (db.matches || []).forEach((m) => {
+        const teamA = (m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])).filter((id) => activeIds.has(id))
+        const teamB = (m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])).filter((id) => activeIds.has(id))
+        if (teamA.length && teamB.length && m.winnerTeam) {
+          teamA.forEach((idA) => {
+            teamB.forEach((idB) => {
+              counts[idA] = (counts[idA] || 0) + 1
+              counts[idB] = (counts[idB] || 0) + 1
+            })
           })
-        })
-      }
-    })
+        }
+      })
     return counts
   }, [activeMembers, db.matches])
 
@@ -544,16 +544,16 @@ export default function Leaderboard() {
   const headerSubText = activeTab === 'season'
     ? t('season.headerSub')
     : activeTab === 'elo'
-    ? t('season.eloHeaderSub')
-    : activeTab === 'search'
-    ? t('matchSearch.searchHeaderSub')
-    : activeTab === 'matrix'
-    ? (matrixMemberLimit === 5
-        ? t('matchSearch.matrixSubMobile5')
-        : matrixMemberLimit === 999
-        ? t('matchSearch.matrixHeaderSub', { count: activeMembers.length })
-        : t('matchSearch.matrixSubTopN', { count: matrixMemberLimit }))
-    : t('leaderboard.sub')
+      ? t('season.eloHeaderSub')
+      : activeTab === 'search'
+        ? t('matchSearch.searchHeaderSub')
+        : activeTab === 'matrix'
+          ? (matrixMemberLimit === 5
+            ? t('matchSearch.matrixSubMobile5')
+            : matrixMemberLimit === 999
+              ? t('matchSearch.matrixHeaderSub', { count: activeMembers.length })
+              : t('matchSearch.matrixSubTopN', { count: matrixMemberLimit }))
+          : t('leaderboard.sub')
 
   const headerActionButtons = (
     <>
@@ -696,8 +696,8 @@ export default function Leaderboard() {
                 {limit === 999
                   ? t('matchSearch.clubAll')
                   : isMobile
-                  ? limit
-                  : `Top ${limit}`}
+                    ? limit
+                    : `Top ${limit}`}
               </button>
             ))}
           </div>
@@ -948,7 +948,7 @@ export default function Leaderboard() {
         />
       )}
 
-      {/* ---------------- TAB 2: Bảng Đẳng Cấp Elo (Screen SS2) ---------------- */}
+      {/* ---------------- TAB 2: Bảng co (Screen SS2) ---------------- */}
       {activeTab === 'elo' && (
         <CareerEloTab
           db={db}
@@ -1771,8 +1771,8 @@ export default function Leaderboard() {
                   {matrixMemberLimit === 5
                     ? t('matchSearch.matrixSubMobile5')
                     : matrixMemberLimit === 999
-                    ? t('matchSearch.matrixHeaderSub', { count: activeMembers.length })
-                    : t('matchSearch.matrixSubTopN', { count: matrixMemberLimit })}
+                      ? t('matchSearch.matrixHeaderSub', { count: activeMembers.length })
+                      : t('matchSearch.matrixSubTopN', { count: matrixMemberLimit })}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -1937,20 +1937,20 @@ export default function Leaderboard() {
                         const cellColor = net > 0
                           ? (isDark ? '#5FD9A2' : 'var(--status-delivered-fg)')
                           : net < 0
-                          ? (isDark ? '#FF9A8F' : 'var(--status-incident-fg)')
-                          : 'var(--text-muted)'
+                            ? (isDark ? '#FF9A8F' : 'var(--status-incident-fg)')
+                            : 'var(--text-muted)'
                         const cellBg = net > 0
                           ? 'rgba(18,168,103,.18)'
                           : net < 0
-                          ? 'rgba(225,68,52,.18)'
-                          : isMobile ? 'var(--surface-inset)' : 'transparent'
+                            ? 'rgba(225,68,52,.18)'
+                            : isMobile ? 'var(--surface-inset)' : 'transparent'
                         const borderStyle = isMobile
                           ? (isDisparate
-                              ? (net > 0 ? (isDark ? '1.5px solid #5FD9A2' : '1.5px solid var(--status-delivered-fg)') : (isDark ? '1.5px solid #FF9A8F' : '1.5px solid var(--status-incident-fg)'))
-                              : 'none')
+                            ? (net > 0 ? (isDark ? '1.5px solid #5FD9A2' : '1.5px solid var(--status-delivered-fg)') : (isDark ? '1.5px solid #FF9A8F' : '1.5px solid var(--status-incident-fg)'))
+                            : 'none')
                           : (isDisparate
-                              ? (net > 0 ? '2px solid #5FD9A2' : '2px solid #FF9A8F')
-                              : '1px solid var(--border-subtle)')
+                            ? (net > 0 ? '2px solid #5FD9A2' : '2px solid #FF9A8F')
+                            : '1px solid var(--border-subtle)')
 
                         return (
                           <td

@@ -5,7 +5,7 @@ import { t } from '#i18n'
 /**
  * Thẻ danh hiệu trong lưới bộ sưu tập (Màn A1).
  */
-export default function BadgeCard({ badge, onClick }) {
+export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
   const meta = badge.tierMeta || {}
   const isHidden = badge.tier === 'hidden' && !badge.unlocked
   const badgeName = t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '???' })
@@ -13,6 +13,7 @@ export default function BadgeCard({ badge, onClick }) {
 
   return (
     <div
+      id={`badge-card-${badge.id}`}
       role="button"
       tabIndex={0}
       onClick={() => onClick && onClick(badge)}
@@ -26,10 +27,17 @@ export default function BadgeCard({ badge, onClick }) {
         position: 'relative',
         padding: 1,
         clipPath: NOTCH_CLIP,
-        background: meta.edge || 'rgba(255,255,255,.1)',
+        background: isHighlighted
+          ? 'linear-gradient(135deg, #FFE24B, #FF2E7E 50%, #2EE9FF)'
+          : (meta.edge || 'rgba(255,255,255,.1)'),
         opacity: badge.unlocked ? 1 : 0.76,
         cursor: 'pointer',
-        transition: 'transform 0.15s ease, opacity 0.15s ease',
+        transition: 'transform 0.2s ease, opacity 0.15s ease, box-shadow 0.3s ease',
+        boxShadow: isHighlighted
+          ? '0 0 24px rgba(255, 226, 75, 0.9), 0 0 45px rgba(255, 46, 126, 0.6)'
+          : 'none',
+        transform: isHighlighted ? 'scale(1.03) translateY(-4px)' : undefined,
+        zIndex: isHighlighted ? 10 : 1,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-3px)'
