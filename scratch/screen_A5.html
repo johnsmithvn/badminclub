@@ -1,0 +1,95 @@
+data-screen-label="A5 Xep hang suu tap anime" style="width:1440px;height:900px;display:flex;overflow:hidden;position:relative;background:#07030F;border:1px solid #2A1145;border-radius:14px">
+          <div style="position:absolute;inset:0;background:radial-gradient(60% 44% at 22% 0%,rgba(109,20,255,.24),transparent 70%),radial-gradient(46% 40% at 96% 92%,rgba(46,233,192,.14),transparent 72%);pointer-events:none"></div>
+          <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:9px 9px;pointer-events:none"></div>
+
+          <div style="flex:0 0 auto;width:88px;background:linear-gradient(180deg,#160B26,#0A0514);border-right:1px solid #2A1145;display:flex;flex-direction:column;align-items:center;gap:20px;padding:18px 0">
+            <div style="width:42px;height:42px;clip-path:polygon(50% 0%,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:linear-gradient(135deg,#FF2E7E,#6D14FF);display:grid;place-items:center;font:700 15px/1 Oswald, sans-serif;color:#FFFBEA">BC</div>
+            <sc-for list="{{ aRail }}" as="r" hint-placeholder-count="6">
+              <div style="display:grid;justify-items:center;gap:6px">
+                <div style="{{ r.iconStyle }}"><div style="{{ r.glyphStyle }}"></div></div>
+                <div style="{{ r.labelStyle }}">{{ r.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;position:relative">
+            <div style="flex:0 0 auto;padding:16px 24px;border-bottom:1px solid #2A1145;display:flex;align-items:center;gap:16px">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                <div style="font:700 26px/1 Oswald, sans-serif;letter-spacing:.03em;text-transform:uppercase;color:#FFFFFF">Xếp hạng sưu tập</div>
+                <div style="font:400 12.5px/1.4 'IBM Plex Mono', monospace;color:#9C8ABE">xếp theo Điểm sưu tập · danh hiệu tự phong tính 0 điểm</div>
+              </div>
+            </div>
+
+            <div style="flex:1;min-height:0;overflow:hidden;padding:20px 24px 26px;display:grid;grid-template-columns:minmax(0,1fr) 344px;gap:18px;align-content:start">
+
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:grid;grid-template-columns:56px minmax(0,1fr) 176px 104px 128px;gap:14px;padding:0 16px">
+                  <span style="font:600 10px/1 Oswald, sans-serif;letter-spacing:.16em;color:#7E6FA0">HẠNG</span>
+                  <span style="font:600 10px/1 Oswald, sans-serif;letter-spacing:.16em;color:#7E6FA0">THÀNH VIÊN</span>
+                  <span style="font:600 10px/1 Oswald, sans-serif;letter-spacing:.16em;color:#7E6FA0">KỆ ĐANG GẮN</span>
+                  <span style="font:600 10px/1 Oswald, sans-serif;letter-spacing:.16em;color:#7E6FA0">SỐ HUY HIỆU</span>
+                  <span style="text-align:right;font:600 10px/1 Oswald, sans-serif;letter-spacing:.16em;color:#7E6FA0">ĐIỂM SƯU TẬP</span>
+                </div>
+                <sc-for list="{{ aCollectors }}" as="c" hint-placeholder-count="6">
+                  <div style="{{ c.rowStyle }}">
+                    <div style="{{ c.sweep }}"></div>
+                    <div style="{{ c.plateStyle }}">{{ c.rank }}</div>
+                    <div style="position:relative;display:flex;align-items:center;gap:11px;min-width:0">
+                      <div style="{{ c.avatarStyle }}">{{ c.initial }}</div>
+                      <div style="min-width:0;display:flex;flex-direction:column;gap:3px">
+                        <span style="font:700 14px/1.2 'Be Vietnam Pro', sans-serif;color:#FFFFFF">{{ c.name }}</span>
+                        <span style="font:400 11px/1.2 'Be Vietnam Pro', sans-serif;color:#7E6FA0">{{ c.signature }}</span>
+                      </div>
+                    </div>
+                    <div style="position:relative;display:flex;gap:7px">
+                      <sc-for list="{{ c.shelf }}" as="m" hint-placeholder-count="3">
+                        <div style="{{ m.box }}">
+                          <div style="{{ m.frame }}"></div>
+                          <div style="{{ m.core }}"></div>
+                          <div style="position:absolute;inset:0;display:grid;place-items:center"><div style="{{ m.glyph }}"></div></div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <span style="position:relative;font:400 12px/1 'IBM Plex Mono', monospace;color:#C9B8E6">{{ c.count }}</span>
+                    <span style="{{ c.scoreStyle }}">{{ c.score }}</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="padding:17px 19px;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:rgba(255,255,255,.04);display:flex;flex-direction:column;gap:12px">
+                  <div style="font:700 14px/1 Oswald, sans-serif;letter-spacing:.12em;color:#FFFFFF">HIẾM NHẤT CLB</div>
+                  <sc-for list="{{ aRarest }}" as="r" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <div style="{{ r.box }}">
+                        <div style="{{ r.frame }}"></div>
+                        <div style="{{ r.core }}"></div>
+                        <div style="position:absolute;inset:0;display:grid;place-items:center"><div style="{{ r.glyph }}"></div></div>
+                      </div>
+                      <span style="flex:1;min-width:0;font:600 13px/1.25 'Be Vietnam Pro', sans-serif;color:#FFFFFF">{{ r.name }}</span>
+                      <span style="{{ r.ownStyle }}">{{ r.own }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="padding:17px 19px;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:rgba(255,255,255,.04);display:flex;flex-direction:column;gap:11px">
+                  <div style="font:700 14px/1 Oswald, sans-serif;letter-spacing:.12em;color:#FFFFFF">CÁCH TÍNH ĐIỂM</div>
+                  <sc-for list="{{ aScoring }}" as="s" hint-placeholder-count="5">
+                    <div style="display:flex;align-items:center;gap:11px">
+                      <div style="{{ s.dot }}"></div>
+                      <span style="flex:1;min-width:0;font:600 12px/1 Oswald, sans-serif;letter-spacing:.1em;color:#C9B8E6">{{ s.label }}</span>
+                      <span style="font:600 12.5px/1 'IBM Plex Mono', monospace;color:#FFFFFF">{{ s.pts }}</span>
+                    </div>
+                  </sc-for>
+                  <span style="font:400 11.5px/1.45 'Be Vietnam Pro', sans-serif;color:#7E6FA0">Danh hiệu ẩn tính theo bậc thật sau khi mở. Tự phong không cộng điểm, chỉ để gắn kệ cho vui.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ A6 · GẮN VÀO HAI BẢNG CŨ ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 Oswald, sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9C8ABE">A6 · kệ 3 ô ở bảng Mùa giải · một ô bậc cao nhất ở bảng Elo</div>
+        <div 

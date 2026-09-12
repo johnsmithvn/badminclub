@@ -3,8 +3,11 @@ import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, isProvisional, DEFAULT_RATING } from '#lib/rating.js'
+import BadgeHex from '#components/badges/BadgeHex.jsx'
+import { getMemberHighestBadge } from '#lib/badges.js'
 
 export default function CareerEloTab({
+  db,
   members = [],
   playerRatings = {},
   matches = [],
@@ -98,6 +101,7 @@ export default function CareerEloTab({
         confColor,
         confBarColor,
         confBarWidth,
+        highestBadge: db ? getMemberHighestBadge(m.id, db) : null,
       }
     })
 
@@ -423,6 +427,37 @@ export default function CareerEloTab({
                         }}
                       >
                         Top 1
+                      </span>
+                    )}
+                    {player.highestBadge && (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                        title={player.highestBadge.name}
+                      >
+                        <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={15} />
+                        <span
+                          style={{
+                            font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                            color:
+                              player.highestBadge.tier === 'legend'
+                                ? '#FFE24B'
+                                : player.highestBadge.tier === 'epic'
+                                  ? '#D946EF'
+                                  : player.highestBadge.tier === 'elite'
+                                    ? '#38BDF8'
+                                    : 'var(--text-secondary)',
+                          }}
+                        >
+                          {player.highestBadge.name}
+                        </span>
                       </span>
                     )}
                   </div>

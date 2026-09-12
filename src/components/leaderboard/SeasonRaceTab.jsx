@@ -1,6 +1,53 @@
 import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
+import BadgeHex from '#components/badges/BadgeHex.jsx'
+import { getBadgeById } from '#lib/badges.js'
+
+function MiniShelf({ shelf = [] }) {
+  if (!shelf || !shelf.length) return null
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+      {shelf.slice(0, 3).map((badgeId, idx) => {
+        const b = getBadgeById(badgeId)
+        if (!b) return null
+        return (
+          <BadgeHex
+            key={idx}
+            tier={b.tier}
+            glyph={b.glyph}
+            size={18}
+          />
+        )
+      })}
+    </span>
+  )
+}
+
+function BountyBadgeTag({ streak = 0 }) {
+  if (streak < 5) return null
+  return (
+    <span
+      style={{
+        font: "700 10px/1 'Oswald', sans-serif",
+        letterSpacing: '.06em',
+        padding: '3px 7px',
+        borderRadius: 999,
+        background: 'linear-gradient(135deg, rgba(255,46,126,.25), rgba(255,226,75,.15))',
+        border: '1px solid #FF2E7E',
+        color: '#FF2E7E',
+        boxShadow: '0 0 10px rgba(255,46,126,.35)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        flexShrink: 0,
+      }}
+    >
+      <span>⚡</span>
+      <span>{t('badges.bountyTag')} · {streak}W</span>
+    </span>
+  )
+}
 
 export default function SeasonRaceTab({
   seasonLeaderboardData,
@@ -137,11 +184,13 @@ export default function SeasonRaceTab({
                     {t('season.leaderBadge')}
                   </span>
                   <div style={{ flex: 1 }} />
-                  {top1?.streak > 0 && (
+                  {top1?.streak >= 5 ? (
+                    <BountyBadgeTag streak={top1.streak} />
+                  ) : top1?.streak >= 3 ? (
                     <span
                       style={{
-                        font: "600 10px/1 'IBM Plex Mono', monospace",
-                        padding: '4px 7px',
+                        font: "600 11px/1 'IBM Plex Mono', monospace",
+                        padding: '4px 9px',
                         borderRadius: 999,
                         background: 'rgba(0,178,169,.14)',
                         border: '1px solid #00786F',
@@ -150,7 +199,7 @@ export default function SeasonRaceTab({
                     >
                       streak {top1.streak}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -158,6 +207,7 @@ export default function SeasonRaceTab({
                     <span style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {top1?.name}
                     </span>
+                    <MiniShelf shelf={top1?.badgeShelf || top1?.member?.badgeShelf || top1?.member?.badge_shelf || []} />
                   </div>
                   <span style={{ font: "600 32px/1 'IBM Plex Mono', monospace", color: isDark ? '#F7E3A1' : '#B45309' }}>
                     {top1?.totalSeasonPoints?.toLocaleString()}
@@ -468,7 +518,9 @@ export default function SeasonRaceTab({
                         {row.upsetsCount} upset
                       </span>
                     )}
-                    {row.streak >= 3 && (
+                    {row.streak >= 5 ? (
+                      <BountyBadgeTag streak={row.streak} />
+                    ) : row.streak >= 3 ? (
                       <span
                         style={{
                           font: "600 10px/1 'IBM Plex Mono', monospace",
@@ -481,7 +533,7 @@ export default function SeasonRaceTab({
                       >
                         streak {row.streak}
                       </span>
-                    )}
+                    ) : null}
                     {row.isInactive && (
                       <span
                         style={{
@@ -558,7 +610,10 @@ export default function SeasonRaceTab({
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {row.name}
                   </span>
-                  {row.streak >= 3 && (
+                  <MiniShelf shelf={row.badgeShelf || row.member?.badgeShelf || row.member?.badge_shelf || []} />
+                  {row.streak >= 5 ? (
+                    <BountyBadgeTag streak={row.streak} />
+                  ) : row.streak >= 3 ? (
                     <span
                       style={{
                         font: "600 10px/1 'IBM Plex Mono', monospace",
@@ -571,7 +626,7 @@ export default function SeasonRaceTab({
                     >
                       streak {row.streak}
                     </span>
-                  )}
+                  ) : null}
                   {row.isInactive && (
                     <span
                       style={{

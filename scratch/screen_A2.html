@@ -1,0 +1,111 @@
+data-screen-label="A2 Chi tiet danh hieu anime" style="width:1440px;height:600px;display:flex;overflow:hidden;position:relative;background:#07030F;border:1px solid #2A1145;border-radius:14px">
+          <div style="position:absolute;inset:0;background:radial-gradient(60% 50% at 28% 8%,rgba(255,46,126,.2),transparent 70%),radial-gradient(56% 46% at 92% 90%,rgba(109,20,255,.22),transparent 72%);pointer-events:none"></div>
+          <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:9px 9px;pointer-events:none"></div>
+
+          <div style="flex:0 0 auto;width:88px;background:linear-gradient(180deg,#160B26,#0A0514);border-right:1px solid #2A1145;display:flex;flex-direction:column;align-items:center;gap:20px;padding:18px 0">
+            <div style="width:42px;height:42px;clip-path:polygon(50% 0%,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:linear-gradient(135deg,#FF2E7E,#6D14FF);display:grid;place-items:center;font:700 15px/1 Oswald, sans-serif;color:#FFFBEA">BC</div>
+            <sc-for list="{{ aRail }}" as="r" hint-placeholder-count="6">
+              <div style="display:grid;justify-items:center;gap:6px">
+                <div style="{{ r.iconStyle }}"><div style="{{ r.glyphStyle }}"></div></div>
+                <div style="{{ r.labelStyle }}">{{ r.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;position:relative">
+            <div style="flex:0 0 auto;padding:14px 24px;border-bottom:1px solid #2A1145;display:flex;align-items:center;gap:12px">
+              <span style="font:600 12px/1 Oswald, sans-serif;letter-spacing:.14em;color:#9C8ABE">← DANH HIỆU</span>
+              <span style="font:400 12px/1 'IBM Plex Mono', monospace;color:#4E3F6B">/</span>
+              <span style="font:600 12px/1 Oswald, sans-serif;letter-spacing:.14em;color:#FFFFFF">BẤT BẠI X</span>
+            </div>
+
+            <div style="flex:1;min-height:0;padding:26px 24px;display:grid;grid-template-columns:400px minmax(0,1fr);gap:22px;align-content:start">
+
+              <div style="position:relative;padding:1px;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:linear-gradient(135deg,#FF2E7E,#FFE24B 70%)">
+                <div style="position:relative;overflow:hidden;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:linear-gradient(160deg,#2B0617,#110208);padding:30px 26px;display:flex;flex-direction:column;align-items:center;gap:18px;height:100%">
+                  <div style="position:absolute;top:-28%;left:-22%;width:620px;height:620px;background:repeating-conic-gradient(from 0deg,rgba(255,46,126,.18) 0deg 4deg,transparent 4deg 13deg);animation:aSpin 34s linear infinite;pointer-events:none"></div>
+                  <div style="position:relative;width:180px;height:180px;animation:aFloat 6s ease-in-out infinite">
+                    <div style="position:absolute;inset:-28%;background:radial-gradient(50% 50% at 50% 50%,rgba(255,46,126,.55),transparent 70%);animation:aPulse 2.8s ease-in-out infinite"></div>
+                    <div style="position:absolute;inset:0;clip-path:polygon(50% 0%,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:conic-gradient(from 200deg,#FF2E7E,#FF7A18,#FFE24B,#FFFFFF,#FF7A18,#FF2E7E);animation:aSpin 7s linear infinite"></div>
+                    <div style="position:absolute;inset:5px;clip-path:polygon(50% 0%,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:radial-gradient(120% 120% at 50% 8%,#4A0718,#140109 72%)"></div>
+                    <div style="position:absolute;inset:0;display:grid;place-items:center"><div style="width:66px;height:74px;background:linear-gradient(180deg,#FFFBEA,#FFB03A 52%,#FF2E7E);clip-path:polygon(50% 0%,72% 26%,62% 40%,84% 34%,74% 62%,92% 76%,50% 100%,8% 76%,26% 62%,16% 34%,38% 40%,28% 26%);filter:drop-shadow(0 0 14px rgba(255,46,126,.75))"></div></div>
+                  </div>
+                  <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:10px">
+                    <span style="font:700 30px/1 Oswald, sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#FFFFFF;text-shadow:0 0 22px rgba(255,46,126,.6)">Bất bại X</span>
+                    <span style="font:700 10.5px/1 Oswald, sans-serif;letter-spacing:.2em;padding:6px 12px;clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);background:rgba(255,46,126,.2);border-top:1px solid #FF2E7E;color:#FFC46B">HUYỀN THOẠI · 120 ĐIỂM</span>
+                    <span style="font:400 13px/1.55 'Be Vietnam Pro', sans-serif;text-align:center;color:#C9B8E6">Thắng 10 trận liên tiếp trong cùng một mùa. Chuỗi tính theo trận có ghi tỷ số, kèo và chia sân tính như nhau.</span>
+                  </div>
+                  <div style="position:relative;width:100%;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between">
+                      <span style="font:600 10.5px/1 Oswald, sans-serif;letter-spacing:.16em;color:#FFC46B">TIẾN ĐỘ CỦA BẠN</span>
+                      <span style="font:700 22px/1 Oswald, sans-serif;color:#FFE24B">6 / 10</span>
+                    </div>
+                    <div style="height:12px;clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);background:rgba(255,255,255,.1)"><div style="height:100%;width:60%;background:linear-gradient(90deg,#FF2E7E,#FFE24B)"></div></div>
+                    <span style="font:400 11.5px/1.4 'IBM Plex Mono', monospace;color:#9C8ABE">còn 4 trận · đang là chuỗi dài nhất mùa 3</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:16px">
+
+                <div style="padding:17px 19px;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:rgba(255,255,255,.04);display:flex;flex-direction:column;gap:13px">
+                  <div style="font:700 14px/1 Oswald, sans-serif;letter-spacing:.12em;color:#FFFFFF">ĐIỀU KIỆN</div>
+                  <sc-for list="{{ aConditions }}" as="c" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <div style="{{ c.markStyle }}">{{ c.mark }}</div>
+                      <span style="flex:1;min-width:0;font:400 13px/1.4 'Be Vietnam Pro', sans-serif;color:#C9B8E6">{{ c.text }}</span>
+                      <span style="{{ c.valStyle }}">{{ c.val }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="padding:17px 19px;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:rgba(255,255,255,.04);display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;align-items:center;gap:11px">
+                    <span style="font:700 14px/1 Oswald, sans-serif;letter-spacing:.12em;color:#FFFFFF">CHUỖI HIỆN TẠI</span>
+                    <span style="font:400 11.5px/1 'IBM Plex Mono', monospace;color:#9C8ABE">10 ô · W = thắng</span>
+                  </div>
+                  <div style="display:flex;gap:7px">
+                    <sc-for list="{{ aStreak }}" as="s" hint-placeholder-count="10">
+                      <div style="{{ s.cellStyle }}">{{ s.label }}</div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
+                  <div style="padding:17px 19px;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:rgba(255,255,255,.04);display:flex;flex-direction:column;gap:12px">
+                    <div style="font:700 14px/1 Oswald, sans-serif;letter-spacing:.12em;color:#FFFFFF">AI ĐÃ CÓ · 2 NGƯỜI</div>
+                    <sc-for list="{{ aOwners }}" as="o" hint-placeholder-count="2">
+                      <div style="display:flex;align-items:center;gap:11px">
+                        <div style="width:34px;height:34px;flex:0 0 auto;clip-path:polygon(50% 0%,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:linear-gradient(135deg,#FF2E7E,#6D14FF);display:grid;place-items:center;font:700 14px/1 Oswald, sans-serif;color:#FFFBEA">{{ o.initial }}</div>
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                          <span style="font:600 13px/1.2 'Be Vietnam Pro', sans-serif;color:#FFFFFF">{{ o.name }}</span>
+                          <span style="font:400 11px/1.2 'IBM Plex Mono', monospace;color:#7E6FA0">{{ o.note }}</span>
+                        </div>
+                        <span style="font:600 11.5px/1 'IBM Plex Mono', monospace;color:#9C8ABE">{{ o.at }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+
+                  <div style="padding:17px 19px;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:rgba(255,255,255,.04);display:flex;flex-direction:column;gap:12px">
+                    <div style="font:700 14px/1 Oswald, sans-serif;letter-spacing:.12em;color:#FFFFFF">AI ĐANG ĐUỔI</div>
+                    <sc-for list="{{ aChasers }}" as="c" hint-placeholder-count="4">
+                      <div style="display:flex;align-items:center;gap:10px">
+                        <span style="width:20px;flex:0 0 auto;font:600 11.5px/1 'IBM Plex Mono', monospace;color:#7E6FA0">{{ c.rank }}</span>
+                        <span style="{{ c.nameStyle }}">{{ c.name }}</span>
+                        <div style="{{ c.barTrack }}"><div style="{{ c.barStyle }}"></div></div>
+                        <span style="width:22px;flex:0 0 auto;text-align:right;font:600 12px/1 'IBM Plex Mono', monospace;color:#C9B8E6">{{ c.val }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ A3 · BẢNG TREO THƯỞNG ═══ -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 11px/1.2 Oswald, sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9C8ABE">A3 · tab Treo thưởng · bảng truy nã · luật · hai huy hiệu thợ săn</div>
+        <div 

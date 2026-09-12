@@ -1,0 +1,517 @@
+{
+  "tierPoints": {
+    "legend": 120,
+    "epic": 60,
+    "elite": 30,
+    "rare": 15,
+    "fun": 0,
+    "hidden": 0
+  },
+  "tiers": {
+    "legend": { "name": "HUYỀN THOẠI", "note": "hào quang · vòng xoay" },
+    "epic": { "name": "SỬ THI", "note": "tím · xung năng lượng" },
+    "elite": { "name": "TINH ANH", "note": "lam · lưỡi sáng" },
+    "rare": { "name": "HIẾM", "note": "ngọc lục · thương hiệu" },
+    "fun": { "name": "TỰ PHONG", "note": "vàng · 0 điểm sưu tập" },
+    "hidden": { "name": "ẨN", "note": "??? tới khi mở" }
+  },
+  "bounty": {
+    "minStreakSingle": 5,
+    "minStreakPair": 4,
+    "hotStreak": 6,
+    "rewardHot": {
+      "xp": 100,
+      "seasonPts": 15
+    },
+    "rewardNormal": {
+      "xp": 80,
+      "seasonPts": 12
+    },
+    "rules": [
+      "Chuỗi chạm 5 trận là tự động bị treo thưởng, không cần ai bấm gì.",
+      "Bounty tắt ngay khi chuỗi bị ngắt, hoặc khi mùa giải kết thúc.",
+      "Người bị treo không mất gì cả — thắng tiếp thì chuỗi dài thêm, thưởng treo cao hơn.",
+      "Chỉ trận có ghi tỷ số mới ngắt được chuỗi. Kèo và trận chia sân tính như nhau.",
+      "Elo tính theo chênh lệch trình độ như mọi trận khác. Bounty chỉ trả riêng XP và Điểm mùa."
+    ]
+  },
+  "demoBounties": [
+    {
+      "id": "demo-minh",
+      "name": "Minh",
+      "meta": "chuỗi 6 trận · bất bại tháng 4",
+      "tier": "epic",
+      "glyph": "flame",
+      "streak": 6,
+      "xp": 100,
+      "sp": 15,
+      "tries": 3,
+      "hot": true
+    },
+    {
+      "id": "demo-ha",
+      "name": "Hà",
+      "meta": "chuỗi 5 trận · đập cầu khét nhất CLB",
+      "tier": "elite",
+      "glyph": "shuriken",
+      "streak": 5,
+      "xp": 80,
+      "sp": 10,
+      "tries": 1,
+      "hot": false
+    },
+    {
+      "id": "demo-tuan-vu",
+      "name": "Tuấn – Vũ",
+      "meta": "cặp đôi · tỉ lệ thắng 72% mùa này",
+      "tier": "legend",
+      "glyph": "crystal",
+      "streak": 4,
+      "xp": 140,
+      "sp": 25,
+      "tries": 4,
+      "hot": true,
+      "isPair": true
+    },
+    {
+      "id": "demo-long",
+      "name": "Long",
+      "meta": "chuỗi 5 trận · mới lên Rank B+",
+      "tier": "elite",
+      "glyph": "thunder",
+      "streak": 5,
+      "xp": 80,
+      "sp": 10,
+      "tries": 2,
+      "hot": false
+    }
+  ],
+  "demoCollectors": [
+    {
+      "id": "demo-quang",
+      "rank": 1,
+      "name": "Quang",
+      "signature": "Đã lên sân là không nhường",
+      "count": 14,
+      "score": 480,
+      "shelf": [
+        { "tier": "legend", "glyph": "crystal" },
+        { "tier": "epic", "glyph": "flame" },
+        { "tier": "elite", "glyph": "thunder" }
+      ]
+    },
+    {
+      "id": "demo-minh",
+      "rank": 2,
+      "name": "Minh",
+      "signature": "Chỉ thích smash góc chữ A",
+      "count": 11,
+      "score": 390,
+      "shelf": [
+        { "tier": "epic", "glyph": "flame" },
+        { "tier": "elite", "glyph": "shuriken" },
+        { "tier": "fun", "glyph": "clown" }
+      ]
+    },
+    {
+      "id": "demo-ha",
+      "rank": 3,
+      "name": "Hà",
+      "signature": "chưa chọn chữ ký",
+      "count": 9,
+      "score": 315,
+      "shelf": [
+        { "tier": "elite", "glyph": "shuriken" },
+        { "tier": "rare", "glyph": "wing" },
+        { "tier": "fun", "glyph": "mop" }
+      ]
+    },
+    {
+      "id": "demo-tuan",
+      "rank": 4,
+      "name": "Tuấn",
+      "signature": "Thủ chắc như bàn thạch",
+      "count": 8,
+      "score": 285,
+      "shelf": [
+        { "tier": "epic", "glyph": "crystal" },
+        { "tier": "rare", "glyph": "shield" }
+      ]
+    },
+    {
+      "id": "demo-vu",
+      "rank": 5,
+      "name": "Vũ",
+      "signature": "chưa chọn chữ ký",
+      "count": 7,
+      "score": 240,
+      "shelf": [
+        { "tier": "elite", "glyph": "thunder" },
+        { "tier": "fun", "glyph": "bird" }
+      ]
+    }
+  ],
+  "demoRarest": [
+    {
+      "id": "hidden_streak_15",
+      "name": "Độc cô cầu bại",
+      "tier": "legend",
+      "glyph": "skull",
+      "own": "chưa ai mở"
+    },
+    {
+      "id": "trum_giai",
+      "name": "Trùm giải",
+      "tier": "legend",
+      "glyph": "crystal",
+      "own": "1 người có"
+    },
+    {
+      "id": "sat_than_doi",
+      "name": "Sát thần đôi",
+      "tier": "epic",
+      "glyph": "fang",
+      "own": "2 người có"
+    },
+    {
+      "id": "hidden_comeback",
+      "name": "Nghịch thiên đảo chiều",
+      "tier": "epic",
+      "glyph": "thunder",
+      "own": "3 người có"
+    }
+  ],
+  "hunterBadges": [
+    {
+      "id": "bounty_hunter",
+      "name": "Kẻ Săn Tiền Thưởng",
+      "cond": "Ngắt chuỗi của một bounty đang mở",
+      "tier": "elite",
+      "glyph": "shuriken"
+    },
+    {
+      "id": "sat_than",
+      "name": "Sát Thần",
+      "cond": "Ngắt 3 bounty khác nhau trong cùng một mùa",
+      "tier": "legend",
+      "glyph": "thunder"
+    }
+  ],
+  "shelfSlots": 3,
+  "groups": [
+    { "id": 0, "key": "combat", "tone": "elite" },
+    { "id": 1, "key": "soul", "tone": "rare" },
+    { "id": 2, "key": "fun", "tone": "fun" },
+    { "id": 3, "key": "hidden", "tone": "hidden" }
+  ],
+  "catalog": [
+    {
+      "id": "bat_bai_v",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "wing",
+      "checkType": "win_streak",
+      "threshold": 5,
+      "reward": { "xp": 80, "seasonPts": 10 }
+    },
+    {
+      "id": "bat_bai_x",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "flame",
+      "checkType": "win_streak",
+      "threshold": 10,
+      "reward": { "xp": 200, "seasonPts": 25 }
+    },
+    {
+      "id": "ke_ngat_chuoi",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "thunder",
+      "checkType": "bounty_break",
+      "threshold": 1,
+      "reward": { "xp": 100, "seasonPts": 15 }
+    },
+    {
+      "id": "sat_than_doi",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "shuriken",
+      "checkType": "beat_top_pair",
+      "threshold": 1,
+      "reward": { "xp": 150, "seasonPts": 20 }
+    },
+    {
+      "id": "trum_giai",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "horn",
+      "checkType": "internal_champion",
+      "threshold": 1,
+      "reward": { "xp": 300, "seasonPts": 40 }
+    },
+    {
+      "id": "chuyen_can_50",
+      "groupId": 1,
+      "tier": "rare",
+      "glyph": "crystal",
+      "checkType": "sessions_count",
+      "threshold": 50,
+      "reward": { "xp": 100, "seasonPts": 0 }
+    },
+    {
+      "id": "chuyen_can_100",
+      "groupId": 1,
+      "tier": "epic",
+      "glyph": "crystal",
+      "checkType": "sessions_count",
+      "threshold": 100,
+      "reward": { "xp": 250, "seasonPts": 0 }
+    },
+    {
+      "id": "cong_than_1",
+      "groupId": 1,
+      "tier": "rare",
+      "glyph": "moon",
+      "checkType": "tenure_months",
+      "threshold": 12,
+      "reward": { "xp": 120, "seasonPts": 0 }
+    },
+    {
+      "id": "cong_than_2",
+      "groupId": 1,
+      "tier": "epic",
+      "glyph": "moon",
+      "checkType": "tenure_months",
+      "threshold": 24,
+      "reward": { "xp": 300, "seasonPts": 0 }
+    },
+    {
+      "id": "dai_su_5",
+      "groupId": 1,
+      "tier": "rare",
+      "glyph": "shuriken",
+      "checkType": "guests_count",
+      "threshold": 5,
+      "reward": { "xp": 100, "seasonPts": 0 }
+    },
+    {
+      "id": "dai_su_10",
+      "groupId": 1,
+      "tier": "epic",
+      "glyph": "shuriken",
+      "checkType": "guests_count",
+      "threshold": 10,
+      "reward": { "xp": 200, "seasonPts": 0 }
+    },
+    {
+      "id": "so_sach",
+      "groupId": 1,
+      "tier": "elite",
+      "glyph": "crystal",
+      "checkType": "dues_clean_months",
+      "threshold": 12,
+      "reward": { "xp": 150, "seasonPts": 0 }
+    },
+    {
+      "id": "vo_hut",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "wing",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "lau_san",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "crystal",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "he_chua",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "horn",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "chich_choe",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "thunder",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "doi_vot",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "shuriken",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "ganh_ta",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "wing",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "ngam_cau",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "moon",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "huy_diet_luoi",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "shuriken",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "hoa_hau_nhat_cau",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "blossom",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "tho_san_goc_chet",
+      "groupId": 2,
+      "tier": "fun",
+      "glyph": "fang",
+      "checkType": "fun",
+      "threshold": 0,
+      "reward": { "xp": 0, "seasonPts": 0 }
+    },
+    {
+      "id": "hidden_comeback",
+      "groupId": 3,
+      "tier": "hidden",
+      "revealedTier": "epic",
+      "glyph": "thunder",
+      "checkType": "hidden_comeback",
+      "threshold": 10,
+      "reward": { "xp": 150, "seasonPts": 20 }
+    },
+    {
+      "id": "hidden_surprise",
+      "groupId": 3,
+      "tier": "hidden",
+      "revealedTier": "rare",
+      "glyph": "moon",
+      "checkType": "hidden_surprise_session",
+      "threshold": 1,
+      "reward": { "xp": 100, "seasonPts": 10 }
+    },
+    {
+      "id": "hidden_streak_15",
+      "groupId": 3,
+      "tier": "hidden",
+      "revealedTier": "legend",
+      "glyph": "horn",
+      "checkType": "win_streak",
+      "threshold": 15,
+      "reward": { "xp": 400, "seasonPts": 50 }
+    },
+    {
+      "id": "hidden_duo_bond",
+      "groupId": 3,
+      "tier": "hidden",
+      "revealedTier": "elite",
+      "glyph": "wing",
+      "checkType": "hidden_duo_bond",
+      "threshold": 20,
+      "reward": { "xp": 120, "seasonPts": 15 }
+    },
+    {
+      "id": "hidden_deuce_30",
+      "groupId": 3,
+      "tier": "hidden",
+      "revealedTier": "rare",
+      "glyph": "crystal",
+      "checkType": "hidden_deuce_30",
+      "threshold": 1,
+      "reward": { "xp": 100, "seasonPts": 10 }
+    }
+  ],
+  "bountyBadges": [
+    {
+      "id": "bounty_hunter",
+      "tier": "legend",
+      "glyph": "thunder",
+      "checkType": "bounty_break",
+      "threshold": 1,
+      "reward": { "xp": 150, "seasonPts": 20 }
+    },
+    {
+      "id": "sat_than",
+      "tier": "legend",
+      "glyph": "flame",
+      "checkType": "bounty_break_distinct",
+      "threshold": 3,
+      "reward": { "xp": 300, "seasonPts": 40 }
+    }
+  ],
+  "demoFeed": [
+    {
+      "id": "demo-f1",
+      "type": "bounty_break",
+      "timestamp": "now",
+      "actorName": "Tuấn",
+      "targetName": "Minh",
+      "streakBroken": 8,
+      "score": "21 - 19",
+      "eventIcon": "flame",
+      "color": "#FF2E7E"
+    },
+    {
+      "id": "demo-f2",
+      "type": "streak_milestone",
+      "timestamp": "15m",
+      "actorName": "Minh",
+      "streakCount": 6,
+      "badgeNameKey": "streak_5",
+      "eventIcon": "trophy",
+      "color": "#FFE24B"
+    },
+    {
+      "id": "demo-f3",
+      "type": "elo_milestone",
+      "timestamp": "1h",
+      "actorName": "Nam",
+      "elo": 1500,
+      "eventIcon": "crown",
+      "color": "#9D4EDD"
+    },
+    {
+      "id": "demo-f4",
+      "type": "clutch_win",
+      "timestamp": "today",
+      "actorName": "Hà & Vũ",
+      "targetName": "Phong & Lan",
+      "score": "30 - 29",
+      "eventIcon": "sword",
+      "color": "#00F5D4"
+    }
+  ]
+}

@@ -1874,6 +1874,26 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('toast.renamedMe', { name: nm }))
     },
 
+    setMemberShelf: (mid, shelf) => {
+      const s = Array.isArray(shelf) ? shelf.slice(0, 3) : []
+      up((d) => ({
+        members: (d.members || []).map((m) =>
+          m.id === mid ? { ...m, badgeShelf: s, badge_shelf: s } : m,
+        ),
+      }))
+      toast(t('badges.shelfSaved'))
+    },
+
+    setMemberSignature: (mid, sig) => {
+      const text = String(sig || '').trim().slice(0, 80)
+      up((d) => ({
+        members: (d.members || []).map((m) =>
+          m.id === mid ? { ...m, signature: text } : m,
+        ),
+      }))
+      toast(t('badges.signatureSaved'))
+    },
+
     /**
      * Thành viên tự xin đổi thông tin của mình trong CLB (handoff 01 §6).
      * SĐT áp dụng NGAY, trình độ áp dụng TỪ THÁNG SAU — vì trình độ ảnh hưởng giá khách và
