@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v1.2.0 · **Updated:** 2026-09-06
+**Version:** v1.3.0 · **Updated:** 2026-09-12
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -1032,6 +1032,50 @@ Hoàn thiện kiến trúc toàn diện cho giai đoạn sản xuất: dọn d�
   - 43 file test trải đều trên các phân hệ: `components/` (7), `ledger/` (2), `lib/` (17), `money/` (11), `smoke/` (4), `sync/` (2).
   - 118/118 test cases pass xanh trong 830ms!
   - `npm run lint` sạch bóng 0 warning, 0 error.
+
+---
+
+## Đợt 10 — Hệ thống Điểm Mùa giải 3-Tier & SeasonRaceTab · **XONG 2026-09-10**
+
+Triển khai hoàn chỉnh động cơ cày rank Mùa giải (Season Race) độc lập theo quý, phân tách rạch ròi giữa Trục Thi Đấu (`season.js`) và Trục Gắn Bó (`xp.js`):
+
+- [x] **Động cơ cày rank 3-Tier (`src/lib/season.js`)**:
+  - 5 dải delta điểm mùa theo chênh lệch Elo đội (`deltaScale`): Cửa trên nặng (+10/-12), Cửa trên (+12/-10), Cân bằng (+14/-8), Cửa dưới (+17/-5), Cửa dưới sâu (+22/-3).
+  - Sàn điểm Floor = 0: kẹp sàn lũy kế theo thời gian trận đấu, điểm mùa không bao giờ bị âm.
+  - Thưởng chuỗi thắng: chạm mốc 3 trận (+5đ), 5 trận (+10đ).
+  - Thưởng lật kèo Upset: +5đ khi thắng đội hơn $\ge 150$ Elo.
+  - Điều kiện xếp hạng chính thức (Qualified): hoàn thành $\ge 20$ trận tính rating trong mùa.
+  - Trạng thái Tạm nghỉ (Inactive): 21 ngày không tham gia trận đấu nào.
+  - Vua Lì Đòn (`getSeasonBountyPlayer`): tìm VĐV có chuỗi thắng đang chạy dài nhất ($\ge 3$ trận). Trận giao lưu không cắt chuỗi thắng.
+- [x] **Giao diện Tab Mùa giải & Modals**:
+  - `SeasonRaceTab.jsx`: Trực quan hoá bảng xếp hạng mùa giải, podium Top 3, thanh tiến trình mùa, bảng điểm chi tiết, lọc trạng thái, xuất CSV mùa giải.
+  - `SeasonSettingsModal.jsx`: Cho phép xem và cấu hình thời gian mùa giải (Quý), gia hạn hoặc kết thúc sớm mùa.
+  - `MemberSeasonLedgerModal.jsx`: Sổ điểm mùa giải chi tiết từng trận của VĐV.
+- [x] **Kiểm thử tự động**:
+  - `src/__tests__/lib/season_3tier.test.js` & `src/__tests__/lib/xp_season_rank_engine.test.js`: Kiểm tra tính tất định, tie-break mốc thời gian, trận không tính rating, dự báo trước trận.
+
+---
+
+## Đợt 11 — Bảng xếp hạng Pairs, H2H Modal & Nhập tỷ số bằng giọng nói · **XONG 2026-09-12**
+
+Hoàn thiện phân tích chuyên sâu cặp đôi, đối đầu cá nhân và bổ sung công cụ nhập tỷ số rảnh tay bằng giọng nói:
+
+- [x] **Bảng xếp hạng Cặp đôi & Phân tích Đối đầu (`src/components/leaderboard/`)**:
+  - `PairsTab.jsx`: Xếp hạng các cặp đôi theo synergy, win rate, tổng số trận, confidence tiering, gợi ý cặp đối đầu kỵ giơ/duyên nợ.
+  - `PairDetailModal.jsx`: Xem chi tiết lịch sử các trận đấu cùng nhau giữa 2 người chơi (tỷ số set, biến động Elo).
+  - `PairH2HModal.jsx`: Xem chi tiết lịch sử đối đầu giữa 2 người chơi.
+  - `RatingFormulaModal.jsx`: Giải thích trực quan công thức tính điểm Elo, xác suất thắng và hệ số K.
+- [x] **Nhập tỷ số bằng giọng nói (Voice Match Parser)**:
+  - `src/utils/voiceMatchParser.js`: Hàm thuần phân tích ngữ pháp giọng nói tiếng Việt ghi điểm trận đấu theo Formal Grammar 5 luật cứng.
+    - Hỗ trợ câu lệnh 4 người chuẩn: `<A B> THẮNG <C D> <Điểm 1> <Điểm 2>`.
+    - Hỗ trợ câu lệnh trên sân có người: `<Tên> THẮNG <Điểm 1> <Điểm 2>` hoặc người tự nhận thua.
+    - Khử nhiễu tên người vs số đếm tiếng Việt (tên "Nam" vs số "năm", tên "Thắng" vs từ khóa "thắng").
+    - Validate luật điểm cầu lông (tối đa 30, chạm 20 cách biệt 2 hoặc chạm 30).
+  - `src/components/session/VoiceMatchModal.jsx`: Giao diện nghe micro Web Speech API, nhận diện real-time và hiển thị đối chiếu trước khi lưu.
+- [x] **Mở rộng Bộ kiểm thử tự động (222 tests pass 100%)**:
+  - Bổ sung `voiceMatchParser.test.js` (24 test cases kiểm tra toàn diện ngữ pháp và khử nhiễu).
+  - 52 file test với **222/222 test cases pass 100%**!
+  - `src/i18n/vi.json` đạt mốc **2,154 keys**.
 
 ---
 

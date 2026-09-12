@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Quản lý CLB cầu lông
 
-**Version:** v0.6.0 · **Updated:** 2026-09-10
+**Version:** v0.7.0 · **Updated:** 2026-09-12
 
 Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả nghiệp vụ gốc nằm trong bộ handoff
 (`design_handoff_clb_cau_long/01..06`) — không lặp lại ở đây; chỗ nào cần thì trỏ sang.
@@ -42,7 +42,7 @@ src/
     home/             HomeMatchTab
     leaderboard/      SeasonRaceTab · CareerEloTab · PairsTab · PairH2HTab · MemberSeasonLedgerModal · PairDetailModal · PairH2HModal · RatingFormulaModal
     profile/          MemberProfileTab
-    session/          CourtAssignmentTab · SessionMatchesTab · BalanceScore · CourtWaitingFilterSheet · EffectiveStrengthModal · SeasonSettingsModal · SessionStatsSheet
+    session/          CourtAssignmentTab · SessionMatchesTab · BalanceScore · CourtWaitingFilterSheet · EffectiveStrengthModal · SeasonSettingsModal · SessionStatsSheet · VoiceMatchModal
     settings/         SettingsComponents.jsx · tabs/ (AccessTab · CourtsTab · GeneralTab · GroupsTab · MoneyTab · SchedulesTab)
     ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar, AvatarUpload, BankAccountSection, QrModal, SearchSelect · MyDebtPanel · PayDebtsDialog
   config/             app.json (hằng số, rating cfg) · permissions.json (ma trận quyền)
@@ -73,8 +73,9 @@ src/
     rating.js         Elo Engine: tính delta, win%, đánh giá độ cân, độ tin cậy R1-R5, hiệu chỉnh chéo giới, replay cascade, dynamic K, margin multiplier, rankPairs
     roles.js          tra cứu ma trận quyền 3 vai
     schedules.js      kế hoạch SỬA/XOÁ lịch cố định: buổi nào được đụng, tháng nào đổi đơn giá
+    season.js         đua top mùa giải (Season Points): 5 dải delta, Floor 0, streak/upset bonus, qualified 20 trận, inactive 21 ngày, Bounty Player
     supabase.js       khởi tạo client Supabase từ biến môi trường
-    xp.js             hệ thống XP, Cấp bậc và Sổ ghi đóng góp VĐV; tính Season Leaderboard (điểm mùa giải)
+    xp.js             hệ thống XP, Cấp bậc và Sổ ghi đóng góp VĐV (Trục gắn bó: tham gia, ra sân, thâm niên, rủ khách; cấp 1-25+ và 6 danh xưng)
   pages/              1 file 1 màn hình, chỉ render + gọi actions
     Account.jsx       hồ sơ tài khoản (profiles, NGOÀI CLB)
     Clubs.jsx         danh sách CLB, tạo CLB, tham gia bằng mã
@@ -87,10 +88,10 @@ src/
     Profile.jsx · Settings.jsx · Schema.jsx
   routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
   styles/             index.css + tokens/*.css (dark.css, base.css hỗ trợ utility classes responsive mobile)
-  utils/              dates.js · image.js · vietqr.js
-  __tests__/          48 file test cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/
+  utils/              dates.js · image.js · vietqr.js · voiceMatchParser.js
+  __tests__/          52 file test (222 tests pass) cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/
 supabase/migrations/   SQL cho bản chạy thật (0001..0026)
-docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
+docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS · HE_THONG_RATING_VA_DIEM_MUA (+ DESIGN.md ở gốc)
 ```
 
 ### Import alias
@@ -167,16 +168,25 @@ Bên cạnh **Sổ quỹ**, hệ thống có **Thi đấu & Đẳng cấp** hoà
 - **Elo Engine thuần túy (`src/lib/rating.js`)**:
   - Điểm khởi đầu mặc định: `0` cho toàn bộ thành viên.
   - Công thức tính xác suất thắng dự kiến: $P(A) = 1 / (1 + 10^{(R_B - R_A) / 400})$.
-  - Hệ số biến thiên $K = 32$, bảo toàn tổng điểm (zero-sum $\Delta A + \Delta B = 0$).
+  - Hệ số biến thiên $K = 32$, bảo toàn tổng điểm (zero-sum $\Delta A + \Delta B = 0$), dynamic K theo R1-R5.
+  - Margin of Victory: nhân hệ số cách biệt bàn thắng set (1.05 - 1.40).
   - Thưởng điểm khi lật kèo (Underdog upset win nhận thưởng điểm Elo cao hơn).
   - Thang độ tin cậy R1 -> R5: R1 (<5 trận), R2 (5-14 trận), R3 (15-29 trận), R4 (30-49 trận), R5 (50+ trận).
   - Hiệu chỉnh chéo giới (Gender Calibration): Học từ phân bố tỷ lệ thắng thực tế của CLB để cân bằng tương quan nam-nữ.
   - Cascade Replay: Khi sửa điểm trận đấu trong quá khứ, `replayRatingCascade` tự động phát lại chuỗi kết quả để cập nhật chính xác rating của toàn bộ thành viên.
   - `rankPairs`: Xếp hạng các cặp đôi/đối tác dựa trên synergy và lịch sử đấu cùng nhau.
-- **Season Leaderboard (`src/lib/xp.js`)**:
-  - Hệ thống XP và Cấp bậc (XP chỉ tăng, đo mức độ tham gia).
-  - Cấp độ = `floor(totalXP / 600) + 1`; Danh xưng 6 bậc: Tân thủ → Tập sự → Quen sân → Thực chiến → Hảo thủ → Cao thủ.
-  - `calculateSeasonLeaderboard`: Tổng hợp BXH mùa giải từ điểm tham gia, tỷ lệ thắng, upset wins.
+- **Trục Thi đấu & Đua top Mùa giải (`src/lib/season.js`)**:
+  - `calculateSeasonLeaderboard`: Cơ chế cày rank thi đấu theo mùa (Quý), kẹp sàn Floor = 0.
+  - Thắng cộng, thua trừ theo 5 dải chênh lệch Team Elo: Cửa trên nặng (+10/-12), Cửa trên (+12/-10), Cân bằng (+14/-8), Cửa dưới (+17/-5), Cửa dưới sâu (+22/-3).
+  - Thưởng chuỗi thắng Streak 3 (+5đ), Streak 5 (+10đ); Thưởng lật kèo Upset (+5đ khi thắng đội hơn $\ge 150$ Elo).
+  - Tiêu chuẩn xếp hạng chính thức: Đủ tối thiểu 20 trận tính rating trong mùa (`minMatchesOfficial`).
+  - Trạng thái Tạm nghỉ (Inactive): 21 ngày không tham gia trận đấu nào.
+  - Vua Lì Đòn (`getSeasonBountyPlayer`): Treo thưởng VĐV có chuỗi thắng đang chạy dài nhất ($\ge 3$ trận).
+  - Reset về 0 mỗi quý; trận giao lưu (`ratingEnabled: false`) không sinh điểm mùa và không cắt chuỗi thắng.
+- **Trục Gắn bó & Cống hiến (`src/lib/xp.js`)**:
+  - Hệ thống XP và Cấp bậc: XP chỉ tăng, không phụ thuộc thắng thua, đo mức độ tham gia (50 XP/buổi, 10 XP/trận, 20 XP/tháng thâm niên, 25 XP/khách rủ).
+  - Cấp độ = $\lfloor \text{totalXP} / 600 \rfloor + 1$; Danh xưng 6 bậc: Tân thủ → Tập sự → Quen sân → Thực chiến → Hảo thủ → Cao thủ.
+  - Vĩnh viễn theo thời gian, không reset theo mùa giải.
 
 ---
 
@@ -277,7 +287,10 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 | Bảng xếp hạng Elo & Độ tin cậy | ✅ **Đã làm** | Màn `Leaderboard.jsx` (5 tabs): SeasonRace, CareerElo, Pairs, PairH2H, Search/Matrix |
 | Rating Engine nâng cấp | ✅ **Đã làm** | Dynamic K-Factor (R1-R5), Margin of Victory, Elo Floor >= 0, 8 bậc Slang Rank Tiers, Inactivity Decay, Playstyle Badges, rankPairs |
 | Cài đặt giảm trừ đi thêm & Nhãn số sân | ✅ **Đã làm** | Migration 0024 (`member_extra_discount`) và Migration 0025 (`court_label`) |
-| Hệ thống XP & Season Leaderboard | ✅ **Đã làm** | `src/lib/xp.js`: điểm tham gia, cấp bậc, danh xưng, BXH mùa giải với upset points |
+| Động cơ cày rank Mùa giải 3-tier | ✅ **Đã làm** | `src/lib/season.js`: 5 dải delta Elo, Floor 0, streak/upset bonus, qualified 20 trận, inactive 21 ngày, Bounty. UI: `SeasonRaceTab.jsx`, `SeasonSettingsModal.jsx`, `MemberSeasonLedgerModal.jsx` |
+| Hệ thống XP & Trục Gắn bó | ✅ **Đã làm** | `src/lib/xp.js`: điểm tham gia, thâm niên, rủ khách, cấp bậc 1-25+ và 6 bậc danh xưng vĩnh viễn |
+| Ghi điểm bằng giọng nói (Voice Match) | ✅ **Đã làm** | `VoiceMatchModal.jsx` + `src/utils/voiceMatchParser.js`: Formal Grammar 5 luật cứng, khử nhiễu tên người, kiểm tra luật điểm cầu lông |
+| Hoàn thiện BXH Cặp đôi & Modal H2H | ✅ **Đã làm** | `PairsTab.jsx`, `PairDetailModal.jsx`, `PairH2HModal.jsx`, `RatingFormulaModal.jsx`: phân tích synergy, đối đầu và công thức Elo |
 | Sửa RPC `club_pending_requests` để kèm avatar & bank info | ✅ **Đã làm** | Migration 0026: thêm `avatar_url`, `qr_url`, `bank_*` vào response trả về của RPC |
 | Tự khai nợ & Duyệt chuyển khoản | ✅ **Đã làm** | Migration 0018: cột `claimed_at` cho `monthly_dues`, `member_adjustments`, `session_guests` + RPC `claim_payments` |
 | Banner nhắc nợ Trang chủ | ✅ **Đã làm** | Migration 0019: cấu hình kiểu banner nhắc công nợ (`clubs.debt_banner`) |

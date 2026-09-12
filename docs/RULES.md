@@ -109,11 +109,11 @@ src/
   data/                schema.js (mô tả schema cho trang Sơ đồ dữ liệu)
   hooks/               hook dùng chung (useClock…)
   i18n/                index.js + <locale>.json
-  lib/                 logic nghiệp vụ THUẦN: money · ledger · assign · roles · members · schedules · csv · forms · supabase · rating · challenge · matchSearch · xp
+  lib/                 logic nghiệp vụ THUẦN: money · ledger · assign · roles · members · schedules · csv · forms · supabase · rating · challenge · matchSearch · xp · season
   pages/               1 file 1 màn hình
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/*.css
-  utils/               helper chung không dính nghiệp vụ (dates)
+  utils/               helper chung không dính nghiệp vụ (dates · image · vietqr · voiceMatchParser)
   __tests__/           test — xem README.md trong đó để biết file nào ở đâu
 ```
 

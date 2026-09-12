@@ -47,31 +47,33 @@
 8. [Bảng tổng hợp tham chiếu cấu hình (`app.json`)](#8-bảng-tổng-hợp-tham-chiếu-cấu-hình-appjson)
 ---
 
-## 1. TỔNG QUAN KIẾN TRÚC: MÔ HÌNH 2 TẦNG ĐIỂM ĐỘC LẬP
+## 1. TỔNG QUAN KIẾN TRÚC: MÔ HÌNH 3 TRỤC ĐIỂM ĐỘC LẬP
 
-Để giải quyết mâu thuẫn muôn thuở của các câu lạc bộ thể thao phong trào: *"Người đánh giỏi nhưng lười đi thì đứng đầu bảng, còn người mới tập nhưng đi đều đặn, cống hiến hết mình lại đứng chót"*, BadminClub vận hành mô hình **Hai tầng điểm song song, hoàn toàn độc lập về mặt ngữ nghĩa và vòng đời**:
+Để giải quyết triệt để mâu thuẫn muôn thuở của các câu lạc bộ thể thao phong trào: *"Người đánh giỏi nhưng lười đi thì đứng đầu bảng, còn người mới tập nhưng đi đều đặn, cống hiến hết mình lại đứng chót"*, BadminClub vận hành mô hình **Ba trục điểm song song, hoàn toàn độc lập về mặt ngữ nghĩa và vòng đời**:
 
 ```
                                ┌─────────────────────────────────────────┐
-                               │       BADMINCLUB DUAL-TIER ENGINE       │
+                               │       BADMINCLUB TRI-AXIS ENGINE        │
                                └────────────────────┬────────────────────┘
                                                     │
-                   ┌────────────────────────────────┴────────────────────────────────┐
-                   ▼                                                                 ▼
-      ┌─────────────────────────┐                                       ┌─────────────────────────┐
-      │   TẦNG 1: ELO CAREER    │                                       │  TẦNG 2: SEASON POINTS  │
-      │   (Trình độ Chuyên môn)  │                                       │   (Cống hiến & Phong trào)│
-      ├─────────────────────────┤                                       ├─────────────────────────┤
-      │ • Thước đo thực lực     │                                       │ • Thước đo chuyên cần   │
-      │ • CỘNG khi thắng        │                                       │ • CHỈ CỘNG, KHÔNG TRỪ   │
-      │ • TRỪ khi thua          │                                       │ • Điểm danh, ra sân     │
-      │ • VĨNH VIỄN theo thời gian│                                     │ • RESET VỀ 0 MỖI QUÝ    │
-      │ • Phục vụ CHIA SÂN      │                                       │ • Phục vụ ĐUA TOP QUÝ   │
-      └─────────────────────────┘                                       └─────────────────────────┘
+         ┌──────────────────────────────────────────┼──────────────────────────────────────────┐
+         ▼                                          ▼                                          ▼
+┌─────────────────────────┐                ┌─────────────────────────┐                ┌─────────────────────────┐
+│   TRỤC 1: ELO CAREER    │                │ TRỤC 2: SEASON POINTS   │                │   TRỤC 3: LIFETIME XP   │
+│   (Trình độ Chuyên môn) │                │   (Đua top Mùa giải)    │                │   (Gắn bó & Cống hiến)  │
+├─────────────────────────┤                ├─────────────────────────┤                ├─────────────────────────┤
+│ • Thước đo thực lực     │                │ • Cày rank thi đấu mùa  │                │ • Thước đo chuyên cần   │
+│ • CỘNG khi thắng        │                │ • Thắng cộng, thua trừ  │                │ • CHỈ CỘNG, KHÔNG TRỪ   │
+│ • TRỪ khi thua          │                │ • 5 dải delta, Floor = 0│                │ • Điểm danh, ra sân     │
+│ • VĨNH VIỄN không reset │                │ • RESET VỀ 0 MỖI QUÝ    │                │ • Thâm niên, mời khách  │
+│ • Phục vụ CHIA SÂN      │                │ • Phục vụ ĐUA TOP QUÝ   │                │ • VĨNH VIỄN không reset │
+│ • File: rating.js       │                │ • File: season.js       │                │ • File: xp.js           │
+└─────────────────────────┘                └─────────────────────────┘                └─────────────────────────┘
 ```
 
-- **Tầng 1: Elo Career**: Đại diện cho đẳng cấp cầu lông thuần túy. Thắng được cộng, thua bị trừ. Điểm tích lũy xuyên suốt lịch sử CLB, không bao giờ reset về 0.
-- **Tầng 2: Điểm Mùa giải (Season Points & XP)**: Đo lường mức độ gắn bó, tham gia và nhiệt huyết trong một mùa (chu kỳ 1 quý: 3 tháng). Điểm này **chỉ cộng, không bao giờ trừ**. Hết quý, Điểm Mùa sẽ reset về 0 để mở cuộc đua mới.
+- **Trục 1: Elo Career (`src/lib/rating.js`)**: Đại diện cho đẳng cấp cầu lông thuần túy. Thắng được cộng, thua bị trừ (zero-sum). Điểm tích lũy xuyên suốt lịch sử CLB, không bao giờ reset về 0. Phục vụ cân bằng khi chia sân và phân cấp 8 bậc Slang Rank Tiers.
+- **Trục 2: Điểm Mùa giải (Season Points - `src/lib/season.js`)**: Đo lường thành tích thi đấu trong mùa (chu kỳ 1 quý: 3 tháng). Vận hành theo cơ chế cày rank đối kháng: thắng cộng, thua trừ theo 5 dải chênh lệch Team Elo, kẹp sàn Floor = 0 (không âm). Hết quý, Điểm Mùa sẽ reset về 0 để mở cuộc đua mới.
+- **Trục 3: Cống hiến & Gắn bó (Lifetime XP - `src/lib/xp.js`)**: Đo lường sự bền bỉ, gắn bó và đóng góp cho CLB (điểm danh, ra sân, thâm niên, rủ khách). Điểm này **chỉ cộng, không bao giờ trừ**, không reset theo mùa, quyết định Cấp độ (1–25+) và 6 bậc Danh xưng (Tân thủ $\to$ Cao thủ).
 
 ---
 
@@ -288,75 +290,84 @@ Hệ thống tự động rà soát toàn bộ lịch sử đấu của một c�
 
 ## 3. CƠ CHẾ ĐIỂM MÙA GIẢI (SEASON POINTS) & CẤP ĐỘ XP
 
-*(File nguồn: `src/lib/xp.js`, cấu hình `season.pointsConfig` trong `src/config/app.json`)*
+*(File nguồn: `src/lib/season.js` cho Điểm Mùa, `src/lib/xp.js` cho Lifetime XP; cấu hình `season` và `xp` trong `src/config/app.json`)*
 
-Khác với Elo Career (thước đo kỹ thuật), **Điểm Mùa giải (Season Points)** là phần thưởng vinh danh sự cống hiến, độ chuyên cần và tinh thần chiến đấu của các thành viên.
+Khác với Elo Career (thước đo kỹ thuật chuyên môn tích lũy vĩnh viễn), hệ thống vận hành hai trục độc lập:
+1. **Điểm Mùa giải (Season Points - `src/lib/season.js`)**: Đua top cày rank thi đấu theo Quý.
+2. **XP Tích lũy (Lifetime XP - `src/lib/xp.js`)**: Đo lường sự bền bỉ, gắn bó và đóng góp trọn đời cho CLB.
 
-### 3.1. Bảng điểm cộng Điểm Mùa chi tiết
+### 3.1. Cơ chế cày rank Điểm Mùa giải (Season Points)
 
-| Hành động / Thành tích | Điểm Mùa cộng | Mã cấu hình | Điều kiện & Cơ chế kích hoạt |
-| :--- | :---: | :--- | :--- |
-| **Điểm danh có mặt buổi tập** | **+30 điểm** | `attendance` | Thành viên có trạng thái "Có mặt" trong buổi tập của CLB. |
-| **Ra sân thi đấu mỗi trận** | **+10 điểm** | `matchPlayed` | Đứng tên thi đấu hoàn thành 1 trận đấu hợp lệ (dù thắng hay thua). |
-| **Giành chiến thắng trận đấu** | **+15 điểm** | `matchWon` | Thắng chung cuộc trong trận đấu (được cộng gộp với 10 điểm ra sân $\to$ tổng +25). |
-| **Hạ gục đối thủ Elo cao hơn (Upset)** | **+25 điểm** | `upsetWon` | Thắng đội có Elo trung bình cao hơn đội mình $\ge 100$ điểm (`match.upsetMinGap`). |
-| **Trận đấu 3 set kịch tính (Thriller)** | **+10 điểm** | `threeSets` | Trận đấu kéo dài đủ 3 set đấu căng thẳng (bất kể thắng hay thua). |
-| **Chuỗi 3 trận thắng liên tiếp (Streak)** | **+20 điểm** | `streakThree` | Mỗi block 3 trận thắng liên tiếp trong mùa: $\lfloor \frac{\text{streak}}{3} \rfloor \times 20$. |
+*(Hàm `calculateSeasonLeaderboard` và `calcSeasonMatchDelta` trong `src/lib/season.js`)*
 
-> **Ví dụ thực tế một kịch bản hoàn hảo:**  
-> Thành viên A đi tập buổi tối:
-> - Có mặt điểm danh: **+30 điểm**
-> - Ra sân trận 1: Đánh 3 set kịch tính, lội ngược dòng hạ đối thủ Elo cao hơn 150 điểm:
->   - Ra sân: $+10$
->   - Thắng trận: $+15$
->   - Lật kèo Upset: $+25$
->   - Đánh đủ 3 set: $+10$  
->   $\implies$ Riêng trận này mang về **+60 điểm Mùa**!
-> - Đạt chuỗi 3 trận thắng liên tiếp trong buổi: Thưởng thêm **+20 điểm Mùa**!
+Điểm Mùa giải sinh trực tiếp từ kết quả thi đấu đối kháng: **thắng cộng, thua trừ** dựa theo chênh lệch trình độ (Team Elo) giữa 2 đội tại thời điểm vào sân (`match.initialRatingA/B`). Cả 2 VĐV cùng đội nhận cùng mức delta điểm mùa.
+
+#### Bảng 5 dải biến thiên Điểm Mùa (`deltaScale` trong `app.json`)
+
+Khoảng cách Elo: $\text{gap} = \text{round}(\text{teamElo} - \text{opponentTeamElo})$.
+
+| Dải chênh lệch Elo | Điều kiện chênh lệch | Thắng trận | Thua trận | Ý nghĩa thực chiến |
+| :--- | :--- | :---: | :---: | :--- |
+| **Cửa trên nặng (`heavyFavored`)** | $\text{gap} \ge 150$ | **+10** | **-12** | Đội vượt trội hoàn toàn; thắng là đương nhiên, sẩy chân bị phạt nặng |
+| **Cửa trên (`favored`)** | $50 \le \text{gap} < 150$ | **+12** | **-10** | Đội được đánh giá nhỉnh hơn |
+| **Cân bằng (`balanced`)** | $-49 \le \text{gap} < 50$ | **+14** | **-8** | Kèo ngang sức, kịch tính, điểm thắng cao hơn thua |
+| **Cửa dưới (`underdog`)** | $-149 \le \text{gap} < -49$ | **+17** | **-5** | Đội chiếu dưới; thua nhẹ, thắng được thưởng đậm |
+| **Cửa dưới sâu (`deepUnderdog`)** | $\text{gap} < -149$ | **+22** | **-3** | Kèo cực khó; thua gần như không mất điểm (-3), thắng nhận cơn mưa điểm (+22) |
+
+#### Quy tắc Sàn điểm Floor = 0 (Không bao giờ âm)
+Điểm mùa được tính lũy kế theo thứ tự thời gian của các trận đấu (`match.at`). Sau mỗi trận, nếu điểm số bị tụt xuống dưới 0 do thua trận, hệ thống tự động kẹp sàn: $\text{points} = \max(0, \text{points})$. Điều này giúp người chơi không bao giờ bị điểm âm trên Bảng xếp hạng.
+
+#### Phần thưởng Chuỗi thắng (Streak Bonus) & Lật kèo (Upset Bonus)
+- **Chuỗi 3 trận thắng liên tiếp (`streak3`):** Thưởng ngay **+5 điểm** tại thời điểm chạm mốc 3 trận thắng.
+- **Chuỗi 5 trận thắng liên tiếp (`streak5`):** Thưởng thêm **+10 điểm** tại thời điểm chạm mốc 5 trận thắng.
+- **Thưởng lật kèo Upset (`upset150`):** Khi giành chiến thắng trước đội có Elo cao hơn mình $\ge 150$ điểm, ngoài delta thắng (+17 hoặc +22), VĐV được thưởng thêm **+5 điểm** lội ngược dòng.
+
+#### Tiêu chuẩn Xếp hạng Chính thức (Qualified) & Trạng thái Tạm nghỉ (Inactive)
+- **Tiêu chuẩn Qualified:** Để xuất hiện chính thức trong top đầu BXH Mùa, VĐV phải hoàn thành tối thiểu **20 trận tính rating** trong mùa (`minMatchesOfficial = 20`). Thành viên chưa đủ 20 trận sẽ được xếp riêng bên dưới kèm nhãn `Chưa đủ điều kiện (X/20)`.
+- **Trạng thái Tạm nghỉ (Inactive):** Nếu quá **21 ngày** không tham gia trận đấu nào tính đến thời điểm hiện tại (`inactiveDays = 21`), VĐV sẽ bị gắn nhãn tạm nghỉ trên bảng tổng sắp.
+- **Trận giao lưu (`ratingEnabled = false`):** Không sinh điểm mùa và không tính vào mốc 20 trận, nhưng **không cắt đứt chuỗi thắng đang chạy** của VĐV.
 
 ---
 
-### 3.2. Cơ chế Vua Lì Đòn (Bounty Player)
+### 3.2. Cơ chế Vua Lì Đòn (Season Bounty Player)
 
-*(Hàm `getSeasonBountyPlayer(db)`)*
+*(Hàm `getSeasonBountyPlayer(db)` trong `src/lib/season.js`)*
 
-Để tạo kịch tính cho các buổi tập, hệ thống tự động quét toàn bộ CLB để tìm ra **VĐV đang nắm giữ chuỗi thắng dài nhất hiện tại** ($\text{streak} \ge 3$ trận gần nhất):
-- VĐV này sẽ được gắn huy hiệu **Bounty Player** (Mục tiêu săn thưởng vinh danh).
-- Khi đối đầu và hạ gục đội có người đang giữ chuỗi thắng hoặc rating cao hơn $\ge 100$ Elo, người thắng sẽ được thưởng điểm **Lật kèo (Upset)** (+25 Điểm Mùa, +30 XP).
-- Thành tích chuỗi thắng được hiển thị trực tiếp trên thẻ VĐV và Bảng xếp hạng để kích thích phong trào "săn thưởng" trong buổi tập.
+Để tạo kịch tính cho sân đấu phong trào, hệ thống tự động tìm kiếm thành viên đang nắm giữ **chuỗi thắng ĐANG CHẠY dài nhất CLB** ($\text{streak} \ge 3$ trận thắng gần nhất tính ngược từ trận mới nhất):
+- VĐV này được vinh danh là **Bounty Player** (Vua Lì Đòn) trên BXH Mùa giải (`SeasonRaceTab`).
+- Hạ gục đội có Bounty Player mang lại vinh dự lớn và kích thích phong trào thi đấu sôi nổi trong mỗi buổi tập.
 
 ---
 
 ### 3.3. Quy tắc Reset điểm theo Quý (Quarterly Reset)
 
-- **Chu kỳ mùa giải:** Chu kỳ chuẩn là 1 Quý (3 tháng). Ví dụ: Mùa 3/2026 diễn ra từ `2026-07-01` đến `2026-09-30`.
+- **Chu kỳ mùa giải:** Mặc định 1 Quý (3 tháng): Quý 1 (01/01–31/03), Quý 2 (01/04–30/06), Quý 3 (01/07–30/09), Quý 4 (01/10–31/12). Có thể tùy chỉnh linh hoạt qua `SeasonSettingsModal`.
 - **Thời điểm đóng mùa:** Đúng `23:59:59` ngày cuối cùng của quý:
-  1. Chốt danh hiệu vô địch Mùa giải (Quán quân, Á quân, Vua Upset, Vua Chuyên Cần).
-  2. Trao Huy chương ảo và lưu trữ thành tựu vào lịch sử cá nhân vĩnh viễn.
-  3. **RESET TOÀN BỘ ĐIỂM MÙA GIẢI (SEASON POINTS) VỀ 0** cho tất cả thành viên để bắt đầu mùa mới.
-  4. **TUYỆT ĐỐI KHÔNG RESET ELO CAREER:** Toàn bộ điểm Elo, hệ số K và lịch sử đấu chuyên môn được giữ nguyên vẹn 100%.
+  1. Vinh danh Top 3 Podium Mùa giải (Quán quân, Á quân, Quý quân), Vua Upset, Vua Phá Kèo.
+  2. **RESET TOÀN BỘ ĐIỂM MÙA GIẢI (SEASON POINTS) VỀ 0** cho tất cả thành viên để mở cuộc đua mới.
+  3. **TUYỆT ĐỐI KHÔNG RESET ELO CAREER VÀ LIFETIME XP:** Điểm Elo chuyên môn và cấp bậc XP được bảo lưu vĩnh viễn 100%.
 
 ---
 
 ### 3.4. Hệ thống cấp độ và danh xưng XP tích lũy (Lifetime XP)
 
-*(File nguồn: `src/lib/xp.js` — các hàm `calculateMemberXp`, `titleOfLevel`, `getMemberXpLedger`)*
+*(File nguồn: `src/lib/xp.js` — các hàm `calculateMemberXp`, `titleOfLevel`, `getMemberXpLedger`, `getMemberAchievements`)*
 
-Khác với Điểm Mùa (reset mỗi quý), **XP Tích Lũy Trọn Đời (Lifetime XP)** không bao giờ reset, đo lường toàn bộ thời gian gắn bó và cống hiến của thành viên với CLB.
+Khác với Điểm Mùa (reset mỗi quý), **XP Tích Lũy Trọn Đời (Lifetime XP)** là thước đo gắn bó và cống hiến bền bỉ. XP **chỉ tăng, không bao giờ giảm**, không phụ thuộc vào thắng hay thua.
 
 #### Bảng quy đổi tích lũy Lifetime XP (`calculateMemberXp`)
-| Hoạt động | XP Cộng | Ghi chú |
-| :--- | :---: | :--- |
-| **Mỗi buổi tham gia điểm danh** | **+50 XP** | Cao hơn điểm mùa (+30) nhằm tôn vinh độ bền bỉ |
-| **Mỗi trận ra sân thi đấu** | **+10 XP** | Dù thắng hay thua |
-| **Trận 3 set kịch tính** | **+20 XP** | Gấp đôi điểm mùa (+10) vì tiêu hao thể lực |
-| **Hạ đối thủ Elo cao hơn (Upset)** | **+30 XP** | Phần thưởng cho nỗ lực vượt khó |
-| **Thưởng thâm niên cơ bản** | **+15 XP/trận** | $\max(0, \text{historicalGames} - \text{matchCount}) \times 15$ |
+
+| Hoạt động gắn bó | XP Cộng | Cấu hình `app.json` | Ghi chú |
+| :--- | :---: | :--- | :--- |
+| **Mỗi buổi tham gia điểm danh** | **+50 XP** | `xp.perSession` | Có mặt trong buổi tập của CLB (kể cả đi thêm) |
+| **Mỗi trận ra sân thi đấu** | **+10 XP** | `xp.perMatch` | Cứ ra sân là có điểm, tôn vinh tinh thần rèn luyện |
+| **Thâm niên gắn bó với CLB** | **+20 XP / tháng** | `xp.perTenureMonth` | Tính theo số tháng tròn kể từ ngày gia nhập (`joined_at`) |
+| **Mời khách giao lưu đến sân** | **+25 XP / khách** | `xp.perGuestInvited` | Đóng góp phát triển cộng đồng CLB |
 
 #### Công thức Cấp độ (Level) và 6 Bậc Danh Xưng
 $\text{Level} = \left\lfloor \frac{\text{TotalXP}}{600} \right\rfloor + 1$
 
-- Mỗi Level yêu cầu chính xác **600 XP**.
+- Mỗi Level yêu cầu chính xác **600 XP** (`cfg.xp.levelSize`).
 - Tiến trình trong Level: $\text{progress} = \text{round}\left(\frac{\text{TotalXP} \pmod{600}}{600} \times 100\right)\%$.
 
 | Cấp độ (Level) | Danh xưng (Title) | Điểm XP tích lũy tương ứng |

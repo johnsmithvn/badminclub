@@ -58,6 +58,10 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | **Edge cases XP & Season**: streak bonus · biên tháng mùa giải · inactive member · tie-breaking · baseBonus · level progression qua ngưỡng 600 XP | `lib/xp_season_edge.test.js` |
 | 4 Theme Xếp hạng & Kho Biệt danh: Deterministic badge hash · 8 bậc rank · Quips | `lib/rank_themes.test.js` |
 | Dark Mode: ThemeContext, CSS token dark.css, icon sun/moon, anti-FOUC | `smoke/theme.test.js` |
+| **Động cơ cày rank Mùa giải 3-tier**: 5 dải delta Elo · Floor 0 · streak bonus · upset bonus · qualified 20 trận · ledger | `lib/season_3tier.test.js` |
+| **Tính tất định & cấu hình Mùa giải**: determinism · tie-break mốc thời gian · trận không tính rating · preview trước trận | `lib/xp_season_rank_engine.test.js` |
+| Mốc thời gian trận đấu: đọc từ `at`, đếm chuỗi thắng đang chạy, thứ tự hiển thị ledger | `lib/xp_timeline.test.js` |
+| **Nhập tỷ số bằng giọng nói (Voice Match)**: Formal Grammar 5 luật cứng · khử nhiễu tên người vs số đếm · luật điểm cầu lông | `lib/voiceMatchParser.test.js` |
 
 `fixture.js` — bộ dữ liệu cố định (2 CLB, tháng 08/2026) mọi file dùng chung. App **không**
 import nó; dữ liệu thật nằm ở Supabase.

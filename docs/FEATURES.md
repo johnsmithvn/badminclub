@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v0.6.0 · **Updated:** 2026-09-10
+**Version:** v0.7.0 · **Updated:** 2026-09-12
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -116,6 +116,11 @@ Chi tiết buổi tập được thiết kế lại thành thanh Tab Bar 3 tabs 
   - Timer bấm giờ trận đấu.
   - Hiển thị độ cân bằng trình độ (`Cân trình`, `Hơi lệch`, `Lệch trình`).
   - Nút `Xong trận · nhập tỷ số`: Mở `ScoreModal` để ghi nhận tỷ số các set và tính Elo.
+  - Nút `Nhập bằng giọng nói (Voice Match)`: Mở `VoiceMatchModal`, cho phép đọc tỷ số trực tiếp qua micro (Web Speech API) và phân tích cú pháp bằng `voiceMatchParser.js`.
+    - Hỗ trợ câu lệnh 4 người: `<A B> THẮNG <C D> <Điểm 1> <Điểm 2>`.
+    - Hỗ trợ câu lệnh vắn tắt trên sân đã có người: `<Tên> THẮNG <Điểm 1> <Điểm 2>` hoặc người tự nhận thua (`<Tên> THUA <Điểm 1> <Điểm 2>`).
+    - Khử nhiễu thông minh: Phân biệt tên người trùng số đếm (ví dụ tên "Nam" vs số "lăm/năm", tên "Thắng" vs từ khóa "thắng").
+    - Kiểm tra luật điểm cầu lông: Tối đa 30 điểm, chạm 20 cách biệt 2 hoặc chạm trần 30.
   - Nút `Trả sân`: Giải phóng 4 người về lại Pool chờ.
 - **5 chế độ xếp thông minh**: Cân trình, Đều lượt, Chỉ xếp chỗ trống, Cùng trình độ, Random.
 - **Cố định người theo sân** & **Chia đều vào sân**.
@@ -135,26 +140,35 @@ Chi tiết buổi tập được thiết kế lại thành thanh Tab Bar 3 tabs 
 Màn hình Bảng xếp hạng **5 tabs** toàn diện:
 
 1. **Mùa giải (`season` — `SeasonRaceTab`)**:
-   - Xếp hạng thành viên theo điểm mùa giải (điểm tham gia + thưởng thắng + upset). Logic tại `src/lib/xp.js: calculateSeasonLeaderboard`.
-   - Thẻ top 1/2/3 nổi bật, bảng chi tiết điểm mùa, thanh tiến độ mùa giải.
-   - Hệ thống XP và Cấp bậc: XP chỉ tăng (Danh xưng 6 bậc: Tân thủ → Tập sự → Quen sân → Thực chiến → Hảo thủ → Cao thủ).
+   - Xếp hạng thành viên theo điểm mùa giải dựa trên kết quả thi đấu đối kháng (Season Points). Logic tại `src/lib/season.js: calculateSeasonLeaderboard`.
+   - Cơ chế cày rank 5 dải delta theo chênh lệch Elo đội: Cửa trên nặng (+10/-12), Cửa trên (+12/-10), Cân bằng (+14/-8), Cửa dưới (+17/-5), Cửa dưới sâu (+22/-3).
+   - Sàn điểm Floor = 0: Thua không bị âm điểm mùa.
+   - Thưởng chuỗi thắng: Streak 3 (+5 điểm), Streak 5 (+10 điểm).
+   - Thưởng lật kèo Upset: +5 điểm khi thắng đội hơn $\ge 150$ Elo.
+   - Tiêu chuẩn Qualified: Tối thiểu 20 trận tính rating trong mùa. Thành viên chưa đủ 20 trận xếp sau người đã đủ, gắn nhãn `Chưa đủ điều kiện (X/20)`.
+   - Trạng thái Tạm nghỉ (Inactive): 21 ngày không tham gia trận đấu nào.
+   - Treo thưởng Vua Lì Đòn (Season Bounty): VĐV có chuỗi thắng đang chạy dài nhất ($\ge 3$ trận). Trận giao lưu không cắt chuỗi thắng.
+   - Thẻ top 1/2/3 nổi bật dạng podium, thanh tiến độ mùa giải.
+   - Modal `MemberSeasonLedgerModal`: Xem sổ ghi nhận điểm mùa chi tiết từng trận của VĐV.
+   - Modal `SeasonSettingsModal`: Xem và cấu hình mùa giải (tên mùa, ngày bắt đầu, ngày kết thúc, gia hạn hoặc kết thúc sớm mùa).
    - Xuất CSV mùa giải.
 
 2. **Elo/Profile (`elo` — `CareerEloTab`)**:
    - Xếp hạng thành viên theo Elo Rating giảm dần.
    - Hiển thị Rank, Tên, Giới tính, LevelChip, Điểm Elo, Thanh độ tin cậy (Confidence Bar), Tỷ số Thắng-Thua, Tỷ lệ thắng %, Form 5 trận gần nhất (W/L badge).
    - Histogram phân bố Elo toàn CLB.
-   - Bấm vào thành viên → mở `MemberProfileTab` (hồ sơ cá nhân chi tiết).
+   - Bấm vào thành viên → mở `MemberProfileTab` (hồ sơ cá nhân chi tiết: card cấp bậc Rank Tiers, tiến trình R1–R5, phân tích theo thể thức, đối tác ăn ý, đối thủ kỵ giơ, sổ XP).
 
 3. **Cặp đôi/Đối tác (`pairs` — `PairsTab`)**:
    - Xếp hạng các cặp đôi theo synergy (tỷ lệ thắng khi cùng đội, số trận chung, độ tin cậy).
-   - Mở `PairDetailModal`: lịch sử các trận đã đấu cùng nhau.
-   - `RatingFormulaModal`: giải thích công thức Elo.
+   - Phân tích hiệu suất kết hợp: Cặp vàng, Cặp tiềm năng, Cặp chông chênh.
+   - Mở `PairDetailModal`: Lịch sử các trận đã đấu cùng nhau, tỷ số từng set và biến động Elo.
+   - `RatingFormulaModal`: Giải thích chi tiết và trực quan công thức tính điểm Elo.
 
 4. **Đối đầu H2H (`matrix` — `PairH2HTab`)**:
-   - Bảng đối đầu NxN giữa các đấu thủ hàng đầu CLB với tỷ số thắng-thua màu sắc trực quan.
+   - Bảng đối đầu NxN giữa các đấu thủ hàng đầu CLB với tỷ số thắng-thua màu sắc trực quan (sticky tên hàng đầu tiên khi cuộn).
    - Danh sách các cặp thành viên chưa từng chạm trán kèm nút click gạ kèo nhanh.
-   - `PairH2HModal`: xem chi tiết lịch sử đối đầu giữa 2 người.
+   - `PairH2HModal`: Xem chi tiết lịch sử đối đầu giữa 2 người (số trận thắng, thua, hiệu số set, danh sách trận).
 
 5. **Tìm trận / Chéo giới (`search`)**:
    - Tìm kiếm trận đấu theo Người chơi A và B (Chế độ Đối đầu hoặc Cùng đội).
