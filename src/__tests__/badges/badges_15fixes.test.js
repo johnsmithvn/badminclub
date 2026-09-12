@@ -12,6 +12,9 @@ import {
   getBadgeById,
 } from '#lib/badges.js'
 
+/** Một ngày tính bằng mili-giây — để dựng mốc thời gian thật trong các mock bên dưới. */
+const DAY = 86400 * 1000
+
 test('15 Fixes: Thâm niên đọc đúng member.joined và member.joinedAt', () => {
   const d12MonthsAgo = new Date()
   d12MonthsAgo.setMonth(d12MonthsAgo.getMonth() - 13)
@@ -270,6 +273,17 @@ test('15 Fixes: beat_all_top5 yêu cầu 5 người KHÁC NHAU trong Top 5', () 
 })
 
 test('15 Fixes: Ba danh hiệu LEGEND mở được từ dữ liệu thực', () => {
+  // Mốc thời gian phải là ngày THẬT nằm trong mùa đang xét. Bản cũ dùng `at: 100/200` —
+  // tức năm 1970 — nên `seasonMatchesOf` loại sạch hai trận này khỏi mùa, rồi vẫn assert
+  // "tích được > 0 ngày giữ hạng 1". Chỉ có cách bịa số mới làm nó xanh, mà chính nhánh bịa
+  // số đó đẻ ra lỗ `doc_co` (người yếu nhất CLB mở LEGEND sau một buổi tập).
+  const season = {
+    id: 'test-season',
+    startDate: new Date(Date.now() - 70 * DAY).toISOString().slice(0, 10),
+    endDate: new Date(Date.now() + 20 * DAY).toISOString().slice(0, 10),
+  }
+  const firstMatchTs = Date.now() - 65 * DAY
+
   const mockDb = {
     members: [
       { id: 'challenger', name: 'Kẻ Thách Thức', rating: 1500 },
@@ -277,11 +291,11 @@ test('15 Fixes: Ba danh hiệu LEGEND mở được từ dữ liệu thực', ()
     ],
     matches: [
       // 1. Thắng Đương kim vô địch (Rank 1)
-      { id: '1', at: 100, teamA: ['challenger'], teamB: ['king'], winnerTeam: 'A' },
+      { id: '1', at: firstMatchTs, teamA: ['challenger'], teamB: ['king'], winnerTeam: 'A' },
       // 2. Lội ngược dòng thế kỷ: thua set 1 đậm (8-21), thắng kịch tính set 3 (22-20)
       {
         id: '2',
-        at: 200,
+        at: firstMatchTs + DAY,
         teamA: ['challenger'],
         teamB: ['king'],
         winnerTeam: 'A',
@@ -294,28 +308,36 @@ test('15 Fixes: Ba danh hiệu LEGEND mở được từ dữ liệu thực', ()
     ],
   }
 
-  const res = calculateMemberBadges('challenger', mockDb)
+  const res = calculateMemberBadges('challenger', mockDb, season)
   const beatChamp = res.unlocked.find((b) => b.id === 'ha_nha_vo_dich')
   const century = res.unlocked.find((b) => b.id === 'nguoc_dong_the_ky')
 
   assert.ok(beatChamp, 'Hạ Rank 1 (King) mở được danh hiệu LEGEND Hạ nhà vô địch')
   assert.ok(century, 'Lội ngược dòng thua set 1 sâu và thắng set 3 nghẹt thở mở được Ngược dòng thế kỷ')
 
-  // Kiểm tra Độc cô cầu bại cho người giữ Rank 1
-  const resKing = calculateMemberBadges('king', mockDb)
+  // King giữ Rank 1 từ trận đầu (65 ngày trước) tới nay -> vượt mốc 60 ngày
+  const resKing = calculateMemberBadges('king', mockDb, season)
   const docCo = resKing.all.find((b) => b.id === 'doc_co')
-  assert.ok(docCo, 'King đang là Rank 1 tích lũy được tiến độ Độc cô cầu bại')
-  assert.ok(docCo.currentVal > 0, 'King tích lũy được số ngày giữ Rank 1 > 0')
+  assert.ok(docCo, 'doc_co có mặt trong danh mục')
+  assert.ok(
+    docCo.currentVal > 0,
+    'King thực sự dẫn đầu Elo và CLB đã có trận -> phải tích được ngày giữ Rank 1',
+  )
+  assert.equal(docCo.unlocked, true, 'Giữ Rank 1 hơn 60 ngày thì mở khoá doc_co')
 
-  // Nếu King giữ Rank 1 đủ 60 ngày thì mở khóa doc_co
-  const seasonOld = {
-    id: 's1',
-    startDate: new Date(Date.now() - 70 * 86400000).toISOString().slice(0, 10),
-  }
-  const resKing60 = calculateMemberBadges('king', mockDb, seasonOld)
-  const docCo60 = resKing60.unlocked.find((b) => b.id === 'doc_co')
-  assert.ok(docCo60, 'King giữ Rank 1 >= 60 ngày mở khóa được danh hiệu LEGEND Độc cô cầu bại')
-  assert.equal(docCo60.unlocked, true)
+  // Đồng hồ giữ Rank 1 chỉ chạy khi CLB ĐÃ có trận. Chưa đánh trận nào mà vẫn tích ngày là
+  // lỗ hổng cũ: người đứng đầu danh sách tự phát LEGEND ngay khi CLB vừa lập.
+  const dbNoMatch = { ...mockDb, matches: [] }
+  const resNoMatch = calculateMemberBadges('king', dbNoMatch, season)
+  const docCoNoMatch = resNoMatch.all.find((b) => b.id === 'doc_co')
+  assert.equal(docCoNoMatch.currentVal, 0, 'CLB chưa có trận nào thì không ai tích được ngày giữ Rank 1')
+  assert.equal(docCoNoMatch.unlocked, false, 'Không được mở doc_co khi chưa đánh trận nào')
+
+  // CLB một người thì "hạng 1" vô nghĩa — không có á quân để mà hơn.
+  const dbSolo = { members: [{ id: 'solo', name: 'Một Mình', rating: 2200 }], matches: [] }
+  const resSolo = calculateMemberBadges('solo', dbSolo, season)
+  const docCoSolo = resSolo.all.find((b) => b.id === 'doc_co')
+  assert.equal(docCoSolo.unlocked, false, 'CLB một người không được tự phát danh hiệu giữ Rank 1')
 })
 
 test('15 Fixes: getMemberHighestBadge nhận preloadedSeasonMatches', () => {
@@ -431,15 +453,37 @@ test('15 Fixes: computeClubBadgeStats tổng hợp dữ liệu CLB chuẩn xác'
     ],
     club: { championId: 'm1' },
     matches: [
-      { id: 'm1', at: 100, teamA: ['m1', 'm2'], teamB: ['m3', 'm4'], winnerTeam: 'A' },
+      // Mốc thời gian THẬT trong mùa: `at: 100` (năm 1970) bị `seasonMatchesOf` loại khỏi
+      // mùa nên trận đó không tồn tại với engine, không tích được ngày giữ Rank 1 nào.
+      { id: 'mt1', at: Date.now() - 40 * DAY, teamA: ['m1', 'm2'], teamB: ['m3', 'm4'], winnerTeam: 'A' },
     ],
   }
+  const season = {
+    id: 'test-season',
+    startDate: new Date(Date.now() - 50 * DAY).toISOString().slice(0, 10),
+    endDate: new Date(Date.now() + 10 * DAY).toISOString().slice(0, 10),
+  }
 
-  const stats = computeClubBadgeStats(mockDb)
+  const stats = computeClubBadgeStats(mockDb, season)
   assert.equal(stats.rank1Member.id, 'm1')
   assert.equal(stats.seasonChampionId, 'm1')
   assert.equal(stats.top5EloMemberIds.length, 5)
   assert.equal(stats.top5EloMemberIds[0], 'm1')
   assert.equal(stats.top5EloMemberIds.includes('m6'), false)
-  assert.ok(stats.daysRank1Map.get('m1') > 0)
+  assert.ok(
+    stats.daysRank1Map.get('m1') > 0,
+    'm1 dẫn đầu Elo rõ rệt và CLB đã có trận trong mùa -> phải tích được ngày giữ Rank 1',
+  )
+
+  // Cả CLB cùng điểm thì không có ai "hạng 1" để mà giữ.
+  const dbTied = {
+    members: ['t1', 't2', 't3'].map((id) => ({ id, name: id, rating: 0 })),
+    matches: [{ id: 'x', at: Date.now() - 40 * DAY, teamA: ['t1'], teamB: ['t2'], winnerTeam: 'A' }],
+  }
+  const statsTied = computeClubBadgeStats(dbTied, season)
+  assert.equal(
+    statsTied.daysRank1Map.size,
+    0,
+    'Cả CLB cùng 0 điểm thì không ai được tính là đang giữ Rank 1',
+  )
 })

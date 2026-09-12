@@ -1009,6 +1009,7 @@
   "bountyBadges": [
     {
       "id": "bounty_hunter",
+      "groupId": 0,
       "tier": "epic",
       "glyph": "shuriken",
       "checkType": "bounty_break",
@@ -1020,6 +1021,7 @@
     },
     {
       "id": "sat_than",
+      "groupId": 0,
       "tier": "legend",
       "glyph": "flame",
       "checkType": "bounty_break_distinct",

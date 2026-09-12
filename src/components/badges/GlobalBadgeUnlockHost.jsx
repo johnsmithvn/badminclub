@@ -2,9 +2,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'
-import { calculateMemberBadges, computeClubBadgeStats } from '#lib/badges.js'
+import { calculateMemberBadges, computeClubBadgeStats, TIER_ORDER } from '#lib/badges.js'
 import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
+import cfgBadges from '#config/badges.json' with { type: 'json' }
 import BadgeUnlockModal from './BadgeUnlockModal.jsx'
+
+/** Số ô kệ trưng bày — cùng nguồn với trang Danh hiệu, không hard-code (RULES §3.2). */
+const SHELF_SLOTS = cfgBadges.shelfSlots ?? 3
 
 /**
  * GlobalBadgeUnlockHost: Listener mở khóa danh hiệu toàn cục.
@@ -28,13 +32,19 @@ export default function GlobalBadgeUnlockHost() {
   // Phải truyền ĐÚNG bộ tham số như trang Danh hiệu (`pages/Badges.jsx`). Gọi trần thì đây
   // là nguồn sự thật thứ hai: hễ lệch là modal "chúc mừng mở khoá" bắn cho danh hiệu mà
   // trang Danh hiệu không công nhận.
+  // CHỈ danh hiệu chính thức: 10 danh hiệu `fun` (Tự phong) tự mở cho MỌI người, nên nếu lấy
+  // `unlocked` thì thêm một badge fun vào catalog là cả CLB bị bắn modal cho thứ không ai
+  // giành được. Sắp theo bậc để `[0]` đúng nghĩa "cao nhất" — `calculateMemberBadges` push
+  // theo thứ tự catalog, không sắp sẵn.
   const unlockedBadges = useMemo(() => {
     if (!me?.id || !db) return []
     const season = resolveSeason(db)
     const seasonMatches = seasonMatchesOf(db, season) || []
     const clubStats = computeClubBadgeStats(db, season, seasonMatches)
     const res = calculateMemberBadges(me.id, db, season, seasonMatches, clubStats)
-    return res?.unlocked || []
+    return (res?.officialUnlocked || []).slice().sort(
+      (x, y) => (TIER_ORDER[y.tier] || 0) - (TIER_ORDER[x.tier] || 0),
+    )
   }, [me, db])
 
   // Key lưu trữ danh hiệu đã xem theo từng CLB và từng thành viên
@@ -54,8 +64,14 @@ export default function GlobalBadgeUnlockHost() {
     try {
       const raw = localStorage.getItem(storageKey)
       if (raw !== null) {
-        seenIds = JSON.parse(raw)
-        hasStoredRecord = true
+        const parsed = JSON.parse(raw)
+        // Phải là mảng mới dùng được. Giá trị lạ (đổi format, người dùng nghịch, app khác
+        // cùng origin) mà lọt xuống dưới thì `seenIds.includes` ném TypeError — và component
+        // này mount TOÀN APP, nên lỗi đó trắng màn ở mọi trang chứ không riêng trang Danh hiệu.
+        if (Array.isArray(parsed)) {
+          seenIds = parsed
+          hasStoredRecord = true
+        }
       }
     } catch {
       seenIds = []
@@ -124,7 +140,7 @@ export default function GlobalBadgeUnlockHost() {
       const foundIdx = currentShelf.indexOf(badge.id)
 
       if (foundIdx < 0) {
-        if (currentShelf.length >= 3) {
+        if (currentShelf.length >= SHELF_SLOTS) {
           currentShelf.pop() // Kệ đầy 3 ô -> thay ô cuối cùng
         }
         currentShelf.unshift(badge.id)
@@ -167,7 +183,7 @@ export default function GlobalBadgeUnlockHost() {
 
   const currentShelf = me.badgeShelf || me.badge_shelf || []
   const shelfCount = currentShelf.length
-  const shelfIsFull = shelfCount >= 3
+  const shelfIsFull = shelfCount >= SHELF_SLOTS
 
   return (
     <BadgeUnlockModal

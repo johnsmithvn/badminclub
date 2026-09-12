@@ -41,8 +41,11 @@ import badgesConfig from '#config/badges.json'
  * - A5: BXH Người sưu tập & Huy hiệu Hiếm
  * - Bảng tin Thành tích & Tương tác CLB (Feed)
  */
+/** Tab hợp lệ của trang — dùng để lọc `?tab=` trước khi đưa vào state. */
+const TAB_IDS = ['collection', 'bounty', 'leaderboard', 'feed']
+
 export default function Badges() {
-  const { db, a, me } = useApp()
+  const { db, a } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -61,7 +64,9 @@ export default function Badges() {
   const [signatureDraft, setSignatureDraft] = useState('')
 
   // Thành viên người dùng hiện tại (đăng nhập)
-  const currentMember = useMemo(() => myMember(db, me), [db, me])
+  // `myMember` chỉ nhận 1 tham số (xem money.js) — truyền thêm `me` là thừa và gây hiểu nhầm
+  // rằng danh tính đăng nhập có ảnh hưởng; nó đọc `db.currentUserId` bên trong.
+  const currentMember = useMemo(() => myMember(db), [db])
 
   // Thành viên đang được xem hồ sơ danh hiệu (mặc định là người dùng hiện tại, hoặc người đầu tiên)
   const [viewingMemberId, setViewingMemberId] = useState(null)
@@ -81,7 +86,9 @@ export default function Badges() {
     const tabParam = params.get('tab') || location.state?.tab
     const highlightParam = params.get('highlight') || location.state?.badgeId
 
-    if (tabParam) {
+    // Chỉ nhận tab có thật. `?tab=abc` từ link hỏng mà gán thẳng vào state thì không tab nào
+    // render và người dùng nhìn thấy trang trắng không hiểu vì sao.
+    if (tabParam && TAB_IDS.includes(tabParam)) {
       setActiveTab(tabParam)
     }
 
@@ -245,12 +252,13 @@ export default function Badges() {
   }, [selectedBadge, currentMember?.id, db])
 
   // Danh sách tabs phong cách Anime
-  const tabs = [
-    { id: 'collection', label: t('badges.tabCollection') },
-    { id: 'bounty', label: t('badges.tabBounty') },
-    { id: 'leaderboard', label: t('badges.tabLeaderboard') },
-    { id: 'feed', label: t('badges.tabFeed') },
-  ]
+  const TAB_LABEL_KEYS = {
+    collection: 'badges.tabCollection',
+    bounty: 'badges.tabBounty',
+    leaderboard: 'badges.tabLeaderboard',
+    feed: 'badges.tabFeed',
+  }
+  const tabs = TAB_IDS.map((id) => ({ id, label: t(TAB_LABEL_KEYS[id]) }))
 
   // Hero Bounty Poster mục tiêu hot nhất
   const heroBounty = bounties.length > 0 ? bounties[0] : null
