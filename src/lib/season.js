@@ -459,3 +459,13 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     recentEvents: events,
   }
 }
+
+/**
+ * Trả về danh sách xếp hạng mùa giải dạng mảng phẳng rows.
+ * @param {Object} db
+ * @param {Object} [season]
+ * @returns {Array}
+ */
+export function getSeasonRankLeaderboard(db, season) {
+  return calculateSeasonLeaderboard(db, season)?.leaderboard || []
+}

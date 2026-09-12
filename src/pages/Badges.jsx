@@ -96,7 +96,7 @@ export default function Badges() {
   const memberSeasonData = useMemo(() => {
     const found = seasonRows.find((r) => r.id === activeMember.id)
     return {
-      seasonPoints: found?.seasonPoints ?? 0,
+      seasonPoints: found?.totalSeasonPoints ?? found?.seasonPoints ?? 0,
       rank: found?.rank ?? '—',
     }
   }, [seasonRows, activeMember.id])
