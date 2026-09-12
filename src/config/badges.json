@@ -8,15 +8,33 @@
     "hidden": 0
   },
   "tiers": {
-    "legend": { "name": "HUYỀN THOẠI", "note": "hào quang · vòng xoay" },
-    "epic": { "name": "SỬ THI", "note": "tím · xung năng lượng" },
-    "elite": { "name": "TINH ANH", "note": "lam · lưỡi sáng" },
-    "rare": { "name": "HIẾM", "note": "ngọc lục · thương hiệu" },
-    "fun": { "name": "TỰ PHONG", "note": "vàng · 0 điểm sưu tập" },
-    "hidden": { "name": "ẨN", "note": "??? tới khi mở" }
+    "legend": {
+      "name": "HUYỀN THOẠI",
+      "note": "hào quang · vòng xoay"
+    },
+    "epic": {
+      "name": "SỬ THI",
+      "note": "tím · xung năng lượng"
+    },
+    "elite": {
+      "name": "TINH ANH",
+      "note": "lam · lưỡi sáng"
+    },
+    "rare": {
+      "name": "HIẾM",
+      "note": "ngọc lục · thương hiệu"
+    },
+    "fun": {
+      "name": "TỰ PHONG",
+      "note": "vàng · 0 điểm sưu tập"
+    },
+    "hidden": {
+      "name": "ẨN",
+      "note": "??? tới khi mở"
+    }
   },
   "bounty": {
-    "minStreakSingle": 4,
+    "minStreakSingle": 5,
     "minStreakPair": 4,
     "hotStreak": 6,
     "rewardHot": {
@@ -39,8 +57,8 @@
     {
       "id": "bounty_hunter",
       "name": "Kẻ Săn Tiền Thưởng",
-      "cond": "Ngắt chuỗi của một bounty đang mở",
-      "tier": "elite",
+      "cond": "Ngắt 3 chuỗi bounty trong mùa",
+      "tier": "epic",
       "glyph": "shuriken"
     },
     {
@@ -53,10 +71,26 @@
   ],
   "shelfSlots": 3,
   "groups": [
-    { "id": 0, "key": "combat", "tone": "elite" },
-    { "id": 1, "key": "soul", "tone": "rare" },
-    { "id": 2, "key": "fun", "tone": "fun" },
-    { "id": 3, "key": "hidden", "tone": "hidden" }
+    {
+      "id": 0,
+      "key": "combat",
+      "tone": "elite"
+    },
+    {
+      "id": 1,
+      "key": "soul",
+      "tone": "rare"
+    },
+    {
+      "id": 2,
+      "key": "fun",
+      "tone": "fun"
+    },
+    {
+      "id": 3,
+      "key": "hidden",
+      "tone": "hidden"
+    }
   ],
   "catalog": [
     {
@@ -66,7 +100,10 @@
       "glyph": "wing",
       "checkType": "win_streak",
       "threshold": 5,
-      "reward": { "xp": 80, "seasonPts": 10 }
+      "reward": {
+        "xp": 80,
+        "seasonPts": 10
+      }
     },
     {
       "id": "bat_bai_x",
@@ -75,16 +112,22 @@
       "glyph": "flame",
       "checkType": "win_streak",
       "threshold": 10,
-      "reward": { "xp": 200, "seasonPts": 25 }
+      "reward": {
+        "xp": 200,
+        "seasonPts": 25
+      }
     },
     {
       "id": "ke_ngat_chuoi",
       "groupId": 0,
-      "tier": "epic",
+      "tier": "elite",
       "glyph": "thunder",
       "checkType": "bounty_break",
       "threshold": 1,
-      "reward": { "xp": 100, "seasonPts": 15 }
+      "reward": {
+        "xp": 100,
+        "seasonPts": 15
+      }
     },
     {
       "id": "sat_than_doi",
@@ -93,7 +136,10 @@
       "glyph": "shuriken",
       "checkType": "beat_top_pair",
       "threshold": 1,
-      "reward": { "xp": 150, "seasonPts": 20 }
+      "reward": {
+        "xp": 150,
+        "seasonPts": 20
+      }
     },
     {
       "id": "trum_giai",
@@ -102,7 +148,10 @@
       "glyph": "horn",
       "checkType": "internal_champion",
       "threshold": 1,
-      "reward": { "xp": 300, "seasonPts": 40 }
+      "reward": {
+        "xp": 300,
+        "seasonPts": 40
+      }
     },
     {
       "id": "chuyen_can_50",
@@ -111,7 +160,10 @@
       "glyph": "crystal",
       "checkType": "sessions_count",
       "threshold": 50,
-      "reward": { "xp": 100, "seasonPts": 0 }
+      "reward": {
+        "xp": 100,
+        "seasonPts": 0
+      }
     },
     {
       "id": "chuyen_can_100",
@@ -120,7 +172,10 @@
       "glyph": "crystal",
       "checkType": "sessions_count",
       "threshold": 100,
-      "reward": { "xp": 250, "seasonPts": 0 }
+      "reward": {
+        "xp": 250,
+        "seasonPts": 0
+      }
     },
     {
       "id": "cong_than_1",
@@ -129,7 +184,10 @@
       "glyph": "moon",
       "checkType": "tenure_months",
       "threshold": 12,
-      "reward": { "xp": 120, "seasonPts": 0 }
+      "reward": {
+        "xp": 120,
+        "seasonPts": 0
+      }
     },
     {
       "id": "cong_than_2",
@@ -138,7 +196,10 @@
       "glyph": "moon",
       "checkType": "tenure_months",
       "threshold": 24,
-      "reward": { "xp": 300, "seasonPts": 0 }
+      "reward": {
+        "xp": 300,
+        "seasonPts": 0
+      }
     },
     {
       "id": "dai_su_5",
@@ -147,7 +208,10 @@
       "glyph": "shuriken",
       "checkType": "guests_count",
       "threshold": 5,
-      "reward": { "xp": 100, "seasonPts": 0 }
+      "reward": {
+        "xp": 100,
+        "seasonPts": 0
+      }
     },
     {
       "id": "dai_su_10",
@@ -156,7 +220,10 @@
       "glyph": "shuriken",
       "checkType": "guests_count",
       "threshold": 10,
-      "reward": { "xp": 200, "seasonPts": 0 }
+      "reward": {
+        "xp": 200,
+        "seasonPts": 0
+      }
     },
     {
       "id": "so_sach",
@@ -165,7 +232,10 @@
       "glyph": "crystal",
       "checkType": "dues_clean_months",
       "threshold": 12,
-      "reward": { "xp": 150, "seasonPts": 0 }
+      "reward": {
+        "xp": 150,
+        "seasonPts": 0
+      }
     },
     {
       "id": "vo_hut",
@@ -174,7 +244,10 @@
       "glyph": "wing",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "lau_san",
@@ -183,7 +256,10 @@
       "glyph": "crystal",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "he_chua",
@@ -192,7 +268,10 @@
       "glyph": "horn",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "chich_choe",
@@ -201,7 +280,10 @@
       "glyph": "thunder",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "doi_vot",
@@ -210,7 +292,10 @@
       "glyph": "shuriken",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "ganh_ta",
@@ -219,7 +304,10 @@
       "glyph": "wing",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "ngam_cau",
@@ -228,7 +316,10 @@
       "glyph": "moon",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "huy_diet_luoi",
@@ -237,7 +328,10 @@
       "glyph": "shuriken",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "hoa_hau_nhat_cau",
@@ -246,7 +340,10 @@
       "glyph": "blossom",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "tho_san_goc_chet",
@@ -255,7 +352,10 @@
       "glyph": "fang",
       "checkType": "fun",
       "threshold": 0,
-      "reward": { "xp": 0, "seasonPts": 0 }
+      "reward": {
+        "xp": 0,
+        "seasonPts": 0
+      }
     },
     {
       "id": "hidden_comeback",
@@ -265,7 +365,10 @@
       "glyph": "thunder",
       "checkType": "hidden_comeback",
       "threshold": 10,
-      "reward": { "xp": 150, "seasonPts": 20 }
+      "reward": {
+        "xp": 150,
+        "seasonPts": 20
+      }
     },
     {
       "id": "hidden_surprise",
@@ -275,7 +378,10 @@
       "glyph": "moon",
       "checkType": "hidden_surprise_session",
       "threshold": 1,
-      "reward": { "xp": 100, "seasonPts": 10 }
+      "reward": {
+        "xp": 100,
+        "seasonPts": 10
+      }
     },
     {
       "id": "hidden_streak_15",
@@ -285,7 +391,10 @@
       "glyph": "horn",
       "checkType": "win_streak",
       "threshold": 15,
-      "reward": { "xp": 400, "seasonPts": 50 }
+      "reward": {
+        "xp": 400,
+        "seasonPts": 50
+      }
     },
     {
       "id": "hidden_duo_bond",
@@ -295,7 +404,10 @@
       "glyph": "wing",
       "checkType": "hidden_duo_bond",
       "threshold": 20,
-      "reward": { "xp": 120, "seasonPts": 15 }
+      "reward": {
+        "xp": 120,
+        "seasonPts": 15
+      }
     },
     {
       "id": "hidden_deuce_30",
@@ -305,17 +417,599 @@
       "glyph": "crystal",
       "checkType": "hidden_deuce_30",
       "threshold": 1,
-      "reward": { "xp": 100, "seasonPts": 10 }
+      "reward": {
+        "xp": 100,
+        "seasonPts": 10
+      }
+    },
+    {
+      "id": "bat_bai_3",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "flame",
+      "checkType": "win_streak",
+      "threshold": 3,
+      "reward": {
+        "xp": 50,
+        "seasonPts": 5
+      }
+    },
+    {
+      "id": "bat_bai_15",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "flame",
+      "checkType": "win_streak",
+      "threshold": 15,
+      "reward": {
+        "xp": 300,
+        "seasonPts": 40
+      }
+    },
+    {
+      "id": "sat_thu_10",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "fang",
+      "checkType": "total_wins",
+      "threshold": 10,
+      "reward": {
+        "xp": 50,
+        "seasonPts": 0
+      }
+    },
+    {
+      "id": "sat_thu_25",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "fang",
+      "checkType": "total_wins",
+      "threshold": 25,
+      "reward": {
+        "xp": 100,
+        "seasonPts": 0
+      }
+    },
+    {
+      "id": "sat_thu_50",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "fang",
+      "checkType": "total_wins",
+      "threshold": 50,
+      "reward": {
+        "xp": 200,
+        "seasonPts": 0
+      }
+    },
+    {
+      "id": "sat_thu_100",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "fang",
+      "checkType": "total_wins",
+      "threshold": 100,
+      "reward": {
+        "xp": 400,
+        "seasonPts": 0
+      }
+    },
+    {
+      "id": "tho_san_keo_50",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "shuriken",
+      "checkType": "upset_elo",
+      "threshold": 50,
+      "reward": {
+        "xp": 60,
+        "seasonPts": 8
+      }
+    },
+    {
+      "id": "tho_san_keo_100",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "shuriken",
+      "checkType": "upset_elo",
+      "threshold": 100,
+      "reward": {
+        "xp": 120,
+        "seasonPts": 15
+      }
+    },
+    {
+      "id": "tho_san_keo_150",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "shuriken",
+      "checkType": "upset_elo",
+      "threshold": 150,
+      "reward": {
+        "xp": 220,
+        "seasonPts": 25
+      }
+    },
+    {
+      "id": "tho_san_keo_200",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "shuriken",
+      "checkType": "upset_elo",
+      "threshold": 200,
+      "reward": {
+        "xp": 400,
+        "seasonPts": 45
+      }
+    },
+    {
+      "id": "de_bep_15",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "horn",
+      "checkType": "win_margin",
+      "threshold": 15,
+      "reward": {
+        "xp": 50,
+        "seasonPts": 5
+      }
+    },
+    {
+      "id": "de_bep_10",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "horn",
+      "checkType": "win_margin",
+      "threshold": 10,
+      "reward": {
+        "xp": 90,
+        "seasonPts": 12
+      }
+    },
+    {
+      "id": "de_bep_5",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "horn",
+      "checkType": "win_margin",
+      "threshold": 5,
+      "reward": {
+        "xp": 180,
+        "seasonPts": 22
+      }
+    },
+    {
+      "id": "de_bep_3",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "horn",
+      "checkType": "win_margin",
+      "threshold": 3,
+      "reward": {
+        "xp": 350,
+        "seasonPts": 40
+      }
+    },
+    {
+      "id": "doi_an_y_5",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "moon",
+      "checkType": "pair_streak",
+      "threshold": 5,
+      "reward": {
+        "xp": 60,
+        "seasonPts": 8
+      }
+    },
+    {
+      "id": "doi_an_y_10",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "moon",
+      "checkType": "pair_streak",
+      "threshold": 10,
+      "reward": {
+        "xp": 120,
+        "seasonPts": 15
+      }
+    },
+    {
+      "id": "doi_an_y_20",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "moon",
+      "checkType": "pair_streak",
+      "threshold": 20,
+      "reward": {
+        "xp": 220,
+        "seasonPts": 30
+      }
+    },
+    {
+      "id": "doi_an_y_35",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "moon",
+      "checkType": "pair_streak",
+      "threshold": 35,
+      "reward": {
+        "xp": 450,
+        "seasonPts": 50
+      }
+    },
+    {
+      "id": "ben_suc_5",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "crystal",
+      "checkType": "three_set_wins",
+      "threshold": 5,
+      "reward": {
+        "xp": 50,
+        "seasonPts": 6
+      }
+    },
+    {
+      "id": "ben_suc_15",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "crystal",
+      "checkType": "three_set_wins",
+      "threshold": 15,
+      "reward": {
+        "xp": 100,
+        "seasonPts": 12
+      }
+    },
+    {
+      "id": "ben_suc_30",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "crystal",
+      "checkType": "three_set_wins",
+      "threshold": 30,
+      "reward": {
+        "xp": 200,
+        "seasonPts": 25
+      }
+    },
+    {
+      "id": "ben_suc_50",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "crystal",
+      "checkType": "three_set_wins",
+      "threshold": 50,
+      "reward": {
+        "xp": 380,
+        "seasonPts": 45
+      }
+    },
+    {
+      "id": "ke_di_san_3",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "eye",
+      "checkType": "higher_rank_wins",
+      "threshold": 3,
+      "reward": {
+        "xp": 60,
+        "seasonPts": 8
+      }
+    },
+    {
+      "id": "ke_di_san_8",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "eye",
+      "checkType": "higher_rank_wins",
+      "threshold": 8,
+      "reward": {
+        "xp": 120,
+        "seasonPts": 15
+      }
+    },
+    {
+      "id": "ke_di_san_15",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "eye",
+      "checkType": "higher_rank_wins",
+      "threshold": 15,
+      "reward": {
+        "xp": 220,
+        "seasonPts": 28
+      }
+    },
+    {
+      "id": "ke_di_san_25",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "eye",
+      "checkType": "higher_rank_wins",
+      "threshold": 25,
+      "reward": {
+        "xp": 400,
+        "seasonPts": 50
+      }
+    },
+    {
+      "id": "trang_buoi_1",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "skull",
+      "checkType": "clean_sessions",
+      "threshold": 1,
+      "reward": {
+        "xp": 60,
+        "seasonPts": 8
+      }
+    },
+    {
+      "id": "trang_buoi_3",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "skull",
+      "checkType": "clean_sessions",
+      "threshold": 3,
+      "reward": {
+        "xp": 120,
+        "seasonPts": 16
+      }
+    },
+    {
+      "id": "trang_buoi_6",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "skull",
+      "checkType": "clean_sessions",
+      "threshold": 6,
+      "reward": {
+        "xp": 240,
+        "seasonPts": 30
+      }
+    },
+    {
+      "id": "trang_buoi_10",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "skull",
+      "checkType": "clean_sessions",
+      "threshold": 10,
+      "reward": {
+        "xp": 450,
+        "seasonPts": 50
+      }
+    },
+    {
+      "id": "mo_man",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "blossom",
+      "checkType": "first_season_win",
+      "threshold": 1,
+      "reward": {
+        "xp": 40,
+        "seasonPts": 5
+      }
+    },
+    {
+      "id": "lat_keo_cuoi",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "thunder",
+      "checkType": "comeback_set3",
+      "threshold": 1,
+      "reward": {
+        "xp": 50,
+        "seasonPts": 6
+      }
+    },
+    {
+      "id": "thuc_khuya",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "moon",
+      "checkType": "night_win",
+      "threshold": 1,
+      "reward": {
+        "xp": 40,
+        "seasonPts": 4
+      }
+    },
+    {
+      "id": "sat_gio",
+      "groupId": 0,
+      "tier": "rare",
+      "glyph": "fang",
+      "checkType": "last_match_win",
+      "threshold": 3,
+      "reward": {
+        "xp": 60,
+        "seasonPts": 8
+      }
+    },
+    {
+      "id": "bat_bai_mot_buoi",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "shuriken",
+      "checkType": "perfect_session_4",
+      "threshold": 1,
+      "reward": {
+        "xp": 90,
+        "seasonPts": 12
+      }
+    },
+    {
+      "id": "diem_vang",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "thunder",
+      "checkType": "deuce_wins",
+      "threshold": 5,
+      "reward": {
+        "xp": 110,
+        "seasonPts": 15
+      }
+    },
+    {
+      "id": "doi_no",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "fang",
+      "checkType": "revenge_win",
+      "threshold": 1,
+      "reward": {
+        "xp": 100,
+        "seasonPts": 12
+      }
+    },
+    {
+      "id": "tay_doi",
+      "groupId": 0,
+      "tier": "elite",
+      "glyph": "crystal",
+      "checkType": "distinct_opponents_season",
+      "threshold": 10,
+      "reward": {
+        "xp": 120,
+        "seasonPts": 15
+      }
+    },
+    {
+      "id": "tron_buoi",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "horn",
+      "checkType": "perfect_session_6",
+      "threshold": 1,
+      "reward": {
+        "xp": 180,
+        "seasonPts": 22
+      }
+    },
+    {
+      "id": "vua_truy_na",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "flame",
+      "checkType": "bounty_break_season",
+      "threshold": 5,
+      "reward": {
+        "xp": 220,
+        "seasonPts": 28
+      }
+    },
+    {
+      "id": "tho_san_hoan_hao",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "shuriken",
+      "checkType": "first_try_bounty",
+      "threshold": 1,
+      "reward": {
+        "xp": 160,
+        "seasonPts": 20
+      }
+    },
+    {
+      "id": "can_ca_top",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "eye",
+      "checkType": "beat_all_top5",
+      "threshold": 5,
+      "reward": {
+        "xp": 250,
+        "seasonPts": 30
+      }
+    },
+    {
+      "id": "trang_set",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "skull",
+      "checkType": "sweep_set_21_0",
+      "threshold": 1,
+      "reward": {
+        "xp": 400,
+        "seasonPts": 50
+      }
+    },
+    {
+      "id": "ngat_chuoi_10",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "thunder",
+      "checkType": "break_streak_10",
+      "threshold": 1,
+      "reward": {
+        "xp": 350,
+        "seasonPts": 45
+      }
+    },
+    {
+      "id": "ha_nha_vo_dich",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "horn",
+      "checkType": "beat_champion",
+      "threshold": 1,
+      "reward": {
+        "xp": 350,
+        "seasonPts": 45
+      }
+    },
+    {
+      "id": "khong_ti_vet",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "blossom",
+      "checkType": "win_rate_season",
+      "threshold": 80,
+      "reward": {
+        "xp": 450,
+        "seasonPts": 60
+      }
+    },
+    {
+      "id": "doc_co",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "eye",
+      "checkType": "days_rank_1",
+      "threshold": 60,
+      "reward": {
+        "xp": 500,
+        "seasonPts": 70
+      }
+    },
+    {
+      "id": "nguoc_dong_the_ky",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "wing",
+      "checkType": "century_comeback",
+      "threshold": 1,
+      "reward": {
+        "xp": 450,
+        "seasonPts": 55
+      }
     }
   ],
   "bountyBadges": [
     {
       "id": "bounty_hunter",
-      "tier": "legend",
-      "glyph": "thunder",
+      "tier": "epic",
+      "glyph": "shuriken",
       "checkType": "bounty_break",
-      "threshold": 1,
-      "reward": { "xp": 150, "seasonPts": 20 }
+      "threshold": 3,
+      "reward": {
+        "xp": 200,
+        "seasonPts": 25
+      }
     },
     {
       "id": "sat_than",
@@ -323,7 +1017,10 @@
       "glyph": "flame",
       "checkType": "bounty_break_distinct",
       "threshold": 3,
-      "reward": { "xp": 300, "seasonPts": 40 }
+      "reward": {
+        "xp": 300,
+        "seasonPts": 40
+      }
     }
   ]
 }

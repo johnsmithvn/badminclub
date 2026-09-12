@@ -3245,7 +3245,6 @@
     "xpFromMatches": "Ra sân · {{n}} trận",
     "xpFromTenure": "Thâm niên · {{n}} tháng",
     "xpFromInvites": "Rủ khách · {{n}} người",
-
     "xpPlayedMatch": "Ra sân một trận",
     "xpThreeSets": "Trận 3 set",
     "xpFullSession": "Có mặt cả buổi",
@@ -3544,35 +3543,314 @@
       "emptyRarest": "Chưa có dữ liệu danh hiệu hiếm."
     },
     "items": {
-      "bat_bai_v": { "name": "Bất bại V", "cond": "Thắng 5 trận liên tiếp trong cùng một mùa" },
-      "bat_bai_x": { "name": "Bất bại X", "cond": "Thắng 10 trận liên tiếp trong cùng một mùa" },
-      "ke_ngat_chuoi": { "name": "Kẻ ngắt chuỗi", "cond": "Hạ người đang có chuỗi ≥ 5 trận" },
-      "sat_than_doi": { "name": "Sát thần đôi", "cond": "Đánh bại cặp có tỉ lệ thắng cao nhất CLB" },
-      "trum_giai": { "name": "Trùm giải", "cond": "Vô địch giải nội bộ CLB" },
-      "chuyen_can_50": { "name": "Chuyên cần 50", "cond": "Đi đủ 50 buổi sinh hoạt" },
-      "chuyen_can_100": { "name": "Chuyên cần 100", "cond": "Đi đủ 100 buổi sinh hoạt" },
-      "cong_than_1": { "name": "Công thần 1 năm", "cond": "Gắn bó tròn 1 năm với CLB" },
-      "cong_than_2": { "name": "Công thần 2 năm", "cond": "Gắn bó tròn 2 năm với CLB" },
-      "dai_su_5": { "name": "Đại sứ 5", "cond": "Rủ được 5 người mới đến giao lưu" },
-      "dai_su_10": { "name": "Đại sứ 10", "cond": "Rủ được 10 người mới đến giao lưu" },
-      "so_sach": { "name": "Sổ sạch", "cond": "Đóng quỹ đủ 12 tháng liên tục, không nợ 1 ngày" },
-      "vo_hut": { "name": "Chuyên gia vồ hụt", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "lau_san": { "name": "Thánh lau sàn", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "he_chua": { "name": "Hề chúa sân cầu", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "chich_choe": { "name": "Chích chòe (cãi cầu)", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "doi_vot": { "name": "Đại gia đổi vợt", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "ganh_ta": { "name": "Gánh tạ gãy lưng", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "ngam_cau": { "name": "Đạt ma sư tổ (ngâm cầu)", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "huy_diet_luoi": { "name": "Kẻ hủy diệt lưới", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "hoa_hau_nhat_cau": { "name": "Hoa hậu nhặt cầu", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "tho_san_goc_chet": { "name": "Thợ săn góc chết", "cond": "Tự phong · đổi lúc nào cũng được" },
-      "hidden_comeback": { "name": "Nghịch thiên đảo chiều", "cond": "Gợi ý: liên quan tới tỷ số ngược dòng" },
-      "hidden_surprise": { "name": "Vị khách bất ngờ", "cond": "Gợi ý: chỉ mở vào buổi đột xuất" },
-      "hidden_streak_15": { "name": "Độc cô cầu bại", "cond": "Chưa ai trong CLB chạm tới" },
-      "hidden_duo_bond": { "name": "Đồng sinh cộng tử", "cond": "Gợi ý: cần đúng một người đồng hành" },
-      "hidden_deuce_30": { "name": "Thần tài gõ cửa", "cond": "Gợi ý: thắng ở điểm số 30 kịch tính" },
-      "bounty_hunter": { "name": "Kẻ Săn Tiền Thưởng", "cond": "Ngắt chuỗi của một bounty đang mở" },
-      "sat_than": { "name": "Sát Thần", "cond": "Ngắt 3 bounty khác nhau trong cùng một mùa" }
+      "bat_bai_v": {
+        "name": "Bất bại V",
+        "cond": "Thắng 5 trận liên tiếp trong cùng một mùa"
+      },
+      "bat_bai_x": {
+        "name": "Bất bại X",
+        "cond": "Thắng 10 trận liên tiếp trong cùng một mùa"
+      },
+      "ke_ngat_chuoi": {
+        "name": "Kẻ ngắt chuỗi",
+        "cond": "Hạ người đang có chuỗi ≥ 5 trận"
+      },
+      "sat_than_doi": {
+        "name": "Sát thần đôi",
+        "cond": "Đánh bại cặp có tỉ lệ thắng cao nhất CLB"
+      },
+      "trum_giai": {
+        "name": "Trùm giải",
+        "cond": "Vô địch giải nội bộ CLB"
+      },
+      "chuyen_can_50": {
+        "name": "Chuyên cần 50",
+        "cond": "Đi đủ 50 buổi sinh hoạt"
+      },
+      "chuyen_can_100": {
+        "name": "Chuyên cần 100",
+        "cond": "Đi đủ 100 buổi sinh hoạt"
+      },
+      "cong_than_1": {
+        "name": "Công thần 1 năm",
+        "cond": "Gắn bó tròn 1 năm với CLB"
+      },
+      "cong_than_2": {
+        "name": "Công thần 2 năm",
+        "cond": "Gắn bó tròn 2 năm với CLB"
+      },
+      "dai_su_5": {
+        "name": "Đại sứ 5",
+        "cond": "Rủ được 5 người mới đến giao lưu"
+      },
+      "dai_su_10": {
+        "name": "Đại sứ 10",
+        "cond": "Rủ được 10 người mới đến giao lưu"
+      },
+      "so_sach": {
+        "name": "Sổ sạch",
+        "cond": "Đóng quỹ đủ 12 tháng liên tục, không nợ 1 ngày"
+      },
+      "vo_hut": {
+        "name": "Chuyên gia vồ hụt",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "lau_san": {
+        "name": "Thánh lau sàn",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "he_chua": {
+        "name": "Hề chúa sân cầu",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "chich_choe": {
+        "name": "Chích chòe (cãi cầu)",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "doi_vot": {
+        "name": "Đại gia đổi vợt",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "ganh_ta": {
+        "name": "Gánh tạ gãy lưng",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "ngam_cau": {
+        "name": "Đạt ma sư tổ (ngâm cầu)",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "huy_diet_luoi": {
+        "name": "Kẻ hủy diệt lưới",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "hoa_hau_nhat_cau": {
+        "name": "Hoa hậu nhặt cầu",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "tho_san_goc_chet": {
+        "name": "Thợ săn góc chết",
+        "cond": "Tự phong · đổi lúc nào cũng được"
+      },
+      "hidden_comeback": {
+        "name": "Nghịch thiên đảo chiều",
+        "cond": "Gợi ý: liên quan tới tỷ số ngược dòng"
+      },
+      "hidden_surprise": {
+        "name": "Vị khách bất ngờ",
+        "cond": "Gợi ý: chỉ mở vào buổi đột xuất"
+      },
+      "hidden_streak_15": {
+        "name": "Độc cô cầu bại",
+        "cond": "Chưa ai trong CLB chạm tới"
+      },
+      "hidden_duo_bond": {
+        "name": "Đồng sinh cộng tử",
+        "cond": "Gợi ý: cần đúng một người đồng hành"
+      },
+      "hidden_deuce_30": {
+        "name": "Thần tài gõ cửa",
+        "cond": "Gợi ý: thắng ở điểm số 30 kịch tính"
+      },
+      "bounty_hunter": {
+        "name": "Kẻ Săn Tiền Thưởng",
+        "cond": "Ngắt 3 chuỗi bounty trong cùng một mùa"
+      },
+      "sat_than": {
+        "name": "Sát Thần",
+        "cond": "Ngắt 3 bounty khác nhau trong cùng một mùa"
+      },
+      "bat_bai_3": {
+        "name": "Bất bại I",
+        "cond": "Thắng 3 trận liên tiếp trong một mùa"
+      },
+      "bat_bai_15": {
+        "name": "Bất bại XV",
+        "cond": "Thắng 15 trận liên tiếp trong một mùa"
+      },
+      "sat_thu_10": {
+        "name": "Sát thủ I",
+        "cond": "Đạt 10 trận thắng từ khi vào CLB"
+      },
+      "sat_thu_25": {
+        "name": "Sát thủ II",
+        "cond": "Đạt 25 trận thắng từ khi vào CLB"
+      },
+      "sat_thu_50": {
+        "name": "Sát thủ III",
+        "cond": "Đạt 50 trận thắng từ khi vào CLB"
+      },
+      "sat_thu_100": {
+        "name": "Sát thủ IV",
+        "cond": "Đạt 100 trận thắng từ khi vào CLB"
+      },
+      "tho_san_keo_50": {
+        "name": "Thợ săn kèo I",
+        "cond": "Hạ đối thủ có Elo cao hơn mình từ 50 điểm"
+      },
+      "tho_san_keo_100": {
+        "name": "Thợ săn kèo II",
+        "cond": "Hạ đối thủ có Elo cao hơn mình từ 100 điểm"
+      },
+      "tho_san_keo_150": {
+        "name": "Thợ săn kèo III",
+        "cond": "Hạ đối thủ có Elo cao hơn mình từ 150 điểm"
+      },
+      "tho_san_keo_200": {
+        "name": "Thợ săn kèo IV",
+        "cond": "Hạ đối thủ có Elo cao hơn mình từ 200 điểm"
+      },
+      "de_bep_15": {
+        "name": "Đè bẹp I",
+        "cond": "Thắng set với cách biệt lớn (đối thủ ≤ 15 điểm)"
+      },
+      "de_bep_10": {
+        "name": "Đè bẹp II",
+        "cond": "Thắng set áp đảo (đối thủ ≤ 10 điểm)"
+      },
+      "de_bep_5": {
+        "name": "Đè bẹp III",
+        "cond": "Thắng set hủy diệt (đối thủ ≤ 5 điểm)"
+      },
+      "de_bep_3": {
+        "name": "Đè bẹp IV",
+        "cond": "Thắng set tuyệt đối (đối thủ ≤ 3 điểm)"
+      },
+      "doi_an_y_5": {
+        "name": "Đôi ăn ý I",
+        "cond": "Thắng 5 trận liên tiếp cùng một người đồng hành"
+      },
+      "doi_an_y_10": {
+        "name": "Đôi ăn ý II",
+        "cond": "Thắng 10 trận liên tiếp cùng một người đồng hành"
+      },
+      "doi_an_y_20": {
+        "name": "Đôi ăn ý III",
+        "cond": "Thắng 20 trận liên tiếp cùng một người đồng hành"
+      },
+      "doi_an_y_35": {
+        "name": "Đôi ăn ý IV",
+        "cond": "Thắng 35 trận liên tiếp cùng một người đồng hành"
+      },
+      "ben_suc_5": {
+        "name": "Bền sức I",
+        "cond": "Thắng 5 trận phải phân định ở set 3"
+      },
+      "ben_suc_15": {
+        "name": "Bền sức II",
+        "cond": "Thắng 15 trận phải phân định ở set 3"
+      },
+      "ben_suc_30": {
+        "name": "Bền sức III",
+        "cond": "Thắng 30 trận phải phân định ở set 3"
+      },
+      "ben_suc_50": {
+        "name": "Bền sức IV",
+        "cond": "Thắng 50 trận phải phân định ở set 3"
+      },
+      "ke_di_san_3": {
+        "name": "Kẻ đi săn I",
+        "cond": "Hạ 3 người đang xếp trên mình ở bảng Elo"
+      },
+      "ke_di_san_8": {
+        "name": "Kẻ đi săn II",
+        "cond": "Hạ 8 người đang xếp trên mình ở bảng Elo"
+      },
+      "ke_di_san_15": {
+        "name": "Kẻ đi săn III",
+        "cond": "Hạ 15 người đang xếp trên mình ở bảng Elo"
+      },
+      "ke_di_san_25": {
+        "name": "Kẻ đi săn IV",
+        "cond": "Hạ 25 người đang xếp trên mình ở bảng Elo"
+      },
+      "trang_buoi_1": {
+        "name": "Trắng buổi I",
+        "cond": "Sinh hoạt một buổi không thua một set nào (≥ 3 trận)"
+      },
+      "trang_buoi_3": {
+        "name": "Trắng buổi II",
+        "cond": "3 buổi sinh hoạt không thua một set nào"
+      },
+      "trang_buoi_6": {
+        "name": "Trắng buổi III",
+        "cond": "6 buổi sinh hoạt không thua một set nào"
+      },
+      "trang_buoi_10": {
+        "name": "Trắng buổi IV",
+        "cond": "10 buổi sinh hoạt không thua một set nào"
+      },
+      "mo_man": {
+        "name": "Mở màn",
+        "cond": "Thắng trận đầu tiên của mùa giải"
+      },
+      "lat_keo_cuoi": {
+        "name": "Lật kèo cuối",
+        "cond": "Thắng set 3 sau khi bị dẫn 0–1"
+      },
+      "thuc_khuya": {
+        "name": "Thức khuya",
+        "cond": "Thắng một trận đấu ghi sau 22h"
+      },
+      "sat_gio": {
+        "name": "Sát giờ",
+        "cond": "Thắng trận cuối cùng của buổi 3 lần liên tiếp"
+      },
+      "bat_bai_mot_buoi": {
+        "name": "Bất bại một buổi",
+        "cond": "Đi một buổi từ 4 trận, không thua trận nào"
+      },
+      "diem_vang": {
+        "name": "Điểm vàng",
+        "cond": "Thắng 5 trận có tỷ số kịch tính từ mốc 20–20"
+      },
+      "doi_no": {
+        "name": "Đòi nợ",
+        "cond": "Thắng lại đối thủ đã hạ mình liên tiếp"
+      },
+      "tay_doi": {
+        "name": "Tay đôi",
+        "cond": "Thắng 10 đối thủ khác nhau trong cùng một mùa"
+      },
+      "tron_buoi": {
+        "name": "Trọn buổi",
+        "cond": "Thắng toàn bộ 6 trận trong một buổi sinh hoạt"
+      },
+      "vua_truy_na": {
+        "name": "Vua truy nã",
+        "cond": "Hạ 5 bounty trong cùng một mùa giải"
+      },
+      "tho_san_hoan_hao": {
+        "name": "Thợ săn hoàn hảo",
+        "cond": "Hạ một bounty ngay lần thử đầu tiên"
+      },
+      "can_ca_top": {
+        "name": "Cân cả top",
+        "cond": "Thắng cả 5 người trong top 5 Elo cùng một mùa"
+      },
+      "trang_set": {
+        "name": "Trắng set",
+        "cond": "Thắng một set đấu với tỷ số tuyệt đối 21–0"
+      },
+      "ngat_chuoi_10": {
+        "name": "Ngắt chuỗi 10",
+        "cond": "Hạ người đang giữ chuỗi thắng ≥ 10 trận"
+      },
+      "ha_nha_vo_dich": {
+        "name": "Hạ nhà vô địch",
+        "cond": "Hạ người đang giữ danh hiệu Trùm giải CLB"
+      },
+      "khong_ti_vet": {
+        "name": "Không tì vết",
+        "cond": "Cả mùa tỉ lệ thắng ≥ 80% với ít nhất 30 trận đấu"
+      },
+      "doc_co": {
+        "name": "Độc cô",
+        "cond": "Giữ hạng 1 Elo liên tục trong 60 ngày"
+      },
+      "nguoc_dong_the_ky": {
+        "name": "Ngược dòng thế kỷ",
+        "cond": "Thắng trận sau khi bị dẫn 0–1 và bị dẫn sâu ở set 2"
+      }
     },
     "shelfSaved": "Đã cập nhật kệ huy hiệu!",
     "signatureSaved": "Đã lưu châm ngôn cá nhân!",

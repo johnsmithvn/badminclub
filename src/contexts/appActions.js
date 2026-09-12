@@ -20,6 +20,9 @@ import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
+import { getMemberStreak } from '#lib/badges.js'
+import { seasonMatchesOf } from '#lib/season.js'
+import cfgBadges from '#config/badges.json' with { type: 'json' }
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => crypto.randomUUID()
@@ -2384,6 +2387,26 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         const sessionMatches = (d.matches || []).filter((x) => x.sessionId === targetSid)
         const matchCode = chal ? chal.code : `M-${String(sessionMatches.length + 1).padStart(2, '0')}`
 
+        // B2: Kiểm tra nếu trận đấu có tính điểm thi đấu (isRated) làm đứt chuỗi thắng Bounty của đối thủ
+        let bountyBroken = false
+        let brokenStreak = 0
+        const minBountyStreak = Number(cfgBadges?.bounty?.minStreakSingle || 5)
+        if (isRated && (winnerTeam === 'A' || winnerTeam === 'B')) {
+          const losingPlayers = winnerTeam === 'A' ? (teamB || []) : (teamA || [])
+          const currentSeasonMatches = seasonMatchesOf(d)
+          let maxLosingStreak = 0
+          for (const pid of losingPlayers) {
+            const { streak } = getMemberStreak(pid, d, null, currentSeasonMatches)
+            if (streak > maxLosingStreak) {
+              maxLosingStreak = streak
+            }
+          }
+          if (maxLosingStreak >= minBountyStreak) {
+            bountyBroken = true
+            brokenStreak = maxLosingStreak
+          }
+        }
+
         newMatch = {
           id: matchId,
           code: matchCode,
@@ -2403,6 +2426,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           initialRatingA: ra,
           initialRatingB: rb,
           eloDelta: Math.abs(delta),
+          bountyBroken,
+          brokenStreak,
         }
 
         const challenges = chal
@@ -2610,6 +2635,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
       toast(t('leaderboard.recalcSuccess'))
     },
+
 
     /* ---------- báo cáo Zalo ---------- */
     copyZalo: (sid) => {

@@ -145,8 +145,8 @@ export default function Badges() {
 
   // Thao tác gắn danh hiệu lên kệ
   const handleToggleShelf = (badgeId) => {
-    if (!badgeId) return
-    const currentShelf = (currentMember.badge_shelf || []).slice()
+    if (!badgeId || !currentMember?.id) return
+    const currentShelf = (currentMember.badge_shelf || currentMember.badgeShelf || []).slice()
     const foundIdx = currentShelf.indexOf(badgeId)
     if (foundIdx >= 0) {
       currentShelf.splice(foundIdx, 1)
@@ -159,17 +159,14 @@ export default function Badges() {
 
     if (a && a.setMemberShelf) {
       a.setMemberShelf(currentMember.id, currentShelf)
-    } else {
-      currentMember.badge_shelf = currentShelf
     }
   }
 
   // Lưu châm ngôn / chữ ký
   const handleSaveSignature = () => {
+    if (!currentMember?.id) return
     if (a && a.setMemberSignature) {
       a.setMemberSignature(currentMember.id, signatureDraft.trim())
-    } else {
-      currentMember.signature = signatureDraft.trim()
     }
     setIsEditingSignature(false)
   }
@@ -178,6 +175,22 @@ export default function Badges() {
   const clubFeed = useMemo(() => {
     return getClubAchievementFeed(db)
   }, [db])
+
+  // Dữ liệu cho Modal A2 Chi tiết danh hiệu (tối ưu tránh tính toán lại trong render)
+  const selectedBadgeOwners = useMemo(() => {
+    if (!selectedBadge?.id || !db) return []
+    return getBadgeOwners(selectedBadge.id, db)
+  }, [selectedBadge?.id, db])
+
+  const selectedBadgeChasers = useMemo(() => {
+    if (!selectedBadge?.id || !db) return []
+    return getBadgeChasers(selectedBadge.id, currentMember?.id, db)
+  }, [selectedBadge?.id, currentMember?.id, db])
+
+  const streakTimeline = useMemo(() => {
+    if (!selectedBadge || !currentMember?.id || !db) return []
+    return getStreakTimeline(currentMember.id, db, 10)
+  }, [selectedBadge, currentMember?.id, db])
 
   // Danh sách tabs phong cách Anime
   const tabs = [
@@ -843,9 +856,9 @@ export default function Badges() {
       {selectedBadge && (
         <BadgeDetailModal
           badge={selectedBadge}
-          streakTimeline={getStreakTimeline(currentMember?.id, db, 10)}
-          owners={getBadgeOwners(selectedBadge.id, db)}
-          chasers={getBadgeChasers(selectedBadge.id, currentMember?.id, db)}
+          streakTimeline={streakTimeline}
+          owners={selectedBadgeOwners}
+          chasers={selectedBadgeChasers}
           onClose={() => setSelectedBadge(null)}
           onShowUnlock={(b) => setUnlockingBadge(b)}
         />

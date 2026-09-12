@@ -155,6 +155,8 @@ export function toDb(raw, ctx) {
         initialRatingA: numN(mt.initial_rating_a),
         initialRatingB: numN(mt.initial_rating_b),
         eloDelta: numN(mt.elo_delta),
+        bountyBroken: !!mt.bounty_broken,
+        brokenStreak: mt.broken_streak || 0,
         teamA: players.filter((p) => p.team === 0).map((p) => p.player_id),
         teamB: players.filter((p) => p.team === 1).map((p) => p.player_id),
         playerKeys: players.map((p) => p.player_id),
@@ -450,6 +452,8 @@ export function toRows(db, ctx) {
       initial_rating_a: numN(mt.initialRatingA),
       initial_rating_b: numN(mt.initialRatingB),
       elo_delta: numN(mt.eloDelta),
+      bounty_broken: !!mt.bountyBroken,
+      broken_streak: mt.brokenStreak || 0,
     })
     // Ô 0,1 là một bên lưới; 2,3 là bên kia (xem courtSlotIds trong lib/assign.js).
     ;(mt.playerKeys || []).forEach((key, i) => put('match_players', {

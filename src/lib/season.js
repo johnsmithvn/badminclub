@@ -118,6 +118,74 @@ export function calcSeasonMatchDelta(teamElo, opponentTeamElo, won, scaleConfig 
 }
 
 /**
+ * Lọc danh sách các trận đấu thuộc mùa giải đang xét (hoặc mùa giải hiện tại).
+ * @param {Object} db
+ * @param {Object} [season]
+ * @returns {Array<Object>}
+ */
+export function seasonMatchesOf(db, season = null) {
+  if (!db) return []
+  const allSessions = db.sessions || []
+  const allMatches = db.matches || []
+  if (allMatches.length === 0) return []
+
+  const getMatchTs = (m) => {
+    if (typeof m.at === 'number' && Number.isFinite(m.at)) return m.at
+    if (m.at) {
+      const n = Number(m.at)
+      if (Number.isFinite(n) && n > 0) return n
+      const d = Date.parse(m.at)
+      if (!isNaN(d)) return d
+    }
+    const raw = m.playedAt || m.createdAt || m.ended_at || m.endedAt || ''
+    if (raw) {
+      const d = Date.parse(raw)
+      if (!isNaN(d)) return d
+    }
+    return 0
+  }
+
+  const isWithin = (ts, start, end) => ts >= start && ts <= end
+
+  const targetSeason =
+    season ||
+    (db.seasons || []).find((s) => s.active) ||
+    db?.settings?.season ||
+    (Array.isArray(db.seasons) && db.seasons.length > 0 ? db.seasons[0] : null)
+
+  const checkSeasonMatches = (sDef) => {
+    if (!sDef || (!sDef.startDate && !sDef.endDate)) return false
+    const sTs = sDef.startDate ? Date.parse(`${sDef.startDate}T00:00:00Z`) : 0
+    const eTs = sDef.endDate ? Date.parse(`${sDef.endDate}T23:59:59Z`) : Infinity
+    return allMatches.some((m) => isWithin(getMatchTs(m), sTs, eTs))
+  }
+
+  const resolvedSeason = targetSeason || (
+    cfg?.season && checkSeasonMatches(cfg.season) ? cfg.season : null
+  )
+
+  if (!resolvedSeason || (!resolvedSeason.startDate && !resolvedSeason.endDate)) {
+    return allMatches
+  }
+
+  const startTs = resolvedSeason.startDate ? Date.parse(`${resolvedSeason.startDate}T00:00:00Z`) : 0
+  const endTs = resolvedSeason.endDate ? Date.parse(`${resolvedSeason.endDate}T23:59:59Z`) : Infinity
+
+  const seasonSessions = allSessions.filter((s) => {
+    const d = s.date || s.createdAt || ''
+    const ts = Date.parse(d)
+    return isWithin(ts, startTs, endTs)
+  })
+  const seasonSessionIds = new Set(seasonSessions.map((s) => s.id))
+
+  return allMatches.filter((m) => {
+    if (m.sessionId && seasonSessionIds.has(m.sessionId)) return true
+    const ts = getMatchTs(m)
+    return isWithin(ts, startTs, endTs)
+  })
+}
+
+/**
  * Tính toán bảng xếp hạng Mùa giải theo cơ chế Cày Rank Thi Đấu (Season Points Leaderboard - Screen SS1)
  * @param {Object} db - Toàn bộ dữ liệu CLB
  * @param {Object} [customSeason] - Cấu hình mùa giải tùy biến
@@ -158,9 +226,9 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
 
   const members = (db.members || []).filter((m) => m.active !== false)
   const allSessions = db.sessions || []
-  const allMatches = db.matches || []
+  const seasonMatches = seasonMatchesOf(db, season)
 
-  // Lọc các buổi và trận trong khung thời gian của mùa giải
+  // Lọc các buổi trong khung thời gian của mùa giải
   const startTs = season.startDate ? Date.parse(`${season.startDate}T00:00:00Z`) : 0
   const endTs = season.endDate ? Date.parse(`${season.endDate}T23:59:59Z`) : Infinity
 
@@ -170,13 +238,6 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     return ts >= startTs && ts <= endTs
   })
   const seasonSessionIds = new Set(seasonSessions.map((s) => s.id))
-
-  const seasonMatches = allMatches.filter((m) => {
-    if (m.sessionId && seasonSessionIds.has(m.sessionId)) return true
-    const d = m.playedAt || m.createdAt || ''
-    const ts = Date.parse(d)
-    return ts >= startTs && ts <= endTs
-  })
 
   // Sắp xếp các trận theo thời gian tăng dần (chronological) để tính điểm lũy kế sàn Floor 0 và streak.
   // BẮT BUỘC tie-break theo id: sàn Floor 0 kẹp sau MỖI trận nên phép tính phụ thuộc thứ tự

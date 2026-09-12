@@ -106,9 +106,9 @@ test('Badges Engine: Điểm sưu tập tính đúng theo tier và tự phong b�
   }
 
   const res = calculateMemberBadges('m1', mockDb)
-  // Bất bại V = Elite = 30 pts.
+  // Bất bại V (Elite 30) + Bất bại 3 (Rare 15) + Mở màn (Rare 15) + Sát giờ (Rare 15) + Đòi nợ (Elite 30) = 105 pts.
   // 10 huy hiệu fun = 0 pts.
-  assert.equal(res.collectionScore, 30, 'Tổng điểm sưu tập phải là 30 điểm (Elite 30 + Fun 0)')
+  assert.equal(res.collectionScore, 105, 'Tổng điểm sưu tập tính chuẩn xác theo các huy hiệu chính thức đã mở, Fun = 0')
 })
 
 test('Badges Engine: Bảng xếp hạng Collector Leaderboard sắp xếp chuẩn', () => {
@@ -118,7 +118,7 @@ test('Badges Engine: Bảng xếp hạng Collector Leaderboard sắp xếp chu�
       { id: 'm2', name: 'Tuấn' },
     ],
     matches: [
-      // Minh có chuỗi 5 -> Bất bại V (Elite 30)
+      // Minh có chuỗi 5 -> Mở khóa các huy hiệu chuỗi và trận đấu
       { id: '1', at: 10, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A' },
       { id: '2', at: 20, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A' },
       { id: '3', at: 30, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A' },
@@ -131,8 +131,8 @@ test('Badges Engine: Bảng xếp hạng Collector Leaderboard sắp xếp chu�
   assert.equal(lb.length, 2)
   assert.equal(lb[0].name, 'Minh')
   assert.equal(lb[0].rank, 1)
-  assert.equal(lb[0].score, 30)
-  assert.equal(lb[0].count, 1, 'Minh chỉ có 1 huy hiệu chính thức (Bất bại V), không tính danh hiệu tự phong')
+  assert.equal(lb[0].score, 105)
+  assert.equal(lb[0].count, 5, 'Minh có 5 huy hiệu chính thức đã mở, không tính danh hiệu tự phong')
   assert.equal(lb[1].name, 'Tuấn')
   assert.equal(lb[1].rank, 2)
   assert.equal(lb[1].score, 0)
