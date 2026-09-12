@@ -269,6 +269,21 @@ function getScoreVisuals(score, isTop) {
   // Tính toán tất cả các cặp đối đầu (kình địch) trong CLB từ lịch sử trận đấu
   const clubRivalries = useMemo(() => {
     if (!matches || matches.length === 0) return []
+
+    const checkFemale = (id) => {
+      const m = membersMap?.[id]
+      const g = String(m?.gender || '').toLowerCase().trim()
+      return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: gender check
+    }
+
+    const getFormatOfPair = (pairIds) => {
+      const isF1 = checkFemale(pairIds[0])
+      const isF2 = checkFemale(pairIds[1])
+      if (isF1 && isF2) return 'WD'
+      if (isF1 || isF2) return 'XD'
+      return 'MD'
+    }
+
     const matchupMap = new Map()
 
     for (const m of matches) {
@@ -283,9 +298,18 @@ function getScoreVisuals(score, isTop) {
       const keyB = pB.join(':')
       if (keyA === keyB) continue
 
+      // 1. Chỉ coi là kình địch hợp lệ khi hai cặp CÙNG thể loại thi đấu (MD vs MD, WD vs WD, XD vs XD)
+      // Điều này triệt tiêu hoàn toàn hiện tượng lệch Elo ảo khi cặp nam đấu với cặp nữ
+      const formatA = getFormatOfPair(pA)
+      const formatB = getFormatOfPair(pB)
+      if (formatA !== formatB) continue
+
+      // 2. Lọc theo formatFilter nếu người dùng chọn cụ thể MD, WD hoặc XD
+      if (formatFilter !== 'all' && formatA !== formatFilter) continue
+
       const comboKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`
       if (!matchupMap.has(comboKey)) {
-        matchupMap.set(comboKey, { pA, pB })
+        matchupMap.set(comboKey, { pA, pB, format: formatA })
       }
     }
 
@@ -332,12 +356,13 @@ function getScoreVisuals(score, isTop) {
         intensity,
         confidence: dominant.confidence?.tier || 'R1',
         recentScores: dominant.recentScores || [],
+        format: item.format,
       })
     }
 
     results.sort((a, b) => b.intensity - a.intensity)
     return results
-  }, [matches, membersMap, ratingsMap, db])
+  }, [matches, membersMap, ratingsMap, db, formatFilter])
 
   const topRivalry = clubRivalries[0] || null
   const directionalMatchups = clubRivalries.slice(0, 4)
@@ -508,50 +533,48 @@ function getScoreVisuals(score, isTop) {
           </div>
 
           {/* Quick Filters Mobile: Tất cả (Cả nam nữ) / Đôi nam / Đôi nữ / Nam-nữ */}
-          {mobileSubTab === 'pairs' && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 4,
-                padding: 2,
-                borderRadius: 8,
-                background: '#101927',
-                border: '1px solid #22304A',
-              }}
-            >
-              {[
-                { key: 'all', label: t('leaderboard.filterAllFormats') },
-                { key: 'MD', label: t('leaderboard.filterMD') },
-                { key: 'WD', label: t('leaderboard.filterWD') },
-                { key: 'XD', label: t('leaderboard.filterXD') },
-              ].map((item) => {
-                const active = formatFilter === item.key
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setFormatFilter(item.key)}
-                    style={{
-                      flex: 1,
-                      font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                      padding: '7px 4px',
-                      borderRadius: 6,
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: active ? '#1D50A0' : 'transparent',
-                      color: active ? '#fff' : '#A8B7CB',
-                      boxShadow: active ? '0 2px 6px rgba(29,80,160,0.35)' : 'none',
-                      transition: 'all 0.15s ease',
-                      textAlign: 'center',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+          <div
+            style={{
+              display: 'flex',
+              gap: 4,
+              padding: 2,
+              borderRadius: 8,
+              background: '#101927',
+              border: '1px solid #22304A',
+            }}
+          >
+            {[
+              { key: 'all', label: t('leaderboard.filterAllFormats') },
+              { key: 'MD', label: t('leaderboard.filterMD') },
+              { key: 'WD', label: t('leaderboard.filterWD') },
+              { key: 'XD', label: t('leaderboard.filterXD') },
+            ].map((item) => {
+              const active = formatFilter === item.key
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setFormatFilter(item.key)}
+                  style={{
+                    flex: 1,
+                    font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                    padding: '7px 4px',
+                    borderRadius: 6,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: active ? '#1D50A0' : 'transparent',
+                    color: active ? '#fff' : '#A8B7CB',
+                    boxShadow: active ? '0 2px 6px rgba(29,80,160,0.35)' : 'none',
+                    transition: 'all 0.15s ease',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 
