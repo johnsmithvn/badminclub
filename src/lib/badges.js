@@ -154,6 +154,61 @@ export function getBadgeTiers() {
 }
 
 /**
+ * Lấy timestamp chính xác của một trận đấu (epoch ms).
+ * Hỗ trợ mọi định dạng: epoch number, ISO string, ended_at, playedAt, createdAt, hoặc ngày của buổi tập.
+ * @param {Object} mt
+ * @param {Object} [db]
+ * @returns {number}
+ */
+export function getMatchTimestamp(mt, db) {
+  if (!mt) return 0
+  const raw = mt.at ?? mt.ended_at ?? mt.endedAt ?? mt.playedAt ?? mt.createdAt
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
+  if (typeof raw === 'string') {
+    const num = Number(raw)
+    if (Number.isFinite(num) && num > 0) return num
+    const parsed = Date.parse(raw)
+    if (!isNaN(parsed)) return parsed
+  }
+  if (mt.sessionId && db && Array.isArray(db.sessions)) {
+    const s = db.sessions.find((sess) => sess.id === mt.sessionId)
+    if (s && s.date) {
+      const parsedSess = Date.parse(s.date)
+      if (!isNaN(parsedSess)) return parsedSess
+    }
+  }
+  return 0
+}
+
+/**
+ * Sắp xếp các trận đấu theo thứ tự giảm dần (mới nhất lên đầu).
+ * Nếu cùng timestamp, trận ghi nhận sau (index lớn hơn trong mảng ban đầu) sẽ đứng trước.
+ */
+export function sortMatchesDesc(matches, db) {
+  const indexed = (matches || []).map((m, idx) => ({ m, idx, ts: getMatchTimestamp(m, db) }))
+  indexed.sort((a, b) => {
+    const diff = b.ts - a.ts
+    if (diff !== 0) return diff
+    return b.idx - a.idx
+  })
+  return indexed.map((item) => item.m)
+}
+
+/**
+ * Sắp xếp các trận đấu theo thứ tự tăng dần (cũ nhất lên đầu).
+ * Nếu cùng timestamp, trận ghi nhận trước (index nhỏ hơn trong mảng ban đầu) sẽ đứng trước.
+ */
+export function sortMatchesAsc(matches, db) {
+  const indexed = (matches || []).map((m, idx) => ({ m, idx, ts: getMatchTimestamp(m, db) }))
+  indexed.sort((a, b) => {
+    const diff = a.ts - b.ts
+    if (diff !== 0) return diff
+    return a.idx - b.idx
+  })
+  return indexed.map((item) => item.m)
+}
+
+/**
  * Tính chuỗi thắng hiện tại của một thành viên trong mùa giải đang diễn ra.
  * @param {string} memberId
  * @param {Object} db
@@ -161,18 +216,17 @@ export function getBadgeTiers() {
  */
 export function getMemberStreak(memberId, db) {
   if (!memberId || !db) return { streak: 0, maxStreak: 0, matches: [] }
-  const matches = (db.matches || [])
+  const memberMatches = (db.matches || [])
     .filter((mt) => mt.ratingEnabled !== false)
     .filter((mt) => (mt.teamA || []).includes(memberId) || (mt.teamB || []).includes(memberId))
-    .sort((a, b) => (b.at || 0) - (a.at || 0))
 
-  let streak = 0
-  let broken = false
+  const desc = sortMatchesDesc(memberMatches, db)
+  const asc = sortMatchesAsc(memberMatches, db)
+
   let maxStreak = 0
   let curRunning = 0
 
   // Duyệt từ cũ tới mới để tìm maxStreak
-  const asc = matches.slice().reverse()
   asc.forEach((mt) => {
     const inA = (mt.teamA || []).includes(memberId)
     const inB = (mt.teamB || []).includes(memberId)
@@ -186,7 +240,9 @@ export function getMemberStreak(memberId, db) {
   })
 
   // Duyệt từ mới nhất để tìm streak đang chạy
-  for (const mt of matches) {
+  let streak = 0
+  let broken = false
+  for (const mt of desc) {
     const inA = (mt.teamA || []).includes(memberId)
     const inB = (mt.teamB || []).includes(memberId)
     const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
@@ -197,7 +253,7 @@ export function getMemberStreak(memberId, db) {
     }
   }
 
-  return { streak, maxStreak, matches }
+  return { streak, maxStreak, matches: desc }
 }
 
 /**
@@ -217,13 +273,14 @@ export function getPairStreak(m1, m2, db) {
       const inB = (mt.teamB || []).includes(m1) && (mt.teamB || []).includes(m2)
       return inA || inB
     })
-    .sort((a, b) => (b.at || 0) - (a.at || 0))
+
+  const desc = sortMatchesDesc(pairMatches, db)
 
   let streak = 0
   let broken = false
   let wins = 0
 
-  pairMatches.forEach((mt) => {
+  desc.forEach((mt) => {
     const inA = (mt.teamA || []).includes(m1) && (mt.teamA || []).includes(m2)
     const inB = (mt.teamB || []).includes(m1) && (mt.teamB || []).includes(m2)
     const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
@@ -290,9 +347,9 @@ export function getActiveBounties(db) {
       const hot = streak >= hotStreak
       const rew = hot ? rewHot : rewNorm
       // Đếm số trận đối thủ đã cố gắng hạ người này trong chuỗi
-      const myMatches = matches
+      const filteredMatches = matches
         .filter((mt) => (mt.teamA || []).includes(m.id) || (mt.teamB || []).includes(m.id))
-        .sort((a, b) => (b.at || 0) - (a.at || 0))
+      const myMatches = sortMatchesDesc(filteredMatches, db)
       const streakMatches = myMatches.slice(0, streak)
       const triesCount = streakMatches.reduce((acc, mt) => {
         const opps = (mt.teamA || []).includes(m.id) ? (mt.teamB || []) : (mt.teamA || [])
@@ -466,10 +523,17 @@ export function calculateMemberBadges(memberId, db) {
 
     switch (badge.checkType) {
       case 'win_streak':
-        currentVal = Math.max(streak, maxStreak)
-        isUnlocked = currentVal >= badge.threshold
-        progressStr = `${currentVal} / ${badge.threshold}`
-        pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
+        if (maxStreak >= badge.threshold) {
+          currentVal = badge.threshold
+          isUnlocked = true
+          progressStr = `${badge.threshold} / ${badge.threshold}`
+          pct = 100
+        } else {
+          currentVal = streak
+          isUnlocked = false
+          progressStr = `${streak} / ${badge.threshold}`
+          pct = Math.min(100, Math.round((streak / badge.threshold) * 100))
+        }
         break
 
       case 'sessions_count':
@@ -706,19 +770,22 @@ export function getBadgeChasers(badgeId, currentUserId, db) {
   members.forEach((m) => {
     const { inProgress } = calculateMemberBadges(m.id, db)
     const found = inProgress.find((b) => b.id === badgeId)
-    if (found) {
+    // Chỉ lấy thành viên ĐANG CÓ TIẾN ĐỘ THẬT (> 0).
+    // Nếu chuỗi thắng đã bị phá (streak = 0) hoặc chưa đạt mốc nào, không được tính là đang đuổi.
+    if (found && Number(found.currentVal) > 0) {
       chasers.push({
         id: m.id,
         name: m.name,
         isMe: m.id === currentUserId,
         val: String(found.currentVal),
+        currentVal: Number(found.currentVal),
         pct: found.pct,
       })
     }
   })
 
   return chasers
-    .sort((a, b) => b.pct - a.pct)
+    .sort((a, b) => (b.pct || 0) - (a.pct || 0) || (b.currentVal || 0) - (a.currentVal || 0))
     .slice(0, 4)
     .map((c, i) => ({ ...c, rank: i + 1 }))
 }
@@ -815,8 +882,8 @@ export function getClubAchievementFeed(db, limit = 20) {
 
   // 2. Quét các mốc chuỗi thắng hiện tại của các thành viên
   members.forEach((m) => {
-    const { streak, maxStreak } = getMemberStreak(m.id, db)
-    const st = Math.max(streak, maxStreak)
+    const { streak } = getMemberStreak(m.id, db)
+    const st = streak
     if (st >= 5) {
       feed.push({
         id: `feed-streak-${m.id}`,

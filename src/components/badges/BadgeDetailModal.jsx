@@ -19,11 +19,14 @@ export default function BadgeDetailModal({
   const badgeName = t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '???' })
   const badgeCond = t(`badges.items.${badge.id}.cond`, { defaultValue: badge.cond || '' })
 
+  const isWinStreak = badge.checkType === 'win_streak'
+  const isHolding = isWinStreak ? Number(badge.currentVal) > 0 : badge.pct > 0
+
   const conditions = [
     {
-      ok: badge.pct >= 60,
+      ok: badge.unlocked,
       text: badgeCond,
-      val: badge.progressStr || `${badge.pct}%`,
+      val: badge.unlocked ? t('badges.detail.statusAchieved') : (badge.progressStr || `${badge.pct}%`),
     },
     {
       ok: true,
@@ -31,9 +34,13 @@ export default function BadgeDetailModal({
       val: t('badges.detail.statusOk'),
     },
     {
-      ok: badge.unlocked,
+      ok: badge.unlocked || isHolding,
       text: t('badges.detail.condNoLoss'),
-      val: badge.unlocked ? t('badges.detail.statusAchieved') : t('badges.detail.statusHolding'),
+      val: badge.unlocked
+        ? t('badges.detail.statusAchieved')
+        : isHolding
+          ? t('badges.detail.statusHolding')
+          : t('badges.detail.statusBroken'),
     },
     {
       ok: true,
@@ -269,7 +276,16 @@ export default function BadgeDetailModal({
                 <span style={{ font: "400 11.5px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
                   {badge.unlocked
                     ? t('badges.detail.completedDesc')
-                    : t('badges.detail.remainingHint', { remain: Math.max(1, (badge.threshold || 10) - (badge.currentVal || 0)) })}
+                    : isWinStreak && Number(badge.currentVal) === 0
+                      ? t('badges.detail.streakResetHint')
+                      : isWinStreak && Number(badge.currentVal) > 0
+                        ? t('badges.detail.remainingStreakHint', {
+                            current: badge.currentVal,
+                            remain: Math.max(1, (badge.threshold || 10) - Number(badge.currentVal)),
+                          })
+                        : t('badges.detail.remainingHint', {
+                            remain: Math.max(1, (badge.threshold || 10) - (badge.currentVal || 0)),
+                          })}
                 </span>
               </div>
             </div>
