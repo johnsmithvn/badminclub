@@ -231,3 +231,48 @@ test('Badges Engine: getClubAchievementFeed trích xuất sự kiện chuẩn x�
   assert.equal(eloEvent.actorName, 'Tuấn')
   assert.equal(eloEvent.elo, 1520)
 })
+
+test('Badges: Cơ chế mở khóa offline -> online chỉ bật cho chính chủ nhận danh hiệu', () => {
+  // Giả sử có 2 thành viên trong CLB
+  const mockDb = {
+    clubId: 'club_badminton_1',
+    members: [
+      { id: 'm1', name: 'Minh', userId: 'user_minh', active: true },
+      { id: 'm2', name: 'Hà', userId: 'user_ha', active: true },
+    ],
+    matches: [
+      // Minh đạt chuỗi thắng 5 trận trong khi offline
+      { id: '1', at: 10, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+      { id: '2', at: 20, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+      { id: '3', at: 30, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+      { id: '4', at: 40, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+      { id: '5', at: 50, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+    ],
+  }
+
+  // 1. Khi Hà đăng nhập (user_ha):
+  const dbHa = { ...mockDb, currentUserId: 'user_ha' }
+  const meHa = dbHa.members.find((m) => m.userId === dbHa.currentUserId)
+  assert.equal(meHa.id, 'm2')
+  const badgesHa = calculateMemberBadges(meHa.id, dbHa).unlocked
+  assert.equal(badgesHa.some((b) => b.id === 'bat_bai_v'), false, 'Hà không nhận danh hiệu Bất bại V')
+
+  // 2. Khi Minh đăng nhập lại (user_minh - lần tới onl):
+  const dbMinh = { ...mockDb, currentUserId: 'user_minh' }
+  const meMinh = dbMinh.members.find((m) => m.userId === dbMinh.currentUserId)
+  assert.equal(meMinh.id, 'm1')
+  const badgesMinh = calculateMemberBadges(meMinh.id, dbMinh).unlocked
+  const batBaiV = badgesMinh.find((b) => b.id === 'bat_bai_v')
+  assert.ok(batBaiV, 'Minh đạt danh hiệu Bất bại V sau khi các trận đấu được ghi nhận')
+
+  // 3. Kiểm tra danh sách đã xem:
+  const seenBadgesMinh = ['veteran_1'] // Minh mới chỉ xem veteran_1 trước đó
+  const unseenMinh = badgesMinh.filter((b) => !seenBadgesMinh.includes(b.id))
+  assert.ok(unseenMinh.some((b) => b.id === 'bat_bai_v'), 'bat_bai_v nằm trong danh sách chưa xem của Minh')
+
+  // Sau khi Minh xem và đánh dấu:
+  seenBadgesMinh.push('bat_bai_v')
+  const unseenMinhNext = badgesMinh.filter((b) => !seenBadgesMinh.includes(b.id))
+  assert.equal(unseenMinhNext.some((b) => b.id === 'bat_bai_v'), false, 'bat_bai_v đã được đánh dấu đã xem')
+})
+

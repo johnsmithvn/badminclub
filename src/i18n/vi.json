@@ -56,7 +56,8 @@
     "match": "trận",
     "dongPerHour": "đ/h",
     "win": "thắng",
-    "times": "lần"
+    "times": "lần",
+    "day": "ngày"
   },
   "season": {
     "headerSub": "Mùa 3 · 2026 — Thu Rực Lửa · 01/07 → 30/09 · còn 23 ngày",
@@ -69,10 +70,18 @@
     "podiumSubtitle14a": "chốt sau buổi {{sessions}} · huy chương trao tại buổi tổng kết",
     "podiumRemainingChip14a": "còn {{remaining}} buổi · tối đa +{{maxPts}} pts",
     "shelfThreeSlotLegend14a": "Kệ 3 ô hiện cạnh tên",
+    "shelfThreeSlotFooterNote14a": "Kệ hiện tối đa 3 ô huy hiệu, chính chủ sắp thứ tự ở Danh hiệu. Chạm một ô để xem tên danh hiệu.",
+    "eloSingleBadgeFooterNote14a": "Ở bảng Elo mỗi dòng chỉ hiện một ô huy hiệu bậc cao nhất, để mắt đọc trình độ trước.",
+    "youTag": "bạn",
+    "behindTop1": "kém #1 · {{diff}}",
+    "eloRankClub": "Elo #{{rank}} CLB",
+    "wholeTable": "Toàn bảng",
+    "wholeTableCount": "{{n}} thành viên",
+    "sessionsRemainingChip": "còn {{n}} buổi",
     "topEloTitle14a": "Tốp đẳng cấp",
-    "topEloSubtitle14a": "ba Elo cao nhất trong nhóm đủ 5 trận · cập nhật sau mỗi buổi",
+    "topEloSubtitle14a": "ba Elo cao nhất · cập nhật sau mỗi buổi",
     "singleHighestBadgeLegend14a": "chỉ 1 ô huy hiệu bậc cao nhất",
-    "officialRankCount14a": "Xếp hạng chính thức · {{n}} người",
+    "officialRankCount14a": "Bảng đẳng cấp Elo · {{n}} người",
     "statsDetail14a": "{{matches}} trận · {{conf}} · {{delta}} / 30 ngày",
     "countdownNote": "3 buổi còn lại — tối đa +190 pts",
     "leaderBadge": "Đang dẫn đầu mùa",
@@ -3466,19 +3475,20 @@
     },
     "bountyBoard": {
       "title": "Bảng truy nã",
-      "sub": "{{count}} mục tiêu đang mở · chuỗi ≥ 5 trận là tự bị treo",
+      "sub": "{{count}} mục tiêu đang mở · chuỗi ≥ 4 trận là tự bị treo",
       "seasonTag": "MÙA 3 · CÒN 23 NGÀY",
       "rulesTitle": "LUẬT TREO THƯỞNG",
-      "rules": [
-        "Chuỗi chạm 5 trận là tự động bị treo thưởng, không cần ai bấm gì.",
-        "Bounty tắt ngay khi chuỗi bị ngắt, hoặc khi mùa giải kết thúc.",
-        "Người bị treo không mất gì cả — thắng tiếp thì chuỗi dài thêm, thưởng treo cao hơn.",
-        "Chỉ trận có ghi tỷ số mới ngắt được chuỗi. Kèo và trận chia sân tính như nhau.",
-        "Elo tính theo chênh lệch trình độ như mọi trận khác. Bounty chỉ trả riêng XP và Điểm mùa."
-      ],
       "hunterBadgesTitle": "HUY HIỆU CHỈ THỢ SĂN MỚI CÓ",
       "eloIntegrityTitle": "ELO KHÔNG NHÂN ĐÔI",
-      "eloIntegrityDesc": "Hạ một bounty vẫn ăn Elo theo chênh lệch trình độ như trận thường. Phần thưởng treo trả riêng bằng XP và Điểm mùa."
+      "eloIntegrityDesc": "Hạ một bounty vẫn ăn Elo theo chênh lệch trình độ như trận thường. Phần thưởng treo trả riêng bằng XP và Điểm mùa.",
+      "xpPill": "+{{xp}} XP",
+      "seasonPtsPill": "+{{sp}} ĐIỂM MÙA",
+      "triesCount": "{{count}} đã thử",
+      "openStreakSince": "đơn · chuỗi mở từ {{date}}",
+      "pairMeta": "đôi · tỉ lệ thắng {{rate}}% mùa này",
+      "streakMetaFallback": "{{streak}} trận thắng liền",
+      "emptyTitle": "Hiện chưa có mục tiêu truy nã",
+      "emptyDesc": "Khi một tay vợt hoặc cặp đôi đạt chuỗi thắng từ 5 trận trở lên, lệnh truy nã sẽ tự động xuất hiện tại đây."
     },
     "detail": {
       "back": "← DANH HIỆU",
@@ -3501,7 +3511,12 @@
       "ownersTitle": "AI ĐÃ CÓ · {{count}} NGƯỜI",
       "chasersTitle": "AI ĐANG ĐUỔI",
       "noOwners": "Chưa ai mở khóa danh hiệu này",
-      "noChasers": "Chưa có ai đang theo đuổi tiến độ"
+      "noChasers": "Chưa có ai đang theo đuổi tiến độ",
+      "you": "Bạn",
+      "unitMatch": "trận",
+      "ownersStreakNote": "chuỗi {{streak}} trận · {{season}}",
+      "ownersCondNote": "đạt mốc {{val}}",
+      "viewUnlockFanfare": "XEM HIỆU ỨNG MỞ KHÓA"
     },
     "unlockModal": {
       "title": "MỞ KHÓA DANH HIỆU",
@@ -3509,7 +3524,10 @@
       "equipShelfBtn": "GẮN LÊN KỆ",
       "viewCollectionBtn": "XEM BỘ SƯU TẬP",
       "shelfReplaceNote": "kệ đang đủ 3 ô — gắn lên sẽ thay ô cuối",
-      "shelfAttachNote": "đã gắn vào ô trống trên kệ"
+      "shelfAttachNote": "đã gắn vào ô trống trên kệ",
+      "shelfAvailableNote": "kệ còn {{count}} ô trống",
+      "ptsUnit": "ĐIỂM SƯU TẬP",
+      "seasonPointsUnit": "ĐIỂM MÙA"
     },
     "leaderboard": {
       "title": "Xếp hạng sưu tập",
@@ -3521,7 +3539,9 @@
       "colScore": "ĐIỂM SƯU TẬP",
       "rarestTitle": "HIẾM NHẤT CLB",
       "scoringTitle": "CÁCH TÍNH ĐIỂM",
-      "scoringNote": "Danh hiệu ẩn tính theo bậc thật sau khi mở. Danh hiệu tự phong là danh hiệu vui, 0 điểm và không tính vào BXH sưu tập."
+      "scoringNote": "Danh hiệu ẩn tính theo bậc thật sau khi mở. Danh hiệu tự phong là danh hiệu vui, 0 điểm và không tính vào BXH sưu tập.",
+      "emptyList": "Chưa có thành viên nào trong bảng xếp hạng sưu tập.",
+      "emptyRarest": "Chưa có dữ liệu danh hiệu hiếm."
     },
     "items": {
       "bat_bai_v": { "name": "Bất bại V", "cond": "Thắng 5 trận liên tiếp trong cùng một mùa" },

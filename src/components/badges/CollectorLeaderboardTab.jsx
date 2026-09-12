@@ -16,13 +16,11 @@ export default function CollectorLeaderboardTab({
   onViewBadge,
 }) {
 
-  // Dữ liệu lấy từ prop hoặc config demo
-  const collectorList =
-    collectors.length > 0 ? collectors : (badgesConfig.demoCollectors || [])
+  // Dữ liệu thật từ DB (không dùng demo fallback)
+  const collectorList = collectors || []
 
-  // Top huy hiệu hiếm nhất CLB từ prop hoặc config demo
-  const rarestList =
-    rarestBadges.length > 0 ? rarestBadges : (badgesConfig.demoRarest || [])
+  // Top huy hiệu hiếm nhất CLB từ DB thật (không dùng demo fallback)
+  const rarestList = rarestBadges || []
 
   // Bảng điểm theo tier
   const scoringTiers = [
@@ -139,7 +137,22 @@ export default function CollectorLeaderboardTab({
           </div>
 
           {/* Danh sách thành viên */}
-          {collectorList.map((c, i) => {
+          {collectorList.length === 0 ? (
+            <div
+              style={{
+                padding: '36px 16px',
+                textAlign: 'center',
+                borderRadius: 12,
+                background: 'rgba(23,10,39,.6)',
+                border: '1px dashed #4C2673',
+                color: '#9C8ABE',
+                font: "400 13px/1.5 'IBM Plex Sans', sans-serif",
+              }}
+            >
+              {t('badges.leaderboard.emptyList')}
+            </div>
+          ) : (
+            collectorList.map((c, i) => {
             const isTop1 = c.rank === 1
             const isTop3 = c.rank <= 3
             const initial = c.name ? c.name.charAt(0).toUpperCase() : '?'
@@ -321,9 +334,10 @@ export default function CollectorLeaderboardTab({
                 >
                   {c.score}
                 </span>
-              </div>
-            )
-          })}
+                </div>
+              )
+            })
+          )}
         </div>
 
         {/* Cột phải: 1. Hiếm nhất CLB & 2. Cách tính điểm */}
@@ -349,49 +363,62 @@ export default function CollectorLeaderboardTab({
               {t('badges.leaderboard.rarestTitle')}
             </div>
 
-            {rarestList.map((r) => {
-              return (
-                <div
-                  key={r.id}
-                  onClick={() => onViewBadge && onViewBadge(r)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    cursor: onViewBadge ? 'pointer' : 'default',
-                  }}
-                >
-                  <BadgeHex
-                    tier={r.tier}
-                    glyph={r.glyph || 'crystal'}
-                    size={34}
-                    spin={r.tier === 'legend'}
-                  />
-                  <span
+            {rarestList.length === 0 ? (
+              <div
+                style={{
+                  padding: '16px',
+                  textAlign: 'center',
+                  color: '#9C8ABE',
+                  font: "400 12.5px 'IBM Plex Sans', sans-serif",
+                }}
+              >
+                {t('badges.leaderboard.emptyRarest')}
+              </div>
+            ) : (
+              rarestList.map((r) => {
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => onViewBadge && onViewBadge(r)}
                     style={{
-                      flex: 1,
-                      minWidth: 0,
-                      font: "600 13px/1.25 'Be Vietnam Pro', sans-serif",
-                      color: '#FFFFFF',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      cursor: onViewBadge ? 'pointer' : 'default',
                     }}
                   >
-                    {r.name}
-                  </span>
-                  <span
-                    style={{
-                      flex: '0 0 auto',
-                      font: "600 11.5px/1 'IBM Plex Mono', monospace",
-                      color: '#FFE24B',
-                    }}
-                  >
-                    {r.own}
-                  </span>
-                </div>
-              )
-            })}
+                    <BadgeHex
+                      tier={r.tier}
+                      glyph={r.glyph || 'crystal'}
+                      size={34}
+                      spin={r.tier === 'legend'}
+                    />
+                    <span
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        font: "600 13px/1.25 'Be Vietnam Pro', sans-serif",
+                        color: '#FFFFFF',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {r.name}
+                    </span>
+                    <span
+                      style={{
+                        flex: '0 0 auto',
+                        font: "600 11.5px/1 'IBM Plex Mono', monospace",
+                        color: '#FFE24B',
+                      }}
+                    >
+                      {r.own}
+                    </span>
+                  </div>
+                )
+              })
+            )}
           </div>
 
           {/* 2. Cách tính điểm */}

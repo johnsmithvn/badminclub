@@ -6,6 +6,7 @@ import ToastHost from '#components/layout/ToastHost.jsx'
 import Dialogs from '#pages/Dialogs.jsx'
 import MobileFooterNav from '#components/layout/MobileFooterNav.jsx'
 import MoreSheet from '#components/layout/MoreSheet.jsx'
+import GlobalBadgeUnlockHost from '#components/badges/GlobalBadgeUnlockHost.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 
 export default function AppLayout({ route, children }) {
@@ -39,6 +40,7 @@ export default function AppLayout({ route, children }) {
 
       <Dialogs />
       <ToastHost />
+      <GlobalBadgeUnlockHost />
     </div>
   )
 }

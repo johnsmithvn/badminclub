@@ -16,7 +16,7 @@
     "hidden": { "name": "ẨN", "note": "??? tới khi mở" }
   },
   "bounty": {
-    "minStreakSingle": 5,
+    "minStreakSingle": 4,
     "minStreakPair": 4,
     "hotStreak": 6,
     "rewardHot": {
@@ -35,152 +35,6 @@
       "Elo tính theo chênh lệch trình độ như mọi trận khác. Bounty chỉ trả riêng XP và Điểm mùa."
     ]
   },
-  "demoBounties": [
-    {
-      "id": "demo-minh",
-      "name": "Minh",
-      "meta": "chuỗi 6 trận · bất bại tháng 4",
-      "tier": "epic",
-      "glyph": "flame",
-      "streak": 6,
-      "xp": 100,
-      "sp": 15,
-      "tries": 3,
-      "hot": true
-    },
-    {
-      "id": "demo-ha",
-      "name": "Hà",
-      "meta": "chuỗi 5 trận · đập cầu khét nhất CLB",
-      "tier": "elite",
-      "glyph": "shuriken",
-      "streak": 5,
-      "xp": 80,
-      "sp": 10,
-      "tries": 1,
-      "hot": false
-    },
-    {
-      "id": "demo-tuan-vu",
-      "name": "Tuấn – Vũ",
-      "meta": "cặp đôi · tỉ lệ thắng 72% mùa này",
-      "tier": "legend",
-      "glyph": "crystal",
-      "streak": 4,
-      "xp": 140,
-      "sp": 25,
-      "tries": 4,
-      "hot": true,
-      "isPair": true
-    },
-    {
-      "id": "demo-long",
-      "name": "Long",
-      "meta": "chuỗi 5 trận · mới lên Rank B+",
-      "tier": "elite",
-      "glyph": "thunder",
-      "streak": 5,
-      "xp": 80,
-      "sp": 10,
-      "tries": 2,
-      "hot": false
-    }
-  ],
-  "demoCollectors": [
-    {
-      "id": "demo-quang",
-      "rank": 1,
-      "name": "Quang",
-      "signature": "Đã lên sân là không nhường",
-      "count": 14,
-      "score": 480,
-      "shelf": [
-        { "tier": "legend", "glyph": "crystal" },
-        { "tier": "epic", "glyph": "flame" },
-        { "tier": "elite", "glyph": "thunder" }
-      ]
-    },
-    {
-      "id": "demo-minh",
-      "rank": 2,
-      "name": "Minh",
-      "signature": "Chỉ thích smash góc chữ A",
-      "count": 11,
-      "score": 390,
-      "shelf": [
-        { "tier": "epic", "glyph": "flame" },
-        { "tier": "elite", "glyph": "shuriken" },
-        { "tier": "fun", "glyph": "clown" }
-      ]
-    },
-    {
-      "id": "demo-ha",
-      "rank": 3,
-      "name": "Hà",
-      "signature": "chưa chọn chữ ký",
-      "count": 9,
-      "score": 315,
-      "shelf": [
-        { "tier": "elite", "glyph": "shuriken" },
-        { "tier": "rare", "glyph": "wing" },
-        { "tier": "fun", "glyph": "mop" }
-      ]
-    },
-    {
-      "id": "demo-tuan",
-      "rank": 4,
-      "name": "Tuấn",
-      "signature": "Thủ chắc như bàn thạch",
-      "count": 8,
-      "score": 285,
-      "shelf": [
-        { "tier": "epic", "glyph": "crystal" },
-        { "tier": "rare", "glyph": "shield" }
-      ]
-    },
-    {
-      "id": "demo-vu",
-      "rank": 5,
-      "name": "Vũ",
-      "signature": "chưa chọn chữ ký",
-      "count": 7,
-      "score": 240,
-      "shelf": [
-        { "tier": "elite", "glyph": "thunder" },
-        { "tier": "fun", "glyph": "bird" }
-      ]
-    }
-  ],
-  "demoRarest": [
-    {
-      "id": "hidden_streak_15",
-      "name": "Độc cô cầu bại",
-      "tier": "legend",
-      "glyph": "skull",
-      "own": "chưa ai mở"
-    },
-    {
-      "id": "trum_giai",
-      "name": "Trùm giải",
-      "tier": "legend",
-      "glyph": "crystal",
-      "own": "1 người có"
-    },
-    {
-      "id": "sat_than_doi",
-      "name": "Sát thần đôi",
-      "tier": "epic",
-      "glyph": "fang",
-      "own": "2 người có"
-    },
-    {
-      "id": "hidden_comeback",
-      "name": "Nghịch thiên đảo chiều",
-      "tier": "epic",
-      "glyph": "thunder",
-      "own": "3 người có"
-    }
-  ],
   "hunterBadges": [
     {
       "id": "bounty_hunter",
@@ -470,48 +324,6 @@
       "checkType": "bounty_break_distinct",
       "threshold": 3,
       "reward": { "xp": 300, "seasonPts": 40 }
-    }
-  ],
-  "demoFeed": [
-    {
-      "id": "demo-f1",
-      "type": "bounty_break",
-      "timestamp": "now",
-      "actorName": "Tuấn",
-      "targetName": "Minh",
-      "streakBroken": 8,
-      "score": "21 - 19",
-      "eventIcon": "flame",
-      "color": "#FF2E7E"
-    },
-    {
-      "id": "demo-f2",
-      "type": "streak_milestone",
-      "timestamp": "15m",
-      "actorName": "Minh",
-      "streakCount": 6,
-      "badgeNameKey": "streak_5",
-      "eventIcon": "trophy",
-      "color": "#FFE24B"
-    },
-    {
-      "id": "demo-f3",
-      "type": "elo_milestone",
-      "timestamp": "1h",
-      "actorName": "Nam",
-      "elo": 1500,
-      "eventIcon": "crown",
-      "color": "#9D4EDD"
-    },
-    {
-      "id": "demo-f4",
-      "type": "clutch_win",
-      "timestamp": "today",
-      "actorName": "Hà & Vũ",
-      "targetName": "Phong & Lan",
-      "score": "30 - 29",
-      "eventIcon": "sword",
-      "color": "#00F5D4"
     }
   ]
 }

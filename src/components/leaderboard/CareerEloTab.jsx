@@ -18,10 +18,14 @@ export default function CareerEloTab({
   isMobile = false,
 }) {
   const { isDark, isGlamorous } = useTheme()
-  const [filterMode, setFilterMode] = useState('official') // 'official' | 'all'
 
-  // Chuẩn bị dữ liệu danh sách thành viên
-  const { officialList, provisionalList, allList, histogramData, medianElo, middleRangePct } = useMemo(() => {
+  const myMember = useMemo(() => {
+    if (!db || !db.currentUserId) return null
+    return (db.members || []).find((m) => m.userId === db.currentUserId) || null
+  }, [db])
+
+  // Chuẩn bị dữ liệu danh sách thành viên - Hiện toàn bộ thành viên, xếp hạng liên tục 1..N
+  const { allList, histogramData, medianElo, middleRangePct } = useMemo(() => {
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now()
     const thirtyDaysAgo = now - 30 * 86400000
@@ -106,17 +110,11 @@ export default function CareerEloTab({
       }
     })
 
-    const officials = list.filter((p) => !p.isProvisional).sort((a, b) => b.rating - a.rating)
-    officials.forEach((p, idx) => {
+    // Toàn bộ thành viên có xếp hạng liên tục 1..N
+    const allSorted = [...list].sort((a, b) => b.rating - a.rating)
+    allSorted.forEach((p, idx) => {
       p.rank = idx + 1
     })
-
-    const provisionals = list.filter((p) => p.isProvisional).sort((a, b) => b.rating - a.rating)
-    provisionals.forEach((p) => {
-      p.rank = '—'
-    })
-
-    const allSorted = [...list].sort((a, b) => b.rating - a.rating)
 
     // Phổ Elo histogram (1300, 1400, 1500, 1600, 1700, 1800, 1900)
     const bins = [
@@ -153,16 +151,14 @@ export default function CareerEloTab({
     const rangePct = list.length > 0 ? Math.round((inRange / list.length) * 100) : 60
 
     return {
-      officialList: officials,
-      provisionalList: provisionals,
       allList: allSorted,
       histogramData: histogramWithHeights,
       medianElo: med,
       middleRangePct: rangePct,
     }
-  }, [members, playerRatings, matches, levels, isDark])
+  }, [members, playerRatings, matches, levels, isDark, db])
 
-  const displayList = filterMode === 'official' ? officialList : allList
+  const displayList = allList
 
   return (
     <div
@@ -172,46 +168,6 @@ export default function CareerEloTab({
         gap: 16,
       }}
     >
-      {/* FILTER TOGGLE TRÊN CÙNG */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6, padding: 3, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-          <button
-            type="button"
-            onClick={() => setFilterMode('official')}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: isMobile ? '8px 12px' : '8px 12px',
-              borderRadius: isMobile ? 999 : 6,
-              background: filterMode === 'official' ? (isMobile ? 'var(--surface-raised)' : 'var(--surface-card)') : 'transparent',
-              border: filterMode === 'official' ? '1px solid var(--border-default)' : (isMobile ? '1px solid var(--border-subtle)' : '1px solid transparent'),
-              color: filterMode === 'official' ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: filterMode === 'official' ? 'var(--shadow-xs)' : 'none',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {isMobile ? t('season.filterOfficialShort') : t('season.filterOfficial')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterMode('all')}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              padding: isMobile ? '8px 12px' : '8px 12px',
-              borderRadius: isMobile ? 999 : 6,
-              background: filterMode === 'all' ? (isMobile ? 'var(--surface-raised)' : 'var(--surface-card)') : 'transparent',
-              border: filterMode === 'all' ? '1px solid var(--border-default)' : (isMobile ? '1px solid var(--border-subtle)' : '1px solid transparent'),
-              color: filterMode === 'all' ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: filterMode === 'all' ? 'var(--shadow-xs)' : 'none',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {isMobile ? t('season.filterAllShort') : t('season.filterAll')}
-          </button>
-        </div>
-      </div>
-
       {/* NỘI DUNG CHÍNH: 2 CỘT */}
       <div
         style={{
@@ -221,65 +177,59 @@ export default function CareerEloTab({
           alignItems: 'start',
         }}
       >
-        {/* CỘT TRÁI: BẢNG XẾP HẠNG VÀ KHU THẨM ĐỊNH */}
+        {/* CỘT TRÁI: BẢNG XẾP HẠNG ELO TOÀN DIỆN */}
         <div style={{ display: 'grid', gap: 14 }}>
           {/* TỐP ĐẲNG CẤP 14a · Hào nhoáng */}
-          {isGlamorous && officialList.length >= 3 && (
-            <div
-              style={{
-                position: 'relative',
-                borderRadius: 12,
-                overflow: 'hidden',
-                border: '1px solid #2E3E5C',
-                background: 'linear-gradient(180deg, #16202E, #101827 62%)',
-                padding: '15px 16px 16px',
-                display: 'grid',
-                gap: 12,
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'radial-gradient(60% 80% at 22% 0%, rgba(122,163,220,.18), transparent 70%)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ font: "700 16px/1.2 'Barlow', sans-serif", color: '#FFFFFF' }}>
-                  {t('season.topEloTitle14a')}
-                </span>
-                <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('season.topEloSubtitle14a')}
-                </span>
-              </div>
-
+          {isGlamorous && allList.length >= 3 && (
+            isMobile ? (
+              /* Mobile Bục Tốp Đẳng Cấp Dạng Dọc (M11v2) */
               <div
                 style={{
                   position: 'relative',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  border: '1px solid #2E3E5C',
+                  background: 'linear-gradient(180deg, #16202E, #101827 66%)',
+                  padding: 12,
                   display: 'grid',
-                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-                  gap: 12,
+                  gap: 9,
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
                 }}
               >
-                {/* Top 1 Elo Card */}
-                {officialList[0] && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(66% 70% at 30% 0%, rgba(122,163,220,.16), transparent 72%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ font: "700 15px/1.2 'Barlow', sans-serif", color: '#FFFFFF' }}>
+                    {t('season.topEloTitle14a')}
+                  </span>
+                  <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                    {t('season.topEloSubtitle14a')}
+                  </span>
+                </div>
+
+                {/* Top 1 Mobile (Thẻ ngang lớn vàng hoàng kim) */}
+                {allList[0] && (
                   <div
-                    onClick={() => onSelectMember && onSelectMember(officialList[0])}
+                    onClick={() => onSelectMember && onSelectMember(allList[0])}
                     style={{
+                      position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 13,
-                      padding: '13px 14px',
-                      borderRadius: 10,
-                      background: 'linear-gradient(120deg, rgba(240,183,92,.20), rgba(20,29,46,.92) 62%)',
+                      gap: 12,
+                      padding: '12px 12px 11px',
+                      borderRadius: 11,
+                      background: 'linear-gradient(150deg, rgba(240,183,92,.22), rgba(20,29,46,.94) 68%)',
                       border: '1px solid #C9A227',
                       cursor: onSelectMember ? 'pointer' : 'default',
-                      transition: 'transform 0.15s ease',
                     }}
                   >
-                    <div style={{ position: 'relative', width: 48, height: 48, flex: '0 0 auto' }}>
+                    <div style={{ position: 'relative', width: 50, height: 50, flex: '0 0 auto', marginTop: 5 }}>
                       <div
                         style={{
                           position: 'absolute',
@@ -296,9 +246,9 @@ export default function CareerEloTab({
                       <div
                         style={{
                           position: 'absolute',
-                          inset: -7,
+                          inset: -6,
                           borderRadius: 999,
-                          background: 'radial-gradient(circle, rgba(240,183,92,.34), transparent 70%)',
+                          background: 'radial-gradient(circle, rgba(240,183,92,.32), transparent 70%)',
                           animation: 'medalGlow 4.6s ease-in-out infinite',
                         }}
                       />
@@ -312,7 +262,7 @@ export default function CareerEloTab({
                         }}
                       />
                       <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                        <Avatar name={officialList[0].name} src={officialList[0].avatarUrl} size={42} />
+                        <Avatar name={allList[0].name} src={allList[0].avatarUrl} size={44} />
                       </div>
                       <div
                         style={{
@@ -323,7 +273,7 @@ export default function CareerEloTab({
                           height: 19,
                           borderRadius: 999,
                           background: 'linear-gradient(180deg, #FFF3C4, #C9A227)',
-                          border: '2px solid #171206',
+                          border: '2px solid #161104',
                           display: 'grid',
                           placeItems: 'center',
                           font: "700 10px/1 'Barlow', sans-serif",
@@ -333,41 +283,59 @@ export default function CareerEloTab({
                         1
                       </div>
                     </div>
-                    <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {officialList[0].name}
+                    <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 5 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        {allList[0].highestBadge && (
+                          <BadgeHex tier={allList[0].highestBadge.tier} glyph={allList[0].highestBadge.glyph} size={19} />
+                        )}
+                        <span style={{ font: "700 15.5px/1.15 'Barlow', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {allList[0].name}
+                        </span>
+                        {myMember?.id === allList[0].id && (
+                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                            {t('season.youTag')}
+                          </span>
+                        )}
+                        <div style={{ flex: '1 1 0%' }} />
+                        <span style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
+                          {allList[0].rating}
+                        </span>
                       </div>
-                      <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
-                        {officialList[0].rating}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: '1 1 0%', height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                          <span style={{ width: allList[0].confBarWidth, background: allList[0].confBarColor }} />
+                        </span>
+                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: allList[0].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
+                          {allList[0].confLabel}
+                        </span>
                       </div>
-                      <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
-                        {t('season.statsDetail14a', {
-                          matches: officialList[0].totalGames,
-                          conf: officialList[0].confLabel,
-                          delta: officialList[0].delta30Days >= 0 ? `+${officialList[0].delta30Days}` : `${officialList[0].delta30Days}`,
-                        })}
+                      <div style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
+                        {allList[0].gamesCount} {t('units.match')} · {allList[0].winRate}% ·{' '}
+                        <span style={{ color: allList[0].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
+                          {allList[0].delta30Days >= 0 ? `+${allList[0].delta30Days}` : `${allList[0].delta30Days}`} / 30 {t('units.day')}
+                        </span>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Top 2 Elo Card */}
-                {officialList[1] && (
+                {/* Top 2 Mobile (Thẻ ngang viền bạc) */}
+                {allList[1] && (
                   <div
-                    onClick={() => onSelectMember && onSelectMember(officialList[1])}
+                    onClick={() => onSelectMember && onSelectMember(allList[1])}
                     style={{
+                      position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 13,
-                      padding: '13px 14px',
+                      gap: 11,
+                      padding: '10px 12px',
                       borderRadius: 10,
-                      background: 'linear-gradient(120deg, rgba(199,210,228,.14), rgba(20,29,46,.92) 62%)',
+                      background: 'linear-gradient(150deg, rgba(199,210,228,.12), rgba(20,29,46,.92) 66%)',
                       border: '1px solid #6F7F96',
                       cursor: onSelectMember ? 'pointer' : 'default',
-                      transition: 'transform 0.15s ease',
                     }}
                   >
-                    <div style={{ position: 'relative', width: 44, height: 44, flex: '0 0 auto' }}>
+                    <div style={{ position: 'relative', width: 42, height: 42, flex: '0 0 auto' }}>
                       <div
                         style={{
                           position: 'absolute',
@@ -377,417 +345,618 @@ export default function CareerEloTab({
                           boxShadow: '0 0 0 1px rgba(199,210,228,.45)',
                         }}
                       />
-                      <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                        <Avatar name={officialList[1].name} src={officialList[1].avatarUrl} size={38} />
+                      <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <Avatar name={allList[1].name} src={allList[1].avatarUrl} size={37} />
                       </div>
                       <div
                         style={{
                           position: 'absolute',
-                          right: -4,
-                          bottom: -4,
-                          width: 18,
-                          height: 18,
+                          right: -3,
+                          bottom: -3,
+                          width: 17,
+                          height: 17,
                           borderRadius: 999,
                           background: 'linear-gradient(180deg, #EDF3FB, #8FA3BE)',
                           border: '2px solid #141D2B',
                           display: 'grid',
                           placeItems: 'center',
-                          font: "700 10px/1 'Barlow', sans-serif",
+                          font: "700 9px/1 'Barlow', sans-serif",
                           color: '#1B2435',
                         }}
                       >
                         2
                       </div>
                     </div>
-                    <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {officialList[1].name}
+                    <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        {allList[1].highestBadge && (
+                          <BadgeHex tier={allList[1].highestBadge.tier} glyph={allList[1].highestBadge.glyph} size={18} />
+                        )}
+                        <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {allList[1].name}
+                        </span>
+                        {myMember?.id === allList[1].id && (
+                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                            {t('season.youTag')}
+                          </span>
+                        )}
+                        <div style={{ flex: '1 1 0%' }} />
+                        <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
+                          {allList[1].rating}
+                        </span>
                       </div>
-                      <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#E3EDFB' }}>
-                        {officialList[1].rating}
-                      </div>
-                      <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
-                        {t('season.statsDetail14a', {
-                          matches: officialList[1].totalGames,
-                          conf: officialList[1].confLabel,
-                          delta: officialList[1].delta30Days >= 0 ? `+${officialList[1].delta30Days}` : `${officialList[1].delta30Days}`,
-                        })}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: '1 1 0%', height: 5, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                          <span style={{ width: allList[1].confBarWidth, background: allList[1].confBarColor }} />
+                        </span>
+                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: allList[1].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
+                          {allList[1].confLabel}
+                        </span>
+                        <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: allList[1].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
+                          {allList[1].delta30Days >= 0 ? `+${allList[1].delta30Days}` : `${allList[1].delta30Days}`}
+                        </span>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Top 3 Elo Card */}
-                {officialList[2] && (
+                {/* Top 3 Mobile (Thẻ ngang viền đồng) */}
+                {allList[2] && (
                   <div
-                    onClick={() => onSelectMember && onSelectMember(officialList[2])}
+                    onClick={() => onSelectMember && onSelectMember(allList[2])}
                     style={{
+                      position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 13,
-                      padding: '13px 14px',
+                      gap: 11,
+                      padding: '10px 12px',
                       borderRadius: 10,
-                      background: 'linear-gradient(120deg, rgba(232,180,140,.14), rgba(20,29,46,.92) 62%)',
-                      border: '1px solid #A66A38',
+                      background: 'linear-gradient(150deg, rgba(200,128,74,.14), rgba(20,29,46,.92) 66%)',
+                      border: '1px solid #8A4E24',
                       cursor: onSelectMember ? 'pointer' : 'default',
-                      transition: 'transform 0.15s ease',
                     }}
                   >
-                    <div style={{ position: 'relative', width: 44, height: 44, flex: '0 0 auto' }}>
+                    <div style={{ position: 'relative', width: 42, height: 42, flex: '0 0 auto' }}>
                       <div
                         style={{
                           position: 'absolute',
                           inset: 0,
                           borderRadius: 999,
-                          background: 'conic-gradient(from 210deg, #5C2C10, #C77C48, #F5C09A, #C77C48, #5C2C10)',
-                          boxShadow: '0 0 0 1px rgba(232,180,140,.4)',
+                          background: 'conic-gradient(from 210deg, #6B3512, #C8804A, #F0C096, #B0562A, #6B3512)',
+                          boxShadow: '0 0 0 1px rgba(240,192,150,.4)',
                         }}
                       />
-                      <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                        <Avatar name={officialList[2].name} src={officialList[2].avatarUrl} size={38} />
+                      <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <Avatar name={allList[2].name} src={allList[2].avatarUrl} size={37} />
                       </div>
                       <div
                         style={{
                           position: 'absolute',
-                          right: -4,
-                          bottom: -4,
-                          width: 18,
-                          height: 18,
+                          right: -3,
+                          bottom: -3,
+                          width: 17,
+                          height: 17,
                           borderRadius: 999,
-                          background: 'linear-gradient(180deg, #F5C09A, #A66A38)',
-                          border: '2px solid #170E07',
+                          background: 'linear-gradient(180deg, #F0C096, #B0562A)',
+                          border: '2px solid #1A1008',
                           display: 'grid',
                           placeItems: 'center',
-                          font: "700 10px/1 'Barlow', sans-serif",
-                          color: '#2A1608',
+                          font: "700 9px/1 'Barlow', sans-serif",
+                          color: '#2A1405',
                         }}
                       >
                         3
                       </div>
                     </div>
-                    <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {officialList[2].name}
+                    <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        {allList[2].highestBadge && (
+                          <BadgeHex tier={allList[2].highestBadge.tier} glyph={allList[2].highestBadge.glyph} size={18} />
+                        )}
+                        <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {allList[2].name}
+                        </span>
+                        {myMember?.id === allList[2].id && (
+                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                            {t('season.youTag')}
+                          </span>
+                        )}
+                        <div style={{ flex: '1 1 0%' }} />
+                        <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
+                          {allList[2].rating}
+                        </span>
                       </div>
-                      <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F5E0D0' }}>
-                        {officialList[2].rating}
-                      </div>
-                      <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
-                        {t('season.statsDetail14a', {
-                          matches: officialList[2].totalGames,
-                          conf: officialList[2].confLabel,
-                          delta: officialList[2].delta30Days >= 0 ? `+${officialList[2].delta30Days}` : `${officialList[2].delta30Days}`,
-                        })}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: '1 1 0%', height: 5, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
+                          <span style={{ width: allList[2].confBarWidth, background: allList[2].confBarColor }} />
+                        </span>
+                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: allList[2].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
+                          {allList[2].confLabel}
+                        </span>
+                        <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: allList[2].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
+                          {allList[2].delta30Days >= 0 ? `+${allList[2].delta30Days}` : `${allList[2].delta30Days}`}
+                        </span>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* Bảng xếp hạng chính thức */}
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
-            <div style={{ padding: '10px 13px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                {filterMode === 'official'
-                  ? t('season.officialActiveCount', { n: officialList.length })
-                  : t('season.allActiveCount', { n: allList.length })}
-              </span>
-              {provisionalList.length > 0 && filterMode === 'official' && (
-                <span
-                  style={{
-                    font: "600 11px/1 'IBM Plex Mono', monospace",
-                    padding: '5px 8px',
-                    borderRadius: 999,
-                    background: isDark ? 'rgba(214,59,43,.14)' : 'rgba(214,59,43,.10)',
-                    border: '1px solid #D63B2B',
-                    color: isDark ? '#F1A79D' : '#D63B2B',
-                  }}
-                >
-                  {t('season.provisionalActiveCount', { n: provisionalList.length })}
-                </span>
-              )}
-              <div style={{ flex: '1 1 0%' }} />
-              <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                {isGlamorous ? t('season.singleHighestBadgeLegend14a') : t('season.sortEloDesc')}
-              </span>
-            </div>
-
-            {/* Header hàng (Desktop only) */}
-            {!isMobile && (
+            ) : (
+              /* Desktop Bục Tốp Đẳng Cấp 3 Cột */
               <div
                 style={{
+                  position: 'relative',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  border: '1px solid #2E3E5C',
+                  background: 'linear-gradient(180deg, #16202E, #101827 62%)',
+                  padding: '15px 16px 16px',
                   display: 'grid',
-                  gridTemplateColumns: isGlamorous ? '46px minmax(0,1fr) 92px 78px 128px 74px 84px' : '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
-                  padding: '8px 13px',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
-                  letterSpacing: '.06em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-muted)',
+                  gap: 12,
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
                 }}
               >
-                <span>#</span>
-                <span>{t('season.colMember')}</span>
-                <span style={{ textAlign: 'right' }}>Elo</span>
-                <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
-                <span style={{ textAlign: 'center' }}>{t('season.colConfidence')}</span>
-                <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
-                <span style={{ textAlign: 'right' }}>{t('season.col30Days')}</span>
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(60% 80% at 22% 0%, rgba(122,163,220,.18), transparent 70%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ font: "700 16px/1.2 'Barlow', sans-serif", color: '#FFFFFF' }}>
+                    {t('season.topEloTitle14a')}
+                  </span>
+                  <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                    {t('season.topEloSubtitle14a')}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                    gap: 12,
+                  }}
+                >
+                  {/* Top 1 Desktop */}
+                  {allList[0] && (
+                    <div
+                      onClick={() => onSelectMember && onSelectMember(allList[0])}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 13,
+                        padding: '13px 14px',
+                        borderRadius: 10,
+                        background: 'linear-gradient(120deg, rgba(240,183,92,.20), rgba(20,29,46,.92) 62%)',
+                        border: '1px solid #C9A227',
+                        cursor: onSelectMember ? 'pointer' : 'default',
+                        transition: 'transform 0.15s ease',
+                      }}
+                    >
+                      <div style={{ position: 'relative', width: 48, height: 48, flex: '0 0 auto' }}>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: '50%',
+                            top: -14,
+                            transform: 'translateX(-50%)',
+                            width: 24,
+                            height: 15,
+                            background: 'linear-gradient(180deg, #FFF3C4, #F0D26A 52%, #C9A227)',
+                            clipPath: 'polygon(0% 100%, 0% 22%, 22% 58%, 50% 0%, 78% 58%, 100% 22%, 100% 100%)',
+                            filter: 'drop-shadow(0 2px 6px rgba(201,162,39,.5))',
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: -7,
+                            borderRadius: 999,
+                            background: 'radial-gradient(circle, rgba(240,183,92,.34), transparent 70%)',
+                            animation: 'medalGlow 4.6s ease-in-out infinite',
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: 999,
+                            background: 'conic-gradient(from 210deg, #7A5620, #F0B75C, #FFF3C4, #F0D26A, #7A5620)',
+                            boxShadow: '0 0 0 1px rgba(247,227,161,.55)',
+                          }}
+                        />
+                        <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                          <Avatar name={allList[0].name} src={allList[0].avatarUrl} size={42} />
+                        </div>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: -4,
+                            bottom: -4,
+                            width: 19,
+                            height: 19,
+                            borderRadius: 999,
+                            background: 'linear-gradient(180deg, #FFF3C4, #C9A227)',
+                            border: '2px solid #171206',
+                            display: 'grid',
+                            placeItems: 'center',
+                            font: "700 10px/1 'Barlow', sans-serif",
+                            color: '#2A1F00',
+                          }}
+                        >
+                          1
+                        </div>
+                      </div>
+                      <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
+                        <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {allList[0].name}
+                        </div>
+                        <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
+                          {allList[0].rating}
+                        </div>
+                        <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
+                          {t('season.statsDetail14a', {
+                            matches: allList[0].totalGames,
+                            conf: allList[0].confLabel,
+                            delta: allList[0].delta30Days >= 0 ? `+${allList[0].delta30Days}` : `${allList[0].delta30Days}`,
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top 2 Desktop */}
+                  {allList[1] && (
+                    <div
+                      onClick={() => onSelectMember && onSelectMember(allList[1])}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 13,
+                        padding: '13px 14px',
+                        borderRadius: 10,
+                        background: 'linear-gradient(120deg, rgba(199,210,228,.14), rgba(20,29,46,.92) 62%)',
+                        border: '1px solid #6F7F96',
+                        cursor: onSelectMember ? 'pointer' : 'default',
+                        transition: 'transform 0.15s ease',
+                      }}
+                    >
+                      <div style={{ position: 'relative', width: 44, height: 44, flex: '0 0 auto' }}>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: 999,
+                            background: 'conic-gradient(from 210deg, #5B6B81, #C7D2E4, #FFFFFF, #8FA3BE, #5B6B81)',
+                            boxShadow: '0 0 0 1px rgba(199,210,228,.45)',
+                          }}
+                        />
+                        <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                          <Avatar name={allList[1].name} src={allList[1].avatarUrl} size={38} />
+                        </div>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: -4,
+                            bottom: -4,
+                            width: 18,
+                            height: 18,
+                            borderRadius: 999,
+                            background: 'linear-gradient(180deg, #EDF3FB, #8FA3BE)',
+                            border: '2px solid #141D2B',
+                            display: 'grid',
+                            placeItems: 'center',
+                            font: "700 10px/1 'Barlow', sans-serif",
+                            color: '#1B2435',
+                          }}
+                        >
+                          2
+                        </div>
+                      </div>
+                      <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
+                        <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {allList[1].name}
+                        </div>
+                        <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#E3EDFB' }}>
+                          {allList[1].rating}
+                        </div>
+                        <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                          {t('season.statsDetail14a', {
+                            matches: allList[1].totalGames,
+                            conf: allList[1].confLabel,
+                            delta: allList[1].delta30Days >= 0 ? `+${allList[1].delta30Days}` : `${allList[1].delta30Days}`,
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top 3 Desktop */}
+                  {allList[2] && (
+                    <div
+                      onClick={() => onSelectMember && onSelectMember(allList[2])}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 13,
+                        padding: '13px 14px',
+                        borderRadius: 10,
+                        background: 'linear-gradient(120deg, rgba(232,180,140,.14), rgba(20,29,46,.92) 62%)',
+                        border: '1px solid #A66A38',
+                        cursor: onSelectMember ? 'pointer' : 'default',
+                        transition: 'transform 0.15s ease',
+                      }}
+                    >
+                      <div style={{ position: 'relative', width: 44, height: 44, flex: '0 0 auto' }}>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: 999,
+                            background: 'conic-gradient(from 210deg, #5C2C10, #C77C48, #F5C09A, #C77C48, #5C2C10)',
+                            boxShadow: '0 0 0 1px rgba(232,180,140,.4)',
+                          }}
+                        />
+                        <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                          <Avatar name={allList[2].name} src={allList[2].avatarUrl} size={38} />
+                        </div>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: -4,
+                            bottom: -4,
+                            width: 18,
+                            height: 18,
+                            borderRadius: 999,
+                            background: 'linear-gradient(180deg, #F5C09A, #A66A38)',
+                            border: '2px solid #170E07',
+                            display: 'grid',
+                            placeItems: 'center',
+                            font: "700 10px/1 'Barlow', sans-serif",
+                            color: '#2A1608',
+                          }}
+                        >
+                          3
+                        </div>
+                      </div>
+                      <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
+                        <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {allList[2].name}
+                        </div>
+                        <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F5E0D0' }}>
+                          {allList[2].rating}
+                        </div>
+                        <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                          {t('season.statsDetail14a', {
+                            matches: allList[2].totalGames,
+                            conf: allList[2].confLabel,
+                            delta: allList[2].delta30Days >= 0 ? `+${allList[2].delta30Days}` : `${allList[2].delta30Days}`,
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            )
+          )}
 
-            {/* Danh sách thành viên */}
-            {displayList.map((player) => {
-              const isRank1 = player.rank === 1
-              const rankColor = isRank1
-                ? '#D97706'
-                : player.rank === 2 || player.rank === 3
-                  ? (isDark ? '#A8B7CB' : 'var(--text-secondary)')
-                  : 'var(--text-muted)'
-              const deltaColor = player.delta30Days > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : player.delta30Days < 0 ? (isDark ? '#F1A79D' : '#DC2626') : 'var(--text-muted)'
-              const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
+          {/* BẢNG XẾP HẠNG ELO TOÀN BỘ (Hiện tất cả thành viên, không lọc) */}
+          {isMobile && isGlamorous ? (
+            /* TOÀN BẢNG MOBILE HÀO NHOÁNG (M11v2) */
+            <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ padding: '9px 12px', borderBottom: '1px solid #22304A', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                  {t('season.wholeTable')}
+                </span>
+                <div style={{ flex: '1 1 0%' }} />
+                <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                  {t('season.wholeTableCount', { n: allList.length })}
+                </span>
+              </div>
 
-              const isGlamTop1 = isGlamorous && player.rank === 1
-              const isGlamTop2 = isGlamorous && player.rank === 2
-              const isGlamTop3 = isGlamorous && player.rank === 3
-              const isGlamTopAny = isGlamTop1 || isGlamTop2 || isGlamTop3
+              {(allList.length > 3 ? allList.slice(3) : allList).map((player, idx, arr) => {
+                const isMe = myMember && myMember.id === player.id
+                const deltaColor = player.delta30Days > 0 ? '#5FDBD3' : player.delta30Days < 0 ? '#F1A79D' : '#8494AA'
+                const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
 
-              const glamLeftBorder = isGlamTop1
-                ? '3px solid #E5B842'
-                : isGlamTop2
-                  ? '3px solid #BAC7D5'
-                  : isGlamTop3
-                    ? '3px solid #D98844'
-                    : '3px solid transparent'
-
-              const glamBg = isGlamTop1
-                ? (isDark ? 'linear-gradient(90deg, rgba(229,184,66,.14) 0%, rgba(20,27,45,.75) 45%)' : 'linear-gradient(90deg, rgba(245,158,11,.12) 0%, rgba(255,255,255,.9) 45%)')
-                : isGlamTop2
-                  ? (isDark ? 'linear-gradient(90deg, rgba(186,199,213,.12) 0%, rgba(20,27,45,.6) 45%)' : 'linear-gradient(90deg, rgba(148,163,184,.12) 0%, rgba(255,255,255,.9) 45%)')
-                  : isGlamTop3
-                    ? (isDark ? 'linear-gradient(90deg, rgba(217,136,68,.12) 0%, rgba(20,27,45,.6) 45%)' : 'linear-gradient(90deg, rgba(217,119,6,.1) 0%, rgba(255,255,255,.9) 45%)')
-                    : undefined
-
-              if (isMobile) {
                 return (
                   <div
                     key={player.id}
                     onClick={() => onSelectMember && onSelectMember(player)}
-                    title={onSelectMember ? t('leaderboard.tabChart') : undefined}
                     style={{
-                      padding: '11px 14px',
-                      borderBottom: '1px solid var(--border-subtle)',
-                      borderLeft: isGlamorous ? glamLeftBorder : 'none',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '9px 12px',
+                      borderBottom: idx === arr.length - 1 ? 'none' : '1px solid rgba(34,48,74,.6)',
+                      background: isMe ? 'rgba(29,80,160,.12)' : 'transparent',
                       cursor: onSelectMember ? 'pointer' : 'default',
-                      background: glamBg || 'transparent',
-                      transition: 'background 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (onSelectMember) e.currentTarget.style.background = isGlamTopAny ? glamBg : isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)'
-                    }}
-                    onMouseLeave={(e) => {
-                      if (onSelectMember) e.currentTarget.style.background = glamBg || 'transparent'
                     }}
                   >
-                    {/* Dòng 1: Hạng + Avatar + Tên + Badge Top 1 + Elo */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      {isGlamorous && (player.rank === 1 || player.rank === 2 || player.rank === 3) ? (
-                        <div style={{ width: 22, display: 'flex', justifyContent: 'center' }}>
-                          <RankMedalIcon rank={player.rank} size={20} />
-                        </div>
-                      ) : (
-                        <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: rankColor }}>
-                          {player.rank}
-                        </span>
-                      )}
-                      <Avatar name={player.name} src={player.avatarUrl} size={22} />
-                      <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {player.name}
-                        </span>
-                        {isGlamorous && player.highestBadge && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                            <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={13} />
-                            <span
-                              style={{
-                                font: "600 10px/1 'IBM Plex Sans', sans-serif",
-                                color:
-                                  player.highestBadge.tier === 'legend'
-                                    ? '#FFE24B'
-                                    : player.highestBadge.tier === 'epic'
-                                      ? '#D946EF'
-                                      : player.highestBadge.tier === 'elite'
-                                        ? '#38BDF8'
-                                        : player.highestBadge.tier === 'rare'
-                                          ? '#A78BFA'
-                                          : 'var(--text-secondary)',
-                              }}
-                            >
-                              {player.highestBadge.name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      {!isGlamorous && player.rank === 1 && (
-                        <span
-                          style={{
-                            font: "600 10px/1 'IBM Plex Mono', monospace",
-                            padding: '2px 6px',
-                            borderRadius: 999,
-                            background: isDark ? 'rgba(201,162,39,.16)' : 'rgba(245,158,11,.14)',
-                            border: '1px solid #C9A227',
-                            color: isDark ? '#F0D26A' : '#B45309',
-                          }}
-                        >
-                          Top 1
-                        </span>
-                      )}
-                      <span
-                        style={{
-                          font: "600 15px/1 'IBM Plex Mono', monospace",
-                          color: player.rank === 1 ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
-                        }}
-                      >
-                        {player.rating}
-                      </span>
-                    </div>
-
-                    {/* Dòng 2: Mini confidence bar + Nhãn + {games} trận · {winRate}% · {delta} */}
-                    <div style={{ paddingLeft: 29, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span
-                        style={{
-                          width: 52,
-                          height: 7,
-                          borderRadius: 999,
-                          background: 'var(--surface-inset)',
-                          border: '1px solid var(--border-subtle)',
-                          overflow: 'hidden',
-                          display: 'flex',
-                          flex: '0 0 auto',
-                        }}
-                      >
-                        <span style={{ width: player.confBarWidth, background: player.confBarColor }} />
-                      </span>
-                      <span
-                        style={{
-                          font: "600 10px/1 'IBM Plex Mono', monospace",
-                          color: player.confColor,
-                          letterSpacing: '.04em',
-                        }}
-                      >
-                        {player.confLabel}
-                      </span>
-                      <span
-                        style={{
-                          flex: '1 1 0%',
-                          font: "400 11px/1.3 'IBM Plex Mono', monospace",
-                          color: 'var(--text-muted)',
-                          textAlign: 'right',
-                        }}
-                      >
-                        {player.gamesCount} {t('units.match')} · {player.winRate}% ·{' '}
-                        <span style={{ color: deltaColor, fontWeight: 600 }}>{deltaSign}</span>
-                      </span>
-                    </div>
-                  </div>
-                )
-              }
-
-              return (
-                <div
-                  key={player.id}
-                  onClick={() => onSelectMember && onSelectMember(player)}
-                  title={onSelectMember ? t('leaderboard.tabChart') : undefined}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: isGlamorous
-                      ? '46px minmax(0,1fr) 92px 78px 128px 74px 84px'
-                      : '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
-                    alignItems: 'center',
-                    padding: isGlamorous ? '10px 13px' : '9px 13px',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    borderLeft: isGlamorous ? glamLeftBorder : 'none',
-                    background: glamBg || 'transparent',
-                    font: "400 13px/1.3 'IBM Plex Sans', sans-serif",
-                    cursor: onSelectMember ? 'pointer' : 'default',
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (onSelectMember) {
-                      e.currentTarget.style.background = isGlamTopAny
-                        ? glamBg
-                        : isDark
-                          ? 'rgba(255,255,255,.04)'
-                          : 'rgba(0,0,0,.03)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (onSelectMember) {
-                      e.currentTarget.style.background = glamBg || 'transparent'
-                    }
-                  }}
-                >
-                  {/* Rank */}
-                  {isGlamorous && (player.rank === 1 || player.rank === 2 || player.rank === 3) ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <RankMedalIcon rank={player.rank} size={28} />
-                    </div>
-                  ) : (
-                    <span
-                      style={{
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        color: isGlamorous ? '#7F93B8' : rankColor,
-                        fontWeight: 600,
-                        textAlign: isGlamorous ? 'center' : 'left',
-                      }}
-                    >
+                    <span style={{ width: 20, font: "600 12px/1 'IBM Plex Mono', monospace", color: isMe ? '#B6CDEC' : '#A8B7CB' }}>
                       {player.rank}
                     </span>
-                  )}
-
-                  {/* Tên & Avatar */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-                    <div
-                      style={{
-                        position: 'relative',
-                        padding: isGlamTop1 ? 2 : 0,
-                        borderRadius: '50%',
-                        background: isGlamTop1
-                          ? 'conic-gradient(from 180deg, #FFE24B, #E5A824, #F27036, #FFE24B)'
-                          : isGlamTop2
-                            ? 'conic-gradient(from 180deg, #BAC7D5, #8C99A8, #BAC7D5)'
-                            : isGlamTop3
-                              ? 'conic-gradient(from 180deg, #D98844, #8C4724, #D98844)'
-                              : 'transparent',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Avatar name={player.name} src={player.avatarUrl} size={isGlamorous ? 28 : 24} />
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: isGlamorous && player.highestBadge ? 1 : 0 }}>
+                    <Avatar name={player.name} src={player.avatarUrl} size={30} />
+                    {player.highestBadge && (
+                      <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={18} />
+                    )}
+                    <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 2 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
+                        <span style={{ font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {player.name}
                         </span>
+                        {isMe && (
+                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '3px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                            {t('season.youTag')}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                        {player.gamesCount} {t('units.match')} · {player.confLabel} ·{' '}
+                        <span style={{ color: deltaColor }}>{deltaSign}</span>
+                      </div>
+                    </div>
+                    <span style={{ font: "600 17px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                      {player.rating}
+                    </span>
+                  </div>
+                )
+              })}
+
+              <div style={{ padding: '10px 12px', background: '#101927', borderTop: '1px solid #22304A', font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                {t('season.eloSingleBadgeFooterNote14a')}
+              </div>
+            </div>
+          ) : (
+            /* DESKTOP / SIMPLE ELO TABLE */
+            <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
+              <div style={{ padding: '10px 13px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  {t('season.officialRankCount14a', { n: allList.length })}
+                </span>
+                <div style={{ flex: '1 1 0%' }} />
+                <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                  {isGlamorous ? t('season.singleHighestBadgeLegend14a') : t('season.sortEloDesc')}
+                </span>
+              </div>
+
+              {/* Header hàng (Desktop only) */}
+              {!isMobile && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isGlamorous ? '46px minmax(0,1fr) 92px 78px 128px 74px 84px' : '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
+                    padding: '8px 13px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                    letterSpacing: '.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  <span>#</span>
+                  <span>{t('season.colMember')}</span>
+                  <span style={{ textAlign: 'right' }}>Elo</span>
+                  <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
+                  <span style={{ textAlign: 'center' }}>{t('season.colConfidence')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('season.col30Days')}</span>
+                </div>
+              )}
+
+              {/* Danh sách thành viên (Mobile Simple & Desktop) */}
+              {displayList.map((player) => {
+                const isRank1 = player.rank === 1
+                const rankColor = isRank1
+                  ? '#D97706'
+                  : player.rank === 2 || player.rank === 3
+                    ? (isDark ? '#A8B7CB' : 'var(--text-secondary)')
+                    : 'var(--text-muted)'
+                const deltaColor = player.delta30Days > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : player.delta30Days < 0 ? (isDark ? '#F1A79D' : '#DC2626') : 'var(--text-muted)'
+                const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
+
+                const isGlamTop1 = isGlamorous && player.rank === 1
+                const isGlamTop2 = isGlamorous && player.rank === 2
+                const isGlamTop3 = isGlamorous && player.rank === 3
+                const isGlamTopAny = isGlamTop1 || isGlamTop2 || isGlamTop3
+
+                const glamLeftBorder = isGlamTop1
+                  ? '3px solid #E5B842'
+                  : isGlamTop2
+                    ? '3px solid #BAC7D5'
+                    : isGlamTop3
+                      ? '3px solid #D98844'
+                      : '3px solid transparent'
+
+                const glamBg = isGlamTop1
+                  ? (isDark ? 'linear-gradient(90deg, rgba(229,184,66,.14) 0%, rgba(20,27,45,.75) 45%)' : 'linear-gradient(90deg, rgba(245,158,11,.12) 0%, rgba(255,255,255,.9) 45%)')
+                  : isGlamTop2
+                    ? (isDark ? 'linear-gradient(90deg, rgba(186,199,213,.12) 0%, rgba(20,27,45,.6) 45%)' : 'linear-gradient(90deg, rgba(148,163,184,.12) 0%, rgba(255,255,255,.9) 45%)')
+                    : isGlamTop3
+                      ? (isDark ? 'linear-gradient(90deg, rgba(217,136,68,.12) 0%, rgba(20,27,45,.6) 45%)' : 'linear-gradient(90deg, rgba(217,119,6,.1) 0%, rgba(255,255,255,.9) 45%)')
+                      : undefined
+
+                if (isMobile) {
+                  const isMe = myMember && myMember.id === player.id
+                  return (
+                    <div
+                      key={player.id}
+                      onClick={() => onSelectMember && onSelectMember(player)}
+                      title={onSelectMember ? t('leaderboard.tabChart') : undefined}
+                      style={{
+                        padding: '11px 14px',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        borderLeft: isGlamorous ? glamLeftBorder : 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        cursor: onSelectMember ? 'pointer' : 'default',
+                        background: glamBg || (isMe ? (isDark ? 'rgba(29,80,160,.14)' : 'rgba(29,80,160,.06)') : 'transparent'),
+                        transition: 'background 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (onSelectMember) e.currentTarget.style.background = isGlamTopAny ? glamBg : isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)'
+                      }}
+                      onMouseLeave={(e) => {
+                        if (onSelectMember) e.currentTarget.style.background = glamBg || (isMe ? (isDark ? 'rgba(29,80,160,.14)' : 'rgba(29,80,160,.06)') : 'transparent')
+                      }}
+                    >
+                      {/* Dòng 1: Hạng + Avatar + Tên + Badge Top 1 + Elo */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        {isGlamorous && (player.rank === 1 || player.rank === 2 || player.rank === 3) ? (
+                          <div style={{ width: 22, display: 'flex', justifyContent: 'center' }}>
+                            <RankMedalIcon rank={player.rank} size={20} />
+                          </div>
+                        ) : (
+                          <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: rankColor }}>
+                            {player.rank}
+                          </span>
+                        )}
+                        <Avatar name={player.name} src={player.avatarUrl} size={22} />
+                        <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {player.name}
+                            </span>
+                            {isMe && (
+                              <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                                {t('season.youTag')}
+                              </span>
+                            )}
+                          </div>
+                          {isGlamorous && player.highestBadge && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                              <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={13} />
+                              <span
+                                style={{
+                                  font: "600 10px/1 'IBM Plex Sans', sans-serif",
+                                  color:
+                                    player.highestBadge.tier === 'legend'
+                                      ? '#FFE24B'
+                                      : player.highestBadge.tier === 'epic'
+                                        ? '#D946EF'
+                                        : player.highestBadge.tier === 'elite'
+                                          ? '#38BDF8'
+                                          : player.highestBadge.tier === 'rare'
+                                            ? '#A78BFA'
+                                            : 'var(--text-secondary)',
+                                }}
+                              >
+                                {player.highestBadge.name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                         {!isGlamorous && player.rank === 1 && (
                           <span
                             style={{
                               font: "600 10px/1 'IBM Plex Mono', monospace",
-                              padding: '3px 6px',
+                              padding: '2px 6px',
                               borderRadius: 999,
                               background: isDark ? 'rgba(201,162,39,.16)' : 'rgba(245,158,11,.14)',
                               border: '1px solid #C9A227',
@@ -797,219 +966,40 @@ export default function CareerEloTab({
                             Top 1
                           </span>
                         )}
-                      </div>
-
-                      {/* Tên huy hiệu bậc cao nhất dưới tên người chơi khi ở chế độ hào nhoáng */}
-                      {isGlamorous && player.highestBadge && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
-                          <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={14} />
-                          <span
-                            style={{
-                              font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                              color:
-                                player.highestBadge.tier === 'legend'
-                                  ? '#FFE24B'
-                                  : player.highestBadge.tier === 'epic'
-                                    ? '#D946EF'
-                                    : player.highestBadge.tier === 'elite'
-                                      ? '#38BDF8'
-                                      : player.highestBadge.tier === 'rare'
-                                        ? '#A78BFA'
-                                        : 'var(--text-secondary)',
-                            }}
-                          >
-                            {player.highestBadge.name}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Chip huy hiệu khi ở chế độ đơn giản */}
-                    {!isGlamorous && player.highestBadge && (
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                        title={player.highestBadge.name}
-                      >
-                        <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={15} />
                         <span
                           style={{
-                            font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
-                            color:
-                              player.highestBadge.tier === 'legend'
-                                ? '#FFE24B'
-                                : player.highestBadge.tier === 'epic'
-                                  ? '#D946EF'
-                                  : player.highestBadge.tier === 'elite'
-                                    ? '#38BDF8'
-                                    : 'var(--text-secondary)',
+                            font: "600 15px/1 'IBM Plex Mono', monospace",
+                            color: player.rank === 1 ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
                           }}
                         >
-                          {player.highestBadge.name}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Elo */}
-                  <span
-                    style={{
-                      textAlign: 'right',
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontWeight: isGlamTop1 ? 700 : 600,
-                      fontSize: isGlamTop1 ? 14 : 13,
-                      color: isGlamTop1
-                        ? (isDark ? '#F7E3A1' : '#B45309')
-                        : isGlamTop2
-                          ? (isDark ? '#D2DCE6' : 'var(--text-primary)')
-                          : isGlamTop3
-                            ? (isDark ? '#E8A76B' : 'var(--text-primary)')
-                            : 'var(--text-primary)',
-                    }}
-                  >
-                    {player.rating}
-                  </span>
-
-                  {/* Số trận */}
-                  <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
-                    {player.gamesCount}
-                  </span>
-
-                  {/* Độ tin cậy */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-                    <div
-                      style={{
-                        width: 56,
-                        height: 7,
-                        borderRadius: 999,
-                        background: 'var(--surface-inset)',
-                        border: '1px solid var(--border-subtle)',
-                        overflow: 'hidden',
-                        display: 'flex',
-                      }}
-                    >
-                      <div style={{ width: player.confBarWidth, background: player.confBarColor }} />
-                    </div>
-                    <span
-                      style={{
-                        font: "600 10px/1 'IBM Plex Mono', monospace",
-                        color: player.confColor,
-                        letterSpacing: '.04em',
-                      }}
-                    >
-                      {player.confLabel}
-                    </span>
-                  </div>
-
-                  {/* Thắng % */}
-                  <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
-                    {player.winRate}%
-                  </span>
-
-                  {/* 30 ngày */}
-                  <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: deltaColor, fontWeight: 600 }}>
-                    {deltaSign}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* KHU THẨM ĐỊNH (Provisional Section) */}
-          {provisionalList.length > 0 && filterMode === 'official' && (
-            <div style={{ background: 'var(--surface-card)', border: '1px solid #D63B2B', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
-              {isMobile ? (
-                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ font: "600 14px/1.25 'IBM Plex Sans', sans-serif", color: isDark ? '#F1A79D' : '#DC2626' }}>
-                    {t('season.provisionalUnderReviewMobile', { n: provisionalList.length })}
-                  </span>
-                  <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                    {t('season.provisionalSectionSub')}
-                  </span>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    padding: '10px 13px',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: isDark ? '#F1A79D' : '#DC2626' }}>
-                    {t('season.provisionalSectionTitle')}
-                  </span>
-                  <div style={{ flex: '1 1 0%' }} />
-                  <span style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                    {t('season.provisionalSectionSub')}
-                  </span>
-                </div>
-              )}
-
-              {provisionalList.map((player) => {
-                const deltaColor = player.delta30Days > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : player.delta30Days < 0 ? (isDark ? '#F1A79D' : '#DC2626') : 'var(--text-muted)'
-                const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
-
-                if (isMobile) {
-                  return (
-                    <div
-                      key={player.id}
-                      onClick={() => (onSelectMember ? onSelectMember(player) : onOpenEffectiveStrengthModal && onOpenEffectiveStrengthModal(player))}
-                      title={onSelectMember ? t('leaderboard.tabChart') : t('season.clickToInspectProvisional')}
-                      style={{
-                        padding: '11px 14px',
-                        borderBottom: '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 6,
-                        cursor: 'pointer',
-                        background: 'transparent',
-                        transition: 'background 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      {/* Dòng 1: — + Avatar + Tên + Elo? */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>—</span>
-                        <Avatar name={player.name} src={player.avatarUrl} size={22} />
-                        <span style={{ flex: '1 1 0%', minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {player.name}
-                        </span>
-                        <span style={{ font: "600 15px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                          {player.rating}?
+                          {player.rating}
                         </span>
                       </div>
 
-                      {/* Dòng 2: Tag còn n trận + {games} trận · {winRate}% · {delta} */}
+                      {/* Dòng 2: Mini confidence bar + Nhãn + {games} trận · {winRate}% · {delta} */}
                       <div style={{ paddingLeft: 29, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span
-                          onClick={(e) => {
-                            if (onOpenEffectiveStrengthModal) {
-                              e.stopPropagation()
-                              onOpenEffectiveStrengthModal(player)
-                            }
-                          }}
                           style={{
-                            font: "600 10px/1 'IBM Plex Mono', monospace",
-                            padding: '3px 6px',
+                            width: 52,
+                            height: 7,
                             borderRadius: 999,
-                            background: isDark ? 'rgba(214,59,43,.14)' : 'rgba(214,59,43,.10)',
-                            border: '1px solid #D63B2B',
-                            color: isDark ? '#F1A79D' : '#DC2626',
-                            cursor: 'pointer',
+                            background: 'var(--surface-inset)',
+                            border: '1px solid var(--border-subtle)',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flex: '0 0 auto',
                           }}
                         >
-                          {t('season.provisionalBadgeCount', { n: player.provisionalRemaining })}
+                          <span style={{ width: player.confBarWidth, background: player.confBarColor }} />
+                        </span>
+                        <span
+                          style={{
+                            font: "600 10px/1 'IBM Plex Mono', monospace",
+                            color: player.confColor,
+                            letterSpacing: '.04em',
+                          }}
+                        >
+                          {player.confLabel}
                         </span>
                         <span
                           style={{
@@ -1030,62 +1020,193 @@ export default function CareerEloTab({
                 return (
                   <div
                     key={player.id}
-                    onClick={() => (onSelectMember ? onSelectMember(player) : onOpenEffectiveStrengthModal && onOpenEffectiveStrengthModal(player))}
-                    title={onSelectMember ? t('leaderboard.tabChart') : t('season.clickToInspectProvisional')}
+                    onClick={() => onSelectMember && onSelectMember(player)}
+                    title={onSelectMember ? t('leaderboard.tabChart') : undefined}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
+                      gridTemplateColumns: isGlamorous
+                        ? '46px minmax(0,1fr) 92px 78px 128px 74px 84px'
+                        : '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
                       alignItems: 'center',
-                      padding: '9px 13px',
+                      padding: isGlamorous ? '10px 13px' : '9px 13px',
                       borderBottom: '1px solid var(--border-subtle)',
+                      borderLeft: isGlamorous ? glamLeftBorder : 'none',
+                      background: glamBg || 'transparent',
                       font: "400 13px/1.3 'IBM Plex Sans', sans-serif",
-                      cursor: 'pointer',
+                      cursor: onSelectMember ? 'pointer' : 'default',
                       transition: 'background 0.15s ease',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    onMouseEnter={(e) => {
+                      if (onSelectMember) {
+                        e.currentTarget.style.background = isGlamTopAny
+                          ? glamBg
+                          : isDark
+                            ? 'rgba(255,255,255,.04)'
+                            : 'rgba(0,0,0,.03)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (onSelectMember) {
+                        e.currentTarget.style.background = glamBg || 'transparent'
+                      }
+                    }}
                   >
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>—</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <Avatar name={player.name} src={player.avatarUrl} size={24} />
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{player.name}</span>
+                    {/* Rank */}
+                    {isGlamorous && (player.rank === 1 || player.rank === 2 || player.rank === 3) ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <RankMedalIcon rank={player.rank} size={28} />
+                      </div>
+                    ) : (
                       <span
-                        onClick={(e) => {
-                          if (onOpenEffectiveStrengthModal) {
-                            e.stopPropagation()
-                            onOpenEffectiveStrengthModal(player)
-                          }
-                        }}
-                        title={t('season.clickToInspectProvisional')}
                         style={{
-                          font: "600 10px/1 'IBM Plex Mono', monospace",
-                          padding: '3px 6px',
-                          borderRadius: 999,
-                          background: isDark ? 'rgba(214,59,43,.14)' : 'rgba(214,59,43,.10)',
-                          border: '1px solid #D63B2B',
-                          color: isDark ? '#F1A79D' : '#DC2626',
-                          cursor: 'pointer',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          color: isGlamorous ? '#7F93B8' : rankColor,
+                          fontWeight: 600,
+                          textAlign: isGlamorous ? 'center' : 'left',
                         }}
                       >
-                        {t('season.provisionalBadgeCount', { n: player.provisionalRemaining })}
+                        {player.rank}
                       </span>
+                    )}
+
+                    {/* Tên & Avatar */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                      <div
+                        style={{
+                          position: 'relative',
+                          padding: isGlamTop1 ? 2 : 0,
+                          borderRadius: '50%',
+                          background: isGlamTop1
+                            ? 'conic-gradient(from 180deg, #FFE24B, #E5A824, #F27036, #FFE24B)'
+                            : isGlamTop2
+                              ? 'conic-gradient(from 180deg, #BAC7D5, #8C99A8, #BAC7D5)'
+                              : isGlamTop3
+                                ? 'conic-gradient(from 180deg, #D98844, #8C4724, #D98844)'
+                                : 'transparent',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Avatar name={player.name} src={player.avatarUrl} size={isGlamorous ? 28 : 24} />
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: isGlamorous && player.highestBadge ? 1 : 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span
+                            style={{
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {player.name}
+                          </span>
+                          {myMember && myMember.id === player.id && (
+                            <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                              {t('season.youTag')}
+                            </span>
+                          )}
+                          {!isGlamorous && player.rank === 1 && (
+                            <span
+                              style={{
+                                font: "600 10px/1 'IBM Plex Mono', monospace",
+                                padding: '3px 6px',
+                                borderRadius: 999,
+                                background: isDark ? 'rgba(201,162,39,.16)' : 'rgba(245,158,11,.14)',
+                                border: '1px solid #C9A227',
+                                color: isDark ? '#F0D26A' : '#B45309',
+                              }}
+                            >
+                              Top 1
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Tên huy hiệu bậc cao nhất dưới tên người chơi khi ở chế độ hào nhoáng */}
+                        {isGlamorous && player.highestBadge && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
+                            <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={14} />
+                            <span
+                              style={{
+                                font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                                color:
+                                  player.highestBadge.tier === 'legend'
+                                    ? '#FFE24B'
+                                    : player.highestBadge.tier === 'epic'
+                                      ? '#D946EF'
+                                      : player.highestBadge.tier === 'elite'
+                                        ? '#38BDF8'
+                                        : player.highestBadge.tier === 'rare'
+                                          ? '#A78BFA'
+                                          : 'var(--text-secondary)',
+                              }}
+                            >
+                              {player.highestBadge.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Chip huy hiệu khi ở chế độ đơn giản */}
+                      {!isGlamorous && player.highestBadge && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                            border: '1px solid var(--border-subtle)',
+                          }}
+                          title={player.highestBadge.name}
+                        >
+                          <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={15} />
+                          <span
+                            style={{
+                              font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                              color:
+                                player.highestBadge.tier === 'legend'
+                                  ? '#FFE24B'
+                                  : player.highestBadge.tier === 'epic'
+                                    ? '#D946EF'
+                                    : player.highestBadge.tier === 'elite'
+                                      ? '#38BDF8'
+                                      : 'var(--text-secondary)',
+                            }}
+                          >
+                            {player.highestBadge.name}
+                          </span>
+                        </span>
+                      )}
                     </div>
 
+                    {/* Elo */}
                     <span
                       style={{
                         textAlign: 'right',
                         fontFamily: "'IBM Plex Mono', monospace",
-                        fontWeight: 600,
-                        color: 'var(--text-secondary)',
+                        fontWeight: isGlamTop1 ? 700 : 600,
+                        fontSize: isGlamTop1 ? 14 : 13,
+                        color: isGlamTop1
+                          ? (isDark ? '#F7E3A1' : '#B45309')
+                          : isGlamTop2
+                            ? (isDark ? '#D2DCE6' : 'var(--text-primary)')
+                            : isGlamTop3
+                              ? (isDark ? '#E8A76B' : 'var(--text-primary)')
+                              : 'var(--text-primary)',
                       }}
                     >
-                      {player.rating}?
+                      {player.rating}
                     </span>
 
+                    {/* Số trận */}
                     <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
                       {player.gamesCount}
                     </span>
 
+                    {/* Độ tin cậy */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
                       <div
                         style={{
@@ -1111,11 +1232,13 @@ export default function CareerEloTab({
                       </span>
                     </div>
 
+                    {/* Thắng % */}
                     <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
                       {player.winRate}%
                     </span>
 
-                    <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: deltaColor }}>
+                    {/* 30 ngày */}
+                    <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: deltaColor, fontWeight: 600 }}>
                       {deltaSign}
                     </span>
                   </div>

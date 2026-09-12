@@ -2,10 +2,11 @@ import React from 'react'
 import { t } from '#i18n'
 import BadgeHex from './BadgeHex.jsx'
 import { ANIME_TIERS, NOTCH_S_CLIP } from '#lib/badges.js'
+import { useMobile } from '#hooks/useMobile.js'
 
 /**
- * Màn A4: Fanfare Modal Mở khóa Danh hiệu.
- * Hiển thị hiệu ứng anime rực rỡ (speed lines, tia conic quay, badge 190px lấp lánh,
+ * Màn A4 (Desktop) & AM4 (Mobile): Fanfare Modal Mở khóa Danh hiệu.
+ * Hiển thị hiệu ứng anime rực rỡ (speed lines, tia conic quay, badge lấp lánh,
  * các mốc thưởng +XP, +Điểm mùa, +Elo và nút thao tác gắn lên kệ ngay).
  */
 export default function BadgeUnlockModal({
@@ -13,22 +14,44 @@ export default function BadgeUnlockModal({
   onClose,
   onEquipShelf,
   onViewCollection,
+  shelfCount = 3,
   shelfIsFull = true,
 }) {
+  const isMobile = useMobile(640)
 
   if (!badge) return null
 
   const tier = badge.tier || 'epic'
   const tTier = ANIME_TIERS[tier] || ANIME_TIERS.epic
   const glyph = badge.glyph || 'flame'
-  const pts = tTier.pts || 60
+  const pts = tTier.pts || badge.points || 60
 
-  const xpReward = badge.xp || 100
-  const spReward = badge.seasonPoints || 15
-  const eloReward = badge.elo || 18
+  // Thưởng mặc định theo bậc nếu không khai báo cụ thể
+  const defaultRewards = {
+    common: { xp: 20, sp: 5, elo: 5 },
+    rare: { xp: 50, sp: 10, elo: 10 },
+    epic: { xp: 100, sp: 15, elo: 18 },
+    legendary: { xp: 200, sp: 25, elo: 25 },
+    mythic: { xp: 500, sp: 50, elo: 35 },
+    fun: { xp: 10, sp: 2, elo: 0 },
+  }[tier] || { xp: 100, sp: 15, elo: 18 }
+
+  const xpReward = badge.xp ?? defaultRewards.xp
+  const spReward = badge.seasonPoints ?? badge.sp ?? defaultRewards.sp
+  const eloReward = badge.elo ?? defaultRewards.elo
+
+  const badgeSize = isMobile ? 150 : 190
+
+  // Chú thích kệ: nếu đã đầy 3 ô thì báo thay ô cuối, nếu còn trống thì báo còn bao nhiêu ô
+  const shelfNote = shelfIsFull
+    ? t('badges.unlockModal.shelfReplaceNote')
+    : t('badges.unlockModal.shelfAvailableNote', { count: Math.max(1, 3 - shelfCount) })
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={badge.name || t('badges.unlockModal.title')}
       style={{
         position: 'fixed',
         inset: 0,
@@ -37,9 +60,10 @@ export default function BadgeUnlockModal({
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
-        background: 'rgba(4,2,10,.82)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        background: 'rgba(4,2,10,.86)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        padding: isMobile ? '16px' : '24px',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose && onClose()
@@ -65,7 +89,7 @@ export default function BadgeUnlockModal({
           pointerEvents: 'none',
         }}
       />
-      {/* 3. Speed lines */}
+      {/* 3. Speed lines anime */}
       <div
         style={{
           position: 'absolute',
@@ -81,39 +105,41 @@ export default function BadgeUnlockModal({
           position: 'absolute',
           top: '50%',
           left: '50%',
-          width: 1100,
-          height: 1100,
-          margin: '-550px 0 0 -550px',
+          width: isMobile ? 760 : 1100,
+          height: isMobile ? 760 : 1100,
+          margin: isMobile ? '-380px 0 0 -380px' : '-550px 0 0 -550px',
           background: 'repeating-conic-gradient(from 0deg, rgba(255,226,75,.14) 0deg 3deg, transparent 3deg 12deg)',
           animation: 'aSpin 40s linear infinite',
           pointerEvents: 'none',
         }}
       />
 
-      {/* ═══ Khung Modal Trung Tâm ═══ */}
+      {/* ═══ Khung Modal Trung Tâm (Notch clip viền gradient) ═══ */}
       <div
         style={{
           position: 'relative',
-          width: 660,
-          maxWidth: 'calc(100vw - 32px)',
+          width: isMobile ? 390 : 660,
+          maxWidth: 'calc(100vw - 24px)',
+          maxHeight: 'calc(100vh - 32px)',
           padding: 1,
-          clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
+          clipPath: 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)',
           background: 'linear-gradient(135deg, #FF2E7E, #FFE24B 50%, #6D14FF)',
           boxShadow: '0 0 60px rgba(109,20,255,.5), 0 0 100px rgba(255,46,126,.3)',
           animation: 'aFloat 7s ease-in-out infinite',
+          overflowY: 'auto',
         }}
       >
         <div
           style={{
             position: 'relative',
             overflow: 'hidden',
-            clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
+            clipPath: 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)',
             background: 'linear-gradient(170deg, #2B0617, #12021C 70%)',
-            padding: '38px 36px 30px',
+            padding: isMobile ? '28px 20px 22px' : '38px 40px 30px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 18,
+            gap: isMobile ? 14 : 18,
           }}
         >
           {/* Vệt sáng quét ngang qua hộp */}
@@ -133,11 +159,12 @@ export default function BadgeUnlockModal({
           {/* Nút đóng góc phải */}
           <button
             type="button"
+            aria-label={t('common.close')}
             onClick={onClose}
             style={{
               position: 'absolute',
-              top: 14,
-              right: 18,
+              top: 12,
+              right: 14,
               background: 'transparent',
               border: 'none',
               color: '#9C8ABE',
@@ -146,17 +173,29 @@ export default function BadgeUnlockModal({
               cursor: 'pointer',
               padding: 6,
               zIndex: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.15s ease, transform 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#FFFFFF'
+              e.currentTarget.style.transform = 'scale(1.15)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#9C8ABE'
+              e.currentTarget.style.transform = 'scale(1)'
             }}
           >
             ✕
           </button>
 
-          {/* Subtitle mừng rỡ */}
+          {/* Subtitle Mở khóa danh hiệu */}
           <span
             style={{
               position: 'relative',
-              font: '700 12px/1 Oswald, sans-serif',
-              letterSpacing: '.28em',
+              font: `700 ${isMobile ? '10px' : '12px'}/1 Oswald, sans-serif`,
+              letterSpacing: isMobile ? '.24em' : '.28em',
               color: '#FFE24B',
               textTransform: 'uppercase',
             }}
@@ -164,13 +203,12 @@ export default function BadgeUnlockModal({
             {t('badges.unlockModal.title')}
           </span>
 
-          {/* Huy hiệu 190px Fanfare với 3 ngôi sao twinkle lấp lánh */}
-          <div style={{ position: 'relative', margin: '6px 0' }}>
-            {/* Spinning conic phụ trợ */}
+          {/* Huy hiệu Fanfare to với spinning conic phụ trợ */}
+          <div style={{ position: 'relative', margin: isMobile ? '4px 0' : '6px 0' }}>
             <div
               style={{
                 position: 'absolute',
-                inset: '-34%',
+                inset: '-32%',
                 background: 'repeating-conic-gradient(from 0deg, rgba(255,46,126,.3) 0deg 5deg, transparent 5deg 15deg)',
                 animation: 'aSpinBack 18s linear infinite',
                 pointerEvents: 'none',
@@ -179,7 +217,7 @@ export default function BadgeUnlockModal({
             <BadgeHex
               tier={tier}
               glyph={glyph}
-              size={190}
+              size={badgeSize}
               spin={true}
               twinkle={true}
               pulse={true}
@@ -193,17 +231,18 @@ export default function BadgeUnlockModal({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 10,
+              gap: isMobile ? 8 : 10,
+              width: '100%',
             }}
           >
             <span
               style={{
-                font: '700 38px/1.1 Oswald, sans-serif',
+                font: `700 ${isMobile ? '28px' : '38px'}/1.1 Oswald, sans-serif`,
                 letterSpacing: '.03em',
                 textTransform: 'uppercase',
                 color: '#FFFFFF',
                 textAlign: 'center',
-                textShadow: `0 3px 0 #4A0A5A, 0 0 34px ${tTier.aura || 'rgba(192,75,255,.7)'}`,
+                textShadow: `0 3px 0 #4A0A5A, 0 0 32px ${tTier.aura || 'rgba(192,75,255,.7)'}`,
               }}
             >
               {badge.name}
@@ -211,9 +250,9 @@ export default function BadgeUnlockModal({
 
             <span
               style={{
-                font: '700 11px/1 Oswald, sans-serif',
-                letterSpacing: '.2em',
-                padding: '6px 14px',
+                font: `700 ${isMobile ? '9.5px' : '11px'}/1 Oswald, sans-serif`,
+                letterSpacing: '.18em',
+                padding: isMobile ? '5px 10px' : '6px 14px',
                 clipPath: NOTCH_S_CLIP,
                 background: tTier.tagBg || 'rgba(139,43,255,.2)',
                 borderTop: `1px solid ${tTier.tagBd || '#8B2BFF'}`,
@@ -221,39 +260,42 @@ export default function BadgeUnlockModal({
                 textTransform: 'uppercase',
               }}
             >
-              {tTier.name} · {pts}
+              {tTier.name} · {pts} {t('badges.unlockModal.ptsUnit')}
             </span>
 
             <span
               style={{
-                font: "400 14px/1.55 'Be Vietnam Pro', sans-serif",
+                font: `400 ${isMobile ? '13px' : '14px'}/1.55 'Be Vietnam Pro', sans-serif`,
                 textAlign: 'center',
                 color: '#C9B8E6',
-                maxWidth: 460,
+                maxWidth: 480,
+                padding: '0 8px',
               }}
             >
-              {badge.story || badge.cond || t('badges.unlockModal.congratsDesc')}
+              {badge.story || badge.desc || badge.cond || t('badges.unlockModal.congratsDesc')}
             </span>
           </div>
 
-          {/* 3 Thỏi thưởng: +XP, +Điểm mùa, Elo + */}
+          {/* 3 Thỏi thưởng: +XP, +Điểm mùa, ELO + */}
           <div
             style={{
               position: 'relative',
               display: 'flex',
-              gap: 11,
-              flexWrap: 'wrap',
+              gap: isMobile ? 8 : 11,
+              width: '100%',
               justifyContent: 'center',
             }}
           >
             <span
               style={{
-                font: '700 17px/1 Oswald, sans-serif',
-                letterSpacing: '.06em',
+                flex: 1,
+                textAlign: 'center',
+                font: `700 ${isMobile ? '14px' : '17px'}/1 Oswald, sans-serif`,
+                letterSpacing: '.04em',
                 color: '#FFC46B',
                 background: 'rgba(20,1,9,.6)',
                 borderTop: '1px solid #FF7A18',
-                padding: '12px 20px',
+                padding: isMobile ? '10px 4px' : '12px 18px',
                 clipPath: NOTCH_S_CLIP,
               }}
             >
@@ -261,25 +303,29 @@ export default function BadgeUnlockModal({
             </span>
             <span
               style={{
-                font: '700 17px/1 Oswald, sans-serif',
-                letterSpacing: '.06em',
+                flex: 1,
+                textAlign: 'center',
+                font: `700 ${isMobile ? '14px' : '17px'}/1 Oswald, sans-serif`,
+                letterSpacing: '.04em',
                 color: '#5FEBD0',
                 background: 'rgba(1,19,15,.6)',
                 borderTop: '1px solid #0E9F8E',
-                padding: '12px 20px',
+                padding: isMobile ? '10px 4px' : '12px 18px',
                 clipPath: NOTCH_S_CLIP,
               }}
             >
-              +{spReward} SP
+              +{spReward} {t('badges.unlockModal.seasonPointsUnit')}
             </span>
             <span
               style={{
-                font: '700 17px/1 Oswald, sans-serif',
-                letterSpacing: '.06em',
+                flex: 1,
+                textAlign: 'center',
+                font: `700 ${isMobile ? '14px' : '17px'}/1 Oswald, sans-serif`,
+                letterSpacing: '.04em',
                 color: '#7FE7FF',
                 background: 'rgba(1,16,31,.6)',
                 borderTop: '1px solid #1B7BE0',
-                padding: '12px 20px',
+                padding: isMobile ? '10px 4px' : '12px 18px',
                 clipPath: NOTCH_S_CLIP,
               }}
             >
@@ -287,14 +333,15 @@ export default function BadgeUnlockModal({
             </span>
           </div>
 
-          {/* Các nút hành động */}
+          {/* Các nút hành động (AM4: column dọc, A4: row ngang) */}
           <div
             style={{
               position: 'relative',
               width: '100%',
               display: 'flex',
-              gap: 12,
-              marginTop: 6,
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: isMobile ? 8 : 12,
+              marginTop: 4,
             }}
           >
             <button
@@ -303,11 +350,11 @@ export default function BadgeUnlockModal({
               style={{
                 flex: 1,
                 textAlign: 'center',
-                font: '700 13px/1 Oswald, sans-serif',
+                font: `700 ${isMobile ? '12.5px' : '13px'}/1 Oswald, sans-serif`,
                 letterSpacing: '.14em',
                 color: '#140109',
                 background: 'linear-gradient(135deg, #FFE24B, #FF7A18)',
-                padding: '15px 16px',
+                padding: isMobile ? '13px 14px' : '15px 16px',
                 clipPath: NOTCH_S_CLIP,
                 border: 'none',
                 cursor: 'pointer',
@@ -332,7 +379,7 @@ export default function BadgeUnlockModal({
               style={{
                 flex: 1,
                 textAlign: 'center',
-                font: '700 13px/1 Oswald, sans-serif',
+                font: `700 ${isMobile ? '12.5px' : '13px'}/1 Oswald, sans-serif`,
                 letterSpacing: '.14em',
                 color: '#D9A8FF',
                 background: 'rgba(255,255,255,.06)',
@@ -340,33 +387,34 @@ export default function BadgeUnlockModal({
                 borderLeft: 'none',
                 borderRight: 'none',
                 borderBottom: 'none',
-                padding: '15px 16px',
+                padding: isMobile ? '13px 14px' : '15px 16px',
                 clipPath: NOTCH_S_CLIP,
                 cursor: 'pointer',
-                transition: 'filter 0.15s ease',
+                transition: 'filter 0.15s ease, background 0.15s ease',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.filter = 'brightness(1.2)'
+                e.currentTarget.style.background = 'rgba(255,255,255,.12)'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.filter = 'brightness(1)'
+                e.currentTarget.style.background = 'rgba(255,255,255,.06)'
               }}
             >
               {t('badges.unlockModal.viewCollectionBtn')}
             </button>
           </div>
 
-          {/* Ghi chú kệ */}
+          {/* Ghi chú trạng thái kệ 3 ô */}
           <span
             style={{
               position: 'relative',
-              font: "400 11.5px/1.4 'IBM Plex Mono', monospace",
+              font: `400 ${isMobile ? '10.5px' : '11.5px'}/1.4 'IBM Plex Mono', monospace`,
               color: '#7E6FA0',
+              textAlign: 'center',
             }}
           >
-            {shelfIsFull
-              ? t('badges.unlockModal.shelfReplaceNote')
-              : t('badges.unlockModal.shelfAttachNote')}
+            {shelfNote}
           </span>
         </div>
       </div>

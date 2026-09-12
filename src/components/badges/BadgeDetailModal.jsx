@@ -4,6 +4,7 @@ import { t } from '#i18n'
 
 /**
  * Màn A2 · Chi tiết một danh hiệu · điều kiện · chuỗi hiện tại · ai đã có · ai đang đuổi.
+ * Thiết kế phong cách Anime với conic rays, floating hex badge, dot grid, notch clips.
  */
 export default function BadgeDetailModal({
   badge,
@@ -11,6 +12,7 @@ export default function BadgeDetailModal({
   owners = [],
   chasers = [],
   onClose,
+  onShowUnlock,
 }) {
   if (!badge) return null
 
@@ -45,7 +47,7 @@ export default function BadgeDetailModal({
     {
       ok: true,
       text: t('badges.detail.condSeason'),
-      val: t('badges.detail.statusSeason'),
+      val: t('badges.seasonLabel'),
     },
   ]
 
@@ -83,13 +85,23 @@ export default function BadgeDetailModal({
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(109, 20, 255, 0.25)',
         }}
       >
-        {/* Glow nền mờ */}
+        {/* Glow nền mờ 2 quầng radial gradient anime */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
             background:
               'radial-gradient(60% 50% at 28% 8%, rgba(255,46,126,.2), transparent 70%), radial-gradient(56% 46% at 92% 90%, rgba(109,20,255,.22), transparent 72%)',
+            pointerEvents: 'none',
+          }}
+        />
+        {/* Lớp dot grid anime 9px x 9px */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: 'radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px)',
+            backgroundSize: '9px 9px',
             pointerEvents: 'none',
           }}
         />
@@ -151,14 +163,15 @@ export default function BadgeDetailModal({
           </button>
         </div>
 
-        {/* 2. Grid Nội Dung Chính: 2 Cột */}
+        {/* 2. Grid Nội Dung Chính: 2 Cột chuẩn Figma/Anime */}
         <div
           style={{
-            padding: '24px',
+            padding: '26px 24px',
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+            gridTemplateColumns: 'minmax(320px, 400px) minmax(0, 1fr)',
             gap: 22,
             position: 'relative',
+            alignContent: 'start',
           }}
         >
           {/* CỘT TRÁI: HUY HIỆU KHỔNG LỒ & TIẾN ĐỘ */}
@@ -176,7 +189,7 @@ export default function BadgeDetailModal({
                 overflow: 'hidden',
                 clipPath: NOTCH_CLIP,
                 background: meta.panel || 'linear-gradient(160deg,#2B0617,#110208)',
-                padding: '30px 24px',
+                padding: '30px 26px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -212,7 +225,7 @@ export default function BadgeDetailModal({
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                 <span
                   style={{
-                    font: '700 28px/1 Oswald, sans-serif',
+                    font: '700 30px/1 Oswald, sans-serif',
                     letterSpacing: '.06em',
                     textTransform: 'uppercase',
                     color: '#FFFFFF',
@@ -225,16 +238,16 @@ export default function BadgeDetailModal({
 
                 <span
                   style={{
-                    font: '700 11px/1 Oswald, sans-serif',
+                    font: '700 10.5px/1 Oswald, sans-serif',
                     letterSpacing: '.2em',
-                    padding: '6px 14px',
+                    padding: '6px 12px',
                     clipPath: NOTCH_S_CLIP,
                     background: meta.chipBg,
-                    borderTop: `1px solid ${meta.bd || 'transparent'}`,
+                    borderTop: `1px solid ${meta.bd || '#FF2E7E'}`,
                     color: meta.ink,
                   }}
                 >
-                  {meta.name} · {meta.pts}
+                  {meta.name} · {meta.pts} {t('badges.pointsLabel')}
                 </span>
 
                 <span
@@ -251,7 +264,7 @@ export default function BadgeDetailModal({
               {/* Tiến độ cá nhân của bạn */}
               <div style={{ position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', gap: 8, marginTop: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <span style={{ font: '600 11px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#FFC46B' }}>
+                  <span style={{ font: '600 10.5px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#FFC46B' }}>
                     {t('badges.detail.yourProgress')}
                   </span>
                   <span style={{ font: '700 22px/1 Oswald, sans-serif', color: '#FFE24B' }}>
@@ -287,6 +300,42 @@ export default function BadgeDetailModal({
                             remain: Math.max(1, (badge.threshold || 10) - (badge.currentVal || 0)),
                           })}
                 </span>
+                {badge.unlocked && onShowUnlock && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose && onClose()
+                      onShowUnlock(badge)
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      width: '100%',
+                      padding: '11px 14px',
+                      background: 'linear-gradient(135deg, rgba(255,46,126,.25), rgba(255,226,75,.25))',
+                      border: '1px solid #FFE24B',
+                      clipPath: NOTCH_S_CLIP,
+                      color: '#FFE24B',
+                      font: '700 12px/1 Oswald, sans-serif',
+                      letterSpacing: '.12em',
+                      cursor: 'pointer',
+                      marginTop: 10,
+                      transition: 'filter 0.15s ease, transform 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.filter = 'brightness(1.2)'
+                      e.currentTarget.style.transform = 'translateY(-1px)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.filter = 'brightness(1)'
+                      e.currentTarget.style.transform = 'translateY(0)'
+                    }}
+                  >
+                    ✨ {t('badges.detail.viewUnlockFanfare')}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -353,22 +402,21 @@ export default function BadgeDetailModal({
                   {t('badges.detail.streakHint')}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 7 }}>
                 {streakTimeline.map((s, i) => (
                   <div
                     key={i}
                     style={{
-                      flex: '1 1 28px',
-                      height: 40,
+                      flex: '1 1 0%',
+                      height: 44,
                       clipPath: NOTCH_S_CLIP,
                       display: 'grid',
                       placeItems: 'center',
-                      font: '700 14px/1 Oswald, sans-serif',
+                      font: '700 15px/1 Oswald, sans-serif',
                       background: s.won
                         ? 'linear-gradient(165deg,#FF2E7E,#7A0A2E)'
                         : 'rgba(255,255,255,.05)',
                       color: s.won ? '#FFFBEA' : '#6B5C8C',
-                      border: s.current ? '1px solid #FFE24B' : 'none',
                     }}
                   >
                     {s.label}
@@ -378,7 +426,7 @@ export default function BadgeDetailModal({
             </div>
 
             {/* 3. Split: Ai đã có & Ai đang đuổi */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
               {/* Ai đã có */}
               <div
                 style={{
@@ -398,36 +446,47 @@ export default function BadgeDetailModal({
                     {t('badges.detail.noOwners')}
                   </span>
                 ) : (
-                  owners.map((o) => (
-                    <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          flex: '0 0 auto',
-                          clipPath: HEX_CLIP,
-                          background: 'linear-gradient(135deg,#FF2E7E,#6D14FF)',
-                          display: 'grid',
-                          placeItems: 'center',
-                          font: '700 13px/1 Oswald, sans-serif',
-                          color: '#FFFBEA',
-                        }}
-                      >
-                        {o.initial}
-                      </div>
-                      <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ font: "600 13px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF' }}>
-                          {o.name}
+                  owners.map((o) => {
+                    const noteText = o.checkType === 'win_streak'
+                      ? t('badges.detail.ownersStreakNote', { streak: o.streak, season: t('badges.seasonLabel') })
+                      : t('badges.detail.ownersCondNote', { val: o.streak || o.threshold || 1 })
+
+                    return (
+                      <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                        <div
+                          style={{
+                            width: 34,
+                            height: 34,
+                            flex: '0 0 auto',
+                            clipPath: HEX_CLIP,
+                            background: 'linear-gradient(135deg,#FF2E7E,#6D14FF)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            font: '700 14px/1 Oswald, sans-serif',
+                            color: '#FFFBEA',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {o.avatarUrl ? (
+                            <img src={o.avatarUrl} alt={o.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            o.initial
+                          )}
+                        </div>
+                        <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ font: "600 13px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {o.name}
+                          </span>
+                          <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
+                            {noteText}
+                          </span>
+                        </div>
+                        <span style={{ font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                          {o.at}
                         </span>
-                        <span style={{ font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                          {o.note}
-                        </span>
                       </div>
-                      <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                        {o.at}
-                      </span>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
 
@@ -452,7 +511,7 @@ export default function BadgeDetailModal({
                 ) : (
                   chasers.map((c) => (
                     <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ width: 18, flex: '0 0 auto', font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
+                      <span style={{ width: 20, flex: '0 0 auto', font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
                         {c.rank}
                       </span>
                       <span
@@ -461,9 +520,12 @@ export default function BadgeDetailModal({
                           minWidth: 0,
                           font: `${c.isMe ? 700 : 500} 12.5px/1 'Be Vietnam Pro', sans-serif`,
                           color: c.isMe ? '#FFE24B' : '#C9B8E6',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                         }}
                       >
-                        {c.name}
+                        {c.isMe ? t('badges.detail.you') : c.name}
                       </span>
                       <div
                         style={{

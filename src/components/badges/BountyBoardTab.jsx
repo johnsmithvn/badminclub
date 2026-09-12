@@ -17,17 +17,24 @@ export default function BountyBoardTab({
 }) {
   const cfg = badgesConfig.bounty || {}
 
-  // Danh sách luật treo thưởng đọc trực tiếp từ badgesConfig.json
+  // 5 Luật treo thưởng từ config
   const rulesList = cfg.rules || []
 
   // 2 huy hiệu chỉ thợ săn mới có đọc từ config
   const hunterBadges = badgesConfig.hunterBadges || []
 
-  // Bounties mặc định từ config nếu chưa có trận nào đủ điều kiện
-  const activeBounties = bounties.length > 0 ? bounties : (badgesConfig.demoBounties || [])
+  // Bounties từ DB thật (không dùng demo fallback)
+  const activeBounties = bounties || []
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+        position: 'relative',
+      }}
+    >
       {/* ═══ Header Bảng truy nã ═══ */}
       <div
         style={{
@@ -81,7 +88,7 @@ export default function BountyBoardTab({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr)) 372px',
+          gridTemplateColumns: 'minmax(0, 1fr) 372px',
           gap: 18,
           alignItems: 'start',
         }}
@@ -95,9 +102,52 @@ export default function BountyBoardTab({
             alignContent: 'start',
           }}
         >
-          {activeBounties.map((b) => {
-            const tTier = ANIME_TIERS[b.tier] || ANIME_TIERS.rare
-            const pct = Math.min(100, Math.round((b.streak / 10) * 100))
+          {activeBounties.length === 0 ? (
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                padding: '44px 20px',
+                textAlign: 'center',
+                borderRadius: 12,
+                background: 'rgba(23,10,39,.6)',
+                border: '1px dashed #4C2673',
+                display: 'grid',
+                gap: 8,
+                justifyItems: 'center',
+              }}
+            >
+              <span style={{ fontSize: 32 }}>🎯</span>
+              <span
+                style={{
+                  font: '700 16px/1.2 Oswald, sans-serif',
+                  letterSpacing: '.04em',
+                  textTransform: 'uppercase',
+                  color: '#FFFFFF',
+                }}
+              >
+                {t('badges.bountyBoard.emptyTitle')}
+              </span>
+              <span
+                style={{
+                  font: "400 13px/1.5 'IBM Plex Sans', sans-serif",
+                  color: '#9C8ABE',
+                  maxWidth: 380,
+                }}
+              >
+                {t('badges.bountyBoard.emptyDesc')}
+              </span>
+            </div>
+          ) : (
+            activeBounties.map((b) => {
+              const tTier = ANIME_TIERS[b.tier] || ANIME_TIERS.rare
+              const pct = Math.min(100, Math.round((b.streak / 10) * 100))
+
+              // Text meta hiển thị chuẩn xác
+              const metaText = b.streakDate
+                ? t('badges.bountyBoard.openStreakSince', { date: b.streakDate })
+                : b.winRate
+                  ? t('badges.bountyBoard.pairMeta', { rate: b.winRate })
+                  : b.meta || t('badges.bountyBoard.streakMetaFallback', { streak: b.streak })
 
             return (
               <div
@@ -106,7 +156,7 @@ export default function BountyBoardTab({
                   position: 'relative',
                   padding: 1,
                   clipPath: NOTCH_CLIP,
-                  background: tTier.ring,
+                  background: tTier.edge || tTier.ring,
                 }}
               >
                 <div
@@ -120,7 +170,7 @@ export default function BountyBoardTab({
                     gap: 12,
                   }}
                 >
-                  {/* Tia sáng conic xoay ngược tạo chiều sâu */}
+                  {/* Tia sáng conic xoay ngược tạo chiều sâu anime */}
                   <div
                     style={{
                       position: 'absolute',
@@ -130,7 +180,7 @@ export default function BountyBoardTab({
                       height: 420,
                       background: `repeating-conic-gradient(from 0deg, ${tTier.aura} 0deg 5deg, transparent 5deg 14deg)`,
                       animation: 'aSpinBack 26s linear infinite',
-                      opacity: 0.45,
+                      opacity: 0.5,
                       pointerEvents: 'none',
                     }}
                   />
@@ -146,9 +196,9 @@ export default function BountyBoardTab({
                   >
                     <BadgeHex
                       tier={b.tier}
-                      glyph={b.glyph || 'flame'}
+                      glyph={b.glyph || (b.hot ? 'flame' : 'thunder')}
                       size={62}
-                      spin={b.tier === 'legend' || b.tier === 'epic'}
+                      spin={b.tier === 'legend'}
                       pulse={b.hot}
                     />
 
@@ -158,7 +208,7 @@ export default function BountyBoardTab({
                         minWidth: 0,
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 4,
+                        gap: 6,
                       }}
                     >
                       <span
@@ -178,21 +228,24 @@ export default function BountyBoardTab({
                         style={{
                           font: "400 11.5px/1.3 'IBM Plex Mono', monospace",
                           color: '#9C8ABE',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
                         }}
                       >
-                        {b.meta}
+                        {metaText}
                       </span>
                     </div>
 
                     <span
                       style={{
-                        font: '700 9.5px/1 Oswald, sans-serif',
+                        font: '600 9.5px/1 Oswald, sans-serif',
                         letterSpacing: '.14em',
-                        padding: '4px 8px',
+                        padding: '5px 9px',
                         clipPath: NOTCH_S_CLIP,
-                        background: tTier.tagBg,
-                        borderTop: `1px solid ${tTier.tagBd}`,
-                        color: tTier.tagColor,
+                        background: tTier.chipBg,
+                        borderTop: `1px solid ${tTier.bd}`,
+                        color: tTier.ink,
                         flexShrink: 0,
                       }}
                     >
@@ -231,7 +284,7 @@ export default function BountyBoardTab({
                         style={{
                           height: '100%',
                           width: `${pct}%`,
-                          background: tTier.ring,
+                          background: tTier.edge || tTier.ring,
                           transition: 'width 0.3s ease',
                         }}
                       />
@@ -263,11 +316,13 @@ export default function BountyBoardTab({
                         color: '#FFC46B',
                         background: 'rgba(20,1,9,.5)',
                         borderTop: '1px solid #FF7A18',
-                        padding: '8px 11px',
+                        padding: '9px 12px',
                         clipPath: NOTCH_S_CLIP,
+                        display: 'inline-flex',
+                        alignItems: 'center',
                       }}
                     >
-                      +{b.xp || 80} XP
+                      +{b.xp || 100} XP
                     </span>
                     <span
                       style={{
@@ -276,11 +331,13 @@ export default function BountyBoardTab({
                         color: '#5FEBD0',
                         background: 'rgba(1,19,15,.5)',
                         borderTop: '1px solid #0E9F8E',
-                        padding: '8px 11px',
+                        padding: '9px 12px',
                         clipPath: NOTCH_S_CLIP,
+                        display: 'inline-flex',
+                        alignItems: 'center',
                       }}
                     >
-                      +{b.sp || 10} SP
+                      +{b.sp || 15} {t('badges.collectorProfile.seasonPoints')}
                     </span>
                     <div style={{ flex: 1 }} />
                     <span
@@ -289,7 +346,7 @@ export default function BountyBoardTab({
                         color: '#7E6FA0',
                       }}
                     >
-                      {b.tries || 0}
+                      {t('badges.bountyBoard.triesCount', { count: b.tries || 0 })}
                     </span>
                   </div>
 
@@ -309,9 +366,9 @@ export default function BountyBoardTab({
                       outline: 'none',
                       color: b.hot ? '#140109' : tTier.ink || '#FFFFFF',
                       background: b.hot
-                        ? tTier.ring
+                        ? tTier.edge || 'linear-gradient(135deg, #FF2E7E, #FFE24B 70%)'
                         : 'rgba(255,255,255,.06)',
-                      borderTop: b.hot ? undefined : `1px solid ${tTier.tagBd || '#6D14FF'}`,
+                      borderTop: b.hot ? undefined : `1px solid ${tTier.bd || '#6D14FF'}`,
                       transition: 'transform 0.15s ease, filter 0.15s ease',
                     }}
                     onMouseEnter={(e) => {
@@ -390,6 +447,9 @@ export default function BountyBoardTab({
 
             {hunterBadges.map((hb) => {
               const tTier = ANIME_TIERS[hb.tier] || ANIME_TIERS.rare
+              const hbName = t(`badges.items.${hb.id}.name`, { defaultValue: hb.name })
+              const hbCond = t(`badges.items.${hb.id}.cond`, { defaultValue: hb.cond })
+
               return (
                 <div
                   key={hb.id}
@@ -398,7 +458,7 @@ export default function BountyBoardTab({
                     position: 'relative',
                     padding: 1,
                     clipPath: NOTCH_CLIP,
-                    background: tTier.ring,
+                    background: tTier.edge || tTier.ring,
                     cursor: onViewBadge ? 'pointer' : 'default',
                   }}
                 >
@@ -414,7 +474,7 @@ export default function BountyBoardTab({
                   >
                     <BadgeHex
                       tier={hb.tier}
-                      glyph={hb.glyph || 'shuriken'}
+                      glyph={hb.glyph || (hb.tier === 'legend' ? 'flame' : 'thunder')}
                       size={52}
                       spin={hb.tier === 'legend'}
                     />
@@ -424,7 +484,7 @@ export default function BountyBoardTab({
                         minWidth: 0,
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 4,
+                        gap: 6,
                       }}
                     >
                       <span
@@ -433,7 +493,7 @@ export default function BountyBoardTab({
                           color: '#FFFFFF',
                         }}
                       >
-                        {hb.name}
+                        {hbName}
                       </span>
                       <span
                         style={{
@@ -441,18 +501,18 @@ export default function BountyBoardTab({
                           color: '#9C8ABE',
                         }}
                       >
-                        {hb.cond}
+                        {hbCond}
                       </span>
                     </div>
                     <span
                       style={{
-                        font: '700 9.5px/1 Oswald, sans-serif',
+                        font: '600 9.5px/1 Oswald, sans-serif',
                         letterSpacing: '.14em',
-                        padding: '4px 8px',
+                        padding: '5px 9px',
                         clipPath: NOTCH_S_CLIP,
-                        background: tTier.tagBg,
-                        borderTop: `1px solid ${tTier.tagBd}`,
-                        color: tTier.tagColor,
+                        background: tTier.chipBg,
+                        borderTop: `1px solid ${tTier.bd}`,
+                        color: tTier.ink,
                         flexShrink: 0,
                       }}
                     >

@@ -1,11 +1,13 @@
+import { useMemo } from 'react'
 import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
+import { useApp } from '#contexts/AppContext.jsx'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
 import { getBadgeById } from '#lib/badges.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 
-function MiniShelf({ shelf = [] }) {
+function MiniShelf({ shelf = [], size = 18 }) {
   if (!shelf || !shelf.length) return null
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
@@ -17,7 +19,7 @@ function MiniShelf({ shelf = [] }) {
             key={idx}
             tier={b.tier}
             glyph={b.glyph}
-            size={18}
+            size={size}
           />
         )
       })}
@@ -55,7 +57,13 @@ export default function SeasonRaceTab({
   onOpenLedger,
   isMobile = false,
 }) {
+  const { db } = useApp()
   const { isDark, isGlamorous } = useTheme()
+
+  const myMember = useMemo(() => {
+    if (!db || !db.currentUserId) return null
+    return (db.members || []).find((m) => m.userId === db.currentUserId) || null
+  }, [db])
 
   if (!seasonLeaderboardData) return null
 
@@ -64,9 +72,16 @@ export default function SeasonRaceTab({
   const top2 = leaderboard[1] || null
   const top3 = leaderboard[2] || null
 
+  const top3EloRank = useMemo(() => {
+    if (!top3) return 1
+    const sorted = [...leaderboard].sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    const idx = sorted.findIndex((x) => x.id === top3.id)
+    return idx >= 0 ? idx + 1 : 1
+  }, [leaderboard, top3])
+
   const totalSessionsExpected = season?.totalSessionsExpected || 14
-  const playedSessions = topStats.playedSessionsCount || 11
-  const progressPct = Math.min(100, Math.round((playedSessions / totalSessionsExpected) * 100)) || 74
+  const playedSessions = topStats.playedSessionsCount ?? 0
+  const progressPct = totalSessionsExpected > 0 ? Math.min(100, Math.round((playedSessions / totalSessionsExpected) * 100)) : 0
   const remainingSessions = Math.max(0, totalSessionsExpected - playedSessions)
   const maxPossiblePts = remainingSessions * 3 * 22
 
@@ -143,7 +158,7 @@ export default function SeasonRaceTab({
             }}
           >
             <span>{season?.startDate?.slice(5) || '01/07'}</span>
-            <span>{t('season.remainingSessionDesc', { n: remainingSessions, pts: maxPossiblePts || 190 })}</span>
+            <span>{t('season.remainingSessionDesc', { n: remainingSessions, pts: maxPossiblePts })}</span>
             <span>{season?.endDate?.slice(5) || '30/09'}</span>
           </div>
         </div>
@@ -151,148 +166,73 @@ export default function SeasonRaceTab({
         {/* 2. Podium Top 3 */}
         {leaderboard.length >= 3 && (
           isGlamorous ? (
-            /* Bục Tốp 3 14a · Hào nhoáng */
-            <div
-              style={{
-                position: 'relative',
-                borderRadius: 12,
-                overflow: 'hidden',
-                border: '1px solid #2E3E5C',
-                background: 'linear-gradient(180deg, #18212F, #101827 58%, #0D1422)',
-                padding: '13px 14px 14px',
-                display: 'grid',
-                gap: 11,
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'radial-gradient(58% 78% at 50% 0%, rgba(240,183,92,.22), transparent 72%)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ font: "700 17px/1.2 'Barlow', sans-serif", letterSpacing: '-0.01em', color: '#FFFFFF' }}>
-                  {t('season.podiumTitle14a', { seasonNumber: season?.number || 3 })}
-                </span>
-                <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
-                  {t('season.podiumSubtitle14a', { sessions: totalSessionsExpected })}
-                </span>
-                <div style={{ flex: 1 }} />
-                <span
-                  style={{
-                    font: "600 11px/1 'IBM Plex Mono', monospace",
-                    padding: '5px 9px',
-                    borderRadius: 999,
-                    background: 'rgba(240,183,92,.14)',
-                    border: '1px solid #8A6F16',
-                    color: '#F0D26A',
-                  }}
-                >
-                  {t('season.podiumRemainingChip14a', { remaining: remainingSessions, maxPts: maxPossiblePts || 190 })}
-                </span>
-              </div>
-
+            isMobile ? (
+              /* Bục Tốp 3 14a · M10v2 Mobile Hào nhoáng */
               <div
                 style={{
                   position: 'relative',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  border: '1px solid #2E3E5C',
+                  background: 'linear-gradient(180deg, #18212F, #101827 62%)',
+                  padding: 12,
                   display: 'grid',
-                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-                  gap: 11,
-                  alignItems: 'end',
+                  gap: 10,
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
                 }}
               >
-                {/* #2 Á Quân */}
                 <div
-                  onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
-                  title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
                   style={{
-                    borderRadius: 11,
-                    padding: '13px 12px',
-                    display: 'grid',
-                    gap: 7,
-                    justifyItems: 'center',
-                    textAlign: 'center',
-                    background: 'linear-gradient(180deg, rgba(199,210,228,.14), rgba(20,29,46,.92) 64%)',
-                    border: '1px solid #6F7F96',
-                    cursor: 'pointer',
-                    transition: 'transform 0.15s ease',
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(66% 70% at 50% 0%, rgba(240,183,92,.20), transparent 74%)',
+                    pointerEvents: 'none',
                   }}
-                >
-                  <div style={{ position: 'relative', width: 50, height: 50 }}>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        borderRadius: 999,
-                        background: 'conic-gradient(from 210deg, #5B6B81, #C7D2E4, #FFFFFF, #8FA3BE, #5B6B81)',
-                        boxShadow: '0 0 0 1px rgba(199,210,228,.5), 0 8px 18px rgba(143,163,190,.22)',
-                      }}
-                    />
-                    <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                      <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={44} />
-                    </div>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        right: -4,
-                        bottom: -4,
-                        width: 19,
-                        height: 19,
-                        borderRadius: 999,
-                        background: 'linear-gradient(180deg, #EDF3FB, #8FA3BE)',
-                        border: '2px solid #141D2B',
-                        display: 'grid',
-                        placeItems: 'center',
-                        font: "700 10px/1 'Barlow', sans-serif",
-                        color: '#1B2435',
-                      }}
-                    >
-                      2
-                    </div>
-                  </div>
-                  <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF' }}>
-                    {top2?.name}
-                  </div>
-                  <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
-                    {top2?.totalSeasonPoints?.toLocaleString()}
-                  </div>
-                  <MiniShelf shelf={top2?.badgeShelf || top2?.member?.badgeShelf || top2?.member?.badge_shelf || []} />
-                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                    {top2?.matchesCount} {t('units.match')} · {top2?.winsCount}W–{top2?.lossesCount}L · {top2?.winRate}%
-                  </div>
+                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ font: "700 15px/1.2 'Barlow', sans-serif", color: '#FFFFFF' }}>
+                    {t('season.podiumTitle14a', { seasonNumber: season?.number || 3 })}
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  <span
+                    style={{
+                      font: "600 10.5px/1 'IBM Plex Mono', monospace",
+                      padding: '5px 8px',
+                      borderRadius: 999,
+                      background: 'rgba(240,183,92,.14)',
+                      border: '1px solid #8A6F16',
+                      color: '#F0D26A',
+                    }}
+                  >
+                    {t('season.sessionsRemainingChip', { count: remainingSessions })}
+                  </span>
                 </div>
 
-                {/* #1 Quán Quân */}
+                {/* Top 1 Thẻ Ngang Lớn */}
                 <div
                   onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
                   title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
                   style={{
-                    borderRadius: 12,
-                    padding: '16px 14px',
-                    display: 'grid',
-                    gap: 8,
-                    justifyItems: 'center',
-                    textAlign: 'center',
-                    background: 'linear-gradient(180deg, rgba(255,214,107,.24), rgba(20,29,46,.94) 64%)',
-                    border: '1px solid #D4A836',
-                    boxShadow: '0 0 24px rgba(212,168,54,.25)',
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '13px 12px 12px',
+                    borderRadius: 11,
+                    background: 'linear-gradient(180deg, rgba(240,183,92,.24), rgba(20,29,46,.94) 70%)',
+                    border: '1px solid #C9A227',
                     cursor: 'pointer',
-                    transition: 'transform 0.15s ease',
                   }}
                 >
-                  <div style={{ position: 'relative', width: 56, height: 56 }}>
-                    {/* Vương miện Top 1 */}
+                  <div style={{ position: 'relative', width: 54, height: 54, flex: '0 0 auto', marginTop: 6 }}>
                     <div
                       style={{
                         position: 'absolute',
                         left: '50%',
-                        top: -14,
+                        top: -15,
                         transform: 'translateX(-50%)',
-                        width: 24,
-                        height: 15,
+                        width: 26,
+                        height: 16,
                         background: 'linear-gradient(180deg, #FFF3C4, #F0D26A 52%, #C9A227)',
                         clipPath: 'polygon(0% 100%, 0% 22%, 22% 58%, 50% 0%, 78% 58%, 100% 22%, 100% 100%)',
                         filter: 'drop-shadow(0 2px 6px rgba(201,162,39,.5))',
@@ -301,14 +241,23 @@ export default function SeasonRaceTab({
                     <div
                       style={{
                         position: 'absolute',
+                        inset: -7,
+                        borderRadius: 999,
+                        background: 'radial-gradient(circle, rgba(240,183,92,.36), transparent 70%)',
+                        animation: 'medalGlow 4.4s ease-in-out infinite',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
                         inset: 0,
                         borderRadius: 999,
                         background: 'conic-gradient(from 210deg, #7A5620, #F0B75C, #FFF3C4, #F0D26A, #7A5620)',
-                        boxShadow: '0 0 0 1px rgba(247,227,161,.55), 0 10px 22px rgba(201,162,39,.32)',
+                        boxShadow: '0 0 0 1px rgba(247,227,161,.55)',
                       }}
                     />
                     <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                      <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={50} />
+                      <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={48} />
                     </div>
                     <div
                       style={{
@@ -319,93 +268,430 @@ export default function SeasonRaceTab({
                         height: 20,
                         borderRadius: 999,
                         background: 'linear-gradient(180deg, #FFF3C4, #C9A227)',
-                        border: '2px solid #171206',
+                        border: '2px solid #161104',
                         display: 'grid',
                         placeItems: 'center',
-                        font: "700 11px/1 'Barlow', sans-serif",
+                        font: "700 10px/1 'Barlow', sans-serif",
                         color: '#2A1F00',
                       }}
                     >
                       1
                     </div>
                   </div>
-                  <div style={{ font: "700 16px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF' }}>
-                    {top1?.name}
-                  </div>
-                  <div style={{ font: "700 32px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
-                    {top1?.totalSeasonPoints?.toLocaleString()}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <MiniShelf shelf={top1?.badgeShelf || top1?.member?.badgeShelf || top1?.member?.badge_shelf || []} />
-                    {top1?.streak >= 5 && <BountyBadgeTag streak={top1.streak} />}
-                  </div>
-                  <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#C6B683' }}>
-                    {top1?.matchesCount} {t('units.match')} · {top1?.winsCount}W–{top1?.lossesCount}L · {top1?.winRate}% · {top1?.upsetsCount} upset
+                  <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 5 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ font: "700 16px/1.15 'Barlow', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {top1?.name}
+                      </span>
+                      <div style={{ flex: 1 }} />
+                      <span style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
+                        {top1?.totalSeasonPoints?.toLocaleString()}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                      <MiniShelf shelf={top1?.badgeShelf || top1?.member?.badgeShelf || top1?.member?.badge_shelf || []} size={19} />
+                      <div style={{ flex: 1 }} />
+                      {top1?.streak >= 3 && (
+                        <span
+                          style={{
+                            font: "600 10.5px/1 'IBM Plex Mono', monospace",
+                            padding: '4px 7px',
+                            borderRadius: 999,
+                            background: 'rgba(0,178,169,.14)',
+                            border: '1px solid #00786F',
+                            color: '#5FDBD3',
+                          }}
+                        >
+                          streak {top1.streak}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: '#C6B683' }}>
+                      {top1?.attendedCount || top1?.sessionsCount || 0} {t('units.session')} · {top1?.matchesCount || 0} {t('units.match')} · {top1?.upsetsCount || 0} upset
+                    </div>
                   </div>
                 </div>
 
-                {/* #3 Quý Quân */}
-                <div
-                  onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
-                  title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
-                  style={{
-                    borderRadius: 11,
-                    padding: '13px 12px',
-                    display: 'grid',
-                    gap: 7,
-                    justifyItems: 'center',
-                    textAlign: 'center',
-                    background: 'linear-gradient(180deg, rgba(232,180,140,.14), rgba(20,29,46,.92) 64%)',
-                    border: '1px solid #A66A38',
-                    cursor: 'pointer',
-                    transition: 'transform 0.15s ease',
-                  }}
-                >
-                  <div style={{ position: 'relative', width: 48, height: 48 }}>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        borderRadius: 999,
-                        background: 'conic-gradient(from 210deg, #5C2C10, #C77C48, #F5C09A, #C77C48, #5C2C10)',
-                        boxShadow: '0 0 0 1px rgba(232,180,140,.45), 0 8px 18px rgba(166,106,56,.2)',
-                      }}
-                    />
-                    <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                      <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={42} />
+                {/* Top 2 & Top 3 Cards in 2 columns */}
+                <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
+                  {/* Top 2 */}
+                  <div
+                    onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
+                    title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: 10,
+                      borderRadius: 10,
+                      background: 'linear-gradient(150deg, rgba(199,210,228,.13), rgba(20,29,46,.92) 66%)',
+                      border: '1px solid #6F7F96',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ position: 'relative', width: 40, height: 40, flex: '0 0 auto' }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: 999,
+                          background: 'conic-gradient(from 210deg, #5B6B81, #C7D2E4, #FFFFFF, #8FA3BE, #5B6B81)',
+                          boxShadow: '0 0 0 1px rgba(199,210,228,.45)',
+                        }}
+                      />
+                      <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={35} />
+                      </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: -3,
+                          bottom: -3,
+                          width: 17,
+                          height: 17,
+                          borderRadius: 999,
+                          background: 'linear-gradient(180deg, #EDF3FB, #8FA3BE)',
+                          border: '2px solid #141D2B',
+                          display: 'grid',
+                          placeItems: 'center',
+                          font: "700 9px/1 'Barlow', sans-serif",
+                          color: '#1B2435',
+                        }}
+                      >
+                        2
+                      </div>
                     </div>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        right: -4,
-                        bottom: -4,
-                        width: 18,
-                        height: 18,
-                        borderRadius: 999,
-                        background: 'linear-gradient(180deg, #F5C09A, #A66A38)',
-                        border: '2px solid #170E07',
-                        display: 'grid',
-                        placeItems: 'center',
-                        font: "700 10px/1 'Barlow', sans-serif",
-                        color: '#2A1608',
-                      }}
-                    >
-                      3
+                    <div style={{ minWidth: 0, display: 'grid', gap: 3 }}>
+                      <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {top2?.name}
+                      </div>
+                      <div style={{ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
+                        {top2?.totalSeasonPoints?.toLocaleString()}
+                      </div>
+                      <div style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                        {t('season.behindTop1', { diff: ((top1?.totalSeasonPoints || 0) - (top2?.totalSeasonPoints || 0)).toLocaleString() })}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF' }}>
-                    {top3?.name}
-                  </div>
-                  <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: '#E8C8AE' }}>
-                    {top3?.totalSeasonPoints?.toLocaleString()}
-                  </div>
-                  <MiniShelf shelf={top3?.badgeShelf || top3?.member?.badgeShelf || top3?.member?.badge_shelf || []} />
-                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                    {top3?.matchesCount} {t('units.match')} · {top3?.winsCount}W–{top3?.lossesCount}L · {top3?.winRate}%
+
+                  {/* Top 3 */}
+                  <div
+                    onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
+                    title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: 10,
+                      borderRadius: 10,
+                      background: 'linear-gradient(150deg, rgba(200,128,74,.15), rgba(20,29,46,.92) 66%)',
+                      border: '1px solid #8A4E24',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ position: 'relative', width: 40, height: 40, flex: '0 0 auto' }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: 999,
+                          background: 'conic-gradient(from 210deg, #6B3512, #C8804A, #F0C096, #B0562A, #6B3512)',
+                          boxShadow: '0 0 0 1px rgba(240,192,150,.4)',
+                        }}
+                      />
+                      <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={35} />
+                      </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: -3,
+                          bottom: -3,
+                          width: 17,
+                          height: 17,
+                          borderRadius: 999,
+                          background: 'linear-gradient(180deg, #F0C096, #B0562A)',
+                          border: '2px solid #1A1008',
+                          display: 'grid',
+                          placeItems: 'center',
+                          font: "700 9px/1 'Barlow', sans-serif",
+                          color: '#2A1405',
+                        }}
+                      >
+                        3
+                      </div>
+                    </div>
+                    <div style={{ minWidth: 0, display: 'grid', gap: 3 }}>
+                      <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {top3?.name}
+                      </div>
+                      <div style={{ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
+                        {top3?.totalSeasonPoints?.toLocaleString()}
+                      </div>
+                      <div style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#F0D26A' }}>
+                        {top3EloRank ? t('season.eloRankClub', { rank: top3EloRank }) : t('season.behindTop1', { diff: ((top1?.totalSeasonPoints || 0) - (top3?.totalSeasonPoints || 0)).toLocaleString() })}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* Bục Tốp 3 14a · Desktop Hào nhoáng */
+              <div
+                style={{
+                  position: 'relative',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  border: '1px solid #2E3E5C',
+                  background: 'linear-gradient(180deg, #18212F, #101827 58%, #0D1422)',
+                  padding: '13px 14px 14px',
+                  display: 'grid',
+                  gap: 11,
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(58% 78% at 50% 0%, rgba(240,183,92,.22), transparent 72%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ font: "700 17px/1.2 'Barlow', sans-serif", letterSpacing: '-0.01em', color: '#FFFFFF' }}>
+                    {t('season.podiumTitle14a', { seasonNumber: season?.number || 3 })}
+                  </span>
+                  <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
+                    {t('season.podiumSubtitle14a', { sessions: totalSessionsExpected })}
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  <span
+                    style={{
+                      font: "600 11px/1 'IBM Plex Mono', monospace",
+                      padding: '5px 9px',
+                      borderRadius: 999,
+                      background: 'rgba(240,183,92,.14)',
+                      border: '1px solid #8A6F16',
+                      color: '#F0D26A',
+                    }}
+                  >
+                    {t('season.podiumRemainingChip14a', { remaining: remainingSessions, maxPts: maxPossiblePts })}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                    gap: 11,
+                    alignItems: 'end',
+                  }}
+                >
+                  {/* #2 Á Quân */}
+                  <div
+                    onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
+                    title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
+                    style={{
+                      borderRadius: 11,
+                      padding: '13px 12px',
+                      display: 'grid',
+                      gap: 7,
+                      justifyItems: 'center',
+                      textAlign: 'center',
+                      background: 'linear-gradient(180deg, rgba(199,210,228,.14), rgba(20,29,46,.92) 64%)',
+                      border: '1px solid #6F7F96',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  >
+                    <div style={{ position: 'relative', width: 50, height: 50 }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: 999,
+                          background: 'conic-gradient(from 210deg, #5B6B81, #C7D2E4, #FFFFFF, #8FA3BE, #5B6B81)',
+                          boxShadow: '0 0 0 1px rgba(199,210,228,.5), 0 8px 18px rgba(143,163,190,.22)',
+                        }}
+                      />
+                      <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={44} />
+                      </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: -4,
+                          bottom: -4,
+                          width: 19,
+                          height: 19,
+                          borderRadius: 999,
+                          background: 'linear-gradient(180deg, #EDF3FB, #8FA3BE)',
+                          border: '2px solid #141D2B',
+                          display: 'grid',
+                          placeItems: 'center',
+                          font: "700 10px/1 'Barlow', sans-serif",
+                          color: '#1B2435',
+                        }}
+                      >
+                        2
+                      </div>
+                    </div>
+                    <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF' }}>
+                      {top2?.name}
+                    </div>
+                    <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
+                      {top2?.totalSeasonPoints?.toLocaleString()}
+                    </div>
+                    <MiniShelf shelf={top2?.badgeShelf || top2?.member?.badgeShelf || top2?.member?.badge_shelf || []} />
+                    <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                      {top2?.matchesCount} {t('units.match')} · {top2?.winsCount}W–{top2?.lossesCount}L · {top2?.winRate}%
+                    </div>
+                  </div>
+
+                  {/* #1 Quán Quân */}
+                  <div
+                    onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
+                    title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
+                    style={{
+                      borderRadius: 12,
+                      padding: '16px 14px',
+                      display: 'grid',
+                      gap: 8,
+                      justifyItems: 'center',
+                      textAlign: 'center',
+                      background: 'linear-gradient(180deg, rgba(255,214,107,.24), rgba(20,29,46,.94) 64%)',
+                      border: '1px solid #D4A836',
+                      boxShadow: '0 0 24px rgba(212,168,54,.25)',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  >
+                    <div style={{ position: 'relative', width: 56, height: 56 }}>
+                      {/* Vương miện Top 1 */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '50%',
+                          top: -14,
+                          transform: 'translateX(-50%)',
+                          width: 24,
+                          height: 15,
+                          background: 'linear-gradient(180deg, #FFF3C4, #F0D26A 52%, #C9A227)',
+                          clipPath: 'polygon(0% 100%, 0% 22%, 22% 58%, 50% 0%, 78% 58%, 100% 22%, 100% 100%)',
+                          filter: 'drop-shadow(0 2px 6px rgba(201,162,39,.5))',
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: 999,
+                          background: 'conic-gradient(from 210deg, #7A5620, #F0B75C, #FFF3C4, #F0D26A, #7A5620)',
+                          boxShadow: '0 0 0 1px rgba(247,227,161,.55), 0 10px 22px rgba(201,162,39,.32)',
+                        }}
+                      />
+                      <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={50} />
+                      </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: -4,
+                          bottom: -4,
+                          width: 20,
+                          height: 20,
+                          borderRadius: 999,
+                          background: 'linear-gradient(180deg, #FFF3C4, #C9A227)',
+                          border: '2px solid #171206',
+                          display: 'grid',
+                          placeItems: 'center',
+                          font: "700 11px/1 'Barlow', sans-serif",
+                          color: '#2A1F00',
+                        }}
+                      >
+                        1
+                      </div>
+                    </div>
+                    <div style={{ font: "700 16px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF' }}>
+                      {top1?.name}
+                    </div>
+                    <div style={{ font: "700 32px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
+                      {top1?.totalSeasonPoints?.toLocaleString()}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <MiniShelf shelf={top1?.badgeShelf || top1?.member?.badgeShelf || top1?.member?.badge_shelf || []} />
+                      {top1?.streak >= 5 && <BountyBadgeTag streak={top1.streak} />}
+                    </div>
+                    <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#C6B683' }}>
+                      {top1?.matchesCount} {t('units.match')} · {top1?.winsCount}W–{top1?.lossesCount}L · {top1?.winRate}% · {top1?.upsetsCount} upset
+                    </div>
+                  </div>
+
+                  {/* #3 Quý Quân */}
+                  <div
+                    onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
+                    title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
+                    style={{
+                      borderRadius: 11,
+                      padding: '13px 12px',
+                      display: 'grid',
+                      gap: 7,
+                      justifyItems: 'center',
+                      textAlign: 'center',
+                      background: 'linear-gradient(180deg, rgba(232,180,140,.14), rgba(20,29,46,.92) 64%)',
+                      border: '1px solid #A66A38',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  >
+                    <div style={{ position: 'relative', width: 48, height: 48 }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: 999,
+                          background: 'conic-gradient(from 210deg, #5C2C10, #C77C48, #F5C09A, #C77C48, #5C2C10)',
+                          boxShadow: '0 0 0 1px rgba(232,180,140,.45), 0 8px 18px rgba(166,106,56,.2)',
+                        }}
+                      />
+                      <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={42} />
+                      </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: -4,
+                          bottom: -4,
+                          width: 18,
+                          height: 18,
+                          borderRadius: 999,
+                          background: 'linear-gradient(180deg, #F5C09A, #A66A38)',
+                          border: '2px solid #170E07',
+                          display: 'grid',
+                          placeItems: 'center',
+                          font: "700 10px/1 'Barlow', sans-serif",
+                          color: '#2A1608',
+                        }}
+                      >
+                        3
+                      </div>
+                    </div>
+                    <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF' }}>
+                      {top3?.name}
+                    </div>
+                    <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: '#E8C8AE' }}>
+                      {top3?.totalSeasonPoints?.toLocaleString()}
+                    </div>
+                    <MiniShelf shelf={top3?.badgeShelf || top3?.member?.badgeShelf || top3?.member?.badge_shelf || []} />
+                    <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                      {top3?.matchesCount} {t('units.match')} · {top3?.winsCount}W–{top3?.lossesCount}L · {top3?.winRate}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
           ) : isMobile ? (
             /* Mobile Podium: Card #1 to ở trên, #2 và #3 chia 2 cột ở dưới */
             <div style={{ display: 'grid', gap: 10 }}>
@@ -659,14 +945,156 @@ export default function SeasonRaceTab({
         )}
 
         {/* 3. Bảng Xếp Hạng Toàn Bộ */}
-        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
-          <div
-            style={{
-              padding: '10px 13px',
-              borderBottom: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
+        {isMobile && isGlamorous ? (
+          /* Toàn bảng Mobile · M10v2 Hào nhoáng */
+          <div>
+            <div
+              style={{
+                background: '#141D2E',
+                border: '1px solid #22304A',
+                borderRadius: 10,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  padding: '9px 12px',
+                  borderBottom: '1px solid #22304A',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                  {t('season.wholeTable')}
+                </span>
+                <div style={{ flex: 1 }} />
+                <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                  {t('season.wholeTableCount', { count: leaderboard.length })}
+                </span>
+              </div>
+
+              {(leaderboard.length >= 3 ? leaderboard.slice(3) : leaderboard).map((row) => {
+                const isMe = myMember && (row.id === myMember.id || row.id === myMember.userId)
+                return (
+                  <div
+                    key={row.id}
+                    onClick={() => onOpenLedger && onOpenLedger(row.id)}
+                    title={`${t('season.viewLedgerBtn')}: ${row.name}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '9px 12px',
+                      borderBottom: '1px solid rgba(34,48,74,.6)',
+                      background: isMe ? 'rgba(29,80,160,.12)' : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 20,
+                        font: "600 12px/1 'IBM Plex Mono', monospace",
+                        color: isMe ? '#B6CDEC' : '#A8B7CB',
+                      }}
+                    >
+                      {row.rank}
+                    </span>
+                    <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={30} />
+                    <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span
+                          style={{
+                            font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif",
+                            color: '#E9EFF7',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {row.name}
+                        </span>
+                        {isMe && (
+                          <span
+                            style={{
+                              font: "600 9.5px/1 'IBM Plex Mono', monospace",
+                              padding: '3px 6px',
+                              borderRadius: 999,
+                              background: 'rgba(29,80,160,.24)',
+                              border: '1px solid #1D50A0',
+                              color: '#B6CDEC',
+                            }}
+                          >
+                            {t('season.youTag')}
+                          </span>
+                        )}
+                        {row.streak >= 3 && (
+                          <span
+                            style={{
+                              font: "600 9.5px/1 'IBM Plex Mono', monospace",
+                              padding: '3px 6px',
+                              borderRadius: 999,
+                              background: 'rgba(0,178,169,.14)',
+                              border: '1px solid #00786F',
+                              color: '#5FDBD3',
+                            }}
+                          >
+                            {row.streak >= 5 ? `🔥 ${row.streak}` : `streak ${row.streak}`}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <MiniShelf shelf={row.badgeShelf || row.member?.badgeShelf || row.member?.badge_shelf || []} size={17} />
+                        <span
+                          style={{
+                            font: "400 10.5px/1 'IBM Plex Mono', monospace",
+                            color: '#8494AA',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {row.matchesCount} {t('units.match')} · {row.upsetsCount || 0} upset
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        font: "600 17px/1 'IBM Plex Mono', monospace",
+                        color: '#E9EFF7',
+                      }}
+                    >
+                      {row.totalSeasonPoints?.toLocaleString()}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 6,
+                background: '#101927',
+                border: '1px solid #22304A',
+                font: "400 12px/1.5 'IBM Plex Sans', sans-serif",
+                color: '#A8B7CB',
+                marginTop: 10,
+              }}
+            >
+              {t('season.shelfThreeSlotFooterNote14a')}
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
+            <div
+              style={{
+                padding: '10px 13px',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
               flexWrap: 'wrap',
             }}
           >
@@ -1028,6 +1456,7 @@ export default function SeasonRaceTab({
             )
           })}
         </div>
+      )}
       </div>
 
       {/* CỘT PHẢI (SẮP TRAO, ĐIỂM ĐẾN TỪ ĐÂU, MINI CHART) */}

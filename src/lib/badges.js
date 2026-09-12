@@ -323,14 +323,14 @@ export const generateStreakTimeline = (memberIdOrMatches, dbOrMemberId, maxSlots
 
 /**
  * Quét toàn bộ mục tiêu đang bị treo thưởng (Bounty Targets) trong CLB.
- * Cá nhân: chuỗi >= 5 (hoặc config)
+ * Cá nhân: chuỗi >= 4 (hoặc config)
  * Cặp đôi: chuỗi >= 4 khi đánh cùng nhau
  * @param {Object} db
  * @returns {Array<Object>}
  */
 export function getActiveBounties(db) {
   if (!db) return []
-  const minSingle = cfgBadges.bounty?.minStreakSingle ?? 5
+  const minSingle = cfgBadges.bounty?.minStreakSingle ?? 4
   const minPair = cfgBadges.bounty?.minStreakPair ?? 4
   const hotStreak = cfgBadges.bounty?.hotStreak ?? 6
   const rewHot = cfgBadges.bounty?.rewardHot ?? { xp: 100, seasonPts: 15 }
@@ -356,13 +356,25 @@ export function getActiveBounties(db) {
         return acc + opps.length
       }, 0)
 
+      let streakDate = ''
+      if (streakMatches.length > 0) {
+        const oldestInStreak = streakMatches[streakMatches.length - 1]
+        const ts = getMatchTimestamp(oldestInStreak, db)
+        if (ts > 0) {
+          const d = new Date(ts)
+          const dd = String(d.getDate()).padStart(2, '0')
+          const mm = String(d.getMonth() + 1).padStart(2, '0')
+          streakDate = `${dd}/${mm}`
+        }
+      }
+
       bounties.push({
         id: `single_${m.id}`,
         type: 'single',
         targetId: m.id,
         name: m.name,
         avatarUrl: m.avatar_url || m.avatarUrl || '',
-        meta: `${streak} wins streak`,
+        streakDate,
         streak,
         hot,
         tier: hot ? 'legend' : 'epic',
@@ -403,7 +415,7 @@ export function getActiveBounties(db) {
           targetIds: [m1, m2],
           name: `${mem1.name} & ${mem2.name}`,
           avatarUrl: mem1.avatar_url || mem1.avatarUrl || '',
-          meta: `${winRate}% win rate`,
+          winRate,
           streak,
           hot,
           tier: hot ? 'legend' : 'epic',
@@ -417,7 +429,7 @@ export function getActiveBounties(db) {
     }
   })
 
-  // Fallback: nếu chưa ai đạt mốc chuỗi 5 (hoặc cặp 4), lấy người đang có chuỗi thắng dài nhất CLB hiện tại (>= 2)
+  // Fallback: nếu chưa ai đạt mốc chuỗi 4 (hoặc cặp 4), lấy người đang có chuỗi thắng dài nhất CLB hiện tại (>= 2)
   if (bounties.length === 0 && members.length > 0) {
     let topPlayer = null
     let maxS = 0
@@ -437,7 +449,6 @@ export function getActiveBounties(db) {
         targetId: topPlayer.id,
         name: topPlayer.name,
         avatarUrl: topPlayer.avatar_url || topPlayer.avatarUrl || '',
-        meta: `${maxS} wins streak`,
         streak: maxS,
         hot,
         tier: hot ? 'legend' : 'epic',
@@ -750,12 +761,26 @@ export function getBadgeOwners(badgeId, db) {
     const { unlocked } = calculateMemberBadges(m.id, db)
     const found = unlocked.find((b) => b.id === badgeId)
     if (found) {
+      const { maxStreak, matches } = getMemberStreak(m.id, db)
+      let atDate = ''
+      if (matches && matches.length > 0) {
+        const ts = getMatchTimestamp(matches[0], db)
+        if (ts > 0) {
+          const d = new Date(ts)
+          const dd = String(d.getDate()).padStart(2, '0')
+          const mm = String(d.getMonth() + 1).padStart(2, '0')
+          atDate = `${dd}/${mm}`
+        }
+      }
       owners.push({
         id: m.id,
         initial: m.name ? m.name.charAt(0).toUpperCase() : '?',
         name: m.name,
-        note: 'unlocked',
-        at: 'season',
+        avatarUrl: m.avatar_url || m.avatarUrl || '',
+        streak: maxStreak || found.threshold || 0,
+        threshold: found.threshold || 0,
+        checkType: found.checkType || '',
+        at: atDate || '02/08',
       })
     }
   })
@@ -918,11 +943,6 @@ export function getClubAchievementFeed(db, limit = 20) {
       })
     }
   })
-
-  // Thêm demo feed nếu CLB chưa có sự kiện
-  if (feed.length === 0 && cfgBadges.demoFeed) {
-    return cfgBadges.demoFeed.slice(0, limit)
-  }
 
   return feed.slice(0, limit)
 }

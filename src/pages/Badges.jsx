@@ -27,6 +27,7 @@ import {
 } from '#lib/badges.js'
 import { calculateMemberXp } from '#lib/xp.js'
 import { getSeasonRankLeaderboard } from '#lib/season.js'
+import { myMember } from '#lib/money.js'
 import badgesConfig from '#config/badges.json'
 
 /**
@@ -58,12 +59,9 @@ export default function Badges() {
   // Thành viên hiện tại (tài khoản đang đăng nhập)
   const currentMember = useMemo(() => {
     if (!db || !db.members || db.members.length === 0) {
-      return { id: 'demo-me', name: t('badges.collectorProfile.rankMe') }
+      return null
     }
-    const found = db.members.find(
-      (m) => m.user_id && db.currentUser && m.user_id === db.currentUser.id,
-    )
-    return found || db.members[0]
+    return myMember(db) || db.members[0] || null
   }, [db])
 
   // Thành viên đang được xem bộ sưu tập (mặc định là chính mình)
@@ -75,12 +73,13 @@ export default function Badges() {
     return currentMember
   }, [viewingMemberId, db, currentMember])
 
-  const isViewingSelf = activeMember.id === currentMember.id
+  const isViewingSelf = Boolean(activeMember && currentMember && activeMember.id === currentMember.id)
 
   // 1. Dữ liệu XP THẬT của thành viên đang xem
   const memberXpData = useMemo(() => {
+    if (!activeMember?.id) return { xp: 0, level: 1, currentLevel: 1, progressPct: 0 }
     return calculateMemberXp(activeMember.id, db)
-  }, [activeMember.id, db])
+  }, [activeMember?.id, db])
 
   // 2. Mùa giải hiện tại
   const currentSeason = useMemo(() => {
@@ -844,10 +843,11 @@ export default function Badges() {
       {selectedBadge && (
         <BadgeDetailModal
           badge={selectedBadge}
-          streakTimeline={getStreakTimeline(currentMember.id, db, 10)}
+          streakTimeline={getStreakTimeline(currentMember?.id, db, 10)}
           owners={getBadgeOwners(selectedBadge.id, db)}
-          chasers={getBadgeChasers(selectedBadge.id, currentMember.id, db)}
+          chasers={getBadgeChasers(selectedBadge.id, currentMember?.id, db)}
           onClose={() => setSelectedBadge(null)}
+          onShowUnlock={(b) => setUnlockingBadge(b)}
         />
       )}
 
@@ -855,10 +855,13 @@ export default function Badges() {
       {unlockingBadge && (
         <BadgeUnlockModal
           badge={unlockingBadge}
-          onEquip={() => {
-            handleToggleShelf(unlockingBadge.id)
+          shelfCount={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length}
+          shelfIsFull={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length >= 3}
+          onEquipShelf={(b) => {
+            handleToggleShelf(b?.id || unlockingBadge.id)
             setUnlockingBadge(null)
           }}
+          onViewCollection={() => setUnlockingBadge(null)}
           onClose={() => setUnlockingBadge(null)}
         />
       )}
