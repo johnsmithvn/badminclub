@@ -1877,3 +1877,102 @@ export function getBadgeById(badgeId) {
   if (!badgeId) return null
   return activeCatalog().find((b) => b.id === badgeId) || null
 }
+
+/**
+ * Lấy thông tin họ danh hiệu và toàn bộ danh sách các mốc cấp độ
+ * @param {string} badgeId
+ * @returns {Object|null}
+ */
+export function getBadgeFamily(badgeId) {
+  if (!badgeId) return null
+  const familiesCfg = cfgBadges.families || {}
+  for (const [fKey, fData] of Object.entries(familiesCfg)) {
+    if ((fData.badgeIds || []).includes(badgeId)) {
+      return {
+        key: fKey,
+        ...fData,
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Nhóm danh sách các danh hiệu đã tính toán theo họ cấp độ (Evolving Badges).
+ * Các danh hiệu thuộc cùng một chuỗi (ví dụ bat_bai_3, bat_bai_v, bat_bai_x, bat_bai_15)
+ * sẽ được gộp thành 1 đối tượng duy nhất đại diện cho họ danh hiệu đó.
+ *
+ * @param {Array} badgesList
+ * @returns {Array}
+ */
+export function groupBadgesByFamily(badgesList = []) {
+  if (!Array.isArray(badgesList) || badgesList.length === 0) return []
+  const familiesCfg = cfgBadges.families || {}
+
+  const badgeIdToFamily = new Map()
+  for (const [fKey, fData] of Object.entries(familiesCfg)) {
+    for (const bId of (fData.badgeIds || [])) {
+      badgeIdToFamily.set(bId, fKey)
+    }
+  }
+
+  const processedFamilies = new Set()
+  const result = []
+  const badgeMap = new Map(badgesList.map((b) => [b.id, b]))
+
+  for (const badge of badgesList) {
+    const fKey = badgeIdToFamily.get(badge.id)
+    if (!fKey) {
+      result.push({
+        ...badge,
+        isFamily: false,
+        familyKey: null,
+        tiers: [badge],
+        totalTiers: 1,
+        unlockedTiersCount: badge.unlocked ? 1 : 0,
+        highestUnlocked: badge.unlocked ? badge : null,
+        nextTarget: badge.unlocked ? null : badge,
+        activeBadge: badge,
+        isAllUnlocked: !!badge.unlocked,
+        currentTierIndex: 1,
+      })
+    } else {
+      if (processedFamilies.has(fKey)) continue
+      processedFamilies.add(fKey)
+
+      const fData = familiesCfg[fKey]
+      const tierBadgeIds = fData.badgeIds || []
+      const tiers = tierBadgeIds
+        .map((id) => badgeMap.get(id))
+        .filter(Boolean)
+
+      if (tiers.length === 0) continue
+
+      const unlockedTiers = tiers.filter((b) => b.unlocked)
+      const highestUnlocked = unlockedTiers.length > 0 ? unlockedTiers[unlockedTiers.length - 1] : null
+      const nextTarget = tiers.find((b) => !b.unlocked) || null
+      // Thẻ đại diện: mốc cao nhất đã mở để vinh danh; nếu chưa mở mốc nào thì lấy mốc đầu tiên
+      const activeBadge = highestUnlocked || nextTarget || tiers[0]
+      const activeIdx = tiers.findIndex((b) => b.id === activeBadge.id)
+
+      result.push({
+        ...activeBadge,
+        id: activeBadge.id,
+        isFamily: true,
+        familyKey: fKey,
+        glyph: fData.glyph || activeBadge.glyph,
+        tiers,
+        totalTiers: tiers.length,
+        unlockedTiersCount: unlockedTiers.length,
+        highestUnlocked,
+        nextTarget,
+        activeBadge,
+        isAllUnlocked: unlockedTiers.length === tiers.length,
+        currentTierIndex: activeIdx + 1,
+      })
+    }
+  }
+
+  return result
+}
+

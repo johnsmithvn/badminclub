@@ -1,9 +1,11 @@
+import { useState, useMemo } from 'react'
 import BadgeHex from './BadgeHex.jsx'
-import { NOTCH_CLIP, NOTCH_S_CLIP, HEX_CLIP, ANIME_TIERS } from '#lib/badges.js'
+import { NOTCH_CLIP, NOTCH_S_CLIP, HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers } from '#lib/badges.js'
 import { t } from '#i18n'
 
 /**
  * Màn A2 · Chi tiết một danh hiệu · điều kiện · chuỗi hiện tại · ai đã có · ai đang đuổi.
+ * Hỗ trợ Thanh hành trình cấp độ (Level Stepper / Tier Road) cho các họ danh hiệu có nhiều mốc.
  * Thiết kế phong cách Anime với conic rays, floating hex badge, dot grid, notch clips.
  */
 export default function BadgeDetailModal({
@@ -11,24 +13,69 @@ export default function BadgeDetailModal({
   streakTimeline = [],
   owners = [],
   chasers = [],
+  db = null,
+  currentSeason = null,
+  preloadedSeasonMatches = null,
+  preloadedClubStats = null,
+  currentMember = null,
   onClose,
   onShowUnlock,
 }) {
+  // Chuỗi các mốc cấp độ (nếu là họ danh hiệu Evolving Badge)
+  const tiers = useMemo(() => {
+    return Array.isArray(badge?.tiers) && badge.tiers.length > 0 ? badge.tiers : (badge ? [badge] : [])
+  }, [badge])
+  const isFamily = tiers.length > 1 || !!badge?.isFamily
+
+  // Mặc định chọn mốc cao nhất đã mở, hoặc mốc đang chinh phục tiếp theo, hoặc mốc 0
+  const initialIdx = useMemo(() => {
+    if (!badge || !isFamily) return 0
+    if (badge.nextTarget) {
+      const idx = tiers.findIndex((tr) => tr.id === badge.nextTarget.id)
+      if (idx >= 0) return idx
+    }
+    if (badge.highestUnlocked) {
+      const idx = tiers.findIndex((tr) => tr.id === badge.highestUnlocked.id)
+      if (idx >= 0) return idx
+    }
+    return 0
+  }, [badge, isFamily, tiers])
+
+  const [selectedTierIdx, setSelectedTierIdx] = useState(initialIdx)
+  const activeTierBadge = useMemo(() => {
+    return tiers[selectedTierIdx] || tiers[0] || badge || {}
+  }, [tiers, selectedTierIdx, badge])
+
+  const meta = activeTierBadge.tierMeta || ANIME_TIERS[activeTierBadge.tier] || ANIME_TIERS.rare
+  const isHidden = activeTierBadge.tier === 'hidden' && !activeTierBadge.unlocked
+  const badgeName = t(`badges.items.${activeTierBadge.id}.name`, { defaultValue: activeTierBadge.name || '???' })
+  const badgeCond = t(`badges.items.${activeTierBadge.id}.cond`, { defaultValue: activeTierBadge.cond || '' })
+
+  const isWinStreak = activeTierBadge.checkType === 'win_streak'
+  const isHolding = isWinStreak ? Number(activeTierBadge.currentVal) > 0 : activeTierBadge.pct > 0
+
+  // Danh sách người đã có và người đang đuổi theo mốc đang chọn
+  const currentOwners = useMemo(() => {
+    if (db && activeTierBadge && activeTierBadge.id) {
+      return getBadgeOwners(activeTierBadge.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+    }
+    return owners
+  }, [db, activeTierBadge, currentSeason, preloadedSeasonMatches, preloadedClubStats, owners])
+
+  const currentChasers = useMemo(() => {
+    if (db && activeTierBadge && activeTierBadge.id) {
+      return getBadgeChasers(activeTierBadge.id, currentMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+    }
+    return chasers
+  }, [db, activeTierBadge, currentMember, currentSeason, preloadedSeasonMatches, preloadedClubStats, chasers])
+
   if (!badge) return null
-
-  const meta = badge.tierMeta || ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
-  const isHidden = badge.tier === 'hidden' && !badge.unlocked
-  const badgeName = t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '???' })
-  const badgeCond = t(`badges.items.${badge.id}.cond`, { defaultValue: badge.cond || '' })
-
-  const isWinStreak = badge.checkType === 'win_streak'
-  const isHolding = isWinStreak ? Number(badge.currentVal) > 0 : badge.pct > 0
 
   const conditions = [
     {
-      ok: badge.unlocked,
+      ok: activeTierBadge.unlocked,
       text: badgeCond,
-      val: badge.unlocked ? t('badges.detail.statusAchieved') : (badge.progressStr || `${badge.pct}%`),
+      val: activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${activeTierBadge.pct}%`),
     },
     {
       ok: true,
@@ -36,9 +83,9 @@ export default function BadgeDetailModal({
       val: t('badges.detail.statusOk'),
     },
     {
-      ok: badge.unlocked || isHolding,
+      ok: activeTierBadge.unlocked || isHolding,
       text: t('badges.detail.condNoLoss'),
-      val: badge.unlocked
+      val: activeTierBadge.unlocked
         ? t('badges.detail.statusAchieved')
         : isHolding
           ? t('badges.detail.statusHolding')
@@ -64,7 +111,7 @@ export default function BadgeDetailModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 20,
+        padding: '20px 14px',
         overflowY: 'auto',
       }}
       onClick={(e) => {
@@ -83,6 +130,8 @@ export default function BadgeDetailModal({
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(109, 20, 255, 0.25)',
+          maxHeight: '94vh',
+          overflowY: 'auto',
         }}
       >
         {/* Glow nền mờ 2 quầng radial gradient anime */}
@@ -109,7 +158,7 @@ export default function BadgeDetailModal({
         {/* 1. Header & Breadcrumb */}
         <div
           style={{
-            padding: '14px 24px',
+            padding: '14px 20px',
             borderBottom: '1px solid #2A1145',
             display: 'flex',
             alignItems: 'center',
@@ -123,7 +172,7 @@ export default function BadgeDetailModal({
             style={{
               border: 'none',
               background: 'transparent',
-              font: '600 12px/1 Oswald, sans-serif',
+              font: "600 12px/1 'Oswald', sans-serif",
               letterSpacing: '.14em',
               color: '#9C8ABE',
               cursor: 'pointer',
@@ -137,13 +186,13 @@ export default function BadgeDetailModal({
           <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#4E3F6B' }}>/</span>
           <span
             style={{
-              font: '600 12px/1 Oswald, sans-serif',
+              font: "600 12px/1 'Oswald', sans-serif",
               letterSpacing: '.14em',
               color: '#FFFFFF',
               textTransform: 'uppercase',
             }}
           >
-            {isHidden ? '???' : badgeName}
+            {isHidden ? '???' : (isFamily ? t(`badges.families.${badge.familyKey}.name`, { defaultValue: badgeName }) : badgeName)}
           </span>
           <div style={{ flex: '1 1 0%' }} />
           <button
@@ -156,20 +205,145 @@ export default function BadgeDetailModal({
               cursor: 'pointer',
               padding: '6px 12px',
               clipPath: NOTCH_S_CLIP,
-              font: '700 12px/1 Oswald, sans-serif',
+              font: "700 12px/1 'Oswald', sans-serif",
             }}
           >
             {t('badges.closeBtn')}
           </button>
         </div>
 
+        {/* 1.5. THANH HÀNH TRÌNH CẤP ĐỘ (LEVEL STEPPER / MILESTONE ROAD) */}
+        {isFamily && (
+          <div
+            style={{
+              margin: '16px 20px 0',
+              padding: '14px 16px',
+              clipPath: NOTCH_CLIP,
+              background: 'rgba(255,255,255,.03)',
+              border: '1px solid #2A1145',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              position: 'relative',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ font: "700 13px/1 'Oswald', sans-serif", letterSpacing: '.14em', color: '#FFE24B' }}>
+                  {t('badges.detail.milestoneRoadTitle')}
+                </span>
+                <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                  {t('badges.detail.milestoneRoadHint', {
+                    unlockedCount: tiers.filter((tr) => tr.unlocked).length,
+                    totalCount: tiers.length,
+                  })}
+                </span>
+              </div>
+              <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#D9A8FF' }}>
+                {t(`badges.families.${badge.familyKey}.name`)}
+              </span>
+            </div>
+
+            {/* Stepper Cards */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${tiers.length}, minmax(130px, 1fr))`,
+                gap: 10,
+                overflowX: 'auto',
+                paddingBottom: 4,
+              }}
+            >
+              {tiers.map((tr, idx) => {
+                const trMeta = tr.tierMeta || ANIME_TIERS[tr.tier] || ANIME_TIERS.rare
+                const isSelected = idx === selectedTierIdx
+                const isUnlocked = tr.unlocked
+
+                return (
+                  <button
+                    key={tr.id || idx}
+                    type="button"
+                    onClick={() => setSelectedTierIdx(idx)}
+                    style={{
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '10px 8px',
+                      borderRadius: 8,
+                      clipPath: NOTCH_S_CLIP,
+                      border: isSelected
+                        ? '1px solid #FF2E7E'
+                        : isUnlocked
+                          ? `1px solid ${trMeta.bd || '#00786F'}`
+                          : '1px dashed rgba(255,255,255,.15)',
+                      background: isSelected
+                        ? 'linear-gradient(180deg, rgba(255,46,126,.24), rgba(109,20,255,.24))'
+                        : isUnlocked
+                          ? 'rgba(0,0,0,.45)'
+                          : 'rgba(255,255,255,.02)',
+                      boxShadow: isSelected ? '0 0 16px rgba(255,46,126,.45)' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <BadgeHex
+                      tier={tr.tier}
+                      glyph={tr.glyph}
+                      size={32}
+                      dim={!isUnlocked}
+                      spin={tr.tier === 'legend' && isUnlocked}
+                    />
+                    <span style={{ font: "700 10.5px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: isSelected ? '#FFE24B' : trMeta.ink }}>
+                      {t('badges.detail.milestoneLevel', { index: idx + 1 })}
+                    </span>
+                    <span
+                      style={{
+                        font: "600 11.5px/1.2 'Be Vietnam Pro', sans-serif",
+                        color: isUnlocked ? '#FFFFFF' : '#8494AA',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        width: '100%',
+                      }}
+                    >
+                      {t(`badges.items.${tr.id}.name`, { defaultValue: tr.name || '' })}
+                    </span>
+                    <span
+                      style={{
+                        font: "600 9.5px/1 'IBM Plex Mono', monospace",
+                        color: isUnlocked ? '#5FEBD0' : tr.pct > 0 ? '#FFE24B' : '#6B5C8C',
+                        padding: '2px 6px',
+                        borderRadius: 999,
+                        background: isUnlocked
+                          ? 'rgba(95,235,208,.12)'
+                          : tr.pct > 0
+                            ? 'rgba(255,226,75,.12)'
+                            : 'rgba(255,255,255,.05)',
+                      }}
+                    >
+                      {isUnlocked
+                        ? t('badges.openedStatus')
+                        : tr.pct > 0
+                          ? `${tr.pct}%`
+                          : t('badges.lockedStatus')}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 2. Grid Nội Dung Chính: 2 Cột chuẩn Figma/Anime */}
         <div
           style={{
-            padding: '26px 24px',
+            padding: '20px',
             display: 'grid',
-            gridTemplateColumns: 'minmax(320px, 400px) minmax(0, 1fr)',
-            gap: 22,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: 20,
             position: 'relative',
             alignContent: 'start',
           }}
@@ -189,11 +363,11 @@ export default function BadgeDetailModal({
                 overflow: 'hidden',
                 clipPath: NOTCH_CLIP,
                 background: meta.panel || 'linear-gradient(160deg,#2B0617,#110208)',
-                padding: '30px 26px',
+                padding: '28px 24px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 18,
+                gap: 16,
                 height: '100%',
               }}
             >
@@ -213,19 +387,19 @@ export default function BadgeDetailModal({
 
               {/* Huy hiệu lục giác lớn 180px bồng bềnh */}
               <BadgeHex
-                tier={badge.tier}
-                glyph={badge.glyph}
+                tier={activeTierBadge.tier}
+                glyph={activeTierBadge.glyph}
                 size={180}
                 float
                 pulse
-                spin={badge.tier === 'legend'}
+                spin={activeTierBadge.tier === 'legend'}
                 dim={isHidden}
               />
 
-              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                 <span
                   style={{
-                    font: '700 30px/1 Oswald, sans-serif',
+                    font: "700 28px/1 'Oswald', sans-serif",
                     letterSpacing: '.06em',
                     textTransform: 'uppercase',
                     color: '#FFFFFF',
@@ -238,7 +412,7 @@ export default function BadgeDetailModal({
 
                 <span
                   style={{
-                    font: '700 10.5px/1 Oswald, sans-serif',
+                    font: "700 10.5px/1 'Oswald', sans-serif",
                     letterSpacing: '.2em',
                     padding: '6px 12px',
                     clipPath: NOTCH_S_CLIP,
@@ -250,11 +424,46 @@ export default function BadgeDetailModal({
                   {meta.name} · {meta.pts} {t('badges.pointsLabel')}
                 </span>
 
+                {/* Phần thưởng mốc */}
+                {activeTierBadge.reward && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <span
+                      style={{
+                        font: "700 11px/1 'Oswald', sans-serif",
+                        letterSpacing: '.06em',
+                        color: '#FFC46B',
+                        background: 'rgba(255,122,24,.15)',
+                        borderTop: '1px solid #FF7A18',
+                        padding: '4px 8px',
+                        clipPath: NOTCH_S_CLIP,
+                      }}
+                    >
+                      +{activeTierBadge.reward.xp || 0} XP
+                    </span>
+                    {Number(activeTierBadge.reward.seasonPts) > 0 && (
+                      <span
+                        style={{
+                          font: "700 11px/1 'Oswald', sans-serif",
+                          letterSpacing: '.06em',
+                          color: '#5FEBD0',
+                          background: 'rgba(46,233,192,.15)',
+                          borderTop: '1px solid #0E9F8E',
+                          padding: '4px 8px',
+                          clipPath: NOTCH_S_CLIP,
+                        }}
+                      >
+                        +{activeTierBadge.reward.seasonPts} {t('badges.seasonPointsUnit')}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <span
                   style={{
                     font: "400 13px/1.55 'Be Vietnam Pro', sans-serif",
                     textAlign: 'center',
                     color: '#C9B8E6',
+                    marginTop: 4,
                   }}
                 >
                   {badgeCond}
@@ -264,11 +473,11 @@ export default function BadgeDetailModal({
               {/* Tiến độ cá nhân của bạn */}
               <div style={{ position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', gap: 8, marginTop: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <span style={{ font: '600 10.5px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#FFC46B' }}>
+                  <span style={{ font: "600 10.5px/1 'Oswald', sans-serif", letterSpacing: '.16em', color: '#FFC46B' }}>
                     {t('badges.detail.yourProgress')}
                   </span>
-                  <span style={{ font: '700 22px/1 Oswald, sans-serif', color: '#FFE24B' }}>
-                    {badge.unlocked ? t('badges.detail.statusAchieved') : badge.progressStr || `${badge.pct}%`}
+                  <span style={{ font: "700 22px/1 'Oswald', sans-serif", color: '#FFE24B' }}>
+                    {activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : activeTierBadge.progressStr || `${activeTierBadge.pct}%`}
                   </span>
                 </div>
                 <div
@@ -281,31 +490,31 @@ export default function BadgeDetailModal({
                   <div
                     style={{
                       height: '100%',
-                      width: `${badge.pct}%`,
+                      width: `${activeTierBadge.pct}%`,
                       background: meta.edge || 'linear-gradient(90deg, #FF2E7E, #FFE24B)',
                     }}
                   />
                 </div>
                 <span style={{ font: "400 11.5px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                  {badge.unlocked
+                  {activeTierBadge.unlocked
                     ? t('badges.detail.completedDesc')
-                    : isWinStreak && Number(badge.currentVal) === 0
+                    : isWinStreak && Number(activeTierBadge.currentVal) === 0
                       ? t('badges.detail.streakResetHint')
-                      : isWinStreak && Number(badge.currentVal) > 0
+                      : isWinStreak && Number(activeTierBadge.currentVal) > 0
                         ? t('badges.detail.remainingStreakHint', {
-                            current: badge.currentVal,
-                            remain: Math.max(1, (badge.threshold || 10) - Number(badge.currentVal)),
+                            current: activeTierBadge.currentVal,
+                            remain: Math.max(1, (activeTierBadge.threshold || 10) - Number(activeTierBadge.currentVal)),
                           })
                         : t('badges.detail.remainingHint', {
-                            remain: Math.max(1, (badge.threshold || 10) - (badge.currentVal || 0)),
+                            remain: Math.max(1, (activeTierBadge.threshold || 10) - (activeTierBadge.currentVal || 0)),
                           })}
                 </span>
-                {badge.unlocked && onShowUnlock && (
+                {activeTierBadge.unlocked && onShowUnlock && (
                   <button
                     type="button"
                     onClick={() => {
                       onClose && onClose()
-                      onShowUnlock(badge)
+                      onShowUnlock(activeTierBadge)
                     }}
                     style={{
                       display: 'flex',
@@ -318,7 +527,7 @@ export default function BadgeDetailModal({
                       border: '1px solid #FFE24B',
                       clipPath: NOTCH_S_CLIP,
                       color: '#FFE24B',
-                      font: '700 12px/1 Oswald, sans-serif',
+                      font: "700 12px/1 'Oswald', sans-serif",
                       letterSpacing: '.12em',
                       cursor: 'pointer',
                       marginTop: 10,
@@ -353,7 +562,7 @@ export default function BadgeDetailModal({
                 gap: 13,
               }}
             >
-              <div style={{ font: '700 14px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFFFFF' }}>
+              <div style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
                 {t('badges.detail.conditionsTitle')}
               </div>
               {conditions.map((c, i) => (
@@ -366,7 +575,7 @@ export default function BadgeDetailModal({
                       clipPath: HEX_CLIP,
                       display: 'grid',
                       placeItems: 'center',
-                      font: '700 12px/1 Oswald, sans-serif',
+                      font: "700 12px/1 'Oswald', sans-serif",
                       background: c.ok ? 'linear-gradient(135deg,#00776B,#2EE9C0)' : '#241640',
                       color: c.ok ? '#01130F' : '#9C8ABE',
                     }}
@@ -395,7 +604,7 @@ export default function BadgeDetailModal({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                <span style={{ font: '700 14px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFFFFF' }}>
+                <span style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
                   {t('badges.detail.currentStreakTitle')}
                 </span>
                 <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
@@ -412,7 +621,7 @@ export default function BadgeDetailModal({
                       clipPath: NOTCH_S_CLIP,
                       display: 'grid',
                       placeItems: 'center',
-                      font: '700 15px/1 Oswald, sans-serif',
+                      font: "700 15px/1 'Oswald', sans-serif",
                       background: s.won
                         ? 'linear-gradient(165deg,#FF2E7E,#7A0A2E)'
                         : 'rgba(255,255,255,.05)',
@@ -426,7 +635,7 @@ export default function BadgeDetailModal({
             </div>
 
             {/* 3. Split: Ai đã có & Ai đang đuổi */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
               {/* Ai đã có */}
               <div
                 style={{
@@ -438,15 +647,15 @@ export default function BadgeDetailModal({
                   gap: 12,
                 }}
               >
-                <div style={{ font: '700 14px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFFFFF' }}>
-                  {t('badges.detail.ownersTitle', { count: owners.length })}
+                <div style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
+                  {t('badges.detail.ownersTitle', { count: currentOwners.length })}
                 </div>
-                {owners.length === 0 ? (
+                {currentOwners.length === 0 ? (
                   <span style={{ font: "400 12px/1.4 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
                     {t('badges.detail.noOwners')}
                   </span>
                 ) : (
-                  owners.map((o) => {
+                  currentOwners.map((o) => {
                     const noteText = o.checkType === 'win_streak'
                       ? t('badges.detail.ownersStreakNote', { streak: o.streak, season: t('badges.seasonLabel') })
                       : t('badges.detail.ownersCondNote', { val: o.streak || o.threshold || 1 })
@@ -462,7 +671,7 @@ export default function BadgeDetailModal({
                             background: 'linear-gradient(135deg,#FF2E7E,#6D14FF)',
                             display: 'grid',
                             placeItems: 'center',
-                            font: '700 14px/1 Oswald, sans-serif',
+                            font: "700 14px/1 'Oswald', sans-serif",
                             color: '#FFFBEA',
                             overflow: 'hidden',
                           }}
@@ -501,15 +710,15 @@ export default function BadgeDetailModal({
                   gap: 12,
                 }}
               >
-                <div style={{ font: '700 14px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFFFFF' }}>
+                <div style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
                   {t('badges.detail.chasersTitle')}
                 </div>
-                {chasers.length === 0 ? (
+                {currentChasers.length === 0 ? (
                   <span style={{ font: "400 12px/1.4 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
                     {t('badges.detail.noChasers')}
                   </span>
                 ) : (
-                  chasers.map((c) => (
+                  currentChasers.map((c) => (
                     <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ width: 20, flex: '0 0 auto', font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
                         {c.rank}

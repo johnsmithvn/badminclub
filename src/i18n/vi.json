@@ -3430,6 +3430,7 @@
     "openedStatus": "✓ Đã mở",
     "lockedStatus": "Chưa mở",
     "pointsLabel": "ĐIỂM",
+    "seasonPointsUnit": "Điểm mùa",
     "collectionSummary": "{{opened}} / {{total}} đã mở · {{chasing}} đang gần đạt",
     "wantedTag": "TRUY NÃ",
     "bountyActive": "ĐANG BỊ TREO THƯỞNG",
@@ -3515,7 +3516,67 @@
       "unitMatch": "trận",
       "ownersStreakNote": "chuỗi {{streak}} trận · {{season}}",
       "ownersCondNote": "đạt mốc {{val}}",
-      "viewUnlockFanfare": "XEM HIỆU ỨNG MỞ KHÓA"
+      "viewUnlockFanfare": "XEM HIỆU ỨNG MỞ KHÓA",
+      "milestoneRoadTitle": "HÀNH TRÌNH CẤP ĐỘ",
+      "milestoneRoadHint": "{{unlockedCount}} / {{totalCount}} cấp đã mở",
+      "milestoneLevel": "CẤP {{index}}",
+      "milestoneUnlockedAt": "Mở ngày {{date}}",
+      "milestoneInProgress": "Tiến độ {{prog}}",
+      "milestoneLocked": "Chưa mở khóa",
+      "milestoneReward": "+{{xp}} XP · +{{seasonPts}} Điểm mùa",
+      "tierLevel": "CẤP {{current}}/{{total}}",
+      "maxTierAchieved": "ĐÃ MỞ TỐI ĐA",
+      "nextTierGoal": "TIẾP THEO: {{name}}"
+    },
+    "tierLevel": "CẤP {{current}}/{{total}}",
+    "tierBadgeTag": "BẬC {{current}}/{{total}}",
+    "nextTierLabel": "Tiếp: {{target}}",
+    "maxTierAchieved": "Đã mở hết {{total}} cấp",
+    "families": {
+      "bat_bai": {
+        "name": "Bất Bại",
+        "desc": "Chuỗi trận thắng liên tiếp trong mùa"
+      },
+      "sat_thu": {
+        "name": "Sát Thủ",
+        "desc": "Tổng số trận thắng tích lũy trong mùa"
+      },
+      "tho_san_keo": {
+        "name": "Thợ Săn Kèo",
+        "desc": "Thắng trận khi có chênh lệch Elo cửa dưới"
+      },
+      "de_bep": {
+        "name": "Đè Bẹp",
+        "desc": "Áp đảo đối thủ với tỷ số cách biệt lớn"
+      },
+      "doi_an_y": {
+        "name": "Cặp Đôi Ăn Ý",
+        "desc": "Chuỗi trận thắng liên tiếp khi đánh cặp cùng một đồng đội"
+      },
+      "ben_suc": {
+        "name": "Bền Sức",
+        "desc": "Số trận thắng set 3 nghẹt thở trong mùa"
+      },
+      "ke_di_san": {
+        "name": "Kẻ Đi Săn",
+        "desc": "Đánh bại các đối thủ có xếp hạng Elo cao hơn"
+      },
+      "trang_buoi": {
+        "name": "Trắng Buổi",
+        "desc": "Toàn thắng tất cả các trận trong một buổi sinh hoạt"
+      },
+      "chuyen_can": {
+        "name": "Chuyên Cần",
+        "desc": "Số buổi sinh hoạt tham gia cùng CLB"
+      },
+      "cong_than": {
+        "name": "Công Thần",
+        "desc": "Thời gian gắn bó liên tục cùng CLB"
+      },
+      "dai_su": {
+        "name": "Đại Sứ",
+        "desc": "Giới thiệu người chơi mới đến giao lưu cùng CLB"
+      }
     },
     "unlockModal": {
       "title": "MỞ KHÓA DANH HIỆU",

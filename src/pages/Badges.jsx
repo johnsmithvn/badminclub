@@ -22,6 +22,8 @@ import {
   getCollectorLeaderboard,
   getRarestBadges,
   getClubAchievementFeed,
+  groupBadgesByFamily,
+  getBadgeFamily,
   ANIME_TIERS,
   NOTCH_CLIP,
   NOTCH_S_CLIP,
@@ -77,8 +79,10 @@ export default function Badges() {
     return currentMember || (db?.members || [])[0] || null
   }, [viewingMemberId, currentMember, db?.members])
 
+  const activeMemberId = activeMember?.id
+
   // Đang xem hồ sơ của chính mình hay của người khác
-  const isViewingSelf = !!activeMember?.id && activeMember.id === currentMember?.id
+  const isViewingSelf = !!activeMemberId && activeMemberId === currentMember?.id
 
   // Đồng bộ tab và cuộn/highlight danh hiệu khi được điều hướng từ modal mở khóa hoặc link ngoài
   useEffect(() => {
@@ -89,7 +93,8 @@ export default function Badges() {
     // Chỉ nhận tab có thật. `?tab=abc` từ link hỏng mà gán thẳng vào state thì không tab nào
     // render và người dùng nhìn thấy trang trắng không hiểu vì sao.
     if (tabParam && TAB_IDS.includes(tabParam)) {
-      setActiveTab(tabParam)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab((prev) => (prev !== tabParam ? tabParam : prev))
     }
 
     if (tabParam === 'collection' || location.state?.memberId !== undefined) {
@@ -124,11 +129,11 @@ export default function Badges() {
   // Giá trị rỗng phải cùng hình dạng với `calculateMemberXp` trả về, nếu không JSX đọc
   // `memberXpData.totalXp` sẽ ra undefined ngay lần render đầu khi chưa chọn thành viên.
   const memberXpData = useMemo(() => {
-    if (!activeMember?.id) {
+    if (!activeMemberId) {
       return { totalXp: 0, level: 1, currentLevelBaseXp: 0, nextLevelXp: 0, levelProgressPct: 0 }
     }
-    return calculateMemberXp(activeMember.id, db)
-  }, [activeMember?.id, db])
+    return calculateMemberXp(activeMemberId, db)
+  }, [activeMemberId, db])
 
   // 2. Mùa giải hiện tại.
   // Dùng `resolveSeason` thay vì tự đọc `db.seasons`: dbmap KHÔNG sinh ra key đó, nên bản cũ
@@ -151,12 +156,12 @@ export default function Badges() {
   }, [db, currentSeason])
 
   const memberSeasonData = useMemo(() => {
-    const found = seasonRows.find((r) => r.id === activeMember?.id)
+    const found = seasonRows.find((r) => r.id === activeMemberId)
     return {
       seasonPoints: found?.totalSeasonPoints ?? found?.seasonPoints ?? 0,
       rank: found?.rank ?? '—',
     }
-  }, [seasonRows, activeMember?.id])
+  }, [seasonRows, activeMemberId])
 
   // 4. Bảng xếp hạng Collector THẬT
   const collectors = useMemo(() => {
@@ -164,15 +169,15 @@ export default function Badges() {
   }, [db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   const memberCollectorRank = useMemo(() => {
-    const idx = collectors.findIndex((c) => c.id === activeMember?.id)
+    const idx = collectors.findIndex((c) => c.id === activeMemberId)
     return idx >= 0 ? idx + 1 : '—'
-  }, [collectors, activeMember?.id])
+  }, [collectors, activeMemberId])
 
   // 5. Tính toán toàn bộ danh hiệu của thành viên đang xem
   const memberBadges = useMemo(() => {
-    if (!activeMember?.id) return { all: [], unlocked: [], inProgress: [] }
-    return calculateMemberBadges(activeMember.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
-  }, [activeMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
+    if (!activeMemberId) return { all: [], unlocked: [], inProgress: [] }
+    return calculateMemberBadges(activeMemberId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [activeMemberId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   // 6. Danh sách các Bounty đang mở từ DB THẬT
   const bounties = useMemo(() => {
@@ -184,16 +189,44 @@ export default function Badges() {
     return getRarestBadges(db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
   }, [db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
-  // 8. 4 nhóm danh hiệu
+  // 8. 4 nhóm danh hiệu (Gộp theo họ Evolving Badges)
   const catalogGroups = useMemo(() => {
     const groups = badgesConfig.groups || []
     const all = memberBadges.all || []
 
-    return groups.map((g) => ({
-      ...g,
-      badges: all.filter((b) => b.groupId === g.id || b.group === g.id),
-    }))
+    return groups.map((g) => {
+      const groupAll = all.filter((b) => b.groupId === g.id || b.group === g.id)
+      return {
+        ...g,
+        rawBadges: groupAll,
+        badges: groupBadgesByFamily(groupAll),
+      }
+    })
   }, [memberBadges.all])
+
+  // Xử lý mở modal chi tiết cho danh hiệu / họ danh hiệu
+  const handleSelectBadge = (b) => {
+    if (!b) {
+      setSelectedBadge(null)
+      return
+    }
+    if (b.isFamily && b.tiers) {
+      setSelectedBadge(b)
+      return
+    }
+    const fInfo = getBadgeFamily(b.id)
+    if (fInfo) {
+      const familyBadges = (memberBadges.all || []).filter((item) => (fInfo.badgeIds || []).includes(item.id))
+      if (familyBadges.length > 0) {
+        const grouped = groupBadgesByFamily(familyBadges)
+        if (grouped.length > 0) {
+          setSelectedBadge(grouped[0])
+          return
+        }
+      }
+    }
+    setSelectedBadge(b)
+  }
 
   // Thống kê số lượng danh hiệu chính thức (không tính tự phong)
   const officialUnlockedCount =
@@ -235,21 +268,24 @@ export default function Badges() {
     return getClubAchievementFeed(db)
   }, [db])
 
+  const selectedBadgeId = selectedBadge?.id
+  const currentMemberId = currentMember?.id
+
   // Dữ liệu cho Modal A2 Chi tiết danh hiệu (tối ưu tránh tính toán lại trong render)
   const selectedBadgeOwners = useMemo(() => {
-    if (!selectedBadge?.id || !db) return []
-    return getBadgeOwners(selectedBadge.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
-  }, [selectedBadge?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
+    if (!selectedBadgeId || !db) return []
+    return getBadgeOwners(selectedBadgeId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [selectedBadgeId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   const selectedBadgeChasers = useMemo(() => {
-    if (!selectedBadge?.id || !db) return []
-    return getBadgeChasers(selectedBadge.id, currentMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
-  }, [selectedBadge?.id, currentMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
+    if (!selectedBadgeId || !db) return []
+    return getBadgeChasers(selectedBadgeId, currentMemberId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [selectedBadgeId, currentMemberId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   const streakTimeline = useMemo(() => {
-    if (!selectedBadge || !currentMember?.id || !db) return []
-    return getStreakTimeline(currentMember.id, db, 10)
-  }, [selectedBadge, currentMember?.id, db])
+    if (!selectedBadgeId || !currentMemberId || !db) return []
+    return getStreakTimeline(currentMemberId, db, 10)
+  }, [selectedBadgeId, currentMemberId, db])
 
   // Danh sách tabs phong cách Anime
   const TAB_LABEL_KEYS = {
@@ -863,7 +899,7 @@ export default function Badges() {
                         key={badge.id}
                         badge={badge}
                         isHighlighted={highlightedBadgeId === badge.id}
-                        onClick={(b) => setSelectedBadge(b)}
+                        onClick={(b) => handleSelectBadge(b)}
                       />
                     ))}
                   </div>
@@ -887,7 +923,7 @@ export default function Badges() {
               navigate('/chia-san')
             }
           }}
-          onViewBadge={(b) => setSelectedBadge(b)}
+          onViewBadge={(b) => handleSelectBadge(b)}
         />
       )}
 
@@ -904,7 +940,7 @@ export default function Badges() {
               setActiveTab('collection')
             }
           }}
-          onViewBadge={(b) => setSelectedBadge(b)}
+          onViewBadge={(b) => handleSelectBadge(b)}
         />
       )}
 
@@ -920,6 +956,11 @@ export default function Badges() {
           streakTimeline={streakTimeline}
           owners={selectedBadgeOwners}
           chasers={selectedBadgeChasers}
+          db={db}
+          currentSeason={currentSeason}
+          preloadedSeasonMatches={preloadedSeasonMatches}
+          preloadedClubStats={preloadedClubStats}
+          currentMember={currentMember}
           onClose={() => setSelectedBadge(null)}
           onShowUnlock={(b) => setUnlockingBadge(b)}
         />

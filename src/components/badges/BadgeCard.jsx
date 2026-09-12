@@ -8,8 +8,30 @@ import { t } from '#i18n'
 export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
   const meta = badge.tierMeta || {}
   const isHidden = badge.tier === 'hidden' && !badge.unlocked
-  const badgeName = t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '???' })
-  const badgeCond = t(`badges.items.${badge.id}.cond`, { defaultValue: badge.cond || '' })
+
+  // Xử lý hiển thị họ danh hiệu (Family Evolving Badge) vs Danh hiệu đơn lẻ
+  const isFamily = !!badge.isFamily
+  const displayName = isFamily
+    ? t(`badges.families.${badge.familyKey}.name`, { defaultValue: badge.name || '???' })
+    : t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '???' })
+
+  let displayCond = ''
+  if (isFamily) {
+    if (badge.isAllUnlocked) {
+      displayCond = t('badges.maxTierAchieved', { total: badge.totalTiers })
+    } else if (badge.nextTarget) {
+      const nextCond = t(`badges.items.${badge.nextTarget.id}.cond`, { defaultValue: badge.nextTarget.cond || '' })
+      displayCond = t('badges.nextTierLabel', { target: nextCond })
+    } else {
+      displayCond = t(`badges.items.${badge.tiers[0]?.id}.cond`, { defaultValue: badge.tiers[0]?.cond || '' })
+    }
+  } else {
+    displayCond = t(`badges.items.${badge.id}.cond`, { defaultValue: badge.cond || '' })
+  }
+
+  // Mốc tiến độ đang theo đuổi
+  const targetForProgress = isFamily ? badge.nextTarget : badge
+  const hasProgress = targetForProgress && targetForProgress.pct > 0 && !isHidden
 
   return (
     <div
@@ -62,13 +84,15 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
         }}
       >
         {/* 1. Huy hiệu lục giác */}
-        <BadgeHex
-          tier={badge.tier}
-          glyph={badge.glyph}
-          size={76}
-          dim={isHidden}
-          spin={badge.tier === 'legend'}
-        />
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <BadgeHex
+            tier={badge.tier}
+            glyph={badge.glyph}
+            size={76}
+            dim={isHidden}
+            spin={badge.tier === 'legend'}
+          />
+        </div>
 
         {/* 2. Tên danh hiệu */}
         <span
@@ -78,27 +102,50 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
             color: isHidden ? '#9C8ABE' : '#FFFFFF',
           }}
         >
-          {isHidden ? '???' : badgeName}
+          {isHidden ? '???' : displayName}
         </span>
 
-        {/* 3. Chip phân bậc */}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            font: '600 9.5px/1 Oswald, sans-serif',
-            letterSpacing: '.14em',
-            padding: '4px 8px',
-            clipPath: NOTCH_S_CLIP,
-            background: meta.chipBg || 'rgba(255,255,255,.08)',
-            color: meta.ink || '#FFFFFF',
-            borderTop: `1px solid ${meta.bd || 'transparent'}`,
-          }}
-        >
-          {meta.name}
-        </span>
+        {/* 3. Chip phân bậc + Chỉ báo cấp độ chuỗi */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              font: '600 9.5px/1 Oswald, sans-serif',
+              letterSpacing: '.14em',
+              padding: '4px 8px',
+              clipPath: NOTCH_S_CLIP,
+              background: meta.chipBg || 'rgba(255,255,255,.08)',
+              color: meta.ink || '#FFFFFF',
+              borderTop: `1px solid ${meta.bd || 'transparent'}`,
+            }}
+          >
+            {isFamily
+              ? `${t('badges.tierLevel', { current: badge.unlockedTiersCount || 1, total: badge.totalTiers })} · ${meta.name}`
+              : meta.name}
+          </span>
 
-        {/* 4. Điều kiện mở khóa / Gợi ý */}
+          {/* Dấu chấm tiến trình các mốc trong họ */}
+          {isFamily && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              {badge.tiers.map((tr, idx) => (
+                <span
+                  key={tr.id || idx}
+                  title={tr.name}
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: 999,
+                    background: tr.unlocked ? (meta.ink || '#5FEBD0') : 'rgba(255,255,255,.16)',
+                    boxShadow: tr.unlocked ? `0 0 6px ${meta.ink || '#5FEBD0'}` : 'none',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 4. Điều kiện mở khóa / Gợi ý mốc tiếp theo */}
         <span
           style={{
             font: "400 11px/1.4 'Be Vietnam Pro', sans-serif",
@@ -110,13 +157,61 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
             overflow: 'hidden',
           }}
         >
-          {badgeCond}
+          {displayCond}
         </span>
 
         <div style={{ flex: '1 1 auto' }} />
 
-        {/* 5. Tiến độ (nếu chưa mở) hoặc Dấu tích đã mở */}
-        {badge.unlocked ? (
+        {/* 5. Tiến độ / Trạng thái đã mở */}
+        {isFamily ? (
+          badge.isAllUnlocked ? (
+            <span
+              style={{
+                font: "600 11px/1 'IBM Plex Mono', monospace",
+                color: '#5FEBD0',
+                paddingTop: 4,
+              }}
+            >
+              ✓ {t('badges.maxTierAchieved', { total: badge.totalTiers })}
+            </span>
+          ) : hasProgress ? (
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center' }}>
+              <span style={{ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: meta.ink || '#FFFFFF' }}>
+                {targetForProgress.progressStr}
+              </span>
+              <div
+                style={{
+                  width: '100%',
+                  height: 5,
+                  clipPath: NOTCH_S_CLIP,
+                  background: 'rgba(255,255,255,.08)',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${targetForProgress.pct}%`,
+                    background: meta.edge || 'linear-gradient(90deg, #0B63FF, #2EE9FF)',
+                  }}
+                />
+              </div>
+            </div>
+          ) : badge.unlocked ? (
+            <span
+              style={{
+                font: "600 11px/1 'IBM Plex Mono', monospace",
+                color: '#5FEBD0',
+                paddingTop: 4,
+              }}
+            >
+              ✓ {t('badges.openedStatus')} ({badge.unlockedTiersCount}/{badge.totalTiers})
+            </span>
+          ) : (
+            <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#6B5C8C' }}>
+              {t('badges.lockedStatus')}
+            </span>
+          )
+        ) : badge.unlocked ? (
           <span
             style={{
               font: "600 11px/1 'IBM Plex Mono', monospace",
@@ -126,7 +221,7 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
           >
             {t('badges.openedStatus')}
           </span>
-        ) : badge.pct > 0 && !isHidden ? (
+        ) : hasProgress ? (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center' }}>
             <span style={{ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: meta.ink || '#FFFFFF' }}>
               {badge.progressStr}

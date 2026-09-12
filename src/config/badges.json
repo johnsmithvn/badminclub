@@ -98,6 +98,74 @@
       "tone": "hidden"
     }
   ],
+  "families": {
+    "bat_bai": {
+      "key": "bat_bai",
+      "groupId": 0,
+      "glyph": "flame",
+      "badgeIds": ["bat_bai_3", "bat_bai_v", "bat_bai_x", "bat_bai_15"]
+    },
+    "sat_thu": {
+      "key": "sat_thu",
+      "groupId": 0,
+      "glyph": "fang",
+      "badgeIds": ["sat_thu_10", "sat_thu_25", "sat_thu_50", "sat_thu_100"]
+    },
+    "tho_san_keo": {
+      "key": "tho_san_keo",
+      "groupId": 0,
+      "glyph": "shuriken",
+      "badgeIds": ["tho_san_keo_50", "tho_san_keo_100", "tho_san_keo_150", "tho_san_keo_200"]
+    },
+    "de_bep": {
+      "key": "de_bep",
+      "groupId": 0,
+      "glyph": "thunder",
+      "badgeIds": ["de_bep_15", "de_bep_10", "de_bep_5", "de_bep_3"]
+    },
+    "doi_an_y": {
+      "key": "doi_an_y",
+      "groupId": 0,
+      "glyph": "wing",
+      "badgeIds": ["doi_an_y_5", "doi_an_y_10", "doi_an_y_20", "doi_an_y_35"]
+    },
+    "ben_suc": {
+      "key": "ben_suc",
+      "groupId": 0,
+      "glyph": "crystal",
+      "badgeIds": ["ben_suc_5", "ben_suc_15", "ben_suc_30", "ben_suc_50"]
+    },
+    "ke_di_san": {
+      "key": "ke_di_san",
+      "groupId": 0,
+      "glyph": "crosshair",
+      "badgeIds": ["ke_di_san_3", "ke_di_san_8", "ke_di_san_15", "ke_di_san_25"]
+    },
+    "trang_buoi": {
+      "key": "trang_buoi",
+      "groupId": 0,
+      "glyph": "sparkle",
+      "badgeIds": ["trang_buoi_1", "trang_buoi_3", "trang_buoi_6", "trang_buoi_10"]
+    },
+    "chuyen_can": {
+      "key": "chuyen_can",
+      "groupId": 1,
+      "glyph": "crystal",
+      "badgeIds": ["chuyen_can_50", "chuyen_can_100"]
+    },
+    "cong_than": {
+      "key": "cong_than",
+      "groupId": 1,
+      "glyph": "ring",
+      "badgeIds": ["cong_than_1", "cong_than_2"]
+    },
+    "dai_su": {
+      "key": "dai_su",
+      "groupId": 1,
+      "glyph": "star",
+      "badgeIds": ["dai_su_5", "dai_su_10"]
+    }
+  },
   "catalog": [
     {
       "id": "bat_bai_v",
