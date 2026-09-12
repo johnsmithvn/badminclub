@@ -45,6 +45,11 @@
   50% { opacity: 1; }
 }
 
+@keyframes medalGlow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
 :root {
   --anime-font-display: 'Oswald', sans-serif;
   --anime-font-ui: 'Be Vietnam Pro', sans-serif;

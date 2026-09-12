@@ -1,3 +1,4 @@
+import { Avatar } from '#ds'
 import BadgeHex from './BadgeHex.jsx'
 import { NOTCH_CLIP, NOTCH_S_CLIP } from '#lib/badges.js'
 import { t } from '#i18n'
@@ -115,15 +116,49 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
             flexWrap: 'wrap',
           }}
         >
-          {/* Cụm avatar huy hiệu truy nã lớn bên trái */}
+          {/* Cụm avatar người bị truy nã bên trái */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9 }}>
-            <BadgeHex
-              tier="legend"
-              glyph="flame"
-              size={104}
-              spin
-              pulse
-            />
+            <div style={{ position: 'relative', width: 104, height: 104 }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: '-26%',
+                  background: 'radial-gradient(50% 50% at 50% 50%, rgba(255,46,126,.65), transparent 72%)',
+                  animation: 'aPulse 2.8s ease-in-out infinite',
+                  pointerEvents: 'none',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  clipPath: 'polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)',
+                  background: 'conic-gradient(from 200deg, #FF2E7E, #FF7A18, #FFE24B, #FFFFFF, #FF7A18, #FF2E7E)',
+                  animation: 'aSpin 7s linear infinite',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 3,
+                  clipPath: 'polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)',
+                  background: 'radial-gradient(120% 120% at 50% 8%, #4A0718, #140109 72%)',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 6,
+                  clipPath: 'polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  overflow: 'hidden',
+                  background: '#1A0B2E',
+                }}
+              >
+                <Avatar name={bounty.name} src={bounty.avatarUrl} size={92} />
+              </div>
+            </div>
             <span
               style={{
                 font: '700 11px/1 Oswald, sans-serif',

@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 const Ctx = createContext(null)
 
 export const THEME_KEY = 'badminclub.theme'
+export const THEME_MODE_KEY = 'badminclub.themeMode'
 
 function getInitialTheme() {
   if (typeof window === 'undefined') return 'light'
@@ -22,8 +23,20 @@ function getInitialTheme() {
   return 'light'
 }
 
+function getInitialThemeMode() {
+  if (typeof window === 'undefined') return 'simple'
+  try {
+    const saved = localStorage.getItem(THEME_MODE_KEY)
+    if (saved === 'glamorous' || saved === 'simple') return saved
+  } catch {
+    // Bỏ qua lỗi truy cập storage
+  }
+  return 'simple'
+}
+
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(getInitialTheme)
+  const [themeMode, setThemeModeState] = useState(getInitialThemeMode)
 
   // Đồng bộ theme với thẻ <html>, <body> và localStorage
   useEffect(() => {
@@ -40,12 +53,26 @@ export function ThemeProvider({ children }) {
     }
   }, [theme])
 
+  // Đồng bộ themeMode với thẻ <html> và localStorage
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.documentElement.setAttribute('data-theme-mode', themeMode)
+    try {
+      localStorage.setItem(THEME_MODE_KEY, themeMode)
+    } catch {
+      // Bỏ qua lỗi ghi storage
+    }
+  }, [themeMode])
+
   // Lắng nghe thay đổi từ các tab trình duyệt khác
   useEffect(() => {
     if (typeof window === 'undefined') return
     const onStorage = (e) => {
       if (e.key === THEME_KEY && (e.newValue === 'dark' || e.newValue === 'light')) {
         setThemeState(e.newValue)
+      }
+      if (e.key === THEME_MODE_KEY && (e.newValue === 'glamorous' || e.newValue === 'simple')) {
+        setThemeModeState(e.newValue)
       }
     }
     window.addEventListener('storage', onStorage)
@@ -62,12 +89,26 @@ export function ThemeProvider({ children }) {
     }
   }, [])
 
+  const setThemeMode = useCallback((next) => {
+    if (next === 'glamorous' || next === 'simple') {
+      setThemeModeState(next)
+    }
+  }, [])
+
+  const toggleThemeMode = useCallback(() => {
+    setThemeModeState((prev) => (prev === 'glamorous' ? 'simple' : 'glamorous'))
+  }, [])
+
   const value = useMemo(() => ({
     theme,
     isDark: theme === 'dark',
     toggleTheme,
     setTheme,
-  }), [theme, toggleTheme, setTheme])
+    themeMode,
+    isGlamorous: themeMode === 'glamorous',
+    setThemeMode,
+    toggleThemeMode,
+  }), [theme, toggleTheme, setTheme, themeMode, setThemeMode, toggleThemeMode])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -80,6 +121,10 @@ export function useTheme() {
       isDark: false,
       toggleTheme: () => {},
       setTheme: () => {},
+      themeMode: 'simple',
+      isGlamorous: false,
+      setThemeMode: () => {},
+      toggleThemeMode: () => {},
     }
   }
   return ctx

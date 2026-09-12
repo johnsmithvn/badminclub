@@ -304,6 +304,7 @@ export function getActiveBounties(db) {
         type: 'single',
         targetId: m.id,
         name: m.name,
+        avatarUrl: m.avatar_url || m.avatarUrl || '',
         meta: `${streak} wins streak`,
         streak,
         hot,
@@ -344,6 +345,7 @@ export function getActiveBounties(db) {
           type: 'pair',
           targetIds: [m1, m2],
           name: `${mem1.name} & ${mem2.name}`,
+          avatarUrl: mem1.avatar_url || mem1.avatarUrl || '',
           meta: `${winRate}% win rate`,
           streak,
           hot,
@@ -357,6 +359,39 @@ export function getActiveBounties(db) {
       }
     }
   })
+
+  // Fallback: nếu chưa ai đạt mốc chuỗi 5 (hoặc cặp 4), lấy người đang có chuỗi thắng dài nhất CLB hiện tại (>= 2)
+  if (bounties.length === 0 && members.length > 0) {
+    let topPlayer = null
+    let maxS = 0
+    members.forEach((m) => {
+      const { streak } = getMemberStreak(m.id, db)
+      if (streak > maxS) {
+        maxS = streak
+        topPlayer = m
+      }
+    })
+    if (topPlayer && maxS >= 2) {
+      const hot = maxS >= 4
+      const rew = hot ? rewHot : rewNorm
+      bounties.push({
+        id: `single_${topPlayer.id}`,
+        type: 'single',
+        targetId: topPlayer.id,
+        name: topPlayer.name,
+        avatarUrl: topPlayer.avatar_url || topPlayer.avatarUrl || '',
+        meta: `${maxS} wins streak`,
+        streak: maxS,
+        hot,
+        tier: hot ? 'legend' : 'epic',
+        glyph: hot ? 'flame' : 'thunder',
+        xp: rew.xp,
+        sp: rew.seasonPts,
+        tries: maxS,
+        pct: `${maxS} / 10`,
+      })
+    }
+  }
 
   // Sắp xếp theo streak giảm dần, hot lên đầu
   return bounties.sort((a, b) => b.streak - a.streak)
