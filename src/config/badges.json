@@ -149,6 +149,7 @@
     },
     {
       "id": "trum_giai",
+      "enabled": false,
       "groupId": 0,
       "tier": "legend",
       "glyph": "horn",

@@ -27,7 +27,7 @@ import {
   NOTCH_S_CLIP,
 } from '#lib/badges.js'
 import { calculateMemberXp } from '#lib/xp.js'
-import { getSeasonRankLeaderboard, seasonMatchesOf } from '#lib/season.js'
+import { getSeasonRankLeaderboard, seasonMatchesOf, resolveSeason } from '#lib/season.js'
 import { myMember } from '#lib/money.js'
 import badgesConfig from '#config/badges.json'
 
@@ -42,7 +42,7 @@ import badgesConfig from '#config/badges.json'
  * - Bảng tin Thành tích & Tương tác CLB (Feed)
  */
 export default function Badges() {
-  const { db, activeSessionId, me } = useApp()
+  const { db, a, me } = useApp()
   const navigate = useNavigate()
 
   // Tab đang kích hoạt: collection | bounty | leaderboard | feed
@@ -51,32 +51,42 @@ export default function Badges() {
   // Quản lý Modal
   const [selectedBadge, setSelectedBadge] = useState(null)
   const [showShelfModal, setShowShelfModal] = useState(false)
-  const [unlockedForModal, setUnlockedForModal] = useState(null)
+  const [unlockingBadge, setUnlockingBadge] = useState(null)
   const [showRulesModal, setShowRulesModal] = useState(false)
+
+  // Sửa châm ngôn cá nhân
+  const [isEditingSignature, setIsEditingSignature] = useState(false)
+  const [signatureDraft, setSignatureDraft] = useState('')
 
   // Thành viên người dùng hiện tại (đăng nhập)
   const currentMember = useMemo(() => myMember(db, me), [db, me])
 
   // Thành viên đang được xem hồ sơ danh hiệu (mặc định là người dùng hiện tại, hoặc người đầu tiên)
-  const [activeMemberId, setActiveMemberId] = useState(null)
+  const [viewingMemberId, setViewingMemberId] = useState(null)
   const activeMember = useMemo(() => {
-    if (activeMemberId) {
-      return (db?.members || []).find((m) => m.id === activeMemberId) || currentMember
+    if (viewingMemberId) {
+      return (db?.members || []).find((m) => m.id === viewingMemberId) || currentMember
     }
     return currentMember || (db?.members || [])[0] || null
-  }, [activeMemberId, currentMember, db?.members])
+  }, [viewingMemberId, currentMember, db?.members])
 
-  // 1. Cấp độ & XP của thành viên đang xem
-  const memberXp = useMemo(() => {
-    if (!activeMember?.id) return { xp: 0, level: 1, currentLevel: 1, progressPct: 0 }
+  // Đang xem hồ sơ của chính mình hay của người khác
+  const isViewingSelf = !!activeMember?.id && activeMember.id === currentMember?.id
+
+  // 1. Cấp độ & XP của thành viên đang xem.
+  // Giá trị rỗng phải cùng hình dạng với `calculateMemberXp` trả về, nếu không JSX đọc
+  // `memberXpData.totalXp` sẽ ra undefined ngay lần render đầu khi chưa chọn thành viên.
+  const memberXpData = useMemo(() => {
+    if (!activeMember?.id) {
+      return { totalXp: 0, level: 1, currentLevelBaseXp: 0, nextLevelXp: 0, levelProgressPct: 0 }
+    }
     return calculateMemberXp(activeMember.id, db)
   }, [activeMember?.id, db])
 
-  // 2. Mùa giải hiện tại
-  const currentSeason = useMemo(() => {
-    const seasons = db?.seasons || []
-    return seasons.find((s) => s.active) || seasons[0] || {}
-  }, [db?.seasons])
+  // 2. Mùa giải hiện tại.
+  // Dùng `resolveSeason` thay vì tự đọc `db.seasons`: dbmap KHÔNG sinh ra key đó, nên bản cũ
+  // luôn trả `{}` và mọi hàm phía dưới phải tự fallback. Một nguồn sự thật, giống season.js.
+  const currentSeason = useMemo(() => resolveSeason(db), [db])
 
   // Trận đấu thuộc mùa giải đang xét
   const preloadedSeasonMatches = useMemo(() => {

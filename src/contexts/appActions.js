@@ -2392,18 +2392,26 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         let brokenStreak = 0
         const minBountyStreak = Number(cfgBadges?.bounty?.minStreakSingle || 5)
         if (isRated && (winnerTeam === 'A' || winnerTeam === 'B')) {
-          const losingPlayers = winnerTeam === 'A' ? (teamB || []) : (teamA || [])
-          const currentSeasonMatches = seasonMatchesOf(d)
-          let maxLosingStreak = 0
-          for (const pid of losingPlayers) {
-            const { streak } = getMemberStreak(pid, d, null, currentSeasonMatches)
-            if (streak > maxLosingStreak) {
-              maxLosingStreak = streak
+          // Danh hiệu là phần TRANG TRÍ của việc lưu trận. Nếu nó ném lỗi thì chỉ được mất
+          // cái cờ bounty, tuyệt đối không được kéo đổ cả thao tác lưu tỷ số.
+          try {
+            const losingPlayers = winnerTeam === 'A' ? (teamB || []) : (teamA || [])
+            const currentSeasonMatches = seasonMatchesOf(d)
+            let maxLosingStreak = 0
+            for (const pid of losingPlayers) {
+              const { streak } = getMemberStreak(pid, d, null, currentSeasonMatches)
+              if (streak > maxLosingStreak) {
+                maxLosingStreak = streak
+              }
             }
-          }
-          if (maxLosingStreak >= minBountyStreak) {
-            bountyBroken = true
-            brokenStreak = maxLosingStreak
+            if (maxLosingStreak >= minBountyStreak) {
+              bountyBroken = true
+              brokenStreak = maxLosingStreak
+            }
+          } catch (err) {
+            console.warn('[badges] bỏ qua tính bounty cho trận này:', err)
+            bountyBroken = false
+            brokenStreak = 0
           }
         }
 

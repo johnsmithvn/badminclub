@@ -1,3 +1,10 @@
 node_modules
 dist
 .env.local
+
+# File nháp khi dựng màn hình (trích HTML từ handoff, script phân tích).
+# Các file scratch cũ đã lỡ vào git — muốn gỡ khỏi repo mà vẫn giữ trên đĩa:
+#   git rm -r --cached scratch scratch_*.html scratch_*.js
+scratch/
+scratch_*.html
+scratch_*.js

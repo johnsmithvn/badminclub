@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'
-import { calculateMemberBadges } from '#lib/badges.js'
+import { calculateMemberBadges, computeClubBadgeStats } from '#lib/badges.js'
+import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
 import BadgeUnlockModal from './BadgeUnlockModal.jsx'
 
 /**
@@ -23,12 +24,18 @@ export default function GlobalBadgeUnlockHost() {
     return myMember(db)
   }, [db])
 
-  // 2. Tính toán danh sách danh hiệu đã mở khóa của chính chủ
+  // 2. Tính toán danh sách danh hiệu đã mở khóa của chính chủ.
+  // Phải truyền ĐÚNG bộ tham số như trang Danh hiệu (`pages/Badges.jsx`). Gọi trần thì đây
+  // là nguồn sự thật thứ hai: hễ lệch là modal "chúc mừng mở khoá" bắn cho danh hiệu mà
+  // trang Danh hiệu không công nhận.
   const unlockedBadges = useMemo(() => {
     if (!me?.id || !db) return []
-    const res = calculateMemberBadges(me.id, db)
+    const season = resolveSeason(db)
+    const seasonMatches = seasonMatchesOf(db, season) || []
+    const clubStats = computeClubBadgeStats(db, season, seasonMatches)
+    const res = calculateMemberBadges(me.id, db, season, seasonMatches, clubStats)
     return res?.unlocked || []
-  }, [me?.id, db])
+  }, [me, db])
 
   // Key lưu trữ danh hiệu đã xem theo từng CLB và từng thành viên
   const storageKey = useMemo(() => {

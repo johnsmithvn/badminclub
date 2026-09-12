@@ -9,6 +9,7 @@ import {
   getClubAchievementFeed,
   getStreakTimeline,
   getRarestBadges,
+  getBadgeById,
 } from '#lib/badges.js'
 
 test('15 Fixes: Thâm niên đọc đúng member.joined và member.joinedAt', () => {
@@ -334,38 +335,38 @@ test('15 Fixes: getMemberHighestBadge nhận preloadedSeasonMatches', () => {
   assert.equal(highest.id, 'mo_man')
 })
 
-test('15 Fixes: trum_giai (LEGEND) mở khóa khi là Quán quân CLB / Mùa giải', () => {
+test('15 Fixes: trum_giai đang TẮT cho tới khi có tính năng Giải đấu', () => {
+  // `trum_giai` khai `enabled: false` trong badges.json vì chưa có tính năng Giải: không
+  // nguồn nào của nó (`db.tournaments`, `club.championId`, `member.tournamentsWon`) tồn tại
+  // trong dbmap. Để nó bật thì mọi người đều thấy một danh hiệu LEGEND vĩnh viễn 0/1.
+  // Khoá luật ở đây để lúc dựng tính năng Giải mà bỏ cờ `enabled` thì test này đỏ và
+  // người sửa buộc phải viết lại nó thành test mở khoá thật.
   const mockDb = {
     members: [
       { id: 'champ1', name: 'Vô Địch 1' },
       { id: 'player2', name: 'Người Chơi 2' },
     ],
-    club: {
-      championId: 'champ1',
-    },
+    club: { championId: 'champ1' },
     matches: [],
   }
 
-  // champ1 là championId của CLB -> mở trum_giai
   const resChamp1 = calculateMemberBadges('champ1', mockDb)
-  const badge1 = resChamp1.unlocked.find((b) => b.id === 'trum_giai')
-  assert.ok(badge1, 'Thành viên là quán quân CLB mở được trum_giai')
-  assert.equal(badge1.unlocked, true)
+  assert.equal(
+    resChamp1.all.find((b) => b.id === 'trum_giai'),
+    undefined,
+    'Badge tắt phải biến mất khỏi TOÀN BỘ danh mục, không chỉ khỏi danh sách đã mở — còn nằm trong all là người chơi vẫn thấy ô khoá vĩnh viễn',
+  )
+  assert.equal(
+    resChamp1.unlocked.find((b) => b.id === 'trum_giai'),
+    undefined,
+    'Quán quân CLB cũng không được cấp trum_giai khi tính năng Giải chưa có',
+  )
 
-  // player2 không phải quán quân -> không mở
-  const resPlayer2 = calculateMemberBadges('player2', mockDb)
-  const badge2 = resPlayer2.unlocked.find((b) => b.id === 'trum_giai')
-  assert.equal(badge2, undefined, 'Người chơi thường không mở được trum_giai')
+  // getBadgeById cũng phải giấu badge tắt, nếu không modal chi tiết vẫn mở ra được
+  assert.equal(getBadgeById('trum_giai'), null, 'getBadgeById không trả về badge đang tắt')
 
-  // Mở qua previousChampion của season
-  const mockDbSeason = {
-    members: [{ id: 'seasonChamp', name: 'Quán Quân Mùa' }],
-    matches: [],
-  }
-  const season = { id: 's1', previousChampion: 'seasonChamp' }
-  const resSeason = calculateMemberBadges('seasonChamp', mockDbSeason, season)
-  const badgeSeason = resSeason.unlocked.find((b) => b.id === 'trum_giai')
-  assert.ok(badgeSeason, 'Quán quân mùa giải mở được trum_giai')
+  // Badge đang bật thì vẫn tra cứu bình thường — chứng minh bộ lọc không quét nhầm
+  assert.ok(getBadgeById('bat_bai_v'), 'Badge đang bật vẫn tra cứu được bình thường')
 })
 
 test('15 Fixes: sat_than_doi (beat_top_pair) xét cặp đôi uy tín và mở khóa khi đánh bại', () => {

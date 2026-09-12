@@ -8,6 +8,9 @@ import { seasonMatchesOf, resolveSeason } from '#lib/season.js'
  * Toàn bộ là hàm thuần (pure functions), không phụ thuộc React, không gọi Supabase.
  */
 
+/** Một ngày tính bằng mili-giây — đơn vị thời gian, không phải hằng số nghiệp vụ. */
+const DAY_MS = 86400 * 1000
+
 export const TIER_ORDER = {
   legend: 6,
   epic: 5,
@@ -148,6 +151,18 @@ export const HEX_CLIP = 'polygon(50% 0%,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%)'
 export const NOTCH_CLIP = 'polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)'
 export const NOTCH_S_CLIP = 'polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)'
 export const NOTCH_XS_CLIP = 'polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)'
+
+/**
+ * Danh mục danh hiệu đang bật.
+ * `enabled: false` trong badges.json = tạm tắt vì tính năng nguồn chưa có (ví dụ `trum_giai`
+ * chờ tính năng Giải đấu). Bật lại chỉ cần xoá cờ đó, không phải đụng code.
+ * hunterBadges KHÔNG nối vào đây — nó chỉ là metadata hiển thị cho tab Bounty.
+ */
+function activeCatalog() {
+  return (cfgBadges.catalog || [])
+    .concat(cfgBadges.bountyBadges || [])
+    .filter((b) => b.enabled !== false)
+}
 
 /** Lấy thông tin các nhóm danh hiệu */
 export function getBadgeGroups() {
@@ -625,28 +640,30 @@ export function computeClubBadgeStats(db, season = null, seasonMatches = null) {
     })
   }
 
-  // 4. Dòng thời gian Elo, Rank 1 lịch sử và số ngày giữ Rank 1 thực tế
+  // 4. Dòng thời gian Rank 1 và số ngày giữ Rank 1
+  //
+  // KHÔNG mô phỏng lại Elo. `match.initialRatingA/B` đã là ẢNH CHỤP Elo ngay trước trận —
+  // cùng nguồn mà `season.js` đọc để tính điểm mùa — nên đọc thẳng vừa đúng vừa rẻ.
+  // Bản trước nạp Elo HIỆN TẠI (đã gồm mọi trận) rồi cộng tiếp delta của cả mùa: cộng hai
+  // lần, khiến người YẾU NHẤT CLB leo lên "Rank 1" ảo và ăn trọn `doc_co` sau đúng 1 buổi.
+  //
+  // Hạn chế còn lại, cố ý không che: trận đôi thì `initialRating` là Elo TRUNG BÌNH của cặp,
+  // nên Rank 1 lịch sử là xấp xỉ. Muốn tuyệt đối thì phải có bảng snapshot hạng theo ngày.
   const daysRank1Map = new Map()
   const matchRank1Map = new Map()
 
   const ascMatches = sortMatchesAsc(allSeasonMatches, db)
+  const activeIds = new Set(members.map((m) => m.id))
 
-  // Điểm rating mô phỏng theo dòng thời gian
-  const runningRatings = new Map()
-  members.forEach((m) => {
-    const r =
-      (db?.playerRatings || {})[m.id]?.displayRating ||
-      (db?.playerRatings || {})[m.id]?.rating ||
-      m.initialRating ||
-      m.rating ||
-      1500
-    runningRatings.set(m.id, r)
-  })
-
-  const getHighestRatingId = () => {
+  // Elo quan sát được tới thời điểm đang duyệt. Mốc nền là Elo THẬT hiện tại, sau đó mỗi
+  // trận có ảnh chụp sẽ ghi đè lại cho đúng thời điểm. Trận cũ thiếu `initialRating`
+  // (dbmap trả null) nhờ vậy vẫn có mốc so sánh, thay vì biến mọi người thành vô hạng.
+  // Đây là gán TĨNH, không cộng dồn — nên không tái hiện lỗi Rank 1 ảo của bản mô phỏng.
+  const observedRatings = new Map(memberRatings.map((m) => [m.id, m.r]))
+  const highestObservedId = () => {
     let maxR = -Infinity
     let bestId = null
-    runningRatings.forEach((r, id) => {
+    observedRatings.forEach((r, id) => {
       if (r > maxR) {
         maxR = r
         bestId = id
@@ -655,66 +672,42 @@ export function computeClubBadgeStats(db, season = null, seasonMatches = null) {
     return bestId
   }
 
-  let currentRank1Id = getHighestRatingId() || rank1Member?.id || null
-
   const seasonStartTs = resolvedSeason?.startDate ? new Date(resolvedSeason.startDate).getTime() : 0
+  let currentRank1Id = null
   let lastTs = seasonStartTs > 0 ? seasonStartTs : (ascMatches[0] ? getMatchTimestamp(ascMatches[0], db) : 0)
 
   ascMatches.forEach((mt, idx) => {
     const matchTs = getMatchTimestamp(mt, db)
-    if (matchTs > lastTs && currentRank1Id && lastTs > 0) {
-      const deltaDays = (matchTs - lastTs) / (86400 * 1000)
-      daysRank1Map.set(currentRank1Id, (daysRank1Map.get(currentRank1Id) || 0) + deltaDays)
+
+    // Khoảng từ mốc trước tới trận này thuộc về người đang giữ Rank 1 ở mốc trước.
+    if (currentRank1Id && lastTs > 0 && matchTs > lastTs) {
+      daysRank1Map.set(currentRank1Id, (daysRank1Map.get(currentRank1Id) || 0) + (matchTs - lastTs) / DAY_MS)
     }
 
-    // Ghi nhận ai là Rank 1 tại thời điểm trận đấu này
-    const mId = mt.id || String(idx)
-    matchRank1Map.set(mId, currentRank1Id)
-
-    // Cập nhật rating sau trận nếu có kết quả
-    const inA = mt.teamA || []
-    const inB = mt.teamB || []
-    const eloDelta = Math.abs(Number(mt.eloDelta || mt.ratingDelta || 16))
-    if (mt.winnerTeam === 'A') {
-      inA.forEach((id) => runningRatings.set(id, (runningRatings.get(id) || 1500) + eloDelta))
-      inB.forEach((id) => runningRatings.set(id, (runningRatings.get(id) || 1500) - eloDelta))
-    } else if (mt.winnerTeam === 'B') {
-      inB.forEach((id) => runningRatings.set(id, (runningRatings.get(id) || 1500) + eloDelta))
-      inA.forEach((id) => runningRatings.set(id, (runningRatings.get(id) || 1500) - eloDelta))
+    // Ghi nhận Elo ngay TRƯỚC trận này từ ảnh chụp có sẵn trên chính bản ghi trận.
+    const ra = Number(mt.initialRatingA)
+    const rb = Number(mt.initialRatingB)
+    if (Number.isFinite(ra)) {
+      ;(mt.teamA || []).forEach((id) => { if (activeIds.has(id)) observedRatings.set(id, ra) })
+    }
+    if (Number.isFinite(rb)) {
+      ;(mt.teamB || []).forEach((id) => { if (activeIds.has(id)) observedRatings.set(id, rb) })
     }
 
-    currentRank1Id = getHighestRatingId() || currentRank1Id
-    if (matchTs > 0) {
-      lastTs = matchTs
-    }
+    currentRank1Id = highestObservedId() || currentRank1Id
+    matchRank1Map.set(mt.id || String(idx), currentRank1Id)
+
+    if (matchTs > 0) lastTs = matchTs
   })
 
-  // Cộng dồn thời gian từ trận cuối (hoặc seasonStart) đến hiện tại nếu có timestamp thực tế
-  const isRealTimestamp = (ts) => typeof ts === 'number' && ts >= 1577836800000 // Sau năm 2020
-  const now = Date.now()
-  const seasonEndTs = (resolvedSeason?.endDate && isRealTimestamp(new Date(resolvedSeason.endDate).getTime()))
-    ? new Date(resolvedSeason.endDate).getTime()
-    : Infinity
-  const endTs = Math.min(now, seasonEndTs)
+  // Từ trận cuối tới hôm nay (hoặc hết mùa) thì người giữ Rank 1 là người đứng đầu Elo THẬT.
+  // Chỉ cộng khi trận cuối thực sự nằm trong khung mùa — dữ liệu test dùng timestamp giả
+  // (at: 100) sẽ không lọt qua, khỏi cần mốc epoch ma thuật để nhận diện.
+  const seasonEndRaw = resolvedSeason?.endDate ? new Date(resolvedSeason.endDate).getTime() : NaN
+  const endTs = Math.min(Date.now(), Number.isFinite(seasonEndRaw) ? seasonEndRaw : Infinity)
 
-  if (isRealTimestamp(lastTs) && endTs > lastTs && currentRank1Id) {
-    const deltaDays = (endTs - lastTs) / (86400 * 1000)
-    daysRank1Map.set(currentRank1Id, (daysRank1Map.get(currentRank1Id) || 0) + deltaDays)
-  }
-
-  // Đảm bảo người Rank 1 có số ngày hợp lý
-  if (rank1Member?.id) {
-    const r1Days = Math.floor(daysRank1Map.get(rank1Member.id) || 0)
-    if (r1Days === 0) {
-      if (isRealTimestamp(seasonStartTs)) {
-        const daysInSeason = Math.max(1, Math.floor((endTs - seasonStartTs) / (86400 * 1000)))
-        daysRank1Map.set(rank1Member.id, daysInSeason)
-      } else {
-        // Trong môi trường test hoặc không có ngày thực:
-        // Thành viên Rank 1 chỉ có 1 ngày tích lũy để tiến độ > 0 nhưng không tự động mở khóa threshold (60)
-        daysRank1Map.set(rank1Member.id, 1)
-      }
-    }
+  if (rank1Member?.id && seasonStartTs > 0 && lastTs >= seasonStartTs && endTs > lastTs) {
+    daysRank1Map.set(rank1Member.id, (daysRank1Map.get(rank1Member.id) || 0) + (endTs - lastTs) / DAY_MS)
   }
 
   return {
@@ -745,8 +738,7 @@ export function calculateMemberBadges(
   preloadedClubStats = null
 ) {
   const member = (db?.members || []).find((m) => m.id === memberId)
-  // Chỉ gộp catalog với bountyBadges; hunterBadges chỉ là metadata hiển thị cho tab Bounty
-  const catalog = (cfgBadges.catalog || []).concat(cfgBadges.bountyBadges || [])
+  const catalog = activeCatalog()
   const unlocked = []
   const inProgress = []
   const locked = []
@@ -1144,9 +1136,11 @@ export function calculateMemberBadges(
           const opps = (mt.teamA || []).includes(memberId) ? (mt.teamB || []) : (mt.teamA || [])
           const rank1AtMatch = clubStats.matchRank1Map?.get(mt.id || '')
           const hitChamp = !!(clubStats.seasonChampionId && opps.includes(clubStats.seasonChampionId))
+          // CHỈ tính Rank 1 TẠI THỜI ĐIỂM đánh. Không được dùng Rank 1 hiện tại: hạng đổi
+          // người là badge đã mở của người khác biến mất, điểm sưu tập tụt 120 — danh hiệu
+          // phải đóng băng tại lúc đạt, không phải hàm của trạng thái hôm nay.
           const hitRank1AtTime = !!(rank1AtMatch && rank1AtMatch !== memberId && opps.includes(rank1AtMatch))
-          const hitCurrentRank1 = !!(clubStats.rank1Member?.id && clubStats.rank1Member.id !== memberId && opps.includes(clubStats.rank1Member.id))
-          return hitChamp || hitRank1AtTime || hitCurrentRank1
+          return hitChamp || hitRank1AtTime
         })
         isUnlocked = beatChamp || !!member?.beatChampion
         currentVal = isUnlocked ? 1 : 0
@@ -1298,6 +1292,10 @@ export function calculateMemberBadges(
         break
       }
 
+      // CHỜ TÍNH NĂNG GIẢI ĐẤU. Badge `trum_giai` đang tắt bằng `enabled: false` trong
+      // badges.json nên nhánh này không chạy. Không nguồn nào dưới đây tồn tại trong dbmap
+      // (`db.tournaments`, `club.championId`, `member.tournamentsWon`…) — giữ lại làm khung
+      // sẵn cho lúc dựng tính năng Giải, lúc đó bỏ cờ `enabled` và nối đúng nguồn dữ liệu.
       case 'internal_champion': {
         const isChamp =
           !!(clubStats.seasonChampionId && memberId === clubStats.seasonChampionId) ||
@@ -1499,8 +1497,7 @@ export function getRarestBadges(db, season = null, preloadedMatches = null, prel
   if (!db) return []
   const members = db.members || []
   const totalMembers = Math.max(1, members.length)
-  // Chỉ gộp catalog với bountyBadges; không nối hunterBadges
-  const catalog = (cfgBadges.catalog || []).concat(cfgBadges.bountyBadges || [])
+  const catalog = activeCatalog()
   const resolvedSeason = resolveSeason(db, season)
   const matches = Array.isArray(preloadedMatches) ? preloadedMatches : (seasonMatchesOf(db, resolvedSeason) || [])
   const clubStats = preloadedClubStats || computeClubBadgeStats(db, resolvedSeason, matches)
@@ -1860,6 +1857,5 @@ export function getClubAchievementFeed(db, limit = 20) {
  */
 export function getBadgeById(badgeId) {
   if (!badgeId) return null
-  const all = (cfgBadges.catalog || []).concat(cfgBadges.bountyBadges || [])
-  return all.find((b) => b.id === badgeId) || null
+  return activeCatalog().find((b) => b.id === badgeId) || null
 }
