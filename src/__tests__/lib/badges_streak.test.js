@@ -134,6 +134,9 @@ test('Badges Streak & Chasers Engine Suite', async (t) => {
     assert.ok(badge5, 'Huy hiệu 5 trận thắng đã mở khóa vẫn nằm trong unlocked vĩnh viễn')
     assert.equal(badge5.unlocked, true)
     assert.equal(badge5.currentVal, 5)
+    assert.equal(badge5.pct, 100)
+  })
+
   await t.test('6. Matches with identical timestamp maintain insertion order (last match wins/losses correctly)', () => {
     const db = {
       matches: [
