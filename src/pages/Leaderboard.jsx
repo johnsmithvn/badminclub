@@ -430,6 +430,43 @@ export default function Leaderboard() {
     return groups
   }, [searchResults, searchCardLimit, db.sessions])
 
+  // Dữ liệu đếm số lượng cho các tag lọc nhanh (không bị ảnh hưởng bởi qualityFilter/sourceFilter hiện tại)
+  const allMatchesForCounters = useMemo(() => {
+    let list = searchMatches(db.matches || [], {
+      playerA: playerA || null,
+      playerB: playerB || null,
+      mode: searchMode,
+      quality: 'all',
+      ratingsMap: {},
+    })
+    if (onlyVideoFilter) list = list.filter((m) => Boolean(m.videoUrl))
+    if (courtFilter !== 'all') {
+      list = list.filter((m) => {
+        const s = (db.sessions || []).find((x) => x.id === m.sessionId)
+        const courtObj = s?.courts?.[m.courtIdx]
+        return courtObj?.courtId === courtFilter || String(m.courtIdx) === courtFilter
+      })
+    }
+    return list
+  }, [db.matches, playerA, playerB, searchMode, onlyVideoFilter, courtFilter, db.sessions])
+
+  const challengeMatchesCount = useMemo(() => {
+    return allMatchesForCounters.filter((m) => Boolean(m.challengeId || m.sourceType === 'challenge')).length
+  }, [allMatchesForCounters])
+
+  const closeMatchesCount = useMemo(() => {
+    return allMatchesForCounters.filter((m) => (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)).length
+  }, [allMatchesForCounters])
+
+  const upsetMatchesCount = useMemo(() => {
+    return allMatchesForCounters.filter((m) => {
+      const ra = m.initialRatingA || 0
+      const rb = m.initialRatingB || 0
+      const aWon = m.winnerTeam === 'A'
+      return Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
+    }).length
+  }, [allMatchesForCounters])
+
   // -------------------------------------------------------------
   // TAB 4: Ma trận Đối đầu H2H
   // -------------------------------------------------------------
@@ -1305,6 +1342,37 @@ export default function Leaderboard() {
                 </select>
               </div>
 
+              {/* Lọc Nguồn: Tất cả / Kèo / Chia sân */}
+              <div
+                style={{
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: 7,
+                  background: 'var(--field-bg)',
+                  border: sourceFilter === 'challenge' ? '1px solid #A855F7' : '1px solid var(--border-default)',
+                  padding: '0 4px',
+                }}
+              >
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: sourceFilter === 'challenge' ? '#D8B4FE' : 'var(--text-primary)',
+                    font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
+                    padding: '0 6px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="all">{t('matchVideo.filterAllSources')}</option>
+                  <option value="challenge">⚔️ {t('challenge.challenge')}</option>
+                  <option value="session">🏟️ {t('challenge.fromCourt')}</option>
+                </select>
+              </div>
+
               {/* Nút Lọc thêm */}
               <button
                 type="button"
@@ -1633,42 +1701,80 @@ export default function Leaderboard() {
                 {t('matchVideo.hasVideoCount', { n: searchResults.filter((m) => Boolean(m.videoUrl)).length })}
               </div>
 
-              <div
+              {/* Nút lọc nhanh: Kèo */}
+              <button
+                type="button"
+                onClick={() => setSourceFilter((prev) => (prev === 'challenge' ? 'all' : 'challenge'))}
                 style={{
                   height: 26,
                   display: 'flex',
                   alignItems: 'center',
+                  gap: 5,
                   padding: '0 10px',
                   borderRadius: 999,
-                  background: 'var(--surface-inset)',
-                  border: '1px solid var(--border-subtle)',
-                  font: "500 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: 'var(--text-secondary)',
+                  background: sourceFilter === 'challenge' ? 'rgba(168,85,247,.22)' : 'var(--surface-inset)',
+                  border: '1px solid',
+                  borderColor: sourceFilter === 'challenge' ? '#A855F7' : 'var(--border-subtle)',
+                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                  color: sourceFilter === 'challenge' ? '#D8B4FE' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
+                title={t('challenge.challenge')}
               >
-                {t('matchVideo.tagClose')} {searchResults.filter((m) => (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)).length}
-              </div>
+                <span>⚔️ {t('challenge.challenge')}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{challengeMatchesCount}</span>
+              </button>
 
-              <div
+              {/* Nút lọc nhanh: Sát điểm */}
+              <button
+                type="button"
+                onClick={() => setQualityFilter((prev) => (prev === 'close' ? 'all' : 'close'))}
                 style={{
                   height: 26,
                   display: 'flex',
                   alignItems: 'center',
+                  gap: 5,
                   padding: '0 10px',
                   borderRadius: 999,
-                  background: 'var(--surface-inset)',
-                  border: '1px solid var(--border-subtle)',
-                  font: "500 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: 'var(--text-secondary)',
+                  background: qualityFilter === 'close' ? 'rgba(224,138,0,.22)' : 'var(--surface-inset)',
+                  border: '1px solid',
+                  borderColor: qualityFilter === 'close' ? '#E08A00' : 'var(--border-subtle)',
+                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                  color: qualityFilter === 'close' ? '#FFCB77' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
+                title={t('matchVideo.tagClose')}
               >
-                {t('matchVideo.tagUpset')} {searchResults.filter((m) => {
-                  const ra = m.initialRatingA || 0
-                  const rb = m.initialRatingB || 0
-                  const aWon = m.winnerTeam === 'A'
-                  return Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
-                }).length}
-              </div>
+                <span>{t('matchVideo.tagClose')}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{closeMatchesCount}</span>
+              </button>
+
+              {/* Nút lọc nhanh: Bất ngờ */}
+              <button
+                type="button"
+                onClick={() => setQualityFilter((prev) => (prev === 'upset' ? 'all' : 'upset'))}
+                style={{
+                  height: 26,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '0 10px',
+                  borderRadius: 999,
+                  background: qualityFilter === 'upset' ? 'rgba(225,68,52,.24)' : 'var(--surface-inset)',
+                  border: '1px solid',
+                  borderColor: qualityFilter === 'upset' ? 'rgba(225,68,52,.7)' : 'var(--border-subtle)',
+                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                  color: qualityFilter === 'upset' ? '#FFB0A5' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                title={t('matchVideo.tagUpset')}
+              >
+                <span>{t('matchVideo.tagUpset')}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{upsetMatchesCount}</span>
+              </button>
 
               {editedMatchesCount > 0 && (
                 <div

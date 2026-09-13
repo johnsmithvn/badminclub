@@ -30,6 +30,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   const [editingMatch, setEditingMatch] = useState(null)
   const [attachVideoMatch, setAttachVideoMatch] = useState(null)
   const [expandedVideoMatchId, setExpandedVideoMatchId] = useState(null)
+  const [matchSourceFilter, setMatchSourceFilter] = useState('all') // 'all' | 'challenge' | 'session'
   const [challengeTab, setChallengeTab] = useState('my')
   const [selectedChallenge, setSelectedChallenge] = useState(null)
   const [scoringChallenge, setScoringChallenge] = useState(null)
@@ -52,9 +53,20 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
     }
   }, [targetMatchId, matches])
 
+  // Lọc trận theo nguồn (Kèo / Chia sân)
+  const filteredMatches = useMemo(() => {
+    if (matchSourceFilter === 'challenge') {
+      return matches.filter((m) => Boolean(m.challengeId || m.sourceType === 'challenge'))
+    }
+    if (matchSourceFilter === 'session') {
+      return matches.filter((m) => !m.challengeId && m.sourceType !== 'challenge')
+    }
+    return matches
+  }, [matches, matchSourceFilter])
+
   // Tính khoảng cách giữa các trận trong buổi
   const matchesWithGap = useMemo(() => {
-    const sorted = [...matches].sort((a, b) => (b.at || 0) - (a.at || 0))
+    const sorted = [...filteredMatches].sort((a, b) => (b.at || 0) - (a.at || 0))
     return sorted.map((m, idx) => {
       const prevMatch = sorted.slice(idx + 1).find((other) => other.at && m.at && other.at < m.at)
       const gapText = formatGapMinutes(m.at, prevMatch?.at)
@@ -63,7 +75,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
         gapText: prevMatch ? gapText : (idx === sorted.length - 1 ? t('matchVideo.sessionOpen') : gapText),
       }
     })
-  }, [matches])
+  }, [filteredMatches])
 
   // Thống kê thời gian và video của buổi
   const timeStats = useMemo(() => calcSessionTimeStats(matches), [matches])
@@ -149,19 +161,45 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
       <div style={{ display: 'grid', gap: 16, alignContent: 'start', minWidth: 0 }}>
         {/* 4 StatCards thống kê buổi */}
         <div style={{ ...S.statGrid, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))' }}>
-          <div style={S.statCard}>
+          <div
+            onClick={() => setMatchSourceFilter('all')}
+            style={{
+              ...S.statCard,
+              cursor: 'pointer',
+              border: matchSourceFilter === 'all' ? '1px solid var(--teal-500)' : '1px solid var(--border-subtle)',
+              transition: 'all 0.15s ease',
+            }}
+          >
             <div style={S.statLabel}>{t('pages.sessions.statTotalMatches')}</div>
             <div style={S.statValue}>{matches.length}</div>
             <div style={S.statSub}>{t('pages.sessions.statTotalMinutes', { min: totalMin })}</div>
           </div>
-          <div style={S.statCard}>
+          <div
+            onClick={() => setMatchSourceFilter((prev) => (prev === 'session' ? 'all' : 'session'))}
+            style={{
+              ...S.statCard,
+              cursor: 'pointer',
+              border: matchSourceFilter === 'session' ? '1px solid var(--teal-500)' : '1px solid var(--border-subtle)',
+              background: matchSourceFilter === 'session' ? 'rgba(0,178,169,.06)' : undefined,
+              transition: 'all 0.15s ease',
+            }}
+          >
             <div style={S.statLabel}>{t('pages.sessions.statCourtMatches')}</div>
             <div style={{ ...S.statValue, color: 'var(--text-primary)' }}>{fromSessionCount}</div>
             <div style={S.statSub}>{t('pages.sessions.statCourtMatchesDesc')}</div>
           </div>
-          <div style={S.statCard}>
+          <div
+            onClick={() => setMatchSourceFilter((prev) => (prev === 'challenge' ? 'all' : 'challenge'))}
+            style={{
+              ...S.statCard,
+              cursor: 'pointer',
+              border: matchSourceFilter === 'challenge' ? '1px solid #A855F7' : '1px solid var(--border-subtle)',
+              background: matchSourceFilter === 'challenge' ? 'rgba(168,85,247,.08)' : undefined,
+              transition: 'all 0.15s ease',
+            }}
+          >
             <div style={S.statLabel}>{t('pages.sessions.statChallengeMatches')}</div>
-            <div style={{ ...S.statValue, color: 'var(--status-transit-fg)' }}>{fromChallengeCount}</div>
+            <div style={{ ...S.statValue, color: '#D8B4FE' }}>{fromChallengeCount}</div>
             <div style={S.statSub}>{t('pages.sessions.statChallengeMatchesDesc')}</div>
           </div>
           <div style={S.statCard}>
@@ -183,7 +221,46 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 {t('pages.sessions.matchesSub')}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {/* Bộ lọc Nguồn Kèo / Chia sân */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: 2,
+                  borderRadius: 7,
+                  background: 'var(--surface-sunken)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                {[
+                  { id: 'all', label: `${t('matchVideo.filterAllSources')} (${matches.length})` },
+                  { id: 'session', label: `${t('challenge.fromCourt')} (${fromSessionCount})` },
+                  { id: 'challenge', label: `⚔️ ${t('challenge.challenge')} (${fromChallengeCount})` },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setMatchSourceFilter(item.id)}
+                    style={{
+                      height: 24,
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '0 8px',
+                      borderRadius: 5,
+                      border: 'none',
+                      background: matchSourceFilter === item.id ? (item.id === 'challenge' ? 'rgba(168,85,247,.22)' : 'var(--surface-card)') : 'transparent',
+                      font: matchSourceFilter === item.id ? "600 11px/1 'IBM Plex Sans', sans-serif" : "500 11px/1 'IBM Plex Sans', sans-serif",
+                      color: matchSourceFilter === item.id ? (item.id === 'challenge' ? '#D8B4FE' : 'var(--text-primary)') : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
               {matchesWithVideo.length > 0 && (
                 <div
                   style={{
