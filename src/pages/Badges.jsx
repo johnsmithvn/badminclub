@@ -12,6 +12,9 @@ import BountyBoardTab from '#components/badges/BountyBoardTab.jsx'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.jsx'
 import AchievementFeed from '#components/badges/AchievementFeed.jsx'
+import { useMobile } from '#hooks/useMobile.js'
+import AnimeMobileCollection from '#components/badges/mobile/AnimeMobileCollection.jsx'
+import AnimeMobileBadgeDetail from '#components/badges/mobile/AnimeMobileBadgeDetail.jsx'
 import {
   calculateMemberBadges,
   computeClubBadgeStats,
@@ -47,6 +50,7 @@ import badgesConfig from '#config/badges.json'
 const TAB_IDS = ['collection', 'bounty', 'leaderboard', 'feed']
 
 export default function Badges() {
+  const isMobile = useMobile(768)
   const { db, a } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
@@ -299,6 +303,234 @@ export default function Badges() {
   // Hero Bounty Poster mục tiêu hot nhất
   const heroBounty = bounties.length > 0 ? bounties[0] : null
 
+  // ══════════════════════════════════════════════════════════════════
+  // GIAO DIỆN BẢN ANIME MOBILE (3A: AM1, AM2)
+  // ══════════════════════════════════════════════════════════════════
+  if (isMobile) {
+    return (
+      <div style={{ padding: '0 0 30px', color: '#FFFFFF' }}>
+        {/* AM2: Nếu đang chọn xem chi tiết 1 danh hiệu -> Màn AM2 Chi tiết danh hiệu */}
+        {selectedBadge ? (
+          <AnimeMobileBadgeDetail
+            badge={selectedBadge}
+            currentMember={activeMember || currentMember}
+            db={db}
+            currentSeason={currentSeason}
+            preloadedSeasonMatches={preloadedSeasonMatches}
+            preloadedClubStats={preloadedClubStats}
+            onClose={() => setSelectedBadge(null)}
+          />
+        ) : activeTab === 'collection' ? (
+          /* AM1: Màn Bộ sưu tập Anime Mobile */
+          <AnimeMobileCollection
+            activeMember={activeMember}
+            currentMember={currentMember}
+            isViewingSelf={isViewingSelf}
+            currentSeason={currentSeason}
+            memberXpData={memberXpData}
+            memberSeasonData={memberSeasonData}
+            memberBadges={memberBadges}
+            catalogGroups={catalogGroups}
+            activeTab={activeTab}
+            onTabChange={(newTab) => setActiveTab(newTab)}
+            onSelectBadge={handleSelectBadge}
+            onReorderShelf={() => setShowShelfModal(true)}
+            onSelectMember={(memberId) => setViewingMemberId(memberId === currentMember?.id ? null : memberId)}
+            allMembers={db?.members || []}
+          />
+        ) : (
+          /* Các tab còn lại trên Mobile (Bounty / Leaderboard / Feed) */
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              margin: '0 auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              background: '#07030F',
+              border: '1px solid #2A1145',
+              borderRadius: 22,
+              padding: '14px 14px 24px',
+              minHeight: '844px',
+            }}
+          >
+            {/* Header chuyển tab trên mobile */}
+            <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #2A1145', paddingBottom: 10 }}>
+              {[
+                { id: 'collection', label: t('badges.tabCollection') },
+                { id: 'bounty', label: t('badges.tabBounty') },
+                { id: 'leaderboard', label: t('badges.tabLeaderboard') },
+              ].map((tab) => {
+                const isActive = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      font: "600 10.5px/1 'Oswald', sans-serif",
+                      letterSpacing: '.1em',
+                      padding: '10px 4px',
+                      clipPath: 'polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: isActive ? 'linear-gradient(135deg, #FF2E7E, #FFB03A)' : 'rgba(255,255,255,.05)',
+                      color: isActive ? '#140109' : '#9C8ABE',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Nội dung tab */}
+            {activeTab === 'bounty' && (
+              <BountyBoardTab
+                bounties={bounties}
+                heroBounty={heroBounty}
+                currentMember={currentMember}
+                onChallenge={(b) => {
+                  if (b && b.targetId) {
+                    navigate(`/bang-xep-hang?tab=search&playerA=${b.targetId}`)
+                  } else {
+                    navigate('/chia-san')
+                  }
+                }}
+              />
+            )}
+            {activeTab === 'leaderboard' && (
+              <CollectorLeaderboardTab
+                collectors={collectors}
+                rarestBadges={rarestBadges}
+                seasonRows={seasonRows}
+                currentMemberId={activeMemberId}
+                onSelectMember={(mId) => {
+                  setViewingMemberId(mId === currentMember?.id ? null : mId)
+                  setActiveTab('collection')
+                }}
+                onSelectBadge={handleSelectBadge}
+              />
+            )}
+            {activeTab === 'feed' && <AchievementFeed feed={clubFeed} />}
+          </div>
+        )}
+
+        {/* Modal Sắp kệ dùng chung khi nhấn nút SẮP KỆ trên mobile */}
+        {showShelfModal && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(7,3,15,.85)',
+              backdropFilter: 'blur(8px)',
+              padding: 16,
+            }}
+            onClick={() => setShowShelfModal(false)}
+          >
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: 480,
+                padding: 1,
+                clipPath: NOTCH_CLIP,
+                background: 'linear-gradient(135deg, #6D14FF, #2EE9FF 70%)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  clipPath: NOTCH_CLIP,
+                  background: '#120823',
+                  padding: '20px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16,
+                  maxHeight: '85vh',
+                  overflowY: 'auto',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ font: "700 18px/1 'Oswald', sans-serif", color: '#FFFFFF' }}>
+                    {t('badges.shelfModalTitle')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowShelfModal(false)}
+                    style={{ background: 'transparent', border: 'none', color: '#9C8ABE', cursor: 'pointer', fontSize: 20 }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {memberBadges.all
+                    .filter((b) => b.unlocked || b.tier === 'fun')
+                    .map((badge) => {
+                      const isEquipped = (activeMember?.badge_shelf || activeMember?.badgeShelf || []).includes(badge.id)
+                      const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
+                      return (
+                        <div
+                          key={badge.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 10px',
+                            clipPath: NOTCH_S_CLIP,
+                            background: isEquipped ? 'rgba(109,20,255,.25)' : 'rgba(255,255,255,.04)',
+                            border: isEquipped ? '1px solid #8B2BFF' : '1px solid rgba(255,255,255,.08)',
+                          }}
+                        >
+                          <BadgeHex tier={badge.tier} glyph={badge.glyph} size={36} />
+                          <div style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ font: "700 12.5px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF' }}>
+                              {t(`badges.items.${badge.id}.name`, { defaultValue: badge.name })}
+                            </span>
+                            <span style={{ font: "600 9px/1 'Oswald', sans-serif", color: tierMeta.ink }}>
+                              {tierMeta.name}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleShelf(badge.id)}
+                            style={{
+                              font: "600 10.5px/1 'Oswald', sans-serif",
+                              letterSpacing: '.12em',
+                              padding: '6px 12px',
+                              clipPath: NOTCH_S_CLIP,
+                              border: 'none',
+                              cursor: 'pointer',
+                              background: isEquipped ? 'rgba(255,46,126,.2)' : 'linear-gradient(135deg, #0B63FF, #2EE9FF)',
+                              color: isEquipped ? '#FF7A9E' : '#01101F',
+                            }}
+                          >
+                            {isEquipped ? t('badges.unequipBtn') : t('badges.equipBtn')}
+                          </button>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // GIAO DIỆN BẢN DESKTOP ANIME (2A)
+  // ══════════════════════════════════════════════════════════════════
   return (
     <div
       style={{
