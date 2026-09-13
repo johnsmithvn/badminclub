@@ -53,7 +53,7 @@ export default function Leaderboard() {
   const { db, a } = useApp()
   const { isDark, toggleTheme, isGlamorous, toggleThemeMode } = useTheme()
   const navigate = useNavigate()
-  const isMobile = useMobile()
+  const isMobile = useMobile(900)
   const [activeTab, setActiveTab] = useState('season') // 'season' | 'elo' | 'pairs' | 'matrix' | 'search'
   const [genderFilter, setGenderFilter] = useState('all') // 'all' | 'nam' | 'nu'
   const [rankTheme, setRankTheme] = useState(DEFAULT_RANK_THEME)
@@ -1215,8 +1215,8 @@ export default function Leaderboard() {
               }}
             >
               {/* Cụm chọn Người chơi A ⇄ Người chơi B */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: isMobile ? 120 : 155 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, width: isMobile ? '100%' : 'auto' }}>
+                <div style={{ flex: isMobile ? 1 : 'none', width: isMobile ? 'auto' : 155 }}>
                   <SearchSelect
                     size="sm"
                     placeholder={`A · ${t('matchSearch.playerA')}`}
@@ -1255,7 +1255,7 @@ export default function Leaderboard() {
                   ⇄
                 </button>
 
-                <div style={{ width: isMobile ? 120 : 155 }}>
+                <div style={{ flex: isMobile ? 1 : 'none', width: isMobile ? 'auto' : 155 }}>
                   <SearchSelect
                     size="sm"
                     placeholder={`B · ${t('matchSearch.playerB')}`}
@@ -1671,7 +1671,22 @@ export default function Leaderboard() {
                 <div
                   style={{
                     height: 26,
-                             {/* DANH SÁCH LỊCH SỬ TRẬN ĐẤU: MOBILE MATCH CARDS HOẶC BẢNG 10 CỘT DESKTOP */}
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 10px',
+                    borderRadius: 999,
+                    background: 'rgba(240,183,92,.16)',
+                    border: '1px solid rgba(240,183,92,.4)',
+                    font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                    color: 'var(--status-delayed-fg)',
+                  }}
+                >
+                  {t('matchSearch.editedMatchesCount', { count: editedMatchesCount })}
+                </div>
+              )}
+            </div>
+
+            {/* DANH SÁCH LỊCH SỬ TRẬN ĐẤU: MOBILE MATCH CARDS HOẶC BẢNG 10 CỘT DESKTOP */}
             {isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '10px 4px' }}>
                 {dayGroups.map((group) => (
@@ -1777,6 +1792,7 @@ export default function Leaderboard() {
                         return (
                           <div
                             key={m.id}
+                            onClick={() => setViewingMatch(m)}
                             style={{
                               position: 'relative',
                               overflow: 'hidden',
@@ -1790,6 +1806,7 @@ export default function Leaderboard() {
                               gap: 8,
                               boxShadow: '0 0 0 1px rgba(0,178,169,.08), 0 6px 18px rgba(0,0,0,.25)',
                               transition: 'all 0.25s ease',
+                              cursor: 'pointer',
                             }}
                           >
                             {/* Vạch màu kịch bản bên trái 3px */}
@@ -1809,7 +1826,10 @@ export default function Leaderboard() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
                                 <button
                                   type="button"
-                                  onClick={() => setViewingMatch(m)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setViewingMatch(m)
+                                  }}
                                   style={{
                                     border: 'none',
                                     background: 'transparent',
@@ -1916,7 +1936,10 @@ export default function Leaderboard() {
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => setAttachVideoMatch(m)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setAttachVideoMatch(m)
+                                    }}
                                     style={{
                                       height: 24,
                                       display: 'inline-flex',
@@ -1938,7 +1961,10 @@ export default function Leaderboard() {
                                 )}
                                 <button
                                   type="button"
-                                  onClick={() => setEditingMatch(m)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setEditingMatch(m)
+                                  }}
                                   title={t('matchSearch.btnEdit')}
                                   aria-label={t('matchSearch.btnEdit')}
                                   style={{
@@ -2544,25 +2570,7 @@ export default function Leaderboard() {
                   )}
                 </div>
               </div>
-            )}atchVideo(m.id, videoData)
-                                setExpandedVideoMatchId(null)
-                              }}
-                              onCancel={() => setExpandedVideoMatchId(null)}
-                            />
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))}
-
-                {searchResults.length === 0 && (
-                  <div style={{ padding: 28, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                    {t('matchSearch.emptySearch')}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
 
             {/* Footer Bảng: Phân trang / Xem thêm */}
             <div
