@@ -258,7 +258,7 @@
     "rerunBtn": "Dò lại",
     "applyPlanBtn": "Xếp {{plan}} vào sân",
     "headerAssignMeta": "{{players}} người chờ · {{courts}} sân · máy đã dò {{candidates}} phương án trong {{ms}}ms",
-    "raceTab": "Đua Top Mùa Giải",
+    "raceTab": "Top Mùa Giải",
     "careerEloTab": "Elo Cá Nhân",
     "noMatchesInSeason": "Chưa có trận đấu nào trong mùa này.",
     "medianLabel": "trung vị",
