@@ -18,8 +18,8 @@ export default function AppHeader({ route }) {
 
   const isSettings = route === 'settings'
 
-  // Màn SessionDetail, Giao dịch (Fund) và Bảng xếp hạng (Leaderboard) có header riêng chuẩn thiết kế -> ẩn AppHeader mặc định để tránh 2 header
-  if (route === 'session' || route === 'fund' || route === 'leaderboard') {
+  // Màn SessionDetail, Giao dịch (Fund), Bảng xếp hạng (Leaderboard) và Trận đấu (Matches) có header riêng chuẩn thiết kế -> ẩn AppHeader mặc định để tránh 2 header
+  if (route === 'session' || route === 'fund' || route === 'leaderboard' || route === 'matches') {
     return null
   }
 
