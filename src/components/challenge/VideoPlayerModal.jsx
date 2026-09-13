@@ -243,12 +243,13 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
         }
       >
         <div style={{ padding: '0 0 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Khung Video Player 16:9 */}
+          {/* Khung Video Player */}
           <div
             style={{
               position: 'relative',
               width: '100%',
-              aspectRatio: '16 / 9',
+              aspectRatio: isMobile && provider === 'drive' ? '4 / 3' : '16 / 9',
+              minHeight: isMobile && provider === 'drive' ? 260 : undefined,
               background: '#000000',
               borderRadius: 8,
               overflow: 'hidden',
@@ -268,8 +269,10 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
                   height: '100%',
                   border: 'none',
                 }}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                 allowFullScreen
+                webkitallowfullscreen="true"
+                mozallowfullscreen="true"
               />
             ) : embedUrl && provider === 'direct' ? (
               <video
@@ -332,6 +335,50 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
               </div>
             )}
           </div>
+
+          {/* Trợ giúp & Mở trực tiếp bằng App Drive khi gặp lỗi playback trên mobile */}
+          {provider === 'drive' && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-control, 8px)',
+                background: 'rgba(0, 178, 169, 0.08)',
+                border: '1px solid rgba(0, 178, 169, 0.22)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                <Icon name="info" size={14} style={{ color: 'var(--teal-500)', flexShrink: 0 }} />
+                <span style={{ font: "500 12px/1.35 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
+                  {t('matchVideo.driveMobileNotice')}
+                </span>
+              </div>
+              <a
+                href={playUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '5px 10px',
+                  borderRadius: 6,
+                  background: 'var(--action-primary-bg)',
+                  color: 'var(--action-primary-fg)',
+                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                  textDecoration: 'none',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>{t('matchVideo.openDriveApp')}</span>
+                <Icon name="arrow-up-right" size={12} />
+              </a>
+            </div>
+          )}
 
           {/* Chi tiết người xem cho Admin/Owner */}
           {isAdmin && showViewersList && (
