@@ -34,7 +34,7 @@ const NAV = [
 export default function Sidebar({ route }) {
   const { db } = useApp()
   const { clubs: myClubs, activeClub, setActiveClub, profile, signOut } = useAuth()
-  const { isDark, toggleTheme, isGlamorous, toggleThemeMode } = useTheme()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [menu, setMenu] = useState(false)
   const [clubMenu, setClubMenu] = useState(false)
@@ -218,11 +218,6 @@ export default function Sidebar({ route }) {
               onClick={() => { toggleTheme(); setMenu(false) }}>
               <Icon name={isDark ? 'sun' : 'moon'} size={16} />
               {isDark ? t('common.themeLight') : t('common.themeDark')}
-            </button>
-            <button type="button" role="menuitem" style={S.item}
-              onClick={() => { toggleThemeMode(); setMenu(false) }}>
-              <Icon name="sparkles" size={16} />
-              {isGlamorous ? t('settings.themeModeSimple') : t('settings.themeModeGlamorous')}
             </button>
             <button type="button" role="menuitem" style={S.item}
               onClick={() => { setMenu(false); navigate(PUBLIC_PATHS.clubs) }}>

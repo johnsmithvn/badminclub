@@ -15,6 +15,7 @@
       var t = localStorage.getItem(k) ||
         (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-theme-mode', 'glamorous');
       document.documentElement.style.colorScheme = t;
     } catch (e) {}
   })();

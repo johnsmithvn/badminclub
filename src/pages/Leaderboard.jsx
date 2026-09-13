@@ -23,7 +23,7 @@ import { calculateSeasonLeaderboard } from '#lib/season.js'
 
 export default function Leaderboard() {
   const { db, a } = useApp()
-  const { isDark, toggleTheme, isGlamorous, toggleThemeMode } = useTheme()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isMobile = useMobile(900)
@@ -211,32 +211,6 @@ export default function Leaderboard() {
       >
         <Icon name={isDark ? 'sun' : 'moon'} size={15} />
         {!isMobile && <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>}
-      </button>
-
-      <button
-        type="button"
-        onClick={toggleThemeMode}
-        title={isGlamorous ? t('settings.themeModeSimple') : t('settings.themeModeGlamorous')}
-        aria-label={isGlamorous ? t('settings.themeModeSimple') : t('settings.themeModeGlamorous')}
-        style={{
-          font: "600 12px/1 'IBM Plex Sans', sans-serif",
-          height: isMobile ? 32 : undefined,
-          padding: isMobile ? '0 8px' : '8px 12px',
-          borderRadius: 6,
-          background: isGlamorous ? 'linear-gradient(135deg, #FFE24B, #FF9E00)' : 'var(--surface-raised)',
-          border: isGlamorous ? '1px solid #D4A836' : '1px solid var(--border-default)',
-          color: isGlamorous ? '#140109' : 'var(--text-secondary)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          transition: 'all 0.15s ease',
-          flexShrink: 0,
-        }}
-      >
-        <Icon name="sparkles" size={15} />
-        {!isMobile && <span>{isGlamorous ? t('settings.themeModeGlamorous') : t('settings.themeModeSimple')}</span>}
       </button>
 
       <button

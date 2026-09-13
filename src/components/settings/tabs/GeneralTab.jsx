@@ -11,7 +11,6 @@ import {
 } from '#components/settings/SettingsComponents.jsx'
 import { scanQrCodeFromImage, parseVietQr, getVietQrUrl, findBank } from '#utils/vietqr.js'
 import banks from '#config/banks.json' with { type: 'json' }
-import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t } from '#i18n'
 
 export default function GeneralTab({
@@ -22,7 +21,6 @@ export default function GeneralTab({
   activeClub,
   onClubDeleted,
 }) {
-  const { themeMode, setThemeMode, isGlamorous } = useTheme()
   const [copiedCode, setCopiedCode] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanErr, setScanErr] = useState('')
@@ -180,74 +178,7 @@ export default function GeneralTab({
         </FormRow>
       </SettingsCard>
 
-      {/* 2. Chế độ giao diện (Theme Mode: Đơn giản / Hào nhoáng 14a) */}
-      <SettingsCard
-        title={t('settings.themeModeTitle')}
-        subtitle={t('settings.themeModeSub')}
-        icon="sparkles"
-      >
-        <FormRow
-          label={t('settings.fThemeMode')}
-          labelWidth={170}
-          note={isGlamorous ? t('settings.themeModeGlamorousDesc') : t('settings.themeModeSimpleDesc')}
-          last
-        >
-          <div
-            style={{
-              display: 'flex',
-              gap: 6,
-              padding: 3,
-              borderRadius: 8,
-              background: 'var(--surface-page)',
-              border: '1px solid var(--border-default)',
-              width: 'fit-content',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setThemeMode('simple')}
-              style={{
-                font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                padding: '8px 14px',
-                borderRadius: 6,
-                background: !isGlamorous ? 'var(--surface-card)' : 'transparent',
-                border: !isGlamorous ? '1px solid var(--border-default)' : '1px solid transparent',
-                color: !isGlamorous ? 'var(--text-primary)' : 'var(--text-muted)',
-                boxShadow: !isGlamorous ? 'var(--shadow-xs)' : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {t('settings.themeModeSimple')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setThemeMode('glamorous')}
-              style={{
-                font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                padding: '8px 14px',
-                borderRadius: 6,
-                background: isGlamorous
-                  ? 'linear-gradient(135deg, #FFE24B, #FF9E00)'
-                  : 'transparent',
-                border: isGlamorous ? '1px solid #D4A836' : '1px solid transparent',
-                color: isGlamorous ? '#140109' : 'var(--text-muted)',
-                boxShadow: isGlamorous ? '0 2px 8px rgba(255, 214, 107, 0.35)' : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-              }}
-            >
-              <span>✨</span>
-              <span>{t('settings.themeModeGlamorous')}</span>
-            </button>
-          </div>
-        </FormRow>
-      </SettingsCard>
-
-      {/* 3. Quyền riêng tư */}
+      {/* 2. Quyền riêng tư */}
       <SettingsCard
         title={t('settings.privacyTitle')}
         subtitle={t('settings.privacySub')}
