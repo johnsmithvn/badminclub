@@ -269,7 +269,7 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
                   height: '100%',
                   border: 'none',
                 }}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen; compute-pressure"
                 allowFullScreen
                 webkitallowfullscreen="true"
                 mozallowfullscreen="true"
