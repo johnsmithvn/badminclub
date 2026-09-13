@@ -2308,6 +2308,7 @@ export default function Leaderboard() {
                         return (
                           <div key={m.id} style={{ display: 'grid' }}>
                             <div
+                              onClick={() => setViewingMatch(m)}
                               style={{
                                 position: 'relative',
                                 display: 'grid',
@@ -2317,6 +2318,7 @@ export default function Leaderboard() {
                                 borderBottom: '1px solid var(--border-subtle)',
                                 background: rowBg,
                                 transition: 'background 0.15s ease',
+                                cursor: 'pointer',
                               }}
                             >
                               {/* Vạch màu bên trái 2px */}
@@ -2335,7 +2337,10 @@ export default function Leaderboard() {
                               <div style={{ padding: '0 0 0 14px' }}>
                                 <button
                                   type="button"
-                                  onClick={() => setViewingMatch(m)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setViewingMatch(m)
+                                  }}
                                   style={{
                                     border: 'none',
                                     background: 'transparent',
@@ -2355,7 +2360,10 @@ export default function Leaderboard() {
                               <div style={{ padding: '0 2px' }}>
                                 <button
                                   type="button"
-                                  onClick={() => setEditingMatch(m)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setEditingMatch(m)
+                                  }}
                                   style={{
                                     height: 22,
                                     display: 'flex',
@@ -2388,7 +2396,10 @@ export default function Leaderboard() {
                                 {s?.id ? (
                                   <button
                                     type="button"
-                                    onClick={() => navigate(`/buoi-tap/${s.id}?tab=matches&matchId=${m.id}`)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      navigate(`/buoi-tap/${s.id}?tab=matches&matchId=${m.id}`)
+                                    }}
                                     style={{
                                       border: 'none',
                                       background: 'transparent',
@@ -2514,7 +2525,10 @@ export default function Leaderboard() {
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => setExpandedVideoMatchId((prev) => (prev === m.id ? null : m.id))}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setExpandedVideoMatchId((prev) => (prev === m.id ? null : m.id))
+                                    }}
                                     style={{
                                       height: 24,
                                       display: 'flex',

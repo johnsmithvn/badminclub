@@ -339,7 +339,7 @@ export default function SeasonRaceTab({
                       color: '#F0D26A',
                     }}
                   >
-                    {t('season.sessionsRemainingChip', { count: remainingSessions })}
+                    {t('season.sessionsRemainingChip', { n: remainingSessions, count: remainingSessions })}
                   </span>
                 </div>
 
@@ -1125,7 +1125,7 @@ export default function SeasonRaceTab({
                 </span>
                 <div style={{ flex: 1 }} />
                 <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('season.wholeTableCount', { count: filteredLeaderboard.length })}
+                  {t('season.wholeTableCount', { n: filteredLeaderboard.length, count: filteredLeaderboard.length })}
                 </span>
               </div>
 

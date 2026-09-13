@@ -13,7 +13,7 @@ import { t } from '#i18n'
 
 export default function MoreSheet({ open, onClose, route }) {
   const { db, a } = useApp()
-  const { clubs: myClubs, activeClub, setActiveClub } = useAuth()
+  const { clubs: myClubs, activeClub, setActiveClub, profile, session, signOut } = useAuth()
   const navigate = useNavigate()
   const [clubMenuOpen, setClubMenuOpen] = useState(false)
 
@@ -21,6 +21,12 @@ export default function MoreSheet({ open, onClose, route }) {
   const currentSlots = footerSlots(role)
   const canMoney = can(role, 'money')
   const debtCounts = canMoney ? clubDebtCounts(db, db.month) : myDebtCounts(db, db.month)
+
+  const currentMember = (db.members || []).find((m) => m.userId === db.currentUserId)
+  const meName = (currentMember && currentMember.name) || (profile && (profile.nick || profile.name)) || t('common.unknown')
+  const userAvatar = (currentMember && currentMember.avatarUrl) || (profile && (profile.avatar_url || profile.avatarUrl))
+  const userRole = roleName(db.myRole || role)
+  const userEmail = profile?.email || session?.user?.email || ''
 
   const counts = {
     unclosedSessions: monthSessions(db, db.month).filter((s) => s.status !== 'closed').length,
@@ -245,6 +251,31 @@ export default function MoreSheet({ open, onClose, route }) {
             </div>
           )}
         </div>
+
+        {/* Khối tài khoản người dùng đang đăng nhập & Nút Đăng xuất */}
+        <div style={S.userSection}>
+          <div style={S.userCard}>
+            <Avatar name={meName} src={userAvatar} size={36} style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={S.userName}>{meName}</div>
+              <div style={S.userMeta}>
+                {userRole}{userEmail ? ` · ${userEmail}` : ''}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                signOut()
+              }}
+              style={S.logoutBtn}
+              title={t('auth.logout')}
+            >
+              <Icon name="circle-x" size={15} />
+              <span>{t('auth.logout')}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </Dialog>
   )
@@ -373,5 +404,48 @@ const S = {
     background: 'transparent',
     width: '100%',
     textAlign: 'left',
+  },
+  userSection: {
+    marginTop: 4,
+    paddingTop: 10,
+    borderTop: '1px solid var(--border-subtle)',
+  },
+  userCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '10px 12px',
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 8,
+  },
+  userName: {
+    font: '600 14px/1.2 var(--font-sans)',
+    color: 'var(--text-primary)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  userMeta: {
+    font: '400 12px/1.3 var(--font-sans)',
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  logoutBtn: {
+    height: 32,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '0 10px',
+    borderRadius: 6,
+    background: 'rgba(225,68,52,.12)',
+    border: '1px solid rgba(225,68,52,.35)',
+    color: 'var(--status-incident-fg, #E14434)',
+    font: '600 12px/1 var(--font-sans)',
+    cursor: 'pointer',
+    flexShrink: 0,
+    transition: 'background var(--dur-fast) var(--ease-standard)',
   },
 }

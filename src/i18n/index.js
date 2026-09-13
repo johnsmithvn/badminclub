@@ -31,7 +31,12 @@ export function t(key, vars) {
     return key
   }
   if (!vars) return s
-  return s.replace(/\{\{(\w+)\}\}/g, (m, name) => (vars[name] === undefined ? m : String(vars[name])))
+  return s.replace(/\{\{(\w+)\}\}/g, (m, name) => {
+    if (vars[name] !== undefined) return String(vars[name])
+    if (name === 'n' && vars.count !== undefined) return String(vars.count)
+    if (name === 'count' && vars.n !== undefined) return String(vars.n)
+    return m
+  })
 }
 
 /** Lấy cả một nhánh (dùng cho danh sách: t.list('assign.modes')). */
