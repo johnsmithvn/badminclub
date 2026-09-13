@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Alert, Avatar, Button, Card, Dialog, Icon, Input, Select, StatCard } from '#ds'
+import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
@@ -9,7 +9,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 import { playerName, courtOf, myMember, playerOf } from '#lib/money.js'
-import { dd } from '#utils/dates.js'
+import { dd, isoOf, todayISO, weekdayOf } from '#utils/dates.js'
 import {
   getPlayerRating, expectedScore, calcEloDelta, confidenceProgress,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, matchCodeOf, DEFAULT_RATING,
@@ -48,7 +48,7 @@ function getShortDisplayName(fullName, allMembers = []) {
 export default function Matches() {
   const { db, a } = useApp()
   const { profile } = useAuth()
-  const { isDark } = useTheme()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const isMobile = useMobile(900)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -91,17 +91,20 @@ export default function Matches() {
   useEffect(() => {
     const target = searchParams.get('targetId')
     const challengeParam = searchParams.get('challenge')
-    if (target) {
-      if (myId) setInitialTeamA([myId])
-      setInitialTeamB([target])
-      setChallengeModalOpen(true)
-      setActiveTab('challenges')
-    } else if (challengeParam === 'new') {
-      if (myId) setInitialTeamA([myId])
-      setChallengeModalOpen(true)
-      setActiveTab('challenges')
-    }
-  }, [searchParams, myId])
+    if (!target && challengeParam !== 'new') return
+
+    setInitialTeamA(myId ? [myId] : [])
+    setInitialTeamB(target ? [target] : [])
+    setChallengeModalOpen(true)
+    setActiveTab('challenges')
+
+    // Dọn param ngay sau khi dùng. Để lại thì mọi setSearchParams sau đó (đổi tab…) tạo ra
+    // searchParams mới -> effect chạy lại -> modal bật lại và văng về tab Sàn kèo.
+    const next = new URLSearchParams(searchParams)
+    next.delete('targetId')
+    next.delete('challenge')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, myId, setSearchParams])
 
   // State Tìm trận & Lịch sử
   const [playerA, setPlayerA] = useState(() => searchParams.get('playerA') || '')
@@ -273,16 +276,17 @@ export default function Matches() {
 
     searchResults.slice(0, searchCardLimit).forEach((m) => {
       const s = (db.sessions || []).find((x) => x.id === m.sessionId)
-      const dateKey = s?.date ? s.date : (m.at ? new Date(m.at).toISOString().slice(0, 10) : 'unknown')
+      const dateKey = s?.date ? s.date : (m.at ? isoOf(new Date(m.at)) : 'unknown')
       if (!dayMap.has(dateKey)) {
         dayMap.set(dateKey, [])
       }
       dayMap.get(dateKey).push(m)
     })
 
-    const todayStr = new Date().toISOString().slice(0, 10)
-    const yesterdayDate = new Date(Date.now() - 86400000)
-    const yesterdayStr = yesterdayDate.toISOString().slice(0, 10)
+    // Giờ địa phương, KHÔNG toISOString (UTC) — trước 07:00 giờ VN nó trả về ngày hôm qua
+    // nên nhãn 'Hôm nay' / 'Hôm qua' gắn lệch một ngày.
+    const todayStr = todayISO()
+    const yesterdayStr = isoOf(new Date(Date.now() - 86400000))
 
     for (const [dateKey, matchesInDay] of dayMap.entries()) {
       matchesInDay.sort((a, b) => (b.at || 0) - (a.at || 0))
@@ -304,7 +308,6 @@ export default function Matches() {
 
       let dateLabel = dateKey
       if (dateKey !== 'unknown') {
-        const dObj = new Date(dateKey)
         const dStr = dd(dateKey)
         if (dateKey === todayStr) {
           dateLabel = `${t('matchVideo.today')} · ${dStr}`
@@ -312,7 +315,7 @@ export default function Matches() {
           dateLabel = `${t('matchVideo.yesterday')} · ${dStr}`
         } else {
           const daysOfWeek = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'] // i18n-ok: day names array
-          const dayName = daysOfWeek[dObj.getDay()] || ''
+          const dayName = daysOfWeek[weekdayOf(dateKey)] || ''
           dateLabel = `${dayName} · ${dStr}`
         }
       }
@@ -366,16 +369,24 @@ export default function Matches() {
     return allMatchesForCounters.filter((m) => Boolean(m.challengeId || m.sourceType === 'challenge')).length
   }, [allMatchesForCounters])
 
+  // Phải khớp đúng nhánh quality === 'close' của filterMatches (matchSearch.js): set sát điểm HOẶC đi đủ 3 set.
   const closeMatchesCount = useMemo(() => {
-    return allMatchesForCounters.filter((m) => (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)).length
+    return allMatchesForCounters.filter((m) => {
+      const sets = m.sets || []
+      const isCloseSet = sets.some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
+      const isThreeSets = sets.filter((s) => s && s[0] + s[1] > 0).length >= 3
+      return isCloseSet || isThreeSets
+    }).length
   }, [allMatchesForCounters])
 
   const upsetMatchesCount = useMemo(() => {
     return allMatchesForCounters.filter((m) => {
       const ra = m.initialRatingA || 0
       const rb = m.initialRatingB || 0
+      // Phải là 'B' tường minh, không dùng !aWon: winnerTeam có thể là null (hoà set / chưa nhập đủ).
       const aWon = m.winnerTeam === 'A'
-      return Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
+      const bWon = m.winnerTeam === 'B'
+      return Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && bWon))
     }).length
   }, [allMatchesForCounters])
 
@@ -437,7 +448,11 @@ export default function Matches() {
   const h2hSummary = useMemo(() => {
     if (!playerA || !playerB || playerA === playerB) return null
     const all = db.matches || []
+    // Bỏ trận chưa có kết quả (winnerTeam = null khi hoà set hoặc chưa nhập đủ): nhánh else bên dưới
+    // sẽ cộng nhầm hết cho B. buildH2HMatrix cũng bỏ qua các trận này — không bỏ thì tab Ma trận
+    // và panel Đối đầu hiện hai con số khác nhau cho cùng một cặp.
     const vsMatches = all.filter((m) => {
+      if (!m.winnerTeam) return false
       const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
       const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
       const aIn1 = teamA.includes(playerA) && teamB.includes(playerB)
@@ -445,6 +460,7 @@ export default function Matches() {
       return aIn1 || aIn2
     })
     const teamMatches = all.filter((m) => {
+      if (!m.winnerTeam) return false
       const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
       const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
       const same1 = teamA.includes(playerA) && teamA.includes(playerB)
@@ -494,7 +510,7 @@ export default function Matches() {
       if (won) tmWins++
       else tmLoss++
       if (idx === 0) {
-        lastDate = m.createdAt ? `${m.createdAt.slice(8, 10)}/${m.createdAt.slice(5, 7)}` : null
+        lastDate = m.at ? dd(isoOf(new Date(m.at))) : (m.createdAt ? dd(m.createdAt.slice(0, 10)) : null)
         lastWon = won
       }
     })
@@ -675,33 +691,43 @@ export default function Matches() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setInitialTeamA(myId ? [myId] : [])
-              setInitialTeamB([])
-              setChallengeModalOpen(true)
-            }}
-            style={{
-              height: isMobile ? 32 : 36,
-              padding: isMobile ? '0 10px' : '0 14px',
-              borderRadius: 6,
-              background: 'var(--action-accent-bg, #00B2A9)',
-              color: 'var(--action-accent-fg, #04302C)',
-              font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              flexShrink: 0,
-              boxShadow: 'var(--shadow-xs)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <Icon name="plus" size={13} />
-            <span>{isMobile ? t('challenge.challenge') : t('matchesPage.createBtn')}</span>
-          </button>
+          {/* AppHeader bị ẩn ở route 'matches' nên trên mobile không còn chỗ nào đổi sáng/tối -> để ngay đây */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <IconButton
+              icon={isDark ? 'sun' : 'moon'}
+              size="sm"
+              variant="ghost"
+              label={isDark ? t('common.themeLight') : t('common.themeDark')}
+              onClick={toggleTheme}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setInitialTeamA(myId ? [myId] : [])
+                setInitialTeamB([])
+                setChallengeModalOpen(true)
+              }}
+              style={{
+                height: isMobile ? 32 : 36,
+                padding: isMobile ? '0 10px' : '0 14px',
+                borderRadius: 6,
+                background: 'var(--action-accent-bg, #00B2A9)',
+                color: 'var(--action-accent-fg, #04302C)',
+                font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                flexShrink: 0,
+                boxShadow: 'var(--shadow-xs)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <Icon name="plus" size={13} />
+              <span>{isMobile ? t('challenge.challenge') : t('matchesPage.createBtn')}</span>
+            </button>
+          </div>
         </div>
 
         {isMobile && (
@@ -926,8 +952,8 @@ export default function Matches() {
                       </>
                     )}
 
-                    {/* Nhận kèo mở nếu tôi chưa thuộc Team A */}
-                    {isPending && isOpen && !teamA.includes(myId) && (
+                    {/* Nhận kèo mở nếu đã đăng nhập và tôi chưa thuộc Team A lẫn Team B */}
+                    {isPending && isOpen && myId && !teamA.includes(myId) && !isTeamB && (
                       <button
                         type="button"
                         onClick={() => a.acceptOpenChallenge({ challengeId: c.id })}

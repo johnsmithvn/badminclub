@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
-import { Icon } from '#ds'
+import { Icon, Avatar } from '#ds'
 import { rankPairs, calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 import { ConfidenceChip } from '#ui'
@@ -213,6 +213,25 @@ export default function PairsTab({
     const a = resolve(pair?.memberA?.name, p1)
     const b = resolve(pair?.memberB?.name, p2)
     return [a, b]
+  }
+
+  function getPairMembers(pair) {
+    const p1 = pair?.playerA || pair?.memberA?.id
+    const p2 = pair?.playerB || pair?.memberB?.id
+    const resolve = (id, fallbackName, fallbackMem) => {
+      if (!id) return fallbackMem || { id: '', name: fallbackName || '' }
+      const fromMap = membersMap?.[id]
+      if (fromMap) return fromMap
+      if (db) {
+        const fromDb = (db.members || []).find((m) => m.id === id) || (db.guests || []).find((g) => g.id === id)
+        if (fromDb) return fromDb
+      }
+      return fallbackMem || { id, name: fallbackName || id }
+    }
+    const names = getPairNames(pair)
+    const m1 = resolve(p1, names[0], pair?.memberA)
+    const m2 = resolve(p2, names[1], pair?.memberB)
+    return [m1, m2]
   }
 
 function getPairKey(pair) {
@@ -620,12 +639,19 @@ function getScoreVisuals(score, isTop) {
               {getPairNames(topPair).join(' · ')}
             </div>
             <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-              {t('leaderboard.pairBestDesc', {
-                pp: topPair.pairImpact,
-                matches: topPair.gamesCount,
-                exp: topPair.expectedWinPct,
-                wins: topPair.wins != null ? topPair.wins : (topPair.winsCount || 0),
-              })}
+              {topPair.pairImpact < 0
+                ? t('leaderboard.pairBestBelowDesc', {
+                    pp: Math.abs(topPair.pairImpact),
+                    matches: topPair.gamesCount,
+                    exp: topPair.expectedWinPct,
+                    wins: topPair.wins != null ? topPair.wins : (topPair.winsCount || 0),
+                  })
+                : t('leaderboard.pairBestDesc', {
+                    pp: topPair.pairImpact,
+                    matches: topPair.gamesCount,
+                    exp: topPair.expectedWinPct,
+                    wins: topPair.wins != null ? topPair.wins : (topPair.winsCount || 0),
+                  })}
             </div>
 
             <div
@@ -903,9 +929,46 @@ function getScoreVisuals(score, isTop) {
                   const expPct = Math.round(pair.expectedWinPct || 50)
                   const actPct = Math.round(pair.actualWinPct || 0)
 
+                  const [mA, mB] = getPairMembers(pair)
+                  const hasQualified = rankedPairs.some((p) => (p.gamesCount || 0) >= 5)
+                  const isFirstProvisional = hasQualified && isProvisional && (idx === 0 || (rankedPairs[idx - 1].gamesCount || 0) >= 5)
+                  const isFirstOfficial = hasQualified && idx === 0 && !isProvisional
+
                   return (
+                    <div key={getPairKey(pair) || idx} style={{ display: 'grid', gap: 8 }}>
+                      {isFirstOfficial && (
+                        <div style={{
+                          padding: '7px 12px',
+                          borderRadius: 8,
+                          background: 'rgba(0,178,169,.1)',
+                          border: '1px solid rgba(0,178,169,.3)',
+                          font: "600 11.5px/1.3 'IBM Plex Sans', sans-serif",
+                          color: '#5FDBD3',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}>
+                          <span>★</span>
+                          <span>{t('leaderboard.officialPairsSection')}</span>
+                        </div>
+                      )}
+                      {isFirstProvisional && (
+                        <div style={{
+                          padding: '7px 12px',
+                          borderRadius: 8,
+                          background: 'rgba(240,183,92,.08)',
+                          border: '1px solid rgba(240,183,92,.25)',
+                          font: "600 11.5px/1.3 'IBM Plex Sans', sans-serif",
+                          color: '#F0B75C',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}>
+                          <span>~</span>
+                          <span>{t('leaderboard.provisionalPairsSection')}</span>
+                        </div>
+                      )}
                     <div
-                      key={getPairKey(pair) || idx}
                       onClick={() => setSelectedPair(pair)}
                       style={{
                         background: isTop
@@ -931,8 +994,22 @@ function getScoreVisuals(score, isTop) {
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      {/* Header: Tên cặp + Tag */}
+                      {/* Header: Avatar đôi + Tên cặp + Tag */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ display: 'flex', flex: '0 0 auto', alignItems: 'center' }}>
+                          <Avatar
+                            name={mA.name}
+                            src={mA.avatarUrl || mA.avatar}
+                            size={24}
+                            style={{ border: '2px solid #141D2E', zIndex: 2 }}
+                          />
+                          <Avatar
+                            name={mB.name}
+                            src={mB.avatarUrl || mB.avatar}
+                            size={24}
+                            style={{ border: '2px solid #141D2E', marginLeft: -8, zIndex: 1 }}
+                          />
+                        </span>
                         <span style={{ flex: 1, font: "600 16px/1.25 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
                           {getPairNames(pair).join(' · ')}
                         </span>
@@ -1068,7 +1145,8 @@ function getScoreVisuals(score, isTop) {
                         </span>
                       </div>
                     </div>
-                  )
+                  </div>
+                )
                 })
               ) : (
                 <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', font: "400 13px/1.4 'IBM Plex Sans', sans-serif" }}>
@@ -1339,50 +1417,84 @@ function getScoreVisuals(score, isTop) {
                   form5.push(i < recentResults.length ? recentResults[i] : null)
                 }
 
+                const [mA, mB] = getPairMembers(pair)
+                const hasQualified = rankedPairs.some((p) => (p.gamesCount || 0) >= 5)
+                const isFirstProvisional = hasQualified && isProvisional && (idx === 0 || (rankedPairs[idx - 1].gamesCount || 0) >= 5)
+                const isFirstOfficial = hasQualified && idx === 0 && !isProvisional
+
                 return (
-                  <div
-                    key={getPairKey(pair) || idx}
-                    onClick={() => setSelectedPair(pair)}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(0, 1.35fr) 95px 120px 145px 65px 75px',
-                      gap: 10,
-                      padding: '12px 15px',
-                      borderBottom: '1px solid #22304A',
-                      alignItems: 'center',
-                      background: rowBg,
-                      cursor: 'pointer',
-                      transition: 'background 0.15s ease',
-                    }}
-                  >
-                    {/* Cột 1: Cặp + Tag + Meta */}
-                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <span style={{ display: 'flex', flex: '0 0 auto' }}>
-                        <span
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: 999,
-                            background: isTop ? '#1D50A0' : '#3C74C4',
-                            border: '2px solid #141D2E',
-                          }}
-                        />
-                        <span
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: 999,
-                            background: isTop ? '#00786F' : '#7AA3DC',
-                            border: '2px solid #141D2E',
-                            marginLeft: -9,
-                          }}
-                        />
-                      </span>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: '#fff' }}>
-                            {getPairNames(pair).join(' · ')}
-                          </span>
+                  <div key={getPairKey(pair) || idx}>
+                    {isFirstOfficial && (
+                      <div
+                        style={{
+                          padding: '7px 15px',
+                          background: 'rgba(0, 178, 169, 0.08)',
+                          borderBottom: '1px solid #22304A',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          font: "600 11.5px/1.2 'IBM Plex Sans', sans-serif",
+                          color: '#5FDBD3',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        <span>★</span>
+                        <span>{t('leaderboard.officialPairsSection')}</span>
+                      </div>
+                    )}
+                    {isFirstProvisional && (
+                      <div
+                        style={{
+                          padding: '7px 15px',
+                          background: 'rgba(240, 183, 92, 0.08)',
+                          borderBottom: '1px solid #22304A',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          font: "600 11.5px/1.2 'IBM Plex Sans', sans-serif",
+                          color: '#F0B75C',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        <span>~</span>
+                        <span>{t('leaderboard.provisionalPairsSection')}</span>
+                      </div>
+                    )}
+                    <div
+                      onClick={() => setSelectedPair(pair)}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(0, 1.35fr) 95px 120px 145px 65px 75px',
+                        gap: 10,
+                        padding: '12px 15px',
+                        borderBottom: '1px solid #22304A',
+                        alignItems: 'center',
+                        background: rowBg,
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease',
+                      }}
+                    >
+                      {/* Cột 1: Cặp + Tag + Meta */}
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <span style={{ display: 'flex', flex: '0 0 auto', alignItems: 'center' }}>
+                          <Avatar
+                            name={mA.name}
+                            src={mA.avatarUrl || mA.avatar}
+                            size={26}
+                            style={{ border: '2px solid #141D2E', zIndex: 2 }}
+                          />
+                          <Avatar
+                            name={mB.name}
+                            src={mB.avatarUrl || mB.avatar}
+                            size={26}
+                            style={{ border: '2px solid #141D2E', marginLeft: -9, zIndex: 1 }}
+                          />
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+                              {getPairNames(pair).join(' · ')}
+                            </span>
                           {isTop && (
                             <span style={{
                               font: '700 9.5px/1 "IBM Plex Sans", sans-serif',
@@ -1605,7 +1717,8 @@ function getScoreVisuals(score, isTop) {
                       <ConfidenceChip confidence={confTier} />
                     </div>
                   </div>
-                )
+                </div>
+              )
               })
             ) : (
               <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', font: "400 13px 'IBM Plex Sans', sans-serif" }}>

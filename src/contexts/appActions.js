@@ -2201,10 +2201,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         toast(t('common.unauthorized'))
         return
       }
-      const isDoubles = (chal.teamA || []).length > 1
-      const teamB = isDoubles ? (partnerId ? [myId, partnerId] : [myId]) : [myId]
+      // Kèo ĐÔI nhận nhanh mà chưa chọn partner: chỉ điền 1 chỗ và GIỮ 'pending' để người thứ hai
+      // còn vào được. Trước đây chốt luôn 'accepted' với teamB 1 người -> kèo đôi chết, không ai join nổi.
+      const needed = (chal.teamA || []).length > 1 ? 2 : 1
+      const current = (chal.teamB || []).filter(Boolean)
+      if (current.includes(myId)) return
+      const teamB = [...current, myId, ...(partnerId ? [partnerId] : [])].slice(0, needed)
+      const status = teamB.length >= needed ? 'accepted' : 'pending'
       up((d) => ({
-        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, status: 'accepted' } : c)),
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, status } : c)),
       }))
       toast(t('challenge.toastAccepted', { code: chal.code }))
     },

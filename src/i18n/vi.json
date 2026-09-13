@@ -3285,6 +3285,9 @@
     "directionalMatchupDesc": "Cùng một cặp đối thủ, hai chiều không đối xứng — nên lưu theo hướng.",
     "synergyVsExpectedDesc": "Hệ thống chấm cặp thắng bao nhiêu phần trăm, rồi so với tỷ lệ thắng thật. Phần lệch đó là impact, đo bằng pp.",
     "pairBestDesc": "Vượt kỳ vọng {{pp}} điểm phần trăm qua {{matches}} trận. Kỳ vọng chỉ {{exp}}% nhưng thắng {{wins}}/{{matches}}.",
+    "pairBestBelowDesc": "Thấp hơn kỳ vọng {{pp}} điểm phần trăm qua {{matches}} trận (thắng {{wins}}/{{matches}} dù kỳ vọng {{exp}}%).",
+    "officialPairsSection": "Cặp chính thức (≥ 5 trận)",
+    "provisionalPairsSection": "Cặp đang thăm dò (< 5 trận · tạm tính ~)",
     "pairBestFrom": "hợp cạ · từ {{from}}",
     "formHot": "HOT {{w}}T–{{l}}B",
     "underperformingDisclaimer": "Đây là dữ liệu, không phải điểm trừ. Máy chia sân chỉ dùng nó để tránh ghép lại cặp lệch quá xa.",
@@ -3507,7 +3510,15 @@
       "pairMeta": "đôi · tỉ lệ thắng {{rate}}% mùa này",
       "streakMetaFallback": "{{streak}} trận thắng liền",
       "emptyTitle": "Hiện chưa có mục tiêu truy nã",
-      "emptyDesc": "Khi một tay vợt hoặc cặp đôi đạt chuỗi thắng từ 5 trận trở lên, lệnh truy nã sẽ tự động xuất hiện tại đây."
+      "emptyDesc": "Khi một tay vợt hoặc cặp đôi đạt chuỗi thắng từ 5 trận trở lên, lệnh truy nã sẽ tự động xuất hiện tại đây.",
+      "heroWantedTag": "ĐANG BỊ TREO THƯỞNG",
+      "heroWinStreak": "{{name}} thắng {{streak}} trận liền",
+      "heroStreakLabel": "CHUỖI",
+      "challengeNow": "GẠ KÈO NGAY",
+      "challenge": "GẠ KÈO",
+      "subtabCollection": "BỘ SƯU TẬP",
+      "subtabBounty": "TRUY NÃ",
+      "subtabLeaderboard": "XẾP HẠNG"
     },
     "detail": {
       "back": "← DANH HIỆU",
@@ -3600,13 +3611,15 @@
     "unlockModal": {
       "title": "MỞ KHÓA DANH HIỆU",
       "congratsDesc": "Bạn vừa hoàn thành một chiến tích xuất sắc trên sân cầu!",
+      "brokeStreakStory": "Bạn vừa hạ {{victim}} — chuỗi {{streak}} trận của đối thủ dừng lại. Bounty đóng ngay, phần thưởng treo về tay bạn.",
       "equipShelfBtn": "GẮN LÊN KỆ",
       "viewCollectionBtn": "XEM BỘ SƯU TẬP",
       "shelfReplaceNote": "kệ đang đủ 3 ô — gắn lên sẽ thay ô cuối",
       "shelfAttachNote": "đã gắn vào ô trống trên kệ",
       "shelfAvailableNote": "kệ còn {{count}} ô trống",
       "ptsUnit": "ĐIỂM SƯU TẬP",
-      "seasonPointsUnit": "ĐIỂM MÙA"
+      "seasonPointsUnit": "ĐIỂM MÙA",
+      "seasonShortUnit": "MÙA"
     },
     "leaderboard": {
       "title": "Xếp hạng sưu tập",

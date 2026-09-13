@@ -1,6 +1,6 @@
 // node src/__tests__/dates.test.js
 import assert from 'node:assert/strict'
-import { addMonth, dd, ddmy, genDates, hours, monthGrid, monthOf, monthShort, monthTxt, wd, weekdayOf } from '#utils/dates.js'
+import { addMonth, dd, ddmy, genDates, hours, isoOf, monthGrid, monthOf, monthShort, monthTxt, todayISO, wd, weekdayOf } from '#utils/dates.js'
 
 /* nhãn ngày tháng */
 assert.equal(wd('2026-08-16'), 'CN')
@@ -47,5 +47,25 @@ assert.equal(inMonth[0].iso, '2026-08-01')
 assert.equal(inMonth[30].iso, '2026-08-31')
 // tháng 2 năm nhuận
 assert.equal(monthGrid('2028-02').flat().filter((d) => d.inMonth).length, 29)
+
+/* isoOf phải bám giờ ĐỊA PHƯƠNG, không phải UTC — đây là chỗ nhãn 'Hôm nay' từng gắn lệch một ngày:
+   toISOString() trên một mốc 00:30 giờ VN trả về ngày hôm trước. */
+const localMidnight = new Date(2026, 8, 14, 0, 30, 0) // 00:30 ngày 14/09/2026 giờ máy
+assert.equal(isoOf(localMidnight), '2026-09-14', 'nửa đêm giờ địa phương vẫn phải là ngày hôm đó')
+const lateEvening = new Date(2026, 8, 14, 23, 45, 0)
+assert.equal(isoOf(lateEvening), '2026-09-14', 'gần nửa đêm chưa được nhảy sang ngày mai')
+assert.equal(isoOf(new Date(2026, 0, 1, 0, 0, 0)), '2026-01-01', 'phải pad tháng và ngày về 2 chữ số')
+assert.equal(isoOf(new Date(2026, 11, 31, 12, 0, 0)), '2026-12-31')
+
+/* todayISO khớp đúng ngày địa phương của đồng hồ máy, và ghép được với các helper cắt chuỗi */
+const now = new Date()
+assert.equal(todayISO(), isoOf(now))
+assert.equal(todayISO().length, 10)
+assert.equal(weekdayOf(todayISO()), now.getDay(), 'weekdayOf trên chuỗi todayISO phải ra đúng thứ hôm nay')
+
+/* hôm qua = todayISO của mốc lùi 86400s, dùng ở nhãn ngày trang Trận đấu */
+const yesterday = isoOf(new Date(new Date(2026, 8, 14, 8, 0, 0).getTime() - 86400000))
+assert.equal(yesterday, '2026-09-13')
+assert.equal(isoOf(new Date(new Date(2026, 0, 1, 8, 0, 0).getTime() - 86400000)), '2025-12-31', 'lùi qua biên năm')
 
 console.log('dates check: OK')

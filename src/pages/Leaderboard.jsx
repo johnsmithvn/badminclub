@@ -213,32 +213,36 @@ export default function Leaderboard() {
         {!isMobile && <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>}
       </button>
 
-      <button
-        type="button"
-        onClick={handleExportCsv}
-        title={t('common.exportCsv')}
-        aria-label={t('common.exportCsv')}
-        style={{
-          font: "600 12px/1 'IBM Plex Sans', sans-serif",
-          width: isMobile ? 32 : undefined,
-          height: isMobile ? 32 : undefined,
-          padding: isMobile ? 0 : '8px 14px',
-          borderRadius: 6,
-          background: 'var(--surface-raised)',
-          border: '1px solid var(--border-default)',
-          color: 'var(--text-primary)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          transition: 'all 0.15s ease',
-          flexShrink: 0,
-        }}
-      >
-        <Icon name="download" size={14} />
-        {!isMobile && <span>{t('common.exportCsv')}</span>}
-      </button>
+      {/* Tab 'h2h' là màn so kè tương tác (chọn cặp A vs cặp B), không có bảng nào để xuất.
+          handleExportCsv rơi vào nhánh else -> xuất nhầm bảng Elo, nên ẩn nút ở tab này. */}
+      {activeTab !== 'h2h' && (
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          title={t('common.exportCsv')}
+          aria-label={t('common.exportCsv')}
+          style={{
+            font: "600 12px/1 'IBM Plex Sans', sans-serif",
+            width: isMobile ? 32 : undefined,
+            height: isMobile ? 32 : undefined,
+            padding: isMobile ? 0 : '8px 14px',
+            borderRadius: 6,
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            transition: 'all 0.15s ease',
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="download" size={14} />
+          {!isMobile && <span>{t('common.exportCsv')}</span>}
+        </button>
+      )}
 
       {isAdmin && (
         <>

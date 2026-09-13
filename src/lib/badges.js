@@ -1,5 +1,5 @@
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { isPresent, myDebtCounts } from '#lib/money.js'
+import { isPresent, myDebtCounts, playerName } from '#lib/money.js'
 import { countInvitedBy, monthsSince } from '#lib/xp.js'
 import { seasonMatchesOf, resolveSeason } from '#lib/season.js'
 
@@ -1811,8 +1811,8 @@ export function getClubAchievementFeed(db, limit = 20) {
 
     // Kiểm tra trận ngắt chuỗi / bounty breaker
     if (mt.bountyBroken || mt.bounty_broken || mt.brokenStreak) {
-      const winnerName = (winners || []).map((id) => memberMap.get(id)?.name || id).join(' & ')
-      const loserName = (losers || []).map((id) => memberMap.get(id)?.name || id).join(' & ')
+      const winnerName = (winners || []).map((id) => playerName(db, id) || id).join(' & ')
+      const loserName = (losers || []).map((id) => playerName(db, id) || id).join(' & ')
       feed.push({
         id: `feed-bounty-${mt.id || idx}`,
         type: 'bounty_break',
@@ -1829,8 +1829,8 @@ export function getClubAchievementFeed(db, limit = 20) {
     // Kiểm tra trận đấu nghẹt thở (Clutch win: cách biệt 1 hoặc 2 điểm ở tỷ số cao)
     const diff = Math.abs(sA - sB)
     if ((sA >= 20 || sB >= 20) && diff <= 2 && diff > 0) {
-      const winnerName = (winners || []).map((id) => memberMap.get(id)?.name || id).join(' & ')
-      const loserName = (losers || []).map((id) => memberMap.get(id)?.name || id).join(' & ')
+      const winnerName = (winners || []).map((id) => playerName(db, id) || id).join(' & ')
+      const loserName = (losers || []).map((id) => playerName(db, id) || id).join(' & ')
       feed.push({
         id: `feed-clutch-${mt.id || idx}`,
         type: 'clutch_win',

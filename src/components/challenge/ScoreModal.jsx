@@ -1,16 +1,23 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Dialog } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
-import { playerName, playerOf } from '#lib/money.js'
+import { playerName, playerOf, myMember } from '#lib/money.js'
+import { calculateMemberBadges, getBadgeById } from '#lib/badges.js'
+import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
 export default function ScoreModal({ court, session, challenge, onClose, onSaved }) {
   const { db, a } = useApp()
+  const navigate = useNavigate()
   const isMobile = useMobile()
   const [submitting, setSubmitting] = useState(false)
+  const [unlockedBadge, setUnlockedBadge] = useState(null)
+  const [pendingSavedRes, setPendingSavedRes] = useState(null)
+  const currentMember = useMemo(() => myMember(db), [db])
 
   // Xác định Đội A và Đội B từ court hoặc challenge
   const teamA = useMemo(() => {
@@ -139,10 +146,29 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
     }
   }, [playerDeltasPreview, teamA, teamB, db])
 
+  const handleFinishScore = (highlightBadgeId = null) => {
+    if (pendingSavedRes && onSaved) onSaved(pendingSavedRes)
+    setUnlockedBadge(null)
+    onClose()
+    if (highlightBadgeId) {
+      navigate(`/danh-hieu?tab=collection&highlight=${highlightBadgeId}`)
+    }
+  }
+
   const handleSave = () => {
     if (!winnerTeam || submitting) return
     setSubmitting(true)
     try {
+      // 1. Kiểm tra huy hiệu trước khi lưu (nếu có currentMember)
+      let badgesBefore = null
+      if (currentMember?.id) {
+        try {
+          badgesBefore = calculateMemberBadges(currentMember.id, db)
+        } catch {
+          badgesBefore = null
+        }
+      }
+
       // Lọc các set hợp lệ
       const finalSets = sets.filter(([a, b]) => a > 0 || b > 0)
       const res = a.saveMatchScore({
@@ -157,6 +183,58 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         winnerTeam,
         minutes: court?.minutes || cfg.match?.defaultMinutes || 20,
       })
+
+      // 2. Kiểm tra nếu có bounty bị ngắt (AM4 case chính) hoặc có huy hiệu mới mở khóa
+      let badgeToUnlock = null
+
+      if (res?.bountyBroken) {
+        // Đội thua và đối thủ bị ngắt chuỗi
+        const losingTeam = res.winnerTeam === 'A' ? teamB : teamA
+        const victimName = losingTeam.map((id) => playerName(db, id)).join(' · ')
+        const baseBadge = getBadgeById('ke_ngat_chuoi') || {}
+        badgeToUnlock = {
+          id: 'ke_ngat_chuoi',
+          name: t('badges.items.ke_ngat_chuoi.name'),
+          tier: 'epic',
+          glyph: baseBadge.glyph || 'thunder',
+          victim: victimName,
+          streak: res.brokenStreak || 5,
+          xp: baseBadge.reward?.xp || 100,
+          sp: baseBadge.reward?.seasonPts || 15,
+          elo: res.eloDelta || 18,
+        }
+      } else if (currentMember?.id && res) {
+        // Kiểm tra danh hiệu mở khóa mới của người chơi hiện tại
+        try {
+          const nextMatches = (db.matches || []).concat([res])
+          const nextDb = { ...db, matches: nextMatches }
+          const badgesAfter = calculateMemberBadges(currentMember.id, nextDb)
+          const beforeIds = new Set((badgesBefore?.unlockedBadges || []).map((b) => b.id))
+          const newlyUnlocked = (badgesAfter?.unlockedBadges || []).filter((b) => !beforeIds.has(b.id))
+          if (newlyUnlocked.length > 0) {
+            const nb = newlyUnlocked[0]
+            badgeToUnlock = {
+              id: nb.id,
+              name: nb.name || nb.id,
+              tier: nb.tier || 'epic',
+              glyph: nb.glyph || 'crystal',
+              story: nb.story || nb.desc || nb.cond,
+              xp: nb.reward?.xp || 50,
+              sp: nb.reward?.seasonPts || 10,
+              elo: res.eloDelta || 10,
+            }
+          }
+        } catch (err) {
+          console.warn('[ScoreModal] Lỗi tính badge mới sau trận:', err)
+        }
+      }
+
+      if (badgeToUnlock) {
+        setPendingSavedRes(res)
+        setUnlockedBadge(badgeToUnlock)
+        return
+      }
+
       if (res && onSaved) onSaved(res)
       onClose()
     } finally {
@@ -169,8 +247,9 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
   const challengeCode = challenge?.code || court?.fromChallengeCode || ''
 
   return (
-    <Dialog
-      open
+    <>
+      <Dialog
+        open={!unlockedBadge}
       sheet={isMobile}
       width={520}
       title={t('scoreModal.title', { court: courtName || '1' })}
@@ -454,6 +533,31 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         </div>
       </div>
     </Dialog>
+
+      {unlockedBadge && (
+        <BadgeUnlockModal
+          badge={unlockedBadge}
+          isMobile={isMobile}
+          shelfCount={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length}
+          shelfIsFull={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length >= 3}
+          onEquipShelf={(b) => {
+            if (currentMember?.id && a.setMemberShelf) {
+              const cur = (currentMember.badge_shelf || currentMember.badgeShelf || []).slice()
+              if (!cur.includes(b.id)) {
+                if (cur.length >= 3) cur.pop()
+                cur.unshift(b.id)
+                a.setMemberShelf(currentMember.id, cur)
+              }
+            }
+            handleFinishScore()
+          }}
+          onViewCollection={(b) => {
+            handleFinishScore(b?.id || unlockedBadge.id)
+          }}
+          onClose={() => handleFinishScore()}
+        />
+      )}
+    </>
   )
 }
 

@@ -355,36 +355,50 @@ export default function Badges() {
               minHeight: '844px',
             }}
           >
-            {/* Header chuyển tab trên mobile */}
-            <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #2A1145', paddingBottom: 10 }}>
-              {[
-                { id: 'collection', label: t('badges.tabCollection') },
-                { id: 'bounty', label: t('badges.tabBounty') },
-                { id: 'leaderboard', label: t('badges.tabLeaderboard') },
-              ].map((tab) => {
-                const isActive = activeTab === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    style={{
-                      flex: 1,
-                      textAlign: 'center',
-                      font: "600 10.5px/1 'Oswald', sans-serif",
-                      letterSpacing: '.1em',
-                      padding: '10px 4px',
-                      clipPath: 'polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: isActive ? 'linear-gradient(135deg, #FF2E7E, #FFB03A)' : 'rgba(255,255,255,.05)',
-                      color: isActive ? '#140109' : '#9C8ABE',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                )
-              })}
+            {/* Header chuyển tab trên mobile chuẩn AM3 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderBottom: '1px solid #2A1145', paddingBottom: 12 }}>
+              {activeTab === 'bounty' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ font: "700 22px/1 'Oswald', sans-serif", letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF' }}>
+                      {t('badges.bountyBoard.title')}
+                    </span>
+                    <span style={{ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                      {t('badges.bountyBoard.sub', { count: bounties.length })}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[
+                  { id: 'collection', label: t('badges.bountyBoard.subtabCollection') },
+                  { id: 'bounty', label: t('badges.bountyBoard.subtabBounty') },
+                  { id: 'leaderboard', label: t('badges.bountyBoard.subtabLeaderboard') },
+                ].map((tab) => {
+                  const isActive = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      style={{
+                        flex: 1,
+                        textAlign: 'center',
+                        font: "600 10.5px/1 'Oswald', sans-serif",
+                        letterSpacing: '.1em',
+                        padding: '10px 4px',
+                        clipPath: 'polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: isActive ? 'linear-gradient(135deg, #FF2E7E, #FFB03A)' : 'rgba(255,255,255,.05)',
+                        color: isActive ? '#140109' : '#9C8ABE',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Nội dung tab */}
@@ -393,6 +407,8 @@ export default function Badges() {
                 bounties={bounties}
                 heroBounty={heroBounty}
                 currentMember={currentMember}
+                isMobile={true}
+                hideHeader={true}
                 onChallenge={(b) => {
                   if (b && b.targetId) {
                     navigate(`/tran-dau?tab=challenges&targetId=${b.targetId}`)

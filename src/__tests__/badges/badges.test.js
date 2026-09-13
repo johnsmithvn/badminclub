@@ -276,3 +276,58 @@ test('Badges: Cơ chế mở khóa offline -> online chỉ bật cho chính ch�
   assert.equal(unseenMinhNext.some((b) => b.id === 'bat_bai_v'), false, 'bat_bai_v đã được đánh dấu đã xem')
 })
 
+test('Guest Names: getClubAchievementFeed và getMemberSeasonLedger hiển thị đúng tên khách thay vì UUID', async () => {
+  const { getMemberSeasonLedger } = await import('../../lib/season.js')
+  const { playerName } = await import('../../lib/money.js')
+
+  const guestId = '16277406-a57c-46f8-9753-4c3eebedcfd6'
+  const mockDb = {
+    members: [
+      { id: 'm1', name: 'Anh Tungdd' },
+      { id: 'm2', name: 'Đức Anh' },
+      { id: 'm3', name: 'Trường' },
+    ],
+    guests: [
+      { id: guestId, name: 'Khách Nam' },
+    ],
+    matches: [
+      {
+        id: 'mt-guest-break',
+        at: 1789386120000,
+        teamA: ['m1', guestId],
+        teamB: ['m2', 'm3'],
+        winnerTeam: 'A',
+        sets: [[21, 15]],
+        bountyBroken: true,
+        brokenStreak: 6,
+        scoreText: '21 - 15',
+      },
+    ],
+    playerRatings: {
+      m1: { rating: 1600, displayRating: 1600 },
+      m2: { rating: 1550, displayRating: 1550 },
+      m3: { rating: 1520, displayRating: 1520 },
+    },
+  }
+
+  // 1. Kiểm tra playerName trả về tên khách thật
+  assert.equal(playerName(mockDb, guestId), 'Khách Nam')
+
+  // 2. Kiểm tra getClubAchievementFeed không chứa UUID mà chứa tên khách
+  const feed = getClubAchievementFeed(mockDb)
+  const bountyEvent = feed.find((f) => f.type === 'bounty_break')
+  assert.ok(bountyEvent)
+  assert.equal(bountyEvent.actorName, 'Anh Tungdd & Khách Nam')
+  assert.ok(!bountyEvent.actorName.includes(guestId), 'ActorName không được để lộ UUID của khách')
+  assert.equal(bountyEvent.targetName, 'Đức Anh & Trường')
+
+  // 3. Kiểm tra getMemberSeasonLedger của Anh Tungdd
+  const ledger = getMemberSeasonLedger('m1', mockDb)
+  assert.ok(ledger)
+  assert.ok(ledger.recentEvents.length >= 1)
+  const ev = ledger.recentEvents[0]
+  assert.equal(ev.partnerName, 'Khách Nam', 'partnerName phải là tên khách, không được là UUID')
+  assert.ok(!ev.partnerName.includes(guestId))
+})
+
+

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Icon, Select, StatCard } from '#ds'
+import { Icon, Select, StatCard, Avatar } from '#ds'
 import { ConfidenceChip, LevelChip } from '#ui'
 import { playerName } from '#lib/money.js'
 import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
@@ -270,21 +270,12 @@ export default function MemberProfileTab({
         <div style={{ padding: 18, background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{
-                width: 56,
-                height: 56,
-                borderRadius: 999,
-                background: '#1A2437',
-                border: '1px solid #2E3E5C',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                font: '700 20px/1 Barlow, sans-serif',
-                color: '#A8B7CB',
-                flexShrink: 0,
-              }}>
-                {(member.name || '').slice(0, 2).toUpperCase()}
-              </div>
+              <Avatar
+                name={member.name}
+                src={member.avatarUrl || member.avatar}
+                size={56}
+                style={{ flexShrink: 0, border: '1px solid #2E3E5C' }}
+              />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                 <div style={{ font: '700 22px/1.2 Barlow, sans-serif', color: 'var(--text-primary)' }}>
                   {member.name}

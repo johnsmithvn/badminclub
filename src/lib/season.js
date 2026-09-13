@@ -1,5 +1,5 @@
 import cfg from '#config/app.json' with { type: 'json' }
-import { isPresent } from '#lib/money.js'
+import { isPresent, playerName } from '#lib/money.js'
 import { DEFAULT_RATING } from '#lib/rating.js'
 
 /**
@@ -488,8 +488,7 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
 
   // Trả về KEY + tham số, không dựng sẵn câu chữ — cùng pattern với getMemberXpLedger ở trên.
   // lib/ là hàm thuần, câu chữ do component render bằng t() (RULES §3.1).
-  const membersById = new Map((db.members || []).map((mb) => [mb.id, mb]))
-  const memberNameOf = (id) => membersById.get(id)?.name || id
+  const memberNameOf = (id) => playerName(db, id) || id
 
   const events = recentLogs.map((m) => {
     // Giờ thật của trận, giờ địa phương. Nhánh cũ đọc `m.createdAt` (không tồn tại trên

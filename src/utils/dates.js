@@ -11,6 +11,11 @@ export const WD_FULL = tBranch('weekday').full
 export const wd = (iso) => WD[new Date(iso + 'T00:00:00').getDay()]
 /** Số thứ trong tuần: 0=CN … 6=T7 */
 export const weekdayOf = (iso) => new Date(iso + 'T00:00:00').getDay()
+/** Date → 'YYYY-MM-DD' theo giờ ĐỊA PHƯƠNG. Dùng cái này thay toISOString(): toISOString là UTC
+ * nên trước 07:00 giờ VN nó trả về ngày hôm trước. */
+export const isoOf = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+/** Hôm nay theo giờ địa phương: '2026-09-14' */
+export const todayISO = () => isoOf(new Date())
 /** '2026-08-16' → '16/08' */
 export const dd = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7)
 /** '2026-08-16' → '16/08/2026' */

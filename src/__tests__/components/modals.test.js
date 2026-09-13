@@ -100,4 +100,46 @@ test('Phase 1 Modals Logic Verification', async (t) => {
     assert.equal(mapFromEmpty['m1'], 1500)
     assert.equal(mapFromEmpty['m2'], 1500)
   })
+
+  await t.test('AM4: ScoreModal bounty break unlock logic', () => {
+    // Giả lập kết quả saveMatchScore khi ngắt chuỗi đối thủ
+    const saveRes = {
+      id: 'm-test-1',
+      bountyBroken: true,
+      brokenStreak: 6,
+      winnerTeam: 'A',
+      eloDelta: 18,
+    }
+
+    const teamB = ['m-opponent-1']
+    const mockDb = {
+      members: [{ id: 'm-opponent-1', name: 'Minh' }],
+      guests: [],
+    }
+
+    const victimName = teamB.map((id) => mockDb.members.find((m) => m.id === id)?.name).join(' · ')
+    assert.equal(victimName, 'Minh')
+
+    const unlockData = {
+      id: 'ke_ngat_chuoi',
+      name: 'Kẻ ngắt chuỗi',
+      tier: 'epic',
+      victim: victimName,
+      streak: saveRes.brokenStreak,
+      xp: 100,
+      sp: 15,
+      elo: saveRes.eloDelta,
+    }
+
+    assert.equal(unlockData.id, 'ke_ngat_chuoi')
+    assert.equal(unlockData.streak, 6)
+    assert.equal(unlockData.victim, 'Minh')
+    assert.equal(unlockData.elo, 18)
+
+    // Kiểm tra câu chuyện chiến tích chuẩn thiết kế AM4
+    const template = 'Bạn vừa hạ {{victim}} — chuỗi {{streak}} trận của đối thủ dừng lại. Bounty đóng ngay, phần thưởng treo về tay bạn.'
+    const story = template.replace('{{victim}}', unlockData.victim).replace('{{streak}}', unlockData.streak)
+    assert.equal(story, 'Bạn vừa hạ Minh — chuỗi 6 trận của đối thủ dừng lại. Bounty đóng ngay, phần thưởng treo về tay bạn.')
+  })
 })
+

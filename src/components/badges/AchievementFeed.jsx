@@ -3,6 +3,23 @@ import { t } from '#i18n'
 import { NOTCH_S_CLIP } from '#lib/badges.js'
 
 /**
+ * Định dạng mốc thời gian hiển thị thân thiện ở bảng tin:
+ * Giờ địa phương theo múi giờ thiết bị (tránh lệch UTC): HH:mm · DD/MM
+ */
+function formatFeedTime(rawTs) {
+  if (!rawTs) return ''
+  const d = new Date(rawTs)
+  if (isNaN(d.getTime())) return String(rawTs)
+
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+
+  return `${hours}:${minutes} · ${day}/${month}`
+}
+
+/**
  * Component Bảng Tin Thành Tích & Tương Tác CLB (Achievement Feed)
  * Phong cách Anime Cyberpunk vát góc, đường viền năng lượng neon.
  * Vinh danh ngắt chuỗi, cột mốc chuỗi thắng, mốc Elo, trận cầu nghẹt thở.
@@ -218,15 +235,15 @@ export default function AchievementFeed({ feed = [] }) {
                 {/* Cột phải: Tag thời gian */}
                 <div
                   style={{
-                    font: '600 11px/1 Oswald, sans-serif',
-                    letterSpacing: '.1em',
-                    color: '#7E6FA0',
+                    font: "600 11.5px/1 'IBM Plex Mono', monospace",
+                    letterSpacing: '.06em',
+                    color: '#9C8ABE',
                     textTransform: 'uppercase',
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                   }}
                 >
-                  {item.timestamp}
+                  {formatFeedTime(item.timestamp)}
                 </div>
               </div>
             )

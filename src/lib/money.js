@@ -59,17 +59,23 @@ export const playerOf = (db, id) => {
   if (!id) return null
   const m = (db?.members || []).find((x) => x.id === id)
   if (m) return m
-  const g = (db?.guests || []).find((x) => x.id === id)
+  const g = (db?.guests || []).find((x) => x.id === id || x.guestId === id || x.guest_id === id)
   if (g) return g
-  const sg = (db?.sessionGuests || []).find((x) => x.id === id || x.guestId === id)
+  const sgList = (db?.sessionGuests && db.sessionGuests.length ? db.sessionGuests : (db?.session_guests || []))
+  const sg = sgList.find((x) => x.id === id || x.guestId === id || x.guest_id === id)
   if (sg) {
-    if (sg.guestId) {
-      const g2 = (db?.guests || []).find((x) => x.id === sg.guestId)
+    const gid = sg.guestId || sg.guest_id
+    if (gid) {
+      const g2 = (db?.guests || []).find((x) => x.id === gid)
       if (g2) return g2
     }
-    if (sg.memberId) {
-      const m2 = (db?.members || []).find((x) => x.id === sg.memberId)
+    const mid = sg.memberId || sg.member_id
+    if (mid) {
+      const m2 = (db?.members || []).find((x) => x.id === mid)
       if (m2) return m2
+    }
+    if (sg.name || sg.guestName || sg.guest_name) {
+      return { id: sg.id || id, name: sg.name || sg.guestName || sg.guest_name }
     }
   }
   return null

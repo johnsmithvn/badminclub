@@ -21,7 +21,9 @@ export function TimePickerSheet({ open, onClose, value, onSelect, isMobile }) {
   const parts = parseSecondsToParts(currentVal)
 
   const handleApply = () => {
-    onSelect(currentVal)
+    // Chuẩn hoá trước khi trả ra: ô gõ tự do bên dưới nhận mọi chuỗi, không lọc thì chuỗi rác
+    // ('abc', '1:5') đi thẳng vào DB rồi hiển thị nguyên si ở danh sách trận.
+    onSelect(formatPartsToTimestamp(parts))
     onClose()
   }
 
@@ -236,6 +238,7 @@ export function TimePickerSheet({ open, onClose, value, onSelect, isMobile }) {
               type="text"
               value={currentVal}
               onChange={(e) => setCurrentVal(e.target.value)}
+              onBlur={() => setCurrentVal(formatPartsToTimestamp(parts))}
               placeholder={t('matchVideo.typeTimestampPlaceholder')}
               style={{
                 flex: 1,
@@ -428,6 +431,7 @@ export function QuickTimestampPicker({ value, onChange, isMobile, compact = fals
           type="text"
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={() => onChange(formatPartsToTimestamp(parseSecondsToParts(value || '')))}
           placeholder="00:00"
           style={{
             flex: 1,
@@ -559,9 +563,10 @@ export function MatchVideoInlineExpander({
   const provider = parseVideoProvider(url)
 
   const handleSave = () => {
+    const ts = (timestamp || '').trim()
     onSave({
       videoUrl: url.trim(),
-      videoTimestamp: timestamp.trim(),
+      videoTimestamp: ts ? formatPartsToTimestamp(parseSecondsToParts(ts)) : '',
       videoNote: note.trim(),
     })
   }
@@ -755,9 +760,10 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
   }
 
   const handleSave = () => {
+    const ts = (timestamp || '').trim()
     const data = {
       videoUrl: url.trim(),
-      videoTimestamp: timestamp.trim(),
+      videoTimestamp: ts ? formatPartsToTimestamp(parseSecondsToParts(ts)) : '',
       videoNote: note.trim(),
     }
     if (onSave) {

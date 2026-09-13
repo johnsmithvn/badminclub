@@ -4,6 +4,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 import { ConfidenceChip } from '#ui'
+import { Avatar } from '#ds'
 
 export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsMap, matches = [], db, membersMap }) {
   const isMobile = useMobile()
@@ -40,6 +41,18 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
     const cleanN2 = (n2 && n2.length > 20 && n2.includes('-')) ? resolvePlayerName(p2) : n2
     return [cleanN1, cleanN2].filter(Boolean)
   }, [names, pair, db, membersMap])
+
+  const memberA = useMemo(() => {
+    const id = pair?.playerA || pair?.memberA?.id
+    if (!id) return pair?.memberA || { id: '', name: pairNames[0] || '' }
+    return (pair?.membersMap && pair.membersMap[id]) || (membersMap && membersMap[id]) || (db?.members || []).find((m) => m.id === id) || { id, name: pairNames[0] || id }
+  }, [pair, membersMap, db, pairNames])
+
+  const memberB = useMemo(() => {
+    const id = pair?.playerB || pair?.memberB?.id
+    if (!id) return pair?.memberB || { id: '', name: pairNames[1] || '' }
+    return (pair?.membersMap && pair.membersMap[id]) || (membersMap && membersMap[id]) || (db?.members || []).find((m) => m.id === id) || { id, name: pairNames[1] || id }
+  }, [pair, membersMap, db, pairNames])
 
   const impactSign = pairImpact > 0 ? `+${pairImpact}` : `${pairImpact}`
   const impactColor = pairImpact > 0 ? '#5FDBD3' : pairImpact < 0 ? '#F09A8E' : '#A8B7CB'
@@ -164,9 +177,19 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
 
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-            <span style={{ display: 'flex', flex: '0 0 auto' }}>
-              <span style={{ width: 32, height: 32, borderRadius: 999, background: '#1D50A0', border: '2px solid #141D2E' }} />
-              <span style={{ width: 32, height: 32, borderRadius: 999, background: '#7A3D8F', border: '2px solid #141D2E', marginLeft: -11 }} />
+            <span style={{ display: 'flex', flex: '0 0 auto', alignItems: 'center' }}>
+              <Avatar
+                name={memberA?.name}
+                src={memberA?.avatarUrl || memberA?.avatar}
+                size={32}
+                style={{ border: '2px solid #141D2E', zIndex: 2 }}
+              />
+              <Avatar
+                name={memberB?.name}
+                src={memberB?.avatarUrl || memberB?.avatar}
+                size={32}
+                style={{ border: '2px solid #141D2E', marginLeft: -11, zIndex: 1 }}
+              />
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
@@ -379,25 +402,18 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
             gap: 12,
           }}
         >
-          <span style={{ display: 'flex', flex: '0 0 auto' }}>
-            <span
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 999,
-                background: '#1D50A0',
-                border: '2px solid #1A2437',
-              }}
+          <span style={{ display: 'flex', flex: '0 0 auto', alignItems: 'center' }}>
+            <Avatar
+              name={memberA?.name}
+              src={memberA?.avatarUrl || memberA?.avatar}
+              size={32}
+              style={{ border: '2px solid #1A2437', zIndex: 2 }}
             />
-            <span
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 999,
-                background: '#00786F',
-                border: '2px solid #1A2437',
-                marginLeft: -11,
-              }}
+            <Avatar
+              name={memberB?.name}
+              src={memberB?.avatarUrl || memberB?.avatar}
+              size={32}
+              style={{ border: '2px solid #1A2437', marginLeft: -11, zIndex: 1 }}
             />
           </span>
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
