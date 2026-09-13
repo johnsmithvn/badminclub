@@ -28,8 +28,18 @@ export default function MoreSheet({ open, onClose, route }) {
   const userRole = roleName(db.myRole || role)
   const userEmail = profile?.email || session?.user?.email || ''
 
+  const myMemId = currentMember?.id || null
+  const pendingChallenges = (db.challenges || []).filter((c) => {
+    if (c.status !== 'pending') return false
+    if (myMemId) {
+      return (c.teamB || []).includes(myMemId) || (c.teamA || []).includes(myMemId)
+    }
+    return true
+  }).length
+
   const counts = {
     unclosedSessions: monthSessions(db, db.month).filter((s) => s.status !== 'closed').length,
+    pendingChallenges: pendingChallenges > 0 ? pendingChallenges : null,
     debtPending: debtCounts.total,
     pendingJoins: (db.joinRequests || []).length,
     pendingChanges: (db.changes || []).filter((c) => c.status === 'pending').length,
@@ -52,6 +62,11 @@ export default function MoreSheet({ open, onClose, route }) {
     {
       title: t('nav.section.ops'),
       items: [
+        {
+          value: 'matches',
+          icon: 'history',
+          badge: counts.pendingChallenges,
+        },
         { value: 'badges', icon: 'award' },
         {
           value: 'members',

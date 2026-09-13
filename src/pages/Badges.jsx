@@ -395,9 +395,9 @@ export default function Badges() {
                 currentMember={currentMember}
                 onChallenge={(b) => {
                   if (b && b.targetId) {
-                    navigate(`/bang-xep-hang?tab=search&playerA=${b.targetId}`)
+                    navigate(`/tran-dau?tab=challenges&targetId=${b.targetId}`)
                   } else {
-                    navigate('/chia-san')
+                    navigate('/tran-dau?tab=challenges')
                   }
                 }}
               />
@@ -747,9 +747,9 @@ export default function Badges() {
             bounty={heroBounty}
             onChallenge={(b) => {
               if (b && b.targetId) {
-                navigate(`/bang-xep-hang?tab=search&playerA=${b.targetId}`)
+                navigate(`/tran-dau?tab=challenges&targetId=${b.targetId}`)
               } else {
-                navigate('/chia-san')
+                navigate('/tran-dau?tab=challenges')
               }
             }}
           />
@@ -1150,9 +1150,9 @@ export default function Badges() {
           bounties={bounties}
           onChallenge={(b) => {
             if (b && b.targetId) {
-              navigate(`/bang-xep-hang?tab=search&playerA=${b.targetId}`)
+              navigate(`/tran-dau?tab=challenges&targetId=${b.targetId}`)
             } else {
-              navigate('/chia-san')
+              navigate('/tran-dau?tab=challenges')
             }
           }}
           onViewBadge={(b) => handleSelectBadge(b)}

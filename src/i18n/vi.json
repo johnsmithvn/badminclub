@@ -336,6 +336,7 @@
     "calendar": "Lịch tháng",
     "sessions": "Buổi tập",
     "assign": "Chia sân",
+    "matches": "Trận đấu & Kèo",
     "schedules": "Lịch tập cố định",
     "members": "Thành viên",
     "debts": "Công nợ",
@@ -356,6 +357,10 @@
     "home": {
       "title": "Trang chủ",
       "desc": "Toàn cảnh quỹ, buổi tập và công nợ"
+    },
+    "matches": {
+      "title": "Trận đấu & Kèo",
+      "desc": "Sàn thách đấu, lịch sử thi đấu và ma trận đối đầu CLB"
     },
     "badges": {
       "title": "Danh hiệu",
@@ -396,7 +401,7 @@
     },
     "leaderboard": {
       "title": "Bảng xếp hạng",
-      "desc": "Xếp hạng Elo, tìm trận đấu & đối đầu"
+      "desc": "Đua top mùa giải, đẳng cấp Elo và cặp đôi ăn ý"
     },
     "schedules": {
       "title": "Lịch tập cố định",
@@ -2717,6 +2722,7 @@
     "tabPending": "Đang chờ",
     "tabOpen": "Đang mở",
     "tabPlayed": "Đã đấu",
+    "tabAll": "Tất cả",
     "expiresIn": "hết hạn {{time}}",
     "gapWarningNotBlocked": "Lệch {{gap}} điểm — cảnh báo, không chặn",
     "railChallengeNote": "Nhận kèo xong, cặp thành thẻ chờ sân ở tab Chia sân. Match chỉ sinh khi nhập tỷ số.",
@@ -4052,5 +4058,21 @@
     "h2hLastMet": " · gần nhất {{date}}",
     "recentMatchesHeader": "{{n}} trận đấu gần nhất",
     "recentMatchesSub": "nhóm theo ngày · giờ đánh ở cột Giờ · bấm Sửa để đổi tỷ số ngay tại đây"
+  },
+  "matchesPage": {
+    "tabChallenges": "Sàn Kèo",
+    "tabHistory": "Lịch sử trận & Video",
+    "tabMatrix": "Ma trận đối đầu",
+    "emptyChallenges": "Chưa có kèo nào trong mục này",
+    "createChallengePrompt": "Tạo kèo mới để giao lưu hoặc thách đấu tính Elo",
+    "myChallengesSub": "Kèo bạn tạo hoặc lời thách đấu gửi tới bạn",
+    "openChallengesSub": "Các kèo tự do đang tìm đối thủ hoặc ghép cặp trong CLB",
+    "pendingSub": "Các kèo đang chờ phản hồi",
+    "playedSub": "Các kèo đã thi đấu và có kết quả",
+    "allSub": "Toàn bộ kèo trong hệ thống",
+    "acceptOpenChallenge": "Nhận kèo này",
+    "sessionLinked": "Buổi {{date}}",
+    "noSessionLinked": "Kèo tự do CLB",
+    "createBtn": "+ Tạo kèo mới"
   }
 }

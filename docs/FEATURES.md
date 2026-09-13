@@ -346,40 +346,31 @@ Bản mobile được tối ưu hóa cho màn hình cầm tay (≤768px) theo m�
    - Thao tác Xếp tự động và Nhập tỷ số mở dưới dạng Bottom Sheet.
 
 4. **Bảng xếp hạng (`/bang-xep-hang`):**
-   - 5 tab cuộn ngang. Dòng xếp hạng thành thẻ 2 tầng.
-   - Ma trận H2H cho phép cuộn ngang với cột tên dán trái (sticky left).
-   - Sheet Sửa tỷ số xếp dọc hai khối cũ/mới và bắt buộc nhập lý do trước khi lưu.
+   - 3 tab vinh danh cốt lõi: Đua Top Mùa Giải (Season Race), Elo Cá Nhân & Sự Nghiệp, Cặp Đôi Ăn Ý.
+   - Các tab Lịch sử trận, Ma trận đối đầu và Kèo được chuyển sang trang chuyên biệt `/tran-dau`.
+   - Dòng xếp hạng thành thẻ 2 tầng trên mobile.
 
 5. **Công nợ (`/cong-no`):**
    - Luôn sử dụng dạng thẻ (`viewMode = 'grid'`), ẩn nút toggle bảng desktop.
 ---
 
-## 10. Kèo Thách Đấu (Challenge), Tìm Trận & Hiệu Chỉnh Elo (Handoff Challenge & Rating)
+## 10. Trận Đấu & Kèo Thách Đấu (`/tran-dau`) (Handoff Challenge & Match History)
 
-Hệ thống bổ sung lớp tiền trận đấu (Pre-match negotiation) và phân tích chuyên sâu dữ liệu trận đấu:
+Hệ thống cung cấp trang chuyên biệt `/tran-dau` đóng vai trò là Sàn Đấu và Hub Thực Chiến trung tâm của CLB:
 
-1. **Lớp Thách đấu (Challenge / "Kèo"):**
-   - Vòng đời: `pending` (chờ nhận) $\to$ `accepted` (đã nhận) $\to$ `oncourt` (đang trên sân) $\to$ `played` (đã đấu và ghi nhận Match). Các trạng thái kết thúc khác: `declined`, `expired`, `cancelled`.
-   - Chỉ dành riêng cho thành viên chính thức (`members-only`). Khách giao lưu (`guests`) không được tham gia tạo hoặc nhận kèo.
-   - Khi tạo kèo trong buổi, chỉ những thành viên đã có mặt (`attendance === true`) mới được hiển thị trong danh sách chọn đội.
-   - Cảnh báo lệch trình độ: khi chênh lệch Elo giữa 2 đội $> 250$ điểm, hiển thị cảnh báo trực quan nhưng **không chặn** thao tác gửi kèo.
+1. **Tab 1: Sàn Kèo / Thách đấu (Challenge Arena):**
+   - Vòng đời kèo: `pending` (chờ nhận) $\to$ `accepted` (đã nhận) $\to$ `oncourt` (đang trên sân) $\to$ `played` (đã đấu và ghi nhận Match). Các trạng thái kết thúc khác: `declined`, `expired`, `cancelled`.
+   - Phân loại subtab: Kèo của tôi, Kèo mở toàn CLB, Kèo đang chờ, Kèo đã đấu, Tất cả.
+   - Thẻ kèo hiển thị đầy đủ tỷ lệ thắng dự kiến win%, độ lệch Elo, countdown thời hạn, nút Nhận / Từ chối / Hủy kèo và nút "+ Tạo kèo".
+   - Kèo tạo từ Bảng xếp hạng hoặc Săn thưởng được lưu với `sessionId: null` và hiển thị rõ ràng trên sàn đấu CLB thay vì bị ẩn/thất lạc.
 
-2. **Quy tắc Đưa kèo lên sân (Đóng Open Question #1):**
-   - **Quy tắc xử sự:** Khi người điều phối bấm nút "Đưa lên sân" (từ tab Chia sân hoặc tab Trận & kèo), hệ thống tìm sân đầu tiên đang hoàn toàn trống (`firstEmptyCourtIdx`).
-   - Nếu tìm thấy sân trống: 4 thành viên của kèo được đưa vào sân, kèo chuyển sang trạng thái `oncourt`, sân được đánh dấu nguồn từ mã kèo (`from: <challengeCode>`).
-   - Nếu **không có sân nào trống**: Hệ thống **chặn (block)** thao tác và hiển thị toast cảnh báo `t('challenge.noEmptyCourt')`. Tuyệt đối **không tự ý đẩy văng (displace)** những người chơi đang thi đấu ở sân khác.
+2. **Tab 2: Lịch sử trận & Video (Match History & Replay):**
+   - Bộ lọc chuyên sâu theo 2 người chơi (Đối đầu / Cùng đội), có/không có video, chất lượng trận (Sát điểm / Upset / Đảo chiều Elo), nguồn chia sân / kèo tự do.
+   - Thẻ tóm tắt H2H hiển thị tỷ số đối đầu trực tiếp giữa 2 người chơi.
+   - Danh sách trận đấu phân nhóm theo ngày, hỗ trợ xem video replay trực tiếp (Youtube / Facebook / Drive), gắn link video cho trận đấu, xem chi tiết và sửa tỷ số inline (ghi sổ `match_edits`).
 
-3. **Tìm trận & Thao tác Gạ kèo (Mockup K6):**
-   - Nằm tại Tab 3 (Tìm trận) của trang Bảng xếp hạng (`/bang-xep-hang`).
-   - Hỗ trợ lọc theo 2 người chơi (Đối đầu / Cùng đội), thời gian, và chất lượng trận (Sát điểm / Bất ngờ).
-   - Khi chọn 2 đấu thủ ở chế độ Đối đầu: Thẻ tóm tắt H2H ở cột phải hiển thị lịch sử đối đầu chi tiết kèm nút CTA "Gạ kèo" trực tiếp ở cuối thẻ (dùng component `<Icon name="target" />`, không dùng emoji). Bấm nút sẽ mở modal Tạo kèo với Đội A và Đội B được điền sẵn 2 đấu thủ này.
-   - Sửa tỷ số inline: Ghi sổ kiểm toán (`match_edits`), yêu cầu nhập lý do bắt buộc và kích hoạt hàm tính lại chuỗi Elo (`replayRatingCascade`) theo thứ tự thời gian cho toàn bộ các trận về sau.
-
-4. **Hiệu chỉnh Chéo giới & Độ tin cậy (Mockup RD5):**
-   - Nằm tại Tab 5 của trang Bảng xếp hạng.
-   - Thiết kế 2 cột:
-     - **Cột trái:** Thẻ tỷ lệ Nữ thắng Nam toàn CLB (chữ số lớn), câu ghi chú tường minh *"Con số này học từ dữ liệu thực chiến của CLB này, không phải hệ số cố định — tự động cập nhật khi có thêm trận."*, bảng phân tích theo 3 khoảng chênh Elo (<100, 100–300, >300), và thẻ giải thích cách dùng số liệu trong matchmaking.
-     - **Cột phải:** Bảng xếp hạng thành viên thi đấu chéo giới nhiều nhất (`rankTopCrossGenderPlayers`) kèm số trận chéo và badge độ tin cậy được cấu hình trong `src/config/app.json`.
-
-
-
+3. **Tab 3: Ma trận Đối đầu Toàn CLB (H2H Matrix):**
+   - Bảng ma trận đối đầu NxN trực quan, hỗ trợ xem Top 5, Top 8, Top 12 hoặc Toàn CLB.
+   - Cột tên dán cố định (sticky) trên màn hình mobile.
+   - Bấm vào ô đã có kết quả để xem ngay lịch sử đối đầu giữa 2 người; bấm vào ô chưa từng gặp nhau để mở ngay popup gạ kèo.
+   - Thống kê các cặp Chưa từng gặp nhau (ưu tiên theo số buổi tham gia chung) và Top các cặp lệch nhất trong CLB.

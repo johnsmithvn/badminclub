@@ -25,6 +25,7 @@ import Fund from '#pages/Fund.jsx'
 import Home from '#pages/Home.jsx'
 import Leaderboard from '#pages/Leaderboard.jsx'
 import Login from '#pages/Login.jsx'
+import Matches from '#pages/Matches.jsx'
 import Members from '#pages/Members.jsx'
 import Profile from '#pages/Profile.jsx'
 import Register from '#pages/Register.jsx'
@@ -35,7 +36,7 @@ import Settings from '#pages/Settings.jsx'
 
 const SCREEN = {
   home: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail, assign: Assign,
-  leaderboard: Leaderboard, badges: Badges, members: Members, debts: Debts, fund: Fund,
+  matches: Matches, leaderboard: Leaderboard, badges: Badges, members: Members, debts: Debts, fund: Fund,
   profile: Profile, settings: Settings, schema: Schema,
 }
 

@@ -5,7 +5,7 @@ import { t } from '#i18n'
 
 /** Route bên trong một CLB — cần đăng nhập VÀ đã chọn CLB. */
 export const ROUTE_KEYS = [
-  'home', 'calendar', 'sessions', 'session', 'assign', 'leaderboard', 'badges', 'members',
+  'home', 'calendar', 'sessions', 'session', 'assign', 'matches', 'leaderboard', 'badges', 'members',
   'debts', 'fund', 'profile', 'settings', 'schema',
 ]
 
@@ -26,6 +26,7 @@ const PATHS = {
   sessions: '/buoi-tap',
   session: '/buoi-tap/:id',
   assign: '/chia-san',
+  matches: '/tran-dau',
   leaderboard: '/bang-xep-hang',
   badges: '/danh-hieu',
   members: '/thanh-vien',

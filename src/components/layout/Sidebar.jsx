@@ -19,6 +19,7 @@ const NAV = [
   { section: 'ops' },
   { value: 'calendar', icon: 'calendar-days' },
   { value: 'sessions', icon: 'clipboard-check', badge: 'unclosedSessions' },
+  { value: 'matches', icon: 'history', badge: 'pendingChallenges' },
   { value: 'leaderboard', icon: 'trophy' },
   { value: 'badges', icon: 'award' },
   { value: 'members', icon: 'users' },
@@ -50,8 +51,18 @@ export default function Sidebar({ route }) {
   const debtCounts = canMoney ? clubDebtCounts(db, db.month) : myDebtCounts(db, db.month)
   const totalDebtPending = debtCounts.total
 
+  const myMemId = currentMember?.id || null
+  const pendingChallenges = (db.challenges || []).filter((c) => {
+    if (c.status !== 'pending') return false
+    if (myMemId) {
+      return (c.teamB || []).includes(myMemId) || (c.teamA || []).includes(myMemId)
+    }
+    return true
+  }).length
+
   const counts = {
     unclosedSessions: monthSessions(db, db.month).filter((s) => s.status !== 'closed').length,
+    pendingChallenges: pendingChallenges > 0 ? pendingChallenges : null,
     debtPending: totalDebtPending,
     pendingJoins: (db.joinRequests || []).length,
   }
