@@ -63,6 +63,7 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
         : 'Video'
 
   const codeStr = matchCode || liveMatch.code || (liveMatch.id ? `M-${String(liveMatch.id).slice(-4)}` : '')
+  const titleText = t('matchVideo.playerModalTitle', { code: codeStr })
 
   const handleCopyLink = async () => {
     try {
@@ -79,7 +80,7 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
 
   const titleNode = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-      <span>{t('matchVideo.playerModalTitle', { code: codeStr })}</span>
+      <span>{titleText}</span>
       {timestamp && (
         <span
           style={{
@@ -248,7 +249,7 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
             {embedUrl && provider !== 'direct' ? (
               <iframe
                 src={embedUrl}
-                title={title}
+                title={titleText}
                 style={{
                   position: 'absolute',
                   top: 0,
