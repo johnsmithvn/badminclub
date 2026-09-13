@@ -628,40 +628,102 @@ export default function Matches() {
   }
 
   return (
-    <div style={S.page}>
-      {/* 1. Header Trang */}
-      <div style={S.header}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={S.h1}>{t('pages.matches.title')}</h1>
-          <div style={S.hint}>{t('pages.matches.desc')}</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button
-            variant="primary"
-            icon="plus"
+    <div style={{ ...S.page, padding: isMobile ? '10px 8px 24px' : '16px 14px 32px', gap: isMobile ? 10 : 16 }}>
+      {/* 1. Header Trang - Học tập style gọn gàng của Leaderboard */}
+      <div
+        style={{
+          padding: isMobile ? '10px 12px' : '14px 18px',
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 10,
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between',
+          gap: isMobile ? 6 : 12,
+          boxShadow: 'var(--shadow-xs)',
+          marginBottom: 10,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            minWidth: 0,
+            flex: 1,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+            <h1
+              style={{
+                font: isMobile ? "700 17px/1.2 Barlow, sans-serif" : "700 20px/1.25 Barlow, sans-serif",
+                color: 'var(--text-primary)',
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {t('pages.matches.title')}
+            </h1>
+            {!isMobile && (
+              <div style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('pages.matches.desc')}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
             onClick={() => {
               setInitialTeamA(myId ? [myId] : [])
               setInitialTeamB([])
               setChallengeModalOpen(true)
             }}
+            style={{
+              height: isMobile ? 32 : 36,
+              padding: isMobile ? '0 10px' : '0 14px',
+              borderRadius: 6,
+              background: 'var(--action-accent-bg, #00B2A9)',
+              color: 'var(--action-accent-fg, #04302C)',
+              font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              flexShrink: 0,
+              boxShadow: 'var(--shadow-xs)',
+              whiteSpace: 'nowrap',
+            }}
           >
-            {t('matchesPage.createBtn')}
-          </Button>
+            <Icon name="plus" size={13} />
+            <span>{isMobile ? t('challenge.challenge') : t('matchesPage.createBtn')}</span>
+          </button>
         </div>
+
+        {isMobile && (
+          <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+            {t('pages.matches.desc')}
+          </div>
+        )}
       </div>
 
-      {/* 2. Thanh Tabs Chính */}
-      <TabTrack style={{ marginBottom: 16 }}>
-        <div style={S.tabTrack}>
+      {/* 2. Thanh Tabs Chính - Cuộn ngang mượt mà */}
+      <TabTrack style={{ marginBottom: 10 }}>
+        <div style={{ ...S.tabTrack, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '2px 0' }}>
           <button
             type="button"
             onClick={() => handleSelectTab('challenges')}
             style={{
               ...S.tabBtn,
+              ...(isMobile ? { padding: '6px 11px', fontSize: 12 } : {}),
               ...(activeTab === 'challenges' ? S.tabBtnActive : {}),
             }}
           >
-            <Icon name="history" size={15} />
+            <Icon name="history" size={14} />
             <span>{t('matchesPage.tabChallenges')}</span>
             {pendingChallenges.length > 0 && (
               <span style={S.tabBadgeMono}>{pendingChallenges.length}</span>
@@ -672,10 +734,11 @@ export default function Matches() {
             onClick={() => handleSelectTab('search')}
             style={{
               ...S.tabBtn,
+              ...(isMobile ? { padding: '6px 11px', fontSize: 12 } : {}),
               ...(activeTab === 'search' ? S.tabBtnActive : {}),
             }}
           >
-            <Icon name="search" size={15} />
+            <Icon name="search" size={14} />
             <span>{t('matchesPage.tabHistory')}</span>
             <span style={S.tabBadgeMono}>{(db.matches || []).length}</span>
           </button>
@@ -684,10 +747,11 @@ export default function Matches() {
             onClick={() => handleSelectTab('matrix')}
             style={{
               ...S.tabBtn,
+              ...(isMobile ? { padding: '6px 11px', fontSize: 12 } : {}),
               ...(activeTab === 'matrix' ? S.tabBtnActive : {}),
             }}
           >
-            <Icon name="grid" size={15} />
+            <Icon name="grid" size={14} />
             <span>{t('matchesPage.tabMatrix')}</span>
           </button>
         </div>
@@ -942,21 +1006,20 @@ export default function Matches() {
               boxShadow: 'var(--shadow-xs)',
             }}
           >
-            {/* 1. Thanh Tìm trận thu gọn 1 dòng 34px (tiết kiệm ~82px so với card cũ) */}
+            {/* 1. Thanh Tìm trận thu gọn */}
             <div
               style={{
-                padding: '11px 14px',
+                padding: isMobile ? '8px 10px' : '11px 14px',
                 borderBottom: '1px solid var(--border-subtle)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: 9,
-                flexWrap: 'wrap',
+                flexDirection: 'column',
+                gap: 8,
                 background: 'var(--surface-inset)',
               }}
             >
-              {/* Cụm chọn Người chơi A ⇄ Người chơi B */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, width: isMobile ? '100%' : 'auto' }}>
-                <div style={{ flex: isMobile ? 1 : 'none', width: isMobile ? 'auto' : 155 }}>
+              {/* Hàng 1: Cụm chọn Người chơi A ⇄ Người chơi B */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, width: '100%' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <SearchSelect
                     size="sm"
                     placeholder={`A · ${t('matchSearch.playerA')}`}
@@ -976,8 +1039,8 @@ export default function Matches() {
                     setPlayerB(temp)
                   }}
                   style={{
-                    width: 32,
-                    height: 32,
+                    width: isMobile ? 28 : 32,
+                    height: isMobile ? 28 : 32,
                     border: '1px solid var(--field-border)',
                     borderRadius: 'var(--radius-control)',
                     background: 'var(--field-bg)',
@@ -995,7 +1058,7 @@ export default function Matches() {
                   ⇄
                 </button>
 
-                <div style={{ flex: isMobile ? 1 : 'none', width: isMobile ? 'auto' : 155 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <SearchSelect
                     size="sm"
                     placeholder={`B · ${t('matchSearch.playerB')}`}
@@ -1008,144 +1071,181 @@ export default function Matches() {
                 </div>
               </div>
 
-              {/* Chế độ đối đầu / cùng đội */}
-              <Select
-                size="sm"
-                value={searchMode}
-                onChange={(e) => setSearchMode(e.target.value)}
-                options={[
-                  { value: 'vs', label: t('matchSearch.modeH2H') },
-                  { value: 'team', label: t('matchSearch.modeTeammate') },
-                ]}
-              />
-
-              {/* Dropdown kịch tính */}
-              <Select
-                size="sm"
-                value={qualityFilter}
-                onChange={(e) => setQualityFilter(e.target.value)}
-                options={[
-                  { value: 'all', label: t('matchSearch.qualityAll') },
-                  { value: 'close', label: t('matchSearch.qualityClose') },
-                  { value: 'upset', label: t('matchSearch.qualityUpset') },
-                ]}
-                style={qualityFilter !== 'all' ? {
-                  borderColor: 'var(--teal-500)',
-                  fontWeight: 600,
-                } : undefined}
-              />
-
-              {/* Lọc Nguồn: Tất cả / Kèo / Chia sân */}
-              <Select
-                size="sm"
-                value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-                options={[
-                  { value: 'all', label: t('matchVideo.filterAllSources') },
-                  { value: 'challenge', label: `⚔️ ${t('challenge.challenge')}` },
-                  { value: 'session', label: `🏟️ ${t('challenge.fromCourt')}` },
-                ]}
-                style={sourceFilter === 'challenge' ? {
-                  borderColor: '#A855F7',
-                  color: 'var(--text-primary)',
-                  fontWeight: 600,
-                } : undefined}
-              />
-
-              {/* Nút Lọc thêm */}
-              <button
-                type="button"
-                onClick={() => setShowMoreFilters((prev) => !prev)}
-                style={{
-                  height: 32,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '0 11px',
-                  borderRadius: 'var(--radius-control)',
-                  border: '1px solid var(--border-subtle)',
-                  background: showMoreFilters ? 'var(--surface-sunken)' : 'transparent',
-                  font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
-                  color: showMoreFilters ? 'var(--teal-500)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                }}
-              >
-                <span>{t('matchVideo.moreFilters')}</span>
-                <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
-                  {showMoreFilters ? '▲' : '▾'}
-                </span>
-              </button>
-
-              {/* Nút Xoá lọc */}
-              {(playerA || playerB || qualityFilter !== 'all' || searchMode !== 'vs' || onlyVideoFilter || courtFilter !== 'all' || sourceFilter !== 'all') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPlayerA('')
-                    setPlayerB('')
-                    setSearchMode('vs')
-                    setQualityFilter('all')
-                    setOnlyVideoFilter(false)
-                    setCourtFilter('all')
-                    setSourceFilter('all')
-                  }}
-                  style={{
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 10px',
-                    borderRadius: 'var(--radius-control)',
-                    border: 'none',
-                    background: 'transparent',
-                    font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t('matchVideo.clearFilters')}
-                </button>
-              )}
-
-              <div style={{ flex: 1, minWidth: 20 }} />
-
-              {/* Bộ chọn Sắp xếp */}
+              {/* Hàng 2: Thanh công cụ lọc cuộn ngang mượt mà trên Mobile (Pills bar) */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
-                  padding: 3,
-                  borderRadius: 8,
-                  background: 'var(--field-bg)',
-                  border: '1px solid var(--border-subtle)',
+                  gap: 6,
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  paddingBottom: isMobile ? 2 : 0,
+                  flexWrap: isMobile ? 'nowrap' : 'wrap',
                 }}
               >
-                {[
-                  { id: 'latest', label: t('matchVideo.sortLatest') },
-                  { id: 'dramatic', label: t('matchVideo.sortDramatic') },
-                  { id: 'elo_swing', label: t('matchVideo.sortEloSwing') },
-                ].map((opt) => (
+                {/* Chế độ đối đầu / cùng đội */}
+                <div style={{ flexShrink: 0 }}>
+                  <Select
+                    size="sm"
+                    value={searchMode}
+                    onChange={(e) => setSearchMode(e.target.value)}
+                    options={[
+                      { value: 'vs', label: t('matchSearch.modeH2H') },
+                      { value: 'team', label: t('matchSearch.modeTeammate') },
+                    ]}
+                  />
+                </div>
+
+                {/* Dropdown kịch tính */}
+                <div style={{ flexShrink: 0 }}>
+                  <Select
+                    size="sm"
+                    value={qualityFilter}
+                    onChange={(e) => setQualityFilter(e.target.value)}
+                    options={[
+                      { value: 'all', label: t('matchSearch.qualityAll') },
+                      { value: 'close', label: t('matchSearch.qualityClose') },
+                      { value: 'upset', label: t('matchSearch.qualityUpset') },
+                    ]}
+                    style={qualityFilter !== 'all' ? {
+                      borderColor: 'var(--teal-500)',
+                      fontWeight: 600,
+                    } : undefined}
+                  />
+                </div>
+
+                {/* Lọc Nguồn: Tất cả / Kèo / Chia sân */}
+                <div style={{ flexShrink: 0 }}>
+                  <Select
+                    size="sm"
+                    value={sourceFilter}
+                    onChange={(e) => setSourceFilter(e.target.value)}
+                    options={[
+                      { value: 'all', label: t('matchVideo.filterAllSources') },
+                      { value: 'challenge', label: `⚔️ ${t('challenge.challenge')}` },
+                      { value: 'session', label: `🏟️ ${t('challenge.fromCourt')}` },
+                    ]}
+                    style={sourceFilter === 'challenge' ? {
+                      borderColor: '#A855F7',
+                      color: 'var(--text-primary)',
+                      fontWeight: 600,
+                    } : undefined}
+                  />
+                </div>
+
+                {/* Bộ chọn Sắp xếp: Trên Mobile là 1 dropdown gọn gàng, Desktop là 3 nút segmented */}
+                {isMobile ? (
+                  <div style={{ flexShrink: 0 }}>
+                    <Select
+                      size="sm"
+                      value={sortOption}
+                      onChange={(e) => setSortOption(e.target.value)}
+                      options={[
+                        { value: 'latest', label: t('matchVideo.sortLatest') },
+                        { value: 'dramatic', label: t('matchVideo.sortDramatic') },
+                        { value: 'elo_swing', label: t('matchVideo.sortEloSwing') },
+                      ]}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: 3,
+                      borderRadius: 8,
+                      background: 'var(--field-bg)',
+                      border: '1px solid var(--border-subtle)',
+                      marginLeft: 'auto',
+                    }}
+                  >
+                    {[
+                      { id: 'latest', label: t('matchVideo.sortLatest') },
+                      { id: 'dramatic', label: t('matchVideo.sortDramatic') },
+                      { id: 'elo_swing', label: t('matchVideo.sortEloSwing') },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSortOption(opt.id)}
+                        style={{
+                          height: 28,
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '0 10px',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: sortOption === opt.id ? 'var(--surface-card)' : 'transparent',
+                          font: sortOption === opt.id ? "600 12px/1 'IBM Plex Sans', sans-serif" : "500 12px/1 'IBM Plex Sans', sans-serif",
+                          color: sortOption === opt.id ? 'var(--text-primary)' : 'var(--text-muted)',
+                          cursor: 'pointer',
+                          boxShadow: sortOption === opt.id ? 'var(--shadow-xs)' : 'none',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Nút Lọc thêm */}
+                <button
+                  type="button"
+                  onClick={() => setShowMoreFilters((prev) => !prev)}
+                  style={{
+                    height: 28,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '0 9px',
+                    borderRadius: 'var(--radius-control)',
+                    border: '1px solid var(--border-subtle)',
+                    background: showMoreFilters ? 'var(--surface-sunken)' : 'transparent',
+                    font: "500 12px/1 'IBM Plex Sans', sans-serif",
+                    color: showMoreFilters ? 'var(--teal-500)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>{t('matchVideo.moreFilters')}</span>
+                  <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
+                    {showMoreFilters ? '▲' : '▾'}
+                  </span>
+                </button>
+
+                {/* Nút Xoá lọc */}
+                {(playerA || playerB || qualityFilter !== 'all' || searchMode !== 'vs' || onlyVideoFilter || courtFilter !== 'all' || sourceFilter !== 'all') && (
                   <button
-                    key={opt.id}
                     type="button"
-                    onClick={() => setSortOption(opt.id)}
+                    onClick={() => {
+                      setPlayerA('')
+                      setPlayerB('')
+                      setSearchMode('vs')
+                      setQualityFilter('all')
+                      setOnlyVideoFilter(false)
+                      setCourtFilter('all')
+                      setSourceFilter('all')
+                    }}
                     style={{
                       height: 28,
                       display: 'flex',
                       alignItems: 'center',
-                      padding: '0 10px',
-                      borderRadius: 6,
+                      padding: '0 8px',
+                      borderRadius: 'var(--radius-control)',
                       border: 'none',
-                      background: sortOption === opt.id ? 'var(--surface-card)' : 'transparent',
-                      font: sortOption === opt.id ? "600 12px/1 'IBM Plex Sans', sans-serif" : "500 12px/1 'IBM Plex Sans', sans-serif",
-                      color: sortOption === opt.id ? 'var(--text-primary)' : 'var(--text-muted)',
+                      background: 'transparent',
+                      font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
-                      boxShadow: sortOption === opt.id ? 'var(--shadow-xs)' : 'none',
+                      flexShrink: 0,
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {opt.label}
+                    {t('matchVideo.clearFilters')}
                   </button>
-                ))}
+                )}
               </div>
             </div>
 
@@ -1298,132 +1398,159 @@ export default function Matches() {
             {/* Thanh tiêu đề thống kê & pills */}
             <div
               style={{
-                padding: '10px 14px',
+                padding: isMobile ? '8px 10px' : '10px 14px',
                 borderBottom: '1px solid var(--border-subtle)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: 9,
-                flexWrap: 'wrap',
+                flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'stretch' : 'center',
+                justifyContent: 'space-between',
+                gap: isMobile ? 6 : 9,
                 background: 'var(--surface-card)',
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 180 }}>
-                <div style={{ font: "600 15px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ font: isMobile ? "600 13px/1.2 'IBM Plex Sans', sans-serif" : "600 15px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
                   {t('matchVideo.recentMatchesHeader', { n: searchResults.length })}
                 </div>
-                <div style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                  {t('matchVideo.recentMatchesSub')}
-                </div>
+                {!isMobile && (
+                  <div style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                    {t('matchVideo.recentMatchesSub')}
+                  </div>
+                )}
               </div>
 
+              {/* Dòng cuộn ngang các pills duy nhất */}
               <div
                 style={{
-                  height: 26,
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '0 10px',
-                  borderRadius: 999,
-                  background: 'rgba(0,178,169,.14)',
-                  border: '1px solid rgba(0,178,169,.42)',
-                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: '#5FDBD3',
+                  gap: 6,
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  paddingBottom: isMobile ? 2 : 0,
+                  flexWrap: isMobile ? 'nowrap' : 'wrap',
                 }}
               >
-                {t('matchVideo.hasVideoCount', { n: searchResults.filter((m) => Boolean(m.videoUrl)).length })}
-              </div>
-
-              {/* Nút lọc nhanh: Kèo */}
-              <button
-                type="button"
-                onClick={() => setSourceFilter((prev) => (prev === 'challenge' ? 'all' : 'challenge'))}
-                style={{
-                  height: 26,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '0 10px',
-                  borderRadius: 999,
-                  background: sourceFilter === 'challenge' ? 'rgba(168,85,247,.22)' : 'var(--surface-inset)',
-                  border: '1px solid',
-                  borderColor: sourceFilter === 'challenge' ? '#A855F7' : 'var(--border-subtle)',
-                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: sourceFilter === 'challenge' ? '#D8B4FE' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title={t('challenge.challenge')}
-              >
-                <span>⚔️ {t('challenge.challenge')}</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{challengeMatchesCount}</span>
-              </button>
-
-              {/* Nút lọc nhanh: Sát điểm */}
-              <button
-                type="button"
-                onClick={() => setQualityFilter((prev) => (prev === 'close' ? 'all' : 'close'))}
-                style={{
-                  height: 26,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '0 10px',
-                  borderRadius: 999,
-                  background: qualityFilter === 'close' ? 'rgba(224,138,0,.22)' : 'var(--surface-inset)',
-                  border: '1px solid',
-                  borderColor: qualityFilter === 'close' ? '#E08A00' : 'var(--border-subtle)',
-                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: qualityFilter === 'close' ? '#FFCB77' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title={t('matchVideo.tagClose')}
-              >
-                <span>{t('matchVideo.tagClose')}</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{closeMatchesCount}</span>
-              </button>
-
-              {/* Nút lọc nhanh: Bất ngờ */}
-              <button
-                type="button"
-                onClick={() => setQualityFilter((prev) => (prev === 'upset' ? 'all' : 'upset'))}
-                style={{
-                  height: 26,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '0 10px',
-                  borderRadius: 999,
-                  background: qualityFilter === 'upset' ? 'rgba(225,68,52,.24)' : 'var(--surface-inset)',
-                  border: '1px solid',
-                  borderColor: qualityFilter === 'upset' ? 'rgba(225,68,52,.7)' : 'var(--border-subtle)',
-                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: qualityFilter === 'upset' ? '#FFB0A5' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title={t('matchVideo.tagUpset')}
-              >
-                <span>{t('matchVideo.tagUpset')}</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{upsetMatchesCount}</span>
-              </button>
-
-              {editedMatchesCount > 0 && (
+                {/* Pill Có video */}
                 <div
                   style={{
-                    height: 26,
-                    display: 'flex',
+                    height: 24,
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    padding: '0 10px',
+                    padding: '0 8px',
                     borderRadius: 999,
-                    background: 'rgba(240,183,92,.16)',
-                    border: '1px solid rgba(240,183,92,.4)',
-                    font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                    color: 'var(--status-delayed-fg)',
+                    background: 'rgba(0,178,169,.14)',
+                    border: '1px solid rgba(0,178,169,.42)',
+                    font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                    color: '#5FDBD3',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
                 >
-                  {t('matchSearch.editedMatchesCount', { count: editedMatchesCount })}
+                  {t('matchVideo.hasVideoCount', { n: searchResults.filter((m) => Boolean(m.videoUrl)).length })}
                 </div>
-              )}
+
+                {/* Nút lọc nhanh: Kèo */}
+                <button
+                  type="button"
+                  onClick={() => setSourceFilter((prev) => (prev === 'challenge' ? 'all' : 'challenge'))}
+                  style={{
+                    height: 24,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '0 8px',
+                    borderRadius: 999,
+                    background: sourceFilter === 'challenge' ? 'rgba(168,85,247,.22)' : 'var(--surface-inset)',
+                    border: '1px solid',
+                    borderColor: sourceFilter === 'challenge' ? '#A855F7' : 'var(--border-subtle)',
+                    font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                    color: sourceFilter === 'challenge' ? '#D8B4FE' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                  title={t('challenge.challenge')}
+                >
+                  <span>⚔️ {t('challenge.challenge')}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{challengeMatchesCount}</span>
+                </button>
+
+                {/* Nút lọc nhanh: Sát điểm */}
+                <button
+                  type="button"
+                  onClick={() => setQualityFilter((prev) => (prev === 'close' ? 'all' : 'close'))}
+                  style={{
+                    height: 24,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '0 8px',
+                    borderRadius: 999,
+                    background: qualityFilter === 'close' ? 'rgba(224,138,0,.22)' : 'var(--surface-inset)',
+                    border: '1px solid',
+                    borderColor: qualityFilter === 'close' ? '#E08A00' : 'var(--border-subtle)',
+                    font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                    color: qualityFilter === 'close' ? '#FFCB77' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                  title={t('matchVideo.tagClose')}
+                >
+                  <span>{t('matchVideo.tagClose')}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{closeMatchesCount}</span>
+                </button>
+
+                {/* Nút lọc nhanh: Bất ngờ */}
+                <button
+                  type="button"
+                  onClick={() => setQualityFilter((prev) => (prev === 'upset' ? 'all' : 'upset'))}
+                  style={{
+                    height: 24,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '0 8px',
+                    borderRadius: 999,
+                    background: qualityFilter === 'upset' ? 'rgba(225,68,52,.24)' : 'var(--surface-inset)',
+                    border: '1px solid',
+                    borderColor: qualityFilter === 'upset' ? 'rgba(225,68,52,.7)' : 'var(--border-subtle)',
+                    font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                    color: qualityFilter === 'upset' ? '#FFB0A5' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                  title={t('matchVideo.tagUpset')}
+                >
+                  <span>{t('matchVideo.tagUpset')}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{upsetMatchesCount}</span>
+                </button>
+
+                {editedMatchesCount > 0 && (
+                  <div
+                    style={{
+                      height: 24,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '0 8px',
+                      borderRadius: 999,
+                      background: 'rgba(240,183,92,.16)',
+                      border: '1px solid rgba(240,183,92,.4)',
+                      font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                      color: 'var(--status-delayed-fg)',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {t('matchSearch.editedMatchesCount', { count: editedMatchesCount })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* DANH SÁCH LỊCH SỬ TRẬN ĐẤU: MOBILE MATCH CARDS HOẶC BẢNG 10 CỘT DESKTOP */}
