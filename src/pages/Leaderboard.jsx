@@ -26,6 +26,7 @@ import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildPlayableVideoUrl, formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
 import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
+import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 
 /**
  * Lấy tên gọi ngắn gọn của thành viên (ưu tiên tên chính, kèm chữ lót nếu trùng)
@@ -73,6 +74,7 @@ export default function Leaderboard() {
   const [sortOption, setSortOption] = useState('latest') // 'latest' | 'dramatic' | 'elo_swing'
   const [editingMatch, setEditingMatch] = useState(null)
   const [viewingMatch, setViewingMatch] = useState(null)
+  const [playingVideoMatch, setPlayingVideoMatch] = useState(null)
   const [searchCardLimit, setSearchCardLimit] = useState(10)
   const [expandedVideoMatchId, setExpandedVideoMatchId] = useState(null)
 
@@ -90,6 +92,14 @@ export default function Leaderboard() {
   const activeMembers = useMemo(() => {
     return (db.members || []).filter((m) => m.active !== false)
   }, [db.members])
+
+  const memberSearchOptions = useMemo(() => {
+    return (activeMembers || []).map((m) => ({
+      value: m.id,
+      label: m.name,
+      level: m.level,
+    }))
+  }, [activeMembers])
 
   const seasonLeaderboardData = useMemo(() => {
     const raw = calculateSeasonLeaderboard(db, cfg.season)
@@ -1192,41 +1202,18 @@ export default function Leaderboard() {
                 background: 'var(--surface-inset)',
               }}
             >
-              {/* Cụm gộp Người chơi A ⇄ Người chơi B */}
-              <div
-                style={{
-                  height: 34,
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: 7,
-                  background: 'var(--field-bg)',
-                  border: '1px solid var(--border-default)',
-                  overflow: 'hidden',
-                }}
-              >
-                <div style={{ width: isMobile ? 110 : 138, height: 32 }}>
-                  <select
+              {/* Cụm chọn Người chơi A ⇄ Người chơi B */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: isMobile ? 120 : 155 }}>
+                  <SearchSelect
+                    size="sm"
+                    placeholder={`A · ${t('matchSearch.playerA')}`}
+                    options={memberSearchOptions}
                     value={playerA}
-                    onChange={(e) => setPlayerA(e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      border: 'none',
-                      background: 'transparent',
-                      color: playerA ? 'var(--text-primary)' : 'var(--text-muted)',
-                      font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
-                      padding: '0 8px',
-                      outline: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="">A · {t('matchSearch.playerA')}</option>
-                    {activeMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setPlayerA(val || '')}
+                    clearable
+                    menuWidth={220}
+                  />
                 </div>
 
                 <button
@@ -1237,153 +1224,93 @@ export default function Leaderboard() {
                     setPlayerB(temp)
                   }}
                   style={{
-                    width: 30,
+                    width: 32,
                     height: 32,
-                    border: 'none',
-                    borderLeft: '1px solid var(--border-subtle)',
-                    borderRight: '1px solid var(--border-subtle)',
-                    background: 'transparent',
+                    border: '1px solid var(--field-border)',
+                    borderRadius: 'var(--radius-control)',
+                    background: 'var(--field-bg)',
                     color: 'var(--teal-500)',
                     font: "600 13px/1 'IBM Plex Mono', monospace",
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
                   }}
                   title={t('common.swap')}
                 >
                   ⇄
                 </button>
 
-                <div style={{ width: isMobile ? 110 : 138, height: 32 }}>
-                  <select
+                <div style={{ width: isMobile ? 120 : 155 }}>
+                  <SearchSelect
+                    size="sm"
+                    placeholder={`B · ${t('matchSearch.playerB')}`}
+                    options={memberSearchOptions}
                     value={playerB}
-                    onChange={(e) => setPlayerB(e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      border: 'none',
-                      background: 'transparent',
-                      color: playerB ? 'var(--text-primary)' : 'var(--text-muted)',
-                      font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
-                      padding: '0 8px',
-                      outline: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="">B · {t('matchSearch.playerB')}</option>
-                    {activeMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setPlayerB(val || '')}
+                    clearable
+                    menuWidth={220}
+                  />
                 </div>
               </div>
 
               {/* Chế độ đối đầu / cùng đội */}
-              <div
-                style={{
-                  height: 34,
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: 7,
-                  background: 'var(--field-bg)',
-                  border: '1px solid var(--border-default)',
-                  padding: '0 4px',
-                }}
-              >
-                <select
-                  value={searchMode}
-                  onChange={(e) => setSearchMode(e.target.value)}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
-                    padding: '0 6px',
-                    outline: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="vs">{t('matchSearch.modeH2H')}</option>
-                  <option value="team">{t('matchSearch.modeTeammate')}</option>
-                </select>
-              </div>
+              <Select
+                size="sm"
+                value={searchMode}
+                onChange={(e) => setSearchMode(e.target.value)}
+                options={[
+                  { value: 'vs', label: t('matchSearch.modeH2H') },
+                  { value: 'team', label: t('matchSearch.modeTeammate') },
+                ]}
+              />
 
               {/* Dropdown kịch tính */}
-              <div
-                style={{
-                  height: 34,
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: 7,
-                  background: 'var(--field-bg)',
-                  border: '1px solid var(--border-default)',
-                  padding: '0 4px',
-                }}
-              >
-                <select
-                  value={qualityFilter}
-                  onChange={(e) => setQualityFilter(e.target.value)}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
-                    padding: '0 6px',
-                    outline: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="all">{t('matchSearch.qualityAll')}</option>
-                  <option value="close">{t('matchSearch.qualityClose')}</option>
-                  <option value="upset">{t('matchSearch.qualityUpset')}</option>
-                </select>
-              </div>
+              <Select
+                size="sm"
+                value={qualityFilter}
+                onChange={(e) => setQualityFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: t('matchSearch.qualityAll') },
+                  { value: 'close', label: t('matchSearch.qualityClose') },
+                  { value: 'upset', label: t('matchSearch.qualityUpset') },
+                ]}
+                style={qualityFilter !== 'all' ? {
+                  borderColor: 'var(--teal-500)',
+                  fontWeight: 600,
+                } : undefined}
+              />
 
               {/* Lọc Nguồn: Tất cả / Kèo / Chia sân */}
-              <div
-                style={{
-                  height: 34,
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: 7,
-                  background: 'var(--field-bg)',
-                  border: sourceFilter === 'challenge' ? '1px solid #A855F7' : '1px solid var(--border-default)',
-                  padding: '0 4px',
-                }}
-              >
-                <select
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: sourceFilter === 'challenge' ? '#D8B4FE' : 'var(--text-primary)',
-                    font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
-                    padding: '0 6px',
-                    outline: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="all">{t('matchVideo.filterAllSources')}</option>
-                  <option value="challenge">⚔️ {t('challenge.challenge')}</option>
-                  <option value="session">🏟️ {t('challenge.fromCourt')}</option>
-                </select>
-              </div>
+              <Select
+                size="sm"
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: t('matchVideo.filterAllSources') },
+                  { value: 'challenge', label: `⚔️ ${t('challenge.challenge')}` },
+                  { value: 'session', label: `🏟️ ${t('challenge.fromCourt')}` },
+                ]}
+                style={sourceFilter === 'challenge' ? {
+                  borderColor: '#A855F7',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                } : undefined}
+              />
 
               {/* Nút Lọc thêm */}
               <button
                 type="button"
                 onClick={() => setShowMoreFilters((prev) => !prev)}
                 style={{
-                  height: 34,
+                  height: 32,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
                   padding: '0 11px',
-                  borderRadius: 7,
+                  borderRadius: 'var(--radius-control)',
                   border: '1px solid var(--border-subtle)',
                   background: showMoreFilters ? 'var(--surface-sunken)' : 'transparent',
                   font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
@@ -1411,11 +1338,11 @@ export default function Leaderboard() {
                     setSourceFilter('all')
                   }}
                   style={{
-                    height: 30,
+                    height: 32,
                     display: 'flex',
                     alignItems: 'center',
                     padding: '0 10px',
-                    borderRadius: 7,
+                    borderRadius: 'var(--radius-control)',
                     border: 'none',
                     background: 'transparent',
                     font: "600 12px/1 'IBM Plex Sans', sans-serif",
@@ -1483,103 +1410,38 @@ export default function Leaderboard() {
                   flexWrap: 'wrap',
                 }}
               >
-                <div
-                  style={{
-                    height: 28,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 8px',
-                    borderRadius: 6,
-                    background: 'var(--field-bg)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <select
-                    value={seasonFilter}
-                    onChange={(e) => setSeasonFilter(e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-secondary)',
-                      font: "500 12px/1 'IBM Plex Sans', sans-serif",
-                      outline: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="all">{t('matchVideo.filterSeason', { season: '2026' })}</option>
-                  </select>
-                </div>
+                <Select
+                  size="sm"
+                  value={seasonFilter}
+                  onChange={(e) => setSeasonFilter(e.target.value)}
+                  options={[
+                    { value: 'all', label: t('matchVideo.filterSeason', { season: '2026' }) },
+                  ]}
+                />
 
-                <div
-                  style={{
-                    height: 28,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 8px',
-                    borderRadius: 6,
-                    background: 'var(--field-bg)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <select
-                    value={courtFilter}
-                    onChange={(e) => setCourtFilter(e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-secondary)',
-                      font: "500 12px/1 'IBM Plex Sans', sans-serif",
-                      outline: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="all">{t('matchVideo.filterAllCourts')}</option>
-                    {(db.courts || []).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div
-                  style={{
-                    height: 28,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 8px',
-                    borderRadius: 6,
-                    background: 'var(--field-bg)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <select
-                    value={sourceFilter}
-                    onChange={(e) => setSourceFilter(e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-secondary)',
-                      font: "500 12px/1 'IBM Plex Sans', sans-serif",
-                      outline: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="all">{t('matchVideo.filterAllSources')}</option>
-                    <option value="session">{t('challenge.fromCourt')}</option>
-                    <option value="challenge">{t('challenge.challenge')}</option>
-                  </select>
-                </div>
+                <Select
+                  size="sm"
+                  value={courtFilter}
+                  onChange={(e) => setCourtFilter(e.target.value)}
+                  options={[
+                    { value: 'all', label: t('matchVideo.filterAllCourts') },
+                    ...(db.courts || []).map((c) => ({ value: c.id, label: c.name })),
+                  ]}
+                  style={courtFilter !== 'all' ? {
+                    borderColor: 'var(--teal-500)',
+                    fontWeight: 600,
+                  } : undefined}
+                />
 
                 <button
                   type="button"
                   onClick={() => setOnlyVideoFilter((prev) => !prev)}
                   style={{
-                    height: 28,
+                    height: 32,
                     display: 'flex',
                     alignItems: 'center',
                     padding: '0 10px',
-                    borderRadius: 6,
+                    borderRadius: 'var(--radius-control)',
                     border: '1px solid',
                     borderColor: onlyVideoFilter ? 'var(--teal-500)' : 'var(--border-subtle)',
                     background: onlyVideoFilter ? 'var(--surface-brand-soft, rgba(0,178,169,.14))' : 'var(--field-bg)',
@@ -2107,11 +1969,12 @@ export default function Leaderboard() {
                             {/* Cột 9: Video */}
                             <div style={{ padding: '0 6px', display: 'flex', justifyContent: 'center' }}>
                               {hasVideo ? (
-                                <a
-                                  href={buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setPlayingVideoMatch(m)
+                                  }}
                                   style={{
                                     height: 24,
                                     display: 'inline-flex',
@@ -2124,14 +1987,13 @@ export default function Leaderboard() {
                                     font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
                                     color: '#FF9A8F',
                                     cursor: 'pointer',
-                                    textDecoration: 'none',
                                     whiteSpace: 'nowrap',
                                   }}
                                   title={m.videoUrl}
                                 >
                                   <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace" }}>▶</span>
                                   <span>{videoTagLabel}</span>
-                                </a>
+                                </button>
                               ) : (
                                 <button
                                   type="button"
@@ -2689,6 +2551,15 @@ export default function Leaderboard() {
         </div>
       )}
 
+
+      {/* Modal xem video trận đấu trực tiếp */}
+      {playingVideoMatch && (
+        <VideoPlayerModal
+          match={playingVideoMatch}
+          matchCode={matchCodeOf(db, playingVideoMatch)}
+          onClose={() => setPlayingVideoMatch(null)}
+        />
+      )}
 
       {/* Modal chi tiết trận đấu (Screen S3) */}
       {viewingMatch && (

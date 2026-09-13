@@ -95,6 +95,75 @@ export function buildPlayableVideoUrl(url, timestamp = '') {
 }
 
 /**
+ * Trích xuất YouTube Video ID từ các định dạng URL khác nhau
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function extractYouTubeId(url) {
+  if (!url || typeof url !== 'string') return null
+  const trimmed = url.trim()
+  // 1. youtu.be/ID hoặc youtube.com/embed/ID hoặc /v/ID hoặc /shorts/ID hoặc /live/ID
+  const shortMatch = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i)
+  if (shortMatch) return shortMatch[1]
+  // 2. youtube.com/watch?v=ID hoặc youtube.com/watch?.*&v=ID
+  const longMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/i)
+  if (longMatch) return longMatch[1]
+  return null
+}
+
+/**
+ * Trích xuất Google Drive File ID từ URL
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function extractDriveId(url) {
+  if (!url || typeof url !== 'string') return null
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i)
+  return match ? match[1] : null
+}
+
+/**
+ * Tạo URL nhúng (iframe embed) phù hợp theo nền tảng
+ * @param {string} url
+ * @param {string|number} [timestamp]
+ * @returns {string|null}
+ */
+export function buildEmbedVideoUrl(url, timestamp = '') {
+  if (!url || typeof url !== 'string') return null
+  let trimmed = url.trim()
+  if (!trimmed) return null
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`
+  }
+  const provider = parseVideoProvider(trimmed)
+  const seconds = parseTimestampToSeconds(timestamp)
+
+  if (provider === 'youtube') {
+    const yId = extractYouTubeId(trimmed)
+    if (yId) {
+      let embedUrl = `https://www.youtube.com/embed/${yId}?autoplay=1&rel=0`
+      if (seconds > 0) {
+        embedUrl += `&start=${seconds}`
+      }
+      return embedUrl
+    }
+  }
+
+  if (provider === 'drive') {
+    const dId = extractDriveId(trimmed)
+    if (dId) {
+      return `https://drive.google.com/file/d/${dId}/preview`
+    }
+  }
+
+  if (provider === 'direct') {
+    return trimmed
+  }
+
+  return null
+}
+
+/**
  * Tính khoảng cách thời gian giữa 2 trận đấu trong cùng một buổi
  * @param {number} currentMatchAt - timestamp ms của trận hiện tại
  * @param {number|null} prevMatchAt - timestamp ms của trận liền trước trong cùng buổi (null nếu là trận đầu)

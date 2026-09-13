@@ -12,6 +12,7 @@ import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx'
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
+import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 import { buildPlayableVideoUrl, formatGapMinutes, calcSessionTimeStats, parseVideoProvider, formatVideoDisplayLabel } from '#utils/videoUtils.js'
 
 export default function SessionMatchesTab({ s, onSwitchTab }) {
@@ -29,6 +30,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
 
   const [editingMatch, setEditingMatch] = useState(null)
   const [attachVideoMatch, setAttachVideoMatch] = useState(null)
+  const [playingVideoMatch, setPlayingVideoMatch] = useState(null)
   const [expandedVideoMatchId, setExpandedVideoMatchId] = useState(null)
   const [matchSourceFilter, setMatchSourceFilter] = useState('all') // 'all' | 'challenge' | 'session'
   const [challengeTab, setChallengeTab] = useState('my')
@@ -354,11 +356,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {hasVideo ? (
-                          <a
-                            href={buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPlayingVideoMatch(m)
+                            }}
                             style={{
                               height: 24,
                               display: 'inline-flex',
@@ -371,12 +374,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                               font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
                               color: '#FF9A8F',
                               cursor: 'pointer',
-                              textDecoration: 'none',
                             }}
+                            title={m.videoUrl}
                           >
                             <span>▶</span>
                             <span>{videoTagLabel}</span>
-                          </a>
+                          </button>
                         ) : (
                           <button
                             type="button"
@@ -721,11 +724,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                           {/* Cột 9: Video */}
                           <div style={{ padding: '0 6px', display: 'flex', justifyContent: 'center' }}>
                             {hasVideo ? (
-                              <a
-                                href={buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setPlayingVideoMatch(m)
+                                }}
                                 style={{
                                   height: 24,
                                   display: 'inline-flex',
@@ -738,14 +742,13 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                                   font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
                                   color: '#FF9A8F',
                                   cursor: 'pointer',
-                                  textDecoration: 'none',
                                   whiteSpace: 'nowrap',
                                 }}
                                 title={m.videoUrl}
                               >
                                 <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace" }}>▶</span>
                                 <span>{videoTagLabel}</span>
-                              </a>
+                              </button>
                             ) : (
                               <button
                                 type="button"
@@ -874,11 +877,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <a
-                        href={buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setPlayingVideoMatch(m)
+                        }}
                         style={{
                           height: 22,
                           display: 'inline-flex',
@@ -891,12 +895,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                           font: "600 10px/1 'IBM Plex Sans', sans-serif",
                           color: '#FF9A8F',
                           cursor: 'pointer',
-                          textDecoration: 'none',
                         }}
+                        title={m.videoUrl}
                       >
-                        <span>▶</span>
+                        <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace" }}>▶</span>
                         <span>{videoTagLabel}</span>
-                      </a>
+                      </button>
 
                       <button
                         type="button"
@@ -1347,6 +1351,15 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           session={s}
           onClose={() => setScoringChallenge(null)}
           onSaved={() => setScoringChallenge(null)}
+        />
+      )}
+
+      {/* Modal phát video trận đấu trực tiếp */}
+      {playingVideoMatch && (
+        <VideoPlayerModal
+          match={playingVideoMatch}
+          matchCode={matchCodeOf(db, playingVideoMatch)}
+          onClose={() => setPlayingVideoMatch(null)}
         />
       )}
     </div>

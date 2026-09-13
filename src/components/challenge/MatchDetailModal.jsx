@@ -14,10 +14,12 @@ import {
 import { calcSeasonMatchDelta } from '#lib/season.js'
 import { dd } from '#utils/dates.js'
 import { buildPlayableVideoUrl, parseVideoProvider } from '#utils/videoUtils.js'
+import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 import { t } from '#i18n'
 
 export default function MatchDetailModal({ match, onClose, onEdit }) {
   const { db } = useApp()
+  const [watchingVideo, setWatchingVideo] = useState(false)
 
   const matchCode = useMemo(() => matchCodeOf(db, match), [db, match])
 
@@ -216,13 +218,14 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   const matchCategory = isDoubles ? 'Đôi nam' : 'Đơn nam' // i18n-ok
 
   return (
-    <Dialog
-      open
-      onClose={onClose}
-      title={t('matchDetail.matchCode', { code: matchCode })}
-      description={matchWhen || t('matchDetail.title')}
-      width={720}
-    >
+    <>
+      <Dialog
+        open
+        onClose={onClose}
+        title={t('matchDetail.matchCode', { code: matchCode })}
+        description={matchWhen || t('matchDetail.title')}
+        width={720}
+      >
       {/* ═══ EA1 · KỲ VỌNG VS THỰC TẾ TRONG CHI TIẾT TRẬN ═══ */}
       <div
         data-screen-label="EA1 Ky vong vs thuc te"
@@ -720,9 +723,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
             {hasVideo && (
               <Button
                 variant="secondary"
-                onClick={() => {
-                  if (videoPlayUrl) window.open(videoPlayUrl, '_blank')
-                }}
+                onClick={() => setWatchingVideo(true)}
               >
                 <span style={{ fontSize: 11 }}>▶</span>
                 <span>{t('matchVideo.btnWatch')}</span>
@@ -744,5 +745,13 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
         </div>
       </div>
     </Dialog>
+    {watchingVideo && (
+      <VideoPlayerModal
+        match={match}
+        matchCode={matchCode}
+        onClose={() => setWatchingVideo(false)}
+      />
+    )}
+    </>
   )
 }

@@ -5,6 +5,9 @@ import {
   formatVideoDisplayLabel,
   parseTimestampToSeconds,
   buildPlayableVideoUrl,
+  extractYouTubeId,
+  extractDriveId,
+  buildEmbedVideoUrl,
   formatGapMinutes,
   calcSessionTimeStats,
 } from '#utils/videoUtils.js'
@@ -99,5 +102,39 @@ assert.ok(stats.avgDurationText.length > 0)
 const emptyStats = calcSessionTimeStats([])
 assert.equal(emptyStats.firstMatchTime, '—')
 assert.equal(emptyStats.totalMatchesCount, 0)
+
+/* 7. extractYouTubeId: trích xuất chính xác ID từ các dạng link */
+assert.equal(extractYouTubeId('https://www.youtube.com/watch?v=8kQz1Rw_29k'), '8kQz1Rw_29k')
+assert.equal(extractYouTubeId('https://youtu.be/8kQz1Rw_29k'), '8kQz1Rw_29k')
+assert.equal(extractYouTubeId('https://youtu.be/8kQz1Rw_29k?t=75'), '8kQz1Rw_29k')
+assert.equal(extractYouTubeId('https://www.youtube.com/embed/8kQz1Rw_29k'), '8kQz1Rw_29k')
+assert.equal(extractYouTubeId('https://www.youtube.com/shorts/8kQz1Rw_29k'), '8kQz1Rw_29k')
+assert.equal(extractYouTubeId('https://www.youtube.com/watch?feature=share&v=8kQz1Rw_29k'), '8kQz1Rw_29k')
+assert.equal(extractYouTubeId('https://example.com/not-yt'), null)
+assert.equal(extractYouTubeId(''), null)
+
+/* 8. extractDriveId: trích xuất file ID từ link Google Drive */
+assert.equal(extractDriveId('https://drive.google.com/file/d/1A2B3C4D5E6F/view?usp=sharing'), '1A2B3C4D5E6F')
+assert.equal(extractDriveId('https://drive.google.com/file/d/XYZ_123/view'), 'XYZ_123')
+assert.equal(extractDriveId('https://youtube.com/123'), null)
+
+/* 9. buildEmbedVideoUrl: tạo iframe embed URL chuẩn */
+assert.equal(
+  buildEmbedVideoUrl('https://youtu.be/8kQz1Rw_29k', '01:15'),
+  'https://www.youtube.com/embed/8kQz1Rw_29k?autoplay=1&rel=0&start=75'
+)
+assert.equal(
+  buildEmbedVideoUrl('https://www.youtube.com/watch?v=8kQz1Rw_29k', ''),
+  'https://www.youtube.com/embed/8kQz1Rw_29k?autoplay=1&rel=0'
+)
+assert.equal(
+  buildEmbedVideoUrl('https://drive.google.com/file/d/1A2B3C4D/view'),
+  'https://drive.google.com/file/d/1A2B3C4D/preview'
+)
+assert.equal(
+  buildEmbedVideoUrl('https://cdn.example.com/match.mp4'),
+  'https://cdn.example.com/match.mp4'
+)
+assert.equal(buildEmbedVideoUrl('https://share.icloud.com/photos/123'), null)
 
 console.log('video_match_timeline check: OK')
