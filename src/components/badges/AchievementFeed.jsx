@@ -24,7 +24,7 @@ function formatFeedTime(rawTs) {
  * Phong cách Anime Cyberpunk vát góc, đường viền năng lượng neon.
  * Vinh danh ngắt chuỗi, cột mốc chuỗi thắng, mốc Elo, trận cầu nghẹt thở.
  */
-export default function AchievementFeed({ feed = [] }) {
+export default function AchievementFeed({ feed = [], hideHeader = false }) {
 
   const getEventText = (item) => {
     switch (item.type) {
@@ -94,41 +94,43 @@ export default function AchievementFeed({ feed = [] }) {
       }}
     >
       {/* Header Bảng Tin */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 10,
-        }}
-      >
-        <div>
-          <div
-            style={{
-              font: '700 24px/1 Oswald, sans-serif',
-              letterSpacing: '.06em',
-              color: '#FFFFFF',
-              textTransform: 'uppercase',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
-            <span style={{ color: '#FF2E7E' }}>⚡</span>
-            <span>{t('badges.feed.title')}</span>
-          </div>
-          <div
-            style={{
-              font: "400 13px/1.4 'Be Vietnam Pro', sans-serif",
-              color: '#9C8ABE',
-              marginTop: 4,
-            }}
-          >
-            {t('badges.feed.sub')}
+      {!hideHeader && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                font: '700 24px/1 Oswald, sans-serif',
+                letterSpacing: '.06em',
+                color: '#FFFFFF',
+                textTransform: 'uppercase',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <span style={{ color: '#FF2E7E' }}>⚡</span>
+              <span>{t('badges.feed.title')}</span>
+            </div>
+            <div
+              style={{
+                font: "400 13px/1.4 'Be Vietnam Pro', sans-serif",
+                color: '#9C8ABE',
+                marginTop: 4,
+              }}
+            >
+              {t('badges.feed.sub')}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Danh sách thẻ sự kiện */}
       {feed.length === 0 ? (

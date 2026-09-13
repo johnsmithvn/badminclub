@@ -369,11 +369,36 @@ export default function Badges() {
                   </div>
                 </div>
               )}
+              {activeTab === 'leaderboard' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ font: "700 22px/1 'Oswald', sans-serif", letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF' }}>
+                      {t('badges.leaderboard.title')}
+                    </span>
+                    <span style={{ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                      {t('badges.leaderboard.sub')}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'feed' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ font: "700 22px/1 'Oswald', sans-serif", letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF' }}>
+                      {t('badges.feed.title')}
+                    </span>
+                    <span style={{ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                      {t('badges.feed.sub')}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 4 }}>
                 {[
-                  { id: 'collection', label: t('badges.bountyBoard.subtabCollection') },
-                  { id: 'bounty', label: t('badges.bountyBoard.subtabBounty') },
-                  { id: 'leaderboard', label: t('badges.bountyBoard.subtabLeaderboard') },
+                  { id: 'collection', label: t('badges.tabCollection') },
+                  { id: 'bounty', label: t('badges.tabBounties') },
+                  { id: 'leaderboard', label: t('badges.tabLeaderboardShort') },
+                  { id: 'feed', label: t('badges.tabFeed') },
                 ].map((tab) => {
                   const isActive = activeTab === tab.id
                   return (
@@ -424,6 +449,7 @@ export default function Badges() {
                 rarestBadges={rarestBadges}
                 seasonRows={seasonRows}
                 currentMemberId={activeMemberId}
+                hideHeader={true}
                 onSelectMember={(mId) => {
                   setViewingMemberId(mId === currentMember?.id ? null : mId)
                   setActiveTab('collection')
@@ -431,7 +457,7 @@ export default function Badges() {
                 onSelectBadge={handleSelectBadge}
               />
             )}
-            {activeTab === 'feed' && <AchievementFeed feed={clubFeed} />}
+            {activeTab === 'feed' && <AchievementFeed feed={clubFeed} hideHeader={true} />}
           </div>
         )}
 

@@ -31,7 +31,8 @@ export default function BountyBoardTab({
   // Bounties từ DB thật
   const activeBounties = bounties || []
   const heroBounty = activeBounties.length > 0 ? activeBounties[0] : null
-  const displayBounties = activeBounties.slice(0, 4)
+  // Bắt đầu từ index 1: activeBounties[0] đã được vẽ to ở hero card phía trên.
+  const displayBounties = activeBounties.slice(1, 5)
 
   return (
     <div

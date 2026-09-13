@@ -14,6 +14,7 @@ export default function CollectorLeaderboardTab({
   rarestBadges = [],
   onSelectMember,
   onViewBadge,
+  hideHeader = false,
 }) {
 
   // Dữ liệu thật từ DB (không dùng demo fallback)
@@ -34,39 +35,41 @@ export default function CollectorLeaderboardTab({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* ═══ Header Tab Xếp hạng Sưu tập ═══ */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingBottom: 16,
-          borderBottom: '1px solid #2A1145',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <h2
-            style={{
-              margin: 0,
-              font: '700 26px/1 Oswald, sans-serif',
-              letterSpacing: '.03em',
-              textTransform: 'uppercase',
-              color: '#FFFFFF',
-            }}
-          >
-            {t('badges.leaderboard.title')}
-          </h2>
-          <div
-            style={{
-              font: "400 12.5px/1.4 'IBM Plex Mono', monospace",
-              color: '#9C8ABE',
-            }}
-          >
-            {t('badges.leaderboard.sub')}
+      {!hideHeader && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingBottom: 16,
+            borderBottom: '1px solid #2A1145',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <h2
+              style={{
+                margin: 0,
+                font: '700 26px/1 Oswald, sans-serif',
+                letterSpacing: '.03em',
+                textTransform: 'uppercase',
+                color: '#FFFFFF',
+              }}
+            >
+              {t('badges.leaderboard.title')}
+            </h2>
+            <div
+              style={{
+                font: "400 12.5px/1.4 'IBM Plex Mono', monospace",
+                color: '#9C8ABE',
+              }}
+            >
+              {t('badges.leaderboard.sub')}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ═══ Nội dung 2 cột: Bảng Collector & Cột Phụ (Hiếm nhất CLB + Cách tính điểm) ═══ */}
       <div

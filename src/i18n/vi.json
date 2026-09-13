@@ -3445,6 +3445,7 @@
     "tabBounties": "TREO THƯỞNG",
     "tabBounty": "BẢNG TREO THƯỞNG",
     "tabLeaderboard": "XẾP HẠNG SƯU TẬP",
+    "tabLeaderboardShort": "XẾP HẠNG",
     "closeBtn": "✕ ĐÓNG",
     "noBountyHeadline": "CHƯA CÓ AI CHẠM MỐC CHUỖI 5 TRẬN THẮNG LIÊN TIẾP",
     "noBountyDesc": "Hội viên thắng liền 5 trận sẽ tự động bị treo thưởng trên Bảng truy nã toàn CLB!",
@@ -3517,8 +3518,9 @@
       "challengeNow": "GẠ KÈO NGAY",
       "challenge": "GẠ KÈO",
       "subtabCollection": "BỘ SƯU TẬP",
-      "subtabBounty": "TRUY NÃ",
-      "subtabLeaderboard": "XẾP HẠNG"
+      "subtabBounty": "TREO THƯỞNG",
+      "subtabLeaderboard": "XẾP HẠNG",
+      "subtabFeed": "BẢNG TIN"
     },
     "detail": {
       "back": "← DANH HIỆU",
@@ -3948,7 +3950,7 @@
     "shelfSaved": "Đã cập nhật kệ huy hiệu!",
     "signatureSaved": "Đã lưu châm ngôn cá nhân!",
     "bountyTag": "TRUY NÃ",
-    "tabFeed": "Bảng tin",
+    "tabFeed": "BẢNG TIN",
     "signatureModal": {
       "title": "SỬA CHÂM NGÔN CÁ NHÂN",
       "sub": "Câu nói flex hiển thị dưới hồ sơ và kệ danh hiệu của bạn",

@@ -216,12 +216,13 @@ export default function AnimeMobileCollection({
           </div>
         )}
 
-        {/* Sub-tabs Anime: BỘ SƯU TẬP | TRUY NÃ | XẾP HẠNG */}
+        {/* Sub-tabs Anime: BỘ SƯU TẬP | TREO THƯỞNG | XẾP HẠNG | BẢNG TIN */}
         <div style={{ display: 'flex', gap: 4 }}>
           {[
             { id: 'collection', label: t('badges.tabCollection') },
-            { id: 'bounty', label: t('badges.tabBounty') },
-            { id: 'leaderboard', label: t('badges.tabLeaderboard') },
+            { id: 'bounty', label: t('badges.tabBounties') },
+            { id: 'leaderboard', label: t('badges.tabLeaderboardShort') },
+            { id: 'feed', label: t('badges.tabFeed') },
           ].map((tab) => {
             const isActive = activeTab === tab.id
             return (

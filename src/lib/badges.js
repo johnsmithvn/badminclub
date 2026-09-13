@@ -1896,6 +1896,16 @@ export function getClubAchievementFeed(db, limit = 20) {
  * @param {string} badgeId
  * @returns {Object|null}
  */
+export function newlyUnlockedBadges(before, after) {
+  // Thiếu một vế (calculateMemberBadges ném lỗi) thì KHÔNG được coi mọi huy hiệu đang có là mới:
+  // beforeIds rỗng sẽ báo nhầm cả bộ sưu tập cũ. Thà bỏ sót một lần còn hơn chúc mừng nhầm.
+  if (!before || !after) return []
+  // Chỉ xét danh hiệu CHÍNH THỨC. Nhóm 'fun' (Tự phong) mở sẵn ngay từ thành viên trắng trơn,
+  // đưa vào đây thì lưu tỷ số trận nào cũng bắn modal chúc mừng.
+  const beforeIds = new Set((before.officialUnlocked || []).map((b) => b.id))
+  return (after.officialUnlocked || []).filter((b) => b && !beforeIds.has(b.id))
+}
+
 export function getBadgeById(badgeId) {
   if (!badgeId) return null
   return activeCatalog().find((b) => b.id === badgeId) || null

@@ -101,45 +101,60 @@ test('Phase 1 Modals Logic Verification', async (t) => {
     assert.equal(mapFromEmpty['m2'], 1500)
   })
 
-  await t.test('AM4: ScoreModal bounty break unlock logic', () => {
-    // Giả lập kết quả saveMatchScore khi ngắt chuỗi đối thủ
-    const saveRes = {
-      id: 'm-test-1',
-      bountyBroken: true,
-      brokenStreak: 6,
-      winnerTeam: 'A',
-      eloDelta: 18,
+  // Bản cũ của khối này dựng object literal rồi assert lại chính literal đó — không chạm code app
+  // nên không thể fail, và đã để lọt bug ScoreModal đọc key 'unlockedBadges' (không tồn tại).
+  // Giờ gọi thẳng hàm thuần newlyUnlockedBadges.
+  await t.test('AM4: newlyUnlockedBadges chỉ báo danh hiệu chính thức vừa mở', async () => {
+    const { newlyUnlockedBadges } = await import('../../lib/badges.js')
+
+    const before = {
+      unlocked: [{ id: 'vo_hut', tier: 'fun' }, { id: 'tan_binh', tier: 'rare' }],
+      officialUnlocked: [{ id: 'tan_binh', tier: 'rare' }],
+    }
+    const after = {
+      unlocked: [{ id: 'vo_hut', tier: 'fun' }, { id: 'tan_binh', tier: 'rare' }, { id: 'ke_ngat_chuoi', tier: 'epic' }],
+      officialUnlocked: [{ id: 'tan_binh', tier: 'rare' }, { id: 'ke_ngat_chuoi', tier: 'epic' }],
     }
 
-    const teamB = ['m-opponent-1']
-    const mockDb = {
-      members: [{ id: 'm-opponent-1', name: 'Minh' }],
-      guests: [],
+    const fresh = newlyUnlockedBadges(before, after)
+    assert.equal(fresh.length, 1, 'chỉ đúng một huy hiệu mới')
+    assert.equal(fresh[0].id, 'ke_ngat_chuoi')
+
+    assert.deepEqual(newlyUnlockedBadges(before, before), [], 'không có gì mới thì phải rỗng')
+
+    // Vế thiếu = calculateMemberBadges đã ném lỗi. Không được coi cả bộ sưu tập cũ là mới mở.
+    assert.deepEqual(newlyUnlockedBadges(null, after), [], 'thiếu vế trước phải rỗng')
+    assert.deepEqual(newlyUnlockedBadges(before, null), [], 'thiếu vế sau phải rỗng')
+    assert.deepEqual(newlyUnlockedBadges(undefined, undefined), [])
+  })
+
+  await t.test('AM4: nhóm Tự phong (fun) mở sẵn, không được báo là vừa mở khóa', async () => {
+    const { calculateMemberBadges, newlyUnlockedBadges } = await import('../../lib/badges.js')
+    const db = {
+      members: [{ id: 'm1', name: 'A' }],
+      guests: [], matches: [], sessions: [], attendance: {}, playerRatings: {},
     }
+    const snap = calculateMemberBadges('m1', db)
+    assert.ok(snap.unlocked.length > 0, 'thành viên trắng trơn vẫn có sẵn nhóm fun')
+    assert.equal(snap.officialUnlocked.length, 0, 'nhưng không có danh hiệu chính thức nào')
+    assert.deepEqual(newlyUnlockedBadges(snap, snap), [], 'so chính nó với chính nó phải rỗng')
+  })
 
-    const victimName = teamB.map((id) => mockDb.members.find((m) => m.id === id)?.name).join(' · ')
-    assert.equal(victimName, 'Minh')
-
-    const unlockData = {
-      id: 'ke_ngat_chuoi',
-      name: 'Kẻ ngắt chuỗi',
-      tier: 'epic',
-      victim: victimName,
-      streak: saveRes.brokenStreak,
-      xp: 100,
-      sp: 15,
-      elo: saveRes.eloDelta,
+  await t.test('AM4: tên nạn nhân bounty lấy qua playerName nên khách không lộ UUID', async () => {
+    const { playerName } = await import('../../lib/money.js')
+    const guestId = '16277406-a57c-46f8-9753-4c3eebedcfd6'
+    const db = {
+      members: [{ id: 'm-op-1', name: 'Minh' }],
+      guests: [{ id: guestId, name: 'Khách Nam' }],
     }
+    const saveRes = { bountyBroken: true, brokenStreak: 6, winnerTeam: 'A', eloDelta: 18 }
+    const teamA = ['m-me']
+    const teamB = ['m-op-1', guestId]
 
-    assert.equal(unlockData.id, 'ke_ngat_chuoi')
-    assert.equal(unlockData.streak, 6)
-    assert.equal(unlockData.victim, 'Minh')
-    assert.equal(unlockData.elo, 18)
-
-    // Kiểm tra câu chuyện chiến tích chuẩn thiết kế AM4
-    const template = 'Bạn vừa hạ {{victim}} — chuỗi {{streak}} trận của đối thủ dừng lại. Bounty đóng ngay, phần thưởng treo về tay bạn.'
-    const story = template.replace('{{victim}}', unlockData.victim).replace('{{streak}}', unlockData.streak)
-    assert.equal(story, 'Bạn vừa hạ Minh — chuỗi 6 trận của đối thủ dừng lại. Bounty đóng ngay, phần thưởng treo về tay bạn.')
+    const losingTeam = saveRes.winnerTeam === 'A' ? teamB : teamA
+    const victimName = losingTeam.map((id) => playerName(db, id)).join(' · ')
+    assert.equal(victimName, 'Minh · Khách Nam')
+    assert.ok(!victimName.includes(guestId), 'không được để lộ UUID của khách')
   })
 })
 

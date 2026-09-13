@@ -5,7 +5,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
 import { playerName, playerOf, myMember } from '#lib/money.js'
-import { calculateMemberBadges, getBadgeById } from '#lib/badges.js'
+import { calculateMemberBadges, getBadgeById, newlyUnlockedBadges } from '#lib/badges.js'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -209,8 +209,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
           const nextMatches = (db.matches || []).concat([res])
           const nextDb = { ...db, matches: nextMatches }
           const badgesAfter = calculateMemberBadges(currentMember.id, nextDb)
-          const beforeIds = new Set((badgesBefore?.unlockedBadges || []).map((b) => b.id))
-          const newlyUnlocked = (badgesAfter?.unlockedBadges || []).filter((b) => !beforeIds.has(b.id))
+          const newlyUnlocked = newlyUnlockedBadges(badgesBefore, badgesAfter)
           if (newlyUnlocked.length > 0) {
             const nb = newlyUnlocked[0]
             badgeToUnlock = {
