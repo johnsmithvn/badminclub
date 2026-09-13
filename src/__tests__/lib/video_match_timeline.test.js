@@ -137,4 +137,44 @@ assert.equal(
 )
 assert.equal(buildEmbedVideoUrl('https://share.icloud.com/photos/123'), null)
 
+/* 10. Video Views & Viewers Counter logic */
+const mockVideoMatch = {
+  id: 'm1',
+  videoUrl: 'https://youtu.be/8kQz1Rw_29k',
+  videoViews: 15,
+  videoViewers: {
+    'm-alice': 10,
+    'm-bob': 3,
+    guest: 2,
+  },
+}
+
+// Kiểm tra views tổng
+assert.equal(mockVideoMatch.videoViews, 15)
+
+// Kiểm tra sắp xếp người xem giảm dần
+const sortedViewers = Object.entries(mockVideoMatch.videoViewers).sort(
+  (a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0)
+)
+assert.deepEqual(sortedViewers, [
+  ['m-alice', 10],
+  ['m-bob', 3],
+  ['guest', 2],
+])
+
+// Kiểm tra lọc trận theo người xem
+const matchesList = [
+  mockVideoMatch,
+  { id: 'm2', videoUrl: 'https://youtu.be/xyz', videoViews: 2, videoViewers: { 'm-bob': 2 } },
+  { id: 'm3', videoUrl: 'https://youtu.be/none', videoViews: 0, videoViewers: {} },
+]
+
+const aliceMatches = matchesList.filter((m) => (m.videoViewers?.['m-alice'] || 0) > 0)
+assert.equal(aliceMatches.length, 1)
+assert.equal(aliceMatches[0].id, 'm1')
+
+const bobMatches = matchesList.filter((m) => (m.videoViewers?.['m-bob'] || 0) > 0)
+assert.equal(bobMatches.length, 2)
+
 console.log('video_match_timeline check: OK')
+

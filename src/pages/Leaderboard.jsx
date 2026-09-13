@@ -5,7 +5,7 @@ import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { confidenceOf, getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, kFactorOf, MIN_RATING, DEFAULT_RATING, matchCodeOf, rankPairs } from '#lib/rating.js'
-import { playerName, courtOf } from '#lib/money.js'
+import { playerName, courtOf, myMember } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
 import { searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
 import { RANK_THEMES, DEFAULT_RANK_THEME } from '#data/rankThemes.js'
@@ -71,6 +71,7 @@ export default function Leaderboard() {
   const [courtFilter, setCourtFilter] = useState('all')
   const [sourceFilter, setSourceFilter] = useState('all')
   const [onlyVideoFilter, setOnlyVideoFilter] = useState(false)
+  const [viewerFilter, setViewerFilter] = useState('all')
   const [sortOption, setSortOption] = useState('latest') // 'latest' | 'dramatic' | 'elo_swing'
   const [editingMatch, setEditingMatch] = useState(null)
   const [viewingMatch, setViewingMatch] = useState(null)
@@ -88,6 +89,10 @@ export default function Leaderboard() {
   const [effectiveStrengthPlayer, setEffectiveStrengthPlayer] = useState(null)
   const [seasonSettingsOpen, setSeasonSettingsOpen] = useState(false)
   const [recalcConfirmOpen, setRecalcConfirmOpen] = useState(false)
+
+  const myMem = myMember(db)
+  const role = db.viewAs || myMem?.role || 'member'
+  const isAdmin = role === 'owner' || role === 'treasurer'
 
   const activeMembers = useMemo(() => {
     return (db.members || []).filter((m) => m.active !== false)
@@ -346,6 +351,12 @@ export default function Leaderboard() {
         return sourceFilter === 'challenge' ? isFromChal : !isFromChal
       })
     }
+    if (viewerFilter !== 'all') {
+      list = list.filter((m) => {
+        const viewers = m.videoViewers || {}
+        return (Number(viewers[viewerFilter]) || 0) > 0
+      })
+    }
 
     // Sắp xếp
     if (sortOption === 'dramatic') {
@@ -363,7 +374,7 @@ export default function Leaderboard() {
     }
 
     return list
-  }, [db.matches, playerA, playerB, searchMode, qualityFilter, onlyVideoFilter, courtFilter, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
+  }, [db.matches, playerA, playerB, searchMode, qualityFilter, onlyVideoFilter, viewerFilter, courtFilter, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
 
   const dayGroups = useMemo(() => {
     const groups = []
@@ -1452,6 +1463,23 @@ export default function Leaderboard() {
                 >
                   {t('matchVideo.onlyHasVideo')}
                 </button>
+
+                {isAdmin && (
+                  <Select
+                    size="sm"
+                    value={viewerFilter}
+                    onChange={(e) => setViewerFilter(e.target.value)}
+                    options={[
+                      { value: 'all', label: t('matchVideo.allViewers') },
+                      { value: 'guest', label: t('matchVideo.guestViewer') },
+                      ...(db.members || []).map((m) => ({ value: m.id, label: m.name })),
+                    ]}
+                    style={viewerFilter !== 'all' ? {
+                      borderColor: 'var(--teal-500)',
+                      fontWeight: 600,
+                    } : undefined}
+                  />
+                )}
               </div>
             )}
 
@@ -1993,6 +2021,12 @@ export default function Leaderboard() {
                                 >
                                   <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace" }}>▶</span>
                                   <span>{videoTagLabel}</span>
+                                  {Number(m.videoViews) > 0 && (
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, opacity: 0.85, fontSize: 10, marginLeft: 2 }}>
+                                      <Icon name="eye" size={10} />
+                                      <span>{m.videoViews}</span>
+                                    </span>
+                                  )}
                                 </button>
                               ) : (
                                 <button

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Dialog, Button, Icon } from '#ds'
 import {
   parseVideoProvider,
@@ -7,6 +8,12 @@ import {
 } from '#utils/videoUtils.js'
 import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
+import { useApp } from '#contexts/AppContext.jsx'
+import { playerName, myMember } from '#lib/money.js'
+import AttachVideoModal from './AttachVideoModal.jsx'
+
+// Set lưu các matchId đã tính lượt xem trong phiên làm việc hiện tại để tránh spam
+const viewedMatchIdsInSession = new Set()
 
 /**
  * Modal phát video nhúng trực tiếp trên app (YouTube iframe, Google Drive preview, Direct video)
@@ -17,11 +24,32 @@ import { useMobile } from '#hooks/useMobile.js'
  * }} props
  */
 export function VideoPlayerModal({ match, matchCode, onClose }) {
+  const { db, a } = useApp()
   const isMobile = useMobile()
-  if (!match || !match.videoUrl) return null
+  const [editingVideo, setEditingVideo] = useState(false)
+  const [showViewersList, setShowViewersList] = useState(false)
 
-  const videoUrl = match.videoUrl
-  const timestamp = match.videoTimestamp || ''
+  // Lấy match trực tiếp từ db để đồng bộ tức thời khi sửa hoặc tăng view
+  const liveMatch = (db.matches || []).find((m) => m.id === match?.id) || match
+
+  // Tăng lượt xem 1 lần trong phiên khi mở player
+  useEffect(() => {
+    if (liveMatch?.id && !viewedMatchIdsInSession.has(liveMatch.id)) {
+      viewedMatchIdsInSession.add(liveMatch.id)
+      if (a?.incrementMatchVideoViews) {
+        a.incrementMatchVideoViews(liveMatch.id)
+      }
+    }
+  }, [liveMatch?.id, a])
+
+  if (!liveMatch || !liveMatch.videoUrl) return null
+
+  const myMem = myMember(db)
+  const role = db.viewAs || myMem?.role || 'member'
+  const isAdmin = role === 'owner' || role === 'treasurer'
+
+  const videoUrl = liveMatch.videoUrl
+  const timestamp = liveMatch.videoTimestamp || ''
   const provider = parseVideoProvider(videoUrl)
   const embedUrl = buildEmbedVideoUrl(videoUrl, timestamp)
   const playUrl = buildPlayableVideoUrl(videoUrl, timestamp)
@@ -35,168 +63,289 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
         ? 'iCloud'
         : 'Video'
 
-  const codeStr = matchCode || match.code || (match.id ? `M-${String(match.id).slice(-4)}` : '')
+  const codeStr = matchCode || liveMatch.code || (liveMatch.id ? `M-${String(liveMatch.id).slice(-4)}` : '')
   const title = t('matchVideo.playerModalTitle', { code: codeStr })
 
-  return (
-    <Dialog
-      open
-      onClose={onClose}
-      title={title}
-      description={displayLabel}
-      width={780}
-      sheet={isMobile}
-      footer={
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span
-              style={{
-                font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                padding: '4px 9px',
-                borderRadius: 999,
-                background: provider === 'youtube'
-                  ? 'rgba(225,68,52,.18)'
-                  : provider === 'drive'
-                    ? 'rgba(0,178,169,.18)'
-                    : 'var(--surface-brand-soft)',
-                color: provider === 'youtube'
-                  ? '#FF8578'
-                  : provider === 'drive'
-                    ? 'var(--teal-500)'
-                    : 'var(--text-secondary)',
-              }}
-            >
-              {providerLabel}
-            </span>
-            {timestamp && (
-              <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                ⏱ {t('matchVideo.fieldTimestamp')}: <strong style={{ color: 'var(--text-primary)' }}>{timestamp}</strong>
-              </span>
-            )}
-          </div>
+  const views = Number(liveMatch.videoViews || 0)
+  const viewers = liveMatch.videoViewers || {}
+  const viewerEntries = Object.entries(viewers).sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0))
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <a
-              href={playUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                height: 32,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '0 12px',
-                borderRadius: 'var(--radius-control)',
-                background: 'var(--surface-raised)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-                font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                textDecoration: 'none',
-                cursor: 'pointer',
-              }}
-              title={playUrl}
-            >
-              <Icon name="arrow-up-right" size={13} />
-              <span>{t('matchVideo.openExternal')}</span>
-            </a>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              {t('common.close')}
-            </Button>
-          </div>
-        </div>
-      }
-    >
-      <div style={{ padding: '0 0 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* Khung Video Player 16:9 */}
-        <div
-          style={{
-            position: 'relative',
-            width: '100%',
-            aspectRatio: '16 / 9',
-            background: '#000000',
-            borderRadius: 8,
-            overflow: 'hidden',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          {embedUrl && provider !== 'direct' ? (
-            <iframe
-              src={embedUrl}
-              title={title}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                border: 'none',
-              }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          ) : embedUrl && provider === 'direct' ? (
-            <video
-              src={embedUrl}
-              controls
-              autoPlay
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-              }}
-            />
-          ) : (
-            /* Fallback cho iCloud hoặc URL không nhúng được */
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 12,
-                padding: 24,
-                textAlign: 'center',
-                background: 'var(--surface-inset)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <Icon name="play" size={36} style={{ color: 'var(--teal-500)', opacity: 0.8 }} />
-              <div style={{ font: "600 14px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', maxWidth: 440 }}>
-                {provider === 'icloud'
-                  ? t('matchVideo.icloudNotice')
-                  : t('matchVideo.openDirect')}
-              </div>
+  return (
+    <>
+      <Dialog
+        open
+        onClose={onClose}
+        title={title}
+        description={displayLabel}
+        width={780}
+        sheet={isMobile}
+        footer={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                  padding: '4px 9px',
+                  borderRadius: 999,
+                  background: provider === 'youtube'
+                    ? 'rgba(225,68,52,.18)'
+                    : provider === 'drive'
+                      ? 'rgba(0,178,169,.18)'
+                      : 'var(--surface-brand-soft)',
+                  color: provider === 'youtube'
+                    ? '#FF8578'
+                    : provider === 'drive'
+                      ? 'var(--teal-500)'
+                      : 'var(--text-secondary)',
+                }}
+              >
+                {providerLabel}
+              </span>
+
+              {/* Badge lượt xem */}
+              <button
+                type="button"
+                onClick={() => isAdmin && setShowViewersList(!showViewersList)}
+                title={isAdmin ? t('matchVideo.viewersBreakdown') : undefined}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  font: "500 11.5px/1 'IBM Plex Sans', sans-serif",
+                  color: 'var(--text-secondary)',
+                  cursor: isAdmin ? 'pointer' : 'default',
+                  transition: 'background 0.15s ease',
+                }}
+              >
+                <Icon name="eye" size={13} style={{ opacity: 0.8 }} />
+                <span>{views} {t('matchVideo.viewsShort')}</span>
+                {isAdmin && viewerEntries.length > 0 && (
+                  <Icon name={showViewersList ? 'chevron-up' : 'chevron-down'} size={12} style={{ color: 'var(--text-muted)' }} />
+                )}
+              </button>
+
+              {timestamp && (
+                <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                  ⏱ {t('matchVideo.fieldTimestamp')}: <strong style={{ color: 'var(--text-primary)' }}>{timestamp}</strong>
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Nút sửa video trực tiếp trong modal */}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setEditingVideo(true)}
+                style={{ height: 32, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Icon name="pencil" size={13} />
+                <span>{t('matchVideo.editVideo')}</span>
+              </Button>
+
               <a
                 href={playUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  height: 34,
+                  height: 32,
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 8,
-                  padding: '0 16px',
+                  gap: 6,
+                  padding: '0 12px',
                   borderRadius: 'var(--radius-control)',
-                  background: 'var(--action-primary-bg)',
-                  color: 'var(--action-primary-fg)',
-                  font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
                   textDecoration: 'none',
-                  marginTop: 6,
+                  cursor: 'pointer',
+                }}
+                title={playUrl}
+              >
+                <Icon name="arrow-up-right" size={13} />
+                <span>{t('matchVideo.openExternal')}</span>
+              </a>
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                {t('common.close')}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div style={{ padding: '0 0 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Khung Video Player 16:9 */}
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '16 / 9',
+              background: '#000000',
+              borderRadius: 8,
+              overflow: 'hidden',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            {embedUrl && provider !== 'direct' ? (
+              <iframe
+                src={embedUrl}
+                title={title}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : embedUrl && provider === 'direct' ? (
+              <video
+                src={embedUrl}
+                controls
+                autoPlay
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                }}
+              />
+            ) : (
+              /* Fallback cho iCloud hoặc URL không nhúng được */
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 12,
+                  padding: 24,
+                  textAlign: 'center',
+                  background: 'var(--surface-inset)',
+                  color: 'var(--text-secondary)',
                 }}
               >
-                <span>{provider === 'icloud' ? t('matchVideo.openIcloud') : t('matchVideo.openDirect')}</span>
-                <Icon name="arrow-up-right" size={14} />
-              </a>
+                <Icon name="play" size={36} style={{ color: 'var(--teal-500)', opacity: 0.8 }} />
+                <div style={{ font: "600 14px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', maxWidth: 440 }}>
+                  {provider === 'icloud'
+                    ? t('matchVideo.icloudNotice')
+                    : t('matchVideo.openDirect')}
+                </div>
+                <a
+                  href={playUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    height: 34,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '0 16px',
+                    borderRadius: 'var(--radius-control)',
+                    background: 'var(--action-primary-bg)',
+                    color: 'var(--action-primary-fg)',
+                    font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                    textDecoration: 'none',
+                    marginTop: 6,
+                  }}
+                >
+                  <span>{provider === 'icloud' ? t('matchVideo.openIcloud') : t('matchVideo.openDirect')}</span>
+                  <Icon name="arrow-up-right" size={14} />
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Chi tiết người xem cho Admin/Owner */}
+          {isAdmin && showViewersList && (
+            <div
+              style={{
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 8,
+                padding: '10px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="users" size={13} style={{ color: 'var(--teal-500)' }} />
+                  {t('matchVideo.viewersBreakdown')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowViewersList(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                    borderRadius: 4,
+                  }}
+                >
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
+
+              {viewerEntries.length === 0 ? (
+                <span style={{ font: "400 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                  {t('common.empty')}
+                </span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 140, overflowY: 'auto' }}>
+                  {viewerEntries.map(([mid, count]) => {
+                    const name = mid === 'guest' ? t('matchVideo.guestViewer') : (playerName(db, mid) || mid)
+                    return (
+                      <div
+                        key={mid}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '4px 8px',
+                          borderRadius: 6,
+                          background: 'var(--surface-raised)',
+                          font: "400 12px/1 'IBM Plex Sans', sans-serif",
+                        }}
+                      >
+                        <span style={{ color: 'var(--text-secondary)' }}>{name}</span>
+                        <span style={{ font: "600 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
+                          {count} {t('matchVideo.viewsShort')}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
-      </div>
-    </Dialog>
+      </Dialog>
+
+      {/* Modal chỉnh sửa video khi bấm Sửa video */}
+      {editingVideo && (
+        <AttachVideoModal
+          match={liveMatch}
+          matchCode={codeStr}
+          onClose={() => setEditingVideo(false)}
+          onSaved={() => setEditingVideo(false)}
+        />
+      )}
+    </>
   )
 }

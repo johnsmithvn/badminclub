@@ -2561,6 +2561,34 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       return true
     },
 
+    incrementMatchVideoViews: (matchId) => {
+      if (!matchId) return false
+      const d0 = db()
+      const match = (d0.matches || []).find((m) => m.id === matchId)
+      if (!match) return false
+      const myMem = myMember(d0)
+      const viewerKey = myMem?.id || 'guest'
+      const currentViewers = (typeof match.videoViewers === 'object' && match.videoViewers) ? match.videoViewers : {}
+      const currentCount = typeof currentViewers[viewerKey] === 'number' ? currentViewers[viewerKey] : 0
+      const nextViewers = {
+        ...currentViewers,
+        [viewerKey]: currentCount + 1,
+      }
+      const nextTotalViews = Number(match.videoViews || 0) + 1
+      up((d) => ({
+        matches: (d.matches || []).map((m) => (
+          m.id === matchId
+            ? {
+              ...m,
+              videoViews: nextTotalViews,
+              videoViewers: nextViewers,
+            }
+            : m
+        )),
+      }))
+      return true
+    },
+
     cancelMatch: ({ matchId, reason }) => {
       if (!canAssign()) return
       const d0 = db()

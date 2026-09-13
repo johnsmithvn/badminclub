@@ -21,35 +21,36 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   const { db } = useApp()
   const [watchingVideo, setWatchingVideo] = useState(false)
 
-  const matchCode = useMemo(() => matchCodeOf(db, match), [db, match])
+  const liveMatch = (db.matches || []).find((m) => m.id === match?.id) || match
+  const matchCode = useMemo(() => matchCodeOf(db, liveMatch), [db, liveMatch])
 
-  const teamA = useMemo(() => match?.teamA || (match?.playerKeys ? match.playerKeys.slice(0, 2) : []), [match])
-  const teamB = useMemo(() => match?.teamB || (match?.playerKeys ? match.playerKeys.slice(2, 4) : []), [match])
+  const teamA = useMemo(() => liveMatch?.teamA || (liveMatch?.playerKeys ? liveMatch.playerKeys.slice(0, 2) : []), [liveMatch])
+  const teamB = useMemo(() => liveMatch?.teamB || (liveMatch?.playerKeys ? liveMatch.playerKeys.slice(2, 4) : []), [liveMatch])
 
   const nameTeamA = teamA.map((id) => playerName(db, id)).join(' · ') || t('challenge.teamA')
   const nameTeamB = teamB.map((id) => playerName(db, id)).join(' · ') || t('challenge.teamB')
 
-  const aWon = match?.winnerTeam === 'A'
-  const sets = useMemo(() => match?.sets || [], [match])
+  const aWon = liveMatch?.winnerTeam === 'A'
+  const sets = useMemo(() => liveMatch?.sets || [], [liveMatch])
 
 
   // Thông tin buổi và sân
-  const s = useMemo(() => (db.sessions || []).find((x) => x.id === match?.sessionId), [db.sessions, match?.sessionId])
-  const courtObj = s?.courts?.[match?.courtIdx]
+  const s = useMemo(() => (db.sessions || []).find((x) => x.id === liveMatch?.sessionId), [db.sessions, liveMatch?.sessionId])
+  const courtObj = s?.courts?.[liveMatch?.courtIdx]
   const venue = courtObj ? courtOf(db, courtObj.courtId) : null
-  const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (match?.courtIdx ?? 0) + 1 }) : '')
-  const dateStr = s?.date ? dd(s.date) : (match?.at ? new Date(match.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
-  const timeStr = match?.at ? new Date(match.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '20:42'
+  const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (liveMatch?.courtIdx ?? 0) + 1 }) : '')
+  const dateStr = s?.date ? dd(s.date) : (liveMatch?.at ? new Date(liveMatch.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
+  const timeStr = liveMatch?.at ? new Date(liveMatch.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '20:42'
   const matchWhen = `${dateStr ? dateStr + ' · ' : ''}${venue?.name ? venue.name + ' · ' : ''}${courtLabel}`
 
-  const delta = Math.abs(match?.eloDelta != null ? match.eloDelta : 8)
-  const ra = match?.initialRatingA || 0
-  const rb = match?.initialRatingB || 0
+  const delta = Math.abs(liveMatch?.eloDelta != null ? liveMatch.eloDelta : 8)
+  const ra = liveMatch?.initialRatingA || 0
+  const rb = liveMatch?.initialRatingB || 0
   const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
 
-  const hasVideo = Boolean(match?.videoUrl)
-  const videoPlayUrl = hasVideo ? buildPlayableVideoUrl(match.videoUrl, match.videoTimestamp) : null
-  const vProvider = hasVideo ? parseVideoProvider(match.videoUrl) : null
+  const hasVideo = Boolean(liveMatch?.videoUrl)
+  const videoPlayUrl = hasVideo ? buildPlayableVideoUrl(liveMatch.videoUrl, liveMatch.videoTimestamp) : null
+  const vProvider = hasVideo ? parseVideoProvider(liveMatch.videoUrl) : null
   const videoProviderLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Google Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
 
   // Rating từng người
@@ -726,7 +727,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                 onClick={() => setWatchingVideo(true)}
               >
                 <span style={{ fontSize: 11 }}>▶</span>
-                <span>{t('matchVideo.btnWatch')}</span>
+                <span>{t('matchVideo.btnWatch')}{Number(liveMatch?.videoViews) > 0 ? ` · ${liveMatch.videoViews}` : ''}</span>
               </Button>
             )}
             {onEdit && (
@@ -734,7 +735,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                 variant="primary"
                 onClick={() => {
                   onClose()
-                  onEdit(match)
+                  onEdit(liveMatch)
                 }}
               >
                 <Icon name="pencil" size={14} />
@@ -747,7 +748,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
     </Dialog>
     {watchingVideo && (
       <VideoPlayerModal
-        match={match}
+        match={liveMatch}
         matchCode={matchCode}
         onClose={() => setWatchingVideo(false)}
       />

@@ -160,6 +160,8 @@ export function toDb(raw, ctx) {
         videoUrl: mt.video_url || null,
         videoTimestamp: mt.video_timestamp || null,
         videoNote: mt.video_note || null,
+        videoViews: Number(mt.video_views || 0),
+        videoViewers: (typeof mt.video_viewers === 'object' && mt.video_viewers) ? mt.video_viewers : {},
         teamA: players.filter((p) => p.team === 0).map((p) => p.player_id),
         teamB: players.filter((p) => p.team === 1).map((p) => p.player_id),
         playerKeys: players.map((p) => p.player_id),
@@ -460,6 +462,8 @@ export function toRows(db, ctx) {
       video_url: mt.videoUrl || null,
       video_timestamp: mt.videoTimestamp || null,
       video_note: mt.videoNote || null,
+      video_views: Number(mt.videoViews || 0),
+      video_viewers: (typeof mt.videoViewers === 'object' && mt.videoViewers) ? mt.videoViewers : {},
     })
     // Ô 0,1 là một bên lưới; 2,3 là bên kia (xem courtSlotIds trong lib/assign.js).
     ;(mt.playerKeys || []).forEach((key, i) => put('match_players', {
