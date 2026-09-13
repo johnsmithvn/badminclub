@@ -275,11 +275,30 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                 {teamA.length > 1 ? `${rA0} + ${rA1}` : rA0} · {t('leaderboard.expectedWinPct', { pct: expA })}
               </div>
             </div>
-            <div style={{ textAlign: 'center', font: '700 22px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
-              {sets.length > 0 ? `${sets[0][0]}–${sets[0][1]}` : '21–18'}
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ font: '700 22px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
+                {sets.length > 1
+                  ? `${sets.filter(([sa, sb]) => sa > sb).length}–${sets.filter(([sa, sb]) => sb > sa).length}`
+                  : (sets.length > 0 ? `${sets[0][0]}–${sets[0][1]}` : '21–18')}
+              </div>
               {sets.length > 1 && (
-                <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA', paddingTop: 5 }}>
-                  {sets[1][0]}–{sets[1][1]}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center', paddingTop: 6 }}>
+                  {sets.map(([sa, sb], sIdx) => (
+                    <span
+                      key={sIdx}
+                      style={{
+                        font: "500 11px/1.2 'IBM Plex Mono', monospace",
+                        color: sa > sb ? (aWon ? '#5FDBD3' : '#E9EFF7') : (sb > sa ? (!aWon ? '#5FDBD3' : '#E9EFF7') : '#8494AA'),
+                        background: 'rgba(255,255,255,.06)',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        border: '1px solid #22304A',
+                      }}
+                      title={`Set ${sIdx + 1}`}
+                    >
+                      {sa}–{sb}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>

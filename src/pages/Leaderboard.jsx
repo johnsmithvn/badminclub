@@ -1768,6 +1768,12 @@ export default function Leaderboard() {
                         winPts: aWon ? a : b,
                         losePts: aWon ? b : a,
                       }))
+                      const isMultiSet = scoreSets.length > 1
+                      const winSetsCount = isMultiSet ? scoreSets.filter((s) => s.winPts > s.losePts).length : 0
+                      const loseSetsCount = isMultiSet ? scoreSets.filter((s) => s.losePts > s.winPts).length : 0
+                      const fullScoreStr = isMultiSet
+                        ? `${winSetsCount}–${loseSetsCount} (${scoreSets.map((s) => `${s.winPts}-${s.losePts}`).join(', ')})`
+                        : (scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : '')
 
                       const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
                       const isRated = m.ratingEnabled !== false
@@ -1938,10 +1944,29 @@ export default function Leaderboard() {
                             </div>
 
                             {/* Cột 6: Tỷ số */}
-                            <div style={{ padding: '0 8px', textAlign: 'center', font: "600 16px/1 'IBM Plex Mono', monospace" }}>
-                              <span style={{ color: 'var(--teal-500)' }}>{scoreSets.length > 0 ? scoreSets[0].winPts : 21}</span>
-                              <span style={{ color: 'var(--text-muted)', padding: '0 3px' }}>–</span>
-                              <span style={{ color: 'var(--text-secondary)' }}>{scoreSets.length > 0 ? scoreSets[0].losePts : 19}</span>
+                            <div style={{ padding: '0 4px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ font: "600 16px/1 'IBM Plex Mono', monospace" }}>
+                                <span style={{ color: 'var(--teal-500)' }}>
+                                  {isMultiSet ? winSetsCount : (scoreSets.length > 0 ? scoreSets[0].winPts : 21)}
+                                </span>
+                                <span style={{ color: 'var(--text-muted)', padding: '0 3px' }}>–</span>
+                                <span style={{ color: 'var(--text-secondary)' }}>
+                                  {isMultiSet ? loseSetsCount : (scoreSets.length > 0 ? scoreSets[0].losePts : 19)}
+                                </span>
+                              </div>
+                              {isMultiSet && (
+                                <div
+                                  style={{
+                                    font: "500 10.5px/1.2 'IBM Plex Mono', monospace",
+                                    color: 'var(--text-muted)',
+                                    marginTop: 3,
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                  title={scoreSets.map((s) => `${s.winPts}–${s.losePts}`).join(', ')}
+                                >
+                                  {scoreSets.map((s) => `${s.winPts}:${s.losePts}`).join(' ')}
+                                </div>
+                              )}
                             </div>
 
                             {/* Cột 7: Đội thua */}
@@ -2039,7 +2064,7 @@ export default function Leaderboard() {
                               timeStr={matchTime}
                               courtVenueStr={`${courtLabel} · ${venue?.name || ''}`}
                               teamText={`${winnerNames} vs ${loserNames}`}
-                              scoreText={scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : ''}
+                              scoreText={fullScoreStr}
                               onSave={(videoData) => {
                                 a.attachMatchVideo(m.id, videoData)
                                 setExpandedVideoMatchId(null)
