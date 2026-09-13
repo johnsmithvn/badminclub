@@ -60,37 +60,31 @@ export default function CareerEloTab({
   playerRatings,
   matches,
   levels,
-  _onOpenEffectiveStrengthModal,
-  onOpenEffectiveStrengthModal,
-  onOpenEffectiveStrength,
   onSelectMember,
   isMobile = false,
   genderFilter = 'all',
   onGenderFilterChange,
-  rankTheme,
-  onSelectTheme,
 }) {
   const { isDark, isGlamorous } = useTheme()
 
+  // Chỉ fallback về db khi prop KHÔNG được truyền. Danh sách rỗng là kết quả hợp lệ
+  // (VD cha đã lọc và không còn ai) — không được tự đổ lại toàn bộ dữ liệu từ db.
   const actualMembers = useMemo(() => {
-    if (Array.isArray(members) && members.length > 0) return members
-    if (Array.isArray(activeMembers) && activeMembers.length > 0) return activeMembers
+    if (Array.isArray(members)) return members
+    if (Array.isArray(activeMembers)) return activeMembers
     return (db?.members || []).filter((m) => m.active !== false)
   }, [members, activeMembers, db?.members])
 
   const actualPlayerRatings = useMemo(() => {
-    if (playerRatings && Object.keys(playerRatings).length > 0) return playerRatings
-    return db?.playerRatings || {}
+    return playerRatings || db?.playerRatings || {}
   }, [playerRatings, db?.playerRatings])
 
   const actualMatches = useMemo(() => {
-    if (Array.isArray(matches) && matches.length > 0) return matches
-    return db?.matches || []
+    return Array.isArray(matches) ? matches : (db?.matches || [])
   }, [matches, db?.matches])
 
   const actualLevels = useMemo(() => {
-    if (levels && Object.keys(levels).length > 0) return levels
-    return db?.levels || {}
+    return levels || db?.levels || {}
   }, [levels, db?.levels])
 
   const myMember = useMemo(() => {

@@ -1,13 +1,13 @@
 // Quản lý theme (sáng / tối) của ứng dụng.
 // Lưu trạng thái vào localStorage ('badminclub.theme') và gán attribute data-theme lên <html>.
 // Hỗ trợ tự động nhận diện prefers-color-scheme từ hệ điều hành và đồng bộ giữa các tab.
+// Chế độ hiển thị (theme mode) đã bỏ lựa chọn "đơn giản" — app luôn chạy bản 14a "hào nhoáng".
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 const Ctx = createContext(null)
 
 export const THEME_KEY = 'badminclub.theme'
-export const THEME_MODE_KEY = 'badminclub.themeMode'
 
 function getInitialTheme() {
   if (typeof window === 'undefined') return 'light'
@@ -23,14 +23,8 @@ function getInitialTheme() {
   return 'light'
 }
 
-function getInitialThemeMode() {
-  return 'glamorous'
-}
-
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(getInitialTheme)
-  const themeMode = 'glamorous'
-  const isGlamorous = true
 
   // Đồng bộ theme với thẻ <html>, <body> và localStorage
   useEffect(() => {
@@ -47,15 +41,11 @@ export function ThemeProvider({ children }) {
     }
   }, [theme])
 
-  // Đồng bộ themeMode luôn là glamorous
+  // index.html đã gán sẵn data-theme-mode="glamorous" trước khi React mount (chống FOUC);
+  // gán lại ở đây để phòng trường hợp script inline đó lỗi. Không ghi localStorage vì không ai đọc.
   useEffect(() => {
     if (typeof document === 'undefined') return
     document.documentElement.setAttribute('data-theme-mode', 'glamorous')
-    try {
-      localStorage.setItem(THEME_MODE_KEY, 'glamorous')
-    } catch {
-      // Bỏ qua lỗi ghi storage
-    }
   }, [])
 
   // Lắng nghe thay đổi từ các tab trình duyệt khác (cho sáng / tối)
@@ -80,19 +70,13 @@ export function ThemeProvider({ children }) {
     }
   }, [])
 
-  const setThemeMode = useCallback(() => {}, [])
-  const toggleThemeMode = useCallback(() => {}, [])
-
   const value = useMemo(() => ({
     theme,
     isDark: theme === 'dark',
     toggleTheme,
     setTheme,
-    themeMode: 'glamorous',
     isGlamorous: true,
-    setThemeMode,
-    toggleThemeMode,
-  }), [theme, toggleTheme, setTheme, setThemeMode, toggleThemeMode])
+  }), [theme, toggleTheme, setTheme])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -105,12 +89,8 @@ export function useTheme() {
       isDark: false,
       toggleTheme: () => {},
       setTheme: () => {},
-      themeMode: 'glamorous',
       isGlamorous: true,
-      setThemeMode: () => {},
-      toggleThemeMode: () => {},
     }
   }
   return ctx
 }
-
