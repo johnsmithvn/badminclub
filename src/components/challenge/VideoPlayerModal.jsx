@@ -78,28 +78,105 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
     }
   }
 
+  const iconBtnStyle = {
+    width: 32,
+    height: 32,
+    borderRadius: 'var(--radius-control, 6px)',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border-default)',
+    color: 'var(--text-primary)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    transition: 'all 0.15s ease',
+    padding: 0,
+    flexShrink: 0,
+  }
+
   const titleNode = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-      <span>{titleText}</span>
-      {timestamp && (
-        <span
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <span style={{ font: "600 18px/1.2 'IBM Plex Mono', monospace", color: '#5FDBD3', letterSpacing: 0.3 }}>
+          {codeStr}
+        </span>
+        {timestamp && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <span style={{ font: "400 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+              {t('matchVideo.fieldTimestamp')}
+            </span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '2px 8px',
+                borderRadius: 999,
+                background: 'rgba(0, 178, 169, 0.16)',
+                border: '1px solid var(--teal-500)',
+                color: 'var(--teal-400, #5FDBD3)',
+                font: "600 11.5px/1 'IBM Plex Mono', monospace",
+                boxShadow: '0 0 8px rgba(0, 178, 169, 0.25)',
+              }}
+            >
+              {timestamp}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Cụm icon thao tác trên đầu */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        {/* Nút sửa video */}
+        <button
+          type="button"
+          onClick={() => setEditingVideo(true)}
+          title={t('matchVideo.editVideo')}
+          aria-label={t('matchVideo.editVideo')}
+          style={iconBtnStyle}
+        >
+          <Icon name="pencil" size={14} />
+        </button>
+
+        {/* Nút icon sao chép link */}
+        <button
+          type="button"
+          onClick={handleCopyLink}
+          title={copied ? t('matchVideo.copiedLink') : t('matchVideo.copyLink')}
+          aria-label={t('matchVideo.copyLink')}
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '3px 10px',
-            borderRadius: 999,
-            background: 'rgba(0, 178, 169, 0.16)',
-            border: '1px solid var(--teal-500)',
-            color: 'var(--teal-400, #5FDBD3)',
-            font: "600 12px/1 'IBM Plex Mono', monospace",
-            boxShadow: '0 0 10px rgba(0, 178, 169, 0.22)',
+            ...iconBtnStyle,
+            ...(copied ? { color: 'var(--teal-500)', borderColor: 'var(--teal-500)', background: 'rgba(0, 178, 169, 0.18)' } : {}),
           }}
         >
-          <span>⏱</span>
-          <span>{t('matchVideo.fieldTimestamp')}: <strong>{timestamp}</strong></span>
-        </span>
-      )}
+          <Icon name={copied ? 'check' : 'copy'} size={14} />
+        </button>
+
+        {/* Nút icon mở trang gốc (redirect icon) */}
+        <a
+          href={playUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t('matchVideo.openExternal')}
+          aria-label={t('matchVideo.openExternal')}
+          style={iconBtnStyle}
+        >
+          <Icon name="arrow-up-right" size={14} />
+        </a>
+
+        {/* Nút đóng dấu X trên mobile sheet */}
+        {isMobile && (
+          <button
+            type="button"
+            onClick={onClose}
+            title={t('common.close')}
+            aria-label={t('common.close')}
+            style={iconBtnStyle}
+          >
+            <Icon name="x" size={16} />
+          </button>
+        )}
+      </div>
     </div>
   )
 
@@ -116,119 +193,52 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
         width={780}
         sheet={isMobile}
         footer={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                  padding: '4px 9px',
-                  borderRadius: 999,
-                  background: provider === 'youtube'
-                    ? 'rgba(225,68,52,.18)'
-                    : provider === 'drive'
-                      ? 'rgba(0,178,169,.18)'
-                      : 'var(--surface-brand-soft)',
-                  color: provider === 'youtube'
-                    ? '#FF8578'
-                    : provider === 'drive'
-                      ? 'var(--teal-500)'
-                      : 'var(--text-secondary)',
-                }}
-              >
-                {providerLabel}
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', width: '100%' }}>
+            <span
+              style={{
+                font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                padding: '4px 9px',
+                borderRadius: 999,
+                background: provider === 'youtube'
+                  ? 'rgba(225,68,52,.18)'
+                  : provider === 'drive'
+                    ? 'rgba(0,178,169,.18)'
+                    : 'var(--surface-brand-soft)',
+                color: provider === 'youtube'
+                  ? '#FF8578'
+                  : provider === 'drive'
+                    ? 'var(--teal-500)'
+                    : 'var(--text-secondary)',
+              }}
+            >
+              {providerLabel}
+            </span>
 
-              {/* Badge lượt xem */}
-              <button
-                type="button"
-                onClick={() => isAdmin && setShowViewersList(!showViewersList)}
-                title={isAdmin ? t('matchVideo.viewersBreakdown') : undefined}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 8px',
-                  borderRadius: 999,
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border-subtle)',
-                  font: "500 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: 'var(--text-secondary)',
-                  cursor: isAdmin ? 'pointer' : 'default',
-                  transition: 'background 0.15s ease',
-                }}
-              >
-                <Icon name="eye" size={13} style={{ opacity: 0.8 }} />
-                <span>{t('matchVideo.viewsCount', { n: views })}</span>
-                {isAdmin && viewerEntries.length > 0 && (
-                  <Icon name={showViewersList ? 'chevron-up' : 'chevron-down'} size={12} style={{ color: 'var(--text-muted)' }} />
-                )}
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {/* Nút sửa video trực tiếp trong modal */}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setEditingVideo(true)}
-                style={{ height: 32, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-              >
-                <Icon name="pencil" size={13} />
-                <span>{t('matchVideo.editVideo')}</span>
-              </Button>
-
-              {/* Nút icon sao chép link */}
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                title={copied ? t('matchVideo.copiedLink') : t('matchVideo.copyLink')}
-                aria-label={t('matchVideo.copyLink')}
-                style={{
-                  width: 32,
-                  height: 32,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 'var(--radius-control)',
-                  background: copied ? 'rgba(0, 178, 169, 0.18)' : 'var(--surface-raised)',
-                  border: copied ? '1px solid var(--teal-500)' : '1px solid var(--border-default)',
-                  color: copied ? 'var(--teal-500)' : 'var(--text-primary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon name={copied ? 'check' : 'copy'} size={15} />
-              </button>
-
-              {/* Nút icon mở trang gốc (redirect icon) */}
-              <a
-                href={playUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={t('matchVideo.openExternal')}
-                aria-label={t('matchVideo.openExternal')}
-                style={{
-                  width: 32,
-                  height: 32,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 'var(--radius-control)',
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                  textDecoration: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon name="arrow-up-right" size={15} />
-              </a>
-
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                {t('common.close')}
-              </Button>
-            </div>
+            {/* Badge lượt xem */}
+            <button
+              type="button"
+              onClick={() => isAdmin && setShowViewersList(!showViewersList)}
+              title={isAdmin ? t('matchVideo.viewersBreakdown') : undefined}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '4px 8px',
+                borderRadius: 999,
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--border-subtle)',
+                font: "500 11.5px/1 'IBM Plex Sans', sans-serif",
+                color: 'var(--text-secondary)',
+                cursor: isAdmin ? 'pointer' : 'default',
+                transition: 'background 0.15s ease',
+              }}
+            >
+              <Icon name="eye" size={13} style={{ opacity: 0.8 }} />
+              <span>{t('matchVideo.viewsCount', { n: views })}</span>
+              {isAdmin && viewerEntries.length > 0 && (
+                <Icon name={showViewersList ? 'chevron-up' : 'chevron-down'} size={12} style={{ color: 'var(--text-muted)' }} />
+              )}
+            </button>
           </div>
         }
       >
