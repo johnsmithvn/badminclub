@@ -391,29 +391,31 @@ test('15 Fixes: trum_giai đang TẮT cho tới khi có tính năng Giải đấ
   assert.ok(getBadgeById('bat_bai_v'), 'Badge đang bật vẫn tra cứu được bình thường')
 })
 
-test('15 Fixes: sat_than_doi (beat_top_pair) xét cặp đôi uy tín và mở khóa khi đánh bại', () => {
+test('15 Fixes: sat_than_doi (beat_top_pair) xét cặp đôi uy tín và mở khóa khi đánh bại 2 lần', () => {
   const mockDb = {
     members: [
       { id: 'u1', name: 'User 1' },
       { id: 'u2', name: 'User 2' },
-      { id: 'pairA1', name: 'A1' },
-      { id: 'pairA2', name: 'A2' },
+      { id: 'pairA1', name: 'A1', rating: 800 },
+      { id: 'pairA2', name: 'A2', rating: 750 },
     ],
     matches: [
-      // Cặp A1 & A2 thắng 5 trận liên tiếp (uy tín cao: 5 trận, winrate 100%)
+      // Cặp A1 & A2 thắng 5 trận liên tiếp (uy tín cao: 5 trận, winrate 100%, rating cân bằng)
       { id: 'm1', at: 10, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
       { id: 'm2', at: 20, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
       { id: 'm3', at: 30, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
       { id: 'm4', at: 40, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
       { id: 'm5', at: 50, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
-      // u1 & u2 hạ cặp đôi số 1 CLB
+      // u1 & u2 hạ cặp đôi số 1 CLB lần 1 -> chưa mở khóa (1/2)
       { id: 'm6', at: 60, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A' },
+      // u1 & u2 hạ cặp đôi số 1 CLB lần 2 -> đủ 2/2 -> mở khóa
+      { id: 'm7', at: 70, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A' },
     ],
   }
 
   const resU1 = calculateMemberBadges('u1', mockDb)
   const satThanDoi = resU1.unlocked.find((b) => b.id === 'sat_than_doi')
-  assert.ok(satThanDoi, 'Đánh bại cặp đôi top 1 CLB mở được danh hiệu LEGEND Sát Thần Đôi')
+  assert.ok(satThanDoi, 'Đánh bại cặp đôi top 1 CLB 2 lần mở được danh hiệu LEGEND Sát Thần Đôi')
   assert.equal(satThanDoi.unlocked, true)
 })
 

@@ -157,6 +157,9 @@ export function toDb(raw, ctx) {
         eloDelta: numN(mt.elo_delta),
         bountyBroken: !!mt.bounty_broken,
         brokenStreak: mt.broken_streak || 0,
+        videoUrl: mt.video_url || null,
+        videoTimestamp: mt.video_timestamp || null,
+        videoNote: mt.video_note || null,
         teamA: players.filter((p) => p.team === 0).map((p) => p.player_id),
         teamB: players.filter((p) => p.team === 1).map((p) => p.player_id),
         playerKeys: players.map((p) => p.player_id),
@@ -454,6 +457,9 @@ export function toRows(db, ctx) {
       elo_delta: numN(mt.eloDelta),
       bounty_broken: !!mt.bountyBroken,
       broken_streak: mt.brokenStreak || 0,
+      video_url: mt.videoUrl || null,
+      video_timestamp: mt.videoTimestamp || null,
+      video_note: mt.videoNote || null,
     })
     // Ô 0,1 là một bên lưới; 2,3 là bên kia (xem courtSlotIds trong lib/assign.js).
     ;(mt.playerKeys || []).forEach((key, i) => put('match_players', {

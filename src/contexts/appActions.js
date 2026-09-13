@@ -2541,6 +2541,26 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       return { matchId, sets: actualSets }
     },
 
+    attachMatchVideo: (matchId, { videoUrl, videoTimestamp, videoNote } = {}) => {
+      const d0 = db()
+      const match = (d0.matches || []).find((m) => m.id === matchId)
+      if (!match) return false
+      up((d) => ({
+        matches: (d.matches || []).map((m) => (
+          m.id === matchId
+            ? {
+              ...m,
+              videoUrl: videoUrl !== undefined ? (videoUrl ? videoUrl.trim() : null) : m.videoUrl,
+              videoTimestamp: videoTimestamp !== undefined ? (videoTimestamp ? videoTimestamp.trim() : null) : m.videoTimestamp,
+              videoNote: videoNote !== undefined ? (videoNote ? videoNote.trim() : null) : m.videoNote,
+            }
+            : m
+        )),
+      }))
+      toast(t('common.save'))
+      return true
+    },
+
     cancelMatch: ({ matchId, reason }) => {
       if (!canAssign()) return
       const d0 = db()

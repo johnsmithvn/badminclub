@@ -11,6 +11,8 @@ import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx'
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
+import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
+import { buildPlayableVideoUrl, formatGapMinutes, calcSessionTimeStats, parseVideoProvider, formatVideoDisplayLabel } from '#utils/videoUtils.js'
 
 export default function SessionMatchesTab({ s, onSwitchTab }) {
   const { db, a } = useApp()
@@ -24,7 +26,10 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
+
   const [editingMatch, setEditingMatch] = useState(null)
+  const [attachVideoMatch, setAttachVideoMatch] = useState(null)
+  const [expandedVideoMatchId, setExpandedVideoMatchId] = useState(null)
   const [challengeTab, setChallengeTab] = useState('my')
   const [selectedChallenge, setSelectedChallenge] = useState(null)
   const [scoringChallenge, setScoringChallenge] = useState(null)
@@ -34,7 +39,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
     return (db.matches || [])
       .filter((m) => m.sessionId === s.id)
       .slice()
-      .sort((m1, m2) => (m2.createdAt || '').localeCompare(m1.createdAt || ''))
+      .sort((m1, m2) => (m2.at || 0) - (m1.at || 0))
   }, [db.matches, s.id])
 
   // Tự động cuộn và làm nổi bật trận đấu nếu được chuyển tiếp từ màn Tìm trận
@@ -46,6 +51,24 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
       }
     }
   }, [targetMatchId, matches])
+
+  // Tính khoảng cách giữa các trận trong buổi
+  const matchesWithGap = useMemo(() => {
+    const sorted = [...matches].sort((a, b) => (b.at || 0) - (a.at || 0))
+    return sorted.map((m, idx) => {
+      const prevMatch = sorted.slice(idx + 1).find((other) => other.at && m.at && other.at < m.at)
+      const gapText = formatGapMinutes(m.at, prevMatch?.at)
+      return {
+        ...m,
+        gapText: prevMatch ? gapText : (idx === sorted.length - 1 ? t('matchVideo.sessionOpen') : gapText),
+      }
+    })
+  }, [matches])
+
+  // Thống kê thời gian và video của buổi
+  const timeStats = useMemo(() => calcSessionTimeStats(matches), [matches])
+  const matchesWithVideo = useMemo(() => matches.filter((m) => Boolean(m.videoUrl)), [matches])
+  const matchesWithoutVideo = useMemo(() => matches.filter((m) => !m.videoUrl), [matches])
 
   // Danh sách kèo trong buổi này
   const challenges = useMemo(() => {
@@ -148,6 +171,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           </div>
         </div>
 
+        {/* Card Bảng trận đấu */}
         <div style={S.card}>
           {/* Header Bảng */}
           <div style={S.cardHead}>
@@ -159,15 +183,34 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 {t('pages.sessions.matchesSub')}
               </div>
             </div>
-            <span style={S.monoMeta}>
-              {matches.length} {t('units.match')} · {totalMin} {t('units.minute')}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {matchesWithVideo.length > 0 && (
+                <div
+                  style={{
+                    height: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 8px',
+                    borderRadius: 999,
+                    background: 'rgba(0,178,169,.14)',
+                    border: '1px solid rgba(0,178,169,.42)',
+                    font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                    color: '#5FDBD3',
+                  }}
+                >
+                  {t('matchVideo.hasVideoCount', { n: matchesWithVideo.length })}
+                </div>
+              )}
+              <span style={S.monoMeta}>
+                {matches.length} {t('units.match')} · {totalMin} {t('units.minute')}
+              </span>
+            </div>
           </div>
 
           {/* Render theo mobile card list hoặc desktop table */}
           {isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
-              {matches.map((m) => {
+              {matchesWithGap.map((m) => {
                 const teamA = m.teamA || []
                 const teamB = m.teamB || []
                 const aWon = m.winnerTeam === 'A'
@@ -184,7 +227,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const venue = courtObj ? courtOf(db, courtObj.courtId) : null
                 const courtLabel = courtObj?.label
                   ? courtObj.label
-                  : ((s.courts || []).length > 1 ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : (venue?.name || t('units.court')))
+                  : ((s.courts || []).length > 1 ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : (venue?.name || t('session.courtNum', { n: 1 })))
                 const matchTime = m.at
                   ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                   : (courtObj ? courtObj.from : '')
@@ -196,6 +239,9 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const absDelta = Math.abs(m.eloDelta || 0)
                 const deltaStr = hasElo ? `+${absDelta}` : '—'
                 const isTarget = targetMatchId === m.id
+                const hasVideo = Boolean(m.videoUrl)
+                const vProvider = parseVideoProvider(m.videoUrl)
+                const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
 
                 return (
                   <div
@@ -212,23 +258,75 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                       transition: 'all 0.3s ease',
                     }}
                   >
-                    {/* Hàng 1: Mã trận + Sân/giờ và Nút sửa */}
+                    {/* Hàng 1: Mã trận + Sân/giờ và Nút sửa + Nút video */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={S.monoCode}>{matchCode}</span>
                         <span style={S.monoMeta}>{courtTimeStr}</span>
+                        {m.gapText && (
+                          <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                            ({m.gapText})
+                          </span>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setEditingMatch(m)}
-                        style={{
-                          ...S.editInlineBtn,
-                          height: 32,
-                          padding: '0 12px',
-                        }}
-                      >
-                        {t('matchSearch.btnEdit')}
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {hasVideo ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const playUrl = buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)
+                              if (playUrl) window.open(playUrl, '_blank')
+                            }}
+                            style={{
+                              height: 24,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '0 8px',
+                              borderRadius: 999,
+                              background: 'rgba(225,68,52,.14)',
+                              border: '1px solid rgba(225,68,52,.45)',
+                              font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                              color: '#FF9A8F',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <span>▶</span>
+                            <span>{videoTagLabel}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedVideoMatchId((prev) => (prev === m.id ? null : m.id))}
+                            style={{
+                              height: 24,
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '0 8px',
+                              borderRadius: 999,
+                              border: '1px dashed var(--border-default)',
+                              background: 'transparent',
+                              font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t('matchVideo.btnAttach')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setEditingMatch(m)}
+                          style={{
+                            ...S.editInlineBtn,
+                            height: 24,
+                            padding: '0 8px',
+                            fontSize: 11,
+                          }}
+                        >
+                          {t('matchSearch.btnEdit')}
+                        </button>
+                      </div>
                     </div>
 
                     {/* Hàng 2: Thắng vs Thua + Tỷ số */}
@@ -289,6 +387,25 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                         {isFromChallenge ? t('challenge.tag', { code: challenge?.code || '' }) : t('challenge.fromCourt')}
                       </span>
                     </div>
+
+                    {/* Inline Expander khi bấm + Link trên mobile */}
+                    {expandedVideoMatchId === m.id && (
+                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border-subtle)' }}>
+                        <MatchVideoInlineExpander
+                          match={m}
+                          matchCode={matchCode}
+                          timeStr={matchTime}
+                          courtVenueStr={`${courtLabel} · ${venue?.name || ''}`}
+                          teamText={`${winnerNames} vs ${loserNames}`}
+                          scoreText={scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : ''}
+                          onSave={(videoData) => {
+                            a.attachMatchVideo(m.id, videoData)
+                            setExpandedVideoMatchId(null)
+                          }}
+                          onCancel={() => setExpandedVideoMatchId(null)}
+                        />
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -302,21 +419,35 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           ) : (
             /* Table Headers & Rows với scroll ngang an toàn trên desktop */
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <div style={{ minWidth: 740 }}>
-                <div style={S.tableHead}>
-                  <div style={S.thCell}>{t('matchSearch.colCode')}</div>
-                  <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
-                  <div style={S.thCell}>{t('matchSearch.colWinner')}</div>
-                  <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('matchSearch.colScore')}</div>
-                  <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
-                  <div style={{ ...S.thCell, justifyContent: 'center' }}>{t('pages.sessions.colDelta')}</div>
-                  <div style={S.thCell}>{t('matchSearch.colSource')}</div>
-                  <div style={{ ...S.thCell, justifyContent: 'flex-end' }}>{t('pages.sessions.colAction')}</div>
+              <div style={{ minWidth: 880 }}>
+                {/* Header Cột */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '52px 46px 64px 68px minmax(0,1fr) 88px minmax(0,1fr) 84px 94px 64px',
+                    background: 'var(--surface-inset)',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    font: "600 10.5px/1.2 'IBM Plex Sans', sans-serif",
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  <div style={{ padding: '9px 0 9px 14px' }}>{t('matchVideo.colCode')}</div>
+                  <div style={{ padding: '9px 2px' }} />
+                  <div style={{ padding: '9px 6px' }}>{t('matchVideo.colTime')}</div>
+                  <div style={{ padding: '9px 6px' }}>{t('matchVideo.colCourt')}</div>
+                  <div style={{ padding: '9px 8px' }}>{t('matchVideo.colWinner')}</div>
+                  <div style={{ padding: '9px 8px', textAlign: 'center' }}>{t('matchVideo.colScore')}</div>
+                  <div style={{ padding: '9px 8px' }}>{t('matchVideo.colLoser')}</div>
+                  <div style={{ padding: '9px 6px', textAlign: 'center' }}>{t('pages.sessions.colDelta')}</div>
+                  <div style={{ padding: '9px 6px', textAlign: 'center' }}>{t('matchVideo.colVideo')}</div>
+                  <div style={{ padding: '9px 14px 9px 6px', textAlign: 'right' }}>{t('matchVideo.colSource')}</div>
                 </div>
 
                 {/* Rows */}
                 <div style={{ display: 'grid' }}>
-                  {matches.map((m) => {
+                  {matchesWithGap.map((m) => {
                     const teamA = m.teamA || []
                     const teamB = m.teamB || []
                     const aWon = m.winnerTeam === 'A'
@@ -329,101 +460,230 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                       winPts: aWon ? a : b,
                       losePts: aWon ? b : a,
                     }))
+
+                    const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
+                    const isRated = m.ratingEnabled !== false
+                    const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
+                    const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
+
+                    const ra = m.initialRatingA || 0
+                    const rb = m.initialRatingB || 0
+                    const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
+                    const isClose = (m.sets || []).some((st) => st && st[0] != null && st[1] != null && Math.abs(st[0] - st[1]) <= 3)
+                    const isStreak = (m.brokenStreak || 0) >= 3
+
                     const courtObj = (s.courts || [])[m.courtIdx]
                     const venue = courtObj ? courtOf(db, courtObj.courtId) : null
-                    const courtLabel = courtObj?.label || t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 })
-                    const matchTime = m.at
-                      ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-                      : (courtObj ? courtObj.from : '')
-                    const courtTimeStr = matchTime ? `${courtLabel} · ${matchTime}` : courtLabel
+                    const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
+                    const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '19:00')
                     const matchCode = matchCodeOf(db, m)
-                    const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
-                    const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
-                    const hasElo = m.ratingEnabled !== false && m.eloDelta != null && m.eloDelta !== 0
-                    const absDelta = Math.abs(m.eloDelta || 0)
-                    const deltaStr = hasElo ? `+${absDelta}` : '—'
+
+                    // Vạch màu trái và background
+                    let leftBorderColor = 'transparent'
+                    let rowBg = 'transparent'
+                    if (isUpset) {
+                      leftBorderColor = '#E14434'
+                      rowBg = 'rgba(225,68,52,.06)'
+                    } else if (isClose) {
+                      leftBorderColor = '#E08A00'
+                      rowBg = 'rgba(224,138,0,.06)'
+                    } else if (isStreak) {
+                      leftBorderColor = '#00B2A9'
+                      rowBg = 'rgba(0,178,169,.05)'
+                    }
+
                     const isTarget = targetMatchId === m.id
+                    if (isTarget) {
+                      rowBg = 'var(--surface-brand-soft, rgba(0, 178, 169, 0.12))'
+                      leftBorderColor = 'var(--teal-500)'
+                    }
+
+                    const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
+                    const hasVideo = Boolean(m.videoUrl)
+                    const vProvider = parseVideoProvider(m.videoUrl)
+                    const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
 
                     return (
-                      <div
-                        key={m.id}
-                        id={`session-match-${m.id}`}
-                        style={{
-                          ...S.tableRow,
-                          background: isTarget ? 'var(--surface-brand-soft, rgba(0, 178, 169, 0.08))' : undefined,
-                          outline: isTarget ? '2px solid var(--teal-500)' : undefined,
-                          transition: 'all 0.3s ease',
-                        }}
-                      >
-                        <div style={S.tdCell}>
-                          <span style={S.monoCode}>{matchCode}</span>
+                      <div key={m.id} style={{ display: 'grid' }}>
+                        <div
+                          id={`session-match-${m.id}`}
+                          style={{
+                            position: 'relative',
+                            display: 'grid',
+                            gridTemplateColumns: '52px 46px 64px 68px minmax(0,1fr) 88px minmax(0,1fr) 84px 94px 64px',
+                            alignItems: 'center',
+                            minHeight: 50,
+                            borderBottom: '1px solid var(--border-subtle)',
+                            background: rowBg,
+                            transition: 'background 0.15s ease',
+                          }}
+                        >
+                          {/* Vạch màu bên trái 2px */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 2,
+                              background: leftBorderColor,
+                            }}
+                          />
+
+                          {/* Cột 1: Mã */}
+                          <div style={{ padding: '0 0 0 14px' }}>
+                            <span style={{ font: "600 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
+                              {matchCode}
+                            </span>
+                          </div>
+
+                          {/* Cột 2: Sửa */}
+                          <div style={{ padding: '0 2px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setEditingMatch(m)}
+                              style={{
+                                height: 22,
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '0 8px',
+                                borderRadius: 5,
+                                background: 'var(--surface-raised)',
+                                border: '1px solid var(--border-default)',
+                                font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {t('matchSearch.btnEdit')}
+                            </button>
+                          </div>
+
+                          {/* Cột 3: Giờ + khoảng cách */}
+                          <div style={{ padding: '0 6px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                              {matchTime}
+                            </span>
+                            <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                              {m.gapText || '+0′'}
+                            </span>
+                          </div>
+
+                          {/* Cột 4: Sân */}
+                          <div style={{ padding: '0 6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }} title={venue?.name}>
+                              {courtLabel || t('session.courtNum', { n: 1 })}
+                            </span>
+                          </div>
+
+                          {/* Cột 5: Đội thắng */}
+                          <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                            <span style={{ font: "600 13px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {winnerNames}
+                            </span>
+                            <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-delivered-fg)' }}>
+                              {winnerDeltaStr}
+                            </span>
+                          </div>
+
+                          {/* Cột 6: Tỷ số */}
+                          <div style={{ padding: '0 8px', textAlign: 'center', font: "600 16px/1 'IBM Plex Mono', monospace" }}>
+                            <span style={{ color: 'var(--teal-500)' }}>{scoreSets.length > 0 ? scoreSets[0].winPts : 21}</span>
+                            <span style={{ color: 'var(--text-muted)', padding: '0 3px' }}>–</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{scoreSets.length > 0 ? scoreSets[0].losePts : 19}</span>
+                          </div>
+
+                          {/* Cột 7: Đội thua */}
+                          <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                            <span style={{ font: "500 12.5px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {loserNames}
+                            </span>
+                            <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-incident-fg)' }}>
+                              {loserDeltaStr}
+                            </span>
+                          </div>
+
+                          {/* Cột 8: Delta Elo */}
+                          <div style={{ padding: '0 6px', textAlign: 'center' }}>
+                            <span style={{ font: "600 12.5px/1 'IBM Plex Mono', monospace", color: isRated ? 'var(--status-delivered-fg)' : 'var(--text-muted)' }}>
+                              {isRated ? `+${absDelta}` : '—'}
+                            </span>
+                          </div>
+
+                          {/* Cột 9: Video */}
+                          <div style={{ padding: '0 6px', display: 'flex', justifyContent: 'center' }}>
+                            {hasVideo ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const playUrl = buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)
+                                  if (playUrl) window.open(playUrl, '_blank')
+                                }}
+                                style={{
+                                  height: 24,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  padding: '0 9px',
+                                  borderRadius: 999,
+                                  background: 'rgba(225,68,52,.14)',
+                                  border: '1px solid rgba(225,68,52,.45)',
+                                  font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                  color: '#FF9A8F',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                title={m.videoUrl}
+                              >
+                                <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace" }}>▶</span>
+                                <span>{videoTagLabel}</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedVideoMatchId((prev) => (prev === m.id ? null : m.id))}
+                                style={{
+                                  height: 24,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  padding: '0 9px',
+                                  borderRadius: 999,
+                                  border: '1px dashed var(--border-default)',
+                                  background: 'transparent',
+                                  font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                  color: 'var(--text-muted)',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {t('matchVideo.btnAttach')}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Cột 10: Nguồn */}
+                          <div style={{ padding: '0 14px 0 6px', textAlign: 'right', font: "400 10.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                            {isChallenge ? t('challenge.challenge') : t('challenge.fromCourt')}
+                          </div>
                         </div>
-                        <div style={S.tdCell}>
-                          <span style={S.monoMeta} title={venue?.name}>{courtTimeStr}</span>
-                        </div>
-                        <div style={{ ...S.tdCell, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: 20, height: 20, borderRadius: 6,
-                            background: 'rgba(240,183,92,0.15)', color: 'var(--status-delayed-fg)', fontSize: 11, flexShrink: 0,
-                          }} title={t('matchSearch.colWinner')}>
-                            👑
-                          </span>
-                          <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {winnerNames}
-                          </span>
-                        </div>
-                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          {scoreSets.map((st, sIdx) => (
-                            <div key={sIdx} style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: '3px 8px',
-                              borderRadius: 6,
-                              background: 'var(--surface-sunken)',
-                              border: '1px solid var(--border-subtle)',
-                              font: '700 14px/1 "Barlow", sans-serif',
-                              letterSpacing: '0.03em',
-                            }}>
-                              <span style={{ color: 'var(--status-delivered-fg)', fontWeight: 800 }}>{st.winPts}</span>
-                              <span style={{ margin: '0 3px', opacity: 0.35, fontWeight: 400 }}>:</span>
-                              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{st.losePts}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ ...S.tdCell, minWidth: 0 }}>
-                          <span style={{ font: '500 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {loserNames}
-                          </span>
-                        </div>
-                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
-                          <span style={{
-                            font: '600 12.5px/1 "IBM Plex Mono", monospace',
-                            color: hasElo ? 'var(--status-delivered-fg)' : 'var(--text-disabled)',
-                          }}>
-                            {deltaStr}
-                          </span>
-                        </div>
-                        <div style={S.tdCell}>
-                          <span style={{
-                            ...S.sourcePill,
-                            background: isFromChallenge ? 'var(--surface-nav-active)' : 'var(--surface-card)',
-                            borderColor: isFromChallenge ? 'var(--teal-700)' : 'var(--border-subtle)',
-                            color: isFromChallenge ? 'var(--status-transit-fg)' : 'var(--text-muted)',
-                          }}>
-                            {isFromChallenge ? t('challenge.tag', { code: challenge?.code || '' }) : t('challenge.fromCourt')}
-                          </span>
-                        </div>
-                        <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'flex-end' }}>
-                          <button
-                            type="button"
-                            onClick={() => setEditingMatch(m)}
-                            style={S.editInlineBtn}
-                          >
-                            {t('matchSearch.btnEdit')}
-                          </button>
-                        </div>
+
+                        {/* Dòng Inline Expander gắn Video */}
+                        {expandedVideoMatchId === m.id && (
+                          <MatchVideoInlineExpander
+                            match={m}
+                            matchCode={matchCode}
+                            timeStr={matchTime}
+                            courtVenueStr={`${courtLabel} · ${venue?.name || ''}`}
+                            teamText={`${winnerNames} vs ${loserNames}`}
+                            scoreText={scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : ''}
+                            onSave={(videoData) => {
+                              a.attachMatchVideo(m.id, videoData)
+                              setExpandedVideoMatchId(null)
+                            }}
+                            onCancel={() => setExpandedVideoMatchId(null)}
+                          />
+                        )}
                       </div>
                     )
                   })}
@@ -440,9 +700,214 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
         </div>
       </div>
 
-      {/* ---------------- Cột phải: Kèo trong buổi + Thẻ kết nối ---------------- */}
+      {/* ---------------- Cột phải: Video buổi + Mốc giờ + Kèo ---------------- */}
       <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
-        {/* Card Kèo trong buổi */}
+        {/* Card 1: Video của buổi (X/Y) */}
+        <div style={S.card}>
+          <div style={S.cardHead}>
+            <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
+              <div style={S.cardTitle}>
+                {t('matchVideo.sessionVideosTitle')}
+              </div>
+              <div style={S.cardSub}>
+                {t('matchVideo.sessionVideosSub')}
+              </div>
+            </div>
+            <div
+              style={{
+                height: 24,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 8px',
+                borderRadius: 999,
+                background: matchesWithVideo.length > 0 ? 'rgba(0,178,169,.14)' : 'var(--surface-inset)',
+                border: '1px solid',
+                borderColor: matchesWithVideo.length > 0 ? 'rgba(0,178,169,.42)' : 'var(--border-subtle)',
+                font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                color: matchesWithVideo.length > 0 ? '#5FDBD3' : 'var(--text-muted)',
+              }}
+            >
+              {t('matchVideo.sessionVideosCount', { count: matchesWithVideo.length, total: matches.length })}
+            </div>
+          </div>
+
+          <div style={{ padding: '12px 14px', display: 'grid', gap: 10 }}>
+            {/* Danh sách video đã gắn */}
+            {matchesWithVideo.map((m) => {
+              const courtObj = (s.courts || [])[m.courtIdx]
+              const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : t('session.courtNum', { n: 1 }))
+              const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '19:00')
+              const matchCode = matchCodeOf(db, m)
+              const vProvider = parseVideoProvider(m.videoUrl)
+              const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
+              const displayLabel = formatVideoDisplayLabel(m.videoUrl, m.videoTimestamp)
+
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    padding: '9px 11px',
+                    borderRadius: 8,
+                    background: 'var(--surface-inset)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
+                        {matchCode}
+                      </span>
+                      <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                        {matchTime} · {courtLabel}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const playUrl = buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)
+                          if (playUrl) window.open(playUrl, '_blank')
+                        }}
+                        style={{
+                          height: 22,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '0 8px',
+                          borderRadius: 4,
+                          background: 'rgba(225,68,52,.14)',
+                          border: '1px solid rgba(225,68,52,.45)',
+                          font: "600 10px/1 'IBM Plex Sans', sans-serif",
+                          color: '#FF9A8F',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <span>▶</span>
+                        <span>{videoTagLabel}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAttachVideoMatch(m)}
+                        style={{
+                          height: 22,
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '0 7px',
+                          borderRadius: 4,
+                          background: 'var(--surface-card)',
+                          border: '1px solid var(--border-subtle)',
+                          font: "500 10.5px/1 'IBM Plex Sans', sans-serif",
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {t('common.edit')}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
+                    {displayLabel}
+                  </div>
+                  {m.videoNote && (
+                    <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      {m.videoNote}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {matchesWithVideo.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', fontSize: 12.5, textAlign: 'center', padding: '12px 0' }}>
+                {t('matchVideo.noVideosYet')}
+              </div>
+            )}
+
+            {/* Nút gắn video các trận còn lại */}
+            {matchesWithoutVideo.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAttachVideoMatch(matchesWithoutVideo[0])}
+                style={{
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  borderRadius: 7,
+                  border: '1px dashed var(--border-default)',
+                  background: 'transparent',
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  color: 'var(--teal-500)',
+                  cursor: 'pointer',
+                }}
+              >
+                <span>+</span>
+                <span>{t('matchVideo.btnAttachRemaining', { count: matchesWithoutVideo.length })}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Card 2: Mốc giờ của buổi */}
+        <div style={S.card}>
+          <div style={S.cardHead}>
+            <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
+              <div style={S.cardTitle}>
+                {t('matchVideo.sessionTimeTitle')}
+              </div>
+              <div style={S.cardSub}>
+                {t('matchVideo.sessionTimeSub')}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: '12px 14px', display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ font: "400 12.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('matchVideo.statFirstMatch')}
+              </span>
+              <span style={{ font: "600 12.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                {timeStats.firstMatchTime}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ font: "400 12.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('matchVideo.statLastMatch')}
+              </span>
+              <span style={{ font: "600 12.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                {timeStats.lastMatchTime}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ font: "400 12.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('matchVideo.statLongestRest')}
+              </span>
+              <span style={{ font: "600 12.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-delayed-fg)' }}>
+                {timeStats.longestRestText}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+              <span style={{ font: "400 12.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('matchVideo.statAvgDuration')}
+              </span>
+              <span style={{ font: "600 12.5px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
+                {timeStats.avgDurationText}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Kèo trong buổi */}
         <div style={S.card}>
           <div style={S.cardHead}>
             <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
@@ -687,7 +1152,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           </div>
         </div>
 
-        {/* Card Kèo nối vào buổi thế nào */}
+        {/* Card 4: Kèo nối vào buổi thế nào */}
         <div style={S.card}>
           <div style={{ padding: '14px 16px', display: 'grid', gap: 10 }}>
             <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
@@ -729,6 +1194,20 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           match={editingMatch}
           onClose={() => setEditingMatch(null)}
           onSaved={() => setEditingMatch(null)}
+        />
+      )}
+
+      {/* Modal gắn video độc lập */}
+      {attachVideoMatch && (
+        <AttachVideoModal
+          match={attachVideoMatch}
+          matchCode={matchCodeOf(db, attachVideoMatch)}
+          timeStr={attachVideoMatch.at ? new Date(attachVideoMatch.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '19:00'}
+          courtVenueStr={courtOf(db, (s.courts || [])[attachVideoMatch.courtIdx]?.courtId)?.name || t('session.courtNum', { n: 1 })}
+          teamText={`${(attachVideoMatch.winnerTeam === 'A' ? attachVideoMatch.teamA : attachVideoMatch.teamB || []).map(memberNameOf).join(' · ')} vs ${(attachVideoMatch.winnerTeam === 'A' ? attachVideoMatch.teamB : attachVideoMatch.teamA || []).map(memberNameOf).join(' · ')}`}
+          scoreText={(attachVideoMatch.sets || []).map(([a, b]) => `${a}–${b}`).join(', ')}
+          onClose={() => setAttachVideoMatch(null)}
+          onSaved={() => setAttachVideoMatch(null)}
         />
       )}
 
@@ -831,30 +1310,6 @@ const S = {
     font: '600 12.5px/1.3 "IBM Plex Mono", monospace',
     color: 'var(--status-transit-fg)',
   },
-  tableHead: {
-    display: 'grid',
-    gridTemplateColumns: '76px 110px 1fr 84px 1fr 84px 96px 64px',
-    background: 'var(--surface-inset)',
-    borderBottom: '1px solid var(--border-subtle)',
-  },
-  thCell: {
-    padding: '0 12px',
-    minHeight: 38,
-    display: 'flex',
-    alignItems: 'center',
-    font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: 'var(--text-muted)',
-    whiteSpace: 'nowrap',
-  },
-  tableRow: {
-    display: 'grid',
-    gridTemplateColumns: '76px 110px 1fr 84px 1fr 84px 96px 64px',
-    borderBottom: '1px solid var(--border-subtle)',
-    minHeight: 52,
-    alignItems: 'center',
-  },
   editInlineBtn: {
     height: 28,
     padding: '0 10px',
@@ -865,9 +1320,6 @@ const S = {
     font: '600 12px/1 "IBM Plex Sans", sans-serif',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-  },
-  tdCell: {
-    padding: '0 12px',
   },
   sourcePill: {
     fontSize: 11,

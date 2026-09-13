@@ -72,6 +72,8 @@
   "shelfSlots": 3,
   "significantEloGap": 50,
   "minPairMatches": 5,
+  "maxPairEloGap": 250,
+  "minPairMemberElo": 300,
   "topEloRankCount": 5,
   "minMatchesWinRate": 30,
   "sweepOpponentMaxScore": 0,
@@ -209,7 +211,7 @@
       "tier": "legend",
       "glyph": "shuriken",
       "checkType": "beat_top_pair",
-      "threshold": 1,
+      "threshold": 2,
       "reward": {
         "xp": 150,
         "seasonPts": 20

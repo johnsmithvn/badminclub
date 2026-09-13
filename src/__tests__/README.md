@@ -50,6 +50,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Vòng đời Kèo đấu trong appActions: Tạo · Nhận · Xếp sân · Ghi điểm · Sửa tỷ số | `components/app_actions_competitions.test.js` |
 | Tính năng Kèo mở rộng: Cảnh báo lệch trình >250 · tổng hợp H2H · luân chuyển đội | `components/challenge_enhancements.test.js` |
 | Logic Bảng xếp hạng 5 tabs: Cấp tin cậy · ma trận H2H · tìm trận · học chéo giới | `components/leaderboard_logic.test.js` |
+| **Phân chia & Lọc Rank Nam / Nữ Leaderboard**: Re-ranking 1..N · đếm số lượng · Podium theo giới tính | `components/leaderboard_gender_filter.test.js` |
 | Logic Modals: Tạo kèo · Nhập điểm set + preview Elo · Sửa tỷ số + audit log | `components/modals.test.js` |
 | Responsive Mobile: Safe hook môi trường Node · tiến trình R1–R5 · touch scroll boundaries | `components/mobile_responsive.test.js` |
 | Routing & Nav: Định tuyến `/bang-xep-hang` · metadata trang Leaderboard | `components/routes_leaderboard.test.js` |
@@ -62,6 +63,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | **Tính tất định & cấu hình Mùa giải**: determinism · tie-break mốc thời gian · trận không tính rating · preview trước trận | `lib/xp_season_rank_engine.test.js` |
 | Mốc thời gian trận đấu: đọc từ `at`, đếm chuỗi thắng đang chạy, thứ tự hiển thị ledger | `lib/xp_timeline.test.js` |
 | **Nhập tỷ số bằng giọng nói (Voice Match)**: Formal Grammar 5 luật cứng · khử nhiễu tên người vs số đếm · luật điểm cầu lông | `lib/voiceMatchParser.test.js` |
+| **Video trận đấu & Dòng thời gian buổi**: Parse link YouTube/Drive/iCloud · timestamp · khoảng cách trận · thống kê nhịp độ buổi | `lib/video_match_timeline.test.js` |
 
 `fixture.js` — bộ dữ liệu cố định (2 CLB, tháng 08/2026) mọi file dùng chung. App **không**
 import nó; dữ liệu thật nằm ở Supabase.

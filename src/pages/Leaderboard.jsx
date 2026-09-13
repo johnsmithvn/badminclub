@@ -24,6 +24,8 @@ import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerM
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
 import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
+import { buildPlayableVideoUrl, formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
+import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
 
 /**
  * Lấy tên gọi ngắn gọn của thành viên (ưu tiên tên chính, kèm chữ lót nếu trùng)
@@ -52,6 +54,7 @@ export default function Leaderboard() {
   const navigate = useNavigate()
   const isMobile = useMobile()
   const [activeTab, setActiveTab] = useState('season') // 'season' | 'elo' | 'pairs' | 'matrix' | 'search'
+  const [genderFilter, setGenderFilter] = useState('all') // 'all' | 'nam' | 'nu'
   const [rankTheme, setRankTheme] = useState(DEFAULT_RANK_THEME)
 
   // State cho Tab 2 (Biểu đồ / Profile)
@@ -62,9 +65,16 @@ export default function Leaderboard() {
   const [playerB, setPlayerB] = useState('')
   const [searchMode, setSearchMode] = useState('vs') // 'vs' | 'team'
   const [qualityFilter, setQualityFilter] = useState('all') // 'all' | 'close' | 'upset'
+  const [showMoreFilters, setShowMoreFilters] = useState(false)
+  const [seasonFilter, setSeasonFilter] = useState('all')
+  const [courtFilter, setCourtFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState('all')
+  const [onlyVideoFilter, setOnlyVideoFilter] = useState(false)
+  const [sortOption, setSortOption] = useState('latest') // 'latest' | 'dramatic' | 'elo_swing'
   const [editingMatch, setEditingMatch] = useState(null)
   const [viewingMatch, setViewingMatch] = useState(null)
   const [searchCardLimit, setSearchCardLimit] = useState(10)
+  const [expandedVideoMatchId, setExpandedVideoMatchId] = useState(null)
 
   // State cho Gạ kèo (K6)
   const [challengeModalOpen, setChallengeModalOpen] = useState(false)
@@ -105,10 +115,15 @@ export default function Leaderboard() {
   const handleExportCsv = () => {
     let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
     if (activeTab === 'season') {
-      csvContent += 'Thứ hạng,Thành viên,Điểm mùa,Số buổi,Số trận,Thắng,Upset\n' // i18n-ok: csv header
-      const rows = seasonLeaderboardData?.leaderboard || []
-      rows.forEach((r) => {
-        csvContent += `"${r.rank}","${r.name}","${r.totalSeasonPoints}","${r.attendedCount || 0}","${r.matchesCount || 0}","${r.winsCount || 0}","${r.upsetsCount || 0}"\n`
+      csvContent += 'Thứ hạng,Thành viên,Giới tính,Điểm mùa,Số buổi,Số trận,Thắng,Upset\n' // i18n-ok: csv header
+      const rawRows = seasonLeaderboardData?.leaderboard || []
+      const filtered = genderFilter === 'all'
+        ? rawRows
+        : rawRows.filter((r) => (r.gender || 'nam') === genderFilter)
+      filtered.forEach((r, idx) => {
+        const displayRank = genderFilter === 'all' ? r.rank : idx + 1
+        const gTxt = t(r.gender === 'nu' ? 'gender.nu' : 'gender.nam')
+        csvContent += `"${displayRank}","${r.name}","${gTxt}","${r.totalSeasonPoints}","${r.attendedCount || 0}","${r.matchesCount || 0}","${r.winsCount || 0}","${r.upsetsCount || 0}"\n`
       })
     } else if (activeTab === 'pairs') {
       csvContent += 'Thứ hạng,Cặp,Số trận,Kỳ vọng %,Thực tế %,Lệch (pp),Độ hợp cạ,Độ tin cậy\n' // i18n-ok: csv header
@@ -117,15 +132,33 @@ export default function Leaderboard() {
           csvContent += `"${idx + 1}","${r.names.join(' - ')}","${r.gamesCount}","${r.expectedWinPct}%","${r.actualWinPct}%","${r.pairImpact}","${r.synergyScore}","${r.confidence}"\n`
         })
     } else {
-      csvContent += 'Thứ hạng,Thành viên,Elo,Số trận,Độ tin cậy,Thắng %,30 ngày\n' // i18n-ok: csv header
-      leaderboardData.forEach((r) => {
-        csvContent += `"${r.rank}","${r.name}","${r.rating}","${r.gamesCount}","${r.confidence}","${r.winRate}%","${r.delta30Days || 0}"\n`
+      csvContent += 'Thứ hạng,Thành viên,Giới tính,Elo,Số trận,Độ tin cậy\n' // i18n-ok: csv header
+      const rawRows = activeMembers
+        .map((m) => {
+          const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
+          return {
+            id: m.id,
+            name: m.name,
+            gender: m.gender || 'nam',
+            rating: pr.displayRating ?? pr.rating ?? DEFAULT_RATING,
+            gamesCount: pr.gamesCount || 0,
+            confidence: pr.confidence || 'low',
+          }
+        })
+        .sort((a, b) => b.rating - a.rating)
+      const filtered = genderFilter === 'all'
+        ? rawRows
+        : rawRows.filter((r) => (r.gender || 'nam') === genderFilter)
+      filtered.forEach((r, idx) => {
+        const displayRank = idx + 1
+        const gTxt = t(r.gender === 'nu' ? 'gender.nu' : 'gender.nam')
+        csvContent += `"${displayRank}","${r.name}","${gTxt}","${r.rating}","${r.gamesCount}","${r.confidence}"\n`
       })
     }
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `badminclub_${activeTab}_leaderboard.csv`)
+    link.setAttribute('download', `badminclub_${activeTab}_${genderFilter}_leaderboard.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -279,14 +312,123 @@ export default function Leaderboard() {
       ratingsMap[m.id] = getPlayerRating(db.playerRatings, m.id, m, db.levels).rating
     })
 
-    return searchMatches(db.matches || [], {
+    let list = searchMatches(db.matches || [], {
       playerA: playerA || null,
       playerB: playerB || null,
       mode: searchMode,
       quality: qualityFilter,
       ratingsMap,
     })
-  }, [db.matches, playerA, playerB, searchMode, qualityFilter, db.playerRatings, activeMembers, db.levels])
+
+    if (onlyVideoFilter) {
+      list = list.filter((m) => Boolean(m.videoUrl))
+    }
+    if (courtFilter !== 'all') {
+      list = list.filter((m) => {
+        const s = (db.sessions || []).find((x) => x.id === m.sessionId)
+        const courtObj = s?.courts?.[m.courtIdx]
+        return courtObj?.courtId === courtFilter || String(m.courtIdx) === courtFilter
+      })
+    }
+    if (sourceFilter !== 'all') {
+      list = list.filter((m) => {
+        const isFromChal = Boolean(m.challengeId || m.sourceType === 'challenge')
+        return sourceFilter === 'challenge' ? isFromChal : !isFromChal
+      })
+    }
+
+    // Sắp xếp
+    if (sortOption === 'dramatic') {
+      list.sort((a, b) => {
+        const aSets = a.sets || []
+        const bSets = b.sets || []
+        const aDiff = aSets.length ? Math.min(...aSets.map(([s1, s2]) => Math.abs(s1 - s2))) : 99
+        const bDiff = bSets.length ? Math.min(...bSets.map(([s1, s2]) => Math.abs(s1 - s2))) : 99
+        return aDiff - bDiff
+      })
+    } else if (sortOption === 'elo_swing') {
+      list.sort((a, b) => Math.abs(b.eloDelta || 0) - Math.abs(a.eloDelta || 0))
+    } else {
+      list.sort((a, b) => (b.at || 0) - (a.at || 0))
+    }
+
+    return list
+  }, [db.matches, playerA, playerB, searchMode, qualityFilter, onlyVideoFilter, courtFilter, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
+
+  const dayGroups = useMemo(() => {
+    const groups = []
+    const dayMap = new Map()
+
+    searchResults.slice(0, searchCardLimit).forEach((m) => {
+      const s = (db.sessions || []).find((x) => x.id === m.sessionId)
+      const dateKey = s?.date ? s.date : (m.at ? new Date(m.at).toISOString().slice(0, 10) : 'unknown')
+      if (!dayMap.has(dateKey)) {
+        dayMap.set(dateKey, [])
+      }
+      dayMap.get(dateKey).push(m)
+    })
+
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const yesterdayDate = new Date(Date.now() - 86400000)
+    const yesterdayStr = yesterdayDate.toISOString().slice(0, 10)
+
+    for (const [dateKey, matchesInDay] of dayMap.entries()) {
+      matchesInDay.sort((a, b) => (b.at || 0) - (a.at || 0))
+
+      const earliestAt = Math.min(...matchesInDay.map((m) => m.at || 0).filter(Boolean))
+      const latestAt = Math.max(...matchesInDay.map((m) => m.at || 0).filter(Boolean))
+
+      const startTimeStr = earliestAt ? new Date(earliestAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '19:00'
+      const endTimeStr = latestAt ? new Date(latestAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '21:40'
+      const timeRange = `${startTimeStr} → ${endTimeStr}`
+
+      let durationText = ''
+      if (earliestAt && latestAt && latestAt > earliestAt) {
+        const totalMins = Math.round((latestAt - earliestAt) / 60000)
+        const hrs = Math.floor(totalMins / 60)
+        const mins = totalMins % 60
+        durationText = hrs > 0 ? `${hrs}h${mins > 0 ? mins + '′' : ''}` : `${mins}′`
+      }
+
+      let dateLabel = dateKey
+      if (dateKey !== 'unknown') {
+        const dObj = new Date(dateKey)
+        const dStr = dd(dateKey)
+        if (dateKey === todayStr) {
+          dateLabel = `${t('matchVideo.today')} · ${dStr}`
+        } else if (dateKey === yesterdayStr) {
+          dateLabel = `${t('matchVideo.yesterday')} · ${dStr}`
+        } else {
+          const daysOfWeek = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'] // i18n-ok: day names array
+          const dayName = daysOfWeek[dObj.getDay()] || ''
+          dateLabel = `${dayName} · ${dStr}`
+        }
+      }
+
+      const videoCount = matchesInDay.filter((m) => Boolean(m.videoUrl)).length
+
+      const matchesWithMeta = matchesInDay.map((m, idx) => {
+        const prevMatch = matchesInDay.slice(idx + 1).find((other) => other.at && m.at && other.at < m.at)
+        const gapText = formatGapMinutes(m.at, prevMatch?.at)
+        return {
+          ...m,
+          gapText: prevMatch ? gapText : (idx === matchesInDay.length - 1 ? t('matchVideo.sessionOpen') : gapText),
+        }
+      })
+
+      groups.push({
+        dateKey,
+        dateLabel,
+        timeRange,
+        durationText,
+        videoCount,
+        totalMatches: matchesInDay.length,
+        matches: matchesWithMeta,
+      })
+    }
+
+    return groups
+  }, [searchResults, searchCardLimit, db.sessions])
 
   // -------------------------------------------------------------
   // TAB 4: Ma trận Đối đầu H2H
@@ -945,6 +1087,8 @@ export default function Leaderboard() {
           seasonLeaderboardData={seasonLeaderboardData}
           onOpenLedger={(m) => setLedgerMemberId(m?.id || m)}
           isMobile={isMobile}
+          genderFilter={genderFilter}
+          onGenderFilterChange={setGenderFilter}
         />
       )}
 
@@ -959,6 +1103,8 @@ export default function Leaderboard() {
           onOpenEffectiveStrengthModal={(player) => setEffectiveStrengthPlayer(player)}
           onSelectMember={(player) => setSelectedMemberId(player?.id || player)}
           isMobile={isMobile}
+          genderFilter={genderFilter}
+          onGenderFilterChange={setGenderFilter}
         />
       )}
 
@@ -975,780 +1121,983 @@ export default function Leaderboard() {
             const [p1, p2] = pairKey.split(':')
             setPlayerA(p1 || '')
             setPlayerB(p2 || '')
-            setSearchMode('team')
             setActiveTab('search')
+          }}
+          onOpenChallengeModal={(p1, p2) => {
+            setInitialTeamA([p1])
+            setInitialTeamB([p2])
+            setChallengeModalOpen(true)
           }}
         />
       )}
 
-      {/* ---------------- TAB H2H: Đối đầu cặp (Screen AY1c / P6) ---------------- */}
-      {activeTab === 'h2h' && (
-        <PairH2HTab
-          db={db}
-          matches={db.matches || []}
-          membersMap={memberMap}
-          ratingsMap={normalizedRatingsMap}
-        />
-      )}
-
-      {/* ---------------- TAB 3: Tìm trận & Sửa tỷ số inline ---------------- */}
+      {/* ---------------- TAB 3: Tìm trận & Lịch sử đấu + Video ---------------- */}
       {activeTab === 'search' && (
         <div style={{ display: 'grid', gap: 16 }}>
-          {/* Bộ lọc Tìm trận */}
-          <div style={S.card}>
-            <div style={{ padding: '14px 16px', display: 'grid', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={S.cardTitle}>{t('matchSearch.title')}</div>
-                  <div style={S.cardSub}>{t('matchSearch.sub')}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <Select
-                  value={playerA}
-                  options={[
-                    { value: '', label: `-- ${t('matchSearch.playerA')} --` },
-                    ...activeMembers.map((m) => {
-                      const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
-                      const elo = pr.displayRating ?? pr.rating ?? DEFAULT_RATING
-                      return { value: m.id, label: `${m.name} (${elo})` }
-                    }),
-                  ]}
-                  onChange={(e) => setPlayerA(e.target.value)}
-                  style={{ width: isMobile ? '100%' : 190 }}
-                />
-                <Select
-                  value={searchMode}
-                  options={[
-                    {
-                      value: 'vs',
-                      label: h2hSummary
-                        ? `${t('matchSearch.modeH2H')} (${h2hSummary.totalVs})`
-                        : t('matchSearch.modeH2H'),
-                    },
-                    {
-                      value: 'team',
-                      label: h2hSummary
-                        ? `${t('matchSearch.modeTeammate')} (${h2hSummary.tmTotal})`
-                        : t('matchSearch.modeTeammate'),
-                    },
-                  ]}
-                  onChange={(e) => setSearchMode(e.target.value)}
-                  style={{ width: isMobile ? '100%' : 150 }}
-                />
-                <Select
-                  value={playerB}
-                  options={[
-                    { value: '', label: `-- ${t('matchSearch.playerB')} --` },
-                    ...activeMembers.map((m) => {
-                      const pr = getPlayerRating(db.playerRatings, m.id, m, db.levels)
-                      const elo = pr.displayRating ?? pr.rating ?? DEFAULT_RATING
-                      return { value: m.id, label: `${m.name} (${elo})` }
-                    }),
-                  ]}
-                  onChange={(e) => setPlayerB(e.target.value)}
-                  style={{ width: isMobile ? '100%' : 190 }}
-                />
-                <Select
-                  value={qualityFilter}
-                  options={[
-                    { value: 'all', label: t('matchSearch.qualityAll') },
-                    { value: 'close', label: t('matchSearch.qualityClose') },
-                    { value: 'upset', label: t('matchSearch.qualityUpset') },
-                  ]}
-                  onChange={(e) => setQualityFilter(e.target.value)}
-                  style={{ width: isMobile ? '100%' : 170 }}
-                />
-                {(playerA || playerB || qualityFilter !== 'all' || searchMode !== 'vs') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlayerA('')
-                      setPlayerB('')
-                      setSearchMode('vs')
-                      setQualityFilter('all')
-                    }}
-                    style={{
-                      font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
-                      padding: '8px 12px',
-                      borderRadius: 6,
-                      background: 'transparent',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                    }}
-                    title={t('matchSearch.resetFilter')}
-                  >
-                    <Icon name="x" size={13} />
-                    <span>{t('matchSearch.resetFilter')}</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile view (Screen S1) vs Desktop view */}
-          {isMobile ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* Tóm tắt H2H compact trên Mobile khi chọn đủ 2 người (Screen S1 lines 955-960) */}
-              {h2hSummary && (
-                <div style={{
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 10,
-                  boxShadow: '0 1px 2px rgba(0,0,0,.25)',
-                  padding: '12px 14px',
+          <div
+            style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 10,
+              overflow: 'hidden',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            {/* 1. Thanh Tìm trận thu gọn 1 dòng 34px (tiết kiệm ~82px so với card cũ) */}
+            <div
+              style={{
+                padding: '11px 14px',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+                flexWrap: 'wrap',
+                background: 'var(--surface-inset)',
+              }}
+            >
+              {/* Cụm gộp Người chơi A ⇄ Người chơi B */}
+              <div
+                style={{
+                  height: 34,
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: 9,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{
-                      font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-muted)',
-                    }}>
-                      {t('matchSearch.cardH2HTitle', { nameA: memberNameOf(playerA), nameB: memberNameOf(playerB) })}
-                    </div>
-                    <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                      {h2hSummary.totalVs} {t('units.match')}
-                    </span>
-                  </div>
+                  alignItems: 'center',
+                  borderRadius: 7,
+                  background: 'var(--field-bg)',
+                  border: '1px solid var(--border-default)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ width: isMobile ? 110 : 138, height: 32 }}>
+                  <select
+                    value={playerA}
+                    onChange={(e) => setPlayerA(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      background: 'transparent',
+                      color: playerA ? 'var(--text-primary)' : 'var(--text-muted)',
+                      font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
+                      padding: '0 8px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="">A · {t('matchSearch.playerA')}</option>
+                    {activeMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div style={{
+                <button
+                  type="button"
+                  onClick={() => {
+                    const temp = playerA
+                    setPlayerA(playerB)
+                    setPlayerB(temp)
+                  }}
+                  style={{
+                    width: 30,
+                    height: 32,
+                    border: 'none',
+                    borderLeft: '1px solid var(--border-subtle)',
+                    borderRight: '1px solid var(--border-subtle)',
+                    background: 'transparent',
+                    color: 'var(--teal-500)',
+                    font: "600 13px/1 'IBM Plex Mono', monospace",
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 12,
-                    font: '700 28px/1 Barlow, sans-serif',
-                  }}>
-                    <span style={{ color: 'var(--status-incident-fg)' }}>{h2hSummary.aWins}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 15 }}>–</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{h2hSummary.bWins}</span>
-                  </div>
+                  }}
+                  title={t('common.swap')}
+                >
+                  ⇄
+                </button>
 
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    font: '400 12px/1.3 "IBM Plex Mono", monospace',
-                    color: 'var(--text-muted)',
-                  }}>
-                    <span>{memberNameOf(playerA)} {t('matchSearch.won')} {h2hSummary.aWinRate}%</span>
-                    <span>{h2hSummary.lastDate ? t('matchSearch.lastMatchOn', { date: h2hSummary.lastDate }) : ''}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{
-                      font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                      padding: '4px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(224,138,0,.18)',
-                      color: 'var(--status-delayed-fg)',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {h2hSummary.closeCount} {t('matchSearch.closePill')}
-                    </span>
-                    <span style={{
-                      font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                      padding: '4px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(225,68,52,.18)',
-                      color: 'var(--status-incident-fg)',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {h2hSummary.upsetCount} {t('matchSearch.upsetPill')}
-                    </span>
-                    <span style={{
-                      font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                      padding: '4px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(0,178,169,.18)',
-                      color: '#5FDBD3',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {h2hSummary.challengeCount} {t('matchSearch.fromChallengePill')}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Danh sách thẻ trận đấu (Screen S1) */}
-              {searchResults.slice(0, searchCardLimit).map((m) => {
-                const teamA = m.teamA || []
-                const teamB = m.teamB || []
-                const aWon = m.winnerTeam === 'A'
-                const winnerTeam = aWon ? teamA : teamB
-                const loserTeam = aWon ? teamB : teamA
-                const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
-                const loserNames = loserTeam.map(memberNameOf).join(' · ')
-
-                const scoreSets = (m.sets || []).map(([a, b]) => ({
-                  winPts: aWon ? a : b,
-                  losePts: aWon ? b : a,
-                }))
-                const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
-                const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
-                const isRated = m.ratingEnabled !== false
-                const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
-                const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
-                const ra = m.initialRatingA || 0
-                const rb = m.initialRatingB || 0
-                const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
-                const isClose = (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
-
-                const s = (db.sessions || []).find((x) => x.id === m.sessionId)
-                const courtObj = s?.courts?.[m.courtIdx]
-                const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
-                const dateStr = s?.date ? dd(s.date) : (m.at ? new Date(m.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
-                const matchTime = courtObj?.from || (m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '')
-                const courtTimeStr = courtLabel
-                  ? `${dateStr ? dateStr + ' · ' : ''}${courtLabel}${matchTime ? ' · ' + matchTime : ''}`
-                  : (dateStr || '—')
-
-                const displayScore = scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : '21 – 19'
-                const predStr = isUpset ? '71%' : isClose ? '52%' : '50%'
-
-                return (
-                  <div
-                    key={m.id}
+                <div style={{ width: isMobile ? 110 : 138, height: 32 }}>
+                  <select
+                    value={playerB}
+                    onChange={(e) => setPlayerB(e.target.value)}
                     style={{
-                      background: 'var(--surface-card)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 10,
-                      boxShadow: '0 1px 2px rgba(0,0,0,.25)',
-                      overflow: 'hidden',
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      background: 'transparent',
+                      color: playerB ? 'var(--text-primary)' : 'var(--text-muted)',
+                      font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
+                      padding: '0 8px',
+                      outline: 'none',
+                      cursor: 'pointer',
                     }}
                   >
-                    {/* Header: mã trận + tag chất lượng */}
-                    <div style={{
-                      padding: '10px 13px',
-                      borderBottom: '1px solid var(--border-subtle)',
+                    <option value="">B · {t('matchSearch.playerB')}</option>
+                    {activeMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Chế độ đối đầu / cùng đội */}
+              <div
+                style={{
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: 7,
+                  background: 'var(--field-bg)',
+                  border: '1px solid var(--border-default)',
+                  padding: '0 4px',
+                }}
+              >
+                <select
+                  value={searchMode}
+                  onChange={(e) => setSearchMode(e.target.value)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
+                    padding: '0 6px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="vs">{t('matchSearch.modeH2H')}</option>
+                  <option value="team">{t('matchSearch.modeTeammate')}</option>
+                </select>
+              </div>
+
+              {/* Dropdown kịch tính */}
+              <div
+                style={{
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: 7,
+                  background: 'var(--field-bg)',
+                  border: '1px solid var(--border-default)',
+                  padding: '0 4px',
+                }}
+              >
+                <select
+                  value={qualityFilter}
+                  onChange={(e) => setQualityFilter(e.target.value)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
+                    padding: '0 6px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="all">{t('matchSearch.qualityAll')}</option>
+                  <option value="close">{t('matchSearch.qualityClose')}</option>
+                  <option value="upset">{t('matchSearch.qualityUpset')}</option>
+                </select>
+              </div>
+
+              {/* Nút Lọc thêm */}
+              <button
+                type="button"
+                onClick={() => setShowMoreFilters((prev) => !prev)}
+                style={{
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '0 11px',
+                  borderRadius: 7,
+                  border: '1px solid var(--border-subtle)',
+                  background: showMoreFilters ? 'var(--surface-sunken)' : 'transparent',
+                  font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
+                  color: showMoreFilters ? 'var(--teal-500)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                <span>{t('matchVideo.moreFilters')}</span>
+                <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
+                  {showMoreFilters ? '▲' : '▾'}
+                </span>
+              </button>
+
+              {/* Nút Xoá lọc */}
+              {(playerA || playerB || qualityFilter !== 'all' || searchMode !== 'vs' || onlyVideoFilter || courtFilter !== 'all' || sourceFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlayerA('')
+                    setPlayerB('')
+                    setSearchMode('vs')
+                    setQualityFilter('all')
+                    setOnlyVideoFilter(false)
+                    setCourtFilter('all')
+                    setSourceFilter('all')
+                  }}
+                  style={{
+                    height: 30,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 10px',
+                    borderRadius: 7,
+                    border: 'none',
+                    background: 'transparent',
+                    font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('matchVideo.clearFilters')}
+                </button>
+              )}
+
+              <div style={{ flex: 1, minWidth: 20 }} />
+
+              {/* Bộ chọn Sắp xếp */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: 3,
+                  borderRadius: 8,
+                  background: 'var(--field-bg)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                {[
+                  { id: 'latest', label: t('matchVideo.sortLatest') },
+                  { id: 'dramatic', label: t('matchVideo.sortDramatic') },
+                  { id: 'elo_swing', label: t('matchVideo.sortEloSwing') },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setSortOption(opt.id)}
+                    style={{
+                      height: 28,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'var(--surface-inset)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <button
-                          type="button"
-                          onClick={() => setViewingMatch(m)}
-                          style={{
-                            border: '1px solid var(--border-subtle)',
-                            background: 'var(--surface-card)',
-                            padding: '2px 7px',
-                            borderRadius: 'var(--radius-sm)',
-                            font: '600 12.5px/1 "IBM Plex Mono", monospace',
-                            color: 'var(--status-transit-fg)',
-                            cursor: 'pointer',
-                          }}
-                          title={t('matchDetail.title')}
-                        >
-                          {matchCodeOf(db, m)}
-                        </button>
-                        <span>·</span>
-                        {s?.id ? (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/buoi-tap/${s.id}?tab=matches&matchId=${m.id}`)}
-                            style={{
-                              border: 'none',
-                              background: 'transparent',
-                              padding: 0,
-                              font: '500 12.5px/1 "IBM Plex Sans", sans-serif',
-                              color: 'var(--text-link)',
-                              textDecoration: 'underline',
-                              cursor: 'pointer',
-                            }}
-                            title={t('pages.sessions.title')}
-                          >
-                            {courtTimeStr}
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{courtTimeStr}</span>
-                        )}
-                      </div>
+                      padding: '0 10px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: sortOption === opt.id ? 'var(--surface-card)' : 'transparent',
+                      font: sortOption === opt.id ? "600 12px/1 'IBM Plex Sans', sans-serif" : "500 12px/1 'IBM Plex Sans', sans-serif",
+                      color: sortOption === opt.id ? 'var(--text-primary)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      boxShadow: sortOption === opt.id ? 'var(--shadow-xs)' : 'none',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                      <span style={{
-                        font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                        padding: '4px 8px',
+            {/* Hàng lọc thứ 2 (Lọc thêm) */}
+            {showMoreFilters && (
+              <div
+                style={{
+                  padding: '9px 14px',
+                  background: 'var(--surface-inset)',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div
+                  style={{
+                    height: 28,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 8px',
+                    borderRadius: 6,
+                    background: 'var(--field-bg)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <select
+                    value={seasonFilter}
+                    onChange={(e) => setSeasonFilter(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--text-secondary)',
+                      font: "500 12px/1 'IBM Plex Sans', sans-serif",
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="all">{t('matchVideo.filterSeason', { season: '2026' })}</option>
+                  </select>
+                </div>
+
+                <div
+                  style={{
+                    height: 28,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 8px',
+                    borderRadius: 6,
+                    background: 'var(--field-bg)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <select
+                    value={courtFilter}
+                    onChange={(e) => setCourtFilter(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--text-secondary)',
+                      font: "500 12px/1 'IBM Plex Sans', sans-serif",
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="all">{t('matchVideo.filterAllCourts')}</option>
+                    {(db.courts || []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div
+                  style={{
+                    height: 28,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 8px',
+                    borderRadius: 6,
+                    background: 'var(--field-bg)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <select
+                    value={sourceFilter}
+                    onChange={(e) => setSourceFilter(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--text-secondary)',
+                      font: "500 12px/1 'IBM Plex Sans', sans-serif",
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="all">{t('matchVideo.filterAllSources')}</option>
+                    <option value="session">{t('challenge.fromCourt')}</option>
+                    <option value="challenge">{t('challenge.challenge')}</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setOnlyVideoFilter((prev) => !prev)}
+                  style={{
+                    height: 28,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 10px',
+                    borderRadius: 6,
+                    border: '1px solid',
+                    borderColor: onlyVideoFilter ? 'var(--teal-500)' : 'var(--border-subtle)',
+                    background: onlyVideoFilter ? 'var(--surface-brand-soft, rgba(0,178,169,.14))' : 'var(--field-bg)',
+                    color: onlyVideoFilter ? 'var(--teal-500)' : 'var(--text-secondary)',
+                    font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('matchVideo.onlyHasVideo')}
+                </button>
+              </div>
+            )}
+
+            {/* Thanh đối đầu H2H trực quan khi chọn đủ 2 người */}
+            {h2hSummary && playerA && playerB && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  flexWrap: 'wrap',
+                  background: 'var(--surface-card)',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 200 }}>
+                  <div style={{ font: "600 14px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                    {t('matchVideo.h2hMeetingTitle', { nameA: memberNameOf(playerA), nameB: memberNameOf(playerB), matches: h2hSummary.totalVs })}
+                  </div>
+                  <div style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                    {t('matchVideo.h2hWinsLosses', { wins: h2hSummary.aWins, losses: h2hSummary.bWins, videos: searchResults.filter((m) => Boolean(m.videoUrl)).length })}
+                    {h2hSummary.lastDate ? t('matchVideo.h2hLastMet', { date: h2hSummary.lastDate }) : ''}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      style={{
+                        width: 120,
+                        height: 7,
                         borderRadius: 999,
-                        background: isClose ? 'rgba(224,138,0,.18)' : isUpset ? 'rgba(225,68,52,.18)' : 'rgba(0,178,169,.18)',
-                        color: isClose ? 'var(--status-delayed-fg)' : isUpset ? 'var(--status-incident-fg)' : '#5FDBD3',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {isClose ? t('matchSearch.qualityClose') : isUpset ? t('matchSearch.qualityUpset') : t('matchSearch.balancedPill')}
-                      </span>
+                        background: 'var(--surface-sunken)',
+                        overflow: 'hidden',
+                        display: 'flex',
+                      }}
+                    >
+                      <div style={{ width: `${Math.max(5, Math.min(95, Number(h2hSummary.aWinRate) || 50))}%`, background: 'var(--teal-500)' }} />
+                      <div style={{ flex: 1, background: 'var(--navy-700, #3B4C6B)' }} />
                     </div>
-
-                    {/* Body: Hai đội và tỷ số */}
-                    <div style={{ padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {winnerNames}
-                          </span>
-                          <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg)' }}>
-                            {winnerDeltaStr}
-                          </span>
-                        </div>
-
-                        <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                          {displayScore}
-                        </span>
-
-                        <div style={{ flex: 1, minWidth: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {loserNames}
-                          </span>
-                          <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-incident-fg)' }}>
-                            {loserDeltaStr}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Footer thẻ: Dự đoán, Nguồn, và Nút Sửa */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
-                        <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                          {scoreSets.length > 1
-                            ? scoreSets.map((s) => `${s.winPts}–${s.losePts}`).join(' · ')
-                            : t('matchSearch.setDetail', { count: 1, pred: predStr })
-                          }
-                        </span>
-
-                        <div style={{ flex: 1 }} />
-
-                        <span style={{
-                          font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                          padding: '4px 8px',
-                          borderRadius: 999,
-                          background: isChallenge ? 'var(--status-transit-bg)' : 'var(--surface-sunken)',
-                          color: isChallenge ? 'var(--status-transit-fg)' : 'var(--text-secondary)',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {isChallenge ? t('leaderboard.codeChallenge', { code: 'C-0125' }) : t('challenge.fromCourt')}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => setEditingMatch(m)}
-                          style={{
-                            border: '1px solid var(--border-default)',
-                            background: 'var(--surface-raised)',
-                            padding: '4px 10px',
-                            borderRadius: 4,
-                            font: '600 12px/1 "IBM Plex Sans", sans-serif',
-                            color: 'var(--status-transit-fg)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {t('matchSearch.btnEdit')}
-                        </button>
-                      </div>
+                    <div style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
+                      {h2hSummary.aWinRate}%
                     </div>
                   </div>
-                )
-              })}
 
-              {searchResults.length === 0 && (
-                <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                  {t('matchSearch.emptySearch')}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInitialTeamA([playerA])
+                      setInitialTeamB([playerB])
+                      setChallengeModalOpen(true)
+                    }}
+                    style={{
+                      height: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: '0 10px',
+                      borderRadius: 6,
+                      background: 'var(--surface-brand-soft, rgba(0,178,169,.14))',
+                      border: '1px solid var(--teal-500)',
+                      color: 'var(--teal-500)',
+                      font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>🎯</span>
+                    <span>{t('matchSearch.challengeBetween')}</span>
+                  </button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {searchResults.length > searchCardLimit && (
-                <Button
-                  variant="secondary"
-                  block
-                  onClick={() => setSearchCardLimit((prev) => prev + 10)}
-                  style={{ minHeight: 44 }}
+            {/* Thanh tiêu đề thống kê & pills */}
+            <div
+              style={{
+                padding: '10px 14px',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+                flexWrap: 'wrap',
+                background: 'var(--surface-card)',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 180 }}>
+                <div style={{ font: "600 15px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  {t('matchVideo.recentMatchesHeader', { n: searchResults.length })}
+                </div>
+                <div style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                  {t('matchVideo.recentMatchesSub')}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  height: 26,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 10px',
+                  borderRadius: 999,
+                  background: 'rgba(0,178,169,.14)',
+                  border: '1px solid rgba(0,178,169,.42)',
+                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                  color: '#5FDBD3',
+                }}
+              >
+                {t('matchVideo.hasVideoCount', { n: searchResults.filter((m) => Boolean(m.videoUrl)).length })}
+              </div>
+
+              <div
+                style={{
+                  height: 26,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 10px',
+                  borderRadius: 999,
+                  background: 'var(--surface-inset)',
+                  border: '1px solid var(--border-subtle)',
+                  font: "500 11.5px/1 'IBM Plex Sans', sans-serif",
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {t('matchVideo.tagClose')} {searchResults.filter((m) => (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)).length}
+              </div>
+
+              <div
+                style={{
+                  height: 26,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 10px',
+                  borderRadius: 999,
+                  background: 'var(--surface-inset)',
+                  border: '1px solid var(--border-subtle)',
+                  font: "500 11.5px/1 'IBM Plex Sans', sans-serif",
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {t('matchVideo.tagUpset')} {searchResults.filter((m) => {
+                  const ra = m.initialRatingA || 0
+                  const rb = m.initialRatingB || 0
+                  const aWon = m.winnerTeam === 'A'
+                  return Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
+                }).length}
+              </div>
+
+              {editedMatchesCount > 0 && (
+                <div
+                  style={{
+                    height: 26,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 10px',
+                    borderRadius: 999,
+                    background: 'rgba(240,183,92,.16)',
+                    border: '1px solid rgba(240,183,92,.4)',
+                    font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                    color: 'var(--status-delayed-fg)',
+                  }}
                 >
-                  {t('matchSearch.viewMoreMatches', { n: searchResults.length - searchCardLimit })}
-                </Button>
+                  {t('matchSearch.editedMatchesCount', { count: editedMatchesCount })}
+                </div>
               )}
             </div>
-          ) : (
-            /* Desktop view: Cột kép bảng tìm trận + thẻ H2H bên phải */
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: h2hSummary ? 'minmax(0, 1fr) 340px' : '1fr',
-              gap: 16,
-              alignItems: 'start',
-            }}>
-              <div style={S.card}>
-                <div style={{ ...S.cardHead, padding: '12px 14px' }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={S.cardTitle}>
-                      {searchHeaderTitle}
-                    </div>
-                    <div style={S.cardSub}>
-                      {t('matchSearch.matchesSub')}
-                    </div>
-                  </div>
-                  {editedMatchesCount > 0 && (
-                    <span style={{
-                      font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                      padding: '5px 9px',
-                      borderRadius: 999,
-                      background: 'rgba(224,138,0,.18)',
-                      color: 'var(--status-delayed-fg)',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {t('matchSearch.editedMatchesCount', { count: editedMatchesCount })}
-                    </span>
-                  )}
+
+            {/* BẢNG LỊCH SỬ TRẬN ĐẤU 10 CỘT */}
+            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 960 }}>
+                {/* Header Cột */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '50px 44px 62px 68px minmax(0,1fr) 88px minmax(0,1fr) 100px 98px 68px',
+                    background: 'var(--surface-inset)',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    font: "600 10px/1.2 'IBM Plex Sans', sans-serif",
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  <div style={{ padding: '9px 0 9px 14px' }}>{t('matchVideo.colCode')}</div>
+                  <div style={{ padding: '9px 2px' }} />
+                  <div style={{ padding: '9px 6px' }}>{t('matchVideo.colTime')}</div>
+                  <div style={{ padding: '9px 6px' }}>{t('matchVideo.colCourt')}</div>
+                  <div style={{ padding: '9px 8px' }}>{t('matchVideo.colWinner')}</div>
+                  <div style={{ padding: '9px 8px', textAlign: 'center' }}>{t('matchVideo.colScore')}</div>
+                  <div style={{ padding: '9px 8px' }}>{t('matchVideo.colLoser')}</div>
+                  <div style={{ padding: '9px 6px', textAlign: 'center' }}>{t('matchVideo.colPrediction')}</div>
+                  <div style={{ padding: '9px 6px', textAlign: 'center' }}>{t('matchVideo.colVideo')}</div>
+                  <div style={{ padding: '9px 14px 9px 6px', textAlign: 'right' }}>{t('matchVideo.colSource')}</div>
                 </div>
 
-                <div style={{ overflowX: 'auto', width: '100%' }}>
-                  <div style={{ minWidth: 860 }}>
-                    <div style={S.searchTableHead}>
-                      <div style={S.thCell}>{t('matchSearch.colCode')}</div>
-                      <div style={S.thCell}>{t('matchSearch.colWhen')}</div>
-                      <div style={S.thCell}>{t('matchSearch.colWinner')}</div>
-                      <div style={{ ...S.thCell, textAlign: 'center', justifyContent: 'center' }}>{t('matchSearch.colScore')}</div>
-                      <div style={S.thCell}>{t('matchSearch.colLoser')}</div>
-                      <div style={{ ...S.thCell, textAlign: 'center', justifyContent: 'center' }}>{t('leaderboard.predLabel')}</div>
-                      <div style={{ ...S.thCell, textAlign: 'center', justifyContent: 'center' }}>{t('matchSearch.colSource')}</div>
+                {/* Danh sách nhóm theo ngày */}
+                {dayGroups.map((group) => (
+                  <div key={group.dateKey}>
+                    {/* Dòng Header Ngày */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        minHeight: 36,
+                        padding: '0 14px',
+                        background: 'rgba(0,178,169,.06)',
+                        borderBottom: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 999,
+                          background: 'var(--teal-500)',
+                        }}
+                      />
+                      <div style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--teal-500)' }}>
+                        {group.dateLabel}
+                      </div>
+                      <div style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                        {t('matchVideo.subDaySummary', { range: group.timeRange, matches: group.totalMatches, videos: group.videoCount })}
+                      </div>
+                      <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(0,178,169,.25), rgba(0,178,169,0))' }} />
+                      {group.durationText && (
+                        <div style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                          {group.durationText}
+                        </div>
+                      )}
                     </div>
 
-                    <div style={{ display: 'grid' }}>
-                      {searchResults.slice(0, searchCardLimit).map((m) => {
-                        const teamA = m.teamA || []
-                        const teamB = m.teamB || []
-                        const aWon = m.winnerTeam === 'A'
-                        const winnerTeam = aWon ? teamA : teamB
-                        const loserTeam = aWon ? teamB : teamA
-                        const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
-                        const loserNames = loserTeam.map(memberNameOf).join(' · ')
+                    {/* Các dòng trận trong ngày */}
+                    {group.matches.map((m) => {
+                      const teamA = m.teamA || []
+                      const teamB = m.teamB || []
+                      const aWon = m.winnerTeam === 'A'
+                      const winnerTeam = aWon ? teamA : teamB
+                      const loserTeam = aWon ? teamB : teamA
+                      const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
+                      const loserNames = loserTeam.map(memberNameOf).join(' · ')
 
-                        const scoreSets = (m.sets || []).map(([a, b]) => ({
-                          winPts: aWon ? a : b,
-                          losePts: aWon ? b : a,
-                        }))
-                        const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
-                        const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
-                        const isRated = m.ratingEnabled !== false
-                        const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
-                        const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
-                        const ra = m.initialRatingA || 0
-                        const rb = m.initialRatingB || 0
-                        const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
-                        const isClose = (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
+                      const scoreSets = (m.sets || []).map(([a, b]) => ({
+                        winPts: aWon ? a : b,
+                        losePts: aWon ? b : a,
+                      }))
 
-                        const s = (db.sessions || []).find((x) => x.id === m.sessionId)
-                        const courtObj = s?.courts?.[m.courtIdx]
-                        const venue = courtObj ? courtOf(db, courtObj.courtId) : null
-                        const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
-                        const dateStr = s?.date ? dd(s.date) : (m.at ? new Date(m.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
-                        const matchTime = courtObj?.from || (m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '')
-                        const courtTimeStr = courtLabel
-                          ? `${dateStr ? dateStr + ' · ' : ''}${courtLabel}${matchTime ? ' · ' + matchTime : ''}`
-                          : (dateStr || '—')
-                        const tooltipWhen = `${venue?.name || ''}${courtObj?.from ? ` · ${courtObj.from} → ${courtObj.to}` : ''}`
+                      const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
+                      const isRated = m.ratingEnabled !== false
+                      const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
+                      const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
 
-                        return (
+                      const ra = m.initialRatingA || 0
+                      const rb = m.initialRatingB || 0
+                      const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
+                      const isClose = (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
+                      const isStreak = (m.brokenStreak || 0) >= 3
+
+                      const s = (db.sessions || []).find((x) => x.id === m.sessionId)
+                      const courtObj = s?.courts?.[m.courtIdx]
+                      const venue = courtObj ? courtOf(db, courtObj.courtId) : null
+                      const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
+                      const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '19:00')
+                      const matchCode = matchCodeOf(db, m)
+
+                      // Vạch màu trái và background
+                      let leftBorderColor = 'transparent'
+                      let rowBg = 'transparent'
+                      let tagLabel = t('matchVideo.tagCorrect')
+                      let tagBg = 'var(--surface-inset)'
+                      let tagColor = 'var(--text-secondary)'
+
+                      if (isUpset) {
+                        leftBorderColor = '#E14434'
+                        rowBg = 'rgba(225,68,52,.07)'
+                        tagLabel = t('matchVideo.tagUpset')
+                        tagBg = 'rgba(225,68,52,.24)'
+                        tagColor = '#FFB0A5'
+                      } else if (isClose) {
+                        leftBorderColor = '#E08A00'
+                        rowBg = 'rgba(224,138,0,.07)'
+                        tagLabel = t('matchVideo.tagClose')
+                        tagBg = 'rgba(224,138,0,.22)'
+                        tagColor = '#FFCB77'
+                      } else if (isStreak) {
+                        leftBorderColor = '#00B2A9'
+                        rowBg = 'rgba(0,178,169,.06)'
+                        tagLabel = t('matchVideo.tagStreak', { n: m.brokenStreak })
+                        tagBg = 'rgba(0,178,169,.22)'
+                        tagColor = '#7FE6DF'
+                      }
+
+                      const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
+                      const predPct = isUpset ? '34%' : isClose ? '52%' : '50%'
+                      const hasVideo = Boolean(m.videoUrl)
+                      const vProvider = parseVideoProvider(m.videoUrl)
+                      const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
+
+                      return (
+                        <div key={m.id} style={{ display: 'grid' }}>
                           <div
-                            key={m.id}
-                            onClick={() => setViewingMatch(m)}
-                            style={S.searchTableRow}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--action-ghost-bg-hover)' }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                            title={t('matchDetail.title')}
+                            style={{
+                              position: 'relative',
+                              display: 'grid',
+                              gridTemplateColumns: '50px 44px 62px 68px minmax(0,1fr) 88px minmax(0,1fr) 100px 98px 68px',
+                              alignItems: 'center',
+                              minHeight: 50,
+                              borderBottom: '1px solid var(--border-subtle)',
+                              background: rowBg,
+                              transition: 'background 0.15s ease',
+                            }}
                           >
-                            {/* Cột 1: Mã trận (click xem chi tiết) & Nút Sửa */}
-                            <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                            {/* Vạch màu bên trái 2px */}
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: 2,
+                                background: leftBorderColor,
+                              }}
+                            />
+
+                            {/* Cột 1: Mã */}
+                            <div style={{ padding: '0 0 0 14px' }}>
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setViewingMatch(m)
-                                }}
+                                onClick={() => setViewingMatch(m)}
                                 style={{
-                                  border: '1px solid var(--border-subtle)',
-                                  background: 'var(--surface-sunken)',
-                                  padding: '3px 8px',
-                                  borderRadius: 'var(--radius-sm)',
-                                  font: '600 12.5px/1 "IBM Plex Mono", monospace',
-                                  color: 'var(--status-transit-fg)',
+                                  border: 'none',
+                                  background: 'transparent',
+                                  padding: 0,
+                                  font: "600 11.5px/1.3 'IBM Plex Mono', monospace",
+                                  color: 'var(--teal-500)',
                                   cursor: 'pointer',
-                                  transition: 'all 0.15s ease',
+                                  textAlign: 'left',
                                 }}
                                 title={t('matchDetail.title')}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = 'var(--surface-brand-soft)'
-                                  e.currentTarget.style.borderColor = 'var(--teal-500)'
-                                  e.currentTarget.style.textDecoration = 'underline'
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'var(--surface-sunken)'
-                                  e.currentTarget.style.borderColor = 'var(--border-subtle)'
-                                  e.currentTarget.style.textDecoration = 'none'
-                                }}
                               >
-                                {matchCodeOf(db, m)}
+                                {matchCode}
                               </button>
+                            </div>
+
+                            {/* Cột 2: Sửa */}
+                            <div style={{ padding: '0 2px' }}>
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setEditingMatch(m)
+                                onClick={() => setEditingMatch(m)}
+                                style={{
+                                  height: 22,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '0 8px',
+                                  borderRadius: 5,
+                                  background: 'var(--surface-raised)',
+                                  border: '1px solid var(--border-default)',
+                                  font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                  color: 'var(--text-secondary)',
+                                  cursor: 'pointer',
                                 }}
-                                style={S.editBtn}
-                                title={t('matchSearch.btnEdit')}
                               >
                                 {t('matchSearch.btnEdit')}
                               </button>
                             </div>
 
-                            {/* Cột 2: Ngày · Sân (link thẳng tới buổi & trận đó) */}
-                            <div style={{ ...S.tdCell, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {/* Cột 3: Giờ + khoảng cách */}
+                            <div style={{ padding: '0 6px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                                {matchTime}
+                              </span>
+                              <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                                {m.gapText || '+0′'}
+                              </span>
+                            </div>
+
+                            {/* Cột 4: Sân (click navigate buổi & trận) */}
+                            <div style={{ padding: '0 6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {s?.id ? (
                                 <button
                                   type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    navigate(`/buoi-tap/${s.id}?tab=matches&matchId=${m.id}`)
-                                  }}
+                                  onClick={() => navigate(`/buoi-tap/${s.id}?tab=matches&matchId=${m.id}`)}
                                   style={{
                                     border: 'none',
                                     background: 'transparent',
                                     padding: 0,
-                                    textAlign: 'left',
+                                    font: "400 11.5px/1.3 'IBM Plex Mono', monospace",
+                                    color: 'var(--text-secondary)',
                                     cursor: 'pointer',
-                                    font: 'inherit',
-                                    maxWidth: '100%',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
+                                    textAlign: 'left',
+                                    textDecoration: 'none',
                                   }}
-                                  title={tooltipWhen ? `${tooltipWhen} · ${t('pages.sessions.title')}` : t('pages.sessions.title')}
+                                  title={`${venue?.name || ''} · ${t('pages.sessions.title')}`}
+                                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--teal-500)' }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                                 >
-                                  <span
-                                    style={{
-                                      ...S.monoMeta,
-                                      color: 'var(--text-link)',
-                                      textDecoration: 'underline',
-                                      textUnderlineOffset: 3,
-                                    }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--teal-600)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-link)' }}
-                                  >
-                                    {courtTimeStr}
-                                  </span>
+                                  {courtLabel || t('session.courtNum', { n: 1 })}
                                 </button>
                               ) : (
-                                <span style={S.monoMeta} title={tooltipWhen}>{courtTimeStr}</span>
+                                <span style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
+                                  {courtLabel || t('session.courtNum', { n: 1 })}
+                                </span>
                               )}
                             </div>
 
-                            {/* Cột 3: Đội thắng + delta rating */}
-                            <div style={{ ...S.tdCell, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                              <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {/* Cột 5: Đội thắng */}
+                            <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                              <span style={{ font: "600 13px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {winnerNames}
                               </span>
-                              <span style={{ font: '400 13px/1.2 "IBM Plex Mono", monospace', color: 'var(--status-delivered-fg)' }}>
+                              <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-delivered-fg)' }}>
                                 {winnerDeltaStr}
                               </span>
                             </div>
 
-                            {/* Cột 4: Tỷ số to nằm giữa */}
-                            <div style={{ ...S.tdCell, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '700 17px/1 Barlow, sans-serif', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                              {scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : '21 – 19'}
+                            {/* Cột 6: Tỷ số */}
+                            <div style={{ padding: '0 8px', textAlign: 'center', font: "600 16px/1 'IBM Plex Mono', monospace" }}>
+                              <span style={{ color: 'var(--teal-500)' }}>{scoreSets.length > 0 ? scoreSets[0].winPts : 21}</span>
+                              <span style={{ color: 'var(--text-muted)', padding: '0 3px' }}>–</span>
+                              <span style={{ color: 'var(--text-secondary)' }}>{scoreSets.length > 0 ? scoreSets[0].losePts : 19}</span>
                             </div>
 
-                            {/* Cột 5: Đội thua + delta rating */}
-                            <div style={{ ...S.tdCell, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                              <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {/* Cột 7: Đội thua */}
+                            <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                              <span style={{ font: "500 12.5px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {loserNames}
                               </span>
-                              <span style={{ font: '400 13px/1.2 "IBM Plex Mono", monospace', color: 'var(--status-incident-fg)' }}>
+                              <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-incident-fg)' }}>
                                 {loserDeltaStr}
                               </span>
                             </div>
 
-                            {/* Cột 6: Dự đoán */}
-                            <div style={{ ...S.tdCell, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}>
-                              <span style={{ font: '600 13px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-secondary)' }}>
-                                {isUpset ? '71%' : isClose ? '52%' : '50%'}
+                            {/* Cột 8: Dự đoán */}
+                            <div style={{ padding: '0 6px', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                                {predPct}
                               </span>
-                              <span style={{ font: '400 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                                {isUpset ? t('leaderboard.predUpset') : isClose ? t('leaderboard.predClose') : t('leaderboard.predCorrect')}
+                              <span
+                                style={{
+                                  padding: '2px 8px',
+                                  borderRadius: 999,
+                                  background: tagBg,
+                                  font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                  color: tagColor,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {tagLabel}
                               </span>
                             </div>
 
-                            {/* Cột 7: Nguồn trận */}
-                            <div style={{ ...S.tdCell, display: 'flex', justifyContent: 'center' }}>
-                              <span style={{
-                                font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                                padding: '5px 9px',
-                                borderRadius: 999,
-                                background: isChallenge ? 'var(--status-transit-bg)' : 'var(--surface-sunken)',
-                                color: isChallenge ? 'var(--status-transit-fg)' : 'var(--text-secondary)',
-                                whiteSpace: 'nowrap',
-                              }}>
-                                {isChallenge ? t('leaderboard.codeChallenge', { code: 'C-0125' }) : t('challenge.fromCourt')}
-                              </span>
+                            {/* Cột 9: Video */}
+                            <div style={{ padding: '0 6px', display: 'flex', justifyContent: 'center' }}>
+                              {hasVideo ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const playUrl = buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)
+                                    if (playUrl) window.open(playUrl, '_blank')
+                                  }}
+                                  style={{
+                                    height: 24,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    padding: '0 9px',
+                                    borderRadius: 999,
+                                    background: 'rgba(225,68,52,.14)',
+                                    border: '1px solid rgba(225,68,52,.45)',
+                                    font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                    color: '#FF9A8F',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                  title={m.videoUrl}
+                                >
+                                  <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace" }}>▶</span>
+                                  <span>{videoTagLabel}</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedVideoMatchId((prev) => (prev === m.id ? null : m.id))}
+                                  style={{
+                                    height: 24,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    padding: '0 9px',
+                                    borderRadius: 999,
+                                    border: '1px dashed var(--border-default)',
+                                    background: 'transparent',
+                                    font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                    color: 'var(--text-muted)',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {t('matchVideo.btnAttach')}
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Cột 10: Nguồn */}
+                            <div style={{ padding: '0 14px 0 6px', textAlign: 'right', font: "400 10.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                              {isChallenge ? t('challenge.challenge') : t('challenge.fromCourt')}
                             </div>
                           </div>
-                        )
-                      })}
 
-                      {searchResults.length === 0 && (
-                        <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                          {t('matchSearch.emptySearch')}
+                          {/* Dòng Inline Expander gắn Video */}
+                          {expandedVideoMatchId === m.id && (
+                            <MatchVideoInlineExpander
+                              match={m}
+                              matchCode={matchCode}
+                              timeStr={matchTime}
+                              courtVenueStr={`${courtLabel} · ${venue?.name || ''}`}
+                              teamText={`${winnerNames} vs ${loserNames}`}
+                              scoreText={scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : ''}
+                              onSave={(videoData) => {
+                                a.attachMatchVideo(m.id, videoData)
+                                setExpandedVideoMatchId(null)
+                              }}
+                              onCancel={() => setExpandedVideoMatchId(null)}
+                            />
+                          )}
                         </div>
-                      )}
-                    </div>
+                      )
+                    })}
                   </div>
-                </div>
+                ))}
 
-                {/* Table footer with count & view more */}
-                <div style={{
-                  padding: '12px 14px',
-                  borderTop: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                }}>
-                  <span style={{ font: '400 13px/1.4 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                    {t('common.showingOf', { n: Math.min(searchCardLimit, searchResults.length), total: searchResults.length })}
-                  </span>
-                  {searchResults.length > searchCardLimit && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => setSearchCardLimit((prev) => prev + 10)}
-                      style={{ minHeight: 34 }}
-                    >
-                      {t('matchSearch.viewMoreMatches', { n: Math.min(10, searchResults.length - searchCardLimit) })}
-                    </Button>
-                  )}
-                </div>
+                {searchResults.length === 0 && (
+                  <div style={{ padding: 28, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    {t('matchSearch.emptySearch')}
+                  </div>
+                )}
               </div>
+            </div>
 
-              {/* Cột phải: 2 Thẻ tóm tắt Đối đầu H2H chuẩn DS1 (nếu chọn đủ 2 người) */}
-              {h2hSummary && (
-                <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
-                  {/* Card 1: Đối đầu H2H */}
-                  <div style={S.card}>
-                    <div style={{ ...S.cardHead, padding: '12px 14px' }}>
-                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <div style={S.cardTitle}>
-                          {t('leaderboard.h2hTitle', { nameA: memberNameOf(playerA), nameB: memberNameOf(playerB) })}
-                        </div>
-                        <div style={S.cardSub}>{t('leaderboard.h2hSubtitle')}</div>
-                      </div>
-                      <span style={{
-                        font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                        padding: '5px 9px',
-                        borderRadius: 999,
-                        background: h2hSummary.relationshipTone === 'tough' ? 'var(--status-incident-bg)' : 'var(--status-transit-bg)',
-                        color: h2hSummary.relationshipTone === 'tough' ? 'var(--status-incident-fg)' : 'var(--status-delivered-fg)',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {h2hSummary.relationshipTone === 'tough' ? t('leaderboard.toughOpponent') : h2hSummary.relationshipTone === 'easy' ? t('leaderboard.easyOpponent') : t('leaderboard.balancedOpponent')}
-                      </span>
-                    </div>
-                    <div style={{ padding: 14, display: 'grid', gap: 10 }}>
-                      {/* Tỷ số to khổng lồ ở giữa */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, font: '700 32px/1 Barlow, sans-serif' }}>
-                        <span style={{ color: 'var(--status-incident-fg)' }}>{h2hSummary.aWins}</span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: 17 }}>–</span>
-                        <span style={{ color: 'var(--text-primary)' }}>{h2hSummary.bWins}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, font: '400 13px/1.4 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                        <span>{memberNameOf(playerA)} {h2hSummary.aWinRate}%</span>
-                        <span>{memberNameOf(playerB)} {h2hSummary.bWinRate}%</span>
-                      </div>
-                      {/* Inset Box */}
-                      <div style={{ display: 'grid', gap: 8, padding: '11px 13px', borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{t('matchSearch.qualityClose')}</span>
-                          <span style={{ color: 'var(--status-delayed-fg)' }}>{h2hSummary.closeCount} {t('units.match')}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{t('matchSearch.qualityUpset')}</span>
-                          <span style={{ color: 'var(--status-incident-fg)' }}>{h2hSummary.upsetCount} {t('units.match')}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{t('challenge.challenge')}</span>
-                          <span style={{ color: 'var(--status-transit-fg)' }}>{h2hSummary.challengeCount} {t('units.match')}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{t('leaderboard.netRating')}</span>
-                          <span style={{ color: 'var(--text-primary)' }}>{h2hSummary.netDelta >= 0 ? `+${h2hSummary.netDelta}` : h2hSummary.netDelta}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 2: Khi cùng đội */}
-                  <div style={S.card}>
-                    <div style={{ ...S.cardHead, padding: '12px 14px' }}>
-                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <div style={S.cardTitle}>{t('leaderboard.whenTeammates')}</div>
-                        <div style={S.cardSub}>
-                          {t('leaderboard.teammateSubtitle', { total: h2hSummary.tmTotal, nameA: memberNameOf(playerA), nameB: memberNameOf(playerB) })}
-                        </div>
-                      </div>
-                      <span style={{
-                        font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                        padding: '5px 9px',
-                        borderRadius: 999,
-                        background: 'var(--status-transit-bg)',
-                        color: 'var(--status-transit-fg)',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {t('leaderboard.wonCount', { n: h2hSummary.tmWins })}
-                      </span>
-                    </div>
-                    <div style={{ padding: 14, display: 'grid', gap: 8 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>{t('leaderboard.winLoss')}</span>
-                        <span style={{ color: 'var(--status-delivered-fg)' }}>{h2hSummary.tmWins} – {h2hSummary.tmLoss}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 13px/1.5 "IBM Plex Mono", monospace' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>{t('leaderboard.winRateLabel')}</span>
-                        <span style={{ color: 'var(--status-delivered-fg)' }}>{h2hSummary.tmWinRate}%</span>
-                      </div>
-                      {h2hSummary.lastDate && (
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                          {t('leaderboard.lastTeammateMatch')}: {h2hSummary.lastDate} ({h2hSummary.lastWon ? t('leaderboard.wonStatus') : t('leaderboard.lostStatus')})
-                        </div>
-                      )}
-                      <Button
-                        variant="secondary"
-                        block
-                        onClick={() => setSearchMode('team')}
-                        style={{ marginTop: 4, fontSize: 12.5 }}
-                      >
-                        {t('matchSearch.switchTeammateBtn', { count: h2hSummary.tmTotal })}
-                      </Button>
-                      <Button
-                        variant="primary"
-                        block
-                        icon="target"
-                        style={{ marginTop: 6 }}
-                        onClick={() => {
-                          setInitialTeamA([playerA])
-                          setInitialTeamB([playerB])
-                          setChallengeModalOpen(true)
-                        }}
-                      >
-                        {t('matchSearch.challengeBetween')}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+            {/* Footer Bảng: Phân trang / Xem thêm */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '11px 14px',
+                borderTop: '1px solid var(--border-subtle)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                {t('common.showingOf', { n: Math.min(searchCardLimit, searchResults.length), total: searchResults.length })}
+              </div>
+              {searchResults.length > searchCardLimit && (
+                <button
+                  type="button"
+                  onClick={() => setSearchCardLimit((prev) => prev + 10)}
+                  style={{
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 13px',
+                    borderRadius: 7,
+                    background: 'var(--surface-raised)',
+                    border: '1px solid var(--border-default)',
+                    font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('matchSearch.viewMoreMatches', { n: Math.min(10, searchResults.length - searchCardLimit) })}
+                </button>
               )}
             </div>
-          )}
+          </div>
         </div>
       )}
 

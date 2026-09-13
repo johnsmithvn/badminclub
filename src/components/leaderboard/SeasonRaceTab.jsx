@@ -56,6 +56,8 @@ export default function SeasonRaceTab({
   seasonLeaderboardData,
   onOpenLedger,
   isMobile = false,
+  genderFilter = 'all',
+  onGenderFilterChange,
 }) {
   const { db } = useApp()
   const { isDark, isGlamorous } = useTheme()
@@ -65,16 +67,26 @@ export default function SeasonRaceTab({
     return (db.members || []).find((m) => m.userId === db.currentUserId) || null
   }, [db])
 
-  if (!seasonLeaderboardData) return null
+  const { season, leaderboard = [], topStats = {} } = seasonLeaderboardData || {}
 
-  const { season, leaderboard = [], topStats = {} } = seasonLeaderboardData
-  const top1 = leaderboard[0] || null
-  const top2 = leaderboard[1] || null
-  const top3 = leaderboard[2] || null
+  const totalCount = leaderboard.length
+  const maleCount = useMemo(() => leaderboard.filter((r) => (r.gender || 'nam') === 'nam').length, [leaderboard])
+  const femaleCount = useMemo(() => leaderboard.filter((r) => (r.gender || 'nam') === 'nu').length, [leaderboard])
+
+  const filteredLeaderboard = useMemo(() => {
+    if (genderFilter === 'all') return leaderboard
+    return leaderboard
+      .filter((r) => (r.gender || 'nam') === genderFilter)
+      .map((r, idx) => ({ ...r, rank: idx + 1, originalRank: r.rank }))
+  }, [leaderboard, genderFilter])
+
+  const top1 = filteredLeaderboard[0] || null
+  const top2 = filteredLeaderboard[1] || null
+  const top3 = filteredLeaderboard[2] || null
 
   let top3EloRank = 1
   if (top3) {
-    const sorted = [...leaderboard].sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    const sorted = [...filteredLeaderboard].sort((a, b) => (b.rating || 0) - (a.rating || 0))
     const idx = sorted.findIndex((x) => x.id === top3.id)
     top3EloRank = idx >= 0 ? idx + 1 : 1
   }
@@ -163,8 +175,131 @@ export default function SeasonRaceTab({
           </div>
         </div>
 
+        {/* Bộ lọc giới tính Nam / Nữ */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 8,
+              padding: 3,
+              gap: 2,
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => onGenderFilterChange && onGenderFilterChange('all')}
+              style={{
+                font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: genderFilter === 'all' ? (isDark ? 'var(--navy-700)' : '#00B2A9') : 'transparent',
+                color: genderFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: genderFilter === 'all' ? 700 : 500,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>{t('gender.all')}</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  padding: '2px 6px',
+                  borderRadius: 999,
+                  background: genderFilter === 'all' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
+                  color: genderFilter === 'all' ? '#FFFFFF' : 'var(--text-muted)',
+                }}
+              >
+                {totalCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onGenderFilterChange && onGenderFilterChange('nam')}
+              style={{
+                font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: genderFilter === 'nam' ? '#1D50A0' : 'transparent',
+                color: genderFilter === 'nam' ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: genderFilter === 'nam' ? 700 : 500,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>♂ {t('gender.nam')}</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  padding: '2px 6px',
+                  borderRadius: 999,
+                  background: genderFilter === 'nam' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
+                  color: genderFilter === 'nam' ? '#FFFFFF' : 'var(--text-muted)',
+                }}
+              >
+                {maleCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onGenderFilterChange && onGenderFilterChange('nu')}
+              style={{
+                font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: genderFilter === 'nu' ? '#D946EF' : 'transparent',
+                color: genderFilter === 'nu' ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: genderFilter === 'nu' ? 700 : 500,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>♀ {t('gender.nu')}</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  padding: '2px 6px',
+                  borderRadius: 999,
+                  background: genderFilter === 'nu' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
+                  color: genderFilter === 'nu' ? '#FFFFFF' : 'var(--text-muted)',
+                }}
+              >
+                {femaleCount}
+              </span>
+            </button>
+          </div>
+        </div>
+
         {/* 2. Podium Top 3 */}
-        {leaderboard.length >= 3 && (
+        {filteredLeaderboard.length >= 3 && (
           isGlamorous ? (
             isMobile ? (
               /* Bục Tốp 3 14a · M10v2 Mobile Hào nhoáng */
@@ -990,11 +1125,11 @@ export default function SeasonRaceTab({
                 </span>
                 <div style={{ flex: 1 }} />
                 <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('season.wholeTableCount', { count: leaderboard.length })}
+                  {t('season.wholeTableCount', { count: filteredLeaderboard.length })}
                 </span>
               </div>
 
-              {(leaderboard.length >= 3 ? leaderboard.slice(3) : leaderboard).map((row) => {
+              {(filteredLeaderboard.length >= 3 ? filteredLeaderboard.slice(3) : filteredLeaderboard).map((row) => {
                 const isMe = myMember && (row.id === myMember.id || row.id === myMember.userId)
                 return (
                   <div
@@ -1121,7 +1256,7 @@ export default function SeasonRaceTab({
             }}
           >
             <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-              {t('season.tableTotal', { total: leaderboard.length, count: leaderboard.length, n: leaderboard.length })}
+              {t('season.tableTotal', { total: filteredLeaderboard.length, count: filteredLeaderboard.length, n: filteredLeaderboard.length })}
             </span>
             {isMobile ? (
               <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
@@ -1180,7 +1315,11 @@ export default function SeasonRaceTab({
             </div>
           )}
 
-          {leaderboard.map((row) => {
+          {filteredLeaderboard.length === 0 ? (
+            <div style={{ padding: '36px 16px', textAlign: 'center', font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+              {t('season.emptyGenderList')}
+            </div>
+          ) : filteredLeaderboard.map((row) => {
             const isRank1 = row.rank === 1
             const isRank2 = row.rank === 2
             const isRank3 = row.rank === 3

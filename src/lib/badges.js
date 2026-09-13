@@ -620,10 +620,24 @@ export function computeClubBadgeStats(db, season = null, seasonMatches = null) {
   })
 
   const minPairMatches = cfgBadges.minPairMatches || 5
+  const maxPairEloGap = cfgBadges.maxPairEloGap || 250
+  const minPairMemberElo = cfgBadges.minPairMemberElo || 300
+  const memberRatingMap = new Map(memberRatings.map((m) => [m.id, m.r]))
+
+  const isEligiblePair = (pKey) => {
+    const ids = pKey.split('_')
+    if (ids.length !== 2) return true
+    const r1 = memberRatingMap.get(ids[0]) ?? 500
+    const r2 = memberRatingMap.get(ids[1]) ?? 500
+    if (Math.abs(r1 - r2) > maxPairEloGap) return false
+    if (r1 < minPairMemberElo || r2 < minPairMemberElo) return false
+    return true
+  }
+
   let bestPairScore = -1
   let topPairKey = null
   pairStatsMap.forEach((stat, pKey) => {
-    if (stat.played >= minPairMatches) {
+    if (stat.played >= minPairMatches && isEligiblePair(pKey)) {
       const wr = stat.wins / stat.played
       const score = stat.wins * wr
       if (score > bestPairScore) {
@@ -633,11 +647,11 @@ export function computeClubBadgeStats(db, season = null, seasonMatches = null) {
     }
   })
 
-  // Fallback nếu chưa cặp nào đủ minPairMatches
+  // Fallback nếu chưa cặp nào đủ minPairMatches hoặc đủ điều kiện Elo
   if (!topPairKey) {
     let maxWr = -1
     pairStatsMap.forEach((stat, pKey) => {
-      if (stat.played >= 2) {
+      if (stat.played >= 2 && isEligiblePair(pKey)) {
         const wr = stat.wins / stat.played
         if (wr > maxWr) {
           maxWr = wr
@@ -1302,18 +1316,20 @@ export function calculateMemberBadges(
 
       case 'beat_top_pair': {
         const targetPairKey = clubStats.topPairKey
-        const beatTop = targetPairKey ? wonMatches.some((mt) => {
-          const isDoubles = (mt.teamA || []).length === 2 && (mt.teamB || []).length === 2
-          if (!isDoubles) return false
-          const inA = (mt.teamA || []).includes(memberId)
-          const oppTeam = inA ? mt.teamB : mt.teamA
-          const oppKey = oppTeam.slice().sort().join('_')
-          return oppKey === targetPairKey
-        }) : false
-        isUnlocked = beatTop || !!member?.beatTopPair
-        currentVal = isUnlocked ? 1 : 0
-        progressStr = isUnlocked ? '1 / 1' : '0 / 1'
-        pct = isUnlocked ? 100 : 0
+        const timesBeat = targetPairKey
+          ? wonMatches.filter((mt) => {
+              const isDoubles = (mt.teamA || []).length === 2 && (mt.teamB || []).length === 2
+              if (!isDoubles) return false
+              const inA = (mt.teamA || []).includes(memberId)
+              const oppTeam = inA ? mt.teamB : mt.teamA
+              const oppKey = oppTeam.slice().sort().join('_')
+              return oppKey === targetPairKey
+            }).length
+          : 0
+        currentVal = !!member?.beatTopPair ? Math.max(timesBeat, badge.threshold) : timesBeat
+        isUnlocked = currentVal >= badge.threshold
+        progressStr = `${currentVal} / ${badge.threshold}`
+        pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
         break
       }
 

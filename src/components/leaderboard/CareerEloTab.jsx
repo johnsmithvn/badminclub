@@ -62,6 +62,8 @@ export default function CareerEloTab({
   _onOpenEffectiveStrengthModal,
   onSelectMember,
   isMobile = false,
+  genderFilter = 'all',
+  onGenderFilterChange,
 }) {
   const { isDark, isGlamorous } = useTheme()
 
@@ -207,7 +209,16 @@ export default function CareerEloTab({
     }
   }, [members, playerRatings, matches, levels, isDark, db])
 
-  const displayList = allList
+  const totalCount = allList.length
+  const maleCount = useMemo(() => allList.filter((p) => (p.gender || 'nam') === 'nam').length, [allList])
+  const femaleCount = useMemo(() => allList.filter((p) => (p.gender || 'nam') === 'nu').length, [allList])
+
+  const displayList = useMemo(() => {
+    if (genderFilter === 'all') return allList
+    return allList
+      .filter((p) => (p.gender || 'nam') === genderFilter)
+      .map((p, idx) => ({ ...p, rank: idx + 1, originalRank: p.rank }))
+  }, [allList, genderFilter])
 
   return (
     <div
@@ -228,8 +239,131 @@ export default function CareerEloTab({
       >
         {/* CỘT TRÁI: BẢNG XẾP HẠNG ELO TOÀN DIỆN */}
         <div style={{ display: 'grid', gap: 14 }}>
+          {/* Bộ lọc giới tính Nam / Nữ */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                background: 'var(--surface-card)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 8,
+                padding: 3,
+                gap: 2,
+                boxShadow: 'var(--shadow-xs)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onGenderFilterChange && onGenderFilterChange('all')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: genderFilter === 'all' ? (isDark ? 'var(--navy-700)' : '#1D50A0') : 'transparent',
+                  color: genderFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontWeight: genderFilter === 'all' ? 700 : 500,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>{t('gender.all')}</span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    padding: '2px 6px',
+                    borderRadius: 999,
+                    background: genderFilter === 'all' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
+                    color: genderFilter === 'all' ? '#FFFFFF' : 'var(--text-muted)',
+                  }}
+                >
+                  {totalCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onGenderFilterChange && onGenderFilterChange('nam')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: genderFilter === 'nam' ? '#1D50A0' : 'transparent',
+                  color: genderFilter === 'nam' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontWeight: genderFilter === 'nam' ? 700 : 500,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>♂ {t('gender.nam')}</span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    padding: '2px 6px',
+                    borderRadius: 999,
+                    background: genderFilter === 'nam' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
+                    color: genderFilter === 'nam' ? '#FFFFFF' : 'var(--text-muted)',
+                  }}
+                >
+                  {maleCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onGenderFilterChange && onGenderFilterChange('nu')}
+                style={{
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: genderFilter === 'nu' ? '#D946EF' : 'transparent',
+                  color: genderFilter === 'nu' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontWeight: genderFilter === 'nu' ? 700 : 500,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>♀ {t('gender.nu')}</span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    padding: '2px 6px',
+                    borderRadius: 999,
+                    background: genderFilter === 'nu' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
+                    color: genderFilter === 'nu' ? '#FFFFFF' : 'var(--text-muted)',
+                  }}
+                >
+                  {femaleCount}
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* TỐP ĐẲNG CẤP 14a · Hào nhoáng */}
-          {isGlamorous && allList.length >= 3 && (
+          {isGlamorous && displayList.length >= 3 && (
             isMobile ? (
               /* Mobile Bục Tốp Đẳng Cấp Dạng Dọc (M11v2) */
               <div
@@ -263,9 +397,9 @@ export default function CareerEloTab({
                 </div>
 
                 {/* Top 1 Mobile (Thẻ ngang lớn vàng hoàng kim) */}
-                {allList[0] && (
+                {displayList[0] && (
                   <div
-                    onClick={() => onSelectMember && onSelectMember(allList[0])}
+                    onClick={() => onSelectMember && onSelectMember(displayList[0])}
                     style={{
                       position: 'relative',
                       display: 'flex',
@@ -311,7 +445,7 @@ export default function CareerEloTab({
                         }}
                       />
                       <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                        <Avatar name={allList[0].name} src={allList[0].avatarUrl} size={44} />
+                        <Avatar name={displayList[0].name} src={displayList[0].avatarUrl} size={44} />
                       </div>
                       <div
                         style={{
@@ -334,39 +468,39 @@ export default function CareerEloTab({
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 5 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                        <SingleBadgeSlot badge={allList[0].highestBadge} size={19} />
+                        <SingleBadgeSlot badge={displayList[0].highestBadge} size={19} />
                         <span style={{ font: "700 15.5px/1.15 'Barlow', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {allList[0].name}
+                          {displayList[0].name}
                         </span>
-                        {myMember?.id === allList[0].id && (
+                        {myMember?.id === displayList[0].id && (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
                             {t('season.youTag')}
                           </span>
                         )}
-                        {allList[0].streak >= 5 ? (
-                          <BountyBadgeTag streak={allList[0].streak} />
-                        ) : allList[0].streak >= 3 ? (
+                        {displayList[0].streak >= 5 ? (
+                          <BountyBadgeTag streak={displayList[0].streak} />
+                        ) : displayList[0].streak >= 3 ? (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                            streak {allList[0].streak}
+                            streak {displayList[0].streak}
                           </span>
                         ) : null}
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
-                          {allList[0].rating}
+                          {displayList[0].rating}
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ flex: '1 1 0%', height: 6, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: allList[0].confBarWidth, background: allList[0].confBarColor }} />
+                          <span style={{ width: displayList[0].confBarWidth, background: displayList[0].confBarColor }} />
                         </span>
-                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: allList[0].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
-                          {allList[0].confLabel}
+                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: displayList[0].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
+                          {displayList[0].confLabel}
                         </span>
                       </div>
                       <div style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
-                        {allList[0].gamesCount} {t('units.match')} · {allList[0].winRate}% ·{' '}
-                        <span style={{ color: allList[0].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
-                          {allList[0].delta30Days >= 0 ? `+${allList[0].delta30Days}` : `${allList[0].delta30Days}`} / 30 {t('units.day')}
+                        {displayList[0].gamesCount} {t('units.match')} · {displayList[0].winRate}% ·{' '}
+                        <span style={{ color: displayList[0].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
+                          {displayList[0].delta30Days >= 0 ? `+${displayList[0].delta30Days}` : `${displayList[0].delta30Days}`} / 30 {t('units.day')}
                         </span>
                       </div>
                     </div>
@@ -374,9 +508,9 @@ export default function CareerEloTab({
                 )}
 
                 {/* Top 2 Mobile (Thẻ ngang viền bạc) */}
-                {allList[1] && (
+                {displayList[1] && (
                   <div
-                    onClick={() => onSelectMember && onSelectMember(allList[1])}
+                    onClick={() => onSelectMember && onSelectMember(displayList[1])}
                     style={{
                       position: 'relative',
                       display: 'flex',
@@ -400,7 +534,7 @@ export default function CareerEloTab({
                         }}
                       />
                       <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                        <Avatar name={allList[1].name} src={allList[1].avatarUrl} size={37} />
+                        <Avatar name={displayList[1].name} src={displayList[1].avatarUrl} size={37} />
                       </div>
                       <div
                         style={{
@@ -423,36 +557,36 @@ export default function CareerEloTab({
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                        <SingleBadgeSlot badge={allList[1].highestBadge} size={18} />
+                        <SingleBadgeSlot badge={displayList[1].highestBadge} size={18} />
                         <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {allList[1].name}
+                          {displayList[1].name}
                         </span>
-                        {myMember?.id === allList[1].id && (
+                        {myMember?.id === displayList[1].id && (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
                             {t('season.youTag')}
                           </span>
                         )}
-                        {allList[1].streak >= 5 ? (
-                          <BountyBadgeTag streak={allList[1].streak} />
-                        ) : allList[1].streak >= 3 ? (
+                        {displayList[1].streak >= 5 ? (
+                          <BountyBadgeTag streak={displayList[1].streak} />
+                        ) : displayList[1].streak >= 3 ? (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                            streak {allList[1].streak}
+                            streak {displayList[1].streak}
                           </span>
                         ) : null}
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
-                          {allList[1].rating}
+                          {displayList[1].rating}
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ flex: '1 1 0%', height: 5, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: allList[1].confBarWidth, background: allList[1].confBarColor }} />
+                          <span style={{ width: displayList[1].confBarWidth, background: displayList[1].confBarColor }} />
                         </span>
-                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: allList[1].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
-                          {allList[1].confLabel}
+                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: displayList[1].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
+                          {displayList[1].confLabel}
                         </span>
-                        <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: allList[1].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
-                          {allList[1].delta30Days >= 0 ? `+${allList[1].delta30Days}` : `${allList[1].delta30Days}`}
+                        <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: displayList[1].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
+                          {displayList[1].delta30Days >= 0 ? `+${displayList[1].delta30Days}` : `${displayList[1].delta30Days}`}
                         </span>
                       </div>
                     </div>
@@ -460,9 +594,9 @@ export default function CareerEloTab({
                 )}
 
                 {/* Top 3 Mobile (Thẻ ngang viền đồng) */}
-                {allList[2] && (
+                {displayList[2] && (
                   <div
-                    onClick={() => onSelectMember && onSelectMember(allList[2])}
+                    onClick={() => onSelectMember && onSelectMember(displayList[2])}
                     style={{
                       position: 'relative',
                       display: 'flex',
@@ -486,7 +620,7 @@ export default function CareerEloTab({
                         }}
                       />
                       <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                        <Avatar name={allList[2].name} src={allList[2].avatarUrl} size={37} />
+                        <Avatar name={displayList[2].name} src={displayList[2].avatarUrl} size={37} />
                       </div>
                       <div
                         style={{
@@ -509,36 +643,36 @@ export default function CareerEloTab({
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                        <SingleBadgeSlot badge={allList[2].highestBadge} size={18} />
+                        <SingleBadgeSlot badge={displayList[2].highestBadge} size={18} />
                         <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {allList[2].name}
+                          {displayList[2].name}
                         </span>
-                        {myMember?.id === allList[2].id && (
+                        {myMember?.id === displayList[2].id && (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
                             {t('season.youTag')}
                           </span>
                         )}
-                        {allList[2].streak >= 5 ? (
-                          <BountyBadgeTag streak={allList[2].streak} />
-                        ) : allList[2].streak >= 3 ? (
+                        {displayList[2].streak >= 5 ? (
+                          <BountyBadgeTag streak={displayList[2].streak} />
+                        ) : displayList[2].streak >= 3 ? (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                            streak {allList[2].streak}
+                            streak {displayList[2].streak}
                           </span>
                         ) : null}
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
-                          {allList[2].rating}
+                          {displayList[2].rating}
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ flex: '1 1 0%', height: 5, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: allList[2].confBarWidth, background: allList[2].confBarColor }} />
+                          <span style={{ width: displayList[2].confBarWidth, background: displayList[2].confBarColor }} />
                         </span>
-                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: allList[2].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
-                          {allList[2].confLabel}
+                        <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", color: displayList[2].confColor, flex: '0 0 auto', letterSpacing: '.04em' }}>
+                          {displayList[2].confLabel}
                         </span>
-                        <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: allList[2].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
-                          {allList[2].delta30Days >= 0 ? `+${allList[2].delta30Days}` : `${allList[2].delta30Days}`}
+                        <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: displayList[2].delta30Days >= 0 ? '#5FDBD3' : '#F1A79D' }}>
+                          {displayList[2].delta30Days >= 0 ? `+${displayList[2].delta30Days}` : `${displayList[2].delta30Days}`}
                         </span>
                       </div>
                     </div>
@@ -586,9 +720,9 @@ export default function CareerEloTab({
                   }}
                 >
                   {/* Top 1 Desktop */}
-                  {allList[0] && (
+                  {displayList[0] && (
                     <div
-                      onClick={() => onSelectMember && onSelectMember(allList[0])}
+                      onClick={() => onSelectMember && onSelectMember(displayList[0])}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -634,7 +768,7 @@ export default function CareerEloTab({
                           }}
                         />
                         <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                          <Avatar name={allList[0].name} src={allList[0].avatarUrl} size={42} />
+                          <Avatar name={displayList[0].name} src={displayList[0].avatarUrl} size={42} />
                         </div>
                         <div
                           style={{
@@ -657,16 +791,16 @@ export default function CareerEloTab({
                       </div>
                       <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                         <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {allList[0].name}
+                          {displayList[0].name}
                         </div>
                         <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
-                          {allList[0].rating}
+                          {displayList[0].rating}
                         </div>
                         <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
                           {t('season.statsDetail14a', {
-                            matches: allList[0].totalGames,
-                            conf: allList[0].confLabel,
-                            delta: allList[0].delta30Days >= 0 ? `+${allList[0].delta30Days}` : `${allList[0].delta30Days}`,
+                            matches: displayList[0].totalGames,
+                            conf: displayList[0].confLabel,
+                            delta: displayList[0].delta30Days >= 0 ? `+${displayList[0].delta30Days}` : `${displayList[0].delta30Days}`,
                           })}
                         </div>
                       </div>
@@ -674,9 +808,9 @@ export default function CareerEloTab({
                   )}
 
                   {/* Top 2 Desktop */}
-                  {allList[1] && (
+                  {displayList[1] && (
                     <div
-                      onClick={() => onSelectMember && onSelectMember(allList[1])}
+                      onClick={() => onSelectMember && onSelectMember(displayList[1])}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -700,7 +834,7 @@ export default function CareerEloTab({
                           }}
                         />
                         <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                          <Avatar name={allList[1].name} src={allList[1].avatarUrl} size={38} />
+                          <Avatar name={displayList[1].name} src={displayList[1].avatarUrl} size={38} />
                         </div>
                         <div
                           style={{
@@ -723,16 +857,16 @@ export default function CareerEloTab({
                       </div>
                       <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                         <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {allList[1].name}
+                          {displayList[1].name}
                         </div>
-                        <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#E3EDFB' }}>
-                          {allList[1].rating}
+                        <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
+                          {displayList[1].rating}
                         </div>
-                        <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                        <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#8FA3BE' }}>
                           {t('season.statsDetail14a', {
-                            matches: allList[1].totalGames,
-                            conf: allList[1].confLabel,
-                            delta: allList[1].delta30Days >= 0 ? `+${allList[1].delta30Days}` : `${allList[1].delta30Days}`,
+                            matches: displayList[1].totalGames,
+                            conf: displayList[1].confLabel,
+                            delta: displayList[1].delta30Days >= 0 ? `+${displayList[1].delta30Days}` : `${displayList[1].delta30Days}`,
                           })}
                         </div>
                       </div>
@@ -740,9 +874,9 @@ export default function CareerEloTab({
                   )}
 
                   {/* Top 3 Desktop */}
-                  {allList[2] && (
+                  {displayList[2] && (
                     <div
-                      onClick={() => onSelectMember && onSelectMember(allList[2])}
+                      onClick={() => onSelectMember && onSelectMember(displayList[2])}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -766,7 +900,7 @@ export default function CareerEloTab({
                           }}
                         />
                         <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
-                          <Avatar name={allList[2].name} src={allList[2].avatarUrl} size={38} />
+                          <Avatar name={displayList[2].name} src={displayList[2].avatarUrl} size={38} />
                         </div>
                         <div
                           style={{
@@ -789,16 +923,16 @@ export default function CareerEloTab({
                       </div>
                       <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                         <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {allList[2].name}
+                          {displayList[2].name}
                         </div>
                         <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F5E0D0' }}>
-                          {allList[2].rating}
+                          {displayList[2].rating}
                         </div>
                         <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
                           {t('season.statsDetail14a', {
-                            matches: allList[2].totalGames,
-                            conf: allList[2].confLabel,
-                            delta: allList[2].delta30Days >= 0 ? `+${allList[2].delta30Days}` : `${allList[2].delta30Days}`,
+                            matches: displayList[2].totalGames,
+                            conf: displayList[2].confLabel,
+                            delta: displayList[2].delta30Days >= 0 ? `+${displayList[2].delta30Days}` : `${displayList[2].delta30Days}`,
                           })}
                         </div>
                       </div>
@@ -809,7 +943,7 @@ export default function CareerEloTab({
             )
           )}
 
-          {/* BẢNG XẾP HẠNG ELO TOÀN BỘ (Hiện tất cả thành viên, không lọc) */}
+          {/* BẢNG XẾP HẠNG ELO TOÀN BỘ */}
           {isMobile && isGlamorous ? (
             /* TOÀN BẢNG MOBILE HÀO NHOÁNG (M11v2) */
             <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
@@ -819,11 +953,11 @@ export default function CareerEloTab({
                 </span>
                 <div style={{ flex: '1 1 0%' }} />
                 <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('season.wholeTableCount', { n: allList.length })}
+                  {t('season.wholeTableCount', { n: displayList.length })}
                 </span>
               </div>
 
-              {(allList.length > 3 ? allList.slice(3) : allList).map((player, idx, arr) => {
+              {(displayList.length > 3 ? displayList.slice(3) : displayList).map((player, idx, arr) => {
                 const isMe = myMember && myMember.id === player.id
                 const deltaColor = player.delta30Days > 0 ? '#5FDBD3' : player.delta30Days < 0 ? '#F1A79D' : '#8494AA'
                 const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
@@ -886,7 +1020,7 @@ export default function CareerEloTab({
             <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
               <div style={{ padding: '10px 13px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                  {t('season.officialRankCount14a', { n: allList.length })}
+                  {t('season.officialRankCount14a', { n: displayList.length })}
                 </span>
                 <div style={{ flex: '1 1 0%' }} />
                 <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
@@ -919,7 +1053,11 @@ export default function CareerEloTab({
               )}
 
               {/* Danh sách thành viên (Mobile Simple & Desktop) */}
-              {displayList.map((player) => {
+              {displayList.length === 0 ? (
+                <div style={{ padding: '36px 16px', textAlign: 'center', font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                  {t('season.emptyGenderList')}
+                </div>
+              ) : displayList.map((player) => {
                 const isRank1 = player.rank === 1
                 const rankColor = isRank1
                   ? '#D97706'
