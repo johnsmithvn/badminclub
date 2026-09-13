@@ -48,6 +48,11 @@ export default function Matches() {
   const isMobile = useMobile(900)
   const [searchParams, setSearchParams] = useSearchParams()
 
+  const myMem = myMember(db)
+  const myId = myMem?.id || null
+  const role = db.viewAs || myMem?.role || 'member'
+  const isAdmin = role === 'owner' || role === 'treasurer'
+
   const tabParam = searchParams.get('tab')
   const initialTab = (tabParam === 'history' || tabParam === 'matrix' || tabParam === 'challenges')
     ? tabParam
@@ -114,11 +119,6 @@ export default function Matches() {
 
   // Ma trận H2H
   const [matrixMemberLimit, setMatrixMemberLimit] = useState(() => (isMobile ? 5 : 8))
-
-  const myMem = myMember(db)
-  const myId = myMem?.id || null
-  const role = db.viewAs || myMem?.role || 'member'
-  const isAdmin = role === 'owner' || role === 'treasurer'
 
   const activeMembers = useMemo(() => {
     return (db.members || []).filter((m) => m.active !== false)
@@ -984,18 +984,20 @@ export default function Matches() {
                 <div style={S.cardTitle}>{t('matchSearch.neverMet')}</div>
               </div>
               <div style={{ padding: '8px 12px', display: 'grid', gap: 8 }}>
-                {neverMetSuggestions.slice(0, 5).map((item) => (
-                  <div key={`${item.p1.id}:${item.p2.id}`} style={S.suggestionRow}>
+                {neverMetSuggestions.slice(0, 5).map((item, idx) => (
+                  <div key={item.p1?.id && item.p2?.id ? `${item.p1.id}:${item.p2.id}` : idx} style={S.suggestionRow}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={S.suggestionNames}>{item.p1.name} · {item.p2.name}</div>
-                      <div style={S.metaText}>{t('matchSearch.commonSessions', { count: item.commonSessions })}</div>
+                      <div style={S.suggestionNames}>{item.p1?.name || item.p1?.id} · {item.p2?.name || item.p2?.id}</div>
+                      <div style={S.metaText}>{t('matchSearch.commonSessions', { count: item.commonSessions || 0 })}</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
-                        setInitialTeamA([item.p1.id])
-                        setInitialTeamB([item.p2.id])
-                        setChallengeModalOpen(true)
+                        if (item.p1?.id && item.p2?.id) {
+                          setInitialTeamA([item.p1.id])
+                          setInitialTeamB([item.p2.id])
+                          setChallengeModalOpen(true)
+                        }
                       }}
                       style={S.smallPrimaryBtn}
                     >
@@ -1014,18 +1016,20 @@ export default function Matches() {
               <div style={{ padding: '8px 12px', display: 'grid', gap: 8 }}>
                 {disparatePairsList.map((item, idx) => (
                   <div
-                    key={idx}
+                    key={item.player1?.id && item.player2?.id ? `${item.player1.id}:${item.player2.id}` : idx}
                     onClick={() => {
-                      setPlayerA(item.player1.id)
-                      setPlayerB(item.player2.id)
-                      setSearchMode('vs')
-                      handleSelectTab('history')
+                      if (item.player1?.id && item.player2?.id) {
+                        setPlayerA(item.player1.id)
+                        setPlayerB(item.player2.id)
+                        setSearchMode('vs')
+                        handleSelectTab('history')
+                      }
                     }}
                     style={{ ...S.suggestionRow, cursor: 'pointer' }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={S.suggestionNames}>
-                        {t('matchSearch.cardH2HTitle', { nameA: item.player1.name, nameB: item.player2.name })}
+                        {t('matchSearch.cardH2HTitle', { nameA: item.player1?.name || item.player1?.id, nameB: item.player2?.name || item.player2?.id })}
                       </div>
                       <div style={S.metaText}>{item.total} {t('units.match')}</div>
                     </div>

@@ -426,12 +426,17 @@ export default function Leaderboard() {
       {activeTab === 'elo' && (
         <CareerEloTab
           db={db}
+          members={activeMembers}
           activeMembers={activeMembers}
+          playerRatings={db.playerRatings}
+          matches={db.matches || []}
+          levels={db.levels}
           genderFilter={genderFilter}
           onGenderFilterChange={setGenderFilter}
           rankTheme={rankTheme}
           onSelectTheme={(themeKey) => setRankTheme(themeKey)}
           onSelectMember={(m) => setSelectedMemberId(m.id || m)}
+          onOpenEffectiveStrengthModal={(player) => setEffectiveStrengthPlayer(player)}
           onOpenEffectiveStrength={(player) => setEffectiveStrengthPlayer(player)}
           onOpenLedger={(m) => setLedgerMemberId(m?.id || m)}
           isMobile={isMobile}

@@ -55,17 +55,43 @@ function SingleBadgeSlot({ badge, size = 18 }) {
 
 export default function CareerEloTab({
   db,
-  members = [],
-  playerRatings = {},
-  matches = [],
-  levels = {},
+  members,
+  activeMembers,
+  playerRatings,
+  matches,
+  levels,
   _onOpenEffectiveStrengthModal,
+  onOpenEffectiveStrengthModal,
+  onOpenEffectiveStrength,
   onSelectMember,
   isMobile = false,
   genderFilter = 'all',
   onGenderFilterChange,
+  rankTheme,
+  onSelectTheme,
 }) {
   const { isDark, isGlamorous } = useTheme()
+
+  const actualMembers = useMemo(() => {
+    if (Array.isArray(members) && members.length > 0) return members
+    if (Array.isArray(activeMembers) && activeMembers.length > 0) return activeMembers
+    return (db?.members || []).filter((m) => m.active !== false)
+  }, [members, activeMembers, db?.members])
+
+  const actualPlayerRatings = useMemo(() => {
+    if (playerRatings && Object.keys(playerRatings).length > 0) return playerRatings
+    return db?.playerRatings || {}
+  }, [playerRatings, db?.playerRatings])
+
+  const actualMatches = useMemo(() => {
+    if (Array.isArray(matches) && matches.length > 0) return matches
+    return db?.matches || []
+  }, [matches, db?.matches])
+
+  const actualLevels = useMemo(() => {
+    if (levels && Object.keys(levels).length > 0) return levels
+    return db?.levels || {}
+  }, [levels, db?.levels])
 
   const myMember = useMemo(() => {
     if (!db || !db.currentUserId) return null
@@ -80,8 +106,8 @@ export default function CareerEloTab({
     const preloadedMatches = db ? (seasonMatchesOf(db) || []) : []
     const preloadedClubStats = db ? computeClubBadgeStats(db, null, preloadedMatches) : null
 
-    const list = (members || []).map((m) => {
-      const pr = getPlayerRating(playerRatings, m.id, m, levels)
+    const list = (actualMembers || []).map((m) => {
+      const pr = getPlayerRating(actualPlayerRatings, m.id, m, actualLevels)
       const gamesCount = pr.gamesCount || 0
       const rating = pr.rating ?? DEFAULT_RATING
       const prov = isProvisional(gamesCount)
@@ -92,7 +118,7 @@ export default function CareerEloTab({
       let losses = 0
       let delta30Days = 0
 
-      matches.forEach((mt) => {
+      actualMatches.forEach((mt) => {
         const teamA = mt.teamA || (mt.playerKeys ? mt.playerKeys.slice(0, 2) : [])
         const teamB = mt.teamB || (mt.playerKeys ? mt.playerKeys.slice(2, 4) : [])
         const inA = teamA.includes(m.id)
@@ -207,7 +233,7 @@ export default function CareerEloTab({
       medianElo: med,
       middleRangePct: rangePct,
     }
-  }, [members, playerRatings, matches, levels, isDark, db])
+  }, [actualMembers, actualPlayerRatings, actualMatches, actualLevels, isDark, db])
 
   const totalCount = allList.length
   const maleCount = useMemo(() => allList.filter((p) => (p.gender || 'nam') === 'nam').length, [allList])

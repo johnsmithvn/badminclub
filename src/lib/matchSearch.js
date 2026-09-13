@@ -164,7 +164,11 @@ export function topDisparatePairs(matrix, members, limit = 5) {
 export function neverMetWithSessionCount(neverMetList, { sessions = [], attendance = {}, matches = [] } = {}, limit = 10) {
   if (!neverMetList || !neverMetList.length) return []
 
-  const scoredPairs = neverMetList.map(([id1, id2]) => {
+  const scoredPairs = neverMetList.map((item) => {
+    const id1 = Array.isArray(item) ? item[0] : (item?.p1 || item?.id1)
+    const id2 = Array.isArray(item) ? item[1] : (item?.p2 || item?.id2)
+    if (!id1 || !id2) return null
+
     let commonSessionsCount = 0
 
     sessions.forEach((s) => {
@@ -195,7 +199,7 @@ export function neverMetWithSessionCount(neverMetList, { sessions = [], attendan
       p2: id2,
       commonSessionsCount,
     }
-  })
+  }).filter(Boolean)
 
   // Sắp xếp các cặp cùng đi nhiều buổi nhất lên trước
   return scoredPairs

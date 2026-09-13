@@ -79,7 +79,7 @@
     "wholeTable": "Toàn bảng",
     "wholeTableCount": "{{n}} thành viên",
     "sessionsRemainingChip": "còn {{n}} buổi",
-    "topEloTitle14a": "Tốp đẳng cấp",
+    "topEloTitle14a": "Top 3 Elo",
     "topEloSubtitle14a": "ba Elo cao nhất · cập nhật sau mỗi buổi",
     "singleHighestBadgeLegend14a": "chỉ 1 ô huy hiệu bậc cao nhất",
     "officialRankCount14a": "Bảng Elo · {{n}} người",
@@ -259,7 +259,7 @@
     "applyPlanBtn": "Xếp {{plan}} vào sân",
     "headerAssignMeta": "{{players}} người chờ · {{courts}} sân · máy đã dò {{candidates}} phương án trong {{ms}}ms",
     "raceTab": "Đua Top Mùa Giải",
-    "careerEloTab": "Bảng Đẳng Cấp Elo",
+    "careerEloTab": "Elo Cá Nhân",
     "noMatchesInSeason": "Chưa có trận đấu nào trong mùa này.",
     "medianLabel": "trung vị",
     "sessionN": "buổi {{n}}",
@@ -401,7 +401,7 @@
     },
     "leaderboard": {
       "title": "Bảng xếp hạng",
-      "desc": "Đua top mùa giải, đẳng cấp Elo và cặp đôi ăn ý"
+      "desc": "Đua top mùa giải, Elo cá nhân và cặp đôi ăn ý"
     },
     "schedules": {
       "title": "Lịch tập cố định",
