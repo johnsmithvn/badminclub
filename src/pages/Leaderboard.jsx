@@ -15,6 +15,7 @@ import MemberProfileTab from '#components/profile/MemberProfileTab.jsx'
 import SeasonRaceTab from '#components/leaderboard/SeasonRaceTab.jsx'
 import CareerEloTab from '#components/leaderboard/CareerEloTab.jsx'
 import PairsTab from '#components/leaderboard/PairsTab.jsx'
+import PairH2HTab from '#components/leaderboard/PairH2HTab.jsx'
 import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerModal.jsx'
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
 import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
@@ -28,12 +29,12 @@ export default function Leaderboard() {
   const isMobile = useMobile(900)
 
   const tabParam = searchParams.get('tab')
-  const initialTab = (tabParam === 'elo' || tabParam === 'pairs') ? tabParam : 'season'
-  const [activeTab, setActiveTab] = useState(initialTab) // 'season' | 'elo' | 'pairs'
+  const initialTab = (tabParam === 'elo' || tabParam === 'pairs' || tabParam === 'h2h') ? tabParam : 'season'
+  const [activeTab, setActiveTab] = useState(initialTab) // 'season' | 'elo' | 'pairs' | 'h2h'
   const [genderFilter, setGenderFilter] = useState('all') // 'all' | 'nam' | 'nu'
   const [rankTheme, setRankTheme] = useState(DEFAULT_RANK_THEME)
 
-  // Redirect các tab cũ (lịch sử, đối đầu, ma trận, kèo) sang màn hình Trận đấu & Kèo (/tran-dau)
+  // Redirect các tab cũ (lịch sử, ma trận, kèo) sang màn hình Trận đấu & Kèo (/tran-dau)
   useEffect(() => {
     if (tabParam === 'search' || tabParam === 'history') {
       const pA = searchParams.get('playerA') || ''
@@ -41,8 +42,6 @@ export default function Leaderboard() {
       navigate(`/tran-dau?tab=history&playerA=${pA}&playerB=${pB}`, { replace: true })
     } else if (tabParam === 'matrix') {
       navigate('/tran-dau?tab=matrix', { replace: true })
-    } else if (tabParam === 'h2h') {
-      navigate('/tran-dau?tab=history', { replace: true })
     } else if (tabParam === 'challenges') {
       navigate('/tran-dau?tab=challenges', { replace: true })
     }
@@ -181,7 +180,9 @@ export default function Leaderboard() {
     ? t('season.headerSub')
     : activeTab === 'elo'
       ? t('season.eloHeaderSub')
-      : t('leaderboard.sub')
+      : activeTab === 'h2h'
+        ? t('leaderboard.tabH2H')
+        : t('leaderboard.sub')
 
   const headerActionButtons = (
     <>
@@ -421,6 +422,18 @@ export default function Leaderboard() {
           >
             {t('leaderboard.tabPairs')}
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('h2h')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'h2h'
+                ? { ...S.tabBtnActive, background: '#7C3AED', color: '#fff', fontWeight: 700 }
+                : {}),
+            }}
+          >
+            {t('leaderboard.tabH2H')}
+          </button>
         </div>
       </TabTrack>
 
@@ -469,6 +482,16 @@ export default function Leaderboard() {
             setInitialTeamB([p2])
             setChallengeModalOpen(true)
           }}
+        />
+      )}
+
+      {/* ---------------- TAB 4: Đối đầu Cặp đôi (Screen H2H) ---------------- */}
+      {activeTab === 'h2h' && (
+        <PairH2HTab
+          db={db}
+          matches={db.matches || []}
+          membersMap={memberMap}
+          ratingsMap={normalizedRatingsMap}
         />
       )}
 
