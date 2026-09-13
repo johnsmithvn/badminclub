@@ -4,7 +4,6 @@ import {
   parseVideoProvider,
   buildPlayableVideoUrl,
   buildEmbedVideoUrl,
-  formatVideoDisplayLabel,
 } from '#utils/videoUtils.js'
 import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
@@ -28,6 +27,7 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
   const isMobile = useMobile()
   const [editingVideo, setEditingVideo] = useState(false)
   const [showViewersList, setShowViewersList] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   // Lấy match trực tiếp từ db để đồng bộ tức thời khi sửa hoặc tăng view
   const liveMatch = (db.matches || []).find((m) => m.id === match?.id) || match
@@ -53,7 +53,6 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
   const provider = parseVideoProvider(videoUrl)
   const embedUrl = buildEmbedVideoUrl(videoUrl, timestamp)
   const playUrl = buildPlayableVideoUrl(videoUrl, timestamp)
-  const displayLabel = formatVideoDisplayLabel(videoUrl, timestamp)
 
   const providerLabel = provider === 'youtube'
     ? 'YouTube'
@@ -64,7 +63,44 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
         : 'Video'
 
   const codeStr = matchCode || liveMatch.code || (liveMatch.id ? `M-${String(liveMatch.id).slice(-4)}` : '')
-  const title = t('matchVideo.playerModalTitle', { code: codeStr })
+
+  const handleCopyLink = async () => {
+    try {
+      const targetUrl = playUrl || videoUrl
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(targetUrl)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }
+    } catch {
+      // clipboard fallback
+    }
+  }
+
+  const titleNode = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <span>{t('matchVideo.playerModalTitle', { code: codeStr })}</span>
+      {timestamp && (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '3px 10px',
+            borderRadius: 999,
+            background: 'rgba(0, 178, 169, 0.16)',
+            border: '1px solid var(--teal-500)',
+            color: 'var(--teal-400, #5FDBD3)',
+            font: "600 12px/1 'IBM Plex Mono', monospace",
+            boxShadow: '0 0 10px rgba(0, 178, 169, 0.22)',
+          }}
+        >
+          <span>⏱</span>
+          <span>{t('matchVideo.fieldTimestamp')}: <strong>{timestamp}</strong></span>
+        </span>
+      )}
+    </div>
+  )
 
   const views = Number(liveMatch.videoViews || 0)
   const viewers = liveMatch.videoViewers || {}
@@ -75,8 +111,7 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
       <Dialog
         open
         onClose={onClose}
-        title={title}
-        description={displayLabel}
+        title={titleNode}
         width={780}
         sheet={isMobile}
         footer={
@@ -122,17 +157,11 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
                 }}
               >
                 <Icon name="eye" size={13} style={{ opacity: 0.8 }} />
-                <span>{views} {t('matchVideo.viewsShort')}</span>
+                <span>{t('matchVideo.viewsCount', { n: views })}</span>
                 {isAdmin && viewerEntries.length > 0 && (
                   <Icon name={showViewersList ? 'chevron-up' : 'chevron-down'} size={12} style={{ color: 'var(--text-muted)' }} />
                 )}
               </button>
-
-              {timestamp && (
-                <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                  ⏱ {t('matchVideo.fieldTimestamp')}: <strong style={{ color: 'var(--text-primary)' }}>{timestamp}</strong>
-                </span>
-              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -147,29 +176,54 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
                 <span>{t('matchVideo.editVideo')}</span>
               </Button>
 
+              {/* Nút icon sao chép link */}
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                title={copied ? t('matchVideo.copiedLink') : t('matchVideo.copyLink')}
+                aria-label={t('matchVideo.copyLink')}
+                style={{
+                  width: 32,
+                  height: 32,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 'var(--radius-control)',
+                  background: copied ? 'rgba(0, 178, 169, 0.18)' : 'var(--surface-raised)',
+                  border: copied ? '1px solid var(--teal-500)' : '1px solid var(--border-default)',
+                  color: copied ? 'var(--teal-500)' : 'var(--text-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name={copied ? 'check' : 'copy'} size={15} />
+              </button>
+
+              {/* Nút icon mở trang gốc (redirect icon) */}
               <a
                 href={playUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                title={t('matchVideo.openExternal')}
+                aria-label={t('matchVideo.openExternal')}
                 style={{
+                  width: 32,
                   height: 32,
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 6,
-                  padding: '0 12px',
+                  justifyContent: 'center',
                   borderRadius: 'var(--radius-control)',
                   background: 'var(--surface-raised)',
                   border: '1px solid var(--border-default)',
                   color: 'var(--text-primary)',
-                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
                   textDecoration: 'none',
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
-                title={playUrl}
               >
-                <Icon name="arrow-up-right" size={13} />
-                <span>{t('matchVideo.openExternal')}</span>
+                <Icon name="arrow-up-right" size={15} />
               </a>
+
               <Button variant="ghost" size="sm" onClick={onClose}>
                 {t('common.close')}
               </Button>
@@ -325,7 +379,7 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
                       >
                         <span style={{ color: 'var(--text-secondary)' }}>{name}</span>
                         <span style={{ font: "600 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
-                          {count} {t('matchVideo.viewsShort')}
+                          {t('matchVideo.viewsCount', { n: count })}
                         </span>
                       </div>
                     )
