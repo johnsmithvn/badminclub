@@ -193,6 +193,16 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     assert.equal(ledger.breakdown.matchNetPts, 14)
     assert.ok(Array.isArray(ledger.recentEvents))
     assert.ok(ledger.recentEvents.length > 0)
+    assert.equal(ledger.recentEvents[0].isChallenge, false)
+    assert.equal(ledger.recentEvents[0].scoreText, '21–15')
+    assert.equal(ledger.recentEvents[0].oppNamesStr, 'Đặng Tuấn')
+
+    // Kiểm tra góc nhìn VĐV đội B (m2): thua 15–21 trước Phạm Anh Tú
+    const ledgerM2 = getMemberSeasonLedger('m2', mockDb)
+    assert.ok(ledgerM2)
+    assert.equal(ledgerM2.recentEvents[0].type, 'loss')
+    assert.equal(ledgerM2.recentEvents[0].scoreText, '15–21')
+    assert.equal(ledgerM2.recentEvents[0].oppNamesStr, 'Phạm Anh Tú')
   })
 
   await t.test('6. courtDetails mapping preserves player names and effectiveStrength without empty fallback', () => {

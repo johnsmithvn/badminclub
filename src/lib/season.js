@@ -296,6 +296,8 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
 
         myMatches.push({
           ...mt,
+          teamA,
+          teamB,
           inA,
           won,
           myElo,
@@ -486,12 +488,30 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
 
   // Trả về KEY + tham số, không dựng sẵn câu chữ — cùng pattern với getMemberXpLedger ở trên.
   // lib/ là hàm thuần, câu chữ do component render bằng t() (RULES §3.1).
+  const membersById = new Map((db.members || []).map((mb) => [mb.id, mb]))
+  const memberNameOf = (id) => membersById.get(id)?.name || id
+
   const events = recentLogs.map((m) => {
     // Giờ thật của trận, giờ địa phương. Nhánh cũ đọc `m.createdAt` (không tồn tại trên
     // trận lấy từ Supabase) nên luôn rơi vào chuỗi bịa `19:${20 + idx*20}` — từ dòng thứ 3
     // trở đi in ra "19:60", "19:80", "19:100"… là giờ không có thật.
     const timeStr = m.at ? new Date(m.at).toTimeString().slice(0, 5) : ''
-    const scoreStr = (m.sets || []).map((s) => `${s[0]}–${s[1]}`).join(', ') || ''
+
+    // Tỷ số tính theo góc nhìn người chơi (mình trước, đối thủ sau)
+    const scoreStr = (m.sets || []).map((s) => {
+      const myPts = m.inA ? s[0] : s[1]
+      const oppPts = m.inA ? s[1] : s[0]
+      return `${myPts}–${oppPts}`
+    }).join(', ') || ''
+
+    const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
+    const myTeamIds = m.inA ? (m.teamA || []) : (m.teamB || [])
+    const oppTeamIds = m.inA ? (m.teamB || []) : (m.teamA || [])
+    const partnerId = myTeamIds.find((id) => id !== memberId)
+    const partnerName = partnerId ? memberNameOf(partnerId) : null
+    const oppNames = oppTeamIds.map(memberNameOf)
+    const oppNamesStr = oppNames.join(', ')
+
     const gapStr = m.gap >= 0 ? `+${m.gap}` : `${m.gap}`
     const sign = m.effectiveChange > 0 ? `+${m.effectiveChange}` : `${m.effectiveChange}`
 
@@ -509,6 +529,9 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
       isUpset: Boolean(m.earnedUpsetBonus),
       gap: m.gap,
       tier: m.tier,
+      isChallenge,
+      partnerName,
+      oppNamesStr,
     }
   })
 

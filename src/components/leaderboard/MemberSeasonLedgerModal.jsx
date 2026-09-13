@@ -129,8 +129,7 @@ export default function MemberSeasonLedgerModal({
               <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+{latestSessionPts}</span> {t('season.latestSession')}
               {rank > 1 && (
                 <>
-                  {' '}· {t('season.distanceToNext')} {rank - 1}{' '}
-                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary)', fontWeight: 600 }}>{ptsToNextRank}</span>
+                  {' '}· {t('season.distanceToNext', { rank: rank - 1, pts: ptsToNextRank })}
                 </>
               )}
             </div>
@@ -230,12 +229,11 @@ export default function MemberSeasonLedgerModal({
                   <div
                     key={i}
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: '70px minmax(0,1fr) 56px',
-                      gap: 10,
-                      alignItems: 'center',
-                      padding: '8px 10px',
-                      borderRadius: 7,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      padding: '9px 12px',
+                      borderRadius: 8,
                       background: ev.isUpset
                         ? (isDark ? 'rgba(201,162,39,.12)' : 'rgba(245,158,11,.10)')
                         : 'var(--surface-inset)',
@@ -243,34 +241,133 @@ export default function MemberSeasonLedgerModal({
                       font: "400 12px/1.3 'IBM Plex Sans', sans-serif",
                     }}
                   >
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: ev.isUpset ? (isDark ? '#F0D26A' : '#92400E') : 'var(--text-muted)' }}>
-                      {ev.time}
-                    </span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {t(ev.titleKey, { score: ev.scoreText, gap: ev.gapText })}
-                      {ev.streakBonus > 0 && (
-                        <span style={{ marginLeft: 6, color: isDark ? '#5FDBD3' : '#0D9488', fontWeight: 600 }}>
-                          {t('season.ledgerStreakBonus', { pts: ev.streakBonus })}
+                    {/* Hàng 1: Thời gian · Tag Trận/Kèo · Highlight Pill Elo Gap · Điểm số +/- */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: ev.isUpset ? (isDark ? '#F0D26A' : '#92400E') : 'var(--text-muted)' }}>
+                          {ev.time}
                         </span>
-                      )}
-                      {ev.upsetBonus > 0 && (
-                        <span style={{ marginLeft: 6, color: isDark ? '#F0D26A' : '#B45309', fontWeight: 600 }}>
-                          {t('season.ledgerUpsetBonus', { pts: ev.upsetBonus })}
+
+                        {/* Tag Trận vs Kèo */}
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                            background: ev.isChallenge
+                              ? (isDark ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.12)')
+                              : (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(14, 165, 233, 0.12)'),
+                            color: ev.isChallenge ? (isDark ? '#FB923C' : '#EA580C') : (isDark ? '#38BDF8' : '#0284C7'),
+                            border: ev.isChallenge
+                              ? '1px solid rgba(249, 115, 22, 0.35)'
+                              : '1px solid rgba(56, 189, 248, 0.25)',
+                          }}
+                        >
+                          {ev.isChallenge ? t('season.tagChallenge') : t('season.tagMatch')}
                         </span>
+
+                        {/* Highlight Pill Elo Gap */}
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            font: "600 11px/1 'IBM Plex Mono', monospace",
+                            background: ev.gap > 0
+                              ? (isDark ? 'rgba(0, 178, 169, 0.16)' : 'rgba(13, 148, 136, 0.12)')
+                              : ev.gap < 0
+                                ? (isDark ? 'rgba(225, 68, 52, 0.16)' : 'rgba(220, 38, 38, 0.12)')
+                                : 'rgba(148, 163, 184, 0.12)',
+                            color: ev.gap > 0
+                              ? (isDark ? '#5FDBD3' : '#0F766E')
+                              : ev.gap < 0
+                                ? (isDark ? '#FF9A8F' : '#DC2626')
+                                : 'var(--text-muted)',
+                            border: ev.gap > 0
+                              ? '1px solid rgba(0, 178, 169, 0.32)'
+                              : ev.gap < 0
+                                ? '1px solid rgba(225, 68, 52, 0.32)'
+                                : '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          {t('season.eloGapPill', { gap: ev.gapText })}
+                        </span>
+
+                        {ev.streakBonus > 0 && (
+                          <span
+                            style={{
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                              background: isDark ? 'rgba(95, 219, 211, 0.2)' : 'rgba(13, 148, 136, 0.15)',
+                              color: isDark ? '#5FDBD3' : '#0D9488',
+                            }}
+                          >
+                            {t('season.ledgerStreakBonus', { pts: ev.streakBonus })}
+                          </span>
+                        )}
+
+                        {ev.upsetBonus > 0 && (
+                          <span
+                            style={{
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                              background: isDark ? 'rgba(201, 162, 39, 0.25)' : 'rgba(217, 119, 6, 0.18)',
+                              color: isDark ? '#F0D26A' : '#B45309',
+                            }}
+                          >
+                            {t('season.ledgerUpsetBonus', { pts: ev.upsetBonus })}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Season Points Delta */}
+                      <span
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: 14,
+                          color: ev.isUpset
+                            ? (isDark ? '#F0D26A' : '#B45309')
+                            : (ev.numPts > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : (ev.numPts < 0 ? (isDark ? '#F87171' : '#DC2626') : 'var(--text-muted)')),
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {ev.pts}
+                      </span>
+                    </div>
+
+                    {/* Hàng 2: Kết quả & Tỷ số + Ai với ai */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12 }}>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          color: ev.type === 'win'
+                            ? (isDark ? '#5FDBD3' : '#0D9488')
+                            : (isDark ? '#F87171' : '#DC2626'),
+                        }}
+                      >
+                        {ev.type === 'win'
+                          ? (ev.scoreText ? t('season.winScore', { score: ev.scoreText }) : t('season.matchWin'))
+                          : (ev.scoreText ? t('season.lossScore', { score: ev.scoreText }) : t('season.matchLoss'))}
+                      </span>
+
+                      {(ev.oppNamesStr || ev.partnerName) && (
+                        <>
+                          <span style={{ color: 'var(--text-muted)' }}>·</span>
+                          <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {ev.partnerName
+                              ? t('season.matchWithPartnerVs', { partner: ev.partnerName, opponents: ev.oppNamesStr })
+                              : t('season.matchVsOpponents', { opponents: ev.oppNamesStr })}
+                          </span>
+                        </>
                       )}
-                    </span>
-                    <span
-                      style={{
-                        textAlign: 'right',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        color: ev.isUpset
-                          ? (isDark ? '#F0D26A' : '#B45309')
-                          : (ev.numPts > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : (isDark ? '#F87171' : '#DC2626')),
-                        fontWeight: 600,
-                      }}
-                    >
-                      {ev.pts}
-                    </span>
+                    </div>
                   </div>
                 ))
               ) : (
