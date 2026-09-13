@@ -13,6 +13,7 @@ import {
 } from '#lib/rating.js'
 import { calcSeasonMatchDelta } from '#lib/season.js'
 import { dd } from '#utils/dates.js'
+import { buildPlayableVideoUrl, parseVideoProvider } from '#utils/videoUtils.js'
 import { t } from '#i18n'
 
 export default function MatchDetailModal({ match, onClose, onEdit }) {
@@ -43,6 +44,11 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   const ra = match?.initialRatingA || 0
   const rb = match?.initialRatingB || 0
   const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
+
+  const hasVideo = Boolean(match?.videoUrl)
+  const videoPlayUrl = hasVideo ? buildPlayableVideoUrl(match.videoUrl, match.videoTimestamp) : null
+  const vProvider = hasVideo ? parseVideoProvider(match.videoUrl) : null
+  const videoProviderLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Google Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
 
   // Rating từng người
   const ratingOf = (id) => (id ? getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels).rating : DEFAULT_RATING)
@@ -311,6 +317,73 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
               </div>
             </div>
           </div>
+
+          {/* Banner Video trận đấu nếu có */}
+          {hasVideo && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '11px 14px',
+                borderRadius: 8,
+                background: 'rgba(225,68,52,.09)',
+                border: '1px solid rgba(225,68,52,.35)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: 'rgba(225,68,52,.20)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FF9A8F',
+                    fontSize: 12,
+                    flexShrink: 0,
+                  }}
+                >
+                  ▶
+                </div>
+                <div style={{ minWidth: 0, display: 'grid', gap: 2 }}>
+                  <div style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#FFB0A5' }}>
+                    {videoProviderLabel} {match.videoTimestamp ? `· ${match.videoTimestamp}` : ''}
+                  </div>
+                  <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {match.videoNote || match.videoUrl}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (videoPlayUrl) window.open(videoPlayUrl, '_blank')
+                }}
+                style={{
+                  height: 30,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '0 12px',
+                  borderRadius: 6,
+                  background: '#E14434',
+                  border: 'none',
+                  font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  boxShadow: '0 2px 6px rgba(225,68,52,.35)',
+                }}
+              >
+                <span>{t('matchVideo.btnWatch')}</span>
+                <span style={{ fontSize: 11 }}>↗</span>
+              </button>
+            </div>
+          )}
 
           {/* Banner Biên Thắng Làm Mềm Softened MOV */}
           <div
@@ -644,6 +717,17 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
             <Button variant="ghost" onClick={onClose}>
               {t('matchDetail.btnClose')}
             </Button>
+            {hasVideo && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (videoPlayUrl) window.open(videoPlayUrl, '_blank')
+                }}
+              >
+                <span style={{ fontSize: 11 }}>▶</span>
+                <span>{t('matchVideo.btnWatch')}</span>
+              </Button>
+            )}
             {onEdit && (
               <Button
                 variant="primary"

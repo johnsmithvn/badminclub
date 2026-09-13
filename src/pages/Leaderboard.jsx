@@ -2001,15 +2001,14 @@ export default function Leaderboard() {
                             {/* Cột 9: Video */}
                             <div style={{ padding: '0 6px', display: 'flex', justifyContent: 'center' }}>
                               {hasVideo ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const playUrl = buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)
-                                    if (playUrl) window.open(playUrl, '_blank')
-                                  }}
+                                <a
+                                  href={buildPlayableVideoUrl(m.videoUrl, m.videoTimestamp)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{
                                     height: 24,
-                                    display: 'flex',
+                                    display: 'inline-flex',
                                     alignItems: 'center',
                                     gap: 5,
                                     padding: '0 9px',
@@ -2019,13 +2018,14 @@ export default function Leaderboard() {
                                     font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
                                     color: '#FF9A8F',
                                     cursor: 'pointer',
+                                    textDecoration: 'none',
                                     whiteSpace: 'nowrap',
                                   }}
                                   title={m.videoUrl}
                                 >
                                   <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace" }}>▶</span>
                                   <span>{videoTagLabel}</span>
-                                </button>
+                                </a>
                               ) : (
                                 <button
                                   type="button"

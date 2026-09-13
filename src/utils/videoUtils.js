@@ -74,7 +74,11 @@ export function parseTimestampToSeconds(ts) {
  */
 export function buildPlayableVideoUrl(url, timestamp = '') {
   if (!url || typeof url !== 'string') return ''
-  const trimmed = url.trim()
+  let trimmed = url.trim()
+  if (!trimmed) return ''
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`
+  }
   const provider = parseVideoProvider(trimmed)
   const seconds = parseTimestampToSeconds(timestamp)
 

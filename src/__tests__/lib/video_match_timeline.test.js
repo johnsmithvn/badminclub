@@ -48,6 +48,11 @@ assert.equal(
   'https://drive.google.com/file/d/123/view',
   'drive giữ nguyên URL'
 )
+assert.equal(
+  buildPlayableVideoUrl('youtu.be/8kQz1Rw_29k', '01:15'),
+  'https://youtu.be/8kQz1Rw_29k?t=75',
+  'tự động thêm https:// khi thiếu protocol'
+)
 
 /* 4. formatVideoDisplayLabel: rút gọn link hiển thị đẹp mắt */
 assert.equal(
