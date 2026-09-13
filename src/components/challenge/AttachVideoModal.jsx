@@ -1,10 +1,366 @@
-import { useState } from 'react'
-import { Button, Dialog } from '#ds'
+import { useState, useEffect } from 'react'
+import { Button, Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { playerName } from '#lib/money.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
-import { parseVideoProvider } from '#utils/videoUtils.js'
+import {
+  parseVideoProvider,
+  parseSecondsToParts,
+  formatPartsToTimestamp,
+  addSecondsToTimestamp,
+} from '#utils/videoUtils.js'
+
+export function TimePickerSheet({ open, onClose, value, onSelect, isMobile }) {
+  const [currentVal, setCurrentVal] = useState(value || '00:00')
+
+  useEffect(() => {
+    setCurrentVal(value || '00:00')
+  }, [value, open])
+
+  const parts = parseSecondsToParts(currentVal)
+
+  const handleApply = () => {
+    onSelect(currentVal)
+    onClose()
+  }
+
+  const handleReset = () => {
+    setCurrentVal('00:00')
+  }
+
+  const handlePreset = (presetTs) => {
+    setCurrentVal(presetTs)
+  }
+
+  const handleAdjustMinutes = (deltaMins) => {
+    setCurrentVal((prev) => addSecondsToTimestamp(prev, deltaMins * 60))
+  }
+
+  const PRESETS = [
+    '00:00',
+    '05:00',
+    '10:00',
+    '15:00',
+    '20:00',
+    '25:00',
+    '30:00',
+    '40:00',
+    '50:00',
+    '1:00:00',
+    '1:15:00',
+    '1:30:00',
+  ]
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      sheet={isMobile}
+      width={390}
+      zIndex={75}
+      title={t('matchVideo.timePickerTitle')}
+      footer={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+          <button
+            type="button"
+            onClick={handleReset}
+            style={{
+              height: 40,
+              padding: '0 14px',
+              borderRadius: 8,
+              background: 'var(--surface-raised, #101927)',
+              border: '1px solid var(--border-default, #2E3E5C)',
+              font: "500 12.5px/1 'IBM Plex Sans', sans-serif",
+              color: 'var(--text-secondary, #A8B7CB)',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            <Icon name="rotate-ccw" size={13} />
+            <span>{t('matchVideo.timePickerReset')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            style={{
+              height: 40,
+              padding: '0 20px',
+              borderRadius: 8,
+              background: 'var(--teal-500, #00B2A9)',
+              border: 'none',
+              font: "600 13.5px/1 'IBM Plex Sans', sans-serif",
+              color: '#04302C',
+              cursor: 'pointer',
+            }}
+          >
+            {t('matchVideo.timePickerApply')}
+          </button>
+        </div>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '4px 0' }}>
+        {/* Màn hình số thời gian lớn */}
+        <div
+          style={{
+            background: 'var(--surface-sunken, #0E1726)',
+            border: '1px solid var(--border-subtle, #22304A)',
+            borderRadius: 10,
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+          }}
+        >
+          {parts.hours > 0 && (
+            <>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ font: "700 28px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500, #00B2A9)' }}>
+                  {parts.hours}
+                </div>
+                <div style={{ font: "500 10px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', marginTop: 4 }}>
+                  {t('matchVideo.unitHours')}
+                </div>
+              </div>
+              <span style={{ font: "700 24px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>:</span>
+            </>
+          )}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ font: "700 28px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500, #00B2A9)' }}>
+              {String(parts.minutes).padStart(2, '0')}
+            </div>
+            <div style={{ font: "500 10px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', marginTop: 4 }}>
+              {t('matchVideo.unitMinutes')}
+            </div>
+          </div>
+          <span style={{ font: "700 24px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>:</span>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ font: "700 28px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500, #00B2A9)' }}>
+              {String(parts.seconds).padStart(2, '0')}
+            </div>
+            <div style={{ font: "500 10px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', marginTop: 4 }}>
+              {t('matchVideo.unitSeconds')}
+            </div>
+          </div>
+        </div>
+
+        {/* Lưới mốc trận phổ biến */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            {t('matchVideo.commonMatchPresets')}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+            {PRESETS.map((ts) => {
+              const active = currentVal === ts
+              return (
+                <button
+                  key={ts}
+                  type="button"
+                  onClick={() => handlePreset(ts)}
+                  style={{
+                    height: 34,
+                    padding: '0 4px',
+                    borderRadius: 7,
+                    background: active ? 'rgba(0, 178, 169, 0.2)' : 'var(--surface-raised, #101927)',
+                    border: active ? '1px solid var(--teal-500, #00B2A9)' : '1px solid var(--border-default, #2E3E5C)',
+                    color: active ? 'var(--teal-500, #00B2A9)' : 'var(--text-secondary)',
+                    font: "600 12.5px/1 'IBM Plex Mono', monospace",
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {ts}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Bộ tăng giảm phút */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            {t('matchVideo.adjustMinutes')}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[-10, -5, -1, 1, 5, 10].map((m) => {
+              const label = m > 0 ? `+${m}′` : `${m}′`
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => handleAdjustMinutes(m)}
+                  style={{
+                    flex: 1,
+                    minWidth: 46,
+                    height: 34,
+                    borderRadius: 7,
+                    background: 'var(--surface-raised, #101927)',
+                    border: '1px solid var(--border-default, #2E3E5C)',
+                    color: m > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Chọn giây */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            {t('matchVideo.adjustSeconds')}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+            {[0, 15, 30, 45].map((s) => {
+              const active = parts.seconds === s
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => {
+                    const newTs = formatPartsToTimestamp({
+                      hours: parts.hours,
+                      minutes: parts.minutes,
+                      seconds: s,
+                    })
+                    setCurrentVal(newTs)
+                  }}
+                  style={{
+                    height: 34,
+                    borderRadius: 7,
+                    background: active ? 'rgba(0, 178, 169, 0.2)' : 'var(--surface-raised, #101927)',
+                    border: active ? '1px solid var(--teal-500, #00B2A9)' : '1px solid var(--border-default, #2E3E5C)',
+                    color: active ? 'var(--teal-500, #00B2A9)' : 'var(--text-secondary)',
+                    font: "600 12.5px/1 'IBM Plex Mono', monospace",
+                    cursor: 'pointer',
+                  }}
+                >
+                  {`:${String(s).padStart(2, '0')}`}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+export function QuickTimestampPicker({ value, onChange, isMobile, compact = false }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  const handleQuickAdd = (deltaSec) => {
+    onChange(addSecondsToTimestamp(value || '00:00', deltaSec))
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {/* Ô bấm chọn mở Picker */}
+      <button
+        type="button"
+        onClick={() => setPickerOpen(true)}
+        style={{
+          height: compact ? 36 : 46,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 10px',
+          borderRadius: compact ? 7 : 10,
+          background: 'var(--field-bg, #0E1726)',
+          border: '1px solid var(--border-default, #2E3E5C)',
+          cursor: 'pointer',
+          outline: 'none',
+          width: '100%',
+          boxSizing: 'border-box',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Icon name="clock" size={13} style={{ color: 'var(--teal-500, #00B2A9)' }} />
+          <span style={{ font: "600 13.5px/1 'IBM Plex Mono', monospace", color: value && value !== '00:00' ? '#5FDBD3' : 'var(--text-primary)' }}>
+            {value || '00:00'}
+          </span>
+        </div>
+        <Icon name="chevron-down" size={12} style={{ color: 'var(--text-muted)' }} />
+      </button>
+
+      {/* Dải chip tua nhanh 1 chạm */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => onChange('00:00')}
+          title={t('matchVideo.timePickerReset')}
+          style={{
+            height: 23,
+            padding: '0 6px',
+            borderRadius: 5,
+            background: 'var(--surface-raised, #101927)',
+            border: '1px solid var(--border-subtle, #22304A)',
+            font: "600 10.5px/1 'IBM Plex Mono', monospace",
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+          }}
+        >
+          00:00
+        </button>
+        {[60, 300, 600].map((delta) => {
+          const m = delta / 60
+          return (
+            <button
+              key={delta}
+              type="button"
+              onClick={() => handleQuickAdd(delta)}
+              style={{
+                height: 23,
+                padding: '0 6px',
+                borderRadius: 5,
+                background: 'rgba(0, 178, 169, 0.08)',
+                border: '1px solid rgba(0, 178, 169, 0.25)',
+                font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                color: 'var(--teal-500, #00B2A9)',
+                cursor: 'pointer',
+              }}
+            >
+              +{m}′
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          onClick={() => handleQuickAdd(30)}
+          style={{
+            height: 23,
+            padding: '0 6px',
+            borderRadius: 5,
+            background: 'rgba(0, 178, 169, 0.08)',
+            border: '1px solid rgba(0, 178, 169, 0.25)',
+            font: "600 11px/1 'IBM Plex Sans', sans-serif",
+            color: 'var(--teal-500, #00B2A9)',
+            cursor: 'pointer',
+          }}
+        >
+          +30s
+        </button>
+      </div>
+
+      {pickerOpen && (
+        <TimePickerSheet
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          value={value || '00:00'}
+          onSelect={onChange}
+          isMobile={isMobile}
+        />
+      )}
+    </div>
+  )
+}
 
 export function MatchVideoInlineExpander({
   match,
@@ -65,7 +421,7 @@ export function MatchVideoInlineExpander({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 130px 150px', gap: 10, alignItems: 'end' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 140px 150px', gap: 10, alignItems: 'end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ font: '600 10.5px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>{t('matchVideo.fieldUrl')}</span>
@@ -97,24 +453,7 @@ export function MatchVideoInlineExpander({
           <div style={{ font: '600 10.5px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             {t('matchVideo.fieldTimestamp')}
           </div>
-          <input
-            type="text"
-            value={timestamp}
-            onChange={(e) => setTimestamp(e.target.value)}
-            placeholder="00:00"
-            style={{
-              height: 36,
-              padding: '0 11px',
-              borderRadius: 7,
-              background: 'var(--field-bg)',
-              border: '1px solid var(--border-subtle)',
-              font: '400 12.5px/1 "IBM Plex Mono", monospace',
-              color: 'var(--text-primary)',
-              outline: 'none',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-          />
+          <QuickTimestampPicker value={timestamp} onChange={setTimestamp} isMobile={false} compact />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -409,40 +748,34 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
           <div style={{ font: "400 11.5px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted, #8494AA)' }}>
             {t('matchVideo.storageNotice')}
           </div>
+
+          {provider === 'drive' && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 6,
+                padding: '7px 10px',
+                borderRadius: 6,
+                background: 'rgba(224, 138, 0, 0.12)',
+                border: '1px solid rgba(224, 138, 0, 0.3)',
+                font: "500 11.5px/1.4 'IBM Plex Sans', sans-serif",
+                color: '#FFB84D',
+              }}
+            >
+              <Icon name="alert-circle" size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+              <span>{t('matchVideo.drivePermissionNotice')}</span>
+            </div>
+          )}
         </div>
 
         {/* Hàng 2 cột: Bắt đầu từ & Ghi chú */}
-        <div style={{ display: 'flex', gap: 9 }}>
-          <div style={{ width: 124, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ width: 140, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 7 }}>
             <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8494AA)' }}>
               {t('matchVideo.fieldTimestamp')}
             </div>
-            <div
-              style={{
-                height: 46,
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 12px',
-                borderRadius: 10,
-                background: 'var(--field-bg, #0E1726)',
-                border: '1px solid var(--border-default, #2E3E5C)',
-              }}
-            >
-              <input
-                type="text"
-                value={timestamp}
-                onChange={(e) => setTimestamp(e.target.value)}
-                placeholder="00:00"
-                style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  font: "400 13px/1 'IBM Plex Mono', monospace",
-                  color: 'var(--text-primary, #A8B7CB)',
-                }}
-              />
-            </div>
+            <QuickTimestampPicker value={timestamp} onChange={setTimestamp} isMobile={isMobile} />
           </div>
 
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>

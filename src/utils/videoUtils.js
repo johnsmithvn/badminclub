@@ -67,6 +67,64 @@ export function parseTimestampToSeconds(ts) {
 }
 
 /**
+ * Chuyển số giây hoặc chuỗi timestamp thành object { hours, minutes, seconds, totalSeconds }
+ * @param {string|number} ts
+ * @returns {{ hours: number, minutes: number, seconds: number, totalSeconds: number }}
+ */
+export function parseSecondsToParts(ts) {
+  const totalSeconds = parseTimestampToSeconds(ts)
+  const hours = Math.floor(totalSeconds / 3600)
+  const remaining = totalSeconds % 3600
+  const minutes = Math.floor(remaining / 60)
+  const seconds = remaining % 60
+  return { hours, minutes, seconds, totalSeconds }
+}
+
+/**
+ * Format object { hours, minutes, seconds } hoặc số giây thành chuỗi mm:ss hoặc hh:mm:ss
+ * @param {{ hours?: number, minutes?: number, seconds?: number } | number} input
+ * @returns {string}
+ */
+export function formatPartsToTimestamp(input) {
+  if (input == null) return '00:00'
+  let hours = 0
+  let minutes = 0
+  let seconds = 0
+  if (typeof input === 'number') {
+    const parts = parseSecondsToParts(input)
+    hours = parts.hours
+    minutes = parts.minutes
+    seconds = parts.seconds
+  } else {
+    hours = Math.max(0, parseInt(input.hours, 10) || 0)
+    minutes = Math.max(0, parseInt(input.minutes, 10) || 0)
+    seconds = Math.max(0, parseInt(input.seconds, 10) || 0)
+    const total = hours * 3600 + minutes * 60 + seconds
+    const parts = parseSecondsToParts(total)
+    hours = parts.hours
+    minutes = parts.minutes
+    seconds = parts.seconds
+  }
+  const pad = (n) => String(n).padStart(2, '0')
+  if (hours > 0) {
+    return `${hours}:${pad(minutes)}:${pad(seconds)}`
+  }
+  return `${pad(minutes)}:${pad(seconds)}`
+}
+
+/**
+ * Cộng thêm số giây vào chuỗi timestamp hiện tại và trả về chuỗi đã định dạng
+ * @param {string|number} ts
+ * @param {number} deltaSeconds
+ * @returns {string}
+ */
+export function addSecondsToTimestamp(ts, deltaSeconds = 0) {
+  const currentSeconds = parseTimestampToSeconds(ts)
+  const nextSeconds = Math.max(0, currentSeconds + deltaSeconds)
+  return formatPartsToTimestamp(nextSeconds)
+}
+
+/**
  * Tạo URL có thể phát trực tiếp kèm mốc thời gian bắt đầu
  * @param {string} url
  * @param {string|number} [timestamp]
@@ -118,8 +176,12 @@ export function extractYouTubeId(url) {
  */
 export function extractDriveId(url) {
   if (!url || typeof url !== 'string') return null
-  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i)
-  return match ? match[1] : null
+  const trimmed = url.trim()
+  const matchFile = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i)
+  if (matchFile) return matchFile[1]
+  const matchParam = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/i)
+  if (matchParam) return matchParam[1]
+  return null
 }
 
 /**

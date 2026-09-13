@@ -10,6 +10,9 @@ import {
   buildEmbedVideoUrl,
   formatGapMinutes,
   calcSessionTimeStats,
+  parseSecondsToParts,
+  formatPartsToTimestamp,
+  addSecondsToTimestamp,
 } from '#utils/videoUtils.js'
 
 /* 1. parseVideoProvider: nhận diện đúng YouTube, Drive, iCloud, Direct, Unknown */
@@ -31,6 +34,17 @@ assert.equal(parseTimestampToSeconds('01:15'), 75)
 assert.equal(parseTimestampToSeconds('01:20:30'), 4830) // 1*3600 + 20*60 + 30
 assert.equal(parseTimestampToSeconds(''), 0)
 assert.equal(parseTimestampToSeconds(null), 0)
+
+/* 2b. parseSecondsToParts & formatPartsToTimestamp & addSecondsToTimestamp */
+assert.deepEqual(parseSecondsToParts(75), { hours: 0, minutes: 1, seconds: 15, totalSeconds: 75 })
+assert.deepEqual(parseSecondsToParts('01:20:30'), { hours: 1, minutes: 20, seconds: 30, totalSeconds: 4830 })
+assert.equal(formatPartsToTimestamp({ hours: 0, minutes: 5, seconds: 0 }), '05:00')
+assert.equal(formatPartsToTimestamp({ hours: 1, minutes: 2, seconds: 3 }), '1:02:03')
+assert.equal(formatPartsToTimestamp(300), '05:00')
+assert.equal(addSecondsToTimestamp('00:00', 300), '05:00')
+assert.equal(addSecondsToTimestamp('05:00', 60), '06:00')
+assert.equal(addSecondsToTimestamp('05:00', -120), '03:00')
+assert.equal(addSecondsToTimestamp('01:00', -300), '00:00', 'không âm')
 
 /* 3. buildPlayableVideoUrl: gắn timestamp cho YouTube chuẩn xác */
 assert.equal(
