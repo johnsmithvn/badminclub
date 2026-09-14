@@ -9,6 +9,9 @@ import PairDetailModal from './PairDetailModal.jsx'
 import RatingFormulaModal from './RatingFormulaModal.jsx'
 import PairH2HModal from './PairH2HModal.jsx'
 
+// Số trận tối thiểu để một cặp rời nhóm tạm tính — khớp isProvisional() bên rating.js.
+const PAIR_OFFICIAL_MIN_GAMES = 5
+
 function ConfidenceExplainerSheet({ onClose }) {
   return (
     <div
@@ -182,6 +185,12 @@ export default function PairsTab({
   }, [matches])
 
   const totalPairsCount = allPairsData.rankedPairs?.length || 0
+
+  // Có ít nhất một cặp đủ số trận để lên bảng chính thức. Giá trị chung cho cả danh sách —
+  // tính trong vòng map thì mỗi dòng quét lại toàn mảng.
+  const hasQualified = useMemo(() => {
+    return rankedPairs.some((p) => (p.gamesCount || 0) >= PAIR_OFFICIAL_MIN_GAMES)
+  }, [rankedPairs])
 
   // 3 Cặp dưới kỳ vọng nhiều nhất (để hiển thị ở card vệ tinh phải)
   const topUnderperformingList = useMemo(() => {
@@ -930,8 +939,7 @@ function getScoreVisuals(score, isTop) {
                   const actPct = Math.round(pair.actualWinPct || 0)
 
                   const [mA, mB] = getPairMembers(pair)
-                  const hasQualified = rankedPairs.some((p) => (p.gamesCount || 0) >= 5)
-                  const isFirstProvisional = hasQualified && isProvisional && (idx === 0 || (rankedPairs[idx - 1].gamesCount || 0) >= 5)
+                  const isFirstProvisional = hasQualified && isProvisional && (idx === 0 || (rankedPairs[idx - 1].gamesCount || 0) >= PAIR_OFFICIAL_MIN_GAMES)
                   const isFirstOfficial = hasQualified && idx === 0 && !isProvisional
 
                   return (
@@ -1418,8 +1426,7 @@ function getScoreVisuals(score, isTop) {
                 }
 
                 const [mA, mB] = getPairMembers(pair)
-                const hasQualified = rankedPairs.some((p) => (p.gamesCount || 0) >= 5)
-                const isFirstProvisional = hasQualified && isProvisional && (idx === 0 || (rankedPairs[idx - 1].gamesCount || 0) >= 5)
+                const isFirstProvisional = hasQualified && isProvisional && (idx === 0 || (rankedPairs[idx - 1].gamesCount || 0) >= PAIR_OFFICIAL_MIN_GAMES)
                 const isFirstOfficial = hasQualified && idx === 0 && !isProvisional
 
                 return (

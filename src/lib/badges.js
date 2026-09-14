@@ -1006,6 +1006,7 @@ export function calculateMemberBadges(
     let isUnlocked = false
     let progressStr = ''
     let pct = 0
+    let extraData = {}
 
     switch (badge.checkType) {
       case 'win_streak':
@@ -1299,12 +1300,26 @@ export function calculateMemberBadges(
       }
 
       case 'bounty_break':
-      case 'bounty_break_season':
+      case 'bounty_break_season': {
         currentVal = bountiesBrokenCount
         isUnlocked = currentVal >= badge.threshold
         progressStr = `${currentVal} / ${badge.threshold}`
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
+        if (isUnlocked) {
+          const breakMatches = wonMatches.filter((mt) => mt.bountyBroken || mt.bounty_broken)
+          if (breakMatches.length > 0) {
+            const lastBreak = breakMatches[breakMatches.length - 1]
+            const losers = lastBreak.winnerTeam === 'A' ? (lastBreak.teamB || []) : (lastBreak.teamA || [])
+            const victimName = losers.map((id) => playerName(db, id) || id).join(' · ')
+            extraData = {
+              victim: victimName,
+              streak: lastBreak.brokenStreak || 5,
+              elo: lastBreak.eloDelta || 18,
+            }
+          }
+        }
         break
+      }
 
       case 'bounty_break_distinct': {
         currentVal = bountiesBrokenDistinctCount
@@ -1420,6 +1435,7 @@ export function calculateMemberBadges(
 
     const item = {
       ...badge,
+      ...extraData,
       tier: effectiveTier,
       tierMeta,
       unlocked: isUnlocked,
@@ -1561,9 +1577,12 @@ export function getRarestBadges(db, season = null, preloadedMatches = null, prel
       const ratio = count / totalMembers
       return {
         id: b.id,
+        name: b.name || b.title,
+        cond: b.cond || '',
         tier: b.tier,
         glyph: b.glyph,
         count,
+        totalMembers,
         own: count === 0 ? '0' : `${count} / ${totalMembers}`,
         ratio,
         pts: ANIME_TIERS[b.tier]?.pts || 0,
@@ -1775,7 +1794,6 @@ export function getClubAchievementFeed(db, limit = 20) {
   if (!db) return []
   const matches = (db.matches || []).slice()
   const members = db.members || []
-  const memberMap = new Map(members.map((m) => [m.id, m]))
   const feed = []
 
   // 1. Quét các trận đấu để phát hiện ngắt chuỗi và trận đấu nghẹt thở

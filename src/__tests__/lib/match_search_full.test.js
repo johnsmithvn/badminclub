@@ -23,7 +23,7 @@ test('Comprehensive Match Search & H2H Matrix Tests', async (t) => {
       date: '2026-09-02',
       teamA: ['p1', 'p3'],
       teamB: ['p2', 'p4'],
-      sets: [[15, 21], [21, 10], [21, 12]], // 3 sets -> close game
+      sets: [[15, 21], [21, 10], [21, 12]], // Đi đủ 3 set nhưng cách biệt 6/11/9 -> KHÔNG sát điểm
       winnerTeam: 'A',
       initialRatingA: 1400,
       initialRatingB: 1600, // Upset: Team A (1400) thắng Team B (1600)
@@ -66,11 +66,22 @@ test('Comprehensive Match Search & H2H Matrix Tests', async (t) => {
     assert.equal(exactSep02[0].id, 'm2')
   })
 
-  await t.test('Filter by quality: close and upset', () => {
-    // Close: m1 (21-19, 21-18) và m2 (3 sets)
+  await t.test('Filter by quality: close, threeSets và upset', () => {
+    // 'close' CHỈ còn nghĩa sát điểm. Trước đây nó gộp cả 'đi đủ 3 set' nên m2 lọt vào đây,
+    // trong khi nhãn i18n của bộ lọc luôn ghi là "Sát điểm (≤ n điểm)" — hai bên nói khác nhau.
+    // Giờ tách đôi: m1 sát điểm, m2 dài nhưng set nào cũng cách biệt.
     const close = filterMatches(matches, { quality: 'close' })
-    assert.equal(close.length, 2)
-    assert.deepEqual(close.map((x) => x.id).sort(), ['m1', 'm2'])
+    assert.equal(close.length, 1)
+    assert.deepEqual(close.map((x) => x.id), ['m1'])
+
+    // Trận kéo 3 set là tiêu chí RIÊNG, không còn núp dưới 'close'
+    const threeSets = filterMatches(matches, { quality: 'threeSets' })
+    assert.equal(threeSets.length, 1)
+    assert.deepEqual(threeSets.map((x) => x.id), ['m2'])
+
+    // m3 (21-11, 21-12) không rơi vào tiêu chí nào
+    assert.equal(filterMatches([matches[2]], { quality: 'close' }).length, 0)
+    assert.equal(filterMatches([matches[2]], { quality: 'threeSets' }).length, 0)
 
     // Upset: chỉ có m2 (chênh 200 điểm mà đội thấp hơn thắng)
     const upset = filterMatches(matches, { quality: 'upset' })

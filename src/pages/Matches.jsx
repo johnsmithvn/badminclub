@@ -16,6 +16,7 @@ import {
 } from '#lib/rating.js'
 import {
   searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount,
+  isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { buildPlayableVideoUrl, formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
@@ -110,7 +111,7 @@ export default function Matches() {
   const [playerA, setPlayerA] = useState(() => searchParams.get('playerA') || '')
   const [playerB, setPlayerB] = useState(() => searchParams.get('playerB') || '')
   const [searchMode, setSearchMode] = useState('vs') // 'vs' | 'team'
-  const [qualityFilter, setQualityFilter] = useState('all') // 'all' | 'close' | 'upset'
+  const [qualityFilter, setQualityFilter] = useState('all') // 'all' | 'close' | 'threeSets' | 'upset'
   const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [seasonFilter, setSeasonFilter] = useState('all')
   const [courtFilter, setCourtFilter] = useState('all')
@@ -369,25 +370,16 @@ export default function Matches() {
     return allMatchesForCounters.filter((m) => Boolean(m.challengeId || m.sourceType === 'challenge')).length
   }, [allMatchesForCounters])
 
-  // Phải khớp đúng nhánh quality === 'close' của filterMatches (matchSearch.js): set sát điểm HOẶC đi đủ 3 set.
   const closeMatchesCount = useMemo(() => {
-    return allMatchesForCounters.filter((m) => {
-      const sets = m.sets || []
-      const isCloseSet = sets.some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
-      const isThreeSets = sets.filter((s) => s && s[0] + s[1] > 0).length >= 3
-      return isCloseSet || isThreeSets
-    }).length
+    return allMatchesForCounters.filter(isCloseMatch).length
+  }, [allMatchesForCounters])
+
+  const threeSetMatchesCount = useMemo(() => {
+    return allMatchesForCounters.filter(isThreeSetMatch).length
   }, [allMatchesForCounters])
 
   const upsetMatchesCount = useMemo(() => {
-    return allMatchesForCounters.filter((m) => {
-      const ra = m.initialRatingA || 0
-      const rb = m.initialRatingB || 0
-      // Phải là 'B' tường minh, không dùng !aWon: winnerTeam có thể là null (hoà set / chưa nhập đủ).
-      const aWon = m.winnerTeam === 'A'
-      const bWon = m.winnerTeam === 'B'
-      return Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && bWon))
-    }).length
+    return allMatchesForCounters.filter(isUpsetMatch).length
   }, [allMatchesForCounters])
 
   const editedMatchesCount = useMemo(() => {
@@ -425,9 +417,12 @@ export default function Matches() {
     searchResults.forEach((m) => {
       const teamA = m.teamA || []
       const teamB = m.teamB || []
+      // winnerTeam có thể là null (hoà set / chưa nhập đủ) — khi đó không có đội thắng để ghi,
+      // nhánh cũ `aWon ? teamA : teamB` gán luôn đội B là đội thắng và lật ngược tỷ số.
       const aWon = m.winnerTeam === 'A'
-      const winnerTeam = aWon ? teamA : teamB
-      const loserTeam = aWon ? teamB : teamA
+      const hasWinner = m.winnerTeam === 'A' || m.winnerTeam === 'B'
+      const winnerTeam = hasWinner ? (aWon ? teamA : teamB) : []
+      const loserTeam = hasWinner ? (aWon ? teamB : teamA) : []
       const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
       const loserNames = loserTeam.map(memberNameOf).join(' · ')
       const scoreSets = (m.sets || []).map(([a, b]) => `${aWon ? a : b}-${aWon ? b : a}`).join('; ')
@@ -487,15 +482,8 @@ export default function Matches() {
 
       if (m.challengeId || m.sourceType === 'challenge') challengeCount++
 
-      const sets = m.sets || []
-      const isClose = sets.some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
-      if (isClose) closeCount++
-
-      const ra = m.initialRatingA || 0
-      const rb = m.initialRatingB || 0
-      if (Math.abs(ra - rb) > 100 && ((ra < rb && m.winnerTeam === 'A') || (rb < ra && m.winnerTeam === 'B'))) {
-        upsetCount++
-      }
+      if (isCloseMatch(m)) closeCount++
+      if (isUpsetMatch(m)) upsetCount++
     })
 
     let tmWins = 0
@@ -1137,7 +1125,8 @@ export default function Matches() {
                     onChange={(e) => setQualityFilter(e.target.value)}
                     options={[
                       { value: 'all', label: t('matchSearch.qualityAll') },
-                      { value: 'close', label: t('matchSearch.qualityClose') },
+                      { value: 'close', label: t('matchSearch.qualityClose', { n: cfg.match?.closeMatchMaxDiff ?? 3 }) },
+                      { value: 'threeSets', label: t('matchSearch.qualityThreeSets') },
                       { value: 'upset', label: t('matchSearch.qualityUpset') },
                     ]}
                     style={qualityFilter !== 'all' ? {
@@ -1537,6 +1526,33 @@ export default function Matches() {
                   <span style={{ fontFamily: 'var(--font-mono)' }}>{closeMatchesCount}</span>
                 </button>
 
+                {/* Nút lọc nhanh: Đi đủ 3 set — tách khỏi 'sát điểm', trận dài chưa chắc đã sát điểm */}
+                <button
+                  type="button"
+                  onClick={() => setQualityFilter((prev) => (prev === 'threeSets' ? 'all' : 'threeSets'))}
+                  style={{
+                    height: 24,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '0 8px',
+                    borderRadius: 999,
+                    background: qualityFilter === 'threeSets' ? 'rgba(124,58,237,.22)' : 'var(--surface-inset)',
+                    border: '1px solid',
+                    borderColor: qualityFilter === 'threeSets' ? '#7C3AED' : 'var(--border-subtle)',
+                    font: "600 11px/1 'IBM Plex Sans', sans-serif",
+                    color: qualityFilter === 'threeSets' ? '#C4B5FD' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                  title={t('matchSearch.qualityThreeSets')}
+                >
+                  <span>{t('matchVideo.tagThreeSets')}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{threeSetMatchesCount}</span>
+                </button>
+
                 {/* Nút lọc nhanh: Bất ngờ */}
                 <button
                   type="button"
@@ -1644,8 +1660,9 @@ export default function Matches() {
 
                         const ra = m.initialRatingA || 0
                         const rb = m.initialRatingB || 0
-                        const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
-                        const isClose = (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
+                        const isUpset = isUpsetMatch(m)
+                        const isClose = isCloseMatch(m)
+                        const isThreeSets = isThreeSetMatch(m)
                         const isStreak = (m.brokenStreak || 0) >= 3
 
                         const s = (db.sessions || []).find((x) => x.id === m.sessionId)
@@ -1682,6 +1699,11 @@ export default function Matches() {
                           cardBg = 'rgba(224, 138, 0, 0.08)'
                           cardBorder = '1px solid rgba(224, 138, 0, 0.3)'
                           cardGradient = 'linear-gradient(135deg, rgba(224, 138, 0, 0.12) 0%, rgba(18, 26, 43, 0.95) 55%)'
+                        } else if (isThreeSets) {
+                          leftAccentColor = '#7C3AED'
+                          cardBg = 'rgba(124, 58, 237, 0.08)'
+                          cardBorder = '1px solid rgba(124, 58, 237, 0.3)'
+                          cardGradient = 'linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(18, 26, 43, 0.95) 55%)'
                         } else if (isStreak) {
                           leftAccentColor = '#00B2A9'
                           cardBg = 'rgba(0, 178, 169, 0.08)'
@@ -1904,6 +1926,13 @@ export default function Matches() {
                                 </span>
                                 <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
                                   {t('matchVideo.diffPoints', { n: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            {isThreeSets && !isChallenge && !isUpset && !isClose && (
+                              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 7, marginTop: -2 }}>
+                                <span style={{ padding: '2px 7px', borderRadius: 999, background: 'rgba(124,58,237,.22)', font: "600 10.5px/1 'IBM Plex Sans', sans-serif", color: '#C4B5FD' }}>
+                                  {t('matchVideo.tagThreeSetsSession')}
                                 </span>
                               </div>
                             )}
@@ -2159,10 +2188,9 @@ export default function Matches() {
                       const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
                       const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
 
-                      const ra = m.initialRatingA || 0
-                      const rb = m.initialRatingB || 0
-                      const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
-                      const isClose = (m.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= 3)
+                      const isUpset = isUpsetMatch(m)
+                      const isClose = isCloseMatch(m)
+                      const isThreeSets = isThreeSetMatch(m)
                       const isStreak = (m.brokenStreak || 0) >= 3
 
                       const s = (db.sessions || []).find((x) => x.id === m.sessionId)
@@ -2191,6 +2219,12 @@ export default function Matches() {
                         tagLabel = t('matchVideo.tagClose')
                         tagBg = 'rgba(224,138,0,.22)'
                         tagColor = '#FFCB77'
+                      } else if (isThreeSets) {
+                        leftBorderColor = '#7C3AED'
+                        rowBg = 'rgba(124,58,237,.07)'
+                        tagLabel = t('matchVideo.tagThreeSets')
+                        tagBg = 'rgba(124,58,237,.22)'
+                        tagColor = '#C4B5FD'
                       } else if (isStreak) {
                         leftBorderColor = '#00B2A9'
                         rowBg = 'rgba(0,178,169,.06)'

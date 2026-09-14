@@ -184,12 +184,17 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         minutes: court?.minutes || cfg.match?.defaultMinutes || 20,
       })
 
+      // saveMatchScore trả kèm nextPlayerRatings — tách ra để phần dưới làm việc với một match
+      // object sạch, đúng shape DB.
+      const { nextPlayerRatings = null, ...savedMatch } = res || {}
+      const saved = res ? savedMatch : null
+
       // 2. Kiểm tra nếu có bounty bị ngắt (AM4 case chính) hoặc có huy hiệu mới mở khóa
       let badgeToUnlock = null
 
-      if (res?.bountyBroken) {
-        // Đội thua và đối thủ bị ngắt chuỗi
-        const losingTeam = res.winnerTeam === 'A' ? teamB : teamA
+      if (saved?.bountyBroken) {
+        const losingTeam = saved.winnerTeam === 'A' ? teamB : teamA
+        const winningTeam = saved.winnerTeam === 'A' ? teamA : teamB
         const victimName = losingTeam.map((id) => playerName(db, id)).join(' · ')
         const baseBadge = getBadgeById('ke_ngat_chuoi') || {}
         badgeToUnlock = {
@@ -198,16 +203,18 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
           tier: 'epic',
           glyph: baseBadge.glyph || 'thunder',
           victim: victimName,
-          streak: res.brokenStreak || 5,
+          streak: saved.brokenStreak || 5,
           xp: baseBadge.reward?.xp || 100,
           sp: baseBadge.reward?.seasonPts || 15,
-          elo: res.eloDelta || 18,
+          elo: saved.eloDelta || 18,
+          winnerPlayerIds: winningTeam,
         }
-      } else if (currentMember?.id && res) {
+      } else if (currentMember?.id && saved) {
         // Kiểm tra danh hiệu mở khóa mới của người chơi hiện tại
         try {
-          const nextMatches = (db.matches || []).concat([res])
-          const nextDb = { ...db, matches: nextMatches }
+          const nextMatches = (db.matches || []).concat([saved])
+          // Phải kèm playerRatings mới, không thì huy hiệu phụ thuộc Elo/tier vẫn tính trên rating cũ.
+          const nextDb = { ...db, matches: nextMatches, playerRatings: nextPlayerRatings || db.playerRatings }
           const badgesAfter = calculateMemberBadges(currentMember.id, nextDb)
           const newlyUnlocked = newlyUnlockedBadges(badgesBefore, badgesAfter)
           if (newlyUnlocked.length > 0) {
@@ -220,7 +227,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
               story: nb.story || nb.desc || nb.cond,
               xp: nb.reward?.xp || 50,
               sp: nb.reward?.seasonPts || 10,
-              elo: res.eloDelta || 10,
+              elo: saved.eloDelta || 10,
             }
           }
         } catch (err) {
@@ -229,12 +236,12 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       }
 
       if (badgeToUnlock) {
-        setPendingSavedRes(res)
+        setPendingSavedRes(saved)
         setUnlockedBadge(badgeToUnlock)
         return
       }
 
-      if (res && onSaved) onSaved(res)
+      if (saved && onSaved) onSaved(saved)
       onClose()
     } finally {
       setSubmitting(false)
@@ -540,12 +547,14 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
           shelfCount={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length}
           shelfIsFull={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length >= 3}
           onEquipShelf={(b) => {
-            if (currentMember?.id && a.setMemberShelf) {
-              const cur = (currentMember.badge_shelf || currentMember.badgeShelf || []).slice()
+            const targetId = currentMember?.id || (b.winnerPlayerIds && b.winnerPlayerIds[0])
+            if (targetId && a.setMemberShelf) {
+              const targetMem = (db.members || []).find((m) => m.id === targetId) || currentMember
+              const cur = (targetMem?.badge_shelf || targetMem?.badgeShelf || []).slice()
               if (!cur.includes(b.id)) {
                 if (cur.length >= 3) cur.pop()
                 cur.unshift(b.id)
-                a.setMemberShelf(currentMember.id, cur)
+                a.setMemberShelf(targetId, cur)
               }
             }
             handleFinishScore()

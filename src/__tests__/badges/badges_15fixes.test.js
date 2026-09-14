@@ -10,6 +10,7 @@ import {
   getStreakTimeline,
   getRarestBadges,
   getBadgeById,
+  getMemberStreak,
 } from '#lib/badges.js'
 
 /** Một ngày tính bằng mili-giây — để dựng mốc thời gian thật trong các mock bên dưới. */
@@ -488,4 +489,55 @@ test('15 Fixes: computeClubBadgeStats tổng hợp dữ liệu CLB chuẩn xác'
     0,
     'Cả CLB cùng 0 điểm thì không ai được tính là đang giữ Rank 1',
   )
+})
+
+test('Modal A4: Kẻ ngắt chuỗi được mở khi trận đấu làm đứt chuỗi >= 5 của đối thủ', () => {
+  // Giả lập đối thủ có chuỗi 6 trận thắng liên tiếp
+  const victimId = 'v1'
+  const hunterId = 'h1'
+  const matches = []
+  for (let i = 1; i <= 6; i++) {
+    matches.push({
+      id: `mt_streak_${i}`,
+      at: 1000 + i * 100,
+      teamA: [victimId],
+      teamB: ['dummy'],
+      winnerTeam: 'A',
+      ratingEnabled: true,
+    })
+  }
+
+  const mockDb = {
+    members: [
+      { id: victimId, name: 'Vũ Minh' },
+      { id: hunterId, name: 'Thợ Săn' },
+      { id: 'dummy', name: 'Quân Xanh' },
+    ],
+    matches,
+  }
+
+  // Đối thủ đang có chuỗi 6 trận
+  const streakInfo = getMemberStreak(victimId, mockDb)
+  assert.equal(streakInfo.streak, 6, 'Đối thủ phải có chuỗi 6 trận')
+
+  // Trận 7: Thợ Săn hạ Vũ Minh
+  const match7 = {
+    id: 'mt_streak_7',
+    at: 2000,
+    teamA: [hunterId],
+    teamB: [victimId],
+    winnerTeam: 'A',
+    bountyBroken: true,
+    brokenStreak: 6,
+    ratingEnabled: true,
+  }
+  const dbAfter = {
+    ...mockDb,
+    matches: [...matches, match7],
+  }
+
+  // Thợ săn nhận được danh hiệu ke_ngat_chuoi
+  const hunterBadges = calculateMemberBadges(hunterId, dbAfter)
+  const hasKeNgatChuoi = hunterBadges.unlocked.some((b) => b.id === 'ke_ngat_chuoi')
+  assert.equal(hasKeNgatChuoi, true, 'Thợ săn phải mở được danh hiệu ke_ngat_chuoi sau khi ngắt chuỗi')
 })

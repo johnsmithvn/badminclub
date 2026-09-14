@@ -2301,6 +2301,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       const matchId = uid()
       let newMatch
+      // Bảng rating sau trận. up() chạy đồng bộ nên biến này có giá trị ngay sau khi up() trả về.
+      // Cần cho người gọi (ScoreModal) dựng db "sau trận" để tính huy hiệu phụ thuộc Elo mới.
+      let nextPlayerRatings = null
 
       up((d) => {
         const lineups = { ...(d.lineups || {}) }
@@ -2465,6 +2468,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           }
         })
 
+        nextPlayerRatings = playerRatings
+
         return {
           lineups,
           playing,
@@ -2477,7 +2482,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       upUi(() => ({ picked: null }))
       toast(t('scoreModal.toastSaved', { winner, loser, score: scoreText }))
-      return newMatch
+      // Trận vừa lưu + bảng rating sau trận. Người gọi nào chỉ cần match thì bỏ qua field thừa.
+      return { ...newMatch, nextPlayerRatings }
     },
 
     editMatchScore: ({ matchId, sets, newSets, reason, at, playedAt }) => {
@@ -2503,8 +2509,51 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         ratingRecalcFromMatchId: matchId,
       }
 
+      // Xác định đội thắng set để kiểm tra ngắt chuỗi
+      const playedSets = actualSets.filter((r) => r[0] + r[1] > 0)
+      const aWins = playedSets.filter((r) => r[0] > r[1]).length
+      const bWins = playedSets.filter((r) => r[1] > r[0]).length
+      const winnerTeam = aWins > bWins ? 'A' : bWins > aWins ? 'B' : null
+
+      let bountyBroken = false
+      let brokenStreak = 0
+      const minBountyStreak = Number(cfgBadges?.bounty?.minStreakSingle || 5)
+      const isRated = match.ratingEnabled !== false
+      if (isRated && (winnerTeam === 'A' || winnerTeam === 'B')) {
+        try {
+          const losingPlayers = winnerTeam === 'A' ? (match.teamB || []) : (match.teamA || [])
+          const currentSeasonMatches = seasonMatchesOf(d0).filter((m) => m.id !== matchId)
+          let maxLosingStreak = 0
+          for (const pid of losingPlayers) {
+            const { streak } = getMemberStreak(pid, d0, null, currentSeasonMatches)
+            if (streak > maxLosingStreak) {
+              maxLosingStreak = streak
+            }
+          }
+          if (maxLosingStreak >= minBountyStreak) {
+            bountyBroken = true
+            brokenStreak = maxLosingStreak
+          }
+        } catch (err) {
+          console.warn('[badges] bỏ qua tính bounty khi editMatchScore:', err)
+          bountyBroken = false
+          brokenStreak = 0
+        }
+      }
+
       // Replay cascade tính lại toàn bộ Elo các trận sau đó
-      const updatedMatchList = (d0.matches || []).map((m) => (m.id === matchId ? { ...m, sets: actualSets, at: nextAt } : m))
+      const updatedMatchList = (d0.matches || []).map((m) =>
+        m.id === matchId
+          ? {
+              ...m,
+              sets: actualSets,
+              at: nextAt,
+              winnerTeam: winnerTeam || m.winnerTeam,
+              bountyBroken,
+              brokenStreak,
+            }
+          : m,
+      )
       const { finalRatings, updatedMatches } = replayRatingCascade(updatedMatchList, matchId, d0.members, d0.levels, d0.guests)
 
       up((d) => {
@@ -2543,7 +2592,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
 
       toast(t('common.save') + ': ' + match.id)
-      return { matchId, sets: actualSets }
+      const updatedTargetMatch = updatedMatches.find((m) => m.id === matchId) || {
+        ...match,
+        sets: actualSets,
+        at: nextAt,
+        winnerTeam: winnerTeam || match.winnerTeam,
+        bountyBroken,
+        brokenStreak,
+      }
+      return {
+        ...updatedTargetMatch,
+        bountyBroken,
+        brokenStreak,
+        nextPlayerRatings: finalRatings,
+      }
     },
 
     attachMatchVideo: (matchId, { videoUrl, videoTimestamp, videoNote } = {}) => {

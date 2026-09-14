@@ -16,8 +16,8 @@ export default function BadgeUnlockModal({
   onClose,
   onEquipShelf,
   onViewCollection,
-  shelfCount = 3,
-  shelfIsFull = true,
+  shelfCount = 0,
+  shelfIsFull = false,
   isMobile: isMobileProp,
 }) {
   const isMobileHook = useMobile(768)
@@ -201,7 +201,7 @@ export default function BadgeUnlockModal({
               glyph={glyph}
               size={badgeSize}
               spin={true}
-              twinkle={true}
+              twinkle={false}
               pulse={true}
             />
             <div
@@ -562,7 +562,7 @@ export default function BadgeUnlockModal({
               glyph={glyph}
               size={badgeSize}
               spin={true}
-              twinkle={true}
+              twinkle={false}
               pulse={true}
             />
             <div

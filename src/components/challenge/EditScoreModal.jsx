@@ -1,19 +1,60 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { playerName } from '#lib/money.js'
+import { playerName, myMember } from '#lib/money.js'
 import { matchCodeOf, teamRating, calcPlayerDeltas, getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
+import { getBadgeById, calculateMemberBadges, newlyUnlockedBadges } from '#lib/badges.js'
+import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import { t } from '#i18n'
 
 export default function EditScoreModal({ match: initialMatch, onClose, onSaved, onNavigateMatch }) {
   const { db, a } = useApp()
+  const navigate = useNavigate()
   const isMobile = useMobile()
   const [currentMatch, setCurrentMatch] = useState(initialMatch)
   const match = currentMatch || initialMatch
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [reason, setReason] = useState('')
+  const [unlockedBadge, setUnlockedBadge] = useState(null)
+  const [pendingSavedRes, setPendingSavedRes] = useState(null)
+
+  const currentMember = useMemo(() => {
+    if (!db) return null
+    return myMember(db)
+  }, [db])
+
+  const handleFinishUnlock = (highlightBadgeId) => {
+    if (pendingSavedRes && onSaved) onSaved(pendingSavedRes)
+    if (unlockedBadge) {
+      try {
+        const targetMemId = currentMember?.id || unlockedBadge.winnerPlayerIds?.[0]
+        if (targetMemId) {
+          const clubId = db?.clubId || db?.id || 'default'
+          const key = `badminclub_seen_badges_${clubId}_${targetMemId}`
+          const raw = localStorage.getItem(key)
+          let list = []
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            if (Array.isArray(parsed)) list = parsed
+          }
+          if (!list.includes(unlockedBadge.id)) {
+            list.push(unlockedBadge.id)
+            localStorage.setItem(key, JSON.stringify(list))
+          }
+        }
+      } catch {
+        // ignore storage error
+      }
+    }
+    setUnlockedBadge(null)
+    onClose()
+    if (highlightBadgeId) {
+      navigate(`/danh-hieu?tab=collection&highlight=${highlightBadgeId}`)
+    }
+  }
 
   // Danh sách các trận để điều hướng Trận trước / Trận sau
   const { prevMatch, nextMatch } = useMemo(() => {
@@ -406,12 +447,78 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
     setSubmitting(true)
     setErrorMsg('')
     try {
+      // 1. Ghi nhận danh hiệu trước khi lưu (nếu có currentMember)
+      let badgesBefore = null
+      if (currentMember?.id) {
+        try {
+          badgesBefore = calculateMemberBadges(currentMember.id, db)
+        } catch {
+          badgesBefore = null
+        }
+      }
+
       const res = a.editMatchScore({
         matchId: match.id,
         sets,
         at: finalTimestamp,
         reason: reason.trim() || t('matchSearch.btnSaveEdit'),
       })
+
+      const { nextPlayerRatings = null, ...savedMatch } = res || {}
+      const saved = res ? savedMatch : null
+
+      // 2. Kiểm tra nếu trận đấu làm ngắt chuỗi đối thủ (A4 / AM4 Fanfare Modal)
+      let badgeToUnlock = null
+
+      if (saved?.bountyBroken) {
+        const losingTeam = saved.winnerTeam === 'A' ? teamB : teamA
+        const winningTeam = saved.winnerTeam === 'A' ? teamA : teamB
+        const victimName = losingTeam.map((id) => playerName(db, id)).join(' · ')
+        const baseBadge = getBadgeById('ke_ngat_chuoi') || {}
+        badgeToUnlock = {
+          id: 'ke_ngat_chuoi',
+          name: t('badges.items.ke_ngat_chuoi.name'),
+          tier: 'epic',
+          glyph: 'thunder',
+          victim: victimName,
+          streak: saved.brokenStreak || 5,
+          xp: baseBadge.reward?.xp || 100,
+          sp: baseBadge.reward?.seasonPts || 15,
+          elo: saved.eloDelta || 18,
+          winnerPlayerIds: winningTeam,
+        }
+      } else if (currentMember?.id && saved) {
+        // Kiểm tra danh hiệu mở khóa mới của người chơi hiện tại
+        try {
+          const nextMatches = (db.matches || []).map((m) => (m.id === saved.id ? saved : m))
+          const nextDb = { ...db, matches: nextMatches, playerRatings: nextPlayerRatings || db.playerRatings }
+          const badgesAfter = calculateMemberBadges(currentMember.id, nextDb)
+          const newlyUnlocked = newlyUnlockedBadges(badgesBefore, badgesAfter)
+          if (newlyUnlocked.length > 0) {
+            const nb = newlyUnlocked[0]
+            badgeToUnlock = {
+              id: nb.id,
+              name: nb.name || nb.id,
+              tier: nb.tier || 'epic',
+              glyph: nb.glyph || 'crystal',
+              story: nb.story || nb.desc || nb.cond,
+              xp: nb.reward?.xp || 50,
+              sp: nb.reward?.seasonPts || 10,
+              elo: saved.eloDelta || 10,
+              winnerPlayerIds: [currentMember.id],
+            }
+          }
+        } catch (err) {
+          console.warn('[EditScoreModal] Lỗi tính badge mới sau trận:', err)
+        }
+      }
+
+      if (badgeToUnlock) {
+        setPendingSavedRes(res)
+        setUnlockedBadge(badgeToUnlock)
+        return
+      }
+
       if (res && onSaved) onSaved(res)
       onClose()
     } catch (err) {
@@ -449,8 +556,9 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
   const isScoreModified = oldScoreStr !== newScoreStr
 
   return (
-    <Dialog
-      open
+    <>
+      <Dialog
+        open
       sheet={isMobile}
       width={isMobile ? 560 : 960}
       title={
@@ -1102,6 +1210,33 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
         </div>
       </div>
     </Dialog>
+
+    {unlockedBadge && (
+      <BadgeUnlockModal
+        badge={unlockedBadge}
+        isMobile={isMobile}
+        shelfCount={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length}
+        shelfIsFull={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length >= 3}
+        onEquipShelf={(b) => {
+          const targetId = currentMember?.id || (b.winnerPlayerIds && b.winnerPlayerIds[0])
+          if (targetId && a.setMemberShelf) {
+            const targetMem = (db.members || []).find((m) => m.id === targetId) || currentMember
+            const cur = (targetMem?.badge_shelf || targetMem?.badgeShelf || []).slice()
+            if (!cur.includes(b.id)) {
+              if (cur.length >= 3) cur.pop()
+              cur.unshift(b.id)
+              a.setMemberShelf(targetId, cur)
+            }
+          }
+          handleFinishUnlock()
+        }}
+        onViewCollection={(b) => {
+          handleFinishUnlock(b?.id || unlockedBadge.id)
+        }}
+        onClose={() => handleFinishUnlock()}
+      />
+    )}
+  </>
   )
 }
 

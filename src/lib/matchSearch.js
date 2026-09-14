@@ -2,6 +2,35 @@
 import cfg from '#config/app.json' with { type: 'json' }
 
 /**
+ * Ba tiêu chí chất lượng trận — nguồn sự thật DUY NHẤT cho cả bộ lọc lẫn nhãn hiển thị.
+ * Trước đây mỗi nơi chép lại một bản kèm số cứng 3 / 100, nên chip đếm, danh sách lọc và
+ * nhãn trên thẻ trận trôi khỏi nhau. Ngưỡng đọc từ config (RULES §3.2).
+ */
+
+/** Có ít nhất một set sát điểm. KHÔNG bao gồm 'đi đủ 3 set' — đó là tiêu chí riêng. */
+export function isCloseMatch(m) {
+  const maxDiff = cfg.match?.closeMatchMaxDiff ?? 3
+  return (m?.sets || []).some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= maxDiff)
+}
+
+/** Trận kéo đủ 3 set. Dài chưa chắc đã sát điểm, nên tách khỏi isCloseMatch. */
+export function isThreeSetMatch(m) {
+  return (m?.sets || []).filter((s) => s && s[0] + s[1] > 0).length >= 3
+}
+
+/**
+ * Kèo dưới thắng kèo trên. winnerTeam phải là 'A' hoặc 'B' TƯỜNG MINH: nó có thể là null
+ * (hoà set / chưa nhập đủ) và nhánh `!aWon` cũ gán nhầm mọi trận chưa có kết quả cho B.
+ */
+export function isUpsetMatch(m) {
+  const ra = m?.initialRatingA || 0
+  const rb = m?.initialRatingB || 0
+  const minGap = cfg.match?.upsetMinGap ?? 100
+  if (Math.abs(ra - rb) <= minGap) return false
+  return (ra < rb && m.winnerTeam === 'A') || (rb < ra && m.winnerTeam === 'B')
+}
+
+/**
  * Lọc danh sách trận đấu theo các tiêu chí đa chiều.
  */
 export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality = 'all', fromDate, toDate } = {}) {
@@ -36,23 +65,13 @@ export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality
       if (!players.includes(playerB)) return false
     }
 
-    // Lọc theo chất lượng trận đấu
+    // Lọc theo chất lượng trận đấu — dùng đúng predicate mà UI dùng để gắn nhãn
     if (quality === 'close') {
-      const sets = m.sets || []
-      const maxDiff = cfg.match?.closeMatchMaxDiff ?? 3
-      const isCloseSet = sets.some((s) => s && s[0] != null && s[1] != null && Math.abs(s[0] - s[1]) <= maxDiff)
-      const isThreeSets = sets.filter((s) => s && s[0] + s[1] > 0).length >= 3
-      if (!isCloseSet && !isThreeSets) return false
+      if (!isCloseMatch(m)) return false
+    } else if (quality === 'threeSets') {
+      if (!isThreeSetMatch(m)) return false
     } else if (quality === 'upset') {
-      const ra = m.initialRatingA || 0
-      const rb = m.initialRatingB || 0
-      const winTeam = m.winnerTeam
-      const aLower = ra < rb
-      const bLower = rb < ra
-      const minGap = cfg.match?.upsetMinGap ?? 100
-      const aUpset = aLower && winTeam === 'A' && Math.abs(ra - rb) > minGap
-      const bUpset = bLower && winTeam === 'B' && Math.abs(ra - rb) > minGap
-      if (!aUpset && !bUpset) return false
+      if (!isUpsetMatch(m)) return false
     }
 
     return true

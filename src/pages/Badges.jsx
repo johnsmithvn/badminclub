@@ -120,6 +120,14 @@ export default function Badges() {
 
       const clearTimer = setTimeout(() => {
         setHighlightedBadgeId(null)
+        // Dọn param sau khi highlight chạy xong. Dọn sớm hơn thì effect chạy lại và cleanup
+        // huỷ luôn timer cuộn 150ms ở trên; không dọn thì bấm back/forward lại nháy sáng lần nữa.
+        const rest = new URLSearchParams(location.search)
+        if (rest.has('highlight')) {
+          rest.delete('highlight')
+          const qs = rest.toString()
+          navigate({ pathname: location.pathname, search: qs ? `?${qs}` : '' }, { replace: true })
+        }
       }, 4500)
 
       return () => {
@@ -127,7 +135,7 @@ export default function Badges() {
         clearTimeout(clearTimer)
       }
     }
-  }, [location.search, location.state])
+  }, [location.search, location.state, location.pathname, navigate])
 
   // 1. Cấp độ & XP của thành viên đang xem.
   // Giá trị rỗng phải cùng hình dạng với `calculateMemberXp` trả về, nếu không JSX đọc
@@ -376,7 +384,7 @@ export default function Badges() {
                       {t('badges.leaderboard.title')}
                     </span>
                     <span style={{ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                      {t('badges.leaderboard.sub')}
+                      {t('badges.leaderboard.subMobile')}
                     </span>
                   </div>
                 </div>

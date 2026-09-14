@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { buildH2HMatrix, filterMatches, topDisparatePairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
+import { buildH2HMatrix, filterMatches, topDisparatePairs, neverMetWithSessionCount, isCloseMatch, isThreeSetMatch, isUpsetMatch } from '#lib/matchSearch.js'
+import cfg from '#config/app.json' with { type: 'json' }
 
 const m1 = {
   id: 'mt1',
@@ -56,6 +57,55 @@ const scoredNeverMet = neverMetWithSessionCount(neverMet, { sessions })
 const p1p2 = scoredNeverMet.find((x) => (x.p1 === 'p1' && x.p2 === 'p2') || (x.p1 === 'p2' && x.p2 === 'p1'))
 assert.ok(p1p2, 'Tìm thấy cặp p1-p2 chưa từng gặp đối đầu')
 assert.equal(p1p2.commonSessionsCount, 2, 'Cùng đi 2 buổi')
+
+// 7. Ba tiêu chí chất lượng — một nguồn sự thật cho cả bộ lọc lẫn nhãn trên thẻ trận
+const maxDiff = cfg.match.closeMatchMaxDiff
+const minGap = cfg.match.upsetMinGap
+
+/* isCloseMatch: chỉ xét sát điểm, KHÔNG kéo theo 'đủ 3 set' */
+assert.equal(isCloseMatch({ sets: [[21, 19]] }), true, 'lệch 2 điểm là sát điểm')
+assert.equal(isCloseMatch({ sets: [[21, 21 - maxDiff]] }), true, 'đúng ngưỡng vẫn tính')
+assert.equal(isCloseMatch({ sets: [[21, 21 - maxDiff - 1]] }), false, 'quá ngưỡng 1 điểm thì thôi')
+assert.equal(isCloseMatch({ sets: [[21, 10], [12, 21], [21, 9]] }), false, '3 set nhưng set nào cũng cách biệt')
+assert.equal(isCloseMatch({}), false, 'không có sets')
+assert.equal(isCloseMatch(null), false, 'không có trận')
+
+/* isThreeSetMatch: đếm set đã đánh, set 0-0 không tính */
+assert.equal(isThreeSetMatch({ sets: [[21, 10], [12, 21], [21, 9]] }), true)
+assert.equal(isThreeSetMatch({ sets: [[21, 19], [21, 18]] }), false, '2 set thì không')
+assert.equal(isThreeSetMatch({ sets: [[21, 19], [21, 18], [0, 0]] }), false, 'set 0-0 chưa đánh, không được đếm')
+assert.equal(isThreeSetMatch(null), false)
+
+/* isUpsetMatch: winnerTeam phải tường minh 'A' hoặc 'B' */
+const upsetA = { initialRatingA: 100, initialRatingB: 100 + minGap + 50, winnerTeam: 'A' }
+const upsetB = { initialRatingA: 100 + minGap + 50, initialRatingB: 100, winnerTeam: 'B' }
+assert.equal(isUpsetMatch(upsetA), true, 'kèo dưới A thắng')
+assert.equal(isUpsetMatch(upsetB), true, 'kèo dưới B thắng')
+assert.equal(isUpsetMatch({ ...upsetA, winnerTeam: 'B' }), false, 'kèo trên thắng thì không bất ngờ')
+assert.equal(
+  isUpsetMatch({ initialRatingA: 100, initialRatingB: 100 + minGap, winnerTeam: 'A' }),
+  false, 'đúng bằng ngưỡng thì chưa tính, phải LỚN HƠN')
+
+// Đây là bug đã sửa: nhánh cũ dùng !aWon nên trận chưa có kết quả bị gán cho đội B
+assert.equal(isUpsetMatch({ ...upsetB, winnerTeam: null }), false, 'winnerTeam null KHÔNG được tính là B thắng')
+assert.equal(isUpsetMatch({ ...upsetB, winnerTeam: undefined }), false)
+assert.equal(isUpsetMatch({ winnerTeam: 'A' }), false, 'không có rating thì lệch = 0, không bất ngờ')
+
+/* filterMatches phải dùng đúng các predicate trên */
+const threeSetBlowout = { playerKeys: ['a', 'b', 'c', 'd'], sets: [[21, 10], [12, 21], [21, 9]], winnerTeam: 'A' }
+const tightTwoSet = { playerKeys: ['a', 'b', 'c', 'd'], sets: [[21, 19], [21, 20]], winnerTeam: 'A' }
+const pool = [threeSetBlowout, tightTwoSet]
+
+const closeOnly = filterMatches(pool, { quality: 'close' })
+assert.equal(closeOnly.length, 1, "quality 'close' chỉ lấy trận sát điểm")
+assert.equal(closeOnly[0], tightTwoSet)
+
+const threeSetOnly = filterMatches(pool, { quality: 'threeSets' })
+assert.equal(threeSetOnly.length, 1, "quality 'threeSets' là bộ lọc RIÊNG")
+assert.equal(threeSetOnly[0], threeSetBlowout)
+
+const drawInPool = { playerKeys: ['a', 'b', 'c', 'd'], sets: [[21, 19]], winnerTeam: null, initialRatingA: 100 + minGap + 50, initialRatingB: 100 }
+assert.equal(filterMatches([drawInPool], { quality: 'upset' }).length, 0, 'trận chưa có kết quả không lọt bộ lọc bất ngờ')
 
 console.log('matchSearch check: OK')
 
