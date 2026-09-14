@@ -59,14 +59,6 @@ export default function Login() {
     )
   }, [f.identifier])
 
-  // Focus input sau khi Lottie kịp init (~400ms) để onFocus bubble đúng cách
-  // identifierWrapperRef giờ trỏ thẳng tới <input> element qua inputRef prop của AuthInput
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      identifierWrapperRef.current?.focus()
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [])
 
 
   const submit = async (e) => {
@@ -124,7 +116,7 @@ export default function Login() {
                   onChange={() => setShowPassword((v) => !v)}
                   style={{ cursor: 'pointer' }}
                 />
-                Hiện
+                {t('auth.showPassword')}
               </label>
             }
           />
@@ -147,7 +139,7 @@ const S = {
     alignItems: 'center',
     gap: 5,
     font: '400 12px/1 var(--font-sans)',
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(255,255,255,0.75)',
     cursor: 'pointer',
     userSelect: 'none',
   },

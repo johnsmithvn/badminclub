@@ -2439,6 +2439,7 @@
     "fIdentifier": "Email · tên đăng nhập · SĐT",
     "fEmail": "Email",
     "fPassword": "Mật khẩu",
+    "showPassword": "Hiện",
     "fPassword2": "Nhập lại mật khẩu",
     "fName": "Tên đầy đủ",
     "fNick": "Tên gọi trong CLB",
