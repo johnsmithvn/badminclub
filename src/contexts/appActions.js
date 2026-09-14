@@ -14,7 +14,7 @@ import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
-import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
+import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
@@ -2331,7 +2331,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         ;[...teamA, ...teamB].forEach((id) => {
           if (ratingsMap[id] === undefined) {
             const m = (d0.members || []).find((x) => x.id === id) || (d0.guests || []).find((x) => x.id === id)
-            ratingsMap[id] = m?.level ? initialRatingOf(m.level, d0.levels) : DEFAULT_RATING
+            ratingsMap[id] = initialRatingOf(m?.level, d0.levels)
             gamesCountMap[id] = 0
           }
         })
@@ -2353,9 +2353,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           teamA.forEach((id) => {
             if (!memberIdSet.has(id)) return // Khách giao lưu không tích luỹ bảng xếp hạng Elo CLB
             const memA = (d0.members || []).find((x) => x.id === id)
-            const seedA = memA?.level ? initialRatingOf(memA.level, d0.levels) : DEFAULT_RATING
+            const seedA = initialRatingOf(memA?.level, d0.levels)
             const cur = playerRatings[id] || { id: uid(), rating: seedA, gamesCount: 0, winsCount: 0, lossesCount: 0 }
-            const newR = cur.rating + (deltas[id] || 0)
+            const newR = applyRatingDelta(cur.rating, deltas[id])
             playerRatings[id] = {
               ...cur,
               id: cur.id || uid(),
@@ -2373,9 +2373,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           teamB.forEach((id) => {
             if (!memberIdSet.has(id)) return // Khách giao lưu không tích luỹ bảng xếp hạng Elo CLB
             const memB = (d0.members || []).find((x) => x.id === id)
-            const seedB = memB?.level ? initialRatingOf(memB.level, d0.levels) : DEFAULT_RATING
+            const seedB = initialRatingOf(memB?.level, d0.levels)
             const cur = playerRatings[id] || { id: uid(), rating: seedB, gamesCount: 0, winsCount: 0, lossesCount: 0 }
-            const newR = cur.rating + (deltas[id] || 0)
+            const newR = applyRatingDelta(cur.rating, deltas[id])
             playerRatings[id] = {
               ...cur,
               id: cur.id || uid(),

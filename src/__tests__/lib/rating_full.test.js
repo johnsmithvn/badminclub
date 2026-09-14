@@ -210,7 +210,7 @@ test('Comprehensive Rating & Elo Engine Tests', async (t) => {
     // Test xoá hết mọi trận: đưa toàn bộ thành viên về điểm ban đầu
     const runEmpty = replayRatingCascade([], null, members)
     assert.equal(runEmpty.finalRatings.p1.gamesCount, 0, 'Xoá hết trận thì gamesCount = 0')
-    assert.equal(runEmpty.finalRatings.p1.rating, 0, 'Xoá hết trận thì rating về điểm gốc')
+    assert.equal(runEmpty.finalRatings.p1.rating, 200, 'Xoá hết trận thì rating về điểm gốc (seed mặc định khi chưa khai trình độ)')
   })
 })
 

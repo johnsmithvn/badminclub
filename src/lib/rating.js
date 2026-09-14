@@ -62,9 +62,15 @@ export const TIERS = cfg.rating?.tiers || [
  * @returns {number}
  */
 export function initialRatingOf(level, levels) {
-  if (!level) return DEFAULT_RATING
-  const lKey = String(level).trim().toLowerCase()
   const map = cfg.rating?.levelInitialRatings || {}
+  // Không tra được trình độ thì vào bằng `levelInitialRatings.default`, KHÔNG phải DEFAULT_RATING.
+  // Hai hằng này khác vai: `default` (200) là "mức khởi điểm của người chưa khai trình",
+  // còn DEFAULT_RATING (0) là "ô trống khi đọc một map rating". Trước đây dùng chung DEFAULT_RATING
+  // nên người chưa khai trình vào đúng SÀN của thang — cộng với luật kẹp sàn ở `applyRatingDelta`
+  // thì họ được miễn mất điểm ở những trận thua đầu, trong khi đối thủ vẫn được cộng.
+  const fallback = map.default ?? DEFAULT_RATING
+  if (!level) return fallback
+  const lKey = String(level).trim().toLowerCase()
   if (map[lKey] != null) return map[lKey]
 
   // Chuẩn hoá bỏ dấu để so sánh an toàn không phụ thuộc font/bảng mã
@@ -86,7 +92,7 @@ export function initialRatingOf(level, levels) {
     }
   }
 
-  return DEFAULT_RATING
+  return fallback
 }
 
 /**
@@ -230,7 +236,9 @@ export function effectiveStrengthOf(rating = 0, seedRating = 0, gamesCount = 0) 
  * @returns {{ rating: number, displayRating: number, effectiveStrength: number, seedRating: number, gamesCount: number, confidence: string, isProvisional: boolean, provisionalRemaining: number, winsCount: number, lossesCount: number, tier: Object }}
  */
 export function getPlayerRating(playerRatings, memberId, member = null, levels = null) {
-  const seedRating = member?.level ? initialRatingOf(member.level, levels) : DEFAULT_RATING
+  // initialRatingOf tự lo nhánh thiếu trình độ (levelInitialRatings.default) — đừng chặn trước
+  // bằng ternary, làm thế là hai đường seed lệch nhau.
+  const seedRating = initialRatingOf(member?.level, levels)
   if (!playerRatings || !memberId) {
     return {
       rating: seedRating,
@@ -311,6 +319,26 @@ export function calcEloDelta(ra, rb, aWon, k = K_FACTOR, sets = null) {
   const mult = sets ? marginMultiplier(sets) : 1.0
   const deltaA = Math.round(k * (actualA - ea) * mult)
   return { deltaA, deltaB: -deltaA, expectedA: ea, expectedB: 1 - ea, multiplier: mult }
+}
+
+/**
+ * Cộng delta vào rating và kẹp trong miền hợp lệ. MỌI đường ghi rating phải đi qua đây.
+ *
+ * Trước đây `rating` nội bộ không kẹp còn `displayRating` thì kẹp ở `MIN_RATING`, nên khi ai đó
+ * tụt xuống dưới 0 thì hai con số phân kỳ ÂM THẦM: bảng xếp hạng hiện 0, nhưng chính con số âm
+ * mới là thứ `expectedScore` và màn Chia sân đọc. Người đó thắng vài trận mà điểm hiển thị vẫn
+ * đứng yên ở 0, không ai giải thích được vì sao.
+ *
+ * Đánh đổi có ý thức: ở đúng sàn 0, người thua không mất thêm điểm trong khi đối thủ vẫn được
+ * cộng — Elo hết tổng-bằng-không ở biên. Chấp nhận được vì `app.json` đã khai `minRating: 0`,
+ * và người thấp nhất CLB hiện là 179 nên chưa ai chạm sàn.
+ *
+ * @param {number} rating - Rating hiện tại
+ * @param {number} delta - Biến thiên của trận vừa rồi
+ * @returns {number}
+ */
+export function applyRatingDelta(rating, delta) {
+  return Math.max(MIN_RATING, (rating ?? DEFAULT_RATING) + (delta || 0))
 }
 
 /**
@@ -597,8 +625,8 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels, 
 
     ;[...teamA, ...teamB].forEach((id) => {
       if (ratings[id] === undefined) {
-        // Khớp đúng nhánh fallback của saveMatchScore: không tra được trình độ thì dùng DEFAULT_RATING
-        ratings[id] = seedOf[id] ?? DEFAULT_RATING
+        // Khớp đúng nhánh fallback của saveMatchScore: không tra được trình độ thì dùng seed mặc định
+        ratings[id] = seedOf[id] ?? initialRatingOf(null, levels)
         gamesCount[id] = 0
       }
     })
@@ -635,7 +663,7 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels, 
       delta = deltas[teamA[0]] || 0
       const accrue = (id, won) => {
         if (!memberIdSet.has(id)) return // Khách giao lưu: không cộng dồn, giữ nguyên seed
-        ratings[id] = (ratings[id] || DEFAULT_RATING) + (deltas[id] || 0)
+        ratings[id] = applyRatingDelta(ratings[id], deltas[id])
         gamesCount[id] = (gamesCount[id] || 0) + 1
         if (won) winsCount[id] = (winsCount[id] || 0) + 1
         else lossesCount[id] = (lossesCount[id] || 0) + 1

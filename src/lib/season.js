@@ -1,6 +1,6 @@
 import cfg from '#config/app.json' with { type: 'json' }
 import { isPresent, playerName } from '#lib/money.js'
-import { DEFAULT_RATING } from '#lib/rating.js'
+import { DEFAULT_RATING, initialRatingOf } from '#lib/rating.js'
 
 /**
  * TRỤC MÙA GIẢI — Điểm mùa theo cơ chế cày rank, và cơ chế treo thưởng chuỗi thắng.
@@ -262,6 +262,43 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     ? Date.parse(season.referenceDate)
     : Math.min(Date.now(), endTs)
 
+  // Seed Elo theo trình độ cho trận CŨ chưa có `initialRatingA/B` (chỉ cascade mới ghi hai trường
+  // này). Dựng index + cache một lần ở đây, không nằm trong vòng lặp thành viên: cùng một trận bị
+  // tính lại cho cả 22 người là 22 lần quét `db.members`.
+  const memberById = new Map((db.members || []).map((x) => [x.id, x]))
+  const guestById = new Map((db.guests || []).map((x) => [x.id, x]))
+  const seedCache = new Map()
+  // Khách khai trình độ theo TỪNG BUỔI (`sessionGuests.level` — chính là thứ màn Chia sân đọc),
+  // `guests.level` chỉ là mức mặc định khi buổi đó không khai.
+  const guestLevelIn = (sessionId, id) => {
+    const sg = (db.sessionGuests || []).find((x) => x.sessionId === sessionId && x.guestId === id)
+    return sg?.level || guestById.get(id)?.level || ''
+  }
+  /** Seed của một người, `null` khi không tra được trình độ — KHÔNG đoán bừa. */
+  const seedOf = (id, sessionId) => {
+    const ck = id + '@' + (sessionId || '')
+    if (seedCache.has(ck)) return seedCache.get(ck)
+    const level = memberById.get(id)?.level || guestLevelIn(sessionId, id)
+    const seed = level ? initialRatingOf(level, db?.levels) : null
+    seedCache.set(ck, seed)
+    return seed
+  }
+  /**
+   * Elo trung bình seed của một đội. Trả `null` nếu CÓ MỘT người không tra được trình độ:
+   * seed người đó bằng 0 sẽ kéo trung bình đội xuống ~250, đẩy trận thành `deepUnderdog`
+   * và trao +22 thay vì +14 cho cả đội — lạm phát điểm mùa âm thầm.
+   */
+  const teamSeedOf = (ids, sessionId) => {
+    if (!ids.length) return null
+    let sum = 0
+    for (const id of ids) {
+      const s = seedOf(id, sessionId)
+      if (s == null) return null
+      sum += s
+    }
+    return Math.round(sum / ids.length)
+  }
+
   const rows = members.map((m) => {
     const memberId = m.id
 
@@ -287,8 +324,21 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
         if (mt.ratingEnabled === false) return
 
         const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
-        const ra = mt.initialRatingA ?? DEFAULT_RATING
-        const rb = mt.initialRatingB ?? DEFAULT_RATING
+        let ra = mt.initialRatingA
+        let rb = mt.initialRatingB
+        if (ra == null || rb == null) {
+          const seedA = teamSeedOf(teamA, mt.sessionId)
+          const seedB = teamSeedOf(teamB, mt.sessionId)
+          // Thiếu trình độ của bất kỳ ai trong trận thì coi hai đội ngang nhau (dải `balanced`,
+          // không upset) — thà không tính còn hơn đoán bừa rồi trao điểm sai cho cả đội.
+          if (seedA == null || seedB == null) {
+            ra = DEFAULT_RATING
+            rb = DEFAULT_RATING
+          } else {
+            if (ra == null) ra = seedA
+            if (rb == null) rb = seedB
+          }
+        }
         const myElo = inA ? ra : rb
         const oppElo = inA ? rb : ra
         const isThreeSets = (mt.sets || []).length >= 3

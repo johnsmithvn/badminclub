@@ -131,7 +131,7 @@
     "ledgerUpsetBonus": "Upset +{{pts}}",
     "tagMatch": "Trận",
     "tagChallenge": "Kèo",
-    "eloGapPill": "{{gap}} Elo",
+    "eloGapPill": "Lệch {{gap}} Elo",
     "winScore": "Thắng {{score}}",
     "lossScore": "Thua {{score}}",
     "matchWin": "Thắng",

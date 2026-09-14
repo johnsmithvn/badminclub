@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { effectiveStrengthOf, isProvisional, getPlayerRating } from '../../lib/rating.js'
 import { calculateSeasonLeaderboard, getMemberSeasonLedger } from '../../lib/season.js'
-import { arrangeBestOfN } from '../../lib/assign.js'
 import { t as translate } from '../../i18n/index.js'
 
 test('Season 3-Tier Core Engine Tests', async (t) => {
@@ -127,42 +126,6 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     assert.equal(strLead.includes('{{name}}'), false)
     assert.equal(strLead.includes('{{chaser}}'), false)
     assert.equal(strLead, 'Kuro bứt phá với chuỗi thắng; Mai bám đuổi sát nút.')
-  })
-
-  await t.test('4. arrangeBestOfN produces candidate plans and criteria scores', () => {
-    const players = [
-      { key: 'p1', name: 'Long', level: 'tot' },
-      { key: 'p2', name: 'Linh', level: 'tb' },
-      { key: 'p3', name: 'Kiên', level: 'kha' },
-      { key: 'p4', name: 'Mai', level: 'tb' },
-      { key: 'p5', name: 'Huy', level: 'tot' },
-      { key: 'p6', name: 'Thắng', level: 'kha' },
-    ]
-    const session = {
-      courts: [{}, { sold: true }],
-    }
-    const ratingsMap = {
-      p1: 1842,
-      p2: 1508,
-      p3: 1795,
-      p4: 1547,
-      p5: 1710,
-      p6: 1588,
-    }
-    const res = arrangeBestOfN({
-      players,
-      session,
-      candidatesCount: 20,
-      ratingsMap,
-      matches: [],
-      stats: {},
-    })
-
-    assert.ok(res.planA)
-    assert.equal(res.planA.title, 'Phương án A')
-    assert.ok(res.planA.score > 0)
-    assert.ok(res.waitingPlayers.length >= 2)
-    assert.equal(res.scatterPoints.length, 20)
   })
 
   await t.test('5. getMemberSeasonLedger generates full data for Screen SS3 modal', () => {

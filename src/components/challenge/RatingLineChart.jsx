@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { initialRatingOf, confidenceProgress, confidenceOf } from '#lib/rating.js'
-import cfg from '#config/app.json' with { type: 'json' }
 
 /**
  * Biểu đồ SVG đường rating qua các buổi tập kèm dải mờ độ tin cậy (Confidence Interval).
@@ -128,7 +127,7 @@ export default function RatingLineChart({
   const chartData = useMemo(() => {
     if (!member) return { points: [], delta: 0, sessionsCount: 0, latestRating: 0, band: 8, confLevel: 'R5' }
 
-    const seed = member.level ? initialRatingOf(member.level, levels) : (cfg.rating?.defaultRating ?? 0)
+    const seed = initialRatingOf(member?.level, levels)
 
     if (filteredMatches.length === 0) {
       return {
@@ -156,7 +155,11 @@ export default function RatingLineChart({
       }
       runningGames++
 
-      const sKey = m.sessionId || (m.createdAt ? m.createdAt.slice(0, 10) : new Date(m.at || Date.now()).toISOString().slice(0, 10))
+      // `sKey` chỉ là khoá gom nhóm theo buổi, không hiển thị ra đâu cả (nhãn ngày là `dateStr`).
+      // Trận thiếu cả `at` lẫn `createdAt` thì gom vào một rổ cố định — trước đây dùng `Date.now()`
+      // là gọi hàm bất thuần trong lúc render: cùng một dữ liệu cho ra khoá khác nhau mỗi lần
+      // component vẽ lại, nên nhóm buổi nhảy lung tung.
+      const sKey = m.sessionId || (m.createdAt ? m.createdAt.slice(0, 10) : new Date(m.at || 0).toISOString().slice(0, 10))
       
       const sObj = sessions.find((s) => s.id === m.sessionId)
       const dateStr = sObj?.date

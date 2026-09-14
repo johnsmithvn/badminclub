@@ -6,7 +6,7 @@ import { monthOf } from '#utils/dates.js'
 import { isPresent, levelIdx, levelOf, sGuestsOnly, sessionMembers } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
-import { calcPairImpact, calcMatchupEdge, expectedScore, DEFAULT_RATING, SYNERGY_CFG } from '#lib/rating.js'
+import { calcPairImpact, calcMatchupEdge, expectedScore, SYNERGY_CFG } from '#lib/rating.js'
 
 /** Năm chế độ xếp. Nhãn và mô tả lấy từ i18n theo key. */
 export const MODE_KEYS = ['balance', 'fewest', 'rest', 'same', 'random']
@@ -117,6 +117,66 @@ export function fairness(players, stats) {
 }
 
 /**
+ * Bảng kiểm kê công bằng lượt đánh của MỘT buổi — 4 cột: người · trận · chờ · lệch.
+ *
+ * `fairness()` ở trên chỉ đọc max − min số trận của cả buổi, nên nó nói được 'buổi này lệch'
+ * nhưng không chỉ ra được AI đang chịu thiệt. Hàm này chấm từng người so với phần đáng được
+ * hưởng, và kèm cột Chờ để thấy ai đang ngồi ngoài lâu nhất ngay lúc này.
+ *
+ * Mọi thứ đếm theo SỰ KIỆN trận, không theo "vòng đấu": app chạy bất đồng bộ, mỗi sân bấm
+ * Xong trận riêng, sân 1 đánh 12 phút trong khi sân 2 đánh 25 phút. Thiết kế nào giả định
+ * vòng đồng bộ sẽ sai ngay khi hai sân lệch nhịp.
+ *
+ * Chỉ để THAM KHẢO — không chặn ai, không tự đẩy ai lên sân. Quản trò nhìn rồi tự quyết.
+ *
+ * @param {Object} db
+ * @param {string} sessionId
+ * @returns {Array<{key, name, guest, played, waitTurns, debt}>} sắp theo Chờ giảm dần
+ */
+export function sessionFairnessRows(db, sessionId) {
+  const s = (db?.sessions || []).find((x) => x.id === sessionId)
+  if (!s) return []
+
+  const matches = (db?.matches || [])
+    .filter((m) => m.sessionId === sessionId)
+    // Tie-break theo id: hai sân bấm lưu cùng mili-giây mà không có nó thì cùng một bộ dữ liệu
+    // cho ra hai thứ tự khác nhau giữa các lần render, kéo theo cột Chờ nhảy số.
+    .sort((a, b) => (a.at || 0) - (b.at || 0) || String(a.id || '').localeCompare(String(b.id || '')))
+  const total = matches.length
+  const keysOf = (m) => m.playerKeys || [...(m.teamA || []), ...(m.teamB || [])]
+
+  // Danh sách người lấy nguyên từ ĐIỂM DANH — màn điểm danh là chỗ chốt ai đi buổi này, và
+  // `lineup` cũng chỉ xếp được người trong danh sách đó, nên `playerKeys` của mọi trận luôn nằm
+  // trọn trong đây. App KHÔNG lưu giờ đến / giờ về, nên đừng suy ra thứ tự đến từ thứ tự ra sân:
+  // ai đã điểm danh thì coi như có mặt cả buổi, chấm hết.
+  const players = sessionPlayers(db, s)
+  if (!players.length) return []
+
+  // Mỗi trận xếp `playersPerCourt` chỗ cho cả danh sách -> phần công bằng của một người / một trận.
+  const fairShare = (cfg.match?.playersPerCourt ?? 4) / players.length
+  const expected = total * fairShare
+
+  return players.map((p) => {
+    let lastIdx = -1
+    let played = 0
+    matches.forEach((m, i) => {
+      if (!keysOf(m).includes(p.key)) return
+      lastIdx = i
+      played++
+    })
+
+    // Dương = đang bị thiệt (đáng được gọi), âm = đang được ưu ái.
+    const debt = Math.round((expected - played) * 10) / 10
+
+    // Chờ = số trận đã kết thúc ở BẤT KỲ sân nào kể từ lần cuối người này rời sân.
+    // Chưa đánh trận nào thì đã chờ qua đúng bằng số trận của cả buổi.
+    const waitTurns = played > 0 ? total - 1 - lastIdx : total
+
+    return { key: p.key, name: p.name, guest: Boolean(p.guest), played, waitTurns, debt }
+  }).sort((a, b) => b.waitTurns - a.waitTurns || b.debt - a.debt)
+}
+
+/**
  * Hai bên lưới của một sân có cân trình độ không — so trung bình levelIdx của từng đội.
  * @param levelOfKey (playerKey) => trình độ, hoặc undefined nếu ô trống
  * @param levels thang trình độ của CLB (db.levels)
@@ -224,7 +284,7 @@ export function detailedCourtBalance({
       partnerPlayCount++
     }
   })
-  const partnerScore = Math.max(40, Math.min(100, 100 - partnerPlayCount * 12))
+  const partnerScore = Math.max(10, Math.min(100, 100 - partnerPlayCount * 12))
 
   // 3. Đổi đối thủ (Opponent Diversity - tránh lặp lại đối đầu quá nhiều)
   let opponentPlayCount = 0
@@ -239,7 +299,7 @@ export function detailedCourtBalance({
       opponentPlayCount++
     }
   })
-  const opponentScore = Math.max(40, Math.min(100, 100 - opponentPlayCount * 15))
+  const opponentScore = Math.max(10, Math.min(100, 100 - opponentPlayCount * 15))
 
   // 4. H2H & Lịch sử tỉ số (Tránh thế trận kỵ giơ một chiều)
   const h2hMatches = []
@@ -286,7 +346,7 @@ export function detailedCourtBalance({
 
   const maxOnCourt = Math.max(...onCourtKeys.map((k) => stats[k]?.n || 0), 0)
   const waitDiff = minWaiting ? Math.max(0, maxOnCourt - minWaiting.n) : 0
-  const fairScore = Math.max(40, Math.min(100, 100 - waitDiff * 14))
+  const fairScore = Math.max(0, Math.min(100, 100 - waitDiff * 14))
 
   // Điểm tổng hợp chuẩn: Cân Elo 55%, Đều lượt 20%, Đổi partner 15%, Đổi đối thủ 10% (Tổng = 100%)
   // Ăn ý cặp & Khắc chế (H2H) thuộc nhóm [MỚI] không cộng vào điểm tổng (theo cam kết UI)
@@ -402,191 +462,6 @@ export function simulateWhatIfSwap({
     balanceScoreBefore,
     balanceScoreAfter,
     scoreDelta,
-  }
-}
-
-/**
- * Thuật toán xếp sân Best-of-N (CE1: Dò N phương án, chọn Top 3).
- * Dò N phương án trong vài mili-giây, chấm điểm theo 5 tiêu chí cân bằng.
- * @param {Object} params
- * @param {Array} params.players - Danh sách người chơi trong buổi
- * @param {Object} params.session - Buổi đánh (active courts)
- * @param {number} [params.candidatesCount=80] - Số phương án cần dò (mặc định 80)
- * @param {Object} [params.ratingsMap] - Map key -> Elo hoặc effective strength
- * @param {Array} [params.matches] - Lịch sử trận
- * @param {Object} [params.stats] - Thống kê số lượt đánh trong buổi
- * @param {Array} [params.constraints] - Danh sách điều kiện chặn
- * @returns {{ planA: Object, planB: Object, planC: Object, scatterPoints: Array, waitingPlayers: Array, blockedConstraints: Array, timeMs: number }}
- */
-export function arrangeBestOfN({
-  players = [],
-  session = {},
-  candidatesCount = 80,
-  ratingsMap = {},
-  matches = [],
-  stats = {},
-  constraints = [],
-  _groupMode = false,
-  _courtGroups = {},
-  _levels,
-}) {
-  const startTime = Date.now()
-  const idxs = activeCourtIdxs(session)
-  const slots = slotIds(session)
-  const capacity = slots.length
-
-  if (!players || players.length === 0 || capacity === 0) {
-    return {
-      bestPlan: { lineup: {}, score: 0, criteria: {} },
-      planA: { lineup: {}, score: 0, title: 'Phương án A', badge: 'TỐT NHẤT', desc: 'Chưa có người chơi' }, // i18n-ok: default plan label
-      planB: null,
-      planC: null,
-      scatterPoints: [],
-      waitingPlayers: [],
-      blockedConstraints: constraints,
-      timeMs: 0,
-    }
-  }
-
-  const cnt = (k) => (stats[k] ? stats[k].n : 0)
-  const candidateResults = []
-
-  // Chạy dò N phương án ngẫu nhiên thông minh (Monte Carlo)
-  for (let iter = 0; iter < candidatesCount; iter++) {
-    const pool = [...players]
-    // Ưu tiên người ít lượt đánh vào sân trước kèm hoán vị ngẫu nhiên
-    pool.sort((a, b) => {
-      const waitDiff = cnt(a.key) - cnt(b.key)
-      if (waitDiff !== 0) return waitDiff + (Math.random() - 0.5) * 0.5
-      return Math.random() - 0.5
-    })
-
-    const lineup = {}
-    const chosen = pool.slice(0, capacity)
-
-    let pIdx = 0
-    idxs.forEach((ci) => {
-      const cSlots = courtSlotIds(ci)
-      cSlots.forEach((sl) => {
-        if (chosen[pIdx]) {
-          lineup[sl] = chosen[pIdx].key
-          pIdx++
-        }
-      })
-    })
-
-    // Chấm điểm từng sân
-    let courtScoresSum = 0
-    let evaluatedCourts = 0
-    const courtDetails = []
-    let totalEloDiff = 0
-
-    idxs.forEach((ci) => {
-      const bal = detailedCourtBalance({
-        lineup,
-        ci,
-        ratingsMap,
-        matches,
-        players,
-        stats,
-      })
-      if (bal) {
-        courtScoresSum += bal.totalScore
-        evaluatedCourts++
-        courtDetails.push({ ci, ...bal })
-        totalEloDiff += bal.canRating.delta
-      }
-    })
-
-    const avgScore = evaluatedCourts > 0 ? Math.round(courtScoresSum / evaluatedCourts) : 50
-    const avgDiff = evaluatedCourts > 0 ? Math.round(totalEloDiff / evaluatedCourts) : 0
-
-    // Phạt điểm nếu vi phạm điều kiện chặn
-    let penalty = 0
-    constraints.forEach((c) => {
-      if (c.type === 'avoid_pair') {
-        idxs.forEach((ci) => {
-          const ids = courtSlotIds(ci)
-          const ta = [lineup[ids[0]], lineup[ids[1]]]
-          const tb = [lineup[ids[2]], lineup[ids[3]]]
-          if ((ta.includes(c.playerA) && ta.includes(c.playerB)) || (tb.includes(c.playerA) && tb.includes(c.playerB))) {
-            penalty += 20
-          }
-        })
-      }
-    })
-
-    const finalScore = Math.max(10, Math.min(100, avgScore - penalty))
-
-    candidateResults.push({
-      id: iter + 1,
-      lineup,
-      score: finalScore,
-      avgDiff,
-      courtDetails,
-      totalScore: finalScore,
-    })
-  }
-
-  // Sắp xếp các phương án theo điểm số giảm dần
-  candidateResults.sort((a, b) => b.score - a.score)
-
-  const planA = candidateResults[0] || { lineup: {}, score: 92, avgDiff: 24, courtDetails: [] }
-  const planB = candidateResults.find((c) => c.score < planA.score - 2) || candidateResults[1] || planA
-  const planC = candidateResults.find((c) => c.score < (planB.score || planA.score) - 4) || candidateResults[2] || planB
-
-  const timeMs = Math.max(1, Date.now() - startTime)
-
-  // Danh sách người chờ
-  const onCourtA = Object.values(planA.lineup).filter(Boolean)
-  const waitingPlayers = players
-    .filter((p) => !onCourtA.includes(p.key))
-    .map((p) => ({
-      ...p,
-      waitTurns: Math.max(1, Math.max(...onCourtA.map((k) => cnt(k)), 0) - cnt(p.key)),
-      elo: ratingsMap[p.key] ?? DEFAULT_RATING,
-    }))
-    .sort((a, b) => b.waitTurns - a.waitTurns)
-
-  // 5 tiêu chí trung bình cho Plan A
-  const cd = planA.courtDetails || []
-  const criteria = {
-    // `??` chứ không `||`: canRating có thể bằng 0 khi kèo lệch tuyệt đối, `||` sẽ nuốt mất số 0
-    canRating: Math.round(cd.reduce((s, c) => s + (c.canRating?.score ?? 90), 0) / (cd.length || 1)),
-    partner: Math.round(cd.reduce((s, c) => s + (c.partner?.score ?? 95), 0) / (cd.length || 1)),
-    opponent: Math.round(cd.reduce((s, c) => s + (c.opponent?.score ?? 85), 0) / (cd.length || 1)),
-    h2h: Math.round(cd.reduce((s, c) => s + (c.h2h?.score ?? 88), 0) / (cd.length || 1)),
-    fairness: Math.round(cd.reduce((s, c) => s + (c.fairness?.score ?? 90), 0) / (cd.length || 1)),
-  }
-
-  return {
-    bestPlan: planA,
-    planA: {
-      ...planA,
-      title: 'Phương án A', // i18n-ok: plan label
-      badge: 'TỐT NHẤT', // i18n-ok: plan badge
-      desc: `Lệch Elo trung bình ${planA.avgDiff || 24} · không cặp nào lặp lại · ${Math.min(4, waitingPlayers.length)} người chờ lâu nhất đều vào sân.`, // i18n-ok: plan description
-      criteria,
-    },
-    planB: {
-      ...planB,
-      title: 'Phương án B', // i18n-ok: plan label
-      badge: null,
-      desc: `Cân trình hơn A nhưng có cặp đánh lại lần thứ ba.`, // i18n-ok: plan description
-    },
-    planC: {
-      ...planC,
-      title: 'Phương án C', // i18n-ok: plan label
-      badge: null,
-      desc: `Toàn cặp mới nhưng có sân lệch Elo cao hơn.`, // i18n-ok: plan description
-    },
-    scatterPoints: candidateResults.map((c) => ({ id: c.id, score: c.score })),
-    waitingPlayers,
-    blockedConstraints: [
-      { text: 'Kiên – Long cùng đội: bị chặn tay, giữ hai người ở hai đầu sân.' }, // i18n-ok: sample constraint
-      { text: 'Ngọc nghỉ 1 lượt: vừa đánh 3 trận liền.' }, // i18n-ok: sample constraint
-    ],
-    timeMs,
   }
 }
 

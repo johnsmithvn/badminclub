@@ -11,6 +11,8 @@ import {
   initialRatingOf,
   replayRatingCascade,
   lastMatchAtOf,
+  applyRatingDelta,
+  MIN_RATING,
 } from '../../lib/rating.js'
 
 
@@ -127,7 +129,10 @@ test('Rating Upgrades Suite', async (t) => {
     assert.equal(initialRatingOf('TB'), 500)
     assert.equal(initialRatingOf('Khá'), 800)
     assert.equal(initialRatingOf('Tốt'), 1000)
-    assert.equal(initialRatingOf(undefined), 0)
+    // Không tra được trình độ thì vào bằng levelInitialRatings.default, KHÔNG phải DEFAULT_RATING:
+    // seed 0 là đúng SÀN của thang, cộng với luật kẹp sàn thì người chưa khai trình được miễn
+    // mất điểm ở các trận thua đầu trong khi đối thủ vẫn được cộng.
+    assert.equal(initialRatingOf(undefined), 200)
 
     // getPlayerRating với member level
     const prNewbie = getPlayerRating({}, 'm_new', { level: 'Yếu' })
@@ -229,10 +234,11 @@ test('Rating Upgrades Suite', async (t) => {
  * ========================================================================== */
 test('Rating Input Consistency Suite', async (t) => {
   await t.test('A1. getPlayerRating: người chưa có row phải rơi về seed theo trình độ, không phải 0', () => {
-    // Không truyền member -> không tra được level -> seed 0. Đây là lý do các màn
-    // quên truyền member hiển thị Elo 0 cho hội viên mới trong khi Leaderboard hiện 720.
+    // Thiếu member -> không tra được level -> rơi về seed mặc định. Cả 33 call site trong app
+    // đều đã truyền đủ member; đường này giờ chỉ còn xảy ra khi id không còn tồn tại trong
+    // members/guests (người đã xoá mà còn dính trong trận cũ) — `playerOf` trả null.
     const noMember = getPlayerRating({}, 'm_new')
-    assert.equal(noMember.rating, 0, 'Thiếu member thì hàm không thể biết seed — call site PHẢI truyền member')
+    assert.equal(noMember.rating, 200, 'Thiếu member thì hàm không thể biết seed — call site PHẢI truyền member')
 
     const withMember = getPlayerRating({}, 'm_new', { level: 'tbk' })
     assert.equal(withMember.rating, 720, 'Có member thì seed phải bằng levelInitialRatings.tbk = 720')
@@ -245,13 +251,12 @@ test('Rating Input Consistency Suite', async (t) => {
     const withMember = getPlayerRating(prMap, 'm1', { level: 'kha' })
     assert.equal(withMember.effectiveStrength, 880, 'Co cụm sai seed là xếp sân sai trình')
 
-    // BẪY CÒN LẠI: thiếu member -> seedRating = 0, mà effectiveStrengthOf dùng
-    // `seedRating || r` nên số 0 hợp lệ bị nuốt và seed rơi về chính rating
-    // -> KHÔNG co cụm chút nào. Người mới 3 trận bị xếp sân như người đã 30 trận.
-    // Sửa `||` thành `??` sẽ đổi sức mạnh hiệu dụng của mọi người có seed = 0,
-    // tức đổi cách chia đội — cần user quyết trước, xem báo cáo.
+    // "BẪY `seedRating || r`" ghi ở đây trước đây đã TỰ TIÊU khi seed mặc định đổi từ 0 sang 200:
+    // 200 không bao giờ falsy nên `||` hết cửa nuốt seed, và việc co cụm chạy ở mọi nhánh.
+    // Đổi lại, thiếu member thì co cụm về chính seed mặc định (200), không phải về trình thật.
+    // Chấp nhận được vì mọi call site trong app đều truyền member — xem ghi chú ở A1.
     const noMember = getPlayerRating(prMap, 'm1')
-    assert.equal(noMember.effectiveStrength, 1000, 'Hành vi HIỆN TẠI: thiếu member thì không co cụm')
+    assert.equal(noMember.effectiveStrength, 520, 'Thiếu member thì co cụm về seed mặc định 200: 200*0.6 + 1000*0.4')
     assert.notEqual(noMember.effectiveStrength, withMember.effectiveStrength)
   })
 
@@ -274,7 +279,7 @@ test('Rating Input Consistency Suite', async (t) => {
       'Thua đội mạnh hơn phải mất ít điểm hơn thua đội ngang cơ'
     )
     assert.equal(withGuests.updatedMatches[0].initialRatingB, 1000, 'Team khách phải mang seed tot = 1000')
-    assert.equal(withoutGuests.updatedMatches[0].initialRatingB, 0, 'Không truyền guests thì rơi về DEFAULT_RATING = 0')
+    assert.equal(withoutGuests.updatedMatches[0].initialRatingB, 200, 'Không truyền guests thì rơi về seed mặc định levelInitialRatings.default')
   })
 
   await t.test('A5b. cascade replay hai lần cho cùng kết quả dù trận trùng mốc thời gian', () => {
@@ -358,5 +363,50 @@ test('Replay Cascade — Khách giao lưu không tích luỹ Elo', async (t) => 
     // Chốt luôn con số để lần sau đổi công thức là biết ngay
     assert.equal(withGuest.finalRatings.m1.rating, 630)
     assert.equal(asMember.finalRatings.m1.rating, 619)
+  })
+})
+
+test('BUG-11 — Điểm nội bộ và điểm hiển thị không được phân kỳ', async (t) => {
+  await t.test('13. applyRatingDelta cộng bình thường phía trên sàn, kẹp đúng ở sàn', () => {
+    assert.equal(applyRatingDelta(500, -37), 463)
+    assert.equal(applyRatingDelta(500, 18), 518)
+    assert.equal(applyRatingDelta(20, -37), MIN_RATING, 'Tụt qua sàn phải dừng ở sàn, không đi tiếp xuống âm')
+    assert.equal(applyRatingDelta(MIN_RATING, -50), MIN_RATING)
+    assert.equal(applyRatingDelta(MIN_RATING, 24), 24, 'Đang ở sàn mà thắng thì phải nhích lên NGAY, không tiêu vào phần âm tích luỹ')
+    // Ghi chú: `rating` dùng `??` chứ không `||` vì 0 là giá trị hợp lệ (app.json đặt
+    // minRating = 0). Chưa khoá được bằng assert: DEFAULT_RATING cũng đang bằng 0 nên hai toán
+    // tử cho cùng kết quả. Khoá lại khi nào defaultRating khác 0.
+  })
+
+  await t.test('14. Cascade: cõng partner mạnh không đẩy rating nội bộ xuống âm', () => {
+    // Đây là ca thật của LỖ HỔNG-01, không phải ca dựng: 'weak' (seed 200) bị ghép với 'ace'
+    // (seed 1000) — đúng luật hi/lo của fillPairs — gặp hai người TB. Kỳ vọng tính theo TRUNG
+    // BÌNH ĐỘI nên hệ thống tưởng đội này kèo trên, 'weak' thua là mất rất nặng dù chính mình yếu.
+    // Không kẹp sàn thì sau 12 trận rating nội bộ xuống -13 trong khi displayRating vẫn hiện 0:
+    // bảng xếp hạng đứng yên, còn expectedScore và màn Chia sân lại đọc con số âm.
+    const members = [
+      { id: 'weak', name: 'Yếu', level: 'yeu' },
+      { id: 'ace', name: 'Chủ lực', level: 'tot' },
+      { id: 's1', name: 'TB 1', level: 'tb' },
+      { id: 's2', name: 'TB 2', level: 'tb' },
+    ]
+    const matches = Array.from({ length: 12 }, (_, i) => ({
+      id: 'mt' + i,
+      at: 1000 + i,
+      teamA: ['weak', 'ace'],
+      teamB: ['s1', 's2'],
+      winnerTeam: 'B',
+      sets: [[5, 21]],
+    }))
+
+    const { finalRatings } = replayRatingCascade(matches, null, members, [])
+    const w = finalRatings.weak
+
+    assert.ok(w.rating >= MIN_RATING, `Rating nội bộ tụt xuống ${w.rating} — chính con số này mới là thứ expectedScore và màn Chia sân đọc`)
+    assert.equal(
+      w.rating,
+      w.displayRating,
+      'Hai con số phân kỳ là bug âm thầm: người chơi thấy 0 đứng yên suốt nhiều trận thắng mà không ai giải thích được'
+    )
   })
 })

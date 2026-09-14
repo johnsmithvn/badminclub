@@ -4,6 +4,7 @@ import {
   confidenceOf,
   DEFAULT_RATING,
   expectedScore,
+  initialRatingOf,
   rankTopCrossGenderPlayers,
   replayRatingCascade,
   teamRating,
@@ -48,9 +49,14 @@ const matches = [
   },
 ]
 
+// 4 người không khai trình độ -> cùng vào bằng seed mặc định (levelInitialRatings.default).
+// So với chính seed chứ không so với 0: rating không còn được phép chui xuống âm (applyRatingDelta
+// kẹp ở MIN_RATING), nên "thua thì phải < 0" đo sai thứ — thứ cần đo là thua thì phải MẤT điểm.
+const seed = initialRatingOf(undefined)
 const { finalRatings, updatedMatches } = replayRatingCascade(matches, 'match1', members)
-assert.ok(finalRatings.m1.rating > 0, 'Người thắng trận phải có điểm rating > 0')
-assert.ok(finalRatings.m3.rating < 0, 'Người thua trận phải có điểm rating < 0 (khi bắt đầu từ 0)')
+assert.ok(finalRatings.m1.rating > seed, 'Người thắng trận phải được cộng điểm so với seed')
+assert.ok(finalRatings.m3.rating < seed, 'Người thua trận phải bị trừ điểm so với seed')
+assert.ok(finalRatings.m3.rating >= 0, 'Nhưng không được tụt xuống âm — điểm nội bộ và điểm hiển thị phải khớp nhau')
 assert.equal(updatedMatches.length, 1, 'Danh sách trận cập nhật phải khớp')
 
 // 7. B1: Trận hoà set (1-1) trong replayRatingCascade phải trả về winnerTeam = null và không đổi Elo
@@ -66,8 +72,8 @@ const tieMatches = [
 ]
 const { finalRatings: tieRatings, updatedMatches: tieUpdated } = replayRatingCascade(tieMatches, 'matchTie', members)
 assert.equal(tieUpdated[0].winnerTeam, null, 'Trận hoà set 1-1 phải có winnerTeam = null')
-assert.equal(tieRatings.m1.rating, 0, 'Trận hoà không làm thay đổi Elo của m1')
-assert.equal(tieRatings.m3.rating, 0, 'Trận hoà không làm thay đổi Elo của m3')
+assert.equal(tieRatings.m1.rating, seed, 'Trận hoà không làm thay đổi Elo của m1')
+assert.equal(tieRatings.m3.rating, seed, 'Trận hoà không làm thay đổi Elo của m3')
 
 // 8. rankTopCrossGenderPlayers
 assert.deepEqual(rankTopCrossGenderPlayers(null, {}), [])
