@@ -19,6 +19,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const lottieRef = useRef(null)
   const isPasswordFocused = useRef(false)
+  const identifierWrapperRef = useRef(null) // dùng để focus sau khi Lottie init xong
 
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }))
 
@@ -52,6 +53,14 @@ export default function Login() {
     )
   }, [f.identifier])
 
+  // Focus input sau khi Lottie kịp init (~400ms) để onFocus bubble đúng cách
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      identifierWrapperRef.current?.querySelector('input')?.focus()
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [])
+
   const submit = async (e) => {
     e.preventDefault()
     setErr('')
@@ -62,6 +71,9 @@ export default function Login() {
       navigate('/clb', { replace: true })
     } catch (ex) {
       setErr(ex.message === 'Invalid login credentials' ? t('auth.errWrong') : ex.message)
+      // Avatar hoảng loạn khi sai tài khoản/mật khẩu, reset về Blinking sau 2s
+      switchState('Panic')
+      setTimeout(() => switchState('Blinking'), 2000)
     } finally {
       setBusy(false)
     }
@@ -70,43 +82,41 @@ export default function Login() {
   return (
     <AuthLayout
       title={t('auth.loginTitle')}
-      sub={t('auth.loginSub')}
       footer={<Link to="/dang-ky" style={{ color: '#fff' }}>{t('auth.toRegister')}</Link>}
+      avatar={<LottieLoginAvatar lottieRef={lottieRef} />}
     >
-      {/* Avatar Lottie tương tác */}
-      <LottieLoginAvatar lottieRef={lottieRef} />
-
       <form onSubmit={submit} style={{ display: 'grid', gap: 14 }}>
         {/* Wrapper div để bắt focus event mà không ghi đè internal handler của Input */}
-        <div onFocus={handleIdentifierFocus} onBlur={handleBlur}>
+        <div ref={identifierWrapperRef} onFocus={handleIdentifierFocus} onBlur={handleBlur}>
           <Input
             label={t('auth.fIdentifier')}
             value={f.identifier}
             onChange={set('identifier')}
             autoComplete="username"
-            autoFocus
           />
         </div>
 
-        {/* Password field với toggle show/hide */}
-        <div style={{ position: 'relative' }} onFocus={handlePasswordFocus} onBlur={handleBlur}>
+        {/* Password field với checkbox show/hide ngang hàng với label */}
+        <div onFocus={handlePasswordFocus} onBlur={handleBlur}>
+          <div style={S.passwordHeader}>
+            <span style={S.passwordLabel}>{t('auth.fPassword')}</span>
+            <label style={S.showLabel}>
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onMouseDown={(e) => e.preventDefault()} // giữ focus ở input
+                onChange={() => setShowPassword((v) => !v)}
+                style={{ cursor: 'pointer' }}
+              />
+              Hiện mật khẩu
+            </label>
+          </div>
           <Input
-            label={t('auth.fPassword')}
             type={showPassword ? 'text' : 'password'}
             value={f.password}
             onChange={set('password')}
             autoComplete="current-password"
           />
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()} // giữ focus ở input, không trigger onBlur
-            onClick={() => setShowPassword((v) => !v)}
-            style={S.eyeBtn}
-            aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-            tabIndex={-1}
-          >
-            {showPassword ? '🙈' : '👁️'}
-          </button>
         </div>
 
         {err && <Alert tone="danger">{err}</Alert>}
@@ -121,18 +131,23 @@ export default function Login() {
 }
 
 const S = {
-  eyeBtn: {
-    position: 'absolute',
-    right: 10,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
+  passwordHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  passwordLabel: {
+    font: 'var(--type-label)',
+    color: 'var(--text-secondary)',
+  },
+  showLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+    font: 'var(--type-caption)',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
-    fontSize: 18,
-    padding: '4px 6px',
-    lineHeight: 1,
-    // Đẩy xuống dưới label (label cao ~20px + gap)
-    marginTop: 10,
+    userSelect: 'none',
   },
 }

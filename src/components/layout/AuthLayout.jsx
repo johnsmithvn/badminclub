@@ -5,7 +5,7 @@ import { Icon, IconButton } from '#ds'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t } from '#i18n'
 
-export default function AuthLayout({ title, sub, children, footer }) {
+export default function AuthLayout({ title, sub, children, footer, avatar }) {
   const { isDark, toggleTheme } = useTheme()
 
   return (
@@ -29,11 +29,16 @@ export default function AuthLayout({ title, sub, children, footer }) {
         </div>
       </div>
 
+      {/* Avatar nằm giữa brand và card — chỉ hiện khi được truyền vào */}
+      {avatar}
+
       <div style={S.card}>
-        <div style={{ display: 'grid', gap: 3, marginBottom: 18 }}>
-          <h1 style={S.title}>{title}</h1>
-          <span style={S.sub}>{sub}</span>
-        </div>
+        {title && (
+          <div style={{ display: 'grid', gap: 3, marginBottom: 18 }}>
+            <h1 style={S.title}>{title}</h1>
+            {sub && <span style={S.sub}>{sub}</span>}
+          </div>
+        )}
         {children}
       </div>
 

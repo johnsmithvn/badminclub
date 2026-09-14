@@ -683,9 +683,9 @@ export default function Matches() {
         onChange={handleSelectTab}
         style={{ marginBottom: 4 }}
         items={[
-          { key: 'challenges', label: t('matchesPage.tabChallenges'), icon: 'history', tone: 'accent', badge: pendingChallenges.length || null },
-          { key: 'search', label: t('matchesPage.tabHistory'), icon: 'search', tone: 'primary', badge: (db.matches || []).length },
-          { key: 'matrix', label: t('matchesPage.tabMatrix'), icon: 'grid', tone: 'violet' },
+          { key: 'challenges', label: t('matchesPage.tabChallenges'), tone: 'accent', badge: pendingChallenges.length || null },
+          { key: 'search', label: 'History', tone: 'primary', badge: (db.matches || []).length },
+          { key: 'matrix', label: t('matchesPage.tabMatrix'), tone: 'violet' },
         ]}
       />
 
