@@ -5,6 +5,39 @@
 Quy tắc hiện hành cho human developer và coding agent. `CLAUDE.md` là entrypoint ngắn; file này là
 policy chi tiết. Lịch sử rule cũ nằm trong git/CHANGELOG, không lặp ở đây.
 
+## 0. 🚨 BỘ SỐ CHUẨN — ĐỔI CÔNG THỨC PHẢI CHẠY BACKTEST
+
+> **⛔ LUẬT ƯU TIÊN CAO NHẤT CÙNG VỚI §7.**
+
+`src/__tests__/backtest/` giữ lịch sử trận **thật** của CLB (`data/`) và **mốc số** tương ứng
+(`baseline/`). `backtest.test.js` chạy lại toàn bộ trận qua công thức hiện hành rồi so với mốc.
+
+**Đỏ = công thức Elo hoặc thang điểm mùa vừa đổi.** Đó là chủ đích, không phải hỏng.
+
+### Cấm
+
+- **Cấm** chạy `--save` đè mốc chỉ để test xanh.
+- **Cấm** cập nhật mốc mà chưa đọc diff và chưa báo user.
+
+### Phải
+
+1. `npm run backtest -- <data> --vs <baseline>` — đọc **từng dòng** ai đổi, đổi bao nhiêu.
+2. Sai ý đồ → sửa code, không sửa mốc.
+3. Đúng ý đồ → báo user con số cụ thể, xin phép, rồi `--save`, và ghi con số đó vào commit message.
+
+### Thêm bộ dữ liệu mới
+
+Xuất từ trang Trận đấu (nút Xuất trận) → chép vào `data/` → tạo mốc bằng `--save`. Một file
+trong `data/` phải có đúng một file **cùng tên** trong `baseline/`, thiếu là test đỏ.
+
+### Giới hạn
+
+Bộ sao lưu **không có điểm danh** — mọi phép đo công bằng lượt đánh trên nó đều không thấy người
+đi tập mà không được gọi trận. Và bộ số phản ánh **cách xếp sân đã thực sự diễn ra**: nếu do quản
+trò xếp tay thì nó không nói gì về chất lượng thuật toán `arrange()`.
+
+Chi tiết: `src/__tests__/backtest/README.md`.
+
 ## 1. Sự thật trước giả định
 
 Trước khi sửa:

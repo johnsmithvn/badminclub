@@ -65,6 +65,8 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | **Nhập tỷ số bằng giọng nói (Voice Match)**: Formal Grammar 5 luật cứng · khử nhiễu tên người vs số đếm · luật điểm cầu lông | `lib/voiceMatchParser.test.js` |
 | **Video trận đấu & Dòng thời gian buổi**: Parse link YouTube/Drive/iCloud · timestamp · khoảng cách trận · thống kê nhịp độ buổi | `lib/video_match_timeline.test.js` |
 
+| 🚨 **Bộ số chuẩn trên dữ liệu THẬT** — đổi công thức Elo/điểm mùa là đỏ. ĐỌC `backtest/README.md` TRƯỚC KHI ĐỘNG VÀO | `backtest/backtest.test.js` |
+
 `fixture.js` — bộ dữ liệu cố định (2 CLB, tháng 08/2026) mọi file dùng chung. App **không**
 import nó; dữ liệu thật nằm ở Supabase.
 

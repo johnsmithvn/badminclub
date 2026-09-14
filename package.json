@@ -13,7 +13,8 @@
     "db:stop": "supabase stop",
     "db:status": "supabase status",
     "db:env": "supabase status -o env --override-name api.url=VITE_SUPABASE_URL --override-name auth.anon_key=VITE_SUPABASE_ANON_KEY",
-    "db:migrate": "supabase migration up"
+    "db:migrate": "supabase migration up",
+    "backtest": "node src/__tests__/backtest/run.mjs"
   },
   "dependencies": {
     "@lottielab/lottie-player": "^1.1.3",

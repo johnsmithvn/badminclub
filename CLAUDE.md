@@ -1,5 +1,32 @@
 # CLAUDE.md
 
+> # 🚨🚨 LUẬT SỐ 0 — BỘ SỐ CHUẨN (BACKTEST)
+>
+> ## ĐỔI CÔNG THỨC ELO HOẶC ĐIỂM MÙA → BẮT BUỘC CHẠY BACKTEST
+>
+> `src/__tests__/backtest/` giữ **lịch sử trận thật** của CLB kèm **mốc số** tương ứng.
+> Test `backtest.test.js` so bộ số hiện tại với mốc đó.
+>
+> ### ⛔ KHI TEST NÀY ĐỎ — TUYỆT ĐỐI KHÔNG CHẠY `--save` ĐỂ DẬP CHO XANH
+>
+> Nó đỏ nghĩa là **bạn vừa làm đổi Elo hoặc điểm mùa của cả CLB**. Đó là chủ đích của nó.
+>
+> **PHẢI** làm đúng thứ tự:
+> 1. Chạy `npm run backtest -- <data> --vs <baseline>`
+> 2. **ĐỌC TỪNG DÒNG** ai đổi, đổi bao nhiêu
+> 3. Sai ý đồ → sửa code. Đúng ý đồ → báo user con số đã đổi, **xin phép**, rồi mới `--save`
+>
+> Đè mốc mà không đọc = vứt bỏ toàn bộ tác dụng gác. Lần sau công thức sai đi thẳng lên
+> production và không ai truy ra được dòng nào gây ra.
+>
+> ### Đụng tới những file này là phải nghĩ tới backtest
+>
+> `src/lib/rating.js` · `src/lib/season.js` · `src/config/app.json` (khối `rating`, `season`)
+>
+> Chi tiết: `src/__tests__/backtest/README.md`
+
+---
+
 # Language
 
 - Always reply in Vietnamese unless explicitly requested otherwise.

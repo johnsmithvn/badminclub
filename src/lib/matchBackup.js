@@ -4,7 +4,7 @@
 // Trận đấu KHÔNG ảnh hưởng tiền (xem FEATURES.md) — file này chỉ đụng trục thi đấu.
 
 export const MATCH_BACKUP_SCHEMA = 'badminclub_matches'
-export const MATCH_BACKUP_VERSION = 1
+export const MATCH_BACKUP_VERSION = 2
 
 const keysOf = (m) => (m?.playerKeys?.length ? m.playerKeys : [...(m?.teamA || []), ...(m?.teamB || [])])
 
@@ -12,11 +12,37 @@ const keysOf = (m) => (m?.playerKeys?.length ? m.playerKeys : [...(m?.teamA || [
  * Dựng payload sao lưu. Kèm `members` / `guests` / `sessions` ở dạng THAM CHIẾU (chỉ để người đọc
  * file và script phân tích tra tên, không dùng để khôi phục) — nếu không thì mở file ra chỉ thấy
  * một rừng uuid, không đối chiếu được với bất cứ thứ gì.
+ * Lọc theo khoảng ngày của BUỔI (không phải mốc `at` của trận): trận thuộc về buổi nào thì
+ * tính theo ngày buổi đó, khớp với cách mùa giải và mọi màn thống kê chia khoảng. Bỏ trống
+ * `range` là lấy tất cả.
+ *
  * @param {Object} db
+ * @param {{from?: string, to?: string, label?: string}} [range] - 'YYYY-MM-DD', bao gồm cả hai đầu
  * @returns {Object}
  */
-export function buildMatchBackup(db = {}) {
-  const matches = (db.matches || []).map((m) => ({
+export function buildMatchBackup(db = {}, range = null) {
+  const from = range?.from || ''
+  const to = range?.to || ''
+  const dateOf = Object.fromEntries((db.sessions || []).map((x) => [x.id, x.date || '']))
+  // So sánh chuỗi 'YYYY-MM-DD' là đủ và an toàn hơn Date.parse: không dính múi giờ, không lệch
+  // một ngày ở ranh giới — đúng cách `monthSessions` và bộ lọc mùa đang làm.
+  const inRange = (m) => {
+    const d = dateOf[m.sessionId] || ''
+    if (!d) return !from && !to   // trận mồ côi: chỉ lấy khi không lọc gì
+    if (from && d < from) return false
+    if (to && d > to) return false
+    return true
+  }
+
+  const keptSessions = (db.sessions || []).filter((x) => {
+    const d = x.date || ''
+    if (from && d < from) return false
+    if (to && d > to) return false
+    return true
+  })
+  const keptSessionIds = new Set(keptSessions.map((x) => x.id))
+
+  const matches = (db.matches || []).filter(inRange).map((m) => ({
     id: m.id,
     sessionId: m.sessionId,
     courtIdx: m.courtIdx ?? null,
@@ -38,12 +64,32 @@ export function buildMatchBackup(db = {}) {
     clubName: db.club?.name || '',
     clubCode: db.club?.code || '',
     matchCount: matches.length,
+    // Ghi lại đã lọc gì: mở file ra phải biết ngay trong đó là toàn bộ hay một khoảng.
+    range: (from || to) ? { from, to, label: range?.label || '' } : null,
     matches,
     ref: {
       levels: db.levels || [],
       members: (db.members || []).map((x) => ({ id: x.id, name: x.name, level: x.level, gender: x.gender, active: x.active !== false })),
       guests: (db.guests || []).map((x) => ({ id: x.id, name: x.name, level: x.level, gender: x.gender })),
-      sessions: (db.sessions || []).map((x) => ({ id: x.id, date: x.date })),
+      // Sân của buổi: cần để biết TRẦN CỨNG số trận. 2 sân × 2 tiếng cho gấp đôi lượt so với
+      // 1 sân, nên "trận/buổi" không so được giữa hai buổi nếu không biết buổi đó mấy sân.
+      // Sân đã bán không sinh lượt nào — giữ cờ `sold` chứ đừng lọc sẵn.
+      sessions: keptSessions.map((x) => ({
+        id: x.id,
+        date: x.date,
+        status: x.status || '',
+        courts: (x.courts || []).map((c) => ({ from: c.from || '', to: c.to || '', sold: !!c.sold })),
+      })),
+      // ĐIỂM DANH — thiếu nó thì không đo được công bằng lượt đánh: người đi tập mà không được
+      // gọi trận nào sẽ VÔ HÌNH, vì không có dấu vết nào trong bảng trận.
+      attendance: Object.fromEntries(
+        keptSessions.map((x) => [x.id, (db.attendance || {})[x.id] || {}]).filter(([, v]) => Object.keys(v).length)
+      ),
+      // Khách khai trình độ theo TỪNG BUỔI; `guests.level` chỉ là mức mặc định.
+      sessionGuests: (db.sessionGuests || []).filter((g) => keptSessionIds.has(g.sessionId)).map((g) => ({
+        id: g.id, sessionId: g.sessionId, guestId: g.guestId || null, memberId: g.memberId || null,
+        level: g.level || '', gender: g.gender || '',
+      })),
     },
   }
 }

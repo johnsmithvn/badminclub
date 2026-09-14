@@ -125,3 +125,61 @@ test('Sao lưu lịch sử trận', async (t) => {
     assert.equal(validateMatchBackup({ schema: MATCH_BACKUP_SCHEMA, version: 1, matches: [] }, okDb()).error, 'matchIo.errEmptyFile')
   })
 })
+
+test('Lọc khoảng thời gian khi xuất', async (t) => {
+  const db = () => ({
+    club: { name: 'CLB', code: 'T1' },
+    levels: ['Y', 'TB'],
+    members: [{ id: 'm1', name: 'A', level: 'tb' }, { id: 'm2', name: 'B', level: 'tb' }],
+    guests: [],
+    sessions: [
+      { id: 's1', date: '2026-06-10', courts: [{ from: '18:00', to: '20:00', sold: false }] },
+      { id: 's2', date: '2026-08-15', courts: [{ from: '18:00', to: '20:00', sold: false }] },
+      { id: 's3', date: '2026-09-20', courts: [{ from: '18:00', to: '20:00', sold: false }] },
+    ],
+    attendance: { s1: { m1: true }, s2: { m1: true }, s3: { m1: true } },
+    sessionGuests: [
+      { id: 'sg1', sessionId: 's1', guestId: 'g1', level: 'tb' },
+      { id: 'sg3', sessionId: 's3', guestId: 'g1', level: 'tb' },
+    ],
+    matches: [
+      { id: 'a', sessionId: 's1', at: 1, playerKeys: ['m1', 'm2', 'm1', 'm2'] },
+      { id: 'b', sessionId: 's2', at: 2, playerKeys: ['m1', 'm2', 'm1', 'm2'] },
+      { id: 'c', sessionId: 's3', at: 3, playerKeys: ['m1', 'm2', 'm1', 'm2'] },
+    ],
+  })
+
+  await t.test('9. Không truyền khoảng thì lấy tất cả', () => {
+    const b = buildMatchBackup(db())
+    assert.equal(b.matchCount, 3)
+    assert.equal(b.range, null, 'range = null đọc đúng là "không lọc gì"')
+  })
+
+  await t.test('10. Lọc theo NGÀY BUỔI, bao gồm cả hai đầu', () => {
+    const b = buildMatchBackup(db(), { from: '2026-08-01', to: '2026-09-30', label: '2026-Q3' })
+    assert.deepEqual(b.matches.map((m) => m.id), ['b', 'c'], 'Trận của buổi ngoài khoảng phải bị loại')
+    assert.equal(b.range.label, '2026-Q3', 'Ghi lại đã lọc gì, nếu không mở file ra không biết trong đó là toàn bộ hay một khúc')
+
+    const edge = buildMatchBackup(db(), { from: '2026-08-15', to: '2026-08-15' })
+    assert.deepEqual(edge.matches.map((m) => m.id), ['b'], 'Mốc đầu và mốc cuối phải được TÍNH VÀO, lệch 1 ngày là mất cả buổi')
+  })
+
+  await t.test('11. Lọc phải cắt luôn buổi, điểm danh và khách kèm theo', () => {
+    const b = buildMatchBackup(db(), { from: '2026-08-01', to: '2026-09-30' })
+    assert.deepEqual(b.ref.sessions.map((x) => x.id), ['s2', 's3'], 'Giữ lại buổi ngoài khoảng là file phình vô ích')
+    assert.deepEqual(Object.keys(b.ref.attendance), ['s2', 's3'])
+    assert.deepEqual(b.ref.sessionGuests.map((x) => x.id), ['sg3'], 'Khách của buổi đã bị lọc thì không được còn trong file')
+    // Hội viên KHÔNG bị cắt: cần đủ danh sách để seed Elo theo trình độ, và chỉ 22 dòng.
+    assert.equal(b.ref.members.length, 2, 'Cắt hội viên là mất seed, replay ra Elo khác')
+  })
+
+  await t.test('12. File đã lọc vẫn nhập lại được nguyên vẹn', () => {
+    const b = buildMatchBackup(db(), { from: '2026-08-01', to: '2026-09-30' })
+    const target = {
+      members: db().members, guests: [], sessions: db().sessions, matches: [],
+    }
+    const res = validateMatchBackup(b, target)
+    assert.equal(res.ok, true, res.error)
+    assert.equal(res.matches.length, 2)
+  })
+})
