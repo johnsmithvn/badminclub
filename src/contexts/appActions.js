@@ -22,6 +22,7 @@ import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
+import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
@@ -1721,6 +1722,38 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       URL.revokeObjectURL(url)
       toast(t('toast.settingsExported', { file: fileName }))
     },
+    /**
+     * Tải lịch sử trận ra file .json. Chỉ trục thi đấu — không tiền quỹ, không công nợ.
+     * Dùng đúng cách tải của `exportSettings` để hai chỗ không trôi khác nhau.
+     */
+    exportMatches: () => {
+      const d = db()
+      const data = buildMatchBackup(d)
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const aEl = document.createElement('a')
+      const fileName = `tran_dau_${d.club?.code || 'badmin'}_${new Date().toISOString().slice(0, 10)}.json`
+      aEl.href = url
+      aEl.download = fileName
+      document.body.appendChild(aEl)
+      aEl.click()
+      document.body.removeChild(aEl)
+      URL.revokeObjectURL(url)
+      toast(t('toast.matchesExported', { file: fileName, n: data.matchCount }))
+    },
+
+    /**
+     * Nạp lịch sử trận từ file. TẤT CẢ HOẶC KHÔNG GÌ CẢ — `validateMatchBackup` gác cửa, ở đây
+     * chỉ ghi khi nó nói ok. Kiểm lại lần nữa ngay trước khi ghi chứ không tin kết quả dialog
+     * đã soi lúc chọn file: giữa hai thời điểm đó có thể vừa đồng bộ về một trận mới từ máy khác.
+     */
+    applyImportedMatches: (data) => {
+      const res = validateMatchBackup(data, db())
+      if (!res.ok) return toast(t('toast.matchesImportBlocked'))
+      up(() => ({ matches: res.matches }))
+      toast(t('toast.matchesImported', { n: res.matches.length }))
+    },
+
     applyImportedSettings: (data, opts = {}) => {
       if (!data || data.schema !== 'badminclub_settings') {
         return toast(t('toast.settingsBadFile'))

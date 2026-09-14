@@ -1,9 +1,13 @@
 import { useState, useMemo } from 'react'
 import { dd } from '#utils/dates.js'
 import { playerName } from '#lib/money.js'
-import { calculatePlayerWaitTime } from '#lib/assign.js'
+import { calculatePlayerWaitTime, sessionFairnessRows } from '#lib/assign.js'
 import { DEFAULT_RATING } from '#lib/rating.js'
 import { t } from '#i18n'
+import cfg from '#config/app.json' with { type: 'json' }
+
+// Ngưỡng tô màu cột Lệch. Lấy từ config chứ không viết thẳng số vào JSX.
+const DEBT_WARN = cfg.assign?.debtWarnThreshold ?? 1.5
 
 export default function SessionStatsSheet({
   open,
@@ -41,6 +45,10 @@ export default function SessionStatsSheet({
 
     return { avg, min, max, list }
   }, [players, matchCountMap])
+
+  // Kiểm kê công bằng lượt đánh: chấm từng người so với phần đáng được hưởng, thay vì chỉ đọc
+  // max − min như thẻ "Lệch nhiều nhất" ở tab Số trận — cái đó nói buổi lệch nhưng không nói AI.
+  const fairnessRows = useMemo(() => sessionFairnessRows(db, session?.id), [db, session?.id])
 
   // Thống kê Phút chờ (tính từ trận đầu tiên được ghi trong lịch sử hoặc trận gần nhất)
   const statsWaiting = useMemo(() => {
@@ -200,6 +208,16 @@ export default function SessionStatsSheet({
           >
             {t('assign.tabPairs')}
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('fairness')}
+            style={{
+              ...S.tabBtn,
+              ...(activeTab === 'fairness' ? S.tabBtnActive : {}),
+            }}
+          >
+            {t('assign.tabFairness')}
+          </button>
         </div>
 
         {/* TAB 1: SỐ TRẬN */}
@@ -278,6 +296,43 @@ export default function SessionStatsSheet({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* TAB 4: CÔNG BẰNG LƯỢT ĐÁNH */}
+        {activeTab === 'fairness' && (
+          <div style={S.tabContent}>
+            {fairnessRows.length === 0 ? (
+              <div style={S.emptyNotice}>{t('assign.fairNone')}</div>
+            ) : (
+              <>
+                <div style={S.fairHint}>{t('assign.fairHint')}</div>
+                <div style={S.fairTable}>
+                  <div style={S.fairHeadRow}>
+                    <div style={{ ...S.fairTh, flex: 1, justifyContent: 'flex-start', textAlign: 'left' }}>{t('assign.fairColPlayer')}</div>
+                    <div style={S.fairTh}>{t('assign.fairColPlayed')}</div>
+                    <div style={S.fairTh}>{t('assign.fairColWait')}</div>
+                    <div style={S.fairTh}>{t('assign.fairColDebt')}</div>
+                  </div>
+                  {fairnessRows.map((r) => (
+                    <div key={r.key} style={S.fairRow}>
+                      <div style={S.fairName}>{r.name}</div>
+                      <div style={S.fairNum}>{r.played}</div>
+                      <div style={{ ...S.fairNum, ...(r.waitTurns >= 3 ? S.fairNumUrgent : {}) }}>{r.waitTurns}</div>
+                      <div
+                        style={{
+                          ...S.fairNum,
+                          ...(r.debt >= DEBT_WARN ? S.fairNumOwed : {}),
+                          ...(r.debt <= -DEBT_WARN ? S.fairNumFavored : {}),
+                        }}
+                      >
+                        {r.debt > 0 ? '+' : ''}{String(r.debt).replace('.', ',')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -549,6 +604,63 @@ const S = {
     color: '#F0B75C',
     whiteSpace: 'nowrap',
   },
+  fairHint: {
+    font: 'var(--type-caption)',
+    color: 'var(--text-muted)',
+    lineHeight: 1.5,
+    marginBottom: 10,
+  },
+  fairTable: {
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  fairHeadRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 12px',
+    background: 'var(--surface-inset)',
+    borderBottom: '1px solid var(--border-subtle)',
+  },
+  // DESIGN.md §3.5: tiêu đề bảng dữ liệu BẮT BUỘC nowrap, và vì thCell là flex nên căn phải
+  // phải dùng justifyContent chứ không chỉ textAlign, nếu không tiêu đề lệch khỏi số bên dưới.
+  fairTh: {
+    font: 'var(--type-overline)',
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
+    width: 54,
+    flexShrink: 0,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    textAlign: 'right',
+  },
+  fairRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '9px 12px',
+    borderBottom: '1px solid var(--border-subtle)',
+  },
+  fairName: {
+    font: 'var(--type-label)',
+    color: 'var(--text-primary)',
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  fairNum: {
+    font: 'var(--type-mono)',
+    color: 'var(--text-secondary)',
+    width: 54,
+    flexShrink: 0,
+    textAlign: 'right',
+  },
+  fairNumUrgent: { color: 'var(--status-delayed-fg)', fontWeight: 700 },
+  fairNumOwed: { color: 'var(--status-delayed-fg)', fontWeight: 700 },
+  fairNumFavored: { color: 'var(--text-muted)' },
   emptyNotice: {
     textAlign: 'center',
     padding: '24px 16px',

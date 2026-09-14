@@ -89,7 +89,8 @@
   },
   "assign": {
     "balanceThreshold": 0.6,
-    "fairnessThreshold": 1
+    "fairnessThreshold": 1,
+    "debtWarnThreshold": 1.5
   },
   "rating": {
     "defaultRating": 0,

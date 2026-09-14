@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, Select, StatCard } from '#ds'
-import { LevelChip, Mono, Overline, SearchSelect, TabTrack } from '#ui'
+import { LevelChip, Mono, Overline, PageHeader, SearchSelect, TabBar, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -633,55 +633,13 @@ export default function Matches() {
 
   return (
     <div style={{ ...S.page, gap: isMobile ? 10 : 16 }}>
-      {/* 1. Header Trang - Học tập style gọn gàng của Leaderboard */}
-      <div
-        style={{
-          padding: isMobile ? '10px 12px' : '14px 20px',
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 10,
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'stretch' : 'center',
-          justifyContent: 'space-between',
-          gap: isMobile ? 6 : 14,
-          boxShadow: 'var(--shadow-xs)',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-            minWidth: 0,
-            flex: 1,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-            <h1
-              style={{
-                font: isMobile ? "700 17px/1.2 Barlow, sans-serif" : "700 20px/1.25 Barlow, sans-serif",
-                color: 'var(--text-primary)',
-                margin: 0,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {t('pages.matches.title')}
-            </h1>
-            {!isMobile && (
-              <div style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                {t('pages.matches.desc')}
-              </div>
-            )}
-          </div>
-
-          {/* AppHeader bị ẩn ở route 'matches' nên trên mobile không còn chỗ nào đổi sáng/tối -> để ngay đây */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <PageHeader
+        title={t('pages.matches.title')}
+        subtitle={t('pages.matches.desc')}
+        isMobile={isMobile}
+        actions={
+          <>
+            {/* AppHeader bị ẩn ở route 'matches' nên trên mobile không còn chỗ nào đổi sáng/tối */}
             <IconButton
               icon={isDark ? 'sun' : 'moon'}
               size="sm"
@@ -689,88 +647,47 @@ export default function Matches() {
               label={isDark ? t('common.themeLight') : t('common.themeDark')}
               onClick={toggleTheme}
             />
-            <button
-              type="button"
+            <IconButton
+              icon="download"
+              size="sm"
+              variant="ghost"
+              label={t('matchIo.exportBtn')}
+              onClick={() => a.exportMatches()}
+            />
+            <IconButton
+              icon="upload"
+              size="sm"
+              variant="ghost"
+              label={t('matchIo.importBtn')}
+              onClick={() => a.openDialog('importMatches', {})}
+            />
+            <Button
+              variant="accent"
+              size="sm"
+              icon="plus"
               onClick={() => {
                 setInitialTeamA(myId ? [myId] : [])
                 setInitialTeamB([])
                 setChallengeModalOpen(true)
               }}
-              style={{
-                height: isMobile ? 32 : 36,
-                padding: isMobile ? '0 10px' : '0 14px',
-                borderRadius: 6,
-                background: 'var(--action-accent-bg, #00B2A9)',
-                color: 'var(--action-accent-fg, #04302C)',
-                font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                flexShrink: 0,
-                boxShadow: 'var(--shadow-xs)',
-                whiteSpace: 'nowrap',
-              }}
             >
-              <Icon name="plus" size={13} />
-              <span>{isMobile ? t('challenge.challenge') : t('matchesPage.createBtn')}</span>
-            </button>
-          </div>
-        </div>
+              {isMobile ? t('challenge.challenge') : t('matchesPage.createBtn')}
+            </Button>
+          </>
+        }
+      />
 
-        {isMobile && (
-          <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-            {t('pages.matches.desc')}
-          </div>
-        )}
-      </div>
-
-      {/* 2. Thanh Tabs Chính - Cuộn ngang mượt mà */}
-      <TabTrack style={{ marginBottom: 4 }}>
-        <div style={{ ...S.tabTrack, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '2px 0' }}>
-          <button
-            type="button"
-            onClick={() => handleSelectTab('challenges')}
-            style={{
-              ...S.tabBtn,
-              ...(isMobile ? { padding: '6px 11px', fontSize: 12 } : {}),
-              ...(activeTab === 'challenges' ? S.tabBtnActive : {}),
-            }}
-          >
-            <Icon name="history" size={14} />
-            <span>{t('matchesPage.tabChallenges')}</span>
-            {pendingChallenges.length > 0 && (
-              <span style={S.tabBadgeMono}>{pendingChallenges.length}</span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSelectTab('search')}
-            style={{
-              ...S.tabBtn,
-              ...(isMobile ? { padding: '6px 11px', fontSize: 12 } : {}),
-              ...(activeTab === 'search' ? S.tabBtnActive : {}),
-            }}
-          >
-            <Icon name="search" size={14} />
-            <span>{t('matchesPage.tabHistory')}</span>
-            <span style={S.tabBadgeMono}>{(db.matches || []).length}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSelectTab('matrix')}
-            style={{
-              ...S.tabBtn,
-              ...(isMobile ? { padding: '6px 11px', fontSize: 12 } : {}),
-              ...(activeTab === 'matrix' ? S.tabBtnActive : {}),
-            }}
-          >
-            <Icon name="grid" size={14} />
-            <span>{t('matchesPage.tabMatrix')}</span>
-          </button>
-        </div>
-      </TabTrack>
+      <TabBar
+        isMobile={isMobile}
+        value={activeTab}
+        onChange={handleSelectTab}
+        style={{ marginBottom: 4 }}
+        items={[
+          { key: 'challenges', label: t('matchesPage.tabChallenges'), icon: 'history', tone: 'accent', badge: pendingChallenges.length || null },
+          { key: 'search', label: t('matchesPage.tabHistory'), icon: 'search', tone: 'primary', badge: (db.matches || []).length },
+          { key: 'matrix', label: t('matchesPage.tabMatrix'), icon: 'grid', tone: 'violet' },
+        ]}
+      />
 
       {/* ========================================================================= */}
       {/* TAB 1: SÀN KÈO / THÁCH ĐẤU */}

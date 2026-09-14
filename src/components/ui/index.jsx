@@ -659,3 +659,151 @@ export { QrModal } from './QrModal.jsx'
 export { PayDebtsDialog } from '#components/ui/PayDebtsDialog.jsx'
 export { MyDebtPanel } from './MyDebtPanel.jsx'
 
+
+/* ---------- Header trang & thanh tab (một nguồn duy nhất) ---------- */
+
+/**
+ * Header của một trang nội dung: tên trang + câu mô tả + cụm hành động bên phải.
+ *
+ * Trước đây Matches và Leaderboard mỗi màn tự dựng lấy một bản, rồi trôi lệch nhau: 17px vs 18px
+ * tiêu đề mobile, 12.5px vs 13px câu mô tả, chỗ dùng `var(--font-sans)` chỗ viết thẳng
+ * 'IBM Plex Sans'. Gom về đây để sửa một lần là cả hai đổi theo.
+ *
+ * Mobile xếp hai tầng (DESIGN.md §8.1): tầng 1 tên trang + hành động, tầng 2 câu mô tả xuống dưới
+ * cho khỏi bóp chữ. Desktop cho cụm phải `flex-wrap` chứ không `flex:0 0 auto` (§5).
+ *
+ * @param {string} title - tên trang
+ * @param {string} [subtitle] - câu mô tả một dòng
+ * @param {React.ReactNode} [actions] - cụm nút bên phải
+ * @param {boolean} [isMobile]
+ */
+export function PageHeader({ title, subtitle, actions, isMobile = false }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+        gap: isMobile ? 6 : 14,
+        padding: isMobile ? '12px 14px' : '14px 18px',
+        borderRadius: 10,
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border-subtle)',
+        boxShadow: 'var(--shadow-xs)',
+        width: '100%',
+        boxSizing: 'border-box',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minWidth: 0, flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+          <h1
+            style={{
+              font: isMobile ? '700 18px/1.2 var(--font-display)' : '700 20px/1.25 var(--font-display)',
+              color: 'var(--text-primary)',
+              margin: 0,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {title}
+          </h1>
+          {!isMobile && subtitle && (
+            <div style={{ font: '400 13px/1.4 var(--font-sans)', color: 'var(--text-muted)' }}>{subtitle}</div>
+          )}
+        </div>
+        {isMobile && actions && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>{actions}</div>
+        )}
+      </div>
+
+      {isMobile && subtitle && (
+        <div style={{ font: '400 12.5px/1.4 var(--font-sans)', color: 'var(--text-muted)' }}>{subtitle}</div>
+      )}
+
+      {!isMobile && actions && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minWidth: 0 }}>{actions}</div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Màu nhấn của tab đang chọn. Chỉ ba lựa chọn, đều là token — KHÔNG nhận hex.
+ * `neutral` là mặc định: nền thẻ, không tô màu.
+ */
+const TAB_TONES = {
+  neutral: { background: 'var(--surface-card)', color: 'var(--text-primary)' },
+  accent: { background: 'var(--action-accent-bg)', color: 'var(--action-accent-fg)' },
+  primary: { background: 'var(--action-primary-bg)', color: 'var(--action-primary-fg)' },
+  violet: { background: 'var(--action-violet-bg)', color: 'var(--action-violet-fg)' },
+}
+
+/**
+ * Thanh tab của một trang. Cuộn ngang trên mobile (DESIGN.md §8.2), chữ không xuống dòng (§3.5).
+ *
+ * @param {Array<{key, label, icon?, badge?, tone?}>} items - `tone` là KEY trong TAB_TONES
+ * @param {string} value - key đang chọn
+ * @param {Function} onChange - (key) => void
+ * @param {boolean} [isMobile]
+ */
+export function TabBar({ items = [], value, onChange, isMobile = false, style }) {
+  return (
+    <TabTrack style={style}>
+      <div
+        style={{
+          display: 'flex',
+          padding: 3,
+          borderRadius: 8,
+          background: 'var(--surface-inset)',
+          border: '1px solid var(--border-subtle)',
+          gap: 2,
+        }}
+      >
+        {items.map((it) => {
+          const on = it.key === value
+          const tone = TAB_TONES[it.tone || 'neutral'] || TAB_TONES.neutral
+          return (
+            <button
+              key={it.key}
+              type="button"
+              onClick={() => onChange?.(it.key)}
+              aria-current={on ? 'page' : undefined}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                height: isMobile ? 32 : 34,
+                padding: isMobile ? '0 11px' : '0 14px',
+                borderRadius: 6,
+                border: 'none',
+                background: on ? tone.background : 'transparent',
+                color: on ? tone.color : 'var(--text-secondary)',
+                font: `${on ? 700 : 600} ${isMobile ? 12 : 13}px/1 var(--font-sans)`,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: on ? 'var(--shadow-xs)' : 'none',
+                transition: 'background var(--dur-base) var(--ease-standard), color var(--dur-fast) var(--ease-standard)',
+              }}
+            >
+              {it.icon && <Icon name={it.icon} size={14} />}
+              <span>{it.label}</span>
+              {it.badge != null && (
+                <span style={{
+                  font: '600 11px/1 var(--font-mono)',
+                  padding: '2px 6px',
+                  borderRadius: 999,
+                  background: on ? 'rgba(0,0,0,.16)' : 'var(--surface-sunken)',
+                  color: on ? 'inherit' : 'var(--text-muted)',
+                }}>
+                  {it.badge}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </TabTrack>
+  )
+}

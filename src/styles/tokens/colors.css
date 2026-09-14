@@ -4,6 +4,8 @@
 --navy-500:#1D50A0;--navy-400:#3C74C4;--navy-300:#7AA3DC;--navy-200:#B6CDEC;--navy-100:#DDE8F7;--navy-50:#EFF5FD;
 --teal-900:#00453F;--teal-800:#005E56;--teal-700:#00786F;--teal-600:#009489;--teal-500:#00B2A9;
 --teal-400:#2FCCC3;--teal-300:#7ADFD9;--teal-200:#B4EDE9;--teal-100:#DBF6F4;--teal-50:#EFFBFA;
+/* Tím — dùng cho tab/nhánh cần tách khỏi navy và teal (vd Ma trận đối đầu) */
+--violet-700:#5B21B6;--violet-600:#6D28D9;--violet-500:#7C3AED;--violet-400:#A78BFA;--violet-100:#EDE9FE;
 
 /* Neutrals — cool, very slightly navy-tinted so they sit under the brand */
 --gray-0:#FFFFFF;--gray-25:#FAFBFD;--gray-50:#F4F7FA;--gray-100:#EBF0F6;--gray-200:#DCE4EE;

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Dialog, Icon } from '#ds'
-import { TabTrack } from '#ui'
+import { TabBar } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, DEFAULT_RATING, rankPairs } from '#lib/rating.js'
@@ -361,59 +361,18 @@ export default function Leaderboard() {
         )}
       </div>
 
-      {/* ---------------- 1. Tab Bar chính của Leaderboard (3 Tab cốt lõi) ---------------- */}
-      <TabTrack style={{ marginBottom: 4 }}>
-        <div style={S.tabTrack}>
-          <button
-            type="button"
-            onClick={() => setActiveTab('season')}
-            style={{
-              ...S.tabBtn,
-              ...(activeTab === 'season'
-                ? { ...S.tabBtnActive, background: '#00B2A9', color: '#04302C', fontWeight: 700 }
-                : {}),
-            }}
-          >
-            {t('season.raceTab')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('elo')}
-            style={{
-              ...S.tabBtn,
-              ...(activeTab === 'elo'
-                ? { ...S.tabBtnActive, background: '#1D50A0', color: '#fff', fontWeight: 700 }
-                : {}),
-            }}
-          >
-            {t('season.careerEloTab')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('pairs')}
-            style={{
-              ...S.tabBtn,
-              ...(activeTab === 'pairs'
-                ? { ...S.tabBtnActive, background: '#00B2A9', color: '#04302C', fontWeight: 700 }
-                : {}),
-            }}
-          >
-            {t('leaderboard.tabPairs')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('h2h')}
-            style={{
-              ...S.tabBtn,
-              ...(activeTab === 'h2h'
-                ? { ...S.tabBtnActive, background: '#7C3AED', color: '#fff', fontWeight: 700 }
-                : {}),
-            }}
-          >
-            {t('leaderboard.tabH2H')}
-          </button>
-        </div>
-      </TabTrack>
+      <TabBar
+        isMobile={isMobile}
+        value={activeTab}
+        onChange={setActiveTab}
+        style={{ marginBottom: 4 }}
+        items={[
+          { key: 'season', label: t('season.raceTab'), tone: 'accent' },
+          { key: 'elo', label: t('season.careerEloTab'), tone: 'primary' },
+          { key: 'pairs', label: t('leaderboard.tabPairs'), tone: 'accent' },
+          { key: 'h2h', label: t('leaderboard.tabH2H'), tone: 'violet' },
+        ]}
+      />
 
       {/* ---------------- TAB 1: Đua Top Mùa Giải (Screen SS1) ---------------- */}
       {activeTab === 'season' && (
@@ -660,34 +619,3 @@ export default function Leaderboard() {
   )
 }
 
-const S = {
-  tabTrack: {
-    display: 'flex',
-    padding: 3,
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
-    gap: 2,
-    overflowX: 'auto',
-  },
-  tabBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    height: 34,
-    padding: '0 14px',
-    borderRadius: 6,
-    border: 'none',
-    background: 'transparent',
-    font: "600 13px/1 'IBM Plex Sans', sans-serif",
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    transition: 'all 0.15s ease',
-  },
-  tabBtnActive: {
-    background: 'var(--surface-card)',
-    color: 'var(--text-primary)',
-    boxShadow: 'var(--shadow-xs)',
-  },
-}

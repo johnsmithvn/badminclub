@@ -11,6 +11,7 @@ import { MANUAL_CATS, catLabel } from '#lib/ledger.js'
 import {
   OPTIONAL_HEADERS, TEMPLATE_HEADERS, generateSampleCsv, parseAndValidateMembers, validateMemberRow,
 } from '#lib/csv.js'
+import { validateMatchBackup } from '#lib/matchBackup.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -29,6 +30,7 @@ export default function Dialogs() {
     editCourtLabel: EditCourtLabelDialog,
     importMembers: ImportMembersDialog,
     importSettings: ImportSettingsDialog,
+    importMatches: ImportMatchesDialog,
     offBack: OffBackDialog,
     zalo: ZaloDialog,
   }[ui.dialog]
@@ -1408,6 +1410,98 @@ function ImportSettingsDialog() {
             onClick={() => a.applyImportedSettings(data, picked)}
           >
             {t('settings.ioApply')}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+/**
+ * Nhập lịch sử trận. Soi file NGAY lúc chọn và hiện thẳng lý do từ chối — người dùng phải biết
+ * vì sao không nhập được trước khi bấm, chứ không bấm rồi mới ăn một dòng toast cụt lủn.
+ * Nút Nhập chỉ sáng khi file đã qua toàn bộ vòng kiểm.
+ */
+function ImportMatchesDialog() {
+  const { db, a } = useApp()
+  const fileRef = useRef(null)
+  const [data, setData] = useState(null)
+  const [res, setRes] = useState(null)
+  const [err, setErr] = useState('')
+  const [fileName, setFileName] = useState('')
+
+  const fail = (msg) => { setErr(msg); setData(null); setRes(null) }
+
+  const onFile = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setErr('')
+    setFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      let parsed
+      try {
+        parsed = JSON.parse(ev.target.result)
+      } catch {
+        return fail(t('matchIo.errParse'))
+      }
+      const check = validateMatchBackup(parsed, db)
+      if (!check.ok) return fail(t(check.error, check.params || {}))
+      setData(parsed)
+      setRes(check)
+    }
+    reader.onerror = () => fail(t('matchIo.errRead'))
+    reader.readAsText(file)
+  }
+
+  return (
+    <Dialog open title={t('matchIo.title')} width={620} onClose={() => a.closeDialog()}>
+      <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ font: 'var(--type-body)', color: 'var(--text-secondary)' }}>
+          {t('matchIo.desc')}
+        </div>
+
+        <div onClick={() => fileRef.current?.click()} style={S.drop}>
+          <input
+            type="file"
+            accept=".json,application/json"
+            ref={fileRef}
+            style={{ display: 'none' }}
+            onChange={onFile}
+          />
+          <Icon name="upload" size={28} style={{ margin: '0 auto 8px', color: 'var(--teal-600)' }} />
+          <div style={{ font: 'var(--type-label)', color: 'var(--text-primary)' }}>
+            {fileName || t('matchIo.pick')}
+          </div>
+          <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 4 }}>
+            {t('matchIo.pickHint')}
+          </div>
+        </div>
+
+        {err && <Alert tone="danger" title={t('matchIo.errTitle')}>{err}</Alert>}
+
+        {res?.ok && (
+          <div style={S.parts}>
+            <Overline>
+              {t('matchIo.from', {
+                club: res.stats.clubName || t('common.unknown'),
+                date: String(res.stats.exportedAt).slice(0, 10),
+                v: data?.version || 1,
+              })}
+            </Overline>
+            <Mono>{t('matchIo.summary', res.stats)}</Mono>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <Button variant="secondary" onClick={() => a.closeDialog()}>{t('common.cancel')}</Button>
+          <Button
+            variant="primary"
+            icon="check"
+            disabled={!res?.ok}
+            onClick={() => { a.applyImportedMatches(data); a.closeDialog() }}
+          >
+            {t('matchIo.apply', { n: res?.stats?.total || 0 })}
           </Button>
         </div>
       </div>

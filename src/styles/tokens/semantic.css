@@ -43,6 +43,10 @@
 --action-accent-bg-hover:var(--teal-600);
 --action-accent-bg-active:var(--teal-700);
 --action-accent-fg:#04302C;
+--action-violet-bg:var(--violet-500);
+--action-violet-bg-hover:var(--violet-600);
+--action-violet-bg-active:var(--violet-700);
+--action-violet-fg:#FFFFFF;
 --action-secondary-bg:var(--gray-0);
 --action-secondary-bg-hover:var(--gray-50);
 --action-secondary-fg:var(--gray-800);

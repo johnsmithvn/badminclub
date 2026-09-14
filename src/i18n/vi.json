@@ -623,7 +623,7 @@
     "matchTotal": "{{n}} trận đã ghi · {{min}} phút",
     "fairEven": "Lượt đánh đều nhau ({{min}}–{{max}} trận)",
     "fairSkewed": "Lệch lượt: người nhiều nhất {{max}} trận, ít nhất {{min}} trận",
-    "fairNone": "Chưa ghi trận nào — xếp xong bấm Xong trận ở từng sân để tính lượt.",
+    "fairNone": "Chưa ghi trận nào trong buổi này.",
     "groupModeLabel": "Cố định người theo sân",
     "groupModeOn": "Mỗi sân có nhóm người riêng — mọi lệnh xếp chỉ xếp trong từng sân, không ai bị đẩy sang sân khác.",
     "groupModeOff": "Đang xếp tự do toàn buổi. Bật công tắc này nếu muốn mỗi sân giữ nguyên nhóm người của mình.",
@@ -760,7 +760,14 @@
     "noPairsYet": "Chưa có cặp nào đánh cùng nhau trong buổi này.",
     "avgRatingLabel": "Rating TB",
     "turnCount": "lượt",
-    "closeBackToWait": "Đóng, về danh sách chờ"
+    "closeBackToWait": "Đóng, về danh sách chờ",
+    "tabFairness": "Công bằng",
+    "fairColPlayer": "Người",
+    "fairColPlayed": "Trận",
+    "fairColWait": "Chờ",
+    "fairColDebt": "Lệch",
+    "fairHint": "Lệch = phần đáng được hưởng trừ số trận đã đánh. Dương là đang thiệt, âm là đang được ưu ái. Bảng chỉ để tham khảo, không chặn ai lên sân.",
+    "fairWaitUnit": "{{n}} trận"
   },
   "home": {
     "tabs": {
@@ -1131,7 +1138,10 @@
     "bulkGroup": "Đã gán {{n}} thành viên vào: {{groups}}",
     "bulkOff": "Đã chuyển {{n}} thành viên sang trạng thái Ngưng hoạt động (lịch sử giữ nguyên)",
     "bulkOn": "Đã cho {{n}} thành viên hoạt động trở lại",
-    "debtDeleted": "Đã xoá khoản nợ thành công"
+    "debtDeleted": "Đã xoá khoản nợ thành công",
+    "matchesExported": "Đã tải file {{file}} — {{n}} trận. File này chỉ chứa lịch sử thi đấu, KHÔNG có tiền quỹ hay công nợ.",
+    "matchesImported": "Đã nhập {{n}} trận. Bấm Đồng bộ lại Elo để dựng lại bảng xếp hạng từ lịch sử vừa nạp.",
+    "matchesImportBlocked": "Chưa nhập gì cả. Xem lý do trong hộp thoại."
   },
   "group": {
     "allClub": "Cả CLB",
@@ -4109,6 +4119,29 @@
     "acceptOpenChallenge": "Nhận kèo này",
     "sessionLinked": "Buổi {{date}}",
     "noSessionLinked": "Kèo tự do CLB",
-    "createBtn": "+ Tạo kèo mới"
+    "createBtn": "Tạo kèo mới"
+  },
+  "matchIo": {
+    "exportBtn": "Xuất trận",
+    "importBtn": "Nhập trận",
+    "title": "Nhập lịch sử trận từ file",
+    "desc": "Nạp lại toàn bộ trận đã đánh từ file .json do chính app xuất ra. Chỉ nhập được khi CLB chưa có trận nào — nếu đã có, app từ chối cả file và không ghi gì cả.",
+    "pick": "Bấm để chọn file trận (.json)",
+    "pickHint": "Chỉ nhận file .json xuất từ chính app này",
+    "from": "{{club}} · xuất ngày {{date}} · bản {{v}}",
+    "summary": "{{total}} trận · {{sessions}} buổi · {{rated}} tính Elo · {{casual}} giao lưu",
+    "apply": "Nhập {{n}} trận",
+    "errTitle": "Không nhập được file",
+    "errSchema": "File này không phải file trận của app — thiếu dấu nhận dạng badminclub_matches.",
+    "errVersion": "File thuộc bản {{v}}, app này chỉ đọc tới bản {{max}}. Cập nhật app trước khi nhập.",
+    "errNotEmpty": "CLB đang có {{n}} trận. App không gộp và không ghi đè lịch sử thi đấu — xoá hết trận hiện có rồi mới nhập lại được.",
+    "errNoMatches": "File không có danh sách trận.",
+    "errEmptyFile": "File không chứa trận nào để nhập.",
+    "errMalformed": "{{n}} trận trong file thiếu mã, thiếu buổi hoặc thiếu người. Không nhập phần còn lại.",
+    "errMissingSessions": "{{n}} buổi trong file không có trong CLB này. Nhập cài đặt và tạo buổi trước, hoặc chọn đúng file của CLB.",
+    "errMissingPlayers": "{{n}} người trong file không còn trong CLB này. Elo và điểm mùa của các trận đó không quy được về ai.",
+    "errDuplicateId": "File có hai trận trùng mã {{id}} — chúng sẽ ghi đè lẫn nhau lúc lưu.",
+    "errParse": "Nội dung không phải JSON hợp lệ. Chọn lại đúng file đã tải về.",
+    "errRead": "Không mở được file. Chọn lại file khác."
   }
 }
