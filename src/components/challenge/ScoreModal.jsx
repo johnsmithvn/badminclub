@@ -5,10 +5,25 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
 import { playerName, playerOf, myMember } from '#lib/money.js'
-import { calculateMemberBadges, getBadgeById, newlyUnlockedBadges } from '#lib/badges.js'
+import { calculateMemberBadges, computeClubBadgeStats, getBadgeById, newlyUnlockedBadges } from '#lib/badges.js'
+import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
+import { seenBadgesKey, markBadgeSeen } from '#utils/seenBadges.js'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
+
+/**
+ * Chụp trạng thái danh hiệu của một thành viên.
+ * Phải truyền ĐỦ season / seasonMatches / clubStats giống trang Danh hiệu và
+ * GlobalBadgeUnlockHost — gọi trần thì đây thành nguồn sự thật thứ hai và modal sẽ chúc mừng
+ * danh hiệu mà trang Danh hiệu không công nhận.
+ */
+function badgesSnapshotOf(memberId, dbSnapshot) {
+  const season = resolveSeason(dbSnapshot)
+  const seasonMatches = seasonMatchesOf(dbSnapshot, season) || []
+  const clubStats = computeClubBadgeStats(dbSnapshot, season, seasonMatches)
+  return calculateMemberBadges(memberId, dbSnapshot, season, seasonMatches, clubStats)
+}
 
 export default function ScoreModal({ court, session, challenge, onClose, onSaved }) {
   const { db, a } = useApp()
@@ -163,7 +178,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       let badgesBefore = null
       if (currentMember?.id) {
         try {
-          badgesBefore = calculateMemberBadges(currentMember.id, db)
+          badgesBefore = badgesSnapshotOf(currentMember.id, db)
         } catch {
           badgesBefore = null
         }
@@ -200,7 +215,9 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         badgeToUnlock = {
           id: 'ke_ngat_chuoi',
           name: t('badges.items.ke_ngat_chuoi.name'),
-          tier: 'epic',
+          // Bậc lấy từ catalog. Viết cứng 'epic' thì modal chúc mừng và trang Danh hiệu hiện
+          // hai bậc khác nhau cho cùng một danh hiệu (catalog đang là 'elite').
+          tier: baseBadge.tier || 'elite',
           glyph: baseBadge.glyph || 'thunder',
           victim: victimName,
           streak: saved.brokenStreak || 5,
@@ -214,8 +231,10 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         try {
           const nextMatches = (db.matches || []).concat([saved])
           // Phải kèm playerRatings mới, không thì huy hiệu phụ thuộc Elo/tier vẫn tính trên rating cũ.
-          const nextDb = { ...db, matches: nextMatches, playerRatings: nextPlayerRatings || db.playerRatings }
-          const badgesAfter = calculateMemberBadges(currentMember.id, nextDb)
+          // Trộn chứ không thay: nextPlayerRatings có thể chỉ chứa hội viên, thay nguyên map
+          // là rating của khách biến mất khỏi bản mô phỏng.
+          const nextDb = { ...db, matches: nextMatches, playerRatings: { ...db.playerRatings, ...nextPlayerRatings } }
+          const badgesAfter = badgesSnapshotOf(currentMember.id, nextDb)
           const newlyUnlocked = newlyUnlockedBadges(badgesBefore, badgesAfter)
           if (newlyUnlocked.length > 0) {
             const nb = newlyUnlocked[0]
@@ -236,6 +255,10 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       }
 
       if (badgeToUnlock) {
+        // Phải ghi "đã xem" NGAY tại đây. GlobalBadgeUnlockHost quét lại ngay khi db đổi —
+        // tức là trước khi người dùng kịp đóng modal này — nên ghi lúc đóng là quá muộn và
+        // cùng một danh hiệu sẽ bung hai modal chồng nhau.
+        markBadgeSeen(seenBadgesKey(db, currentMember?.id), badgeToUnlock.id)
         setPendingSavedRes(saved)
         setUnlockedBadge(badgeToUnlock)
         return

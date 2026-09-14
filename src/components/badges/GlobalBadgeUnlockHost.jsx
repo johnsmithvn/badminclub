@@ -5,6 +5,7 @@ import { myMember } from '#lib/money.js'
 import { calculateMemberBadges, computeClubBadgeStats, TIER_ORDER } from '#lib/badges.js'
 import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
+import { seenBadgesKey, readSeenBadges, markBadgeSeen } from '#utils/seenBadges.js'
 import BadgeUnlockModal from './BadgeUnlockModal.jsx'
 
 /** Số ô kệ trưng bày — cùng nguồn với trang Danh hiệu, không hard-code (RULES §3.2). */
@@ -48,44 +49,26 @@ export default function GlobalBadgeUnlockHost() {
   }, [me, db])
 
   // Key lưu trữ danh hiệu đã xem theo từng CLB và từng thành viên
-  const storageKey = useMemo(() => {
-    if (!me?.id) return null
-    const clubId = db?.clubId || db?.id || 'default'
-    return `badminclub_seen_badges_${clubId}_${me.id}`
-  }, [me?.id, db?.clubId, db?.id])
+  const storageKey = useMemo(() => seenBadgesKey(db, me?.id), [db, me?.id])
 
   // 3. Quét danh hiệu mới mở khóa (unseen badges)
   useEffect(() => {
     if (!storageKey || !me?.id || unlockedBadges.length === 0) return
 
-    let seenIds = []
-    let hasStoredRecord = false
-
-    try {
-      const raw = localStorage.getItem(storageKey)
-      if (raw !== null) {
-        const parsed = JSON.parse(raw)
-        // Phải là mảng mới dùng được. Giá trị lạ (đổi format, người dùng nghịch, app khác
-        // cùng origin) mà lọt xuống dưới thì `seenIds.includes` ném TypeError — và component
-        // này mount TOÀN APP, nên lỗi đó trắng màn ở mọi trang chứ không riêng trang Danh hiệu.
-        if (Array.isArray(parsed)) {
-          seenIds = parsed
-          hasStoredRecord = true
-        }
-      }
-    } catch {
-      seenIds = []
-      hasStoredRecord = false
-    }
+    // null = chưa có bản ghi hợp lệ (lần đầu, storage tắt, hoặc giá trị hỏng). readSeenBadges
+    // đã chặn giá trị không phải mảng — component này mount TOÀN APP nên một TypeError ở đây
+    // là trắng màn mọi trang.
+    const storedSeen = readSeenBadges(storageKey)
+    const seenIds = storedSeen || []
+    const hasStoredRecord = storedSeen !== null
 
     if (!hasStoredRecord) {
       // Lần đầu tiên tính năng chạy trên trình duyệt này:
       // Để người chơi trải nghiệm ngay, chọn danh hiệu cao nhất để chúc mừng chào đón,
       // và đánh dấu các danh hiệu cũ khác là đã xem để không bị spam nhiều lần.
       const topBadge = unlockedBadges[0]
-      const otherIds = unlockedBadges.slice(1).map((b) => b.id)
       try {
-        localStorage.setItem(storageKey, JSON.stringify(otherIds))
+        localStorage.setItem(storageKey, JSON.stringify(unlockedBadges.slice(1).map((b) => b.id)))
       } catch {
         // storage disabled or quota full
       }
@@ -105,23 +88,7 @@ export default function GlobalBadgeUnlockHost() {
   }, [storageKey, me?.id, unlockedBadges])
 
   // Đánh dấu một danh hiệu là đã xem và lưu vào localStorage
-  const markAsSeen = useCallback(
-    (badgeId) => {
-      if (!storageKey || !badgeId) return
-      try {
-        let seenIds = []
-        const raw = localStorage.getItem(storageKey)
-        if (raw) seenIds = JSON.parse(raw)
-        if (!seenIds.includes(badgeId)) {
-          seenIds.push(badgeId)
-          localStorage.setItem(storageKey, JSON.stringify(seenIds))
-        }
-      } catch {
-        // ignore storage error
-      }
-    },
-    [storageKey],
-  )
+  const markAsSeen = useCallback((badgeId) => markBadgeSeen(storageKey, badgeId), [storageKey])
 
   const activeBadge = pendingBadges[0] || null
 
