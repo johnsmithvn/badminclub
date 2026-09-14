@@ -644,11 +644,11 @@ export default function Matches() {
   }
 
   return (
-    <div style={{ ...S.page, padding: isMobile ? '10px 8px 24px' : '16px 14px 32px', gap: isMobile ? 10 : 16 }}>
+    <div style={{ ...S.page, gap: isMobile ? 10 : 16 }}>
       {/* 1. Header Trang - Học tập style gọn gàng của Leaderboard */}
       <div
         style={{
-          padding: isMobile ? '10px 12px' : '14px 18px',
+          padding: isMobile ? '10px 12px' : '14px 20px',
           background: 'var(--surface-card)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 10,
@@ -656,9 +656,10 @@ export default function Matches() {
           flexDirection: isMobile ? 'column' : 'row',
           alignItems: isMobile ? 'stretch' : 'center',
           justifyContent: 'space-between',
-          gap: isMobile ? 6 : 12,
+          gap: isMobile ? 6 : 14,
           boxShadow: 'var(--shadow-xs)',
-          marginBottom: 10,
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         <div
@@ -738,7 +739,7 @@ export default function Matches() {
       </div>
 
       {/* 2. Thanh Tabs Chính - Cuộn ngang mượt mà */}
-      <TabTrack style={{ marginBottom: 10 }}>
+      <TabTrack style={{ marginBottom: 4 }}>
         <div style={{ ...S.tabTrack, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '2px 0' }}>
           <button
             type="button"
@@ -787,7 +788,7 @@ export default function Matches() {
       {/* TAB 1: SÀN KÈO / THÁCH ĐẤU */}
       {/* ========================================================================= */}
       {activeTab === 'challenges' && (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 14, width: '100%', minWidth: 0 }}>
           {/* Subtabs lọc kèo */}
           <div style={S.subTabWrap}>
             {[
@@ -820,7 +821,13 @@ export default function Matches() {
           </div>
 
           {/* Danh sách thẻ Kèo */}
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))',
+            gap: 12,
+            width: '100%',
+            alignItems: 'start',
+          }}>
             {displayedChallenges.map((c) => {
               const teamA = c.teamA || []
               const teamB = c.teamB || []
@@ -1022,7 +1029,7 @@ export default function Matches() {
       {/* TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - 100% NGUYÊN BẢN LEADERBOARD CŨ */}
       {/* ========================================================================= */}
       {activeTab === 'search' && (
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ display: 'grid', gap: 16, width: '100%', minWidth: 0 }}>
           <div
             style={{
               background: 'var(--surface-card)',
@@ -2515,6 +2522,7 @@ export default function Matches() {
           gap: 16,
           alignItems: 'start',
           minWidth: 0,
+          width: '100%',
           maxWidth: '100%',
         }}>
           {/* Cột trái: Ma trận */}
@@ -3025,11 +3033,11 @@ export default function Matches() {
 
 const S = {
   page: {
-    maxWidth: 1200,
-    margin: '0 auto',
-    padding: '16px 14px 32px',
+    width: '100%',
+    minWidth: 0,
     display: 'grid',
     gap: 16,
+    boxSizing: 'border-box',
   },
   header: {
     display: 'flex',
@@ -3235,6 +3243,7 @@ const S = {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
     borderRadius: 8,
+    gridColumn: '1 / -1',
   },
   emptyTitle: {
     font: '600 15px/1.3 var(--font-sans)',

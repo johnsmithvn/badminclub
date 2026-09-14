@@ -53,7 +53,7 @@ const S = {
   col: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 },
   main: { flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 22px 60px' },
   mainMobile: { padding: '14px', paddingBottom: '80px', overflowX: 'hidden' },
-  wrap: { maxWidth: cfg.ui.contentMaxWidth, margin: '0 auto', display: 'grid', gap: 16, minWidth: 0 },
+  wrap: { width: '100%', maxWidth: cfg.ui.contentMaxWidth, margin: '0 auto', display: 'grid', gap: 16, minWidth: 0, boxSizing: 'border-box' },
   wrapMobile: { width: '100%', minWidth: 0, gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 },
 }
 
