@@ -1,0 +1,11 @@
+-- 0028 — Tách "phải trả tiền" khỏi "có mặt trên sân".
+--
+-- Trước đây điểm danh chỉ có present/absent/extra, mà CẢ tiền LẪN xếp sân đều đọc chung một cờ.
+-- Người nghỉ không báo trước vẫn phải trả tiền (sân đã đặt), nên quản trò buộc phải để họ ở
+-- 'present' — kéo theo chuyên cần, XP, huy hiệu và bảng công bằng lượt đánh đều tưởng họ có ra
+-- sân. Bảng công bằng còn báo họ là "bị bỏ quên", đúng ngược sự thật.
+--
+-- 'noshow' = vẫn TÍNH TIỀN, nhưng KHÔNG xếp sân và KHÔNG tính là đã đi tập.
+--
+-- CHỈ THÊM giá trị vào enum. Không đụng một dòng dữ liệu nào, không cần reset, chạy lại vô hại.
+ALTER TYPE attend_state ADD VALUE IF NOT EXISTS 'noshow';

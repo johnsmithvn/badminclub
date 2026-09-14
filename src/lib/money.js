@@ -434,20 +434,33 @@ export function guestStats(db, guestId) {
  * `'extra'` là người KHÔNG cố định của nhóm nhưng hôm đó có đánh — họ vẫn là người có mặt,
  * chỉ khác ở chỗ tiền của họ đi qua bảng đối chiếu chứ không qua quỹ tháng của nhóm.
  */
+/**
+ * CÓ MẶT TRÊN SÂN — dùng cho xếp sân, chuyên cần, XP, huy hiệu.
+ * 'noshow' (nghỉ không báo) KHÔNG tính: người đó không ra sân, không được tính là đã đi tập.
+ */
 export const isPresent = (v) => v === true || v === 'extra'
+
+/**
+ * PHẢI TRẢ TIỀN — dùng cho mọi phép tính tiền. Khác `isPresent` đúng một chỗ: 'noshow'.
+ *
+ * Nghỉ không báo trước thì sân đã đặt, tiền đã mất, nên vẫn phải trả — giống hệt người có mặt.
+ * Trước đây không có trạng thái này nên quản trò phải để họ ở 'Có mặt' cho tiền không bốc hơi,
+ * kéo theo hệ quả là chuyên cần, XP, huy hiệu và bảng công bằng đều tưởng họ có ra sân.
+ */
+export const isCharged = (v) => v === true || v === 'extra' || v === 'noshow'
 
 /** Ai xuất hiện trong buổi: người cố định của nhóm + người đi thêm (có bản ghi điểm danh). */
 export function sessionMembers(db, s) {
   const fixed = groupMembers(db, s.groupId, monthOf(s.date))
   const ids = new Set(fixed.map((m) => m.id))
   const a = db.attendance[s.id] || {}
-  return fixed.concat(db.members.filter((m) => !ids.has(m.id) && isPresent(a[m.id])))
+  return fixed.concat(db.members.filter((m) => !ids.has(m.id) && isCharged(a[m.id])))
 }
 
 export function presentCount(db, s) {
   if (!s || s.status === 'cancelled' || (rows(s).length > 0 && playedCourts(s) === 0)) return 0
   const a = db.attendance[s.id] || {}
-  return sessionMembers(db, s).filter((m) => isPresent(a[m.id])).length
+  return sessionMembers(db, s).filter((m) => isCharged(a[m.id])).length
 }
 export function absentCount(db, s) {
   const a = db.attendance[s.id] || {}
@@ -478,7 +491,7 @@ export function adhocCharges(db, s, att) {
   const had = new Set(rows.map((g) => g.memberId))
   const month = monthOf(s.date)
   const present = Object.keys(att || {})
-    .filter((mid) => isPresent(att[mid]))
+    .filter((mid) => isCharged(att[mid]))
     .map((mid) => (db.members || []).find((m) => m.id === mid))
     .filter(Boolean)
   const want = new Set(present.map((m) => m.id))
@@ -692,9 +705,9 @@ export function openSessions(db) {
       const fixedIds = new Set(gMembers.map((m) => m.id))
 
       // 1. Thành viên cố định của nhóm đã nhận đi (att === true)
-      const fixedGoing = gMembers.filter((m) => att[m.id] === true).length
+      const fixedGoing = gMembers.filter((m) => isCharged(att[m.id]) && att[m.id] !== 'extra').length
       // 2. Thành viên nhóm khác đi thêm hôm nay (att === 'extra' hoặc không thuộc fixedIds mà isPresent)
-      const extraGoing = Object.keys(att).filter((k) => !fixedIds.has(k) && isPresent(att[k])).length
+      const extraGoing = Object.keys(att).filter((k) => !fixedIds.has(k) && isCharged(att[k])).length
       // 3. Khách giao lưu ngoài CLB
       const guests = sGuestsOnly(db, s.id).length
       // 4. Tổng tất cả người tham gia

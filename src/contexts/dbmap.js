@@ -114,9 +114,12 @@ export function toDb(raw, ctx) {
     })
 
     const att = {}
-    // Ba trạng thái: true có mặt · false vắng · 'extra' đi thêm (không cố định của nhóm).
+    // Bốn trạng thái: true có mặt · false vắng (báo trước) · 'extra' đi thêm · 'noshow' nghỉ
+    // không báo. 'noshow' VẪN TÍNH TIỀN nhưng không xếp sân — xem `isCharged` vs `isPresent`.
     ;(s.attendances || []).forEach((a) => {
-      att[a.member_id] = a.status === 'extra' ? 'extra' : a.status === 'present'
+      att[a.member_id] = a.status === 'extra' ? 'extra'
+        : a.status === 'noshow' ? 'noshow'
+          : a.status === 'present'
     })
     if (Object.keys(att).length) attendance[s.id] = att
 
@@ -396,7 +399,9 @@ export function toRows(db, ctx) {
     const m = db.attendance[sid] || {}
     Object.keys(m).forEach((mid) => put('attendances', {
       session_id: sid, member_id: mid,
-      status: m[mid] === 'extra' ? 'extra' : m[mid] ? 'present' : 'absent',
+      status: m[mid] === 'extra' ? 'extra'
+        : m[mid] === 'noshow' ? 'noshow'
+          : m[mid] ? 'present' : 'absent',
     }))
   })
 

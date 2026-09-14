@@ -21,6 +21,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Điểm danh · danh sách cố định theo tháng · vào giữa tháng · ngưng / xoá thành viên | `money/member.test.js` |
 | **Quỹ tháng → đơn giá một buổi → đối chiếu buổi** (một chuỗi, để chung) | `money/dues.test.js` |
 | Cảnh báo sai im lặng ở Trang chủ | `money/alerts.test.js` |
+| **Nghỉ không báo**: vẫn tính tiền nhưng không xếp sân — tách `isCharged` khỏi `isPresent` | `money/noshow.test.js` |
 | Xoá nhóm: chặn tạm (có buổi tương lai) vs chặn vĩnh viễn (dính lịch sử tiền) | `money/group_delete.test.js` |
 | Xoá buổi: điều kiện an toàn, dọn buổi chưa phát sinh chi phí | `money/session_delete.test.js` |
 | **Thành viên tự khai đã chuyển tiền** — khoản nào khai được, chiều tiền, chủ sở hữu | `money/claims.test.js` |

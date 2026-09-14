@@ -177,6 +177,7 @@ export default function SessionDetail() {
     }
 
     const isPresent = state === true
+    const isNoShow = state === 'noshow'
     const isAbsent = state === false || allSold
 
     let rowBg = 'var(--surface-card)'
@@ -194,6 +195,12 @@ export default function SessionDetail() {
       rowBorder = '1px solid var(--teal-500)'
       statusText = t('attend.present')
       statusColor = '#5FDBD3'
+    } else if (isNoShow) {
+      // Amber = "có gì đó chưa ổn nhưng vẫn phải trả tiền", cùng tông với công nợ (DESIGN.md §2).
+      rowBg = 'var(--status-delayed-bg)'
+      rowBorder = '1px solid var(--status-delayed)'
+      statusText = t('attend.noshow')
+      statusColor = 'var(--status-delayed-fg)'
     } else if (isAbsent) {
       rowBg = 'var(--surface-sunken)'
       rowBorder = '1px solid var(--border-subtle)'

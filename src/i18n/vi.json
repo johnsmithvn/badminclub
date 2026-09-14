@@ -305,7 +305,9 @@
     "present": "Có mặt",
     "absent": "Vắng",
     "unmarked": "Chưa điểm danh",
-    "extra": "Đi thêm"
+    "extra": "Đi thêm",
+    "noshow": "Nghỉ không báo",
+    "noshowHint": "Vẫn tính tiền buổi, nhưng không xếp sân và không tính là đã đi tập"
   },
   "sessionState": {
     "draft": "Chưa mở",

@@ -248,13 +248,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // Người đi thêm không có trạng thái "vắng" — họ không cố định nhóm này nên không nợ
         // buổi nào. Muốn bỏ thì bấm nút xoá.
         if (m[mid] === 'extra') return {}
-        const willBePresent = m[mid] !== true
-        m[mid] = willBePresent
+
+        // Vòng 3 trạng thái. Thứ tự CỐ Ý đặt 'noshow' ở CUỐI: Có mặt ↔ Vắng vẫn là một cú bấm
+        // như trước, giữ nguyên thói quen của quản trò. Nghỉ không báo là ca hiếm nên đứng sau,
+        // bấm quá tay cũng chỉ rơi vào nó rồi quay về Có mặt, không mất bước nào.
+        //   chưa điểm danh → Có mặt → Vắng → Nghỉ không báo → Có mặt → …
+        const next = m[mid] === true ? false
+          : m[mid] === false ? 'noshow'
+            : true
+        m[mid] = next
         a[sid] = m
 
-        // Handoff rule: Đánh vắng thì tự động gỡ người đó khỏi mọi ô trên sân
+        // Chỉ 'Có mặt' mới được đứng trên sân. Vắng hay nghỉ không báo đều phải gỡ khỏi lineup —
+        // để sót là quản trò xếp sân cho một người không có ở đó.
+        const onCourt = next === true
         let lineups = d.lineups
-        if (!willBePresent && d.lineups?.[sid]) {
+        if (!onCourt && d.lineups?.[sid]) {
           const sLineup = { ...d.lineups[sid] }
           let changed = false
           Object.keys(sLineup).forEach((slotId) => {

@@ -153,6 +153,26 @@ test('Sao lưu bản 2 — điểm danh, sân của buổi, khách theo buổi',
     assert.deepEqual(a.season, b.season, 'Điểm danh hiện KHÔNG cộng vào điểm mùa; đổi luật này phải là quyết định có ý thức')
   })
 
+  await t.test('12. Nghỉ không báo KHÔNG được hiện thành "bị bỏ quên"', () => {
+    // Đây là ca có thật đã gặp trên dữ liệu CLB: một người không đến và không báo trước, nhưng
+    // vẫn phải để ở trạng thái tính tiền. Trước khi có 'noshow', bảng công bằng đọc họ là
+    // "có mặt suốt 21 trận mà không được gọi lần nào" — sai hoàn toàn, và họ đứng đầu danh
+    // sách "nên gọi tiếp theo" của quản trò.
+    const b = v2()
+    b.ref.attendance = { s1: { p1: true, p2: true, p3: true, p4: 'noshow' } }
+    // p4 không xuất hiện trong trận nào
+    b.matches = [{
+      id: 'm1', sessionId: 's1', at: 1000, minutes: 20, sets: [[21, 15]], winnerTeam: 'A',
+      ratingEnabled: true, playerKeys: ['p1', 'p2', 'p3', 'p1'],
+    }]
+    const snap = runBacktest(b)
+    const worst = snap.stats.worstDebt
+    assert.ok(
+      !worst || worst.name !== 'D',
+      'Người nghỉ không báo bị chấm là thiệt thòi nhất buổi — quản trò sẽ đi tìm một người không có ở sân'
+    )
+  })
+
   await t.test('11. File bản mới hơn bị validateMatchBackup từ chối, bản cũ vẫn đọc được', async () => {
     const { validateMatchBackup, MATCH_BACKUP_VERSION } = await import('#lib/matchBackup.js')
     assert.equal(MATCH_BACKUP_VERSION, 2)

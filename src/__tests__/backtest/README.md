@@ -70,7 +70,7 @@ replay ra Elo khác. Trường `range` trong file ghi lại đã lọc gì.
 
 Tên file tự gắn nhãn khoảng: `tran_dau_Q8QVSV8U_2026-Q3_2026-09-14.json`.
 
-
+## Dùng
 
 ```bash
 # Xem bộ số hiện tại
