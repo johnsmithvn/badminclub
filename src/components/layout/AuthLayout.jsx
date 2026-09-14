@@ -1,11 +1,11 @@
 // Khung cho các trang ngoài app (đăng nhập, đăng ký): nền navy, thẻ trắng ở giữa.
 // Khác AppLayout: không sidebar, không header CLB — lúc này chưa biết CLB nào.
 
-import { Icon, IconButton } from '#ds'
+import { IconButton } from '#ds'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t } from '#i18n'
 
-export default function AuthLayout({ title, sub, children, footer, avatar }) {
+export default function AuthLayout({ title, sub, children, footer, avatar, animated }) {
   const { isDark, toggleTheme } = useTheme()
 
   return (
@@ -21,25 +21,29 @@ export default function AuthLayout({ title, sub, children, footer, avatar }) {
         />
       </div>
 
-      <div style={S.brand}>
-        <div style={S.logo}><Icon name="volleyball" size={22} /></div>
-        <div>
-          <div style={S.appName}>{t('auth.appName')}</div>
-          <div style={S.tagline}>{t('auth.tagline')}</div>
-        </div>
-      </div>
-
-      {/* Avatar nằm giữa brand và card — chỉ hiện khi được truyền vào */}
+      {/* Avatar nằm trên card — chỉ hiện khi được truyền vào */}
       {avatar}
 
-      <div style={S.card}>
-        {title && (
-          <div style={{ display: 'grid', gap: 3, marginBottom: 18 }}>
-            <h1 style={S.title}>{title}</h1>
-            {sub && <span style={S.sub}>{sub}</span>}
-          </div>
-        )}
-        {children}
+      {/* Card: có animated border hoặc không */}
+      {animated && (
+        <style>{`
+          @keyframes auth-border-spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to   { transform: translate(-50%, -50%) rotate(360deg); }
+          }
+        `}</style>
+      )}
+      <div style={animated ? S.borderOuter : { width: '100%', maxWidth: 460 }}>
+        {animated && <div style={S.borderSpin} />}
+        <div style={animated ? { ...S.card, maxWidth: '100%', position: 'relative', zIndex: 1 } : S.card}>
+          {title && (
+            <div style={{ display: 'grid', gap: 3, marginBottom: 18 }}>
+              <h1 style={S.title}>{title}</h1>
+              {sub && <span style={S.sub}>{sub}</span>}
+            </div>
+          )}
+          {children}
+        </div>
       </div>
 
       {footer && <div style={S.footer}>{footer}</div>}
@@ -54,16 +58,33 @@ const S = {
     background: 'linear-gradient(160deg, var(--navy-800) 0%, var(--navy-700) 45%, var(--teal-800) 100%)',
     font: 'var(--type-body)', color: 'var(--text-primary)',
   },
-  brand: { display: 'flex', alignItems: 'center', gap: 12, color: '#fff' },
-  logo: {
-    width: 40, height: 40, flex: '0 0 auto', borderRadius: 10, background: 'var(--teal-500)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#04302C',
-  },
-  appName: { font: '700 19px/1.15 var(--font-display)', letterSpacing: '-0.015em' },
-  tagline: { font: 'var(--type-caption)', color: 'rgba(255,255,255,.72)' },
+  appName: {},
+  tagline: {},
+  brand: {},
+  logo: {},
   card: {
     width: '100%', maxWidth: 460, background: 'var(--surface-card)', borderRadius: 14,
     padding: '24px 26px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-subtle)',
+  },
+  // Animated border
+  borderOuter: {
+    position: 'relative',
+    width: '100%',
+    maxWidth: 460,
+    borderRadius: 16,
+    padding: 2,
+    overflow: 'hidden',
+  },
+  borderSpin: {
+    position: 'absolute',
+    width: 700,
+    height: 700,
+    top: '50%',
+    left: '50%',
+    background: 'conic-gradient(from 0deg, #ff006a, #c026d3 25%, #0ea5e9 50%, #06d6a0 75%, #ff006a)',
+    animation: 'auth-border-spin 5s linear infinite',
+    zIndex: 0,
+    borderRadius: '50%',
   },
   title: { font: 'var(--type-h2)', color: 'var(--text-primary)', margin: 0 },
   sub: { font: 'var(--type-caption)', color: 'var(--text-muted)' },

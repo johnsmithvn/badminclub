@@ -4,11 +4,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Alert, Button, Input } from '#ds'
+import { Alert, Button } from '#ds'
 import AuthLayout from '#components/layout/AuthLayout.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { t } from '#i18n'
 import LottieLoginAvatar from '#components/auth/LottieLoginAvatar.jsx'
+import AuthInput from '#components/auth/AuthInput.jsx'
 
 export default function Login() {
   const { signIn } = useAuth()
@@ -17,6 +18,8 @@ export default function Login() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [isPanic, setIsPanic] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
   const lottieRef = useRef(null)
   const isPasswordFocused = useRef(false)
   const identifierWrapperRef = useRef(null) // dùng để focus sau khi Lottie init xong
@@ -33,7 +36,10 @@ export default function Login() {
     isPasswordFocused.current = true
     switchState(showPassword ? 'Peeking' : 'Covering')
   }
-  const handleBlur = () => {
+  const handleBlur = (e) => {
+    // Nếu focus di chuyển sang element khác TRONG CÙNG wrapper div
+    // (vd: password input → checkbox "Hiện") thì không trigger Blinking
+    if (e.currentTarget.contains(e.relatedTarget)) return
     isPasswordFocused.current = false
     switchState('Blinking')
   }
@@ -54,12 +60,14 @@ export default function Login() {
   }, [f.identifier])
 
   // Focus input sau khi Lottie kịp init (~400ms) để onFocus bubble đúng cách
+  // identifierWrapperRef giờ trỏ thẳng tới <input> element qua inputRef prop của AuthInput
   useEffect(() => {
     const timer = setTimeout(() => {
-      identifierWrapperRef.current?.querySelector('input')?.focus()
+      identifierWrapperRef.current?.focus()
     }, 400)
     return () => clearTimeout(timer)
   }, [])
+
 
   const submit = async (e) => {
     e.preventDefault()
@@ -68,12 +76,14 @@ export default function Login() {
     setBusy(true)
     try {
       await signIn(f)
-      navigate('/clb', { replace: true })
+      // Hiện animation thành công trước khi navigate
+      setIsSuccess(true)
+      setTimeout(() => navigate('/clb', { replace: true }), 700)
     } catch (ex) {
       setErr(ex.message === 'Invalid login credentials' ? t('auth.errWrong') : ex.message)
-      // Avatar hoảng loạn khi sai tài khoản/mật khẩu, reset về Blinking sau 2s
-      switchState('Panic')
-      setTimeout(() => switchState('Blinking'), 2000)
+      // Avatar rung lắc hoảng loạn khi sai tài khoản/mật khẩu
+      setIsPanic(true)
+      setTimeout(() => setIsPanic(false), 820)
     } finally {
       setBusy(false)
     }
@@ -81,41 +91,42 @@ export default function Login() {
 
   return (
     <AuthLayout
-      title={t('auth.loginTitle')}
+      animated
       footer={<Link to="/dang-ky" style={{ color: '#fff' }}>{t('auth.toRegister')}</Link>}
-      avatar={<LottieLoginAvatar lottieRef={lottieRef} />}
+      avatar={<LottieLoginAvatar lottieRef={lottieRef} isPanic={isPanic} isSuccess={isSuccess} isBusy={busy} />}
     >
-      <form onSubmit={submit} style={{ display: 'grid', gap: 14 }}>
-        {/* Wrapper div để bắt focus event mà không ghi đè internal handler của Input */}
-        <div ref={identifierWrapperRef} onFocus={handleIdentifierFocus} onBlur={handleBlur}>
-          <Input
+      <form onSubmit={submit} style={{ display: 'grid', gap: 18 }}>
+        {/* Identifier — wrapper div bắt focus bubble cho Lottie */}
+        <div onFocus={handleIdentifierFocus} onBlur={handleBlur}>
+          <AuthInput
             label={t('auth.fIdentifier')}
             value={f.identifier}
             onChange={set('identifier')}
             autoComplete="username"
+            inputRef={identifierWrapperRef}
           />
         </div>
 
-        {/* Password field với checkbox show/hide ngang hàng với label */}
+        {/* Password — checkbox "Hiện mật khẩu" nằm trong rightSlot cùng hàng label */}
         <div onFocus={handlePasswordFocus} onBlur={handleBlur}>
-          <div style={S.passwordHeader}>
-            <span style={S.passwordLabel}>{t('auth.fPassword')}</span>
-            <label style={S.showLabel}>
-              <input
-                type="checkbox"
-                checked={showPassword}
-                onMouseDown={(e) => e.preventDefault()} // giữ focus ở input
-                onChange={() => setShowPassword((v) => !v)}
-                style={{ cursor: 'pointer' }}
-              />
-              Hiện mật khẩu
-            </label>
-          </div>
-          <Input
+          <AuthInput
+            label={t('auth.fPassword')}
             type={showPassword ? 'text' : 'password'}
             value={f.password}
             onChange={set('password')}
             autoComplete="current-password"
+            rightSlot={
+              <label style={S.showLabel}>
+                <input
+                  type="checkbox"
+                  checked={showPassword}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onChange={() => setShowPassword((v) => !v)}
+                  style={{ cursor: 'pointer' }}
+                />
+                Hiện
+              </label>
+            }
           />
         </div>
 
@@ -131,16 +142,6 @@ export default function Login() {
 }
 
 const S = {
-  passwordHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  passwordLabel: {
-    font: 'var(--type-label)',
-    color: 'var(--text-secondary)',
-  },
   showLabel: {
     display: 'flex',
     alignItems: 'center',
