@@ -473,19 +473,27 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
       if (saved?.bountyBroken) {
         const losingTeam = saved.winnerTeam === 'A' ? teamB : teamA
         const winningTeam = saved.winnerTeam === 'A' ? teamA : teamB
-        const victimName = losingTeam.map((id) => playerName(db, id)).join(' · ')
-        const baseBadge = getBadgeById('ke_ngat_chuoi') || {}
-        badgeToUnlock = {
-          id: 'ke_ngat_chuoi',
-          name: t('badges.items.ke_ngat_chuoi.name'),
-          tier: 'epic',
-          glyph: 'thunder',
-          victim: victimName,
-          streak: saved.brokenStreak || 5,
-          xp: baseBadge.reward?.xp || 100,
-          sp: baseBadge.reward?.seasonPts || 15,
-          elo: saved.eloDelta || 18,
-          winnerPlayerIds: winningTeam,
+        const isWinnerMe = !currentMember?.id || winningTeam.includes(currentMember.id)
+
+        if (isWinnerMe) {
+          const victimName = losingTeam.map((id) => playerName(db, id)).join(' · ')
+          const baseBadge = getBadgeById('ke_ngat_chuoi') || {}
+          badgeToUnlock = {
+            id: 'ke_ngat_chuoi',
+            name: t('badges.items.ke_ngat_chuoi.name'),
+            tier: 'epic',
+            glyph: 'thunder',
+            victim: victimName,
+            streak: saved.brokenStreak || 5,
+            xp: baseBadge.reward?.xp || 100,
+            sp: baseBadge.reward?.seasonPts || 15,
+            elo: saved.eloDelta || 18,
+            winnerPlayerIds: winningTeam,
+          }
+        } else {
+          // Nếu Admin hoặc người khác nhập điểm: Toast thông báo chúc mừng người thắng
+          const winnerNames = winningTeam.map((id) => playerName(db, id)).join(' · ')
+          a.toast(t('badges.feed.bountyAwardedToast', { winner: winnerNames }))
         }
       } else if (currentMember?.id && saved) {
         // Kiểm tra danh hiệu mở khóa mới của người chơi hiện tại
