@@ -24,18 +24,52 @@ export default function AuthLayout({ title, sub, children, footer, avatar, anima
       {/* Avatar nằm trên card — chỉ hiện khi được truyền vào */}
       {avatar}
 
-      {/* Card: có animated border hoặc không */}
+      {/* Card: có animated border đuổi nhau (Cyan #45f3ff & Pink #ff2770) hoặc không */}
       {animated && (
         <style>{`
           @keyframes auth-border-spin {
-            from { transform: translate(-50%, -50%) rotate(0deg); }
-            to   { transform: translate(-50%, -50%) rotate(360deg); }
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          .auth-beam {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 100%;
+            height: 100%;
+            transform-origin: bottom right;
+            animation: auth-border-spin 6s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+          }
+          .auth-beam-cyan-1 {
+            background: linear-gradient(0deg, transparent, transparent, #45f3ff, #45f3ff, #45f3ff);
+            animation-delay: 0s;
+          }
+          .auth-beam-pink-1 {
+            background: linear-gradient(0deg, transparent, transparent, #ff2770, #ff2770, #ff2770);
+            animation-delay: -1.5s;
+          }
+          .auth-beam-cyan-2 {
+            background: linear-gradient(0deg, transparent, transparent, #45f3ff, #45f3ff, #45f3ff);
+            animation-delay: -3s;
+          }
+          .auth-beam-pink-2 {
+            background: linear-gradient(0deg, transparent, transparent, #ff2770, #ff2770, #ff2770);
+            animation-delay: -4.5s;
           }
         `}</style>
       )}
       <div style={animated ? S.borderOuter : { width: '100%', maxWidth: 460 }}>
-        {animated && <div style={S.borderSpin} />}
-        <div style={animated ? { ...S.card, maxWidth: '100%', position: 'relative', zIndex: 1 } : S.card}>
+        {animated && (
+          <>
+            <div className="auth-beam auth-beam-cyan-1" />
+            <div className="auth-beam auth-beam-pink-1" />
+            <div className="auth-beam auth-beam-cyan-2" />
+            <div className="auth-beam auth-beam-pink-2" />
+          </>
+        )}
+        <div style={animated ? { ...S.card, maxWidth: '100%', position: 'relative', zIndex: 1, border: 'none' } : S.card}>
           {title && (
             <div style={{ display: 'grid', gap: 3, marginBottom: 18 }}>
               <h1 style={S.title}>{title}</h1>
@@ -63,29 +97,19 @@ const S = {
   brand: {},
   logo: {},
   card: {
-    width: '100%', maxWidth: 460, background: '#191925', borderRadius: 14,
+    width: '100%', maxWidth: 460, background: '#191925', borderRadius: 12,
     padding: '28px 30px', boxShadow: '0 25px 60px rgba(0,0,0,0.55)',
     border: '1px solid rgba(255,255,255,0.06)',
   },
-  // Animated border
+  // Animated border chasing effect
   borderOuter: {
     position: 'relative',
     width: '100%',
     maxWidth: 460,
-    borderRadius: 16,
-    padding: 2,
+    borderRadius: 14,
+    padding: 3,
     overflow: 'hidden',
-  },
-  borderSpin: {
-    position: 'absolute',
-    width: 700,
-    height: 700,
-    top: '50%',
-    left: '50%',
-    background: 'conic-gradient(from 0deg, #ff006a, #c026d3 25%, #0ea5e9 50%, #06d6a0 75%, #ff006a)',
-    animation: 'auth-border-spin 5s linear infinite',
-    zIndex: 0,
-    borderRadius: '50%',
+    background: '#151522',
   },
   title: { font: 'var(--type-h2)', color: 'var(--text-primary)', margin: 0 },
   sub: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
