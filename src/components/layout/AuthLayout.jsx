@@ -55,7 +55,7 @@ const S = {
   page: {
     minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
     justifyContent: 'center', gap: 18, padding: '40px 20px',
-    background: 'linear-gradient(160deg, var(--navy-800) 0%, var(--navy-700) 45%, var(--teal-800) 100%)',
+    background: 'linear-gradient(135deg, #0d0d18 0%, #11111f 60%, #0f111a 100%)',
     font: 'var(--type-body)', color: 'var(--text-primary)',
   },
   appName: {},
@@ -63,8 +63,9 @@ const S = {
   brand: {},
   logo: {},
   card: {
-    width: '100%', maxWidth: 460, background: 'var(--surface-card)', borderRadius: 14,
-    padding: '24px 26px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-subtle)',
+    width: '100%', maxWidth: 460, background: '#191925', borderRadius: 14,
+    padding: '28px 30px', boxShadow: '0 25px 60px rgba(0,0,0,0.55)',
+    border: '1px solid rgba(255,255,255,0.06)',
   },
   // Animated border
   borderOuter: {

@@ -1,7 +1,7 @@
-// Input dành riêng cho trang auth (Login/Register).
-// Unfocused: chỉ gạch chân — gọn, không chiếm không gian.
-// Focused: full box với border xuất hiện mượt qua transition.
-// rightSlot: dùng để đặt checkbox "Hiện mật khẩu" cùng hàng với label.
+// Input cho trang auth — style giống video:
+//   Unfocused: label trên + gạch chân mỏng, nền trong suốt
+//   Focused / có giá trị: white box xuất hiện với transition mượt
+// rightSlot: checkbox "Hiện" cùng hàng với label (góc phải)
 
 import { useState } from 'react'
 
@@ -18,12 +18,12 @@ export default function AuthInput({
 
   return (
     <div style={S.wrapper}>
-      {(label || rightSlot) && (
-        <div style={S.labelRow}>
-          {label && <label style={S.label}>{label}</label>}
-          {rightSlot}
-        </div>
-      )}
+      {/* Label row: label trái, rightSlot (checkbox) phải */}
+      <div style={S.labelRow}>
+        <span style={S.label}>{label}</span>
+        {rightSlot}
+      </div>
+
       <input
         ref={inputRef}
         type={type}
@@ -42,7 +42,7 @@ const S = {
   wrapper: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 6,
+    gap: 8,
   },
   labelRow: {
     display: 'flex',
@@ -50,29 +50,34 @@ const S = {
     alignItems: 'center',
   },
   label: {
-    font: 'var(--type-label)',
-    color: 'var(--text-secondary)',
+    font: '400 13px/1 var(--font-sans, sans-serif)',
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: '0.02em',
   },
+
+  // Unfocused: trong suốt + gạch chân
   input: {
     width: '100%',
-    height: 'var(--target-web, 40px)',
-    padding: '0 2px',
+    height: 44,
+    padding: '0 4px',
     background: 'transparent',
     border: 'none',
-    borderBottom: '1.5px solid var(--border-subtle)',
+    borderBottom: '1.5px solid rgba(255,255,255,0.18)',
     borderRadius: 0,
     outline: 'none',
-    font: `400 var(--text-sm, 14px)/1.4 var(--font-sans)`,
-    color: 'var(--text-primary)',
-    // transition toàn bộ để animation mượt
-    transition: 'border 0.22s ease, border-radius 0.22s ease, padding 0.22s ease, background 0.22s ease, box-shadow 0.22s ease',
+    font: '400 14px/1.4 var(--font-sans, sans-serif)',
+    color: 'rgba(255,255,255,0.85)',
+    transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
     boxSizing: 'border-box',
   },
+
+  // Focused: white box xuất hiện
   inputFocused: {
-    background: 'var(--field-bg)',
-    border: '1px solid var(--border-focus-color)',
-    borderRadius: 'var(--radius-control, 8px)',
-    padding: '0 12px',
-    boxShadow: 'var(--ring-focus)',
+    background: 'rgba(255,255,255,0.93)',
+    border: '1px solid rgba(255,255,255,0.85)',
+    borderRadius: 8,
+    padding: '0 14px',
+    color: '#111827',                                    // text tối trên nền trắng
+    boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
   },
 }
