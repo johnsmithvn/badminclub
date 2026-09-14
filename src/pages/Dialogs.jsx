@@ -12,6 +12,7 @@ import {
   OPTIONAL_HEADERS, TEMPLATE_HEADERS, generateSampleCsv, parseAndValidateMembers, validateMemberRow,
 } from '#lib/csv.js'
 import { validateMatchBackup } from '#lib/matchBackup.js'
+import { resolveSeason } from '#lib/season.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -30,6 +31,7 @@ export default function Dialogs() {
     editCourtLabel: EditCourtLabelDialog,
     importMembers: ImportMembersDialog,
     importSettings: ImportSettingsDialog,
+    exportMatches: ExportMatchesDialog,
     importMatches: ImportMatchesDialog,
     offBack: OffBackDialog,
     zalo: ZaloDialog,
@@ -1410,6 +1412,69 @@ function ImportSettingsDialog() {
             onClick={() => a.applyImportedSettings(data, picked)}
           >
             {t('settings.ioApply')}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
+/**
+ * Xuất lịch sử trận. Có bộ lọc khoảng thời gian vì bộ trận phình theo mùa: xuất tất cả để backtest
+ * thì file to và khó nhìn, mà mùa giải vốn chỉ tính vài tháng.
+ */
+function ExportMatchesDialog() {
+  const { db, a } = useApp()
+  const season = resolveSeason(db)
+  const today = new Date().toISOString().slice(0, 10)
+  const monthsAgo = (n) => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - n)
+    return d.toISOString().slice(0, 10)
+  }
+
+  const OPTS = [
+    { key: 'all', label: t('matchIo.rangeAll'), range: null },
+    { key: 'season', label: t('matchIo.rangeSeason', { name: season?.name || season?.code || '' }), range: { from: season?.startDate || '', to: season?.endDate || '', label: season?.code || 'mua' } },
+    { key: 'm3', label: t('matchIo.range3m'), range: { from: monthsAgo(3), to: today, label: '3thang' } },
+    { key: 'm1', label: t('matchIo.range1m'), range: { from: monthsAgo(1), to: today, label: '1thang' } },
+  ]
+  const [picked, setPicked] = useState('all')
+  const opt = OPTS.find((o) => o.key === picked) || OPTS[0]
+
+  // Đếm trước khi xuất: xuất ra file rỗng rồi mới biết là mất công.
+  const count = useMemo(() => {
+    const r = opt.range
+    const dateOf = Object.fromEntries((db.sessions || []).map((x) => [x.id, x.date || '']))
+    return (db.matches || []).filter((m) => {
+      const d = dateOf[m.sessionId] || ''
+      if (!r) return true
+      if (!d) return false
+      if (r.from && d < r.from) return false
+      if (r.to && d > r.to) return false
+      return true
+    }).length
+  }, [db.matches, db.sessions, opt])
+
+  return (
+    <Dialog open title={t('matchIo.exportTitle')} width={560} onClose={() => a.closeDialog()}>
+      <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ font: 'var(--type-body)', color: 'var(--text-secondary)' }}>{t('matchIo.exportDesc')}</div>
+        <div style={S.parts}>
+          {OPTS.map((o) => (
+            <Checkbox
+              key={o.key}
+              label={o.label}
+              checked={picked === o.key}
+              onChange={() => setPicked(o.key)}
+            />
+          ))}
+        </div>
+        <Mono>{t('matchIo.exportCount', { n: count })}</Mono>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <Button variant="secondary" onClick={() => a.closeDialog()}>{t('common.cancel')}</Button>
+          <Button variant="primary" icon="download" disabled={!count} onClick={() => { a.exportMatches(opt.range); a.closeDialog() }}>
+            {t('matchIo.exportBtn')}
           </Button>
         </div>
       </div>

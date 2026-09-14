@@ -652,7 +652,7 @@ export default function Matches() {
               size="sm"
               variant="ghost"
               label={t('matchIo.exportBtn')}
-              onClick={() => a.exportMatches()}
+              onClick={() => a.openDialog('exportMatches', {})}
             />
             <IconButton
               icon="upload"

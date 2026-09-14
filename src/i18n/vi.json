@@ -4142,6 +4142,13 @@
     "errMissingPlayers": "{{n}} người trong file không còn trong CLB này. Elo và điểm mùa của các trận đó không quy được về ai.",
     "errDuplicateId": "File có hai trận trùng mã {{id}} — chúng sẽ ghi đè lẫn nhau lúc lưu.",
     "errParse": "Nội dung không phải JSON hợp lệ. Chọn lại đúng file đã tải về.",
-    "errRead": "Không mở được file. Chọn lại file khác."
+    "errRead": "Không mở được file. Chọn lại file khác.",
+    "exportTitle": "Xuất lịch sử trận",
+    "exportDesc": "Tải lịch sử trận ra file .json để sao lưu hoặc để chạy đối chiếu khi đổi công thức. File chỉ chứa trận đấu, điểm danh và cấu hình sân — KHÔNG có tiền quỹ hay công nợ.",
+    "exportCount": "{{n}} trận sẽ được xuất",
+    "rangeAll": "Toàn bộ lịch sử",
+    "rangeSeason": "Mùa hiện tại · {{name}}",
+    "range3m": "3 tháng gần nhất",
+    "range1m": "1 tháng gần nhất"
   }
 }
