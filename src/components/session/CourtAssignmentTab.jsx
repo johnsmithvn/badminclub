@@ -281,7 +281,6 @@ export default function CourtAssignmentTab({ s }) {
       }
     })
     const maxAt = Math.max(...sessionMatches.map((m) => m.at || 0))
-    const set = new Set()
     sessionMatches.forEach((m) => {
       const isLatestForCourt = Object.values(latestMatchPerCourt).some((lm) => lm.id === m.id)
       const isRecent = maxAt > 0 && (maxAt - (m.at || 0)) < 15 * 60 * 1000
@@ -291,7 +290,7 @@ export default function CourtAssignmentTab({ s }) {
       }
     })
     return set
-  }, [sessionMatches])
+  }, [sessionMatches, ongoingMatches])
 
   // Đếm số người vừa đánh xong ở lượt gần nhất
   const noRestCount = useMemo(() => {
