@@ -769,7 +769,25 @@
     "fairColWait": "Chờ",
     "fairColDebt": "Lệch",
     "fairHint": "Lệch = phần đáng được hưởng trừ số trận đã đánh. Dương là đang thiệt, âm là đang được ưu ái. Bảng chỉ để tham khảo, không chặn ai lên sân.",
-    "fairWaitUnit": "{{n}} trận"
+    "fairWaitUnit": "{{n}} trận",
+    "deployCourtBtn": "Xác nhận vào sân",
+    "deployCourtTitle": "Vào {{court}} (Xếp nhanh)",
+    "deployCourtDesc": "Đưa người lên sân, tính lượt đánh và xóa ô để xếp tiếp sân khác",
+    "ongoingTitle": "Trận đang trên sân",
+    "ongoingCount": "{{n}} trận",
+    "ongoingEmpty": "Chưa có trận nào đang đấu trên sân",
+    "ongoingPlaying": "Đang đấu",
+    "ongoingRecordScore": "Ghi tỉ số",
+    "ongoingVoice": "Voice",
+    "ongoingCancel": "Hủy trận",
+    "ongoingCancelConfirm": "Hủy trận này khỏi sân? Lượt đánh của người chơi sẽ được hoàn lại.",
+    "toastDeployed": "Đã xếp {{court}}: {{a}} vs {{b}} vào sân",
+    "toastCancelled": "Đã hủy trận trên {{court}}, hoàn lại lượt đánh",
+    "quickScoreTitle": "Ghi kết quả · {{court}}",
+    "loadBackToCourt": "Nạp vào mặt sân",
+    "playingOnCourtTag": "Đang đấu ({{court}})",
+    "elapsedMinutes": "{{m}} phút",
+    "justStarted": "Vừa vào sân"
   },
   "home": {
     "tabs": {
@@ -3708,43 +3726,43 @@
       },
       "vo_hut": {
         "name": "Chuyên gia vồ hụt",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "cond": "Chắc là do vợt thủng"
       },
       "lau_san": {
         "name": "Thánh lau sàn",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "cond": "Bơi được trên sân"
       },
       "he_chua": {
         "name": "Hề chúa sân cầu",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "cond": ":v"
       },
       "chich_choe": {
-        "name": "Chích chòe (cãi cầu)",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "name": "Mỏ hỗn",
+        "cond": "Đố dám cãi"
       },
       "doi_vot": {
         "name": "Đại gia đổi vợt",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "cond": "Đố biết vợt bao nhiêu xèng"
       },
       "ganh_ta": {
         "name": "Gánh tạ gãy lưng",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "cond": "Hội người cao tuổi gọi tên"
       },
       "ngam_cau": {
-        "name": "Đạt ma sư tổ (ngâm cầu)",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "name": "Không phải dạng vừa đâu",
+        "cond": "Tự phong"
       },
       "huy_diet_luoi": {
-        "name": "Kẻ hủy diệt lưới",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "name": "Vua phá lưới",
+        "cond": "Không phải bàn"
       },
       "hoa_hau_nhat_cau": {
         "name": "Hoa hậu nhặt cầu",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "cond": "Tay ai mà nhặt nhanh thế"
       },
       "tho_san_goc_chet": {
-        "name": "Thợ săn góc chết",
-        "cond": "Tự phong · đổi lúc nào cũng được"
+        "name": "Thợ săn newbie",
+        "cond": "Khó Lói"
       },
       "hidden_comeback": {
         "name": "Nghịch thiên đảo chiều",

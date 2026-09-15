@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Button, Card, Icon, IconButton, Select, Switch } from '#ds'
 import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -33,6 +33,31 @@ export default function CourtAssignmentTab({ s }) {
   // Đội A & Đội B (mảng id/key các đấu thủ)
   const [teamA, setTeamA] = useState([])
   const [teamB, setTeamB] = useState([])
+
+  // Quản lý các trận đang diễn ra trên sân (chờ ghi điểm)
+  const ongoingStorageKey = `badmin_ongoing_${s?.id}`
+  const [ongoingMatches, setOngoingMatches] = useState(() => {
+    try {
+      const raw = localStorage.getItem(ongoingStorageKey)
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ongoingStorageKey, JSON.stringify(ongoingMatches))
+    } catch {}
+  }, [ongoingStorageKey, ongoingMatches])
+
+  // State ghi điểm nhanh cho trận đang trên sân
+  const [scoringMatch, setScoringMatch] = useState(null)
+  const [scoringWinnerTeam, setScoringWinnerTeam] = useState('A')
+  const [scoringPreset, setScoringPreset] = useState('21-19')
+  const [scoringScoreA, setScoringScoreA] = useState(21)
+  const [scoringScoreB, setScoringScoreB] = useState(19)
+  const [voiceTargetMatch, setVoiceTargetMatch] = useState(null)
 
   // Cài đặt sân & Elo
   const [courtIdx, setCourtIdx] = useState(0)
@@ -102,7 +127,7 @@ export default function CourtAssignmentTab({ s }) {
       .sort((m1, m2) => (m2.at || 0) - (m1.at || 0))
   }, [db.matches, s.id])
 
-  // Đếm số trận đã chơi trong buổi hôm nay cho từng người
+  // Đếm số trận đã chơi trong buổi hôm nay cho từng người (bao gồm trận đã xong + trận đang trên sân)
   const matchCountMap = useMemo(() => {
     const counts = {}
     sessionMatches.forEach((m) => {
@@ -111,8 +136,25 @@ export default function CourtAssignmentTab({ s }) {
         counts[k] = (counts[k] || 0) + 1
       })
     })
+    ongoingMatches.forEach((om) => {
+      const keys = [...(om.teamA || []), ...(om.teamB || [])]
+      keys.forEach((k) => {
+        counts[k] = (counts[k] || 0) + 1
+      })
+    })
     return counts
-  }, [sessionMatches])
+  }, [sessionMatches, ongoingMatches])
+
+  // Map người đang có mặt trên sân thi đấu (cho biết đang ở Sân nào)
+  const onCourtPlayerMap = useMemo(() => {
+    const map = {}
+    ongoingMatches.forEach((m) => {
+      const label = m.courtLabel || t('session.courtNum', { n: (m.courtIdx || 0) + 1 })
+      ;(m.teamA || []).forEach((k) => { map[k] = label })
+      ;(m.teamB || []).forEach((k) => { map[k] = label })
+    })
+    return map
+  }, [ongoingMatches])
 
   // Object stats cho hàm tính điểm cân bằng
   const statsObj = useMemo(() => {
@@ -223,9 +265,14 @@ export default function CourtAssignmentTab({ s }) {
     return waitingPlayers.filter((p) => !partneredKeys.has(p.key)).length
   }, [targetKey, playersOnCourtKeys.length, waitingPlayers, partneredKeys])
 
-  // Tập hợp người vừa tham gia lượt trận gần nhất của buổi (chưa được nghỉ)
+  // Tập hợp người vừa tham gia lượt trận gần nhất của buổi (chưa được nghỉ, bao gồm đang trên sân)
   const recentRoundPlayerKeys = useMemo(() => {
-    if (!sessionMatches.length) return new Set()
+    const set = new Set()
+    ongoingMatches.forEach((om) => {
+      ;(om.teamA || []).forEach((k) => set.add(k))
+      ;(om.teamB || []).forEach((k) => set.add(k))
+    })
+    if (!sessionMatches.length) return set
     const latestMatchPerCourt = {}
     sessionMatches.forEach((m) => {
       const ci = m.courtIdx ?? 0
@@ -808,6 +855,113 @@ export default function CourtAssignmentTab({ s }) {
     a.toast(t('quickMatch.saveSuccess'))
   }
 
+  // 1. Xác nhận xếp lên sân (Ghi nhanh)
+  const handleDeployToCourt = () => {
+    if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) {
+      a.toast(t('quickMatch.errNotEnough', { req: maxPerTeam }))
+      return
+    }
+
+    const currentCourtLabel = courtOptions.find((c) => c.value === courtIdx)?.label || t('session.courtNum', { n: courtIdx + 1 })
+    const newOngoing = {
+      id: `on_court_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      courtIdx,
+      courtLabel: currentCourtLabel,
+      teamA: [...teamA],
+      teamB: [...teamB],
+      mode,
+      ratingEnabled,
+      selectedChallengeId,
+      startedAt: Date.now(),
+    }
+
+    setOngoingMatches((prev) => [...prev, newOngoing])
+
+    const namesA = teamA.map((k) => playerName(db, k)).join(' · ')
+    const namesB = teamB.map((k) => playerName(db, k)).join(' · ')
+
+    // Clear ô sân và trả người về hàng đợi
+    setTeamA([])
+    setTeamB([])
+    setSelectedChallengeId(null)
+    setActiveSlot({ team: 'A', idx: 0 })
+
+    // Tự động chuyển sang sân tiếp theo nếu có từ 2 sân trở lên
+    if (courtOptions.length > 1) {
+      setCourtIdx((prev) => (prev + 1) % courtOptions.length)
+    }
+
+    a.toast(t('assign.toastDeployed', { court: currentCourtLabel, a: namesA, b: namesB }))
+  }
+
+  // 2. Hủy trận đang đấu khỏi sân
+  const handleCancelOngoingMatch = (matchId) => {
+    const match = ongoingMatches.find((m) => m.id === matchId)
+    if (!match) return
+    setOngoingMatches((prev) => prev.filter((m) => m.id !== matchId))
+    a.toast(t('assign.toastCancelled', { court: match.courtLabel }))
+  }
+
+  // 3. Mở modal ghi tỉ số nhanh cho trận đang đấu
+  const handleOpenQuickScore = (om) => {
+    setScoringMatch(om)
+    setScoringWinnerTeam('A')
+    setScoringPreset('21-19')
+    setScoringScoreA(21)
+    setScoringScoreB(19)
+  }
+
+  // 4. Lưu kết quả từ modal ghi tỉ số nhanh
+  const handleSaveOngoingScore = () => {
+    if (!scoringMatch) return
+    const playedSets = [[Number(scoringScoreA), Number(scoringScoreB)]]
+
+    if (scoringScoreA === scoringScoreB) {
+      a.toast(t('quickMatch.errTie'))
+      return
+    }
+
+    a.saveMatchScore({
+      sid: s.id,
+      ci: scoringMatch.courtIdx,
+      teamA: scoringMatch.teamA,
+      teamB: scoringMatch.teamB,
+      sets: playedSets,
+      challengeId: scoringMatch.selectedChallengeId,
+      ratingEnabled: scoringMatch.ratingEnabled,
+    })
+
+    // Xoá trận khỏi ongoingMatches: số trận giữ nguyên do sessionMatches vừa nhận trận này
+    setOngoingMatches((prev) => prev.filter((m) => m.id !== scoringMatch.id))
+    setScoringMatch(null)
+    a.toast(t('quickMatch.saveSuccess'))
+  }
+
+  // 5. Nạp trận đang đấu vào lại mặt sân chính
+  const handleLoadOngoingToCourt = () => {
+    if (!scoringMatch) return
+    setCourtIdx(scoringMatch.courtIdx ?? 0)
+    setTeamA(scoringMatch.teamA || [])
+    setTeamB(scoringMatch.teamB || [])
+    setMode(scoringMatch.mode || 'doubles')
+    setRatingEnabled(scoringMatch.ratingEnabled !== false)
+    setSelectedChallengeId(scoringMatch.selectedChallengeId || null)
+    setWinnerTeam(scoringWinnerTeam)
+    setPresetScore(scoringPreset)
+    setScoreA(scoringScoreA)
+    setScoreB(scoringScoreB)
+
+    // Xoá khỏi ongoingMatches để tránh đếm 2 lần khi đưa vào sân chính
+    setOngoingMatches((prev) => prev.filter((m) => m.id !== scoringMatch.id))
+    setScoringMatch(null)
+  }
+
+  // 6. Mở Voice cho trận đang đấu
+  const handleOpenVoiceForOngoing = (om) => {
+    setVoiceTargetMatch(om)
+    setShowVoiceModal(true)
+  }
+
   const isCourtFull = teamA.length >= maxPerTeam && teamB.length >= maxPerTeam
 
   return (
@@ -1106,6 +1260,25 @@ export default function CourtAssignmentTab({ s }) {
                                 <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
                                   {genderTxt(p.gender)} · {p.level || 'TB'}
                                   {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
+                                  {onCourtPlayerMap[p.key] && (
+                                    <span
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 3,
+                                        padding: '1px 5px',
+                                        borderRadius: 4,
+                                        background: 'rgba(0, 178, 169, 0.18)',
+                                        color: 'var(--action-accent-fg, #00B2A9)',
+                                        border: '1px solid rgba(0, 178, 169, 0.35)',
+                                        fontSize: 10.5,
+                                        fontWeight: 600,
+                                        marginLeft: 4,
+                                      }}
+                                    >
+                                      🎾 {onCourtPlayerMap[p.key]}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               <div style={{ ...S.cs1MatchCount, color: badgeColor }}>
@@ -1242,6 +1415,148 @@ export default function CourtAssignmentTab({ s }) {
             </div>
           </div>
         </Card>
+
+        {/* ---------------- 1.5. DANH SÁCH TRẬN ĐANG TRÊN SÂN (GHI NHANH) ---------------- */}
+        {ongoingMatches.length > 0 && (
+          <Card
+            title={t('assign.ongoingTitle')}
+            subtitle={t('assign.ongoingCount', { n: ongoingMatches.length })}
+            icon="activity"
+            padding="12px 14px"
+          >
+            <div style={{ display: 'grid', gap: 10, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+              {ongoingMatches.map((om) => {
+                const elapsedMinutes = Math.max(0, Math.round((Date.now() - (om.startedAt || Date.now())) / 60000))
+                const timeLabel = elapsedMinutes === 0 ? t('assign.justStarted') : t('assign.elapsedMinutes', { m: elapsedMinutes })
+                const namesA = (om.teamA || []).map((k) => playerName(db, k)).join(' · ')
+                const namesB = (om.teamB || []).map((k) => playerName(db, k)).join(' · ')
+
+                return (
+                  <div
+                    key={om.id}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: 10,
+                      background: 'var(--surface-raised)',
+                      border: '1px solid var(--border-default)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    {/* Header card */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span
+                          style={{
+                            font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            background: 'rgba(0, 178, 169, 0.18)',
+                            color: 'var(--action-accent-fg, #00B2A9)',
+                            border: '1px solid rgba(0, 178, 169, 0.3)',
+                          }}
+                        >
+                          {om.courtLabel}
+                        </span>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            font: "500 11.5px/1 'IBM Plex Sans', sans-serif",
+                            color: 'var(--status-delivered-fg, #00B2A9)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              background: 'var(--status-delivered-fg, #00B2A9)',
+                              display: 'inline-block',
+                              boxShadow: '0 0 6px var(--status-delivered-fg, #00B2A9)',
+                            }}
+                          />
+                          {t('assign.ongoingPlaying')} · {timeLabel}
+                        </span>
+                      </div>
+
+                      <IconButton
+                        icon="x"
+                        size="xs"
+                        variant="ghost"
+                        title={t('assign.ongoingCancel')}
+                        onClick={() => {
+                          if (window.confirm(t('assign.ongoingCancelConfirm'))) {
+                            handleCancelOngoingMatch(om.id)
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Matchup */}
+                    <div
+                      onClick={() => handleOpenQuickScore(om)}
+                      style={{
+                        display: 'grid',
+                        gap: 6,
+                        padding: '6px 8px',
+                        borderRadius: 8,
+                        background: 'var(--surface-sunken)',
+                        cursor: 'pointer',
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                      title={t('assign.ongoingRecordScore')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ font: "600 13.5px 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                          {namesA}
+                        </span>
+                        <span style={{ font: "500 11px 'IBM Plex Mono', monospace", color: 'var(--action-accent-fg, #00B2A9)' }}>
+                          {t('assign.slotTeamLabel', { team: 'A', n: '' }).trim()}
+                        </span>
+                      </div>
+                      <div style={{ font: "700 11px 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', textAlign: 'center' }}>
+                        vs
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ font: "600 13.5px 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                          {namesB}
+                        </span>
+                        <span style={{ font: "500 11px 'IBM Plex Mono', monospace", color: 'var(--action-accent-fg, #00B2A9)' }}>
+                          {t('assign.slotTeamLabel', { team: 'B', n: '' }).trim()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4, borderTop: '1px solid var(--border-subtle)' }}>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon="pencil"
+                        onClick={() => handleOpenQuickScore(om)}
+                        style={{ flex: 1, fontWeight: 600, background: 'var(--action-accent-bg, #00B2A9)', color: '#fff' }}
+                      >
+                        {t('assign.ongoingRecordScore')}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon="mic"
+                        onClick={() => handleOpenVoiceForOngoing(om)}
+                      >
+                        {t('assign.ongoingVoice')}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        )}
 
         {/* ---------------- 2. MẶT SÂN THI ĐẤU VISUAL COURT (SCREEN 01) ---------------- */}
         <div style={{ ...S.courtCard, padding: isMobile ? '12px 10px' : '16px' }}>
@@ -1659,6 +1974,46 @@ export default function CourtAssignmentTab({ s }) {
             )}
           </div>
 
+          {/* ---------------- NÚT XÁC NHẬN VÀO SÂN (GHI NHANH) ---------------- */}
+          {isCourtFull && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: 'linear-gradient(135deg, rgba(0, 178, 169, 0.15) 0%, rgba(0, 178, 169, 0.05) 100%)',
+                border: '1px solid rgba(0, 178, 169, 0.35)',
+                margin: '12px 0',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: "600 13.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  {t('assign.deployCourtTitle', { court: courtOptions.find((c) => c.value === courtIdx)?.label || t('session.courtNum', { n: courtIdx + 1 }) })}
+                </div>
+                <div style={{ font: "400 12px/1.35 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', marginTop: 2 }}>
+                  {t('assign.deployCourtDesc')}
+                </div>
+              </div>
+              <Button
+                variant="primary"
+                size={isMobile ? 'md' : 'lg'}
+                icon="play"
+                onClick={handleDeployToCourt}
+                style={{
+                  fontWeight: 700,
+                  background: 'var(--action-accent-bg, #00B2A9)',
+                  color: '#fff',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 8px rgba(0, 178, 169, 0.35)',
+                }}
+              >
+                {t('assign.deployCourtBtn')}
+              </Button>
+            </div>
+          )}
 
           {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
           {teamA.length > 0 && teamB.length > 0 && (
@@ -1961,14 +2316,26 @@ export default function CourtAssignmentTab({ s }) {
                 )}
               </div>
 
-              {/* NÚT LƯU KẾT QUẢ TO 56px */}
-              <button
-                type="button"
-                onClick={handleSaveResult}
-                style={S.bigSaveBtn}
-              >
-                {t('scoreModal.saveResult')}
-              </button>
+              {/* NÚT LƯU KẾT QUẢ & XÁC NHẬN VÀO SÂN */}
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleSaveResult}
+                  style={{ ...S.bigSaveBtn, flex: 1 }}
+                >
+                  {t('scoreModal.saveResult')}
+                </button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  icon="play"
+                  onClick={handleDeployToCourt}
+                  style={{ minHeight: 56, fontWeight: 700, whiteSpace: 'nowrap' }}
+                  title={t('assign.deployCourtDesc')}
+                >
+                  {t('assign.deployCourtBtn')}
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -2039,16 +2406,400 @@ export default function CourtAssignmentTab({ s }) {
         />
       )}
 
+      {/* Modal Ghi tỉ số nhanh cho trận đang trên sân */}
+      {scoringMatch && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1050,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: isMobile ? 'flex-end' : 'center',
+            justifyContent: 'center',
+            padding: isMobile ? 0 : 16,
+          }}
+          onClick={() => setScoringMatch(null)}
+        >
+          <div
+            style={{
+              width: 520,
+              maxWidth: '100%',
+              background: 'var(--surface-overlay, #141D2E)',
+              border: '1px solid var(--border-default, #2E3E5C)',
+              borderRadius: isMobile ? '18px 18px 0 0' : 14,
+              padding: '16px 18px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header modal */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: 'rgba(0, 178, 169, 0.18)',
+                    color: 'var(--action-accent-fg, #00B2A9)',
+                    border: '1px solid rgba(0, 178, 169, 0.3)',
+                  }}
+                >
+                  {scoringMatch.courtLabel}
+                </span>
+                <span style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  {t('assign.quickScoreTitle', { court: scoringMatch.courtLabel })}
+                </span>
+              </div>
+              <IconButton
+                icon="x"
+                size="sm"
+                variant="ghost"
+                onClick={() => setScoringMatch(null)}
+              />
+            </div>
+
+            {/* Instruction */}
+            <div style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+              {t('scoreModal.instruction')}
+            </div>
+
+            {/* 2 Teams Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+              {/* Team A */}
+              <div
+                onClick={() => {
+                  setScoringWinnerTeam('A')
+                  if (scoringPreset === '21-19') {
+                    setScoringScoreA(21)
+                    setScoringScoreB(19)
+                  } else if (scoringPreset === '21-15') {
+                    setScoringScoreA(21)
+                    setScoringScoreB(15)
+                  } else if (scoringPreset === '21-11') {
+                    setScoringScoreA(21)
+                    setScoringScoreB(11)
+                  } else if (scoringPreset === 'custom' && scoringScoreA < scoringScoreB) {
+                    const tmp = scoringScoreA
+                    setScoringScoreA(scoringScoreB)
+                    setScoringScoreB(tmp)
+                  }
+                }}
+                style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  background: scoringWinnerTeam === 'A' ? 'rgba(0, 178, 169, 0.12)' : 'var(--surface-sunken)',
+                  border: `1.5px solid ${scoringWinnerTeam === 'A' ? 'var(--action-accent-bg, #00B2A9)' : 'var(--border-subtle)'}`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: scoringWinnerTeam === 'A' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {(scoringMatch.teamA || []).map((k) => playerName(db, k)).join(' · ')}
+                  </div>
+                  <div style={{ font: "500 11.5px 'IBM Plex Mono', monospace", color: scoringWinnerTeam === 'A' ? 'var(--action-accent-fg, #00B2A9)' : 'var(--text-muted)' }}>
+                    {t('assign.slotTeamLabel', { team: 'A', n: '' }).trim()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {scoringWinnerTeam === 'A' && (
+                    <span style={{ font: "700 11px/1 'IBM Plex Sans', sans-serif", padding: '2px 6px', borderRadius: 4, background: 'var(--action-accent-bg, #00B2A9)', color: '#fff' }}>
+                      {t('scoreModal.winnerTag')}
+                    </span>
+                  )}
+                  <span style={{ font: "700 22px/1 'IBM Plex Mono', monospace", color: scoringWinnerTeam === 'A' ? 'var(--action-accent-fg, #00B2A9)' : 'var(--text-muted)' }}>
+                    {scoringScoreA}
+                  </span>
+                </div>
+              </div>
+
+              {/* Team B */}
+              <div
+                onClick={() => {
+                  setScoringWinnerTeam('B')
+                  if (scoringPreset === '21-19') {
+                    setScoringScoreA(19)
+                    setScoringScoreB(21)
+                  } else if (scoringPreset === '21-15') {
+                    setScoringScoreA(15)
+                    setScoringScoreB(21)
+                  } else if (scoringPreset === '21-11') {
+                    setScoringScoreA(11)
+                    setScoringScoreB(21)
+                  } else if (scoringPreset === 'custom' && scoringScoreB < scoringScoreA) {
+                    const tmp = scoringScoreA
+                    setScoringScoreA(scoringScoreB)
+                    setScoringScoreB(tmp)
+                  }
+                }}
+                style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  background: scoringWinnerTeam === 'B' ? 'rgba(0, 178, 169, 0.12)' : 'var(--surface-sunken)',
+                  border: `1.5px solid ${scoringWinnerTeam === 'B' ? 'var(--action-accent-bg, #00B2A9)' : 'var(--border-subtle)'}`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: scoringWinnerTeam === 'B' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {(scoringMatch.teamB || []).map((k) => playerName(db, k)).join(' · ')}
+                  </div>
+                  <div style={{ font: "500 11.5px 'IBM Plex Mono', monospace", color: scoringWinnerTeam === 'B' ? 'var(--action-accent-fg, #00B2A9)' : 'var(--text-muted)' }}>
+                    {t('assign.slotTeamLabel', { team: 'B', n: '' }).trim()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {scoringWinnerTeam === 'B' && (
+                    <span style={{ font: "700 11px/1 'IBM Plex Sans', sans-serif", padding: '2px 6px', borderRadius: 4, background: 'var(--action-accent-bg, #00B2A9)', color: '#fff' }}>
+                      {t('scoreModal.winnerTag')}
+                    </span>
+                  )}
+                  <span style={{ font: "700 22px/1 'IBM Plex Mono', monospace", color: scoringWinnerTeam === 'B' ? 'var(--action-accent-fg, #00B2A9)' : 'var(--text-muted)' }}>
+                    {scoringScoreB}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Presets */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              {['21-19', '21-15', '21-11'].map((p) => {
+                const isActive = scoringPreset === p
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => {
+                      setScoringPreset(p)
+                      const [high, low] = p.split('-').map(Number)
+                      if (scoringWinnerTeam === 'A') {
+                        setScoringScoreA(high)
+                        setScoringScoreB(low)
+                      } else {
+                        setScoringScoreA(low)
+                        setScoringScoreB(high)
+                      }
+                    }}
+                    style={{
+                      padding: '10px 4px',
+                      borderRadius: 8,
+                      border: `1px solid ${isActive ? 'var(--action-accent-bg, #00B2A9)' : 'var(--border-default)'}`,
+                      background: isActive ? 'rgba(0, 178, 169, 0.18)' : 'var(--surface-sunken)',
+                      color: isActive ? 'var(--action-accent-fg, #00B2A9)' : 'var(--text-primary)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {p}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => setScoringPreset('custom')}
+                style={{
+                  padding: '10px 4px',
+                  borderRadius: 8,
+                  border: `1px solid ${scoringPreset === 'custom' ? 'var(--action-accent-bg, #00B2A9)' : 'var(--border-default)'}`,
+                  background: scoringPreset === 'custom' ? 'rgba(0, 178, 169, 0.18)' : 'var(--surface-sunken)',
+                  color: scoringPreset === 'custom' ? 'var(--action-accent-fg, #00B2A9)' : 'var(--text-primary)',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {t('scoreModal.presetOther')}
+              </button>
+            </div>
+
+            {/* Custom score inputs if custom */}
+            {scoringPreset === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '10px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--surface-sunken)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700 }}
+                    onClick={() => {
+                      const next = Math.max(0, scoringScoreA - 1)
+                      setScoringScoreA(next)
+                      if (next > scoringScoreB) setScoringWinnerTeam('A')
+                      else if (next < scoringScoreB) setScoringWinnerTeam('B')
+                    }}
+                  >−</button>
+                  <input
+                    type="number"
+                    value={scoringScoreA}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10) || 0
+                      setScoringScoreA(v)
+                      if (v > scoringScoreB) setScoringWinnerTeam('A')
+                      else if (v < scoringScoreB) setScoringWinnerTeam('B')
+                    }}
+                    style={{ width: 52, height: 36, textAlign: 'center', fontSize: 18, fontWeight: 700, borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--surface-sunken)', color: 'var(--text-primary)' }}
+                  />
+                  <button
+                    type="button"
+                    style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--surface-sunken)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700 }}
+                    onClick={() => {
+                      const next = Math.min(30, scoringScoreA + 1)
+                      setScoringScoreA(next)
+                      if (next > scoringScoreB) setScoringWinnerTeam('A')
+                      else if (next < scoringScoreB) setScoringWinnerTeam('B')
+                    }}
+                  >+</button>
+                </div>
+
+                <span style={{ font: "700 16px 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>–</span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--surface-sunken)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700 }}
+                    onClick={() => {
+                      const next = Math.max(0, scoringScoreB - 1)
+                      setScoringScoreB(next)
+                      if (next > scoringScoreA) setScoringWinnerTeam('B')
+                      else if (next < scoringScoreA) setScoringWinnerTeam('A')
+                    }}
+                  >−</button>
+                  <input
+                    type="number"
+                    value={scoringScoreB}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10) || 0
+                      setScoringScoreB(v)
+                      if (v > scoringScoreA) setScoringWinnerTeam('B')
+                      else if (v < scoringScoreA) setScoringWinnerTeam('A')
+                    }}
+                    style={{ width: 52, height: 36, textAlign: 'center', fontSize: 18, fontWeight: 700, borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--surface-sunken)', color: 'var(--text-primary)' }}
+                  />
+                  <button
+                    type="button"
+                    style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--surface-sunken)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 700 }}
+                    onClick={() => {
+                      const next = Math.min(30, scoringScoreB + 1)
+                      setScoringScoreB(next)
+                      if (next > scoringScoreA) setScoringWinnerTeam('A')
+                      else if (next < scoringScoreA) setScoringWinnerTeam('B')
+                    }}
+                  >+</button>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <Button
+                variant="secondary"
+                size="md"
+                icon="mic"
+                onClick={() => {
+                  setVoiceTargetMatch(scoringMatch)
+                  setShowVoiceModal(true)
+                }}
+              >
+                {t('assign.ongoingVoice')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="md"
+                icon="arrow-up-right"
+                onClick={handleLoadOngoingToCourt}
+                title={t('assign.loadBackToCourt')}
+              >
+                {t('assign.loadBackToCourt')}
+              </Button>
+            </div>
+
+            {/* Save Button */}
+            <Button
+              variant="primary"
+              size="lg"
+              icon="check"
+              onClick={handleSaveOngoingScore}
+              style={{
+                width: '100%',
+                fontWeight: 700,
+                minHeight: 48,
+                background: 'var(--action-accent-bg, #00B2A9)',
+                color: '#fff',
+              }}
+            >
+              {t('scoreModal.saveResult')}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Modal Nhập kết quả bằng giọng nói (Voice Match Scoring) */}
       <VoiceMatchModal
         open={showVoiceModal}
-        onClose={() => setShowVoiceModal(false)}
+        onClose={() => {
+          setShowVoiceModal(false)
+          setVoiceTargetMatch(null)
+        }}
         players={players}
-        courtIdx={courtIdx}
-        currentTeamA={teamA}
-        currentTeamB={teamB}
-        onApplyResult={handleApplyVoiceResult}
-        onDirectSave={handleDirectSaveVoiceResult}
+        courtIdx={voiceTargetMatch ? voiceTargetMatch.courtIdx : courtIdx}
+        currentTeamA={voiceTargetMatch ? voiceTargetMatch.teamA : teamA}
+        currentTeamB={voiceTargetMatch ? voiceTargetMatch.teamB : teamB}
+        onApplyResult={(res) => {
+          if (voiceTargetMatch) {
+            setScoringMatch(voiceTargetMatch)
+            setScoringWinnerTeam(res.winnerTeam || (res.scoreA > res.scoreB ? 'A' : 'B'))
+            setScoringScoreA(res.scoreA)
+            setScoringScoreB(res.scoreB)
+            setScoringPreset('custom')
+            setVoiceTargetMatch(null)
+          } else {
+            handleApplyVoiceResult(res)
+          }
+        }}
+        onDirectSave={(res) => {
+          if (voiceTargetMatch) {
+            const playedA = res.teamA?.length ? res.teamA : voiceTargetMatch.teamA
+            const playedB = res.teamB?.length ? res.teamB : voiceTargetMatch.teamB
+            const playedSa = res.scoreA != null ? res.scoreA : 21
+            const playedSb = res.scoreB != null ? res.scoreB : 19
+            if (playedSa === playedSb) {
+              a.toast(t('quickMatch.errTie'))
+              return
+            }
+            a.saveMatchScore({
+              sid: s.id,
+              ci: voiceTargetMatch.courtIdx,
+              teamA: playedA,
+              teamB: playedB,
+              sets: [[Number(playedSa), Number(playedSb)]],
+              challengeId: voiceTargetMatch.selectedChallengeId,
+              ratingEnabled: voiceTargetMatch.ratingEnabled,
+            })
+            setOngoingMatches((prev) => prev.filter((m) => m.id !== voiceTargetMatch.id))
+            setVoiceTargetMatch(null)
+            a.toast(t('quickMatch.saveSuccess'))
+          } else {
+            handleDirectSaveVoiceResult(res)
+          }
+        }}
       />
     </div>
   )
