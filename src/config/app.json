@@ -61,6 +61,7 @@
     "endDate": "2026-09-30",
     "cycle": "quarter",
     "totalSessionsExpected": 14,
+    "startPoints": 100,
     "minMatchesOfficial": 20,
     "inactiveDays": 21,
     "bonusConfig": {

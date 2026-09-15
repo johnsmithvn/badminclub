@@ -13,6 +13,7 @@
 import { initialRatingOf, calcPlayerDeltas, applyRatingDelta, kFactorOf } from '#lib/rating.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { sessionFairnessRows } from '#lib/assign.js'
+import cfg from '#config/app.json' with { type: 'json' }
 
 /**
  * Đổi file sao lưu trận (`buildMatchBackup`) thành đối tượng `db` tối thiểu để chạy engine.
@@ -118,6 +119,7 @@ export function runBacktest(backup = {}) {
   })
 
   const { leaderboard } = calculateSeasonLeaderboard(db)
+  const startPoints = cfg.season?.startPoints ?? 0
 
   // Sàn 0 kẹp sau MỖI trận, nên trận thua bị cắt rồi trận thắng sau lại cộng từ 0 -> điểm sinh ra
   // từ hư không. Đo thẳng phần chênh này: đây là con số nói thang điểm có replay được hay không.
@@ -125,7 +127,9 @@ export function runBacktest(backup = {}) {
     .filter((r) => r.matchesCount > 0)
     .map((r) => {
       const b = r.breakdown || {}
-      const raw = (b.matchNetPts || 0) + (b.streakBonusPts || 0) + (b.upsetBonusPts || 0)
+      // Cộng cả điểm khởi đầu vào "điểm thật", nếu không thì 100 điểm ai cũng có sẽ bị
+      // `clampGain` đếm nhầm thành điểm ảo và chỉ số sức khoẻ báo động giả cho cả 22 người.
+      const raw = startPoints + (b.matchNetPts || 0) + (b.streakBonusPts || 0) + (b.upsetBonusPts || 0)
       return {
         id: r.id,
         name: r.name,

@@ -255,6 +255,8 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     (a, b) => getMatchTs(a) - getMatchTs(b) || String(a.id || '').localeCompare(String(b.id || ''))
   )
 
+  const startPoints = season.startPoints ?? cfg.season?.startPoints ?? 0
+
   const attendance = db.attendance || {}
   // Mốc so sánh trạng thái Tạm nghỉ = min(hôm nay, hết mùa). Dùng chính endTs (23:59:59 ngày
   // cuối mùa) để khớp với khung lọc trận ở trên, tránh lệch 1 ngày ở ranh giới 21 ngày.
@@ -360,7 +362,14 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     })
 
     // 2. Tính điểm trận, thưởng mốc và sàn Floor = 0
-    let totalSeasonPoints = 0
+    // Mỗi người vào mùa với một số điểm sẵn. Nó KHÔNG đổi thứ hạng, khoảng cách hay độ đảo
+    // hạng — cộng cùng một hằng số cho tất cả thì mọi thứ giữ nguyên. Việc nó làm là ĐẨY SÀN 0
+    // RA XA: sàn kẹp sau mỗi trận, ai chạm 0 thì các trận thua tiếp theo thành miễn phí và điểm
+    // sinh ra từ hư không. Với 100 điểm đệm, người thắng từ ~25% trở lên không bao giờ chạm sàn.
+    // Điểm khởi đầu chỉ cấp cho người ĐÃ RA SÂN ít nhất một trận. Cấp cho cả người chưa đánh
+    // thì họ đứng trên người có đi tập mà thua — đánh dở hoá ra tệ hơn không đánh, ngược hẳn
+    // mục đích của bảng xếp hạng.
+    let totalSeasonPoints = myMatches.length ? startPoints : 0
     let streak = 0
     let matchNetPts = 0
     let streakBonusPts = 0

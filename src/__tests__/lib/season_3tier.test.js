@@ -4,6 +4,13 @@ import { effectiveStrengthOf, isProvisional, getPlayerRating } from '../../lib/r
 import { calculateSeasonLeaderboard, getMemberSeasonLedger } from '../../lib/season.js'
 import { t as translate } from '../../i18n/index.js'
 
+import cfgApp from '#config/app.json' with { type: 'json' }
+
+// Điểm khởi đầu mùa — chỉ cấp cho người ĐÃ ra sân ít nhất một trận. Viết theo hằng số thay vì
+// ghim số tuyệt đối: các test dưới đây khoá LUẬT CỘNG/TRỪ (thắng cân +14…), không khoá chỗ đặt
+// số 0. Đổi `startPoints` trong config thì chúng phải vẫn xanh.
+const START = cfgApp.season?.startPoints ?? 0
+
 test('Season 3-Tier Core Engine Tests', async (t) => {
   await t.test('1. effectiveStrengthOf and isProvisional', () => {
     // Under 5 games (< 5): 60% Seed + 40% Elo
@@ -73,7 +80,7 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
 
     const kien = leaderboard.find((r) => r.name === 'Kiên')
     // 1 match won (underdog: 1500 vs 1600, gap -100) -> +17 pts
-    assert.equal(kien.totalSeasonPoints, 17)
+    assert.equal(kien.totalSeasonPoints, START + 17)
     assert.equal(kien.breakdown.matchNetPts, 17)
     assert.equal(topStats.leaderPlayer.name, 'Kiên')
   })
@@ -111,11 +118,11 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
 
     // Kuro: s1 (true) + s2 ('extra') + s3 (đánh trận) = 3 buổi
     assert.equal(kuro.attendedCount, 3)
-    assert.equal(kuro.totalSeasonPoints, 14, 'Kuro thắng 1 trận kèo cân -> 14 điểm')
+    assert.equal(kuro.totalSeasonPoints, START + 14, 'Kuro thắng 1 trận kèo cân -> +14')
 
     // Mai: s1 (false) + s2 (true) + s3 (đánh trận) = 2 buổi
     assert.equal(mai.attendedCount, 2)
-    assert.equal(mai.totalSeasonPoints, 0, 'Mai thua 1 trận kèo cân -> sàn 0 điểm')
+    assert.equal(mai.totalSeasonPoints, START - 8, 'Mai thua 1 trận kèo cân -> -8, có đệm nên không chạm sàn')
 
     // Kiểm tra các chuỗi i18n không còn bị dính template tag {{...}}
     const strTotal = translate('season.tableTotal', { total: leaderboard.length, count: leaderboard.length })
@@ -152,7 +159,7 @@ test('Season 3-Tier Core Engine Tests', async (t) => {
     const ledger = getMemberSeasonLedger('m1', mockDb)
     assert.ok(ledger)
     assert.equal(ledger.member.name, 'Phạm Anh Tú')
-    assert.equal(ledger.totalPoints, 14) // 1 win kèo cân -> 14
+    assert.equal(ledger.totalPoints, START + 14) // 1 win kèo cân -> 14
     assert.equal(ledger.breakdown.matchNetPts, 14)
     assert.ok(Array.isArray(ledger.recentEvents))
     assert.ok(ledger.recentEvents.length > 0)

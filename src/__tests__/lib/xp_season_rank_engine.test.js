@@ -2,6 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { calcSeasonMatchDelta, calculateSeasonLeaderboard, getMemberSeasonLedger, getSeasonBountyPlayer } from '../../lib/season.js'
 
+import cfgApp from '#config/app.json' with { type: 'json' }
+
+// Điểm khởi đầu mùa — chỉ cấp cho người ĐÃ ra sân ít nhất một trận. Viết theo hằng số thay vì
+// ghim số tuyệt đối: các test dưới đây khoá LUẬT CỘNG/TRỪ (thắng cân +14…), không khoá chỗ đặt
+// số 0. Đổi `startPoints` trong config thì chúng phải vẫn xanh.
+const START = cfgApp.season?.startPoints ?? 0
+
 test('Season Points Rank-Climbing Engine Tests', async (t) => {
   // ── 1. Test 5 dải chênh lệch Team Elo ──
   await t.test('1. calcSeasonMatchDelta: 5 dải điểm chuẩn xác', () => {
@@ -76,7 +83,8 @@ test('Season Points Rank-Climbing Engine Tests', async (t) => {
 
     const { leaderboard } = calculateSeasonLeaderboard(db)
     const row = leaderboard[0]
-    assert.equal(row.totalSeasonPoints, 0, 'Sau chuỗi thua sàn phải giữ ở 0')
+    assert.ok(row.totalSeasonPoints >= 0, 'Điểm mùa không bao giờ được âm')
+    assert.equal(row.totalSeasonPoints, START - 22, 'Có điểm khởi đầu thì MỌI trận thua đều trừ đủ, không trận nào bị sàn nuốt')
     assert.equal(row.lossesCount, 4)
     assert.equal(row.winsCount, 1)
   })
@@ -107,7 +115,7 @@ test('Season Points Rank-Climbing Engine Tests', async (t) => {
     const row = leaderboard[0]
     assert.equal(row.streak, 6)
     assert.equal(row.breakdown.streakBonusPts, 15, 'Tổng thưởng streak 3 (+5) + streak 5 (+10) = 15')
-    assert.equal(row.totalSeasonPoints, 99, '6 trận * 14 + 15 bonus = 99')
+    assert.equal(row.totalSeasonPoints, START + 99, '6 trận × 14 + 15 thưởng chuỗi = 99')
   })
 
   // ── 4. Test Thưởng Upset >= 150 Elo (+5) ──
@@ -125,7 +133,7 @@ test('Season Points Rank-Climbing Engine Tests', async (t) => {
     const row = leaderboard[0]
     assert.equal(row.upsetsCount, 1)
     assert.equal(row.breakdown.upsetBonusPts, 5)
-    assert.equal(row.totalSeasonPoints, 27, '22 (deep underdog win) + 5 (upset) = 27')
+    assert.equal(row.totalSeasonPoints, START + 27, '22 (lật kèo sâu) + 5 (thưởng upset) = 27')
   })
 
   // ── 5. Test Trạng thái Tạm nghỉ (Inactive sau 21 ngày) & Điều kiện 20 trận ──
@@ -159,7 +167,7 @@ test('Season Points Rank-Climbing Engine Tests', async (t) => {
 
     assert.equal(m1.isInactive, true, 'm1 nghỉ 29 ngày > 21 ngày -> isInactive = true')
     assert.equal(m1.isQualified, false, 'm1 mới đánh 1 trận < 20 -> isQualified = false')
-    assert.equal(m1.totalSeasonPoints, 14, 'Điểm của m1 vẫn được bảo toàn nguyên vẹn 14 điểm')
+    assert.equal(m1.totalSeasonPoints, START + 14, 'Điểm của m1 vẫn được bảo toàn nguyên vẹn 14 điểm')
 
     assert.equal(m2.isInactive, false, 'm2 mới đánh cách 10 ngày -> isInactive = false')
   })
@@ -176,11 +184,11 @@ test('Season Points Rank-Climbing Engine Tests', async (t) => {
 
     const ledger = getMemberSeasonLedger('m1', db)
     assert.ok(ledger)
-    assert.equal(ledger.totalPoints, 14)
+    assert.equal(ledger.totalPoints, START + 14, 'Tổng trên sổ điểm phải khớp tổng trên bảng xếp hạng')
     assert.equal(ledger.recentEvents.length, 1)
     assert.equal(ledger.recentEvents[0].type, 'win')
     assert.equal(ledger.recentEvents[0].pts, '+14')
-    assert.equal(ledger.recentEvents[0].pointsAfter, 14)
+    assert.equal(ledger.recentEvents[0].pointsAfter, START + 14, 'Sổ điểm phải hiện tổng tích luỹ, tính cả điểm khởi đầu')
   })
 })
 
@@ -222,7 +230,7 @@ test('Season Rank Engine — Determinism & Config Suite', async (t) => {
     const win = mkMatch('m_b', 2000, 'A')
     const res = calculateSeasonLeaderboard({ ...baseDb, matches: [loss, win] }, baseSeason)
     const row = res.leaderboard.find((r) => r.id === 'm1')
-    assert.equal(row.totalSeasonPoints, 14, 'max(0, 0-8) = 0 rồi +14 = 14')
+    assert.equal(row.totalSeasonPoints, START - 8 + 14, 'Có điểm khởi đầu thì trận thua ĐẦU TIÊN cũng phải trừ đủ, không bị sàn nuốt')
     assert.equal(row.matchesCount, 2)
   })
 
@@ -298,10 +306,10 @@ test('Season Rank Engine — Trận không tính rating', async (t) => {
     const r = rated.leaderboard.find((x) => x.id === 'm1')
     const c = casual.leaderboard.find((x) => x.id === 'm1')
 
-    assert.equal(r.totalSeasonPoints, 14, 'Trận tính rating: thắng kèo cân = +14')
+    assert.equal(r.totalSeasonPoints, START + 14, 'Trận tính rating: thắng kèo cân = +14')
     assert.equal(r.matchesCount, 1)
 
-    assert.equal(c.totalSeasonPoints, 0, 'Trận giao lưu không được cộng điểm rank')
+    assert.equal(c.totalSeasonPoints, 0, 'Chỉ có trận giao lưu thì chưa vào mùa: không điểm trận, cũng không được cấp điểm khởi đầu')
     assert.equal(c.matchesCount, 0, 'Trận giao lưu không được đếm vào điều kiện 20 trận')
     assert.equal(c.winsCount, 0)
   })
@@ -316,7 +324,7 @@ test('Season Rank Engine — Trận không tính rating', async (t) => {
   await t.test('13. Trận cũ không có cờ ratingEnabled vẫn được tính (mặc định là tính)', () => {
     const res = calculateSeasonLeaderboard({ ...baseDb, matches: [mk('a', 1000, 'A', undefined)] }, season)
     const row = res.leaderboard.find((x) => x.id === 'm1')
-    assert.equal(row.totalSeasonPoints, 14, 'Chỉ loại khi cờ === false, không loại khi thiếu cờ')
+    assert.equal(row.totalSeasonPoints, START + 14, 'Chỉ loại khi cờ === false, không loại khi thiếu cờ')
   })
 })
 
@@ -347,18 +355,20 @@ test('Season Rank Engine — Dự báo trước trận khớp điểm thực tra
   await t.test('14. Kèo cân — thắng +14, thua -8 (kẹp sàn 0)', () => {
     const res = calculateSeasonLeaderboard(oneMatch(500, 500, 'A'), season)
     assert.equal(preview(500, 500, true), 14)
-    assert.equal(res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, 14)
+    assert.equal(res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, START + 14)
     // Bên thua: preview -8, nhưng điểm hiển thị bị sàn 0 kẹp lại
     assert.equal(preview(500, 500, false), -8)
-    assert.equal(res.leaderboard.find((r) => r.id === 'm3').totalSeasonPoints, 0)
+    assert.equal(res.leaderboard.find((r) => r.id === 'm3').totalSeasonPoints, START - 8)
   })
 
   await t.test('15. Lật kèo sâu — preview +27 và engine trao đúng +27', () => {
     // Đội A yếu hơn 200 Elo mà thắng: dải deepUnderdog (+22) + thưởng Upset (+5)
     const res = calculateSeasonLeaderboard(oneMatch(400, 600, 'A'), season)
     assert.equal(preview(400, 600, true), 27, 'Panel phải hiện +27')
+    // So thẳng preview với phần ĐƯỢC TRAO, tức tổng trừ đi điểm khởi đầu. Viết vậy thì test
+    // nói đúng ý định của nó ("số hiện trước = số trao sau") và không vỡ khi đổi startPoints.
     assert.equal(
-      res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, 27,
+      res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints - START, preview(400, 600, true),
       'Số hiện trước khi Lưu mà lệch số trao sau khi Lưu là mất niềm tin vào cả hệ điểm'
     )
     // Đội cửa trên sâu thua: -12
@@ -368,7 +378,7 @@ test('Season Rank Engine — Dự báo trước trận khớp điểm thực tra
   await t.test('16. Cửa trên thắng — chỉ +10, không có thưởng Upset', () => {
     const res = calculateSeasonLeaderboard(oneMatch(700, 500, 'A'), season)
     assert.equal(preview(700, 500, true), 10)
-    assert.equal(res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, 10)
+    assert.equal(res.leaderboard.find((r) => r.id === 'm1').totalSeasonPoints, START + 10)
     assert.equal(res.leaderboard.find((r) => r.id === 'm1').upsetsCount, 0)
   })
 })
@@ -411,5 +421,67 @@ test('Bounty — Trận giao lưu không cắt chuỗi thắng', async (t) => {
     const bounty = getSeasonBountyPlayer(db)
     // m1 hết chuỗi; m3+m4 mới thắng 1 trận nên chưa đủ mốc 3
     assert.equal(bounty, null, 'Không còn ai đủ chuỗi >= 3')
+  })
+})
+
+test('Điểm khởi đầu mùa — đẩy sàn 0 ra xa', async (t) => {
+  /**
+   * Sàn 0 kẹp sau MỖI trận, nên ai chạm 0 thì các trận thua tiếp theo thành miễn phí và điểm
+   * sinh ra từ hư không. Trên dữ liệu thật của CLB, nó tạo +201 điểm cho 11/22 người — gần
+   * một phần tư tổng điểm toàn bảng, và bóp méo thứ hạng từ hạng 8 xuống hạng 18.
+   *
+   * Điểm khởi đầu KHÔNG bỏ sàn — nó đẩy sàn ra xa để người thắng từ ~25% trở lên không bao giờ
+   * chạm tới. Cơ chế kẹp giữ nguyên, phần trừ điểm giữ nguyên, độ đảo hạng giữ nguyên.
+   */
+  const mkDb = (start) => ({
+    members: [
+      { id: 'm1', name: 'Thua sạch', level: 'tb', active: true },
+      { id: 'm2', name: 'Thắng sạch', level: 'tb', active: true },
+    ],
+    guests: [],
+    sessions: [{ id: 's1', date: '2026-08-01' }],
+    attendance: {},
+    settings: { season: { startDate: '2026-07-01', endDate: '2026-09-30', startPoints: start } },
+    // m1 thua 4 trận liền trước m2 — cùng trình nên mỗi trận là dải `balanced`: thắng +14, thua -8
+    matches: Array.from({ length: 4 }, (_, i) => ({
+      id: 'x' + i, sessionId: 's1', at: 1000 + i,
+      teamA: ['m1'], teamB: ['m2'], winnerTeam: 'B', sets: [[15, 21]],
+      initialRatingA: 500, initialRatingB: 500,
+    })),
+  })
+  const pts = (start, name) => {
+    const r = calculateSeasonLeaderboard(mkDb(start)).leaderboard.find((x) => x.name === name)
+    return r.totalSeasonPoints
+  }
+
+  await t.test('8. Không có điểm khởi đầu thì 4 trận thua bị sàn cắt mất 3 trận', () => {
+    // Thật: 0 - 8 - 8 - 8 - 8 = -32. Sàn kẹp sau mỗi trận nên chỉ trận đầu có tác dụng.
+    assert.equal(pts(0, 'Thua sạch'), 0, 'Chạm sàn ngay trận đầu')
+    // Người này lẽ ra -32; ba trận thua sau KHÔNG tốn gì cả — đó là chỗ điểm ảo sinh ra.
+  })
+
+  await t.test('9. Có 100 điểm khởi đầu thì cả 4 trận thua đều tính đủ', () => {
+    assert.equal(pts(100, 'Thua sạch'), 100 - 32, 'Thua 4 trận phải mất đủ 32, không được miễn trận nào')
+    // 4 trận thắng liên tiếp: 4 × 14 = 56, CỘNG thưởng chạm mốc chuỗi 3 (+5)
+    assert.equal(pts(100, 'Thắng sạch'), 100 + 56 + 5, 'Thắng 4 trận cân, cộng thưởng chuỗi 3')
+  })
+
+  await t.test('10. Điểm khởi đầu KHÔNG đổi khoảng cách giữa hai người', () => {
+    // Cộng cùng một hằng số cho tất cả thì thứ hạng, khoảng cách và độ đảo hạng giữ nguyên.
+    // Đây là lý do chọn con số nào cũng được — nó thuần là chỗ đặt số 0.
+    const gap = (s) => pts(s, 'Thắng sạch') - pts(s, 'Thua sạch')
+    assert.equal(gap(100), gap(250), 'Đổi điểm khởi đầu mà khoảng cách đổi theo là công thức sai')
+    assert.equal(gap(100), 93, '4 thắng (+56 và +5 chuỗi) so với 4 thua (-32) = 93')
+  })
+
+  await t.test('11. Sàn vẫn còn — thua quá nhiều thì vẫn bị chặn ở 0', () => {
+    // Giữ kẹp là quyết định có ý thức: không ai hiện số âm. Đổi lại, người thua rất nhiều
+    // vẫn có thể chạm sàn và khi đó điểm ảo quay lại — chấp nhận, vì rất hiếm.
+    const db = mkDb(20)
+    assert.equal(
+      calculateSeasonLeaderboard(db).leaderboard.find((x) => x.name === 'Thua sạch').totalSeasonPoints,
+      0,
+      'Khởi đầu 20 mà thua 32 thì vẫn phải dừng ở 0, không âm'
+    )
   })
 })

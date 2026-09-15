@@ -3,6 +3,13 @@ import assert from 'node:assert/strict'
 import { titleOfLevel, calculateMemberXp } from '../../lib/xp.js'
 import { calculateSeasonLeaderboard } from '../../lib/season.js'
 
+import cfgApp from '#config/app.json' with { type: 'json' }
+
+// Điểm khởi đầu mùa — chỉ cấp cho người ĐÃ ra sân ít nhất một trận. Viết theo hằng số thay vì
+// ghim số tuyệt đối: các test dưới đây khoá LUẬT CỘNG/TRỪ (thắng cân +14…), không khoá chỗ đặt
+// số 0. Đổi `startPoints` trong config thì chúng phải vẫn xanh.
+const START = cfgApp.season?.startPoints ?? 0
+
 /**
  * Edge cases của calculateSeasonLeaderboard và calculateMemberXp chưa được test:
  * - Streak bonus (mỗi 3 trận thắng liền → +20 điểm)
@@ -59,8 +66,8 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
     )
     assert.equal(
       row.totalSeasonPoints,
-      99,
-      '6 x 14 + 15 streak = 99'
+      START + 99,
+      '6 × 14 + 15 thưởng chuỗi = 99'
     )
   })
 
@@ -147,7 +154,7 @@ test('xp.js — Season Leaderboard Edge Cases', async (t) => {
 
     assert.equal(row.matchesCount, 1, 'Chỉ 1 trận trong mùa — tính trận ngoài mùa là điểm ảo')
     assert.equal(row.winsCount, 1)
-    assert.equal(row.totalSeasonPoints, 14, '1 trận thắng kèo cân = 14')
+    assert.equal(row.totalSeasonPoints, START + 14, '1 trận thắng kèo cân = +14')
   })
 })
 
