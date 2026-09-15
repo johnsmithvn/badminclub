@@ -1488,9 +1488,14 @@ export default function CourtAssignmentTab({ s }) {
                         variant="ghost"
                         title={t('assign.ongoingCancel')}
                         onClick={() => {
-                          if (window.confirm(t('assign.ongoingCancelConfirm'))) {
-                            handleCancelOngoingMatch(om.id)
-                          }
+                          a.confirm({
+                            title: t('assign.ongoingCancel'),
+                            message: t('assign.ongoingCancelConfirm'),
+                            tone: 'danger',
+                            confirmText: t('assign.ongoingCancel'),
+                            cancelText: t('common.cancel'),
+                            onConfirm: () => handleCancelOngoingMatch(om.id),
+                          })
                         }}
                       />
                     </div>
