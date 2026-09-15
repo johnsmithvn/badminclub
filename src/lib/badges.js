@@ -1001,6 +1001,14 @@ export function calculateMemberBadges(
     if (wins > maxPartnerWins) maxPartnerWins = wins
   })
 
+  // Mọi nhánh dưới đây CHỈ đọc dữ liệu trận / buổi / hồ sơ thật.
+  //
+  // Bản trước còn kèm một lớp "cờ mở tay" trên bản ghi thành viên (`member.nightWin`,
+  // `member.docCo`, `member.unlockedHidden`, `member.beatTopPair`…) — 16 field mà `dbmap.js`
+  // KHÔNG hề map, tức là luôn `undefined`. Chúng là điều kiện luôn-false nằm rải khắp switch,
+  // làm mỗi case trông như có hai nguồn sự thật trong khi chỉ có một. Đã gỡ.
+  // Muốn mở tay một danh hiệu thì phải thêm cột thật vào DB + map trong dbmap trước, chứ
+  // không phải để lại nhánh chờ.
   const processed = catalog.map((badge) => {
     let currentVal = 0
     let isUnlocked = false
@@ -1016,6 +1024,10 @@ export function calculateMemberBadges(
           progressStr = `${badge.threshold} / ${badge.threshold}`
           pct = 100
         } else {
+          // CỐ Ý lệch thước với nhánh trên: mở khoá xét `maxStreak` (đã từng làm được thì
+          // danh hiệu đóng băng vĩnh viễn), còn tiến độ xét `streak` ĐANG chạy. Chuỗi bị cắt
+          // là về 0 thật — `badges_streak.test.js` mục 3 và 4 khoá đúng hành vi này, kể cả
+          // việc badge rơi xuống `locked` và người đó rời mục "Ai đang đuổi".
           currentVal = streak
           isUnlocked = false
           progressStr = `${streak} / ${badge.threshold}`
@@ -1080,7 +1092,7 @@ export function calculateMemberBadges(
         break
 
       case 'comeback_set3':
-        isUnlocked = hasComebackSet3 || !!member?.comebackSet3
+        isUnlocked = hasComebackSet3
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
@@ -1088,21 +1100,21 @@ export function calculateMemberBadges(
 
       case 'night_win':
         currentVal = Math.min(1, nightWinsCount)
-        isUnlocked = nightWinsCount >= 1 || !!member?.nightWin
+        isUnlocked = nightWinsCount >= 1
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
         break
 
       case 'last_match_win':
         currentVal = lastMatchWinsCount
-        isUnlocked = currentVal >= badge.threshold || !!member?.lastMatchWin
+        isUnlocked = currentVal >= badge.threshold
         progressStr = `${currentVal} / ${badge.threshold}`
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
         break
 
       case 'perfect_session_4': {
         const hasPerf4 = Array.from(sessionTotalMap.entries()).some(([sid, tot]) => tot >= 4 && (sessionWinsMap.get(sid) || 0) === tot)
-        isUnlocked = hasPerf4 || !!member?.perfectSession4
+        isUnlocked = hasPerf4
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
@@ -1111,7 +1123,7 @@ export function calculateMemberBadges(
 
       case 'perfect_session_6': {
         const hasPerf6 = Array.from(sessionTotalMap.entries()).some(([sid, tot]) => tot >= 6 && (sessionWinsMap.get(sid) || 0) === tot)
-        isUnlocked = hasPerf6 || !!member?.perfectSession6
+        isUnlocked = hasPerf6
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
@@ -1126,7 +1138,7 @@ export function calculateMemberBadges(
         break
 
       case 'revenge_win':
-        isUnlocked = hasRevengeWin || !!member?.revengeWin
+        isUnlocked = hasRevengeWin
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
@@ -1140,7 +1152,7 @@ export function calculateMemberBadges(
         break
 
       case 'first_try_bounty':
-        isUnlocked = hasFirstTryBounty || !!member?.firstTryBounty
+        isUnlocked = hasFirstTryBounty
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
@@ -1148,14 +1160,14 @@ export function calculateMemberBadges(
 
       case 'beat_all_top5': {
         currentVal = distinctTop5Beaten
-        isUnlocked = currentVal >= badge.threshold || !!member?.beatTop5
+        isUnlocked = currentVal >= badge.threshold
         progressStr = `${currentVal} / ${badge.threshold}`
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
         break
       }
 
       case 'sweep_set_21_0':
-        isUnlocked = sweepSet21_0 || !!member?.sweep21_0
+        isUnlocked = sweepSet21_0
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
@@ -1164,7 +1176,7 @@ export function calculateMemberBadges(
       case 'break_streak_10': {
         const reqStreak = Number(badge.threshold || 10)
         const broke10 = wonMatches.some((mt) => (mt.brokenStreak || 0) >= reqStreak)
-        isUnlocked = broke10 || !!member?.brokeStreak10
+        isUnlocked = broke10
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
@@ -1182,7 +1194,7 @@ export function calculateMemberBadges(
           const hitRank1AtTime = !!(rank1AtMatch && rank1AtMatch !== memberId && opps.includes(rank1AtMatch))
           return hitChamp || hitRank1AtTime
         })
-        isUnlocked = beatChamp || !!member?.beatChampion
+        isUnlocked = beatChamp
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
@@ -1201,9 +1213,9 @@ export function calculateMemberBadges(
       }
 
       case 'days_rank_1': {
-        const days = Math.floor(clubStats.daysRank1Map?.get(memberId) || 0) + Number(member?.daysRank1 || 0)
+        const days = Math.floor(clubStats.daysRank1Map?.get(memberId) || 0)
         currentVal = days
-        isUnlocked = currentVal >= badge.threshold || !!member?.docCo
+        isUnlocked = currentVal >= badge.threshold
         progressStr = `${currentVal} / ${badge.threshold}`
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
         break
@@ -1306,9 +1318,14 @@ export function calculateMemberBadges(
         progressStr = `${currentVal} / ${badge.threshold}`
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
         if (isUnlocked) {
-          const breakMatches = wonMatches.filter((mt) => mt.bountyBroken || mt.bounty_broken)
+          // `wonMatches` giữ nguyên thứ tự của `allSeasonMatches`, KHÔNG phải thứ tự thời gian
+          // — lấy phần tử cuối mảng là khoe nhầm nạn nhân của một trận bất kỳ.
+          const breakMatches = sortMatchesDesc(
+            wonMatches.filter((mt) => mt.bountyBroken || mt.bounty_broken),
+            db
+          )
           if (breakMatches.length > 0) {
-            const lastBreak = breakMatches[breakMatches.length - 1]
+            const lastBreak = breakMatches[0]
             const losers = lastBreak.winnerTeam === 'A' ? (lastBreak.teamB || []) : (lastBreak.teamA || [])
             const victimName = losers.map((id) => playerName(db, id) || id).join(' · ')
             extraData = {
@@ -1341,7 +1358,7 @@ export function calculateMemberBadges(
               return oppKey === targetPairKey
             }).length
           : 0
-        currentVal = !!member?.beatTopPair ? Math.max(timesBeat, badge.threshold) : timesBeat
+        currentVal = timesBeat
         isUnlocked = currentVal >= badge.threshold
         progressStr = `${currentVal} / ${badge.threshold}`
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
@@ -1385,7 +1402,7 @@ export function calculateMemberBadges(
           const oppS1 = inA ? s1[1] : s1[0]
           return (oppS1 - myS1) >= reqGap
         })
-        isUnlocked = hasComeback || !!member?.unlockedHidden?.includes(badge.id)
+        isUnlocked = hasComeback
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '' : '???'
         pct = isUnlocked ? 100 : 0
@@ -1396,7 +1413,7 @@ export function calculateMemberBadges(
         const hasPerf5 = Array.from(sessionTotalMap.entries()).some(
           ([sid, tot]) => tot >= 5 && (sessionWinsMap.get(sid) || 0) === tot
         )
-        isUnlocked = hasPerf5 || !!member?.unlockedHidden?.includes(badge.id)
+        isUnlocked = hasPerf5
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '' : '???'
         pct = isUnlocked ? 100 : 0
@@ -1405,7 +1422,7 @@ export function calculateMemberBadges(
 
       case 'hidden_duo_bond': {
         const duoThreshold = Number(badge.threshold || 20)
-        isUnlocked = maxPartnerWins >= duoThreshold || bestPairStreak >= duoThreshold || !!member?.unlockedHidden?.includes(badge.id)
+        isUnlocked = maxPartnerWins >= duoThreshold || bestPairStreak >= duoThreshold
         currentVal = maxPartnerWins
         progressStr = isUnlocked ? '' : '???'
         pct = isUnlocked ? 100 : 0
@@ -1417,7 +1434,7 @@ export function calculateMemberBadges(
           if (!Array.isArray(mt.sets)) return false
           return mt.sets.some((s) => Array.isArray(s) && (s[0] === 30 || s[1] === 30))
         })
-        isUnlocked = has30PointSet || !!member?.unlockedHidden?.includes(badge.id)
+        isUnlocked = has30PointSet
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '' : '???'
         pct = isUnlocked ? 100 : 0
@@ -1576,9 +1593,11 @@ export function getRarestBadges(db, season = null, preloadedMatches = null, prel
       const count = ownershipCount.get(b.id) || 0
       const ratio = count / totalMembers
       return {
+        // KHÔNG trả `name` / `cond`: catalog trong `badges.json` không có hai field đó
+        // (tên và điều kiện nằm ở `vi.json → badges.items.<id>`), nên trả ra chỉ là
+        // `undefined` đội lốt dữ liệu — màn hình in thẳng ra id thô như `bat_bai_3`.
+        // Người gọi dịch bằng `t('badges.items.${id}.name')` như mọi chỗ khác.
         id: b.id,
-        name: b.name || b.title,
-        cond: b.cond || '',
         tier: b.tier,
         glyph: b.glyph,
         count,
@@ -1869,7 +1888,9 @@ export function getClubAchievementFeed(db, limit = 20) {
     const memberMatches = (db.matches || []).filter(
       (mt) => (mt.teamA || []).includes(m.id) || (mt.teamB || []).includes(m.id)
     )
-    const latestMatch = memberMatches[memberMatches.length - 1]
+    // Sắp rồi mới lấy đầu mảng — `db.matches` chỉ TÌNH CỜ được dbmap trả theo `at` tăng dần;
+    // dựa vào đó là để mốc thời gian của feed phụ thuộc vào chi tiết của tầng đồng bộ.
+    const latestMatch = sortMatchesDesc(memberMatches, db)[0]
     const milestoneTime = latestMatch
       ? (latestMatch.at ? new Date(latestMatch.at).toISOString() : (latestMatch.createdAt || latestMatch.date || new Date().toISOString()))
       : (m.joined ? new Date(m.joined).toISOString() : new Date().toISOString())

@@ -46,11 +46,18 @@ export default function BadgeUnlockModal({
 
   const badgeSize = isMobile ? 150 : 190
 
+  // Tên và điều kiện LUÔN tra từ i18n theo id, giống mọi màn danh hiệu khác.
+  // Catalog trong `badges.json` không có field `name`/`cond`, nên đọc thẳng `badge.name` là
+  // tiêu đề modal chúc mừng bỏ trống (đường GlobalBadgeUnlockHost) hoặc hiện id thô kiểu
+  // `bat_bai_v` (đường ScoreModal). Vẫn nhận `badge.name` làm dự phòng cho người gọi đã tự dịch.
+  const badgeName = t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '' })
+  const badgeCond = t(`badges.items.${badge.id}.cond`, { defaultValue: badge.cond || '' })
+
   // Câu chuyện / mô tả chiến tích
   const storyText =
     badge.victim && badge.streak
       ? t('badges.unlockModal.brokeStreakStory', { victim: badge.victim, streak: badge.streak })
-      : badge.story || badge.cond || badge.desc || t('badges.unlockModal.congratsDesc')
+      : badge.story || badgeCond || badge.desc || t('badges.unlockModal.congratsDesc')
 
   // Chú thích kệ: nếu đã đầy 3 ô thì báo thay ô cuối, nếu còn trống thì báo còn bao nhiêu ô
   const shelfNote = shelfIsFull
@@ -65,7 +72,7 @@ export default function BadgeUnlockModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={badge.name || t('badges.unlockModal.title')}
+        aria-label={badgeName || t('badges.unlockModal.title')}
         style={{
           position: 'fixed',
           inset: 0,
@@ -243,7 +250,7 @@ export default function BadgeUnlockModal({
               textShadow: `0 3px 0 #4A0A5A, 0 0 28px ${tTier.aura || 'rgba(192,75,255,.7)'}`,
             }}
           >
-            {badge.name}
+            {badgeName}
           </span>
 
           {/* Tag độ hiếm */}
@@ -389,7 +396,7 @@ export default function BadgeUnlockModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={badge.name || t('badges.unlockModal.title')}
+      aria-label={badgeName || t('badges.unlockModal.title')}
       style={{
         position: 'fixed',
         inset: 0,
@@ -627,7 +634,7 @@ export default function BadgeUnlockModal({
                 textShadow: `0 3px 0 #4A0A5A, 0 0 34px ${tTier.aura || 'rgba(192,75,255,.7)'}`,
               }}
             >
-              {badge.name}
+              {badgeName}
             </span>
 
             <span

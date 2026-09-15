@@ -251,7 +251,7 @@ export default function CollectorLeaderboardTab({
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {r.name || r.id}
+                    {t(`badges.items.${r.id}.name`, { defaultValue: r.id })}
                   </span>
                   <span
                     style={{
@@ -705,7 +705,7 @@ export default function CollectorLeaderboardTab({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {r.name || r.id}
+                      {t(`badges.items.${r.id}.name`, { defaultValue: r.id })}
                     </span>
                     <span
                       style={{
