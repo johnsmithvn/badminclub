@@ -4,7 +4,8 @@ import { ConfidenceChip, LevelChip } from '#ui'
 import { playerName } from '#lib/money.js'
 import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
-import { calculateMemberXp, getMemberXpLedger, getMemberAchievements } from '#lib/xp.js'
+import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
+import { calculateMemberBadges, TIER_ORDER } from '#lib/badges.js'
 import { getSeasonBountyPlayer } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
@@ -250,11 +251,29 @@ export default function MemberProfileTab({
     }
   }, [memberMatches, mid, db.members])
 
-  // 4. XP & Thành tựu (Screen 07)
+  // 4. XP (Screen 07) — chỉ trục GẮN BÓ, không hỏi thắng thua
   const xpData = useMemo(() => calculateMemberXp(mid, db), [mid, db])
   const xpLedger = useMemo(() => getMemberXpLedger(mid, db), [mid, db])
-  const achievements = useMemo(() => getMemberAchievements(mid, db), [mid, db])
   const seasonBounty = useMemo(() => getSeasonBountyPlayer(db), [db])
+
+  // 4b. Thành tựu = DANH HIỆU THẬT từ `#lib/badges.js`, một nguồn sự thật duy nhất với
+  // trang Danh hiệu. Trước đây khối này đọc `getMemberAchievements()` của xp.js — bộ 4 mốc
+  // viết cứng, đếm all-time, nên hồ sơ và trang Danh hiệu báo lệch nhau.
+  // Ưu tiên danh hiệu đang gần đạt nhất, thiếu thì lấp bằng danh hiệu bậc cao đã mở.
+  const achievements = useMemo(() => {
+    if (!mid) return []
+    const res = calculateMemberBadges(mid, db)
+    const chasing = [...(res.inProgress || [])].sort((a, b) => b.pct - a.pct)
+    const owned = [...(res.officialUnlocked || [])].sort(
+      (a, b) => (TIER_ORDER[b.tier] || 0) - (TIER_ORDER[a.tier] || 0)
+    )
+    return [...chasing, ...owned].slice(0, 4).map((b) => ({
+      id: b.id,
+      title: t(`badges.items.${b.id}.name`, { defaultValue: b.id }),
+      achieved: !!b.unlocked,
+      progressText: b.unlocked ? t('badges.openedStatus') : b.progressStr,
+    }))
+  }, [mid, db])
 
   // 5. Rating & Tier & Inactivity
   const pr = getPlayerRating(db.playerRatings, mid, member, db.levels)
@@ -1225,6 +1244,11 @@ export default function MemberProfileTab({
               {/* Thành tựu */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <span style={S.cardBoxLabel}>{t('leaderboard.achievementsTitle')}</span>
+                {achievements.length === 0 ? (
+                  <span style={{ font: '400 13px/1.5 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                    {t('common.empty')}
+                  </span>
+                ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 9 }}>
                   {achievements.map((ach) => (
                     <div
@@ -1248,6 +1272,7 @@ export default function MemberProfileTab({
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             </>
           )}

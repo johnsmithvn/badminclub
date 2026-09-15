@@ -6,8 +6,15 @@ import { isPresent } from '#lib/money.js'
  *
  * Nguyên tắc: XP KHÔNG BAO GIỜ hỏi "thắng hay thua". Nó đo mức độ gắn bó với CLB
  * (có mặt, ra sân, thâm niên, rủ khách), chỉ tăng, không bao giờ giảm.
- * Mọi thứ đo TRÌNH ĐỘ và THÀNH TÍCH THI ĐẤU nằm ở `#lib/rating.js` (Elo) và
- * `#lib/season.js` (điểm mùa) — đừng trộn hai trục vào nhau lần nữa.
+ * Mọi thứ đo TRÌNH ĐỘ và THÀNH TÍCH THI ĐẤU nằm ở `#lib/rating.js` (Elo),
+ * `#lib/season.js` (điểm mùa) và `#lib/badges.js` (danh hiệu) — đừng trộn các trục
+ * vào nhau lần nữa.
+ *
+ * File này TỪNG có `getMemberAchievements()` dựng sẵn 4 mốc "100 trận / thắng 5 liền /
+ * thắng 10 liền / 200 trận". Đó là danh hiệu trá hình: cùng dữ liệu với họ `bat_bai_*`
+ * và `sat_thu_*` trong `badges.json` nhưng đếm all-time, không lọc mùa, không lọc
+ * `ratingEnabled` — nên hồ sơ và trang Danh hiệu báo hai con số khác nhau cho cùng một
+ * người. Đã xoá; mọi mốc thành tích lấy từ `calculateMemberBadges()`.
  */
 
 /**
@@ -220,66 +227,4 @@ export function getMemberXpLedger(memberId, db) {
   // Sắp xếp mới nhất lên đầu, giới hạn 8 dòng
   ledger.sort((a, b) => (b.date || 0) - (a.date || 0))
   return ledger.slice(0, 8)
-}
-
-/**
- * Tính toán 4 mốc thành tựu chuẩn Screen 07.
- * @param {string} memberId
- * @param {Object} db
- * @returns {Array<Object>}
- */
-export function getMemberAchievements(memberId, db) {
-  if (!memberId || !db) return []
-
-  const matches = db.matches || []
-  let memberMatchesCount = 0
-  let currentStreak = 0
-  let maxStreak = 0
-
-  // Cũ -> mới để dò chuỗi thắng dài nhất. Sort theo `at`, KHÔNG theo createdAt:
-  // trận không có field đó nên sort cũ là lệnh rỗng, chỉ đúng nhờ ăn may dbmap đã sort sẵn.
-  const sortedMatches = [...matches]
-    .filter((m) => (m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))
-    .sort((a, b) => (a.at || 0) - (b.at || 0))
-
-  sortedMatches.forEach((m) => {
-    memberMatchesCount++
-    const inA = (m.teamA || []).includes(memberId)
-    const inB = (m.teamB || []).includes(memberId)
-    const won = (inA && m.winnerTeam === 'A') || (inB && m.winnerTeam === 'B')
-
-    if (won) {
-      currentStreak++
-      if (currentStreak > maxStreak) maxStreak = currentStreak
-    } else {
-      currentStreak = 0
-    }
-  })
-
-  return [
-    {
-      id: 'matches_100',
-      title: '100 trận', // i18n-ok: milestone title
-      achieved: memberMatchesCount >= 100,
-      progressText: memberMatchesCount >= 100 ? 'Đã đạt' : `${memberMatchesCount}/100`, // i18n-ok: milestone status
-    },
-    {
-      id: 'streak_5',
-      title: 'Thắng 5 liền', // i18n-ok: milestone title
-      achieved: maxStreak >= 5,
-      progressText: maxStreak >= 5 ? 'Đã đạt' : `${maxStreak}/5`, // i18n-ok: milestone status
-    },
-    {
-      id: 'streak_10',
-      title: 'Thắng 10 liền', // i18n-ok: milestone title
-      achieved: maxStreak >= 10,
-      progressText: maxStreak >= 10 ? 'Đã đạt' : `${maxStreak}/10`, // i18n-ok: milestone status
-    },
-    {
-      id: 'matches_200',
-      title: '200 trận', // i18n-ok: milestone title
-      achieved: memberMatchesCount >= 200,
-      progressText: memberMatchesCount >= 200 ? 'Đã đạt' : `${memberMatchesCount}/200`, // i18n-ok: milestone status
-    },
-  ]
 }

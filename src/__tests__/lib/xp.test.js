@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { titleOfLevel, calculateMemberXp, getMemberXpLedger, getMemberAchievements } from '../../lib/xp.js'
+import { titleOfLevel, calculateMemberXp, getMemberXpLedger } from '../../lib/xp.js'
 import { getSeasonBountyPlayer } from '../../lib/season.js'
 
 test('XP & Contributions Engine Test Suite', async (t) => {
@@ -87,25 +87,6 @@ test('XP & Contributions Engine Test Suite', async (t) => {
     )
   })
 
-  await t.test('4. getMemberAchievements computes 4 progress milestones', () => {
-    const mockDb = {
-      matches: Array.from({ length: 105 }, (_, i) => ({
-        id: `mt_${i}`,
-        createdAt: new Date(1700000000000 + i * 1000).toISOString(),
-        teamA: ['m1'],
-        teamB: ['m2'],
-        winnerTeam: i < 6 ? 'A' : 'B', // 6 consecutive wins
-      })),
-    }
-
-    const achieves = getMemberAchievements('m1', mockDb)
-    assert.equal(achieves.length, 4)
-    assert.equal(achieves[0].achieved, true) // >= 100 matches
-    assert.equal(achieves[1].achieved, true) // >= 5 streak
-    assert.equal(achieves[2].achieved, false) // 6/10
-    assert.equal(achieves[3].achieved, false) // 105/200
-  })
-
   await t.test('5. getSeasonBountyPlayer identifies active winning streak', () => {
     const mockDb = {
       members: [
@@ -168,22 +149,5 @@ test('XP Engine — Mốc thời gian trận phải đọc từ `at`', async (t)
       assert.ok(ledger[i - 1].date >= ledger[i].date, 'Sổ XP phải giảm dần theo thời gian')
     }
     assert.ok(ledger[0].source.includes('1970-01-01'), 'Ngày trong dòng sổ phải suy từ `at`, không để trống')
-  })
-
-  await t.test('C. getMemberAchievements dò chuỗi dài nhất theo đúng trục thời gian', () => {
-    // Theo trục `at`: W W L W W  -> chuỗi dài nhất = 2.
-    // Nhưng mảng truyền vào bị xáo, trận thua nằm CUỐI: W W W W L -> nếu không sort
-    // theo `at` thì ra chuỗi 4, thổi phồng thành tựu. (Đảo ngược mảng không bắt được
-    // lỗi này vì phép đảo giữ nguyên độ dài mọi chuỗi — phải xáo thật.)
-    const scrambled = {
-      ...db,
-      matches: [
-        mk('s1_w', 1000, 'A'), mk('s2_w', 2000, 'A'),
-        mk('s4_w', 4000, 'A'), mk('s5_w', 5000, 'A'),
-        mk('s3_l', 3000, 'B'),
-      ],
-    }
-    const streak5 = getMemberAchievements('m1', scrambled).find((x) => x.id === 'streak_5')
-    assert.equal(streak5.progressText, '2/5', 'Chuỗi dài nhất theo thời gian thật là 2, không phải 4')
   })
 })
