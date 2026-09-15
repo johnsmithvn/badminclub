@@ -132,12 +132,12 @@ export default function MemberProfileTab({
           oppPoints,
           isTight,
           setCount: sets.length,
-          at: m.at || (m.createdAt ? Date.parse(m.createdAt) : 0),
+          at: m.at || (m.playedAt ? Date.parse(m.playedAt) : (m.createdAt ? Date.parse(m.createdAt) : 0)),
         })
       }
     })
 
-    return list.sort((a, b) => (b.at || 0) - (a.at || 0))
+    return list.sort((a, b) => (b.at || 0) - (a.at || 0) || String(b.id || '').localeCompare(String(a.id || '')))
   }, [matches, mid])
 
   // 2. Thống kê tổng quan & Phong độ chuỗi thắng
@@ -172,10 +172,12 @@ export default function MemberProfileTab({
       }
     })
 
-    // 10 trận gần nhất
-    const last10 = memberMatches.slice(0, 10)
-    const wins10 = last10.filter((m) => m.won).length
-    const losses10 = last10.length - wins10
+    // 10 trận gần nhất: lấy 10 trận mới nhất, sau đó đảo ngược để hiển thị Cũ (bên trái) → Mới nhất (bên phải)
+    // khớp với trục thời gian của biểu đồ bên dưới và nhãn t('profile.form10OldestLeft')
+    const recent10Desc = memberMatches.slice(0, 10)
+    const wins10 = recent10Desc.filter((m) => m.won).length
+    const losses10 = recent10Desc.length - wins10
+    const last10 = [...recent10Desc].reverse()
 
     // Chất lượng trận
     let totalSets = 0
@@ -434,7 +436,12 @@ export default function MemberProfileTab({
               {/* Dải 10 trận gần nhất */}
               <div style={S.cardBox}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={S.cardBoxLabel}>{t('leaderboard.last10Title')}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={S.cardBoxLabel}>{t('leaderboard.last10Title')}</span>
+                    <span style={{ font: '400 11px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                      ({t('profile.form10OldestLeft')})
+                    </span>
+                  </div>
                   <span style={{ font: '600 13px/1.3 "IBM Plex Mono", monospace', color: '#5FD9A2' }}>
                     {stats.wins10}T · {stats.losses10}B
                   </span>
