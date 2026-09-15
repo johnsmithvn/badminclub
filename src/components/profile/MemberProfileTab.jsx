@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Icon, Select, StatCard, Avatar } from '#ds'
 import { ConfidenceChip, LevelChip } from '#ui'
 import { playerName } from '#lib/money.js'
@@ -6,10 +6,11 @@ import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPl
 import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
 import { calculateMemberBadges, TIER_ORDER } from '#lib/badges.js'
-import { getSeasonBountyPlayer } from '#lib/season.js'
+import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
 import { useMobile } from '#hooks/useMobile.js'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t } from '#i18n'
 
 function alphaColor(color, alphaHex, pct) {
@@ -29,14 +30,35 @@ export default function MemberProfileTab({
   onSelectTheme,
   isMobile: propIsMobile,
   onChallenge,
+  initialSubTab = 'overview',
+  seasonConfig,
 }) {
   const isMobileHook = useMobile()
   const isMobile = propIsMobile !== undefined ? Boolean(propIsMobile) : isMobileHook
-  const [subTab, setSubTab] = useState('overview') // 'overview' | 'ratings' | 'h2h' | 'xp'
+  const { isDark } = useTheme()
+  const [subTab, setSubTab] = useState(initialSubTab || 'overview')
   const [inspectingPair, setInspectingPair] = useState(null)
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setSubTab(initialSubTab)
+    }
+  }, [initialSubTab, member?.id])
 
   const matches = useMemo(() => db.matches || [], [db.matches])
   const mid = member?.id
+
+  const ledgerData = useMemo(() => {
+    if (!mid || !db) return null
+    return getMemberSeasonLedger(mid, db, seasonConfig || seasonConfigOf(db))
+  }, [mid, db, seasonConfig])
+
+  // Tỷ lệ thanh phân bổ Stacked Bar cho Điểm mùa
+  const seasonTotal = Math.max(1, ledgerData?.totalPoints ?? 0)
+  const seasonBreakdown = ledgerData?.breakdown || {}
+  const pMatchNet = Math.round((Math.max(0, seasonBreakdown.matchNetPts ?? seasonBreakdown.winPts ?? 0) / seasonTotal) * 100)
+  const pStreak = Math.round(((seasonBreakdown.streakBonusPts ?? 0) / seasonTotal) * 100)
+  const pUpsets = Math.max(0, 100 - pMatchNet - pStreak)
 
   const membersMap = useMemo(() => {
     const map = {}
@@ -374,6 +396,16 @@ export default function MemberProfileTab({
           </button>
           <button
             type="button"
+            onClick={() => setSubTab('season')}
+            style={{
+              ...S.subTabBtn,
+              ...(subTab === 'season' ? S.subTabBtnActive : {}),
+            }}
+          >
+            {t('leaderboard.tabSeasonPoints')}
+          </button>
+          <button
+            type="button"
             onClick={() => setSubTab('h2h')}
             style={{
               ...S.subTabBtn,
@@ -545,7 +577,327 @@ export default function MemberProfileTab({
             </>
           )}
 
-          {/* TAB 2: ĐỐI ĐẦU & PARTNER (Bao gồm Sức mạnh theo nội dung, Ăn ý & Lịch sử H2H) */}
+          {/* TAB 2: SEASON POINTS (Sổ điểm mùa giải) */}
+          {subTab === 'season' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {!ledgerData ? (
+                <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-muted)', font: "400 13px/1.4 'IBM Plex Sans', sans-serif" }}>
+                  {t('season.noMatchesInSeason')}
+                </div>
+              ) : (
+                <>
+                  {/* Season Name & Rank */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ font: "600 13px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
+                      {(ledgerData.season?.name ? `${ledgerData.season.name} · ` : '') + t('season.rankOf', { rank: ledgerData.rank, total: ledgerData.totalMembers })}
+                    </span>
+                  </div>
+
+                  {/* Big Score Header */}
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
+                    <div style={{ font: "600 40px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
+                      {(ledgerData.totalPoints || 0).toLocaleString()}
+                    </div>
+                    <div style={{ paddingBottom: 6, font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                      {t('season.pointsLabel')} ·{' '}
+                      <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+{(ledgerData.latestSessionPts ?? 0)}</span> {t('season.latestSession')}
+                      {ledgerData.rank > 1 && (
+                        <>
+                          {' '}· {t('season.distanceToNext', { rank: ledgerData.rank - 1, pts: ledgerData.ptsToNextRank })}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stacked Progress Bar */}
+                  <div
+                    style={{
+                      height: 26,
+                      borderRadius: 6,
+                      overflow: 'hidden',
+                      display: 'flex',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pMatchNet}%`,
+                        background: '#00B2A9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        font: "600 10px/1 'IBM Plex Mono', monospace",
+                        color: '#fff',
+                      }}
+                    >
+                      {seasonBreakdown.matchNetPts ?? 0}
+                    </div>
+                    <div
+                      style={{
+                        width: `${pStreak}%`,
+                        background: '#1D50A0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        font: "600 10px/1 'IBM Plex Mono', monospace",
+                        color: '#fff',
+                      }}
+                    >
+                      {seasonBreakdown.streakBonusPts ?? 0}
+                    </div>
+                    <div
+                      style={{
+                        width: `${pUpsets}%`,
+                        background: '#C9A227',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        font: "600 10px/1 'IBM Plex Mono', monospace",
+                        color: '#2A1F00',
+                      }}
+                    >
+                      {seasonBreakdown.upsetBonusPts ?? 0}
+                    </div>
+                  </div>
+
+                  {/* Stacked Bar Legend */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 12,
+                      flexWrap: 'wrap',
+                      font: "400 11px/1.2 'IBM Plex Mono', monospace",
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 2, background: '#00B2A9' }} />
+                      {t('season.actMatchPlay')}: {seasonBreakdown.matchNetPts ?? 0}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 2, background: '#1D50A0' }} />
+                      {t('season.actStreakMilestones')}: +{seasonBreakdown.streakBonusPts ?? 0}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 2, background: '#C9A227' }} />
+                      {t('season.actUpsetMilestone')}: +{seasonBreakdown.upsetBonusPts ?? 0}
+                    </span>
+                  </div>
+
+                  {/* Audit Events Timeline */}
+                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, display: 'grid', gap: 8 }}>
+                    <div
+                      style={{
+                        font: "600 12px/1.2 'IBM Plex Sans', sans-serif",
+                        letterSpacing: '.06em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      {t('season.recentSessionTitle')} · {(ledgerData.latestSessionPts ?? 0) >= 0 ? `+${ledgerData.latestSessionPts ?? 0}` : `${ledgerData.latestSessionPts}`}
+                    </div>
+
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {ledgerData.recentEvents && ledgerData.recentEvents.length > 0 ? (
+                        ledgerData.recentEvents.map((ev, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 6,
+                              padding: '9px 12px',
+                              borderRadius: 8,
+                              background: ev.isUpset
+                                ? (isDark ? 'rgba(201,162,39,.12)' : 'rgba(245,158,11,.10)')
+                                : 'var(--surface-inset)',
+                              border: ev.isUpset ? '1px solid #C9A227' : '1px solid var(--border-subtle)',
+                              font: "400 12px/1.3 'IBM Plex Sans', sans-serif",
+                            }}
+                          >
+                            {/* Hàng 1: Thời gian · Tag Trận/Kèo · Highlight Pill Elo Gap · Điểm số +/- */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: ev.isUpset ? (isDark ? '#F0D26A' : '#92400E') : 'var(--text-muted)' }}>
+                                  {ev.time}
+                                </span>
+
+                                {/* Tag Trận vs Kèo */}
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    padding: '2px 6px',
+                                    borderRadius: 4,
+                                    font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                    background: ev.isChallenge
+                                      ? (isDark ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.12)')
+                                      : (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(14, 165, 233, 0.12)'),
+                                    color: ev.isChallenge ? (isDark ? '#FB923C' : '#EA580C') : (isDark ? '#38BDF8' : '#0284C7'),
+                                    border: ev.isChallenge
+                                      ? '1px solid rgba(249, 115, 22, 0.35)'
+                                      : '1px solid rgba(56, 189, 248, 0.25)',
+                                  }}
+                                >
+                                  {ev.isChallenge ? t('season.tagChallenge') : t('season.tagMatch')}
+                                </span>
+
+                                {/* Highlight Pill Elo Gap */}
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '2px 6px',
+                                    borderRadius: 4,
+                                    font: "600 11px/1 'IBM Plex Mono', monospace",
+                                    background: ev.gap > 0
+                                      ? (isDark ? 'rgba(0, 178, 169, 0.16)' : 'rgba(13, 148, 136, 0.12)')
+                                      : ev.gap < 0
+                                        ? (isDark ? 'rgba(225, 68, 52, 0.16)' : 'rgba(220, 38, 38, 0.12)')
+                                        : 'rgba(148, 163, 184, 0.12)',
+                                    color: ev.gap > 0
+                                      ? (isDark ? '#5FDBD3' : '#0F766E')
+                                      : ev.gap < 0
+                                        ? (isDark ? '#FF9A8F' : '#DC2626')
+                                        : 'var(--text-muted)',
+                                    border: ev.gap > 0
+                                      ? '1px solid rgba(0, 178, 169, 0.32)'
+                                      : ev.gap < 0
+                                        ? '1px solid rgba(225, 68, 52, 0.32)'
+                                        : '1px solid var(--border-subtle)',
+                                  }}
+                                >
+                                  {t('season.eloGapPill', { gap: ev.gapText })}
+                                </span>
+
+                                {ev.streakBonus > 0 && (
+                                  <span
+                                    style={{
+                                      padding: '2px 6px',
+                                      borderRadius: 4,
+                                      font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                      background: isDark ? 'rgba(95, 219, 211, 0.2)' : 'rgba(13, 148, 136, 0.15)',
+                                      color: isDark ? '#5FDBD3' : '#0D9488',
+                                    }}
+                                  >
+                                    {t('season.ledgerStreakBonus', { pts: ev.streakBonus })}
+                                  </span>
+                                )}
+
+                                {ev.upsetBonus > 0 && (
+                                  <span
+                                    style={{
+                                      padding: '2px 6px',
+                                      borderRadius: 4,
+                                      font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
+                                      background: isDark ? 'rgba(201, 162, 39, 0.25)' : 'rgba(217, 119, 6, 0.18)',
+                                      color: isDark ? '#F0D26A' : '#B45309',
+                                    }}
+                                  >
+                                    {t('season.ledgerUpsetBonus', { pts: ev.upsetBonus })}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Season Points Delta */}
+                              <span
+                                style={{
+                                  fontFamily: "'IBM Plex Mono', monospace",
+                                  fontSize: 14,
+                                  color: ev.isUpset
+                                    ? (isDark ? '#F0D26A' : '#B45309')
+                                    : (ev.numPts > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : (ev.numPts < 0 ? (isDark ? '#F87171' : '#DC2626') : 'var(--text-muted)')),
+                                  fontWeight: 700,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {ev.pts}
+                              </span>
+                            </div>
+
+                            {/* Hàng 2: Kết quả & Tỷ số + Ai với ai */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12 }}>
+                              <span
+                                style={{
+                                  fontWeight: 600,
+                                  color: ev.type === 'win'
+                                    ? (isDark ? '#5FDBD3' : '#0D9488')
+                                    : (isDark ? '#F87171' : '#DC2626'),
+                                }}
+                              >
+                                {ev.type === 'win'
+                                  ? (ev.scoreText ? t('season.winScore', { score: ev.scoreText }) : t('season.matchWin'))
+                                  : (ev.scoreText ? t('season.lossScore', { score: ev.scoreText }) : t('season.matchLoss'))}
+                              </span>
+
+                              {(ev.oppNamesStr || ev.partnerName) && (
+                                <>
+                                  <span style={{ color: 'var(--text-muted)' }}>·</span>
+                                  <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {ev.partnerName
+                                      ? t('season.matchWithPartnerVs', { partner: ev.partnerName, opponents: ev.oppNamesStr })
+                                      : t('season.matchVsOpponents', { opponents: ev.oppNamesStr })}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: '8px 10px', color: 'var(--text-muted)', font: "400 12px/1.4 'IBM Plex Sans', sans-serif" }}>
+                          {t('season.noMatchesInSeason')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer Notice */}
+                  <div
+                    style={{
+                      borderTop: '1px solid var(--border-subtle)',
+                      paddingTop: 12,
+                      display: 'flex',
+                      flexDirection: isMobile ? 'column' : 'row',
+                      alignItems: isMobile ? 'stretch' : 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <span
+                      style={{
+                        font: "400 12px/1.45 'IBM Plex Sans', sans-serif",
+                        color: 'var(--text-muted)',
+                        flex: isMobile ? 'none' : '1 1 180px',
+                        minWidth: isMobile ? 'auto' : 180,
+                      }}
+                    >
+                      {t('season.ledgerFooterNote', { name: member?.name || '' })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSubTab('overview')}
+                      style={{
+                        font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                        padding: isMobile ? '13px 14px' : '9px 14px',
+                        borderRadius: isMobile ? 8 : 6,
+                        background: 'var(--surface-raised)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        width: isMobile ? '100%' : 'auto',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {t('season.viewCareerElo')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: ĐỐI ĐẦU & PARTNER (Bao gồm Sức mạnh theo nội dung, Ăn ý & Lịch sử H2H) */}
           {subTab === 'h2h' && (
             <>
               <div
@@ -1353,12 +1705,14 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: '0 8px',
     borderRadius: 6,
     background: 'transparent',
     border: 'none',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
     color: 'var(--text-muted)',
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
     transition: 'all 0.2s ease',
   },
   subTabBtnActive: {

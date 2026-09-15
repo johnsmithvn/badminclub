@@ -4,7 +4,7 @@ import { t } from '#i18n'
 export default function CourtWaitingFilterSheet({
   open,
   onClose,
-  sortOption = 'fewest',
+  sortOption = 'az',
   onSelectSort,
   filters = {},
   onToggleFilter,
@@ -15,6 +15,11 @@ export default function CourtWaitingFilterSheet({
   playerOnCourtName = '',
 }) {
   const sortItems = [
+    {
+      id: 'az',
+      title: t('assign.sortAzTitle'),
+      desc: t('assign.sortAzDesc'),
+    },
     {
       id: 'fewest',
       title: t('assign.sortFewestTitle'),
@@ -29,11 +34,6 @@ export default function CourtWaitingFilterSheet({
       id: 'level',
       title: t('assign.sortLevelTitle'),
       desc: t('assign.sortLevelDesc'),
-    },
-    {
-      id: 'az',
-      title: t('assign.sortAzTitle'),
-      desc: t('assign.sortAzDesc'),
     },
   ]
 

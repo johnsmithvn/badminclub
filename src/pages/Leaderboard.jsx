@@ -49,6 +49,7 @@ export default function Leaderboard() {
 
   // State cho Tab 2 (Biểu đồ / Profile)
   const [selectedMemberId, setSelectedMemberId] = useState(null)
+  const [profileInitialTab, setProfileInitialTab] = useState('overview')
 
   // State cho Gạ kèo (K6)
   const [challengeModalOpen, setChallengeModalOpen] = useState(false)
@@ -378,7 +379,10 @@ export default function Leaderboard() {
       {activeTab === 'season' && (
         <SeasonRaceTab
           seasonLeaderboardData={seasonLeaderboardData}
-          onOpenLedger={(m) => setLedgerMemberId(m?.id || m)}
+          onOpenLedger={(m) => {
+            setSelectedMemberId(m?.id || m)
+            setProfileInitialTab('season')
+          }}
           isMobile={isMobile}
           genderFilter={genderFilter}
           onGenderFilterChange={setGenderFilter}
@@ -395,7 +399,10 @@ export default function Leaderboard() {
           levels={db.levels}
           genderFilter={genderFilter}
           onGenderFilterChange={setGenderFilter}
-          onSelectMember={(m) => setSelectedMemberId(m.id || m)}
+          onSelectMember={(m) => {
+            setSelectedMemberId(m.id || m)
+            setProfileInitialTab('overview')
+          }}
           isMobile={isMobile}
         />
       )}
@@ -604,6 +611,8 @@ export default function Leaderboard() {
                 rankTheme={rankTheme}
                 onSelectTheme={(themeKey) => setRankTheme(themeKey)}
                 isMobile={isMobile}
+                initialSubTab={profileInitialTab}
+                seasonConfig={cfg.season}
                 onChallenge={(targetId) => {
                   setSelectedMemberId(null)
                   setInitialTeamA([])

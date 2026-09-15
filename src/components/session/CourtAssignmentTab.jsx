@@ -4,6 +4,7 @@ import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { playerName, genderTxt, isFemaleGender, isMaleGender } from '#lib/money.js'
+import { compareVietnameseNames } from '#lib/members.js'
 import { can } from '#lib/roles.js'
 import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWaitTime } from '#lib/assign.js'
 import {
@@ -59,7 +60,7 @@ export default function CourtAssignmentTab({ s }) {
   const [showBalanceSheet, setShowBalanceSheet] = useState(false)
   const [showChangesBox, setShowChangesBox] = useState(false)
   const [showVoiceModal, setShowVoiceModal] = useState(false)
-  const [sortOption, setSortOption] = useState('fewest') // 'fewest' | 'wait' | 'level' | 'az'
+  const [sortOption, setSortOption] = useState('az') // 'az' | 'fewest' | 'wait' | 'level'
   const [filters, setFilters] = useState({
     gender: null, // 'female' | 'male' | null
     sameLevel: false,
@@ -289,22 +290,22 @@ export default function CourtAssignmentTab({ s }) {
     }
 
     // Sắp xếp
-    if (sortOption === 'wait') {
+    if (sortOption === 'fewest') {
+      list.sort((p1, p2) => (matchCountMap[p1.key] || 0) - (matchCountMap[p2.key] || 0) || compareVietnameseNames(p1.name, p2.name))
+    } else if (sortOption === 'wait') {
       list.sort((p1, p2) => {
         const diff = (playerWaitTimeMap[p2.key] || 0) - (playerWaitTimeMap[p1.key] || 0)
         if (diff !== 0) return diff
         const cnt1 = matchCountMap[p1.key] || 0
         const cnt2 = matchCountMap[p2.key] || 0
         if (cnt1 !== cnt2) return cnt1 - cnt2
-        return (p1.name || '').localeCompare(p2.name || '', 'vi')
+        return compareVietnameseNames(p1.name, p2.name)
       })
     } else if (sortOption === 'level') {
-      list.sort((p1, p2) => (ratingsMap[p2.key] || 0) - (ratingsMap[p1.key] || 0))
-    } else if (sortOption === 'az') {
-      list.sort((p1, p2) => (p1.name || '').localeCompare(p2.name || '', 'vi'))
+      list.sort((p1, p2) => (ratingsMap[p2.key] || 0) - (ratingsMap[p1.key] || 0) || compareVietnameseNames(p1.name, p2.name))
     } else {
-      // Mặc định: fewest (ít trận nhất)
-      list.sort((p1, p2) => (matchCountMap[p1.key] || 0) - (matchCountMap[p2.key] || 0) || (p1.name || '').localeCompare(p2.name || '', 'vi'))
+      // Mặc định: az (tên từ A-Z)
+      list.sort((p1, p2) => compareVietnameseNames(p1.name, p2.name))
     }
 
     return list
@@ -337,8 +338,8 @@ export default function CourtAssignmentTab({ s }) {
   const sortLabel = useMemo(() => {
     if (sortOption === 'wait') return t('assign.sortWaiting')
     if (sortOption === 'level') return t('assign.sortLevel')
-    if (sortOption === 'az') return t('assign.sortAz')
-    return t('assign.sortFewest')
+    if (sortOption === 'fewest') return t('assign.sortFewest')
+    return t('assign.sortAz')
   }, [sortOption])
 
   // Đổi mode đơn / đôi
@@ -572,8 +573,8 @@ export default function CourtAssignmentTab({ s }) {
 
     // Lấy dữ liệu hiệu chỉnh chéo giới tính của CLB
     const memberMap = {}
-    ;(db?.members || []).forEach((m) => { if (m?.id) memberMap[m.id] = m })
-    ;(db?.guests || []).forEach((g) => { if (g?.id) memberMap[g.id] = g })
+      ; (db?.members || []).forEach((m) => { if (m?.id) memberMap[m.id] = m })
+      ; (db?.guests || []).forEach((g) => { if (g?.id) memberMap[g.id] = g })
     players.forEach((p) => { if (p?.key) memberMap[p.key] = { ...(memberMap[p.key] || {}), ...p } })
     const cals = computeClubCalibration(db.matches || [], memberMap)
     const midBucket = cals.find((c) => c.bucket === '100-300') || { observedWinRate: 27, sampleSize: 40, learnedAdjustment: 38 }
@@ -812,240 +813,314 @@ export default function CourtAssignmentTab({ s }) {
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div style={S.container}>
-      {/* ---------------- Banner Kèo đã nhận (nếu có) ---------------- */}
-      {acceptedChallenges.length > 0 && (
-        <div style={S.chalBanner}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Icon name="flame" size={16} color="var(--status-transit-fg)" />
-            <span style={{ font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
-              {t('quickMatch.pendingChalBanner', { n: acceptedChallenges.length })}:
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-            {acceptedChallenges.map((c) => {
-              const nameA = (c.teamA || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamA')
-              const nameB = (c.teamB || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamB')
-              return (
-                <div key={c.id} style={S.chalChip}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameA}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>vs</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameB}</span>
-                  <span style={S.tagSub}>{c.bestOf || 1} set</span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon="download"
-                    onClick={() => handleLoadChallenge(c)}
-                  >
-                    {t('quickMatch.loadChal')}
-                  </Button>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - TĂNG CƯỜNG THÔNG TIN) ---------------- */}
-      {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - GIAO DIỆN CS1) ---------------- */}
-      <Card
-        title={t('assign.waitingCount', { n: waitingPlayers.length })}
-        subtitle={isMobile ? `${waitingPlayers.length}/${players.length}` : t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
-        icon="users"
-        padding="12px 14px"
-        actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {/* Nút ▤ Thống kê mở CS3 - chỉ hiển thị với Ban tổ chức / Quản lý */}
-            {canManage && (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="table"
-                onClick={() => setShowStatsSheet(true)}
-                title={t('assign.statsSheetSub')}
-                style={{ padding: isMobile ? '0 8px' : '0 12px' }}
-              >
-                {isMobile ? '▤' : `▤ ${t('assign.tabStats')}`}
-              </Button>
-            )}
-            {canManage && (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="wand-sparkles"
-                onClick={handleAutoPickFewest}
-                disabled={waitingPlayers.length === 0 || isCourtFull}
-                style={{ padding: isMobile ? '0 8px' : '0 12px' }}
-              >
-                {isMobile ? t('assign.fewestBtnShort') : t('assign.fewestBtn')}
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <div style={{ display: 'grid', gap: 10 }}>
-          {/* Ô tìm kiếm người trong pool */}
-          <div style={S.searchRow}>
-            <input
-              type="text"
-              placeholder={t('assign.searchPlayerPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={S.searchInput}
-            />
-            <span style={S.touchHint}>{t('assign.poolTouchHint')}</span>
-          </div>
-
-          {/* Hàng sort & lọc dính ở đầu (CS1 mockup) */}
-          <div style={S.stickyBar}>
-            {/* Chip Sort chính -> Mở CS2 */}
-            <button
-              type="button"
-              onClick={() => setShowSortSheet(true)}
-              style={{
-                ...S.sortChipMain,
-                ...(sortOption !== 'fewest' ? S.sortChipMainActive : {}),
-              }}
-            >
-              {sortLabel}
-            </button>
-
-            {/* Chip Chờ lâu */}
-            <button
-              type="button"
-              onClick={() => setSortOption((prev) => prev === 'wait' ? 'fewest' : 'wait')}
-              style={{
-                ...S.quickChip,
-                ...(sortOption === 'wait' ? S.quickChipActive : {}),
-              }}
-            >
-              {t('assign.sortWaiting')}
-            </button>
-
-            {/* Chip Trình */}
-            <button
-              type="button"
-              onClick={() => setSortOption((prev) => prev === 'level' ? 'fewest' : 'level')}
-              style={{
-                ...S.quickChip,
-                ...(sortOption === 'level' ? S.quickChipActive : {}),
-              }}
-            >
-              {t('assign.sortLevel')}
-            </button>
-
-            <div style={S.chipDivider} />
-
-            {/* Chip Nữ */}
-            <button
-              type="button"
-              onClick={() => setFilters((prev) => ({
-                ...prev,
-                gender: (prev.gender === 'female' || prev.gender === 'nu') ? null : 'female',
-              }))}
-              style={{
-                ...S.genderChipFemale,
-                ...((filters.gender === 'female' || filters.gender === 'nu') ? S.genderChipFemaleActive : {}),
-              }}
-            >
-              {t('assign.filterFemale', { n: waitingFemaleCount })}
-            </button>
-
-            {/* Chip Nam */}
-            <button
-              type="button"
-              onClick={() => setFilters((prev) => ({
-                ...prev,
-                gender: (prev.gender === 'male' || prev.gender === 'nam') ? null : 'male',
-              }))}
-              style={{
-                ...S.genderChipMale,
-                ...((filters.gender === 'male' || filters.gender === 'nam') ? S.genderChipMaleActive : {}),
-              }}
-            >
-              {t('assign.filterMale', { n: waitingMaleCount })}
-            </button>
-
-            {/* Chips cho các bộ lọc nâng cao nếu đang bật */}
-            {filters.sameLevel && (
-              <button
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, sameLevel: false }))}
-                style={S.activeFilterChip}
-                title={t('common.clear')}
-              >
-                {refLevel ? t('assign.filterSameLevel', { level: refLevel }) : `${t('assign.sameLevelSlot')} ✕`}
-              </button>
-            )}
-
-            {filters.notPlayedWith && (
-              <button
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, notPlayedWith: false }))}
-                style={S.activeFilterChip}
-                title={t('common.clear')}
-              >
-                {playerOnCourtName ? t('assign.filterNotPlayed', { name: playerOnCourtName }) : t('assign.filterNotPlayedGeneric')}
-              </button>
-            )}
-
-            {filters.noRest && (
-              <button
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, noRest: false }))}
-                style={S.activeFilterChip}
-                title={t('common.clear')}
-              >
-                {t('assign.filterNoRest')}
-              </button>
-            )}
-
-            {/* Nút xoá tất cả bộ lọc nếu có bộ lọc nâng cao */}
-            {(filters.sameLevel || filters.notPlayedWith || filters.noRest) && (
-              <button
-                type="button"
-                onClick={() => setFilters({ gender: null, sameLevel: false, notPlayedWith: false, noRest: false })}
-                style={S.clearFiltersBtn}
-                title={t('assign.clearAllFilters')}
-              >
-                {t('assign.clearAllFilters')}
-              </button>
-            )}
-          </div>
-
-          {/* Danh sách người chờ dạng grid 2 cột (CS1) */}
-          <div style={S.poolContainerScroll}>
-            {canManage && sortOption === 'fewest' && fewestGroups ? (
-              fewestGroups.map((grp) => {
-                let badgeColor = '#A8B7CB'
-                let badgeBg = 'var(--surface-sunken, rgba(255,255,255,0.05))'
-                let border = '1px solid var(--border-subtle, rgba(255,255,255,0.1))'
-                let lineGradient = 'linear-gradient(90deg, var(--border-subtle, rgba(255,255,255,0.15)) 0%, transparent 100%)'
-                let dotColor = '#7E92B2'
-
-                if (grp.count === 0 || grp.count <= 2) {
-                  badgeColor = '#F0B75C'
-                  badgeBg = 'rgba(240,183,92,0.12)'
-                  border = '1px solid rgba(240,183,92,0.3)'
-                  lineGradient = 'linear-gradient(90deg, rgba(240,183,92,0.35) 0%, transparent 100%)'
-                  dotColor = '#F0B75C'
-                } else if (grp.count >= 6) {
-                  badgeColor = '#5B6B81'
-                  badgeBg = 'rgba(91,107,129,0.12)'
-                  border = '1px solid rgba(91,107,129,0.25)'
-                  lineGradient = 'linear-gradient(90deg, rgba(91,107,129,0.3) 0%, transparent 100%)'
-                  dotColor = '#5B6B81'
-                } else {
-                  badgeColor = '#5FDBD3'
-                  badgeBg = 'rgba(0,178,169,0.12)'
-                  border = '1px solid rgba(0,178,169,0.3)'
-                  lineGradient = 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)'
-                  dotColor = 'var(--teal-500, #00B2A9)'
-                }
-
+        {/* ---------------- Banner Kèo đã nhận (nếu có) ---------------- */}
+        {acceptedChallenges.length > 0 && (
+          <div style={S.chalBanner}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="flame" size={16} color="var(--status-transit-fg)" />
+              <span style={{ font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
+                {t('quickMatch.pendingChalBanner', { n: acceptedChallenges.length })}:
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+              {acceptedChallenges.map((c) => {
+                const nameA = (c.teamA || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamA')
+                const nameB = (c.teamB || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamB')
                 return (
-                  <div key={`grp-${grp.count}`} style={S.groupWrapper}>
-                    {/* Header nhóm số trận: Dải phân cách Pill Badge + Dot + Line gradient đồng bộ với Điểm danh */}
+                  <div key={c.id} style={S.chalChip}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameA}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>vs</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameB}</span>
+                    <span style={S.tagSub}>{c.bestOf || 1} set</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon="download"
+                      onClick={() => handleLoadChallenge(c)}
+                    >
+                      {t('quickMatch.loadChal')}
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - TĂNG CƯỜNG THÔNG TIN) ---------------- */}
+        {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - GIAO DIỆN CS1) ---------------- */}
+        <Card
+          title={t('assign.waitingCount', { n: waitingPlayers.length })}
+          subtitle={isMobile ? `${waitingPlayers.length}/${players.length}` : t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
+          icon="users"
+          padding="12px 14px"
+          actions={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* Nút ▤ Thống kê mở CS3 - chỉ hiển thị với Ban tổ chức / Quản lý */}
+              {canManage && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="table"
+                  onClick={() => setShowStatsSheet(true)}
+                  title={t('assign.statsSheetSub')}
+                  style={{ padding: isMobile ? '0 8px' : '0 12px' }}
+                >
+                  {isMobile ? '▤' : `▤ ${t('assign.tabStats')}`}
+                </Button>
+              )}
+              {canManage && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="wand-sparkles"
+                  onClick={handleAutoPickFewest}
+                  disabled={waitingPlayers.length === 0 || isCourtFull}
+                  style={{ padding: isMobile ? '0 8px' : '0 12px' }}
+                >
+                  {isMobile ? t('assign.fewestBtnShort') : t('assign.fewestBtn')}
+                </Button>
+              )}
+            </div>
+          }
+        >
+          <div style={{ display: 'grid', gap: 10 }}>
+            {/* Ô tìm kiếm người trong pool */}
+            <div style={S.searchRow}>
+              <input
+                type="text"
+                placeholder={t('assign.searchPlayerPlaceholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={S.searchInput}
+              />
+              <span style={S.touchHint}>{t('assign.poolTouchHint')}</span>
+            </div>
+
+            {/* Hàng sort & lọc dính ở đầu (CS1 mockup) */}
+            <div style={S.stickyBar}>
+              {/* Chip Sort chính -> Mở CS2 */}
+              <button
+                type="button"
+                onClick={() => setShowSortSheet(true)}
+                style={{
+                  ...S.sortChipMain,
+                  ...(sortOption !== 'az' ? S.sortChipMainActive : {}),
+                }}
+              >
+                {sortLabel} ▾
+              </button>
+
+              <div style={S.chipDivider} />
+
+              {/* Chip Nữ */}
+              <button
+                type="button"
+                onClick={() => setFilters((prev) => ({
+                  ...prev,
+                  gender: (prev.gender === 'female' || prev.gender === 'nu') ? null : 'female',
+                }))}
+                style={{
+                  ...S.genderChipFemale,
+                  ...((filters.gender === 'female' || filters.gender === 'nu') ? S.genderChipFemaleActive : {}),
+                }}
+              >
+                {t('assign.filterFemale', { n: waitingFemaleCount })}
+              </button>
+
+              {/* Chip Nam */}
+              <button
+                type="button"
+                onClick={() => setFilters((prev) => ({
+                  ...prev,
+                  gender: (prev.gender === 'male' || prev.gender === 'nam') ? null : 'male',
+                }))}
+                style={{
+                  ...S.genderChipMale,
+                  ...((filters.gender === 'male' || filters.gender === 'nam') ? S.genderChipMaleActive : {}),
+                }}
+              >
+                {t('assign.filterMale', { n: waitingMaleCount })}
+              </button>
+
+              {/* Chips cho các bộ lọc nâng cao nếu đang bật */}
+              {filters.sameLevel && (
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, sameLevel: false }))}
+                  style={S.activeFilterChip}
+                  title={t('common.clear')}
+                >
+                  {refLevel ? t('assign.filterSameLevel', { level: refLevel }) : `${t('assign.sameLevelSlot')} ✕`}
+                </button>
+              )}
+
+              {filters.notPlayedWith && (
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, notPlayedWith: false }))}
+                  style={S.activeFilterChip}
+                  title={t('common.clear')}
+                >
+                  {playerOnCourtName ? t('assign.filterNotPlayed', { name: playerOnCourtName }) : t('assign.filterNotPlayedGeneric')}
+                </button>
+              )}
+
+              {filters.noRest && (
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, noRest: false }))}
+                  style={S.activeFilterChip}
+                  title={t('common.clear')}
+                >
+                  {t('assign.filterNoRest')}
+                </button>
+              )}
+
+              {/* Nút xoá tất cả bộ lọc nếu có bộ lọc nâng cao */}
+              {(filters.sameLevel || filters.notPlayedWith || filters.noRest) && (
+                <button
+                  type="button"
+                  onClick={() => setFilters({ gender: null, sameLevel: false, notPlayedWith: false, noRest: false })}
+                  style={S.clearFiltersBtn}
+                  title={t('assign.clearAllFilters')}
+                >
+                  {t('assign.clearAllFilters')}
+                </button>
+              )}
+            </div>
+
+            {/* Danh sách người chờ dạng grid 2 cột (CS1) */}
+            <div style={S.poolContainerScroll}>
+              {canManage && sortOption === 'fewest' && fewestGroups ? (
+                fewestGroups.map((grp) => {
+                  let badgeColor = '#A8B7CB'
+                  let badgeBg = 'var(--surface-sunken, rgba(255,255,255,0.05))'
+                  let border = '1px solid var(--border-subtle, rgba(255,255,255,0.1))'
+                  let lineGradient = 'linear-gradient(90deg, var(--border-subtle, rgba(255,255,255,0.15)) 0%, transparent 100%)'
+                  let dotColor = '#7E92B2'
+
+                  if (grp.count === 0 || grp.count <= 2) {
+                    badgeColor = '#F0B75C'
+                    badgeBg = 'rgba(240,183,92,0.12)'
+                    border = '1px solid rgba(240,183,92,0.3)'
+                    lineGradient = 'linear-gradient(90deg, rgba(240,183,92,0.35) 0%, transparent 100%)'
+                    dotColor = '#F0B75C'
+                  } else if (grp.count >= 6) {
+                    badgeColor = '#5B6B81'
+                    badgeBg = 'rgba(91,107,129,0.12)'
+                    border = '1px solid rgba(91,107,129,0.25)'
+                    lineGradient = 'linear-gradient(90deg, rgba(91,107,129,0.3) 0%, transparent 100%)'
+                    dotColor = '#5B6B81'
+                  } else {
+                    badgeColor = '#5FDBD3'
+                    badgeBg = 'rgba(0,178,169,0.12)'
+                    border = '1px solid rgba(0,178,169,0.3)'
+                    lineGradient = 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)'
+                    dotColor = 'var(--teal-500, #00B2A9)'
+                  }
+
+                  return (
+                    <div key={`grp-${grp.count}`} style={S.groupWrapper}>
+                      {/* Header nhóm số trận: Dải phân cách Pill Badge + Dot + Line gradient đồng bộ với Điểm danh */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          margin: '6px 0 2px',
+                          padding: '0 2px',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '2px 8px',
+                            borderRadius: 99,
+                            background: badgeBg,
+                            border,
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 5,
+                              height: 5,
+                              borderRadius: '50%',
+                              background: dotColor,
+                              display: 'inline-block',
+                            }}
+                          />
+                          <span
+                            style={{
+                              font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                              color: badgeColor,
+                              letterSpacing: '0.3px',
+                            }}
+                          >
+                            {grp.count} {t('units.match')}
+                          </span>
+                          <span
+                            style={{
+                              font: "700 10.5px/1.2 'IBM Plex Mono', monospace",
+                              color: badgeColor,
+                              opacity: 0.85,
+                              marginLeft: 2,
+                            }}
+                          >
+                            {grp.players.length}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            flex: 1,
+                            height: 1,
+                            background: lineGradient,
+                          }}
+                        />
+                      </div>
+
+                      {/* Grid 2 cột */}
+                      <div style={S.twoColGrid}>
+                        {grp.players.map((p) => {
+                          const plays = matchCountMap[p.key] || 0
+                          const isFemale = isFemaleGender(p.gender)
+                          return (
+                            <div
+                              key={p.key}
+                              onClick={() => handleTapPlayer(p.key)}
+                              style={{
+                                ...S.cs1PlayerCard,
+                                borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                              }}
+                              role="button"
+                              tabIndex={0}
+                              title={p.name}
+                            >
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={S.cs1PlayerName}>{p.name}</div>
+                                <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
+                                  {genderTxt(p.gender)} · {p.level || 'TB'}
+                                  {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
+                                </div>
+                              </div>
+                              <div style={{ ...S.cs1MatchCount, color: badgeColor }}>
+                                {plays}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <div style={S.groupWrapper}>
+                  {processedWaiting.length > 0 && (
                     <div
                       style={{
                         display: 'flex',
@@ -1063,8 +1138,8 @@ export default function CourtAssignmentTab({ s }) {
                           gap: 6,
                           padding: '2px 8px',
                           borderRadius: 99,
-                          background: badgeBg,
-                          border,
+                          background: 'rgba(0,178,169,0.12)',
+                          border: '1px solid rgba(0,178,169,0.3)',
                           boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
                           transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
                         }}
@@ -1074,930 +1149,830 @@ export default function CourtAssignmentTab({ s }) {
                             width: 5,
                             height: 5,
                             borderRadius: '50%',
-                            background: dotColor,
+                            background: 'var(--teal-500, #00B2A9)',
                             display: 'inline-block',
                           }}
                         />
                         <span
                           style={{
                             font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
-                            color: badgeColor,
+                            color: '#5FDBD3',
                             letterSpacing: '0.3px',
                           }}
                         >
-                          {grp.count} {t('units.match')}
+                          {t('assign.waitingPool')}
                         </span>
                         <span
                           style={{
                             font: "700 10.5px/1.2 'IBM Plex Mono', monospace",
-                            color: badgeColor,
+                            color: '#5FDBD3',
                             opacity: 0.85,
                             marginLeft: 2,
                           }}
                         >
-                          {grp.players.length}
+                          {processedWaiting.length}
                         </span>
                       </div>
                       <div
                         style={{
                           flex: 1,
                           height: 1,
-                          background: lineGradient,
+                          background: 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)',
                         }}
                       />
                     </div>
+                  )}
 
-                    {/* Grid 2 cột */}
-                    <div style={S.twoColGrid}>
-                      {grp.players.map((p) => {
-                        const plays = matchCountMap[p.key] || 0
-                        const isFemale = isFemaleGender(p.gender)
-                        return (
-                          <div
-                            key={p.key}
-                            onClick={() => handleTapPlayer(p.key)}
-                            style={{
-                              ...S.cs1PlayerCard,
-                              borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
-                            }}
-                            role="button"
-                            tabIndex={0}
-                            title={p.name}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={S.cs1PlayerName}>{p.name}</div>
-                              <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
-                                {genderTxt(p.gender)} · {p.level || 'TB'}
-                                {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
-                              </div>
+                  <div style={S.twoColGrid}>
+                    {processedWaiting.map((p) => {
+                      const plays = matchCountMap[p.key] || 0
+                      const isFemale = isFemaleGender(p.gender)
+                      let badgeColor = '#A8B7CB'
+                      if (plays === 0 || plays <= 2) badgeColor = '#F0B75C'
+                      else if (plays >= 6) badgeColor = '#5B6B81'
+
+                      return (
+                        <div
+                          key={p.key}
+                          onClick={() => handleTapPlayer(p.key)}
+                          style={{
+                            ...S.cs1PlayerCard,
+                            borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          title={p.name}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={S.cs1PlayerName}>{p.name}</div>
+                            <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
+                              {genderTxt(p.gender)} · {p.level || 'TB'}
+                              {canManage && sortOption === 'wait' && (playerWaitTimeMap[p.key] || 0) > 0 && (
+                                <> · {t('assign.waitingMinutes', { m: Math.round((playerWaitTimeMap[p.key] || 0) / 60000) })}</>
+                              )}
+                              {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
                             </div>
+                          </div>
+                          {canManage && (
                             <div style={{ ...S.cs1MatchCount, color: badgeColor }}>
                               {plays}
                             </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <div style={S.groupWrapper}>
-                {processedWaiting.length > 0 && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      margin: '6px 0 2px',
-                      padding: '0 2px',
-                      userSelect: 'none',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '2px 8px',
-                        borderRadius: 99,
-                        background: 'rgba(0,178,169,0.12)',
-                        border: '1px solid rgba(0,178,169,0.3)',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                        transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 5,
-                          height: 5,
-                          borderRadius: '50%',
-                          background: 'var(--teal-500, #00B2A9)',
-                          display: 'inline-block',
-                        }}
-                      />
-                      <span
-                        style={{
-                          font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
-                          color: '#5FDBD3',
-                          letterSpacing: '0.3px',
-                        }}
-                      >
-                        {t('assign.waitingPool')}
-                      </span>
-                      <span
-                        style={{
-                          font: "700 10.5px/1.2 'IBM Plex Mono', monospace",
-                          color: '#5FDBD3',
-                          opacity: 0.85,
-                          marginLeft: 2,
-                        }}
-                      >
-                        {processedWaiting.length}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        flex: 1,
-                        height: 1,
-                        background: 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)',
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div style={S.twoColGrid}>
-                  {processedWaiting.map((p) => {
-                    const plays = matchCountMap[p.key] || 0
-                    const isFemale = isFemaleGender(p.gender)
-                    let badgeColor = '#A8B7CB'
-                    if (plays === 0 || plays <= 2) badgeColor = '#F0B75C'
-                    else if (plays >= 6) badgeColor = '#5B6B81'
-
-                    return (
-                      <div
-                        key={p.key}
-                        onClick={() => handleTapPlayer(p.key)}
-                        style={{
-                          ...S.cs1PlayerCard,
-                          borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        title={p.name}
-                      >
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={S.cs1PlayerName}>{p.name}</div>
-                          <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
-                            {genderTxt(p.gender)} · {p.level || 'TB'}
-                            {canManage && sortOption === 'wait' && (playerWaitTimeMap[p.key] || 0) > 0 && (
-                              <> · {t('assign.waitingMinutes', { m: Math.round((playerWaitTimeMap[p.key] || 0) / 60000) })}</>
-                            )}
-                            {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
-                          </div>
+                          )}
                         </div>
-                        {canManage && (
-                          <div style={{ ...S.cs1MatchCount, color: badgeColor }}>
-                            {plays}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {processedWaiting.length === 0 && (
-              <div style={S.emptyPoolMsg}>
-                <div>{waitingPlayers.length === 0 ? t('session.guestEmpty') : t('assign.noWaitingFiltered')}</div>
-                {waitingPlayers.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setFilters({ gender: null, sameLevel: false, notPlayedWith: false, noRest: false })}
-                    style={S.emptyResetBtn}
-                  >
-                    {t('assign.clearAllFilters')}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* ---------------- 2. MẶT SÂN THI ĐẤU VISUAL COURT (SCREEN 01) ---------------- */}
-      <div style={{ ...S.courtCard, padding: isMobile ? '12px 10px' : '16px' }}>
-        {/* Header Sân */}
-        <div style={{
-          ...S.courtTopBar,
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'stretch' : 'center',
-          gap: isMobile ? 10 : 12,
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: isMobile ? 'space-between' : 'flex-start',
-            gap: 10,
-            flexWrap: 'wrap',
-            flex: 1,
-          }}>
-            {courtOptions.length > 1 ? (
-              <div style={{ minWidth: 120 }}>
-                <Select
-                  size="sm"
-                  value={courtIdx}
-                  options={courtOptions}
-                  onChange={(e) => setCourtIdx(Number(e.target.value))}
-                />
-              </div>
-            ) : (
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '4px 10px',
-                borderRadius: 6,
-                background: 'var(--surface-sunken)',
-                border: '1px solid var(--border-subtle)',
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-              }}>
-                <Icon name="map-pin" size={14} color="var(--status-transit-fg)" />
-                <span>{courtOptions[0]?.label || t('session.courtNum', { n: 1 })}</span>
-              </div>
-            )}
-            {/* Mode Switcher */}
-            <div style={S.modeTrack}>
-              <button
-                type="button"
-                onClick={() => handleSwitchMode('doubles')}
-                style={{
-                  ...S.modeBtn,
-                  ...(mode === 'doubles' ? S.modeBtnActive : {}),
-                }}
-              >
-                <span>{t('quickMatch.modeDoubles')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSwitchMode('singles')}
-                style={{
-                  ...S.modeBtn,
-                  ...(mode === 'singles' ? S.modeBtnActive : {}),
-                }}
-              >
-                <span>{t('quickMatch.modeSingles')}</span>
-              </button>
-            </div>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: isMobile ? 'space-between' : 'flex-end',
-            gap: 12,
-            width: isMobile ? '100%' : 'auto',
-            paddingTop: isMobile ? 8 : 0,
-            borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <Switch
-                checked={Boolean(ratingEnabled)}
-                onChange={(e) => {
-                  const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
-                  setRatingEnabled(Boolean(nextVal))
-                }}
-              />
-              <span
-                onClick={() => setRatingEnabled((v) => !v)}
-                style={{ fontSize: 13, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)', userSelect: 'none' }}
-              >
-                {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
-              </span>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="mic"
-              onClick={() => setShowVoiceModal(true)}
-            >
-              {t('voiceMatch.btnVoiceRecord')}
-            </Button>
-            {(teamA.length > 0 || teamB.length > 0) && (
-              <Button variant="ghost" size="sm" icon="eraser" onClick={handleClearLineup}>
-                {t('assign.clearCourt')}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Khung mặt sân thi đấu (với UX Highlight Slot chọn) */}
-        <div style={S.courtSurface}>
-          {/* Đội A (Top) */}
-          <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
-            {Array.from({ length: maxPerTeam }).map((_, idx) => {
-              const key = teamA[idx]
-              const isTargetSlot = activeSlot?.team === 'A' && activeSlot?.idx === idx
-
-              if (key) {
-                const p = players.find((x) => x.key === key) || {}
-                const r = ratingsMap[key] || 0
-                const plays = matchCountMap[key] || 0
-                return (
-                  <div
-                    key={key}
-                    style={S.slotFilled}
-                    onClick={() => setActiveSlot({ team: 'A', idx })}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                        <span style={S.slotName}>{p.name}</span>
-                        <LevelChip level={p.level} levels={db.levels} size="sm" />
-                        {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
-                      </div>
-                      <IconButton
-                        icon="x"
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTeamA((prev) => prev.filter((k) => k !== key))
-                          setActiveSlot({ team: 'A', idx })
-                        }}
-                      />
-                    </div>
-                    <div style={S.slotMeta}>
-                      <GenderChip gender={p.gender} />
-                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
-                      <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
-                      {canManage && (
-                        <>
-                          <span style={{ color: 'var(--border-strong-color)' }}>·</span>
-                          <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
-                        </>
-                      )}
-                    </div>
+                      )
+                    })}
                   </div>
-                )
-              }
-
-              if (isTargetSlot) {
-                return (
-                  <div
-                    key={`slot-A-${idx}`}
-                    onClick={() => setActiveSlot({ team: 'A', idx })}
-                    style={S.slotActiveHighlight}
-                  >
-                    <div style={S.slotActiveText}>{t('assign.tapNameHint')}</div>
-                    <div style={S.slotActiveSub}>{t('assign.slotTeamLabel', { team: 'A', n: idx + 1 })}</div>
-                  </div>
-                )
-              }
-
-              return (
-                <div
-                  key={`slot-A-${idx}`}
-                  onClick={() => setActiveSlot({ team: 'A', idx })}
-                  style={S.slotDashedEmpty}
-                >
-                  <div style={S.slotEmptyTitle}>{t('assign.slotEmptyLabel')}</div>
-                  <div style={S.slotEmptySub}>{t('assign.slotTeamLabel', { team: 'A', n: idx + 1 })}</div>
                 </div>
-              )
-            })}
-          </div>
+              )}
 
-          {/* Dòng Ăn ý cặp Team A (chỉ hiển thị khi đủ 2 người cùng bên, không áp dụng đánh đơn) */}
-          {pairAInfo && (
-            <div style={pairAInfo.gamesCount >= 5 ? S.synergyRowActive : S.synergyRowNeutral}>
-              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
-                <div style={pairAInfo.gamesCount >= 5 ? S.synergyTitleActive : S.synergyTitleNeutral}>
-                  {pairAInfo.gamesCount >= 5
-                    ? t('assign.synergyTitle', { names: teamAName, score: pairAInfo.synergyScore })
-                    : t('assign.synergyNotEnoughData', { names: teamAName })}
-                </div>
-                <div style={pairAInfo.gamesCount >= 5 ? S.synergySubActive : S.synergySubNeutral}>
-                  {pairAInfo.gamesCount >= 5
-                    ? t('assign.synergyDetail', {
-                        n: pairAInfo.gamesCount,
-                        exp: pairAInfo.expectedWinPct,
-                        act: pairAInfo.actualWinPct,
-                      })
-                    : t('assign.synergyNeedMoreGames', {
-                        n: pairAInfo.gamesCount,
-                        min: 5,
-                      })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Vạch LƯỚI Phân Cách */}
-          <div style={S.netDivider}>
-            <div style={S.netLine} />
-            <span style={S.netText}>{t('assign.net')}</span>
-            <div style={S.netLine} />
-          </div>
-
-          {/* Đội B (Bottom) */}
-          <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
-            {Array.from({ length: maxPerTeam }).map((_, idx) => {
-              const key = teamB[idx]
-              const isTargetSlot = activeSlot?.team === 'B' && activeSlot?.idx === idx
-
-              if (key) {
-                const p = players.find((x) => x.key === key) || {}
-                const r = ratingsMap[key] || 0
-                const plays = matchCountMap[key] || 0
-                return (
-                  <div
-                    key={key}
-                    style={S.slotFilled}
-                    onClick={() => setActiveSlot({ team: 'B', idx })}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                        <span style={S.slotName}>{p.name}</span>
-                        <LevelChip level={p.level} levels={db.levels} size="sm" />
-                        {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
-                      </div>
-                      <IconButton
-                        icon="x"
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setTeamB((prev) => prev.filter((k) => k !== key))
-                          setActiveSlot({ team: 'B', idx })
-                        }}
-                      />
-                    </div>
-                    <div style={S.slotMeta}>
-                      <GenderChip gender={p.gender} />
-                      <span style={{ color: 'var(--border-strong-color)' }}>·</span>
-                      <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
-                      {canManage && (
-                        <>
-                          <span style={{ color: 'var(--border-strong-color)' }}>·</span>
-                          <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              }
-
-              if (isTargetSlot) {
-                return (
-                  <div
-                    key={`slot-B-${idx}`}
-                    onClick={() => setActiveSlot({ team: 'B', idx })}
-                    style={S.slotActiveHighlight}
-                  >
-                    <div style={S.slotActiveText}>{t('assign.tapNameHint')}</div>
-                    <div style={S.slotActiveSub}>{t('assign.slotTeamLabel', { team: 'B', n: idx + 1 })}</div>
-                  </div>
-                )
-              }
-
-              return (
-                <div
-                  key={`slot-B-${idx}`}
-                  onClick={() => setActiveSlot({ team: 'B', idx })}
-                  style={S.slotDashedEmpty}
-                >
-                  <div style={S.slotEmptyTitle}>{t('assign.slotEmptyLabel')}</div>
-                  <div style={S.slotEmptySub}>{t('assign.slotTeamLabel', { team: 'B', n: idx + 1 })}</div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Dòng Ăn ý cặp Team B (chỉ hiển thị khi đủ 2 người cùng bên, không áp dụng đánh đơn) */}
-          {pairBInfo && (
-            <div style={pairBInfo.gamesCount >= 5 ? S.synergyRowActive : S.synergyRowNeutral}>
-              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
-                <div style={pairBInfo.gamesCount >= 5 ? S.synergyTitleActive : S.synergyTitleNeutral}>
-                  {pairBInfo.gamesCount >= 5
-                    ? t('assign.synergyTitle', { names: teamBName, score: pairBInfo.synergyScore })
-                    : t('assign.synergyNotEnoughData', { names: teamBName })}
-                </div>
-                <div style={pairBInfo.gamesCount >= 5 ? S.synergySubActive : S.synergySubNeutral}>
-                  {pairBInfo.gamesCount >= 5
-                    ? t('assign.synergyDetail', {
-                        n: pairBInfo.gamesCount,
-                        exp: pairBInfo.expectedWinPct,
-                        act: pairBInfo.actualWinPct,
-                      })
-                    : t('assign.synergyNeedMoreGames', {
-                        n: pairBInfo.gamesCount,
-                        min: 5,
-                      })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Dự đoán trước trận & Tỷ lệ (nằm trên Điểm cân bằng) */}
-          {teamA.length > 0 && teamB.length > 0 && (
-            <div style={S.preMatchBox}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                  {t('scoreModal.predictTitle')}
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div
-                    onClick={() => setRatingEnabled((v) => !v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}
-                  >
-                    <Switch
-                      size="sm"
-                      checked={Boolean(ratingEnabled)}
-                      onChange={(e) => {
-                        const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
-                        setRatingEnabled(Boolean(nextVal))
-                      }}
-                    />
-                    <span style={{ fontSize: 12, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                      {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
-                    </span>
-                  </div>
-                  <span
-                    style={
-                      ratingEnabled
-                        ? (activeDelta > COURT_IMBALANCE_THRESHOLD
-                            ? { ...S.balancedTag, background: 'rgba(225,68,52,.12)', color: '#FF9A8F', borderColor: 'rgba(225,68,52,.4)' }
-                            : activeDelta > COURT_BALANCE_THRESHOLD
-                              ? { ...S.balancedTag, background: 'rgba(224,138,0,.12)', color: '#F0B75C', borderColor: 'rgba(224,138,0,.4)' }
-                              : S.balancedTag)
-                        : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }
-                    }
-                  >
-                    {ratingEnabled
-                      ? (activeDelta > COURT_IMBALANCE_THRESHOLD
-                          ? t('scoreModal.imbalancedTag')
-                          : activeDelta > COURT_BALANCE_THRESHOLD
-                            ? t('scoreModal.slightTag')
-                            : t('scoreModal.balancedTag'))
-                      : t('scoreModal.unratedTag')}
-                  </span>
-                </div>
-              </div>
-              {ratingEnabled ? (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px "IBM Plex Mono", monospace', marginTop: 4 }}>
-                    <span style={{ color: 'var(--status-transit-fg)' }}>A {pctA}%</span>
-                    <span style={{ color: 'var(--text-muted)' }}>{pctB}% B</span>
-                  </div>
-                  <div style={S.predictBarTrack}>
-                    <div style={{ width: `${pctA}%`, height: '100%', background: 'var(--action-accent-bg, #00B2A9)' }} />
-                    <div style={{ width: `${pctB}%`, height: '100%', background: 'var(--border-subtle)' }} />
-                  </div>
-                  <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
-                    {t('scoreModal.predictSub', { delta: activeDelta })}
-                  </div>
-                </>
-              ) : (
-                <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {t('scoreModal.predictSubUnrated')}
+              {processedWaiting.length === 0 && (
+                <div style={S.emptyPoolMsg}>
+                  <div>{waitingPlayers.length === 0 ? t('session.guestEmpty') : t('assign.noWaitingFiltered')}</div>
+                  {waitingPlayers.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters({ gender: null, sameLevel: false, notPlayedWith: false, noRest: false })}
+                      style={S.emptyResetBtn}
+                    >
+                      {t('assign.clearAllFilters')}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </div>
+        </Card>
 
-          {/* Banner Điểm cân bằng M1 (bấm vào mở Sheet M2 BalanceScore) */}
-          {balanceDetails && (
-            <div
-              onClick={() => setShowBalanceSheet(true)}
-              style={S.balanceBanner}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={S.balanceBannerTitle}>
-                  {t('assign.balanceScore')}
-                  {effectiveAnalysis?.suggestion && (
-                    <span
-                      style={{
-                        marginLeft: 8,
-                        font: '600 10.5px/1 "IBM Plex Mono", monospace',
-                        padding: '3px 7px',
-                        borderRadius: 4,
-                        background: 'rgba(0,178,169,.18)',
-                        color: '#5FDBD3',
-                        verticalAlign: 'middle',
-                      }}
-                    >
-                      💡 {t('assign.swapSuggestion')}
-                    </span>
-                  )}
+        {/* ---------------- 2. MẶT SÂN THI ĐẤU VISUAL COURT (SCREEN 01) ---------------- */}
+        <div style={{ ...S.courtCard, padding: isMobile ? '12px 10px' : '16px' }}>
+          {/* Header Sân */}
+          <div style={{
+            ...S.courtTopBar,
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'stretch' : 'center',
+            gap: isMobile ? 10 : 12,
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isMobile ? 'space-between' : 'flex-start',
+              gap: 10,
+              flexWrap: 'wrap',
+              flex: 1,
+            }}>
+              {courtOptions.length > 1 ? (
+                <div style={{ minWidth: 120 }}>
+                  <Select
+                    size="sm"
+                    value={courtIdx}
+                    options={courtOptions}
+                    onChange={(e) => setCourtIdx(Number(e.target.value))}
+                  />
                 </div>
-                <div style={S.balanceBannerSub}>
-                  {t('assign.balanceIndicatorsCount', { n: 6, newCount: 2 })}
+              ) : (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  background: 'var(--surface-sunken)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                }}>
+                  <Icon name="map-pin" size={14} color="var(--status-transit-fg)" />
+                  <span>{courtOptions[0]?.label || t('session.courtNum', { n: 1 })}</span>
                 </div>
+              )}
+              {/* Mode Switcher */}
+              <div style={S.modeTrack}>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchMode('doubles')}
+                  style={{
+                    ...S.modeBtn,
+                    ...(mode === 'doubles' ? S.modeBtnActive : {}),
+                  }}
+                >
+                  <span>{t('quickMatch.modeDoubles')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchMode('singles')}
+                  style={{
+                    ...S.modeBtn,
+                    ...(mode === 'singles' ? S.modeBtnActive : {}),
+                  }}
+                >
+                  <span>{t('quickMatch.modeSingles')}</span>
+                </button>
               </div>
-              <span style={S.balanceBannerScore}>{balanceDetails.totalScore}</span>
-              <span style={S.balanceBannerChevron}>›</span>
             </div>
-          )}
-        </div>
 
-
-        {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
-        {teamA.length > 0 && teamB.length > 0 && (
-          <div style={S.scoreLoggerBox}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                {t('scoreModal.instruction')}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isMobile ? 'space-between' : 'flex-end',
+              gap: 12,
+              width: isMobile ? '100%' : 'auto',
+              paddingTop: isMobile ? 8 : 0,
+              borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <Switch
+                  checked={Boolean(ratingEnabled)}
+                  onChange={(e) => {
+                    const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
+                    setRatingEnabled(Boolean(nextVal))
+                  }}
+                />
+                <span
+                  onClick={() => setRatingEnabled((v) => !v)}
+                  style={{ fontSize: 13, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)', userSelect: 'none' }}
+                >
+                  {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
+                </span>
               </div>
               <Button
                 variant="secondary"
-                size="xs"
+                size="sm"
                 icon="mic"
                 onClick={() => setShowVoiceModal(true)}
               >
                 {t('voiceMatch.btnVoiceRecord')}
               </Button>
+              {(teamA.length > 0 || teamB.length > 0) && (
+                <Button variant="ghost" size="sm" icon="eraser" onClick={handleClearLineup}>
+                  {t('assign.clearCourt')}
+                </Button>
+              )}
             </div>
+          </div>
 
-            {/* 2 Thẻ Đội A và Đội B */}
-            <div style={{ ...S.teamsChoiceGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-              {/* Thẻ Đội A */}
-              <div
-                onClick={() => handleSelectWinner('A')}
-                style={{
-                  ...S.teamChoiceCard,
-                  ...(winnerTeam === 'A' ? S.teamChoiceCardWon : {}),
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'A' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                    {teamA.map((k) => playerName(db, k)).join(' · ')}
-                  </div>
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
-                    {t('scoreModal.teamAvg', { t: 'A', r: ratingA })}
-                  </div>
-                </div>
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setPresetScore('custom')
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                  title={t('scoreModal.customScoreTitle')}
-                >
-                  {winnerTeam === 'A' && <span style={S.wonBadge}>{t('scoreModal.winnerTag')}</span>}
-                  <div style={winnerTeam === 'A' ? S.bigScoreWon : S.bigScoreLost}>
-                    {scoreA}
-                  </div>
-                </div>
-              </div>
+          {/* Khung mặt sân thi đấu (với UX Highlight Slot chọn) */}
+          <div style={S.courtSurface}>
+            {/* Đội A (Top) */}
+            <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
+              {Array.from({ length: maxPerTeam }).map((_, idx) => {
+                const key = teamA[idx]
+                const isTargetSlot = activeSlot?.team === 'A' && activeSlot?.idx === idx
 
-              {/* Thẻ Đội B */}
-              <div
-                onClick={() => handleSelectWinner('B')}
-                style={{
-                  ...S.teamChoiceCard,
-                  ...(winnerTeam === 'B' ? S.teamChoiceCardWon : {}),
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'B' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                    {teamB.map((k) => playerName(db, k)).join(' · ')}
-                  </div>
-                  <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
-                    {t('scoreModal.teamAvg', { t: 'B', r: ratingB })}
-                  </div>
-                </div>
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setPresetScore('custom')
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                  title={t('scoreModal.customScoreTitle')}
-                >
-                  {winnerTeam === 'B' && <span style={S.wonBadge}>{t('scoreModal.winnerTag')}</span>}
-                  <div style={winnerTeam === 'B' ? S.bigScoreWon : S.bigScoreLost}>
-                    {scoreB}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 4 Nút preset tỷ số nhanh */}
-            <div style={S.presetRow}>
-              {['21-19', '21-15', '21-11'].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => handleSelectPreset(p)}
-                  style={{
-                    ...S.presetBtn,
-                    ...(presetScore === p ? S.presetBtnActive : {}),
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => handleSelectPreset('custom')}
-                style={{
-                  ...S.presetBtn,
-                  ...(presetScore === 'custom' ? S.presetBtnActive : {}),
-                }}
-              >
-                {t('scoreModal.presetOther')}
-              </button>
-            </div>
-
-            {/* Bộ nhập tỷ số tùy chỉnh khi bấm "Khác" */}
-            {presetScore === 'custom' && (
-              <div style={S.customScoreBox}>
-                <div style={S.customScoreHeader}>
-                  <span style={{ font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
-                    {t('scoreModal.customScoreTitle')}
-                  </span>
-                  {Number(scoreA) === Number(scoreB) && (
-                    <span style={{ color: 'var(--status-delayed-fg)', fontSize: 11.5, fontWeight: 500 }}>
-                      {t('quickMatch.errTie')}
-                    </span>
-                  )}
-                </div>
-
-                <div style={S.customScoreRow}>
-                  {/* Cột điểm Đội A */}
-                  <div style={S.customTeamCol}>
-                    <span style={S.customTeamName}>
-                      {teamA.map((k) => playerName(db, k)).join(' · ')}
-                    </span>
-                    <div style={S.stepperBox}>
-                      <button
-                        type="button"
-                        onClick={() => updateCustomScore('A', -1)}
-                        style={S.stepBtn}
-                        title="-1"
-                      >−</button>
-                      <input
-                        type="number"
-                        min={0}
-                        max={30}
-                        value={scoreA}
-                        onChange={(e) => setCustomScoreDirect('A', e.target.value)}
-                        style={{
-                          ...S.scoreBox,
-                          borderColor: winnerTeam === 'A' ? 'var(--teal-700)' : 'var(--border-default)',
-                          color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => updateCustomScore('A', 1)}
-                        style={S.stepBtn}
-                        title="+1"
-                      >+</button>
-                    </div>
-                  </div>
-
-                  {/* Nút đổi điểm */}
-                  <button
-                    type="button"
-                    title={t('scoreModal.swapScore')}
-                    onClick={handleSwapCustomScore}
-                    style={S.swapBtn}
-                  >
-                    ⇄
-                  </button>
-
-                  {/* Cột điểm Đội B */}
-                  <div style={S.customTeamCol}>
-                    <span style={S.customTeamName}>
-                      {teamB.map((k) => playerName(db, k)).join(' · ')}
-                    </span>
-                    <div style={S.stepperBox}>
-                      <button
-                        type="button"
-                        onClick={() => updateCustomScore('B', -1)}
-                        style={S.stepBtn}
-                        title="-1"
-                      >−</button>
-                      <input
-                        type="number"
-                        min={0}
-                        max={30}
-                        value={scoreB}
-                        onChange={(e) => setCustomScoreDirect('B', e.target.value)}
-                        style={{
-                          ...S.scoreBox,
-                          borderColor: winnerTeam === 'B' ? 'var(--teal-700)' : 'var(--border-default)',
-                          color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-primary)',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => updateCustomScore('B', 1)}
-                        style={S.stepBtn}
-                        title="+1"
-                      >+</button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Preset điểm bổ sung */}
-                <div style={S.subPresetRow}>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    {t('scoreModal.quickPresets')}:
-                  </span>
-                  {[
-                    [21, 18],
-                    [21, 16],
-                    [21, 14],
-                    [21, 12],
-                    [21, 0],
-                    [30, 29],
-                  ].map(([pa, pb]) => (
-                    <button
-                      key={`${pa}-${pb}`}
-                      type="button"
-                      onClick={() => {
-                        if (winnerTeam === 'B') {
-                          setScoreA(pb)
-                          setScoreB(pa)
-                        } else {
-                          setScoreA(pa)
-                          setScoreB(pb)
-                        }
-                      }}
-                      style={S.subPresetBtn}
+                if (key) {
+                  const p = players.find((x) => x.key === key) || {}
+                  const r = ratingsMap[key] || 0
+                  const plays = matchCountMap[key] || 0
+                  return (
+                    <div
+                      key={key}
+                      style={S.slotFilled}
+                      onClick={() => setActiveSlot({ team: 'A', idx })}
                     >
-                      {winnerTeam === 'B' ? `${pb}–${pa}` : `${pa}–${pb}`}
-                    </button>
-                  ))}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                          <span style={S.slotName}>{p.name}</span>
+                          <LevelChip level={p.level} levels={db.levels} size="sm" />
+                          {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                        </div>
+                        <IconButton
+                          icon="x"
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setTeamA((prev) => prev.filter((k) => k !== key))
+                            setActiveSlot({ team: 'A', idx })
+                          }}
+                        />
+                      </div>
+                      <div style={S.slotMeta}>
+                        <GenderChip gender={p.gender} />
+                        <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                        <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
+                        {canManage && (
+                          <>
+                            <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                            <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (isTargetSlot) {
+                  return (
+                    <div
+                      key={`slot-A-${idx}`}
+                      onClick={() => setActiveSlot({ team: 'A', idx })}
+                      style={S.slotActiveHighlight}
+                    >
+                      <div style={S.slotActiveText}>{t('assign.tapNameHint')}</div>
+                      <div style={S.slotActiveSub}>{t('assign.slotTeamLabel', { team: 'A', n: idx + 1 })}</div>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div
+                    key={`slot-A-${idx}`}
+                    onClick={() => setActiveSlot({ team: 'A', idx })}
+                    style={S.slotDashedEmpty}
+                  >
+                    <div style={S.slotEmptyTitle}>{t('assign.slotEmptyLabel')}</div>
+                    <div style={S.slotEmptySub}>{t('assign.slotTeamLabel', { team: 'A', n: idx + 1 })}</div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Dòng Ăn ý cặp Team A (chỉ hiển thị khi đủ 2 người cùng bên, không áp dụng đánh đơn) */}
+            {pairAInfo && (
+              <div style={pairAInfo.gamesCount >= 5 ? S.synergyRowActive : S.synergyRowNeutral}>
+                <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
+                  <div style={pairAInfo.gamesCount >= 5 ? S.synergyTitleActive : S.synergyTitleNeutral}>
+                    {pairAInfo.gamesCount >= 5
+                      ? t('assign.synergyTitle', { names: teamAName, score: pairAInfo.synergyScore })
+                      : t('assign.synergyNotEnoughData', { names: teamAName })}
+                  </div>
+                  <div style={pairAInfo.gamesCount >= 5 ? S.synergySubActive : S.synergySubNeutral}>
+                    {pairAInfo.gamesCount >= 5
+                      ? t('assign.synergyDetail', {
+                        n: pairAInfo.gamesCount,
+                        exp: pairAInfo.expectedWinPct,
+                        act: pairAInfo.actualWinPct,
+                      })
+                      : t('assign.synergyNeedMoreGames', {
+                        n: pairAInfo.gamesCount,
+                        min: 5,
+                      })}
+                  </div>
                 </div>
               </div>
             )}
 
+            {/* Vạch LƯỚI Phân Cách */}
+            <div style={S.netDivider}>
+              <div style={S.netLine} />
+              <span style={S.netText}>{t('assign.net')}</span>
+              <div style={S.netLine} />
+            </div>
 
+            {/* Đội B (Bottom) */}
+            <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
+              {Array.from({ length: maxPerTeam }).map((_, idx) => {
+                const key = teamB[idx]
+                const isTargetSlot = activeSlot?.team === 'B' && activeSlot?.idx === idx
 
-            {/* Box thay đổi Elo & XP - Dạng Collapsible Accordion (mặc định đóng) */}
-            <div style={S.changesBox}>
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setShowChangesBox((prev) => !prev)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowChangesBox((prev) => !prev) }}
-                style={S.changesToggleHeader}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                  <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                    {t('scoreModal.postMatchChanges')}
-                  </span>
-                  <span style={{ font: '500 11px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                    · {ratingEnabled ? t('scoreModal.changesPreviewTag') : t('scoreModal.unratedChange')}
-                  </span>
+                if (key) {
+                  const p = players.find((x) => x.key === key) || {}
+                  const r = ratingsMap[key] || 0
+                  const plays = matchCountMap[key] || 0
+                  return (
+                    <div
+                      key={key}
+                      style={S.slotFilled}
+                      onClick={() => setActiveSlot({ team: 'B', idx })}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                          <span style={S.slotName}>{p.name}</span>
+                          <LevelChip level={p.level} levels={db.levels} size="sm" />
+                          {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
+                        </div>
+                        <IconButton
+                          icon="x"
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setTeamB((prev) => prev.filter((k) => k !== key))
+                            setActiveSlot({ team: 'B', idx })
+                          }}
+                        />
+                      </div>
+                      <div style={S.slotMeta}>
+                        <GenderChip gender={p.gender} />
+                        <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                        <span style={{ color: 'var(--text-primary)', fontFamily: '"IBM Plex Mono", monospace' }}>{r}</span>
+                        {canManage && (
+                          <>
+                            <span style={{ color: 'var(--border-strong-color)' }}>·</span>
+                            <span style={{ color: 'var(--status-transit-fg)' }}>{plays} {t('units.match')}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (isTargetSlot) {
+                  return (
+                    <div
+                      key={`slot-B-${idx}`}
+                      onClick={() => setActiveSlot({ team: 'B', idx })}
+                      style={S.slotActiveHighlight}
+                    >
+                      <div style={S.slotActiveText}>{t('assign.tapNameHint')}</div>
+                      <div style={S.slotActiveSub}>{t('assign.slotTeamLabel', { team: 'B', n: idx + 1 })}</div>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div
+                    key={`slot-B-${idx}`}
+                    onClick={() => setActiveSlot({ team: 'B', idx })}
+                    style={S.slotDashedEmpty}
+                  >
+                    <div style={S.slotEmptyTitle}>{t('assign.slotEmptyLabel')}</div>
+                    <div style={S.slotEmptySub}>{t('assign.slotTeamLabel', { team: 'B', n: idx + 1 })}</div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Dòng Ăn ý cặp Team B (chỉ hiển thị khi đủ 2 người cùng bên, không áp dụng đánh đơn) */}
+            {pairBInfo && (
+              <div style={pairBInfo.gamesCount >= 5 ? S.synergyRowActive : S.synergyRowNeutral}>
+                <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
+                  <div style={pairBInfo.gamesCount >= 5 ? S.synergyTitleActive : S.synergyTitleNeutral}>
+                    {pairBInfo.gamesCount >= 5
+                      ? t('assign.synergyTitle', { names: teamBName, score: pairBInfo.synergyScore })
+                      : t('assign.synergyNotEnoughData', { names: teamBName })}
+                  </div>
+                  <div style={pairBInfo.gamesCount >= 5 ? S.synergySubActive : S.synergySubNeutral}>
+                    {pairBInfo.gamesCount >= 5
+                      ? t('assign.synergyDetail', {
+                        n: pairBInfo.gamesCount,
+                        exp: pairBInfo.expectedWinPct,
+                        act: pairBInfo.actualWinPct,
+                      })
+                      : t('assign.synergyNeedMoreGames', {
+                        n: pairBInfo.gamesCount,
+                        min: 5,
+                      })}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--teal-600, #00B2A9)' }}>
-                  <span>{showChangesBox ? t('scoreModal.collapseChanges') : t('scoreModal.expandChanges')}</span>
-                  <span style={{ fontSize: 13, transform: showChangesBox ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▾</span>
+              </div>
+            )}
+
+            {/* Dự đoán trước trận & Tỷ lệ (nằm trên Điểm cân bằng) */}
+            {teamA.length > 0 && teamB.length > 0 && (
+              <div style={S.preMatchBox}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                    {t('scoreModal.predictTitle')}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      onClick={() => setRatingEnabled((v) => !v)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <Switch
+                        size="sm"
+                        checked={Boolean(ratingEnabled)}
+                        onChange={(e) => {
+                          const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
+                          setRatingEnabled(Boolean(nextVal))
+                        }}
+                      />
+                      <span style={{ fontSize: 12, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      </span>
+                    </div>
+                    <span
+                      style={
+                        ratingEnabled
+                          ? (activeDelta > COURT_IMBALANCE_THRESHOLD
+                            ? { ...S.balancedTag, background: 'rgba(225,68,52,.12)', color: '#FF9A8F', borderColor: 'rgba(225,68,52,.4)' }
+                            : activeDelta > COURT_BALANCE_THRESHOLD
+                              ? { ...S.balancedTag, background: 'rgba(224,138,0,.12)', color: '#F0B75C', borderColor: 'rgba(224,138,0,.4)' }
+                              : S.balancedTag)
+                          : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }
+                      }
+                    >
+                      {ratingEnabled
+                        ? (activeDelta > COURT_IMBALANCE_THRESHOLD
+                          ? t('scoreModal.imbalancedTag')
+                          : activeDelta > COURT_BALANCE_THRESHOLD
+                            ? t('scoreModal.slightTag')
+                            : t('scoreModal.balancedTag'))
+                        : t('scoreModal.unratedTag')}
+                    </span>
+                  </div>
+                </div>
+                {ratingEnabled ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12.5px "IBM Plex Mono", monospace', marginTop: 4 }}>
+                      <span style={{ color: 'var(--status-transit-fg)' }}>A {pctA}%</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{pctB}% B</span>
+                    </div>
+                    <div style={S.predictBarTrack}>
+                      <div style={{ width: `${pctA}%`, height: '100%', background: 'var(--action-accent-bg, #00B2A9)' }} />
+                      <div style={{ width: `${pctB}%`, height: '100%', background: 'var(--border-subtle)' }} />
+                    </div>
+                    <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
+                      {t('scoreModal.predictSub', { delta: activeDelta })}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
+                    {t('scoreModal.predictSubUnrated')}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Banner Điểm cân bằng M1 (bấm vào mở Sheet M2 BalanceScore) */}
+            {balanceDetails && (
+              <div
+                onClick={() => setShowBalanceSheet(true)}
+                style={S.balanceBanner}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={S.balanceBannerTitle}>
+                    {t('assign.balanceScore')}
+                    {effectiveAnalysis?.suggestion && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          font: '600 10.5px/1 "IBM Plex Mono", monospace',
+                          padding: '3px 7px',
+                          borderRadius: 4,
+                          background: 'rgba(0,178,169,.18)',
+                          color: '#5FDBD3',
+                          verticalAlign: 'middle',
+                        }}
+                      >
+                        💡 {t('assign.swapSuggestion')}
+                      </span>
+                    )}
+                  </div>
+                  <div style={S.balanceBannerSub}>
+                    {t('assign.balanceIndicatorsCount', { n: 6, newCount: 2 })}
+                  </div>
+                </div>
+                <span style={S.balanceBannerScore}>{balanceDetails.totalScore}</span>
+                <span style={S.balanceBannerChevron}>›</span>
+              </div>
+            )}
+          </div>
+
+
+          {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
+          {teamA.length > 0 && teamB.length > 0 && (
+            <div style={S.scoreLoggerBox}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  {t('scoreModal.instruction')}
+                </div>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  icon="mic"
+                  onClick={() => setShowVoiceModal(true)}
+                >
+                </Button>
+              </div>
+
+              {/* 2 Thẻ Đội A và Đội B */}
+              <div style={{ ...S.teamsChoiceGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                {/* Thẻ Đội A */}
+                <div
+                  onClick={() => handleSelectWinner('A')}
+                  style={{
+                    ...S.teamChoiceCard,
+                    ...(winnerTeam === 'A' ? S.teamChoiceCardWon : {}),
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'A' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                      {teamA.map((k) => playerName(db, k)).join(' · ')}
+                    </div>
+                    <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
+                      {t('scoreModal.teamAvg', { t: 'A', r: ratingA })}
+                    </div>
+                  </div>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setPresetScore('custom')
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                    title={t('scoreModal.customScoreTitle')}
+                  >
+                    {winnerTeam === 'A' && <span style={S.wonBadge}>{t('scoreModal.winnerTag')}</span>}
+                    <div style={winnerTeam === 'A' ? S.bigScoreWon : S.bigScoreLost}>
+                      {scoreA}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Thẻ Đội B */}
+                <div
+                  onClick={() => handleSelectWinner('B')}
+                  style={{
+                    ...S.teamChoiceCard,
+                    ...(winnerTeam === 'B' ? S.teamChoiceCardWon : {}),
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'B' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                      {teamB.map((k) => playerName(db, k)).join(' · ')}
+                    </div>
+                    <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
+                      {t('scoreModal.teamAvg', { t: 'B', r: ratingB })}
+                    </div>
+                  </div>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setPresetScore('custom')
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                    title={t('scoreModal.customScoreTitle')}
+                  >
+                    {winnerTeam === 'B' && <span style={S.wonBadge}>{t('scoreModal.winnerTag')}</span>}
+                    <div style={winnerTeam === 'B' ? S.bigScoreWon : S.bigScoreLost}>
+                      {scoreB}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {showChangesBox && (
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    {[...teamA, ...teamB].map((k) => {
-                      const inA = teamA.includes(k)
-                      const isWon = (inA && winnerTeam === 'A') || (!inA && winnerTeam === 'B')
-                      const dVal = playerDeltas[k]
-                      const deltaTxt = dVal != null ? (dVal > 0 ? `+${dVal}` : `${dVal}`) : '—'
-                      const sVal = seasonDeltas[k]
-                      const seasonTxt = sVal != null ? (sVal > 0 ? `+${sVal}` : `${sVal}`) : '—'
-                      return (
-                        <div key={k} style={S.changeRow}>
-                          <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                            {playerName(db, k)}
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            {ratingEnabled ? (
-                              <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
-                                {t('scoreModal.ratingChange', { d: deltaTxt })}
-                              </span>
-                            ) : (
-                              <span style={{ font: '500 12px "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                                {t('scoreModal.unratedChange')}
-                              </span>
-                            )}
-                            {ratingEnabled && (
-                              <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: sVal > 0 ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
-                                {t('scoreModal.seasonPointChange', { pts: seasonTxt })}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
+              {/* 4 Nút preset tỷ số nhanh */}
+              <div style={S.presetRow}>
+                {['21-19', '21-15', '21-11'].map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => handleSelectPreset(p)}
+                    style={{
+                      ...S.presetBtn,
+                      ...(presetScore === p ? S.presetBtnActive : {}),
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => handleSelectPreset('custom')}
+                  style={{
+                    ...S.presetBtn,
+                    ...(presetScore === 'custom' ? S.presetBtnActive : {}),
+                  }}
+                >
+                  {t('scoreModal.presetOther')}
+                </button>
+              </div>
+
+              {/* Bộ nhập tỷ số tùy chỉnh khi bấm "Khác" */}
+              {presetScore === 'custom' && (
+                <div style={S.customScoreBox}>
+                  <div style={S.customScoreHeader}>
+                    <span style={{ font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
+                      {t('scoreModal.customScoreTitle')}
+                    </span>
+                    {Number(scoreA) === Number(scoreB) && (
+                      <span style={{ color: 'var(--status-delayed-fg)', fontSize: 11.5, fontWeight: 500 }}>
+                        {t('quickMatch.errTie')}
+                      </span>
+                    )}
                   </div>
-                  <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
-                    {ratingEnabled ? t('scoreModal.seasonPointExplain') : t('scoreModal.unratedExplain')}
+
+                  <div style={S.customScoreRow}>
+                    {/* Cột điểm Đội A */}
+                    <div style={S.customTeamCol}>
+                      <span style={S.customTeamName}>
+                        {teamA.map((k) => playerName(db, k)).join(' · ')}
+                      </span>
+                      <div style={S.stepperBox}>
+                        <button
+                          type="button"
+                          onClick={() => updateCustomScore('A', -1)}
+                          style={S.stepBtn}
+                          title="-1"
+                        >−</button>
+                        <input
+                          type="number"
+                          min={0}
+                          max={30}
+                          value={scoreA}
+                          onChange={(e) => setCustomScoreDirect('A', e.target.value)}
+                          style={{
+                            ...S.scoreBox,
+                            borderColor: winnerTeam === 'A' ? 'var(--teal-700)' : 'var(--border-default)',
+                            color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)',
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateCustomScore('A', 1)}
+                          style={S.stepBtn}
+                          title="+1"
+                        >+</button>
+                      </div>
+                    </div>
+
+                    {/* Nút đổi điểm */}
+                    <button
+                      type="button"
+                      title={t('scoreModal.swapScore')}
+                      onClick={handleSwapCustomScore}
+                      style={S.swapBtn}
+                    >
+                      ⇄
+                    </button>
+
+                    {/* Cột điểm Đội B */}
+                    <div style={S.customTeamCol}>
+                      <span style={S.customTeamName}>
+                        {teamB.map((k) => playerName(db, k)).join(' · ')}
+                      </span>
+                      <div style={S.stepperBox}>
+                        <button
+                          type="button"
+                          onClick={() => updateCustomScore('B', -1)}
+                          style={S.stepBtn}
+                          title="-1"
+                        >−</button>
+                        <input
+                          type="number"
+                          min={0}
+                          max={30}
+                          value={scoreB}
+                          onChange={(e) => setCustomScoreDirect('B', e.target.value)}
+                          style={{
+                            ...S.scoreBox,
+                            borderColor: winnerTeam === 'B' ? 'var(--teal-700)' : 'var(--border-default)',
+                            color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-primary)',
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateCustomScore('B', 1)}
+                          style={S.stepBtn}
+                          title="+1"
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preset điểm bổ sung */}
+                  <div style={S.subPresetRow}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {t('scoreModal.quickPresets')}:
+                    </span>
+                    {[
+                      [21, 18],
+                      [21, 16],
+                      [21, 14],
+                      [21, 12],
+                      [21, 0],
+                      [30, 29],
+                    ].map(([pa, pb]) => (
+                      <button
+                        key={`${pa}-${pb}`}
+                        type="button"
+                        onClick={() => {
+                          if (winnerTeam === 'B') {
+                            setScoreA(pb)
+                            setScoreB(pa)
+                          } else {
+                            setScoreA(pa)
+                            setScoreB(pb)
+                          }
+                        }}
+                        style={S.subPresetBtn}
+                      >
+                        {winnerTeam === 'B' ? `${pb}–${pa}` : `${pa}–${pb}`}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* NÚT LƯU KẾT QUẢ TO 56px */}
-            <button
-              type="button"
-              onClick={handleSaveResult}
-              style={S.bigSaveBtn}
-            >
-              {t('scoreModal.saveResult')}
-            </button>
-          </div>
-        )}
+
+
+              {/* Box thay đổi Elo & XP - Dạng Collapsible Accordion (mặc định đóng) */}
+              <div style={S.changesBox}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setShowChangesBox((prev) => !prev)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowChangesBox((prev) => !prev) }}
+                  style={S.changesToggleHeader}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                    <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                      {t('scoreModal.postMatchChanges')}
+                    </span>
+                    <span style={{ font: '500 11px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                      · {ratingEnabled ? t('scoreModal.changesPreviewTag') : t('scoreModal.unratedChange')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--teal-600, #00B2A9)' }}>
+                    <span>{showChangesBox ? t('scoreModal.collapseChanges') : t('scoreModal.expandChanges')}</span>
+                    <span style={{ fontSize: 13, transform: showChangesBox ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▾</span>
+                  </div>
+                </div>
+
+                {showChangesBox && (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {[...teamA, ...teamB].map((k) => {
+                        const inA = teamA.includes(k)
+                        const isWon = (inA && winnerTeam === 'A') || (!inA && winnerTeam === 'B')
+                        const dVal = playerDeltas[k]
+                        const deltaTxt = dVal != null ? (dVal > 0 ? `+${dVal}` : `${dVal}`) : '—'
+                        const sVal = seasonDeltas[k]
+                        const seasonTxt = sVal != null ? (sVal > 0 ? `+${sVal}` : `${sVal}`) : '—'
+                        return (
+                          <div key={k} style={S.changeRow}>
+                            <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                              {playerName(db, k)}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              {ratingEnabled ? (
+                                <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
+                                  {t('scoreModal.ratingChange', { d: deltaTxt })}
+                                </span>
+                              ) : (
+                                <span style={{ font: '500 12px "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                                  {t('scoreModal.unratedChange')}
+                                </span>
+                              )}
+                              {ratingEnabled && (
+                                <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: sVal > 0 ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
+                                  {t('scoreModal.seasonPointChange', { pts: seasonTxt })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
+                      {ratingEnabled ? t('scoreModal.seasonPointExplain') : t('scoreModal.unratedExplain')}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* NÚT LƯU KẾT QUẢ TO 56px */}
+              <button
+                type="button"
+                onClick={handleSaveResult}
+                style={S.bigSaveBtn}
+              >
+                {t('scoreModal.saveResult')}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
 
       {/* CS2: Sheet sort & lọc */}
       <CourtWaitingFilterSheet
@@ -2021,7 +1996,7 @@ export default function CourtAssignmentTab({ s }) {
           setFilters((prev) => ({ ...prev, [fKey]: val }))
         }}
         onResetDefault={() => {
-          setSortOption('fewest')
+          setSortOption('az')
           setFilters({ gender: null, sameLevel: false, notPlayedWith: false, noRest: false })
           setShowSortSheet(false)
         }}
