@@ -23,7 +23,7 @@
 >
 > `src/lib/rating.js` · `src/lib/season.js` · `src/config/app.json` (khối `rating`, `season`)
 >
-> Chi tiết: `src/__tests__/backtest/README.md`
+> Hướng dẫn đầy đủ: `docs/BACKTEST.md` · bản ngắn cạnh code: `src/__tests__/backtest/README.md`
 
 ---
 
@@ -60,6 +60,7 @@ Load documentation only when relevant.
 | Architecture | docs/ARCHITECTURE.md |
 | Features | docs/FEATURES.md |
 | Tasks | docs/TASKS.md |
+| Đổi công thức Elo / điểm mùa | docs/BACKTEST.md |
 
 Never load unrelated documentation.
 

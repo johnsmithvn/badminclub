@@ -36,7 +36,7 @@ Bộ sao lưu **không có điểm danh** — mọi phép đo công bằng lư�
 đi tập mà không được gọi trận. Và bộ số phản ánh **cách xếp sân đã thực sự diễn ra**: nếu do quản
 trò xếp tay thì nó không nói gì về chất lượng thuật toán `arrange()`.
 
-Chi tiết: `src/__tests__/backtest/README.md`.
+Hướng dẫn đầy đủ: `docs/BACKTEST.md`.
 
 ## 1. Sự thật trước giả định
 
