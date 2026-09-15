@@ -864,40 +864,17 @@ export default function MemberProfileTab({
                     style={{
                       borderTop: '1px solid var(--border-subtle)',
                       paddingTop: 12,
-                      display: 'flex',
-                      flexDirection: isMobile ? 'column' : 'row',
-                      alignItems: isMobile ? 'stretch' : 'center',
-                      gap: 10,
                     }}
                   >
                     <span
                       style={{
                         font: "400 12px/1.45 'IBM Plex Sans', sans-serif",
                         color: 'var(--text-muted)',
-                        flex: isMobile ? 'none' : '1 1 180px',
-                        minWidth: isMobile ? 'auto' : 180,
+                        display: 'block',
                       }}
                     >
                       {t('season.ledgerFooterNote', { name: member?.name || '' })}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setSubTab('overview')}
-                      style={{
-                        font: "600 13px/1 'IBM Plex Sans', sans-serif",
-                        padding: isMobile ? '13px 14px' : '9px 14px',
-                        borderRadius: isMobile ? 8 : 6,
-                        background: 'var(--surface-raised)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        width: isMobile ? '100%' : 'auto',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {t('season.viewCareerElo')}
-                    </button>
                   </div>
                 </>
               )}
