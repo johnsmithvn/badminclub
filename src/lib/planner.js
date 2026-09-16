@@ -52,13 +52,13 @@ export function calcRoundTimes(startTime = '19:00', roundMinutes = DEFAULT_ROUND
 export function getSessionTimeRange(session) {
   const courts = (session?.courts || []).filter((c) => !c.sold)
   const validCourts = courts.length > 0 ? courts : (session?.courts || [])
-  const froms = validCourts.map((c) => c.from).filter(Boolean).sort()
-  const tos = validCourts.map((c) => c.to).filter(Boolean).sort().reverse()
+  const froms = validCourts.map((c) => (c.from != null ? String(c.from) : '')).filter(Boolean).sort()
+  const tos = validCourts.map((c) => (c.to != null ? String(c.to) : '')).filter(Boolean).sort().reverse()
   const startTime = froms[0] || '19:00'
   const endTime = tos[0] || '21:00'
 
-  const [sh, sm] = startTime.split(':').map((v) => parseInt(v, 10) || 0)
-  const [eh, em] = endTime.split(':').map((v) => parseInt(v, 10) || 0)
+  const [sh, sm] = String(startTime || '19:00').split(':').map((v) => parseInt(v, 10) || 0)
+  const [eh, em] = String(endTime || '21:00').split(':').map((v) => parseInt(v, 10) || 0)
   let totalMinutes = (eh * 60 + em) - (sh * 60 + sm)
   if (totalMinutes <= 0) totalMinutes += 24 * 60
 
@@ -672,28 +672,77 @@ export function autoGeneratePlan({
     const tB = (c.teamB || []).filter((k) => pList.includes(k))
     let scheduled = false
     if (tA.length === 2 && tB.length === 2) {
-      // Duyệt tìm vòng phù hợp: ưu tiên từ chalTargetRound trở đi
+      const isBo3 = c.bestOf === 3 || c.best_of === 3
+      const roundsNeeded = isBo3 ? 2 : 1
+
       const roundOrder = []
       for (let r = chalTargetRound; r < totalRounds; r++) roundOrder.push(r)
       for (let r = 0; r < chalTargetRound && r < totalRounds; r++) roundOrder.push(r)
 
       for (const rIdx of roundOrder) {
-        const r = rounds[rIdx]
-        if (!r) continue
-        const alreadyInRound = (r.courts || []).some(
-          (court) => [...(court.teamA || []), ...(court.teamB || [])].some((k) => tA.includes(k) || tB.includes(k))
-        )
-        if (!alreadyInRound) {
-          const freeCourt = (r.courts || []).find((court) => (court.teamA?.length || 0) === 0 && (court.teamB?.length || 0) === 0)
-          if (freeCourt) {
-            freeCourt.teamA = [...tA]
-            freeCourt.teamB = [...tB]
-            freeCourt.challengeId = c.id
-            freeCourt.tag = 'CHALLENGE'
+        const r1 = rounds[rIdx]
+        if (!r1) continue
+
+        if (roundsNeeded === 2) {
+          const r2 = rounds[rIdx + 1]
+          if (!r2) continue // Cần 2 vòng liên tiếp
+
+          const busyR1 = (r1.courts || []).some(
+            (court) => [...(court.teamA || []), ...(court.teamB || [])].some((k) => tA.includes(k) || tB.includes(k))
+          )
+          const busyR2 = (r2.courts || []).some(
+            (court) => [...(court.teamA || []), ...(court.teamB || [])].some((k) => tA.includes(k) || tB.includes(k))
+          )
+          if (busyR1 || busyR2) continue
+
+          // Tìm sân cIdx trống ở CẢ 2 vòng liên tiếp
+          const freeCourtIdx = (r1.courts || []).findIndex(
+            (court, ci) =>
+              (court.teamA?.length || 0) === 0 &&
+              (court.teamB?.length || 0) === 0 &&
+              (r2.courts?.[ci]?.teamA?.length || 0) === 0 &&
+              (r2.courts?.[ci]?.teamB?.length || 0) === 0
+          )
+          if (freeCourtIdx >= 0) {
+            r1.courts[freeCourtIdx] = {
+              ...r1.courts[freeCourtIdx],
+              teamA: [...tA],
+              teamB: [...tB],
+              challengeId: c.id,
+              tag: 'CHALLENGE',
+              bestOf: 3,
+              bo3Part: 1,
+            }
+            r2.courts[freeCourtIdx] = {
+              ...r2.courts[freeCourtIdx],
+              teamA: [...tA],
+              teamB: [...tB],
+              challengeId: c.id,
+              tag: 'CHALLENGE',
+              bestOf: 3,
+              bo3Part: 2,
+            }
             scheduledChallengeIds.add(c.id)
-            chalTargetRound = Math.max(chalTargetRound, rIdx + 2)
+            chalTargetRound = Math.max(chalTargetRound, rIdx + 3)
             scheduled = true
             break
+          }
+        } else {
+          const alreadyInRound = (r1.courts || []).some(
+            (court) => [...(court.teamA || []), ...(court.teamB || [])].some((k) => tA.includes(k) || tB.includes(k))
+          )
+          if (!alreadyInRound) {
+            const freeCourt = (r1.courts || []).find((court) => (court.teamA?.length || 0) === 0 && (court.teamB?.length || 0) === 0)
+            if (freeCourt) {
+              freeCourt.teamA = [...tA]
+              freeCourt.teamB = [...tB]
+              freeCourt.challengeId = c.id
+              freeCourt.tag = 'CHALLENGE'
+              scheduledChallengeIds.add(c.id)
+              chalTargetRound = Math.max(chalTargetRound, rIdx + 2)
+              scheduled = true
+              break
+            }
           }
         }
       }

@@ -402,5 +402,25 @@ wishOpponentPlan.forEach((r) => {
 })
 assert.equal(placedOpponentWish, true, 'xếp thành công nguyện vọng đối đầu')
 
+// 10. Kèo BO3 chiếm 2 vòng liên tiếp trên cùng 1 sân
+const bo3Plan = autoGeneratePlan({
+  players: all16,
+  courts: [{ courtIndex: 0, name: 'Sân 1' }, { courtIndex: 1, name: 'Sân 2' }],
+  challenges: [
+    { id: 'c_bo3', teamA: ['p_1', 'p_2'], teamB: ['p_3', 'p_4'], bestOf: 3, status: 'accepted' },
+  ],
+  totalRounds: 4,
+})
+let bo3RoundIndices = []
+bo3Plan.forEach((r) => {
+  r.courts.forEach((c) => {
+    if (c.challengeId === 'c_bo3') {
+      bo3RoundIndices.push(r.roundIndex)
+    }
+  })
+})
+assert.equal(bo3RoundIndices.length, 2, 'Kèo BO3 phải chiếm đúng 2 vòng')
+assert.equal(bo3RoundIndices[1], bo3RoundIndices[0] + 1, 'Kèo BO3 phải chiếm 2 vòng liên tiếp nhau')
+
 console.log('planner.test.js: All checks passed OK')
 
