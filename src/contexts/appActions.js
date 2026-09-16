@@ -373,6 +373,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     /** Ghi chú của một buổi. Cột `sessions.note` có sẵn dưới DB và đã map hai chiều từ lâu,
      *  chỉ là chưa có ô nhập nào. */
     setSessionNote: (sid, v) => patchSession(sid, (x) => ({ ...x, note: v })),
+    setSessionPlanner: (sid, planner) => patchSession(sid, (x) => ({ ...x, planner })),
 
     /**
      * XOÁ CỨNG một buổi — chỉ khi chưa ai chạm vào (`money.js: sessionRefs`). Sáu bảng con

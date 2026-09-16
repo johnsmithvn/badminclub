@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select } from '#ds'
 import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, SearchSelect, SessionPill, TabTrack } from '#ui'
 import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
+import SessionPlannerTab from '#components/session/planner/SessionPlannerTab.jsx'
 import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -574,6 +575,23 @@ export default function SessionDetail() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab('planner')}
+            style={{
+              ...S.tabBtn,
+              ...(isMobile ? S.tabBtnMobile : {}),
+              ...(activeTab === 'planner' ? S.tabBtnActive : {}),
+            }}
+          >
+            <span>{t('sessionTabs.planner')}</span>
+            <span style={{
+              ...S.tabBadgeMono,
+              color: activeTab === 'planner' ? '#5FDBD3' : 'var(--text-muted)',
+            }}>
+              {s.planner?.rounds?.length || 10}
+            </span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('courts')}
             style={{
               ...S.tabBtn,
@@ -609,7 +627,7 @@ export default function SessionDetail() {
         </div>
       </TabTrack>
       <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', margin: '0 0 14px' }}>
-        {activeTab === 'attend' ? t('sessionTabs.hintAttend') : activeTab === 'courts' ? t('sessionTabs.hintCourts') : t('sessionTabs.hintMatches')}
+        {activeTab === 'attend' ? t('sessionTabs.hintAttend') : activeTab === 'planner' ? t('sessionTabs.hintPlanner') : activeTab === 'courts' ? t('sessionTabs.hintCourts') : t('sessionTabs.hintMatches')}
       </div>
 
       {activeTab === 'attend' && (
@@ -1011,6 +1029,7 @@ export default function SessionDetail() {
       </div>
       )}
 
+      {activeTab === 'planner' && <SessionPlannerTab s={s} />}
       {activeTab === 'courts' && <CourtAssignmentTab s={s} />}
       {activeTab === 'matches' && <SessionMatchesTab s={s} onSwitchTab={setActiveTab} />}
 

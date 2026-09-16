@@ -175,6 +175,7 @@ export function toDb(raw, ctx) {
       // group_id NULL = buổi đột xuất của toàn CLB; client gọi nhóm đó là 'ALL' (xem groupOf).
       id: s.id, date: s.date, groupId: s.group_id || 'ALL', scheduleId: s.schedule_id || null,
       status: s.status, note: s.note || '', closedAt: dOf(s.closed_at),
+      planner: s.planner || null,
       courts: rows.map((r) => ({
         courtId: r.court_id, label: r.court_label || '', from: hm(r.start_time), to: hm(r.end_time),
         sold: r.is_sold, soldAmount: num(r.sold_amount), soldTo: r.sold_to || '', extra: r.is_extra,
@@ -382,6 +383,7 @@ export function toRows(db, ctx) {
       schedule_id: uu(s.scheduleId),
       date: s.date, status: s.status, note: s.note || null,
       closed_at: s.closedAt || null, group_mode: !!(db.groupMode || {})[s.id],
+      planner: s.planner || null,
     })
     const mins = (db.courtMin || {})[s.id] || {}
     ;(s.courts || []).forEach((r, i) => put('session_courts', {

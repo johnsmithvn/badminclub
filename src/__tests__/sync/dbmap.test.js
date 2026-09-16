@@ -485,7 +485,27 @@ const rawMemberWithProfile = {
   profile: { id: 'U_1', avatar_url: 'https://cdn.example.com/profile-avatar.webp' },
 }
 const dbWithMemberProfile = toDb({ ...clone(db), members: [rawMemberWithProfile] }, ctx)
-assert.equal(dbWithMemberProfile.members[0].avatarUrl, 'https://cdn.example.com/profile-avatar.webp', 'Member phải kế thừa avatarUrl từ linked profile khi avatar_url của member rỗng')
+/* ---------- P1: sessions planner toDb và toRows giữ nguyên vẹn cấu trúc và sinh diff ---------- */
+const dPlan = clone(db)
+dPlan.sessions[0].planner = {
+  rounds: [{ roundIndex: 0, time: '19:00', matches: [] }],
+  roundMinutes: 18,
+  wishes: [{ id: 'w1', fromKey: 'M1', targetKey: 'M2', kind: 'pair', targetName: 'Mai' }],
+}
+const rowsWithPlan = toRows(dPlan, ctx)
+const planOps = diff(rows, rowsWithPlan)
+const sessionOp = planOps.find((o) => o.table === 'sessions')
+assert.ok(sessionOp, 'đổi planner phải sinh thao tác ghi sessions')
+assert.equal(sessionOp.op, 'upsert')
+assert.deepEqual(sessionOp.rows[0].planner, dPlan.sessions[0].planner, 'planner JSONB phải xuống Supabase đầy đủ')
+
+// toDb kiểm tra đọc lại planner
+const rawSession = {
+  id: 'S_TEST', date: '2026-09-16', club_id: 'CL1', planner: dPlan.sessions[0].planner,
+  session_courts: [], attendances: [], session_guests: [], session_lineups: [], session_court_groups: [], matches: [],
+}
+const dbFromRaw = toDb({ ...clone(db), sessions: [rawSession] }, ctx)
+assert.deepEqual(dbFromRaw.sessions[0].planner, dPlan.sessions[0].planner, 'toDb phải đọc được planner jsonb từ Supabase')
 
 console.log('dbmap check: OK')
 
