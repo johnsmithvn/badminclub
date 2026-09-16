@@ -2824,6 +2824,7 @@
     "toastDeclined": "Đã từ chối kèo {{code}}",
     "toastDeployed": "Đã đưa kèo {{code}} lên sân {{court}}",
     "toastCancelled": "Đã hủy kèo {{code}}",
+    "toastExpired": "Kèo đã hết hạn (quá thời gian quy định)",
     "noEmptyCourt": "Tất cả các sân đều đang có trận đấu. Vui lòng chờ trận kết thúc hoặc trả sân trước khi đưa kèo lên.",
     "createTitleSession": "Tạo kèo trong buổi {{date}}",
     "createTitle": "Tạo kèo đấu",
@@ -4267,6 +4268,7 @@
     "acceptOpenChallenge": "Nhận kèo này",
     "sessionLinked": "Buổi {{date}}",
     "noSessionLinked": "Kèo tự do CLB",
+    "viewInSession": "Vào buổi chơi để đưa lên sân",
     "createBtn": "Tạo kèo mới"
   },
   "matchIo": {

@@ -5,7 +5,7 @@ import {
   expectedScore, calcEloDelta, getPlayerRating, confidenceProgress,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
-import { playerName, playerOf } from '#lib/money.js'
+import { playerName, playerOf, openSessions } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -17,15 +17,22 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   const [ratingEnabled, setRatingEnabled] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  const openList = useMemo(() => openSessions(db), [db])
+  const [selectedSessionId, setSelectedSessionId] = useState(() => session?.id || openList[0]?.id || (db.sessions || [])[0]?.id || null)
+  const activeSession = useMemo(() => {
+    if (session) return session
+    return (db.sessions || []).find((s) => s.id === selectedSessionId) || null
+  }, [session, db.sessions, selectedSessionId])
+
   // Danh sách thành viên: nếu trong buổi, chỉ lấy những người đã ĐIỂM DANH CÓ MẶT (att[m.id] === true)
   // Khách (guests) KHÔNG được tham gia kèo theo đặc tả handoff.
   const pickableMembers = useMemo(() => {
-    if (session) {
-      const att = db.attendance[session.id] || {}
+    if (activeSession) {
+      const att = db.attendance?.[activeSession.id] || {}
       return db.members.filter((m) => m.active !== false && att[m.id] === true)
     }
     return db.members.filter((m) => m.active !== false)
-  }, [db.attendance, db.members, session])
+  }, [db.attendance, db.members, activeSession])
 
   // Lấy rating của từng người (an toàn với cả Map lẫn Array)
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid, playerOf(db, mid), db.levels).rating
@@ -100,7 +107,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
     setSubmitting(true)
     try {
       const created = a.createChallenge({
-        sessionId: session ? session.id : null,
+        sessionId: activeSession ? activeSession.id : null,
         teamA,
         teamB,
         bestOf,
@@ -122,12 +129,29 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
         <div style={S.header}>
           <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
             <div style={S.title}>
-              {session ? t('challenge.createTitleSession', { date: session.date.slice(5) }) : t('challenge.createTitle')}
+              {activeSession ? t('challenge.createTitleSession', { date: activeSession.date.slice(5) }) : t('challenge.createTitle')}
             </div>
             <div style={S.subtitle}>{t('challenge.createSub')}</div>
           </div>
           <button type="button" onClick={onClose} style={S.closeBtn}>{t('common.close')}</button>
         </div>
+
+        {!session && (db.sessions || []).length > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border-subtle)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('common.pick')}:</span>
+            <select
+              value={selectedSessionId || ''}
+              onChange={(e) => setSelectedSessionId(e.target.value || null)}
+              style={{ background: 'transparent', border: 'none', fontSize: 13, color: 'var(--text-primary)', outline: 'none', cursor: 'pointer', fontWeight: 600 }}
+            >
+              {(db.sessions || []).slice(0, 8).map((s) => (
+                <option key={s.id} value={s.id} style={{ background: 'var(--surface-card)', color: 'var(--text-primary)' }}>
+                  {s.date} {s.title ? `· ${s.title}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div style={S.body}>
           {/* 2 Đội preview */}

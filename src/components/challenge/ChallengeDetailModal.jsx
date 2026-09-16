@@ -25,6 +25,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const isTeamA = Boolean(myId && teamA.includes(myId))
   const isTeamB = Boolean(myId && teamB.includes(myId))
   const isPending = c.status === 'pending'
+  const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt).getTime() <= Date.now())
   const isAccepted = c.status === 'accepted'
   const isPlayed = c.status === 'played'
 
@@ -67,7 +68,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const opponentId = isTeamB ? teamA[0] : (isTeamA ? teamB[0] : teamA[0])
   const h2hMatches = useMemo(() => {
     if (!myId || !opponentId) return []
-    return searchMatches(db.matches || [], { playerAId: myId, playerBId: opponentId, mode: 'vs' })
+    return searchMatches(db.matches || [], { playerA: myId, playerB: opponentId, mode: 'vs' })
   }, [db.matches, myId, opponentId])
 
   const h2hWins = h2hMatches.filter((m) => {
@@ -184,7 +185,23 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
       }}
       footer={
         <div style={{ display: 'flex', gap: 10, width: '100%', flexWrap: 'wrap' }}>
-          {isPending && isTeamB && (
+          {isPending && isExpired && (
+            <div style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid var(--red-500, #ef4444)',
+              color: 'var(--red-500, #ef4444)',
+              fontSize: 13,
+              fontWeight: 600,
+              textAlign: 'center',
+            }}>
+              {t('challenge.status.expired')}
+            </div>
+          )}
+
+          {isPending && !isExpired && isTeamB && (
             <>
               <button
                 type="button"
@@ -229,7 +246,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
             </>
           )}
 
-          {isOpen && !isTeamA && !isCreator && (
+          {isPending && !isExpired && isOpen && !isTeamA && !isCreator && (
             <button
               type="button"
               disabled={submitting || (teamA.length > 1 && !selectedPartner)}

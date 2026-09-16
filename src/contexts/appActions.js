@@ -2266,6 +2266,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const myMem = myMember(d0)
       const isTeamB = myMem && (chal.teamB || []).includes(myMem.id)
       if (!canAssign() && !isTeamB) return
+      if (chal.status !== 'pending') return
+
+      const isExpired = chal.expiresAt && new Date(chal.expiresAt).getTime() <= Date.now()
+      if (isExpired) {
+        up((d) => ({
+          challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'expired' } : c)),
+        }))
+        toast(t('challenge.toastExpired'))
+        return
+      }
+
       const nextStatus = accept ? 'accepted' : 'declined'
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: nextStatus } : c)),
@@ -2283,12 +2294,24 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         toast(t('common.unauthorized'))
         return
       }
+      if (chal.status !== 'pending') return
+
+      const isExpired = chal.expiresAt && new Date(chal.expiresAt).getTime() <= Date.now()
+      if (isExpired) {
+        up((d) => ({
+          challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'expired' } : c)),
+        }))
+        toast(t('challenge.toastExpired'))
+        return
+      }
+
       // Kèo ĐÔI nhận nhanh mà chưa chọn partner: chỉ điền 1 chỗ và GIỮ 'pending' để người thứ hai
       // còn vào được. Trước đây chốt luôn 'accepted' với teamB 1 người -> kèo đôi chết, không ai join nổi.
       const needed = (chal.teamA || []).length > 1 ? 2 : 1
       const current = (chal.teamB || []).filter(Boolean)
-      if (current.includes(myId)) return
-      const teamB = [...current, myId, ...(partnerId ? [partnerId] : [])].slice(0, needed)
+      if (current.includes(myId) || (chal.teamA || []).includes(myId)) return
+      const validPartner = partnerId && partnerId !== myId && !current.includes(partnerId) && !(chal.teamA || []).includes(partnerId) ? partnerId : null
+      const teamB = [...current, myId, ...(validPartner ? [validPartner] : [])].slice(0, needed)
       const status = teamB.length >= needed ? 'accepted' : 'pending'
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, status } : c)),
@@ -2319,6 +2342,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (!s) return
       const courtName = (s.courts[courtIdx] && courtOf(d0, s.courts[courtIdx].courtId).name) || (`${t('units.court')} ${courtIdx + 1}`)
 
+      // Kiểm tra điểm danh buổi: nếu có người chơi bị báo vắng hoặc nghỉ không báo thì chặn
+      const allFour = [...(chal.teamA || []), ...(chal.teamB || [])]
+      const att = s.attendance || {}
+      const absentKeys = allFour.filter((k) => att[k] === false || att[k] === 'noshow')
+      if (absentKeys.length > 0) {
+        const absentNames = absentKeys.map((k) => playerName(d0, k) || k)
+        toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
+        return
+      }
+
       up((d) => {
         const lineups = { ...(d.lineups || {}) }
         const curLu = { ...(lineups[sid] || {}) }
@@ -2329,8 +2362,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           if (allFour.includes(curLu[sl])) delete curLu[sl]
         })
 
-        // Gán 4 slot cho sân courtIdx
+        // Gán slot cho sân courtIdx (dọn sạch slot cũ của sân trước khi gán để tránh đè 1v1 thành 2v2)
         const slots = courtSlotIds(courtIdx)
+        slots.forEach((sl) => { delete curLu[sl] })
         if (chal.teamA[0]) curLu[slots[0]] = chal.teamA[0]
         if (chal.teamA[1]) curLu[slots[1]] = chal.teamA[1]
         if (chal.teamB[0]) curLu[slots[2]] = chal.teamB[0]

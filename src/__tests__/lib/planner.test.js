@@ -297,6 +297,18 @@ assert.equal(autoAbsenceRounds.report.invalidWishesCount, 1, 'báo cáo đúng 1
 assert.equal(autoAbsenceRounds.report.scheduledChallengesCount, 1, 'báo cáo 1 kèo đã xếp')
 assert.equal(autoAbsenceRounds.report.scheduledWishesCount, 1, 'báo cáo 1 nguyện vọng đã xếp')
 
+// Xác nhận người vắng mặt hoặc nghỉ không báo TUYỆT ĐỐI không bị bốc vào sân tự do ở bất kỳ vòng nào
+let absentPlayerFoundOnCourt = false
+autoAbsenceRounds.forEach((r) => {
+  r.courts.forEach((c) => {
+    const onCourt = [...(c.teamA || []), ...(c.teamB || [])]
+    if (onCourt.includes('p_3') || onCourt.includes('p_6')) {
+      absentPlayerFoundOnCourt = true
+    }
+  })
+})
+assert.equal(absentPlayerFoundOnCourt, false, 'người vắng hoặc noshow tuyệt đối không được xếp vào bất kỳ sân nào kể cả bốc tự do')
+
 // 13. autoGeneratePlan với bộ lọc selectedChallengeIds & selectedWishIds
 const selectedFilterRounds = autoGeneratePlan({
   players: all16,
@@ -318,6 +330,56 @@ selectedFilterRounds.forEach((r) => {
 })
 assert.equal(placedPick1, true, 'kèo được host tick chọn được xếp')
 assert.equal(placedUnpicked, false, 'kèo không được host chọn bị bỏ qua')
+
+// 14. autoGeneratePlan với mode: 'fill' điền thêm Kèo mới vào ô trống mà không đè trận cũ
+const existingBoard = [
+  {
+    roundIndex: 0,
+    courts: [
+      { courtIndex: 0, teamA: ['p_1', 'p_2'], teamB: ['p_3', 'p_4'], challengeId: null, wishId: null },
+      { courtIndex: 1, teamA: ['p_5', 'p_6'], teamB: ['p_7', 'p_8'], challengeId: null, wishId: null },
+    ],
+  },
+  {
+    roundIndex: 1,
+    courts: [
+      { courtIndex: 0, teamA: ['p_9', 'p_10'], teamB: ['p_11', 'p_12'], challengeId: null, wishId: null },
+      { courtIndex: 1, teamA: [], teamB: [], challengeId: null, wishId: null }, // Trống
+    ],
+  },
+  {
+    roundIndex: 2,
+    courts: [
+      { courtIndex: 0, teamA: [], teamB: [], challengeId: null, wishId: null }, // Trống
+      { courtIndex: 1, teamA: [], teamB: [], challengeId: null, wishId: null }, // Trống
+    ],
+  },
+]
+
+const filledPlan = autoGeneratePlan({
+  existingRounds: existingBoard,
+  mode: 'fill',
+  players: all16,
+  courts: [{ courtIndex: 0, name: 'Sân 1' }, { courtIndex: 1, name: 'Sân 2' }],
+  challenges: [
+    { id: 'ch_fill_new', status: 'accepted', teamA: ['p_13', 'p_14'], teamB: ['p_15', 'p_16'] },
+  ],
+  totalRounds: 3,
+})
+
+// Kiểm tra vòng 0 giữ nguyên
+assert.deepEqual(filledPlan[0].courts[0].teamA, ['p_1', 'p_2'], 'vòng 0 giữ nguyên teamA')
+assert.deepEqual(filledPlan[0].courts[1].teamA, ['p_5', 'p_6'], 'vòng 0 giữ nguyên teamA sân 2')
+
+// Kèo mới ch_fill_new được xếp vào ô trống
+let placedFillChallenge = false
+filledPlan.forEach((r) => {
+  r.courts.forEach((c) => {
+    if (c.challengeId === 'ch_fill_new') placedFillChallenge = true
+  })
+})
+assert.equal(placedFillChallenge, true, 'mode fill xếp thành công kèo mới vào ô trống')
+assert.equal(filledPlan.report.scheduledChallengesCount, 1, 'báo cáo đã xếp kèo mới ở mode fill')
 
 console.log('planner.test.js: All checks passed OK')
 

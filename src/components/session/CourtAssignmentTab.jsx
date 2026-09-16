@@ -489,6 +489,15 @@ export default function CourtAssignmentTab({ s }) {
 
   // Nạp kèo đã nhận vào sân
   const handleLoadChallenge = (c) => {
+    const allPlayers = [...(c.teamA || []), ...(c.teamB || [])]
+    const att = s?.attendance || {}
+    const absentKeys = allPlayers.filter((k) => att[k] === false || att[k] === 'noshow')
+    if (absentKeys.length > 0) {
+      const absentNames = absentKeys.map((k) => playerName(db, k) || k)
+      a.toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
+      return
+    }
+
     const isDbl = (c.teamA || []).length > 1 || (c.teamB || []).length > 1
     const targetMode = isDbl ? 'doubles' : 'singles'
     setMode(targetMode)

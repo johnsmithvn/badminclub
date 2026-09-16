@@ -549,7 +549,7 @@ export function autoGeneratePlan({
         name: typeof c === 'object' ? (c.name || c.courtLabel || null) : null,
       }))
     : [{ courtIndex: 0, courtId: null, name: null }, { courtIndex: 1, courtId: null, name: null }]
-  const pList = (players || []).map((p) => p.key || p.id).filter(Boolean)
+  const pList = (players || []).map((p) => p.key || p.id).filter((k) => Boolean(k) && !isPlayerAbsent(k, attendance))
 
   if (pList.length < 4) {
     // Không đủ người xếp sân
@@ -648,82 +648,101 @@ export function autoGeneratePlan({
         tag: null,
       })),
     }))
+  }
 
-    // Xếp KÈO ĐẤU vào các vòng giữa (Vòng 3, 5, 7...)
-    // Kiểm tra tính hợp lệ về điểm danh và lựa chọn của Host
-    const eligibleChallenges = (challenges || []).filter((c) => {
-      if (Array.isArray(selectedChallengeIds) && !selectedChallengeIds.includes(c.id)) {
-        return false
-      }
-      const val = validateChallengeAttendance(c, attendance, players)
-      if (!val.valid) {
-        invalidChallengeIds.add(c.id)
-        return false
-      }
-      return c.status === 'accepted' || c.status === 'pending'
-    })
+  // Xếp KÈO ĐẤU vào các vòng thích hợp (ưu tiên vòng 3, 5, 7...)
+  // Kiểm tra tính hợp lệ về điểm danh và lựa chọn của Host
+  const eligibleChallenges = (challenges || []).filter((c) => {
+    if (Array.isArray(selectedChallengeIds) && !selectedChallengeIds.includes(c.id)) {
+      return false
+    }
+    const val = validateChallengeAttendance(c, attendance, players)
+    if (!val.valid) {
+      invalidChallengeIds.add(c.id)
+      return false
+    }
+    return c.status === 'accepted' || c.status === 'pending'
+  })
 
-    let chalTargetRound = 2
-    eligibleChallenges.forEach((c) => {
-      const tA = (c.teamA || []).filter((k) => pList.includes(k))
-      const tB = (c.teamB || []).filter((k) => pList.includes(k))
-      let scheduled = false
-      if (tA.length === 2 && tB.length === 2 && chalTargetRound < totalRounds) {
-        const r = rounds[chalTargetRound]
-        const freeCourt = r.courts.find((court) => court.teamA.length === 0 && court.teamB.length === 0)
-        if (freeCourt) {
-          freeCourt.teamA = [...tA]
-          freeCourt.teamB = [...tB]
-          freeCourt.challengeId = c.id
-          freeCourt.tag = 'CHALLENGE'
-          scheduledChallengeIds.add(c.id)
-          chalTargetRound += 2
-          scheduled = true
-        }
-      }
-      if (!scheduled) {
-        unplacedChallengeIds.add(c.id)
-      }
-    })
+  let chalTargetRound = 2
+  eligibleChallenges.forEach((c) => {
+    if (scheduledChallengeIds.has(c.id)) return
 
-    // Xếp NGUYỆN VỌNG THÀNH VIÊN (đánh cặp cùng nhau) vào các vòng thích hợp
-    const eligibleWishes = (wishes || []).filter((w) => {
-      if (Array.isArray(selectedWishIds) && !selectedWishIds.includes(w.id)) {
-        return false
-      }
-      const val = validateWishAttendance(w, attendance, players)
-      if (!val.valid) {
-        invalidWishIds.add(w.id)
-        return false
-      }
-      return w.type === 'partner' && pList.includes(w.memberId) && pList.includes(w.targetId)
-    })
+    const tA = (c.teamA || []).filter((k) => pList.includes(k))
+    const tB = (c.teamB || []).filter((k) => pList.includes(k))
+    let scheduled = false
+    if (tA.length === 2 && tB.length === 2) {
+      // Duyệt tìm vòng phù hợp: ưu tiên từ chalTargetRound trở đi
+      const roundOrder = []
+      for (let r = chalTargetRound; r < totalRounds; r++) roundOrder.push(r)
+      for (let r = 0; r < chalTargetRound && r < totalRounds; r++) roundOrder.push(r)
 
-    eligibleWishes.forEach((w) => {
-      let placed = false
-      for (let rIdx = 0; rIdx < totalRounds; rIdx++) {
+      for (const rIdx of roundOrder) {
         const r = rounds[rIdx]
+        if (!r) continue
         const alreadyInRound = (r.courts || []).some(
-          (c) => (c.teamA || []).includes(w.memberId) || (c.teamA || []).includes(w.targetId) ||
-                 (c.teamB || []).includes(w.memberId) || (c.teamB || []).includes(w.targetId)
+          (court) => [...(court.teamA || []), ...(court.teamB || [])].some((k) => tA.includes(k) || tB.includes(k))
         )
         if (!alreadyInRound) {
-          const freeCourt = r.courts.find((c) => c.teamA.length === 0 && c.teamB.length === 0)
+          const freeCourt = (r.courts || []).find((court) => (court.teamA?.length || 0) === 0 && (court.teamB?.length || 0) === 0)
           if (freeCourt) {
-            freeCourt.teamA = [w.memberId, w.targetId]
-            freeCourt.wishId = w.id
-            freeCourt.tag = 'WISH'
-            scheduledWishIds.add(w.id)
-            placed = true
+            freeCourt.teamA = [...tA]
+            freeCourt.teamB = [...tB]
+            freeCourt.challengeId = c.id
+            freeCourt.tag = 'CHALLENGE'
+            scheduledChallengeIds.add(c.id)
+            chalTargetRound = Math.max(chalTargetRound, rIdx + 2)
+            scheduled = true
             break
           }
         }
       }
-      if (!placed) {
-        unplacedWishIds.add(w.id)
+    }
+    if (!scheduled) {
+      unplacedChallengeIds.add(c.id)
+    }
+  })
+
+  // Xếp NGUYỆN VỌNG THÀNH VIÊN (đánh cặp cùng nhau) vào các vòng thích hợp
+  const eligibleWishes = (wishes || []).filter((w) => {
+    if (Array.isArray(selectedWishIds) && !selectedWishIds.includes(w.id)) {
+      return false
+    }
+    const val = validateWishAttendance(w, attendance, players)
+    if (!val.valid) {
+      invalidWishIds.add(w.id)
+      return false
+    }
+    return w.type === 'partner' && pList.includes(w.memberId) && pList.includes(w.targetId)
+  })
+
+  eligibleWishes.forEach((w) => {
+    if (scheduledWishIds.has(w.id)) return
+
+    let placed = false
+    for (let rIdx = 0; rIdx < totalRounds; rIdx++) {
+      const r = rounds[rIdx]
+      if (!r) continue
+      const alreadyInRound = (r.courts || []).some(
+        (c) => (c.teamA || []).includes(w.memberId) || (c.teamA || []).includes(w.targetId) ||
+               (c.teamB || []).includes(w.memberId) || (c.teamB || []).includes(w.targetId)
+      )
+      if (!alreadyInRound) {
+        const freeCourt = (r.courts || []).find((c) => (c.teamA?.length || 0) === 0 && (c.teamB?.length || 0) === 0)
+        if (freeCourt) {
+          freeCourt.teamA = [w.memberId, w.targetId]
+          freeCourt.wishId = w.id
+          freeCourt.tag = 'WISH'
+          scheduledWishIds.add(w.id)
+          placed = true
+          break
+        }
       }
-    })
-  }
+    }
+    if (!placed) {
+      unplacedWishIds.add(w.id)
+    }
+  })
 
   // Khởi tạo bộ đếm số trận và cặp đôi bạn cặp
   const matchCounts = {}
