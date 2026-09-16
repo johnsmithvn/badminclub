@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
-import { sessionPlayers } from '#lib/assign.js'
 import { getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
 import {
   createDefaultPlan,
   calcPlayerLoads,
   autoGeneratePlan,
   calcRoundTimes,
+  getSessionPlannerPlayers,
   DEFAULT_ROUND_MINUTES,
   DEFAULT_TOTAL_ROUNDS,
 } from '#lib/planner.js'
@@ -22,10 +22,28 @@ import PlannerAddWishDialog from './PlannerAddWishDialog.jsx'
 export default function SessionPlannerTab({ s }) {
   const { db, a } = useApp()
 
-  // 1. Danh sách người tham gia buổi thực tế (không fake data)
-  const players = useMemo(() => sessionPlayers(db, s), [db, s])
+  // 1. Danh sách kèo đấu thực tế trong CLB
+  const challenges = useMemo(() => {
+    return (db.challenges || []).filter(
+      (c) => (c.sessionId === s.id || !c.sessionId) && c.status !== 'cancelled' && c.status !== 'played'
+    )
+  }, [db.challenges, s.id])
 
-  // 2. Map rating cho từng người
+  // 2. Kế hoạch buổi (lấy từ s.planner hoặc khởi tạo mặc định)
+  const [plan, setPlan] = useState(() => {
+    if (s.planner && Array.isArray(s.planner.rounds) && s.planner.rounds.length > 0) {
+      return s.planner
+    }
+    const initialPlayers = getSessionPlannerPlayers(db, s, challenges, null)
+    return createDefaultPlan(s, initialPlayers, DEFAULT_ROUND_MINUTES, DEFAULT_TOTAL_ROUNDS)
+  })
+
+  // 3. Danh sách người tham gia buổi toàn diện (cả thành viên nhóm, khách mời và người trong kèo)
+  const players = useMemo(() => {
+    return getSessionPlannerPlayers(db, s, challenges, plan)
+  }, [db, s, challenges, plan])
+
+  // 4. Map rating cho từng người
   const ratingsMap = useMemo(() => {
     const map = {}
     players.forEach((p) => {
@@ -34,21 +52,6 @@ export default function SessionPlannerTab({ s }) {
     })
     return map
   }, [players, db.playerRatings, db.levels])
-
-  // 3. Danh sách kèo đấu thực tế trong CLB
-  const challenges = useMemo(() => {
-    return (db.challenges || []).filter(
-      (c) => (c.sessionId === s.id || !c.sessionId) && c.status !== 'cancelled' && c.status !== 'played'
-    )
-  }, [db.challenges, s.id])
-
-  // 4. Kế hoạch buổi (lấy từ s.planner hoặc khởi tạo mặc định)
-  const [plan, setPlan] = useState(() => {
-    if (s.planner && Array.isArray(s.planner.rounds) && s.planner.rounds.length > 0) {
-      return s.planner
-    }
-    return createDefaultPlan(s, players, DEFAULT_ROUND_MINUTES, DEFAULT_TOTAL_ROUNDS)
-  })
 
   // Bản kế hoạch đã lưu gần nhất (dưới DB) để theo dõi isDirty và hỗ trợ khôi phục (revert)
   const [lastSavedPlan, setLastSavedPlan] = useState(() => {

@@ -2,6 +2,8 @@
 // Hàm thuần: nhận dữ liệu, trả dữ liệu mới, không setState, không đụng DOM hay React.
 
 import { detailedCourtBalance } from '#lib/assign.js'
+import { sessionMembers, isPresent, sGuests, levelOf, playerName, playerOf } from '#lib/money.js'
+import { monthOf } from '#utils/dates.js'
 
 export const DEFAULT_ROUND_MINUTES = 18
 export const DEFAULT_TOTAL_ROUNDS = 10
@@ -509,3 +511,103 @@ export function autoGeneratePlan({
 
   return rounds
 }
+
+/**
+ * Thu thập danh sách người chơi toàn diện cho Planner của một buổi:
+ * - Bao gồm mọi thành viên của nhóm buổi chơi (cả đã điểm danh và chưa điểm danh).
+ * - Bao gồm mọi khách giao lưu của buổi (sGuests).
+ * - Bao gồm bất kỳ ai có mặt trong các kèo đấu (challenges) hoặc đã được xếp trong các vòng (rounds).
+ */
+export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
+  if (!s || !db) return []
+  const month = monthOf(s.date)
+  const att = db.attendance?.[s.id] || {}
+  const seenKeys = new Set()
+  const out = []
+
+  // 1. Thành viên của nhóm/buổi (cả có mặt và chưa rõ)
+  const mems = sessionMembers(db, s) || []
+  mems.forEach((m) => {
+    if (m?.id && !seenKeys.has(m.id)) {
+      seenKeys.add(m.id)
+      out.push({
+        key: m.id,
+        id: m.id,
+        name: m.name || m.fullName || 'Thành viên',
+        fullName: m.fullName || m.name || '',
+        level: levelOf(m, month) || m.level || 'TB',
+        gender: m.gender || 'nam',
+        guest: false,
+        isAtt: isPresent(att[m.id]),
+      })
+    }
+  })
+
+  // 2. Khách giao lưu của buổi chơi (sGuests)
+  const guests = sGuests(db, s.id) || []
+  guests.forEach((sg) => {
+    const key = sg.guestId || sg.memberId || sg.id
+    if (key && !seenKeys.has(key)) {
+      seenKeys.add(key)
+      const name = playerName(db, key) || playerName(db, sg.id) || sg.name || 'Khách'
+      out.push({
+        key,
+        id: key,
+        sgId: sg.id,
+        name,
+        fullName: name,
+        level: sg.level || 'TB',
+        gender: sg.gender || 'nam',
+        guest: !sg.memberId,
+        isAtt: true, // Khách thêm vào buổi coi như có mặt
+      })
+    }
+  })
+
+  // 3. Người chơi trong các Kèo đấu (challenges)
+  ;(challenges || []).forEach((c) => {
+    ;[...(c.teamA || []), ...(c.teamB || [])].forEach((k) => {
+      if (k && !seenKeys.has(k)) {
+        seenKeys.add(k)
+        const pObj = playerOf(db, k)
+        const name = playerName(db, k) || pObj?.name || 'Khách'
+        out.push({
+          key: k,
+          id: k,
+          name: name !== k ? name : (pObj?.name || 'Khách'),
+          fullName: name !== k ? name : (pObj?.name || 'Khách'),
+          level: pObj?.level || 'TB',
+          gender: pObj?.gender || 'nam',
+          guest: !pObj || !!pObj.guestId || !pObj.role,
+          isAtt: isPresent(att[k]),
+        })
+      }
+    })
+  })
+
+  // 4. Người chơi đã được xếp vào các trận trong kế hoạch
+  ;(plan?.rounds || []).forEach((r) => {
+    ;(r.courts || []).forEach((c) => {
+      ;[...(c.teamA || []), ...(c.teamB || [])].forEach((k) => {
+        if (k && !seenKeys.has(k)) {
+          seenKeys.add(k)
+          const pObj = playerOf(db, k)
+          const name = playerName(db, k) || pObj?.name || 'Khách'
+          out.push({
+            key: k,
+            id: k,
+            name: name !== k ? name : (pObj?.name || 'Khách'),
+            fullName: name !== k ? name : (pObj?.name || 'Khách'),
+            level: pObj?.level || 'TB',
+            gender: pObj?.gender || 'nam',
+            guest: !pObj || !!pObj.guestId || !pObj.role,
+            isAtt: isPresent(att[k]),
+          })
+        }
+      })
+    })
+  })
+
+  return out
+}
+
