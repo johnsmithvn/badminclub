@@ -316,25 +316,35 @@ export function detailedCourtBalance({
     }
   })
 
-  let h2hScore = 88 // Mặc định điểm tích cực nếu chưa có nhiều dữ liệu đối đầu
+  // Nền 88 dùng cho CẢ HAI nhánh. Trước đây nhánh "chưa gặp nhau" là 88 còn nhánh "đã gặp" là
+  // 80, nên chỉ cần đánh với nhau một trận tỷ số bình thường là điểm TỤT từ 88 xuống 80 —
+  // hai người chưa từng gặp lại được chấm cao hơn hai người đã gặp, vô lý.
+  const H2H_BASE = 88
+  const CLOSE_MAX = cfg.match?.closeMatchMaxDiff ?? 3
+  const BLOWOUT_MIN = cfg.match?.blowoutMinDiff ?? 12
+
   let closeMatchesCount = 0
   let blowoutMatchesCount = 0
   const recentScores = []
 
+  // Đếm theo TRẬN, không theo set: trận 3 set trước đây bị đếm 3 lần nên một cặp đánh nhiều
+  // set dài tự nhiên được cộng/trừ gấp ba. Độ chênh của trận = trung bình chênh các set.
   h2hMatches.forEach(({ match: m, aIsTeamA }) => {
-    (m.sets || []).forEach(([sa, sb]) => {
-      if (sa != null && sb != null) {
-        recentScores.push(aIsTeamA ? `${sa}–${sb}` : `${sb}–${sa}`)
-        // diff là trị tuyệt đối nên không phụ thuộc vế — giữ nguyên.
-        const diff = Math.abs(sa - sb)
-        if (diff <= 3) closeMatchesCount++
-        if (diff >= 12) blowoutMatchesCount++
-      }
+    const diffs = []
+    ;(m.sets || []).forEach(([sa, sb]) => {
+      if (sa == null || sb == null) return
+      recentScores.push(aIsTeamA ? `${sa}–${sb}` : `${sb}–${sa}`)
+      diffs.push(Math.abs(sa - sb))   // trị tuyệt đối nên không phụ thuộc vế
     })
+    if (!diffs.length) return
+    const matchDiff = diffs.reduce((acc, d) => acc + d, 0) / diffs.length
+    if (matchDiff <= CLOSE_MAX) closeMatchesCount++
+    else if (matchDiff >= BLOWOUT_MIN) blowoutMatchesCount++
   })
 
+  let h2hScore = H2H_BASE
   if (h2hMatches.length > 0) {
-    h2hScore = Math.max(40, Math.min(100, 80 + closeMatchesCount * 5 - blowoutMatchesCount * 8))
+    h2hScore = Math.max(40, Math.min(100, H2H_BASE + closeMatchesCount * 5 - blowoutMatchesCount * 8))
   }
 
   // 5. Đều lượt đánh

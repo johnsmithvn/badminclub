@@ -8,7 +8,7 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
-import { playerName, courtOf, myMember, playerOf } from '#lib/money.js'
+import { playerName, courtOf, myMember, playerOf, openSessions } from '#lib/money.js'
 import { dd, isoOf, todayISO, weekdayOf } from '#utils/dates.js'
 import {
   getPlayerRating, expectedScore, calcEloDelta, confidenceProgress,
@@ -754,21 +754,20 @@ export default function Matches() {
 
               // Countdown hết hạn
               const expTime = c.expiresAt ? new Date(c.expiresAt).getTime() : (c.createdAt ? new Date(c.createdAt).getTime() + 60 * 60 * 1000 : null)
+              const isExpired = c.status === 'expired' || (expTime && expTime <= now)
               let expStr = ''
-              if (expTime && isPending) {
+              if (expTime && isPending && !isExpired) {
                 const diff = expTime - now
-                if (diff <= 0) {
-                  expStr = '00:00'
-                } else {
-                  const mins = Math.floor(diff / 60000)
-                  const secs = Math.floor((diff % 60000) / 1000)
-                  expStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`
-                }
+                const mins = Math.floor(diff / 60000)
+                const secs = Math.floor((diff % 60000) / 1000)
+                expStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`
               }
 
-              const statusBadgeText = isPending
-                ? `${t('challenge.status.pending')}${expStr ? ` · ${expStr}` : ''}`
-                : (t('challenge.status.' + c.status) || c.status)
+              const statusBadgeText = (isPending && isExpired) || c.status === 'expired'
+                ? t('challenge.status.expired')
+                : isPending
+                  ? `${t('challenge.status.pending')}${expStr ? ` · ${expStr}` : ''}`
+                  : (t('challenge.status.' + c.status) || c.status)
 
               const sessionObj = c.sessionId ? (db.sessions || []).find((s) => s.id === c.sessionId) : null
 
@@ -791,9 +790,9 @@ export default function Matches() {
                     </div>
                     <span style={{
                       ...S.statusBadge,
-                      background: isPlayed ? 'var(--surface-brand-soft)' : isAccepted ? 'var(--surface-nav-active)' : 'rgba(240,183,92,0.14)',
-                      borderColor: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--teal-700)' : 'var(--border-subtle)',
-                      color: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--status-transit-fg)' : 'var(--status-delayed-fg)',
+                      background: isPlayed ? 'var(--surface-brand-soft)' : isAccepted ? 'var(--surface-nav-active)' : isExpired ? 'rgba(239,68,68,0.1)' : 'rgba(240,183,92,0.14)',
+                      borderColor: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--teal-700)' : isExpired ? 'var(--red-500, #ef4444)' : 'var(--border-subtle)',
+                      color: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--status-transit-fg)' : isExpired ? 'var(--red-500, #ef4444)' : 'var(--status-delayed-fg)',
                     }}>
                       {statusBadgeText}
                     </span>
@@ -843,7 +842,7 @@ export default function Matches() {
                   {/* Hàng nút bấm thao tác */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
                     {/* Nhận / Từ chối nếu tôi là Team B hoặc Admin */}
-                    {isPending && (isTeamB || isAdmin) && (
+                    {isPending && !isExpired && (isTeamB || isAdmin) && (
                       <>
                         <button
                           type="button"
@@ -865,7 +864,7 @@ export default function Matches() {
                     )}
 
                     {/* Nhận kèo mở nếu đã đăng nhập và tôi chưa thuộc Team A lẫn Team B */}
-                    {isPending && isOpen && myId && !teamA.includes(myId) && !isTeamB && (
+                    {isPending && !isExpired && isOpen && myId && !teamA.includes(myId) && !isTeamB && (
                       <button
                         type="button"
                         onClick={() => a.acceptOpenChallenge({ challengeId: c.id })}
@@ -873,6 +872,33 @@ export default function Matches() {
                       >
                         <Icon name="check" size={14} />
                         <span>{t('matchesPage.acceptOpenChallenge')}</span>
+                      </button>
+                    )}
+
+                    {/* Vào buổi chơi nếu kèo đã được nhận và có buổi gắn kèm */}
+                    {isAccepted && sessionObj && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/buoi-tap/${sessionObj.id}`)}
+                        style={S.smallPrimaryBtn}
+                      >
+                        <Icon name="arrow-right" size={14} />
+                        <span>{t('matchesPage.viewInSession')}</span>
+                      </button>
+                    )}
+
+                    {/* Đưa kèo tự do vào buổi chơi nếu có buổi đang mở hoặc gần nhất */}
+                    {isAccepted && !sessionObj && (openSessions(db)[0] || (db.sessions || [])[0]) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetS = openSessions(db)[0] || (db.sessions || [])[0]
+                          if (targetS) a.linkChallengeToSession(c.id, targetS.id)
+                        }}
+                        style={S.smallPrimaryBtn}
+                      >
+                        <Icon name="plus" size={14} />
+                        <span>{t('challenge.linkToSession')}</span>
                       </button>
                     )}
 

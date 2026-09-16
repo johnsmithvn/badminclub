@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { sessionFairnessRows, fairness, matchStats } from '#lib/assign.js'
+import { sessionFairnessRows, fairness, matchStats, detailedCourtBalance } from '#lib/assign.js'
 
 /**
  * Bảng kiểm kê công bằng lượt đánh (THAY-ĐỔI-03).
@@ -139,5 +139,52 @@ test('Kiểm kê công bằng lượt đánh trong một buổi', async (t) => {
     })
     assert.deepEqual(sessionFairnessRows(mkDb(ids, []), 'khong-co'), [])
     assert.deepEqual(sessionFairnessRows({}, SID), [])
+  })
+})
+
+test('Điểm H2H trên thẻ sân', async (t) => {
+  /**
+   * H2H chấm "hai bên này gặp nhau có hay không": gặp nhiều trận sát điểm thì cao, gặp toàn trận
+   * một chiều thì thấp. Nó KHÔNG cộng vào điểm tổng của thẻ sân, chỉ hiển thị để quản trò cân nhắc.
+   */
+  const P = ['p1', 'p2', 'p3', 'p4'].map((k) => ({ key: k, name: k }))
+  const RM = { p1: 500, p2: 500, p3: 500, p4: 500 }
+  const LU = { c0t0s0: 'p1', c0t0s1: 'p2', c0t1s0: 'p3', c0t1s1: 'p4' }
+  const h2h = (matches) => detailedCourtBalance({
+    lineup: LU, ci: 0, ratingsMap: RM, matches, players: P, stats: {},
+  }).h2h
+  const mk = (...sets) => ({ teamA: ['p1', 'p2'], teamB: ['p3', 'p4'], sets, winnerTeam: sets[0][0] > sets[0][1] ? 'A' : 'B' })
+
+  await t.test('7. Đánh với nhau một trận bình thường KHÔNG được làm điểm tụt', () => {
+    // Lỗi cũ: nhánh "chưa gặp" lấy nền 88, nhánh "đã gặp" lấy nền 80. Nên chỉ cần gặp nhau
+    // một trận tỷ số thường là điểm rơi 88 → 80, tức hai người CHƯA TỪNG gặp lại được chấm
+    // cao hơn hai người đã gặp. Quản trò đọc bảng sẽ ưu tiên sai cặp.
+    const chuaGap = h2h([]).score
+    const motTranThuong = h2h([mk([21, 16])]).score
+    assert.ok(
+      motTranThuong >= chuaGap,
+      `Gặp nhau một trận tỷ số thường (${motTranThuong}) mà thấp hơn chưa từng gặp (${chuaGap}) là nghịch lý`
+    )
+  })
+
+  await t.test('8. Đếm theo TRẬN, không theo set', () => {
+    // Lỗi cũ: vòng lặp chạy trên từng set nên trận 3 set bị cộng/trừ gấp ba. Hai cặp cùng đánh
+    // một trận sát điểm mà cặp nào kéo 3 set thì tự nhiên được cộng nhiều hơn.
+    const motSet = h2h([mk([21, 19])])
+    const baSet = h2h([mk([21, 19], [19, 21], [22, 20])])
+    assert.equal(motSet.matchesCount, 1)
+    assert.equal(baSet.matchesCount, 1, 'Một trận ba set vẫn là MỘT trận')
+    assert.equal(
+      baSet.score, motSet.score,
+      'Trận 3 set sát điểm phải chấm y như trận 1 set sát điểm — kéo dài set không phải là thành tích'
+    )
+  })
+
+  await t.test('9. Sát điểm cộng, một chiều trừ, và một trận chỉ vào đúng một nhóm', () => {
+    const base = h2h([]).score
+    assert.ok(h2h([mk([21, 19])]).score > base, 'Gặp nhau toàn trận sát điểm thì nên ưu tiên ghép lại')
+    assert.ok(h2h([mk([21, 5])]).score < base, 'Gặp nhau toàn trận một chiều thì nên tránh ghép lại')
+    // Trận chênh 6 điểm: không sát (>3) cũng không một chiều (<12) -> đứng yên ở nền.
+    assert.equal(h2h([mk([21, 15])]).score, base, 'Trận bình thường không cộng cũng không trừ')
   })
 })

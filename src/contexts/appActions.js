@@ -24,6 +24,7 @@ import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
+import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => crypto.randomUUID()
@@ -373,6 +374,43 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     /** Ghi chú của một buổi. Cột `sessions.note` có sẵn dưới DB và đã map hai chiều từ lâu,
      *  chỉ là chưa có ô nhập nào. */
     setSessionNote: (sid, v) => patchSession(sid, (x) => ({ ...x, note: v })),
+    setSessionPlanner: (sid, planner) => patchSession(sid, (x) => ({ ...x, planner })),
+    saveSessionWish: (sid, wish) => {
+      if (!wish || !wish.memberId) return false
+      patchSession(sid, (x) => {
+        const p = x.planner || {}
+        const curWishes = Array.isArray(p.wishes) ? p.wishes : []
+        const exists = curWishes.some((w) => w.id === wish.id || w.memberId === wish.memberId)
+        const nextWishes = exists
+          ? curWishes.map((w) => (w.id === wish.id || w.memberId === wish.memberId ? { ...w, ...wish } : w))
+          : [...curWishes, wish]
+        return {
+          ...x,
+          planner: {
+            ...p,
+            wishes: nextWishes,
+          },
+        }
+      })
+      toast(t('session.myWishSaved'))
+      return true
+    },
+    deleteSessionWish: (sid, wishId) => {
+      if (!wishId) return false
+      patchSession(sid, (x) => {
+        const p = x.planner || {}
+        const curWishes = Array.isArray(p.wishes) ? p.wishes : []
+        return {
+          ...x,
+          planner: {
+            ...p,
+            wishes: curWishes.filter((w) => w.id !== wishId),
+          },
+        }
+      })
+      toast(t('session.myWishDeleted'))
+      return true
+    },
 
     /**
      * XOÁ CỨNG một buổi — chỉ khi chưa ai chạm vào (`money.js: sessionRefs`). Sáu bảng con
@@ -2253,6 +2291,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const myMem = myMember(d0)
       const isTeamB = myMem && (chal.teamB || []).includes(myMem.id)
       if (!canAssign() && !isTeamB) return
+      if (chal.status !== 'pending') return
+
+      const isExpired = chal.expiresAt && new Date(chal.expiresAt).getTime() <= Date.now()
+      if (isExpired) {
+        up((d) => ({
+          challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'expired' } : c)),
+        }))
+        toast(t('challenge.toastExpired'))
+        return
+      }
+
       const nextStatus = accept ? 'accepted' : 'declined'
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: nextStatus } : c)),
@@ -2270,12 +2319,24 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         toast(t('common.unauthorized'))
         return
       }
+      if (chal.status !== 'pending') return
+
+      const isExpired = chal.expiresAt && new Date(chal.expiresAt).getTime() <= Date.now()
+      if (isExpired) {
+        up((d) => ({
+          challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'expired' } : c)),
+        }))
+        toast(t('challenge.toastExpired'))
+        return
+      }
+
       // Kèo ĐÔI nhận nhanh mà chưa chọn partner: chỉ điền 1 chỗ và GIỮ 'pending' để người thứ hai
       // còn vào được. Trước đây chốt luôn 'accepted' với teamB 1 người -> kèo đôi chết, không ai join nổi.
       const needed = (chal.teamA || []).length > 1 ? 2 : 1
       const current = (chal.teamB || []).filter(Boolean)
-      if (current.includes(myId)) return
-      const teamB = [...current, myId, ...(partnerId ? [partnerId] : [])].slice(0, needed)
+      if (current.includes(myId) || (chal.teamA || []).includes(myId)) return
+      const validPartner = partnerId && partnerId !== myId && !current.includes(partnerId) && !(chal.teamA || []).includes(partnerId) ? partnerId : null
+      const teamB = [...current, myId, ...(validPartner ? [validPartner] : [])].slice(0, needed)
       const status = teamB.length >= needed ? 'accepted' : 'pending'
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, status } : c)),
@@ -2296,6 +2357,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('challenge.toastCancelled', { code: chal.code }))
     },
 
+    linkChallengeToSession: (challengeId, sessionId) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) return
+      const s = sessionOf(d0, sessionId)
+      if (!s) return
+      const myMem = myMember(d0)
+      const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
+      if (!canAssign() && !isPlayer) return
+
+      up((d) => ({
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, sessionId } : c)),
+      }))
+      toast(t('challenge.toastLinkedToSession', { code: chal.code, date: dd(s.date) }))
+    },
+
     deployChallenge: (challengeId, courtIdx) => {
       if (!canAssign()) return
       const d0 = db()
@@ -2305,6 +2382,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const s = sessionOf(d0, sid)
       if (!s) return
       const courtName = (s.courts[courtIdx] && courtOf(d0, s.courts[courtIdx].courtId).name) || (`${t('units.court')} ${courtIdx + 1}`)
+
+      // Kiểm tra điểm danh buổi: nếu có người chơi bị báo vắng hoặc nghỉ không báo thì chặn
+      const allFour = [...(chal.teamA || []), ...(chal.teamB || [])]
+      const att = s.attendance || {}
+      const absentKeys = allFour.filter((k) => att[k] === false || att[k] === 'noshow')
+      if (absentKeys.length > 0) {
+        const absentNames = absentKeys.map((k) => playerName(d0, k) || k)
+        toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
+        return
+      }
 
       up((d) => {
         const lineups = { ...(d.lineups || {}) }
@@ -2316,8 +2403,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           if (allFour.includes(curLu[sl])) delete curLu[sl]
         })
 
-        // Gán 4 slot cho sân courtIdx
+        // Gán slot cho sân courtIdx (dọn sạch slot cũ của sân trước khi gán để tránh đè 1v1 thành 2v2)
         const slots = courtSlotIds(courtIdx)
+        slots.forEach((sl) => { delete curLu[sl] })
         if (chal.teamA[0]) curLu[slots[0]] = chal.teamA[0]
         if (chal.teamA[1]) curLu[slots[1]] = chal.teamA[1]
         if (chal.teamB[0]) curLu[slots[2]] = chal.teamB[0]
@@ -2681,18 +2769,40 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const d0 = db()
       const match = (d0.matches || []).find((m) => m.id === matchId)
       if (!match) return false
+
+      const nextUrl = videoUrl !== undefined ? (videoUrl ? videoUrl.trim() : null) : match.videoUrl
+      const nextTs = videoTimestamp !== undefined ? (videoTimestamp ? videoTimestamp.trim() : null) : match.videoTimestamp
+      const nextNote = videoNote !== undefined ? (videoNote ? videoNote.trim() : null) : match.videoNote
+
+      // Cập nhật snapshot cục bộ để `diff` không phát sinh op upsert trên bảng matches,
+      // tránh bị RLS từ chối khi người thực hiện là thành viên thường (member).
+      syncPatchMatchVideo(matchId, nextUrl, nextTs, nextNote)
+
       up((d) => ({
         matches: (d.matches || []).map((m) => (
           m.id === matchId
             ? {
               ...m,
-              videoUrl: videoUrl !== undefined ? (videoUrl ? videoUrl.trim() : null) : m.videoUrl,
-              videoTimestamp: videoTimestamp !== undefined ? (videoTimestamp ? videoTimestamp.trim() : null) : m.videoTimestamp,
-              videoNote: videoNote !== undefined ? (videoNote ? videoNote.trim() : null) : m.videoNote,
+              videoUrl: nextUrl,
+              videoTimestamp: nextTs,
+              videoNote: nextNote,
             }
             : m
         )),
       }))
+
+      // Gọi RPC gắn video an toàn trên database
+      if (supabase && supabase.rpc) {
+        supabase.rpc('attach_match_video', {
+          p_match_id: matchId,
+          p_video_url: nextUrl,
+          p_video_timestamp: nextTs,
+          p_video_note: nextNote,
+        }).catch((err) => {
+          console.warn('[actions] Không gọi được RPC attach_match_video:', err?.message || err)
+        })
+      }
+
       toast(t('common.save'))
       return true
     },
@@ -2711,6 +2821,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         [viewerKey]: currentCount + 1,
       }
       const nextTotalViews = Number(match.videoViews || 0) + 1
+
+      // Cập nhật snapshot cục bộ của storage để `diff` không phát sinh op upsert trên bảng matches,
+      // tránh bị RLS từ chối đối với thành viên thường và khách.
+      syncPatchMatchViews(matchId, nextTotalViews, nextViewers)
+
+      // Cập nhật state cục bộ để UI phản hồi tức thì
       up((d) => ({
         matches: (d.matches || []).map((m) => (
           m.id === matchId
@@ -2722,6 +2838,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             : m
         )),
       }))
+
+      // Gọi hàm RPC tăng lượt xem an toàn trên database
+      if (supabase && supabase.rpc) {
+        supabase.rpc('increment_match_video_views', {
+          p_match_id: matchId,
+          p_viewer_id: viewerKey,
+        }).catch((err) => {
+          console.warn('[actions] Không gọi được RPC increment_match_video_views:', err?.message || err)
+        })
+      }
       return true
     },
 

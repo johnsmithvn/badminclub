@@ -190,5 +190,17 @@ assert.equal(aliceMatches[0].id, 'm1')
 const bobMatches = matchesList.filter((m) => (m.videoViewers?.['m-bob'] || 0) > 0)
 assert.equal(bobMatches.length, 2)
 
+/* 11. syncPatchMatchViews & syncPatchMatchVideo test */
+import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
+// Test an toàn khi chưa có synced session
+assert.doesNotThrow(() => {
+  syncPatchMatchViews('non-existent-id', 1, {})
+  syncPatchMatchViews(null, 1, {})
+  syncPatchMatchVideo('non-existent-id', 'https://youtu.be/test', '01:00', 'Highlight')
+  syncPatchMatchVideo(null, null, null, null)
+})
+
 console.log('video_match_timeline check: OK')
+
+
 

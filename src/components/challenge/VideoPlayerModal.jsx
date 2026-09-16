@@ -11,8 +11,44 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { playerName, myMember } from '#lib/money.js'
 import AttachVideoModal from './AttachVideoModal.jsx'
 
-// Set lưu các matchId đã tính lượt xem trong phiên làm việc hiện tại để tránh spam
+// Bộ nhớ phiên làm việc (kết hợp sessionStorage và in-memory Set) để tránh spam view kể cả khi F5
+const SESSION_STORAGE_KEY = 'badmin_viewed_matches'
 const viewedMatchIdsInSession = new Set()
+
+function hasViewedInSession(matchId) {
+  if (!matchId) return true
+  if (viewedMatchIdsInSession.has(matchId)) return true
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const raw = sessionStorage.getItem(SESSION_STORAGE_KEY)
+      const list = raw ? JSON.parse(raw) : []
+      if (list.includes(matchId)) {
+        viewedMatchIdsInSession.add(matchId)
+        return true
+      }
+    }
+  } catch {
+    // sessionStorage fallback
+  }
+  return false
+}
+
+function markViewedInSession(matchId) {
+  if (!matchId) return
+  viewedMatchIdsInSession.add(matchId)
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const raw = sessionStorage.getItem(SESSION_STORAGE_KEY)
+      const list = raw ? JSON.parse(raw) : []
+      if (!list.includes(matchId)) {
+        list.push(matchId)
+        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(list))
+      }
+    }
+  } catch {
+    // sessionStorage fallback
+  }
+}
 
 /**
  * Modal phát video nhúng trực tiếp trên app (YouTube iframe, Google Drive preview, Direct video)
@@ -32,10 +68,10 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
   // Lấy match trực tiếp từ db để đồng bộ tức thời khi sửa hoặc tăng view
   const liveMatch = (db.matches || []).find((m) => m.id === match?.id) || match
 
-  // Tăng lượt xem 1 lần trong phiên khi mở player
+  // Tăng lượt xem 1 lần trong phiên khi mở player (chống spam cả khi F5 lại trang)
   useEffect(() => {
-    if (liveMatch?.id && !viewedMatchIdsInSession.has(liveMatch.id)) {
-      viewedMatchIdsInSession.add(liveMatch.id)
+    if (liveMatch?.id && !hasViewedInSession(liveMatch.id)) {
+      markViewedInSession(liveMatch.id)
       if (a?.incrementMatchVideoViews) {
         a.incrementMatchVideoViews(liveMatch.id)
       }

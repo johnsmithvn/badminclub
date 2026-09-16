@@ -6,6 +6,8 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select } from '#ds'
 import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, SearchSelect, SessionPill, TabTrack } from '#ui'
 import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
+import SessionPlannerTab from '#components/session/planner/SessionPlannerTab.jsx'
+import PlannerAddWishDialog from '#components/session/planner/PlannerAddWishDialog.jsx'
 import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -14,7 +16,7 @@ import {
   courtOf, dueState, duesOf,
   fmt, fmtK, genderTxt, groupOf, guestOf, guestPrice, headCount, levelOf,
   isAdhoc, isMemberCharge, memberOf, presentCount, rowCost, sGuests, sGuestsOnly, sessionMembers,
-  sessionOf, normalizeText, guestStats,
+  sessionOf, normalizeText, guestStats, myMember,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -36,6 +38,22 @@ export default function SessionDetail() {
   const [editingGuest, setEditingGuest] = useState(null)
   const sid = id || db.sessionId
   const s = sessionOf(db, sid)
+
+  const me = myMember(db)
+  const [showMyWishDialog, setShowMyWishDialog] = useState(false)
+  const myWish = useMemo(
+    () => (s?.planner?.wishes || []).find((w) => w.memberId === me?.id),
+    [s?.planner?.wishes, me?.id]
+  )
+  const wishPlayers = useMemo(() => {
+    if (!s) return []
+    return sessionMembers(db, s).map((m) => ({
+      key: m.id,
+      name: m.name,
+      gender: m.gender,
+      avatarUrl: m.avatarUrl,
+    }))
+  }, [db, s])
 
   // URL là nguồn sự thật; đồng bộ vào db để action dùng db.sessionId.
   useEffect(() => { if (sid) a.setSessionId(sid) }, [sid, a])
@@ -574,6 +592,23 @@ export default function SessionDetail() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab('planner')}
+            style={{
+              ...S.tabBtn,
+              ...(isMobile ? S.tabBtnMobile : {}),
+              ...(activeTab === 'planner' ? S.tabBtnActive : {}),
+            }}
+          >
+            <span>{t('sessionTabs.planner')}</span>
+            <span style={{
+              ...S.tabBadgeMono,
+              color: activeTab === 'planner' ? '#5FDBD3' : 'var(--text-muted)',
+            }}>
+              {s.planner?.rounds?.length || 10}
+            </span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('courts')}
             style={{
               ...S.tabBtn,
@@ -609,8 +644,78 @@ export default function SessionDetail() {
         </div>
       </TabTrack>
       <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', margin: '0 0 14px' }}>
-        {activeTab === 'attend' ? t('sessionTabs.hintAttend') : activeTab === 'courts' ? t('sessionTabs.hintCourts') : t('sessionTabs.hintMatches')}
+        {activeTab === 'attend' ? t('sessionTabs.hintAttend') : activeTab === 'planner' ? t('sessionTabs.hintPlanner') : activeTab === 'courts' ? t('sessionTabs.hintCourts') : t('sessionTabs.hintMatches')}
       </div>
+
+      {/* Khối nguyện vọng thành viên */}
+      {me && !isClosed && (
+        <div style={{
+          margin: '0 0 16px',
+          padding: '12px 16px',
+          borderRadius: 10,
+          background: myWish ? 'rgba(139, 92, 246, 0.08)' : 'var(--surface-card)',
+          border: myWish ? '1px solid rgba(139, 92, 246, 0.4)' : '1px dashed var(--border-subtle)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 220 }}>
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: myWish ? 'rgba(139, 92, 246, 0.2)' : 'var(--surface-inset)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: myWish ? '#A78BFA' : 'var(--text-muted)',
+              flexShrink: 0,
+            }}>
+              <Icon name="sparkles" size={16} />
+            </div>
+            <div>
+              <div style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                {myWish ? t('session.myWishTitle') : t('session.myWishBtn')}
+              </div>
+              <div style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
+                {myWish
+                  ? `${myWish.text}${myWish.note ? ` (${myWish.note})` : ''}`
+                  : t('session.myWishEmpty')}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {myWish ? (
+              <>
+                <Button size="sm" variant="secondary" onClick={() => setShowMyWishDialog(true)}>
+                  {t('session.myWishEdit')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => {
+                    a.confirm({
+                      title: t('session.myWishDelete'),
+                      message: t('session.myWishDeleteConfirm'),
+                      tone: 'danger',
+                      onConfirm: () => a.deleteSessionWish(s.id, myWish.id),
+                    })
+                  }}
+                >
+                  {t('session.myWishDelete')}
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="primary" onClick={() => setShowMyWishDialog(true)}>
+                <Icon name="plus" size={13} />
+                <span>{t('session.myWishBtn')}</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {activeTab === 'attend' && (
         <div style={{
@@ -1011,6 +1116,7 @@ export default function SessionDetail() {
       </div>
       )}
 
+      {activeTab === 'planner' && <SessionPlannerTab s={s} />}
       {activeTab === 'courts' && <CourtAssignmentTab s={s} />}
       {activeTab === 'matches' && <SessionMatchesTab s={s} onSwitchTab={setActiveTab} />}
 
@@ -1035,6 +1141,24 @@ export default function SessionDetail() {
               },
             })
           }}
+        />
+      )}
+
+      {showMyWishDialog && (
+        <PlannerAddWishDialog
+          isOpen={showMyWishDialog}
+          onClose={() => setShowMyWishDialog(false)}
+          onSaveWish={(wish) => {
+            a.saveSessionWish(s.id, wish)
+            setShowMyWishDialog(false)
+          }}
+          onDeleteWish={(wishId) => {
+            a.deleteSessionWish(s.id, wishId)
+            setShowMyWishDialog(false)
+          }}
+          players={wishPlayers}
+          defaultMemberId={me?.id}
+          existingWish={myWish}
         />
       )}
     </>

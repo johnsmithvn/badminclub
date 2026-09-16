@@ -46,6 +46,7 @@
     "playersPerCourt": 4,
     "teamsPerCourt": 2,
     "closeMatchMaxDiff": 3,
+    "blowoutMinDiff": 12,
     "upsetMinGap": 100
   },
   "club": {
