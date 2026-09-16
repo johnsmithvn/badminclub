@@ -1,4 +1,4 @@
--- Migration 0033: Cho phép thành viên tự cập nhật ảnh đại diện (avatar_url) trong club_members.
+-- Migration 0036: Cho phép thành viên tự cập nhật ảnh đại diện (avatar_url) trong club_members.
 --
 -- CẬP NHẬT:
 --   Bổ sung 'avatar_url' vào danh sách các trường được phép tự cập nhật mà không cần quyền 'members',

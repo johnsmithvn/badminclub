@@ -227,6 +227,7 @@ function MeCard({ me, myGroups, db, a, profile }) {
     full.trim() !== (me.fullName || '') ||
     (avatarUrl || '') !== (me.avatarUrl || '')
   )
+
   const save = async () => {
     setSaving(true)
     await a.updateMe({ name, fullName: full, avatarUrl })

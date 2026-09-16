@@ -1939,7 +1939,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      * `INSERT ... ON CONFLICT` nên Postgres đòi cả policy INSERT — thành viên thường không có,
      * op sẽ hỏng VĨNH VIỄN và kẹt luôn hàng đợi (xem `ponytail:` ở `storage.js: flush`). Vì thế
     /**
-     * Thành viên tự đổi thông tin hồ sơ của mình trong CLB: tên hiển thị, tên đầy đủ, ảnh đại diện.
+     * Thành viên tự đổi thông tin hồ sơ của mình trong CLB: tên hiển thị, tên đầy đủ, ảnh đại diện trong CLB.
      * Cập nhật trực tiếp `club_members` rồi `reload()`.
      */
     updateMe: async ({ name, fullName, avatarUrl } = {}) => {

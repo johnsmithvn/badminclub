@@ -1991,7 +1991,7 @@
     "renameTitle": "Đổi tên của bạn trong CLB",
     "editInfoTitle": "Đổi tên & ảnh đại diện trong CLB",
     "fAvatar": "Ảnh đại diện trong CLB",
-    "fAvatarHint": "Ảnh riêng trong CLB này, không ảnh hưởng ảnh tài khoản cá nhân",
+    "fAvatarHint": "Ảnh riêng trong CLB này, không ảnh hưởng ảnh tài khoản cá nhân ngoài CLB",
     "fDisplayName": "Tên hiển thị",
     "fDisplayNameHint": "Tên mọi người thấy ở điểm danh, chia sân và bảng tiền",
     "changeTitle": "Đổi thông tin trong CLB",
