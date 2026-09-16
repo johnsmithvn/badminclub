@@ -7,6 +7,10 @@ import {
   autoGeneratePlan,
   calcRoundTimes,
   getSessionPlannerPlayers,
+  getSessionTimeRange,
+  updatePlanRoundMinutes,
+  addPlanRound,
+  removePlanRound,
   DEFAULT_ROUND_MINUTES,
   DEFAULT_TOTAL_ROUNDS,
 } from '#lib/planner.js'
@@ -29,13 +33,16 @@ export default function SessionPlannerTab({ s }) {
     )
   }, [db.challenges, s.id])
 
+  // Khung giờ thực tế của các sân trong buổi
+  const sessionTime = useMemo(() => getSessionTimeRange(s), [s])
+
   // 2. Kế hoạch buổi (lấy từ s.planner hoặc khởi tạo mặc định)
   const [plan, setPlan] = useState(() => {
     if (s.planner && Array.isArray(s.planner.rounds) && s.planner.rounds.length > 0) {
       return s.planner
     }
     const initialPlayers = getSessionPlannerPlayers(db, s, challenges, null)
-    return createDefaultPlan(s, initialPlayers, DEFAULT_ROUND_MINUTES, DEFAULT_TOTAL_ROUNDS)
+    return createDefaultPlan(s, initialPlayers, DEFAULT_ROUND_MINUTES, null, db)
   })
 
   // 3. Danh sách người tham gia buổi toàn diện (cả thành viên nhóm, khách mời và người trong kèo)
@@ -100,7 +107,7 @@ export default function SessionPlannerTab({ s }) {
         if (lastSavedPlan) {
           setPlan(lastSavedPlan)
         } else {
-          const fresh = createDefaultPlan(s, players, DEFAULT_ROUND_MINUTES, DEFAULT_TOTAL_ROUNDS)
+          const fresh = createDefaultPlan(s, players, DEFAULT_ROUND_MINUTES, null, db)
           setPlan(fresh)
         }
         a.toast(t('planner.revertDone'))
@@ -132,12 +139,14 @@ export default function SessionPlannerTab({ s }) {
 
   // 10. Các tác vụ thao tác kế hoạch
   const handleAutoPlan = () => {
+    const activeCourts = (s.courts || []).filter((c) => !c.sold)
+    const courtsList = activeCourts.length > 0 ? activeCourts : (s.courts || [0, 1])
     const newRounds = autoGeneratePlan({
       players,
-      courts: s.courts || [0, 1],
+      courts: courtsList,
       challenges,
       wishes: plan.wishes || [],
-      startTime: plan.rounds?.[0]?.time || '19:00',
+      startTime: sessionTime.startTime,
       roundMinutes: plan.roundMinutes || DEFAULT_ROUND_MINUTES,
       totalRounds: plan.rounds?.length || DEFAULT_TOTAL_ROUNDS,
       ratingsMap,
@@ -152,7 +161,7 @@ export default function SessionPlannerTab({ s }) {
       message: t('planner.resetConfirm'),
       tone: 'danger',
       onConfirm: () => {
-        const fresh = createDefaultPlan(s, players, plan.roundMinutes || DEFAULT_ROUND_MINUTES, DEFAULT_TOTAL_ROUNDS)
+        const fresh = createDefaultPlan(s, players, plan.roundMinutes || DEFAULT_ROUND_MINUTES, null, db)
         setPlan(fresh)
       },
     })
@@ -211,35 +220,17 @@ export default function SessionPlannerTab({ s }) {
   }
 
   const handleAddRound = () => {
-    setPlan((prev) => {
-      const nextIdx = prev.rounds.length
-      const startTime = prev.rounds[0]?.time || '19:00'
-      const mins = prev.roundMinutes || DEFAULT_ROUND_MINUTES
-      const times = calcRoundTimes(startTime, mins, nextIdx + 1)
-      const newTime = times[nextIdx]
+    const activeCourts = (s.courts || []).filter((c) => !c.sold)
+    const courtsList = activeCourts.length > 0 ? activeCourts : (s.courts || [0, 1])
+    setPlan((prev) => addPlanRound(prev, courtsList, prev.roundMinutes || DEFAULT_ROUND_MINUTES, sessionTime.startTime))
+  }
 
-      const numCourts = prev.rounds[0]?.courts?.length || 2
-      const newRound = {
-        roundIndex: nextIdx,
-        label: newTime?.label || `R${nextIdx + 1}`,
-        time: newTime?.time || '22:00',
-        timeRange: newTime?.timeRange || '22:00 → 22:18',
-        courts: Array.from({ length: numCourts }, (_, ci) => ({
-          courtIndex: ci,
-          name: prev.rounds[0]?.courts?.[ci]?.name || null,
-          teamA: [],
-          teamB: [],
-          challengeId: null,
-          wishId: null,
-          tag: null,
-        })),
-      }
-      return {
-        ...prev,
-        rounds: [...prev.rounds, newRound],
-        totalRounds: nextIdx + 1,
-      }
-    })
+  const handleRemoveRound = () => {
+    setPlan((prev) => removePlanRound(prev))
+  }
+
+  const handleChangeRoundMinutes = (newMinutes) => {
+    setPlan((prev) => updatePlanRoundMinutes(prev, newMinutes, sessionTime.startTime))
   }
 
   const handleScheduleChallenge = (challengeId) => {
@@ -292,9 +283,9 @@ export default function SessionPlannerTab({ s }) {
     }))
   }
 
-  // Khung giờ hiển thị
-  const startStr = plan.rounds?.[0]?.time || '19:00'
-  const endStr = plan.rounds?.[plan.rounds.length - 1]?.time || '22:00'
+  // Khung giờ hiển thị (ưu tiên giờ sân thực tế)
+  const startStr = sessionTime.startTime || plan.rounds?.[0]?.time || '19:00'
+  const endStr = sessionTime.endTime || plan.rounds?.[plan.rounds.length - 1]?.time || '21:00'
 
   return (
     <div
@@ -321,6 +312,10 @@ export default function SessionPlannerTab({ s }) {
         playersCount={players.length}
         startTime={startStr}
         endTime={endStr}
+        roundMinutes={plan.roundMinutes || DEFAULT_ROUND_MINUTES}
+        onChangeRoundMinutes={handleChangeRoundMinutes}
+        onAddRound={handleAddRound}
+        onRemoveRound={handleRemoveRound}
       />
 
       {/* 2. Thân 3 cột theo chuẩn concept Màn 1a / 1b */}
@@ -337,6 +332,7 @@ export default function SessionPlannerTab({ s }) {
         {/* Cột 2: Màn 1a Bảng vòng HOẶC Màn 1b Dòng thời gian */}
         {viewMode === 'grid' ? (
           <PlannerGridCol
+            db={db}
             rounds={plan.rounds}
             players={players}
             ratingsMap={ratingsMap}
@@ -347,6 +343,7 @@ export default function SessionPlannerTab({ s }) {
           />
         ) : (
           <PlannerTimelineCol
+            db={db}
             rounds={plan.rounds}
             players={players}
             highlightRoundIndex={highlightRoundIndex}
@@ -356,6 +353,7 @@ export default function SessionPlannerTab({ s }) {
 
         {/* Cột 3: Kèo & Nguyện vọng, Sức khoẻ kế hoạch, Cảnh báo (284px) */}
         <PlannerHealthCol
+          db={db}
           rounds={plan.rounds}
           challenges={challenges}
           wishes={plan.wishes || []}

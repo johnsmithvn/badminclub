@@ -1,7 +1,10 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
+import { playerName, playerOf } from '#lib/money.js'
+import { Avatar } from '#ds'
 
 export default function PlannerTimelineCol({
+  db,
   rounds = [],
   players = [],
   highlightRoundIndex = null,
@@ -13,7 +16,33 @@ export default function PlannerTimelineCol({
     return map
   }, [players])
 
-  const pName = (k) => pMap[k]?.name || k || '?'
+  const pName = (k) => {
+    if (!k) return '?'
+    if (pMap[k]?.name && pMap[k].name !== k) return pMap[k].name
+    if (db) {
+      const resolved = playerName(db, k)
+      if (resolved && resolved !== k) return resolved
+      const pObj = playerOf(db, k)
+      if (pObj?.name && pObj.name !== k) return pObj.name
+    }
+    if (typeof k === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(k)) {
+      return t('planner.defaultGuestName')
+    }
+    return k
+  }
+
+  const pAvatar = (k) => {
+    if (!k || k === '?') return ''
+    if (pMap[k]?.avatarUrl) return pMap[k].avatarUrl
+    if (db) {
+      const pObj = playerOf(db, k)
+      if (pObj?.avatarUrl) return pObj.avatarUrl
+      if (pObj?.avatar_url) return pObj.avatar_url
+      if (pObj?.profile?.avatar_url) return pObj.profile.avatar_url
+      if (pObj?.profile?.avatarUrl) return pObj.profile.avatarUrl
+    }
+    return ''
+  }
 
   return (
     <div style={S.colWrap}>
@@ -110,7 +139,8 @@ export default function PlannerTimelineCol({
                           {teamA.length > 0 ? (
                             teamA.map((k) => (
                               <span key={k} style={S.playerChipPlay}>
-                                {pName(k)}
+                                <Avatar name={pName(k)} src={pAvatar(k)} size={16} style={{ flexShrink: 0, marginRight: 5 }} />
+                                <span>{pName(k)}</span>
                               </span>
                             ))
                           ) : (
@@ -122,7 +152,8 @@ export default function PlannerTimelineCol({
                           {teamB.length > 0 ? (
                             teamB.map((k) => (
                               <span key={k} style={S.playerChipPlay}>
-                                {pName(k)}
+                                <Avatar name={pName(k)} src={pAvatar(k)} size={16} style={{ flexShrink: 0, marginRight: 5 }} />
+                                <span>{pName(k)}</span>
                               </span>
                             ))
                           ) : (
@@ -144,7 +175,8 @@ export default function PlannerTimelineCol({
                 <div style={S.benchChipsWrap}>
                   {freePlayers.slice(0, 10).map((p) => (
                     <span key={p.key} style={S.playerChipFree}>
-                      {p.name}
+                      <Avatar name={p.name} src={p.avatarUrl} size={15} style={{ flexShrink: 0, marginRight: 5 }} />
+                      <span>{p.name}</span>
                     </span>
                   ))}
                 </div>

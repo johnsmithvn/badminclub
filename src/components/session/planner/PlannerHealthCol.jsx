@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
 import { calcPlanHealth, detectPlanIssues } from '#lib/planner.js'
-import { Icon } from '#ds'
+import { playerName, playerOf } from '#lib/money.js'
+import { Icon, Avatar } from '#ds'
 
 export default function PlannerHealthCol({
+  db,
   rounds = [],
   challenges = [],
   wishes = [],
@@ -19,7 +21,33 @@ export default function PlannerHealthCol({
     return map
   }, [players])
 
-  const pName = (k) => pMap[k]?.name || k || '?'
+  const pName = (k) => {
+    if (!k) return '?'
+    if (pMap[k]?.name && pMap[k].name !== k) return pMap[k].name
+    if (db) {
+      const resolved = playerName(db, k)
+      if (resolved && resolved !== k) return resolved
+      const pObj = playerOf(db, k)
+      if (pObj?.name && pObj.name !== k) return pObj.name
+    }
+    if (typeof k === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(k)) {
+      return t('planner.defaultGuestName')
+    }
+    return k
+  }
+
+  const pAvatar = (k) => {
+    if (!k || k === '?') return ''
+    if (pMap[k]?.avatarUrl) return pMap[k].avatarUrl
+    if (db) {
+      const pObj = playerOf(db, k)
+      if (pObj?.avatarUrl) return pObj.avatarUrl
+      if (pObj?.avatar_url) return pObj.avatar_url
+      if (pObj?.profile?.avatar_url) return pObj.profile.avatar_url
+      if (pObj?.profile?.avatarUrl) return pObj.profile.avatarUrl
+    }
+    return ''
+  }
 
   // Tính sức khoẻ và cảnh báo
   const health = useMemo(
@@ -71,7 +99,25 @@ export default function PlannerHealthCol({
               }}
             >
               <div style={S.reqCardTitle} title={title}>
-                {title}
+                <span style={S.teamSpan}>
+                  {(c.teamA || []).map((k, idx) => (
+                    <span key={k + idx} style={S.playerInline}>
+                      <Avatar name={pName(k)} src={pAvatar(k)} size={16} style={{ flexShrink: 0 }} />
+                      <span>{pName(k)}</span>
+                      {idx < (c.teamA || []).length - 1 && <span style={S.plusSpan}>+</span>}
+                    </span>
+                  ))}
+                </span>
+                <span style={S.vsSpan}>{t('planner.vs')}</span>
+                <span style={S.teamSpan}>
+                  {(c.teamB || []).map((k, idx) => (
+                    <span key={k + idx} style={S.playerInline}>
+                      <Avatar name={pName(k)} src={pAvatar(k)} size={16} style={{ flexShrink: 0 }} />
+                      <span>{pName(k)}</span>
+                      {idx < (c.teamB || []).length - 1 && <span style={S.plusSpan}>+</span>}
+                    </span>
+                  ))}
+                </span>
               </div>
               <div style={S.reqCardMeta}>
                 <span style={S.confirmText}>
@@ -120,7 +166,13 @@ export default function PlannerHealthCol({
 
           return (
             <div key={w.id} style={S.reqCard}>
-              <div style={S.reqCardTitle}>{text}</div>
+              <div style={S.reqCardTitle} title={text}>
+                <span style={S.playerInline}>
+                  {w.memberId && <Avatar name={mName} src={pAvatar(w.memberId)} size={16} style={{ flexShrink: 0 }} />}
+                  <span>{text}</span>
+                  {w.targetId && <Avatar name={tName} src={pAvatar(w.targetId)} size={16} style={{ flexShrink: 0 }} />}
+                </span>
+              </div>
               <div style={S.reqCardMeta}>
                 <span style={S.stateUnplaced}>{t('planner.stateUnscheduled')}</span>
               </div>
@@ -304,6 +356,30 @@ const S = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+  },
+  teamSpan: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+  },
+  playerInline: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+  },
+  plusSpan: {
+    color: '#54637B',
+    margin: '0 1px',
+    fontWeight: 500,
+  },
+  vsSpan: {
+    font: '500 9.5px/1 "IBM Plex Mono", monospace',
+    color: '#F0B75C',
+    margin: '0 3px',
+    letterSpacing: '.06em',
   },
   reqCardMeta: {
     display: 'flex',

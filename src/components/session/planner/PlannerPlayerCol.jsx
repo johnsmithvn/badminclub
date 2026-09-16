@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
 import { isPresent } from '#lib/money.js'
+import { Avatar } from '#ds'
 
 export default function PlannerPlayerCol({
   players = [],
@@ -44,7 +45,7 @@ export default function PlannerPlayerCol({
         {players.map((p) => {
           const loadInfo = loads[p.key] || { count: 0, loadState: 'underload' }
           const load = loadInfo.count || 0
-          const isAtt = isPresent(attendance[p.key])
+          const isAtt = p.isAtt !== undefined ? p.isAtt : isPresent(attendance[p.key])
           const dotColor = isAtt ? '#2FCCC3' : '#54637B'
           const wishesNum = wishCounts[p.key] || 0
 
@@ -71,10 +72,20 @@ export default function PlannerPlayerCol({
               {/* Dot trạng thái điểm danh */}
               <span style={{ ...S.dot, background: dotColor }} />
 
+              {/* Avatar người chơi */}
+              <Avatar name={p.name} src={p.avatarUrl} size={22} style={{ flexShrink: 0 }} />
+
               {/* Tên */}
               <span style={S.playerName} title={p.name}>
                 {p.name}
               </span>
+
+              {/* Badge Khách nếu là khách */}
+              {p.guest && (
+                <span style={S.guestTag}>
+                  {t('planner.tagGuest')}
+                </span>
+              )}
 
               {/* Badge Nguyện vọng / Kèo nếu có */}
               {wishesNum > 0 && (
@@ -172,6 +183,15 @@ const S = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+  },
+  guestTag: {
+    font: '600 9.5px/1 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    background: 'rgba(255,255,255,0.08)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    padding: '2px 4px',
+    borderRadius: 3,
+    flex: '0 0 auto',
   },
   wishBadge: {
     font: '600 10.5px/1 "IBM Plex Sans", sans-serif',

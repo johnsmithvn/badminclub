@@ -19,6 +19,10 @@ export default function PlannerHeader({
   playersCount = 16,
   startTime = '19:00',
   endTime = '22:00',
+  roundMinutes = 18,
+  onChangeRoundMinutes,
+  onAddRound,
+  onRemoveRound,
 }) {
   return (
     <div style={S.headerWrap}>
@@ -58,6 +62,51 @@ export default function PlannerHeader({
           }}
         >
           {t('planner.modeTimeline')}
+        </button>
+      </div>
+
+      {/* Bộ điều khiển thời lượng trận đấu (15p, 18p, 20p, 25p) */}
+      <div style={S.durationTrack}>
+        <span style={S.durationLabel}>{t('planner.matchDuration')}:</span>
+        {[15, 18, 20, 25].map((mins) => (
+          <button
+            key={mins}
+            type="button"
+            onClick={() => onChangeRoundMinutes && onChangeRoundMinutes(mins)}
+            style={{
+              ...S.durationItem,
+              ...(roundMinutes === mins ? S.durationItemActive : {}),
+            }}
+          >
+            {mins + 'p'}
+          </button>
+        ))}
+      </div>
+
+      {/* Nút thêm / bớt vòng đấu */}
+      <div style={S.roundBtnGroup}>
+        <button
+          type="button"
+          onClick={onRemoveRound}
+          disabled={roundsCount <= 1}
+          style={{
+            ...S.btnRoundAction,
+            opacity: roundsCount <= 1 ? 0.35 : 1,
+            cursor: roundsCount <= 1 ? 'not-allowed' : 'pointer',
+          }}
+          title={t('planner.removeRoundBtn')}
+        >
+          <Icon name="minus" size={12} color="#8494AA" />
+          <span>{t('planner.removeRoundBtn')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={onAddRound}
+          style={S.btnRoundAction}
+          title={t('planner.addRoundBtn')}
+        >
+          <Icon name="plus" size={12} color="#5FDBD3" />
+          <span>{t('planner.addRoundBtn')}</span>
         </button>
       </div>
 
@@ -191,6 +240,54 @@ const S = {
     border: '1px solid #2E3E5C',
     color: '#fff',
     boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+  },
+  durationTrack: {
+    display: 'flex',
+    alignItems: 'center',
+    background: '#0B111D',
+    border: '1px solid #22304A',
+    borderRadius: 6,
+    padding: '2px 4px',
+    gap: 3,
+  },
+  durationLabel: {
+    font: '500 11px/1 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    padding: '0 4px',
+  },
+  durationItem: {
+    background: 'transparent',
+    border: 'none',
+    color: '#8494AA',
+    font: '600 11.5px/1 "IBM Plex Sans", sans-serif',
+    padding: '5px 8px',
+    borderRadius: 4,
+    cursor: 'pointer',
+    transition: 'all 120ms ease',
+  },
+  durationItemActive: {
+    background: '#1A2437',
+    color: '#5FDBD3',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+  },
+  roundBtnGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+  },
+  btnRoundAction: {
+    height: 34,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '0 9px',
+    borderRadius: 6,
+    background: '#141D2E',
+    border: '1px solid #22304A',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    color: '#E9EFF7',
+    cursor: 'pointer',
+    transition: 'all 120ms ease',
   },
   actionGroup: {
     display: 'flex',

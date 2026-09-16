@@ -4,6 +4,7 @@
 import { detailedCourtBalance } from '#lib/assign.js'
 import { sessionMembers, isPresent, sGuests, levelOf, playerName, playerOf } from '#lib/money.js'
 import { monthOf } from '#utils/dates.js'
+import { t } from '#i18n'
 
 export const DEFAULT_ROUND_MINUTES = 18
 export const DEFAULT_TOTAL_ROUNDS = 10
@@ -44,20 +45,58 @@ export function calcRoundTimes(startTime = '19:00', roundMinutes = DEFAULT_ROUND
 }
 
 /**
+ * Lấy khung giờ bắt đầu, kết thúc và tổng số phút của các sân thực tế trong buổi.
+ * @param {Object} session - Buổi chơi
+ * @returns {{ startTime: string, endTime: string, totalMinutes: number }}
+ */
+export function getSessionTimeRange(session) {
+  const courts = (session?.courts || []).filter((c) => !c.sold)
+  const validCourts = courts.length > 0 ? courts : (session?.courts || [])
+  const froms = validCourts.map((c) => c.from).filter(Boolean).sort()
+  const tos = validCourts.map((c) => c.to).filter(Boolean).sort().reverse()
+  const startTime = froms[0] || '19:00'
+  const endTime = tos[0] || '21:00'
+
+  const [sh, sm] = startTime.split(':').map((v) => parseInt(v, 10) || 0)
+  const [eh, em] = endTime.split(':').map((v) => parseInt(v, 10) || 0)
+  let totalMinutes = (eh * 60 + em) - (sh * 60 + sm)
+  if (totalMinutes <= 0) totalMinutes += 24 * 60
+
+  return { startTime, endTime, totalMinutes }
+}
+
+/**
  * Khởi tạo cấu trúc kế hoạch mặc định từ session.
  * @param {Object} session - Buổi tập
  * @param {Array} players - Danh sách người chơi
  * @param {number} roundMinutes - Số phút mỗi vòng
- * @param {number} totalRounds - Tổng số vòng
+ * @param {number|null} totalRounds - Tổng số vòng (null = tự tính theo giờ sân)
+ * @param {Object|null} db - Cơ sở dữ liệu CLB để lấy tên sân
  * @returns {Object} Kế hoạch rỗng chuẩn hoá
  */
-export function createDefaultPlan(session, players = [], roundMinutes = DEFAULT_ROUND_MINUTES, totalRounds = DEFAULT_TOTAL_ROUNDS) {
-  const courts = (session?.courts && session.courts.length > 0)
-    ? session.courts.map((c, idx) => ({ courtIndex: idx, name: c.courtLabel || null }))
-    : [{ courtIndex: 0, name: null }, { courtIndex: 1, name: null }]
+export function createDefaultPlan(session, players = [], roundMinutes = DEFAULT_ROUND_MINUTES, totalRounds = null, db = null) {
+  const activeCourts = (session?.courts || []).filter((c) => !c.sold)
+  const courtsList = activeCourts.length > 0 ? activeCourts : (session?.courts || [])
+  const courts = courtsList.length > 0
+    ? courtsList.map((c, idx) => {
+        let name = c.courtLabel || null
+        if (!name && c.courtId && db) {
+          const found = (db.courts || []).find((x) => x.id === c.courtId)
+          if (found?.name) name = found.name
+        }
+        return {
+          courtIndex: idx,
+          courtId: c.courtId || null,
+          name,
+        }
+      })
+    : [{ courtIndex: 0, courtId: null, name: null }, { courtIndex: 1, courtId: null, name: null }]
 
-  const startTime = session?.courts?.[0]?.startTime || '19:00'
-  const times = calcRoundTimes(startTime, roundMinutes, totalRounds)
+  const { startTime, totalMinutes } = getSessionTimeRange(session)
+  const calculatedRounds = Math.max(1, Math.floor(totalMinutes / roundMinutes))
+  const numRounds = totalRounds || calculatedRounds
+
+  const times = calcRoundTimes(startTime, roundMinutes, numRounds)
 
   const rounds = times.map((t) => ({
     roundIndex: t.roundIndex,
@@ -66,6 +105,7 @@ export function createDefaultPlan(session, players = [], roundMinutes = DEFAULT_
     timeRange: t.timeRange,
     courts: courts.map((c) => ({
       courtIndex: c.courtIndex,
+      courtId: c.courtId || null,
       name: c.name,
       teamA: [],
       teamB: [],
@@ -77,9 +117,78 @@ export function createDefaultPlan(session, players = [], roundMinutes = DEFAULT_
 
   return {
     roundMinutes,
-    totalRounds,
+    totalRounds: numRounds,
     rounds,
     wishes: [],
+  }
+}
+
+/**
+ * Cập nhật mốc giờ các vòng khi thay đổi số phút mỗi trận.
+ */
+export function updatePlanRoundMinutes(plan, newMinutes, startTime = '19:00') {
+  if (!plan) return plan
+  const numRounds = plan.rounds?.length || DEFAULT_TOTAL_ROUNDS
+  const times = calcRoundTimes(startTime, newMinutes, numRounds)
+  const nextRounds = (plan.rounds || []).map((r, i) => {
+    const t = times[i]
+    return {
+      ...r,
+      time: t ? t.time : r.time,
+      timeRange: t ? t.timeRange : r.timeRange,
+    }
+  })
+  return {
+    ...plan,
+    roundMinutes: newMinutes,
+    rounds: nextRounds,
+  }
+}
+
+/**
+ * Thêm 1 vòng đấu vào cuối kế hoạch.
+ */
+export function addPlanRound(plan, courts = [0, 1], roundMinutes = DEFAULT_ROUND_MINUTES, startTime = '19:00') {
+  if (!plan) return plan
+  const currentRounds = plan.rounds || []
+  const nextIdx = currentRounds.length
+  const mins = plan.roundMinutes || roundMinutes
+  const times = calcRoundTimes(startTime, mins, nextIdx + 1)
+  const t = times[nextIdx]
+
+  const defaultCourts = courts.map((c, idx) => ({
+    courtIndex: idx,
+    courtId: c?.courtId || null,
+    name: c?.name || c?.courtLabel || null,
+    teamA: [],
+    teamB: [],
+    challengeId: null,
+    wishId: null,
+    tag: null,
+  }))
+
+  const newRound = {
+    roundIndex: nextIdx,
+    label: t ? t.label : 'R' + (nextIdx + 1),
+    time: t ? t.time : '',
+    timeRange: t ? t.timeRange : '',
+    courts: defaultCourts,
+  }
+
+  return {
+    ...plan,
+    rounds: [...currentRounds, newRound],
+  }
+}
+
+/**
+ * Bớt 1 vòng đấu ở cuối kế hoạch (tối thiểu giữ 1 vòng).
+ */
+export function removePlanRound(plan) {
+  if (!plan || !plan.rounds || plan.rounds.length <= 1) return plan
+  return {
+    ...plan,
+    rounds: plan.rounds.slice(0, -1),
   }
 }
 
@@ -355,7 +464,13 @@ export function autoGeneratePlan({
   ratingsMap = {},
 }) {
   const times = calcRoundTimes(startTime, roundMinutes, totalRounds)
-  const numCourts = Array.isArray(courts) ? courts.length : 2
+  const courtConfigs = Array.isArray(courts) && courts.length > 0
+    ? courts.map((c, idx) => ({
+        courtIndex: idx,
+        courtId: typeof c === 'object' ? (c.courtId || null) : null,
+        name: typeof c === 'object' ? (c.name || c.courtLabel || null) : null,
+      }))
+    : [{ courtIndex: 0, courtId: null, name: null }, { courtIndex: 1, courtId: null, name: null }]
   const pList = (players || []).map((p) => p.key || p.id).filter(Boolean)
 
   if (pList.length < 4) {
@@ -365,9 +480,10 @@ export function autoGeneratePlan({
       label: t.label,
       time: t.time,
       timeRange: t.timeRange,
-      courts: Array.from({ length: numCourts }, (_, ci) => ({
-        courtIndex: ci,
-        name: null,
+      courts: courtConfigs.map((c) => ({
+        courtIndex: c.courtIndex,
+        courtId: c.courtId,
+        name: c.name,
         teamA: [],
         teamB: [],
         challengeId: null,
@@ -383,9 +499,10 @@ export function autoGeneratePlan({
     label: t.label,
     time: t.time,
     timeRange: t.timeRange,
-    courts: Array.from({ length: numCourts }, (_, ci) => ({
-      courtIndex: ci,
-      name: null,
+    courts: courtConfigs.map((c) => ({
+      courtIndex: c.courtIndex,
+      courtId: c.courtId,
+      name: c.name,
       teamA: [],
       teamB: [],
       challengeId: null,
@@ -512,6 +629,20 @@ export function autoGeneratePlan({
   return rounds
 }
 
+function resolveSafePlayerName(db, id, fallback) {
+  if (!id) return fallback || ''
+  if (db) {
+    const n = playerName(db, id)
+    if (n && n !== id) return n
+    const p = playerOf(db, id)
+    if (p?.name && p.name !== id) return p.name
+  }
+  if (typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(id)) {
+    return fallback || t('planner.defaultGuestName')
+  }
+  return id
+}
+
 /**
  * Thu thập danh sách người chơi toàn diện cho Planner của một buổi:
  * - Bao gồm mọi thành viên của nhóm buổi chơi (cả đã điểm danh và chưa điểm danh).
@@ -533,8 +664,9 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
       out.push({
         key: m.id,
         id: m.id,
-        name: m.name || m.fullName || 'Thành viên',
+        name: m.name || m.fullName || t('planner.defaultMemberName'),
         fullName: m.fullName || m.name || '',
+        avatarUrl: m.avatarUrl || m.avatar_url || (m.profile && (m.profile.avatar_url || m.profile.avatarUrl)) || '',
         level: levelOf(m, month) || m.level || 'TB',
         gender: m.gender || 'nam',
         guest: false,
@@ -549,13 +681,35 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
     const key = sg.guestId || sg.memberId || sg.id
     if (key && !seenKeys.has(key)) {
       seenKeys.add(key)
-      const name = playerName(db, key) || playerName(db, sg.id) || sg.name || 'Khách'
+      if (sg.id) seenKeys.add(sg.id)
+      if (sg.guestId) seenKeys.add(sg.guestId)
+
+      const defaultGuest = t('planner.defaultGuestName')
+      let name = ''
+      if (sg.name && !/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(sg.name)) {
+        name = sg.name
+      } else if (sg.guestName) {
+        name = sg.guestName
+      } else if (sg.guest_name) {
+        name = sg.guest_name
+      } else {
+        const fromKey = resolveSafePlayerName(db, key, defaultGuest)
+        const fromSgId = resolveSafePlayerName(db, sg.id, defaultGuest)
+        name = (fromKey && fromKey !== key && fromKey !== defaultGuest)
+          ? fromKey
+          : ((fromSgId && fromSgId !== sg.id && fromSgId !== defaultGuest) ? fromSgId : defaultGuest)
+      }
+
+      const pObj = playerOf(db, key) || playerOf(db, sg.id)
+      const avatarUrl = sg.avatarUrl || sg.avatar_url || pObj?.avatarUrl || pObj?.avatar_url || (pObj?.profile && (pObj?.profile?.avatar_url || pObj?.profile?.avatarUrl)) || ''
+
       out.push({
         key,
         id: key,
         sgId: sg.id,
         name,
         fullName: name,
+        avatarUrl,
         level: sg.level || 'TB',
         gender: sg.gender || 'nam',
         guest: !sg.memberId,
@@ -569,13 +723,16 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
     ;[...(c.teamA || []), ...(c.teamB || [])].forEach((k) => {
       if (k && !seenKeys.has(k)) {
         seenKeys.add(k)
+        const defaultGuest = t('planner.defaultGuestName')
+        const name = resolveSafePlayerName(db, k, defaultGuest)
         const pObj = playerOf(db, k)
-        const name = playerName(db, k) || pObj?.name || 'Khách'
+        const avatarUrl = pObj?.avatarUrl || pObj?.avatar_url || (pObj?.profile && (pObj?.profile?.avatar_url || pObj?.profile?.avatarUrl)) || ''
         out.push({
           key: k,
           id: k,
-          name: name !== k ? name : (pObj?.name || 'Khách'),
-          fullName: name !== k ? name : (pObj?.name || 'Khách'),
+          name,
+          fullName: name,
+          avatarUrl,
           level: pObj?.level || 'TB',
           gender: pObj?.gender || 'nam',
           guest: !pObj || !!pObj.guestId || !pObj.role,
@@ -591,13 +748,16 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
       ;[...(c.teamA || []), ...(c.teamB || [])].forEach((k) => {
         if (k && !seenKeys.has(k)) {
           seenKeys.add(k)
+          const defaultGuest = t('planner.defaultGuestName')
+          const name = resolveSafePlayerName(db, k, defaultGuest)
           const pObj = playerOf(db, k)
-          const name = playerName(db, k) || pObj?.name || 'Khách'
+          const avatarUrl = pObj?.avatarUrl || pObj?.avatar_url || (pObj?.profile && (pObj?.profile?.avatar_url || pObj?.profile?.avatarUrl)) || ''
           out.push({
             key: k,
             id: k,
-            name: name !== k ? name : (pObj?.name || 'Khách'),
-            fullName: name !== k ? name : (pObj?.name || 'Khách'),
+            name,
+            fullName: name,
+            avatarUrl,
             level: pObj?.level || 'TB',
             gender: pObj?.gender || 'nam',
             guest: !pObj || !!pObj.guestId || !pObj.role,

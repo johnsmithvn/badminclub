@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { t } from '#i18n'
 import { calcCourtBalanceScore } from '#lib/planner.js'
-import { Icon } from '#ds'
+import { playerName, playerOf } from '#lib/money.js'
+import { Icon, Avatar } from '#ds'
 
 export default function PlannerGridCol({
+  db,
   rounds = [],
   players = [],
   ratingsMap = {},
@@ -24,7 +26,33 @@ export default function PlannerGridCol({
   const numCourts = rounds[0]?.courts?.length || 2
   const gridTemplate = `52px repeat(${numCourts}, 1fr)`
 
-  const pName = (k) => pMap[k]?.name || k || '?'
+  const pName = (k) => {
+    if (!k) return '?'
+    if (pMap[k]?.name && pMap[k].name !== k) return pMap[k].name
+    if (db) {
+      const resolved = playerName(db, k)
+      if (resolved && resolved !== k) return resolved
+      const pObj = playerOf(db, k)
+      if (pObj?.name && pObj.name !== k) return pObj.name
+    }
+    if (typeof k === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(k)) {
+      return t('planner.defaultGuestName')
+    }
+    return k
+  }
+
+  const pAvatar = (k) => {
+    if (!k || k === '?') return ''
+    if (pMap[k]?.avatarUrl) return pMap[k].avatarUrl
+    if (db) {
+      const pObj = playerOf(db, k)
+      if (pObj?.avatarUrl) return pObj.avatarUrl
+      if (pObj?.avatar_url) return pObj.avatar_url
+      if (pObj?.profile?.avatar_url) return pObj.profile.avatar_url
+      if (pObj?.profile?.avatarUrl) return pObj.profile.avatarUrl
+    }
+    return ''
+  }
 
   return (
     <div style={S.colWrap}>
@@ -138,7 +166,20 @@ export default function PlannerGridCol({
                         }}
                         title={textA}
                       >
-                        {textA}
+                        {teamA.length === 0 ? (
+                          totalPlaced === 0 ? t('planner.emptyCourt') : t('planner.needTwo')
+                        ) : (
+                          <span style={S.playerTeamWrap}>
+                            {teamA.map((k, idx) => (
+                              <span key={k + idx} style={S.playerInlineItem}>
+                                <Avatar name={pName(k)} src={pAvatar(k)} size={18} style={{ flexShrink: 0 }} />
+                                <span>{pName(k)}</span>
+                                {idx < teamA.length - 1 && <span style={S.plusSign}>+</span>}
+                              </span>
+                            ))}
+                            {teamA.length === 1 && <span style={S.slotPending}>+ ?</span>}
+                          </span>
+                        )}
                       </span>
                       <span style={S.vsText}>{t('planner.vs')}</span>
                       <span
@@ -148,7 +189,20 @@ export default function PlannerGridCol({
                         }}
                         title={textB}
                       >
-                        {textB}
+                        {teamB.length === 0 ? (
+                          missing >= 2 ? t('planner.needTwo') : t('planner.needOne')
+                        ) : (
+                          <span style={S.playerTeamWrap}>
+                            {teamB.map((k, idx) => (
+                              <span key={k + idx} style={S.playerInlineItem}>
+                                <Avatar name={pName(k)} src={pAvatar(k)} size={18} style={{ flexShrink: 0 }} />
+                                <span>{pName(k)}</span>
+                                {idx < teamB.length - 1 && <span style={S.plusSign}>+</span>}
+                              </span>
+                            ))}
+                            {teamB.length === 1 && <span style={S.slotPending}>+ ?</span>}
+                          </span>
+                        )}
                       </span>
                     </span>
 
@@ -292,6 +346,29 @@ const S = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     flex: '1 1 0',
+  },
+  playerTeamWrap: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    flexWrap: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  playerInlineItem: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+  },
+  plusSign: {
+    color: '#54637B',
+    margin: '0 2px',
+    fontWeight: 500,
+  },
+  slotPending: {
+    color: '#8494AA',
+    marginLeft: 2,
+    fontWeight: 500,
   },
   vsText: {
     flex: '0 0 auto',

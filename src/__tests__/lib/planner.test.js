@@ -7,6 +7,11 @@ import {
   calcPlanHealth,
   detectPlanIssues,
   autoGeneratePlan,
+  getSessionPlannerPlayers,
+  getSessionTimeRange,
+  updatePlanRoundMinutes,
+  addPlanRound,
+  removePlanRound,
 } from '../../lib/planner.js'
 
 // 1. calcRoundTimes
@@ -18,15 +23,40 @@ assert.equal(times[0].timeRange, '19:00 → 19:18')
 assert.equal(times[1].time, '19:18')
 assert.equal(times[2].time, '19:36')
 
-// 2. createDefaultPlan
+// 2. getSessionTimeRange & createDefaultPlan theo giờ sân thật
 const sessionMock = {
   id: 's1',
-  courts: [{ courtLabel: 'Sân 1' }, { courtLabel: 'Sân 2' }],
+  courts: [
+    { courtLabel: 'Sân 1', from: '18:00', to: '20:00' },
+    { courtLabel: 'Sân 2', from: '18:00', to: '20:00' },
+  ],
 }
-const defaultPlan = createDefaultPlan(sessionMock, [], 18, 10)
-assert.equal(defaultPlan.rounds.length, 10, 'mặc định 10 vòng')
-assert.equal(defaultPlan.rounds[0].courts.length, 2, 'mỗi vòng có 2 sân')
-assert.equal(defaultPlan.rounds[0].courts[0].name, 'Sân 1')
+const sTime = getSessionTimeRange(sessionMock)
+assert.equal(sTime.startTime, '18:00', 'lấy đúng giờ bắt đầu từ sân')
+assert.equal(sTime.endTime, '20:00', 'lấy đúng giờ kết thúc từ sân')
+assert.equal(sTime.totalMinutes, 120, 'tính đúng 120 phút')
+
+// Khởi tạo kế hoạch tự tính số vòng theo giờ sân (120 phút / 15 phút = 8 vòng)
+const plan15m = createDefaultPlan(sessionMock, [], 15)
+assert.equal(plan15m.rounds.length, 8, '120 phút với 15p/trận sinh đúng 8 vòng')
+assert.equal(plan15m.rounds[0].time, '18:00')
+assert.equal(plan15m.rounds[1].time, '18:15')
+assert.equal(plan15m.rounds[7].time, '19:45')
+
+// Đổi thời lượng sang 20 phút (updatePlanRoundMinutes)
+const plan20m = updatePlanRoundMinutes(plan15m, 20, sTime.startTime)
+assert.equal(plan20m.roundMinutes, 20)
+assert.equal(plan20m.rounds[0].time, '18:00')
+assert.equal(plan20m.rounds[1].time, '18:20')
+assert.equal(plan20m.rounds[2].time, '18:40')
+
+// Thêm vòng (addPlanRound) và bớt vòng (removePlanRound)
+const planAdded = addPlanRound(plan20m, [{ name: 'Sân 1' }, { name: 'Sân 2' }], 20, sTime.startTime)
+assert.equal(planAdded.rounds.length, 9, 'đã thêm thành 9 vòng')
+assert.equal(planAdded.rounds[8].label, 'R9')
+
+const planRemoved = removePlanRound(planAdded)
+assert.equal(planRemoved.rounds.length, 8, 'đã bớt về 8 vòng')
 
 // 3. calcPlayerLoads
 const players = [
@@ -96,5 +126,39 @@ assert.equal(genRounds.length, 10, 'sinh đủ 10 vòng')
 const r3 = genRounds[2]
 const chalCourt = r3.courts.find((c) => c.challengeId === 'ch1')
 assert.equal(chalCourt.tag, 'CHALLENGE')
+
+// 7. getSessionPlannerPlayers (lên đúng tên khách và người trong kèo, không lộ UUID)
+const dbMock = {
+  members: [
+    { id: 'm1', name: 'Kuro', gender: 'nam', level: 'TB', avatarUrl: 'https://example.com/kuro.jpg' },
+    { id: 'm2', name: 'Tiến Đạt', gender: 'nam', level: 'TB' },
+  ],
+  groups: [{ id: 'g1', name: 'Nhóm 1' }],
+  groupMemberships: [
+    { memberId: 'm1', groupId: 'g1', month: '2026-09' },
+    { memberId: 'm2', groupId: 'g1', month: '2026-09' },
+  ],
+  attendance: { s1: { m1: true } },
+  guests: [
+    { id: 'g_uuid_1', name: 'Khách Hoàng', gender: 'nam', level: 'TB', avatarUrl: 'https://example.com/hoang.jpg' },
+    { id: 'g_uuid_2', name: 'Khách Tuấn', gender: 'nam', level: 'TB' },
+  ],
+  roster: {},
+  sessionGuests: [
+    { id: 'sg1', sessionId: 's1', guestId: 'g_uuid_1', level: 'TB', gender: 'nam' },
+  ],
+}
+const sMock = { id: 's1', date: '2026-09-18', groupId: 'g1' }
+const chalMock = [
+  { id: 'c1', teamA: ['m2', 'g_uuid_1'], teamB: ['m1', 'g_uuid_2'] },
+]
+
+const plannerPlayers = getSessionPlannerPlayers(dbMock, sMock, chalMock, null)
+assert.equal(plannerPlayers.length, 4, 'thu thập đủ 2 thành viên + 2 khách')
+assert.ok(plannerPlayers.some((p) => p.name === 'Khách Hoàng'), 'nhận diện đúng tên khách từ sessionGuests')
+assert.ok(plannerPlayers.some((p) => p.name === 'Khách Tuấn'), 'nhận diện đúng tên khách từ challenge')
+assert.ok(plannerPlayers.every((p) => !p.name.includes('uuid')), 'tuyệt đối không để lộ UUID làm tên')
+assert.equal(plannerPlayers.find((p) => p.key === 'm1')?.avatarUrl, 'https://example.com/kuro.jpg', 'giữ avatarUrl của thành viên')
+assert.equal(plannerPlayers.find((p) => p.key === 'g_uuid_1')?.avatarUrl, 'https://example.com/hoang.jpg', 'giữ avatarUrl của khách')
 
 console.log('planner.test.js: All checks passed OK')
