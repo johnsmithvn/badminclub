@@ -171,7 +171,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
       courts: courtsList,
       challenges,
       wishes: plan.wishes || [],
-      startTime: sessionTime.startTime,
+      startTime: sessionTime?.startTime || '19:00',
       roundMinutes: plan.roundMinutes || DEFAULT_ROUND_MINUTES,
       totalRounds: plan.rounds?.length || DEFAULT_TOTAL_ROUNDS,
       ratingsMap,
@@ -263,7 +263,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
   const handleAddRound = () => {
     const activeCourts = (s.courts || []).filter((c) => !c.sold)
     const courtsList = activeCourts.length > 0 ? activeCourts : (s.courts || [0, 1])
-    setPlan((prev) => addPlanRound(prev, courtsList, prev.roundMinutes || DEFAULT_ROUND_MINUTES, sessionTime.startTime))
+    setPlan((prev) => addPlanRound(prev, courtsList, prev.roundMinutes || DEFAULT_ROUND_MINUTES, sessionTime?.startTime || '19:00'))
   }
 
   const handleRemoveRound = () => {
@@ -271,7 +271,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
   }
 
   const handleChangeRoundMinutes = (newMinutes) => {
-    setPlan((prev) => updatePlanRoundMinutes(prev, newMinutes, sessionTime.startTime))
+    setPlan((prev) => updatePlanRoundMinutes(prev, newMinutes, sessionTime?.startTime || '19:00'))
   }
 
   // Di chuyển hoặc hoán đổi nguyên cả trận đấu giữa các vòng/sân
@@ -520,8 +520,8 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
   }
 
   // Khung giờ hiển thị (ưu tiên giờ sân thực tế)
-  const startStr = sessionTime.startTime || plan.rounds?.[0]?.time || '19:00'
-  const endStr = sessionTime.endTime || plan.rounds?.[plan.rounds.length - 1]?.time || '21:00'
+  const startStr = sessionTime?.startTime || plan.rounds?.[0]?.time || '19:00'
+  const endStr = sessionTime?.endTime || plan.rounds?.[plan.rounds.length - 1]?.time || '21:00'
   const courtsCount = plan.rounds?.[0]?.courts?.length || (s.courts || []).filter((c) => !c.sold).length || 2
 
   return (

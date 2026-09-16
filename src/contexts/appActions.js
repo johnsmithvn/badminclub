@@ -2855,13 +2855,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
 
       // Gọi RPC gắn video an toàn trên database
-      if (supabase && supabase.rpc) {
-        supabase.rpc('attach_match_video', {
+      if (supabase && typeof supabase.rpc === 'function') {
+        Promise.resolve(supabase.rpc('attach_match_video', {
           p_match_id: matchId,
           p_video_url: nextUrl,
           p_video_timestamp: nextTs,
           p_video_note: nextNote,
-        }).catch((err) => {
+        })).catch((err) => {
           console.warn('[actions] Không gọi được RPC attach_match_video:', err?.message || err)
         })
       }
@@ -2903,11 +2903,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
 
       // Gọi hàm RPC tăng lượt xem an toàn trên database
-      if (supabase && supabase.rpc) {
-        supabase.rpc('increment_match_video_views', {
+      if (supabase && typeof supabase.rpc === 'function') {
+        Promise.resolve(supabase.rpc('increment_match_video_views', {
           p_match_id: matchId,
           p_viewer_id: viewerKey,
-        }).catch((err) => {
+        })).catch((err) => {
           console.warn('[actions] Không gọi được RPC increment_match_video_views:', err?.message || err)
         })
       }
