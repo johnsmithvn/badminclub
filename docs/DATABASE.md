@@ -1,8 +1,8 @@
 # DATABASE.md
 
-**Version:** v0.6.0 · **Updated:** 2026-09-10
+**Version:** v1.1.0 · **Updated:** 2026-09-16
 
-Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0026`.
+Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0035`.
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
 localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
@@ -142,18 +142,23 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 
 | Trong `db` (client) | Bảng Postgres | Khác biệt cần xử lý |
 | --- | --- | --- |
-| `attendance[sessionId][memberId] = true \| false \| 'extra'` | `attendances` (1 dòng/người) | → enum `present`/`absent`/`extra`; chưa điểm danh = **không có dòng**. `'extra'` = đi thêm (`money.js: isPresent`) |
+| `attendance[sessionId][memberId] = true \| false \| 'extra' \| 'noshow'` | `attendances` (1 dòng/người) | → enum `present`/`absent`/`extra`/`noshow`; chưa điểm danh = **không có dòng**. `'extra'` = đi thêm (`money.js: isPresent`), `'noshow'` = bùng kèo (0031, 0032) |
 | `sessions[].courts[]` (array lồng) | `session_courts` (bảng riêng) | index của array **chính là** `court_index` — thứ tự quyết định slot id `c{ci}t{team}s{seat}` |
+| `sessions[].planner` | `sessions.planner` | Cấu hình & danh sách vòng đấu của bộ Lập dây trận dạng JSONB (0033) |
 | `roster[month][groupId][memberId] = state` | `group_memberships` | 1 dòng/người/tháng/nhóm |
 | `locked[month] = true` | `roster_locks` | |
 | `adjustments[]` | `member_adjustments` | `key` = `month:groupId:memberId:kind`, thay cho `back_credits` cũ |
 | `members[].fullName` | `club_members.full_name` | Tên đầy đủ trong sổ CLB (0010) |
 | `members[].email` | `club_members.email` | Email liên lạc trong sổ CLB (0010) |
+| `members[].badges` · `members[].badgeShelf` | `club_members.badges` · `club_members.badge_shelf` | Danh sách huy hiệu đạt được (jsonb) và Kệ 3 huy hiệu danh dự (text[]) (0027) |
 | `courts[].mapUrl` | `courts.map_url` | Link Google Maps / Bản đồ vị trí sân (0011) |
 | `members[].note` | `club_members.note` | Ghi chú thành viên (0005) |
 | `lineups[sessionId][slot] = playerKey` | `session_lineups` | `playerKey` là member id **hoặc** guest id → cần `player_type` |
 | `courtGroups[sessionId][playerKey] = courtIdx` | `session_court_groups` | như trên |
 | `matches[].playerKeys[4]` | `matches` + `match_players` | 1 trận → 4 dòng, kèm `team` |
+| `matches[].videoUrl` · `videoProvider` · `videoThumbnailUrl` | `matches.video_url` · `video_provider` · `video_thumbnail_url` | Video replay trận đấu (0029) |
+| `matches[].videoViewsCount` · `videoTimeline` | `matches.video_views_count` · `matches.video_timeline` | Lượt xem và mốc timeline video (0030) |
+| `matches[].bountyBroken` | `matches.bounty_broken` | Thông tin tiền thưởng chuỗi thắng bị phá (0028) |
 | `playing[sessionId][courtIdx] = timestamp` | *(không lưu DB)* | trạng thái đồng hồ |
 | `manual[]` | `transactions` **có `ref_type = 'manual'`** | dòng do RPC sinh (`ref_type` khác) client không đụng tới |
 | `guestPrices[]` | `guest_price_rules` | thêm `effective_from` |
@@ -174,7 +179,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `club.debtBanner` | `clubs.debt_banner` | Kiểu banner nhắc nợ (0019). Danh sách giá trị lặp lại ở `Settings.jsx: DEBT_BANNERS` — đổi một bên là DB trả 23514 |
 | `dues[].claimedAt` · `adjustments[].claimedAt` · `sessionGuests[].claimedAt` | cột `claimed_at` của ba bảng | Khác null = thành viên đã khai đã chuyển tiền, chờ duyệt (0018). Duyệt = bật `paid` và GIỮ `claimed_at`; từ chối = đặt lại NULL |
 | `members[].bankAccounts` | `club_members.bank_accounts jsonb` | Danh sách tài khoản ngân hàng thành viên (0015) |
-| `challenges[]` | `challenges` + `challenge_players` | Kèo đấu: mã kèo, đội A/B, thể thức, trạng thái, sân chỉ định, hạn nhận (0021) |
+| `challenges[]` | `challenges` + `challenge_players` | Kèo đấu: mã kèo, đội A/B, thể thức, trạng thái, sân chỉ định, hạn nhận, `session_id` liên kết buổi chơi (0021) |
 | `matches[]` | `matches` + `match_players` | Trận đấu: tỷ số từng set, đội thắng, nguồn (session / challenge), delta Elo (0021) |
 | `playerRatings` | `player_ratings` | Điểm Elo, độ tin cậy (R1-R5), số trận thắng/thua của từng thành viên (0021) |
 | `matchEdits[]` | `match_edits` | Lịch sử audit log sửa điểm trận: lý do sửa, tỷ số cũ/mới, người sửa (0021) |
@@ -214,6 +219,15 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0024_member_extra_discount.sql` | Bổ sung cột `has_member_extra_discount` và `member_extra_discount` cho bảng `clubs` để hỗ trợ giảm trừ giá cho hội viên cố định khi đi thêm buổi. |
 | `0025_court_label.sql` | Bổ sung cột `court_label` cho `session_courts` và `schedule_slots` để gán nhãn/số sân chi tiết (ví dụ: 'Sân 19', 'Sân 20'). |
 | `0026_pending_requests_avatar_and_bank.sql` | Cập nhật RPC `club_pending_requests` trả về thêm `avatar_url`, `qr_url`, `bank_holder`, `bank_no`, `bank_name`, `bank_accounts` từ `profiles` — giúp chủ CLB thấy đầy đủ hồ sơ người xin vào khi duyệt (0015 đã thêm cột nhưng RPC chưa cập nhật). |
+| `0027_badges_and_shelf.sql` | Bổ sung cột `badges` (jsonb default '[]'::jsonb) và `badge_shelf` (text[] default '{}') cho bảng `club_members` để lưu huy hiệu và kệ 3 huy hiệu danh dự hiển thị trên profile. |
+| `0028_add_bounty_broken_to_matches.sql` | Bổ sung cột `bounty_broken` (jsonb) vào bảng `matches` để ghi nhận tiền thưởng săn chuỗi thắng bị phá vỡ. |
+| `0029_add_match_video.sql` | Bổ sung `video_url`, `video_provider` và `video_thumbnail_url` vào bảng `matches` để hỗ trợ video replay trận đấu. |
+| `0030_add_match_video_views.sql` | Bổ sung cột `video_views_count` (integer default 0) và `video_timeline` (jsonb default '[]'::jsonb) vào bảng `matches` để theo dõi lượt xem và các mốc thời gian nổi bật của video. |
+| `0031_attendance_noshow.sql` | Mở rộng check constraint `attendance_state` enum cho bảng `attendances` thành `('present', 'absent', 'extra', 'noshow')` để ghi nhận tình trạng đăng ký nhưng bùng kèo không đến. |
+| `0032_drop_registered_attend_state.sql` | Dọn dẹp bỏ trạng thái `registered_attend` khỏi check constraint của enum `attendance_state`. |
+| `0033_add_session_planner.sql` | Bổ sung cột `planner` (jsonb default '{}'::jsonb) cho bảng `sessions` lưu trữ cấu hình vòng đấu, danh sách trận xếp trước theo vòng của bộ Lập dây trận. |
+| `0034_increment_match_video_views.sql` | RPC function `increment_match_video_views(p_match_id, p_club_id)` tăng số lượt xem video trận đấu an toàn phía server. |
+| `0035_attach_match_video.sql` | RPC function `attach_match_video(p_match_id, p_club_id, p_video_url, p_video_provider, p_video_thumbnail_url, p_video_timeline)` cập nhật thông tin video replay cho trận đấu. |
 
 ---
 
@@ -221,6 +235,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 
 - [x] RLS trên mọi bảng: user chỉ thấy CLB mình là `club_members`.
 - [x] **Kiểm RLS bằng hai tài khoản khác CLB — ĐẠT 2026-09-01.**
+- [x] Kiểm tra công thức xếp hạng với dữ liệu lịch sử CLB qua runner Backtest (`src/__tests__/backtest/`).
 - [ ] Kiểm cờ quyền **server-side** theo `role_permissions` — hiện `has_club_perm` đã có.
 - [ ] Trigger ghi `audit_logs` cho mọi bảng dính tiền.
 - [ ] Trigger/RPC sinh `transactions` khi chốt buổi, để không phụ thuộc client.

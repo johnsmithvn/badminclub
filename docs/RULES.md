@@ -1,6 +1,6 @@
 # RULES.md — Quản lý CLB cầu lông
 
-**Version:** v6.7.0 · **Updated:** 2026-09-10
+**Version:** v6.8.0 · **Updated:** 2026-09-16
 
 Quy tắc hiện hành cho human developer và coding agent. `CLAUDE.md` là entrypoint ngắn; file này là
 policy chi tiết. Lịch sử rule cũ nằm trong git/CHANGELOG, không lặp ở đây.
@@ -142,8 +142,8 @@ src/
   data/                schema.js (mô tả schema cho trang Sơ đồ dữ liệu)
   hooks/               hook dùng chung (useClock…)
   i18n/                index.js + <locale>.json
-  lib/                 logic nghiệp vụ THUẦN: money · ledger · assign · roles · members · schedules · csv · forms · supabase · rating · challenge · matchSearch · xp · season
-  pages/               1 file 1 màn hình
+  lib/                 logic nghiệp vụ THUẦN: money · ledger · assign · roles · members · schedules · csv · forms · supabase · rating · challenge · matchSearch · xp · season · badge · planner
+  pages/               1 file 1 màn hình (kèm Leaderboard, Matches)
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/*.css
   utils/               helper chung không dính nghiệp vụ (dates · image · vietqr · voiceMatchParser)

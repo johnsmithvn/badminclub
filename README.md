@@ -107,8 +107,8 @@ Design system **TDMS** trích từ bộ handoff (29 component). 6 dependency run
 src/
   App.jsx              route + gác quyền          main.jsx  mount
   components/
-    challenge/         CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart
-    session/           CourtAssignmentTab · SessionMatchesTab
+    challenge/         CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart · AttachVideoModal · MatchVideoPlayerModal · VideoTimelineEditor
+    session/           CourtAssignmentTab · SessionMatchesTab · PlannerModal · VoiceMatchModal
     settings/          SettingsComponents.jsx · tabs/ (Access · Courts · General · Groups · Money · Schedules)
     ds/                design system TDMS (VENDORED — không sửa tay)
     layout/            AppLayout · Sidebar · AppHeader · MobileFooterNav · MoreSheet · ToastHost
@@ -120,14 +120,14 @@ src/
   data/                schema.js · rankThemes.js · rankThemes.json
   hooks/               useClock.js · useMobile.js
   i18n/                index.js · vi.json            ← MỌI chữ
-  lib/                 assign · challenge · csv · forms · ledger · matchSearch · members · money · rating · roles · schedules · supabase (THUẦN, test được)
-  pages/               13 màn trong CLB (kèm Leaderboard) + Account · Clubs · Login · Register + Dialogs
+  lib/                 assign · badge · challenge · csv · forms · ledger · matchSearch · members · money · planner · rating · roles · schedules · season · supabase · xp (THUẦN, test được)
+  pages/               14 màn trong CLB (kèm Leaderboard, Matches) + Account · Clubs · Login · Register + Dialogs
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/ (dark.css, semantic.css, base.css…)
-  utils/               dates.js · image.js · vietqr.js
-  __tests__/           43 file test cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/ (118 tests)
-supabase/migrations/   SQL cho bản chạy thật (0001..0025)
-docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS (+ DESIGN.md ở gốc)
+  utils/               dates.js · image.js · vietqr.js · voiceMatchParser.js
+  __tests__/           60+ file test cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/ · backtest/ (355 tests pass 100%)
+supabase/migrations/   SQL cho bản chạy thật (0001..0035)
+docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS · BACKTEST · HE_THONG_RATING_VA_DIEM_MUA (+ DESIGN.md ở gốc)
 DESIGN.md
 ```
 
@@ -153,14 +153,20 @@ Chi tiết: [docs/RULES.md](docs/RULES.md).
 | [docs/FEATURES.md](docs/FEATURES.md) | Chức năng từng màn + luật nghiệp vụ dễ sai |
 | [docs/DATABASE.md](docs/DATABASE.md) | Schema, nguồn của từng con số, map state client ↔ Postgres |
 | [docs/TASKS.md](docs/TASKS.md) | Trạng thái thật của việc dựng app |
+| [docs/BACKTEST.md](docs/BACKTEST.md) | Hướng dẫn chạy lại lịch sử thật để kiểm tra công thức Elo & Điểm mùa |
+| [docs/HE_THONG_RATING_VA_DIEM_MUA.md](docs/HE_THONG_RATING_VA_DIEM_MUA.md) | Đặc tả chuyên sâu toán học và kiến trúc 3 trục điểm độc lập |
 | [DESIGN.md](DESIGN.md) | Token màu/chữ/spacing, khung app, copywriting |
 
 ## Tính năng đã hoàn thành
 
 - **Quản lý vận hành & Tài chính**: Lịch cố định, Buổi tập, Điểm danh, Khách giao lưu, Quỹ CLB, Công nợ chi tiết, Tự khai nợ/chuyển khoản (`payment_claims`), Nhãn số sân (`court_label`), Ưu đãi giảm trừ đi thêm cho hội viên (`member_extra_discount`), Báo cáo Zalo, Nhập danh sách CSV, Sao lưu cấu hình JSON. Đơn giản hóa dòng tiền (gỡ bỏ kho cầu phức tạp theo Migration 0023, chi tiền mua cầu trực tiếp ở sổ quỹ).
 - **Hợp nhất Buổi tập & Chia sân**: Gộp Chi tiết buổi tập và Chia sân thành 3 tabs trực quan (Chia sân kéo thả/xếp tự động, Kèo đấu & lịch sử trận đấu, Điểm danh & Giá thành).
-- **Hệ thống Kèo đấu & Thi đấu (Challenge)**: Gạ kèo 1v1 / 2v2, dự báo Elo win%, cảnh báo lệch trình (>250 Elo), xếp kèo trực tiếp lên sân trống (`deployChallenge`), nhập điểm nhiều set (Best of 1/3/5), dự báo biến động Elo.
+- **Phân hệ Lập Dây Trận (Session Match Planner)**: Lập lịch vòng đấu ca tập đa sân theo vòng (`planner.js`), tự động ưu tiên Kèo thách đấu đã nhận (`ACCEPTED`), giải quyết xung đột Nguyện vọng người chơi, luân chuyển công bằng lượt đấu và loại trừ người vắng mặt/noshow.
+- **Hệ thống Kèo đấu & Sàn Đấu (Challenge & Matches)**: Gạ kèo 1v1 / 2v2, dự báo Elo win%, cảnh báo lệch trình, xếp kèo trực tiếp lên sân trống, gác hết hạn kèo (`expiresAt`), chống đè slot 1v1->2v2, hỗ trợ tạo kèo tự do ngoài buổi và gán vào buổi chơi thực tế (`linkChallengeToSession`).
+- **Trận đấu Video Replay & Mốc Timeline**: Hỗ trợ gắn link video (YouTube, Facebook, Google Drive), nhận diện thumbnail, phát video replay trực tiếp, gắn mốc thời gian nổi bật (`video_timeline`) và bộ đếm lượt xem an toàn qua RPC.
 - **Bảng xếp hạng Elo & Thống kê nâng cao (Leaderboard)**: Khởi điểm 0 Elo, tính điểm chuẩn quốc tế kèm thưởng upset, 5 cấp độ tin cậy R1–R5, Dynamic K-Factor, Margin of Victory, Elo Floor >= 0, 8 bậc Slang Rank Tiers (Gà Con -> Độc Cô Cầu Bại), Inactivity Decay, Playstyle Badges, Tìm trận đa năng, Sửa điểm trực tiếp có lưu vết kiểm toán và cascade tính lại Elo, Ma trận đối đầu CLB (H2H matrix), Thống kê hiệu chỉnh chéo giới tính (Cross-gender calibration).
+- **Đua Top Mùa Giải & Trục Gắn Bó (Season Race & Badges)**: Cày rank 5 dải delta theo Quý, sàn Floor = 0, thưởng chuỗi thắng, thưởng Upset, Vua Lì Đòn (Bounty Player) và thưởng phá chuỗi (`bounty_broken`), hệ thống XP & Cấp bậc vĩnh viễn, Kệ 3 huy hiệu danh dự (`badge_shelf`) trên hồ sơ cá nhân.
+- **Framework Backtest Lịch sử Thật**: Bộ công cụ chạy lại toàn bộ trận đấu lịch sử của CLB đối chiếu với mốc chuẩn (baseline), bảo đảm tính ổn định tuyệt đối của công thức tính điểm (Rule §0).
 - **Giao diện Responsive Mobile & Dark Mode**: ThemeContext hỗ trợ Dark/Light/System chống nháy sáng FOUC; điều hướng mobile Driver-App với MobileFooterNav 5 slot và MoreSheet.
-- **118/118 automated test cases pass 100%**.
+- **355/355 automated test cases pass 100%**.
 - `npm run lint` sạch (0 warning, 0 error). Responsive tối ưu trên màn hình điện thoại từ 390px đến máy tính bảng/desktop.

@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v0.7.0 · **Updated:** 2026-09-12
+**Version:** v1.1.0 · **Updated:** 2026-09-16
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -42,7 +42,7 @@ thứ tự trong danh sách chính là thứ tự mạnh dần mà thuật toán
 Lịch tập cố định  →  sinh buổi (draft)
       ↓  Mở điểm danh
 Buổi (open)  →  điểm danh · thêm khách giao lưu
-      ↓  Chia sân (kéo thả · xếp thông minh · bấm giờ · Xong trận)
+      ↓  Chia sân (kéo thả · xếp thông minh · lập dây trận · bấm giờ · Xong trận)
       ↓  Chốt tiền buổi
 Buổi (closed)  →  vào sổ quỹ và mọi thống kê
       ↓  Cuối tháng
@@ -67,7 +67,7 @@ Báo cáo: thu chi theo tháng (cột đôi) · tỷ lệ đi tập · khách th
 
 ## 3. Buổi tập (`/buoi-tap`) và Chi tiết buổi (`/buoi-tap/:id`)
 
-Điểm danh: bấm vào tên để đổi Có mặt / Vắng. Có "Tất cả có mặt" / "Tất cả vắng".
+Điểm danh: bấm vào tên để đổi Có mặt / Vắng / Bùng kèo (noshow). Có "Tất cả có mặt" / "Tất cả vắng".
 Chỉ hiện **thành viên cố định của nhóm trong tháng đó** (`roster` = `fixed`).
 
 **Hai đường cho người đi lẻ — đừng nhầm:**
@@ -106,12 +106,26 @@ Nút chốt buổi là hành động primary **duy nhất** của trang.
 Chi tiết buổi tập được thiết kế lại thành thanh Tab Bar 3 tabs chuyển đổi mượt mà:
 
 ### Tab 1: Điểm danh & Tiền (`attend`)
-- Giữ nguyên 100% logic điểm danh (Có mặt / Vắng / Đi thêm) và thu tiền khách giao lưu.
-- Đánh Vắng một người sẽ **tự động gỡ người đó khỏi bất kỳ ô sân nào đang ngồi** (Quy tắc Handoff).
+- Điểm danh 4 trạng thái: Có mặt (`present`), Vắng mặt (`absent`), Đi thêm (`extra`) và Bùng kèo (`noshow` — đăng ký nhưng không đến không báo trước).
+- Đánh Vắng hoặc Bùng kèo một người sẽ **tự động gỡ người đó khỏi bất kỳ ô sân nào đang ngồi** (Quy tắc Handoff) và loại khỏi danh sách xếp trận.
+- Thu tiền khách giao lưu và quản lý công nợ buổi trực tiếp.
 
 ### Tab 2: Chia sân (`courts`)
 - **Pool người chờ**: Chỉ những ai đã điểm danh Có mặt mới vào pool. Người dùng bấm chọn 1 người rồi bấm ô trống trên sân.
-- **Kèo đã nhận, đang chờ sân**: Hiển thị danh sách kèo trạng thái `ACCEPTED`. Nút "Đưa lên sân trống" tự động xếp 4 người vào sân rỗng.
+- **Kèo đã nhận, đang chờ sân**: Hiển thị danh sách kèo trạng thái `ACCEPTED`. Nút "Đưa lên sân trống" tự động xếp vào sân rỗng.
+  - Tự động làm sạch ô sân trước khi đưa kèo 1v1 lên sân (chống đè lẫn người từ 1v1 thành 2v2).
+  - Tự động kiểm tra và chặn người vắng mặt/noshow tham gia thi đấu.
+  - Gác thời hạn nhận kèo: ẩn nút nhận và cảnh báo hết hạn khi quá `expiresAt`.
+- **Hẹn kèo trước trong CLB & Gán kèo tự do vào buổi chơi**:
+  - Banner hiển thị các kèo hẹn trước trong CLB (`sessionId: null`).
+  - Nút "Đưa vào buổi này" (`linkChallengeToSession`) cho phép quản trò hoặc người tham gia kèo gắn kèo vào buổi đang mở để xếp sân thi đấu và tính điểm.
+- **Phân hệ Lập Dây Trận (Session Match Planner — `src/lib/planner.js`)**:
+  - Chia buổi tập thành nhiều vòng đấu (rounds), mỗi vòng gồm các trận song song trên các sân.
+  - Tự động xếp **Kèo thách đấu đã nhận (`ACCEPTED`)** với độ ưu tiên cao nhất, tự động lọc bỏ người vắng mặt (`!isPlayerAbsent`).
+  - Giải quyết xung đột **Nguyện vọng thành viên** (muốn ghép cặp, tránh đối đầu, thích thể thức nam/nữ).
+  - Tự động cân bằng số lượt ra sân và trình độ cho những người chơi còn lại.
+  - Hỗ trợ cả 2 chế độ: Xếp lại toàn bộ (`replace`) và Điền vào slot trống (`fill`).
+  - Nút "Nạp vào sân" đưa danh sách trận của một vòng đấu trực tiếp vào các slot sân thực tế.
 - **Grid sân & Thẻ sân**:
   - Timer bấm giờ trận đấu.
   - Hiển thị độ cân bằng trình độ (`Cân trình`, `Hơi lệch`, `Lệch trình`).
@@ -132,6 +146,7 @@ Chi tiết buổi tập được thiết kế lại thành thanh Tab Bar 3 tabs 
   - Quản lý trạng thái: `PENDING`, `ACCEPTED`, `DECLINED`, `ONCOURT`, `PLAYED`, `CANCELLED`.
   - Hỗ trợ xem theo góc nhìn: Người tạo, Đội được thách đấu, Khách xem.
   - Tự động hiển thị lịch sử đối đầu (H2H) giữa 2 đội (K4).
+  - Tự động liên kết `sessionId` khi tạo kèo trong buổi.
 
 ---
 
@@ -157,7 +172,7 @@ Màn hình Bảng xếp hạng **5 tabs** toàn diện:
    - Xếp hạng thành viên theo Elo Rating giảm dần.
    - Hiển thị Rank, Tên, Giới tính, LevelChip, Điểm Elo, Thanh độ tin cậy (Confidence Bar), Tỷ số Thắng-Thua, Tỷ lệ thắng %, Form 5 trận gần nhất (W/L badge).
    - Histogram phân bố Elo toàn CLB.
-   - Bấm vào thành viên → mở `MemberProfileTab` (hồ sơ cá nhân chi tiết: card cấp bậc Rank Tiers, tiến trình R1–R5, phân tích theo thể thức, đối tác ăn ý, đối thủ kỵ giơ, sổ XP).
+   - Bấm vào thành viên → mở `MemberProfileTab` (hồ sơ cá nhân chi tiết: card cấp bậc Rank Tiers, tiến trình R1–R5, Kệ 3 huy hiệu danh dự `badgeShelf` và kho huy hiệu đạt được `badges`, phân tích theo thể thức, đối tác ăn ý, đối thủ kỵ giơ, sổ XP).
 
 3. **Cặp đôi/Đối tác (`pairs` — `PairsTab`)**:
    - Xếp hạng các cặp đôi theo synergy (tỷ lệ thắng khi cùng đội, số trận chung, độ tin cậy).
@@ -361,13 +376,19 @@ Hệ thống cung cấp trang chuyên biệt `/tran-dau` đóng vai trò là Sà
 1. **Tab 1: Sàn Kèo / Thách đấu (Challenge Arena):**
    - Vòng đời kèo: `pending` (chờ nhận) $\to$ `accepted` (đã nhận) $\to$ `oncourt` (đang trên sân) $\to$ `played` (đã đấu và ghi nhận Match). Các trạng thái kết thúc khác: `declined`, `expired`, `cancelled`.
    - Phân loại subtab: Kèo của tôi, Kèo mở toàn CLB, Kèo đang chờ, Kèo đã đấu, Tất cả.
-   - Thẻ kèo hiển thị đầy đủ tỷ lệ thắng dự kiến win%, độ lệch Elo, countdown thời hạn, nút Nhận / Từ chối / Hủy kèo và nút "+ Tạo kèo".
-   - Kèo tạo từ Bảng xếp hạng hoặc Săn thưởng được lưu với `sessionId: null` và hiển thị rõ ràng trên sàn đấu CLB thay vì bị ẩn/thất lạc.
+   - Thẻ kèo hiển thị đầy đủ tỷ lệ thắng dự kiến win%, độ lệch Elo, countdown thời hạn, nút Nhận / Từ chối / Hủy kèo và nút "+ Tạo kèo". Tự động đổi badge "Hết hạn" và vô hiệu hóa nhận kèo khi quá `expiresAt`.
+   - Kèo tự do tạo từ Bảng xếp hạng hoặc Săn thưởng (`sessionId: null`): Khi CLB đang có buổi tập mở, hiển thị nút **"Đưa vào buổi này"** (`linkChallengeToSession`) để gắn vào buổi chơi, sau đó đưa lên sân thi đấu ghi kết quả.
+   - Kèo đã gắn buổi: Có nút **"Vào buổi chơi để đưa lên sân"** chuyển hướng nhanh sang Tab Chia sân.
 
 2. **Tab 2: Lịch sử trận & Video (Match History & Replay):**
    - Bộ lọc chuyên sâu theo 2 người chơi (Đối đầu / Cùng đội), có/không có video, chất lượng trận (Sát điểm / Upset / Đảo chiều Elo), nguồn chia sân / kèo tự do.
    - Thẻ tóm tắt H2H hiển thị tỷ số đối đầu trực tiếp giữa 2 người chơi.
-   - Danh sách trận đấu phân nhóm theo ngày, hỗ trợ xem video replay trực tiếp (Youtube / Facebook / Drive), gắn link video cho trận đấu, xem chi tiết và sửa tỷ số inline (ghi sổ `match_edits`).
+   - Danh sách trận đấu phân nhóm theo ngày:
+     - **Gắn video replay**: Modal `AttachVideoModal` cho phép gắn link video (YouTube, Facebook, Google Drive, trực tiếp), tự động nhận diện nhà cung cấp và thumbnail.
+     - **Xem video & Timeline**: Modal `MatchVideoPlayerModal` phát video, hiển thị danh sách mốc thời gian nổi bật (`video_timeline` các set đấu, pha cầu hay) kèm trình chỉnh sửa `VideoTimelineEditor`.
+     - **Bộ đếm lượt xem**: Tự động tăng số lượt xem video an toàn qua RPC `increment_match_video_views`.
+     - **Lưu vết thưởng phá chuỗi**: Hiển thị nhãn `bounty_broken` cho những trận lật đổ Vua Lì Đòn.
+     - Sửa tỷ số trực tiếp inline (ghi sổ kiểm toán `match_edits`).
 
 3. **Tab 3: Ma trận Đối đầu Toàn CLB (H2H Matrix):**
    - Bảng ma trận đối đầu NxN trực quan, hỗ trợ xem Top 5, Top 8, Top 12 hoặc Toàn CLB.

@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v1.3.0 · **Updated:** 2026-09-12
+**Version:** v1.5.0 · **Updated:** 2026-09-16
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -1076,6 +1076,105 @@ Hoàn thiện phân tích chuyên sâu cặp đôi, đối đầu cá nhân và 
   - Bổ sung `voiceMatchParser.test.js` (24 test cases kiểm tra toàn diện ngữ pháp và khử nhiễu).
   - 52 file test với **222/222 test cases pass 100%**!
   - `src/i18n/vi.json` đạt mốc **2,154 keys**.
+
+---
+
+## Đợt 12 — Huy hiệu, Kệ huy hiệu & Bounty Phá chuỗi · **XONG 2026-09-13**
+
+Xây dựng hệ thống vinh danh thành tích cá nhân, kệ 3 huy hiệu danh dự và cơ chế săn tiền thưởng phá vỡ chuỗi thắng:
+
+- [x] **Hệ thống Huy hiệu & Kệ danh dự (`src/lib/badge.js`)**:
+  - Migration 0027: Bổ sung `badges` (JSONB) và `badge_shelf` (TEXT[]) cho `club_members`.
+  - Bộ luật mở khóa huy hiệu tự động qua các mốc thành tích: Vua Lì Đòn (Streak 3/5/10), Sát Thủ Khắc Chế (thắng đối thủ kỵ giơ), Cặp Đôi Vàng (Synergy cao), Chuyên Cần (tham gia liên tục), Thợ Săn Upset (thắng kèo lệch trình).
+  - Kệ 3 huy hiệu danh dự (`badge_shelf`) hiển thị nổi bật trên `MemberProfileTab` và danh sách thành viên.
+- [x] **Tiền thưởng Săn chuỗi thắng (`bounty_broken`)**:
+  - Migration 0028: Bổ sung `bounty_broken` cho bảng `matches`.
+  - Khi một cặp đôi hoặc VĐV đánh bại người đang giữ danh hiệu Vua Lì Đòn (Streak >= 3), hệ thống tự động ghi nhận chiến tích phá chuỗi và thưởng điểm mùa/XP đặc biệt.
+- [x] **Kiểm thử tự động**:
+  - Viết mới `src/__tests__/lib/badge.test.js` kiểm thử toàn diện logic mở khóa, gắn huy hiệu lên kệ và tính toán bounty.
+
+---
+
+## Đợt 13 — Framework Backtest Kiểm thử Dữ liệu Thật & Chuẩn hóa Luật Nghiệp vụ · **XONG 2026-09-14**
+
+Xây dựng công cụ kiểm thử hồi quy dựa trên lịch sử thi đấu thật của CLB, ngăn ngừa mọi biến dạng ngoài ý muốn của Elo và Điểm Mùa:
+
+- [x] **Bộ công cụ Backtest CLI (`src/__tests__/backtest/`)**:
+  - `data/`: Lưu trữ dữ liệu trận đấu thực tế trích xuất từ CLB.
+  - `baseline/`: Bộ số mốc chuẩn hóa (Elo, Điểm mùa, Drift, Chỉ số công bằng).
+  - `run.mjs` & `backtest.test.js`: Tái hiện tuần tự toàn bộ lịch sử đấu qua công thức hiện hành và so sánh độ lệch với mốc chuẩn.
+- [x] **Thiết lập Luật số 0 (`docs/RULES.md §0` & `docs/BACKTEST.md`)**:
+  - Quy định cấm tuyệt đối việc sửa mốc baseline để làm xanh test khi chưa được người dùng phân tích và phê duyệt.
+  - Hướng dẫn quy trình 5 bước nghiêm ngặt khi tinh chỉnh công thức Elo hoặc Điểm mùa giải.
+
+---
+
+## Đợt 14 — Điểm danh Bùng kèo (Attendance No-Show Tracking) · **XONG 2026-09-14**
+
+Phân định rạch ròi giữa việc vắng mặt có báo trước và bùng kèo phút chót nhằm nâng cao văn hóa sinh hoạt thể thao:
+
+- [x] **Cơ sở dữ liệu & Ánh xạ State**:
+  - Migration 0031 & 0032: Cập nhật check constraint enum `attendance_state` thành `('present', 'absent', 'extra', 'noshow')`. Dọn dẹp trạng thái `registered_attend`.
+  - `src/contexts/dbmap.js`: Đồng bộ hóa trạng thái `'noshow'` giữa client và Postgres.
+- [x] **Nghiệp vụ & Gác luồng**:
+  - Đánh dấu `noshow` tự động loại bỏ người chơi khỏi bất kỳ ô sân nào đang xếp và gỡ khỏi pool chờ.
+  - Thống kê tỷ lệ giữ uy tín (No-show Rate) trên hồ sơ cá nhân của thành viên.
+  - Bộ kiểm thử `attendance_noshow.test.js` bảo đảm tính toàn vẹn của logic điểm danh và tiền quỹ.
+
+---
+
+## Đợt 15 — Trận đấu Video Replay, Timeline & Đếm lượt xem · **XONG 2026-09-15**
+
+Nâng cấp trang `/tran-dau` thành Hub Thực Chiến đa phương tiện, hỗ trợ xem lại và phân tích băng hình trận đấu:
+
+- [x] **Lưu trữ & RPCs Video Replay**:
+  - Migration 0029, 0030: Bổ sung `video_url`, `video_provider`, `video_thumbnail_url`, `video_views_count`, `video_timeline` cho bảng `matches`.
+  - Migration 0034: RPC `increment_match_video_views` tăng lượt xem an toàn phía server.
+  - Migration 0035: RPC `attach_match_video` cập nhật thông tin video và mốc timeline.
+- [x] **Giao diện Trải nghiệm Video**:
+  - `AttachVideoModal.jsx`: Gắn link video (YouTube, Facebook, Google Drive, Direct link), tự động nhận diện nhà cung cấp và thumbnail.
+  - `MatchVideoPlayerModal.jsx`: Trình phát video tích hợp danh sách mốc thời gian nổi bật (`video_timeline`).
+  - `VideoTimelineEditor.jsx`: Cho phép gắn thẻ các pha cầu đẹp, set đấu hoặc thời điểm lật kèo.
+- [x] **Kiểm thử tự động**:
+  - `src/__tests__/lib/video_match_timeline.test.js`: Kiểm thử phân tích URL, nhận diện nhà cung cấp, chuẩn hóa timeline và validation dữ liệu.
+
+---
+
+## Đợt 16 — Phân hệ Lập Dây Trận (Session Match Planner) & Tối ưu Luân chuyển Sân · **XONG 2026-09-16**
+
+Xây dựng bộ điều phối luân chuyển trận đấu đa sân chuyên nghiệp theo vòng, giải quyết bài toán hóc búa về điều phối trận đấu thực tế tại sân:
+
+- [x] **Động cơ Lập Dây Trận thuần túy (`src/lib/planner.js`)**:
+  - Migration 0033: Bổ sung cột `planner` (JSONB) cho bảng `sessions`.
+  - Chia ca tập thành các vòng đấu (rounds), mỗi vòng gồm các trận diễn ra đồng thời trên các sân.
+  - Ưu tiên số 1: Tự động xếp các **Kèo thách đấu đã nhận (`ACCEPTED`)** vào vòng đấu sớm nhất, gác chặn người vắng mặt/noshow (`!isPlayerAbsent`).
+  - Giải quyết xung đột **Nguyện vọng thành viên**: Xếp cặp đối tác mong muốn, tránh gặp người né tránh, ưu tiên thể thức đánh đôi nam/nữ theo yêu cầu.
+  - Cân bằng lượt đấu và trình độ: Tự động ghép những người còn lại theo nguyên tắc công bằng số trận đã ra sân và độ cân bằng Elo.
+  - Hỗ trợ 2 chế độ điều phối: Xếp lại toàn bộ (`replace`) và Điền vào slot trống (`fill`).
+- [x] **Giao diện Tích hợp**:
+  - Tích hợp trực tiếp vào Tab Chia sân (`CourtAssignmentTab.jsx`) và Modal `PlannerModal.jsx`.
+  - Nút "Nạp vào sân" nạp tức thì toàn bộ các trận trong một vòng đấu vào các sân thực tế.
+- [x] **Kiểm thử tự động**:
+  - `src/__tests__/lib/planner.test.js`: 14 test cases kiểm thử độc lập bao phủ toàn bộ các luật ưu tiên kèo, xử lý nguyện vọng, cân bằng lượt đấu và loại trừ người vắng mặt.
+
+---
+
+## Đợt 17 — Hoàn thiện Sàn Kèo, Hẹn Kèo Tự Do & Đồng bộ Buổi chơi · **XONG 2026-09-16**
+
+Đóng kín vòng đời của Kèo thách đấu, cho phép hẹn kèo trước ngoài buổi và gán vào buổi chơi thực tế:
+
+- [x] **Hẹn kèo tự do & Liên kết Buổi tập**:
+  - Cho phép tạo kèo ngoài buổi (`sessionId: null`) trên Sàn Kèo (`Matches.jsx`) hoặc Bảng xếp hạng.
+  - Khi có buổi tập đang mở, cung cấp nút **"Đưa vào buổi này"** (`linkChallengeToSession`) trên cả Tab Chia sân và Sàn Kèo để quản trò hoặc người tham gia gán kèo vào buổi chơi hiện tại.
+- [x] **Sửa lỗi & Gác chặn an toàn**:
+  - Sửa lỗi tham số lịch sử đối đầu H2H (`playerA`, `playerB`) trong `ChallengeDetailModal.jsx`.
+  - Gác thời hạn nhận kèo (`expiresAt`): hiển thị badge "Hết hạn", ẩn nút nhận kèo quá hạn trong `Matches.jsx` và chặn trong `respondChallenge`.
+  - Chống đè slot: Tự động xóa sạch ô sân trước khi đưa kèo 1v1 lên sân, tránh hiện tượng đè lẫn người từ 1v1 thành 2v2 trong `deployChallenge`.
+  - Chặn người vắng mặt/noshow tham gia nhận kèo hoặc đưa lên sân đấu.
+- [x] **Mở rộng Bộ kiểm thử tự động (355 tests pass 100%)**:
+  - Viết mới `src/__tests__/lib/challenge_full.test.js` kiểm thử toàn diện vòng đời kèo tự do, liên kết buổi, hết hạn, và kiểm tra slot sân.
+  - Toàn bộ **355/355 tests PASS 100%** trên toàn dự án!
+  - `src/i18n/vi.json` được chuẩn hóa và bổ sung đầy đủ các khóa localization.
 
 ---
 
