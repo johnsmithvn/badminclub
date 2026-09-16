@@ -83,6 +83,14 @@ export default function Matches() {
   const [initialTeamA, setInitialTeamA] = useState([])
   const [initialTeamB, setInitialTeamB] = useState([])
   const [now, setNow] = useState(() => Date.now())
+  const [selectingSessionChallenge, setSelectingSessionChallenge] = useState(null)
+
+  const availableSessions = useMemo(() => {
+    const open = openSessions(db) || []
+    const openIds = new Set(open.map((s) => s.id))
+    const others = (db.sessions || []).filter((s) => !openIds.has(s.id))
+    return [...open, ...others]
+  }, [db])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 10000)
@@ -948,30 +956,59 @@ export default function Matches() {
                       </button>
                     )}
 
-                    {/* Đưa kèo tự do vào buổi chơi nếu có buổi đang mở hoặc gần nhất */}
-                    {isAccepted && !sessionObj && (openSessions(db)[0] || (db.sessions || [])[0]) && (
+                    {/* Đổi buổi hoặc Gỡ khỏi buổi nếu kèo đã gắn vào buổi */}
+                    {isAccepted && sessionObj && (isParticipant || isAdmin) && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setSelectingSessionChallenge(c)}
+                          style={S.smallSecondaryBtn}
+                          title={t('challenge.chooseSession')}
+                        >
+                          <Icon name="calendar-days" size={14} />
+                          <span>{t('challenge.changeSession')}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => a.linkChallengeToSession(c.id, null)}
+                          style={S.smallGhostBtn}
+                          title={t('challenge.btnUnlinkSession')}
+                        >
+                          <Icon name="unlink" size={14} />
+                          <span>{t('challenge.btnUnlinkSession')}</span>
+                        </button>
+                      </>
+                    )}
+
+                    {/* Đưa kèo tự do vào buổi chơi: Mở dialog chọn buổi rõ ràng */}
+                    {isAccepted && !sessionObj && (
                       <button
                         type="button"
-                        onClick={() => {
-                          const targetS = openSessions(db)[0] || (db.sessions || [])[0]
-                          if (targetS) a.linkChallengeToSession(c.id, targetS.id)
-                        }}
+                        onClick={() => setSelectingSessionChallenge(c)}
                         style={S.smallPrimaryBtn}
                       >
                         <Icon name="plus" size={14} />
-                        <span>{t('challenge.linkToSession')}</span>
+                        <span>{t('challenge.chooseSession')}</span>
                       </button>
                     )}
 
-                    {/* Hủy kèo nếu là người tạo hoặc admin */}
-                    {isPending && (isCreator || isAdmin) && (
+                    {/* Hủy kèo nếu là người trong kèo hoặc admin (khi chưa đấu) */}
+                    {(isPending || isAccepted) && !isPlayed && (isParticipant || isAdmin) && (
                       <button
                         type="button"
-                        onClick={() => a.cancelChallenge(c.id)}
+                        onClick={() => {
+                          a.confirm({
+                            title: t('challenge.confirmCancelTitle'),
+                            message: t('challenge.confirmCancelMsg', { code: c.code }),
+                            tone: 'danger',
+                            confirmText: t('challenge.btnCancelChallenge'),
+                            onConfirm: () => a.cancelChallenge(c.id),
+                          })
+                        }}
                         style={S.smallDangerBtn}
                       >
                         <Icon name="circle-x" size={14} />
-                        <span>{t('challenge.btnCancel')}</span>
+                        <span>{t('challenge.btnCancelChallenge')}</span>
                       </button>
                     )}
 
@@ -3089,6 +3126,123 @@ export default function Matches() {
           onClose={() => setAttachVideoMatch(null)}
           onSaved={() => setAttachVideoMatch(null)}
         />
+      )}
+
+      {/* Modal chọn buổi chơi cho kèo */}
+      {selectingSessionChallenge && (
+        <Dialog
+          isOpen={true}
+          onClose={() => setSelectingSessionChallenge(null)}
+          title={t('challenge.linkSessionModalTitle', { code: selectingSessionChallenge.code })}
+          maxWidth={460}
+        >
+          <div style={{ display: 'grid', gap: 14, padding: '4px 0' }}>
+            <div style={{ font: '400 13px/1.4 var(--font-sans)', color: 'var(--text-secondary)' }}>
+              {t('challenge.linkSessionModalDesc')}
+            </div>
+
+            {availableSessions.length === 0 ? (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                {t('challenge.noAvailableSessions')}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 8, maxHeight: 320, overflowY: 'auto' }}>
+                {availableSessions.map((s) => {
+                  const isOpen = s.status === 'open'
+                  const isCurrent = selectingSessionChallenge.sessionId === s.id
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        a.linkChallengeToSession(selectingSessionChallenge.id, s.id)
+                        setSelectingSessionChallenge(null)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 14px',
+                        borderRadius: 8,
+                        background: isCurrent ? 'rgba(0, 178, 169, 0.12)' : 'var(--surface-card)',
+                        border: `1px solid ${isCurrent ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      <div style={{ display: 'grid', gap: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ font: '600 14px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
+                            {t('challenge.sessionItemDate', { date: dd(s.date) })}
+                          </span>
+                          {isOpen && (
+                            <span style={{
+                              fontSize: 11,
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: 'rgba(0, 178, 169, 0.15)',
+                              color: 'var(--teal-500)',
+                              fontWeight: 600,
+                            }}>
+                              {t('challenge.sessionStatusOpen')}
+                            </span>
+                          )}
+                          {isCurrent && (
+                            <span style={{
+                              fontSize: 11,
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: 'var(--surface-sunken)',
+                              color: 'var(--text-muted)',
+                              fontWeight: 500,
+                            }}>
+                              {t('challenge.sessionStatusCurrent')}
+                            </span>
+                          )}
+                        </div>
+                        {s.title && (
+                          <div style={{ font: '400 12px/1.3 var(--font-sans)', color: 'var(--text-muted)' }}>
+                            {s.title}
+                          </div>
+                        )}
+                      </div>
+                      <Icon name="arrow-right" size={16} color="var(--text-secondary)" />
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+              {selectingSessionChallenge.sessionId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    a.linkChallengeToSession(selectingSessionChallenge.id, null)
+                    setSelectingSessionChallenge(null)
+                  }}
+                  style={{
+                    ...S.smallGhostBtn,
+                    color: 'var(--status-incident-fg)',
+                    borderColor: 'rgba(225,68,52,0.3)',
+                    marginRight: 'auto',
+                  }}
+                >
+                  <Icon name="unlink" size={14} />
+                  <span>{t('challenge.btnUnlinkSession')}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectingSessionChallenge(null)}
+                style={S.smallGhostBtn}
+              >
+                {t('common.close')}
+              </button>
+            </div>
+          </div>
+        </Dialog>
       )}
     </div>
   )

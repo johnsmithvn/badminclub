@@ -21,7 +21,7 @@ function Avatar({
   style,
   ...rest
 }) {
-  const initials = name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
+  const initials = String(name || '').split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
   const dot = {
     online: 'var(--status-delivered)',
     driving: 'var(--teal-500)',

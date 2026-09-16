@@ -29,15 +29,17 @@ export const monthShort = (m) => m.slice(5, 7) + '/' + m.slice(0, 4)
 
 /** Cộng/trừ tháng: ('2026-08', 1) → '2026-09' */
 export function addMonth(m, delta) {
-  const [y, mo] = m.split('-').map(Number)
+  if (!m) return ''
+  const [y, mo] = String(m).split('-').map(Number)
   const d = new Date(y, mo - 1 + delta, 1)
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
 }
 
 /** Giờ thập phân giữa hai mốc: ('18:00','20:00') → 2 */
 export function hours(from, to) {
-  const p = from.split(':').map(Number)
-  const q = to.split(':').map(Number)
+  if (!from || !to) return 0
+  const p = String(from).split(':').map(Number)
+  const q = String(to).split(':').map(Number)
   return ((q[0] * 60 + q[1]) - (p[0] * 60 + p[1])) / 60
 }
 

@@ -575,6 +575,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
             ratingsMap={ratingsMap}
             highlightRoundIndex={highlightRoundIndex}
             onDropPlayer={handleDropPlayer}
+            onMoveMatch={handleMoveMatch}
             onClearCourt={handleClearCourt}
             onAddRound={handleAddRound}
           />
