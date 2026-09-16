@@ -24,6 +24,7 @@ import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
+import { syncPatchMatchViews } from '#contexts/storage.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => crypto.randomUUID()
@@ -2687,6 +2688,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         [viewerKey]: currentCount + 1,
       }
       const nextTotalViews = Number(match.videoViews || 0) + 1
+
+      // Cập nhật snapshot cục bộ của storage để `diff` không phát sinh op upsert trên bảng matches,
+      // tránh bị RLS từ chối đối với thành viên thường và khách.
+      syncPatchMatchViews(matchId, nextTotalViews, nextViewers)
+
+      // Cập nhật state cục bộ để UI phản hồi tức thì
       up((d) => ({
         matches: (d.matches || []).map((m) => (
           m.id === matchId
@@ -2698,6 +2705,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             : m
         )),
       }))
+
+      // Gọi hàm RPC tăng lượt xem an toàn trên database
+      if (supabase && supabase.rpc) {
+        supabase.rpc('increment_match_video_views', {
+          p_match_id: matchId,
+          p_viewer_id: viewerKey,
+        }).catch((err) => {
+          console.warn('[actions] Không gọi được RPC increment_match_video_views:', err?.message || err)
+        })
+      }
       return true
     },
 
