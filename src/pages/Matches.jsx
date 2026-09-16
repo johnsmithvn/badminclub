@@ -8,7 +8,7 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
-import { playerName, courtOf, myMember, playerOf } from '#lib/money.js'
+import { playerName, courtOf, myMember, playerOf, openSessions } from '#lib/money.js'
 import { dd, isoOf, todayISO, weekdayOf } from '#utils/dates.js'
 import {
   getPlayerRating, expectedScore, calcEloDelta, confidenceProgress,
@@ -884,6 +884,21 @@ export default function Matches() {
                       >
                         <Icon name="arrow-right" size={14} />
                         <span>{t('matchesPage.viewInSession')}</span>
+                      </button>
+                    )}
+
+                    {/* Đưa kèo tự do vào buổi chơi nếu có buổi đang mở hoặc gần nhất */}
+                    {isAccepted && !sessionObj && (openSessions(db)[0] || (db.sessions || [])[0]) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetS = openSessions(db)[0] || (db.sessions || [])[0]
+                          if (targetS) a.linkChallengeToSession(c.id, targetS.id)
+                        }}
+                        style={S.smallPrimaryBtn}
+                      >
+                        <Icon name="plus" size={14} />
+                        <span>{t('challenge.linkToSession')}</span>
                       </button>
                     )}
 

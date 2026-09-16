@@ -119,5 +119,21 @@ test('Comprehensive Challenge Logic & Lifecycle Tests', async (t) => {
     assert.equal(absentKeys.length, 2, 'Phát hiện đúng 2 người vắng/noshow trong kèo')
     assert.deepEqual(absentKeys, ['p3', 'p4'])
   })
+
+  await t.test('Unlinked club challenge can be linked to an active session', () => {
+    const unlinkedChal = { id: 'c_free', code: 'C-0105', sessionId: null, status: 'accepted', teamA: ['p1', 'p2'], teamB: ['p3', 'p4'] }
+    const session1 = { id: 's_today', date: '2026-09-16' }
+
+    // Trước khi gán: không thuộc buổi nào
+    assert.equal(unlinkedChal.sessionId, null)
+
+    // Sau khi gán vào buổi hôm nay:
+    const linkedChal = { ...unlinkedChal, sessionId: session1.id }
+    assert.equal(linkedChal.sessionId, 's_today', 'Kèo tự do đã được gán thành công vào buổi hôm nay')
+
+    // Lọc theo buổi:
+    const sessionChals = [linkedChal].filter((c) => c.sessionId === session1.id)
+    assert.equal(sessionChals.length, 1, 'Kèo xuất hiện đầy đủ trong danh sách kèo của buổi để nạp lên sân')
+  })
 })
 

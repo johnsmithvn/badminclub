@@ -180,6 +180,11 @@ export default function CourtAssignmentTab({ s }) {
     return (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'accepted')
   }, [db.challenges, s.id])
 
+  // Kèo hẹn trước trong CLB chưa gắn vào buổi nào
+  const unlinkedChallenges = useMemo(() => {
+    return (db.challenges || []).filter((c) => !c.sessionId && c.status === 'accepted')
+  }, [db.challenges])
+
   // Người đang chờ (chưa có tên trên sân)
   const waitingPlayers = useMemo(() => {
     return players.filter((p) => !teamA.includes(p.key) && !teamB.includes(p.key))
@@ -1001,6 +1006,40 @@ export default function CourtAssignmentTab({ s }) {
                       onClick={() => handleLoadChallenge(c)}
                     >
                       {t('quickMatch.loadChal')}
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- Banner Kèo hẹn trước trong CLB (chưa gắn buổi) ---------------- */}
+        {unlinkedChallenges.length > 0 && (
+          <div style={{ ...S.chalBanner, marginTop: acceptedChallenges.length > 0 ? 8 : 0, background: 'var(--surface-sunken)', borderColor: 'var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="history" size={16} color="var(--text-muted)" />
+              <span style={{ font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
+                {t('challenge.importClubChallenge', { n: unlinkedChallenges.length })}:
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+              {unlinkedChallenges.map((c) => {
+                const nameA = (c.teamA || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamA')
+                const nameB = (c.teamB || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamB')
+                return (
+                  <div key={c.id} style={S.chalChip}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameA}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>vs</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameB}</span>
+                    <span style={S.tagSub}>{c.bestOf || 1} set</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon="plus"
+                      onClick={() => a.linkChallengeToSession(c.id, s.id)}
+                    >
+                      {t('challenge.linkToSession')}
                     </Button>
                   </div>
                 )

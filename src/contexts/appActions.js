@@ -2332,6 +2332,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('challenge.toastCancelled', { code: chal.code }))
     },
 
+    linkChallengeToSession: (challengeId, sessionId) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) return
+      const s = sessionOf(d0, sessionId)
+      if (!s) return
+      const myMem = myMember(d0)
+      const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
+      if (!canAssign() && !isPlayer) return
+
+      up((d) => ({
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, sessionId } : c)),
+      }))
+      toast(t('challenge.toastLinkedToSession', { code: chal.code, date: dd(s.date) }))
+    },
+
     deployChallenge: (challengeId, courtIdx) => {
       if (!canAssign()) return
       const d0 = db()
