@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button, Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
-import { playerName } from '#lib/money.js'
+import { playerName, myMember } from '#lib/money.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import {
@@ -744,6 +744,10 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
   const codeStr = matchCode || (match?.id ? `M-${String(match.id).slice(-4)}` : '')
   const subDesc = timeStr ? `${codeStr} · ${timeStr}` : codeStr
 
+  const myMem = myMember(db)
+  const role = db.viewAs || myMem?.role || 'member'
+  const isAdmin = role === 'owner' || role === 'treasurer'
+
   const handlePaste = async () => {
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.readText) {
@@ -776,6 +780,7 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
   }
 
   const handleRemove = () => {
+    if (!isAdmin) return
     const data = {
       videoUrl: null,
       videoTimestamp: null,
@@ -800,7 +805,7 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
       description={subDesc}
       footer={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
-          {match?.videoUrl ? (
+          {match?.videoUrl && isAdmin ? (
             <Button variant="danger" onClick={handleRemove}>
               {t('matchVideo.removeLink')}
             </Button>

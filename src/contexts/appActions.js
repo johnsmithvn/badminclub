@@ -24,7 +24,7 @@ import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { syncPatchMatchViews } from '#contexts/storage.js'
+import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => crypto.randomUUID()
@@ -2658,18 +2658,40 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const d0 = db()
       const match = (d0.matches || []).find((m) => m.id === matchId)
       if (!match) return false
+
+      const nextUrl = videoUrl !== undefined ? (videoUrl ? videoUrl.trim() : null) : match.videoUrl
+      const nextTs = videoTimestamp !== undefined ? (videoTimestamp ? videoTimestamp.trim() : null) : match.videoTimestamp
+      const nextNote = videoNote !== undefined ? (videoNote ? videoNote.trim() : null) : match.videoNote
+
+      // Cập nhật snapshot cục bộ để `diff` không phát sinh op upsert trên bảng matches,
+      // tránh bị RLS từ chối khi người thực hiện là thành viên thường (member).
+      syncPatchMatchVideo(matchId, nextUrl, nextTs, nextNote)
+
       up((d) => ({
         matches: (d.matches || []).map((m) => (
           m.id === matchId
             ? {
               ...m,
-              videoUrl: videoUrl !== undefined ? (videoUrl ? videoUrl.trim() : null) : m.videoUrl,
-              videoTimestamp: videoTimestamp !== undefined ? (videoTimestamp ? videoTimestamp.trim() : null) : m.videoTimestamp,
-              videoNote: videoNote !== undefined ? (videoNote ? videoNote.trim() : null) : m.videoNote,
+              videoUrl: nextUrl,
+              videoTimestamp: nextTs,
+              videoNote: nextNote,
             }
             : m
         )),
       }))
+
+      // Gọi RPC gắn video an toàn trên database
+      if (supabase && supabase.rpc) {
+        supabase.rpc('attach_match_video', {
+          p_match_id: matchId,
+          p_video_url: nextUrl,
+          p_video_timestamp: nextTs,
+          p_video_note: nextNote,
+        }).catch((err) => {
+          console.warn('[actions] Không gọi được RPC attach_match_video:', err?.message || err)
+        })
+      }
+
       toast(t('common.save'))
       return true
     },
