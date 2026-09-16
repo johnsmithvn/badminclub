@@ -274,6 +274,75 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
     setPlan((prev) => updatePlanRoundMinutes(prev, newMinutes, sessionTime.startTime))
   }
 
+  // Di chuyển hoặc hoán đổi nguyên cả trận đấu giữa các vòng/sân
+  const handleMoveMatch = (sourceRound, sourceCourt, targetRound, targetCourt) => {
+    if (sourceRound === targetRound && sourceCourt === targetCourt) return
+
+    setPlan((prev) => {
+      const srcR = prev.rounds.find((r) => r.roundIndex === sourceRound)
+      const tgtR = prev.rounds.find((r) => r.roundIndex === targetRound)
+      if (!srcR || !tgtR) return prev
+
+      const srcCourt = srcR.courts[sourceCourt]
+      const tgtCourt = tgtR.courts[targetCourt]
+      if (!srcCourt || !tgtCourt) return prev
+
+      const nextRounds = prev.rounds.map((r) => {
+        if (r.roundIndex !== sourceRound && r.roundIndex !== targetRound) return r
+
+        const nextCourts = [...r.courts]
+        if (sourceRound === targetRound) {
+          // Cùng 1 vòng nhưng đổi sân
+          nextCourts[sourceCourt] = {
+            ...srcCourt,
+            teamA: [...(tgtCourt.teamA || [])],
+            teamB: [...(tgtCourt.teamB || [])],
+            challengeId: tgtCourt.challengeId || null,
+            wishId: tgtCourt.wishId || null,
+            tag: tgtCourt.tag || null,
+            bestOf: tgtCourt.bestOf || null,
+            bo3Part: tgtCourt.bo3Part || null,
+          }
+          nextCourts[targetCourt] = {
+            ...tgtCourt,
+            teamA: [...(srcCourt.teamA || [])],
+            teamB: [...(srcCourt.teamB || [])],
+            challengeId: srcCourt.challengeId || null,
+            wishId: srcCourt.wishId || null,
+            tag: srcCourt.tag || null,
+            bestOf: srcCourt.bestOf || null,
+            bo3Part: srcCourt.bo3Part || null,
+          }
+        } else if (r.roundIndex === sourceRound) {
+          nextCourts[sourceCourt] = {
+            ...srcCourt,
+            teamA: [...(tgtCourt.teamA || [])],
+            teamB: [...(tgtCourt.teamB || [])],
+            challengeId: tgtCourt.challengeId || null,
+            wishId: tgtCourt.wishId || null,
+            tag: tgtCourt.tag || null,
+            bestOf: tgtCourt.bestOf || null,
+            bo3Part: tgtCourt.bo3Part || null,
+          }
+        } else if (r.roundIndex === targetRound) {
+          nextCourts[targetCourt] = {
+            ...tgtCourt,
+            teamA: [...(srcCourt.teamA || [])],
+            teamB: [...(srcCourt.teamB || [])],
+            challengeId: srcCourt.challengeId || null,
+            wishId: srcCourt.wishId || null,
+            tag: srcCourt.tag || null,
+            bestOf: srcCourt.bestOf || null,
+            bo3Part: srcCourt.bo3Part || null,
+          }
+        }
+        return { ...r, courts: nextCourts }
+      })
+
+      return { ...prev, rounds: nextRounds }
+    })
+  }
+
   const handleScheduleChallenge = (challengeId) => {
     const chal = challenges.find((c) => c.id === challengeId)
     if (!chal) return
@@ -284,36 +353,93 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
       return
     }
 
+    const isBo3 = chal.bestOf === 3 || chal.best_of === 3
+
     setPlan((prev) => {
       let scheduled = false
       const teamKeys = [...(chal.teamA || []), ...(chal.teamB || [])]
 
-      const nextRounds = prev.rounds.map((r) => {
+      const nextRounds = prev.rounds.map((r, rIdx) => {
         if (scheduled) return r
 
-        // Kiểm tra xem có ai trong 4 người đã xếp sân trong vòng này chưa
-        const isBusy = (r.courts || []).some((court) =>
-          [...(court.teamA || []), ...(court.teamB || [])].some((k) => teamKeys.includes(k))
-        )
-        if (isBusy) return r
+        if (isBo3) {
+          const r2 = prev.rounds[rIdx + 1]
+          if (!r2) return r
 
-        // Tìm sân trống
-        const freeIdx = r.courts.findIndex((c) => c.teamA.length === 0 && c.teamB.length === 0)
-        if (freeIdx >= 0) {
-          scheduled = true
-          handleViewRound(r.roundIndex)
-          const nextCourts = [...r.courts]
-          nextCourts[freeIdx] = {
-            ...nextCourts[freeIdx],
-            teamA: [...(chal.teamA || [])],
-            teamB: [...(chal.teamB || [])],
-            challengeId: chal.id,
-            tag: 'CHALLENGE',
+          const isBusyR1 = (r.courts || []).some((court) =>
+            [...(court.teamA || []), ...(court.teamB || [])].some((k) => teamKeys.includes(k))
+          )
+          const isBusyR2 = (r2.courts || []).some((court) =>
+            [...(court.teamA || []), ...(court.teamB || [])].some((k) => teamKeys.includes(k))
+          )
+          if (isBusyR1 || isBusyR2) return r
+
+          const freeIdx = (r.courts || []).findIndex(
+            (court, ci) =>
+              (court.teamA?.length || 0) === 0 &&
+              (court.teamB?.length || 0) === 0 &&
+              (r2.courts?.[ci]?.teamA?.length || 0) === 0 &&
+              (r2.courts?.[ci]?.teamB?.length || 0) === 0
+          )
+          if (freeIdx >= 0) {
+            scheduled = true
+            handleViewRound(r.roundIndex)
+            const nextCourts = [...r.courts]
+            nextCourts[freeIdx] = {
+              ...nextCourts[freeIdx],
+              teamA: [...(chal.teamA || [])],
+              teamB: [...(chal.teamB || [])],
+              challengeId: chal.id,
+              tag: 'CHALLENGE',
+              bestOf: 3,
+              bo3Part: 1,
+            }
+            return { ...r, courts: nextCourts }
           }
-          return { ...r, courts: nextCourts }
+          return r
+        } else {
+          const isBusy = (r.courts || []).some((court) =>
+            [...(court.teamA || []), ...(court.teamB || [])].some((k) => teamKeys.includes(k))
+          )
+          if (isBusy) return r
+
+          const freeIdx = r.courts.findIndex((c) => c.teamA.length === 0 && c.teamB.length === 0)
+          if (freeIdx >= 0) {
+            scheduled = true
+            handleViewRound(r.roundIndex)
+            const nextCourts = [...r.courts]
+            nextCourts[freeIdx] = {
+              ...nextCourts[freeIdx],
+              teamA: [...(chal.teamA || [])],
+              teamB: [...(chal.teamB || [])],
+              challengeId: chal.id,
+              tag: 'CHALLENGE',
+            }
+            return { ...r, courts: nextCourts }
+          }
+          return r
         }
-        return r
       })
+
+      if (scheduled && isBo3) {
+        for (let ri = 0; ri < nextRounds.length - 1; ri++) {
+          const ci = (nextRounds[ri].courts || []).findIndex((court) => court.challengeId === chal.id && court.bo3Part === 1)
+          if (ci >= 0 && nextRounds[ri + 1]?.courts?.[ci]) {
+            const nextC = [...nextRounds[ri + 1].courts]
+            nextC[ci] = {
+              ...nextC[ci],
+              teamA: [...(chal.teamA || [])],
+              teamB: [...(chal.teamB || [])],
+              challengeId: chal.id,
+              tag: 'CHALLENGE',
+              bestOf: 3,
+              bo3Part: 2,
+            }
+            nextRounds[ri + 1] = { ...nextRounds[ri + 1], courts: nextC }
+            break
+          }
+        }
+      }
 
       if (!scheduled) {
         a.toast(t('planner.wishNoSlotFound'), { tone: 'warning' })
