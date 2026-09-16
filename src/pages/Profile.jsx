@@ -289,7 +289,7 @@ function MeCard({ me, myGroups, db, a, profile }) {
               <Input label={t('members.fFull')} hint={t('members.fFullHint')}
                 value={full} onChange={(e) => setFull(e.target.value)} />
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant="secondary" size="sm" icon="circle-check"
+                <Button variant={dirty ? 'primary' : 'secondary'} size="sm" icon="circle-check"
                   disabled={saving || !dirty || !name.trim()} onClick={save}>
                   {saving ? t('account.saving') : t('common.save')}
                 </Button>

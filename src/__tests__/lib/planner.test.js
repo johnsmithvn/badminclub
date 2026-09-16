@@ -381,5 +381,26 @@ filledPlan.forEach((r) => {
 assert.equal(placedFillChallenge, true, 'mode fill xếp thành công kèo mới vào ô trống')
 assert.equal(filledPlan.report.scheduledChallengesCount, 1, 'báo cáo đã xếp kèo mới ở mode fill')
 
+// 9. Nguyện vọng đối đầu (type: 'opponent') được xếp vào hai đội khác nhau
+const wishOpponentPlan = autoGeneratePlan({
+  players: all16,
+  courts: [{ courtIndex: 0, name: 'Sân 1' }, { courtIndex: 1, name: 'Sân 2' }],
+  wishes: [
+    { id: 'w_opp', memberId: 'p_1', targetId: 'p_2', type: 'opponent' },
+  ],
+  totalRounds: 2,
+})
+let placedOpponentWish = false
+wishOpponentPlan.forEach((r) => {
+  r.courts.forEach((c) => {
+    if (c.wishId === 'w_opp') {
+      placedOpponentWish = true
+      assert.ok(c.teamA.includes('p_1'), 'p_1 ở teamA')
+      assert.ok(c.teamB.includes('p_2'), 'p_2 ở teamB')
+    }
+  })
+})
+assert.equal(placedOpponentWish, true, 'xếp thành công nguyện vọng đối đầu')
+
 console.log('planner.test.js: All checks passed OK')
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { t } from '#i18n'
 import { Button, Dialog, Select, Avatar } from '#ds'
 
@@ -19,7 +19,9 @@ export default function PlannerAddWishDialog({
   )
   const [note, setNote] = useState(existingWish?.note || '')
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
     if (isOpen) {
       const mid = existingWish?.memberId || defaultMemberId || players[0]?.key || ''
       setMemberId(mid)
@@ -27,7 +29,7 @@ export default function PlannerAddWishDialog({
       setTargetId(existingWish?.targetId || (players.find((p) => p.key !== mid)?.key || ''))
       setNote(existingWish?.note || '')
     }
-  }, [isOpen, existingWish, defaultMemberId, players])
+  }
 
   if (!isOpen) return null
 

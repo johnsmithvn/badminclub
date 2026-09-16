@@ -1,11 +1,10 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
 import { getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
 import {
   createDefaultPlan,
   calcPlayerLoads,
   autoGeneratePlan,
-  calcRoundTimes,
   getSessionPlannerPlayers,
   getSessionTimeRange,
   updatePlanRoundMinutes,
@@ -26,26 +25,34 @@ import PlannerHealthCol from './PlannerHealthCol.jsx'
 import PlannerAddWishDialog from './PlannerAddWishDialog.jsx'
 import PlannerAutoModal from './PlannerAutoModal.jsx'
 
-export default function SessionPlannerTab({ s }) {
+export default function SessionPlannerTab({ s: sProp, session: sessionProp, challenges: chalProp }) {
+  const s = sProp || sessionProp
   const { db, a } = useApp()
 
   // 1. Danh sách kèo đấu thực tế trong CLB
   const challenges = useMemo(() => {
+    if (Array.isArray(chalProp) && chalProp.length > 0) return chalProp
     return (db.challenges || []).filter(
       (c) => (c.sessionId === s.id || !c.sessionId) && c.status !== 'cancelled' && c.status !== 'played'
     )
-  }, [db.challenges, s.id])
+  }, [db.challenges, s.id, chalProp])
 
   // Khung giờ thực tế của các sân trong buổi
-  const sessionTime = useMemo(() => getSessionTimeRange(s), [s])
+  const sessionTime = useMemo(() => getSessionTimeRange(s, db.schedules), [s, db.schedules])
 
   // 2. Kế hoạch buổi (lấy từ s.planner hoặc khởi tạo mặc định)
   const [plan, setPlan] = useState(() => {
     if (s.planner && Array.isArray(s.planner.rounds) && s.planner.rounds.length > 0) {
       return s.planner
     }
-    const initialPlayers = getSessionPlannerPlayers(db, s, challenges, null)
-    return createDefaultPlan(s, initialPlayers, DEFAULT_ROUND_MINUTES, null, db)
+    const courtsList = (s.courts || []).filter((c) => !c.sold)
+    return createDefaultPlan(
+      s,
+      [],
+      DEFAULT_ROUND_MINUTES,
+      courtsList.length > 0 ? courtsList : null,
+      db
+    )
   })
 
   // 3. Danh sách người tham gia buổi toàn diện (cả thành viên nhóm, khách mời và người trong kèo)
@@ -72,11 +79,13 @@ export default function SessionPlannerTab({ s }) {
   })
 
   // Đồng bộ khi s.planner thay đổi từ bên ngoài (ví dụ sau khi sync DB xong)
-  useEffect(() => {
-    if (s.planner && Array.isArray(s.planner.rounds) && s.planner.rounds.length > 0) {
-      setLastSavedPlan((cur) => cur || s.planner)
+  const [prevPlanner, setPrevPlanner] = useState(s.planner)
+  if (s.planner !== prevPlanner) {
+    setPrevPlanner(s.planner)
+    if (s.planner && Array.isArray(s.planner.rounds) && s.planner.rounds.length > 0 && !lastSavedPlan) {
+      setLastSavedPlan(s.planner)
     }
-  }, [s.planner])
+  }
 
   const [isSaving, setIsSaving] = useState(false)
 
@@ -343,10 +352,11 @@ export default function SessionPlannerTab({ s }) {
           scheduled = true
           handleViewRound(r.roundIndex)
           const nextCourts = [...r.courts]
+          const isOpponent = wish.type === 'opponent'
           nextCourts[freeIdx] = {
             ...nextCourts[freeIdx],
-            teamA: [...wishKeys],
-            teamB: [],
+            teamA: isOpponent ? [wish.memberId] : [...wishKeys],
+            teamB: isOpponent ? [wish.targetId] : [],
             wishId: wish.id,
             tag: 'WISH',
           }
@@ -386,6 +396,7 @@ export default function SessionPlannerTab({ s }) {
   // Khung giờ hiển thị (ưu tiên giờ sân thực tế)
   const startStr = sessionTime.startTime || plan.rounds?.[0]?.time || '19:00'
   const endStr = sessionTime.endTime || plan.rounds?.[plan.rounds.length - 1]?.time || '21:00'
+  const courtsCount = plan.rounds?.[0]?.courts?.length || (s.courts || []).filter((c) => !c.sold).length || 2
 
   return (
     <div
@@ -408,7 +419,7 @@ export default function SessionPlannerTab({ s }) {
         isFullscreen={isFullscreen}
         onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
         roundsCount={plan.rounds.length}
-        courtsCount={plan.rounds[0]?.courts?.length || 2}
+        courtsCount={courtsCount}
         playersCount={players.length}
         startTime={startStr}
         endTime={endStr}

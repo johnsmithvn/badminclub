@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -1955,9 +1955,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return toast(t('toast.changeSame'))
       }
       try {
-        unwrap(await supabase.from('club_members')
+        const rows = unwrap(await supabase.from('club_members')
           .update({ name: nm, full_name: full || null, avatar_url: newAv || null })
-          .eq('id', me.id))
+          .eq('id', me.id)
+          .select())
+        if (!rows || rows.length === 0) {
+          return toast(t('toast.noMemberRecord'))
+        }
       } catch (e) {
         return toast(e.message)
       }
@@ -2263,19 +2267,28 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }
       const code = nextChallengeCode(d0.challenges)
       const expireMins = cfg.challenge?.defaultExpireMins ?? 60
+      const allInMatch = [...(teamA || []), ...(teamB || [])]
+      const acceptedPlayers = allInMatch.includes(myId) ? [myId] : []
+      const newChalTemp = {
+        teamA: teamA || [],
+        teamB: teamB || [],
+        acceptedPlayers,
+      }
+      const isFullyAccepted = isChallengeFullyAccepted(newChalTemp)
       const newChal = {
         id: uid(),
         code,
         clubId: d0.clubId,
         sessionId: sessionId || null,
         createdBy: myId,
-        status: 'pending',
+        status: isFullyAccepted ? 'accepted' : 'pending',
         courtId: courtId || null,
         scheduledAt: scheduledAt || null,
         bestOf,
         ratingEnabled,
         expiresAt: new Date(Date.now() + expireMins * 60 * 1000).toISOString(),
         matchId: null,
+        acceptedPlayers,
         teamA: teamA || [],
         teamB: teamB || [],
       }
@@ -2289,8 +2302,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)
       if (!chal) return
       const myMem = myMember(d0)
-      const isTeamB = myMem && (chal.teamB || []).includes(myMem.id)
-      if (!canAssign() && !isTeamB) return
+      const allPlayers = [...(chal.teamA || []), ...(chal.teamB || [])]
+      const isParticipant = myMem && allPlayers.includes(myMem.id)
+      if (!canAssign() && !isParticipant) return
       if (chal.status !== 'pending') return
 
       const isExpired = chal.expiresAt && new Date(chal.expiresAt).getTime() <= Date.now()
@@ -2302,11 +2316,34 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return
       }
 
-      const nextStatus = accept ? 'accepted' : 'declined'
+      if (!accept) {
+        up((d) => ({
+          challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'declined' } : c)),
+        }))
+        toast(t('challenge.toastDeclined', { code: chal.code }))
+        return
+      }
+
+      let nextAccepted = chal.acceptedPlayers || []
+      if (canAssign() && !isParticipant) {
+        // Admin duyệt nhanh: chấp nhận toàn bộ đấu thủ
+        nextAccepted = Array.from(new Set([...nextAccepted, ...allPlayers]))
+      } else if (myMem) {
+        nextAccepted = Array.from(new Set([...nextAccepted, myMem.id]))
+      }
+
+      const isFullyAccepted = isChallengeFullyAccepted({ ...chal, acceptedPlayers: nextAccepted })
+      const nextStatus = isFullyAccepted ? 'accepted' : 'pending'
+
       up((d) => ({
-        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: nextStatus } : c)),
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, acceptedPlayers: nextAccepted, status: nextStatus } : c)),
       }))
-      toast(t(accept ? 'challenge.toastAccepted' : 'challenge.toastDeclined', { code: chal.code }))
+
+      if (isFullyAccepted) {
+        toast(t('challenge.toastAccepted', { code: chal.code }))
+      } else {
+        toast(t('challenge.toastPartiallyAccepted', { code: chal.code }))
+      }
     },
 
     acceptOpenChallenge: ({ challengeId, partnerId }) => {
@@ -2330,18 +2367,40 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return
       }
 
-      // Kèo ĐÔI nhận nhanh mà chưa chọn partner: chỉ điền 1 chỗ và GIỮ 'pending' để người thứ hai
-      // còn vào được. Trước đây chốt luôn 'accepted' với teamB 1 người -> kèo đôi chết, không ai join nổi.
       const needed = (chal.teamA || []).length > 1 ? 2 : 1
       const current = (chal.teamB || []).filter(Boolean)
       if (current.includes(myId) || (chal.teamA || []).includes(myId)) return
       const validPartner = partnerId && partnerId !== myId && !current.includes(partnerId) && !(chal.teamA || []).includes(partnerId) ? partnerId : null
-      const teamB = [...current, myId, ...(validPartner ? [validPartner] : [])].slice(0, needed)
-      const status = teamB.length >= needed ? 'accepted' : 'pending'
+      const newJoiners = [myId, ...(validPartner ? [validPartner] : [])]
+      const teamB = [...current, ...newJoiners].slice(0, needed)
+      const nextAccepted = Array.from(new Set([...(chal.acceptedPlayers || []), myId]))
+      const isFullyAccepted = isChallengeFullyAccepted({ ...chal, teamB, acceptedPlayers: nextAccepted })
+      const status = isFullyAccepted ? 'accepted' : 'pending'
+
       up((d) => ({
-        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, status } : c)),
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, acceptedPlayers: nextAccepted, status } : c)),
       }))
-      toast(t('challenge.toastAccepted', { code: chal.code }))
+
+      if (isFullyAccepted) {
+        toast(t('challenge.toastAccepted', { code: chal.code }))
+      } else {
+        toast(t('challenge.toastPartiallyAccepted', { code: chal.code }))
+      }
+    },
+
+    deleteChallenge: (challengeId) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) return
+      if (!canAssign()) {
+        toast(t('common.unauthorized'))
+        return
+      }
+      up((d) => ({
+        challenges: (d.challenges || []).filter((c) => c.id !== challengeId),
+        matches: (d.matches || []).map((m) => (m.challengeId === challengeId ? { ...m, challengeId: null } : m)),
+      }))
+      toast(t('challenge.toastDeleted', { code: chal.code }))
     },
 
     cancelChallenge: (challengeId) => {

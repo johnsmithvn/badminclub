@@ -55,3 +55,58 @@ export function pickableMembersForChallenge(members, attendanceMap, sessionId) {
   const att = (attendanceMap && attendanceMap[sessionId]) || {}
   return (members || []).filter((m) => m.active !== false && att[m.id] === true)
 }
+
+/** Tiến độ nhận kèo của các đấu thủ */
+export function getChallengeAcceptanceProgress(challenge) {
+  if (!challenge) return { acceptedCount: 0, totalCount: 0, isFullyAccepted: false, pendingPlayerIds: [] }
+  const isDoubles = (challenge.teamA || []).length > 1
+  const totalCount = isDoubles ? 4 : 2
+  const allCurrent = Array.from(new Set([...(challenge.teamA || []), ...(challenge.teamB || [])]))
+  const acceptedList = challenge.acceptedPlayers || []
+  const acceptedPlayersInMatch = allCurrent.filter((id) => acceptedList.includes(id))
+  const acceptedCount = acceptedPlayersInMatch.length
+  const pendingPlayerIds = allCurrent.filter((id) => !acceptedList.includes(id))
+  const isFullTeam = isDoubles
+    ? (challenge.teamA || []).length === 2 && (challenge.teamB || []).length === 2
+    : (challenge.teamA || []).length === 1 && (challenge.teamB || []).length === 1
+  const isFullyAccepted = Boolean(isFullTeam && allCurrent.length === totalCount && pendingPlayerIds.length === 0)
+
+  return {
+    acceptedCount,
+    totalCount,
+    isFullyAccepted,
+    pendingPlayerIds,
+    isDoubles,
+  }
+}
+
+/** Kiểm tra xem kèo đã được tất cả đấu thủ đồng ý chưa */
+export function isChallengeFullyAccepted(challenge) {
+  return getChallengeAcceptanceProgress(challenge).isFullyAccepted
+}
+
+/** Kiểm tra thành viên có thể bấm Nhận kèo không */
+export function canMemberAcceptChallenge(challenge, myMemberId, isAdmin = false) {
+  if (!challenge || challenge.status !== 'pending') return false
+  if (challenge.expiresAt && new Date(challenge.expiresAt).getTime() <= Date.now()) return false
+
+  const allCurrent = Array.from(new Set([...(challenge.teamA || []), ...(challenge.teamB || [])]))
+  const acceptedList = challenge.acceptedPlayers || []
+
+  // Nếu người dùng là đấu thủ trong trận đấu: chỉ nhận được khi BẢN THÂN CHƯA NHẬN (kể cả khi là Admin)
+  if (myMemberId && allCurrent.includes(myMemberId)) {
+    return !acceptedList.includes(myMemberId)
+  }
+
+  // Nếu là Admin nhưng KHÔNG thi đấu trong kèo: có thể duyệt nhanh khi kèo đã đủ người ở cả 2 đội và chưa tất cả accept
+  if (isAdmin) {
+    const isDoubles = (challenge.teamA || []).length > 1
+    const needed = isDoubles ? 2 : 1
+    const isFull = (challenge.teamA || []).length === needed && (challenge.teamB || []).length === needed
+    const isFullyAccepted = isFull && allCurrent.length === (needed * 2) && allCurrent.every((id) => acceptedList.includes(id))
+    return isFull && !isFullyAccepted
+  }
+
+  return false
+}
+

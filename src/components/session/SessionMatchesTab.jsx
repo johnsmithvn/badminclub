@@ -7,6 +7,7 @@ import { searchMatches } from '#lib/matchSearch.js'
 import { firstEmptyCourtIdx } from '#lib/assign.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { Icon } from '#ds'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge } from '#lib/challenge.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
@@ -19,6 +20,10 @@ import { buildPlayableVideoUrl, formatGapMinutes, calcSessionTimeStats, parseVid
 export default function SessionMatchesTab({ s, onSwitchTab }) {
   const { db, a } = useApp()
   const isMobile = useMobile()
+  const myMem = myMember(db)
+  const myId = myMem?.id || null
+  const role = db.viewAs || myMem?.role || 'member'
+  const isAdmin = role === 'owner' || role === 'treasurer'
   const [searchParams] = useSearchParams()
   const targetMatchId = searchParams.get('matchId')
   const [showCreate, setShowCreate] = useState(false)
@@ -92,9 +97,6 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
       .slice()
       .sort((c1, c2) => (c2.createdAt || '').localeCompare(c1.createdAt || ''))
   }, [db.challenges, s.id])
-
-  const myMem = myMember(db)
-  const myId = myMem?.id || null
 
   const myChallenges = useMemo(() => {
     return challenges.filter((c) => {
@@ -1270,6 +1272,9 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const isPlayed = c.status === 'played'
               const isPending = c.status === 'pending'
               const isAccepted = c.status === 'accepted'
+              const prog = getChallengeAcceptanceProgress(c)
+              const canAccept = canMemberAcceptChallenge(c, myId, isAdmin)
+              const isParticipant = Boolean(myId && [...(c.teamA || []), ...(c.teamB || [])].includes(myId))
 
               // DT2 countdown hết hạn
               const expTime = c.expiresAt ? new Date(c.expiresAt).getTime() : (c.createdAt ? new Date(c.createdAt).getTime() + 60 * 60 * 1000 : null)
@@ -1299,9 +1304,24 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     transition: 'border-color 0.15s ease',
                   }}
                 >
-                  {/* Code & Status */}
+                  {/* Code & Status & Tiến độ nhận */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={S.monoCode}>{c.code}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={S.monoCode}>{c.code}</span>
+                      {isPending && (
+                        <span style={{
+                          fontSize: 10.5,
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 600,
+                          padding: '1px 6px',
+                          borderRadius: 999,
+                          background: 'rgba(0,178,169,0.12)',
+                          color: 'var(--status-transit-fg)',
+                        }}>
+                          {t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}
+                        </span>
+                      )}
+                    </div>
                     <span style={{
                       ...S.statusBadge,
                       background: isPlayed ? 'var(--surface-brand-soft)' : isAccepted ? 'var(--surface-nav-active)' : 'rgba(240,183,92,0.14)',
@@ -1361,37 +1381,64 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     </div>
                   )}
 
-                  {/* DT2 Action buttons tuỳ trạng thái: Nhận / Từ chối trực tiếp trên thẻ Pending */}
+                  {/* DT2 Action buttons tuỳ trạng thái: Nhận / Từ chối / Xoá trực tiếp trên thẻ */}
                   {isPending && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          a.respondChallenge(c.id, true)
-                        }}
-                        style={{
-                          ...S.smallPrimaryBtn,
-                          background: 'var(--status-delivered)',
-                        }}
-                      >
-                        {t('challenge.btnAccept')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          a.respondChallenge(c.id, false)
-                        }}
-                        style={S.smallGhostBtn}
-                      >
-                        {t('challenge.btnDecline')}
-                      </button>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {canAccept && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            a.respondChallenge(c.id, true)
+                          }}
+                          style={{
+                            ...S.smallPrimaryBtn,
+                            background: 'var(--status-delivered)',
+                          }}
+                        >
+                          {isAdmin && !isParticipant ? t('challenge.btnAdminApprove') : t('challenge.btnAccept')}
+                        </button>
+                      )}
+                      {(isParticipant || isAdmin) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            a.respondChallenge(c.id, false)
+                          }}
+                          style={S.smallGhostBtn}
+                        >
+                          {t('challenge.btnDecline')}
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            a.confirm({
+                              title: t('challenge.confirmDeleteTitle'),
+                              message: t('challenge.confirmDeleteMsg'),
+                              tone: 'danger',
+                              confirmText: t('challenge.btnDelete'),
+                              onConfirm: () => a.deleteChallenge(c.id),
+                            })
+                          }}
+                          style={{
+                            ...S.smallGhostBtn,
+                            color: 'var(--red-500, #ef4444)',
+                            marginLeft: 'auto',
+                          }}
+                          title={t('challenge.btnDelete')}
+                        >
+                          <Icon name="trash-2" size={13} />
+                        </button>
+                      )}
                     </div>
                   )}
 
                   {isAccepted && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1412,6 +1459,29 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                       >
                         {t('scoreModal.title')}
                       </button>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            a.confirm({
+                              title: t('challenge.confirmDeleteTitle'),
+                              message: t('challenge.confirmDeleteMsg'),
+                              tone: 'danger',
+                              confirmText: t('challenge.btnDelete'),
+                              onConfirm: () => a.deleteChallenge(c.id),
+                            })
+                          }}
+                          style={{
+                            ...S.smallGhostBtn,
+                            color: 'var(--red-500, #ef4444)',
+                            marginLeft: 'auto',
+                          }}
+                          title={t('challenge.btnDelete')}
+                        >
+                          <Icon name="trash-2" size={13} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

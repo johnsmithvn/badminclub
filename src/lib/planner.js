@@ -74,7 +74,7 @@ export function getSessionTimeRange(session) {
  * @param {Object|null} db - Cơ sở dữ liệu CLB để lấy tên sân
  * @returns {Object} Kế hoạch rỗng chuẩn hoá
  */
-export function createDefaultPlan(session, players = [], roundMinutes = DEFAULT_ROUND_MINUTES, totalRounds = null, db = null) {
+export function createDefaultPlan(session, _players = [], roundMinutes = DEFAULT_ROUND_MINUTES, totalRounds = null, db = null) {
   const activeCourts = (session?.courts || []).filter((c) => !c.sold)
   const courtsList = activeCourts.length > 0 ? activeCourts : (session?.courts || [])
   const courts = courtsList.length > 0
@@ -348,7 +348,7 @@ export function calcPlanHealth(rounds = [], challenges = [], wishes = [], player
  * @param {Array} wishes - Danh sách nguyện vọng
  * @returns {Array<Object>} Danh sách issue
  */
-export function detectPlanIssues(rounds = [], players = [], challenges = [], wishes = []) {
+export function detectPlanIssues(rounds = [], players = [], _challenges = [], wishes = []) {
   const issues = []
   const pMap = {}
   ;(players || []).forEach((p) => { pMap[p.key || p.id] = p })
@@ -713,7 +713,7 @@ export function autoGeneratePlan({
       invalidWishIds.add(w.id)
       return false
     }
-    return w.type === 'partner' && pList.includes(w.memberId) && pList.includes(w.targetId)
+    return (w.type === 'partner' || w.type === 'opponent') && pList.includes(w.memberId) && pList.includes(w.targetId)
   })
 
   eligibleWishes.forEach((w) => {
@@ -730,7 +730,13 @@ export function autoGeneratePlan({
       if (!alreadyInRound) {
         const freeCourt = (r.courts || []).find((c) => (c.teamA?.length || 0) === 0 && (c.teamB?.length || 0) === 0)
         if (freeCourt) {
-          freeCourt.teamA = [w.memberId, w.targetId]
+          if (w.type === 'opponent') {
+            freeCourt.teamA = [w.memberId]
+            freeCourt.teamB = [w.targetId]
+          } else {
+            freeCourt.teamA = [w.memberId, w.targetId]
+            freeCourt.teamB = []
+          }
           freeCourt.wishId = w.id
           freeCourt.tag = 'WISH'
           scheduledWishIds.add(w.id)

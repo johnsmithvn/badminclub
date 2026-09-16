@@ -280,6 +280,7 @@ export function toDb(raw, ctx) {
         scheduledAt: c.scheduled_at || '', bestOf: c.best_of || 3,
         ratingEnabled: c.rating_enabled !== false, expiresAt: c.expires_at || '',
         matchId: c.match_id || null,
+        acceptedPlayers: c.accepted_players || [],
         teamA: players.filter((p) => p.team === 'A').map((p) => p.member_id),
         teamB: players.filter((p) => p.team === 'B').map((p) => p.member_id),
       }
@@ -440,6 +441,7 @@ export function toRows(db, ctx) {
       scheduled_at: c.scheduledAt || null, best_of: c.bestOf || 3,
       rating_enabled: c.ratingEnabled !== false, expires_at: c.expiresAt || null,
       match_id: uu(c.matchId),
+      accepted_players: c.acceptedPlayers || [],
     })
     ;(c.teamA || []).forEach((mid) => {
       if (memberIdSet.has(mid)) put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'A' })

@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react'
-import { Dialog } from '#ds'
+import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge } from '#lib/challenge.js'
 import { t } from '#i18n'
 
 export default function ChallengeDetailModal({ challenge, session, onClose, onDeployed, onScoreInput, onOpenMatch }) {
@@ -12,10 +13,13 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const isMobile = useMobile()
   const [selectedPartner, setSelectedPartner] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [now] = useState(() => Date.now())
 
-  const c = challenge || {}
+  const c = useMemo(() => challenge || {}, [challenge])
   const myMem = myMember(db)
   const myId = myMem?.id || null
+  const role = db.viewAs || myMem?.role || 'member'
+  const isAdmin = role === 'owner' || role === 'treasurer'
 
   const teamA = useMemo(() => challenge?.teamA || [], [challenge?.teamA])
   const teamB = useMemo(() => challenge?.teamB || [], [challenge?.teamB])
@@ -24,10 +28,14 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const isCreator = Boolean(myId && c.createdBy === myId)
   const isTeamA = Boolean(myId && teamA.includes(myId))
   const isTeamB = Boolean(myId && teamB.includes(myId))
+  const isParticipant = Boolean(myId && [...teamA, ...teamB].includes(myId))
   const isPending = c.status === 'pending'
-  const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt).getTime() <= Date.now())
+  const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt).getTime() <= now)
   const isAccepted = c.status === 'accepted'
   const isPlayed = c.status === 'played'
+
+  const prog = useMemo(() => getChallengeAcceptanceProgress(c), [c])
+  const canAccept = canMemberAcceptChallenge(c, myId, isAdmin)
 
   // Match liên quan nếu đã tạo/nhập tỷ số
   const matchObj = useMemo(() => {
@@ -137,10 +145,23 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
     })
   }
 
-  const namesA = teamA.map((id) => playerName(db, id)).join(' · ') || t('challenge.teamA')
-  const namesB = resolvedTeamB.length
-    ? resolvedTeamB.map((id) => playerName(db, id)).join(' · ')
-    : (isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB'))
+  const handleDelete = () => {
+    a.confirm({
+      title: t('challenge.confirmDeleteTitle'),
+      message: t('challenge.confirmDeleteMsg'),
+      tone: 'danger',
+      confirmText: t('challenge.btnDelete'),
+      onConfirm: () => {
+        setSubmitting(true)
+        try {
+          a.deleteChallenge(c.id)
+          onClose()
+        } finally {
+          setSubmitting(false)
+        }
+      },
+    })
+  }
 
   const creatorName = c.createdBy ? playerName(db, c.createdBy) : (teamA[0] ? playerName(db, teamA[0]) : '')
   const acceptorName = c.acceptedBy
@@ -201,49 +222,50 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
             </div>
           )}
 
-          {isPending && !isExpired && isTeamB && (
-            <>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={handleAccept}
-                style={{
-                  flex: 1,
-                  height: isMobile ? 56 : 44,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--status-delivered)',
-                  border: 'none',
-                  font: '700 15px/1 "IBM Plex Sans", sans-serif',
-                  color: 'var(--gray-0)',
-                  cursor: submitting ? 'not-allowed' : 'pointer',
-                  boxShadow: 'var(--shadow-xs)',
-                }}
-              >
-                {t('challenge.btnAccept')}
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={handleDecline}
-                style={{
-                  height: isMobile ? 56 : 44,
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '0 16px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  font: '600 14px/1 "IBM Plex Sans", sans-serif',
-                  color: 'var(--red-500, #ef4444)',
-                  cursor: submitting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {t('challenge.btnDecline')}
-              </button>
-            </>
+          {isPending && !isExpired && canAccept && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleAccept}
+              style={{
+                flex: 1,
+                height: isMobile ? 56 : 44,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--status-delivered)',
+                border: 'none',
+                font: '700 15px/1 "IBM Plex Sans", sans-serif',
+                color: 'var(--gray-0)',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                boxShadow: 'var(--shadow-xs)',
+              }}
+            >
+              {isAdmin && !isParticipant ? t('challenge.btnAdminApprove') : t('challenge.btnAccept')}
+            </button>
+          )}
+
+          {isPending && !isExpired && (isParticipant || isAdmin) && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleDecline}
+              style={{
+                height: isMobile ? 56 : 44,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 16px',
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                font: '600 14px/1 "IBM Plex Sans", sans-serif',
+                color: 'var(--red-500, #ef4444)',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {t('challenge.btnDecline')}
+            </button>
           )}
 
           {isPending && !isExpired && isOpen && !isTeamA && !isCreator && (
@@ -371,6 +393,30 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
             </button>
           )}
 
+          {/* Nút xoá vĩnh viễn kèo cho Admin */}
+          {isAdmin && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleDelete}
+              style={{
+                height: isMobile ? 56 : 44,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 14px',
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                font: '600 13px/1 "IBM Plex Sans", sans-serif',
+                color: 'var(--red-500, #ef4444)',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <Icon name="trash-2" size={14} style={{ marginRight: 6 }} />
+              <span>{t('challenge.btnDelete')}</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onClose}
@@ -395,20 +441,54 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
       <div style={{ display: 'grid', gap: 14 }}>
         {/* Matchup Card */}
         <div style={S.boxCard}>
+          {isPending && !isExpired && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)', marginBottom: 2 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                {t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}
+              </span>
+              {Boolean(myId && (c.acceptedPlayers || []).includes(myId)) && !prog.isFullyAccepted && (
+                <span style={{ fontSize: 12, color: 'var(--status-delivered-fg)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Icon name="check" size={12} />
+                  <span>{t('challenge.youAcceptedWaiting')}</span>
+                </span>
+              )}
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ font: '600 14.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                {namesA}
-              </span>
+              <div style={{ font: '600 14.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {teamA.map((id) => {
+                  const isAcc = (c.acceptedPlayers || []).includes(id)
+                  return (
+                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span>{playerName(db, id)}</span>
+                      {isPending && isAcc && (
+                        <Icon name="check" size={13} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
+                      )}
+                    </span>
+                  )
+                })}
+              </div>
               <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                 {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
               </span>
             </div>
             <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)' }}>VS</span>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ font: '600 14.5px/1.3 "IBM Plex Sans", sans-serif', color: isOpen ? 'var(--status-delayed-fg)' : 'var(--text-secondary)' }}>
-                {namesB}
-              </span>
+              <div style={{ font: '600 14.5px/1.3 "IBM Plex Sans", sans-serif', color: resolvedTeamB.length ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
+                {resolvedTeamB.length ? resolvedTeamB.map((id) => {
+                  const isAcc = (c.acceptedPlayers || []).includes(id)
+                  return (
+                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span>{playerName(db, id)}</span>
+                      {isPending && isAcc && (
+                        <Icon name="check" size={13} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
+                      )}
+                    </span>
+                  )
+                }) : (isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB'))}
+              </div>
               <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                 {ratB > 0 ? t('challenge.avgRating', { r: ratB.toLocaleString('vi-VN') }) : '—'}
               </span>
@@ -539,7 +619,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                 title: t('challenge.step2Accept', { name: acceptorName || t('challenge.teamB') }),
                 sub: (isAccepted || isPlayed)
                   ? t('challenge.step2Sub', { time: acceptedTimeStr })
-                  : (c.status === 'declined' ? t('challenge.toastDeclined') : t('challenge.status.pending')),
+                  : (c.status === 'declined'
+                    ? t('challenge.toastDeclined')
+                    : (prog.totalCount > 0 ? t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount }) : t('challenge.status.pending'))),
                 status: (isAccepted || isPlayed) ? 'done' : (isPending ? 'current' : 'pending'),
               },
               {

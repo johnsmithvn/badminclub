@@ -11,7 +11,7 @@ export default function PlannerGridCol({
   ratingsMap = {},
   highlightRoundIndex = null,
   onDropPlayer,
-  onRemovePlayer,
+  _onRemovePlayer,
   onClearCourt,
   onAddRound,
 }) {

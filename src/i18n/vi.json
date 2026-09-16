@@ -343,7 +343,7 @@
   },
   "monthPrefix": "Tháng",
   "nav": {
-    "home": "Trang chủ",
+    "home": "Home",
     "calendar": "Lịch tháng",
     "sessions": "Buổi tập",
     "assign": "Chia sân",
@@ -366,7 +366,7 @@
   },
   "pages": {
     "home": {
-      "title": "Trang chủ",
+      "title": "Home",
       "desc": "Toàn cảnh quỹ, buổi tập và công nợ"
     },
     "matches": {
@@ -858,9 +858,9 @@
       "closeBtn": "Chốt buổi",
       "more": "… và {{n}} buổi nữa"
     },
-    "tabTransactions": "Chi tiết thu chi",
-    "tabReport": "Báo cáo tháng",
-    "tabMatch": "Sân đấu",
+    "tabTransactions": "Thu chi",
+    "tabReport": "Report",
+    "tabMatch": "Sân cầu",
     "statMatchesTotal": "Trận đã đấu",
     "statMatchesSub": "Toàn bộ các buổi",
     "statUpsetCount": "Trận lật kèo",
@@ -2825,11 +2825,19 @@
     "notEnoughPlayers": "chưa đủ người",
     "toastCreated": "Đã tạo kèo {{code}}",
     "toastAccepted": "Đã nhận kèo {{code}}",
+    "toastPartiallyAccepted": "Đã xác nhận kèo {{code}}, đang chờ các đấu thủ còn lại",
     "toastDeclined": "Đã từ chối kèo {{code}}",
+    "toastDeleted": "Đã xoá vĩnh viễn kèo {{code}}",
     "toastDeployed": "Đã đưa kèo {{code}} lên sân {{court}}",
     "toastCancelled": "Đã hủy kèo {{code}}",
     "toastExpired": "Kèo đã hết hạn (quá thời gian quy định)",
     "toastLinkedToSession": "Đã đưa kèo {{code}} vào buổi {{date}}",
+    "acceptedProgress": "Đã nhận {{count}}/{{total}}",
+    "youAcceptedWaiting": "Bạn đã nhận (chờ đối thủ)",
+    "btnAdminApprove": "Duyệt kèo",
+    "btnDelete": "Xoá kèo",
+    "confirmDeleteTitle": "Xoá kèo đấu",
+    "confirmDeleteMsg": "Bạn có chắc chắn muốn xoá vĩnh viễn kèo này? Hành động này không thể hoàn tác.",
     "linkToSession": "Đưa vào buổi này",
     "importClubChallenge": "Kèo hẹn trước trong CLB ({{n}})",
     "noEmptyCourt": "Tất cả các sân đều đang có trận đấu. Vui lòng chờ trận kết thúc hoặc trả sân trước khi đưa kèo lên.",

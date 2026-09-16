@@ -19,6 +19,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { buildPlayableVideoUrl, formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -736,8 +737,6 @@ export default function Matches() {
             {displayedChallenges.map((c) => {
               const teamA = c.teamA || []
               const teamB = c.teamB || []
-              const namesA = teamA.map(memberNameOf).join(' · ')
-              const namesB = teamB.length ? teamB.map(memberNameOf).join(' · ') : t('challenge.teamEmptyHint')
               const ratA = teamA.length ? Math.round(teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length) : 0
               const ratB = teamB.length ? Math.round(teamB.reduce((sum, id) => sum + getRating(id), 0) / teamB.length) : 0
               const gap = Math.abs(ratA - ratB)
@@ -749,8 +748,13 @@ export default function Matches() {
               const isPending = c.status === 'pending'
               const isAccepted = c.status === 'accepted'
               const isCreator = myId && c.createdBy === myId
-              const isTeamB = myId && teamB.includes(myId)
+              const isParticipant = myId && [...teamA, ...teamB].includes(myId)
               const isOpen = !teamB.length || teamB.length < (teamA.length > 1 ? 2 : 1)
+
+              // Tiến độ nhận kèo
+              const prog = getChallengeAcceptanceProgress(c)
+              const canAccept = canMemberAcceptChallenge(c, myId, isAdmin)
+              const hasAccepted = myId && (c.acceptedPlayers || []).includes(myId)
 
               // Countdown hết hạn
               const expTime = c.expiresAt ? new Date(c.expiresAt).getTime() : (c.createdAt ? new Date(c.createdAt).getTime() + 60 * 60 * 1000 : null)
@@ -773,9 +777,9 @@ export default function Matches() {
 
               return (
                 <div key={c.id} style={S.challengeCard}>
-                  {/* Hàng 1: Mã kèo & Trạng thái & Buổi */}
+                  {/* Hàng 1: Mã kèo & Trạng thái & Buổi & Tiến độ nhận */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={S.monoCode}>{c.code}</span>
                       {sessionObj ? (
                         <span style={S.sessionBadge}>
@@ -786,6 +790,23 @@ export default function Matches() {
                       )}
                       {c.ratingEnabled === false && (
                         <span style={S.casualBadge}>{t('challenge.casual')}</span>
+                      )}
+                      {isPending && !isExpired && (
+                        <span style={{
+                          fontSize: 11,
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          background: 'rgba(0,178,169,0.12)',
+                          color: 'var(--status-transit-fg)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}>
+                          <Icon name="check" size={12} />
+                          <span>{t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}</span>
+                        </span>
                       )}
                     </div>
                     <span style={{
@@ -798,18 +819,40 @@ export default function Matches() {
                     </span>
                   </div>
 
-                  {/* Hàng 2: Đối đầu Team A vs Team B */}
+                  {/* Hàng 2: Đối đầu Team A vs Team B (Kèm tick nhận kèo) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={S.teamName}>{namesA}</div>
+                      <div style={{ ...S.teamName, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {teamA.map((id) => {
+                          const isAcc = (c.acceptedPlayers || []).includes(id)
+                          return (
+                            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              <span>{memberNameOf(id)}</span>
+                              {isPending && isAcc && (
+                                <Icon name="check" size={12} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
+                              )}
+                            </span>
+                          )
+                        })}
+                      </div>
                       <div style={S.teamRatingMono}>
                         {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
                       </div>
                     </div>
                     <span style={S.vsText}>VS</span>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                      <div style={{ ...S.teamName, color: teamB.length ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                        {namesB}
+                      <div style={{ ...S.teamName, color: teamB.length ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
+                        {teamB.length ? teamB.map((id) => {
+                          const isAcc = (c.acceptedPlayers || []).includes(id)
+                          return (
+                            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              <span>{memberNameOf(id)}</span>
+                              {isPending && isAcc && (
+                                <Icon name="check" size={12} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
+                              )}
+                            </span>
+                          )
+                        }) : t('challenge.teamEmptyHint')}
                       </div>
                       <div style={S.teamRatingMono}>
                         {ratB > 0 ? t('challenge.avgRating', { r: ratB.toLocaleString('vi-VN') }) : '—'}
@@ -841,30 +884,48 @@ export default function Matches() {
 
                   {/* Hàng nút bấm thao tác */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                    {/* Nhận / Từ chối nếu tôi là Team B hoặc Admin */}
-                    {isPending && !isExpired && (isTeamB || isAdmin) && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => a.respondChallenge(c.id, true)}
-                          style={S.smallPrimaryBtn}
-                        >
-                          <Icon name="check" size={14} />
-                          <span>{t('challenge.btnAccept')}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => a.respondChallenge(c.id, false)}
-                          style={S.smallGhostBtn}
-                        >
-                          <Icon name="circle-x" size={14} />
-                          <span>{t('challenge.btnDecline')}</span>
-                        </button>
-                      </>
+                    {/* Badge Bạn đã nhận (chờ đối thủ) nếu bản thân đã bấm nhận nhưng kèo chưa full */}
+                    {isPending && !isExpired && hasAccepted && !prog.isFullyAccepted && (
+                      <span style={{
+                        fontSize: 12,
+                        color: 'var(--status-delivered-fg)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        marginRight: 'auto',
+                        fontFamily: 'var(--font-mono)',
+                      }}>
+                        <Icon name="check" size={13} />
+                        <span>{t('challenge.youAcceptedWaiting')}</span>
+                      </span>
+                    )}
+
+                    {/* Nhận / Duyệt kèo nếu có quyền */}
+                    {isPending && !isExpired && canAccept && (
+                      <button
+                        type="button"
+                        onClick={() => a.respondChallenge(c.id, true)}
+                        style={S.smallPrimaryBtn}
+                      >
+                        <Icon name="check" size={14} />
+                        <span>{isAdmin && !isParticipant ? t('challenge.btnAdminApprove') : t('challenge.btnAccept')}</span>
+                      </button>
+                    )}
+
+                    {/* Từ chối nếu tôi là đấu thủ tham gia hoặc Admin */}
+                    {isPending && !isExpired && (isParticipant || isAdmin) && (
+                      <button
+                        type="button"
+                        onClick={() => a.respondChallenge(c.id, false)}
+                        style={S.smallGhostBtn}
+                      >
+                        <Icon name="circle-x" size={14} />
+                        <span>{t('challenge.btnDecline')}</span>
+                      </button>
                     )}
 
                     {/* Nhận kèo mở nếu đã đăng nhập và tôi chưa thuộc Team A lẫn Team B */}
-                    {isPending && !isExpired && isOpen && myId && !teamA.includes(myId) && !isTeamB && (
+                    {isPending && !isExpired && isOpen && myId && !teamA.includes(myId) && !teamB.includes(myId) && (
                       <button
                         type="button"
                         onClick={() => a.acceptOpenChallenge({ challengeId: c.id })}
@@ -926,6 +987,31 @@ export default function Matches() {
                       >
                         <Icon name="eye" size={14} />
                         <span>{t('challenge.details')}</span>
+                      </button>
+                    )}
+
+                    {/* Xóa vĩnh viễn kèo nếu là Chủ CLB/Admin (mọi trạng thái) */}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          a.confirm({
+                            title: t('challenge.confirmDeleteTitle'),
+                            message: t('challenge.confirmDeleteMsg'),
+                            tone: 'danger',
+                            confirmText: t('challenge.btnDelete'),
+                            onConfirm: () => a.deleteChallenge(c.id),
+                          })
+                        }}
+                        style={{
+                          ...S.smallGhostBtn,
+                          color: 'var(--red-500, #ef4444)',
+                          borderColor: 'rgba(239, 68, 68, 0.25)',
+                        }}
+                        title={t('challenge.btnDelete')}
+                      >
+                        <Icon name="trash-2" size={14} />
+                        <span>{t('challenge.btnDelete')}</span>
                       </button>
                     )}
                   </div>

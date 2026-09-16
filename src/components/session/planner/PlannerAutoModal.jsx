@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { t } from '#i18n'
 import { Button, Dialog, Icon } from '#ds'
 import { validateChallengeAttendance, validateWishAttendance } from '#lib/planner'
@@ -22,7 +22,9 @@ export default function PlannerAutoModal({
   const [selectedChallengeIds, setSelectedChallengeIds] = useState([])
   const [selectedWishIds, setSelectedWishIds] = useState([])
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
     if (isOpen) {
       const validChalIds = challenges
         .filter(c => validateChallengeAttendance(c, attendance, players, db).valid)
@@ -34,7 +36,7 @@ export default function PlannerAutoModal({
       setSelectedChallengeIds(validChalIds)
       setSelectedWishIds(validWishIds)
     }
-  }, [isOpen, challenges, wishes, attendance, players, db])
+  }
 
   if (!isOpen) return null
 
