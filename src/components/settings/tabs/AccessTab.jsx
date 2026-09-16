@@ -72,48 +72,52 @@ function JoinRow({ r, canEdit, unlinked, db, ui, a }) {
               {t('settings.joinDupWarn', { name: dup.name })}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <SearchSelect
-              size="sm"
-              style={{ width: 240 }}
-              menuWidth={280}
-              placeholder={t('settings.joinPickMember')}
-              options={unlinked.map((m) => ({
-                value: m.id,
-                label: m.name,
-                sub: m.phone || undefined,
-                level: levelOf(m, db.month),
-              }))}
-              levels={db.levels}
-              clearable
-              value={pick}
-              onChange={(val) => setPick(val || '')}
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              icon="link"
-              disabled={!pick}
-              onClick={() => a.approveJoin(r.id, pick, take)}
-            >
-              {t('settings.joinLink')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="user-round-plus"
-              onClick={() => a.approveJoin(r.id, null)}
-            >
-              {t('settings.joinCreate')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon="circle-x"
-              onClick={() => a.rejectJoin(r.id)}
-            >
-              {t('settings.joinReject')}
-            </Button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0, maxWidth: '100%' }}>
+              <SearchSelect
+                size="sm"
+                style={{ width: '100%' }}
+                menuWidth={280}
+                placeholder={t('settings.joinPickMember')}
+                options={unlinked.map((m) => ({
+                  value: m.id,
+                  label: m.name,
+                  sub: m.phone || undefined,
+                  level: levelOf(m, db.month),
+                }))}
+                levels={db.levels}
+                clearable
+                value={pick}
+                onChange={(val) => setPick(val || '')}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Button
+                variant="primary"
+                size="sm"
+                icon="link"
+                disabled={!pick}
+                onClick={() => a.approveJoin(r.id, pick, take)}
+              >
+                {t('settings.joinLink')}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="user-round-plus"
+                onClick={() => a.approveJoin(r.id, null)}
+              >
+                {t('settings.joinCreate')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="circle-x"
+                onClick={() => a.rejectJoin(r.id)}
+              >
+                {t('settings.joinReject')}
+              </Button>
+            </div>
           </div>
 
           {target && (
@@ -248,7 +252,7 @@ export default function AccessTab({
       </SettingsCard>
 
       {/* Lưới 2 cột: Cách cho người mới vào + Các vai và quyền */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 20, alignItems: 'start' }}>
         {/* Card 2: Cách cho người mới vào */}
         <SettingsCard
           title={t('settings.linkModesTitle')}

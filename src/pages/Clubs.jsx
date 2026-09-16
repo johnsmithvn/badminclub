@@ -8,6 +8,7 @@ import { DeleteClubDialog, Empty, Mono, Overline } from '#ui'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { ddmy } from '#utils/dates.js'
 import { roleName } from '#lib/roles.js'
 import { PUBLIC_PATHS } from '#routes'
@@ -19,6 +20,7 @@ export default function Clubs() {
   const { toast } = useApp()
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
+  const isMobile = useMobile(640)
   const [dlg, setDlg] = useState(null) // 'create' | 'join' | null
   const [del, setDel] = useState(null) // CLB đang chờ xác nhận xoá
 
@@ -34,19 +36,21 @@ export default function Clubs() {
   return (
     <div style={S.page}>
       {/* ---- thanh trên: hồ sơ + đăng xuất ---- */}
-      <div style={S.topbar}>
+      <div style={{ ...S.topbar, padding: isMobile ? '10px 14px' : '11px 22px', gap: isMobile ? 8 : 10 }}>
         <div style={S.brandRow}>
           <div style={S.logo}><Icon name="volleyball" size={18} /></div>
           <span style={S.appName}>{t('auth.appName')}</span>
         </div>
         <div style={{ flex: 1 }} />
         {profile && (
-          <div style={S.me}>
+          <div style={{ ...S.me, paddingRight: isMobile ? 0 : 6 }}>
             <Avatar name={meName} src={profile.avatar_url || profile.avatarUrl} size={28} />
-            <div style={{ minWidth: 0 }}>
-              <div style={S.meName}>{meName}</div>
-              <Mono color="var(--text-muted)">{profile.email}</Mono>
-            </div>
+            {!isMobile && (
+              <div style={{ minWidth: 0 }}>
+                <div style={S.meName}>{meName}</div>
+                <Mono color="var(--text-muted)">{profile.email}</Mono>
+              </div>
+            )}
           </div>
         )}
         {/* Hồ sơ TÀI KHOẢN nằm ngoài CLB (`/tai-khoan`). Trước đây nút này phải nhảy đại vào
@@ -60,20 +64,34 @@ export default function Clubs() {
           label={isDark ? t('common.themeLight') : t('common.themeDark')}
           onClick={toggleTheme}
         />
-        <Button variant="secondary" size="sm" icon="user-round" onClick={() => navigate(PUBLIC_PATHS.account)}>
-          {t('auth.profileBtn')}
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="user-round"
+          onClick={() => navigate(PUBLIC_PATHS.account)}
+          title={isMobile ? t('auth.profileBtn') : undefined}
+        >
+          {isMobile ? '' : t('auth.profileBtn')}
         </Button>
-        <Button variant="ghost" size="sm" icon="circle-x" onClick={signOut}>{t('auth.logout')}</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="circle-x"
+          onClick={signOut}
+          title={isMobile ? t('auth.logout') : undefined}
+        >
+          {isMobile ? '' : t('auth.logout')}
+        </Button>
       </div>
 
-      <div style={S.wrap}>
+      <div style={{ ...S.wrap, padding: isMobile ? '16px 14px 48px' : '28px 22px 60px', gap: isMobile ? 14 : 18 }}>
         {/* ---- tiêu đề + hành động ---- */}
-        <div style={S.head}>
+        <div style={{ ...S.head, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
             <h1 style={S.title}>{t('clubs.title')}</h1>
             <span style={S.sub}>{t('clubs.sub')}</span>
           </div>
-          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+          <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: 9, flexWrap: 'wrap' }}>
             <Button variant="secondary" icon="link" onClick={() => setDlg('join')}>{t('clubs.join')}</Button>
             <Button variant="primary" icon="plus" onClick={() => setDlg('create')}>{t('clubs.create')}</Button>
           </div>
@@ -89,23 +107,25 @@ export default function Clubs() {
             {clubs.map((c) => (
               /* Thẻ là <div>, phần bấm-để-vào là <button> con: nút Xoá không lồng được vào
                  trong một <button> khác, mà bỏ <button> đi thì mất luôn điều hướng bàn phím. */
-              <div key={c.id} style={S.row}>
+              <div key={c.id} style={{ ...S.row, padding: isMobile ? '12px 14px' : '14px 16px', gap: isMobile ? 10 : 12 }}>
                 <button type="button" onClick={() => enter(c.id)} style={S.rowMain}>
                   <div style={S.rowIcon}><Icon name="building-2" size={20} /></div>
                   <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <div style={S.rowName}>{c.name}</div>
+                    <div style={{ ...S.rowName, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                     <Mono color="var(--text-muted)">
                       {t('clubs.meta', { code: c.code, n: c.member_count })}
                     </Mono>
                   </div>
                 </button>
-                <span style={S.rolePill}>{roleName(c.role)}</span>
-                {/* Chỉ chủ CLB. Vai lấy từ RPC my_clubs, và RPC xoá gác lại lần nữa dưới DB. */}
-                {c.role === 'owner' && (
-                  <IconButton icon="trash-2" size="sm" variant="ghost"
-                    label={t('clubs.delBtn')} onClick={() => setDel(c)} />
-                )}
-                <Icon name="chevron-right" size={18} style={{ color: 'var(--text-muted)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <span style={S.rolePill}>{roleName(c.role)}</span>
+                  {/* Chỉ chủ CLB. Vai lấy từ RPC my_clubs, và RPC xoá gác lại lần nữa dưới DB. */}
+                  {c.role === 'owner' && (
+                    <IconButton icon="trash-2" size="sm" variant="ghost"
+                      label={t('clubs.delBtn')} onClick={() => setDel(c)} />
+                  )}
+                  <Icon name="chevron-right" size={18} style={{ color: 'var(--text-muted)' }} />
+                </div>
               </div>
             ))}
           </div>
@@ -116,22 +136,24 @@ export default function Clubs() {
           <div style={{ display: 'grid', gap: 9 }}>
             <Overline>{t('clubs.pendingTitle')}</Overline>
             {pending.map((r) => (
-              <div key={r.id} style={{ ...S.row, cursor: 'default' }}>
+              <div key={r.id} style={{ ...S.row, cursor: 'default', padding: isMobile ? '12px 14px' : '14px 16px', gap: isMobile ? 10 : 12 }}>
                 <div style={S.rowIcon}><Icon name="clock-alert" size={20} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={S.rowName}>{r.club_name}</div>
+                  <div style={{ ...S.rowName, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.club_name}</div>
                   <Mono color="var(--text-muted)">
                     {t('clubs.pendingMeta', { date: ddmy(String(r.created_at).slice(0, 10)) })}
                   </Mono>
                 </div>
-                <StatusPill status="scheduled" label={t('rosterState.pending')} size="sm" />
+                <div style={{ flexShrink: 0 }}>
+                  <StatusPill status="scheduled" label={t('rosterState.pending')} size="sm" />
+                </div>
               </div>
             ))}
             {rejected.map((r) => (
-              <div key={r.id} style={{ ...S.row, cursor: 'default', opacity: 0.7 }}>
+              <div key={r.id} style={{ ...S.row, cursor: 'default', opacity: 0.7, padding: isMobile ? '12px 14px' : '14px 16px', gap: isMobile ? 10 : 12 }}>
                 <div style={S.rowIcon}><Icon name="circle-x" size={20} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={S.rowName}>{r.club_name}</div>
+                  <div style={{ ...S.rowName, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.club_name}</div>
                   <Mono color="var(--text-muted)">{t('clubs.pendingRejected')}</Mono>
                 </div>
               </div>
@@ -148,8 +170,8 @@ export default function Clubs() {
           onDone={() => { toast(t('toast.clubDeleted', { name: del.name })); setDel(null) }}
         />
       )}
-      {dlg === 'create' && <CreateDialog onClose={() => setDlg(null)} onDone={enter} create={createClub} toast={toast} />}
-      {dlg === 'join' && <JoinDialog onClose={() => setDlg(null)} join={joinByCode} toast={toast} />}
+      {dlg === 'create' && <CreateDialog isMobile={isMobile} onClose={() => setDlg(null)} onDone={enter} create={createClub} toast={toast} />}
+      {dlg === 'join' && <JoinDialog isMobile={isMobile} onClose={() => setDlg(null)} join={joinByCode} toast={toast} />}
     </div>
   )
 }
@@ -157,7 +179,7 @@ export default function Clubs() {
 /** Vào Trang cá nhân: cần một CLB đang chọn để AppLayout render được. */
 /* ---------------- tạo CLB ---------------- */
 
-function CreateDialog({ onClose, onDone, create, toast }) {
+function CreateDialog({ onClose, onDone, create, toast, isMobile }) {
   const today = new Date().toISOString().slice(0, 10)
   const [f, setF] = useState({
     name: '', opening: '0', openingDate: today, lockDay: String(cfg.club.defaultLockDay),
@@ -183,7 +205,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
   }
 
   return (
-    <Dialog open title={t('clubs.createTitle')} description={t('clubs.createSub')} width={580} onClose={onClose}>
+    <Dialog open title={t('clubs.createTitle')} description={t('clubs.createSub')} width={isMobile ? '100%' : 580} onClose={onClose}>
       <div style={{ display: 'grid', gap: 14 }}>
         <Input
           label={t('clubs.fName')}
@@ -193,7 +215,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
           autoFocus
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
           <Input
             label={t('clubs.fOpening')}
             mono
@@ -212,7 +234,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
           />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, alignItems: 'start' }}>
           <Input
             label={t('clubs.fLockDay')}
             mono
@@ -221,7 +243,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
             onChange={set('lockDay')}
             hint={t('clubs.lockDayHint')}
           />
-          <div style={S.lockTip}>
+          <div style={{ ...S.lockTip, marginTop: isMobile ? 0 : 22 }}>
             <Icon name="calendar-clock" size={16} style={{ color: 'var(--teal-600)', flexShrink: 0, marginTop: 2 }} />
             <span>{t('clubs.lockDayNote')}</span>
           </div>
@@ -239,7 +261,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
           onChange={set('bankHolder')}
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
           <Input
             label={t('clubs.fBankNo')}
             mono
@@ -271,7 +293,7 @@ function CreateDialog({ onClose, onDone, create, toast }) {
 
 /* ---------------- tham gia bằng mã ---------------- */
 
-function JoinDialog({ onClose, join, toast }) {
+function JoinDialog({ onClose, join, toast, isMobile }) {
   const [code, setCode] = useState('')
   const [note, setNote] = useState('')
   const [err, setErr] = useState('')
@@ -292,7 +314,7 @@ function JoinDialog({ onClose, join, toast }) {
   }
 
   return (
-    <Dialog open title={t('clubs.joinTitle')} description={t('clubs.joinSub')} width={480} onClose={onClose}>
+    <Dialog open title={t('clubs.joinTitle')} description={t('clubs.joinSub')} width={isMobile ? '100%' : 480} onClose={onClose}>
       <div style={{ display: 'grid', gap: 12 }}>
         <Input label={t('clubs.fCode')} mono value={code} autoFocus
           onChange={(e) => setCode(e.target.value.toUpperCase())}

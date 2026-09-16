@@ -1900,8 +1900,33 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      * KHÔNG đi qua đồng bộ ngầm như các action khác: `storage.js` ghi bằng upsert, mà upsert là
      * `INSERT ... ON CONFLICT` nên Postgres đòi cả policy INSERT — thành viên thường không có,
      * op sẽ hỏng VĨNH VIỄN và kẹt luôn hàng đợi (xem `ponytail:` ở `storage.js: flush`). Vì thế
-     * ghi thẳng bằng `.update()` rồi `reload()` để dựng lại ảnh chụp — đúng khuôn `approveJoin`.
+    /**
+     * Thành viên tự đổi thông tin hồ sơ của mình trong CLB: tên hiển thị, tên đầy đủ, ảnh đại diện.
+     * Cập nhật trực tiếp `club_members` rồi `reload()`.
      */
+    updateMe: async ({ name, fullName, avatarUrl } = {}) => {
+      const d0 = db()
+      const me = d0.members.find((m) => m.userId === d0.currentUserId)
+      if (!me) return toast(t('toast.noMemberRecord'))
+      const nm = String(name ?? me.name).trim()
+      if (!nm) return toast(t('toast.needMemberName'))
+      const full = String(fullName ?? me.fullName ?? '').trim()
+      const currentAv = me.avatarUrl || ''
+      const newAv = avatarUrl !== undefined ? (avatarUrl || '') : currentAv
+      if (nm === me.name && full === (me.fullName || '') && newAv === currentAv) {
+        return toast(t('toast.changeSame'))
+      }
+      try {
+        unwrap(await supabase.from('club_members')
+          .update({ name: nm, full_name: full || null, avatar_url: newAv || null })
+          .eq('id', me.id))
+      } catch (e) {
+        return toast(e.message)
+      }
+      await reload()
+      toast(t('toast.updatedMe'))
+    },
+
     renameMe: async (name, fullName) => {
       const d0 = db()
       const me = d0.members.find((m) => m.userId === d0.currentUserId)

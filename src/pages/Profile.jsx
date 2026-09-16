@@ -13,7 +13,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, Button, Card, Icon, Input, Select } from '#ds'
-import { Empty, LevelChip, Mono, Overline } from '#ui'
+import { AvatarUpload, Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -210,6 +210,7 @@ function MeCard({ me, myGroups, db, a, profile }) {
   const [loadedFor, setLoadedFor] = useState(null)
   const [name, setName] = useState('')
   const [full, setFull] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
   const [saving, setSaving] = useState(false)
 
   // Nạp một lần cho mỗi bản ghi, không dùng effect: `me` là phần tử của `db.members` nên đổi
@@ -218,12 +219,17 @@ function MeCard({ me, myGroups, db, a, profile }) {
     setLoadedFor(me.id)
     setName(me.name)
     setFull(me.fullName || '')
+    setAvatarUrl(me.avatarUrl || '')
   }
 
-  const dirty = me && (name.trim() !== me.name || full.trim() !== (me.fullName || ''))
+  const dirty = me && (
+    name.trim() !== me.name ||
+    full.trim() !== (me.fullName || '') ||
+    (avatarUrl || '') !== (me.avatarUrl || '')
+  )
   const save = async () => {
     setSaving(true)
-    await a.renameMe(name, full)
+    await a.updateMe({ name, fullName: full, avatarUrl })
     setSaving(false)
   }
 
@@ -233,7 +239,7 @@ function MeCard({ me, myGroups, db, a, profile }) {
         ? <Empty icon="unlink" title={t('profile.changeNoMember')} hint={t('profile.changeNoMemberHint')} />
         : <div style={{ display: 'grid', gap: 13 }}>
             <div style={S.idRow}>
-              <Avatar name={me.name} src={me.avatarUrl || (profile && (profile.avatar_url || profile.avatarUrl))} size={46} />
+              <Avatar name={me.name} src={avatarUrl || me.avatarUrl || (profile && (profile.avatar_url || profile.avatarUrl))} size={46} />
               <div style={{ minWidth: 0 }}>
                 <div style={S.h3}>{me.name}</div>
                 {me.fullName && <div style={S.caption}>{me.fullName}</div>}
@@ -263,8 +269,20 @@ function MeCard({ me, myGroups, db, a, profile }) {
                 : myGroups.map((g) => <span key={g.id} style={S.groupPill}>{g.name}</span>)}
             </Row>
 
-            <div style={{ display: 'grid', gap: 9, paddingTop: 11, borderTop: '1px solid var(--border-subtle)' }}>
-              <Overline>{t('profile.renameTitle')}</Overline>
+            <div style={{ display: 'grid', gap: 11, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+              <Overline>{t('profile.editInfoTitle')}</Overline>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+                  {t('profile.fAvatar')}
+                </div>
+                <AvatarUpload
+                  name={name || me.name}
+                  value={avatarUrl}
+                  size={54}
+                  onChange={(url) => setAvatarUrl(url)}
+                />
+                <span style={S.caption}>{t('profile.fAvatarHint')}</span>
+              </div>
               <Input label={t('profile.fDisplayName')} hint={t('profile.fDisplayNameHint')}
                 value={name} onChange={(e) => setName(e.target.value)} />
               <Input label={t('members.fFull')} hint={t('members.fFullHint')}
