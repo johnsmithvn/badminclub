@@ -12,6 +12,9 @@ import {
   updatePlanRoundMinutes,
   addPlanRound,
   removePlanRound,
+  isPlayerAbsent,
+  validateChallengeAttendance,
+  validateWishAttendance,
 } from '../../lib/planner.js'
 
 // 1. calcRoundTimes
@@ -161,4 +164,160 @@ assert.ok(plannerPlayers.every((p) => !p.name.includes('uuid')), 'tuyệt đối
 assert.equal(plannerPlayers.find((p) => p.key === 'm1')?.avatarUrl, 'https://example.com/kuro.jpg', 'giữ avatarUrl của thành viên')
 assert.equal(plannerPlayers.find((p) => p.key === 'g_uuid_1')?.avatarUrl, 'https://example.com/hoang.jpg', 'giữ avatarUrl của khách')
 
+// 8. autoGeneratePlan với mode = 'fill' (giữ nguyên các ô đã xếp tay)
+const baseRounds = [
+  {
+    roundIndex: 0,
+    label: 'R1',
+    time: '19:00',
+    courts: [
+      { courtIndex: 0, name: 'Sân 1', teamA: ['p_1', 'p_2'], teamB: ['p_3', 'p_4'], tag: 'MANUAL' },
+      { courtIndex: 1, name: 'Sân 2', teamA: [], teamB: [] },
+    ],
+  },
+]
+const filledRounds = autoGeneratePlan({
+  existingRounds: baseRounds,
+  mode: 'fill',
+  players: all16,
+  courts: [{ courtIndex: 0, name: 'Sân 1' }, { courtIndex: 1, name: 'Sân 2' }],
+  totalRounds: 1,
+})
+assert.equal(filledRounds[0].courts[0].teamA[0], 'p_1', 'giữ nguyên đội A sân 1')
+assert.equal(filledRounds[0].courts[0].teamA[1], 'p_2', 'giữ nguyên đội A sân 1')
+assert.equal(filledRounds[0].courts[0].tag, 'MANUAL', 'giữ nguyên tag MANUAL đã xếp tay')
+assert.equal(filledRounds[0].courts[1].teamA.length + filledRounds[0].courts[1].teamB.length, 4, 'sân 2 được điền đủ 4 người')
+
+// 9. autoGeneratePlan với strategy = 'gender' (ghép đôi nam nữ)
+const genderPlayers = [
+  { key: 'm1', name: 'Nam 1', gender: 'nam' },
+  { key: 'm2', name: 'Nam 2', gender: 'nam' },
+  { key: 'f1', name: 'Nữ 1', gender: 'nu' },
+  { key: 'f2', name: 'Nữ 2', gender: 'nu' },
+]
+const genderRounds = autoGeneratePlan({
+  players: genderPlayers,
+  courts: [{ courtIndex: 0, name: 'Sân 1' }],
+  strategy: 'gender',
+  totalRounds: 1,
+})
+const gCourt = genderRounds[0].courts[0]
+const gA = gCourt.teamA.map((k) => genderPlayers.find((p) => p.key === k)?.gender)
+const gB = gCourt.teamB.map((k) => genderPlayers.find((p) => p.key === k)?.gender)
+assert.ok(gA.includes('nam') && gA.includes('nu'), 'đội A có 1 nam và 1 nữ')
+assert.ok(gB.includes('nam') && gB.includes('nu'), 'đội B có 1 nam và 1 nữ')
+
+// 10. autoGeneratePlan tự động ưu tiên xếp NGUYỆN VỌNG THÀNH VIÊN
+const wishRounds = autoGeneratePlan({
+  players: all16,
+  courts: [{ courtIndex: 0, name: 'Sân 1' }, { courtIndex: 1, name: 'Sân 2' }],
+  wishes: [
+    { id: 'w_test', memberId: 'p_5', targetId: 'p_6', type: 'partner', text: 'p_5 muốn cặp p_6' },
+  ],
+  totalRounds: 4,
+})
+// Tìm sân có gắn tag WISH
+let foundWishCourt = null
+wishRounds.forEach((r) => {
+  r.courts.forEach((c) => {
+    if (c.wishId === 'w_test') foundWishCourt = c
+  })
+})
+assert.ok(foundWishCourt, 'tìm thấy sân được xếp nguyện vọng')
+assert.equal(foundWishCourt.tag, 'WISH', 'sân có tag WISH')
+assert.ok(foundWishCourt.teamA.includes('p_5') && foundWishCourt.teamA.includes('p_6'), 'p_5 và p_6 được ghép chung đội A theo đúng nguyện vọng')
+
+// 11. isPlayerAbsent, validateChallengeAttendance, validateWishAttendance
+assert.equal(isPlayerAbsent('p_absent', { p_absent: false }), true, 'false là vắng mặt')
+assert.equal(isPlayerAbsent('p_noshow', { p_noshow: 'noshow' }), true, 'noshow là vắng mặt')
+assert.equal(isPlayerAbsent('p_present', { p_present: true }), false, 'true là có mặt')
+assert.equal(isPlayerAbsent('p_extra', { p_extra: 'extra' }), false, 'extra là có mặt')
+assert.equal(isPlayerAbsent('p_none', {}), false, 'chưa điểm danh không coi là vắng mặt')
+
+const sampleChal = { id: 'c_test', teamA: ['p_1', 'p_2'], teamB: ['p_3', 'p_4'] }
+const chalValid = validateChallengeAttendance(sampleChal, { p_1: true, p_2: true, p_3: true, p_4: true }, all16)
+assert.equal(chalValid.valid, true, 'tất cả có mặt -> kèo hợp lệ')
+assert.equal(chalValid.hasAbsent, false)
+
+const chalAbsent = validateChallengeAttendance(sampleChal, { p_1: true, p_2: false, p_3: true, p_4: 'noshow' }, all16)
+assert.equal(chalAbsent.valid, false, 'có người vắng mặt -> kèo không hợp lệ')
+assert.equal(chalAbsent.hasAbsent, true)
+assert.deepEqual(chalAbsent.absentKeys, ['p_2', 'p_4'], 'chỉ ra đúng người vắng')
+
+const sampleWish = { id: 'w_test', memberId: 'p_1', targetId: 'p_2' }
+const wishValid = validateWishAttendance(sampleWish, { p_1: true, p_2: true }, all16)
+assert.equal(wishValid.valid, true, '2 người đều có mặt -> nguyện vọng hợp lệ')
+
+const wishAbsent = validateWishAttendance(sampleWish, { p_1: true, p_2: false }, all16)
+assert.equal(wishAbsent.valid, false, 'người được ghép vắng mặt -> nguyện vọng không hợp lệ')
+assert.deepEqual(wishAbsent.absentKeys, ['p_2'])
+
+// 12. autoGeneratePlan tự động huỷ/bỏ qua Kèo & Nguyện vọng có người vắng mặt
+const attWithAbsents = {
+  p_3: false, // vắng mặt
+  p_6: 'noshow', // nghỉ không báo
+}
+const autoAbsenceRounds = autoGeneratePlan({
+  players: all16,
+  courts: [{ courtIndex: 0, name: 'Sân 1' }, { courtIndex: 1, name: 'Sân 2' }],
+  challenges: [
+    { id: 'ch_has_absent', status: 'accepted', teamA: ['p_1', 'p_2'], teamB: ['p_3', 'p_4'] }, // có p_3 vắng
+    { id: 'ch_all_present', status: 'accepted', teamA: ['p_7', 'p_8'], teamB: ['p_9', 'p_10'] }, // tất cả có mặt
+  ],
+  wishes: [
+    { id: 'wish_has_absent', memberId: 'p_5', targetId: 'p_6', type: 'partner' }, // có p_6 vắng
+    { id: 'wish_all_present', memberId: 'p_11', targetId: 'p_12', type: 'partner' }, // có mặt
+  ],
+  attendance: attWithAbsents,
+  totalRounds: 6,
+})
+
+// Kiểm tra: Kèo và nguyện vọng có người vắng TUYỆT ĐỐI không được lên sân
+let placedChalAbsent = false
+let placedWishAbsent = false
+let placedChalValid = false
+let placedWishValid = false
+
+autoAbsenceRounds.forEach((r) => {
+  r.courts.forEach((c) => {
+    if (c.challengeId === 'ch_has_absent') placedChalAbsent = true
+    if (c.challengeId === 'ch_all_present') placedChalValid = true
+    if (c.wishId === 'wish_has_absent') placedWishAbsent = true
+    if (c.wishId === 'wish_all_present') placedWishValid = true
+  })
+})
+
+assert.equal(placedChalAbsent, false, 'kèo có người vắng TUYỆT ĐỐI không được xếp lên sân')
+assert.equal(placedWishAbsent, false, 'nguyện vọng có người vắng TUYỆT ĐỐI không được xếp lên sân')
+assert.equal(placedChalValid, true, 'kèo hợp lệ được xếp thành công')
+assert.equal(placedWishValid, true, 'nguyện vọng hợp lệ được xếp thành công')
+assert.ok(autoAbsenceRounds.report, 'có gắn report vào kết quả')
+assert.equal(autoAbsenceRounds.report.invalidChallengesCount, 1, 'báo cáo đúng 1 kèo không hợp lệ do vắng')
+assert.equal(autoAbsenceRounds.report.invalidWishesCount, 1, 'báo cáo đúng 1 nguyện vọng không hợp lệ do vắng')
+assert.equal(autoAbsenceRounds.report.scheduledChallengesCount, 1, 'báo cáo 1 kèo đã xếp')
+assert.equal(autoAbsenceRounds.report.scheduledWishesCount, 1, 'báo cáo 1 nguyện vọng đã xếp')
+
+// 13. autoGeneratePlan với bộ lọc selectedChallengeIds & selectedWishIds
+const selectedFilterRounds = autoGeneratePlan({
+  players: all16,
+  courts: [{ courtIndex: 0, name: 'Sân 1' }, { courtIndex: 1, name: 'Sân 2' }],
+  challenges: [
+    { id: 'ch_pick_1', status: 'accepted', teamA: ['p_1', 'p_2'], teamB: ['p_7', 'p_8'] },
+    { id: 'ch_unpicked', status: 'accepted', teamA: ['p_9', 'p_10'], teamB: ['p_11', 'p_12'] },
+  ],
+  selectedChallengeIds: ['ch_pick_1'], // Host chỉ chọn ch_pick_1
+  totalRounds: 4,
+})
+let placedPick1 = false
+let placedUnpicked = false
+selectedFilterRounds.forEach((r) => {
+  r.courts.forEach((c) => {
+    if (c.challengeId === 'ch_pick_1') placedPick1 = true
+    if (c.challengeId === 'ch_unpicked') placedUnpicked = true
+  })
+})
+assert.equal(placedPick1, true, 'kèo được host tick chọn được xếp')
+assert.equal(placedUnpicked, false, 'kèo không được host chọn bị bỏ qua')
+
 console.log('planner.test.js: All checks passed OK')
+

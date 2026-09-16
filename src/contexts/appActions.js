@@ -375,6 +375,42 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      *  chỉ là chưa có ô nhập nào. */
     setSessionNote: (sid, v) => patchSession(sid, (x) => ({ ...x, note: v })),
     setSessionPlanner: (sid, planner) => patchSession(sid, (x) => ({ ...x, planner })),
+    saveSessionWish: (sid, wish) => {
+      if (!wish || !wish.memberId) return false
+      patchSession(sid, (x) => {
+        const p = x.planner || {}
+        const curWishes = Array.isArray(p.wishes) ? p.wishes : []
+        const exists = curWishes.some((w) => w.id === wish.id || w.memberId === wish.memberId)
+        const nextWishes = exists
+          ? curWishes.map((w) => (w.id === wish.id || w.memberId === wish.memberId ? { ...w, ...wish } : w))
+          : [...curWishes, wish]
+        return {
+          ...x,
+          planner: {
+            ...p,
+            wishes: nextWishes,
+          },
+        }
+      })
+      toast(t('session.myWishSaved'))
+      return true
+    },
+    deleteSessionWish: (sid, wishId) => {
+      if (!wishId) return false
+      patchSession(sid, (x) => {
+        const p = x.planner || {}
+        const curWishes = Array.isArray(p.wishes) ? p.wishes : []
+        return {
+          ...x,
+          planner: {
+            ...p,
+            wishes: curWishes.filter((w) => w.id !== wishId),
+          },
+        }
+      })
+      toast(t('session.myWishDeleted'))
+      return true
+    },
 
     /**
      * XOÁ CỨNG một buổi — chỉ khi chưa ai chạm vào (`money.js: sessionRefs`). Sáu bảng con

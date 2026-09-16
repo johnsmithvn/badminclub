@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
-import { calcPlanHealth, detectPlanIssues } from '#lib/planner.js'
+import { calcPlanHealth, detectPlanIssues, validateChallengeAttendance, validateWishAttendance } from '#lib/planner.js'
 import { playerName, playerOf } from '#lib/money.js'
 import { Icon, Avatar } from '#ds'
 
@@ -11,7 +11,9 @@ export default function PlannerHealthCol({
   wishes = [],
   players = [],
   ratingsMap = {},
+  attendance = {},
   onScheduleChallenge,
+  onScheduleWish,
   onViewRound,
   onOpenAddWish,
 }) {
@@ -71,6 +73,17 @@ export default function PlannerHealthCol({
     return map
   }, [rounds])
 
+  // Map wishId -> roundIndex đã xếp
+  const wishRoundMap = useMemo(() => {
+    const map = {}
+    rounds.forEach((r) => {
+      ;(r.courts || []).forEach((c) => {
+        if (c.wishId) map[c.wishId] = r.roundIndex
+      })
+    })
+    return map
+  }, [rounds])
+
   const totalReqCount = (challenges?.length || 0) + (wishes?.length || 0)
 
   return (
@@ -84,6 +97,7 @@ export default function PlannerHealthCol({
       <div style={S.reqList}>
         {/* Danh sách Kèo đấu */}
         {challenges.map((c) => {
+          const chalCheck = validateChallengeAttendance(c, attendance, players, db)
           const nameA = (c.teamA || []).map(pName).join(' + ') || t('planner.teamADefault')
           const nameB = (c.teamB || []).map(pName).join(' + ') || t('planner.teamBDefault')
           const title = `${nameA} vs ${nameB}`
@@ -95,7 +109,11 @@ export default function PlannerHealthCol({
               key={c.id}
               style={{
                 ...S.reqCard,
-                borderColor: isPlaced ? 'rgba(240, 183, 92, 0.45)' : '#22304A',
+                borderColor: !chalCheck.valid
+                  ? 'rgba(239, 68, 68, 0.35)'
+                  : isPlaced
+                  ? 'rgba(240, 183, 92, 0.45)'
+                  : '#22304A',
               }}
             >
               <div style={S.reqCardTitle} title={title}>
@@ -123,7 +141,11 @@ export default function PlannerHealthCol({
                 <span style={S.confirmText}>
                   {c.bestOf ? `${c.bestOf} set` : '1 set'}
                 </span>
-                {isPlaced ? (
+                {!chalCheck.valid ? (
+                  <span style={S.stateAbsent}>
+                    ⚠️ {t('planner.absentPlayerBadge', { names: chalCheck.absentNames.join(', ') })}
+                  </span>
+                ) : isPlaced ? (
                   <span style={S.statePlaced}>
                     {t('planner.stateScheduled', { round: `R${rIdx + 1}` })}
                   </span>
@@ -145,8 +167,12 @@ export default function PlannerHealthCol({
                 ) : (
                   <button
                     type="button"
+                    disabled={!chalCheck.valid}
                     onClick={() => onScheduleChallenge && onScheduleChallenge(c.id)}
-                    style={S.btnPrimary}
+                    style={{
+                      ...S.btnPrimary,
+                      ...(!chalCheck.valid ? { opacity: 0.5, cursor: 'not-allowed' } : {}),
+                    }}
                   >
                     {t('planner.actAddToPlan')}
                   </button>
@@ -158,14 +184,27 @@ export default function PlannerHealthCol({
 
         {/* Danh sách Nguyện vọng thành viên */}
         {wishes.map((w) => {
+          const wishCheck = validateWishAttendance(w, attendance, players, db)
           const mName = pName(w.memberId)
           const tName = pName(w.targetId)
           const text = w.text || (w.type === 'partner'
             ? t('planner.wishTextPartner', { mName, tName })
             : t('planner.wishTextOpponent', { mName, tName }))
+          const wIdx = wishRoundMap[w.id]
+          const isPlaced = wIdx !== undefined
 
           return (
-            <div key={w.id} style={S.reqCard}>
+            <div
+              key={w.id}
+              style={{
+                ...S.reqCard,
+                borderColor: !wishCheck.valid
+                  ? 'rgba(239, 68, 68, 0.35)'
+                  : isPlaced
+                  ? 'rgba(139, 92, 246, 0.5)'
+                  : '#22304A',
+              }}
+            >
               <div style={S.reqCardTitle} title={text}>
                 <span style={S.playerInline}>
                   {w.memberId && <Avatar name={mName} src={pAvatar(w.memberId)} size={16} style={{ flexShrink: 0 }} />}
@@ -173,8 +212,46 @@ export default function PlannerHealthCol({
                   {w.targetId && <Avatar name={tName} src={pAvatar(w.targetId)} size={16} style={{ flexShrink: 0 }} />}
                 </span>
               </div>
+              {w.note && (
+                <div style={S.wishNoteText}>"{w.note}"</div>
+              )}
               <div style={S.reqCardMeta}>
-                <span style={S.stateUnplaced}>{t('planner.stateUnscheduled')}</span>
+                {!wishCheck.valid ? (
+                  <span style={S.stateAbsent}>
+                    ⚠️ {t('planner.absentPlayerBadge', { names: wishCheck.absentNames.join(', ') })}
+                  </span>
+                ) : isPlaced ? (
+                  <span style={S.statePlacedWish}>
+                    {t('planner.stateScheduled', { round: `R${wIdx + 1}` })}
+                  </span>
+                ) : (
+                  <span style={S.stateUnplaced}>
+                    {t('planner.stateUnscheduled')}
+                  </span>
+                )}
+              </div>
+              <div style={S.cardBtnRow}>
+                {isPlaced ? (
+                  <button
+                    type="button"
+                    onClick={() => onViewRound && onViewRound(wIdx)}
+                    style={S.btnSecondary}
+                  >
+                    {t('planner.actViewRound', { n: wIdx + 1 })}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!wishCheck.valid}
+                    onClick={() => onScheduleWish && onScheduleWish(w.id)}
+                    style={{
+                      ...S.btnPrimary,
+                      ...(!wishCheck.valid ? { opacity: 0.5, cursor: 'not-allowed' } : {}),
+                    }}
+                  >
+                    {t('planner.actAddToPlan')}
+                  </button>
+                )}
               </div>
             </div>
           )
@@ -403,6 +480,26 @@ const S = {
     border: '1px solid #2E3E5C',
     padding: '2px 6px',
     borderRadius: 4,
+  },
+  stateAbsent: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    color: '#EF4444',
+    background: 'rgba(239, 68, 68, 0.12)',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    padding: '2px 6px',
+    borderRadius: 4,
+  },
+  statePlacedWish: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    color: '#E9D5FF',
+    background: '#7C3AED',
+    padding: '3px 6px',
+    borderRadius: 4,
+  },
+  wishNoteText: {
+    font: 'italic 400 11px/1.3 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    marginTop: 4,
   },
   cardBtnRow: {
     display: 'flex',

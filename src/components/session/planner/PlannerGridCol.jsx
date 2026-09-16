@@ -100,6 +100,7 @@ export default function PlannerGridCol({
                 const totalPlaced = teamA.length + teamB.length
                 const missing = 4 - totalPlaced
                 const isChallenge = !!c.challengeId || c.tag === 'CHALLENGE'
+                const isWish = !!c.wishId || c.tag === 'WISH'
 
                 // Tính điểm cân bằng
                 const bal = totalPlaced === 4 ? calcCourtBalanceScore(teamA, teamB, ratingsMap) : null
@@ -125,8 +126,11 @@ export default function PlannerGridCol({
                   cellBg = 'rgba(214, 59, 43, 0.08)'
                   cellBorder = 'rgba(214, 59, 43, 0.45)'
                 } else if (isChallenge) {
-                  cellBg = 'rgba(240, 183, 92, 0.09)'
-                  cellBorder = 'rgba(240, 183, 92, 0.45)'
+                  cellBg = 'rgba(240, 183, 92, 0.12)'
+                  cellBorder = 'rgba(240, 183, 92, 0.65)'
+                } else if (isWish) {
+                  cellBg = 'rgba(139, 92, 246, 0.12)'
+                  cellBorder = 'rgba(139, 92, 246, 0.65)'
                 }
 
                 const cellKey = `${r.roundIndex}-${cIdx}`
@@ -211,6 +215,11 @@ export default function PlannerGridCol({
                       {isChallenge && (
                         <span style={S.tagChallenge}>
                           {t('planner.tagChallenge')}
+                        </span>
+                      )}
+                      {isWish && (
+                        <span style={S.tagWish}>
+                          {t('planner.tagWish')}
                         </span>
                       )}
                       {missing > 0 && totalPlaced > 0 && (
@@ -385,6 +394,14 @@ const S = {
   tagChallenge: {
     color: '#04302C',
     background: '#F0B75C',
+    padding: '3px 7px',
+    borderRadius: 4,
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    letterSpacing: '.05em',
+  },
+  tagWish: {
+    color: '#FFFFFF',
+    background: '#8B5CF6',
     padding: '3px 7px',
     borderRadius: 4,
     font: '600 10px/1 "IBM Plex Sans", sans-serif',

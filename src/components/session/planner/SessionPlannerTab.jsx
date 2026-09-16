@@ -11,6 +11,8 @@ import {
   updatePlanRoundMinutes,
   addPlanRound,
   removePlanRound,
+  validateChallengeAttendance,
+  validateWishAttendance,
   DEFAULT_ROUND_MINUTES,
   DEFAULT_TOTAL_ROUNDS,
 } from '#lib/planner.js'
@@ -22,6 +24,7 @@ import PlannerGridCol from './PlannerGridCol.jsx'
 import PlannerTimelineCol from './PlannerTimelineCol.jsx'
 import PlannerHealthCol from './PlannerHealthCol.jsx'
 import PlannerAddWishDialog from './PlannerAddWishDialog.jsx'
+import PlannerAutoModal from './PlannerAutoModal.jsx'
 
 export default function SessionPlannerTab({ s }) {
   const { db, a } = useApp()
@@ -133,15 +136,28 @@ export default function SessionPlannerTab({ s }) {
   const [highlightRoundIndex, setHighlightRoundIndex] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showAddWish, setShowAddWish] = useState(false)
+  const [showAutoModal, setShowAutoModal] = useState(false)
 
   // 9. Thống kê tải trận
   const loads = useMemo(() => calcPlayerLoads(plan.rounds, players), [plan.rounds, players])
 
   // 10. Các tác vụ thao tác kế hoạch
   const handleAutoPlan = () => {
+    setShowAutoModal(true)
+  }
+
+  const handleRunAutoPlan = ({ mode, strategy, splitHalf, selectedChallengeIds, selectedWishIds }) => {
     const activeCourts = (s.courts || []).filter((c) => !c.sold)
     const courtsList = activeCourts.length > 0 ? activeCourts : (s.courts || [0, 1])
+    const att = db.attendance?.[s.id] || {}
     const newRounds = autoGeneratePlan({
+      existingRounds: plan.rounds,
+      mode,
+      strategy,
+      splitHalf,
+      selectedChallengeIds,
+      selectedWishIds,
+      attendance: att,
       players,
       courts: courtsList,
       challenges,
@@ -152,7 +168,23 @@ export default function SessionPlannerTab({ s }) {
       ratingsMap,
     })
     setPlan((prev) => ({ ...prev, rounds: newRounds }))
-    a.toast(t('planner.autoPlanDone', { rounds: newRounds.length }))
+
+    const rep = newRounds.report
+    if (rep) {
+      const schedText = t('planner.autoPlanReportSuccess', {
+        challenges: rep.scheduledChallengesCount,
+        wishes: rep.scheduledWishesCount,
+      })
+      const unplacedTotal = rep.unplacedChallengesCount + rep.unplacedWishesCount
+      if (unplacedTotal > 0) {
+        const warnText = t('planner.autoPlanReportUnplaced', { n: unplacedTotal })
+        a.toast(`${schedText}. ⚠️ ${warnText}`, { tone: 'warning' })
+      } else {
+        a.toast(schedText)
+      }
+    } else {
+      a.toast(t('planner.autoPlanDone', { rounds: newRounds.length }))
+    }
   }
 
   const handleReset = () => {
@@ -237,10 +269,25 @@ export default function SessionPlannerTab({ s }) {
     const chal = challenges.find((c) => c.id === challengeId)
     if (!chal) return
 
+    const chalCheck = validateChallengeAttendance(chal, db.attendance?.[s.id] || {}, players, db)
+    if (!chalCheck.valid) {
+      a.toast(t('planner.chalAbsentCantSchedule', { names: chalCheck.absentNames.join(', ') }), { tone: 'danger' })
+      return
+    }
+
     setPlan((prev) => {
       let scheduled = false
+      const teamKeys = [...(chal.teamA || []), ...(chal.teamB || [])]
+
       const nextRounds = prev.rounds.map((r) => {
         if (scheduled) return r
+
+        // Kiểm tra xem có ai trong 4 người đã xếp sân trong vòng này chưa
+        const isBusy = (r.courts || []).some((court) =>
+          [...(court.teamA || []), ...(court.teamB || [])].some((k) => teamKeys.includes(k))
+        )
+        if (isBusy) return r
+
         // Tìm sân trống
         const freeIdx = r.courts.findIndex((c) => c.teamA.length === 0 && c.teamB.length === 0)
         if (freeIdx >= 0) {
@@ -258,6 +305,59 @@ export default function SessionPlannerTab({ s }) {
         }
         return r
       })
+
+      if (!scheduled) {
+        a.toast(t('planner.wishNoSlotFound'), { tone: 'warning' })
+      }
+
+      return scheduled ? { ...prev, rounds: nextRounds } : prev
+    })
+  }
+
+  const handleScheduleWish = (wishId) => {
+    const wish = (plan.wishes || []).find((w) => w.id === wishId)
+    if (!wish) return
+
+    const wishCheck = validateWishAttendance(wish, db.attendance?.[s.id] || {}, players, db)
+    if (!wishCheck.valid) {
+      a.toast(t('planner.wishAbsentCantSchedule', { names: wishCheck.absentNames.join(', ') }), { tone: 'danger' })
+      return
+    }
+
+    setPlan((prev) => {
+      let scheduled = false
+      const wishKeys = [wish.memberId, wish.targetId].filter(Boolean)
+
+      const nextRounds = prev.rounds.map((r) => {
+        if (scheduled) return r
+
+        // Kiểm tra xem 2 người có ai đã đánh trong vòng này chưa
+        const isBusy = (r.courts || []).some((court) =>
+          [...(court.teamA || []), ...(court.teamB || [])].some((k) => wishKeys.includes(k))
+        )
+        if (isBusy) return r
+
+        // Tìm sân trống
+        const freeIdx = r.courts.findIndex((c) => c.teamA.length === 0 && c.teamB.length === 0)
+        if (freeIdx >= 0) {
+          scheduled = true
+          handleViewRound(r.roundIndex)
+          const nextCourts = [...r.courts]
+          nextCourts[freeIdx] = {
+            ...nextCourts[freeIdx],
+            teamA: [...wishKeys],
+            teamB: [],
+            wishId: wish.id,
+            tag: 'WISH',
+          }
+          return { ...r, courts: nextCourts }
+        }
+        return r
+      })
+
+      if (!scheduled) {
+        a.toast(t('planner.wishNoSlotFound'), { tone: 'warning' })
+      }
 
       return scheduled ? { ...prev, rounds: nextRounds } : prev
     })
@@ -359,7 +459,9 @@ export default function SessionPlannerTab({ s }) {
           wishes={plan.wishes || []}
           players={players}
           ratingsMap={ratingsMap}
+          attendance={db.attendance?.[s.id] || {}}
           onScheduleChallenge={handleScheduleChallenge}
+          onScheduleWish={handleScheduleWish}
           onViewRound={handleViewRound}
           onOpenAddWish={() => setShowAddWish(true)}
         />
@@ -371,6 +473,21 @@ export default function SessionPlannerTab({ s }) {
         onClose={() => setShowAddWish(false)}
         onSaveWish={handleSaveWish}
         players={players}
+      />
+
+      {/* Modal tuỳ chọn tự động lập kế hoạch */}
+      <PlannerAutoModal
+        isOpen={showAutoModal}
+        onClose={() => setShowAutoModal(false)}
+        onSubmit={handleRunAutoPlan}
+        courtsCount={courtsCount}
+        roundsCount={plan.rounds?.length || 0}
+        playersCount={players.length}
+        challenges={challenges}
+        wishes={plan.wishes || []}
+        attendance={db.attendance?.[s.id] || {}}
+        players={players}
+        db={db}
       />
     </div>
   )

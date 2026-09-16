@@ -440,9 +440,80 @@ export function detectPlanIssues(rounds = [], players = [], challenges = [], wis
 }
 
 /**
+ * Kiểm tra xem một người chơi có bị đánh dấu vắng mặt (hoặc nghỉ không báo) trong buổi hay không.
+ */
+export function isPlayerAbsent(k, attendance = {}) {
+  if (!k) return false
+  const state = attendance[k]
+  return state === false || state === 'noshow'
+}
+
+/**
+ * Kiểm tra tính hợp lệ về điểm danh của một KÈO ĐẤU:
+ * Cả 4 người của đội A và đội B phải có mặt và không bị báo vắng.
+ */
+export function validateChallengeAttendance(c, attendance = {}, players = [], db = null) {
+  const pMap = {}
+  ;(players || []).forEach((p) => { pMap[p.key || p.id] = p })
+
+  const teamKeys = [...(c.teamA || []), ...(c.teamB || [])]
+  const absentKeys = teamKeys.filter((k) => isPlayerAbsent(k, attendance))
+  const absentNames = absentKeys.map((k) => {
+    if (pMap[k]?.name) return pMap[k].name
+    return resolveSafePlayerName(db, k, k)
+  })
+
+  return {
+    valid: absentKeys.length === 0,
+    hasAbsent: absentKeys.length > 0,
+    absentKeys,
+    absentNames,
+    absentText: absentNames.join(', '),
+  }
+}
+
+/**
+ * Kiểm tra tính hợp lệ về điểm danh của một NGUYỆN VỌNG:
+ * Cả người gửi và người được ghép phải có mặt và không bị báo vắng.
+ */
+export function validateWishAttendance(w, attendance = {}, players = [], db = null) {
+  const pMap = {}
+  ;(players || []).forEach((p) => { pMap[p.key || p.id] = p })
+
+  const wishKeys = [w.memberId, w.targetId].filter(Boolean)
+  const absentKeys = wishKeys.filter((k) => isPlayerAbsent(k, attendance))
+  const absentNames = absentKeys.map((k) => {
+    if (pMap[k]?.name) return pMap[k].name
+    return resolveSafePlayerName(db, k, k)
+  })
+
+  return {
+    valid: absentKeys.length === 0,
+    hasAbsent: absentKeys.length > 0,
+    absentKeys,
+    absentNames,
+    absentText: absentNames.join(', '),
+  }
+}
+
+/**
  * Thuật toán Tự động lập kế hoạch đa vòng (Multi-Round Auto Scheduler).
- * Thuần: nhận dữ liệu, trả về danh sách rounds mới.
+ * Hỗ trợ:
+ * - mode: 'fill' (chỉ điền ô còn trống, giữ nguyên các trận đã xếp) | 'replace' (làm mới lại toàn bộ).
+ * - strategy: 'elo' (cân bằng trình độ) | 'social' (tối đa hoá giao lưu, tránh trùng bạn cặp) | 'gender' (phân loại nam/nữ, ưu tiên đôi nam nữ).
+ * - splitHalf: boolean (chia nhóm cố định nửa đầu buổi, trộn chéo nửa sau).
+ * - selectedChallengeIds: mảng id kèo được chọn để ưu tiên (nếu null thì lấy tất cả hợp lệ).
+ * - selectedWishIds: mảng id nguyện vọng được chọn để ưu tiên (nếu null thì lấy tất cả hợp lệ).
+ * - attendance: đối tượng điểm danh của buổi ({ [memberId]: boolean | 'noshow' | 'extra' }).
+ *
  * @param {Object} params
+ * @param {Array} [params.existingRounds] - Các vòng hiện có (nếu có)
+ * @param {string} [params.mode] - 'fill' | 'replace'
+ * @param {string} [params.strategy] - 'elo' | 'social' | 'gender'
+ * @param {boolean} [params.splitHalf] - Chia nhóm nửa đầu buổi
+ * @param {Array} [params.selectedChallengeIds] - Danh sách ID kèo được tick chọn
+ * @param {Array} [params.selectedWishIds] - Danh sách ID nguyện vọng được tick chọn
+ * @param {Object} [params.attendance] - Trạng thái điểm danh buổi
  * @param {Array} params.players - Danh sách người tham gia
  * @param {Array} params.courts - Danh sách sân
  * @param {Array} params.challenges - Kèo đấu cần ưu tiên xếp
@@ -451,9 +522,16 @@ export function detectPlanIssues(rounds = [], players = [], challenges = [], wis
  * @param {number} params.roundMinutes - Số phút/vòng
  * @param {number} params.totalRounds - Tổng số vòng
  * @param {Object} params.ratingsMap - Map ID -> rating
- * @returns {Array} rounds mới đã lấp đầy
+ * @returns {Array} rounds mới (kèm thuộc tính report)
  */
 export function autoGeneratePlan({
+  existingRounds = null,
+  mode = existingRounds ? 'fill' : 'replace',
+  strategy = 'elo',
+  splitHalf = false,
+  selectedChallengeIds = null,
+  selectedWishIds = null,
+  attendance = {},
   players = [],
   courts = [0, 1],
   challenges = [],
@@ -475,7 +553,7 @@ export function autoGeneratePlan({
 
   if (pList.length < 4) {
     // Không đủ người xếp sân
-    return times.map((t) => ({
+    const emptyRounds = times.map((t) => ({
       roundIndex: t.roundIndex,
       label: t.label,
       time: t.time,
@@ -491,139 +569,355 @@ export function autoGeneratePlan({
         tag: null,
       })),
     }))
+    emptyRounds.report = {
+      scheduledChallengesCount: 0,
+      unplacedChallengesCount: 0,
+      invalidChallengesCount: 0,
+      scheduledWishesCount: 0,
+      unplacedWishesCount: 0,
+      invalidWishesCount: 0,
+      scheduledChallenges: [],
+      unplacedChallenges: [],
+      scheduledWishes: [],
+      unplacedWishes: [],
+    }
+    return emptyRounds
   }
 
-  // Khởi tạo mảng rounds rỗng
-  const rounds = times.map((t) => ({
-    roundIndex: t.roundIndex,
-    label: t.label,
-    time: t.time,
-    timeRange: t.timeRange,
-    courts: courtConfigs.map((c) => ({
-      courtIndex: c.courtIndex,
-      courtId: c.courtId,
-      name: c.name,
-      teamA: [],
-      teamB: [],
-      challengeId: null,
-      wishId: null,
-      tag: null,
-    })),
-  }))
-
-  // 1. Xếp các KÈO ĐẤU được yêu cầu trước vào các vòng giữa (ví dụ R3, R5, R7)
-  const acceptedChallenges = (challenges || []).filter((c) => c.status === 'accepted' || c.status === 'pending')
-  let chalTargetRound = 2 // Ưu tiên xếp từ Vòng 3 (index 2)
-
-  acceptedChallenges.forEach((c) => {
-    const tA = (c.teamA || []).filter((k) => pList.includes(k))
-    const tB = (c.teamB || []).filter((k) => pList.includes(k))
-    if (tA.length === 2 && tB.length === 2 && chalTargetRound < totalRounds) {
-      const r = rounds[chalTargetRound]
-      // Tìm sân trống đầu tiên
-      const freeCourt = r.courts.find((court) => court.teamA.length === 0 && court.teamB.length === 0)
-      if (freeCourt) {
-        freeCourt.teamA = [...tA]
-        freeCourt.teamB = [...tB]
-        freeCourt.challengeId = c.id
-        freeCourt.tag = 'CHALLENGE'
-        chalTargetRound += 2 // Cách nhau 2 vòng cho kèo tiếp theo
-      }
-    }
+  // Bản đồ giới tính & thông tin người chơi
+  const genderMap = {}
+  ;(players || []).forEach((p) => {
+    const k = p.key || p.id
+    if (k) genderMap[k] = (p.gender === 'nu' || p.gender === 'female') ? 'nu' : 'nam'
   })
+  const getG = (k) => genderMap[k] || 'nam'
+  const getR = (k) => ratingsMap[k] || 1000
+  const pairKey = (a, b) => [a, b].sort().join('__')
 
-  // 2. Lấp đầy các sân và vòng còn lại bằng thuật toán cân bằng tải & rating
+  // Báo cáo xếp lịch
+  const scheduledChallengeIds = new Set()
+  const unplacedChallengeIds = new Set()
+  const invalidChallengeIds = new Set()
+  const scheduledWishIds = new Set()
+  const unplacedWishIds = new Set()
+  const invalidWishIds = new Set()
+
+  let rounds
+  const isFill = mode === 'fill' && Array.isArray(existingRounds) && existingRounds.length > 0
+
+  if (isFill) {
+    // Clone sâu từ existingRounds để giữ nguyên những gì đã xếp
+    rounds = existingRounds.map((r, rIdx) => ({
+      ...r,
+      roundIndex: r.roundIndex !== undefined ? r.roundIndex : rIdx,
+      label: r.label || (times[rIdx]?.label || `R${rIdx + 1}`),
+      time: r.time || (times[rIdx]?.time || ''),
+      timeRange: r.timeRange || (times[rIdx]?.timeRange || ''),
+      courts: (r.courts || []).map((c, cIdx) => ({
+        ...c,
+        courtIndex: c.courtIndex !== undefined ? c.courtIndex : cIdx,
+        courtId: c.courtId || courtConfigs[cIdx]?.courtId || null,
+        name: c.name || courtConfigs[cIdx]?.name || null,
+        teamA: Array.isArray(c.teamA) ? [...c.teamA] : [],
+        teamB: Array.isArray(c.teamB) ? [...c.teamB] : [],
+      })),
+    }))
+
+    // Ghi nhận các kèo/nguyện vọng đã có trong existingRounds
+    rounds.forEach((r) => {
+      ;(r.courts || []).forEach((c) => {
+        if (c.challengeId) scheduledChallengeIds.add(c.challengeId)
+        if (c.wishId) scheduledWishIds.add(c.wishId)
+      })
+    })
+  } else {
+    // Khởi tạo mảng rounds rỗng
+    rounds = times.map((t) => ({
+      roundIndex: t.roundIndex,
+      label: t.label,
+      time: t.time,
+      timeRange: t.timeRange,
+      courts: courtConfigs.map((c) => ({
+        courtIndex: c.courtIndex,
+        courtId: c.courtId,
+        name: c.name,
+        teamA: [],
+        teamB: [],
+        challengeId: null,
+        wishId: null,
+        tag: null,
+      })),
+    }))
+
+    // Xếp KÈO ĐẤU vào các vòng giữa (Vòng 3, 5, 7...)
+    // Kiểm tra tính hợp lệ về điểm danh và lựa chọn của Host
+    const eligibleChallenges = (challenges || []).filter((c) => {
+      if (Array.isArray(selectedChallengeIds) && !selectedChallengeIds.includes(c.id)) {
+        return false
+      }
+      const val = validateChallengeAttendance(c, attendance, players)
+      if (!val.valid) {
+        invalidChallengeIds.add(c.id)
+        return false
+      }
+      return c.status === 'accepted' || c.status === 'pending'
+    })
+
+    let chalTargetRound = 2
+    eligibleChallenges.forEach((c) => {
+      const tA = (c.teamA || []).filter((k) => pList.includes(k))
+      const tB = (c.teamB || []).filter((k) => pList.includes(k))
+      let scheduled = false
+      if (tA.length === 2 && tB.length === 2 && chalTargetRound < totalRounds) {
+        const r = rounds[chalTargetRound]
+        const freeCourt = r.courts.find((court) => court.teamA.length === 0 && court.teamB.length === 0)
+        if (freeCourt) {
+          freeCourt.teamA = [...tA]
+          freeCourt.teamB = [...tB]
+          freeCourt.challengeId = c.id
+          freeCourt.tag = 'CHALLENGE'
+          scheduledChallengeIds.add(c.id)
+          chalTargetRound += 2
+          scheduled = true
+        }
+      }
+      if (!scheduled) {
+        unplacedChallengeIds.add(c.id)
+      }
+    })
+
+    // Xếp NGUYỆN VỌNG THÀNH VIÊN (đánh cặp cùng nhau) vào các vòng thích hợp
+    const eligibleWishes = (wishes || []).filter((w) => {
+      if (Array.isArray(selectedWishIds) && !selectedWishIds.includes(w.id)) {
+        return false
+      }
+      const val = validateWishAttendance(w, attendance, players)
+      if (!val.valid) {
+        invalidWishIds.add(w.id)
+        return false
+      }
+      return w.type === 'partner' && pList.includes(w.memberId) && pList.includes(w.targetId)
+    })
+
+    eligibleWishes.forEach((w) => {
+      let placed = false
+      for (let rIdx = 0; rIdx < totalRounds; rIdx++) {
+        const r = rounds[rIdx]
+        const alreadyInRound = (r.courts || []).some(
+          (c) => (c.teamA || []).includes(w.memberId) || (c.teamA || []).includes(w.targetId) ||
+                 (c.teamB || []).includes(w.memberId) || (c.teamB || []).includes(w.targetId)
+        )
+        if (!alreadyInRound) {
+          const freeCourt = r.courts.find((c) => c.teamA.length === 0 && c.teamB.length === 0)
+          if (freeCourt) {
+            freeCourt.teamA = [w.memberId, w.targetId]
+            freeCourt.wishId = w.id
+            freeCourt.tag = 'WISH'
+            scheduledWishIds.add(w.id)
+            placed = true
+            break
+          }
+        }
+      }
+      if (!placed) {
+        unplacedWishIds.add(w.id)
+      }
+    })
+  }
+
+  // Khởi tạo bộ đếm số trận và cặp đôi bạn cặp
   const matchCounts = {}
+  const partnerCounts = {}
   pList.forEach((k) => { matchCounts[k] = 0 })
 
-  // Cập nhật số trận đã được xếp từ các kèo
   rounds.forEach((r) => {
-    r.courts.forEach((c) => {
+    ;(r.courts || []).forEach((c) => {
       ;[...(c.teamA || []), ...(c.teamB || [])].forEach((k) => {
         if (matchCounts[k] !== undefined) matchCounts[k]++
       })
+      if (c.teamA?.length === 2) {
+        const pk = pairKey(c.teamA[0], c.teamA[1])
+        partnerCounts[pk] = (partnerCounts[pk] || 0) + 1
+      }
+      if (c.teamB?.length === 2) {
+        const pk = pairKey(c.teamB[0], c.teamB[1])
+        partnerCounts[pk] = (partnerCounts[pk] || 0) + 1
+      }
     })
   })
 
-  // Điền từng vòng một
-  for (let r = 0; r < totalRounds; r++) {
+  // Thiết lập phân nhóm nửa đầu buổi (nếu bật splitHalf)
+  const canSplit = splitHalf && totalRounds >= 4 && courtConfigs.length >= 2 && pList.length >= 8
+  const halfRounds = canSplit ? Math.floor(totalRounds / 2) : 0
+  const group0 = canSplit ? pList.filter((_, i) => i % 2 === 0) : []
+  const group1 = canSplit ? pList.filter((_, i) => i % 2 !== 0) : []
+
+  // Hàm chấm điểm cách chia cặp dựa theo chiến lược đã chọn
+  const scorePairing = (p) => {
+    const rA = getR(p.tA[0]) + getR(p.tA[1])
+    const rB = getR(p.tB[0]) + getR(p.tB[1])
+    const eloDiff = Math.abs(rA - rB)
+
+    if (strategy === 'social') {
+      const pkA = pairKey(p.tA[0], p.tA[1])
+      const pkB = pairKey(p.tB[0], p.tB[1])
+      const repeatPenalty = ((partnerCounts[pkA] || 0) + (partnerCounts[pkB] || 0)) * 500
+      return repeatPenalty + eloDiff
+    }
+
+    if (strategy === 'gender') {
+      const gA = [getG(p.tA[0]), getG(p.tA[1])]
+      const gB = [getG(p.tB[0]), getG(p.tB[1])]
+      const nuA = gA.filter((g) => g === 'nu').length
+      const nuB = gB.filter((g) => g === 'nu').length
+      const totalNu = nuA + nuB
+
+      // Nếu có đúng 2 nữ trong 4 người -> bắt buộc mỗi bên 1 nam + 1 nữ (Đôi nam nữ)
+      if (totalNu === 2) {
+        if (nuA === 1 && nuB === 1) return eloDiff // Hợp lệ, chấm theo elo
+        return 5000 + eloDiff // Phạt nặng nếu để 2 nữ cùng 1 đội đấu 2 nam
+      }
+      // Nếu có 1 nữ -> ưu tiên cân bằng elo
+      return eloDiff
+    }
+
+    // Mặc định: 'elo'
+    return eloDiff
+  }
+
+  // Điền từng vòng
+  const numRounds = rounds.length
+  for (let r = 0; r < numRounds; r++) {
     const round = rounds[r]
     const placedThisRound = new Set()
 
-    // Người đã ở trong kèo
-    round.courts.forEach((c) => {
+    // Ghi nhận những người đã có mặt ở vòng này
+    ;(round.courts || []).forEach((c) => {
       ;(c.teamA || []).forEach((k) => placedThisRound.add(k))
       ;(c.teamB || []).forEach((k) => placedThisRound.add(k))
     })
 
-    // Điền vào các sân còn trống
+    // Điền vào các sân
     for (let ci = 0; ci < round.courts.length; ci++) {
       const court = round.courts[ci]
-      if (court.teamA.length === 2 && court.teamB.length === 2) continue
+      const curPlaced = (court.teamA?.length || 0) + (court.teamB?.length || 0)
+      if (curPlaced === 4) continue // Đã đủ 4 người, bỏ qua
 
-      // Lấy danh sách những người chưa đánh ở vòng này
-      const available = pList.filter((k) => !placedThisRound.has(k))
-      if (available.length < 4) break
+      // Xác định tập ứng viên theo phân nhóm nửa đầu buổi
+      let candidatePool = pList
+      if (canSplit && r < halfRounds) {
+        const designatedGroup = ci === 0 ? group0 : group1
+        const groupAvailable = designatedGroup.filter((k) => !placedThisRound.has(k))
+        if (groupAvailable.length >= (4 - curPlaced)) {
+          candidatePool = designatedGroup
+        }
+      }
 
-      // Kiểm tra xem ai vừa đánh ở vòng trước (r - 1) và vòng trước nữa (r - 2)
+      // Lấy danh sách người chưa đánh ở vòng này
+      const available = candidatePool.filter((k) => !placedThisRound.has(k))
+      const needCount = 4 - curPlaced
+      if (available.length < needCount) continue
+
+      // Ai vừa đánh ở vòng r - 1 và r - 2
       const playedPrev = r > 0 ? new Set() : new Set()
       const playedPrev2 = r > 1 ? new Set() : new Set()
-      if (r > 0) {
-        rounds[r - 1].courts.forEach((c) => {
+      if (r > 0 && rounds[r - 1]) {
+        ;(rounds[r - 1].courts || []).forEach((c) => {
           ;(c.teamA || []).forEach((k) => playedPrev.add(k))
           ;(c.teamB || []).forEach((k) => playedPrev.add(k))
         })
       }
-      if (r > 1) {
-        rounds[r - 2].courts.forEach((c) => {
+      if (r > 1 && rounds[r - 2]) {
+        ;(rounds[r - 2].courts || []).forEach((c) => {
           ;(c.teamA || []).forEach((k) => playedPrev2.add(k))
           ;(c.teamB || []).forEach((k) => playedPrev2.add(k))
         })
       }
 
-      // Sắp xếp ưu tiên:
-      // 1. Không đánh 2 vòng liên tiếp (playedPrev && playedPrev2)
-      // 2. Số trận đã đánh ít hơn (matchCounts nhỏ hơn)
-      // 3. Xáo trộn ngẫu nhiên nhẹ để đa dạng
+      // Sắp xếp ưu tiên chọn người vào sân
       available.sort((a, b) => {
+        // 1. Chống 3 vòng liền
         const consecutiveA = (playedPrev.has(a) && playedPrev2.has(a)) ? 1 : 0
         const consecutiveB = (playedPrev.has(b) && playedPrev2.has(b)) ? 1 : 0
         if (consecutiveA !== consecutiveB) return consecutiveA - consecutiveB
 
+        // 2. Cân bằng tải trận (số trận ít hơn đi trước)
         const diff = matchCounts[a] - matchCounts[b]
         if (diff !== 0) return diff
 
+        // 3. Ưu tiên người vừa nghỉ
         const justPlayedA = playedPrev.has(a) ? 1 : 0
         const justPlayedB = playedPrev.has(b) ? 1 : 0
         if (justPlayedA !== justPlayedB) return justPlayedA - justPlayedB
 
+        // 4. Nếu là gender strategy và có nữ, ưu tiên cân đối số lượng nữ vào sân
+        if (strategy === 'gender') {
+          const isNuA = getG(a) === 'nu' ? 1 : 0
+          const isNuB = getG(b) === 'nu' ? 1 : 0
+          if (isNuA !== isNuB) return 0
+        }
+
         return Math.random() - 0.5
       })
 
-      const chosen4 = available.slice(0, 4)
-
-      const getR = (k) => ratingsMap[k] || 1000
-      const pairings = [
-        { tA: [chosen4[0], chosen4[1]], tB: [chosen4[2], chosen4[3]] },
-        { tA: [chosen4[0], chosen4[2]], tB: [chosen4[1], chosen4[3]] },
-        { tA: [chosen4[0], chosen4[3]], tB: [chosen4[1], chosen4[2]] },
-      ]
-
-      pairings.sort((p1, p2) => {
-        const diff1 = Math.abs((getR(p1.tA[0]) + getR(p1.tA[1])) - (getR(p1.tB[0]) + getR(p1.tB[1])))
-        const diff2 = Math.abs((getR(p2.tA[0]) + getR(p2.tA[1])) - (getR(p2.tB[0]) + getR(p2.tB[1])))
-        return diff1 - diff2
-      })
-
-      const best = pairings[0]
-      court.teamA = best.tA
-      court.teamB = best.tB
-
-      chosen4.forEach((k) => {
+      const chosen = available.slice(0, needCount)
+      chosen.forEach((k) => {
         placedThisRound.add(k)
         matchCounts[k]++
       })
+
+      if (curPlaced === 0) {
+        // Sân hoàn toàn trống -> thử 3 cách ghép cặp và chọn cách tốt nhất
+        const pairings = [
+          { tA: [chosen[0], chosen[1]], tB: [chosen[2], chosen[3]] },
+          { tA: [chosen[0], chosen[2]], tB: [chosen[1], chosen[3]] },
+          { tA: [chosen[0], chosen[3]], tB: [chosen[1], chosen[2]] },
+        ]
+        pairings.sort((p1, p2) => scorePairing(p1) - scorePairing(p2))
+        const best = pairings[0]
+        court.teamA = best.tA
+        court.teamB = best.tB
+
+        const pkA = pairKey(best.tA[0], best.tA[1])
+        const pkB = pairKey(best.tB[0], best.tB[1])
+        partnerCounts[pkA] = (partnerCounts[pkA] || 0) + 1
+        partnerCounts[pkB] = (partnerCounts[pkB] || 0) + 1
+      } else {
+        // Sân đã có người một phần (fill mode) -> điền vào chỗ thiếu
+        let nextA = [...(court.teamA || [])]
+        let nextB = [...(court.teamB || [])]
+        chosen.forEach((k) => {
+          if (nextA.length < 2) nextA.push(k)
+          else if (nextB.length < 2) nextB.push(k)
+        })
+        court.teamA = nextA
+        court.teamB = nextB
+
+        if (nextA.length === 2) {
+          const pkA = pairKey(nextA[0], nextA[1])
+          partnerCounts[pkA] = (partnerCounts[pkA] || 0) + 1
+        }
+        if (nextB.length === 2) {
+          const pkB = pairKey(nextB[0], nextB[1])
+          partnerCounts[pkB] = (partnerCounts[pkB] || 0) + 1
+        }
+      }
     }
+  }
+
+  rounds.report = {
+    scheduledChallengesCount: scheduledChallengeIds.size,
+    unplacedChallengesCount: unplacedChallengeIds.size,
+    invalidChallengesCount: invalidChallengeIds.size,
+    scheduledWishesCount: scheduledWishIds.size,
+    unplacedWishesCount: unplacedWishIds.size,
+    invalidWishesCount: invalidWishIds.size,
+    scheduledChallenges: Array.from(scheduledChallengeIds),
+    unplacedChallenges: Array.from(unplacedChallengeIds),
+    invalidChallenges: Array.from(invalidChallengeIds),
+    scheduledWishes: Array.from(scheduledWishIds),
+    unplacedWishes: Array.from(unplacedWishIds),
+    invalidWishes: Array.from(invalidWishIds),
   }
 
   return rounds

@@ -107,13 +107,26 @@ export default function PlannerTimelineCol({
                   const teamA = c.teamA || []
                   const teamB = c.teamB || []
                   const total = teamA.length + teamB.length
+                  const isChallenge = Boolean(c.challengeId || c.tag === 'CHALLENGE')
+                  const isWish = Boolean(c.wishId || c.tag === 'WISH')
 
                   return (
                     <div
                       key={cIdx}
                       style={{
                         ...S.courtBox,
-                        borderColor: total > 0 && total < 4 ? 'rgba(214, 59, 43, 0.45)' : '#22304A',
+                        borderColor: total > 0 && total < 4
+                          ? 'rgba(214, 59, 43, 0.45)'
+                          : isChallenge
+                            ? 'rgba(240, 183, 92, 0.65)'
+                            : isWish
+                              ? 'rgba(139, 92, 246, 0.65)'
+                              : '#22304A',
+                        background: isChallenge
+                          ? 'rgba(240, 183, 92, 0.08)'
+                          : isWish
+                            ? 'rgba(139, 92, 246, 0.08)'
+                            : '#101927',
                       }}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => {
@@ -128,8 +141,11 @@ export default function PlannerTimelineCol({
                         <span style={S.courtName}>
                           {c.name || t('planner.courtDefault', { n: cIdx + 1 })}
                         </span>
-                        {c.challengeId && (
+                        {isChallenge && (
                           <span style={S.tagCourtChal}>{t('planner.tagChallenge')}</span>
+                        )}
+                        {isWish && (
+                          <span style={S.tagCourtWish}>{t('planner.tagWish')}</span>
                         )}
                       </div>
 
@@ -297,6 +313,13 @@ const S = {
     font: '600 9.5px/1 "IBM Plex Sans", sans-serif',
     color: '#04302C',
     background: '#F0B75C',
+    padding: '2px 5px',
+    borderRadius: 3,
+  },
+  tagCourtWish: {
+    font: '600 9.5px/1 "IBM Plex Sans", sans-serif',
+    color: '#FFFFFF',
+    background: '#8B5CF6',
     padding: '2px 5px',
     borderRadius: 3,
   },
