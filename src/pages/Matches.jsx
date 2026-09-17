@@ -8,7 +8,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 import { playerName, courtOf, myMember, playerOf, openSessions, sessionMembers, sGuests, isPresent } from '#lib/money.js'
-import { sessionPlayers } from '#lib/assign.js'
+import { sessionPlayers, firstEmptyCourtIdx } from '#lib/assign.js'
 import { dd, isoOf, todayISO, weekdayOf } from '#utils/dates.js'
 import {
   getPlayerRating, expectedScore,
@@ -1189,6 +1189,37 @@ export default function Matches() {
                       </button>
                     )}
 
+                    {/* Đưa lên sân trống nếu kèo đã được nhận và có buổi gắn kèm */}
+                    {isAccepted && sessionObj && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const curLu = db.lineups?.[sessionObj.id] || {}
+                          const emptyCourtIdx = firstEmptyCourtIdx(curLu, sessionObj)
+                          if (emptyCourtIdx !== undefined) {
+                            a.deployChallenge(c.id, emptyCourtIdx)
+                            navigate(`/buoi-tap/${sessionObj.id}?tab=courts`)
+                          } else {
+                            a.toast(t('challenge.noEmptyCourt'))
+                            navigate(`/buoi-tap/${sessionObj.id}?tab=courts`)
+                          }
+                        }}
+                        style={{
+                          ...S.smallPrimaryBtn,
+                          ...(hasPlayedSets ? { background: 'rgba(168, 85, 247, 0.85)', color: '#fff', borderColor: 'transparent' } : {}),
+                        }}
+                        title={t('challenge.deployToCourt')}
+                      >
+                        <Icon name="play" size={14} />
+                        <span>
+                          {hasPlayedSets
+                            ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
+                            : t('challenge.deployToCourt')}
+                        </span>
+                      </button>
+                    )}
+
                     {/* Vào buổi chơi nếu kèo đã được nhận và có buổi gắn kèm */}
                     {isAccepted && sessionObj && (
                       <button
@@ -1197,7 +1228,7 @@ export default function Matches() {
                           e.stopPropagation()
                           navigate(`/buoi-tap/${sessionObj.id}`)
                         }}
-                        style={S.smallPrimaryBtn}
+                        style={S.smallGhostBtn}
                       >
                         <Icon name="arrow-right" size={14} />
                         <span>{t('matchesPage.viewInSession')}</span>
@@ -3511,6 +3542,23 @@ export default function Matches() {
           challenge={viewingChallenge}
           session={(db.sessions || []).find((s) => s.id === viewingChallenge.sessionId)}
           onClose={() => setViewingChallenge(null)}
+          onDeployed={(c) => {
+            setViewingChallenge(null)
+            if (c.sessionId) {
+              const sess = (db.sessions || []).find((s) => s.id === c.sessionId)
+              const curLu = db.lineups?.[c.sessionId] || {}
+              const emptyCourtIdx = firstEmptyCourtIdx(curLu, sess)
+              if (emptyCourtIdx !== undefined) {
+                a.deployChallenge(c.id, emptyCourtIdx)
+                navigate(`/buoi-tap/${c.sessionId}?tab=courts`)
+              } else {
+                a.toast(t('challenge.noEmptyCourt'))
+                navigate(`/buoi-tap/${c.sessionId}?tab=courts`)
+              }
+            } else {
+              setSelectingSessionChallenge(c)
+            }
+          }}
           onScoreInput={(c) => {
             setViewingChallenge(null)
             setScoringChallenge(c)
