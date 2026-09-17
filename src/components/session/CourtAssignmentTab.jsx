@@ -1792,7 +1792,7 @@ export default function CourtAssignmentTab({ s }) {
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: isMobile ? 'space-between' : 'flex-start',
+              justifyContent: 'flex-start',
               gap: 10,
               flexWrap: 'wrap',
               flex: 1,
@@ -1851,14 +1851,15 @@ export default function CourtAssignmentTab({ s }) {
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: isMobile ? 'space-between' : 'flex-end',
-              gap: 8,
+              justifyContent: isMobile ? 'flex-start' : 'flex-end',
+              gap: 10,
+              flexWrap: 'wrap',
               width: isMobile ? '100%' : 'auto',
               paddingTop: isMobile ? 8 : 0,
               borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
             }}>
               <div
-                style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
                 title={ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
                 onClick={() => setRatingEnabled((v) => !v)}
               >
@@ -1870,6 +1871,17 @@ export default function CourtAssignmentTab({ s }) {
                     setRatingEnabled(Boolean(nextVal))
                   }}
                 />
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)',
+                    userSelect: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
+                </span>
               </div>
               <Button
                 variant="secondary"
@@ -1878,7 +1890,9 @@ export default function CourtAssignmentTab({ s }) {
                 onClick={() => setShowVoiceModal(true)}
                 title={t('voiceMatch.btnVoiceRecord')}
                 aria-label={t('voiceMatch.btnVoiceRecord')}
-              />
+              >
+                {!isMobile && t('voiceMatch.btnVoiceRecord')}
+              </Button>
               <Button
                 variant="primary"
                 size="sm"
@@ -1892,7 +1906,9 @@ export default function CourtAssignmentTab({ s }) {
                   color: isCourtFull ? '#fff' : undefined,
                   boxShadow: isCourtFull ? '0 2px 8px rgba(0, 178, 169, 0.35)' : 'none',
                 }}
-              />
+              >
+                {!isMobile && t('assign.deployCourtBtn')}
+              </Button>
               {(teamA.length > 0 || teamB.length > 0) && (
                 <Button
                   variant="ghost"
@@ -1901,7 +1917,9 @@ export default function CourtAssignmentTab({ s }) {
                   onClick={handleClearLineup}
                   title={t('assign.clearCourt')}
                   aria-label={t('assign.clearCourt')}
-                />
+                >
+                  {!isMobile && t('assign.clearCourt')}
+                </Button>
               )}
             </div>
           </div>
