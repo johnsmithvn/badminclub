@@ -5,6 +5,48 @@ import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 
+function getTierPill(gap, gapText, isDark) {
+  const g = typeof gap === 'number' ? gap : 0
+  if (g >= 150) {
+    return {
+      text: t('season.tierPillHeavyFavored', { gap: gapText }),
+      color: isDark ? '#5FDBD3' : '#0F766E',
+      bg: isDark ? 'rgba(0, 178, 169, 0.20)' : 'rgba(13, 148, 136, 0.14)',
+      border: isDark ? '1px solid rgba(0, 178, 169, 0.40)' : '1px solid rgba(13, 148, 136, 0.28)',
+    }
+  }
+  if (g >= 50) {
+    return {
+      text: t('season.tierPillFavored', { gap: gapText }),
+      color: isDark ? '#5FDBD3' : '#0F766E',
+      bg: isDark ? 'rgba(0, 178, 169, 0.16)' : 'rgba(13, 148, 136, 0.12)',
+      border: isDark ? '1px solid rgba(0, 178, 169, 0.32)' : '1px solid rgba(13, 148, 136, 0.22)',
+    }
+  }
+  if (g > -50) {
+    return {
+      text: t('season.tierPillBalanced', { gap: gapText }),
+      color: isDark ? '#94A3B8' : '#475569',
+      bg: isDark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(148, 163, 184, 0.12)',
+      border: isDark ? '1px solid rgba(148, 163, 184, 0.30)' : '1px solid rgba(148, 163, 184, 0.22)',
+    }
+  }
+  if (g > -150) {
+    return {
+      text: t('season.tierPillUnderdog', { gap: gapText }),
+      color: isDark ? '#FB923C' : '#EA580C',
+      bg: isDark ? 'rgba(249, 115, 22, 0.18)' : 'rgba(249, 115, 22, 0.12)',
+      border: isDark ? '1px solid rgba(249, 115, 22, 0.35)' : '1px solid rgba(249, 115, 22, 0.25)',
+    }
+  }
+  return {
+    text: t('season.tierPillDeepUnderdog', { gap: gapText }),
+    color: isDark ? '#FF9A8F' : '#DC2626',
+    bg: isDark ? 'rgba(225, 68, 52, 0.20)' : 'rgba(220, 38, 38, 0.14)',
+    border: isDark ? '1px solid rgba(225, 68, 52, 0.40)' : '1px solid rgba(220, 38, 38, 0.30)',
+  }
+}
+
 export default function MemberSeasonLedgerModal({
   memberId,
   db,
@@ -189,25 +231,72 @@ export default function MemberSeasonLedgerModal({
           {/* Stacked Bar Legend */}
           <div
             style={{
-              display: 'flex',
-              gap: 12,
-              flexWrap: 'wrap',
-              font: "400 11px/1.2 'IBM Plex Mono', monospace",
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+              gap: 8,
+              font: "500 11.5px/1.2 'IBM Plex Mono', monospace",
               color: 'var(--text-secondary)',
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 9, height: 9, borderRadius: 2, background: '#00B2A9' }} />
-              {t('season.actMatchPlay')}: {breakdown.matchNetPts ?? 0}
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 9, height: 9, borderRadius: 2, background: '#1D50A0' }} />
-              {t('season.actStreakMilestones')}: +{breakdown.streakBonusPts ?? 0}
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 9, height: 9, borderRadius: 2, background: '#C9A227' }} />
-              {t('season.actUpsetMilestone')}: +{breakdown.upsetBonusPts ?? 0}
-            </span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '7px 10px',
+                background: 'var(--surface-inset)',
+                borderRadius: 6,
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: '#00B2A9', flexShrink: 0 }} />
+                <span>{t('season.actMatchPlay')}</span>
+              </span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                {breakdown.matchNetPts ?? 0}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '7px 10px',
+                background: 'var(--surface-inset)',
+                borderRadius: 6,
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: '#1D50A0', flexShrink: 0 }} />
+                <span>{t('season.actStreakMilestones')}</span>
+              </span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                +{breakdown.streakBonusPts ?? 0}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '7px 10px',
+                background: 'var(--surface-inset)',
+                borderRadius: 6,
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: '#C9A227', flexShrink: 0 }} />
+                <span>{t('season.actUpsetMilestone')}</span>
+              </span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                +{breakdown.upsetBonusPts ?? 0}
+              </span>
+            </div>
           </div>
 
           {/* Audit Events Timeline */}
@@ -269,33 +358,26 @@ export default function MemberSeasonLedgerModal({
                           {ev.isChallenge ? t('season.tagChallenge') : t('season.tagMatch')}
                         </span>
 
-                        {/* Highlight Pill Elo Gap */}
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            font: "600 11px/1 'IBM Plex Mono', monospace",
-                            background: ev.gap > 0
-                              ? (isDark ? 'rgba(0, 178, 169, 0.16)' : 'rgba(13, 148, 136, 0.12)')
-                              : ev.gap < 0
-                                ? (isDark ? 'rgba(225, 68, 52, 0.16)' : 'rgba(220, 38, 38, 0.12)')
-                                : 'rgba(148, 163, 184, 0.12)',
-                            color: ev.gap > 0
-                              ? (isDark ? '#5FDBD3' : '#0F766E')
-                              : ev.gap < 0
-                                ? (isDark ? '#FF9A8F' : '#DC2626')
-                                : 'var(--text-muted)',
-                            border: ev.gap > 0
-                              ? '1px solid rgba(0, 178, 169, 0.32)'
-                              : ev.gap < 0
-                                ? '1px solid rgba(225, 68, 52, 0.32)'
-                                : '1px solid var(--border-subtle)',
-                          }}
-                        >
-                          {t('season.eloGapPill', { gap: ev.gapText })}
-                        </span>
+                        {/* Highlight Pill Elo Gap: Kèo trên / Kèo cân / Kèo dưới */}
+                        {ev.gapText && (() => {
+                          const pill = getTierPill(ev.gap, ev.gapText, isDark)
+                          return (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '2px 7px',
+                                borderRadius: 4,
+                                font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                                background: pill.bg,
+                                color: pill.color,
+                                border: pill.border,
+                              }}
+                            >
+                              {pill.text}
+                            </span>
+                          )
+                        })()}
 
                         {ev.streakBonus > 0 && (
                           <span

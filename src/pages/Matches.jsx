@@ -6,6 +6,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 import cfg from '#config/app.json' with { type: 'json' }
 import { playerName, courtOf, myMember, playerOf, openSessions, sessionMembers, sGuests, isPresent } from '#lib/money.js'
 import { sessionPlayers, firstEmptyCourtIdx } from '#lib/assign.js'
@@ -120,9 +121,10 @@ export default function Matches() {
   }, [searchParams, myId, setSearchParams])
 
   const cidParam = searchParams.get('challengeId')
+  const matchIdParam = searchParams.get('matchId')
   const [highlightedChallengeId, setHighlightedChallengeId] = useState(() => cidParam || null)
 
-  // Đồng bộ tab và challengeId từ URL searchParams khi được điều hướng từ ngoài vào (ví dụ thông báo)
+  // Đồng bộ tab và challengeId / matchId từ URL searchParams khi được điều hướng từ ngoài vào
   useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab === 'search' || tab === 'history') {
@@ -131,6 +133,14 @@ export default function Matches() {
       setActiveTab('matrix')
     } else if (tab === 'challenges') {
       setActiveTab('challenges')
+    }
+
+    if (matchIdParam && db.matches) {
+      const targetMatch = (db.matches || []).find((m) => m.id === matchIdParam || m.code === matchIdParam)
+      if (targetMatch) {
+        setActiveTab('search')
+        setViewingMatch(targetMatch)
+      }
     }
 
     if (cidParam) {
@@ -157,7 +167,7 @@ export default function Matches() {
         setChallengeSubTab('all')
       }
     }
-  }, [searchParams, cidParam, db.challenges, myId])
+  }, [searchParams, cidParam, matchIdParam, db.challenges, db.matches, myId])
 
   // Tự động cuộn đến thẻ kèo khi có highlightedChallengeId
   useEffect(() => {
@@ -651,7 +661,9 @@ export default function Matches() {
         isMobile={isMobile}
         actions={
           <>
-            {/* AppHeader bị ẩn ở route 'matches' nên trên mobile không còn chỗ nào đổi sáng/tối */}
+            {/* AppHeader bị ẩn ở route 'matches' nên trên mobile không còn chỗ nào đổi
+                sáng/tối — và cũng không còn chuông, đúng cái màn hay nhận thông báo kèo nhất */}
+            <NotificationBell />
             <IconButton
               icon={isDark ? 'sun' : 'moon'}
               size="sm"
@@ -3380,7 +3392,14 @@ export default function Matches() {
       {viewingMatch && (
         <MatchDetailModal
           match={viewingMatch}
-          onClose={() => setViewingMatch(null)}
+          onClose={() => {
+            setViewingMatch(null)
+            if (searchParams.get('matchId')) {
+              const next = new URLSearchParams(searchParams)
+              next.delete('matchId')
+              setSearchParams(next, { replace: true })
+            }
+          }}
           onEdit={(m) => {
             setViewingMatch(null)
             setEditingMatch(m)

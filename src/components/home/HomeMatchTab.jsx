@@ -1,8 +1,11 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { dd, wd } from '#utils/dates.js'
+import { pathOf } from '#routes'
 
 import { playerName, isPresent } from '#lib/money.js'
 import { getPlayerRating } from '#lib/rating.js'
@@ -11,6 +14,8 @@ import { t } from '#i18n'
 
 export default function HomeMatchTab() {
   const { db, a } = useApp()
+  const { isDark } = useTheme()
+  const navigate = useNavigate()
   const isMobile = useMobile(768)
   const month = db.month || new Date().toISOString().slice(0, 7)
   const activeMembers = useMemo(() => (db.members || []).filter((m) => m.active !== false), [db.members])
@@ -247,35 +252,70 @@ export default function HomeMatchTab() {
         winRate: Math.round((p.wins / p.matches) * 100),
       }))
       .sort((a1, b1) => b1.winRate - a1.winRate || b1.matches - a1.matches)
-      .slice(0, 3)
+      .slice(0, 6)
   }, [monthMatches])
 
   // 7. Trận đáng xem trong tháng (Upset & Close)
   const watchableMatches = useMemo(() => {
-    let upset = null
-    let close = null
+    const list = []
+    const seenIds = new Set()
+    const upsets = []
+    const closes = []
 
     monthMatches.forEach((m) => {
       const ra = m.initialRatingA || 0
       const rb = m.initialRatingB || 0
       const gap = Math.abs(ra - rb)
       const aWon = m.winnerTeam === 'A'
-      // Upset: đội yếu hơn thắng khi chênh lệch >= 100
-      if (gap >= 100 && ((ra < rb && aWon) || (rb < ra && !aWon))) {
-        if (!upset || gap > Math.abs((upset.initialRatingA || 0) - (upset.initialRatingB || 0))) {
-          upset = m
-        }
+
+      // Upset: đội yếu hơn thắng khi chênh lệch >= 60
+      if (gap >= 60 && ((ra < rb && aWon) || (rb < ra && !aWon))) {
+        upsets.push({ match: m, gap, type: 'upset' })
       }
-      // Close match: điểm set sát nút (vd 24-22 hoặc 21-19)
+
+      // Close match: điểm set sát nút (cách <= 3 điểm) hoặc đấu 3 set
       if (m.sets && m.sets.length) {
-        const isTight = m.sets.some(([sa, sb]) => Math.abs(sa - sb) <= 2 && (sa >= 21 || sb >= 21))
-        if (isTight && !close) {
-          close = m
+        let minDiff = 99
+        m.sets.forEach(([sa, sb]) => {
+          const d = Math.abs(sa - sb)
+          if (d < minDiff) minDiff = d
+        })
+        if (minDiff <= 3 || m.sets.length >= 3) {
+          closes.push({ match: m, minDiff, type: 'close' })
         }
       }
     })
 
-    return { upset, close }
+    upsets.sort((a1, b1) => b1.gap - a1.gap)
+    closes.sort((a1, b1) => a1.minDiff - b1.minDiff)
+
+    let u = 0
+    let c = 0
+    while (list.length < 5 && (u < upsets.length || c < closes.length)) {
+      if (u < upsets.length) {
+        const item = upsets[u++]
+        if (!seenIds.has(item.match.id)) {
+          seenIds.add(item.match.id)
+          list.push(item)
+        }
+      }
+      if (list.length < 5 && c < closes.length) {
+        const item = closes[c++]
+        if (!seenIds.has(item.match.id)) {
+          seenIds.add(item.match.id)
+          list.push(item)
+        }
+      }
+    }
+
+    // Nếu dữ liệu ít, fallback lấy các trận mới nhất trong tháng
+    if (list.length === 0 && monthMatches.length > 0) {
+      monthMatches.slice(0, 3).forEach((m) => {
+        list.push({ match: m, minDiff: 2, type: 'close' })
+      })
+    }
+
+    return list
   }, [monthMatches])
 
   return (
@@ -421,7 +461,6 @@ export default function HomeMatchTab() {
                 {t('home.playersOfMonthSubNew', { month: (month || '').slice(5, 7) })}
               </span>
             </div>
-            <span style={S.newBadge}>{t('home.tagNew')}</span>
           </div>
 
           <div style={{ padding: '12px 14px', display: 'grid', gap: 8 }}>
@@ -446,7 +485,7 @@ export default function HomeMatchTab() {
                       border: isFirst ? '1px solid #00786F' : '1px solid var(--border-subtle)',
                     }}
                   >
-                    <span style={{ width: 22, font: '700 16px/1 Barlow, sans-serif', color: isFirst ? '#5FDBD3' : 'var(--text-muted)' }}>
+                    <span style={{ width: 22, font: '700 16px/1 Barlow, sans-serif', color: isFirst ? (isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)') : 'var(--text-muted)' }}>
                       {idx + 1}
                     </span>
                     <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
@@ -464,7 +503,7 @@ export default function HomeMatchTab() {
                     <span
                       style={{
                         font: "600 13.5px/1 'IBM Plex Mono', monospace",
-                        color: isPositive ? '#5FD9A2' : '#FF8578',
+                        color: isPositive ? (isDark ? '#5FD9A2' : '#0D5E3A') : (isDark ? '#FF8578' : 'var(--text-danger, #C42B1C)'),
                         width: 48,
                         textAlign: 'right',
                       }}
@@ -492,7 +531,6 @@ export default function HomeMatchTab() {
                 {t('home.neverMetSubNew')}
               </span>
             </div>
-            <span style={S.newBadge}>{t('home.tagNew')}</span>
           </div>
 
           <div style={{ padding: '12px 14px', display: 'grid', gap: 8 }}>
@@ -621,7 +659,6 @@ export default function HomeMatchTab() {
                 {t('home.bestPairsSub')}
               </span>
             </div>
-            <span style={S.newBadge}>{t('home.tagNew')}</span>
           </div>
 
           <div style={{ padding: '12px 14px', display: 'grid', gap: 8 }}>
@@ -652,7 +689,7 @@ export default function HomeMatchTab() {
                   <span
                     style={{
                       font: "700 14px/1 'IBM Plex Mono', monospace",
-                      color: pair.winRate >= 65 ? '#5FDBD3' : pair.winRate >= 50 ? '#5FD9A2' : '#FF9A8F',
+                      color: pair.winRate >= 65 ? (isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)') : pair.winRate >= 50 ? (isDark ? '#5FD9A2' : '#0D5E3A') : (isDark ? '#FF9A8F' : 'var(--text-danger)'),
                       width: 48,
                       textAlign: 'right',
                     }}
@@ -669,7 +706,7 @@ export default function HomeMatchTab() {
         </div>
 
         {/* CARD 6: Trận đáng xem trong tháng */}
-        {(watchableMatches.upset || watchableMatches.close) && (
+        {watchableMatches.length > 0 && (
           <div style={S.card}>
             <div style={S.cardHeader}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -680,65 +717,72 @@ export default function HomeMatchTab() {
                   {t('home.watchableMatchesSub')}
                 </span>
               </div>
-              <span style={S.newBadge}>{t('home.tagNew')}</span>
             </div>
 
             <div style={{ padding: '12px 14px', display: 'grid', gap: 10 }}>
-              {/* Khối Trận bất ngờ */}
-              {watchableMatches.upset && (
-                <div style={S.matchBox}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ font: "400 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                      {`${watchableMatches.upset.code || 'M-0183'}${watchableMatches.upset.playedAt || watchableMatches.upset.createdAt ? ` · ${dd(watchableMatches.upset.playedAt || watchableMatches.upset.createdAt)}` : ''}`}
-                    </span>
-                    <span style={{ font: "600 10px/1 'IBM Plex Sans', sans-serif", padding: '4px 8px', borderRadius: 999, background: 'rgba(225,68,52,.18)', color: '#FF9A8F' }}>
-                      {t('leaderboard.predUpset')}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: '#5FD9A2' }}>
-                      {(watchableMatches.upset.winnerTeam === 'A' ? watchableMatches.upset.teamA : watchableMatches.upset.teamB || []).map((id) => playerName(db, id)).join(' · ')}
-                    </span>
-                    <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                      {watchableMatches.upset.scoreText || (watchableMatches.upset.sets && `${watchableMatches.upset.sets[0]?.[0]} – ${watchableMatches.upset.sets[0]?.[1]}`) || '21 – 17'}
-                    </span>
-                    <span style={{ flex: 1, minWidth: 0, textAlign: 'right', font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
-                      {(watchableMatches.upset.winnerTeam === 'A' ? watchableMatches.upset.teamB : watchableMatches.upset.teamA || []).map((id) => playerName(db, id)).join(' · ')}
-                    </span>
-                  </div>
-                  <span style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                    {t('home.watchablePredUpset', { pct: 74 })}
-                  </span>
-                </div>
-              )}
+              {watchableMatches.map(({ match: m, type, gap }) => {
+                const isUpset = type === 'upset'
+                const winnerIsA = m.winnerTeam === 'A'
+                const winTeam = winnerIsA ? m.teamA : m.teamB
+                const loseTeam = winnerIsA ? m.teamB : m.teamA
+                const winColor = isDark ? '#5FD9A2' : '#0D5E3A'
+                const tagBg = isUpset
+                  ? (isDark ? 'rgba(225,68,52,.18)' : 'var(--surface-danger-soft, #FCE4E1)')
+                  : (isDark ? 'rgba(224,138,0,.18)' : 'var(--surface-warning-soft, #FDF0D9)')
+                const tagColor = isUpset
+                  ? (isDark ? '#FF9A8F' : 'var(--text-danger, #C42B1C)')
+                  : (isDark ? '#F0B75C' : '#B26A00')
 
-              {/* Khối Trận sát điểm */}
-              {watchableMatches.close && (
-                <div style={S.matchBox}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ font: "400 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                      {`${watchableMatches.close.code || 'M-0171'}${watchableMatches.close.playedAt || watchableMatches.close.createdAt ? ` · ${dd(watchableMatches.close.playedAt || watchableMatches.close.createdAt)}` : ''}`}
-                    </span>
-                    <span style={{ font: "600 10px/1 'IBM Plex Sans', sans-serif", padding: '4px 8px', borderRadius: 999, background: 'rgba(224,138,0,.18)', color: '#F0B75C' }}>
-                      {t('leaderboard.predClose')}
-                    </span>
+                const scoreDisplay = m.scoreText || (m.sets && m.sets.map(([sa, sb]) => `${sa}–${sb}`).join(', ')) || '21–19'
+
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => navigate(`${pathOf('matches')}?tab=search&matchId=${m.id}`)}
+                    style={{
+                      ...S.matchBox,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-strong-color)'
+                      e.currentTarget.style.boxShadow = 'var(--shadow-xs)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ font: "500 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
+                        {`${m.code || 'M-0000'}${m.playedAt || m.createdAt ? ` · ${dd(m.playedAt || m.createdAt)}` : ''}`}
+                      </span>
+                      <span style={{ font: "600 10.5px/1 'IBM Plex Sans', sans-serif", padding: '3px 8px', borderRadius: 999, background: tagBg, color: tagColor }}>
+                        {isUpset ? t('leaderboard.predUpset') : t('leaderboard.predClose')}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: winColor }}>
+                        {(winTeam || []).map((id) => playerName(db, id)).join(' · ')}
+                      </span>
+                      <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        {scoreDisplay}
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0, textAlign: 'right', font: "500 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
+                        {(loseTeam || []).map((id) => playerName(db, id)).join(' · ')}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
+                        {isUpset ? t('home.watchablePredUpset', { pct: Math.min(85, Math.round(50 + (gap || 60) / 5)) }) : t('home.watchablePredClose', { pct: 51 })}
+                      </span>
+                      <span style={{ font: "500 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-link)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {t('home.viewMatchHistory')} →
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: '#5FD9A2' }}>
-                      {(watchableMatches.close.winnerTeam === 'A' ? watchableMatches.close.teamA : watchableMatches.close.teamB || []).map((id) => playerName(db, id)).join(' · ')}
-                    </span>
-                    <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                      {watchableMatches.close.scoreText || (watchableMatches.close.sets && `${watchableMatches.close.sets[0]?.[0]} – ${watchableMatches.close.sets[0]?.[1]}`) || '24 – 22'}
-                    </span>
-                    <span style={{ flex: 1, minWidth: 0, textAlign: 'right', font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
-                      {(watchableMatches.close.winnerTeam === 'A' ? watchableMatches.close.teamB : watchableMatches.close.teamA || []).map((id) => playerName(db, id)).join(' · ')}
-                    </span>
-                  </div>
-                  <span style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                    {t('home.watchablePredClose', { pct: 51 })}
-                  </span>
-                </div>
-              )}
+                )
+              })}
             </div>
           </div>
         )}

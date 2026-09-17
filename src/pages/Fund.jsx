@@ -16,6 +16,7 @@ import {
 import { courtBillForm, editBillForm, editLedgerForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { t } from '#i18n'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 
 /** Bảng màu chuẩn cho từng danh mục giao dịch */
 const CAT_COLORS = {
@@ -468,6 +469,8 @@ export default function Fund() {
               {!isMobile && <span style={{ marginLeft: 6 }}>{t('fund.addTx')}</span>}
             </button>
           )}
+
+          <NotificationBell />
 
           <IconButton
             icon={isDark ? 'sun' : 'moon'}

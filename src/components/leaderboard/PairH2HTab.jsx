@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { calcMatchupEdge, rankPairs } from '#lib/rating.js'
 import { useMobile } from '#hooks/useMobile.js'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { SearchSelect } from '#ui'
 import PairH2HModal from './PairH2HModal.jsx'
 
@@ -11,7 +12,16 @@ export default function PairH2HTab({
   ratingsMap = {},
   matches = [],
 }) {
+  const { isDark } = useTheme()
   const isMobile = useMobile(900)
+
+  const bgCard = isDark ? '#141D2E' : 'var(--surface-card)'
+  const bgSunken = isDark ? '#101927' : 'var(--surface-sunken)'
+  const borderCard = isDark ? '#22304A' : 'var(--border-subtle)'
+  const borderSunken = isDark ? '#2E3E5C' : 'var(--border-default)'
+  const textWhite = isDark ? '#FFFFFF' : 'var(--text-primary)'
+  const textMuted = isDark ? '#8494AA' : 'var(--text-muted)'
+  const textSecondary = isDark ? '#A8B7CB' : 'var(--text-secondary)'
 
   const nameOf = (id) => {
     const mem = membersMap[id]
@@ -281,8 +291,8 @@ export default function PairH2HTab({
       {/* ---------------- 1. Bộ chọn Tra cứu hai cặp (Tra đối đầu) ---------------- */}
       <div
         style={{
-          background: '#141D2E',
-          border: '1px solid #22304A',
+          background: bgCard,
+          border: `1px solid ${borderCard}`,
           borderRadius: 10,
           padding: '14px 16px',
           display: 'grid',
@@ -306,9 +316,9 @@ export default function PairH2HTab({
                 style={{
                   padding: '4px 10px',
                   borderRadius: 999,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid #2E3E5C',
-                  color: '#E9EFF7',
+                  background: bgSunken,
+                  border: `1px solid ${borderSunken}`,
+                  color: textWhite,
                   font: "500 12px/1 'IBM Plex Sans', sans-serif",
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -420,9 +430,9 @@ export default function PairH2HTab({
                 width: 28,
                 height: 28,
                 borderRadius: 999,
-                background: '#1A2437',
-                border: '1px solid #2E3E5C',
-                color: '#A8B7CB',
+                background: bgSunken,
+                border: `1px solid ${borderSunken}`,
+                color: textSecondary,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -442,7 +452,7 @@ export default function PairH2HTab({
                 {t('pairH2H.pairB')}
               </span>
               {pairBIds.length === 2 && (
-                <span style={{ font: "500 12px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                <span style={{ font: "500 12px/1 'IBM Plex Sans', sans-serif", color: textSecondary }}>
                   {namesB}
                 </span>
               )}
@@ -473,7 +483,7 @@ export default function PairH2HTab({
             {/* Gợi ý đối thủ từng gặp */}
             {opponentsOfA.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', paddingTop: 2 }}>
-                <span style={{ font: "400 11px/1 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                <span style={{ font: "400 11px/1 'IBM Plex Sans', sans-serif", color: textMuted }}>
                   {t('pairH2H.historicOpponents')}:
                 </span>
                 {opponentsOfA.slice(0, 3).map((opp) => {
@@ -486,15 +496,15 @@ export default function PairH2HTab({
                       style={{
                         padding: '3px 8px',
                         borderRadius: 999,
-                        background: isCur ? 'rgba(255,154,143,0.22)' : 'rgba(255,255,255,0.06)',
-                        border: isCur ? '1px solid #FF9A8F' : '1px solid #2E3E5C',
-                        color: isCur ? '#FF9A8F' : '#E9EFF7',
+                        background: isCur ? 'rgba(255,154,143,0.22)' : bgSunken,
+                        border: isCur ? '1px solid #FF9A8F' : `1px solid ${borderSunken}`,
+                        color: isCur ? '#FF9A8F' : textWhite,
                         font: "500 11px/1 'IBM Plex Sans', sans-serif",
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {opp.names} <span style={{ color: '#8494AA', fontFamily: "'IBM Plex Mono', monospace" }}>({opp.count})</span>
+                      {opp.names} <span style={{ color: textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>({opp.count})</span>
                     </button>
                   )
                 })}
@@ -533,11 +543,14 @@ export default function PairH2HTab({
                   height: 38,
                   padding: '0 16px',
                   borderRadius: 6,
-                  background: '#1A2437',
-                  border: '1px solid #2E3E5C',
+                  background: bgSunken,
+                  border: `1px solid ${borderSunken}`,
                   font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
-                  color: '#E9EFF7',
+                  color: textWhite,
                   cursor: matchupData?.matches?.length ? 'pointer' : 'not-allowed',
+                  opacity: matchupData?.matches?.length ? 1 : 0.4,
+                }}
+              >
                   opacity: matchupData?.matches?.length ? 1 : 0.4,
                 }}
               >
@@ -562,8 +575,8 @@ export default function PairH2HTab({
           {/* Card 1: Bảng tổng quan đối đầu */}
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: bgCard,
+              border: `1px solid ${borderCard}`,
               borderRadius: 10,
               padding: '16px 18px',
               display: 'grid',
@@ -575,16 +588,16 @@ export default function PairH2HTab({
                 <div style={{ font: '700 44px/1 Barlow, sans-serif', color: '#5FD9A2' }}>
                   {winsCount}
                 </div>
-                <div style={{ font: "400 12.5px/1.35 'IBM Plex Sans', sans-serif", color: '#8494AA', marginTop: 4 }}>
+                <div style={{ font: "400 12.5px/1.35 'IBM Plex Sans', sans-serif", color: textMuted, marginTop: 4 }}>
                   {t('pairH2H.winsCount', { name: namesA })}
                 </div>
               </div>
-              <span style={{ font: "400 26px/1.7 'IBM Plex Mono', monospace", color: '#5B6B81' }}>–</span>
+              <span style={{ font: "400 26px/1.7 'IBM Plex Mono', monospace", color: textMuted }}>–</span>
               <div>
                 <div style={{ font: '700 44px/1 Barlow, sans-serif', color: '#FF9A8F' }}>
                   {winsB}
                 </div>
-                <div style={{ font: "400 12.5px/1.35 'IBM Plex Sans', sans-serif", color: '#8494AA', marginTop: 4 }}>
+                <div style={{ font: "400 12.5px/1.35 'IBM Plex Sans', sans-serif", color: textMuted, marginTop: 4 }}>
                   {t('pairH2H.winsCount', { name: namesB })}
                 </div>
               </div>
@@ -602,7 +615,7 @@ export default function PairH2HTab({
                 >
                   {winPctA}%
                 </span>
-                <span style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                <span style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: textMuted }}>
                   {t('pairH2H.expLabel', { exp: expectedWinPct })}
                 </span>
               </div>
@@ -612,12 +625,12 @@ export default function PairH2HTab({
             {gamesCount === 0 && (
               <div
                 style={{
-                  background: 'rgba(29,80,160,.16)',
-                  border: '1px solid #1D50A0',
+                  background: isDark ? 'rgba(29,80,160,.16)' : 'var(--surface-accent-soft)',
+                  border: isDark ? '1px solid #1D50A0' : '1px solid rgba(29,80,160,.3)',
                   borderRadius: 6,
                   padding: '8px 12px',
                   font: "400 12px/1.4 'IBM Plex Sans', sans-serif",
-                  color: '#9FC0EA',
+                  color: isDark ? '#9FC0EA' : 'var(--text-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
@@ -628,34 +641,34 @@ export default function PairH2HTab({
             )}
 
             {/* Thanh tỉ lệ thắng hai màu */}
-            <span style={{ height: 10, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
+            <span style={{ height: 10, borderRadius: 999, background: isDark ? '#0B1220' : 'var(--surface-sunken)', border: `1px solid ${borderCard}`, overflow: 'hidden', display: 'flex' }}>
               <span style={{ width: `${winPctA}%`, background: '#12A867' }} />
               <span style={{ flex: 1, background: '#B33A2C' }} />
             </span>
 
             {/* 3 ô thống kê con */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-              <div style={{ padding: '11px 13px', borderRadius: 6, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-                <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+              <div style={{ padding: '11px 13px', borderRadius: 6, background: bgSunken, border: `1px solid ${borderCard}`, display: 'grid', gap: 4 }}>
+                <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: textMuted }}>
                   {t('pairH2H.exceedExp')}
                 </span>
                 <span style={{ font: '700 20px/1 Barlow, sans-serif', color: matchupImpact >= 0 ? '#5FD9A2' : '#FF9A8F' }}>
                   {matchupImpact >= 0 ? `+${matchupImpact}pp` : `${matchupImpact}pp`}
                 </span>
               </div>
-              <div style={{ padding: '11px 13px', borderRadius: 6, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-                <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+              <div style={{ padding: '11px 13px', borderRadius: 6, background: bgSunken, border: `1px solid ${borderCard}`, display: 'grid', gap: 4 }}>
+                <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: textMuted }}>
                   {t('pairH2H.avgScoreDiff')}
                 </span>
-                <span style={{ font: '700 20px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
+                <span style={{ font: '700 20px/1 Barlow, sans-serif', color: textWhite }}>
                   {avgScoreDiff}
                 </span>
               </div>
-              <div style={{ padding: '11px 13px', borderRadius: 6, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-                <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+              <div style={{ padding: '11px 13px', borderRadius: 6, background: bgSunken, border: `1px solid ${borderCard}`, display: 'grid', gap: 4 }}>
+                <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: textMuted }}>
                   {t('pairH2H.firstMet')}
                 </span>
-                <span style={{ font: '700 20px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
+                <span style={{ font: '700 20px/1 Barlow, sans-serif', color: textWhite }}>
                   {firstDateStr}
                 </span>
               </div>
@@ -663,21 +676,21 @@ export default function PairH2HTab({
           </div>
 
           {/* Card 2: Danh sách toàn bộ các trận */}
-          <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: bgCard, border: `1px solid ${borderCard}`, borderRadius: 10, overflow: 'hidden' }}>
             <div
               style={{
                 padding: '11px 15px',
-                background: '#101927',
-                borderBottom: '1px solid #22304A',
+                background: bgSunken,
+                borderBottom: `1px solid ${borderCard}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
               }}
             >
-              <span style={{ flex: 1, font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+              <span style={{ flex: 1, font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: textWhite }}>
                 {t('pairH2H.allMatchesHeader', { count: gamesCount })}
               </span>
-              <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+              <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: textMuted }}>
                 {t('pairH2H.newestFirst')}
               </span>
             </div>
@@ -701,7 +714,7 @@ export default function PairH2HTab({
                       gap: 12,
                       padding: '11px 15px',
                       alignItems: 'center',
-                      borderBottom: idx === sortedMatches.length - 1 ? 'none' : '1px solid #22304A',
+                      borderBottom: idx === sortedMatches.length - 1 ? 'none' : `1px solid ${borderCard}`,
                     }}
                   >
                     <span
@@ -717,13 +730,13 @@ export default function PairH2HTab({
                     >
                       {mItem.won ? 'T' : 'B'}
                     </span>
-                    <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                    <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: textSecondary }}>
                       {dateStr}
                     </span>
                     <span
                       style={{
                         font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif",
-                        color: '#8494AA',
+                        color: textMuted,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -731,11 +744,11 @@ export default function PairH2HTab({
                     >
                       {t('pairH2H.matchSessionCourt', { date: dateStr, court: courtNum })}
                     </span>
-                    <span style={{ textAlign: 'right', font: "600 14px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                    <span style={{ textAlign: 'right', font: "600 14px/1 'IBM Plex Mono', monospace", color: textWhite }}>
                       {scoreStr}
                     </span>
                     {!isMobile && (
-                      <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                      <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Sans', sans-serif", color: textMuted }}>
                         {venue}
                       </span>
                     )}
@@ -743,7 +756,7 @@ export default function PairH2HTab({
                 )
               })
             ) : (
-              <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', font: "400 13px 'IBM Plex Sans', sans-serif" }}>
+              <div style={{ padding: 24, textAlign: 'center', color: textMuted, font: "400 13px 'IBM Plex Sans', sans-serif" }}>
                 {t('pairH2H.noMatchHistory')}
               </div>
             )}
@@ -753,14 +766,14 @@ export default function PairH2HTab({
         {/* ================= CỘT PHẢI ================= */}
         <div style={{ display: 'grid', gap: 14 }}>
           {/* Card 1: Đối đầu khác của Cặp A */}
-          <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: bgCard, border: `1px solid ${borderCard}`, borderRadius: 10, overflow: 'hidden' }}>
             <div
               style={{
                 padding: '11px 14px',
-                background: '#101927',
-                borderBottom: '1px solid #22304A',
+                background: bgSunken,
+                borderBottom: `1px solid ${borderCard}`,
                 font: "600 13px/1.3 'IBM Plex Sans', sans-serif",
-                color: '#fff',
+                color: textWhite,
               }}
             >
               {t('pairH2H.otherH2HOf', { name: namesA })}
@@ -778,11 +791,11 @@ export default function PairH2HTab({
                     alignItems: 'center',
                     gap: 12,
                     padding: '11px 14px',
-                    borderBottom: oIdx === otherMatchups.length - 1 ? 'none' : '1px solid #22304A',
+                    borderBottom: oIdx === otherMatchups.length - 1 ? 'none' : `1px solid ${borderCard}`,
                     cursor: 'pointer',
                     transition: 'background 0.15s ease',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#1A263D' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? '#1A263D' : 'rgba(0,0,0,.03)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                 >
                   <span
@@ -790,7 +803,7 @@ export default function PairH2HTab({
                       flex: 1,
                       minWidth: 0,
                       font: "400 13.5px/1.3 'IBM Plex Sans', sans-serif",
-                      color: '#E9EFF7',
+                      color: textWhite,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -807,7 +820,7 @@ export default function PairH2HTab({
                 </div>
               ))
             ) : (
-              <div style={{ padding: 16, textAlign: 'center', color: '#8494AA', fontSize: 12 }}>
+              <div style={{ padding: 16, textAlign: 'center', color: textMuted, fontSize: 12 }}>
                 {t('pairH2H.noMatchHistory')}
               </div>
             )}
@@ -816,18 +829,18 @@ export default function PairH2HTab({
           {/* Card 2: Giải thích Đối đầu khác khắc chế thế nào */}
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: bgCard,
+              border: `1px solid ${borderCard}`,
               borderRadius: 10,
               padding: 14,
               display: 'grid',
               gap: 10,
             }}
           >
-            <div style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+            <div style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: textWhite }}>
               {t('pairH2H.h2hVsEdgeTitle')}
             </div>
-            <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+            <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: textSecondary }}>
               {t('pairH2H.h2hVsEdgeDesc')}
             </div>
             <div style={{ display: 'grid', gap: 8, paddingTop: 2 }}>
@@ -838,14 +851,14 @@ export default function PairH2HTab({
                   gap: 9,
                   padding: '10px 12px',
                   borderRadius: 6,
-                  background: '#101927',
-                  border: '1px solid #22304A',
+                  background: bgSunken,
+                  border: `1px solid ${borderCard}`,
                 }}
               >
-                <span style={{ flex: 1, font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                <span style={{ flex: 1, font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: textSecondary }}>
                   {t('pairH2H.weightH2H')}
                 </span>
-                <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: textMuted }}>
                   4
                 </span>
               </div>
@@ -856,11 +869,11 @@ export default function PairH2HTab({
                   gap: 9,
                   padding: '10px 12px',
                   borderRadius: 6,
-                  background: '#101927',
-                  border: '1px solid #00786F',
+                  background: bgSunken,
+                  border: isDark ? '1px solid #00786F' : '1px solid var(--teal-700, #00786F)',
                 }}
               >
-                <span style={{ flex: 1, font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                <span style={{ flex: 1, font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: textSecondary }}>
                   {t('pairH2H.weightEdge')}
                 </span>
                 <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
@@ -871,8 +884,8 @@ export default function PairH2HTab({
             <div
               style={{
                 font: "400 12px/1.5 'IBM Plex Sans', sans-serif",
-                color: '#8494AA',
-                borderTop: '1px solid #22304A',
+                color: textMuted,
+                borderTop: `1px solid ${borderCard}`,
                 paddingTop: 10,
               }}
             >

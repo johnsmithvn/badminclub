@@ -6,7 +6,6 @@ import {
   getBadgeOwners,
   getBadgeChasers,
   getMemberHighestBadge,
-  getClubAchievementFeed,
   getStreakTimeline,
   getRarestBadges,
   getBadgeById,
@@ -122,30 +121,6 @@ test('15 Fixes: Công nợ dues_clean_months đo đúng 12 tháng liên tiếp k
   assert.equal(soSachDebt, undefined, 'Có nợ trong tháng trước thì không đạt Sổ sách sạch')
   const soSachProg = resDebt.inProgress.find((b) => b.id === 'so_sach') || resDebt.locked.find((b) => b.id === 'so_sach')
   assert.equal(soSachProg?.currentVal, 0, 'Tiến độ chuỗi tháng sạch liên tiếp về 0')
-})
-
-test('15 Fixes: Clutch Win đọc đúng sets dạng mảng lồng [[21, 19]]', () => {
-  const mockDb = {
-    members: [
-      { id: 'm1', name: 'Đức' },
-      { id: 'm2', name: 'Huy' },
-    ],
-    matches: [
-      {
-        id: 'mt1',
-        at: 1000,
-        teamA: ['m1'],
-        teamB: ['m2'],
-        winnerTeam: 'A',
-        sets: [[21, 19]], // Mảng lồng các set
-      },
-    ],
-  }
-
-  const feed = getClubAchievementFeed(mockDb)
-  const clutch = feed.find((f) => f.type === 'clutch_win')
-  assert.ok(clutch, 'Trận đấu 21-19 phải sinh sự kiện clutch_win')
-  assert.equal(clutch.score, '21 - 19')
 })
 
 test('15 Fixes: getBadgeOwners tìm đúng trận mốc chạm chuỗi', () => {

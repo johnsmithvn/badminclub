@@ -11,6 +11,7 @@ import {
   formatTeamNames,
   resolveActivityPayload,
   resolveNotificationPayload,
+  notifyRecipients,
 } from '#lib/activity.js'
 
 console.log('--- Testing detectMatchNarrative ---')
@@ -239,5 +240,67 @@ assert.ok(msgBulk.includes('100.000') && msgBulk.includes('2') && msgBulk.includ
 
 console.log('payload resolvers: OK')
 
+console.log('--- Testing notifyRecipients ---')
 
+const clubMembers = new Set(['m1', 'm2', 'm3'])
 
+// Khach giao luu lot vao danh sach nguoi nhan la ca lo insert bi Postgres tu choi
+// (notifications.member_id -> club_members) => khong ai trong tran nhan duoc gi.
+assert.deepEqual(
+  notifyRecipients(['m1', 'guest-uuid', 'm2'], null, clubMembers),
+  ['m1', 'm2'],
+  'ID khach phai bi loai truoc khi insert'
+)
+
+// Khong tu ban thong bao cho chinh minh
+assert.deepEqual(
+  notifyRecipients(['m1', 'm2'], 'm1', clubMembers),
+  ['m2'],
+  'actor phai bi loai khoi nguoi nhan'
+)
+
+// Trung ID (vd vua o teamA vua la nguoi tao keo) chi nhan MOT dong
+assert.deepEqual(
+  notifyRecipients(['m2', 'm2', 'm3'], null, clubMembers),
+  ['m2', 'm3'],
+  'ID trung phai gop lai mot dong'
+)
+
+// Cac gia tri rong khong duoc bien thanh dong rac
+assert.deepEqual(notifyRecipients([null, undefined, ''], null, clubMembers), [])
+assert.deepEqual(notifyRecipients(undefined, 'm1', clubMembers), [])
+
+// Ca tran toan khach -> khong con ai, emitEvent bo qua buoc insert
+assert.deepEqual(notifyRecipients(['g1', 'g2'], 'm1', clubMembers), [])
+
+console.log('notifyRecipients: OK')
+
+console.log('--- Testing resolveActivityPayload match_recorded ---')
+
+// Dong MOI: doc thang ID tu payload, khong can do db.matches
+const actNew = resolveActivityPayload(
+  {
+    type: 'match_recorded',
+    payload: { winnerIds: ['m1'], loserIds: ['m2'], score: '21-15', matchCode: 'M-01' },
+  },
+  mockDb
+)
+assert.equal(actNew.winners, 'Quân')
+assert.equal(actNew.losers, 'Kuro')
+assert.equal(actNew.score, '21-15')
+
+// Dong CU (truoc khi payload co winnerIds): van phai do ra duoc tu db.matches
+const actOld = resolveActivityPayload(
+  { type: 'match_recorded', payload: { matchId: 'mt-legacy', winnerTeam: 'A' } },
+  {
+    ...mockDb,
+    matches: [
+      { id: 'mt-legacy', teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', scoreText: '21-10', code: 'M-09' },
+    ],
+  }
+)
+assert.equal(actOld.winners, 'Quân')
+assert.equal(actOld.losers, 'Kuro')
+assert.equal(actOld.matchCode, 'M-09')
+
+console.log('match_recorded payload: OK')

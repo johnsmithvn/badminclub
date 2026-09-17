@@ -566,10 +566,27 @@ export default function Badges() {
         display: 'flex',
         flexDirection: 'column',
         gap: 20,
-        paddingBottom: 40,
+        padding: '20px 24px 40px',
         color: '#FFFFFF',
+        background: '#07030F',
+        borderRadius: 16,
+        border: '1px solid #2A1145',
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(109, 20, 255, 0.15)',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Lớp dot grid anime 9px x 9px */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: 'radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px)',
+          backgroundSize: '9px 9px',
+          pointerEvents: 'none',
+        }}
+      />
+
       {/* ═══ Header Bar (Thiết kế A1) ═══ */}
       <div
         style={{
@@ -580,6 +597,8 @@ export default function Badges() {
           gap: 16,
           padding: '14px 4px',
           borderBottom: '1px solid #2A1145',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

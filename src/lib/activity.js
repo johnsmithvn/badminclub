@@ -281,6 +281,25 @@ export function getPersonalHighlights(memberId, db) {
 }
 
 /**
+ * Lọc danh sách người nhận thông báo: bỏ trùng, bỏ chính người gây ra sự kiện, và CHỈ giữ
+ * thành viên CLB.
+ *
+ * Vế cuối là vế đã âm thầm làm hỏng cả tính năng: `notifications.member_id` có khoá ngoại tới
+ * `club_members`, mà `match.playerKeys` trộn cả ID khách giao lưu. Một `.insert([...])` nhiều
+ * dòng là ATOMIC — lọt một ID khách là Postgres từ chối cả lô, và không ai trong trận nhận
+ * được gì, chỉ có một dòng console.warn không ai đọc.
+ *
+ * @param {string[]} recipients  ID người nhận (có thể lẫn khách, trùng, null)
+ * @param {string|null} actorId  người gây ra sự kiện — không tự báo cho chính mình
+ * @param {Set<string>} memberIds  ID của các thành viên CLB
+ * @returns {string[]}
+ */
+export function notifyRecipients(recipients, actorId, memberIds) {
+  return [...new Set((recipients || []).filter(Boolean))]
+    .filter((id) => id !== actorId && memberIds.has(id))
+}
+
+/**
  * Trích xuất và giải mã tên hiển thị từ payload (chứa ID) phục vụ render giao diện và i18n
  */
 export function resolveActivityPayload(item, db) {
@@ -288,14 +307,14 @@ export function resolveActivityPayload(item, db) {
   const res = { ...p }
 
   if (item?.type === 'match_recorded') {
-    const mt = (db?.matches || []).find((m) => m.id === p.matchId)
+    // Ưu tiên ID trong payload; chỉ dò `db.matches` cho các dòng cũ chưa có `winnerIds`.
+    // Tên luôn giải mã từ ID lúc render (RULES §3.3) — đổi tên thành viên là bảng tin đổi theo.
+    const mt = !p.winnerIds ? (db?.matches || []).find((m) => m.id === p.matchId) : null
     const winTeam = p.winnerTeam || mt?.winnerTeam
-    const teamA = mt?.teamA || []
-    const teamB = mt?.teamB || []
-    const winIds = winTeam === 'A' ? teamA : teamB
-    const loseIds = winTeam === 'A' ? teamB : teamA
-    res.winners = p.winners || formatTeamNames(db, winIds)
-    res.losers = p.losers || formatTeamNames(db, loseIds)
+    const winIds = p.winnerIds || (winTeam === 'A' ? mt?.teamA : mt?.teamB) || []
+    const loseIds = p.loserIds || (winTeam === 'A' ? mt?.teamB : mt?.teamA) || []
+    res.winners = formatTeamNames(db, winIds)
+    res.losers = formatTeamNames(db, loseIds)
     res.score = p.score || mt?.scoreText || ''
     res.matchCode = p.matchCode || mt?.code || ''
   }
@@ -315,11 +334,11 @@ export function resolveActivityPayload(item, db) {
     res.losers = p.losers || formatTeamNames(db, p.loserIds)
   }
 
-  if (item?.type === 'member_joined' || item?.type === 'badge_unlocked') {
+  if (item?.type === 'member_joined') {
     res.name = p.name || getEntityName(db, p.memberId)
   }
 
-  if (item?.type === 'session_opened' || item?.type === 'session_closed') {
+  if (item?.type === 'session_opened' || item?.type === 'session_closed' || item?.type === 'session_cancelled') {
     if (p.date && p.date.includes('-')) {
       res.date = dd(p.date)
     }
@@ -335,7 +354,8 @@ export function resolveNotificationPayload(item, db) {
   if (item?.type === 'challenge_created') {
     const chal = (db?.challenges || []).find((c) => c.id === (item.refId || p.chalId))
     const creatorId = p.createdBy || p.creatorId || chal?.createdBy || p.challengerIds?.[0]
-    res.creator = p.creator || getEntityName(db, creatorId) || (p.challengers || formatTeamNames(db, p.challengerIds)) || ''
+    // `p.creator` chỉ dùng cho dòng cũ đã lỡ ghi tên cứng xuống DB — dòng mới ghi ID thôi.
+    res.creator = getEntityName(db, creatorId) || p.creator || formatTeamNames(db, p.challengerIds) || ''
     res.challengers = p.challengers || formatTeamNames(db, p.challengerIds)
   }
 
@@ -367,7 +387,7 @@ export function resolveNotificationPayload(item, db) {
     }
   }
 
-  if (item?.type === 'session_rsvp_invite') {
+  if (item?.type === 'session_rsvp_invite' || item?.type === 'session_cancelled') {
     if (p.date && p.date.includes('-')) {
       res.date = dd(p.date)
     }

@@ -1,5 +1,5 @@
 // src/components/notification/NotificationBell.jsx
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'
@@ -17,11 +17,30 @@ export default function NotificationBell({ size = 'sm', style = {} }) {
     return (db.notifications || []).filter((n) => (!myId || n.memberId === myId) && !n.readAt).length
   }, [db.notifications, myId])
 
+  // Nạp lại khi quay lại tab. Không dùng Supabase Realtime: gói Free chạy RLS cho TỪNG client
+  // đang kết nối trên MỖI dòng insert, mà lúc lưu trận liên tục trong buổi tập thì đó đúng là
+  // thứ làm hết CPU database trước khi hết băng thông. Một select 100 dòng mỗi lần quay lại tab
+  // rẻ hơn nhiều, và không phải bật gì thêm trên dashboard.
+  useEffect(() => {
+    if (!a?.reloadNotifications) return
+    const onFocus = () => {
+      if (document.visibilityState === 'visible') a.reloadNotifications()
+    }
+    onFocus()
+    document.addEventListener('visibilitychange', onFocus)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus)
+      window.removeEventListener('focus', onFocus)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db.clubId])
+
+  // Cố ý KHÔNG đánh dấu đã đọc ở đây: làm vậy thì panel mở ra khi mọi dòng đã là "đã đọc" —
+  // mất sạch chấm xanh, chữ đậm và cả nút "Đã đọc tất cả". Đọc là do người dùng bấm.
   const handleClick = () => {
     setPanelOpen(true)
-    if (unreadCount > 0 && a?.markAllNotificationsRead) {
-      a.markAllNotificationsRead()
-    }
+    if (a?.reloadNotifications) a.reloadNotifications()
   }
 
   return (

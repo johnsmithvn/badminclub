@@ -25,7 +25,7 @@ import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
-import { detectMatchNarrative } from '#lib/activity.js'
+import { detectMatchNarrative, notifyRecipients } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => crypto.randomUUID()
@@ -171,51 +171,26 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
     }
 
-    // 2. Personal Notifications (luôn loại trừ chính actor)
-    const validRecipients = (recipients || [])
-      .filter(Boolean)
-      .filter((id) => id !== effectiveActorId)
+    // 2. Personal Notifications — xem `notifyRecipients` để biết vì sao phải lọc theo members
+    const memberIds = new Set((d0.members || []).map((m) => m.id))
+    const validRecipients = notifyRecipients(recipients, effectiveActorId, memberIds)
 
-    if (validRecipients.length > 0) {
-      const newNotifs = validRecipients.map((recId) => ({
-        id: uid(),
-        clubId,
-        memberId: recId,
-        type,
-        payload,
-        refType,
-        refId,
-        readAt: null,
-        createdAt: now,
-      }))
-
-      if (clubId && supabase) {
-        supabase
-          .from('notifications')
-          .insert(
-            newNotifs.map((n) => ({
-              id: n.id,
-              club_id: n.clubId,
-              member_id: n.memberId,
-              type: n.type,
-              payload: n.payload,
-              ref_type: n.refType,
-              ref_id: n.refId,
-              created_at: n.createdAt,
-            }))
-          )
-          .then(({ error }) => {
-            if (error) console.warn('[notifications] insert error:', error.message)
-          })
-      }
-
-      // Phòng hờ nếu effectiveActorId có nằm trong danh sách người nhận
-      const myNotifs = newNotifs.filter((n) => n.memberId === effectiveActorId)
-      if (myNotifs.length > 0) {
-        up((d) => ({
-          notifications: [...myNotifs, ...(d.notifications || [])],
-        }))
-      }
+    if (validRecipients.length > 0 && clubId && supabase) {
+      supabase
+        .from('notifications')
+        .insert(validRecipients.map((recId) => ({
+          id: uid(),
+          club_id: clubId,
+          member_id: recId,
+          type,
+          payload,
+          ref_type: refType,
+          ref_id: refId,
+          created_at: now,
+        })))
+        .then(({ error }) => {
+          if (error) console.warn('[notifications] insert error:', error.message)
+        })
     }
   }
 
@@ -583,6 +558,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     setSessionStatus: (sid, st) => {
       const ss = sessionOf(db(), sid)
       const dateStr = ss?.date ? dd(ss.date) : ''
+      // Bấm lại đúng trạng thái đang có thì không có gì xảy ra để mà kể.
+      const changed = ss && ss.status !== st
       up((d) => ({
         sessions: d.sessions.map((x) => {
           if (x.id !== sid) return x
@@ -592,7 +569,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             : { ...base, ...unfrozenCost(base) }
         }),
       }))
-      if (st === 'open') {
+      if (changed && st === 'open') {
         emitEvent({
           type: 'session_opened',
           payload: { sessionId: sid, date: dateStr },
@@ -600,13 +577,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           refType: 'session',
           refId: sid,
         })
-        const ss = sessionOf(db(), sid)
-        if (ss?.groupId) {
-          const inviteeIds = groupMembers(db(), ss.groupId, monthOf(ss.date || db().today)).map((m) => m.id)
+        const cur = sessionOf(db(), sid)
+        // Chỉ mời người CHƯA trả lời. Chốt sổ rồi mở lại để sửa là chuyện thường, mà lần nào
+        // cũng nã lời mời vào máy cả nhóm thì người ta tắt thông báo — mất luôn những cái đáng
+        // đọc. Lọc theo từng người chứ không theo cả buổi: quản trò tick sẵn vài người lúc còn
+        // nháp là chuyện bình thường, chặn cả buổi vì mấy người đó là 37 người còn lại mất mời.
+        const att = db().attendance?.[sid] || {}
+        if (cur?.groupId) {
+          const inviteeIds = groupMembers(db(), cur.groupId, monthOf(cur.date || db().today))
+            .map((m) => m.id)
+            .filter((id) => att[id] === undefined)
           if (inviteeIds.length > 0) {
             emitEvent({
               type: 'session_rsvp_invite',
-              payload: { sessionId: sid, date: ss.date || dateStr },
+              payload: { sessionId: sid, date: cur.date || dateStr },
               recipients: inviteeIds,
               refType: 'session',
               refId: sid,
@@ -614,11 +598,25 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             })
           }
         }
-      } else if (st === 'closed') {
+      } else if (changed && st === 'closed') {
         emitEvent({
           type: 'session_closed',
           payload: { sessionId: sid, date: dateStr },
           recipients: [],
+          refType: 'session',
+          refId: sid,
+        })
+      } else if (changed && st === 'cancelled') {
+        // Đã mời người ta đi thì huỷ phải báo lại — không thì cả nhóm ra sân đứng nhìn nhau.
+        const cur = sessionOf(db(), sid)
+        const invited = cur?.groupId
+          ? groupMembers(db(), cur.groupId, monthOf(cur.date || db().today)).map((m) => m.id)
+          : []
+        const answered = Object.keys(db().attendance?.[sid] || {})
+        emitEvent({
+          type: 'session_cancelled',
+          payload: { sessionId: sid, date: cur?.date || dateStr },
+          recipients: [...new Set([...invited, ...answered])],
           refType: 'session',
           refId: sid,
         })
@@ -2641,7 +2639,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           challengerIds: teamA || [],
           opponentIds: teamB || [],
           createdBy: myId,
-          creator: myMem?.name || '',
+          // Cố ý KHÔNG ghi `creator: myMem.name`: RULES §3.3 — payload lưu ID, tên giải mã lúc
+          // render. Ghi tên cứng xuống DB thì đổi tên thành viên là thông báo cũ giữ tên chết.
         },
         recipients: (teamB || []).filter((id) => id !== myId),
         refType: 'challenge',
@@ -2752,6 +2751,18 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, acceptedPlayers: nextAccepted, status } : c)),
       }))
 
+      // Kèo MỞ: người tạo treo kèo rồi đi làm việc khác. Không bắn ở đây thì họ không có cách
+      // nào biết đã có người nhận — trước đây nhánh này là nhánh duy nhất không bắn gì cả.
+      emitEvent({
+        type: 'challenge_accepted',
+        payload: { chalId: chal.id, code: chal.code, acceptedById: myId },
+        recipients: [chal.createdBy, ...(chal.teamA || [])],
+        refType: 'challenge',
+        refId: chal.id,
+        actorId: myId,
+        skipActivity: !isFullyAccepted,
+      })
+
       if (isFullyAccepted) {
         toast(t('challenge.toastAccepted', { code: chal.code }))
       } else {
@@ -2810,6 +2821,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           return p
         }),
       }))
+      // Kèo đã chốt giờ mà một bên rút thì bên kia phải biết, không thì họ giữ sân chờ.
+      emitEvent({
+        type: 'challenge_cancelled',
+        payload: { chalId: chal.id, code: chal.code, cancelledById: myMem?.id || null },
+        recipients: [chal.createdBy, ...(chal.teamA || []), ...(chal.teamB || [])],
+        refType: 'challenge',
+        refId: chal.id,
+        actorId: myMem?.id || null,
+      })
       toast(t('challenge.toastCancelled', { code: chal.code }))
     },
 
@@ -3356,6 +3376,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const myId = myMember(db())?.id || null
       const winIds = (newMatch.winnerTeam === 'A' ? newMatch.teamA : newMatch.teamB) || []
       const loseIds = (newMatch.winnerTeam === 'A' ? newMatch.teamB : newMatch.teamA) || []
+      // `recipients: []` là cố ý. Bốn người trong trận vừa đánh xong và đang đứng ngay cạnh
+      // sân — báo cho họ biết tỷ số trận họ vừa đánh là rác. Mà `storage.load()` chỉ lấy 100
+      // dòng mới nhất, nên một buổi 15 trận là đủ đẩy 'đã duyệt hoàn tiền' và 'mời điểm danh'
+      // ra khỏi cửa sổ đó. Bảng tin hoạt động đã kể trận rồi; hộp thông báo để dành cho việc
+      // người ta không tự biết.
+      //
+      // `skipActivity` khi trận thuộc kèo: kèo BO3 lưu mỗi set thành MỘT match (-H1/-H2/-H3),
+      // không chặn thì một kèo đẻ ra 3 dòng trận + 1 dòng kèo. Dòng `challenge_completed` bên
+      // dưới đã kể trọn trận kèo.
       emitEvent({
         type: 'match_recorded',
         payload: {
@@ -3364,11 +3393,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           score: newMatch.scoreText,
           winnerTeam: newMatch.winnerTeam,
           narrativeType,
+          winnerIds: winIds,
+          loserIds: loseIds,
         },
-        recipients: newMatch.playerKeys || [...(newMatch.teamA || []), ...(newMatch.teamB || [])],
+        recipients: [],
         refType: 'match',
         refId: newMatch.id,
         actorId: myId,
+        skipActivity: Boolean(chal),
       })
 
       if (newMatch.bountyBroken) {
@@ -3830,6 +3862,41 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     if (tg.kind === 'adjust_session') return A.toggleAdjustSession(tg.key, tg.sessionId)
     if (tg.kind === 'adjust') return A.settleAdjust(tg.key)
     return A.repayAdvance(tg.id)
+  }
+
+  /**
+   * Nạp lại thông báo của mình từ Supabase. `storage.load()` chỉ chạy một lần lúc vào CLB, nên
+   * không có hàm này thì thông báo người khác bắn sang chỉ tới khi F5 — riêng lời mời điểm danh
+   * thì coi như vứt đi.
+   *
+   * Cố ý HỢP NHẤT theo id chứ không thay cả mảng: `dbmap` đồng bộ bảng `notifications` theo
+   * mode 'id', dòng nào có trong ảnh chụp cũ mà vắng ở mảng mới là nó XOÁ dưới DB. Server chỉ
+   * trả 100 dòng mới nhất, nên thay thẳng là tự tay xoá đúng những dòng vừa bị đẩy khỏi top 100.
+   */
+  A.reloadNotifications = async () => {
+    const d0 = db()
+    if (!d0.clubId || !supabase) return
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('club_id', d0.clubId)
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (error) return console.warn('[notifications] reload error:', error.message)
+
+    const fresh = (data || []).map((n) => ({
+      id: n.id, clubId: n.club_id, memberId: n.member_id, type: n.type,
+      payload: n.payload || {}, refType: n.ref_type || null, refId: n.ref_id || null,
+      readAt: n.read_at || null, createdAt: n.created_at || null,
+    }))
+    up((d) => {
+      const byId = new Map((d.notifications || []).map((n) => [n.id, n]))
+      fresh.forEach((n) => byId.set(n.id, n))
+      return {
+        notifications: [...byId.values()].sort((x, y) =>
+          new Date(y.createdAt || 0) - new Date(x.createdAt || 0)),
+      }
+    })
   }
 
   A.markNotificationRead = (notifId) => {

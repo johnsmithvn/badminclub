@@ -655,47 +655,60 @@ export default function BadgeDetailModal({
                     {t('badges.detail.noOwners')}
                   </span>
                 ) : (
-                  currentOwners.map((o) => {
-                    const noteText = o.checkType === 'win_streak'
-                      ? t('badges.detail.ownersStreakNote', { streak: o.streak, season: t('badges.seasonLabel') })
-                      : t('badges.detail.ownersCondNote', { val: o.streak || o.threshold || 1 })
+                  <div
+                    style={{
+                      maxHeight: 210,
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 11,
+                      paddingRight: 4,
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+                    }}
+                  >
+                    {currentOwners.map((o) => {
+                      const noteText = o.checkType === 'win_streak'
+                        ? t('badges.detail.ownersStreakNote', { streak: o.streak, season: t('badges.seasonLabel') })
+                        : t('badges.detail.ownersCondNote', { val: o.streak || o.threshold || 1 })
 
-                    return (
-                      <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                        <div
-                          style={{
-                            width: 34,
-                            height: 34,
-                            flex: '0 0 auto',
-                            clipPath: HEX_CLIP,
-                            background: 'linear-gradient(135deg,#FF2E7E,#6D14FF)',
-                            display: 'grid',
-                            placeItems: 'center',
-                            font: "700 14px/1 'Oswald', sans-serif",
-                            color: '#FFFBEA',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {o.avatarUrl ? (
-                            <img src={o.avatarUrl} alt={o.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            o.initial
-                          )}
-                        </div>
-                        <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          <span style={{ font: "600 13px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {o.name}
+                      return (
+                        <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                          <div
+                            style={{
+                              width: 34,
+                              height: 34,
+                              flex: '0 0 auto',
+                              clipPath: HEX_CLIP,
+                              background: 'linear-gradient(135deg,#FF2E7E,#6D14FF)',
+                              display: 'grid',
+                              placeItems: 'center',
+                              font: "700 14px/1 'Oswald', sans-serif",
+                              color: '#FFFBEA',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {o.avatarUrl ? (
+                              <img src={o.avatarUrl} alt={o.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              o.initial
+                            )}
+                          </div>
+                          <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            <span style={{ font: "600 13px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {o.name}
+                            </span>
+                            <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
+                              {noteText}
+                            </span>
+                          </div>
+                          <span style={{ font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                            {o.at}
                           </span>
-                          <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                            {noteText}
-                          </span>
                         </div>
-                        <span style={{ font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                          {o.at}
-                        </span>
-                      </div>
-                    )
-                  })
+                      )
+                    })}
+                  </div>
                 )}
               </div>
 
@@ -718,45 +731,58 @@ export default function BadgeDetailModal({
                     {t('badges.detail.noChasers')}
                   </span>
                 ) : (
-                  currentChasers.map((c) => (
-                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ width: 20, flex: '0 0 auto', font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                        {c.rank}
-                      </span>
-                      <span
-                        style={{
-                          flex: '1 1 0%',
-                          minWidth: 0,
-                          font: `${c.isMe ? 700 : 500} 12.5px/1 'Be Vietnam Pro', sans-serif`,
-                          color: c.isMe ? '#FFE24B' : '#C9B8E6',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {c.isMe ? t('badges.detail.you') : c.name}
-                      </span>
-                      <div
-                        style={{
-                          flex: '2 1 0%',
-                          height: 7,
-                          clipPath: NOTCH_S_CLIP,
-                          background: 'rgba(255,255,255,.08)',
-                        }}
-                      >
+                  <div
+                    style={{
+                      maxHeight: 210,
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                      paddingRight: 4,
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+                    }}
+                  >
+                    {currentChasers.map((c) => (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ width: 20, flex: '0 0 auto', font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
+                          {c.rank}
+                        </span>
+                        <span
+                          style={{
+                            flex: '1 1 0%',
+                            minWidth: 0,
+                            font: `${c.isMe ? 700 : 500} 12.5px/1 'Be Vietnam Pro', sans-serif`,
+                            color: c.isMe ? '#FFE24B' : '#C9B8E6',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {c.isMe ? t('badges.detail.you') : c.name}
+                        </span>
                         <div
                           style={{
-                            height: '100%',
-                            width: `${c.pct}%`,
-                            background: c.isMe ? 'linear-gradient(90deg,#FF2E7E,#FFE24B)' : 'linear-gradient(90deg,#6D14FF,#C04BFF)',
+                            flex: '2 1 0%',
+                            height: 7,
+                            clipPath: NOTCH_S_CLIP,
+                            background: 'rgba(255,255,255,.08)',
                           }}
-                        />
+                        >
+                          <div
+                            style={{
+                              height: '100%',
+                              width: `${c.pct}%`,
+                              background: c.isMe ? 'linear-gradient(90deg,#FF2E7E,#FFE24B)' : 'linear-gradient(90deg,#6D14FF,#C04BFF)',
+                            }}
+                          />
+                        </div>
+                        <span style={{ width: 22, flex: '0 0 auto', textAlign: 'right', font: "600 12px/1 'IBM Plex Mono', monospace", color: '#C9B8E6' }}>
+                          {c.val}
+                        </span>
                       </div>
-                      <span style={{ width: 22, flex: '0 0 auto', textAlign: 'right', font: "600 12px/1 'IBM Plex Mono', monospace", color: '#C9B8E6' }}>
-                        {c.val}
-                      </span>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

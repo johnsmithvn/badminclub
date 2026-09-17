@@ -81,11 +81,11 @@ export default function NotificationPanel({ open, onClose }) {
           width: '100%',
           maxWidth: 420,
           height: '100%',
-          backgroundColor: 'var(--surface-card, #171717)',
-          borderLeft: '1px solid var(--gray-800, #262626)',
+          backgroundColor: 'var(--surface-card)',
+          borderLeft: '1px solid var(--border-subtle)',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.5)',
+          boxShadow: 'var(--shadow-lg, -4px 0 24px rgba(0, 0, 0, 0.25))',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -96,11 +96,11 @@ export default function NotificationPanel({ open, onClose }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 20px',
-            borderBottom: '1px solid var(--gray-800, #262626)',
+            borderBottom: '1px solid var(--border-subtle)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--gray-100, #f3f4f6)' }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
               {t('notification.title')}
             </span>
             {unreadCount > 0 && (
@@ -127,7 +127,7 @@ export default function NotificationPanel({ open, onClose }) {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: 'var(--teal-400, #00F5D4)',
+                  color: 'var(--text-accent, #00786F)',
                   fontSize: 13,
                   cursor: 'pointer',
                   fontWeight: 500,
@@ -151,8 +151,8 @@ export default function NotificationPanel({ open, onClose }) {
         <div
           style={{
             display: 'flex',
-            borderBottom: '1px solid var(--gray-800, #262626)',
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            borderBottom: '1px solid var(--border-subtle)',
+            backgroundColor: 'var(--surface-sunken)',
           }}
         >
           <button
@@ -165,8 +165,8 @@ export default function NotificationPanel({ open, onClose }) {
               background: 'none',
               fontSize: 14,
               fontWeight: 600,
-              color: activeTab === 'notifications' ? 'var(--teal-400, #00F5D4)' : 'var(--gray-400, #9ca3af)',
-              borderBottom: activeTab === 'notifications' ? '2px solid var(--teal-400, #00F5D4)' : '2px solid transparent',
+              color: activeTab === 'notifications' ? 'var(--text-accent, #00786F)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'notifications' ? '2px solid var(--text-accent, #00786F)' : '2px solid transparent',
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
@@ -183,8 +183,8 @@ export default function NotificationPanel({ open, onClose }) {
               background: 'none',
               fontSize: 14,
               fontWeight: 600,
-              color: activeTab === 'highlights' ? 'var(--teal-400, #00F5D4)' : 'var(--gray-400, #9ca3af)',
-              borderBottom: activeTab === 'highlights' ? '2px solid var(--teal-400, #00F5D4)' : '2px solid transparent',
+              color: activeTab === 'highlights' ? 'var(--text-accent, #00786F)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'highlights' ? '2px solid var(--text-accent, #00786F)' : '2px solid transparent',
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
@@ -201,7 +201,7 @@ export default function NotificationPanel({ open, onClose }) {
                 style={{
                   padding: '48px 24px',
                   textAlign: 'center',
-                  color: 'var(--gray-400, #9ca3af)',
+                  color: 'var(--text-muted)',
                 }}
               >
                 <Icon name="bell" size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
@@ -224,7 +224,7 @@ export default function NotificationPanel({ open, onClose }) {
                   style={{
                     padding: '48px 24px',
                     textAlign: 'center',
-                    color: 'var(--gray-400, #9ca3af)',
+                    color: 'var(--text-muted)',
                   }}
                 >
                   <Icon name="award" size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
@@ -237,8 +237,8 @@ export default function NotificationPanel({ open, onClose }) {
                     style={{
                       padding: 16,
                       borderRadius: 12,
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(0, 245, 212, 0.15)',
+                      backgroundColor: 'var(--surface-sunken)',
+                      border: '1px solid var(--border-subtle)',
                       display: 'flex',
                       alignItems: 'flex-start',
                       gap: 12,
@@ -249,8 +249,8 @@ export default function NotificationPanel({ open, onClose }) {
                         width: 36,
                         height: 36,
                         borderRadius: 10,
-                        backgroundColor: 'rgba(0, 245, 212, 0.1)',
-                        color: 'var(--teal-400, #00F5D4)',
+                        backgroundColor: 'var(--surface-accent-soft, rgba(0, 178, 169, 0.12))',
+                        color: 'var(--text-accent, #00786F)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -277,7 +277,7 @@ export default function NotificationPanel({ open, onClose }) {
                         style={{
                           fontSize: 14,
                           lineHeight: 1.4,
-                          color: 'var(--gray-100, #f3f4f6)',
+                          color: 'var(--text-primary)',
                         }}
                       >
                         {t('highlights.' + h.type, h)}

@@ -10,7 +10,6 @@ import {
   getStreakTimeline,
   getBadgeById,
   getMemberHighestBadge,
-  getClubAchievementFeed,
 } from '#lib/badges.js'
 
 test('Badges Engine: Chuỗi thắng đơn & tính toán mốc Bất bại', () => {
@@ -191,47 +190,6 @@ test('Badges Engine: getMemberHighestBadge chọn đúng tier cao nhất', () =>
   assert.equal(highest.tier, 'elite')
 })
 
-test('Badges Engine: getClubAchievementFeed trích xuất sự kiện chuẩn xác', () => {
-  const mockDb = {
-    members: [
-      { id: 'm1', name: 'Minh' },
-      { id: 'm2', name: 'Tuấn' },
-    ],
-    matches: [
-      // Tuấn thắng Minh ngắt chuỗi
-      {
-        id: 'mt-break',
-        at: 1000,
-        teamA: ['m2'],
-        teamB: ['m1'],
-        winnerTeam: 'A',
-        scoreTeamA: 21,
-        scoreTeamB: 19,
-        bountyBroken: true,
-        brokenStreak: 8,
-      },
-    ],
-    playerRatings: {
-      m2: { rating: 1520, displayRating: 1520 },
-    },
-  }
-
-  const feed = getClubAchievementFeed(mockDb)
-  assert.ok(feed.length >= 1)
-
-  const bountyEvent = feed.find((f) => f.type === 'bounty_break')
-  assert.ok(bountyEvent, 'Phải có sự kiện bounty_break')
-  assert.equal(bountyEvent.actorName, 'Tuấn')
-  assert.equal(bountyEvent.targetName, 'Minh')
-  assert.equal(bountyEvent.streakBroken, 8)
-  assert.equal(bountyEvent.score, '21 - 19')
-
-  const eloEvent = feed.find((f) => f.type === 'elo_milestone')
-  assert.ok(eloEvent, 'Phải có sự kiện elo_milestone khi đạt 1500+')
-  assert.equal(eloEvent.actorName, 'Tuấn')
-  assert.equal(eloEvent.elo, 1520)
-})
-
 test('Badges: Cơ chế mở khóa offline -> online chỉ bật cho chính chủ nhận danh hiệu', () => {
   // Giả sử có 2 thành viên trong CLB
   const mockDb = {
@@ -276,7 +234,7 @@ test('Badges: Cơ chế mở khóa offline -> online chỉ bật cho chính ch�
   assert.equal(unseenMinhNext.some((b) => b.id === 'bat_bai_v'), false, 'bat_bai_v đã được đánh dấu đã xem')
 })
 
-test('Guest Names: getClubAchievementFeed và getMemberSeasonLedger hiển thị đúng tên khách thay vì UUID', async () => {
+test('Guest Names: getMemberSeasonLedger hiển thị đúng tên khách thay vì UUID', async () => {
   const { getMemberSeasonLedger } = await import('../../lib/season.js')
   const { playerName } = await import('../../lib/money.js')
 
@@ -313,15 +271,7 @@ test('Guest Names: getClubAchievementFeed và getMemberSeasonLedger hiển thị
   // 1. Kiểm tra playerName trả về tên khách thật
   assert.equal(playerName(mockDb, guestId), 'Khách Nam')
 
-  // 2. Kiểm tra getClubAchievementFeed không chứa UUID mà chứa tên khách
-  const feed = getClubAchievementFeed(mockDb)
-  const bountyEvent = feed.find((f) => f.type === 'bounty_break')
-  assert.ok(bountyEvent)
-  assert.equal(bountyEvent.actorName, 'Anh Tungdd & Khách Nam')
-  assert.ok(!bountyEvent.actorName.includes(guestId), 'ActorName không được để lộ UUID của khách')
-  assert.equal(bountyEvent.targetName, 'Đức Anh & Trường')
-
-  // 3. Kiểm tra getMemberSeasonLedger của Anh Tungdd
+  // 2. Kiểm tra getMemberSeasonLedger của Anh Tungdd
   const ledger = getMemberSeasonLedger('m1', mockDb)
   assert.ok(ledger)
   assert.ok(ledger.recentEvents.length >= 1)

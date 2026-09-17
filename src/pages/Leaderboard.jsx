@@ -9,6 +9,7 @@ import { myMember } from '#lib/money.js'
 import { DEFAULT_RANK_THEME } from '#data/rankThemes.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 import cfg from '#config/app.json' with { type: 'json' }
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MemberProfileTab from '#components/profile/MemberProfileTab.jsx'
@@ -213,6 +214,8 @@ export default function Leaderboard() {
         <Icon name={isDark ? 'sun' : 'moon'} size={15} />
         {!isMobile && <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>}
       </button>
+
+      <NotificationBell />
 
       {/* Tab 'h2h' là màn so kè tương tác (chọn cặp A vs cặp B), không có bảng nào để xuất.
           handleExportCsv rơi vào nhánh else -> xuất nhầm bảng Elo, nên ẩn nút ở tab này. */}
@@ -561,45 +564,32 @@ export default function Leaderboard() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div
+            {/* Nút đóng nổi góc trên bên phải */}
+            <button
+              type="button"
+              onClick={() => setSelectedMemberId(null)}
+              aria-label={t('common.close')}
               style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                zIndex: 20,
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 18px',
-                borderBottom: '1px solid var(--border-subtle)',
-                background: 'var(--surface-card)',
+                justifyContent: 'center',
+                boxShadow: 'var(--shadow-xs)',
+                transition: 'all 0.15s ease',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Avatar name={currentMember.name} src={currentMember.avatarUrl || currentMember.avatar} size={28} />
-                <span style={{ font: "700 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                  {currentMember.name}
-                </span>
-                <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                  · {t('leaderboard.tabChart')}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedMemberId(null)}
-                aria-label={t('common.close')}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: 4,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 4,
-                }}
-              >
-                <Icon name="x" size={18} />
-              </button>
-            </div>
+              <Icon name="x" size={16} />
+            </button>
 
             {/* Modal Body */}
             <div style={{ padding: isMobile ? 12 : 20, overflowY: 'auto', flex: 1 }}>

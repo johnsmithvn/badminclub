@@ -49,6 +49,7 @@ export default function ActivityTab() {
         console.warn('Error fetching activity events:', error.message)
       } else {
         setEvents(data || [])
+        setPage(1)
         setHasMore((data || []).length === PAGE_SIZE)
       }
       setLoading(false)
@@ -79,7 +80,12 @@ export default function ActivityTab() {
         return
       }
 
-      setEvents((prev) => [...prev, ...(data || [])])
+      // `range()` là cửa sổ theo offset: có sự kiện mới chèn vào giữa lúc đang xem thêm là
+      // cả cửa sổ trượt xuống và trang sau lặp lại dòng của trang trước (React kêu trùng key).
+      setEvents((prev) => {
+        const seen = new Set(prev.map((x) => x.id))
+        return [...prev, ...(data || []).filter((x) => !seen.has(x.id))]
+      })
       setHasMore((data || []).length === PAGE_SIZE)
     } finally {
       setLoading(false)
@@ -108,16 +114,17 @@ export default function ActivityTab() {
         return { icon: 'trophy', color: '#FFE24B', key: 'challenge_completed', badgeColor: 'rgba(255, 226, 75, 0.15)' }
       case 'challenge_created':
         return { icon: 'swords', color: '#00F5D4', key: 'challenge_created', badgeColor: 'rgba(0, 245, 212, 0.15)' }
+      case 'challenge_cancelled':
+      case 'session_cancelled':
+        return { icon: 'x', color: '#EF4444', key: item.type, badgeColor: 'rgba(239, 68, 68, 0.15)' }
       case 'session_opened':
         return { icon: 'calendar', color: '#3B82F6', key: 'session_opened', badgeColor: 'rgba(59, 130, 246, 0.15)' }
       case 'session_closed':
         return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(16, 185, 129, 0.15)' }
       case 'member_joined':
         return { icon: 'user', color: '#EC4899', key: 'member_joined', badgeColor: 'rgba(236, 72, 153, 0.15)' }
-      case 'badge_unlocked':
-        return { icon: 'award', color: '#F59E0B', key: 'badge_unlocked', badgeColor: 'rgba(245, 158, 11, 0.15)' }
       default:
-        return { icon: 'activity', color: 'var(--teal-400)', key: item.type, badgeColor: 'rgba(255, 255, 255, 0.05)' }
+        return { icon: 'activity', color: 'var(--text-accent, #00B2A9)', key: item.type, badgeColor: 'var(--surface-sunken)' }
     }
   }
 
@@ -129,7 +136,7 @@ export default function ActivityTab() {
           style={{
             padding: '48px 24px',
             textAlign: 'center',
-            color: 'var(--gray-400, #9ca3af)',
+            color: 'var(--text-muted)',
           }}
         >
           <Icon name="activity" size={36} style={{ marginBottom: 12, opacity: 0.4 }} />
@@ -148,12 +155,12 @@ export default function ActivityTab() {
                 style={{
                   padding: 16,
                   borderRadius: 12,
-                  backgroundColor: 'var(--surface-card, #171717)',
-                  border: '1px solid var(--gray-800, #262626)',
+                  backgroundColor: 'var(--surface-card)',
+                  border: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: 14,
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                  boxShadow: 'var(--shadow-xs, 0 1px 3px rgba(0, 0, 0, 0.08))',
                 }}
               >
                 <div
@@ -177,7 +184,7 @@ export default function ActivityTab() {
                     style={{
                       fontSize: 15,
                       lineHeight: 1.45,
-                      color: 'var(--gray-100, #f3f4f6)',
+                      color: 'var(--text-primary)',
                       fontWeight: 500,
                       wordBreak: 'break-word',
                     }}
@@ -187,7 +194,7 @@ export default function ActivityTab() {
                   <div
                     style={{
                       fontSize: 12,
-                      color: 'var(--gray-400, #9ca3af)',
+                      color: 'var(--text-muted)',
                       marginTop: 6,
                     }}
                   >
@@ -210,7 +217,7 @@ export default function ActivityTab() {
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--gray-400)' }}>
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)' }}>
           {t('activity.loading')}
         </div>
       )}

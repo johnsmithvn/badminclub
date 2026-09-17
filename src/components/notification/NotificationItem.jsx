@@ -29,6 +29,9 @@ export default function NotificationItem({ item, onRead }) {
       case 'challenge_accepted':
       case 'challenge_declined':
         return { icon: 'swords', color: '#00F5D4' }
+      case 'challenge_cancelled':
+      case 'session_cancelled':
+        return { icon: 'x', color: '#EF4444' }
       case 'challenge_completed':
         return { icon: 'trophy', color: '#FFE24B' }
       case 'bounty_broken':
@@ -77,8 +80,8 @@ export default function NotificationItem({ item, onRead }) {
         alignItems: 'flex-start',
         gap: 12,
         padding: '12px 16px',
-        backgroundColor: isUnread ? 'rgba(0, 245, 212, 0.05)' : 'transparent',
-        borderBottom: '1px solid var(--gray-800, #262626)',
+        backgroundColor: isUnread ? 'var(--surface-accent-soft, rgba(0, 178, 169, 0.06))' : 'transparent',
+        borderBottom: '1px solid var(--border-subtle)',
         cursor: 'pointer',
         transition: 'background-color 0.2s',
       }}
@@ -88,7 +91,7 @@ export default function NotificationItem({ item, onRead }) {
           width: 36,
           height: 36,
           borderRadius: 8,
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: 'var(--surface-sunken)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -105,7 +108,7 @@ export default function NotificationItem({ item, onRead }) {
             fontSize: 14,
             lineHeight: 1.4,
             fontWeight: isUnread ? 600 : 400,
-            color: 'var(--gray-100, #f3f4f6)',
+            color: 'var(--text-primary)',
             wordBreak: 'break-word',
           }}
         >
@@ -140,9 +143,9 @@ export default function NotificationItem({ item, onRead }) {
                     borderRadius: 6,
                     fontSize: 12,
                     fontWeight: 600,
-                    backgroundColor: 'rgba(0, 245, 212, 0.12)',
-                    color: 'var(--teal-400, #00F5D4)',
-                    border: '1px solid rgba(0, 245, 212, 0.3)',
+                    backgroundColor: 'var(--surface-accent-soft, rgba(0, 178, 169, 0.12))',
+                    color: 'var(--text-accent, #00786F)',
+                    border: '1px solid var(--teal-400, rgba(0, 178, 169, 0.4))',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
@@ -166,9 +169,9 @@ export default function NotificationItem({ item, onRead }) {
                     borderRadius: 6,
                     fontSize: 12,
                     fontWeight: 600,
-                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                    color: 'var(--gray-300, #d1d5db)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    backgroundColor: 'var(--surface-sunken)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-default)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
@@ -184,12 +187,12 @@ export default function NotificationItem({ item, onRead }) {
                   alignItems: 'center',
                   gap: 5,
                   fontSize: 12,
-                  color: currentAtt === true ? 'var(--teal-400, #00F5D4)' : currentAtt === false ? '#EF4444' : '#5FDBD3',
+                  color: currentAtt === true ? 'var(--text-accent, #00786F)' : currentAtt === false ? 'var(--text-danger, #C42B1C)' : 'var(--text-accent, #00786F)',
                   fontWeight: 600,
                   padding: '3px 8px',
                   borderRadius: 6,
-                  backgroundColor: currentAtt === true ? 'rgba(0, 245, 212, 0.1)' : currentAtt === false ? 'rgba(239, 68, 68, 0.1)' : 'rgba(95, 219, 211, 0.1)',
-                  border: `1px solid ${currentAtt === true ? 'rgba(0, 245, 212, 0.25)' : currentAtt === false ? 'rgba(239, 68, 68, 0.25)' : 'rgba(95, 219, 211, 0.25)'}`,
+                  backgroundColor: currentAtt === true ? 'var(--surface-accent-soft, rgba(0, 178, 169, 0.1))' : currentAtt === false ? 'var(--surface-danger-soft, rgba(239, 68, 68, 0.1))' : 'var(--surface-accent-soft, rgba(0, 178, 169, 0.1))',
+                  border: `1px solid ${currentAtt === true ? 'rgba(0, 178, 169, 0.3)' : currentAtt === false ? 'rgba(239, 68, 68, 0.3)' : 'rgba(0, 178, 169, 0.3)'}`,
                 }}
               >
                 <Icon name={currentAtt === true ? 'check' : 'x'} size={13} />
@@ -204,7 +207,7 @@ export default function NotificationItem({ item, onRead }) {
         <div
           style={{
             fontSize: 12,
-            color: 'var(--gray-400, #9ca3af)',
+            color: 'var(--text-muted)',
             marginTop: 4,
           }}
         >
@@ -218,7 +221,7 @@ export default function NotificationItem({ item, onRead }) {
             width: 8,
             height: 8,
             borderRadius: '50%',
-            backgroundColor: 'var(--teal-400, #00F5D4)',
+            backgroundColor: 'var(--text-accent, #00B2A9)',
             marginTop: 6,
             flexShrink: 0,
           }}

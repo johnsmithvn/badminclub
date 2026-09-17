@@ -1737,24 +1737,80 @@ export default function SeasonRaceTab({
           <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
             {t('season.awardsUpcomingTitle')}
           </div>
-          <div style={{ display: 'grid', gap: 7, font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-              <span>{t('season.awardPointsKing')}</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary)', fontWeight: 600 }}>
-                {top1?.name} · {top1?.totalSeasonPoints}
-              </span>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {/* 1. Vua cày điểm */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                padding: '9px 11px',
+                background: 'var(--surface-inset)',
+                borderRadius: 8,
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  {t('season.awardTitlePointsKing')}
+                </span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {top1?.name || '—'} · <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>{top1?.totalSeasonPoints ?? 0}</span>
+                </span>
+              </div>
+              <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('season.awardPrizePointsKing')}
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-              <span>{t('season.awardMostDiligent')}</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary)', fontWeight: 600 }}>
-                {topStats.mostAttendedPlayer?.name} · {topStats.mostAttendedPlayer?.attendedCount}/{playedSessions}
-              </span>
+
+            {/* 2. Chuyên cần nhất */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                padding: '9px 11px',
+                background: 'var(--surface-inset)',
+                borderRadius: 8,
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  {t('season.awardTitleMostDiligent')}
+                </span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {topStats.mostAttendedPlayer?.name || '—'} · <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>{topStats.mostAttendedPlayer?.attendedCount ?? 0}/{playedSessions}</span>
+                </span>
+              </div>
+              <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('season.awardPrizeMostDiligent')}
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-              <span>{t('season.awardUpsetHunter')}</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-primary)', fontWeight: 600 }}>
-                {topStats.mostUpsetsPlayer?.name} · {topStats.mostUpsetsPlayer?.upsetsCount} {t('units.times')}
-              </span>
+
+            {/* 3. Thợ săn Upset */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                padding: '9px 11px',
+                background: 'var(--surface-inset)',
+                borderRadius: 8,
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  {t('season.awardTitleUpsetHunter')}
+                </span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {topStats.mostUpsetsPlayer?.name || '—'} · <span style={{ color: isDark ? '#F0D26A' : 'var(--amber-700)' }}>{topStats.mostUpsetsPlayer?.upsetsCount ?? 0} {t('units.times')}</span>
+                </span>
+              </div>
+              <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('season.awardPrizeUpsetHunter')}
+              </div>
             </div>
           </div>
         </div>

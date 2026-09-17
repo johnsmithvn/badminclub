@@ -5,6 +5,7 @@ import { Icon, Avatar } from '#ds'
 import { rankPairs, calcMatchupEdge } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 import { ConfidenceChip } from '#ui'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import PairDetailModal from './PairDetailModal.jsx'
 import RatingFormulaModal from './RatingFormulaModal.jsx'
 import PairH2HModal from './PairH2HModal.jsx'
@@ -141,6 +142,7 @@ export default function PairsTab({
   onViewPairMatches,
   db,
 }) {
+  const { isDark } = useTheme()
   const isMobile = useMobile()
   const [formatFilter, setFormatFilter] = useState('all') // 'all' | 'MD' | 'WD' | 'XD'
   const [selectedPair, setSelectedPair] = useState(null)
@@ -148,6 +150,15 @@ export default function PairsTab({
   const [confidenceSheetOpen, setConfidenceSheetOpen] = useState(false)
   const [mobileSubTab, setMobileSubTab] = useState('pairs') // 'pairs' | 'h2h'
   const [selectedH2HPair, setSelectedH2HPair] = useState(null)
+
+  const bgOuter = isDark ? '#0B1220' : 'transparent'
+  const bgCard = isDark ? '#141D2E' : 'var(--surface-card)'
+  const bgSunken = isDark ? '#101927' : 'var(--surface-sunken)'
+  const borderCard = isDark ? '#22304A' : 'var(--border-subtle)'
+  const borderSunken = isDark ? '#2E3E5C' : 'var(--border-default)'
+  const textWhite = isDark ? '#FFFFFF' : 'var(--text-primary)'
+  const textMuted = isDark ? '#8494AA' : 'var(--text-muted)'
+  const textSecondary = isDark ? '#A8B7CB' : 'var(--text-secondary)'
 
   // Tính bảng xếp hạng cặp đôi theo logic core vNext
   const pairsData = useMemo(() => {
@@ -402,8 +413,8 @@ function getScoreVisuals(score, isTop) {
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
-        background: '#0B1220',
-        color: '#E9EFF7',
+        background: bgOuter,
+        color: isDark ? '#E9EFF7' : 'var(--text-primary)',
         borderRadius: 12,
         padding: '0 0 20px',
       }}
@@ -412,7 +423,7 @@ function getScoreVisuals(score, isTop) {
       <div
         style={{
           padding: isMobile ? '12px 14px' : '14px 20px',
-          borderBottom: '1px solid rgba(255,255,255,.08)',
+          borderBottom: `1px solid ${borderCard}`,
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
@@ -427,7 +438,7 @@ function getScoreVisuals(score, isTop) {
             gap: 12,
           }}
         >
-          <div style={{ font: '700 18px/1.25 Barlow, sans-serif', color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+          <div style={{ font: '700 18px/1.25 Barlow, sans-serif', color: textWhite, letterSpacing: '-0.01em' }}>
             {t('leaderboard.tabPairs')}
           </div>
 
@@ -440,8 +451,8 @@ function getScoreVisuals(score, isTop) {
               font: "600 12px/1 'IBM Plex Sans', sans-serif",
               padding: isMobile ? '7px 8px' : '6px 11px',
               borderRadius: 6,
-              background: '#141D2E',
-              border: '1px solid #2E3E5C',
+              background: bgCard,
+              border: `1px solid ${borderSunken}`,
               color: '#5FDBD3',
               cursor: 'pointer',
               display: 'inline-flex',
@@ -473,13 +484,13 @@ function getScoreVisuals(score, isTop) {
               gap: 6,
               padding: '3px 9px',
               borderRadius: 6,
-              background: 'rgba(95,219,211,.08)',
-              border: '1px solid rgba(95,219,211,.22)',
+              background: isDark ? 'rgba(95,219,211,.08)' : 'var(--surface-accent-soft)',
+              border: isDark ? '1px solid rgba(95,219,211,.22)' : '1px solid rgba(0, 120, 111, 0.2)',
               font: "400 12px/1.3 'IBM Plex Sans', sans-serif",
-              color: '#A8B7CB',
+              color: textSecondary,
             }}
           >
-            <span style={{ font: "700 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+            <span style={{ font: "700 13px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)' }}>
               {totalDoublesMatches}
             </span>
             <span>{t('leaderboard.doublesMatchesUnit')}</span>
@@ -492,13 +503,13 @@ function getScoreVisuals(score, isTop) {
               gap: 6,
               padding: '3px 9px',
               borderRadius: 6,
-              background: 'rgba(240,183,92,.08)',
-              border: '1px solid rgba(240,183,92,.22)',
+              background: isDark ? 'rgba(240,183,92,.08)' : 'var(--surface-warning-soft)',
+              border: isDark ? '1px solid rgba(240,183,92,.22)' : '1px solid rgba(180, 83, 9, 0.2)',
               font: "400 12px/1.3 'IBM Plex Sans', sans-serif",
-              color: '#A8B7CB',
+              color: textSecondary,
             }}
           >
-            <span style={{ font: "700 13px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
+            <span style={{ font: "700 13px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)' }}>
               {totalPairsCount}
             </span>
             <span>{t('leaderboard.pairsPlayedUnit')}</span>
@@ -620,9 +631,9 @@ function getScoreVisuals(score, isTop) {
           <div
             onClick={() => setSelectedPair(topPair)}
             style={{
-              background: 'linear-gradient(180deg, rgba(0,178,169,.18), #141D2E)',
+              background: isDark ? 'linear-gradient(180deg, rgba(0,178,169,.18), #141D2E)' : 'linear-gradient(180deg, rgba(0,178,169,.12), var(--surface-card))',
               border: '1px solid #00B2A9',
-              boxShadow: '0 4px 22px rgba(0, 178, 169, 0.16)',
+              boxShadow: isDark ? '0 4px 22px rgba(0, 178, 169, 0.16)' : 'var(--shadow-sm)',
               borderRadius: 10,
               padding: '14px 16px',
               display: 'grid',
@@ -644,10 +655,10 @@ function getScoreVisuals(score, isTop) {
             >
               {t('leaderboard.pairBestOfSeason')}
             </span>
-            <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: '#fff' }}>
+            <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: textWhite }}>
               {getPairNames(topPair).join(' · ')}
             </div>
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textSecondary }}>
               {topPair.pairImpact < 0
                 ? t('leaderboard.pairBestBelowDesc', {
                     pp: Math.abs(topPair.pairImpact),
@@ -763,9 +774,9 @@ function getScoreVisuals(score, isTop) {
             <div
               onClick={() => setSelectedH2HPair({ pairA: topRivalry.pairA, pairB: topRivalry.pairB })}
               style={{
-                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.20) 0%, rgba(245, 158, 11, 0.14) 50%, #141D2E 100%)',
-                border: '1px solid rgba(245, 158, 11, 0.45)',
-                boxShadow: '0 4px 22px rgba(239, 68, 68, 0.12)',
+                background: isDark ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.20) 0%, rgba(245, 158, 11, 0.14) 50%, #141D2E 100%)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.06) 50%, var(--surface-card) 100%)',
+                border: isDark ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid rgba(245, 158, 11, 0.35)',
+                boxShadow: isDark ? '0 4px 22px rgba(239, 68, 68, 0.12)' : 'var(--shadow-sm)',
                 borderRadius: 10,
                 padding: '14px 16px',
                 display: 'grid',
@@ -789,13 +800,13 @@ function getScoreVisuals(score, isTop) {
                 {t('leaderboard.topRivalryBadge')}
               </span>
 
-              <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: '#fff', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: textWhite, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span>{topRivalry.fromName}</span>
                 <span style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#FF7A45' }}>⚔️</span>
-                <span style={{ color: '#E9EFF7' }}>{topRivalry.toName}</span>
+                <span style={{ color: textWhite }}>{topRivalry.toName}</span>
               </div>
 
-              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textSecondary }}>
                 {t('leaderboard.topRivalryDesc', {
                   from: topRivalry.fromName,
                   to: topRivalry.toName,
@@ -1272,8 +1283,8 @@ function getScoreVisuals(score, isTop) {
                 gap: 6,
                 padding: 3,
                 borderRadius: 8,
-                background: '#141D2E',
-                border: '1px solid #22304A',
+                background: bgSunken,
+                border: `1px solid ${borderCard}`,
               }}
             >
               {[
@@ -1295,7 +1306,7 @@ function getScoreVisuals(score, isTop) {
                       border: 'none',
                       cursor: 'pointer',
                       background: active ? '#1D50A0' : 'transparent',
-                      color: active ? '#fff' : '#A8B7CB',
+                      color: active ? '#fff' : textSecondary,
                     }}
                   >
                     {item.label}
@@ -1320,21 +1331,21 @@ function getScoreVisuals(score, isTop) {
           {/* Banner "Ăn ý không phải tỷ lệ thắng" */}
           <div
             style={{
-              background: 'linear-gradient(135deg, rgba(0,178,169,.12), #141D2E 62%)',
-              border: '1px solid #22304A',
+              background: isDark ? 'linear-gradient(135deg, rgba(0,178,169,.12), #141D2E 62%)' : 'linear-gradient(135deg, rgba(0,178,169,.08), var(--surface-card) 62%)',
+              border: `1px solid ${borderCard}`,
               borderRadius: 10,
               padding: '14px 16px',
               display: 'grid',
               gap: 9,
             }}
           >
-            <div style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#5FDBD3' }}>
+            <div style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)' }}>
               {t('leaderboard.synergyNotWinrate')}
             </div>
             <div
               style={{
                 font: "400 13px/1.55 'IBM Plex Sans', sans-serif",
-                color: '#A8B7CB',
+                color: textSecondary,
                 maxWidth: 640,
               }}
             >
@@ -1344,11 +1355,11 @@ function getScoreVisuals(score, isTop) {
               <span
                 style={{
                   font: "400 11px/1.3 'IBM Plex Mono', monospace",
-                  color: '#8494AA',
+                  color: textMuted,
                   padding: '5px 9px',
                   borderRadius: 6,
-                  background: '#0B1220',
-                  border: '1px solid #22304A',
+                  background: bgSunken,
+                  border: `1px solid ${borderCard}`,
                 }}
               >
                 {t('leaderboard.expectedFormulaBadge')}
@@ -1356,11 +1367,11 @@ function getScoreVisuals(score, isTop) {
               <span
                 style={{
                   font: "400 11px/1.3 'IBM Plex Mono', monospace",
-                  color: '#8494AA',
+                  color: textMuted,
                   padding: '5px 9px',
                   borderRadius: 6,
-                  background: '#0B1220',
-                  border: '1px solid #22304A',
+                  background: bgSunken,
+                  border: `1px solid ${borderCard}`,
                 }}
               >
                 {t('leaderboard.synergyFormulaBadge')}
@@ -1369,7 +1380,7 @@ function getScoreVisuals(score, isTop) {
           </div>
 
           {/* Table Bảng Ăn ý - DP1 v1.1 */}
-          <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: bgCard, border: `1px solid ${borderCard}`, borderRadius: 10, overflow: 'hidden' }}>
             {/* Header Row */}
             <div
               style={{
@@ -1377,12 +1388,12 @@ function getScoreVisuals(score, isTop) {
                 gridTemplateColumns: 'minmax(0, 1.35fr) 95px 120px 145px 65px 75px',
                 gap: 10,
                 padding: '10px 15px',
-                background: '#101927',
-                borderBottom: '1px solid #22304A',
+                background: bgSunken,
+                borderBottom: `1px solid ${borderCard}`,
                 font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                color: '#8494AA',
+                color: textMuted,
               }}
             >
               <span>{t('leaderboard.pairCol')}</span>
@@ -1405,9 +1416,9 @@ function getScoreVisuals(score, isTop) {
                 const confTier = getPairConfTier(pair)
 
                 const rowBg = isTop
-                  ? 'rgba(0,178,169,.07)'
+                  ? (isDark ? 'rgba(0,178,169,.07)' : 'rgba(0,178,169,.05)')
                   : isLow
-                    ? 'rgba(224,138,0,.06)'
+                    ? (isDark ? 'rgba(224,138,0,.06)' : 'rgba(224,138,0,.05)')
                     : 'transparent'
 
                 const dateStr = pair.lastMatchDate
@@ -1436,12 +1447,12 @@ function getScoreVisuals(score, isTop) {
                         style={{
                           padding: '7px 15px',
                           background: 'rgba(0, 178, 169, 0.08)',
-                          borderBottom: '1px solid #22304A',
+                          borderBottom: `1px solid ${borderCard}`,
                           display: 'flex',
                           alignItems: 'center',
                           gap: 8,
                           font: "600 11.5px/1.2 'IBM Plex Sans', sans-serif",
-                          color: '#5FDBD3',
+                          color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
                           letterSpacing: '0.04em',
                         }}
                       >
@@ -1454,12 +1465,12 @@ function getScoreVisuals(score, isTop) {
                         style={{
                           padding: '7px 15px',
                           background: 'rgba(240, 183, 92, 0.08)',
-                          borderBottom: '1px solid #22304A',
+                          borderBottom: `1px solid ${borderCard}`,
                           display: 'flex',
                           alignItems: 'center',
                           gap: 8,
                           font: "600 11.5px/1.2 'IBM Plex Sans', sans-serif",
-                          color: '#F0B75C',
+                          color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)',
                           letterSpacing: '0.04em',
                         }}
                       >
@@ -1474,7 +1485,7 @@ function getScoreVisuals(score, isTop) {
                         gridTemplateColumns: 'minmax(0, 1.35fr) 95px 120px 145px 65px 75px',
                         gap: 10,
                         padding: '12px 15px',
-                        borderBottom: '1px solid #22304A',
+                        borderBottom: `1px solid ${borderCard}`,
                         alignItems: 'center',
                         background: rowBg,
                         cursor: 'pointer',
@@ -1488,18 +1499,18 @@ function getScoreVisuals(score, isTop) {
                             name={mA.name}
                             src={mA.avatarUrl || mA.avatar}
                             size={26}
-                            style={{ border: '2px solid #141D2E', zIndex: 2 }}
+                            style={{ border: `2px solid ${bgCard}`, zIndex: 2 }}
                           />
                           <Avatar
                             name={mB.name}
                             src={mB.avatarUrl || mB.avatar}
                             size={26}
-                            style={{ border: '2px solid #141D2E', marginLeft: -9, zIndex: 1 }}
+                            style={{ border: `2px solid ${bgCard}`, marginLeft: -9, zIndex: 1 }}
                           />
                         </span>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <span style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+                            <span style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: textWhite }}>
                               {getPairNames(pair).join(' · ')}
                             </span>
                           {isTop && (
@@ -1734,7 +1745,7 @@ function getScoreVisuals(score, isTop) {
             )}
 
             {/* Chú thích đáy bảng DP1 */}
-            <div style={{ padding: '10px 15px', background: '#101927', borderTop: '1px solid #22304A', font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: '#8494AA' }}>
+            <div style={{ padding: '10px 15px', background: bgSunken, borderTop: `1px solid ${borderCard}`, font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: textMuted }}>
               {t('leaderboard.dp1FooterNote')}
             </div>
           </div>
@@ -1744,18 +1755,18 @@ function getScoreVisuals(score, isTop) {
             {/* Subcard 1: Khắc chế có hướng */}
             <div
               style={{
-                background: '#141D2E',
-                border: '1px solid #22304A',
+                background: bgCard,
+                border: `1px solid ${borderCard}`,
                 borderRadius: 10,
                 padding: '13px 15px',
                 display: 'grid',
                 gap: 10,
               }}
             >
-              <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+              <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: textWhite }}>
                 {t('leaderboard.directionalMatchupTitle')}
               </div>
-              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
                 {t('leaderboard.directionalMatchupDesc')}
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
@@ -1772,15 +1783,15 @@ function getScoreVisuals(score, isTop) {
                           gap: 6,
                           padding: '10px 12px',
                           borderRadius: 8,
-                          background: '#101927',
-                          border: '1px solid #22304A',
+                          background: bgSunken,
+                          border: `1px solid ${borderCard}`,
                           cursor: 'pointer',
                           transition: 'border-color 0.15s ease, background 0.15s ease',
                         }}
                       >
                         {/* Dòng 1: Cặp A ⚔️ Cặp B + Tag + Điểm kình địch */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: '#fff', flex: 1, minWidth: 0 }}>
+                          <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: textWhite, flex: 1, minWidth: 0 }}>
                             {mItem.fromName} ⚔️ {mItem.toName}
                           </span>
                           <span
@@ -1797,27 +1808,21 @@ function getScoreVisuals(score, isTop) {
                           >
                             {isDominant ? t('leaderboard.rivalryDominant') : t('leaderboard.rivalryAdvantageBadge')}
                           </span>
-                          <span
-                            style={{
-                              font: '700 15px/1 Barlow, sans-serif',
-                              color: mItem.score >= 60 ? '#FF7A45' : mItem.score >= 45 ? '#F0B75C' : '#8494AA',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
+                          <span style={{ font: "700 15px/1 Barlow, sans-serif", color: '#FF7A45', whiteSpace: 'nowrap' }}>
                             {mItem.score} 🔥
                           </span>
                         </div>
 
                         {/* Dòng 2: Chi tiết chỉ số */}
-                        <div style={{ font: "400 11px/1.4 'IBM Plex Mono', monospace", color: '#8494AA', display: 'flex', flexWrap: 'wrap', gap: '3px 8px', alignItems: 'center' }}>
-                          <span style={{ color: '#C5D3E8' }}>
+                        <div style={{ font: "400 11.5px/1.45 'IBM Plex Mono', monospace", color: textMuted, display: 'flex', flexWrap: 'wrap', gap: '4px 8px', alignItems: 'center' }}>
+                          <span style={{ color: textSecondary }}>
                             {t('leaderboard.rivalryStats', { wins: mItem.wins, losses: mItem.losses, games: mItem.games })}
                           </span>
-                          <span style={{ color: '#5B6B81' }}>•</span>
+                          <span style={{ color: textMuted }}>•</span>
                           <span style={{ color: mItem.impact >= 0 ? '#5FD9A2' : '#FF9A8F' }}>
                             {mItem.impact >= 0 ? `+${mItem.impact}pp` : `${mItem.impact}pp`} {t('leaderboard.advantageEdge')}
                           </span>
-                          <span style={{ color: '#5B6B81' }}>•</span>
+                          <span style={{ color: textMuted }}>•</span>
                           <span>
                             {t('leaderboard.expToActual', { exp: mItem.expected, actual: mItem.actual })}
                           </span>
@@ -1858,7 +1863,7 @@ function getScoreVisuals(score, isTop) {
                     )
                   })
                 ) : (
-                  <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: textMuted }}>
                     {t('leaderboard.noCrossMatchupHistory')}
                   </div>
                 )}
@@ -1868,39 +1873,39 @@ function getScoreVisuals(score, isTop) {
             {/* Subcard 2: Ăn ý so với kỳ vọng */}
             <div
               style={{
-                background: '#141D2E',
-                border: '1px solid #22304A',
+                background: bgCard,
+                border: `1px solid ${borderCard}`,
                 borderRadius: 10,
                 padding: '13px 15px',
                 display: 'grid',
                 gap: 10,
               }}
             >
-              <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+              <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: textWhite }}>
                 {t('leaderboard.synergyVsExpectedTitle')}
               </div>
-              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
                 {t('leaderboard.synergyVsExpectedDesc')}
               </div>
               <div style={{ display: 'grid', gap: 9 }}>
                 {topPair && (
-                  <div style={{ display: 'grid', gap: 5, padding: '9px 11px', borderRadius: 7, background: '#101927', border: '1px solid #22304A' }}>
+                  <div style={{ display: 'grid', gap: 5, padding: '9px 11px', borderRadius: 7, background: bgSunken, border: `1px solid ${borderCard}` }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
+                      <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: textWhite }}>
                         {getPairNames(topPair).join(' · ')}
                       </span>
-                      <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                      <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: textMuted }}>
                         {t('leaderboard.oppExpectedPct', { exp: topPair.expectedWinPct })}
                       </span>
-                      <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                      <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)' }}>
                         {topPair.actualWinPct}%
                       </span>
                     </div>
-                    <div style={{ height: 7, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${topPair.expectedWinPct}%`, background: '#2E3E5C' }} />
+                    <div style={{ height: 7, borderRadius: 999, background: isDark ? '#0B1220' : 'var(--surface-sunken)', overflow: 'hidden', display: 'flex' }}>
+                      <div style={{ width: `${topPair.expectedWinPct}%`, background: isDark ? '#2E3E5C' : '#CBD5E1' }} />
                       <div style={{ width: `${Math.max(0, topPair.actualWinPct - topPair.expectedWinPct)}%`, background: '#00B2A9' }} />
                     </div>
-                    <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
+                    <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)' }}>
                       {t('leaderboard.impactSummary', {
                         sign: '+',
                         pp: topPair.pairImpact,
@@ -1912,20 +1917,20 @@ function getScoreVisuals(score, isTop) {
                 )}
 
                 {underperformingPair && getPairKey(underperformingPair) !== getPairKey(topPair) && (
-                  <div style={{ display: 'grid', gap: 5, padding: '9px 11px', borderRadius: 7, background: '#101927', border: '1px solid #22304A' }}>
+                  <div style={{ display: 'grid', gap: 5, padding: '9px 11px', borderRadius: 7, background: bgSunken, border: `1px solid ${borderCard}` }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
+                      <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: textWhite }}>
                         {getPairNames(underperformingPair).join(' · ')}
                       </span>
-                      <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                      <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: textMuted }}>
                         {t('leaderboard.oppExpectedPct', { exp: underperformingPair.expectedWinPct })}
                       </span>
                       <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#F09A8E' }}>
                         {underperformingPair.actualWinPct}%
                       </span>
                     </div>
-                    <div style={{ height: 7, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${underperformingPair.actualWinPct}%`, background: '#2E3E5C' }} />
+                    <div style={{ height: 7, borderRadius: 999, background: isDark ? '#0B1220' : 'var(--surface-sunken)', overflow: 'hidden', display: 'flex' }}>
+                      <div style={{ width: `${underperformingPair.actualWinPct}%`, background: isDark ? '#2E3E5C' : '#CBD5E1' }} />
                       <div style={{ width: `${Math.max(0, underperformingPair.expectedWinPct - underperformingPair.actualWinPct)}%`, background: '#D63B2B' }} />
                     </div>
                     <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#F09A8E' }}>
@@ -1946,20 +1951,20 @@ function getScoreVisuals(score, isTop) {
         {/* Right Side: 2 Rail Cards */}
         <div style={{ display: 'grid', gap: 12 }}>
           {/* Card 1: Dưới kỳ vọng nhiều nhất */}
-          <div style={{ background: '#141D2E', border: '1px solid #E08A00', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: bgCard, border: isDark ? '1px solid #E08A00' : '1px solid var(--amber-700, #B45309)', borderRadius: 10, overflow: 'hidden' }}>
             <div
               style={{
                 padding: '11px 14px',
-                background: 'rgba(224,138,0,.14)',
-                borderBottom: '1px solid #22304A',
+                background: isDark ? 'rgba(224,138,0,.14)' : 'var(--surface-warning-soft)',
+                borderBottom: `1px solid ${borderCard}`,
                 font: "600 13px/1.3 'IBM Plex Sans', sans-serif",
-                color: '#F0B75C',
+                color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)',
               }}
             >
               {t('leaderboard.underperformingTitle')}
             </div>
             <div style={{ padding: '13px 14px', display: 'grid', gap: 11 }}>
-              <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: textSecondary }}>
                 {underperformingPair
                   ? t('leaderboard.underperformingLossSummary', {
                       names: getPairNames(underperformingPair).join(' · '),
@@ -1981,8 +1986,8 @@ function getScoreVisuals(score, isTop) {
                       font: "400 12px/1.4 'IBM Plex Mono', monospace",
                     }}
                   >
-                    <span style={{ color: '#8494AA' }}>{getPairNames(p).join(' · ')}</span>
-                    <span style={{ color: p.pairImpact <= -12 ? '#F09A8E' : '#F0B75C' }}>
+                    <span style={{ color: textSecondary }}>{getPairNames(p).join(' · ')}</span>
+                    <span style={{ color: p.pairImpact <= -12 ? '#F09A8E' : (isDark ? '#F0B75C' : 'var(--amber-700, #B45309)') }}>
                       {p.pairImpact} {t('leaderboard.pointsPct')}
                     </span>
                   </div>
@@ -1992,8 +1997,8 @@ function getScoreVisuals(score, isTop) {
               <div
                 style={{
                   font: "400 12px/1.5 'IBM Plex Sans', sans-serif",
-                  color: '#8494AA',
-                  borderTop: '1px solid #22304A',
+                  color: textMuted,
+                  borderTop: `1px solid ${borderCard}`,
                   paddingTop: 9,
                 }}
               >
@@ -2005,18 +2010,18 @@ function getScoreVisuals(score, isTop) {
           {/* Card 3: Chưa đủ dữ liệu */}
           <div
             style={{
-              background: '#141D2E',
-              border: '1px solid #22304A',
+              background: bgCard,
+              border: `1px solid ${borderCard}`,
               borderRadius: 10,
               padding: '13px 15px',
               display: 'grid',
               gap: 10,
             }}
           >
-            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+            <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: textWhite }}>
               {t('leaderboard.provisionalPairsTitle')}
             </div>
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
               {t('leaderboard.provisionalPairsDesc', { count: provisionalPairs.length })}
             </div>
             <div style={{ display: 'grid', gap: 6 }}>
@@ -2030,11 +2035,11 @@ function getScoreVisuals(score, isTop) {
                     alignItems: 'center',
                     padding: '7px 10px',
                     borderRadius: 6,
-                    background: '#101927',
-                    border: '1px solid #22304A',
+                    background: bgSunken,
+                    border: `1px solid ${borderCard}`,
                   }}
                 >
-                  <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#fff' }}>
+                  <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: textWhite }}>
                     {getPairNames(p).join(' · ')}
                   </span>
                   <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>

@@ -10,6 +10,7 @@ import SessionPlannerTab from '#components/session/planner/SessionPlannerTab.jsx
 import PlannerAddWishDialog from '#components/session/planner/PlannerAddWishDialog.jsx'
 import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { dd, ddmy, monthOf, wd } from '#utils/dates.js'
 import {
@@ -22,8 +23,10 @@ import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { sortAttendanceMembers } from '#lib/members.js'
 import { t } from '#i18n'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 
 function SelfAttendanceCard({ s, db, a, isMobile, isClosed }) {
+  const { isDark } = useTheme()
   const myMem = myMember(db)
   if (!myMem) return null
 
@@ -43,7 +46,7 @@ function SelfAttendanceCard({ s, db, a, isMobile, isClosed }) {
 
   const statusColor =
     myAtt === true
-      ? '#5FDBD3'
+      ? (isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)')
       : myAtt === false
       ? '#EF4444'
       : myAtt === 'extra'
@@ -52,12 +55,12 @@ function SelfAttendanceCard({ s, db, a, isMobile, isClosed }) {
 
   const statusBg =
     myAtt === true
-      ? 'rgba(0, 178, 169, 0.12)'
+      ? (isDark ? 'rgba(0, 178, 169, 0.12)' : 'var(--surface-accent-soft, rgba(0, 178, 169, 0.12))')
       : myAtt === false
       ? 'rgba(239, 68, 68, 0.12)'
       : myAtt === 'extra'
       ? 'rgba(59, 130, 246, 0.12)'
-      : 'rgba(255, 255, 255, 0.05)'
+      : 'var(--surface-sunken)'
 
   return (
     <div
@@ -172,6 +175,7 @@ function SelfAttendanceCard({ s, db, a, isMobile, isClosed }) {
 
 export default function SessionDetail() {
   const { db, a } = useApp()
+  const { isDark } = useTheme()
   const isMobile = useMobile(768)
   const { id } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -271,11 +275,11 @@ export default function SessionDetail() {
       label: t('attend.unmarked'),
       count: unmarked.length,
       members: unmarked,
-      dotColor: 'var(--text-disabled, #7E92B2)',
-      textColor: 'var(--text-secondary, #A8B7CB)',
-      badgeBg: 'var(--surface-sunken, rgba(255,255,255,0.05))',
-      border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
-      lineGradient: 'linear-gradient(90deg, var(--border-subtle, rgba(255,255,255,0.15)) 0%, transparent 100%)',
+      dotColor: 'var(--text-disabled)',
+      textColor: 'var(--text-secondary)',
+      badgeBg: 'var(--surface-sunken)',
+      border: '1px solid var(--border-subtle)',
+      lineGradient: 'linear-gradient(90deg, var(--border-subtle) 0%, transparent 100%)',
     },
     {
       id: 'present',
@@ -283,32 +287,32 @@ export default function SessionDetail() {
       count: present.length,
       members: present,
       dotColor: 'var(--teal-500, #00B2A9)',
-      textColor: '#5FDBD3',
-      badgeBg: 'rgba(0,178,169,0.12)',
-      border: '1px solid rgba(0,178,169,0.3)',
-      lineGradient: 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)',
+      textColor: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
+      badgeBg: isDark ? 'rgba(0,178,169,0.12)' : 'var(--teal-50, rgba(0,178,169,0.12))',
+      border: isDark ? '1px solid rgba(0,178,169,0.3)' : '1px solid var(--teal-200, rgba(0,178,169,0.3))',
+      lineGradient: isDark ? 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)' : 'linear-gradient(90deg, var(--teal-300, #7ADFD9) 0%, transparent 100%)',
     },
     {
       id: 'absent',
       label: t('attend.absent'),
       count: absent.length,
       members: absent,
-      dotColor: 'var(--text-disabled, #64748B)',
-      textColor: 'var(--text-muted, #7E92B2)',
-      badgeBg: 'var(--surface-sunken, rgba(255,255,255,0.04))',
-      border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-      lineGradient: 'linear-gradient(90deg, var(--border-subtle, rgba(255,255,255,0.1)) 0%, transparent 100%)',
+      dotColor: 'var(--text-disabled)',
+      textColor: 'var(--text-muted)',
+      badgeBg: 'var(--surface-sunken)',
+      border: '1px solid var(--border-subtle)',
+      lineGradient: 'linear-gradient(90deg, var(--border-subtle) 0%, transparent 100%)',
     },
     {
       id: 'extra',
       label: t('attend.extra'),
       count: extra.length,
       members: extra,
-      dotColor: '#F0B75C',
-      textColor: '#F0B75C',
-      badgeBg: 'rgba(224,138,0,0.15)',
-      border: '1px solid rgba(240,183,92,0.3)',
-      lineGradient: 'linear-gradient(90deg, rgba(240,183,92,0.3) 0%, transparent 100%)',
+      dotColor: isDark ? '#F0B75C' : 'var(--amber-500, #E08A00)',
+      textColor: isDark ? '#F0B75C' : 'var(--amber-700, #784A15)',
+      badgeBg: isDark ? 'rgba(224,138,0,0.15)' : 'var(--amber-100, rgba(224,138,0,0.15))',
+      border: isDark ? '1px solid rgba(240,183,92,0.3)' : '1px solid rgba(224,138,0,0.3)',
+      lineGradient: isDark ? 'linear-gradient(90deg, rgba(240,183,92,0.3) 0%, transparent 100%)' : 'linear-gradient(90deg, rgba(224,138,0,0.3) 0%, transparent 100%)',
     },
   ].filter((sec) => sec.count > 0)
 
@@ -322,7 +326,7 @@ export default function SessionDetail() {
     let dueColor = 'var(--text-muted)'
     if (charge) {
       dueText = charge.paid ? t('session.guestPaid') : t('session.guestDebt')
-      if (!charge.paid) dueColor = '#F0B75C'
+      if (!charge.paid) dueColor = isDark ? '#F0B75C' : 'var(--amber-700, #784A15)'
     } else if (extra) {
       dueText = t('session.extraDueTag')
     } else if (due) {
@@ -332,10 +336,10 @@ export default function SessionDetail() {
         dueColor = 'var(--text-muted)'
       } else if (ds.state === 'partial') {
         dueText = t('session.duePartialTag', { amount: fmtK(ds.remain) })
-        dueColor = '#F0B75C'
+        dueColor = isDark ? '#F0B75C' : 'var(--amber-700, #784A15)'
       } else {
         dueText = t('session.dueUnpaidTag')
-        dueColor = '#F0B75C'
+        dueColor = isDark ? '#F0B75C' : 'var(--amber-700, #784A15)'
       }
     } else {
       dueText = t('session.noDueTag')
@@ -356,10 +360,10 @@ export default function SessionDetail() {
       statusText = t('attend.absent')
       statusColor = 'var(--text-muted)'
     } else if (isPresent) {
-      rowBg = 'rgba(0,178,169,.14)'
-      rowBorder = '1px solid var(--teal-500)'
+      rowBg = isDark ? 'rgba(0,178,169,.14)' : 'rgba(0,178,169,.06)'
+      rowBorder = isDark ? '1px solid var(--teal-500)' : '1px solid var(--teal-300, #7ADFD9)'
       statusText = t('attend.present')
-      statusColor = '#5FDBD3'
+      statusColor = isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)'
     } else if (isNoShow) {
       // Amber = "có gì đó chưa ổn nhưng vẫn phải trả tiền", cùng tông với công nợ (DESIGN.md §2).
       rowBg = 'var(--status-delayed-bg)'
@@ -372,10 +376,10 @@ export default function SessionDetail() {
       statusText = t('attend.absent')
       statusColor = 'var(--text-muted)'
     } else if (extra) {
-      rowBg = 'rgba(0,178,169,.08)'
-      rowBorder = '1px solid var(--teal-500)'
+      rowBg = isDark ? 'rgba(0,178,169,.08)' : 'rgba(0,178,169,.04)'
+      rowBorder = isDark ? '1px solid var(--teal-500)' : '1px solid var(--teal-300, #7ADFD9)'
       statusText = t('attend.extra')
-      statusColor = '#5FDBD3'
+      statusColor = isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)'
     }
 
     return (
@@ -497,6 +501,7 @@ export default function SessionDetail() {
                   : t(`sessionState.${s.status}`)}
               </span>
             </div>
+            <NotificationBell />
             {canEdit && s.status !== 'closed' && (
               <IconButton
                 icon="trash-2"
@@ -524,9 +529,9 @@ export default function SessionDetail() {
               style={{
                 flex: 1,
                 height: 34,
-                background: 'var(--surface-inset, #1A2437)',
-                border: '1px solid var(--border-default, #2E3E5C)',
-                color: 'var(--text-primary, #E9EFF7)',
+                background: 'var(--surface-inset)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)',
                 fontSize: 12,
                 fontWeight: 600,
                 justifyContent: 'center',
@@ -596,9 +601,9 @@ export default function SessionDetail() {
                     style={{
                       height: 34,
                       flex: '0 0 auto',
-                      background: 'var(--surface-inset, #1A2437)',
-                      border: '1px solid var(--border-default, #2E3E5C)',
-                      color: 'var(--text-primary, #E9EFF7)',
+                      background: 'var(--surface-inset)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-primary)',
                       fontSize: 12,
                       fontWeight: 600,
                     }}
@@ -632,6 +637,7 @@ export default function SessionDetail() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <NotificationBell />
             <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
               <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
               <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)' }}>
@@ -888,9 +894,9 @@ export default function SessionDetail() {
                 size="sm"
                 style={{
                   height: 32,
-                  background: 'var(--surface-inset, #1A2437)',
-                  border: '1px solid var(--border-default, #2E3E5C)',
-                  color: 'var(--text-primary, #E9EFF7)',
+                  background: 'var(--surface-inset)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
                   fontSize: 12,
                   fontWeight: 600,
                   justifyContent: 'center',
@@ -905,8 +911,8 @@ export default function SessionDetail() {
                 size="sm"
                 style={{
                   height: 32,
-                  border: '1px solid var(--border-subtle, #2E3E5C)',
-                  color: 'var(--text-secondary, #A8B7CB)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
                   fontSize: 12,
                   fontWeight: 600,
                   justifyContent: 'center',
@@ -925,22 +931,22 @@ export default function SessionDetail() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 4 }}>
               <span style={{
                 font: "700 11.5px/1 'IBM Plex Sans', sans-serif",
-                color: '#5FDBD3',
-                background: 'rgba(0,178,169,.14)',
+                color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
+                background: isDark ? 'rgba(0,178,169,.14)' : 'var(--teal-50, rgba(0,178,169,.14))',
                 padding: '4px 8px',
                 borderRadius: 4,
-                border: '1px solid rgba(0,178,169,.35)',
+                border: isDark ? '1px solid rgba(0,178,169,.35)' : '1px solid var(--teal-300, rgba(0,178,169,.35))',
               }}>
                 {t('session.attendSummary', { total: headCount(db, s) })}
               </span>
-              <span style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary, #A8B7CB)' }}>
+              <span style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
                 {t('session.attendCount', { present: presentCount(db, s), total: members.length })}
               </span>
               {guests.length > 0 && (
                 <span style={{
                   font: "700 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: '#F0B75C',
-                  background: 'rgba(224,138,0,.18)',
+                  color: isDark ? '#F0B75C' : 'var(--amber-700, #784A15)',
+                  background: isDark ? 'rgba(224,138,0,.18)' : 'var(--amber-100, rgba(224,138,0,.18))',
                   padding: '3px 7px',
                   borderRadius: 4,
                 }}>
@@ -1036,9 +1042,9 @@ export default function SessionDetail() {
                 onClick={() => a.openDialog('addcourt', addCourtForm(db, s))}
                 style={{
                   height: 32,
-                  background: 'var(--surface-inset, #1A2437)',
-                  border: '1px solid var(--border-default, #2E3E5C)',
-                  color: 'var(--text-primary, #E9EFF7)',
+                  background: 'var(--surface-inset)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
                   fontSize: 12,
                   fontWeight: 600,
                 }}
@@ -1769,11 +1775,11 @@ const S = {
     background: 'var(--text-muted)',
   },
   tabBarWrap: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '14px 0 6px', maxWidth: '100%' },
-  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: '#101927', border: '1px solid #22304A', gap: 2, maxWidth: '100%', boxSizing: 'border-box' },
+  tabTrack: { display: 'flex', padding: 3, borderRadius: 8, background: 'var(--surface-sunken)', border: '1px solid var(--border-subtle)', gap: 2, maxWidth: '100%', boxSizing: 'border-box' },
   tabBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 36, padding: '0 12px',
     borderRadius: 6, border: 'none', background: 'transparent',
-    font: '600 12px/1 "IBM Plex Sans", sans-serif', color: '#A8B7CB',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)',
     cursor: 'pointer', transition: 'all 0.15s ease',
   },
   tabBtnMobile: {
@@ -1788,8 +1794,8 @@ const S = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  tabBtnActive: { background: '#1A2437', border: '1px solid #2E3E5C', color: '#E9EFF7', boxShadow: '0 1px 1px rgba(0,0,0,.30)' },
-  tabBadgeMono: { font: '400 11px/1 "IBM Plex Mono", monospace', color: '#8494AA' },
+  tabBtnActive: { background: 'var(--surface-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-xs, 0 1px 2px rgba(0,0,0,.08))' },
+  tabBadgeMono: { font: '400 11px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' },
   headRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   label: { font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' },
   caption: { font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' },
@@ -1846,10 +1852,10 @@ const S = {
   },
   tagAmber: {
     font: '700 11px/1 var(--font-sans)', padding: '3px 7px', borderRadius: 4,
-    background: 'rgba(224,138,0,.18)', color: '#F0B75C', whiteSpace: 'nowrap',
+    background: 'var(--surface-warning-soft, rgba(224,138,0,.18))', color: 'var(--status-delayed, #B26A00)', whiteSpace: 'nowrap',
   },
   tagGreen: {
     font: '700 11px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 4,
-    background: 'rgba(18,168,103,.18)', color: '#5FD9A2', whiteSpace: 'nowrap',
+    background: 'var(--green-100, rgba(18,168,103,.18))', color: 'var(--action-success-bg, #0E8A55)', whiteSpace: 'nowrap',
   },
 }
