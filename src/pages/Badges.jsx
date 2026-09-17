@@ -11,7 +11,6 @@ import BadgeDetailModal from '#components/badges/BadgeDetailModal.jsx'
 import BountyBoardTab from '#components/badges/BountyBoardTab.jsx'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.jsx'
-import AchievementFeed from '#components/badges/AchievementFeed.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import AnimeMobileCollection from '#components/badges/mobile/AnimeMobileCollection.jsx'
 import AnimeMobileBadgeDetail from '#components/badges/mobile/AnimeMobileBadgeDetail.jsx'
@@ -24,7 +23,6 @@ import {
   getBadgeChasers,
   getCollectorLeaderboard,
   getRarestBadges,
-  getClubAchievementFeed,
   groupBadgesByFamily,
   getBadgeFamily,
   ANIME_TIERS,
@@ -47,7 +45,7 @@ import badgesConfig from '#config/badges.json'
  * - Bảng tin Thành tích & Tương tác CLB (Feed)
  */
 /** Tab hợp lệ của trang — dùng để lọc `?tab=` trước khi đưa vào state. */
-const TAB_IDS = ['collection', 'bounty', 'leaderboard', 'feed']
+const TAB_IDS = ['collection', 'bounty', 'leaderboard']
 
 export default function Badges() {
   const isMobile = useMobile(768)
@@ -55,7 +53,7 @@ export default function Badges() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Tab đang kích hoạt: collection | bounty | leaderboard | feed
+  // Tab đang kích hoạt: collection | bounty | leaderboard
   const [activeTab, setActiveTab] = useState('collection')
 
   // Quản lý Modal
@@ -275,11 +273,6 @@ export default function Badges() {
     setIsEditingSignature(false)
   }
 
-  // Bảng tin thành tích CLB
-  const clubFeed = useMemo(() => {
-    return getClubAchievementFeed(db)
-  }, [db])
-
   const selectedBadgeId = selectedBadge?.id
   const currentMemberId = currentMember?.id
 
@@ -304,7 +297,6 @@ export default function Badges() {
     collection: 'badges.tabCollection',
     bounty: 'badges.tabBounty',
     leaderboard: 'badges.tabLeaderboard',
-    feed: 'badges.tabFeed',
   }
   const tabs = TAB_IDS.map((id) => ({ id, label: t(TAB_LABEL_KEYS[id]) }))
 
@@ -389,24 +381,11 @@ export default function Badges() {
                   </div>
                 </div>
               )}
-              {activeTab === 'feed' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ font: "700 22px/1 'Oswald', sans-serif", letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF' }}>
-                      {t('badges.feed.title')}
-                    </span>
-                    <span style={{ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                      {t('badges.feed.sub')}
-                    </span>
-                  </div>
-                </div>
-              )}
               <div style={{ display: 'flex', gap: 4 }}>
                 {[
                   { id: 'collection', label: t('badges.tabCollection') },
                   { id: 'bounty', label: t('badges.tabBounties') },
                   { id: 'leaderboard', label: t('badges.tabLeaderboardShort') },
-                  { id: 'feed', label: t('badges.tabFeed') },
                 ].map((tab) => {
                   const isActive = activeTab === tab.id
                   return (
@@ -465,7 +444,6 @@ export default function Badges() {
                 onSelectBadge={handleSelectBadge}
               />
             )}
-            {activeTab === 'feed' && <AchievementFeed feed={clubFeed} hideHeader={true} />}
           </div>
         )}
 
@@ -1225,11 +1203,6 @@ export default function Badges() {
           onViewBadge={(b) => handleSelectBadge(b)}
         />
       )}
-
-      {/* ─────────────────────────────────────────────────────────────
-          TAB 4: BẢNG TIN THÀNH TÍCH (Achievement Feed)
-         ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'feed' && <AchievementFeed feed={clubFeed} />}
 
       {/* ═══ MODAL A2: CHI TIẾT DANH HIỆU ═══ */}
       {selectedBadge && (
