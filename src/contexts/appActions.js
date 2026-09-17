@@ -2589,6 +2589,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       // Bảng rating sau trận. up() chạy đồng bộ nên biến này có giá trị ngay sau khi up() trả về.
       // Cần cho người gọi (ScoreModal) dựng db "sau trận" để tính huy hiệu phụ thuộc Elo mới.
       let nextPlayerRatings = null
+      let isChalComplete = true
+      let chalSeriesProg = null
+      let currentSetNum = 1
+      let isBoSeries = false
 
       up((d) => {
         const lineups = { ...(d.lineups || {}) }
@@ -2679,8 +2683,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
         const sessionMatches = (d.matches || []).filter((x) => x.sessionId === targetSid)
         const prevChalMatches = chal ? (d.matches || []).filter((x) => x.challengeId === chal.id) : []
-        const currentSetNum = prevChalMatches.length + 1
-        const isBoSeries = chal && (Number(chal.bestOf) || 1) > 1
+        currentSetNum = prevChalMatches.length + 1
+        isBoSeries = chal && (Number(chal.bestOf) || 1) > 1
 
         const matchCode = chal
           ? (isBoSeries ? `${chal.code}-H${currentSetNum}` : chal.code)
@@ -2737,8 +2741,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           brokenStreak,
         }
 
-        let isChalComplete = true
-        let chalSeriesProg = null
         if (chal) {
           const allChalMatches = [...prevChalMatches, newMatch]
           chalSeriesProg = getChallengeSeriesProgress(chal, allChalMatches)
@@ -2746,6 +2748,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           const directSetsCount = (playedSets || []).filter(([a, b]) => a > 0 || b > 0).length
           const isDirectComplete = directSetsCount >= winsNeeded && Boolean(winnerTeam)
           isChalComplete = isDirectComplete || chalSeriesProg.isComplete
+        } else {
+          isChalComplete = true
+          chalSeriesProg = null
         }
 
         const challenges = chal
@@ -2764,7 +2769,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
               return {
                 ...k,
                 status: 'accepted',
-                matchId,
+                matchId: null,
                 seriesScore: chalSeriesProg ? { winsA: chalSeriesProg.winsA, winsB: chalSeriesProg.winsB } : null,
               }
             })
