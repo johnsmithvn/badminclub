@@ -229,7 +229,25 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
     })
   }
 
-  const handleDropPlayer = (roundIndex, courtIndex, playerKey) => {
+  const handleRemovePlayer = (roundIndex, courtIndex, playerKey) => {
+    setPlan((prev) => {
+      const nextRounds = prev.rounds.map((r, rIdx) => {
+        if (rIdx !== roundIndex) return r
+        const nextCourts = r.courts.map((c, cIdx) => {
+          if (cIdx !== courtIndex) return c
+          return {
+            ...c,
+            teamA: (c.teamA || []).filter((k) => k !== playerKey),
+            teamB: (c.teamB || []).filter((k) => k !== playerKey),
+          }
+        })
+        return { ...r, courts: nextCourts }
+      })
+      return { ...prev, rounds: nextRounds }
+    })
+  }
+
+  const handleDropPlayer = (roundIndex, courtIndex, playerKey, targetTeam = null, targetSlotIndex = null) => {
     setPlan((prev) => {
       const nextRounds = prev.rounds.map((r, rIdx) => {
         if (rIdx !== roundIndex) return r
@@ -241,15 +259,178 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
 
           // Nếu là sân đang thả người vào:
           if (cIdx === courtIndex) {
-            if (teamA.length < 2) {
-              teamA = [...teamA, playerKey]
-            } else if (teamB.length < 2) {
-              teamB = [...teamB, playerKey]
+            if (targetTeam === 'A') {
+              if (targetSlotIndex === 0) {
+                teamA = [playerKey, ...(teamA.slice(1))]
+              } else if (targetSlotIndex === 1) {
+                teamA = [teamA[0] || playerKey, playerKey]
+                if (teamA[0] === teamA[1] && teamA.length > 1) teamA = [teamA[0]]
+                teamA = [teamA[0] || playerKey, playerKey].filter((k, idx, arr) => idx === 1 || k !== arr[1])
+                if (teamA.length === 1) teamA = [teamA[0], playerKey]
+              } else {
+                teamA = teamA.length < 2 ? [...teamA, playerKey] : [teamA[0], playerKey]
+              }
+            } else if (targetTeam === 'B') {
+              if (targetSlotIndex === 0) {
+                teamB = [playerKey, ...(teamB.slice(1))]
+              } else if (targetSlotIndex === 1) {
+                teamB = [teamB[0] || playerKey, playerKey]
+                if (teamB[0] === teamB[1] && teamB.length > 1) teamB = [teamB[0]]
+                teamB = [teamB[0] || playerKey, playerKey].filter((k, idx, arr) => idx === 1 || k !== arr[1])
+                if (teamB.length === 1) teamB = [teamB[0], playerKey]
+              } else {
+                teamB = teamB.length < 2 ? [...teamB, playerKey] : [teamB[0], playerKey]
+              }
             } else {
-              // Sân đã đủ 4 người -> thay người cuối của đội B
-              teamB = [teamB[0], playerKey]
+              if (teamA.length < 2) {
+                teamA = [...teamA, playerKey]
+              } else if (teamB.length < 2) {
+                teamB = [...teamB, playerKey]
+              } else {
+                teamB = [teamB[0], playerKey]
+              }
             }
           }
+          return { ...court, teamA, teamB }
+        })
+
+        return { ...r, courts: nextCourts }
+      })
+
+      return { ...prev, rounds: nextRounds }
+    })
+  }
+
+  // Hoán đổi hoặc di chuyển 1 người chơi giữa 2 slot cụ thể
+  const handleSwapOrMovePlayerSlot = (source, target) => {
+    const { roundIndex: sR, courtIndex: sC, team: sTeam, slotIndex: sSlot, playerKey: sKey } = source
+    const { roundIndex: tR, courtIndex: tC, team: tTeam, slotIndex: tSlot } = target
+
+    if (sR === tR && sC === tC && sTeam === tTeam && sSlot === tSlot) return
+
+    setPlan((prev) => {
+      const srcRound = prev.rounds[sR]
+      const tgtRound = prev.rounds[tR]
+      if (!srcRound || !tgtRound) return prev
+
+      const srcCourt = srcRound.courts[sC]
+      const tgtCourt = tgtRound.courts[tC]
+      if (!srcCourt || !tgtCourt) return prev
+
+      const targetList = tTeam === 'A' ? (tgtCourt.teamA || []) : (tgtCourt.teamB || [])
+      const tKey = targetList[tSlot] || null
+
+      const nextRounds = prev.rounds.map((r, rIdx) => {
+        if (rIdx !== sR && rIdx !== tR) return r
+
+        const nextCourts = r.courts.map((court, cIdx) => {
+          let teamA = [...(court.teamA || [])]
+          let teamB = [...(court.teamB || [])]
+
+          // Khác vòng: loại bỏ người khỏi các vị trí cũ trong vòng đích & vòng nguồn
+          if (sR !== tR) {
+            if (rIdx === tR) {
+              teamA = teamA.filter((k) => k !== sKey)
+              teamB = teamB.filter((k) => k !== sKey)
+            }
+            if (rIdx === sR && tKey) {
+              teamA = teamA.filter((k) => k !== tKey)
+              teamB = teamB.filter((k) => k !== tKey)
+            }
+          }
+
+          return { ...court, teamA, teamB }
+        })
+
+        return { ...r, courts: nextCourts }
+      })
+
+      // 1. Cập nhật slot đích
+      const targetCourtObj = nextRounds[tR].courts[tC]
+      const tTeamArr = [...(tTeam === 'A' ? targetCourtObj.teamA : targetCourtObj.teamB)]
+      if (tSlot === 0) {
+        if (tTeamArr.length === 0) tTeamArr.push(sKey)
+        else tTeamArr[0] = sKey
+      } else {
+        if (tTeamArr.length === 0) tTeamArr.push(sKey)
+        else if (tTeamArr.length === 1) tTeamArr.push(sKey)
+        else tTeamArr[1] = sKey
+      }
+      if (tTeam === 'A') targetCourtObj.teamA = tTeamArr
+      else targetCourtObj.teamB = tTeamArr
+
+      // 2. Cập nhật slot nguồn
+      const sourceCourtObj = nextRounds[sR].courts[sC]
+      const sTeamArr = [...(sTeam === 'A' ? sourceCourtObj.teamA : sourceCourtObj.teamB)]
+      if (tKey) {
+        if (sSlot === 0) {
+          sTeamArr[0] = tKey
+        } else {
+          if (sTeamArr.length >= 2) sTeamArr[1] = tKey
+          else sTeamArr.push(tKey)
+        }
+      } else {
+        if (sSlot === 0) {
+          sTeamArr.splice(0, 1)
+        } else {
+          if (sTeamArr.length > 1) sTeamArr.splice(1, 1)
+          else sTeamArr.splice(0, 1)
+        }
+      }
+      if (sTeam === 'A') sourceCourtObj.teamA = sTeamArr
+      else sourceCourtObj.teamB = sTeamArr
+
+      return { ...prev, rounds: nextRounds }
+    })
+  }
+
+  // Hoán đổi 2 đội (cả đôi) giữa các sân/vòng
+  const handleSwapTeam = (source, target) => {
+    const { roundIndex: sR, courtIndex: sC, team: sTeam } = source
+    const { roundIndex: tR, courtIndex: tC, team: tTeam } = target
+
+    if (sR === tR && sC === tC && sTeam === tTeam) return
+
+    setPlan((prev) => {
+      const srcRound = prev.rounds[sR]
+      const tgtRound = prev.rounds[tR]
+      if (!srcRound || !tgtRound) return prev
+
+      const srcCourt = srcRound.courts[sC]
+      const tgtCourt = tgtRound.courts[tC]
+      if (!srcCourt || !tgtCourt) return prev
+
+      const sPlayers = [...(sTeam === 'A' ? (srcCourt.teamA || []) : (srcCourt.teamB || []))]
+      const tPlayers = [...(tTeam === 'A' ? (tgtCourt.teamA || []) : (tgtCourt.teamB || []))]
+
+      const nextRounds = prev.rounds.map((r, rIdx) => {
+        if (rIdx !== sR && rIdx !== tR) return r
+
+        const nextCourts = r.courts.map((court, cIdx) => {
+          let teamA = [...(court.teamA || [])]
+          let teamB = [...(court.teamB || [])]
+
+          if (sR !== tR) {
+            if (rIdx === tR) {
+              teamA = teamA.filter((k) => !sPlayers.includes(k))
+              teamB = teamB.filter((k) => !sPlayers.includes(k))
+            }
+            if (rIdx === sR) {
+              teamA = teamA.filter((k) => !tPlayers.includes(k))
+              teamB = teamB.filter((k) => !tPlayers.includes(k))
+            }
+          }
+
+          if (rIdx === sR && cIdx === sC) {
+            if (sTeam === 'A') teamA = tPlayers
+            else teamB = tPlayers
+          }
+
+          if (rIdx === tR && cIdx === tC) {
+            if (tTeam === 'A') teamA = sPlayers
+            else teamB = sPlayers
+          }
+
           return { ...court, teamA, teamB }
         })
 
@@ -596,6 +777,9 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
             ratingsMap={ratingsMap}
             highlightRoundIndex={highlightRoundIndex}
             onDropPlayer={handleDropPlayer}
+            onSwapOrMovePlayerSlot={handleSwapOrMovePlayerSlot}
+            onSwapTeam={handleSwapTeam}
+            onRemovePlayer={handleRemovePlayer}
             onMoveMatch={handleMoveMatch}
             onClearCourt={handleClearCourt}
             onAddRound={handleAddRound}

@@ -4,6 +4,153 @@ import { calcCourtBalanceScore } from '#lib/planner.js'
 import { playerName, playerOf } from '#lib/money.js'
 import { Icon, Avatar } from '#ds'
 
+/**
+ * Slot người chơi (Pill):
+ * - Nếu có người: Hiển thị Avatar + Tên + Nút gỡ, có thể kéo thả để swap / move.
+ * - Nếu trống: Hiển thị ô nét đứt "+ Trống" để thả người từ ngoài hoặc từ slot khác vào.
+ */
+function PlayerSlotPill({
+  roundIndex,
+  courtIndex,
+  team,
+  slotIndex,
+  playerKey,
+  pName,
+  pAvatar,
+  dragOverKey,
+  setDragOverKey,
+  onDropPlayer,
+  onSwapOrMovePlayerSlot,
+  onRemovePlayer,
+}) {
+  const slotKey = `SLOT:${roundIndex}-${courtIndex}-${team}-${slotIndex}`
+  const isOver = dragOverKey === slotKey
+
+  if (!playerKey) {
+    return (
+      <div
+        style={{
+          ...S.emptySlotPill,
+          borderColor: isOver ? '#00B2A9' : 'rgba(255, 255, 255, 0.12)',
+          background: isOver ? 'rgba(0, 178, 169, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+          color: isOver ? '#00B2A9' : '#54637B',
+        }}
+        title={t('planner.dragPlayerHint')}
+        onDragOver={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          if (dragOverKey !== slotKey) setDragOverKey(slotKey)
+        }}
+        onDragLeave={(e) => {
+          e.stopPropagation()
+          if (dragOverKey === slotKey) setDragOverKey(null)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setDragOverKey(null)
+
+          // 1. Drop từ 1 slot khác trong kế hoạch (swap hoặc move)
+          try {
+            const raw = e.dataTransfer.getData('application/json')
+            if (raw) {
+              const data = JSON.parse(raw)
+              if (data && data.type === 'PLAYER_SLOT' && onSwapOrMovePlayerSlot) {
+                onSwapOrMovePlayerSlot(data, { roundIndex, courtIndex, team, slotIndex })
+                return
+              }
+            }
+          } catch {}
+
+          // 2. Drop từ sidebar player list ngoài vào
+          const extKey = e.dataTransfer.getData('text/plain')
+          if (extKey && onDropPlayer) {
+            onDropPlayer(roundIndex, courtIndex, extKey, team, slotIndex)
+          }
+        }}
+      >
+        <span style={S.emptySlotText}>{t('planner.emptySlot')}</span>
+      </div>
+    )
+  }
+
+  const name = pName(playerKey)
+  const avatar = pAvatar(playerKey)
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.stopPropagation()
+        e.dataTransfer.setData(
+          'application/json',
+          JSON.stringify({
+            type: 'PLAYER_SLOT',
+            roundIndex,
+            courtIndex,
+            team,
+            slotIndex,
+            playerKey,
+          })
+        )
+        e.dataTransfer.effectAllowed = 'move'
+      }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (dragOverKey !== slotKey) setDragOverKey(slotKey)
+      }}
+      onDragLeave={(e) => {
+        e.stopPropagation()
+        if (dragOverKey === slotKey) setDragOverKey(null)
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setDragOverKey(null)
+
+        try {
+          const raw = e.dataTransfer.getData('application/json')
+          if (raw) {
+            const data = JSON.parse(raw)
+            if (data && data.type === 'PLAYER_SLOT' && onSwapOrMovePlayerSlot) {
+              onSwapOrMovePlayerSlot(data, { roundIndex, courtIndex, team, slotIndex })
+              return
+            }
+          }
+        } catch {}
+
+        const extKey = e.dataTransfer.getData('text/plain')
+        if (extKey && onDropPlayer) {
+          onDropPlayer(roundIndex, courtIndex, extKey, team, slotIndex)
+        }
+      }}
+      style={{
+        ...S.playerSlotPill,
+        borderColor: isOver ? '#00B2A9' : 'rgba(255, 255, 255, 0.1)',
+        background: isOver ? 'rgba(0, 178, 169, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+      }}
+      title={name + ' · ' + t('planner.dragPlayerHint')}
+    >
+      <Avatar name={name} src={avatar} size={18} style={{ flexShrink: 0 }} />
+      <span style={S.slotPlayerName}>{name}</span>
+      {onRemovePlayer && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemovePlayer(roundIndex, courtIndex, playerKey)
+          }}
+          style={S.btnRemovePlayer}
+          title={t('planner.removePlayerTitle')}
+        >
+          <Icon name="x" size={10} color="#8494AA" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function PlannerGridCol({
   db,
   rounds = [],
@@ -11,23 +158,27 @@ export default function PlannerGridCol({
   ratingsMap = {},
   highlightRoundIndex = null,
   onDropPlayer,
+  onSwapOrMovePlayerSlot,
+  onSwapTeam,
+  onRemovePlayer,
   onMoveMatch,
-  _onRemovePlayer,
   onClearCourt,
   onAddRound,
 }) {
-  const [dragOverCell, setDragOverCell] = useState(null)
+  const [dragOverKey, setDragOverKey] = useState(null)
   const [draggingMatch, setDraggingMatch] = useState(null)
 
   const pMap = useMemo(() => {
     const map = {}
-      ; (players || []).forEach((p) => { map[p.key || p.id] = p })
+    ;(players || []).forEach((p) => {
+      map[p.key || p.id] = p
+    })
     return map
   }, [players])
 
   const numCourts = rounds[0]?.courts?.length || 2
-  const minTableWidth = Math.max(760, 60 + numCourts * 380)
-  const gridTemplate = `60px repeat(${numCourts}, minmax(360px, 1fr))`
+  const minTableWidth = Math.max(860, 60 + numCourts * 420)
+  const gridTemplate = `60px repeat(${numCourts}, minmax(400px, 1fr))`
 
   const pName = (k) => {
     if (!k) return '?'
@@ -92,9 +243,7 @@ export default function PlannerGridCol({
                   <span style={{ ...S.roundLabel, color: roundInk }}>
                     {r.label}
                   </span>
-                  <span style={S.roundTime}>
-                    {r.time}
-                  </span>
+                  <span style={S.roundTime}>{r.time}</span>
                 </div>
 
                 {/* Các ô sân của vòng này */}
@@ -109,20 +258,14 @@ export default function PlannerGridCol({
 
                   // Tính điểm cân bằng
                   const bal = totalPlaced === 4 ? calcCourtBalanceScore(teamA, teamB, ratingsMap) : null
-                  const balInk = bal != null
-                    ? (bal >= 85 ? '#5FDBD3' : bal >= 75 ? '#8494AA' : '#F0B75C')
-                    : '#54637B'
-
-                  // Hiển thị tên đội A và B
-                  let textA = ''
-                  if (teamA.length === 2) textA = `${pName(teamA[0])} + ${pName(teamA[1])}`
-                  else if (teamA.length === 1) textA = `${pName(teamA[0])} + ?`
-                  else textA = totalPlaced === 0 ? t('planner.emptyCourt') : t('planner.needTwo')
-
-                  let textB = ''
-                  if (teamB.length === 2) textB = `${pName(teamB[0])} + ${pName(teamB[1])}`
-                  else if (teamB.length === 1) textB = `${pName(teamB[0])} + ?`
-                  else textB = missing >= 2 ? t('planner.needTwo') : t('planner.needOne')
+                  const balInk =
+                    bal != null
+                      ? bal >= 85
+                        ? '#5FDBD3'
+                        : bal >= 75
+                        ? '#8494AA'
+                        : '#F0B75C'
+                      : '#54637B'
 
                   // Style theo trạng thái
                   let cellBg = '#141D2E'
@@ -138,44 +281,26 @@ export default function PlannerGridCol({
                     cellBorder = 'rgba(139, 92, 246, 0.65)'
                   }
 
-                  const cellKey = `${r.roundIndex}-${cIdx}`
-                  const isOver = dragOverCell === cellKey
+                  const cellKey = `MATCH:${r.roundIndex}-${cIdx}`
+                  const isOverCell = dragOverKey === cellKey
                   const isThisDragging = draggingMatch === cellKey
 
                   return (
                     <div
                       key={cIdx}
-                      draggable={totalPlaced > 0}
-                      onDragStart={(e) => {
-                        if (totalPlaced === 0) return
-                        setDraggingMatch(cellKey)
-                        e.dataTransfer.setData(
-                          'application/json',
-                          JSON.stringify({
-                            type: 'MATCH',
-                            sourceRound: r.roundIndex,
-                            sourceCourt: cIdx,
-                          })
-                        )
-                        e.dataTransfer.effectAllowed = 'move'
-                      }}
-                      onDragEnd={() => {
-                        setDraggingMatch(null)
-                        setDragOverCell(null)
-                      }}
                       onDragOver={(e) => {
                         e.preventDefault()
-                        if (dragOverCell !== cellKey) setDragOverCell(cellKey)
+                        if (dragOverKey !== cellKey) setDragOverKey(cellKey)
                       }}
                       onDragLeave={() => {
-                        if (dragOverCell === cellKey) setDragOverCell(null)
+                        if (dragOverKey === cellKey) setDragOverKey(null)
                       }}
                       onDrop={(e) => {
                         e.preventDefault()
-                        setDragOverCell(null)
+                        setDragOverKey(null)
                         setDraggingMatch(null)
 
-                        // 1. Thử drop kiểu MATCH (kéo cả cục trận đấu)
+                        // 1. Thả cả trận đấu (MATCH)
                         try {
                           const rawJson = e.dataTransfer.getData('application/json')
                           if (rawJson) {
@@ -184,10 +309,15 @@ export default function PlannerGridCol({
                               onMoveMatch(data.sourceRound, data.sourceCourt, r.roundIndex, cIdx)
                               return
                             }
+                            if (data && data.type === 'TEAM' && onSwapTeam) {
+                              // Thả team vào cả ô sân -> mặc định gán vào Đội A
+                              onSwapTeam(data, { roundIndex: r.roundIndex, courtIndex: cIdx, team: 'A' })
+                              return
+                            }
                           }
-                        } catch { }
+                        } catch {}
 
-                        // 2. Drop kiểu PLAYER (kéo 1 người)
+                        // 2. Thả người chơi từ ngoài vào sân
                         const playerKey = e.dataTransfer.getData('text/plain')
                         if (playerKey && onDropPlayer) {
                           onDropPlayer(r.roundIndex, cIdx, playerKey)
@@ -196,75 +326,221 @@ export default function PlannerGridCol({
                       style={{
                         ...S.courtCell,
                         background: cellBg,
-                        borderColor: isOver ? '#00B2A9' : cellBorder,
-                        boxShadow: isOver ? '0 0 12px rgba(0, 178, 169, 0.5)' : 'none',
-                        cursor: totalPlaced > 0 ? 'grab' : 'default',
+                        borderColor: isOverCell ? '#00B2A9' : cellBorder,
+                        boxShadow: isOverCell ? '0 0 12px rgba(0, 178, 169, 0.5)' : 'none',
                         opacity: isThisDragging ? 0.45 : 1,
                       }}
-                      title={totalPlaced > 0 ? t('planner.dragMatchHint') : undefined}
                     >
-                      {/* Cặp đấu A vs B */}
-                      <span style={S.matchContent}>
-                        <span
-                          style={{
-                            ...S.teamName,
-                            color: teamA.length === 0 ? '#54637B' : '#E9EFF7',
+                      {/* Khu vực trận đấu (Cố định trục giữa VS) */}
+                      <div style={S.courtMatchArea}>
+                        {/* Tay cầm kéo cả trận (Cấp 3: Cầm cả 4 người) */}
+                        <div
+                          draggable={totalPlaced > 0}
+                          onDragStart={(e) => {
+                            if (totalPlaced === 0) return
+                            e.stopPropagation()
+                            setDraggingMatch(cellKey)
+                            e.dataTransfer.setData(
+                              'application/json',
+                              JSON.stringify({
+                                type: 'MATCH',
+                                sourceRound: r.roundIndex,
+                                sourceCourt: cIdx,
+                              })
+                            )
+                            e.dataTransfer.effectAllowed = 'move'
                           }}
-                          title={textA}
-                        >
-                          {teamA.length === 0 ? (
-                            totalPlaced === 0 ? t('planner.emptyCourt') : t('planner.needTwo')
-                          ) : (
-                            <span style={S.playerTeamWrap}>
-                              {teamA.map((k, idx) => (
-                                <span key={k + idx} style={S.playerInlineItem} title={pName(k)}>
-                                  <Avatar name={pName(k)} src={pAvatar(k)} size={20} style={{ flexShrink: 0 }} />
-                                  <span style={S.playerNameText}>{pName(k)}</span>
-                                  {idx < teamA.length - 1 && <span style={S.plusSign}>+</span>}
-                                </span>
-                              ))}
-                              {teamA.length === 1 && <span style={S.slotPending}>+ ?</span>}
-                            </span>
-                          )}
-                        </span>
-                        <span style={S.vsBadge}>{t('planner.vs')}</span>
-                        <span
-                          style={{
-                            ...S.teamName,
-                            color: teamB.length === 0 || missing > 0 ? '#F08A7C' : '#E9EFF7',
+                          onDragEnd={() => {
+                            setDraggingMatch(null)
+                            setDragOverKey(null)
                           }}
-                          title={textB}
+                          style={{
+                            ...S.matchDragHandle,
+                            cursor: totalPlaced > 0 ? 'grab' : 'default',
+                            opacity: totalPlaced > 0 ? 0.75 : 0.2,
+                          }}
+                          title={totalPlaced > 0 ? t('planner.dragMatchHandle') : undefined}
                         >
-                          {teamB.length === 0 ? (
-                            missing >= 2 ? t('planner.needTwo') : t('planner.needOne')
-                          ) : (
-                            <span style={S.playerTeamWrap}>
-                              {teamB.map((k, idx) => (
-                                <span key={k + idx} style={S.playerInlineItem} title={pName(k)}>
-                                  <Avatar name={pName(k)} src={pAvatar(k)} size={20} style={{ flexShrink: 0 }} />
-                                  <span style={S.playerNameText}>{pName(k)}</span>
-                                  {idx < teamB.length - 1 && <span style={S.plusSign}>+</span>}
-                                </span>
-                              ))}
-                              {teamB.length === 1 && <span style={S.slotPending}>+ ?</span>}
-                            </span>
-                          )}
-                        </span>
-                      </span>
+                          <Icon name="grip-vertical" size={13} color="#6C7F99" />
+                        </div>
 
-                      {/* Tag trạng thái + Điểm cân bằng */}
-                      <span style={S.courtMeta}>
+                        {/* Cụm Đội A */}
+                        <div
+                          style={S.teamBlock}
+                          onDragOver={(e) => {
+                            e.preventDefault()
+                          }}
+                          onDrop={(e) => {
+                            try {
+                              const raw = e.dataTransfer.getData('application/json')
+                              if (raw) {
+                                const data = JSON.parse(raw)
+                                if (data && data.type === 'TEAM' && onSwapTeam) {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  onSwapTeam(data, { roundIndex: r.roundIndex, courtIndex: cIdx, team: 'A' })
+                                }
+                              }
+                            } catch {}
+                          }}
+                        >
+                          {/* Tay cầm kéo cả Đội A (Cấp 2: Cầm cả đôi) */}
+                          <div
+                            draggable={teamA.length > 0}
+                            onDragStart={(e) => {
+                              if (teamA.length === 0) return
+                              e.stopPropagation()
+                              e.dataTransfer.setData(
+                                'application/json',
+                                JSON.stringify({
+                                  type: 'TEAM',
+                                  roundIndex: r.roundIndex,
+                                  courtIndex: cIdx,
+                                  team: 'A',
+                                })
+                              )
+                              e.dataTransfer.effectAllowed = 'move'
+                            }}
+                            style={{
+                              ...S.teamDragHandle,
+                              cursor: teamA.length > 0 ? 'grab' : 'default',
+                              opacity: teamA.length > 0 ? 0.75 : 0.2,
+                            }}
+                            title={teamA.length > 0 ? t('planner.dragTeamHandle') : undefined}
+                          >
+                            <Icon name="users" size={11} color="#6C7F99" />
+                          </div>
+
+                          {/* 2 Slot Đội A (Cấp 1: Cầm từng người) */}
+                          <div style={S.slotsRow}>
+                            <PlayerSlotPill
+                              roundIndex={r.roundIndex}
+                              courtIndex={cIdx}
+                              team="A"
+                              slotIndex={0}
+                              playerKey={teamA[0]}
+                              pName={pName}
+                              pAvatar={pAvatar}
+                              dragOverKey={dragOverKey}
+                              setDragOverKey={setDragOverKey}
+                              onDropPlayer={onDropPlayer}
+                              onSwapOrMovePlayerSlot={onSwapOrMovePlayerSlot}
+                              onRemovePlayer={onRemovePlayer}
+                            />
+                            <PlayerSlotPill
+                              roundIndex={r.roundIndex}
+                              courtIndex={cIdx}
+                              team="A"
+                              slotIndex={1}
+                              playerKey={teamA[1]}
+                              pName={pName}
+                              pAvatar={pAvatar}
+                              dragOverKey={dragOverKey}
+                              setDragOverKey={setDragOverKey}
+                              onDropPlayer={onDropPlayer}
+                              onSwapOrMovePlayerSlot={onSwapOrMovePlayerSlot}
+                              onRemovePlayer={onRemovePlayer}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Huy hiệu VS chính giữa tuyệt đối */}
+                        <div style={S.vsBadge}>{t('planner.vs')}</div>
+
+                        {/* Cụm Đội B */}
+                        <div
+                          style={S.teamBlock}
+                          onDragOver={(e) => {
+                            e.preventDefault()
+                          }}
+                          onDrop={(e) => {
+                            try {
+                              const raw = e.dataTransfer.getData('application/json')
+                              if (raw) {
+                                const data = JSON.parse(raw)
+                                if (data && data.type === 'TEAM' && onSwapTeam) {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  onSwapTeam(data, { roundIndex: r.roundIndex, courtIndex: cIdx, team: 'B' })
+                                }
+                              }
+                            } catch {}
+                          }}
+                        >
+                          {/* 2 Slot Đội B (Cấp 1: Cầm từng người) */}
+                          <div style={S.slotsRow}>
+                            <PlayerSlotPill
+                              roundIndex={r.roundIndex}
+                              courtIndex={cIdx}
+                              team="B"
+                              slotIndex={0}
+                              playerKey={teamB[0]}
+                              pName={pName}
+                              pAvatar={pAvatar}
+                              dragOverKey={dragOverKey}
+                              setDragOverKey={setDragOverKey}
+                              onDropPlayer={onDropPlayer}
+                              onSwapOrMovePlayerSlot={onSwapOrMovePlayerSlot}
+                              onRemovePlayer={onRemovePlayer}
+                            />
+                            <PlayerSlotPill
+                              roundIndex={r.roundIndex}
+                              courtIndex={cIdx}
+                              team="B"
+                              slotIndex={1}
+                              playerKey={teamB[1]}
+                              pName={pName}
+                              pAvatar={pAvatar}
+                              dragOverKey={dragOverKey}
+                              setDragOverKey={setDragOverKey}
+                              onDropPlayer={onDropPlayer}
+                              onSwapOrMovePlayerSlot={onSwapOrMovePlayerSlot}
+                              onRemovePlayer={onRemovePlayer}
+                            />
+                          </div>
+
+                          {/* Tay cầm kéo cả Đội B (Cấp 2: Cầm cả đôi) */}
+                          <div
+                            draggable={teamB.length > 0}
+                            onDragStart={(e) => {
+                              if (teamB.length === 0) return
+                              e.stopPropagation()
+                              e.dataTransfer.setData(
+                                'application/json',
+                                JSON.stringify({
+                                  type: 'TEAM',
+                                  roundIndex: r.roundIndex,
+                                  courtIndex: cIdx,
+                                  team: 'B',
+                                })
+                              )
+                              e.dataTransfer.effectAllowed = 'move'
+                            }}
+                            style={{
+                              ...S.teamDragHandle,
+                              cursor: teamB.length > 0 ? 'grab' : 'default',
+                              opacity: teamB.length > 0 ? 0.75 : 0.2,
+                            }}
+                            title={teamB.length > 0 ? t('planner.dragTeamHandle') : undefined}
+                          >
+                            <Icon name="users" size={11} color="#6C7F99" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Khu vực Meta bên phải (Cố định độ rộng minWidth để không làm lệch trục giữa) */}
+                      <div style={S.courtMeta}>
                         {isChallenge && (
                           <span style={S.tagChallenge}>
                             {isBo3
-                              ? (c.bo3Part === 2 ? t('planner.tagChallengeBo3Part2') : t('planner.tagChallengeBo3Part1'))
+                              ? c.bo3Part === 2
+                                ? t('planner.tagChallengeBo3Part2')
+                                : t('planner.tagChallengeBo3Part1')
                               : t('planner.tagChallenge')}
                           </span>
                         )}
                         {isWish && (
-                          <span style={S.tagWish}>
-                            {t('planner.tagWish')}
-                          </span>
+                          <span style={S.tagWish}>{t('planner.tagWish')}</span>
                         )}
                         {missing > 0 && totalPlaced > 0 && (
                           <span style={S.tagMissing}>
@@ -275,7 +551,7 @@ export default function PlannerGridCol({
                           {bal != null ? bal : '—'}
                         </span>
 
-                        {/* Nút xoá ô trận nếu đã có người */}
+                        {/* Nút xoá ô trận */}
                         {totalPlaced > 0 && onClearCourt && (
                           <button
                             type="button"
@@ -289,7 +565,7 @@ export default function PlannerGridCol({
                             <Icon name="x" size={13} color="#8494AA" />
                           </button>
                         )}
-                      </span>
+                      </div>
                     </div>
                   )
                 })}
@@ -299,11 +575,7 @@ export default function PlannerGridCol({
 
           {/* Nút Thêm vòng */}
           {onAddRound && (
-            <button
-              type="button"
-              onClick={onAddRound}
-              style={S.btnAddRound}
-            >
+            <button type="button" onClick={onAddRound} style={S.btnAddRound}>
               <Icon name="plus" size={14} color="#8494AA" />
               <span>{t('planner.addRound', { n: rounds.length + 1 })}</span>
             </button>
@@ -314,203 +586,274 @@ export default function PlannerGridCol({
   )
 }
 
-      const S = {
-        colWrap: {
-        flex: '1 1 500px',
-      minWidth: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      background: '#0B1220',
-      overflow: 'hidden',
+const S = {
+  colWrap: {
+    flex: '1 1 500px',
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    background: '#0B1220',
+    overflow: 'hidden',
   },
-      tableScrollWrapper: {
-        flex: 1,
-      minHeight: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      overflowX: 'auto',
-      overflowY: 'hidden',
+  tableScrollWrapper: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    overflowX: 'auto',
+    overflowY: 'hidden',
   },
-      headerGrid: {
-        flex: '0 0 auto',
-      display: 'grid',
-      gap: 8,
-      padding: '10px 16px 7px',
-      background: '#0B1220',
-      borderBottom: '1px solid #1A2437',
+  headerGrid: {
+    flex: '0 0 auto',
+    display: 'grid',
+    gap: 8,
+    padding: '10px 16px 7px',
+    background: '#0B1220',
+    borderBottom: '1px solid #1A2437',
   },
-      headerColRound: {
-        font: '600 10px/1 "IBM Plex Sans", sans-serif',
-      color: '#54637B',
-      letterSpacing: '.1em',
-      textTransform: 'uppercase',
-      alignSelf: 'center',
-      textAlign: 'center',
+  headerColRound: {
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    color: '#54637B',
+    letterSpacing: '.1em',
+    textTransform: 'uppercase',
+    alignSelf: 'center',
+    textAlign: 'center',
   },
-      headerColCourt: {
-        font: '600 11px/1 "IBM Plex Sans", sans-serif',
-      color: '#8494AA',
-      letterSpacing: '.08em',
-      textTransform: 'uppercase',
-      alignSelf: 'center',
-      paddingLeft: 4,
+  headerColCourt: {
+    font: '600 11px/1 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    letterSpacing: '.08em',
+    textTransform: 'uppercase',
+    alignSelf: 'center',
+    paddingLeft: 4,
   },
-      gridScrollArea: {
-        flex: 1,
-      overflowY: 'auto',
-      overflowX: 'hidden',
-      padding: '8px 16px 16px',
+  gridScrollArea: {
+    flex: 1,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    padding: '8px 16px 16px',
   },
-      roundRow: {
-        display: 'grid',
-      gap: 8,
-      marginBottom: 7,
-      transition: 'background 120ms ease, box-shadow 120ms ease',
-      borderRadius: 8,
-      padding: '2px 0',
+  roundRow: {
+    display: 'grid',
+    gap: 8,
+    marginBottom: 7,
+    transition: 'background 120ms ease, box-shadow 120ms ease',
+    borderRadius: 8,
+    padding: '2px 0',
   },
-      roundRowHighlight: {
-        background: 'rgba(240, 183, 92, 0.08)',
-      boxShadow: '0 0 12px rgba(240, 183, 92, 0.4)',
+  roundRowHighlight: {
+    background: 'rgba(240, 183, 92, 0.08)',
+    boxShadow: '0 0 12px rgba(240, 183, 92, 0.4)',
   },
-      roundTimeCell: {
-        display: 'grid',
-      gap: 2,
-      alignContent: 'center',
-      justifyItems: 'center',
+  roundTimeCell: {
+    display: 'grid',
+    gap: 2,
+    alignContent: 'center',
+    justifyItems: 'center',
   },
-      roundLabel: {
-        font: '600 13px/1 "IBM Plex Mono", monospace',
+  roundLabel: {
+    font: '600 13px/1 "IBM Plex Mono", monospace',
   },
-      roundTime: {
-        font: '400 10px/1 "IBM Plex Mono", monospace',
-      color: '#54637B',
+  roundTime: {
+    font: '400 10px/1 "IBM Plex Mono", monospace',
+    color: '#54637B',
   },
-      courtCell: {
-        display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      minHeight: 52,
-      padding: '0 14px',
-      borderRadius: 8,
-      borderWidth: 1,
-      borderStyle: 'solid',
-      transition: 'all 120ms ease',
-      userSelect: 'none',
+  courtCell: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 52,
+    padding: '4px 10px',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    transition: 'all 120ms ease',
+    userSelect: 'none',
   },
-      matchContent: {
-        display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      minWidth: 0,
-      flex: 1,
+  courtMatchArea: {
+    flex: '1 1 0',
+    minWidth: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
   },
-      teamName: {
-        font: '600 13px/1.3 "IBM Plex Sans", sans-serif',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      flex: '1 1 0',
+  matchDragHandle: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 14,
+    height: 28,
+    padding: 0,
+    background: 'none',
+    border: 'none',
+    userSelect: 'none',
+    flexShrink: 0,
+    transition: 'opacity 120ms ease',
   },
-      playerTeamWrap: {
-        display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      flexWrap: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
+  teamBlock: {
+    flex: '1 1 0',
+    minWidth: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
   },
-      playerInlineItem: {
-        display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
+  teamDragHandle: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 16,
+    height: 26,
+    padding: 0,
+    background: 'none',
+    border: 'none',
+    userSelect: 'none',
+    flexShrink: 0,
+    transition: 'opacity 120ms ease',
   },
-      playerNameText: {
-        maxWidth: 95,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
+  slotsRow: {
+    flex: '1 1 0',
+    minWidth: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
   },
-      plusSign: {
-        color: '#54637B',
-      margin: '0 2px',
-      fontWeight: 500,
+  playerSlotPill: {
+    flex: '1 1 0',
+    minWidth: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    height: 28,
+    padding: '0 6px',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    cursor: 'grab',
+    userSelect: 'none',
+    overflow: 'hidden',
+    transition: 'all 120ms ease',
   },
-      slotPending: {
-        color: '#8494AA',
-      marginLeft: 2,
-      fontWeight: 500,
+  emptySlotPill: {
+    flex: '1 1 0',
+    minWidth: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 28,
+    padding: '0 4px',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    userSelect: 'none',
+    cursor: 'pointer',
+    transition: 'all 120ms ease',
   },
-      vsBadge: {
-        flex: '0 0 auto',
-      font: '600 10px/1 "IBM Plex Mono", monospace',
-      color: '#8494AA',
-      background: 'rgba(255, 255, 255, 0.06)',
-      padding: '3px 6px',
-      borderRadius: 4,
-      letterSpacing: '.05em',
+  emptySlotText: {
+    font: '500 11px/1 "IBM Plex Sans", sans-serif',
+    whiteSpace: 'nowrap',
   },
-      courtMeta: {
-        display: 'flex',
-      alignItems: 'center',
-      gap: 7,
-      flex: '0 0 auto',
+  slotPlayerName: {
+    flex: '1 1 0',
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    font: '600 12px/1.2 "IBM Plex Sans", sans-serif',
+    color: '#E9EFF7',
   },
-      tagChallenge: {
-        color: '#04302C',
-      background: '#F0B75C',
-      padding: '3px 7px',
-      borderRadius: 4,
-      font: '600 10px/1 "IBM Plex Sans", sans-serif',
-      letterSpacing: '.05em',
+  btnRemovePlayer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+    flexShrink: 0,
+    opacity: 0.6,
+    transition: 'opacity 120ms ease',
   },
-      tagWish: {
-        color: '#FFFFFF',
-      background: '#8B5CF6',
-      padding: '3px 7px',
-      borderRadius: 4,
-      font: '600 10px/1 "IBM Plex Sans", sans-serif',
-      letterSpacing: '.05em',
+  vsBadge: {
+    flex: '0 0 32px',
+    font: '600 10px/1 "IBM Plex Mono", monospace',
+    color: '#8494AA',
+    background: 'rgba(255, 255, 255, 0.06)',
+    padding: '4px 0',
+    borderRadius: 4,
+    letterSpacing: '.05em',
+    textAlign: 'center',
+    userSelect: 'none',
   },
-      tagMissing: {
-        color: '#fff',
-      background: '#D63B2B',
-      padding: '3px 7px',
-      borderRadius: 4,
-      font: '600 10px/1 "IBM Plex Sans", sans-serif',
-      letterSpacing: '.05em',
+  courtMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    flex: '0 0 auto',
+    minWidth: 145,
   },
-      balText: {
-        font: '600 11px/1 "IBM Plex Mono", monospace',
-      minWidth: 16,
-      textAlign: 'right',
+  tagChallenge: {
+    color: '#04302C',
+    background: '#F0B75C',
+    padding: '3px 6px',
+    borderRadius: 4,
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    letterSpacing: '.03em',
+    whiteSpace: 'nowrap',
   },
-      btnClear: {
-        display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 20,
-      height: 20,
-      borderRadius: 4,
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      padding: 0,
+  tagWish: {
+    color: '#FFFFFF',
+    background: '#8B5CF6',
+    padding: '3px 6px',
+    borderRadius: 4,
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    letterSpacing: '.03em',
+    whiteSpace: 'nowrap',
   },
-      btnAddRound: {
-        width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      height: 36,
-      marginTop: 4,
-      borderRadius: 8,
-      border: '1px dashed #2E3E5C',
-      background: 'transparent',
-      font: '600 12px/1 "IBM Plex Sans", sans-serif',
-      color: '#8494AA',
-      cursor: 'pointer',
-      transition: 'all 120ms ease',
+  tagMissing: {
+    color: '#fff',
+    background: '#D63B2B',
+    padding: '3px 6px',
+    borderRadius: 4,
+    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+    letterSpacing: '.03em',
+    whiteSpace: 'nowrap',
+  },
+  balText: {
+    font: '600 11px/1 "IBM Plex Mono", monospace',
+    minWidth: 18,
+    textAlign: 'right',
+  },
+  btnClear: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+    flexShrink: 0,
+  },
+  btnAddRound: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 36,
+    marginTop: 4,
+    borderRadius: 8,
+    border: '1px dashed #2E3E5C',
+    background: 'transparent',
+    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+    color: '#8494AA',
+    cursor: 'pointer',
+    transition: 'all 120ms ease',
   },
 }

@@ -21,7 +21,7 @@ import {
   Send, Settings, Settings2, Shield, ShoppingCart, Shuffle, Split, Tags, Trash2, TrendingDown,
   TrendingUp, TriangleAlert, Trophy, Truck, Undo2, Unlink, Upload, UserRound, UserRoundCheck,
   UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X, Zap,
-  Filter, Table, Mic,
+  Filter, Table, Mic, GripVertical,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -62,6 +62,7 @@ export const ICONS = {
   'file-spreadsheet': FileSpreadsheet,
   flame: Flame,
   filter: Filter,
+  'grip-vertical': GripVertical,
   'hand-coins': HandCoins,
   history: History,
   inbox: Inbox,
