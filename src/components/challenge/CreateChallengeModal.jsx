@@ -50,26 +50,15 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
     return allActiveMembers
   }, [activeSession, onlyPresent, presentMembers, allActiveMembers])
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const displayedPickableMembers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return pickableMembers
+    return pickableMembers.filter((m) => (m.name || '').toLowerCase().includes(q))
+  }, [pickableMembers, searchQuery])
+
   // Lấy rating của từng người (an toàn với cả Map lẫn Array)
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid, playerOf(db, mid), db.levels).rating
-
-  // Kiểm tra thành viên có độ tin cậy thấp (R1/R2: < 15 trận)
-  const unreliableMember = useMemo(() => {
-    const allIds = [...teamA, ...teamB]
-    for (const id of allIds) {
-      const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
-      if ((pr.gamesCount || 0) < 15) {
-        return {
-          id,
-          name: playerName(db, id),
-          gamesCount: pr.gamesCount || 0,
-          rating: pr.rating,
-          conf: confidenceProgress(pr.gamesCount || 0),
-        }
-      }
-    }
-    return null
-  }, [teamA, teamB, db])
 
   // Luân chuyển: Chưa chọn -> Đội A -> Đội B -> Chưa chọn
   const cycleMember = (mid) => {
@@ -232,47 +221,91 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <div style={S.sectionLabel}>
                 {activeSession && onlyPresent && presentMembers.length > 0
-                  ? t('challenge.presentMembers', { n: pickableMembers.length })
-                  : t('challenge.pickableAll', { n: pickableMembers.length })}
+                  ? t('challenge.presentMembers', { n: displayedPickableMembers.length })
+                  : t('challenge.pickableAll', { n: displayedPickableMembers.length })}
               </div>
-              {activeSession && presentMembers.length > 0 && (
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button
-                    type="button"
-                    onClick={() => setOnlyPresent(true)}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {/* Ô tìm kiếm nhanh thành viên */}
+                <div style={{ position: 'relative', width: 140 }}>
+                  <Icon name="search" size={13} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder={t('challenge.searchMemberPlaceholder')}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     style={{
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      border: '1px solid',
-                      cursor: 'pointer',
-                      background: onlyPresent ? 'var(--teal-700)' : 'transparent',
-                      borderColor: onlyPresent ? 'var(--teal-500)' : 'var(--border-subtle)',
-                      color: onlyPresent ? '#fff' : 'var(--text-muted)',
+                      width: '100%',
+                      padding: '4px 22px 4px 26px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      border: '1px solid var(--border-subtle)',
+                      background: 'var(--surface-card)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      boxSizing: 'border-box',
                     }}
-                  >
-                    {t('challenge.filterPresent', { n: presentMembers.length })}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOnlyPresent(false)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      border: '1px solid',
-                      cursor: 'pointer',
-                      background: !onlyPresent ? 'var(--teal-700)' : 'transparent',
-                      borderColor: !onlyPresent ? 'var(--teal-500)' : 'var(--border-subtle)',
-                      color: !onlyPresent ? '#fff' : 'var(--text-muted)',
-                    }}
-                  >
-                    {t('challenge.filterAll', { n: allActiveMembers.length })}
-                  </button>
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      style={{
+                        position: 'absolute',
+                        right: 6,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                      }}
+                    >
+                      <Icon name="x" size={12} />
+                    </button>
+                  )}
                 </div>
-              )}
+
+                {activeSession && presentMembers.length > 0 && (
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => setOnlyPresent(true)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        background: onlyPresent ? 'var(--teal-700)' : 'transparent',
+                        borderColor: onlyPresent ? 'var(--teal-500)' : 'var(--border-subtle)',
+                        color: onlyPresent ? '#fff' : 'var(--text-muted)',
+                      }}
+                    >
+                      {t('challenge.filterPresent', { n: presentMembers.length })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOnlyPresent(false)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        background: !onlyPresent ? 'var(--teal-700)' : 'transparent',
+                        borderColor: !onlyPresent ? 'var(--teal-500)' : 'var(--border-subtle)',
+                        color: !onlyPresent ? '#fff' : 'var(--text-muted)',
+                      }}
+                    >
+                      {t('challenge.filterAll', { n: allActiveMembers.length })}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             {activeSession && presentMembers.length === 0 && (
               <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -280,7 +313,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               </div>
             )}
             <div style={S.chipWrap}>
-              {pickableMembers.map((m) => {
+              {displayedPickableMembers.map((m) => {
                 const inA = teamA.includes(m.id)
                 const inB = teamB.includes(m.id)
                 const r = getRating(m.id)
@@ -306,53 +339,12 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                   </button>
                 )
               })}
-              {pickableMembers.length === 0 && (
-                <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('challenge.noPresentMembers')}</div>
+              {displayedPickableMembers.length === 0 && (
+                <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px 4px' }}>
+                  {searchQuery ? t('challenge.noMatchingMembers') : t('challenge.noPresentMembers')}
+                </div>
               )}
             </div>
-            <div style={S.guestNotice}>{t('challenge.guestNotice')}</div>
-
-            {/* Cảnh báo GD2: Điểm chưa đáng tin (R1/R2) */}
-            {unreliableMember && (
-              <div style={S.unreliableCard}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={S.unreliableIcon}>!</div>
-                  <span style={S.unreliableTitle}>{t('challenge.unreliableTitle')}</span>
-                </div>
-                <div style={S.unreliableDesc}>
-                  {t('challenge.unreliableDesc', {
-                    name: unreliableMember.name,
-                    games: unreliableMember.gamesCount,
-                    level: unreliableMember.conf.level,
-                    rating: unreliableMember.rating,
-                  })}
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => setRatingEnabled(false)}
-                    style={{
-                      ...S.unreliableBtn,
-                      background: !ratingEnabled ? 'var(--navy-500)' : 'var(--surface-card)',
-                      color: !ratingEnabled ? 'var(--action-primary-fg)' : 'var(--text-secondary)',
-                    }}
-                  >
-                    {t('challenge.switchCasual')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRatingEnabled(true)}
-                    style={{
-                      ...S.unreliableBtn,
-                      background: ratingEnabled ? 'var(--navy-500)' : 'var(--surface-card)',
-                      color: ratingEnabled ? 'var(--action-primary-fg)' : 'var(--text-secondary)',
-                    }}
-                  >
-                    {t('challenge.keepRated')}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Độ cân & Đánh giá cân kèo */}
@@ -376,21 +368,6 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               }}>
                 {isImbalanced ? t('challenge.imbalancedWarn') : gap <= BALANCE_THRESHOLD ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
               </div>
-              {unreliableMember && (
-                <>
-                  <div style={{ font: '600 12px/1.4 var(--font-sans)', color: 'var(--status-delayed-fg)', marginTop: 4 }}>
-                    {t('challenge.unreliableWarning')}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, paddingTop: 4 }}>
-                    <div style={{ flex: 1, height: 5, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-page)' }}>
-                      <div style={{ width: '26%', background: 'var(--status-incident)', height: '100%' }} />
-                    </div>
-                    <span style={{ font: '600 11px/1 var(--font-sans)', color: 'var(--status-incident-fg)', whiteSpace: 'nowrap' }}>
-                      {t('challenge.confidenceLow')}
-                    </span>
-                  </div>
-                </>
-              )}
             </div>
 
             <div style={S.analysisCard}>
@@ -597,21 +574,28 @@ const S = {
   chipWrap: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
+    maxHeight: 180,
+    overflowY: 'auto',
+    padding: '8px 10px',
+    borderRadius: 8,
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
+    boxSizing: 'border-box',
   },
   playerChip: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
-    padding: '6px 10px',
+    gap: 5,
+    padding: '5px 9px',
     borderRadius: 6,
     border: '1px solid',
     cursor: 'pointer',
-    font: '600 13px/1.2 var(--font-sans)',
+    font: '500 12.5px/1.2 var(--font-sans)',
     transition: 'all 0.15s ease',
   },
   monoRating: {
-    font: '400 12px/1 var(--font-mono)',
+    font: '400 11.5px/1 var(--font-mono)',
   },
   teamTag: {
     font: '700 10px/1 var(--font-sans)',
@@ -619,10 +603,6 @@ const S = {
     borderRadius: 3,
     background: 'var(--teal-500)',
     color: 'var(--teal-900)',
-  },
-  guestNotice: {
-    font: '400 12.5px/1.4 var(--font-sans)',
-    color: 'var(--text-muted)',
   },
   analysisRow: {
     display: 'grid',
@@ -723,44 +703,6 @@ const S = {
     border: '1px solid var(--border-subtle)',
     display: 'grid',
     gap: 2,
-  },
-  unreliableCard: {
-    padding: '12px 14px',
-    borderRadius: 8,
-    background: 'var(--surface-danger-soft)',
-    border: '1px solid var(--status-incident)',
-    display: 'grid',
-    gap: 8,
-  },
-  unreliableIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 999,
-    background: 'var(--status-incident)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    font: '700 12px/1 var(--font-display)',
-    color: 'var(--action-primary-fg)',
-    flexShrink: 0,
-  },
-  unreliableTitle: {
-    font: '600 14px/1.3 var(--font-sans)',
-    color: 'var(--status-incident-fg)',
-  },
-  unreliableDesc: {
-    font: '400 13px/1.55 var(--font-sans)',
-    color: 'var(--text-secondary)',
-  },
-  unreliableBtn: {
-    height: 32,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 12px',
-    borderRadius: 6,
-    border: '1px solid var(--border-default)',
-    font: '600 12px/1 var(--font-sans)',
-    cursor: 'pointer',
   },
 }
 
