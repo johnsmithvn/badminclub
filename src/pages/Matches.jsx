@@ -106,7 +106,7 @@ export default function Matches() {
     return (db.sessions || [])
       .filter((s) => (
         s.id === linkedId
-        || ((s.status === 'draft' || s.status === 'open') && s.date >= today)
+        || (s.status !== 'cancelled' && s.date >= today)
       ))
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date))
@@ -655,7 +655,7 @@ export default function Matches() {
       sessions: db.sessions || [],
       attendance: db.attendance || {},
       matches: db.matches || [],
-    }, 6)
+    }, 5)
     return (raw || []).map((item) => {
       const m1 = memberMap[item.p1] || (db.members || []).find((m) => m.id === item.p1) || { id: item.p1, name: item.p1 }
       const m2 = memberMap[item.p2] || (db.members || []).find((m) => m.id === item.p2) || { id: item.p2, name: item.p2 }
@@ -2888,7 +2888,7 @@ export default function Matches() {
       {activeTab === 'matrix' && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 340px',
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 320px',
           gap: 16,
           alignItems: 'start',
           minWidth: 0,
@@ -2960,28 +2960,28 @@ export default function Matches() {
               maxWidth: '100%',
             }}>
               <table style={{
-                borderCollapse: isMobile ? 'separate' : 'collapse',
+                borderCollapse: 'separate',
                 borderSpacing: isMobile ? '4px 4px' : 0,
                 width: isMobile ? 'auto' : '100%',
-                minWidth: isMobile ? 'max-content' : '100%',
+                minWidth: 'max-content',
                 fontSize: isMobile ? 12 : 13,
               }}>
                 <thead>
                   <tr>
                     <th style={{
                       ...S.matrixTh,
-                      ...(isMobile ? {
-                        position: 'sticky',
-                        left: 0,
-                        zIndex: 3,
-                        background: 'var(--surface-card)',
-                        boxShadow: '2px 0 4px rgba(0,0,0,0.12)',
-                        width: 44,
-                        minWidth: 44,
-                        maxWidth: 48,
-                        padding: '6px 4px',
-                        border: 'none',
-                      } : {})
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 3,
+                      background: 'var(--surface-card)',
+                      boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
+                      width: isMobile ? 44 : 110,
+                      minWidth: isMobile ? 44 : 110,
+                      maxWidth: isMobile ? 48 : 130,
+                      padding: isMobile ? '6px 4px' : '8px 10px',
+                      border: isMobile ? 'none' : '1px solid var(--border-subtle)',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
                     }}>
                       VS
                     </th>
@@ -2991,19 +2991,17 @@ export default function Matches() {
                         title={m.name}
                         style={{
                           ...S.matrixTh,
-                          ...(isMobile ? {
-                            width: 52,
-                            minWidth: 52,
-                            maxWidth: 56,
-                            padding: '6px 2px',
-                            border: 'none',
-                            font: '600 11px/1.2 "IBM Plex Sans", sans-serif',
-                            color: 'var(--text-muted)',
-                            textAlign: 'center',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          } : {})
+                          minWidth: isMobile ? 52 : 56,
+                          maxWidth: isMobile ? 56 : 70,
+                          padding: isMobile ? '6px 2px' : '8px 4px',
+                          border: isMobile ? 'none' : '1px solid var(--border-subtle)',
+                          font: isMobile ? '600 11px/1.2 "IBM Plex Sans", sans-serif' : '600 11.5px/1.2 "IBM Plex Sans", sans-serif',
+                          color: 'var(--text-muted)',
+                          textAlign: 'center',
+                          whiteSpace: isMobile ? 'nowrap' : 'normal',
+                          wordBreak: 'break-word',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                         }}
                       >
                         {isMobile ? getShortDisplayName(m.name, topMembersForMatrix) : m.name}
@@ -3018,23 +3016,21 @@ export default function Matches() {
                         title={p1.name}
                         style={{
                           ...S.matrixRowLabel,
-                          ...(isMobile ? {
-                            position: 'sticky',
-                            left: 0,
-                            zIndex: 2,
-                            background: 'var(--surface-card)',
-                            boxShadow: '2px 0 4px rgba(0,0,0,0.12)',
-                            width: 44,
-                            minWidth: 44,
-                            maxWidth: 48,
-                            padding: '6px 4px',
-                            border: 'none',
-                            font: '600 13px/1.2 "IBM Plex Sans", sans-serif',
-                            color: 'var(--text-primary)',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          } : {})
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 2,
+                          background: 'var(--surface-card)',
+                          boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
+                          width: isMobile ? 44 : 110,
+                          minWidth: isMobile ? 44 : 110,
+                          maxWidth: isMobile ? 48 : 130,
+                          padding: isMobile ? '6px 4px' : '8px 10px',
+                          border: isMobile ? 'none' : '1px solid var(--border-subtle)',
+                          font: isMobile ? '600 13px/1.2 "IBM Plex Sans", sans-serif' : '600 12.5px/1.2 "IBM Plex Sans", sans-serif',
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                         }}
                       >
                         {isMobile ? getShortDisplayName(p1.name, topMembersForMatrix) : p1.name}
@@ -3196,10 +3192,21 @@ export default function Matches() {
           </div>
 
           {/* Cột phải / Dưới: 2 Thẻ (Đáng chú ý & Chưa gặp nhau) */}
-          <div style={{ display: 'grid', gap: 16, alignContent: 'start', minWidth: 0, maxWidth: '100%' }}>
+          <div style={{
+            display: 'grid',
+            gap: 14,
+            alignContent: 'start',
+            minWidth: 0,
+            maxWidth: '100%',
+            position: isMobile ? 'static' : 'sticky',
+            top: 16,
+            maxHeight: isMobile ? 'none' : 'calc(100vh - 140px)',
+            overflowY: isMobile ? 'visible' : 'auto',
+            paddingRight: 2,
+          }}>
             {/* Card 1: Đáng chú ý / Cặp lệch nhất */}
             <div style={{ ...S.card, minWidth: 0, maxWidth: '100%' }}>
-              <div style={{ ...S.cardHead, padding: isMobile ? '12px 14px' : '14px 16px' }}>
+              <div style={{ ...S.cardHead, padding: isMobile ? '12px 14px' : '12px 14px' }}>
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={isMobile ? { font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' } : S.cardTitle}>
                     {isMobile ? t('matchSearch.notableTitle') : t('matchSearch.disparateTitle')}
@@ -3207,7 +3214,7 @@ export default function Matches() {
                   {!isMobile && <div style={S.cardSub}>{t('matchSearch.disparateSub')}</div>}
                 </div>
               </div>
-              <div style={{ padding: isMobile ? '12px 14px' : 14, display: 'grid', gap: 8 }}>
+              <div style={{ padding: isMobile ? '12px 14px' : '10px 12px', display: 'grid', gap: 6 }}>
                 {disparatePairsList.length === 0 ? (
                   <div style={{ padding: '12px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                     {t('common.noData')}
@@ -3226,7 +3233,7 @@ export default function Matches() {
                         display: 'flex',
                         alignItems: 'center',
                         gap: 10,
-                        padding: isMobile ? '11px 13px' : '10px 12px',
+                        padding: isMobile ? '10px 12px' : '8px 10px',
                         borderRadius: 8,
                         background: 'var(--surface-inset)',
                         border: '1px solid var(--border-subtle)',
@@ -3237,7 +3244,7 @@ export default function Matches() {
                       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)' }}
                       title={t('matchSearch.title')}
                     >
-                      <span style={{ flex: 1, minWidth: 0, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: 1, minWidth: 0, font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {t('matchSearch.cardH2HTitle', { nameA: item.player1.name, nameB: item.player2.name })}
                       </span>
                       <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -3255,7 +3262,7 @@ export default function Matches() {
                     </div>
                   ))
                 )}
-                <span style={{ font: '400 13px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                <span style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 2 }}>
                   {t('matchSearch.tapCellHint')}
                 </span>
               </div>
@@ -3263,14 +3270,14 @@ export default function Matches() {
 
             {/* Card 2: Chưa gặp nhau */}
             <div style={{ ...S.card, minWidth: 0, maxWidth: '100%' }}>
-              <div style={{ ...S.cardHead, padding: isMobile ? '12px 14px' : '14px 16px' }}>
+              <div style={{ ...S.cardHead, padding: isMobile ? '12px 14px' : '12px 14px' }}>
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={S.cardTitle}>{t('matchSearch.neverMet')}</div>
                   <div style={S.cardSub}>{t('matchSearch.neverMetSub')}</div>
                 </div>
                 <span style={{
                   font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                  padding: '5px 9px',
+                  padding: '4px 8px',
                   borderRadius: 999,
                   background: 'rgba(224,138,0,.18)',
                   color: 'var(--status-delayed-fg)',
@@ -3279,7 +3286,7 @@ export default function Matches() {
                   {neverMetSessionScored.length} {t('matchSearch.pairs')}
                 </span>
               </div>
-              <div style={{ padding: isMobile ? '12px 14px' : 14, display: 'grid', gap: 8 }}>
+              <div style={{ padding: isMobile ? '12px 14px' : '10px 12px', display: 'grid', gap: 6 }}>
                 {neverMetSessionScored.length === 0 ? (
                   <div style={{ padding: '12px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                     {t('common.noData')}
@@ -3293,17 +3300,17 @@ export default function Matches() {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         gap: 10,
-                        padding: '10px 12px',
+                        padding: isMobile ? '10px 12px' : '8px 10px',
                         borderRadius: 8,
                         background: 'var(--surface-inset)',
                         border: '1px solid var(--border-subtle)',
                       }}
                     >
-                      <span style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.p1.name} · {item.p2.name}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                        <span style={{ font: '400 12.5px/1.4 "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap' }}>
+                        <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap' }}>
                           {t('matchSearch.commonSessions', { count: item.commonSessions })}
                         </span>
                         <button
@@ -3333,7 +3340,7 @@ export default function Matches() {
                     </div>
                   ))
                 )}
-                <span style={{ font: '400 12.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 4 }}>
+                <span style={{ font: '400 12px/1.35 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 2 }}>
                   {t('matchSearch.neverMetPriorityNotice')}
                 </span>
               </div>
@@ -3456,19 +3463,7 @@ export default function Matches() {
                           <span style={{ font: '600 14px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
                             {wd(s.date)} · {t('challenge.sessionItemDate', { date: dd(s.date) })}
                           </span>
-                          {!isOpen && (
-                            <span style={{
-                              fontSize: 11,
-                              padding: '2px 7px',
-                              borderRadius: 4,
-                              background: 'var(--surface-sunken)',
-                              color: 'var(--text-muted)',
-                              fontWeight: 600,
-                            }}>
-                              {t(`sessionState.${s.status}`)}
-                            </span>
-                          )}
-                          {isOpen && (
+                          {s.status === 'open' ? (
                             <span style={{
                               fontSize: 11,
                               padding: '2px 7px',
@@ -3478,6 +3473,28 @@ export default function Matches() {
                               fontWeight: 600,
                             }}>
                               {t('challenge.sessionStatusOpen')}
+                            </span>
+                          ) : s.status === 'closed' ? (
+                            <span style={{
+                              fontSize: 11,
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: 'rgba(224, 138, 0, 0.15)',
+                              color: 'var(--status-delayed-fg)',
+                              fontWeight: 600,
+                            }}>
+                              {t('sessionState.closed')}
+                            </span>
+                          ) : (
+                            <span style={{
+                              fontSize: 11,
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: 'var(--surface-sunken)',
+                              color: 'var(--text-muted)',
+                              fontWeight: 600,
+                            }}>
+                              {t(`sessionState.${s.status}`)}
                             </span>
                           )}
                           {isCurrent && (
