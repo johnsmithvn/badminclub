@@ -20,7 +20,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats, challengeExpiryAt, isChallengeExpired } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats, challengeExpiryAt, isChallengeExpired, isChallengeAccepted } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -831,9 +831,8 @@ export default function Matches() {
 
               const isPlayed = c.status === 'played'
               const isPending = c.status === 'pending'
-              // 'oncourt' đã bỏ khỏi máy trạng thái (migration 0043). Dòng cũ chưa nạp lại thì
-              // xử như 'accepted' — "đang đánh" giờ suy từ SỐ HIỆP ĐÃ GHI, xem `statusBadgeText`.
-              const isAccepted = c.status === 'accepted' || c.status === 'oncourt'
+              // "Đang đánh" suy từ SỐ HIỆP ĐÃ GHI, xem `statusBadgeText`.
+              const isAccepted = isChallengeAccepted(c)
               const isParticipant = myId && [...teamA, ...teamB].includes(myId)
               const isOpen = !teamB.length || teamB.length < (teamA.length > 1 ? 2 : 1)
 

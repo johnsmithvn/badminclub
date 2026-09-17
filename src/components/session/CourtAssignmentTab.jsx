@@ -8,7 +8,7 @@ import { dd } from '#utils/dates.js'
 import { compareVietnameseNames } from '#lib/members.js'
 import { can } from '#lib/roles.js'
 import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWaitTime } from '#lib/assign.js'
-import { getChallengeSeriesProgress } from '#lib/challenge.js'
+import { getChallengeSeriesProgress, isChallengeAccepted } from '#lib/challenge.js'
 import {
   expectedScore, getPlayerRating,
   teamRating, computeClubCalibration,
@@ -195,7 +195,7 @@ export default function CourtAssignmentTab({ s }) {
   const acceptedChallenges = useMemo(() => {
     return (db.challenges || []).filter((c) => {
       if (c.sessionId !== s.id) return false
-      if (c.status === 'accepted' || c.status === 'oncourt') return true
+      if (isChallengeAccepted(c)) return true
       if (c.status === 'played' && (c.bestOf || 1) > 1) {
         const prog = getChallengeSeriesProgress(c, db.matches || [])
         return !prog.isComplete
@@ -208,7 +208,7 @@ export default function CourtAssignmentTab({ s }) {
   const unlinkedChallenges = useMemo(() => {
     return (db.challenges || []).filter((c) => {
       if (c.sessionId) return false
-      if (c.status === 'accepted' || c.status === 'oncourt') return true
+      if (isChallengeAccepted(c)) return true
       if (c.status === 'played' && (c.bestOf || 1) > 1) {
         const prog = getChallengeSeriesProgress(c, db.matches || [])
         return !prog.isComplete

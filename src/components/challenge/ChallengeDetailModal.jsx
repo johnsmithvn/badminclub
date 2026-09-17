@@ -5,7 +5,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { t } from '#i18n'
 
@@ -37,8 +37,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   // quá hạn-nhận-kèo cũng bị coi là hết hạn và khoá luôn cổng cược — nhận kèo lúc 19h, 20h vào
   // đặt thì bị báo hết hạn dù trận còn chưa đánh.
   const isExpired = isChallengeExpired(c, now)
-  // 'oncourt' đã bỏ khỏi máy trạng thái (migration 0043); dòng cũ xử như 'accepted'.
-  const isAccepted = c.status === 'accepted' || c.status === 'oncourt'
+  const isAccepted = isChallengeAccepted(c)
   const isPlayed = c.status === 'played'
 
   const prog = useMemo(() => getChallengeAcceptanceProgress(c), [c])

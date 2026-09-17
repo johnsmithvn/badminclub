@@ -364,6 +364,24 @@ assert.equal(refunded[0].status, 'refunded')
 assert.equal(refunded[0].payoutPoints, 2, 'Hoàn trả đúng số đã đặt, net = 0')
 assert.equal(refunded[2].status, 'cancelled')
 
+// Ghi hiệp nào là đóng cổng cược — SUY TỪ TRẬN, không đợi cờ `predictionsLocked`.
+// `predictionsLocked` là cờ chỉ có đường bật (không chỗ nào ghi false ngoài undoMatch), nên tin
+// mỗi nó là kèo bị gỡ trận vẫn câm vĩnh viễn.
+const chalBo3 = { id: 'cbo3', status: 'accepted', bestOf: 3, teamA: ['p1'], teamB: ['p3'], predictionsEnabled: true, predictionsLocked: false }
+const viewerDb = { members: [{ id: 'v_new', active: true }] }
+assert.equal(
+  canMemberPredict(chalBo3, 'v_new', { ...viewerDb, matches: [] }, 10).ok, true,
+  'Chưa đánh hiệp nào thì còn nhận cược',
+)
+assert.equal(
+  canMemberPredict(chalBo3, 'v_new', {
+    ...viewerDb,
+    matches: [{ id: 'm1', challengeId: 'cbo3', winnerTeam: 'A', at: 1 }],
+  }, 10).reason,
+  'locked',
+  'Ghi xong hiệp 1 là đóng cổng, dù cờ predictionsLocked vẫn false',
+)
+
 console.log('prediction rules check: OK')
 
 // ==========================================

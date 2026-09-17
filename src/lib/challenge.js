@@ -47,6 +47,18 @@ export function isChallengeExpired(challenge, now = Date.now()) {
   return Boolean(exp && exp <= now)
 }
 
+/**
+ * Kèo đã được nhận, đang chờ đánh.
+ *
+ * 'oncourt' đã bị gỡ khỏi máy trạng thái (migration 0043) vì nó là dữ liệu suy ra được đem đi
+ * lưu. Client cũ chưa nạp lại vẫn có thể còn giá trị đó trong state, nên vẫn phải chấp nhận —
+ * nhưng chỉ ĐÚNG MỘT chỗ trong toàn app biết chuyện đó là đây. Khi nào bỏ hẳn dung sai thì sửa
+ * một dòng, không phải đi lùng bốn màn hình.
+ */
+export function isChallengeAccepted(challenge) {
+  return challenge?.status === 'accepted' || challenge?.status === 'oncourt'
+}
+
 /** Tiến độ nhận kèo của các đấu thủ */
 export function getChallengeAcceptanceProgress(challenge) {
   if (!challenge) return { acceptedCount: 0, totalCount: 0, isFullyAccepted: false, pendingPlayerIds: [] }
@@ -241,6 +253,12 @@ export function canMemberPredict(challenge, memberId, db = {}, availablePoints =
   // Chặn theo MỐC GIỜ chứ không theo cột `status`: kèo quá hạn mà chưa ai bấm vào thì `status`
   // vẫn đang là 'pending'. Chỉ áp cho kèo chưa ai nhận — xem `isChallengeExpired`.
   if (isChallengeExpired(challenge)) {
+    return { ok: false, reason: 'locked' }
+  }
+  // Đã ghi hiệp nào là đóng cổng — SUY THẲNG TỪ TRẬN, không chỉ tin cờ `predictionsLocked`.
+  // Cờ đó là dữ liệu dẫn xuất đem đi lưu, đúng cái bẫy đã sinh ra `oncourt`: nó chỉ có đường
+  // bật. Đọc từ trận thì không bao giờ lệch với sự thật.
+  if (getChallengeSeriesProgress(challenge, db.matches || []).totalSetsPlayed > 0) {
     return { ok: false, reason: 'locked' }
   }
 

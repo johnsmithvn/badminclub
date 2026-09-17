@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, staleChallenges } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, staleChallenges, isChallengeAccepted } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -2646,6 +2646,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
                 status: 'accepted',
                 winnerTeam: null,
                 seriesScore: prog.totalSetsPlayed > 0 ? { winsA: prog.winsA, winsB: prog.winsB } : null,
+                // Gỡ hết hiệp thì MỞ LẠI cổng cược. `predictionsLocked` là cờ chỉ có đường bật
+                // (5 chỗ ghi true, 0 chỗ ghi false) — nhập nhầm tỷ số rồi gỡ ra là kèo câm
+                // vĩnh viễn dù nó sắp được đánh lại.
+                predictionsLocked: prog.totalSetsPlayed > 0 ? k.predictionsLocked : false,
               }
             })
           : (d.challenges || [])
@@ -2880,8 +2884,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
       if (!canAssign() && !isPlayer) return
       // Kèo ĐÃ CÓ KẾT QUẢ thì không huỷ được — huỷ sẽ để lại kèo 'cancelled' mà trận vẫn nằm
-      // trong sổ. ('oncourt' chỉ còn ở dòng cũ trước migration 0043, xử như 'accepted'.)
-      if (chal.status !== 'pending' && chal.status !== 'accepted' && chal.status !== 'oncourt') {
+      // trong sổ.
+      if (chal.status !== 'pending' && !isChallengeAccepted(chal)) {
         toast(t('challenge.cancelTooLate'))
         return
       }
