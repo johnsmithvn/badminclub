@@ -7,7 +7,7 @@ import { searchMatches } from '#lib/matchSearch.js'
 import { firstEmptyCourtIdx } from '#lib/assign.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { Icon } from '#ds'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress } from '#lib/challenge.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
@@ -1290,9 +1290,15 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 }
               }
 
+              const isBoSeries = (c.bestOf || 1) > 1
+              const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
+              const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
+
               const statusText = isPending
                 ? `${t('challenge.status.pending')} · ${t('challenge.expiresIn', { time: expStr })}`
-                : (t('challenge.status.' + c.status) || c.status)
+                : isAccepted && hasPlayedSets
+                  ? `${t('challenge.seriesPlaying', { score: seriesProg.seriesScoreText })} · ${t('challenge.seriesSetShort', { set: seriesProg.nextSetNumber })}`
+                  : (t('challenge.status.' + c.status) || c.status)
 
               return (
                 <div
@@ -1300,6 +1306,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                   onClick={() => setSelectedChallenge(c)}
                   style={{
                     ...S.challengeCard,
+                    ...(hasPlayedSets ? { borderColor: 'rgba(168, 85, 247, 0.35)', background: 'rgba(168, 85, 247, 0.04)' } : {}),
                     cursor: 'pointer',
                     transition: 'border-color 0.15s ease',
                   }}
@@ -1321,12 +1328,25 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                           {t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}
                         </span>
                       )}
+                      {hasPlayedSets && (
+                        <span style={{
+                          fontSize: 10.5,
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: 999,
+                          background: 'rgba(168,85,247,0.2)',
+                          color: '#D8B4FE',
+                        }}>
+                          {seriesProg.seriesScoreText}
+                        </span>
+                      )}
                     </div>
                     <span style={{
                       ...S.statusBadge,
-                      background: isPlayed ? 'var(--surface-brand-soft)' : isAccepted ? 'var(--surface-nav-active)' : 'rgba(240,183,92,0.14)',
-                      borderColor: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--teal-700)' : 'var(--border-subtle)',
-                      color: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--status-transit-fg)' : 'var(--status-delayed-fg)',
+                      background: isPlayed ? 'var(--surface-brand-soft)' : (isAccepted && hasPlayedSets) ? 'rgba(168,85,247,0.15)' : isAccepted ? 'var(--surface-nav-active)' : 'rgba(240,183,92,0.14)',
+                      borderColor: isPlayed ? 'var(--status-delivered-fg)' : (isAccepted && hasPlayedSets) ? '#A855F7' : isAccepted ? 'var(--teal-700)' : 'var(--border-subtle)',
+                      color: isPlayed ? 'var(--status-delivered-fg)' : (isAccepted && hasPlayedSets) ? '#D8B4FE' : isAccepted ? 'var(--status-transit-fg)' : 'var(--status-delayed-fg)',
                     }}>
                       {statusText}
                     </span>
@@ -1445,9 +1465,14 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                           e.stopPropagation()
                           handleDeployChallenge(c)
                         }}
-                        style={S.smallPrimaryBtn}
+                        style={{
+                          ...S.smallPrimaryBtn,
+                          ...(hasPlayedSets ? { background: 'rgba(168, 85, 247, 0.85)', color: '#fff', borderColor: 'transparent' } : {}),
+                        }}
                       >
-                        {t('challenge.deployToCourt')}
+                        {hasPlayedSets
+                          ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
+                          : t('challenge.deployToCourt')}
                       </button>
                       <button
                         type="button"

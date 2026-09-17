@@ -8,6 +8,7 @@ import { dd } from '#utils/dates.js'
 import { compareVietnameseNames } from '#lib/members.js'
 import { can } from '#lib/roles.js'
 import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWaitTime } from '#lib/assign.js'
+import { getChallengeSeriesProgress } from '#lib/challenge.js'
 import {
   expectedScore, getPlayerRating,
   teamRating, computeClubCalibration,
@@ -64,6 +65,17 @@ export default function CourtAssignmentTab({ s }) {
   const [courtIdx, setCourtIdx] = useState(0)
   const [ratingEnabled, setRatingEnabled] = useState(true)
   const [selectedChallengeId, setSelectedChallengeId] = useState(null)
+
+  // Kèo đang được nạp vào form và tiến độ chuỗi BO3
+  const activeLoadedChallenge = useMemo(() => {
+    if (!selectedChallengeId) return null
+    return (db.challenges || []).find((c) => c.id === selectedChallengeId) || null
+  }, [selectedChallengeId, db.challenges])
+
+  const activeSeriesProg = useMemo(() => {
+    if (!activeLoadedChallenge) return null
+    return getChallengeSeriesProgress(activeLoadedChallenge, db.matches || [])
+  }, [activeLoadedChallenge, db.matches])
 
   // Tỷ số & Đội thắng
   const [winnerTeam, setWinnerTeam] = useState('A')
@@ -177,15 +189,31 @@ export default function CourtAssignmentTab({ s }) {
     }))
   }, [s.courts])
 
-  // Kèo đã nhận trong buổi (chưa hoàn thành)
+  // Kèo đã nhận trong buổi (chưa hoàn thành hoặc chuỗi BO3 đang đấu dở)
   const acceptedChallenges = useMemo(() => {
-    return (db.challenges || []).filter((c) => c.sessionId === s.id && c.status === 'accepted')
-  }, [db.challenges, s.id])
+    return (db.challenges || []).filter((c) => {
+      if (c.sessionId !== s.id) return false
+      if (c.status === 'accepted') return true
+      if (c.status === 'played' && (c.bestOf || 1) > 1) {
+        const prog = getChallengeSeriesProgress(c, db.matches || [])
+        return !prog.isComplete
+      }
+      return false
+    })
+  }, [db.challenges, db.matches, s.id])
 
   // Kèo hẹn trước trong CLB chưa gắn vào buổi nào
   const unlinkedChallenges = useMemo(() => {
-    return (db.challenges || []).filter((c) => !c.sessionId && c.status === 'accepted')
-  }, [db.challenges])
+    return (db.challenges || []).filter((c) => {
+      if (c.sessionId) return false
+      if (c.status === 'accepted') return true
+      if (c.status === 'played' && (c.bestOf || 1) > 1) {
+        const prog = getChallengeSeriesProgress(c, db.matches || [])
+        return !prog.isComplete
+      }
+      return false
+    })
+  }, [db.challenges, db.matches])
 
   // Kèo đang được chọn để đổi buổi chơi
   const [selectingSessionChallenge, setSelectingSessionChallenge] = useState(null)
@@ -787,9 +815,7 @@ export default function CourtAssignmentTab({ s }) {
       return
     }
 
-    const playedSets = isBo3
-      ? bo3Sets.filter(([sa, sb]) => sa > 0 || sb > 0)
-      : [[Number(scoreA), Number(scoreB)]]
+    const playedSets = [[Number(scoreA), Number(scoreB)]]
 
     if (!playedSets.length) {
       a.toast(t('quickMatch.errNoScore'))
@@ -1012,6 +1038,17 @@ export default function CourtAssignmentTab({ s }) {
                 const hasAbsent = absentKeys.length > 0
                 const absentNames = absentKeys.map((id) => playerName(db, id) || id)
 
+                const isBoSeries = (c.bestOf || 1) > 1
+                const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
+                const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
+
+                let seriesTagText = `${c.bestOf || 1} set`
+                if (hasPlayedSets) {
+                  seriesTagText = seriesProg.isDecider
+                    ? `${seriesProg.seriesScoreText} · ${t('challenge.deciderSet')}`
+                    : `${seriesProg.seriesScoreText} (${t('challenge.seriesSetShort', { set: seriesProg.nextSetNumber })})`
+                }
+
                 return (
                   <div
                     key={c.id}
@@ -1022,13 +1059,32 @@ export default function CourtAssignmentTab({ s }) {
                             borderColor: 'var(--status-incident-fg, #ef4444)',
                             background: 'rgba(239, 68, 68, 0.05)',
                           }
-                        : {}),
+                        : hasPlayedSets
+                          ? {
+                              borderColor: 'rgba(168, 85, 247, 0.45)',
+                              background: 'rgba(168, 85, 247, 0.06)',
+                            }
+                          : {}),
                     }}
                   >
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameA}</span>
                     <span style={{ color: 'var(--text-muted)' }}>vs</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameB}</span>
-                    <span style={S.tagSub}>{c.bestOf || 1} set</span>
+                    <span
+                      style={{
+                        ...S.tagSub,
+                        ...(hasPlayedSets
+                          ? {
+                              background: 'rgba(168, 85, 247, 0.2)',
+                              color: '#D8B4FE',
+                              fontWeight: 700,
+                              borderColor: 'rgba(168, 85, 247, 0.35)',
+                            }
+                          : {}),
+                      }}
+                    >
+                      {seriesTagText}
+                    </span>
 
                     {hasAbsent ? (
                       <>
@@ -1077,12 +1133,15 @@ export default function CourtAssignmentTab({ s }) {
                       </>
                     ) : (
                       <Button
-                        variant="secondary"
+                        variant={hasPlayedSets ? 'primary' : 'secondary'}
                         size="sm"
-                        icon="download"
+                        icon={hasPlayedSets ? 'play' : 'download'}
                         onClick={() => handleLoadChallenge(c)}
+                        style={hasPlayedSets ? { background: 'rgba(168, 85, 247, 0.85)', color: '#fff', borderColor: 'transparent' } : {}}
                       >
-                        {t('quickMatch.loadChal')}
+                        {hasPlayedSets
+                          ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
+                          : t('quickMatch.loadChal')}
                       </Button>
                     )}
                   </div>
@@ -2152,6 +2211,64 @@ export default function CourtAssignmentTab({ s }) {
           {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
           {teamA.length > 0 && teamB.length > 0 && (
             <div style={S.scoreLoggerBox}>
+              {/* Banner tiến độ chuỗi nếu là kèo thách đấu BO3/BO5 */}
+              {activeLoadedChallenge && (activeLoadedChallenge.bestOf || 1) > 1 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(168, 85, 247, 0.12)',
+                    border: '1px solid rgba(168, 85, 247, 0.35)',
+                    marginBottom: 10,
+                    flexWrap: 'wrap',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="flame" size={16} style={{ color: '#C084FC' }} />
+                    <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
+                      {t('challenge.seriesProgressTitle', {
+                        code: activeLoadedChallenge.code,
+                        set: activeSeriesProg?.nextSetNumber || 1,
+                        bestOf: activeLoadedChallenge.bestOf || 1,
+                      })}
+                    </span>
+                    {activeSeriesProg?.totalSetsPlayed > 0 && (
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          background: 'rgba(168, 85, 247, 0.25)',
+                          color: '#E9D5FF',
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      >
+                        {t('challenge.seriesCurrentScore', { score: activeSeriesProg.seriesScoreText })}
+                      </span>
+                    )}
+                    {activeSeriesProg?.isDecider && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          padding: '2px 7px',
+                          borderRadius: 4,
+                          background: 'rgba(239, 68, 68, 0.2)',
+                          color: '#F87171',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {t('challenge.deciderSet')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                 <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
                   {t('scoreModal.instruction')}
@@ -2457,7 +2574,9 @@ export default function CourtAssignmentTab({ s }) {
                   onClick={handleSaveResult}
                   style={{ ...S.bigSaveBtn, flex: 1 }}
                 >
-                  {t('scoreModal.saveResult')}
+                  {activeLoadedChallenge && (activeLoadedChallenge.bestOf || 1) > 1
+                    ? t('challenge.saveSetBtn', { set: activeSeriesProg?.nextSetNumber || 1 })
+                    : t('scoreModal.saveResult')}
                 </button>
                 <Button
                   variant="secondary"

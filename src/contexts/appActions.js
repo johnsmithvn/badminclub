@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -2247,8 +2247,31 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             learnedAdjustment: item.learnedAdjustment || 0,
           }
         })
+        const chalId = last.challengeId
+        const challenges = chalId
+          ? (d.challenges || []).map((k) => {
+              if (k.id !== chalId) return k
+              const prog = getChallengeSeriesProgress(k, updatedMatches)
+              if (prog.isComplete) {
+                return {
+                  ...k,
+                  status: 'played',
+                  winnerTeam: prog.winnerTeam,
+                  seriesScore: { winsA: prog.winsA, winsB: prog.winsB },
+                }
+              }
+              return {
+                ...k,
+                status: 'accepted',
+                winnerTeam: null,
+                seriesScore: prog.totalSetsPlayed > 0 ? { winsA: prog.winsA, winsB: prog.winsB } : null,
+              }
+            })
+          : (d.challenges || [])
+
         return {
           matches: updatedMatches,
+          challenges,
           playerRatings: nextRatings,
           clubCalibration: nextCals,
         }
@@ -2655,7 +2678,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         }
 
         const sessionMatches = (d.matches || []).filter((x) => x.sessionId === targetSid)
-        const matchCode = chal ? chal.code : `M-${String(sessionMatches.length + 1).padStart(2, '0')}`
+        const prevChalMatches = chal ? (d.matches || []).filter((x) => x.challengeId === chal.id) : []
+        const currentSetNum = prevChalMatches.length + 1
+        const isBoSeries = chal && (Number(chal.bestOf) || 1) > 1
+
+        const matchCode = chal
+          ? (isBoSeries ? `${chal.code}-H${currentSetNum}` : chal.code)
+          : `M-${String(sessionMatches.length + 1).padStart(2, '0')}`
 
         // B2: Kiểm tra nếu trận đấu có tính điểm thi đấu (isRated) làm đứt chuỗi thắng Bounty của đối thủ
         let bountyBroken = false
@@ -2708,8 +2737,37 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           brokenStreak,
         }
 
+        let isChalComplete = true
+        let chalSeriesProg = null
+        if (chal) {
+          const allChalMatches = [...prevChalMatches, newMatch]
+          chalSeriesProg = getChallengeSeriesProgress(chal, allChalMatches)
+          const winsNeeded = chalSeriesProg.winsNeeded
+          const directSetsCount = (playedSets || []).filter(([a, b]) => a > 0 || b > 0).length
+          const isDirectComplete = directSetsCount >= winsNeeded && Boolean(winnerTeam)
+          isChalComplete = isDirectComplete || chalSeriesProg.isComplete
+        }
+
         const challenges = chal
-          ? (d.challenges || []).map((k) => (k.id === chal.id ? { ...k, status: 'played', matchId } : k))
+          ? (d.challenges || []).map((k) => {
+              if (k.id !== chal.id) return k
+              if (isChalComplete) {
+                return {
+                  ...k,
+                  status: 'played',
+                  matchId,
+                  winnerTeam: chalSeriesProg?.winnerTeam || winnerTeam,
+                  seriesScore: chalSeriesProg ? { winsA: chalSeriesProg.winsA, winsB: chalSeriesProg.winsB } : null,
+                }
+              }
+              // Chưa hoàn tất chuỗi: Giữ ở trạng thái accepted để tiếp tục nạp vào sân cho ván sau
+              return {
+                ...k,
+                status: 'accepted',
+                matchId,
+                seriesScore: chalSeriesProg ? { winsA: chalSeriesProg.winsA, winsB: chalSeriesProg.winsB } : null,
+              }
+            })
           : (d.challenges || [])
 
         const nextMatches = (d.matches || []).concat([newMatch])
@@ -2743,7 +2801,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
 
       upUi(() => ({ picked: null }))
-      toast(t('scoreModal.toastSaved', { winner, loser, score: scoreText }))
+      if (chal && !isChalComplete) {
+        toast(t('challenge.toastSetSaved', { code: chal.code, set: currentSetNum, score: chalSeriesProg?.seriesScoreText || scoreText }))
+      } else if (chal && isChalComplete && isBoSeries) {
+        toast(t('challenge.toastSeriesCompleted', { code: chal.code, score: chalSeriesProg?.seriesScoreText || scoreText, winner }))
+      } else {
+        toast(t('scoreModal.toastSaved', { winner, loser, score: scoreText }))
+      }
       // Trận vừa lưu + bảng rating sau trận. Người gọi nào chỉ cần match thì bỏ qua field thừa.
       return { ...newMatch, nextPlayerRatings }
     },
@@ -3007,8 +3071,31 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             learnedAdjustment: item.learnedAdjustment || 0,
           }
         })
+        const chalId = match.challengeId
+        const challenges = chalId
+          ? (d.challenges || []).map((k) => {
+              if (k.id !== chalId) return k
+              const prog = getChallengeSeriesProgress(k, updatedMatches)
+              if (prog.isComplete) {
+                return {
+                  ...k,
+                  status: 'played',
+                  winnerTeam: prog.winnerTeam,
+                  seriesScore: { winsA: prog.winsA, winsB: prog.winsB },
+                }
+              }
+              return {
+                ...k,
+                status: 'accepted',
+                winnerTeam: null,
+                seriesScore: prog.totalSetsPlayed > 0 ? { winsA: prog.winsA, winsB: prog.winsB } : null,
+              }
+            })
+          : (d.challenges || [])
+
         return {
           matches: updatedMatches,
+          challenges,
           playerRatings: nextRatings,
           matchEdits: [editLog, ...(d.matchEdits || [])],
           clubCalibration: nextCals,

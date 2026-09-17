@@ -2958,7 +2958,16 @@
     "techMetaAlgoValue": "ELO_V1 · đóng băng",
     "techMetaDeclinedNote": "Từ chối hoặc để hết hạn thì không có Match nào được tạo.",
     "btnOpenMatch": "Mở trận {{code}}",
-    "headerMeta": "{{creator}} gửi {{time}} · buổi {{date}}{{court}}"
+    "headerMeta": "{{creator}} gửi {{time}} · buổi {{date}}{{court}}",
+    "toastSetSaved": "Đã lưu kết quả Hiệp {{set}} cho kèo {{code}}! Tỉ số chuỗi: {{score}}",
+    "toastSeriesCompleted": "Chúc mừng! Kèo {{code}} đã hoàn tất với tỉ số {{score}}. Đội thắng: {{winner}}",
+    "seriesProgressTitle": "Kèo {{code}} · Hiệp {{set}} / {{bestOf}}",
+    "seriesCurrentScore": "Tỉ số: {{score}}",
+    "seriesPlaying": "Đang đấu ({{score}})",
+    "seriesSetShort": "Hiệp {{set}}",
+    "deciderSet": "Hiệp quyết định",
+    "loadNextSetBtn": "Nạp hiệp {{set}}",
+    "saveSetBtn": "Lưu kết quả Hiệp {{set}}"
   },
   "scoreModal": {
     "title": "Nhập kết quả · sân {{court}}",

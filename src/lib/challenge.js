@@ -110,3 +110,60 @@ export function canMemberAcceptChallenge(challenge, myMemberId, isAdmin = false)
   return false
 }
 
+/**
+ * Tính toán tiến độ chuỗi ván đấu (BO1, BO3, BO5) của một Kèo:
+ * - Thu thập tất cả các trận con thuộc kèo đó.
+ * - Đếm số hiệp thắng của Đội A và Đội B.
+ * - Xác định trạng thái đã xong hay chưa, tỉ số chuỗi, hiệp tiếp theo.
+ */
+export function getChallengeSeriesProgress(challenge, matches = []) {
+  if (!challenge) {
+    return {
+      winsA: 0,
+      winsB: 0,
+      winsNeeded: 1,
+      isComplete: false,
+      winnerTeam: null,
+      totalSetsPlayed: 0,
+      nextSetNumber: 1,
+      isDecider: false,
+      seriesScoreText: '0 – 0',
+      playedMatches: [],
+    }
+  }
+
+  const chalMatches = (matches || [])
+    .filter((m) => m && m.challengeId === challenge.id)
+    .slice()
+    .sort((a, b) => (a.at || 0) - (b.at || 0))
+
+  let winsA = 0
+  let winsB = 0
+  chalMatches.forEach((m) => {
+    if (m.winnerTeam === 'A') winsA++
+    else if (m.winnerTeam === 'B') winsB++
+  })
+
+  const bestOf = Number(challenge.bestOf) || 1
+  const winsNeeded = Math.ceil(bestOf / 2)
+  const isComplete = Boolean(winsA >= winsNeeded || winsB >= winsNeeded)
+  const winnerTeam = winsA >= winsNeeded ? 'A' : (winsB >= winsNeeded ? 'B' : null)
+  const totalSetsPlayed = chalMatches.length
+  const nextSetNumber = totalSetsPlayed + 1
+  const isDecider = Boolean(!isComplete && winsA === winsNeeded - 1 && winsB === winsNeeded - 1)
+  const seriesScoreText = `${winsA} – ${winsB}`
+
+  return {
+    winsA,
+    winsB,
+    winsNeeded,
+    isComplete,
+    winnerTeam,
+    totalSetsPlayed,
+    nextSetNumber,
+    isDecider,
+    seriesScoreText,
+    playedMatches: chalMatches,
+  }
+}
+

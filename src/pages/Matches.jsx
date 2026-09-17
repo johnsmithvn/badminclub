@@ -20,7 +20,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { buildPlayableVideoUrl, formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -776,11 +776,19 @@ export default function Matches() {
                 expStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`
               }
 
+              const isBoSeries = (c.bestOf || 1) > 1
+              const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
+              const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
+
               const statusBadgeText = (isPending && isExpired) || c.status === 'expired'
                 ? t('challenge.status.expired')
                 : isPending
                   ? `${t('challenge.status.pending')}${expStr ? ` · ${expStr}` : ''}`
-                  : (t('challenge.status.' + c.status) || c.status)
+                  : isAccepted && hasPlayedSets
+                    ? `${t('challenge.seriesPlaying', { score: seriesProg.seriesScoreText })} · ${t('challenge.seriesSetShort', { set: seriesProg.nextSetNumber })}`
+                    : isPlayed && isBoSeries && seriesProg
+                      ? `${t('challenge.status.played')} (${seriesProg.seriesScoreText})`
+                      : (t('challenge.status.' + c.status) || c.status)
 
               const sessionObj = c.sessionId ? (db.sessions || []).find((s) => s.id === c.sessionId) : null
               const allPlayers = [...teamA, ...teamB]
@@ -816,7 +824,12 @@ export default function Matches() {
                           borderColor: 'rgba(239, 68, 68, 0.45)',
                           boxShadow: '0 0 0 1px rgba(239, 68, 68, 0.25)',
                         }
-                      : {}),
+                      : hasPlayedSets && !isPlayed
+                        ? {
+                            borderColor: 'rgba(168, 85, 247, 0.35)',
+                            boxShadow: '0 0 0 1px rgba(168, 85, 247, 0.15)',
+                          }
+                        : {}),
                   }}
                 >
                   {/* Hàng 1: Mã kèo & Trạng thái & Buổi & Tiến độ nhận */}
@@ -832,6 +845,23 @@ export default function Matches() {
                       )}
                       {c.ratingEnabled === false && (
                         <span style={S.casualBadge}>{t('challenge.casual')}</span>
+                      )}
+                      {hasPlayedSets && (
+                        <span style={{
+                          fontSize: 11,
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          background: 'rgba(168,85,247,0.2)',
+                          color: '#D8B4FE',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}>
+                          <Icon name="flame" size={12} style={{ color: '#C084FC' }} />
+                          <span>{seriesProg.seriesScoreText}</span>
+                        </span>
                       )}
                       {isPending && !isExpired && (
                         <span style={{
@@ -853,9 +883,9 @@ export default function Matches() {
                     </div>
                     <span style={{
                       ...S.statusBadge,
-                      background: isPlayed ? 'var(--surface-brand-soft)' : isAccepted ? 'var(--surface-nav-active)' : isExpired ? 'rgba(239,68,68,0.1)' : 'rgba(240,183,92,0.14)',
-                      borderColor: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--teal-700)' : isExpired ? 'var(--red-500, #ef4444)' : 'var(--border-subtle)',
-                      color: isPlayed ? 'var(--status-delivered-fg)' : isAccepted ? 'var(--status-transit-fg)' : isExpired ? 'var(--red-500, #ef4444)' : 'var(--status-delayed-fg)',
+                      background: isPlayed ? 'var(--surface-brand-soft)' : (isAccepted && hasPlayedSets) ? 'rgba(168,85,247,0.15)' : isAccepted ? 'var(--surface-nav-active)' : isExpired ? 'rgba(239,68,68,0.1)' : 'rgba(240,183,92,0.14)',
+                      borderColor: isPlayed ? 'var(--status-delivered-fg)' : (isAccepted && hasPlayedSets) ? '#A855F7' : isAccepted ? 'var(--teal-700)' : isExpired ? 'var(--red-500, #ef4444)' : 'var(--border-subtle)',
+                      color: isPlayed ? 'var(--status-delivered-fg)' : (isAccepted && hasPlayedSets) ? '#D8B4FE' : isAccepted ? 'var(--status-transit-fg)' : isExpired ? 'var(--red-500, #ef4444)' : 'var(--status-delayed-fg)',
                     }}>
                       {statusBadgeText}
                     </span>
