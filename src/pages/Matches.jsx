@@ -115,9 +115,10 @@ export default function Matches() {
     setSearchParams(next, { replace: true })
   }, [searchParams, myId, setSearchParams])
 
-  const [highlightedChallengeId, setHighlightedChallengeId] = useState(null)
+  const cidParam = searchParams.get('challengeId')
+  const [highlightedChallengeId, setHighlightedChallengeId] = useState(() => cidParam || null)
 
-  // Đồng bộ tab từ URL searchParams khi được điều hướng từ ngoài vào (ví dụ thông báo)
+  // Đồng bộ tab và challengeId từ URL searchParams khi được điều hướng từ ngoài vào (ví dụ thông báo)
   useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab === 'search' || tab === 'history') {
@@ -127,57 +128,52 @@ export default function Matches() {
     } else if (tab === 'challenges') {
       setActiveTab('challenges')
     }
-  }, [searchParams])
 
-  // Tự động định vị và làm nổi bật kèo khi có ?challengeId= từ thông báo
-  useEffect(() => {
-    const cid = searchParams.get('challengeId')
-    if (!cid) return
+    if (cidParam) {
+      setHighlightedChallengeId(cidParam)
+      setActiveTab('challenges')
 
-    setActiveTab('challenges')
-
-    const targetChal = (db.challenges || []).find((c) => c.id === cid)
-    if (targetChal) {
-      const isMine = myId && (
-        (targetChal.teamA || []).includes(myId) ||
-        (targetChal.teamB || []).includes(myId) ||
-        targetChal.createdBy === myId
-      )
-      if (isMine) {
-        setChallengeSubTab('my')
-      } else if (targetChal.status === 'pending') {
-        setChallengeSubTab('pending')
-      } else if (targetChal.status === 'played') {
-        setChallengeSubTab('played')
+      const targetChal = (db.challenges || []).find((c) => c.id === cidParam)
+      if (targetChal) {
+        const isMine = myId && (
+          (targetChal.teamA || []).includes(myId) ||
+          (targetChal.teamB || []).includes(myId) ||
+          targetChal.createdBy === myId
+        )
+        if (isMine) {
+          setChallengeSubTab('my')
+        } else if (targetChal.status === 'pending') {
+          setChallengeSubTab('pending')
+        } else if (targetChal.status === 'played') {
+          setChallengeSubTab('played')
+        } else {
+          setChallengeSubTab('all')
+        }
       } else {
         setChallengeSubTab('all')
       }
-    } else {
-      setChallengeSubTab('all')
     }
+  }, [searchParams, cidParam, db.challenges, myId])
 
-    setHighlightedChallengeId(cid)
+  // Tự động cuộn đến thẻ kèo khi có highlightedChallengeId
+  useEffect(() => {
+    if (!highlightedChallengeId || activeTab !== 'challenges') return
 
-    const timer = setTimeout(() => {
-      const el = document.getElementById(`challenge-card-${cid}`)
+    let attempts = 0
+    const maxAttempts = 20
+    const interval = setInterval(() => {
+      attempts++
+      const el = document.getElementById(`challenge-card-${highlightedChallengeId}`)
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        clearInterval(interval)
+      } else if (attempts >= maxAttempts) {
+        clearInterval(interval)
       }
-    }, 200)
+    }, 100)
 
-    const clearTimer = setTimeout(() => {
-      setHighlightedChallengeId((curr) => (curr === cid ? null : curr))
-    }, 4500)
-
-    const next = new URLSearchParams(searchParams)
-    next.delete('challengeId')
-    setSearchParams(next, { replace: true })
-
-    return () => {
-      clearTimeout(timer)
-      clearTimeout(clearTimer)
-    }
-  }, [searchParams, db.challenges, myId, setSearchParams])
+    return () => clearInterval(interval)
+  }, [highlightedChallengeId, activeTab, challengeSubTab])
 
   // State Tìm trận & Lịch sử
   const [playerA, setPlayerA] = useState(() => searchParams.get('playerA') || '')
@@ -275,15 +271,26 @@ export default function Matches() {
   }, [allChallenges])
 
   const displayedChallenges = useMemo(() => {
+    let list
     switch (challengeSubTab) {
-      case 'my': return myChallenges
-      case 'open': return openChallenges
-      case 'pending': return pendingChallenges
-      case 'played': return playedChallenges
-      case 'all': return allChallenges
-      default: return myChallenges
+      case 'my': list = myChallenges; break
+      case 'open': list = openChallenges; break
+      case 'pending': list = pendingChallenges; break
+      case 'played': list = playedChallenges; break
+      case 'all': list = allChallenges; break
+      default: list = myChallenges
     }
-  }, [challengeSubTab, myChallenges, openChallenges, pendingChallenges, playedChallenges, allChallenges])
+
+    if (highlightedChallengeId) {
+      const target = allChallenges.find((c) => c.id === highlightedChallengeId)
+      if (target) {
+        // Đưa kèo được highlight lên đầu danh sách để đập ngay vào mắt người dùng
+        const others = list.filter((c) => c.id !== highlightedChallengeId)
+        return [target, ...others]
+      }
+    }
+    return list
+  }, [challengeSubTab, myChallenges, openChallenges, pendingChallenges, playedChallenges, allChallenges, highlightedChallengeId])
 
   // =========================================================================
   // TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - BÊ NGUYÊN TỪ LEADERBOARD CŨ
@@ -726,6 +733,52 @@ export default function Matches() {
             })}
           </div>
 
+          {/* Banner thông báo kèo đang được chọn/làm nổi bật */}
+          {highlightedChallengeId && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 16px',
+                borderRadius: 8,
+                backgroundColor: 'rgba(0, 245, 212, 0.08)',
+                border: '1px solid rgba(0, 245, 212, 0.35)',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-primary)' }}>
+                <span style={{ fontSize: 16 }}>🎯</span>
+                <span style={{ fontWeight: 600 }}>
+                  {t('challenge.focusedNotice', {
+                    code: (allChallenges.find((c) => c.id === highlightedChallengeId)?.code) || highlightedChallengeId,
+                  })}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setHighlightedChallengeId(null)
+                  const next = new URLSearchParams(searchParams)
+                  next.delete('challengeId')
+                  setSearchParams(next, { replace: true })
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--teal-400, #00F5D4)',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  textDecoration: 'underline',
+                }}
+              >
+                {t('challenge.viewAll')}
+              </button>
+            </div>
+          )}
+
           {/* Danh sách thẻ Kèo */}
           <div style={{
             display: 'grid',
@@ -837,6 +890,25 @@ export default function Matches() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={S.monoCode}>{c.code}</span>
+                      {highlightedChallengeId === c.id && (
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(0, 245, 212, 0.15)',
+                            color: '#00F5D4',
+                            border: '1px solid #00F5D4',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          <Icon name="check" size={12} />
+                          {t('challenge.focusedBadge')}
+                        </span>
+                      )}
                       {sessionObj ? (
                         <span style={S.sessionBadge}>
                           {t('matchesPage.sessionLinked', { date: dd(sessionObj.date) })}

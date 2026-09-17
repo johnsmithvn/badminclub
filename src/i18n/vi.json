@@ -1028,6 +1028,7 @@
   },
   "toast": {
     "selfCheckinSuccess": "Đã cập nhật trạng thái điểm danh của bạn.",
+    "selfCheckinNoChange": "Trạng thái điểm danh không thay đổi.",
     "selfCheckinClosed": "Buổi tập đã chốt sổ, không thể đổi trạng thái điểm danh.",
     "viewAsDenied": "Chỉ xem như được vai của mình hoặc vai yếu hơn.",
     "levelsSaved": "Đã lưu thang trình độ ({{n}} bậc). Bảng giá khách và cân trình độ dùng thứ tự mới.",
@@ -2794,6 +2795,9 @@
   "challenge": {
     "title": "Kèo trong buổi",
     "sub": "Chỉ chọn được người đã có mặt",
+    "focusedNotice": "Đang làm nổi bật kèo {{code}}",
+    "focusedBadge": "Đang chọn",
+    "viewAll": "Xem tất cả kèo",
     "create": "Tạo kèo",
     "dlgCreateTitle": "Tạo kèo trong buổi {{date}}",
     "dlgCreateDesc": "Bấm tên để xếp vào đội A, bấm lần nữa để sang đội B",
@@ -4440,7 +4444,8 @@
     "tabNotifications": "Thông báo",
     "tabHighlights": "Dành cho bạn",
     "unreadCount": "{{count}} thông báo chưa đọc",
-    "challenge_created": "⚔️ Bạn nhận được lời thách đấu kèo {{code}}!",
+    "challenge_created": "⚔️ Bạn nhận được lời thách đấu kèo {{code}} từ {{creator}}!",
+    "challenge_created_simple": "⚔️ Bạn nhận được lời thách đấu kèo {{code}}!",
     "challenge_accepted": "🤝 Kèo {{code}} của bạn đã được đối thủ chấp nhận!",
     "challenge_declined": "🛡️ Kèo {{code}} của bạn đã bị từ chối.",
     "challenge_completed": "🏆 Kèo {{code}} đã hoàn tất! {{winners}} thắng chung cuộc {{seriesScore}}.",

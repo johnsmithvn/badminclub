@@ -59,7 +59,9 @@ export default function NotificationItem({ item, onRead }) {
   const payload = resolveNotificationPayload(item, db)
   const notifKey = item.type === 'attendance_reported' && payload.status
     ? `notification.attendance_reported_${payload.status}`
-    : `notification.${item.type}`
+    : item.type === 'challenge_created' && !payload.creator
+      ? 'notification.challenge_created_simple'
+      : `notification.${item.type}`
   const content = t(notifKey, payload)
 
   // Kiểm tra trạng thái điểm danh hiện tại của mình nếu là session_rsvp_invite

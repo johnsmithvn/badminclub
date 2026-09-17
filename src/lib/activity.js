@@ -333,6 +333,9 @@ export function resolveNotificationPayload(item, db) {
   const res = { ...p }
 
   if (item?.type === 'challenge_created') {
+    const chal = (db?.challenges || []).find((c) => c.id === (item.refId || p.chalId))
+    const creatorId = p.createdBy || p.creatorId || chal?.createdBy || p.challengerIds?.[0]
+    res.creator = p.creator || getEntityName(db, creatorId) || (p.challengers || formatTeamNames(db, p.challengerIds)) || ''
     res.challengers = p.challengers || formatTeamNames(db, p.challengerIds)
   }
 

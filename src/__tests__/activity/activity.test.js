@@ -197,6 +197,7 @@ const notifChal = resolveNotificationPayload(
   mockDb
 )
 assert.equal(notifChal.challengers, 'Quân')
+assert.equal(notifChal.creator, 'Quân')
 
 const notifClaim = resolveNotificationPayload(
   { type: 'claim_approved', payload: { kind: 'dues' } },

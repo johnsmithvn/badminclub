@@ -33,6 +33,12 @@ const uid = () => crypto.randomUUID()
 /** Các trường SỐ của một nhóm cố định — dùng để biết ô nhập nào phải đi qua intOf. */
 const GROUP_NUM = ['feeNam', 'feeNu', 'unitNam', 'unitNu']
 
+/** Cache lưu thao tác tự điểm danh gần nhất của thành viên để chống spam click liên tục */
+const recentSelfCheckins = new Map()
+
+/** Cache chống bắn trùng thông báo điểm danh cùng loại trong thời gian ngắn */
+const recentAttendanceEvents = new Map()
+
 export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) {
   const db = () => dbRef.current
   /** Form đang nhập — đọc qua ref, KHÔNG đọc qua updater của setUi (updater không chạy đồng bộ). */
@@ -130,6 +136,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     const clubId = d0.clubId
     const effectiveActorId = actorId || myMember(d0)?.id || null
     const now = new Date().toISOString()
+
+    // Chống bắn trùng thông báo điểm danh cho cùng người, cùng buổi, cùng trạng thái
+    if (type === 'attendance_reported') {
+      const eventKey = `${type}:${effectiveActorId}:${refId}:${payload?.status}`
+      const lastSent = recentAttendanceEvents.get(eventKey)
+      if (lastSent && Date.now() - lastSent < 3000) {
+        return
+      }
+      recentAttendanceEvents.set(eventKey, Date.now())
+      if (recentAttendanceEvents.size > 100) {
+        const curTime = Date.now()
+        for (const [k, v] of recentAttendanceEvents.entries()) {
+          if (curTime - v > 10000) recentAttendanceEvents.delete(k)
+        }
+      }
+    }
 
     // 1. Social Activity (chỉ DB, không vào db state)
     if (!skipActivity && clubId && supabase) {
@@ -2618,6 +2640,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           code,
           challengerIds: teamA || [],
           opponentIds: teamB || [],
+          createdBy: myId,
+          creator: myMem?.name || '',
         },
         recipients: (teamB || []).filter((id) => id !== myId),
         refType: 'challenge',
@@ -3837,6 +3861,44 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     if (!s) return
     if (s.status === 'closed') {
       return toast(t('toast.selfCheckinClosed'))
+    }
+
+    const currentAtt = d0.attendance?.[sessionId]?.[myId]
+
+    // Xác định trạng thái mục tiêu trong bảng attendance
+    const targetAtt =
+      status === 'present' ? true :
+      status === 'absent' ? false :
+      status === 'extra' ? 'extra' :
+      undefined
+
+    // Kiểm tra xem trạng thái có thực sự thay đổi so với hiện tại không
+    const isActuallyChanged = status === 'removeExtra'
+      ? currentAtt === 'extra'
+      : currentAtt !== targetAtt
+
+    // Tránh spam/click đúp nhanh: kiểm tra cache thao tác gần nhất (trong vòng 3 giây)
+    const checkinKey = `${sessionId}:${myId}`
+    const recent = recentSelfCheckins.get(checkinKey)
+    const isRapidDuplicate = Boolean(
+      recent &&
+      Date.now() - recent.time < 3000 &&
+      recent.status === status
+    )
+
+    if (!isActuallyChanged || isRapidDuplicate) {
+      if (!isRapidDuplicate) {
+        toast(t('toast.selfCheckinNoChange'))
+      }
+      return
+    }
+
+    recentSelfCheckins.set(checkinKey, { status, time: Date.now() })
+    if (recentSelfCheckins.size > 100) {
+      const curTime = Date.now()
+      for (const [k, v] of recentSelfCheckins.entries()) {
+        if (curTime - v.time > 10000) recentSelfCheckins.delete(k)
+      }
     }
 
     up((d) => {
