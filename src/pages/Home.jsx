@@ -1,17 +1,17 @@
 import { Alert, Avatar, Button, Card, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
-import { Bar, DayBox, Empty, GRID_PAIR, GRID_STAT, Mono, MyDebtPanel, Overline, SessionPill, TabTrack } from '#ui'
+import { Bar, Empty, GRID_PAIR, GRID_STAT, Mono, MyDebtPanel, Overline, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import {
-  adjustRows, advanceRows, courtCost, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
+  adjustRows, advanceRows, dueState, duesOf, duesTotal, fmt, fmtK,
   groupMembers, groupOf, guestOf, homeAlerts, isPresent, memberOf, monthSessions,
-  openSessions, sessionOf, timeTxt,
+  openSessions, sessionOf,
 } from '#lib/money.js'
 import { monthFlow } from '#lib/ledger.js'
 import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
 import { t } from '#i18n'
-import { Detail, FundBalanceColumns, FundOverviewCards } from '#pages/Fund.jsx'
+import { Detail, FundOverviewCards } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
 import { scheduleForm } from '#lib/forms.js'
 import { PUBLIC_PATHS } from '#routes'
@@ -173,19 +173,7 @@ function Overview() {
   const totalBack = backRows.reduce((x, r) => x + Math.abs(r.amount), 0)
   const backMembers = new Set(backRows.map((r) => r.memberId))
 
-  // 3. Buổi tới: Ưu tiên các buổi sắp tới trong tháng hiện tại CHƯA CHỐT và CHƯA HUỶ.
-  // LOẠI buổi đang mở: chúng đã nằm trên banner `OpenNow` ở đầu trang. Một buổi hiện hai chỗ
-  // thì người ta phải tự đối chiếu xem có phải cùng một buổi không, và đó là việc của máy.
-  const openIds = new Set(openSessions(db).map((s) => s.id))
-  const pickUpcoming = (sameMonth) => db.sessions
-    .filter((s) => s.date >= db.today && s.status !== 'cancelled' && s.status !== 'closed'
-      && !openIds.has(s.id) && (!sameMonth || monthOf(s.date) === month))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
-    .slice(0, 4)
 
-  // Nếu trong tháng đã hết buổi tới, mới lấy gối đầu các buổi tới của tháng sau
-  let upcoming = pickUpcoming(true)
-  if (upcoming.length === 0) upcoming = pickUpcoming(false)
 
   // Số buổi có mặt của từng người trong tháng — chỉ tính buổi đã chốt.
   const attend = {}
@@ -236,80 +224,7 @@ function Overview() {
     .sort((a, b) => b.count - a.count)
   const maxInvites = Math.max(1, ...topInviters.map((x) => x.count))
 
-  const upcomingCard = (
-    <Card title={t('home.upcoming')} subtitle={t('home.upcomingSub')} icon="calendar-clock" padding="0">
-      {upcoming.length === 0
-        ? <Empty
-            icon={openIds.size ? 'play' : 'calendar-days'}
-            title={t(openIds.size ? 'home.allOpen' : 'home.noUpcoming')}
-            hint={t(openIds.size ? 'home.allOpenHint' : 'home.noUpcomingHint')}
-          />
-        : <div style={{ display: 'grid', minWidth: 0, width: '100%' }}>
-            {upcoming.map((s) => (
-              <div key={s.id} style={SS.upRow}>
-                <DayBox iso={s.date} />
-                <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'grid', gap: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '2px 7px', borderRadius: 4,
-                      background: 'var(--status-transit-bg, rgba(0, 178, 169, 0.12))',
-                      border: '1px solid rgba(0, 178, 169, 0.25)',
-                      color: 'var(--status-transit-fg, #5FDBD3)', fontWeight: 600, fontSize: 12,
-                    }}>
-                      <Icon name="users" size={11} style={{ color: 'var(--status-transit-fg, #5FDBD3)' }} />
-                      <span>{groupOf(db, s.groupId).name}</span>
-                    </span>
-                    <SessionPill status={s.status} size="sm" />
-                  </div>
-                  <div
-                    title={timeTxt(s) + ' · ' + courtTxt(db, s)}
-                    style={{
-                      ...SS.ellipsis,
-                      fontFamily: 'var(--font-sans)',
-                      color: 'var(--text-secondary)',
-                      fontSize: 12,
-                      display: 'flex', alignItems: 'center', gap: 6,
-                    }}>
-                    <span style={{
-                      fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11.5,
-                      color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 3,
-                      background: 'var(--surface-sunken)', border: '1px solid var(--border-subtle)',
-                    }}>
-                      {timeTxt(s)}
-                    </span>
-                    <span style={{ color: 'var(--text-muted)' }}>·</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <Icon name="map-pin" size={11} style={{ color: 'var(--status-transit-fg, #5FDBD3)', flexShrink: 0 }} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{courtTxt(db, s)}</span>
-                    </span>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                  <Mono weight={600} color="var(--text-primary)">{fmt(courtCost(db, s))}</Mono>
-                  <div style={SS.caption}>{t('home.courtCostLabel')}</div>
-                </div>
-                <div style={{ flexShrink: 0 }}>
-                  {canSessions ? (
-                    <Button size="sm" icon="user-round-check"
-                      variant={s.status === 'draft' ? 'secondary' : 'accent'}
-                      onClick={() => {
-                        if (s.status === 'draft') a.setSessionStatus(s.id, 'open')
-                        a.openSession(s.id)
-                      }}>
-                      {s.status === 'draft' ? t('home.openSession') : t('home.markAttend')}
-                    </Button>
-                  ) : (
-                    <Button size="sm" icon="eye" variant="ghost" onClick={() => a.openSession(s.id)}>
-                      {t('home.viewSession')}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>}
-    </Card>
-  )
+
 
   return (
     <>
@@ -318,7 +233,7 @@ function Overview() {
       <MyDebtPanel place="overview" />
       <OpenNow />
       {!isMobile && <Setup />}
-      {isMobile && upcomingCard}
+
       {/* 4 thẻ tài chính chuẩn từ Sổ quỹ */}
       <FundOverviewCards />
 
@@ -350,7 +265,7 @@ function Overview() {
       </div>
 
       <div style={isMobile ? { display: 'grid', gap: 12 } : GRID_PAIR}>
-        {!isMobile && upcomingCard}
+
 
         <Card title={t('home.duesProgress')} subtitle={monthTxt(month)} icon="banknote"
           actions={<Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.go('debts')}>
@@ -535,23 +450,6 @@ function Overview() {
         </Card>
       </div>
 
-      {/* Section Tổng kết thu chi 2 cột từ Sổ quỹ */}
-      <div style={{ display: 'grid', gap: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <div>
-            <div style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>
-              {t('home.summaryTitle', { month: monthTxt(month).toLowerCase() })}
-            </div>
-            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-              {t('home.summarySub')}
-            </div>
-          </div>
-          <Button variant="ghost" size="sm" iconAfter="chevron-right" onClick={() => a.setTab('home', 'transactions')}>
-            {t('home.viewLedger')}
-          </Button>
-        </div>
-        <FundBalanceColumns />
-      </div>
     </>
   )
 }

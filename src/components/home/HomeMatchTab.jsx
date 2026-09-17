@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import { LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { dd, wd } from '#utils/dates.js'
-import { playerName, isPresent } from '#lib/money.js'
+
+import { playerName } from '#lib/money.js'
 import { getPlayerRating } from '#lib/rating.js'
 import { neverMetPairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
 import { t } from '#i18n'
@@ -60,73 +60,8 @@ export default function HomeMatchTab() {
     }
   }, [monthMatches, monthSessionsList, activeMembers, db.playerRatings, db.levels])
 
-  // 2. Buổi tiếp theo & Histogram 9 cột
-  const nextSessionData = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10)
-    const upcoming = sessions
-      .filter((s) => s.status !== 'closed' && (s.date >= todayStr || s.status === 'open'))
-      .sort((s1, s2) => (s1.date || '').localeCompare(s2.date || ''))
 
-    const next = upcoming[0] || sessions[0] || null
-    if (!next) return null
 
-    const group = (db.groups || []).find((g) => g.id === next.groupId)
-    const fixedIds = group?.memberIds || []
-    const attendMap = db.attendance?.[next.id] || {}
-    const goingIds = Object.keys(attendMap).filter((id) => isPresent(attendMap[id]))
-    const allRosterIds = Array.from(new Set([...fixedIds, ...goingIds]))
-
-    const ratings = allRosterIds.map((id) => {
-      const mem = (db.members || []).find((m) => m.id === id)
-      return getPlayerRating(db.playerRatings, id, mem, db.levels).rating
-    }).sort((a1, b1) => a1 - b1)
-
-    const minR = ratings.length ? ratings[0] : 1479
-    const maxR = ratings.length ? ratings[ratings.length - 1] : 1682
-
-    // Chia thành 9 bins
-    const binCount = 9
-    const step = Math.max(20, Math.ceil((maxR - minR || 200) / binCount))
-    const bins = Array.from({ length: binCount }, (_, i) => ({
-      min: minR + i * step,
-      max: minR + (i + 1) * step,
-      count: 0,
-    }))
-
-    ratings.forEach((r) => {
-      let bIdx = Math.floor((r - minR) / step)
-      if (bIdx >= binCount) bIdx = binCount - 1
-      if (bIdx < 0) bIdx = 0
-      bins[bIdx].count++
-    })
-
-    const maxBinCount = Math.max(1, ...bins.map((b) => b.count))
-
-    // Số người trên 1650 và dưới 1500
-    const highCount = ratings.filter((r) => r >= 1650).length
-    const lowCount = ratings.filter((r) => r <= 1500).length
-
-    // Số ngày còn lại
-    let diffDays = 0
-    if (next.date) {
-      const targetTime = new Date(`${next.date}T00:00:00`).getTime()
-      const nowTime = new Date().setHours(0, 0, 0, 0)
-      diffDays = Math.ceil((targetTime - nowTime) / (1000 * 60 * 60 * 24))
-    }
-
-    return {
-      session: next,
-      rosterCount: allRosterIds.length || 18,
-      courtCount: (next.courts || []).filter((c) => !c.sold).length || 3,
-      minR,
-      maxR,
-      bins,
-      maxBinCount,
-      highCount: highCount || 4,
-      lowCount: lowCount || 2,
-      diffDays,
-    }
-  }, [sessions, db.groups, db.attendance, db.members, db.playerRatings, db.levels])
 
   // 3. Người của tháng (Top Elo gainer trong tháng)
   const topGainers = useMemo(() => {
@@ -337,86 +272,7 @@ export default function HomeMatchTab() {
           alignItems: 'start',
         }}
       >
-        {/* CARD 1: Buổi tới */}
-        {nextSessionData && (
-          <div style={S.card}>
-            <div style={S.cardHeader}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ font: "600 16px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                  {t('home.nextSessionTitle', { date: `${dd(nextSessionData.session.date)} ${wd(nextSessionData.session.date)}` })}
-                </span>
-                <span style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                  {t('home.nextSessionSub', { rosterCount: nextSessionData.rosterCount, courtCount: nextSessionData.courtCount })}
-                </span>
-              </div>
-              <span style={{ font: "400 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                {nextSessionData.diffDays <= 0 ? t('home.daysRemainingToday') : t('home.daysRemaining', { n: nextSessionData.diffDays })}
-              </span>
-            </div>
 
-            <div style={{ padding: '12px 14px', display: 'grid', gap: 10 }}>
-              {/* Histogram 9 cột */}
-              <div style={S.insetBox}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                    {t('home.ratingSpread')}
-                  </span>
-                  <span style={{ font: "400 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-                    {`${nextSessionData.minR} → ${nextSessionData.maxR}`}
-                  </span>
-                </div>
-
-                {/* 9 vertical bars */}
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 44, paddingTop: 4 }}>
-                  {nextSessionData.bins.map((b, idx) => {
-                    const hPct = Math.max(16, Math.round((b.count / nextSessionData.maxBinCount) * 100))
-                    const isPeak = b.count === nextSessionData.maxBinCount
-                    return (
-                      <div
-                        key={idx}
-                        title={t('home.histogramTooltip', { min: b.min, max: b.max, count: b.count })}
-                        style={{
-                          flex: 1,
-                          height: `${hPct}%`,
-                          borderRadius: '3px 3px 0 0',
-                          background: isPeak ? '#00B2A9' : 'var(--navy-600, #2E3E5C)',
-                          transition: 'height 0.2s ease',
-                        }}
-                      />
-                    )
-                  })}
-                </div>
-
-                <span style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                  {t('home.histogramPeakDesc', { val: `${nextSessionData.minR + 50}–${nextSessionData.maxR - 50}` })}
-                </span>
-              </div>
-
-              {/* Dải cảnh báo lệch trình */}
-              <div style={S.alertStrip}>
-                {t('home.nextSessionAlert', { high: nextSessionData.highCount, low: nextSessionData.lowCount })}
-              </div>
-
-              {/* Action buttons */}
-              <div style={{ display: 'flex', gap: 8, paddingTop: 2 }}>
-                <button
-                  type="button"
-                  onClick={() => a.go('session', nextSessionData.session.id, { tab: 'courts' })}
-                  style={S.primaryBtn}
-                >
-                  {t('home.preAssignCourts')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => a.go('session', nextSessionData.session.id)}
-                  style={S.ghostBtn}
-                >
-                  {t('home.viewSession')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* CARD 2: Người của tháng */}
         <div style={S.card}>
