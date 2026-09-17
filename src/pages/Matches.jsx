@@ -8,7 +8,8 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
-import { playerName, courtOf, myMember, playerOf, openSessions } from '#lib/money.js'
+import { playerName, courtOf, myMember, playerOf, openSessions, sessionMembers, sGuests, isPresent } from '#lib/money.js'
+import { sessionPlayers } from '#lib/assign.js'
 import { dd, isoOf, todayISO, weekdayOf } from '#utils/dates.js'
 import {
   getPlayerRating, expectedScore, calcEloDelta, confidenceProgress,
@@ -782,9 +783,42 @@ export default function Matches() {
                   : (t('challenge.status.' + c.status) || c.status)
 
               const sessionObj = c.sessionId ? (db.sessions || []).find((s) => s.id === c.sessionId) : null
+              const allPlayers = [...teamA, ...teamB]
+              const att = sessionObj ? (db.attendance?.[sessionObj.id] || {}) : {}
+              const mems = sessionObj ? sessionMembers(db, sessionObj) : []
+              const guests = sessionObj ? sGuests(db, sessionObj.id) : []
+              const eligibleKeys = new Set([
+                ...mems.map((m) => m.id),
+                ...guests.map((g) => g.guestId || g.memberId || g.id),
+              ])
+              const hasStartedAttendance = Object.values(att).some((v) => isPresent(v))
+              const sessPlayers = (sessionObj && hasStartedAttendance) ? sessionPlayers(db, sessionObj) : []
+              const presentKeys = new Set(sessPlayers.map((p) => p.key))
+
+              const absentPlayerKeys = sessionObj && !isPlayed
+                ? allPlayers.filter((id) => {
+                    if (att[id] === false || att[id] === 'noshow') return true
+                    if (!eligibleKeys.has(id)) return true
+                    if (hasStartedAttendance && !presentKeys.has(id)) return true
+                    return false
+                  })
+                : []
+              const hasAbsentInSession = absentPlayerKeys.length > 0
+              const absentInSessionNames = absentPlayerKeys.map((id) => memberNameOf(id) || id)
 
               return (
-                <div key={c.id} style={S.challengeCard}>
+                <div
+                  key={c.id}
+                  style={{
+                    ...S.challengeCard,
+                    ...(hasAbsentInSession
+                      ? {
+                          borderColor: 'rgba(239, 68, 68, 0.45)',
+                          boxShadow: '0 0 0 1px rgba(239, 68, 68, 0.25)',
+                        }
+                      : {}),
+                  }}
+                >
                   {/* Hàng 1: Mã kèo & Trạng thái & Buổi & Tiến độ nhận */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -867,6 +901,77 @@ export default function Matches() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Cảnh báo thành viên báo vắng trong buổi đã gắn kèo */}
+                  {hasAbsentInSession && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: 'var(--status-incident-fg, #ef4444)',
+                      fontSize: 12.5,
+                      lineHeight: 1.4,
+                      flexWrap: 'wrap',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 200 }}>
+                        <Icon name="triangle-alert" size={16} style={{ color: 'var(--status-incident-fg, #ef4444)', flexShrink: 0 }} />
+                        <span>
+                          {t('challenge.absentInSessionAlert', { names: absentInSessionNames.join(', '), date: dd(sessionObj.date) })}
+                        </span>
+                      </div>
+                      {(isParticipant || isAdmin) && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectingSessionChallenge(c)}
+                            style={{
+                              ...S.smallSecondaryBtn,
+                              background: 'var(--surface-card)',
+                              borderColor: 'var(--status-incident-fg, #ef4444)',
+                              color: 'var(--status-incident-fg, #ef4444)',
+                              padding: '3px 9px',
+                              height: 28,
+                              fontSize: 12,
+                              fontWeight: 600,
+                            }}
+                            title={t('challenge.changeSession')}
+                          >
+                            <Icon name="calendar-days" size={13} />
+                            <span>{t('challenge.changeSession')}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              a.confirm({
+                                title: t('challenge.confirmUnlinkTitle'),
+                                message: t('challenge.confirmUnlinkMsg', { code: c.code }),
+                                tone: 'danger',
+                                onConfirm: () => a.linkChallengeToSession(c.id, null),
+                              })
+                            }}
+                            style={{
+                              ...S.smallGhostBtn,
+                              color: 'var(--status-incident-fg, #ef4444)',
+                              borderColor: 'rgba(239, 68, 68, 0.4)',
+                              padding: '3px 9px',
+                              height: 28,
+                              fontSize: 12,
+                              fontWeight: 600,
+                            }}
+                            title={t('challenge.btnUnlinkSession')}
+                          >
+                            <Icon name="unlink" size={13} />
+                            <span>{t('challenge.btnUnlinkSession')}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Cảnh báo lệch trình */}
                   {gap > IMBALANCE_THRESHOLD && ratA > 0 && ratB > 0 && (

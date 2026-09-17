@@ -30,7 +30,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
   const { db, a } = useApp()
 
   // 1. Danh sách kèo đấu thực tế trong CLB
-  const challenges = useMemo(() => {
+  const rawChallenges = useMemo(() => {
     if (Array.isArray(chalProp) && chalProp.length > 0) return chalProp
     return (db.challenges || []).filter(
       (c) => (c.sessionId === s.id || !c.sessionId) && c.status !== 'cancelled' && c.status !== 'played'
@@ -55,12 +55,33 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
     )
   })
 
-  // 3. Danh sách người tham gia buổi toàn diện (cả thành viên nhóm, khách mời và người trong kèo)
+  // 3. Danh sách người tham gia buổi toàn diện (chỉ người có mặt)
   const players = useMemo(() => {
-    return getSessionPlannerPlayers(db, s, challenges, plan)
-  }, [db, s, challenges, plan])
+    return getSessionPlannerPlayers(db, s, rawChallenges, plan)
+  }, [db, s, rawChallenges, plan])
 
-  // 4. Map rating cho từng người
+  // 4. Tập hợp người chơi có mặt trong buổi
+  const activePlayerKeys = useMemo(() => new Set(players.map((p) => p.key || p.id)), [players])
+
+  // 5. Chỉ hiện gợi ý kèo đấu với các user đi buổi đó
+  const challenges = useMemo(() => {
+    return rawChallenges.filter((c) => {
+      const teamKeys = [...(c.teamA || []), ...(c.teamB || [])]
+      if (teamKeys.length === 0) return false
+      return teamKeys.every((k) => activePlayerKeys.has(k))
+    })
+  }, [rawChallenges, activePlayerKeys])
+
+  // 6. Chỉ hiện gợi ý nguyện vọng với các user đi buổi đó
+  const wishes = useMemo(() => {
+    return (plan.wishes || []).filter((w) => {
+      if (w.memberId && !activePlayerKeys.has(w.memberId)) return false
+      if (w.targetId && !activePlayerKeys.has(w.targetId)) return false
+      return true
+    })
+  }, [plan.wishes, activePlayerKeys])
+
+  // 7. Map rating cho từng người
   const ratingsMap = useMemo(() => {
     const map = {}
     players.forEach((p) => {
@@ -170,7 +191,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
       players,
       courts: courtsList,
       challenges,
-      wishes: plan.wishes || [],
+      wishes,
       startTime: sessionTime?.startTime || '19:00',
       roundMinutes: plan.roundMinutes || DEFAULT_ROUND_MINUTES,
       totalRounds: plan.rounds?.length || DEFAULT_TOTAL_ROUNDS,
@@ -450,7 +471,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
   }
 
   const handleScheduleWish = (wishId) => {
-    const wish = (plan.wishes || []).find((w) => w.id === wishId)
+    const wish = (wishes || []).find((w) => w.id === wishId)
     if (!wish) return
 
     const wishCheck = validateWishAttendance(wish, db.attendance?.[s.id] || {}, players, db)
@@ -563,7 +584,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
           loads={loads}
           attendance={db.attendance?.[s.id] || {}}
           challenges={challenges}
-          wishes={plan.wishes || []}
+          wishes={wishes}
         />
 
         {/* Cột 2: Màn 1a Bảng vòng HOẶC Màn 1b Dòng thời gian */}
@@ -594,7 +615,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
           db={db}
           rounds={plan.rounds}
           challenges={challenges}
-          wishes={plan.wishes || []}
+          wishes={wishes}
           players={players}
           ratingsMap={ratingsMap}
           attendance={db.attendance?.[s.id] || {}}
@@ -622,7 +643,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
         roundsCount={plan.rounds?.length || 0}
         playersCount={players.length}
         challenges={challenges}
-        wishes={plan.wishes || []}
+        wishes={wishes}
         attendance={db.attendance?.[s.id] || {}}
         players={players}
         db={db}

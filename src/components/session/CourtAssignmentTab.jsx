@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { Button, Card, Icon, IconButton, Select, Switch } from '#ds'
+import { Button, Card, Dialog, Icon, IconButton, Select, Switch } from '#ds'
 import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { playerName, genderTxt, isFemaleGender, isMaleGender } from '#lib/money.js'
+import { playerName, genderTxt, isFemaleGender, isMaleGender, openSessions } from '#lib/money.js'
+import { dd } from '#utils/dates.js'
 import { compareVietnameseNames } from '#lib/members.js'
 import { can } from '#lib/roles.js'
 import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWaitTime } from '#lib/assign.js'
@@ -83,6 +84,7 @@ export default function CourtAssignmentTab({ s }) {
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showStatsSheet, setShowStatsSheet] = useState(false)
   const [showBalanceSheet, setShowBalanceSheet] = useState(false)
+  const [showClubChallengesModal, setShowClubChallengesModal] = useState(false)
   const [showChangesBox, setShowChangesBox] = useState(false)
   const [showVoiceModal, setShowVoiceModal] = useState(false)
   const [sortOption, setSortOption] = useState('az') // 'az' | 'fewest' | 'wait' | 'level'
@@ -184,6 +186,17 @@ export default function CourtAssignmentTab({ s }) {
   const unlinkedChallenges = useMemo(() => {
     return (db.challenges || []).filter((c) => !c.sessionId && c.status === 'accepted')
   }, [db.challenges])
+
+  // Kèo đang được chọn để đổi buổi chơi
+  const [selectingSessionChallenge, setSelectingSessionChallenge] = useState(null)
+
+  // Danh sách các buổi chơi khác trong CLB để chuyển kèo sang
+  const availableSessions = useMemo(() => {
+    const open = (openSessions(db) || []).filter((item) => item.id !== s?.id)
+    const openIds = new Set(open.map((item) => item.id))
+    const others = (db.sessions || []).filter((item) => item.id !== s?.id && !openIds.has(item.id))
+    return [...open, ...others]
+  }, [db, s?.id])
 
   // Người đang chờ (chưa có tên trên sân)
   const waitingPlayers = useMemo(() => {
@@ -495,11 +508,11 @@ export default function CourtAssignmentTab({ s }) {
   // Nạp kèo đã nhận vào sân
   const handleLoadChallenge = (c) => {
     const allPlayers = [...(c.teamA || []), ...(c.teamB || [])]
-    const att = s?.attendance || {}
-    const absentKeys = allPlayers.filter((k) => att[k] === false || att[k] === 'noshow')
+    const presentKeys = new Set(players.map((p) => p.key))
+    const absentKeys = allPlayers.filter((k) => !presentKeys.has(k))
     if (absentKeys.length > 0) {
       const absentNames = absentKeys.map((k) => playerName(db, k) || k)
-      a.toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
+      a.toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }), { tone: 'danger' })
       return
     }
 
@@ -993,54 +1006,85 @@ export default function CourtAssignmentTab({ s }) {
               {acceptedChallenges.map((c) => {
                 const nameA = (c.teamA || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamA')
                 const nameB = (c.teamB || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamB')
-                return (
-                  <div key={c.id} style={S.chalChip}>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameA}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>vs</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameB}</span>
-                    <span style={S.tagSub}>{c.bestOf || 1} set</span>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon="download"
-                      onClick={() => handleLoadChallenge(c)}
-                    >
-                      {t('quickMatch.loadChal')}
-                    </Button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+                const allPlayers = [...(c.teamA || []), ...(c.teamB || [])]
+                const presentKeys = new Set(players.map((p) => p.key))
+                const absentKeys = allPlayers.filter((k) => !presentKeys.has(k))
+                const hasAbsent = absentKeys.length > 0
+                const absentNames = absentKeys.map((id) => playerName(db, id) || id)
 
-        {/* ---------------- Banner Kèo hẹn trước trong CLB (chưa gắn buổi) ---------------- */}
-        {unlinkedChallenges.length > 0 && (
-          <div style={{ ...S.chalBanner, marginTop: acceptedChallenges.length > 0 ? 8 : 0, background: 'var(--surface-sunken)', borderColor: 'var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name="history" size={16} color="var(--text-muted)" />
-              <span style={{ font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
-                {t('challenge.importClubChallenge', { n: unlinkedChallenges.length })}:
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-              {unlinkedChallenges.map((c) => {
-                const nameA = (c.teamA || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamA')
-                const nameB = (c.teamB || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamB')
                 return (
-                  <div key={c.id} style={S.chalChip}>
+                  <div
+                    key={c.id}
+                    style={{
+                      ...S.chalChip,
+                      ...(hasAbsent
+                        ? {
+                            borderColor: 'var(--status-incident-fg, #ef4444)',
+                            background: 'rgba(239, 68, 68, 0.05)',
+                          }
+                        : {}),
+                    }}
+                  >
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameA}</span>
                     <span style={{ color: 'var(--text-muted)' }}>vs</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameB}</span>
                     <span style={S.tagSub}>{c.bestOf || 1} set</span>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon="plus"
-                      onClick={() => a.linkChallengeToSession(c.id, s.id)}
-                    >
-                      {t('challenge.linkToSession')}
-                    </Button>
+
+                    {hasAbsent ? (
+                      <>
+                        <span
+                          style={{
+                            color: 'var(--status-incident-fg, #ef4444)',
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          <Icon name="triangle-alert" size={13} />
+                          {t('challenge.absentWarning', { names: absentNames.join(', ') })}
+                        </span>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon="calendar-days"
+                          onClick={() => setSelectingSessionChallenge(c)}
+                          title={t('challenge.changeSession')}
+                        >
+                          {t('challenge.changeSession')}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon="unlink"
+                          style={{
+                            color: 'var(--status-incident-fg, #ef4444)',
+                            borderColor: 'rgba(239, 68, 68, 0.35)',
+                          }}
+                          onClick={() => {
+                            a.confirm({
+                              title: t('challenge.confirmUnlinkTitle'),
+                              message: t('challenge.confirmUnlinkMsg', { code: c.code }),
+                              tone: 'danger',
+                              onConfirm: () => a.linkChallengeToSession(c.id, null),
+                            })
+                          }}
+                          title={t('challenge.btnUnlinkSession')}
+                        >
+                          {t('challenge.btnUnlinkSession')}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon="download"
+                        onClick={() => handleLoadChallenge(c)}
+                      >
+                        {t('quickMatch.loadChal')}
+                      </Button>
+                    )}
                   </div>
                 )
               })}
@@ -1057,6 +1101,44 @@ export default function CourtAssignmentTab({ s }) {
           padding="12px 14px"
           actions={
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* Nút Kèo hẹn trước trong CLB */}
+              {unlinkedChallenges.length > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="history"
+                  onClick={() => setShowClubChallengesModal(true)}
+                  title={t('challenge.importClubChallenge', { n: unlinkedChallenges.length })}
+                  style={{
+                    padding: isMobile ? '0 8px' : '0 10px',
+                    borderColor: 'var(--status-scheduled-fg, #3C74C4)',
+                    color: 'var(--status-scheduled-fg, #3C74C4)',
+                    background: 'rgba(60, 116, 196, 0.1)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span>{isMobile ? t('challenge.btnShort') : t('challenge.btnClubChallenges')}</span>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 18,
+                      height: 18,
+                      padding: '0 5px',
+                      borderRadius: 999,
+                      background: 'var(--status-scheduled-fg, #3C74C4)',
+                      color: '#ffffff',
+                      font: '700 11px/1 var(--font-mono)',
+                    }}
+                  >
+                    {unlinkedChallenges.length}
+                  </span>
+                </Button>
+              )}
+
               {/* Nút ▤ Thống kê mở CS3 - chỉ hiển thị với Ban tổ chức / Quản lý */}
               {canManage && (
                 <Button
@@ -2853,6 +2935,255 @@ export default function CourtAssignmentTab({ s }) {
           }
         }}
       />
+
+      {/* Modal Kèo hẹn trước trong CLB */}
+      <Dialog
+        open={showClubChallengesModal}
+        onClose={() => setShowClubChallengesModal(false)}
+        title={t('challenge.clubChallengesModalTitle')}
+        description={t('challenge.clubChallengesModalDesc')}
+        sheet={isMobile}
+        width={580}
+        footer={
+          <Button
+            variant="secondary"
+            onClick={() => setShowClubChallengesModal(false)}
+          >
+            {t('common.close')}
+          </Button>
+        }
+      >
+        <div style={{ display: 'grid', gap: 12 }}>
+          {unlinkedChallenges.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '28px 14px', color: 'var(--text-muted)' }}>
+              {t('challenge.noUnlinkedChallenges')}
+            </div>
+          ) : (
+            unlinkedChallenges.map((c) => {
+              const nameA = (c.teamA || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamA')
+              const nameB = (c.teamB || []).map((id) => playerName(db, id)).join(' + ') || t('quickMatch.teamB')
+              const allPlayers = [...(c.teamA || []), ...(c.teamB || [])]
+              const presentKeys = new Set(players.map((p) => p.key))
+              const absentKeys = allPlayers.filter((k) => !presentKeys.has(k))
+              const hasAbsent = absentKeys.length > 0
+              const absentNames = absentKeys.map((k) => playerName(db, k) || k)
+
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    background: 'var(--surface-card)',
+                    border: `1px solid ${hasAbsent ? 'rgba(239, 68, 68, 0.4)' : 'var(--border-default)'}`,
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {c.code && (
+                        <span style={{ font: '600 12px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
+                          {c.code}
+                        </span>
+                      )}
+                      <span style={S.tagSub}>{c.bestOf || 1} set</span>
+                    </div>
+                    {c.ratingEnabled && (
+                      <span
+                        style={{
+                          font: '600 10.5px/1 var(--font-sans)',
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          background: 'var(--status-scheduled-bg)',
+                          color: 'var(--status-scheduled-fg)',
+                        }}
+                      >
+                        Elo
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>{nameA}</span>
+                    <span style={{ font: '600 12px/1 var(--font-sans)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>vs</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>{nameB}</span>
+                  </div>
+
+                  {/* Cảnh báo nếu có thành viên trong kèo vắng mặt buổi này */}
+                  {hasAbsent && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      color: 'var(--status-incident-fg, #ef4444)',
+                      font: '500 12px/1.3 var(--font-sans)',
+                    }}>
+                      <Icon name="triangle-alert" size={14} />
+                      <span>{t('challenge.absentWarning', { names: absentNames.join(', ') })}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon="plus"
+                      disabled={hasAbsent}
+                      onClick={() => {
+                        if (hasAbsent) {
+                          a.toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }), { tone: 'danger' })
+                          return
+                        }
+                        a.linkChallengeToSession(c.id, s.id)
+                      }}
+                    >
+                      {t('challenge.linkToSession')}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon="download"
+                      disabled={hasAbsent}
+                      onClick={() => {
+                        if (hasAbsent) {
+                          a.toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }), { tone: 'danger' })
+                          return
+                        }
+                        a.linkChallengeToSession(c.id, s.id)
+                        handleLoadChallenge(c)
+                        setShowClubChallengesModal(false)
+                      }}
+                    >
+                      {t('challenge.loadDirectlyToCourt')}
+                    </Button>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </Dialog>
+
+      {/* Modal chọn buổi chơi / đổi buổi cho kèo */}
+      {selectingSessionChallenge && (
+        <Dialog
+          isOpen={true}
+          onClose={() => setSelectingSessionChallenge(null)}
+          title={t('challenge.linkSessionModalTitle', { code: selectingSessionChallenge.code })}
+          maxWidth={460}
+        >
+          <div style={{ display: 'grid', gap: 14, padding: '4px 0' }}>
+            <div style={{ font: '400 13px/1.4 var(--font-sans)', color: 'var(--text-secondary)' }}>
+              {t('challenge.linkSessionModalDesc')}
+            </div>
+
+            {availableSessions.length === 0 ? (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                {t('challenge.noAvailableSessions')}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 8, maxHeight: 320, overflowY: 'auto' }}>
+                {availableSessions.map((sess) => {
+                  const isOpen = sess.status === 'open'
+                  const isCurrent = selectingSessionChallenge.sessionId === sess.id
+                  return (
+                    <button
+                      key={sess.id}
+                      type="button"
+                      onClick={() => {
+                        a.linkChallengeToSession(selectingSessionChallenge.id, sess.id)
+                        setSelectingSessionChallenge(null)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 14px',
+                        borderRadius: 8,
+                        background: isCurrent ? 'rgba(0, 178, 169, 0.12)' : 'var(--surface-card)',
+                        border: `1px solid ${isCurrent ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      <div style={{ display: 'grid', gap: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ font: '600 14px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
+                            {t('challenge.sessionItemDate', { date: dd(sess.date) })}
+                          </span>
+                          {isOpen && (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '2px 7px',
+                                borderRadius: 4,
+                                background: 'rgba(0, 178, 169, 0.15)',
+                                color: 'var(--teal-500)',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {t('challenge.sessionStatusOpen')}
+                            </span>
+                          )}
+                          {isCurrent && (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '2px 7px',
+                                borderRadius: 4,
+                                background: 'var(--surface-sunken)',
+                                color: 'var(--text-muted)',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {t('challenge.sessionStatusCurrent')}
+                            </span>
+                          )}
+                        </div>
+                        {sess.title && (
+                          <div style={{ font: '400 12px/1.3 var(--font-sans)', color: 'var(--text-muted)' }}>
+                            {sess.title}
+                          </div>
+                        )}
+                      </div>
+                      <Icon name="arrow-right" size={16} color="var(--text-secondary)" />
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+              {selectingSessionChallenge.sessionId && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    a.linkChallengeToSession(selectingSessionChallenge.id, null)
+                    setSelectingSessionChallenge(null)
+                  }}
+                  style={{
+                    color: 'var(--status-incident-fg)',
+                    borderColor: 'rgba(225, 68, 52, 0.3)',
+                    marginRight: 'auto',
+                  }}
+                  icon="unlink"
+                >
+                  {t('challenge.btnUnlinkSession')}
+                </Button>
+              )}
+              <Button variant="secondary" onClick={() => setSelectingSessionChallenge(null)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

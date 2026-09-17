@@ -5,7 +5,7 @@ import { addMonth, dd, ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import {
   courtCost, courtOf, courtTxt, fmt, fmtK, freezeCost, groupMembers, groupOf, guestOf, guestPrice, memberOf,
-  presentCount, rowCost, sGuests, guestRev,
+  presentCount, rowCost, sGuests, guestRev, sessionMembers, isPresent,
   sessionOf, timeTxt, unfrozenCost,
   adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
   adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName,
@@ -2426,6 +2426,47 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
       if (!canAssign() && !isPlayer) return
 
+      // Validate: Nếu gắn vào buổi, kiểm tra xem có người chơi nào vắng mặt / không đi buổi đó không
+      if (sessionId && s) {
+        const att = d0.attendance?.[s.id] || {}
+        const allPlayers = [...(chal.teamA || []), ...(chal.teamB || [])]
+
+        // 1. Chặn nếu có người chơi đã báo vắng (hoặc nghỉ không báo)
+        const absentKeys = allPlayers.filter((id) => att[id] === false || att[id] === 'noshow')
+        if (absentKeys.length > 0) {
+          const absentNames = absentKeys.map((id) => playerName(d0, id) || id)
+          toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
+          return
+        }
+
+        // 2. Chặn nếu có người chơi không thuộc nhóm thành viên hoặc khách của buổi đó
+        const mems = sessionMembers(d0, s) || []
+        const guests = sGuests(d0, s.id) || []
+        const eligibleKeys = new Set([
+          ...mems.map((m) => m.id),
+          ...guests.map((g) => g.guestId || g.memberId || g.id),
+        ])
+        const notInSessionKeys = allPlayers.filter((id) => !eligibleKeys.has(id))
+        if (notInSessionKeys.length > 0) {
+          const notInSessionNames = notInSessionKeys.map((id) => playerName(d0, id) || id)
+          toast(t('planner.chalAbsentCantSchedule', { names: notInSessionNames.join(', ') }))
+          return
+        }
+
+        // 3. Nếu buổi chơi đã bắt đầu điểm danh có mặt: đòi hỏi người chơi phải có mặt
+        const hasStartedAttendance = Object.values(att).some((v) => isPresent(v))
+        if (hasStartedAttendance) {
+          const sessPlayers = sessionPlayers(d0, s)
+          const presentKeys = new Set(sessPlayers.map((p) => p.key))
+          const notPresentKeys = allPlayers.filter((id) => !presentKeys.has(id))
+          if (notPresentKeys.length > 0) {
+            const notPresentNames = notPresentKeys.map((id) => playerName(d0, id) || id)
+            toast(t('planner.chalAbsentCantSchedule', { names: notPresentNames.join(', ') }))
+            return
+          }
+        }
+      }
+
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, sessionId: sessionId || null } : c)),
       }))
@@ -2446,10 +2487,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (!s) return
       const courtName = (s.courts[courtIdx] && courtOf(d0, s.courts[courtIdx].courtId).name) || (`${t('units.court')} ${courtIdx + 1}`)
 
-      // Kiểm tra điểm danh buổi: nếu có người chơi bị báo vắng hoặc nghỉ không báo thì chặn
+      // Kiểm tra điểm danh buổi: nếu có người chơi vắng mặt / không tham gia buổi thì chặn
       const allFour = [...(chal.teamA || []), ...(chal.teamB || [])]
-      const att = s.attendance || {}
-      const absentKeys = allFour.filter((k) => att[k] === false || att[k] === 'noshow')
+      const sessPlayers = sessionPlayers(d0, s)
+      const presentKeys = new Set(sessPlayers.map((p) => p.key))
+      const absentKeys = allFour.filter((k) => !presentKeys.has(k))
       if (absentKeys.length > 0) {
         const absentNames = absentKeys.map((k) => playerName(d0, k) || k)
         toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))

@@ -1012,10 +1012,10 @@ function resolveSafePlayerName(db, id, fallback) {
 }
 
 /**
- * Thu thập danh sách người chơi toàn diện cho Planner của một buổi:
- * - Bao gồm mọi thành viên của nhóm buổi chơi (cả đã điểm danh và chưa điểm danh).
- * - Bao gồm mọi khách giao lưu của buổi (sGuests).
- * - Bao gồm bất kỳ ai có mặt trong các kèo đấu (challenges) hoặc đã được xếp trong các vòng (rounds).
+ * Thu thập danh sách người chơi cho Planner của một buổi:
+ * - Chỉ bao gồm các thành viên đã điểm danh có mặt (isPresent), loại bỏ hoàn toàn người vắng và chưa điểm danh.
+ * - Bao gồm khách giao lưu của buổi (sGuests).
+ * - Bất kỳ ai trong kèo đấu (challenges) hoặc vòng cũ (rounds) chỉ được đưa vào nếu người đó có mặt trong buổi.
  */
 export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
   if (!s || !db) return []
@@ -1024,10 +1024,10 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
   const seenKeys = new Set()
   const out = []
 
-  // 1. Thành viên của nhóm/buổi (cả có mặt và chưa rõ)
+  // 1. Thành viên của nhóm/buổi: chỉ lấy người ĐÃ ĐIỂM DANH CÓ MẶT (loại bỏ người vắng và chưa điểm danh)
   const mems = sessionMembers(db, s) || []
   mems.forEach((m) => {
-    if (m?.id && !seenKeys.has(m.id)) {
+    if (m?.id && !seenKeys.has(m.id) && isPresent(att[m.id])) {
       seenKeys.add(m.id)
       out.push({
         key: m.id,
@@ -1038,7 +1038,7 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
         level: levelOf(m, month) || m.level || 'TB',
         gender: m.gender || 'nam',
         guest: false,
-        isAtt: isPresent(att[m.id]),
+        isAtt: true,
       })
     }
   })
@@ -1048,6 +1048,8 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
   guests.forEach((sg) => {
     const key = sg.guestId || sg.memberId || sg.id
     if (key && !seenKeys.has(key)) {
+      if (sg.memberId && !isPresent(att[sg.memberId])) return
+
       seenKeys.add(key)
       if (sg.id) seenKeys.add(sg.id)
       if (sg.guestId) seenKeys.add(sg.guestId)
@@ -1086,35 +1088,11 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
     }
   })
 
-  // 3. Người chơi trong các Kèo đấu (challenges)
+  // 3. Người chơi trong các Kèo đấu (challenges) - chỉ lấy người có mặt trong buổi
   ;(challenges || []).forEach((c) => {
     ;[...(c.teamA || []), ...(c.teamB || [])].forEach((k) => {
       if (k && !seenKeys.has(k)) {
-        seenKeys.add(k)
-        const defaultGuest = t('planner.defaultGuestName')
-        const name = resolveSafePlayerName(db, k, defaultGuest)
-        const pObj = playerOf(db, k)
-        const avatarUrl = pObj?.avatarUrl || pObj?.avatar_url || (pObj?.profile && (pObj?.profile?.avatar_url || pObj?.profile?.avatarUrl)) || ''
-        out.push({
-          key: k,
-          id: k,
-          name,
-          fullName: name,
-          avatarUrl,
-          level: pObj?.level || 'TB',
-          gender: pObj?.gender || 'nam',
-          guest: !pObj || !!pObj.guestId || !pObj.role,
-          isAtt: isPresent(att[k]),
-        })
-      }
-    })
-  })
-
-  // 4. Người chơi đã được xếp vào các trận trong kế hoạch
-  ;(plan?.rounds || []).forEach((r) => {
-    ;(r.courts || []).forEach((c) => {
-      ;[...(c.teamA || []), ...(c.teamB || [])].forEach((k) => {
-        if (k && !seenKeys.has(k)) {
+        if (isPresent(att[k])) {
           seenKeys.add(k)
           const defaultGuest = t('planner.defaultGuestName')
           const name = resolveSafePlayerName(db, k, defaultGuest)
@@ -1129,8 +1107,36 @@ export function getSessionPlannerPlayers(db, s, challenges = [], plan = null) {
             level: pObj?.level || 'TB',
             gender: pObj?.gender || 'nam',
             guest: !pObj || !!pObj.guestId || !pObj.role,
-            isAtt: isPresent(att[k]),
+            isAtt: true,
           })
+        }
+      }
+    })
+  })
+
+  // 4. Người chơi đã được xếp vào các trận trong kế hoạch - chỉ lấy người có mặt trong buổi
+  ;(plan?.rounds || []).forEach((r) => {
+    ;(r.courts || []).forEach((c) => {
+      ;[...(c.teamA || []), ...(c.teamB || [])].forEach((k) => {
+        if (k && !seenKeys.has(k)) {
+          if (isPresent(att[k])) {
+            seenKeys.add(k)
+            const defaultGuest = t('planner.defaultGuestName')
+            const name = resolveSafePlayerName(db, k, defaultGuest)
+            const pObj = playerOf(db, k)
+            const avatarUrl = pObj?.avatarUrl || pObj?.avatar_url || (pObj?.profile && (pObj?.profile?.avatar_url || pObj?.profile?.avatarUrl)) || ''
+            out.push({
+              key: k,
+              id: k,
+              name,
+              fullName: name,
+              avatarUrl,
+              level: pObj?.level || 'TB',
+              gender: pObj?.gender || 'nam',
+              guest: !pObj || !!pObj.guestId || !pObj.role,
+              isAtt: true,
+            })
+          }
         }
       })
     })

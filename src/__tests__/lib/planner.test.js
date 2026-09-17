@@ -130,18 +130,20 @@ const r3 = genRounds[2]
 const chalCourt = r3.courts.find((c) => c.challengeId === 'ch1')
 assert.equal(chalCourt.tag, 'CHALLENGE')
 
-// 7. getSessionPlannerPlayers (lên đúng tên khách và người trong kèo, không lộ UUID)
+// 7. getSessionPlannerPlayers (chỉ lấy người có mặt, loại bỏ người vắng và chưa điểm danh)
 const dbMock = {
   members: [
     { id: 'm1', name: 'Kuro', gender: 'nam', level: 'TB', avatarUrl: 'https://example.com/kuro.jpg' },
     { id: 'm2', name: 'Tiến Đạt', gender: 'nam', level: 'TB' },
+    { id: 'm3', name: 'Văn Vắng', gender: 'nam', level: 'TB' },
   ],
   groups: [{ id: 'g1', name: 'Nhóm 1' }],
   groupMemberships: [
     { memberId: 'm1', groupId: 'g1', month: '2026-09' },
     { memberId: 'm2', groupId: 'g1', month: '2026-09' },
+    { memberId: 'm3', groupId: 'g1', month: '2026-09' },
   ],
-  attendance: { s1: { m1: true } },
+  attendance: { s1: { m1: true, m3: false } }, // m1: có mặt, m2: chưa điểm danh, m3: báo vắng
   guests: [
     { id: 'g_uuid_1', name: 'Khách Hoàng', gender: 'nam', level: 'TB', avatarUrl: 'https://example.com/hoang.jpg' },
     { id: 'g_uuid_2', name: 'Khách Tuấn', gender: 'nam', level: 'TB' },
@@ -157,9 +159,11 @@ const chalMock = [
 ]
 
 const plannerPlayers = getSessionPlannerPlayers(dbMock, sMock, chalMock, null)
-assert.equal(plannerPlayers.length, 4, 'thu thập đủ 2 thành viên + 2 khách')
+assert.equal(plannerPlayers.length, 2, 'chỉ thu thập 1 thành viên có mặt + 1 khách của buổi (loại bỏ m2 chưa điểm danh và m3 báo vắng)')
+assert.ok(plannerPlayers.some((p) => p.key === 'm1'), 'm1 có mặt được giữ lại')
 assert.ok(plannerPlayers.some((p) => p.name === 'Khách Hoàng'), 'nhận diện đúng tên khách từ sessionGuests')
-assert.ok(plannerPlayers.some((p) => p.name === 'Khách Tuấn'), 'nhận diện đúng tên khách từ challenge')
+assert.ok(!plannerPlayers.some((p) => p.key === 'm2'), 'm2 chưa điểm danh bị loại bỏ khỏi danh sách xếp vào')
+assert.ok(!plannerPlayers.some((p) => p.key === 'm3'), 'm3 báo vắng bị loại bỏ khỏi danh sách xếp vào')
 assert.ok(plannerPlayers.every((p) => !p.name.includes('uuid')), 'tuyệt đối không để lộ UUID làm tên')
 assert.equal(plannerPlayers.find((p) => p.key === 'm1')?.avatarUrl, 'https://example.com/kuro.jpg', 'giữ avatarUrl của thành viên')
 assert.equal(plannerPlayers.find((p) => p.key === 'g_uuid_1')?.avatarUrl, 'https://example.com/hoang.jpg', 'giữ avatarUrl của khách')

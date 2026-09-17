@@ -2857,6 +2857,17 @@
     "confirmDeleteMsg": "Bạn có chắc chắn muốn xoá vĩnh viễn kèo này? Hành động này không thể hoàn tác.",
     "linkToSession": "Đưa vào buổi này",
     "importClubChallenge": "Kèo hẹn trước trong CLB ({{n}})",
+    "btnClubChallenges": "Kèo hẹn",
+    "btnShort": "Kèo",
+    "clubChallengesModalTitle": "Kèo hẹn trước trong CLB",
+    "clubChallengesModalDesc": "Danh sách các kèo đấu hẹn trước giữa các thành viên chưa gắn vào buổi tập",
+    "noUnlinkedChallenges": "Hiện không có kèo hẹn trước nào chưa gắn buổi",
+    "loadDirectlyToCourt": "Nạp lên sân",
+    "absentWarning": "Có người chơi vắng mặt buổi này: {{names}}",
+    "playerAbsentShort": "Có người vắng",
+    "absentInSessionAlert": "Có thành viên báo vắng trong buổi {{date}}: {{names}}. Vui lòng chuyển buổi hoặc gỡ kèo.",
+    "confirmUnlinkTitle": "Gỡ kèo khỏi buổi",
+    "confirmUnlinkMsg": "Bạn có chắc chắn muốn gỡ kèo {{code}} khỏi buổi này không? Kèo sẽ được lưu lại làm kèo hẹn tự do trong CLB.",
     "noEmptyCourt": "Tất cả các sân đều đang có trận đấu. Vui lòng chờ trận kết thúc hoặc trả sân trước khi đưa kèo lên.",
     "createTitleSession": "Tạo kèo trong buổi {{date}}",
     "createTitle": "Tạo kèo đấu",
@@ -3956,7 +3967,7 @@
         "cond": "Thắng 3 trận liên tiếp trong một mùa"
       },
       "bat_bai_15": {
-        "name": "Bất bại XV",
+        "name": "Quỷ Vương bất tử",
         "cond": "Thắng 15 trận liên tiếp trong một mùa"
       },
       "sat_thu_10": {
