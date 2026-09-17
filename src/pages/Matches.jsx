@@ -23,6 +23,8 @@ import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeS
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
+import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx'
+import ScoreModal from '#components/challenge/ScoreModal.jsx'
 import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 
@@ -83,6 +85,8 @@ export default function Matches() {
   const [initialTeamB, setInitialTeamB] = useState([])
   const [now, setNow] = useState(() => Date.now())
   const [selectingSessionChallenge, setSelectingSessionChallenge] = useState(null)
+  const [viewingChallenge, setViewingChallenge] = useState(null)
+  const [scoringChallenge, setScoringChallenge] = useState(null)
 
   const availableSessions = useMemo(() => {
     const open = openSessions(db) || []
@@ -863,8 +867,10 @@ export default function Matches() {
                 <div
                   key={c.id}
                   id={`challenge-card-${c.id}`}
+                  onClick={() => setViewingChallenge(c)}
                   style={{
                     ...S.challengeCard,
+                    cursor: 'pointer',
                     ...(highlightedChallengeId === c.id
                       ? {
                           borderColor: '#00F5D4',
@@ -1049,7 +1055,10 @@ export default function Matches() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
                           <button
                             type="button"
-                            onClick={() => setSelectingSessionChallenge(c)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectingSessionChallenge(c)
+                            }}
                             style={{
                               ...S.smallSecondaryBtn,
                               background: 'var(--surface-card)',
@@ -1067,7 +1076,8 @@ export default function Matches() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation()
                               a.confirm({
                                 title: t('challenge.confirmUnlinkTitle'),
                                 message: t('challenge.confirmUnlinkMsg', { code: c.code }),
@@ -1138,7 +1148,10 @@ export default function Matches() {
                     {isPending && !isExpired && canAccept && (
                       <button
                         type="button"
-                        onClick={() => a.respondChallenge(c.id, true)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          a.respondChallenge(c.id, true)
+                        }}
                         style={S.smallPrimaryBtn}
                       >
                         <Icon name="check" size={14} />
@@ -1150,7 +1163,10 @@ export default function Matches() {
                     {isPending && !isExpired && (isParticipant || isAdmin) && (
                       <button
                         type="button"
-                        onClick={() => a.respondChallenge(c.id, false)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          a.respondChallenge(c.id, false)
+                        }}
                         style={S.smallGhostBtn}
                       >
                         <Icon name="circle-x" size={14} />
@@ -1162,7 +1178,10 @@ export default function Matches() {
                     {isPending && !isExpired && isOpen && myId && !teamA.includes(myId) && !teamB.includes(myId) && (
                       <button
                         type="button"
-                        onClick={() => a.acceptOpenChallenge({ challengeId: c.id })}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          a.acceptOpenChallenge({ challengeId: c.id })
+                        }}
                         style={S.smallPrimaryBtn}
                       >
                         <Icon name="check" size={14} />
@@ -1174,7 +1193,10 @@ export default function Matches() {
                     {isAccepted && sessionObj && (
                       <button
                         type="button"
-                        onClick={() => navigate(`/buoi-tap/${sessionObj.id}`)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/buoi-tap/${sessionObj.id}`)
+                        }}
                         style={S.smallPrimaryBtn}
                       >
                         <Icon name="arrow-right" size={14} />
@@ -1187,7 +1209,10 @@ export default function Matches() {
                       <>
                         <button
                           type="button"
-                          onClick={() => setSelectingSessionChallenge(c)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectingSessionChallenge(c)
+                          }}
                           style={S.smallSecondaryBtn}
                           title={t('challenge.chooseSession')}
                         >
@@ -1196,7 +1221,10 @@ export default function Matches() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => a.linkChallengeToSession(c.id, null)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            a.linkChallengeToSession(c.id, null)
+                          }}
                           style={S.smallGhostBtn}
                           title={t('challenge.btnUnlinkSession')}
                         >
@@ -1210,7 +1238,10 @@ export default function Matches() {
                     {isAccepted && !sessionObj && (
                       <button
                         type="button"
-                        onClick={() => setSelectingSessionChallenge(c)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectingSessionChallenge(c)
+                        }}
                         style={S.smallPrimaryBtn}
                       >
                         <Icon name="plus" size={14} />
@@ -1222,7 +1253,8 @@ export default function Matches() {
                     {(isPending || isAccepted) && !isPlayed && (isParticipant || isAdmin) && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           a.confirm({
                             title: t('challenge.confirmCancelTitle'),
                             message: t('challenge.confirmCancelMsg', { code: c.code }),
@@ -1242,7 +1274,8 @@ export default function Matches() {
                     {isPlayed && c.matchId && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           const m = (db.matches || []).find((x) => x.id === c.matchId)
                           if (m) setViewingMatch(m)
                         }}
@@ -1257,7 +1290,8 @@ export default function Matches() {
                     {isAdmin && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           a.confirm({
                             title: t('challenge.confirmDeleteTitle'),
                             message: t('challenge.confirmDeleteMsg'),
@@ -3469,6 +3503,33 @@ export default function Matches() {
             </div>
           </div>
         </Dialog>
+      )}
+
+      {/* Modal chi tiết/thao tác kèo */}
+      {viewingChallenge && (
+        <ChallengeDetailModal
+          challenge={viewingChallenge}
+          session={(db.sessions || []).find((s) => s.id === viewingChallenge.sessionId)}
+          onClose={() => setViewingChallenge(null)}
+          onScoreInput={(c) => {
+            setViewingChallenge(null)
+            setScoringChallenge(c)
+          }}
+          onOpenMatch={(m) => {
+            setViewingChallenge(null)
+            setViewingMatch(m)
+          }}
+        />
+      )}
+
+      {/* Modal ghi điểm cho kèo */}
+      {scoringChallenge && (
+        <ScoreModal
+          challenge={scoringChallenge}
+          session={(db.sessions || []).find((s) => s.id === scoringChallenge.sessionId)}
+          onClose={() => setScoringChallenge(null)}
+          onSaved={() => setScoringChallenge(null)}
+        />
       )}
     </div>
   )

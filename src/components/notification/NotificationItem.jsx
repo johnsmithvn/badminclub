@@ -123,67 +123,76 @@ export default function NotificationItem({ item, onRead }) {
               marginBottom: 4,
             }}
           >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                a.memberSelfCheckin(item.refId, 'present')
-                if (isUnread && onRead) onRead(item)
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 10px',
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                backgroundColor: currentAtt === true ? 'var(--teal-500, #00B2A9)' : 'rgba(0, 245, 212, 0.12)',
-                color: currentAtt === true ? '#000' : 'var(--teal-400, #00F5D4)',
-                border: '1px solid rgba(0, 245, 212, 0.3)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Icon name="check" size={13} />
-              {t('notification.rsvpPresent')}
-            </button>
+            {!hasResponded ? (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    a.memberSelfCheckin(item.refId, 'present')
+                    if (isUnread && onRead) onRead(item)
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    backgroundColor: 'rgba(0, 245, 212, 0.12)',
+                    color: 'var(--teal-400, #00F5D4)',
+                    border: '1px solid rgba(0, 245, 212, 0.3)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Icon name="check" size={13} />
+                  {t('notification.rsvpPresent')}
+                </button>
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                a.memberSelfCheckin(item.refId, 'absent')
-                if (isUnread && onRead) onRead(item)
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 10px',
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                backgroundColor: currentAtt === false ? 'rgba(239, 68, 68, 0.85)' : 'rgba(255, 255, 255, 0.06)',
-                color: currentAtt === false ? '#fff' : 'var(--gray-300, #d1d5db)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Icon name="x" size={13} />
-              {t('notification.rsvpAbsent')}
-            </button>
-
-            {hasResponded && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    a.memberSelfCheckin(item.refId, 'absent')
+                    if (isUnread && onRead) onRead(item)
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    color: 'var(--gray-300, #d1d5db)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Icon name="x" size={13} />
+                  {t('notification.rsvpAbsent')}
+                </button>
+              </>
+            ) : (
               <span
                 style={{
-                  fontSize: 11,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: 12,
                   color: currentAtt === true ? 'var(--teal-400, #00F5D4)' : currentAtt === false ? '#EF4444' : '#5FDBD3',
-                  fontWeight: 500,
-                  marginLeft: 4,
+                  fontWeight: 600,
+                  padding: '3px 8px',
+                  borderRadius: 6,
+                  backgroundColor: currentAtt === true ? 'rgba(0, 245, 212, 0.1)' : currentAtt === false ? 'rgba(239, 68, 68, 0.1)' : 'rgba(95, 219, 211, 0.1)',
+                  border: `1px solid ${currentAtt === true ? 'rgba(0, 245, 212, 0.25)' : currentAtt === false ? 'rgba(239, 68, 68, 0.25)' : 'rgba(95, 219, 211, 0.25)'}`,
                 }}
               >
+                <Icon name={currentAtt === true ? 'check' : 'x'} size={13} />
                 {t('notification.rsvpDone', {
                   status: currentAtt === true ? t('attend.present') : currentAtt === false ? t('attend.absent') : t('attend.extra'),
                 })}

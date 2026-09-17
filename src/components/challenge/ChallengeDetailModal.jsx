@@ -46,13 +46,21 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   }, [db.matches, c.matchId, c.id])
   const matchCode = matchObj ? matchCodeOf(db, matchObj) : (c.matchId ? `M-${c.matchId.slice(0, 4)}` : null)
 
+  const effectiveSession = useMemo(() => {
+    if (session) return session
+    if (c?.sessionId) {
+      return (db.sessions || []).find((s) => s.id === c.sessionId) || null
+    }
+    return null
+  }, [session, c?.sessionId, db.sessions])
+
   // Available partners for open challenge (only club members who checked in, excluding guests)
   const pickablePartners = useMemo(() => {
-    if (!session) return []
-    const att = db.attendance?.[session.id] || {}
+    if (!effectiveSession) return []
+    const att = db.attendance?.[effectiveSession.id] || {}
     const busyIds = new Set([...teamA, ...(myId ? [myId] : [])])
     return (db.members || []).filter((m) => m.active !== false && att[m.id] === true && !busyIds.has(m.id))
-  }, [db.attendance, db.members, session, teamA, myId])
+  }, [db.attendance, db.members, effectiveSession, teamA, myId])
 
   const getRating = (id) => getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels).rating
 
@@ -71,29 +79,67 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
     : 0
 
   const gap = Math.abs(ratA - ratB)
-  const pA = expectedScore(ratA, ratB || ratA)
-  const pctA = Math.round(pA * 100)
+  const expA = expectedScore(ratA, ratB || ratA)
+  const pctA = Math.round(expA * 100)
   const pctB = 100 - pctA
 
-  // H2H statistics between current user and opponent creator
-  const opponentId = isTeamB ? teamA[0] : (isTeamA ? teamB[0] : teamA[0])
-  const h2hMatches = useMemo(() => {
-    if (!myId || !opponentId) return []
-    return searchMatches(db.matches || [], { playerA: myId, playerB: opponentId, mode: 'vs' })
-  }, [db.matches, myId, opponentId])
+  // H2H statistics between Team A and Team B
+  const pA = teamA[0]
+  const pB = teamB[0]
+  const nameA = pA ? playerName(db, pA) : t('challenge.teamA')
+  const nameB = pB ? playerName(db, pB) : t('challenge.teamB')
 
-  const h2hWins = h2hMatches.filter((m) => {
-    const wonA = m.winnerTeam === 'A'
-    const isMeInA = (m.teamA || []).includes(myId)
-    return (isMeInA && wonA) || (!isMeInA && !wonA)
-  }).length
-  const h2hLosses = h2hMatches.length - h2hWins
+  const exactPairMatches = useMemo(() => {
+    if (!teamA.length || !teamB.length) return []
+    return (db.matches || []).filter((m) => {
+      const mA = m.teamA || []
+      const mB = m.teamB || []
+      const aInA = teamA.length === mA.length && teamA.every((id) => mA.includes(id))
+      const bInB = teamB.length === mB.length && teamB.every((id) => mB.includes(id))
+      if (aInA && bInB) return true
 
-  const recent5 = h2hMatches.slice(0, 5).map((m) => {
-    const wonA = m.winnerTeam === 'A'
-    const isMeInA = (m.teamA || []).includes(myId)
-    return (isMeInA && wonA) || (!isMeInA && !wonA) ? 'W' : 'L'
-  })
+      const aInB = teamA.length === mB.length && teamA.every((id) => mB.includes(id))
+      const bInA = teamB.length === mA.length && teamB.every((id) => mA.includes(id))
+      return aInB && bInA
+    })
+  }, [db.matches, teamA, teamB])
+
+  const isExactPairH2H = exactPairMatches.length > 0
+
+  const leaderMatches = useMemo(() => {
+    if (isExactPairH2H || !pA || !pB) return []
+    return (db.matches || []).filter((m) => {
+      const mA = m.teamA || []
+      const mB = m.teamB || []
+      const inA = mA.includes(pA) && mB.includes(pB)
+      const inB = mA.includes(pB) && mB.includes(pA)
+      return inA || inB
+    })
+  }, [isExactPairH2H, db.matches, pA, pB])
+
+  const h2hMatches = isExactPairH2H ? exactPairMatches : leaderMatches
+
+  const h2hWinsA = useMemo(() => {
+    return h2hMatches.filter((m) => {
+      const wonA = m.winnerTeam === 'A'
+      const aWasInSideA = isExactPairH2H
+        ? teamA.every((id) => (m.teamA || []).includes(id))
+        : (m.teamA || []).includes(pA)
+      return (aWasInSideA && wonA) || (!aWasInSideA && !wonA)
+    }).length
+  }, [h2hMatches, isExactPairH2H, teamA, pA])
+
+  const h2hWinsB = h2hMatches.length - h2hWinsA
+
+  const recent5 = useMemo(() => {
+    return h2hMatches.slice(0, 5).map((m) => {
+      const wonA = m.winnerTeam === 'A'
+      const aWasInSideA = isExactPairH2H
+        ? teamA.every((id) => (m.teamA || []).includes(id))
+        : (m.teamA || []).includes(pA)
+      return (aWasInSideA && wonA) || (!aWasInSideA && !wonA) ? 'W' : 'L'
+    })
+  }, [h2hMatches, isExactPairH2H, teamA, pA])
 
   // Predictions
   const predictions = useMemo(() => db.challengePredictions || [], [db.challengePredictions])
@@ -217,12 +263,18 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
     ? new Date(matchObj.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : ''
 
-  const headerSubText = t('challenge.headerMeta', {
-    creator: creatorName || t('challenge.teamA'),
-    time: createdTimeStr,
-    date: session?.date || '',
-    court: courtName ? ` · ${courtName}` : '',
-  })
+  const headerSubText = effectiveSession?.date
+    ? t('challenge.headerMeta', {
+        creator: creatorName || t('challenge.teamA'),
+        time: createdTimeStr,
+        date: effectiveSession.date,
+        court: courtName ? ` · ${courtName}` : '',
+      })
+    : t('challenge.headerMetaCasual', {
+        creator: creatorName || t('challenge.teamA'),
+        time: createdTimeStr,
+        court: courtName ? ` · ${courtName}` : '',
+      })
 
   if (!challenge) return null
 
@@ -373,7 +425,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                     cursor: 'pointer',
                   }}
                 >
-                  {t('scoreModal.title')}
+                  {courtName ? t('challenge.btnEnterScoreCourt', { court: courtName }) : t('challenge.btnEnterScore')}
                 </button>
               )}
             </>
@@ -843,23 +895,28 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
         {/* K4: Thống kê đối đầu H2H quá khứ */}
         {h2hMatches.length > 0 && (
           <div style={S.boxCard}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                {t('challenge.h2hRecord')}
-              </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                  {isExactPairH2H ? t('challenge.h2hExactTitle') : t('challenge.h2hLeaderTitle', { nameA, nameB })}
+                </span>
+                <span style={{ font: '400 11px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 2 }}>
+                  {isExactPairH2H ? t('challenge.h2hExactSub') : t('challenge.h2hLeaderSub')}
+                </span>
+              </div>
               <span style={{ font: '400 12px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                 {h2hMatches.length} {t('units.match')}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '6px 0' }}>
-              <span style={{ font: '700 24px/1 Barlow, sans-serif', color: 'var(--status-delivered-fg)' }}>{h2hWins}</span>
+              <span style={{ font: '700 24px/1 Barlow, sans-serif', color: 'var(--status-delivered-fg)' }}>{h2hWinsA}</span>
               <span style={{ color: 'var(--text-disabled)', fontSize: 16 }}>–</span>
-              <span style={{ font: '700 24px/1 Barlow, sans-serif', color: 'var(--text-secondary)' }}>{h2hLosses}</span>
+              <span style={{ font: '700 24px/1 Barlow, sans-serif', color: 'var(--text-secondary)' }}>{h2hWinsB}</span>
             </div>
             {recent5.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <span style={{ font: '400 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                  5 {t('units.match')} {t('common.today')}:
+                  {t('challenge.recentH2HForm', { n: recent5.length })}
                 </span>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {recent5.map((r, i) => (
@@ -1008,13 +1065,13 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
         <div style={{
           padding: '8px 12px',
           borderRadius: 'var(--radius-sm)',
-          background: 'rgba(0,178,169,0.08)',
-          border: '1px solid rgba(0,178,169,0.2)',
+          background: c.ratingEnabled !== false ? 'rgba(0,178,169,0.08)' : 'rgba(255,255,255,0.05)',
+          border: '1px solid ' + (c.ratingEnabled !== false ? 'rgba(0,178,169,0.2)' : 'var(--border-subtle)'),
           fontSize: 12,
-          color: 'var(--status-transit-fg)',
+          color: c.ratingEnabled !== false ? 'var(--status-transit-fg)' : 'var(--text-muted)',
           lineHeight: 1.4,
         }}>
-          {c.ratingEnabled !== false ? t('challenge.ratedTag') : t('challenge.casualTag')} · {t('challenge.ratingHint')}
+          {c.ratingEnabled !== false ? t('challenge.ratedHintDesc') : t('challenge.casualHintDesc')}
         </div>
       </div>
     </Dialog>

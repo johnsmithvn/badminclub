@@ -7,7 +7,7 @@ import NotificationPanel from './NotificationPanel.jsx'
 import { t } from '#i18n'
 
 export default function NotificationBell({ size = 'sm', style = {} }) {
-  const { db } = useApp()
+  const { db, a } = useApp()
   const [panelOpen, setPanelOpen] = useState(false)
 
   const myMem = myMember(db)
@@ -17,12 +17,19 @@ export default function NotificationBell({ size = 'sm', style = {} }) {
     return (db.notifications || []).filter((n) => (!myId || n.memberId === myId) && !n.readAt).length
   }, [db.notifications, myId])
 
+  const handleClick = () => {
+    setPanelOpen(true)
+    if (unreadCount > 0 && a?.markAllNotificationsRead) {
+      a.markAllNotificationsRead()
+    }
+  }
+
   return (
     <>
       <button
         type="button"
         aria-label={t('notification.title')}
-        onClick={() => setPanelOpen(true)}
+        onClick={handleClick}
         style={{
           position: 'relative',
           display: 'inline-flex',
