@@ -963,6 +963,41 @@ export default function CourtAssignmentTab({ s }) {
     setScoringScoreB(19)
   }
 
+  // 3b. Mở modal ghi tỉ số nhanh trực tiếp cho kèo đã nhận (1 chạm từ banner)
+  const handleOpenChallengeScore = (c) => {
+    const allPlayers = [...(c.teamA || []), ...(c.teamB || [])]
+    const presentKeys = new Set(players.map((p) => p.key))
+    const absentKeys = allPlayers.filter((k) => !presentKeys.has(k))
+    if (absentKeys.length > 0) {
+      const absentNames = absentKeys.map((k) => playerName(db, k) || k)
+      a.toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }), { tone: 'danger' })
+      return
+    }
+
+    const currentCourtLabel = courtOptions.find((co) => co.value === courtIdx)?.label || t('session.courtNum', { n: courtIdx + 1 })
+    const isDbl = (c.teamA || []).length > 1 || (c.teamB || []).length > 1
+
+    const matchObj = {
+      id: `chal_${c.id}_${Date.now()}`,
+      courtIdx,
+      courtLabel: currentCourtLabel,
+      teamA: [...(c.teamA || [])],
+      teamB: [...(c.teamB || [])],
+      mode: isDbl ? 'doubles' : 'singles',
+      ratingEnabled: c.ratingEnabled !== false,
+      selectedChallengeId: c.id,
+      challengeCode: c.code,
+      bestOf: c.bestOf || 1,
+      isChallengeDirectScore: true,
+    }
+
+    setScoringMatch(matchObj)
+    setScoringWinnerTeam('A')
+    setScoringPreset('21-19')
+    setScoringScoreA(21)
+    setScoringScoreB(19)
+  }
+
   // 4. Lưu kết quả từ modal ghi tỉ số nhanh
   const handleSaveOngoingScore = () => {
     if (!scoringMatch) return
@@ -975,7 +1010,7 @@ export default function CourtAssignmentTab({ s }) {
 
     a.saveMatchScore({
       sid: s.id,
-      ci: scoringMatch.courtIdx,
+      ci: scoringMatch.courtIdx ?? courtIdx,
       teamA: scoringMatch.teamA,
       teamB: scoringMatch.teamB,
       sets: playedSets,
@@ -983,8 +1018,10 @@ export default function CourtAssignmentTab({ s }) {
       ratingEnabled: scoringMatch.ratingEnabled,
     })
 
-    // Xoá trận khỏi ongoingMatches: số trận giữ nguyên do sessionMatches vừa nhận trận này
-    setOngoingMatches((prev) => prev.filter((m) => m.id !== scoringMatch.id))
+    // Xoá trận khỏi ongoingMatches nếu là trận đang trên sân
+    if (!scoringMatch.isChallengeDirectScore) {
+      setOngoingMatches((prev) => prev.filter((m) => m.id !== scoringMatch.id))
+    }
     setScoringMatch(null)
     a.toast(t('quickMatch.saveSuccess'))
   }
@@ -992,6 +1029,20 @@ export default function CourtAssignmentTab({ s }) {
   // 5. Nạp trận đang đấu vào lại mặt sân chính
   const handleLoadOngoingToCourt = () => {
     if (!scoringMatch) return
+    if (scoringMatch.isChallengeDirectScore) {
+      const chal = (db.challenges || []).find((x) => x.id === scoringMatch.selectedChallengeId)
+      if (chal) {
+        handleLoadChallenge(chal)
+      } else {
+        setTeamA(scoringMatch.teamA || [])
+        setTeamB(scoringMatch.teamB || [])
+        setMode(scoringMatch.mode || 'doubles')
+        setRatingEnabled(scoringMatch.ratingEnabled !== false)
+        setSelectedChallengeId(scoringMatch.selectedChallengeId || null)
+      }
+      setScoringMatch(null)
+      return
+    }
     setCourtIdx(scoringMatch.courtIdx ?? 0)
     setTeamA(scoringMatch.teamA || [])
     setTeamB(scoringMatch.teamB || [])
@@ -1055,12 +1106,18 @@ export default function CourtAssignmentTab({ s }) {
                 }
 
                 const actionButtons = hasAbsent ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Button
                       variant="secondary"
                       size="sm"
                       icon="calendar-days"
-                      onClick={() => setSelectingSessionChallenge(c)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectingSessionChallenge(c)
+                      }}
                       title={t('challenge.changeSession')}
                     >
                       {!isMobile && t('challenge.changeSession')}
@@ -1073,7 +1130,8 @@ export default function CourtAssignmentTab({ s }) {
                         color: 'var(--status-incident-fg, #ef4444)',
                         borderColor: 'rgba(239, 68, 68, 0.35)',
                       }}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         a.confirm({
                           title: t('challenge.confirmUnlinkTitle'),
                           message: t('challenge.confirmUnlinkMsg', { code: c.code }),
@@ -1092,7 +1150,10 @@ export default function CourtAssignmentTab({ s }) {
                     size="sm"
                     className="flame-btn-deploy"
                     icon={hasPlayedSets ? 'play' : 'flame'}
-                    onClick={() => handleLoadChallenge(c)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleLoadChallenge(c)
+                    }}
                   >
                     {hasPlayedSets
                       ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
@@ -1105,6 +1166,9 @@ export default function CourtAssignmentTab({ s }) {
                     <div
                       key={c.id}
                       className={!hasAbsent ? 'chal-chip-flame' : undefined}
+                      onClick={() => {
+                        if (!hasAbsent) handleOpenChallengeScore(c)
+                      }}
                       style={{
                         ...S.chalChip,
                         padding: '10px 12px',
@@ -1113,6 +1177,7 @@ export default function CourtAssignmentTab({ s }) {
                         alignItems: 'stretch',
                         gap: 8,
                         width: '100%',
+                        cursor: !hasAbsent ? 'pointer' : 'default',
                         transition: 'all 0.25s ease',
                         ...(hasAbsent
                           ? {
@@ -1121,6 +1186,7 @@ export default function CourtAssignmentTab({ s }) {
                             }
                           : {}),
                       }}
+                      title={!hasAbsent ? t('challenge.clickToScoreDirectly') : undefined}
                     >
                       {/* Hàng 1 trên Mobile: Mã kèo + Tag ván + Nút Đấu */}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -1209,10 +1275,14 @@ export default function CourtAssignmentTab({ s }) {
                   <div
                     key={c.id}
                     className={!hasAbsent ? 'chal-chip-flame' : undefined}
+                    onClick={() => {
+                      if (!hasAbsent) handleOpenChallengeScore(c)
+                    }}
                     style={{
                       ...S.chalChip,
                       padding: '8px 12px',
                       borderRadius: 10,
+                      cursor: !hasAbsent ? 'pointer' : 'default',
                       transition: 'all 0.25s ease',
                       ...(hasAbsent
                         ? {
@@ -1221,6 +1291,7 @@ export default function CourtAssignmentTab({ s }) {
                           }
                         : {}),
                     }}
+                    title={!hasAbsent ? t('challenge.clickToScoreDirectly') : undefined}
                   >
                     {!hasAbsent && (
                       <span className="flame-icon-burn" style={{ fontSize: 16 }}>🔥</span>
@@ -1282,7 +1353,10 @@ export default function CourtAssignmentTab({ s }) {
                           variant="secondary"
                           size="sm"
                           icon="calendar-days"
-                          onClick={() => setSelectingSessionChallenge(c)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectingSessionChallenge(c)
+                          }}
                           title={t('challenge.changeSession')}
                         >
                           {t('challenge.changeSession')}
@@ -1295,7 +1369,8 @@ export default function CourtAssignmentTab({ s }) {
                             color: 'var(--status-incident-fg, #ef4444)',
                             borderColor: 'rgba(239, 68, 68, 0.35)',
                           }}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation()
                             a.confirm({
                               title: t('challenge.confirmUnlinkTitle'),
                               message: t('challenge.confirmUnlinkMsg', { code: c.code }),
@@ -2866,20 +2941,37 @@ export default function CourtAssignmentTab({ s }) {
             {/* Header modal */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span
-                  style={{
-                    font: "600 13px/1 'IBM Plex Sans', sans-serif",
-                    padding: '3px 8px',
-                    borderRadius: 6,
-                    background: 'rgba(0, 178, 169, 0.18)',
-                    color: 'var(--action-accent-fg, #00B2A9)',
-                    border: '1px solid rgba(0, 178, 169, 0.3)',
-                  }}
-                >
-                  {scoringMatch.courtLabel}
-                </span>
+                {scoringMatch.challengeCode ? (
+                  <span
+                    style={{
+                      font: "700 12px/1 'IBM Plex Mono', monospace",
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      background: 'rgba(255, 107, 0, 0.2)',
+                      color: '#FFA040',
+                      border: '1px solid rgba(255, 107, 0, 0.4)',
+                    }}
+                  >
+                    #{scoringMatch.challengeCode}
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      font: "600 13px/1 'IBM Plex Sans', sans-serif",
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      background: 'rgba(0, 178, 169, 0.18)',
+                      color: 'var(--action-accent-fg, #00B2A9)',
+                      border: '1px solid rgba(0, 178, 169, 0.3)',
+                    }}
+                  >
+                    {scoringMatch.courtLabel}
+                  </span>
+                )}
                 <span style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                  {t('assign.quickScoreTitle', { court: scoringMatch.courtLabel })}
+                  {scoringMatch.challengeCode
+                    ? t('challenge.quickScoreChallengeTitle', { code: scoringMatch.challengeCode })
+                    : t('assign.quickScoreTitle', { court: scoringMatch.courtLabel })}
                 </span>
               </div>
               <IconButton
@@ -3147,11 +3239,11 @@ export default function CourtAssignmentTab({ s }) {
               <Button
                 variant="ghost"
                 size="md"
-                icon="arrow-up-right"
+                icon={scoringMatch.isChallengeDirectScore ? 'flame' : 'arrow-up-right'}
                 onClick={handleLoadOngoingToCourt}
-                title={t('assign.loadBackToCourt')}
+                title={scoringMatch.isChallengeDirectScore ? t('quickMatch.loadChal') : t('assign.loadBackToCourt')}
               >
-                {t('assign.loadBackToCourt')}
+                {scoringMatch.isChallengeDirectScore ? t('quickMatch.loadChal') : t('assign.loadBackToCourt')}
               </Button>
             </div>
 

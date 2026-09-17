@@ -2868,6 +2868,8 @@
     "clubChallengesModalDesc": "Danh sách các kèo đấu hẹn trước giữa các thành viên chưa gắn vào buổi tập",
     "noUnlinkedChallenges": "Hiện không có kèo hẹn trước nào chưa gắn buổi",
     "loadDirectlyToCourt": "Đấu ngay",
+    "quickScoreChallengeTitle": "Ghi kết quả kèo #{{code}}",
+    "clickToScoreDirectly": "Chạm để ghi kết quả nhanh · Bấm Đấu để nạp vào sân",
     "absentWarning": "Có người chơi vắng mặt buổi này: {{names}}",
     "playerAbsentShort": "Có người vắng",
     "absentInSessionAlert": "Có thành viên báo vắng trong buổi {{date}}: {{names}}. Vui lòng chuyển buổi hoặc gỡ kèo.",
