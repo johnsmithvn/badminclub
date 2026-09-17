@@ -890,6 +890,7 @@
     "watchableMatchesTitle": "Trận đáng xem trong tháng",
     "watchableMatchesSub": "Bất ngờ và sát điểm",
     "preAssignCourts": "Chia sân trước",
+    "goToNextSession": "Đến buổi tới",
     "histogramTooltip": "{{min}}–{{max}}: {{count}} người",
     "histogramPeakDesc": "Đông nhất ở khoảng {{val}}, chia cân được",
     "ratingSpread": "Trải rating",
