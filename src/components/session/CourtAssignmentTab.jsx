@@ -1021,10 +1021,15 @@ export default function CourtAssignmentTab({ s }) {
       <div style={S.container}>
         {/* ---------------- Banner Kèo đã nhận (nếu có) ---------------- */}
         {acceptedChallenges.length > 0 && (
-          <div style={S.chalBanner}>
+          <div style={{
+            ...S.chalBanner,
+            background: 'linear-gradient(135deg, rgba(255, 69, 0, 0.08) 0%, rgba(255, 140, 0, 0.04) 50%, rgba(0, 0, 0, 0) 100%)',
+            borderColor: 'rgba(255, 107, 0, 0.45)',
+            boxShadow: '0 0 24px rgba(255, 69, 0, 0.12), inset 0 0 12px rgba(255, 100, 0, 0.06)',
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name="flame" size={16} color="var(--status-transit-fg)" />
-              <span style={{ font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
+              <span className="flame-icon-burn" style={{ fontSize: 18 }}>🔥</span>
+              <span style={{ font: "700 13px/1.4 var(--font-sans)", color: '#FFA040', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {t('quickMatch.pendingChalBanner', { n: acceptedChallenges.length })}:
               </span>
             </div>
@@ -1052,38 +1057,62 @@ export default function CourtAssignmentTab({ s }) {
                 return (
                   <div
                     key={c.id}
+                    className={!hasAbsent ? 'chal-chip-flame' : undefined}
                     style={{
                       ...S.chalChip,
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      transition: 'all 0.25s ease',
                       ...(hasAbsent
                         ? {
                             borderColor: 'var(--status-incident-fg, #ef4444)',
                             background: 'rgba(239, 68, 68, 0.05)',
                           }
-                        : hasPlayedSets
-                          ? {
-                              borderColor: 'rgba(168, 85, 247, 0.45)',
-                              background: 'rgba(168, 85, 247, 0.06)',
-                            }
-                          : {}),
+                        : {}),
                     }}
                   >
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameA}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>vs</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{nameB}</span>
+                    {!hasAbsent && (
+                      <span className="flame-icon-burn" style={{ fontSize: 16 }}>🔥</span>
+                    )}
+                    <span style={{
+                      font: "700 11px/1 'IBM Plex Mono', monospace",
+                      color: '#FFA040',
+                      letterSpacing: '0.04em',
+                      background: 'rgba(255, 107, 0, 0.15)',
+                      padding: '3px 6px',
+                      borderRadius: 4,
+                      border: '1px solid rgba(255, 107, 0, 0.35)',
+                    }}>
+                      #{c.code}
+                    </span>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5 }}>{nameA}</span>
+                    <span style={{
+                      font: "800 11px/1 'IBM Plex Sans', sans-serif",
+                      background: 'linear-gradient(180deg, #FFE259 0%, #FFA751 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.4))',
+                      padding: '0 2px',
+                    }}>
+                      VS
+                    </span>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5 }}>{nameB}</span>
                     <span
+                      className={!hasAbsent ? 'flame-tag-bo' : undefined}
                       style={{
                         ...S.tagSub,
-                        ...(hasPlayedSets
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        fontWeight: 700,
+                        ...(hasAbsent
                           ? {
-                              background: 'rgba(168, 85, 247, 0.2)',
-                              color: '#D8B4FE',
-                              fontWeight: 700,
-                              borderColor: 'rgba(168, 85, 247, 0.35)',
+                              background: 'var(--surface-card)',
+                              color: 'var(--text-muted)',
                             }
                           : {}),
                       }}
                     >
-                      {seriesTagText}
+                      ⚔️ {seriesTagText}
                     </span>
 
                     {hasAbsent ? (
@@ -1133,11 +1162,11 @@ export default function CourtAssignmentTab({ s }) {
                       </>
                     ) : (
                       <Button
-                        variant={hasPlayedSets ? 'primary' : 'secondary'}
+                        variant="primary"
                         size="sm"
-                        icon={hasPlayedSets ? 'play' : 'download'}
+                        className="flame-btn-deploy"
+                        icon={hasPlayedSets ? 'play' : 'flame'}
                         onClick={() => handleLoadChallenge(c)}
-                        style={hasPlayedSets ? { background: 'rgba(168, 85, 247, 0.85)', color: '#fff', borderColor: 'transparent' } : {}}
                       >
                         {hasPlayedSets
                           ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
@@ -1859,8 +1888,51 @@ export default function CourtAssignmentTab({ s }) {
             </div>
           </div>
 
-          {/* Khung mặt sân thi đấu (với UX Highlight Slot chọn) */}
-          <div style={S.courtSurface}>
+          {/* Banner rực lửa khi Kèo đang được nạp trên sân */}
+          {activeLoadedChallenge && (
+            <div style={{
+              margin: '0 0 10px',
+              padding: '8px 14px',
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, rgba(255, 69, 0, 0.22) 0%, rgba(255, 140, 0, 0.12) 100%)',
+              border: '1.5px solid rgba(255, 110, 0, 0.75)',
+              boxShadow: '0 0 20px rgba(255, 69, 0, 0.35), inset 0 0 12px rgba(255, 100, 0, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              animation: 'flameAuraPulse 2.5s ease-in-out infinite',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span className="flame-icon-burn" style={{ fontSize: 18 }}>🔥</span>
+                <span style={{ font: "700 13px 'IBM Plex Sans', sans-serif", color: '#FFE259', textTransform: 'uppercase', letterSpacing: '0.06em', textShadow: '0 0 8px rgba(255,100,0,0.6)' }}>
+                  {t('challenge.activeCourtTitle', { code: activeLoadedChallenge.code })}
+                </span>
+                <span style={{
+                  font: "700 11.5px 'IBM Plex Mono', monospace",
+                  color: '#FFF',
+                  padding: '2px 8px',
+                  background: 'rgba(255, 69, 0, 0.55)',
+                  borderRadius: 6,
+                  border: '1px solid rgba(255, 180, 0, 0.6)',
+                }}>
+                  {activeSeriesProg?.seriesScoreText ? t('challenge.activeCourtSeriesScore', { score: activeSeriesProg.seriesScoreText }) : `${activeLoadedChallenge.bestOf || 1} Set`}
+                </span>
+              </div>
+              <span style={{ font: "700 11.5px 'IBM Plex Sans', sans-serif", color: '#FFB800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {t('challenge.activeCourtReady')}
+              </span>
+            </div>
+          )}
+
+          {/* Khung mặt sân thi đấu (với UX Highlight Slot chọn & Aura lửa khi có kèo) */}
+          <div style={{
+            ...S.courtSurface,
+            ...(activeLoadedChallenge ? {
+              border: '2px solid rgba(255, 110, 0, 0.85)',
+              boxShadow: '0 0 25px rgba(255, 69, 0, 0.25), inset 0 0 20px rgba(255, 100, 0, 0.1)',
+            } : {}),
+          }}>
             {/* Đội A (Top) */}
             <div style={{ ...S.teamRow, gridTemplateColumns: mode === 'singles' ? '1fr' : 'repeat(2, minmax(0, 1fr))' }}>
               {Array.from({ length: maxPerTeam }).map((_, idx) => {
