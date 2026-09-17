@@ -325,17 +325,31 @@ export function isChallengeDead(challenge, session = null, now = Date.now()) {
 }
 
 /**
- * Các kèo đang mang `status` còn sống nhưng thực tế đã chết — đầu vào cho `a.sweepStaleChallenges`.
- *
- * Thay cho một tiến trình quét chạy nền (dự án không có chỗ chạy cron, và Supabase Free thì
- * pg_cron không chắc bật được): app tự dọn một lần mỗi khi nạp CLB. Cùng kiểu "dọn khi chạm vào"
- * mà `respondChallenge` đang làm, chỉ khác là không phải chờ đúng người đó bấm đúng nút.
+ * Kèo HẾT HẠN NHẬN mà cột `status` chưa kịp đổi — không ai bấm vào thì nó nằm lì ở 'pending'.
+ * Đây mới đúng nghĩa "hết hạn".
  */
-export function staleChallenges(db, now = Date.now()) {
+export function expiredChallenges(db, now = Date.now()) {
+  return (db?.challenges || []).filter(
+    (c) => ALIVE_CHALLENGE_STATUS.has(c.status) && isChallengeExpired(c, now)
+  )
+}
+
+/**
+ * Kèo còn sống nhưng BUỔI của nó đã chốt sổ / bị huỷ — trận sẽ không diễn ra ở buổi đó nữa.
+ *
+ * TÁCH HẲN khỏi nhóm hết hạn, vì hai nguyên nhân khác nhau và cách xử phải khác nhau. Bản đầu
+ * tôi gộp làm một rồi đánh dấu tất cả là 'expired': quản trò chốt sổ buổi tối là kèo chưa kịp
+ * đánh bị GIẾT, người dùng nhìn thấy nhãn "Hết hạn" trong khi kèo chưa hề quá giờ nhận.
+ *
+ * Buổi chết không giết kèo — kèo chỉ mất chỗ. Trả nó về hàng chờ tự do để gắn sang buổi khác.
+ */
+export function orphanedChallenges(db, now = Date.now()) {
   const sessions = new Map((db?.sessions || []).map((s) => [s.id, s]))
   return (db?.challenges || []).filter((c) => {
     if (!ALIVE_CHALLENGE_STATUS.has(c.status)) return false
-    return isChallengeDead(c, c.sessionId ? sessions.get(c.sessionId) || null : null, now)
+    if (isChallengeExpired(c, now)) return false // đã thuộc nhóm hết hạn ở trên
+    const sess = c.sessionId ? sessions.get(c.sessionId) || null : null
+    return Boolean(sess && DEAD_SESSION_STATUS.has(sess.status))
   })
 }
 

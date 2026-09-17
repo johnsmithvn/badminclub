@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, staleChallenges, isChallengeAccepted } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, isChallengeAccepted } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -3888,47 +3888,71 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
    * trả 100 dòng mới nhất, nên thay thẳng là tự tay xoá đúng những dòng vừa bị đẩy khỏi top 100.
    */
   /**
-   * Dọn các kèo đã chết trên thực tế nhưng cột `status` chưa kịp đổi, và hoàn phiếu cho chúng.
-   * Gọi một lần sau mỗi lần nạp CLB (`AppContext`).
+   * Dọn kèo mà cột `status` không còn khớp thực tế. Chạy một lần sau mỗi lần nạp CLB
+   * (`AppContext`) — thay cho tiến trình quét chạy nền mà dự án không có chỗ chạy.
    *
-   * Thay cho một tiến trình quét chạy nền: dự án không có chỗ chạy cron, và pg_cron thì không
-   * chắc bật được trên Supabase Free. Không dọn thì có hai thứ rò rỉ mãi mãi —
-   *   · kèo quá hạn / kèo gắn vào buổi đã chốt nằm lì trong danh sách "chờ sân";
-   *   · SP của người đã đặt phiếu trên chúng bị giam vĩnh viễn, vì phiếu không bao giờ tới lượt
-   *     được quyết toán.
+   * HAI NGUYÊN NHÂN, HAI CÁCH XỬ KHÁC HẲN NHAU:
    *
-   * CỐ Ý không gọi `reload()` khi RPC hoàn phiếu lỗi: hàm này chạy NGAY SAU một lần nạp, reload
-   * tiếp là quay vòng vô tận. Lỗi thì ghi log, lần nạp sau dọn lại.
+   *   · Hết hạn NHẬN kèo  → đánh dấu 'expired'. Không ai bấm vào thì nó nằm lì ở 'pending'.
+   *   · Buổi đã chốt/huỷ  → GỠ khỏi buổi, giữ nguyên kèo. Buổi chết không giết kèo, kèo chỉ mất
+   *                         chỗ đánh; trả về hàng chờ tự do để gắn sang buổi khác.
+   *
+   * Bản đầu gộp cả hai thành 'expired' — chốt sổ buổi tối là kèo chưa kịp đánh bị giết, và card
+   * hiện "Hết hạn" trong khi kèo chưa hề quá giờ nhận.
+   *
+   * Cả hai nhánh đều HOÀN phiếu dự đoán: trận không diễn ra thì không có gì để quyết toán, mà
+   * phiếu treo 'pending' là SP của người đặt bị giam.
+   *
+   * CỐ Ý gọi RPC TRƯỚC rồi mới đổi state: nhánh hoàn phiếu của RPC cho phép thành viên thường
+   * khi kèo đã chết, và nó đọc `session_id` dưới DB để biết điều đó. Đổi state trước là bản
+   * đồng bộ có thể xoá `session_id` xong mới tới lượt RPC chạy, lúc đó server không còn thấy
+   * kèo chết nữa và từ chối.
+   * CỐ Ý không `reload()` khi RPC lỗi: hàm này chạy ngay sau một lần nạp, reload tiếp là quay
+   * vòng vô tận. Lỗi thì ghi log, lần nạp sau dọn lại.
    */
   A.sweepStaleChallenges = () => {
     const d0 = db()
     if (!d0.clubId) return
-    const stale = staleChallenges(d0)
-    if (!stale.length) return
+    const expired = expiredChallenges(d0)
+    const orphaned = orphanedChallenges(d0)
+    if (!expired.length && !orphaned.length) return
 
-    const ids = new Set(stale.map((c) => c.id))
+    const hasPending = (id) => (d0.challengePredictions || []).some(
+      (p) => p.challengeId === id && p.status === 'pending'
+    )
+    if (supabase) {
+      [...expired, ...orphaned].forEach((c) => {
+        if (!hasPending(c.id)) return
+        supabase
+          .rpc('settle_challenge_predictions', { p_challenge_id: c.id, p_winner_team: null })
+          .then(({ error }) => {
+            if (error) console.warn('[prediction] sweep refund error:', c.code, error.message)
+          })
+      })
+    }
+
+    const at = new Date().toISOString()
+    const expiredIds = new Set(expired.map((c) => c.id))
+    const orphanIds = new Set(orphaned.map((c) => c.id))
+    const playedSetsOf = (c) => getChallengeSeriesProgress(c, d0.matches || []).totalSetsPlayed
+
     up((d) => ({
-      challenges: (d.challenges || []).map((c) => (
-        ids.has(c.id) ? { ...c, status: 'expired', predictionsLocked: true } : c
-      )),
-      challengePredictions: [...ids].reduce(
-        (list, id) => settlePredictionsLocal(list, id, null, new Date().toISOString()),
+      challenges: (d.challenges || []).map((c) => {
+        if (expiredIds.has(c.id)) return { ...c, status: 'expired', predictionsLocked: true }
+        if (!orphanIds.has(c.id)) return c
+        return {
+          ...c,
+          sessionId: null,
+          // Chưa đánh hiệp nào thì mở lại cổng cược: kèo sẽ được xếp sang buổi khác, và chưa có
+          // gì lộ ra để mà cược gian.
+          predictionsLocked: playedSetsOf(c) > 0,
+        }
+      }),
+      challengePredictions: [...expiredIds, ...orphanIds].reduce(
+        (list, id) => settlePredictionsLocal(list, id, null, at),
         d.challengePredictions || [],
       ),
     }))
-
-    if (!supabase) return
-    stale.forEach((c) => {
-      const hasPending = (d0.challengePredictions || []).some(
-        (p) => p.challengeId === c.id && p.status === 'pending'
-      )
-      if (!hasPending) return
-      supabase
-        .rpc('settle_challenge_predictions', { p_challenge_id: c.id, p_winner_team: null })
-        .then(({ error }) => {
-          if (error) console.warn('[prediction] sweep refund error:', c.code, error.message)
-        })
-    })
   }
 
   A.reloadNotifications = async () => {

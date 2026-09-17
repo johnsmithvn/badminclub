@@ -5,7 +5,8 @@ import {
   getMemberPrediction,
   isChallengeDead,
   isChallengeExpired,
-  staleChallenges,
+  expiredChallenges,
+  orphanedChallenges,
   pendingStakeOf,
   availableSeasonPoints,
   settlePredictionsLocal,
@@ -276,12 +277,21 @@ assert.equal(isChallengeExpired({ status: 'oncourt', expiresAt: '2026-09-17T09:0
 assert.equal(isChallengeExpired({ status: 'pending', createdAt: '2026-09-17T08:00:00Z' }, nowTs), true)
 assert.equal(isChallengeExpired({ status: 'pending', createdAt: '2026-09-17T11:45:00Z' }, nowTs), false)
 
-// staleChallenges: đầu vào cho a.sweepStaleChallenges
-const stale = staleChallenges({ challenges: chalsForStake, sessions: sessionsForStake }, nowTs)
+// HAI NGUYÊN NHÂN PHẢI TÁCH: hết hạn nhận kèo thì kèo chết thật; buổi chốt sổ thì kèo chỉ mất
+// chỗ đánh. Gộp làm một rồi đánh dấu tất cả 'expired' là giết kèo người ta chưa kịp đánh, và
+// card hiện "Hết hạn" trong khi kèo chưa hề quá giờ.
+const dbSweep = { challenges: chalsForStake, sessions: sessionsForStake }
 assert.deepEqual(
-  stale.map((c) => c.id).sort(), ['c_abandoned', 'c_oncourt_dead', 'c_stale'],
-  'Chỉ gom kèo đang mang status còn sống nhưng thực tế đã chết',
+  expiredChallenges(dbSweep, nowTs).map((c) => c.id).sort(), ['c_stale'],
+  'Chỉ kèo quá giờ NHẬN mới là hết hạn',
 )
+assert.deepEqual(
+  orphanedChallenges(dbSweep, nowTs).map((c) => c.id).sort(), ['c_abandoned', 'c_oncourt_dead'],
+  'Kèo gắn vào buổi đã chốt sổ thì mồ côi buổi, KHÔNG phải hết hạn',
+)
+// Kèo còn sống ở buổi còn mở không được đụng tới
+assert.equal(orphanedChallenges(dbSweep, nowTs).some((c) => c.id === 'c_live'), false)
+assert.equal(expiredChallenges(dbSweep, nowTs).some((c) => c.id === 'c_live'), false)
 assert.equal(
   isChallengeDead(chalsForStake[5], sessionsForStake[1], nowTs), true,
   'Kèo đẩy lên sân rồi bỏ dở, buổi đã chốt sổ -> chết',
