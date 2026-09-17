@@ -22,6 +22,7 @@ import {
   TrendingUp, TriangleAlert, Trophy, Truck, Undo2, Unlink, Upload, UserRound, UserRoundCheck,
   UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X, Zap,
   Filter, Table, Mic, GripVertical,
+  Bell, Calendar, Swords, User,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -32,9 +33,11 @@ export const ICONS = {
   'alert-circle': CircleAlert,
   award: Award,
   banknote: Banknote,
+  bell: Bell,
   'building-2': Building2,
   calculator: Calculator,
   camera: Camera,
+  calendar: Calendar,
   'calendar-clock': CalendarClock,
   'calendar-days': CalendarDays,
   'calendar-plus': CalendarPlus,
@@ -108,6 +111,7 @@ export const ICONS = {
   shuffle: Shuffle,
   split: Split,
   sun: Sun,
+  swords: Swords,
   table: Table,
   tags: Tags,
   target: Target,
@@ -120,6 +124,7 @@ export const ICONS = {
   'undo-2': Undo2,
   unlink: Unlink,
   upload: Upload,
+  user: User,
   'user-round': UserRound,
   'user-round-check': UserRoundCheck,
   'user-round-cog': UserRoundCog,

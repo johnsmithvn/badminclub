@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Quản lý CLB cầu lông
 
-**Version:** v1.1.0 · **Updated:** 2026-09-16
+**Version:** v1.2.0 · **Updated:** 2026-09-17
 
 Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả nghiệp vụ gốc nằm trong bộ handoff
 (`design_handoff_clb_cau_long/01..06`) — không lặp lại ở đây; chỗ nào cần thì trỏ sang.
@@ -39,7 +39,8 @@ src/
     ds/               DESIGN SYSTEM TDMS — trích từ handoff, KHÔNG sửa tay (icons.js + index.js)
     layout/           AppLayout · Sidebar · AppHeader · MobileFooterNav · MoreSheet · ToastHost · AuthLayout
     challenge/        CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart · ChallengeDetailModal · MatchDetailModal · AttachVideoModal · MatchVideoPlayerModal · VideoTimelineEditor
-    home/             HomeMatchTab
+    home/             HomeMatchTab · ActivityTab
+    notification/     NotificationBell · NotificationPanel · NotificationItem
     leaderboard/      SeasonRaceTab · CareerEloTab · PairsTab · PairH2HTab · MemberSeasonLedgerModal · PairDetailModal · PairH2HModal · RatingFormulaModal
     profile/          MemberProfileTab
     session/          CourtAssignmentTab · SessionMatchesTab · BalanceScore · CourtWaitingFilterSheet · EffectiveStrengthModal · SeasonSettingsModal · SessionStatsSheet · VoiceMatchModal · PlannerModal
@@ -62,6 +63,7 @@ src/
     useMobile.js      kiểm tra breakpoint màn hình di động (<= 768px)
   i18n/               index.js (hàm t) + vi.json (toàn bộ chữ)
   lib/                LOGIC THUẦN — không React, không I/O, test bằng node
+    activity.js       sự kiện mạng xã hội CLB (Social Activity), thông báo cá nhân, điểm nhấn cá nhân hoá (Personal Highlights), sắc thái trận đấu (Match Narratives)
     assign.js         chia sân: slot, 5 chế độ xếp, chia đều, số trận
     badge.js          hệ thống huy hiệu, điều kiện mở khóa, tính toán badge shelf
     challenge.js      kèo đấu: mã kèo, hướng xem (creator/teamA/teamB), độ cân, điều kiện nhận/đẩy sân
@@ -312,7 +314,75 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 | Phân hệ Lập Dây Trận (Session Match Planner) | ✅ **Đã làm** | Migration 0033 (`planner` JSONB) + `src/lib/planner.js`: chia vòng (rounds), ưu tiên kèo, xử lý nguyện vọng, luân chuyển công bằng |
 | Sàn Kèo & Gán kèo tự do vào buổi chơi | ✅ **Đã làm** | Sàn Kèo (`Matches.jsx`), liên kết kèo tự do `linkChallengeToSession`, chống đè slot 1v1->2v2, gác hết hạn kèo |
 | Framework Backtest & Baseline data | ✅ **Đã làm** | `src/__tests__/backtest/` runner kiểm thử công thức với lịch sử thật CLB, Rule §0 gác công thức Elo/Điểm mùa |
+| Thông báo (Notification), Bảng tin Hoạt động & Điểm nhấn | ✅ **Đã làm** | Migration 0038 (`notifications`, `activity_events`) + `src/lib/activity.js` + Chuông/Drawer (`NotificationBell`, `NotificationPanel`) + Tab Hoạt động Trang chủ (`ActivityTab`) + 5 Điểm nhấn cá nhân hoá |
 | Mời vào CLB qua SĐT | **KHÔNG LÀM** (user chốt 2026-09-02) | Phần NHẬN phải gửi SMS thật — tốn tiền, không làm. Người mới vào bằng **mã CLB**. Bảng `club_invites` và cột `clubs.allow_invite` để nguyên dưới DB (xoá schema là việc riêng, phải xin phép), client không đọc |
-| `notifications` / Zalo OA / `audit_logs` | Giai đoạn 2 | Bảng đã có sẵn trong SQL |
+| Push notification / Zalo OA / `audit_logs` | Giai đoạn 2 | Mở rộng push notification qua Service Worker hoặc Zalo ZNS khi có nhu cầu |
 | Realtime cho chia sân | Giai đoạn 2 | Realtime channel theo `session_id` cho `session_lineups` + `matches` |
 | Màn Assign.jsx tách riêng | Tồn tại | Route `/chia-san` — chia sân độc lập ngoài buổi; logic trùng với Tab 2 SessionDetail |
+
+---
+
+## 8. Kiến trúc Hệ thống Thông báo (Notification) & Hoạt động CLB (Social Activity)
+
+Hệ thống được thiết kế theo nguyên tắc tối ưu tài nguyên Supabase Free Tier, không gây phình to state đồng bộ (`db`), tuân thủ nghiêm ngặt **docs/RULES.md §3.3** và mang lại trải nghiệm tương tác trực quan:
+
+```
+                  ┌────────────────────────────────────────────────────────┐
+                  │                 HÀNH ĐỘNG NGHIỆP VỤ                    │
+                  │   (Lưu trận, Tạo/Nhận kèo, Duyệt/Từ chối nợ/hồ sơ...)   │
+                  └───────────────────────────┬────────────────────────────┘
+                                              │
+                                   appActions: emitEvent()
+                                              │
+              ┌───────────────────────────────┴──────────────────────────────┐
+              ▼                                                              ▼
+ 📣 Social Activity Timeline                                  🔔 Personal Notifications
+    - Bảng: public.activity_events                               - Bảng: public.notifications
+    - Lưu: sự kiện chung toàn CLB                                - Lưu: thông báo riêng tư từng người
+    - State: 0 byte trong `db`                                   - State: nạp vào `db.notifications`
+    - Tải: Lazy-load + phân trang                                - Hiển thị: Badge chuông tức thời
+    - RLS: authenticated xem CLB mình                            - RLS: chỉ chính chủ đọc/ghi
+    - Actor: tự động loại trừ nhận notif chính mình               - Click: tự động chuyển tới trang liên quan
+              │                                                              │
+              └───────────────────────────────┬──────────────────────────────┘
+                                              ▼
+                             🧠 Điểm nhấn (Personal Highlights)
+                             - KHÔNG LƯU DB (0 byte bộ nhớ)
+                             - Tính toán on-demand phía client (`getPersonalHighlights`)
+                             - 5 mẫu điểm nhấn: Best Partner, Cạ cứng mới,
+                               Kỳ phùng địch thủ, Phá dớp kỵ giơ, Chuỗi thắng đỉnh cao.
+```
+
+### 8.1 Phân tách 3 tầng dữ liệu rõ rệt
+1. **🔔 Thông báo cá nhân (`notifications`)**:
+   - Cần phản hồi tức thì về số lượng tin chưa đọc trên thanh AppHeader.
+   - Được nạp trong `storage.load(clubId)` (giới hạn 100 tin gần nhất) và ánh xạ qua `dbmap.js` vào `db.notifications`.
+   - RLS kiểm tra `member_id IN (SELECT id FROM club_members WHERE user_id = auth.uid())` nên mỗi thành viên chỉ tải về thông báo của chính mình, tuyệt đối không lộ thông báo người khác.
+   - Khi thành viên tạo sự kiện gửi cho người khác (ví dụ A thách đấu B), `emitEvent` ghi thẳng danh sách thông báo của B lên bảng `notifications` của Supabase bằng `insert()`, không đưa vào state máy A để tránh ô nhiễm state.
+2. **📣 Bảng tin hoạt động toàn CLB (`activity_events`)**:
+   - Dòng thời gian các sự kiện đáng chú ý diễn ra trong CLB: kết quả trận kèm sắc thái, chuỗi thắng bị chặn, kèo đấu, mở/chốt buổi tập, hội viên mới gia nhập.
+   - **Hoàn toàn DB-only**: không nằm trong `db` state của client, không tốn băng thông đồng bộ của `dbmap`.
+   - Màn hình `ActivityTab.jsx` tải dữ liệu trực tiếp từ Supabase dạng lazy-load phân trang (20 mục/trang), kèm nút "Xem thêm".
+   - RLS kiểm tra: chỉ thành viên CLB được đọc; khi ghi kiểm tra `actor_id IS NULL OR actor_id = auth_member_id()` để ngăn chặn giả mạo danh tính người tạo sự kiện.
+3. **🧠 Điểm nhấn cá nhân hoá (`Personal Highlights`)**:
+   - Nằm ở tab "Dành cho bạn" trong Drawer Thông báo.
+   - **0 byte trong Database**: Suy ra hoàn toàn on-demand từ dữ liệu thi đấu (`db.matches`, `db.members`, `db.playerRatings`).
+   - Tự động khử trùng lặp (ví dụ: đã là Best Partner thì không hiển thị lặp lại ở Cạ cứng mới; trận thắng đối thủ kỵ giơ phải nằm trong 5 trận gần nhất mới tính là phá dớp).
+
+### 8.2 Nguyên tắc Độ thuần khiết của Payload (Rule §3.3)
+Mọi payload lưu trong bảng `notifications` và `activity_events` **chỉ được phép lưu ID, mã hiệu hoặc số nguyên** (ví dụ: `matchId`, `matchCode`, `winnerTeam`, `breakerIds`, `victimIds`, `challengerIds`, `memberId`), **tuyệt đối không lưu chuỗi tên đã format hay text tiếng Việt**:
+- **Giải mã động lúc render**: `resolveActivityPayload(item, db)` và `resolveNotificationPayload(item, db)` tra cứu tên thành viên/khách và tỷ số từ `db` tại thời điểm component vẽ lên màn hình.
+- Nhờ vậy, nếu thành viên đổi tên hiển thị, hoặc hệ thống hỗ trợ đa ngôn ngữ sau này, toàn bộ lịch sử thông báo và bảng tin hoạt động vẫn tự động hiển thị chính xác mà không bị gãy hoặc giữ chuỗi chết cũ.
+
+### 8.3 Sắc thái trận đấu (Match Narratives)
+Hàm thuần `detectMatchNarrative(match)` phân loại trận đấu thành 4 sắc thái tự động dựa trên diễn biến set và điểm số:
+- ⚡ **Clutch (Thắng nghẹt thở)**: Set quyết định chạm mốc $\ge 20$ và cách biệt $\le 2$ điểm (22-20, 29-30...).
+- 🔥 **Blowout (Thắng áp đảo huỷ diệt)**: Cách biệt $\ge 10$ điểm hoặc đối thủ bị chặn dưới 12 điểm trong set 21 (21-8, 21-11...).
+- 🔄 **Comeback (Lội ngược dòng)**: Thể thức bo3, để thua set 1 nhưng xuất sắc thắng liền 2 set sau.
+- 🏸 **Normal (Tiêu chuẩn)**: Chiến thắng cách biệt vừa phải.
+
+### 8.4 Cơ chế Tự điểm danh (Self-Checkin / RSVP) & Thông báo Ban quản lý
+- **Thành viên tự báo trạng thái**: Cung cấp thẻ `SelfAttendanceCard` trong `SessionDetail.jsx` và nút bấm tương tác 1 chạm `[✅ Đi]` / `[❌ Báo vắng]` trên `NotificationItem.jsx` khi nhận thông báo mở buổi (`session_rsvp_invite`).
+- **An toàn dữ liệu & RLS**: Migration 0039 nới RLS trên `attendances` cho chính chủ sửa dòng của mình khi buổi chưa chốt (`status != 'closed'`), đồng thời cung cấp RPC `member_self_checkin` với `SECURITY DEFINER` kiểm tra logic nghiêm ngặt.
+- **Thông báo Chủ CLB & Thủ quỹ (`attendance_reported`)**: Khi thành viên tự điểm danh, hệ thống tự động phát thông báo riêng cho ban quản lý (`owner`, `treasurer`), nêu rõ ai đã báo có mặt, báo vắng hay đi thêm tại buổi tập nào.
+

@@ -1,8 +1,8 @@
 # DATABASE.md
 
-**Version:** v1.1.0 · **Updated:** 2026-09-16
+**Version:** v1.2.0 · **Updated:** 2026-09-17
 
-Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0035`.
+Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0039`.
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
 localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
@@ -186,6 +186,9 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `clubCalibration[]` | `club_calibration` | Hệ số hiệu chỉnh chéo giới tính học từ dữ liệu thực tế CLB (0021) |
 | `club.hasMemberExtraDiscount` · `club.memberExtraDiscount` | `clubs.has_member_extra_discount` · `clubs.member_extra_discount` | Cấu hình ưu đãi giảm trừ cho hội viên cố định khi đi thêm buổi (0024) |
 | `session_courts[].courtLabel` · `schedule_slots[].courtLabel` | `session_courts.court_label` · `schedule_slots.court_label` | Nhãn số sân cụ thể (Sân 1, Sân 2...) của buổi tập và lịch cố định (0025) |
+| `challenges[].acceptedPlayers` | `challenges.accepted_players uuid[]` | Mảng danh sách ID thành viên đã bấm nhận kèo đấu (0037) |
+| `notifications[]` | `notifications` | Thông báo cá nhân từng thành viên: mã CLB, memberId nhận, loại, payload (chỉ lưu ID/số), refType/refId, readAt, createdAt (0038) |
+| `activity_events` (DB-only, không nạp state `db`) | `activity_events` | Bảng tin hoạt động toàn CLB: mã CLB, actorId, loại sự kiện, payload (chỉ lưu ID/số), refType/refId, createdAt. Tải lazy-load phân trang trên UI (0038) |
 
 ---
 
@@ -228,6 +231,10 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0033_add_session_planner.sql` | Bổ sung cột `planner` (jsonb default '{}'::jsonb) cho bảng `sessions` lưu trữ cấu hình vòng đấu, danh sách trận xếp trước theo vòng của bộ Lập dây trận. |
 | `0034_increment_match_video_views.sql` | RPC function `increment_match_video_views(p_match_id, p_club_id)` tăng số lượt xem video trận đấu an toàn phía server. |
 | `0035_attach_match_video.sql` | RPC function `attach_match_video(p_match_id, p_club_id, p_video_url, p_video_provider, p_video_thumbnail_url, p_video_timeline)` cập nhật thông tin video replay cho trận đấu. |
+| `0036_allow_member_self_avatar.sql` | Bổ sung `avatar_url` vào trigger guard `guard_member_self_update`, cho phép thành viên tự cập nhật avatar mà không cần quyền quản lý `members`. |
+| `0037_challenge_accepted_players.sql` | Bổ sung cột `accepted_players uuid[]` cho bảng `challenges` để theo dõi danh sách thành viên đã bấm nhận kèo đấu; nới RLS update cho thành viên tham gia nhận kèo. |
+| `0038_notifications_and_activity.sql` | Tạo bảng `activity_events` (dòng thời gian sự kiện toàn CLB) và bảng `notifications` (hộp thư thông báo cá nhân của từng thành viên); thiết lập indexes và các chính sách RLS bảo vệ chặt chẽ (`actor_id = auth_member_id() OR NULL`, `member_id = auth_member_id()`). |
+| `0039_member_self_attendance.sql` | Cập nhật RLS policies cho bảng `attendances` cho phép thành viên tự thêm/sửa/xóa dòng điểm danh của chính mình khi buổi chưa chốt (`status != 'closed'`); tạo hàm RPC `member_self_checkin(p_session_id, p_status)` hỗ trợ tự điểm danh 1 chạm an toàn. |
 
 ---
 

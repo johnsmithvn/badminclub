@@ -319,8 +319,16 @@ export const SCHEMA_GROUPS = [
         name: 'notifications',
         fields: [
           f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('member_id', 'uuid', 'FK'),
-          f('kind', 'text'), f('channel', 'push/zalo'), f('payload', 'jsonb'),
-          f('scheduled_at', 'timestamptz'), f('sent_at', 'timestamptz'),
+          f('type', 'text'), f('payload', 'jsonb'), f('ref_type', 'text null'),
+          f('ref_id', 'uuid null'), f('read_at', 'timestamptz null'), f('created_at', 'timestamptz'),
+        ],
+      },
+      {
+        name: 'activity_events',
+        fields: [
+          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('actor_id', 'uuid null', 'FK'),
+          f('type', 'text'), f('payload', 'jsonb'), f('ref_type', 'text null'),
+          f('ref_id', 'uuid null'), f('created_at', 'timestamptz'),
         ],
       },
       {

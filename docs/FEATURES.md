@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v1.1.0 · **Updated:** 2026-09-16
+**Version:** v1.2.0 · **Updated:** 2026-09-17
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -56,14 +56,12 @@ Buổi `cancelled` **không** tính tiền và **không** tính vào số buổi
 
 ## 2. Trang chủ (`/`)
 
-Hai tab: **Tổng quan** · **Báo cáo**.
-
-Tổng quan: 6 StatCard (số dư quỹ, công nợ khách, tiến độ đóng quỹ, thu tháng, chi tháng,
-buổi đã chốt) · "Buổi tới" (mở điểm danh trước giờ chơi) ·
-"Tiến độ đóng quỹ tháng" (kèm chip từng người **chưa** đóng, bấm là đánh dấu đã đóng) ·
-"Đi nhiều nhất" top 7 · "Khách nợ nhiều nhất" 5 dòng · "Buổi gần nhất" (bảng, click mở buổi).
-
-Báo cáo: thu chi theo tháng (cột đôi) · tỷ lệ đi tập · khách theo trình độ.
+5 tab trong thanh cuộn ngang `TabTrack`:
+1. **Tổng quan (`overview`)**: 6 StatCard (số dư quỹ, công nợ khách, tiến độ đóng quỹ, thu tháng, chi tháng, buổi đã chốt) · "Buổi tới" (mở điểm danh trước giờ chơi) · "Tiến độ đóng quỹ tháng" (kèm chip từng người **chưa** đóng, bấm là đánh dấu đã đóng) · "Đi nhiều nhất" top 7 · "Khách nợ nhiều nhất" 5 dòng · "Buổi gần nhất" (bảng, click mở buổi).
+2. **Hoạt động (`activity`)**: Bảng tin dòng thời gian toàn CLB (Social Activity Feed). Tải lazy-load các sự kiện trận đấu kèm sắc thái (nghẹt thở, áp đảo, lội ngược dòng), phá chuỗi bất bại, kèo đấu, mở/chốt buổi tập, chào đón thành viên mới.
+3. **Trận đấu (`match`)**: Màn tóm tắt trận đấu và các kèo nóng gần đây (`HomeMatchTab`).
+4. **Giao dịch (`transactions`)**: Bảng sổ quỹ chi tiết và tổng hợp dòng tiền tháng.
+5. **Báo cáo (`report`)**: Thu chi theo tháng (cột đôi) · tỷ lệ đi tập · khách theo trình độ.
 
 ## 3. Buổi tập (`/buoi-tap`) và Chi tiết buổi (`/buoi-tap/:id`)
 
@@ -395,3 +393,49 @@ Hệ thống cung cấp trang chuyên biệt `/tran-dau` đóng vai trò là Sà
    - Cột tên dán cố định (sticky) trên màn hình mobile.
    - Bấm vào ô đã có kết quả để xem ngay lịch sử đối đầu giữa 2 người; bấm vào ô chưa từng gặp nhau để mở ngay popup gạ kèo.
    - Thống kê các cặp Chưa từng gặp nhau (ưu tiên theo số buổi tham gia chung) và Top các cặp lệch nhất trong CLB.
+
+---
+
+## 11. Hệ thống Thông Báo Cá Nhân (Notifications) & Bảng Tin Hoạt Động CLB (Social Activity)
+
+Nhằm tạo động lực thi đấu và tăng cường tương tác trong CLB, hệ thống cung cấp trung tâm thông báo cá nhân kết hợp bảng tin dòng thời gian sự kiện:
+
+### 1. Chuông Thông Báo & Ngăn Kéo (Notification Bell & Panel):
+- **Biểu tượng Chuông (`NotificationBell.jsx`)**: Tích hợp trên cả Desktop AppHeader và Mobile Unified Header, hiển thị chấm badge số lượng thông báo chưa đọc của riêng cá nhân đang đăng nhập (lọc `member_id = myId`).
+- **Ngăn kéo 2 Tab (`NotificationPanel.jsx`)**:
+  - **Tab 1: Thông báo (`tabNotifications`)**:
+    - Danh sách 13 loại thông báo cá nhân quan trọng, lọc bỏ chính người tạo sự kiện (`actor_id`):
+      1. `challenge_created`: Có người thách đấu kèo bạn.
+      2. `challenge_accepted`: Đối thủ đã đồng ý nhận kèo của bạn.
+      3. `challenge_declined`: Đối thủ đã từ chối kèo của bạn.
+      4. `challenge_completed`: Kèo bạn tham gia đã ngã ngũ kết quả.
+      5. `match_recorded`: Kết quả trận đấu bạn vừa thi đấu đã được ghi nhận.
+      6. `match_edited`: Điểm số trận đấu bạn tham gia vừa được ban quản trị chỉnh sửa.
+      7. `bounty_broken`: Chuỗi thắng của đối thủ kình địch vừa bị chặn đứng.
+      8. `claim_approved`: Yêu cầu xác nhận đóng tiền/hoàn tiền của bạn đã được duyệt.
+      9. `claim_rejected`: Yêu cầu đóng tiền/hoàn tiền của bạn bị từ chối.
+      10. `join_approved`: Đơn xin gia nhập CLB của bạn đã được phê duyệt.
+      11. `join_rejected`: Đơn xin gia nhập CLB của bạn chưa được phê duyệt.
+      12. `session_rsvp_invite`: Lời mời điểm danh khi buổi tập mở (gửi cho hội viên nhóm cố định). Kèm **2 nút bấm tương tác 1 chạm: [✅ Đi] và [❌ Báo vắng]** ngay trên panel.
+      13. `attendance_reported`: Thông báo gửi riêng tới Chủ CLB & Thủ quỹ khi thành viên tự báo điểm danh (nêu rõ ai, báo có mặt / báo vắng / đi thêm tại buổi nào).
+    - **Điều hướng hành động tức thì (Actionable Click)**: Nhấp vào thông báo tự động đánh dấu đã đọc (`markNotificationRead`), đóng ngăn kéo và điều hướng ngay tới trang nghiệp vụ đích (`challenges`, `session`, `matches`, hoặc `fund`).
+    - Nút **"Đã đọc tất cả"** (`markAllNotificationsRead`): Cập nhật `read_at` cho toàn bộ thông báo chưa đọc của cá nhân trong 1 lần bấm.
+  - **Tab 2: Dành cho bạn (`tabHighlights` — Personal Highlights)**:
+    - Tính toán 100% on-demand phía client (`getPersonalHighlights`), **không ghi DB (0 byte bộ nhớ)**.
+    - 5 thẻ điểm nhấn phong độ và gắn kết cá nhân:
+      1. 🏆 **Cặp bài trùng ăn ý nhất (Best Partner)**: Bạn cặp đánh chung $\ge 5$ trận có tỷ lệ thắng cao nhất.
+      2. 🛡️ **Cạ cứng mới tin cậy (Reliable Partner)**: Bạn cặp cùng nhau thi đấu $\ge 3$ trận gần nhất bất bại 100% (tự động loại trừ người trùng với Best Partner).
+      3. ⚔️ **Kỳ phùng địch thủ (Arch-Rival)**: Đối thủ chạm trán nhiều nhất ($\ge 4$ trận) với tỷ số đối đầu giằng co (chênh lệch $\le 2$ trận).
+      4. ⚡ **Rửa hận phá dớp kỵ giơ (Nemesis Beaten)**: Đối thủ từng thắng bạn liên tiếp $\ge 2$ trận, và bạn vừa xuất sắc đánh bại họ ở trận gần nhất (trong vòng 5 trận gần nhất).
+      5. 🔥 **Chuỗi thắng đỉnh cao (Hot Streak)**: Thành viên đang sở hữu chuỗi toàn thắng liên tiếp $\ge 3$ trận.
+
+### 2. Bảng Tin Hoạt Động Toàn CLB (`ActivityTab.jsx`):
+- Nằm ở Tab "Hoạt động" tại Trang chủ, hiển thị dòng thời gian các sự kiện sôi động trong CLB.
+- **Lazy-load phân trang trực tiếp từ Supabase (`public.activity_events`)**: 20 sự kiện/trang, không nạp vào state đồng bộ `db` để tránh phình to bộ nhớ client.
+- **4 Sắc thái trận đấu (Match Narratives)** tự động nhận diện từ tỷ số:
+  - ⚡ **Nghẹt thở (Clutch)**: Set quyết định chạm mốc $\ge 20$ và cách biệt $\le 2$ điểm (22-20, 24-22, 29-30...).
+  - 🔥 **Áp đảo huỷ diệt (Blowout)**: Cách biệt $\ge 10$ điểm hoặc đối thủ dưới 12 điểm trong set 21 (21-8, 21-11...).
+  - 🔄 **Lội ngược dòng (Comeback)**: Thể thức bo3, thua set 1 nhưng thắng ngược 2 set sau.
+  - 🏸 **Tiêu chuẩn (Normal)**: Trận thắng thông thường.
+- Các sự kiện CLB khác: Phá chuỗi thắng đối thủ (Bounty Broken — `bounty_broken`), Thách đấu mới (`challenge_created`), Nhận kèo (`challenge_accepted`), Từ chối kèo (`challenge_declined`), Kèo hoàn tất (`challenge_completed`), Sửa điểm trận đấu (`match_edited`), Buổi tập mở điểm danh (`session_opened`), Chốt sổ buổi tập (`session_closed`), Thành viên mới gia nhập CLB (`member_joined`).
+- **Tuân thủ Luật §3.3**: Toàn bộ payload chỉ lưu ID và số nguyên, tên người chơi và tỷ số được giải mã động (`resolveActivityPayload`) khi hiển thị, hỗ trợ đổi tên và đa ngôn ngữ hoàn hảo.

@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v1.5.0 · **Updated:** 2026-09-16
+**Version:** v1.6.0 · **Updated:** 2026-09-17
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -1175,6 +1175,38 @@ Xây dựng bộ điều phối luân chuyển trận đấu đa sân chuyên ng
   - Viết mới `src/__tests__/lib/challenge_full.test.js` kiểm thử toàn diện vòng đời kèo tự do, liên kết buổi, hết hạn, và kiểm tra slot sân.
   - Toàn bộ **355/355 tests PASS 100%** trên toàn dự án!
   - `src/i18n/vi.json` được chuẩn hóa và bổ sung đầy đủ các khóa localization.
+
+---
+
+## Đợt 18 — Hệ thống Thông Báo Cá Nhân (Notifications), Bảng Tin Hoạt Động (Social Activity) & Điểm Nhấn Cá Nhân Hóa (Personal Highlights) · **XONG 2026-09-17**
+
+Xây dựng toàn diện trung tâm thông báo cá nhân, bảng tin sự kiện toàn CLB và các chỉ số điểm nhấn phong độ cá nhân theo kiến trúc tinh gọn, bảo vệ tài nguyên Supabase Free Tier và tuân thủ tuyệt đối Rule §3.3:
+
+- [x] **Cơ sở dữ liệu & RLS Policies (`0038_notifications_and_activity.sql`, `0039_member_self_attendance.sql`)**:
+  - Bảng `public.activity_events`: Lưu trữ dòng thời gian sự kiện chung toàn CLB (`club_id`, `actor_id`, `type`, `payload`, `ref_type`, `ref_id`, `created_at`). Index `(club_id, created_at DESC)`. RLS siết chặt `actor_id IS NULL OR actor_id = auth_member_id()`.
+  - Bảng `public.notifications`: Lưu trữ hộp thư thông báo riêng tư từng thành viên (`club_id`, `member_id`, `type`, `payload`, `ref_type`, `ref_id`, `read_at`, `created_at`). Index `(member_id, read_at, created_at DESC)`. RLS bảo vệ chỉ thành viên sở hữu mới đọc/sửa/xóa thông báo của mình.
+  - Migration 0039: Cập nhật RLS policies cho bảng `attendances` và tạo RPC `member_self_checkin` cho phép thành viên tự điểm danh khi buổi tập chưa chốt sổ.
+- [x] **Động cơ Phân loại Sắc thái & Điểm nhấn Thuần túy (`src/lib/activity.js`)**:
+  - `detectMatchNarrative(match)`: Tự động phân loại 4 sắc thái trận đấu: Clutch (thắng nghẹt thở), Blowout (thắng áp đảo huỷ diệt), Comeback (lội ngược dòng ngoạn mục), Normal (chiến thắng tiêu chuẩn).
+  - `getPersonalHighlights(memberId, db)`: Trích xuất 5 mẫu điểm nhấn cá nhân hoá 100% on-demand, không lưu DB (0 byte): Best Partner, Reliable Partner (Cạ cứng mới), Arch-Rival (Kỳ phùng địch thủ), Nemesis Beaten (Rửa hận phá dớp kỵ giơ), Hot Streak (Chuỗi thắng phong độ cao).
+  - `resolveActivityPayload(item, db)` & `resolveNotificationPayload(item, db)`: Giải mã động tên thành viên, khách, ngày tháng, trạng thái điểm danh và tỷ số từ ID lưu trong payload tại thời điểm render (Rule §3.3).
+- [x] **Tầng Đồng bộ & Phát sự kiện (`src/contexts/appActions.js`, `dbmap.js`, `storage.js`)**:
+  - Tích hợp `notifications` vào `dbmap.js` (mode `id`) và `storage.load()`.
+  - Helper `emitEvent`: Tự động loại trừ actor nhận thông báo của chính mình, ghi trực tiếp thông báo người nhận lên Supabase `notifications` để tránh làm ô nhiễm local state của actor.
+  - Gắn 13 loại thông báo cá nhân: thách đấu, nhận/từ chối/hoàn tất kèo, kết quả trận, sửa điểm, phá chuỗi, duyệt/từ chối tiền, duyệt/từ chối gia nhập CLB, lời mời điểm danh 1 chạm (`session_rsvp_invite`), và thông báo gửi riêng Chủ CLB/Thủ quỹ khi thành viên điểm danh (`attendance_reported`).
+  - Gắn 10 loại sự kiện hoạt động CLB: kết quả trận kèm narrative, phá chuỗi, mở/chốt buổi tập, chào đón thành viên mới...
+  - Action `memberSelfCheckin(sessionId, status)`, `markNotificationRead(notifId)` và `markAllNotificationsRead()`.
+- [x] **Giao diện & Tương tác Hành động (Actionable UX)**:
+  - `NotificationBell.jsx`: Chuông thông báo trên Desktop & Mobile AppHeader kèm badge số lượng tin chưa đọc.
+  - `NotificationItem.jsx`: Hỗ trợ **2 nút bấm 1 chạm: [✅ Đi] và [❌ Báo vắng]** khi nhận thông báo mở điểm danh buổi tập.
+  - `NotificationPanel.jsx`: Ngăn kéo 2 tab ("Thông báo" & "Dành cho bạn"). Bấm vào thông báo tự động đánh dấu đã đọc và chuyển trang ngay tới màn Kèo, Buổi tập, Trận đấu, Sổ quỹ.
+  - `SelfAttendanceCard` trong `SessionDetail.jsx`: Thẻ tự điểm danh trực quan cho thành viên ở đầu danh sách điểm danh, hiển thị trạng thái hiện tại và nút báo có mặt / báo vắng / đi thêm khi buổi chưa chốt sổ.
+  - `ActivityTab.jsx`: Tab "Hoạt động" tại Trang chủ, lazy-load phân trang từ `activity_events` kèm icon và badge màu sắc phân loại.
+  - Khai báo i18n đầy đủ cho các nhóm `activity`, `notification`, `highlights`, `attend`, `toast` trong `src/i18n/vi.json`.
+- [x] **Kiểm thử tự động & Soát lỗi**:
+  - `src/__tests__/activity/activity.test.js`: Suite test kiểm tra narrative, 5 highlights và payload resolvers (bao gồm cả `attendance_reported` và `session_rsvp_invite`).
+  - Toàn bộ **357/357 tests PASS 100%**!
+  - Linter: **0 errors, 0 warnings**.
 
 ---
 

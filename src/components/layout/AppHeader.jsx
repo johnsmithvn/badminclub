@@ -6,6 +6,7 @@ import { pageOf } from '#routes'
 import { can, footerSlots } from '#lib/roles.js'
 import { monthTxt } from '#utils/dates.js'
 import { adhocForm, scheduleForm, memberForm } from '#lib/forms.js'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 import { t } from '#i18n'
 
 export default function AppHeader({ route }) {
@@ -64,6 +65,8 @@ export default function AppHeader({ route }) {
           label={isDark ? t('common.themeLight') : t('common.themeDark')}
           onClick={toggleTheme}
         />
+
+        <NotificationBell />
 
         {!isSettings && can(role, 'sessions') && (
           <>
@@ -155,6 +158,8 @@ function MobileUnifiedHeader({
         >
           <Icon name={isDark ? 'sun' : 'moon'} size={hasTitle ? 14 : 15} />
         </button>
+
+        <NotificationBell />
 
         {/* Nút thêm buổi đột xuất tròn teal ở màn Buổi tập */}
         {route === 'sessions' && can(role, 'sessions') && (

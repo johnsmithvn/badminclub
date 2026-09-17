@@ -305,6 +305,11 @@ export function toDb(raw, ctx) {
       id: c.id, bucket: c.bucket, sampleSize: num(c.sample_size),
       observedWinRate: num(c.observed_win_rate), learnedAdjustment: num(c.learned_adjustment),
     })),
+    notifications: (raw.notifications || []).map((n) => ({
+      id: n.id, clubId: n.club_id, memberId: n.member_id, type: n.type,
+      payload: n.payload || {}, refType: n.ref_type || null, refId: n.ref_id || null,
+      readAt: n.read_at || null, createdAt: n.created_at || null,
+    })),
     playing: {},
   }
 }
@@ -575,6 +580,12 @@ export function toRows(db, ctx) {
     put('guest_price_rules', { club_id: cid, level: p.level, gender: 'nu', price: p.nu || 0, effective_from: from })
   })
 
+  ;(db.notifications || []).forEach((n) => put('notifications', {
+    id: n.id, club_id: cid, member_id: n.memberId, type: n.type,
+    payload: n.payload || {}, ref_type: n.refType || null, ref_id: uu(n.refId),
+    read_at: n.readAt || null, created_at: n.createdAt || new Date().toISOString(),
+  }))
+
   return out
 }
 
@@ -644,6 +655,7 @@ export const TABLES = [
   { table: 'match_edits', mode: 'id', noDelete: true, insertOnly: true },
   { table: 'club_calibration', mode: 'scope', scope: ['club_id'] },
   { table: 'guest_price_rules', mode: 'scope', scope: ['club_id'] },
+  { table: 'notifications', mode: 'id' },
 ]
 
 const scopeKey = (spec, row) => spec.scope.map((c) => row[c]).join(' ')

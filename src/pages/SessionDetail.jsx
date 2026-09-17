@@ -11,10 +11,10 @@ import PlannerAddWishDialog from '#components/session/planner/PlannerAddWishDial
 import SessionMatchesTab from '#components/session/SessionMatchesTab.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { dd, ddmy, wd } from '#utils/dates.js'
+import { dd, ddmy, monthOf, wd } from '#utils/dates.js'
 import {
   courtOf, dueState, duesOf,
-  fmt, fmtK, genderTxt, groupOf, guestOf, guestPrice, headCount, levelOf,
+  fmt, fmtK, genderTxt, groupMembers, groupOf, guestOf, guestPrice, headCount, levelOf,
   isAdhoc, isMemberCharge, memberOf, presentCount, rowCost, sGuests, sGuestsOnly, sessionMembers,
   sessionOf, normalizeText, guestStats, myMember,
 } from '#lib/money.js'
@@ -22,6 +22,153 @@ import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { sortAttendanceMembers } from '#lib/members.js'
 import { t } from '#i18n'
+
+function SelfAttendanceCard({ s, db, a, isMobile, isClosed }) {
+  const myMem = myMember(db)
+  if (!myMem) return null
+
+  const myId = myMem.id
+  const month = monthOf(s.date)
+  const isFixedMember = groupMembers(db, s.groupId, month).some((m) => m.id === myId)
+  const myAtt = (db.attendance?.[s.id] || {})[myId]
+
+  const statusLabel =
+    myAtt === true
+      ? t('attend.present')
+      : myAtt === false
+      ? t('attend.absent')
+      : myAtt === 'extra'
+      ? t('attend.extra')
+      : t('attend.unmarked')
+
+  const statusColor =
+    myAtt === true
+      ? '#5FDBD3'
+      : myAtt === false
+      ? '#EF4444'
+      : myAtt === 'extra'
+      ? '#3B82F6'
+      : 'var(--text-muted, #9ca3af)'
+
+  const statusBg =
+    myAtt === true
+      ? 'rgba(0, 178, 169, 0.12)'
+      : myAtt === false
+      ? 'rgba(239, 68, 68, 0.12)'
+      : myAtt === 'extra'
+      ? 'rgba(59, 130, 246, 0.12)'
+      : 'rgba(255, 255, 255, 0.05)'
+
+  return (
+    <div
+      style={{
+        padding: '12px 16px',
+        borderRadius: 10,
+        backgroundColor: 'var(--surface-card, #171717)',
+        border: '1px solid rgba(0, 245, 212, 0.25)',
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'flex-start' : 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 12,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            backgroundColor: 'rgba(0, 245, 212, 0.1)',
+            color: 'var(--teal-400, #00F5D4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="clipboard-check" size={18} />
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+            {t('attend.selfCheckinTitle')}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+            {t('attend.myStatus')}:{' '}
+            <span
+              style={{
+                padding: '2px 8px',
+                borderRadius: 4,
+                backgroundColor: statusBg,
+                color: statusColor,
+                fontWeight: 600,
+                fontSize: 11,
+              }}
+            >
+              {statusLabel}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {!isClosed ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {isFixedMember ? (
+            <>
+              <Button
+                variant={myAtt === true ? 'primary' : 'secondary'}
+                size="sm"
+                icon="check"
+                onClick={() => a.memberSelfCheckin(s.id, 'present')}
+                style={{ height: 32, fontSize: 12 }}
+              >
+                {t('attend.btnPresent')}
+              </Button>
+              <Button
+                variant={myAtt === false ? 'danger' : 'ghost'}
+                size="sm"
+                icon="x"
+                onClick={() => a.memberSelfCheckin(s.id, 'absent')}
+                style={{ height: 32, fontSize: 12 }}
+              >
+                {t('attend.btnAbsent')}
+              </Button>
+            </>
+          ) : (
+            <>
+              {myAtt === 'extra' ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="x"
+                  onClick={() => a.memberSelfCheckin(s.id, 'removeExtra')}
+                  style={{ height: 32, fontSize: 12, color: '#EF4444' }}
+                >
+                  {t('attend.btnCancelExtra')}
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="plus"
+                  onClick={() => a.memberSelfCheckin(s.id, 'extra')}
+                  style={{ height: 32, fontSize: 12 }}
+                >
+                  {t('attend.btnExtra')}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          {t('attend.sessionClosedHint')}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function SessionDetail() {
   const { db, a } = useApp()
@@ -727,7 +874,9 @@ export default function SessionDetail() {
           alignItems: 'start',
         }}>
         {/* ---------------- điểm danh ---------------- */}
-        <Card
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <SelfAttendanceCard s={s} db={db} a={a} isMobile={isMobile} isClosed={isClosed} />
+          <Card
           title={t('session.attendTitle')}
           subtitle={t('session.attendSub')}
           icon="user-round-check"
@@ -870,6 +1019,7 @@ export default function SessionDetail() {
             {canEdit && !isInactive && !isClosed && <ExtraPicker s={s} members={members} isMobile={isMobile} />}
           </div>
         </Card>
+        </div>
 
         {/* ---------------- cột phải ---------------- */}
         <div style={{ display: 'grid', gap: 16 }}>

@@ -108,6 +108,8 @@ src/
   App.jsx              route + gác quyền          main.jsx  mount
   components/
     challenge/         CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart · AttachVideoModal · MatchVideoPlayerModal · VideoTimelineEditor
+    home/              ActivityTab
+    notification/      NotificationBell · NotificationPanel
     session/           CourtAssignmentTab · SessionMatchesTab · PlannerModal · VoiceMatchModal
     settings/          SettingsComponents.jsx · tabs/ (Access · Courts · General · Groups · Money · Schedules)
     ds/                design system TDMS (VENDORED — không sửa tay)
@@ -120,13 +122,13 @@ src/
   data/                schema.js · rankThemes.js · rankThemes.json
   hooks/               useClock.js · useMobile.js
   i18n/                index.js · vi.json            ← MỌI chữ
-  lib/                 assign · badge · challenge · csv · forms · ledger · matchSearch · members · money · planner · rating · roles · schedules · season · supabase · xp (THUẦN, test được)
+  lib/                 activity · assign · badge · challenge · csv · forms · ledger · matchSearch · members · money · planner · rating · roles · schedules · season · supabase · xp (THUẦN, test được)
   pages/               14 màn trong CLB (kèm Leaderboard, Matches) + Account · Clubs · Login · Register + Dialogs
   routes/              bảng route key ↔ URL
   styles/              index.css + tokens/ (dark.css, semantic.css, base.css…)
   utils/               dates.js · image.js · vietqr.js · voiceMatchParser.js
-  __tests__/           60+ file test cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/ · backtest/ (355 tests pass 100%)
-supabase/migrations/   SQL cho bản chạy thật (0001..0035)
+  __tests__/           60+ file test cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/ · backtest/ · activity/ (357 tests pass 100%)
+supabase/migrations/   SQL cho bản chạy thật (0001..0039)
 docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS · BACKTEST · HE_THONG_RATING_VA_DIEM_MUA (+ DESIGN.md ở gốc)
 DESIGN.md
 ```
@@ -167,6 +169,6 @@ Chi tiết: [docs/RULES.md](docs/RULES.md).
 - **Bảng xếp hạng Elo & Thống kê nâng cao (Leaderboard)**: Khởi điểm 0 Elo, tính điểm chuẩn quốc tế kèm thưởng upset, 5 cấp độ tin cậy R1–R5, Dynamic K-Factor, Margin of Victory, Elo Floor >= 0, 8 bậc Slang Rank Tiers (Gà Con -> Độc Cô Cầu Bại), Inactivity Decay, Playstyle Badges, Tìm trận đa năng, Sửa điểm trực tiếp có lưu vết kiểm toán và cascade tính lại Elo, Ma trận đối đầu CLB (H2H matrix), Thống kê hiệu chỉnh chéo giới tính (Cross-gender calibration).
 - **Đua Top Mùa Giải & Trục Gắn Bó (Season Race & Badges)**: Cày rank 5 dải delta theo Quý, sàn Floor = 0, thưởng chuỗi thắng, thưởng Upset, Vua Lì Đòn (Bounty Player) và thưởng phá chuỗi (`bounty_broken`), hệ thống XP & Cấp bậc vĩnh viễn, Kệ 3 huy hiệu danh dự (`badge_shelf`) trên hồ sơ cá nhân.
 - **Framework Backtest Lịch sử Thật**: Bộ công cụ chạy lại toàn bộ trận đấu lịch sử của CLB đối chiếu với mốc chuẩn (baseline), bảo đảm tính ổn định tuyệt đối của công thức tính điểm (Rule §0).
-- **Giao diện Responsive Mobile & Dark Mode**: ThemeContext hỗ trợ Dark/Light/System chống nháy sáng FOUC; điều hướng mobile Driver-App với MobileFooterNav 5 slot và MoreSheet.
-- **355/355 automated test cases pass 100%**.
+- **Thông Báo Cá Nhân & Bảng Tin Hoạt Động (Notifications & Social Activity Feed)**: Chuông thông báo cá nhân (`NotificationBell`) với huy hiệu unread theo thời gian thực, 13 loại thông báo cá nhân có điều hướng tức thời kèm nút bấm tương tác RSVP 1 chạm (lời mời điểm danh `session_rsvp_invite`, thông báo điểm danh gửi riêng Chủ CLB `attendance_reported`, thách đấu, nhận/từ chối/kết thúc kèo, kết quả trận, sửa điểm, phá chuỗi thắng đối thủ, duyệt/từ chối tiền khai, duyệt/từ chối gia nhập CLB), thẻ tự điểm danh (`SelfAttendanceCard`) trực quan trong buổi chơi, 5 khối điểm nhấn thành tích cá nhân (Personal Highlights) tính on-demand không lưu DB (cặp bài trùng ăn ý nhất, cạ cứng mới toàn thắng, kỳ phùng địch thủ, rửa hận phá dớp kỵ giơ, chuỗi thắng phong độ cao). Tab Bảng tin hoạt động (`ActivityTab`) tại Trang chủ lazy-load trực tiếp từ `activity_events` theo dòng thời gian phân trang, thuật toán nhận diện kịch tính trận đấu (Match Narratives: Nghẹt thở/Clutch, Áp đảo/Blowout, Lội ngược dòng/Comeback, Tiêu chuẩn/Normal), tuân thủ nghiêm ngặt chuẩn payload thuần ID/key (Rule §3.3) và cách ly RLS an toàn.
+- **357/357 automated test cases pass 100%**.
 - `npm run lint` sạch (0 warning, 0 error). Responsive tối ưu trên màn hình điện thoại từ 390px đến máy tính bảng/desktop.

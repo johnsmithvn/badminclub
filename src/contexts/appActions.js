@@ -25,6 +25,7 @@ import { seasonMatchesOf } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
+import { detectMatchNarrative } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => crypto.randomUUID()
@@ -107,6 +108,86 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
   const patchSession = (sid, fn) =>
     up((d) => ({ sessions: d.sessions.map((x) => (x.id === sid ? fn(x, d) : x)) }))
+
+  const emitEvent = ({
+    type,
+    payload = {},
+    recipients = [],
+    refType = null,
+    refId = null,
+    actorId = null,
+    skipActivity = false,
+  }) => {
+    const d0 = db()
+    const clubId = d0.clubId
+    const effectiveActorId = actorId || myMember(d0)?.id || null
+    const now = new Date().toISOString()
+
+    // 1. Social Activity (chỉ DB, không vào db state)
+    if (!skipActivity && clubId && supabase) {
+      supabase
+        .from('activity_events')
+        .insert({
+          club_id: clubId,
+          actor_id: effectiveActorId,
+          type,
+          payload,
+          ref_type: refType,
+          ref_id: refId,
+          created_at: now,
+        })
+        .then(({ error }) => {
+          if (error) console.warn('[activity] insert error:', error.message)
+        })
+    }
+
+    // 2. Personal Notifications (luôn loại trừ chính actor)
+    const validRecipients = (recipients || [])
+      .filter(Boolean)
+      .filter((id) => id !== effectiveActorId)
+
+    if (validRecipients.length > 0) {
+      const newNotifs = validRecipients.map((recId) => ({
+        id: uid(),
+        clubId,
+        memberId: recId,
+        type,
+        payload,
+        refType,
+        refId,
+        readAt: null,
+        createdAt: now,
+      }))
+
+      if (clubId && supabase) {
+        supabase
+          .from('notifications')
+          .insert(
+            newNotifs.map((n) => ({
+              id: n.id,
+              club_id: n.clubId,
+              member_id: n.memberId,
+              type: n.type,
+              payload: n.payload,
+              ref_type: n.refType,
+              ref_id: n.refId,
+              created_at: n.createdAt,
+            }))
+          )
+          .then(({ error }) => {
+            if (error) console.warn('[notifications] insert error:', error.message)
+          })
+      }
+
+      // Phòng hờ nếu effectiveActorId có nằm trong danh sách người nhận
+      const myNotifs = newNotifs.filter((n) => n.memberId === effectiveActorId)
+      if (myNotifs.length > 0) {
+        up((d) => ({
+          notifications: [...myNotifs, ...(d.notifications || [])],
+        }))
+      }
+    }
+  }
 
   const A = {
     /* ---------- điều hướng, tháng, tab, form ---------- */
@@ -215,6 +296,24 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return toast(/approve_join_request|schema cache/i.test(m) ? t('sync.needMigrate') : m)
       }
       await reload()
+      const targetMemberId = mid || db().members.find((m) => m.userId === req.userId)?.id
+      if (targetMemberId) {
+        emitEvent({
+          type: 'join_approved',
+          payload: { clubId: d0.clubId, memberId: targetMemberId },
+          recipients: [targetMemberId],
+          refType: 'member',
+          refId: targetMemberId,
+          skipActivity: true,
+        })
+        emitEvent({
+          type: 'member_joined',
+          payload: { memberId: targetMemberId },
+          recipients: [],
+          refType: 'member',
+          refId: targetMemberId,
+        })
+      }
       if (!mid) return toast(t('toast.memberCreatedFromUser', { account: u ? u.name : '' }))
       // Ghi đè trường nào phải nói ra: đó là dữ liệu CLB vừa bị thay, và không có đường lùi.
       toast(take.length
@@ -225,12 +324,24 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         : t('toast.linked', { name, account: u ? u.name : '' }))
     },
     rejectJoin: async (rid) => {
+      const d0 = db()
+      const req = (d0.joinRequests || []).find((r) => r.id === rid)
       try {
         unwrap(await supabase.rpc('reject_join_request', { p_request: rid }))
       } catch (e) {
         return toast(e.message)
       }
       await reload()
+      if (req?.matchedMemberId) {
+        emitEvent({
+          type: 'join_rejected',
+          payload: { clubId: d0.clubId },
+          recipients: [req.matchedMemberId],
+          refType: 'member',
+          refId: req.id,
+          skipActivity: true,
+        })
+      }
       toast(t('toast.joinRejected'))
     },
     toggleLinkMode: (k) => {
@@ -440,6 +551,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
     /* ---------- trạng thái buổi ---------- */
     setSessionStatus: (sid, st) => {
+      const ss = sessionOf(db(), sid)
+      const dateStr = ss?.date ? dd(ss.date) : ''
       up((d) => ({
         sessions: d.sessions.map((x) => {
           if (x.id !== sid) return x
@@ -449,6 +562,37 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             : { ...base, ...unfrozenCost(base) }
         }),
       }))
+      if (st === 'open') {
+        emitEvent({
+          type: 'session_opened',
+          payload: { sessionId: sid, date: dateStr },
+          recipients: [],
+          refType: 'session',
+          refId: sid,
+        })
+        const ss = sessionOf(db(), sid)
+        if (ss?.groupId) {
+          const inviteeIds = groupMembers(db(), ss.groupId, monthOf(ss.date || db().today)).map((m) => m.id)
+          if (inviteeIds.length > 0) {
+            emitEvent({
+              type: 'session_rsvp_invite',
+              payload: { sessionId: sid, date: ss.date || dateStr },
+              recipients: inviteeIds,
+              refType: 'session',
+              refId: sid,
+              skipActivity: true,
+            })
+          }
+        }
+      } else if (st === 'closed') {
+        emitEvent({
+          type: 'session_closed',
+          payload: { sessionId: sid, date: dateStr },
+          recipients: [],
+          refType: 'session',
+          refId: sid,
+        })
+      }
       const key = { closed: 'sessionClosed', open: 'sessionOpened', cancelled: 'sessionCancelled' }[st] || 'sessionDraft'
       toast(t('toast.' + key))
     },
@@ -645,20 +789,54 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
      * với "chưa khai bao giờ". Khi làm thông báo, dòng `notifications` phải ghi NGAY TẠI ĐÂY;
      * không dựng lại được từ DB về sau.
      */
-    rejectClaim: ({ kind, id }) => {
+    rejectClaim: ({ kind, id, reason }) => {
+      const d0 = db()
+      let memberId = null
+      if (kind === 'dues') {
+        const row = (d0.dues || []).find((x) => x.id === id)
+        memberId = row?.memberId
+      } else if (kind === 'guest') {
+        const row = (d0.sessionGuests || []).find((x) => x.id === id)
+        memberId = row?.memberId
+      } else {
+        const row = (d0.adjustments || []).find((x) => x.id === id)
+        memberId = row?.memberId
+      }
       const clear = (x) => (x.id === id ? { ...x, claimedAt: null } : x)
       up((d) => (
         kind === 'dues' ? { dues: d.dues.map(clear) }
         : kind === 'guest' ? { sessionGuests: d.sessionGuests.map(clear) }
         : { adjustments: (d.adjustments || []).map(clear) }
       ))
+      if (memberId) {
+        emitEvent({
+          type: 'claim_rejected',
+          payload: { kind, claimId: id, reason: reason || '' },
+          recipients: [memberId],
+          refType: 'claim',
+          refId: id,
+          skipActivity: true,
+        })
+      }
       toast(t('toast.claimRejected'))
     },
 
-    toggleGuestPaid: (id) =>
-      up((d) => ({
+    toggleGuestPaid: (id) => {
+      const was = db().sessionGuests.find((g) => g.id === id)
+      if (was && !was.paid && was.claimedAt && was.memberId) {
+        emitEvent({
+          type: 'claim_approved',
+          payload: { kind: 'guest', claimId: was.id, amount: was.price || 0 },
+          recipients: [was.memberId],
+          refType: 'claim',
+          refId: was.id,
+          skipActivity: true,
+        })
+      }
+      return up((d) => ({
         sessionGuests: d.sessionGuests.map((g) => (g.id === id ? { ...g, paid: !g.paid, paidAt: !g.paid ? d.today : null } : g)),
-      })),
+      }))
+    },
     /**
      * Sửa đè giá một lượt thu. Bảng giá theo trình độ chỉ là GỢI Ý — CLB miễn cho người mới,
      * lấy rẻ người nhà, thu thêm người đến muộn… đều là chuyện thường. Đã thu rồi thì khoá:
@@ -708,6 +886,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (add <= 0) return toast(t('toast.needAmount'))
       const next = st.paid + add
       up((d) => ({ dues: d.dues.map((x) => (x.id === id ? { ...x, paidAmount: next, paidAt: d.today } : x)) }))
+      if (was.claimedAt && was.memberId) {
+        emitEvent({
+          type: 'claim_approved',
+          payload: { kind: 'dues', claimId: was.id, amount: add },
+          recipients: [was.memberId],
+          refType: 'claim',
+          refId: was.id,
+          skipActivity: true,
+        })
+      }
       const name = memberOf(db(), was.memberId).name
       const left = Math.max(0, st.amount - next)
       toast(left > 0
@@ -2316,6 +2504,19 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         teamB: teamB || [],
       }
       up((d) => ({ challenges: [newChal, ...(d.challenges || [])] }))
+      emitEvent({
+        type: 'challenge_created',
+        payload: {
+          chalId: newChal.id,
+          code,
+          challengerIds: teamA || [],
+          opponentIds: teamB || [],
+        },
+        recipients: (teamB || []).filter((id) => id !== myId),
+        refType: 'challenge',
+        refId: newChal.id,
+        actorId: myId,
+      })
       toast(t('challenge.toastCreated', { code }))
       return newChal
     },
@@ -2343,6 +2544,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         up((d) => ({
           challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'declined' } : c)),
         }))
+        emitEvent({
+          type: 'challenge_declined',
+          payload: { chalId: chal.id, code: chal.code, declinedById: myMem?.id || null },
+          recipients: [chal.createdBy],
+          refType: 'challenge',
+          refId: chal.id,
+          actorId: myMem?.id || null,
+        })
         toast(t('challenge.toastDeclined', { code: chal.code }))
         return
       }
@@ -2363,6 +2572,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }))
 
       if (isFullyAccepted) {
+        emitEvent({
+          type: 'challenge_accepted',
+          payload: { chalId: chal.id, code: chal.code, acceptedById: myMem?.id || null },
+          recipients: [chal.createdBy],
+          refType: 'challenge',
+          refId: chal.id,
+          actorId: myMem?.id || null,
+        })
         toast(t('challenge.toastAccepted', { code: chal.code }))
       } else {
         toast(t('challenge.toastPartiallyAccepted', { code: chal.code }))
@@ -2813,6 +3030,63 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       } else {
         toast(t('scoreModal.toastSaved', { winner, loser, score: scoreText }))
       }
+
+      // Phát sự kiện Social Activity & Notification sau khi lưu trận
+      const narrativeType = detectMatchNarrative(newMatch)
+      const myId = myMember(db())?.id || null
+      const winIds = (newMatch.winnerTeam === 'A' ? newMatch.teamA : newMatch.teamB) || []
+      const loseIds = (newMatch.winnerTeam === 'A' ? newMatch.teamB : newMatch.teamA) || []
+      emitEvent({
+        type: 'match_recorded',
+        payload: {
+          matchId: newMatch.id,
+          matchCode: newMatch.code,
+          score: newMatch.scoreText,
+          winnerTeam: newMatch.winnerTeam,
+          narrativeType,
+        },
+        recipients: newMatch.playerKeys || [...(newMatch.teamA || []), ...(newMatch.teamB || [])],
+        refType: 'match',
+        refId: newMatch.id,
+        actorId: myId,
+      })
+
+      if (newMatch.bountyBroken) {
+        emitEvent({
+          type: 'bounty_broken',
+          payload: {
+            matchId: newMatch.id,
+            streak: newMatch.brokenStreak,
+            breakerIds: winIds,
+            victimIds: loseIds,
+          },
+          recipients: [...winIds, ...loseIds],
+          refType: 'match',
+          refId: newMatch.id,
+          actorId: myId,
+        })
+      }
+
+      if (chal && isChalComplete) {
+        const cWinners = (chalSeriesProg?.winnerTeam === 'A' ? chal.teamA : chal.teamB) || winIds
+        const cLosers = (chalSeriesProg?.winnerTeam === 'A' ? chal.teamB : chal.teamA) || loseIds
+        emitEvent({
+          type: 'challenge_completed',
+          payload: {
+            chalId: chal.id,
+            code: chal.code,
+            winnerTeam: chalSeriesProg?.winnerTeam || newMatch.winnerTeam,
+            seriesScore: chalSeriesProg ? `${chalSeriesProg.winsA}-${chalSeriesProg.winsB}` : '1-0',
+            winnerIds: cWinners,
+            loserIds: cLosers,
+          },
+          recipients: [...(chal.teamA || []), ...(chal.teamB || [])],
+          refType: 'challenge',
+          refId: chal.id,
+          actorId: myId,
+        })
+      }
+
       // Trận vừa lưu + bảng rating sau trận. Người gọi nào chỉ cần match thì bỏ qua field thừa.
       return { ...newMatch, nextPlayerRatings }
     },
@@ -2920,6 +3194,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           matchEdits: [editLog, ...(d.matchEdits || [])],
           clubCalibration: nextCals,
         }
+      })
+
+      const newScoreStr = playedSets.map((s) => `${s[0]}-${s[1]}`).join(', ')
+      emitEvent({
+        type: 'match_edited',
+        payload: {
+          matchId,
+          matchCode: match.code || match.id.slice(0, 8),
+          newScore: newScoreStr,
+          reason: reason || '',
+        },
+        recipients: match.playerKeys || [...(match.teamA || []), ...(match.teamB || [])],
+        refType: 'match',
+        refId: matchId,
+        actorId: myId,
       })
 
       toast(t('common.save') + ': ' + match.id)
@@ -3220,6 +3509,107 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     }
     if (tg.kind === 'adjust') return A.settleAdjust(tg.key)
     return A.repayAdvance(tg.id)
+  }
+
+  A.markNotificationRead = (notifId) => {
+    const now = new Date().toISOString()
+    up((d) => ({
+      notifications: (d.notifications || []).map((n) =>
+        n.id === notifId ? { ...n, readAt: now } : n
+      ),
+    }))
+  }
+
+  A.markAllNotificationsRead = () => {
+    const d0 = db()
+    const myId = myMember(d0)?.id || null
+    const now = new Date().toISOString()
+    up((d) => ({
+      notifications: (d.notifications || []).map((n) =>
+        (!myId || n.memberId === myId) && !n.readAt ? { ...n, readAt: now } : n
+      ),
+    }))
+  }
+
+  A.memberSelfCheckin = (sessionId, status) => {
+    const d0 = db()
+    const myMem = myMember(d0)
+    if (!myMem) return toast(t('toast.noMemberRecord'))
+    const myId = myMem.id
+    const s = sessionOf(d0, sessionId)
+    if (!s) return
+    if (s.status === 'closed') {
+      return toast(t('toast.selfCheckinClosed'))
+    }
+
+    up((d) => {
+      const a = { ...d.attendance }
+      const m = { ...(a[sessionId] || {}) }
+
+      if (status === 'removeExtra') {
+        delete m[myId]
+      } else if (status === 'extra') {
+        m[myId] = 'extra'
+      } else if (status === 'present') {
+        m[myId] = true
+      } else if (status === 'absent') {
+        m[myId] = false
+      }
+
+      a[sessionId] = m
+
+      let lineups = d.lineups
+      const onCourt = status === 'present'
+      if (!onCourt && d.lineups?.[sessionId]) {
+        const sLineup = { ...d.lineups[sessionId] }
+        let changed = false
+        Object.keys(sLineup).forEach((slotId) => {
+          if (sLineup[slotId] === myId) {
+            delete sLineup[slotId]
+            changed = true
+          }
+        })
+        if (changed) lineups = { ...d.lineups, [sessionId]: sLineup }
+      }
+
+      return { attendance: a, lineups, ...withAdhocCharges(d, sessionId, m) }
+    })
+
+    // Gọi RPC lưu server nếu có supabase
+    if (supabase && (status === 'present' || status === 'absent' || status === 'extra')) {
+      supabase
+        .rpc('member_self_checkin', {
+          p_session_id: sessionId,
+          p_status: status,
+        })
+        .then(({ error }) => {
+          if (error) console.warn('[memberSelfCheckin] error:', error.message)
+        })
+    }
+
+    // Gửi thông báo tới Chủ CLB & Thủ quỹ
+    const managers = (d0.members || [])
+      .filter((m) => (m.role === 'owner' || m.role === 'treasurer') && m.id !== myId)
+      .map((m) => m.id)
+
+    if (managers.length > 0 && status !== 'removeExtra') {
+      emitEvent({
+        type: 'attendance_reported',
+        payload: {
+          memberId: myId,
+          sessionId,
+          date: s.date,
+          status,
+        },
+        recipients: managers,
+        refType: 'session',
+        refId: sessionId,
+        actorId: myId,
+        skipActivity: true,
+      })
+    }
+
+    toast(t('toast.selfCheckinSuccess'))
   }
 
   return A
