@@ -60,7 +60,9 @@ function PlayerSlotPill({
                 return
               }
             }
-          } catch {}
+          } catch {
+            // ignore malformed drag data
+          }
 
           // 2. Drop từ sidebar player list ngoài vào
           const extKey = e.dataTransfer.getData('text/plain')
@@ -118,7 +120,9 @@ function PlayerSlotPill({
               return
             }
           }
-        } catch {}
+        } catch {
+          // ignore malformed drag data
+        }
 
         const extKey = e.dataTransfer.getData('text/plain')
         if (extKey && onDropPlayer) {
@@ -315,7 +319,9 @@ export default function PlannerGridCol({
                               return
                             }
                           }
-                        } catch {}
+                        } catch {
+                          // ignore malformed drag data
+                        }
 
                         // 2. Thả người chơi từ ngoài vào sân
                         const playerKey = e.dataTransfer.getData('text/plain')
@@ -381,7 +387,9 @@ export default function PlannerGridCol({
                                   onSwapTeam(data, { roundIndex: r.roundIndex, courtIndex: cIdx, team: 'A' })
                                 }
                               }
-                            } catch {}
+                            } catch {
+                              // ignore malformed drag data
+                            }
                           }}
                         >
                           {/* Tay cầm kéo cả Đội A (Cấp 2: Cầm cả đôi) */}
@@ -464,7 +472,9 @@ export default function PlannerGridCol({
                                   onSwapTeam(data, { roundIndex: r.roundIndex, courtIndex: cIdx, team: 'B' })
                                 }
                               }
-                            } catch {}
+                            } catch {
+                              // ignore malformed drag data
+                            }
                           }}
                         >
                           {/* 2 Slot Đội B (Cấp 1: Cầm từng người) */}

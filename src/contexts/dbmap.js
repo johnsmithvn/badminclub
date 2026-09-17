@@ -207,6 +207,7 @@ export function toDb(raw, ctx) {
     sessions: x.sessions, unit: num(x.unit_price), amount: num(x.amount),
     settle: x.settle, paid: !!x.paid, paidAt: x.paid_at || null,
     claimedAt: x.claimed_at || null,
+    settledSessions: Array.isArray(x.settled_sessions) ? x.settled_sessions : [],
   }))
 
   // Một dòng giá / trình độ, hai cột nam-nữ — đúng hình mà màn Cài đặt đang dùng.
@@ -555,6 +556,7 @@ export function toRows(db, ctx) {
     kind: x.kind, sessions: x.sessions || 0, unit_price: x.unit || 0, amount: x.amount || 0,
     settle: x.settle || 'cash', paid: !!x.paid, paid_at: x.paidAt || null,
     claimed_at: x.claimedAt || null,
+    settled_sessions: Array.isArray(x.settledSessions) ? x.settledSessions : [],
   }))
 
   db.courtBills.forEach((b) => put('court_bills', {

@@ -70,6 +70,8 @@ assert.equal(undoTarget(db, row('sgSG2')), null, 'khách chưa trả thì không
 
 assert.deepEqual(undoTarget(db, row('ajAJ1')), { kind: 'adjust', key: '2026-09:G6:M1:absent_back' },
   'settleAdjust nhận KEY chứ không nhận id — trả id là gỡ nhầm hoặc không gỡ được gì')
+assert.deepEqual(undoTarget(db, row('ajAJ1_sess1')), { kind: 'adjust_session', key: '2026-09:G6:M1:absent_back', sessionId: 'sess1' },
+  'khoản đối chiếu theo từng buổi lẻ phải trả về kind adjust_session kèm đúng sessionId')
 assert.equal(undoTarget(db, row('ajAJ2')), null, 'khoản chưa trả thì chưa có dòng nào trong sổ để hoàn')
 assert.equal(undoTarget(db, row('ajAJ3')), null,
   'khoản trừ vào quỹ tháng sau KHÔNG sinh dòng sổ quỹ — cho hoàn ở đây là bịa ra một thao tác không có thật')

@@ -50,7 +50,9 @@ export default function CourtAssignmentTab({ s }) {
   useEffect(() => {
     try {
       localStorage.setItem(ongoingStorageKey, JSON.stringify(ongoingMatches))
-    } catch {}
+    } catch {
+      // ignore storage error
+    }
   }, [ongoingStorageKey, ongoingMatches])
 
   // State ghi điểm nhanh cho trận đang trên sân
@@ -219,12 +221,13 @@ export default function CourtAssignmentTab({ s }) {
   const [selectingSessionChallenge, setSelectingSessionChallenge] = useState(null)
 
   // Danh sách các buổi chơi khác trong CLB để chuyển kèo sang
+  const sId = s?.id
   const availableSessions = useMemo(() => {
-    const open = (openSessions(db) || []).filter((item) => item.id !== s?.id)
+    const open = (openSessions(db) || []).filter((item) => item.id !== sId)
     const openIds = new Set(open.map((item) => item.id))
-    const others = (db.sessions || []).filter((item) => item.id !== s?.id && !openIds.has(item.id))
+    const others = (db.sessions || []).filter((item) => item.id !== sId && !openIds.has(item.id))
     return [...open, ...others]
-  }, [db, s?.id])
+  }, [db, sId])
 
   // Người đang chờ (chưa có tên trên sân)
   const waitingPlayers = useMemo(() => {
@@ -1856,7 +1859,9 @@ export default function CourtAssignmentTab({ s }) {
           >
             <div style={{ display: 'grid', gap: 10, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))' }}>
               {ongoingMatches.map((om) => {
-                const elapsedMinutes = Math.max(0, Math.round((Date.now() - (om.startedAt || Date.now())) / 60000))
+                // eslint-disable-next-line react-hooks/purity
+                const currentNow = Date.now()
+                const elapsedMinutes = Math.max(0, Math.round((currentNow - (om.startedAt || currentNow)) / 60000))
                 const timeLabel = elapsedMinutes === 0 ? t('assign.justStarted') : t('assign.elapsedMinutes', { m: elapsedMinutes })
                 const namesA = (om.teamA || []).map((k) => playerName(db, k)).join(' · ')
                 const namesB = (om.teamB || []).map((k) => playerName(db, k)).join(' · ')

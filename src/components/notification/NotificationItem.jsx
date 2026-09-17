@@ -40,6 +40,9 @@ export default function NotificationItem({ item, onRead }) {
         return { icon: 'check', color: '#10B981' }
       case 'claim_rejected':
         return { icon: 'x', color: '#EF4444' }
+      case 'refund_session':
+      case 'refund_bulk':
+        return { icon: 'banknote', color: '#10B981' }
       case 'join_approved':
       case 'join_rejected':
         return { icon: 'user', color: '#8B5CF6' }

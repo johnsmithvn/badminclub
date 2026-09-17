@@ -235,6 +235,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0037_challenge_accepted_players.sql` | Bổ sung cột `accepted_players uuid[]` cho bảng `challenges` để theo dõi danh sách thành viên đã bấm nhận kèo đấu; nới RLS update cho thành viên tham gia nhận kèo. |
 | `0038_notifications_and_activity.sql` | Tạo bảng `activity_events` (dòng thời gian sự kiện toàn CLB) và bảng `notifications` (hộp thư thông báo cá nhân của từng thành viên); thiết lập indexes và các chính sách RLS bảo vệ chặt chẽ (`actor_id = auth_member_id() OR NULL`, `member_id = auth_member_id()`). |
 | `0039_member_self_attendance.sql` | Cập nhật RLS policies cho bảng `attendances` cho phép thành viên tự thêm/sửa/xóa dòng điểm danh của chính mình khi buổi chưa chốt (`status != 'closed'`); tạo hàm RPC `member_self_checkin(p_session_id, p_status)` hỗ trợ tự điểm danh 1 chạm an toàn. |
+| `0040_member_adjustments_settled_sessions.sql` | Bổ sung cột `settled_sessions uuid[] NOT NULL DEFAULT '{}'` cho bảng `member_adjustments` để hỗ trợ thu / hoàn tiền và hoàn tác độc lập theo từng buổi lẻ cho hội viên cố định (`absent_back` và `extra_session`). |
 
 ---
 

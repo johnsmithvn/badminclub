@@ -7,7 +7,7 @@ import {
   courtCost, courtOf, courtTxt, fmt, fmtK, freezeCost, groupMembers, groupOf, guestOf, guestPrice, memberOf,
   presentCount, rowCost, sGuests, guestRev, sessionMembers, isPresent,
   sessionOf, timeTxt, unfrozenCost,
-  adjustRows, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
+  adjustRows, adjustSessions, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
   adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
@@ -50,7 +50,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     const base = i >= 0 ? list[i] : {
       id: uid(), key: row.key, month: row.month, groupId: row.groupId, memberId: row.memberId,
       kind: row.kind, sessions: row.sessions, unit: row.unit, amount: row.amount,
-      settle: 'cash', paid: false, paidAt: null,
+      settle: (row && row.settle) || 'cash', paid: false, paidAt: null,
+      settledSessions: [],
     }
     const next = { ...base, ...patch }
     if (i >= 0) list[i] = next
@@ -919,16 +920,104 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const month = key.split(':')[0]
       const row = adjustRows(db(), month).find((x) => x.key === key)
       if (!row) return
-      up((d) => (row.paid && row.settle === 'cash'
-        // Bỏ đánh dấu một khoản trả tiền mặt: xoá dòng đã lưu để số quay về tính live.
-        // Khoản trừ tháng sau thì giữ lại, vì cách trả là lựa chọn của user chứ không suy ra được.
-        ? { adjustments: (d.adjustments || []).filter((x) => x.key !== key) }
-        : { adjustments: upsertAdjust(d, row, { paid: !row.paid, paidAt: row.paid ? null : d.today }) }))
-      const back = row.amount < 0
-      toast(row.paid
-        ? t('toast.adjustUndone')
-        : t(back ? 'toast.adjustPaid' : 'toast.adjustCollected',
-             { name: row.member.name, amount: fmt(Math.abs(row.amount)) }))
+      const matching = adjustSessions(db(), month, row)
+      const allSessionIds = matching.map((s) => s.id)
+
+      if (row.paid) {
+        up((d) => (row.settle === 'cash'
+          ? { adjustments: (d.adjustments || []).filter((x) => x.key !== key) }
+          : { adjustments: upsertAdjust(d, row, { paid: false, paidAt: null, settledSessions: [] }) }))
+        toast(t('toast.adjustUndone'))
+      } else {
+        up((d) => ({
+          adjustments: upsertAdjust(d, row, {
+            paid: true,
+            paidAt: d.today,
+            settledSessions: allSessionIds,
+          }),
+        }))
+        const back = row.amount < 0
+        if (back && row.memberId) {
+          emitEvent({
+            type: 'refund_bulk',
+            payload: {
+              amount: fmt(Math.abs(row.amount)),
+              n: row.sessions || 1,
+              month: row.month,
+              memberId: row.memberId,
+            },
+            recipients: [row.memberId],
+            refType: 'debts',
+            skipActivity: true,
+          })
+        }
+        toast(t(back ? 'toast.adjustPaid' : 'toast.adjustCollected',
+          { name: row.member.name, amount: fmt(Math.abs(row.amount)) }))
+      }
+    },
+    toggleAdjustSession: (key, sessionId) => {
+      const month = key.split(':')[0]
+      const row = adjustRows(db(), month).find((x) => x.key === key)
+      if (!row) return
+
+      const matching = adjustSessions(db(), month, row)
+      const allSessionIds = matching.map((s) => s.id)
+      if (allSessionIds.length === 0 && sessionId) allSessionIds.push(sessionId)
+
+      const curSettled = (Array.isArray(row.settledSessions) && row.settledSessions.length > 0)
+        ? row.settledSessions
+        : (row.paid ? allSessionIds : [])
+
+      const isSettled = curSettled.includes(sessionId)
+      const nextSettled = isSettled
+        ? curSettled.filter((id) => id !== sessionId)
+        : [...curSettled, sessionId]
+
+      const isAllPaid = allSessionIds.length > 0 && allSessionIds.every((id) => nextSettled.includes(id))
+
+      if (nextSettled.length === 0 && row.settle === 'cash') {
+        up((d) => ({
+          adjustments: (d.adjustments || []).filter((x) => x.key !== key),
+        }))
+      } else {
+        up((d) => ({
+          adjustments: upsertAdjust(d, row, {
+            settledSessions: nextSettled,
+            paid: isAllPaid,
+            paidAt: isAllPaid ? (row.paidAt || d.today) : null,
+          }),
+        }))
+      }
+
+      const s = sessionOf(db(), sessionId)
+      const dateTxt = s ? ddmy(s.date) : ''
+      const unitPrice = row.unit || (row.sessions ? Math.round(Math.abs(row.amount) / row.sessions) : 0)
+
+      if (isSettled) {
+        toast(t('toast.adjustUndoneSession', { name: row.member.name, date: dateTxt }))
+      } else {
+        const isRefund = row.amount < 0
+        if (isRefund && row.memberId) {
+          emitEvent({
+            type: 'refund_session',
+            payload: {
+              amount: fmt(unitPrice),
+              date: dateTxt,
+              sessionId,
+              memberId: row.memberId,
+            },
+            recipients: [row.memberId],
+            refType: 'debts',
+            refId: sessionId,
+            skipActivity: true,
+          })
+        }
+        toast(t(isRefund ? 'toast.adjustPaidSession' : 'toast.adjustCollectedSession', {
+          name: row.member.name,
+          date: dateTxt,
+          amount: fmt(unitPrice),
+        }))
+      }
     },
     /** Chọn cách trả: tiền mặt, hay trừ vào quỹ tháng sau. */
     setAdjustSettle: (key, settle) => {
@@ -948,6 +1037,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const sign = row.amount < 0 ? -1 : 1
       up((d) => ({
         adjustments: upsertAdjust(d, row, { amount: sign * Math.abs(amt) }),
+      }))
+    },
+    setAdjustUnit: (key, unit) => {
+      const month = key.split(':')[0]
+      const row = adjustRows(db(), month).find((x) => x.key === key)
+      if (!row || row.paid) return
+      const u = intOf(unit)
+      const sign = row.amount < 0 ? -1 : 1
+      const totalAmount = sign * Math.abs(u) * (row.sessions || 1)
+      up((d) => ({
+        adjustments: upsertAdjust(d, row, { unit: u, amount: totalAmount }),
       }))
     },
     /**
@@ -3507,6 +3607,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       A.toggleGuestPaid(tg.id)
       return toast(t('toast.guestUnpaid'))
     }
+    if (tg.kind === 'adjust_session') return A.toggleAdjustSession(tg.key, tg.sessionId)
     if (tg.kind === 'adjust') return A.settleAdjust(tg.key)
     return A.repayAdvance(tg.id)
   }

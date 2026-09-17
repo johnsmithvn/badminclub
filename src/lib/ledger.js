@@ -152,16 +152,33 @@ export function ledger(db) {
   // settle='offset_next_dues' KHÔNG có dòng nào ở đây: nó trừ thẳng vào quỹ tháng sau, tiền
   // không đổi tay lần nào nên ghi vào sổ quỹ là bịa ra một giao dịch không có thật.
   ;(db.adjustments || []).forEach((x) => {
-    if (!x.paid || x.settle !== 'cash' || !x.amount) return
+    if (x.settle !== 'cash' || !x.amount) return
     const back = x.amount < 0
-    out.push({
-      id: 'aj' + x.id, date: x.paidAt || x.month + '-28',
-      dir: back ? 'out' : 'in', cat: back ? CATS.back : CATS.extra,
-      label: t(back ? 'ledger.label.back' : 'ledger.label.extra', {
-        name: memberOf(db, x.memberId).name, n: x.sessions,
-      }),
-      amount: Math.abs(x.amount), by: t('ledger.by.transfer'),
-    })
+    const settled = Array.isArray(x.settledSessions) ? x.settledSessions : []
+    if (settled.length > 0) {
+      const unit = x.unit || (x.sessions ? Math.round(Math.abs(x.amount) / x.sessions) : 0)
+      settled.forEach((sId) => {
+        const s = sessionOf(db, sId)
+        const date = s ? s.date : (x.paidAt || x.month + '-28')
+        out.push({
+          id: 'aj' + x.id + '_' + sId, date,
+          dir: back ? 'out' : 'in', cat: back ? CATS.back : CATS.extra,
+          label: t(back ? 'ledger.label.back' : 'ledger.label.extra', {
+            name: memberOf(db, x.memberId).name, n: 1,
+          }),
+          amount: unit, by: t('ledger.by.transfer'),
+        })
+      })
+    } else if (x.paid) {
+      out.push({
+        id: 'aj' + x.id, date: x.paidAt || x.month + '-28',
+        dir: back ? 'out' : 'in', cat: back ? CATS.back : CATS.extra,
+        label: t(back ? 'ledger.label.back' : 'ledger.label.extra', {
+          name: memberOf(db, x.memberId).name, n: x.sessions,
+        }),
+        amount: Math.abs(x.amount), by: t('ledger.by.transfer'),
+      })
+    }
   })
 
   db.manual.forEach((m) => out.push({ ...m, by: m.by || t('fund.payerFund') }))
@@ -204,6 +221,11 @@ export function undoTarget(db, row) {
     return x && x.paid ? { kind: 'guest', id } : null
   }
   if (tag === 'aj') {
+    if (id.includes('_')) {
+      const [adjId, sId] = id.split('_')
+      const x = (db.adjustments || []).find((y) => y.id === adjId)
+      return x && x.settle === 'cash' ? { kind: 'adjust_session', key: x.key, sessionId: sId } : null
+    }
     // settleAdjust() nhận `key`, không nhận id — khoá của một dòng đối chiếu là (tháng,nhóm,người,chiều).
     const x = (db.adjustments || []).find((y) => y.id === id)
     return x && x.paid && x.settle === 'cash' ? { kind: 'adjust', key: x.key } : null

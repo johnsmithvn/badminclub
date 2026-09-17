@@ -244,7 +244,6 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     const ts = Date.parse(d)
     return ts >= startTs && ts <= endTs
   })
-  const seasonSessionIds = new Set(seasonSessions.map((s) => s.id))
 
   // Sắp xếp các trận theo thời gian tăng dần (chronological) để tính điểm lũy kế sàn Floor 0 và streak.
   // BẮT BUỘC tie-break theo id: sàn Floor 0 kẹp sau MỖI trận nên phép tính phụ thuộc thứ tự

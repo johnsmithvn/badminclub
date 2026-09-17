@@ -7,7 +7,7 @@ import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthOf, wd } from '#utils/dates.js'
 import {
-  adjustRows, advanceRows, clubDebtCounts, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
+  adjustRows, adjustSessions, advanceRows, clubDebtCounts, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
   genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, myDebtCounts, myMember, pendingClaims,
   sessionOf, timeTxt,
 } from '#lib/money.js'
@@ -346,21 +346,15 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
       }
     }
 
-    const att = (s) => (db.attendance[s.id] || {})
-    const closedSessions = monthSessions(db, db.month).filter(
-      (s) => s.groupId === r.groupId && s.status === 'closed'
-    )
-
-    const matchingSessions = closedSessions.filter((s) => {
-      const v = att(s)[memberId]
-      return r.kind === 'absent_back' ? v === false : v === 'extra'
-    })
-
+    const matchingSessions = adjustSessions(db, db.month, r)
     const isRefund = r.amount < 0
     const unitPrice = r.unit || (r.sessions ? Math.round(Math.abs(r.amount) / r.sessions) : 0)
 
     if (matchingSessions.length > 0) {
       matchingSessions.forEach((s) => {
+        const isSessionPaid = (Array.isArray(r.settledSessions) && r.settledSessions.length > 0)
+          ? r.settledSessions.includes(s.id)
+          : !!r.paid
         peopleMap[memberId].items.push({
           key: `adj:${r.key}:${s.id}`,
           adjustKey: r.key,
@@ -372,11 +366,11 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
           timeVenue: `${timeTxt(s)} · ${courtTxt(db, s)}`,
           groupName: r.group?.name || '',
           price: unitPrice,
-          paid: !!r.paid,
+          paid: isSessionPaid,
           settle: r.settle,
           claimedAt: r.claimedAt || null,
           claimRef: r.id ? { kind: 'adjust', id: r.id } : null,
-          canEdit: !r.paid && !r.claimedAt,
+          canEdit: !isSessionPaid && !r.claimedAt,
         })
       })
     } else {
@@ -468,7 +462,11 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
     if (item.type === 'guest') {
       a.setChargePrice(item.sgId, newPrice)
     } else if (item.adjustKey) {
-      a.setAdjustAmount(item.adjustKey, newPrice)
+      if (item.sessionId) {
+        a.setAdjustUnit(item.adjustKey, newPrice)
+      } else {
+        a.setAdjustAmount(item.adjustKey, newPrice)
+      }
     }
   }
 
@@ -476,7 +474,11 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
     if (item.type === 'guest') {
       a.toggleGuestPaid(item.sgId)
     } else if (item.adjustKey) {
-      a.settleAdjust(item.adjustKey)
+      if (item.sessionId) {
+        a.toggleAdjustSession(item.adjustKey, item.sessionId)
+      } else {
+        a.settleAdjust(item.adjustKey)
+      }
     }
   }
 

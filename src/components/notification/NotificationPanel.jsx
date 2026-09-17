@@ -50,6 +50,10 @@ export default function NotificationPanel({ open, onClose }) {
     } else if (item.refType === 'claim') {
       a.go('fund')
       onClose()
+    } else if (item.refType === 'debts') {
+      a.setTab('debts', 'sessions')
+      a.go('debts')
+      onClose()
     }
   }
 

@@ -1208,6 +1208,30 @@ Xây dựng toàn diện trung tâm thông báo cá nhân, bảng tin sự kiệ
   - Toàn bộ **357/357 tests PASS 100%**!
   - Linter: **0 errors, 0 warnings**.
 
+## Phase 12.1 — Thu / Hoàn trả & Hoàn tác Độc lập theo Từng Buổi Lẻ (`member_adjustments`)
+
+- [x] **Cơ sở dữ liệu (Migration 0040)**:
+  - Bổ sung cột `settled_sessions uuid[] NOT NULL DEFAULT '{}'` vào bảng `member_adjustments`.
+  - Tương thích ngược tuyệt đối: bản ghi cũ `paid = true` và `settled_sessions` rỗng vẫn được xem là đã thanh toán toàn bộ.
+- [x] **Data Mapping & State (`src/contexts/dbmap.js`, `appActions.js`)**:
+  - Map `settled_sessions` $\leftrightarrow$ `settledSessions` hai chiều trong `fromRaw` và `toRaw`.
+  - Action `toggleAdjustSession(key, sessionId)`: Ghi nhận thu / hoàn tiền hoặc hoàn tác độc lập cho đúng 1 buổi `sessionId`. Khi tất cả các buổi đã thanh toán $\rightarrow$ tự động gán `paid = true`. Khi hoàn tác 1 buổi $\rightarrow$ gỡ buổi đó khỏi `settledSessions` và đặt `paid = false`.
+  - Action `setAdjustUnit(key, unit)`: Cho phép cập nhật đơn giá từng buổi mà không làm ghi đè tổng số tiền cả tháng.
+  - Action `settleAdjust(key)`: Hỗ trợ "Thu tất cả" / "Trả tất cả" gán toàn bộ buổi vào `settledSessions`.
+- [x] **Logic Nghiệp vụ & Sổ quỹ (`src/lib/money.js`, `src/lib/ledger.js`)**:
+  - `adjustSessions(db, monthKey, row)`: Helper dùng chung để trích xuất chính xác danh sách buổi đã chốt khớp với khoản đối chiếu.
+  - `ledger(db)`: Xuất dòng thu/chi tiền mặt độc lập theo từng buổi trong `settledSessions`, mang đúng ngày của buổi và đơn giá của buổi đó (id: `'aj' + x.id + '_' + sId`).
+  - `undoTarget(db, row)`: Nhận diện dòng sổ quỹ lẻ trả về `{ kind: 'adjust_session', key, sessionId }` giúp `undoLedger` hoàn tác chính xác buổi lẻ từ Sổ quỹ.
+- [x] **Giao diện người dùng (`src/pages/Debts.jsx`)**:
+  - `peopleMap` duyệt qua từng buổi lẻ, xác định `item.paid` theo `settledSessions.includes(s.id)`.
+  - `doSettleItem` gọi `a.toggleAdjustSession(item.adjustKey, item.sessionId)`.
+  - `handlePriceBlur` gọi `a.setAdjustUnit(item.adjustKey, newPrice)` bảo vệ tổng số tiền tháng.
+- [x] **Kiểm thử tự động & Rà soát Lỗi**:
+  - Viết suite test mới `src/__tests__/money/adjust_session.test.js` kiểm tra toàn bộ luồng độc lập, sổ quỹ và hoàn tác.
+  - Cập nhật test `undo.test.js` và `dbmap.test.js`.
+  - Chạy `npm test`: **358/358 tests PASS 100%**.
+  - Dọn dẹp dead code, sửa empty catch blocks và các lỗi react-compiler/react-hooks trong `PlannerGridCol.jsx`, `CourtAssignmentTab.jsx`, `AttachVideoModal.jsx`, `MemberProfileTab.jsx`, `AnimeMobileBadgeDetail.jsx`, `SessionMatchesTab.jsx`, `season.js`, `Matches.jsx`.
+
 ---
 
 ## Quyết định đang chờ user

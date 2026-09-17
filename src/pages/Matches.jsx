@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, PageHeader, SearchSelect, TabBar, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
-import { useAuth } from '#contexts/AuthContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
@@ -12,14 +11,14 @@ import { playerName, courtOf, myMember, playerOf, openSessions, sessionMembers, 
 import { sessionPlayers } from '#lib/assign.js'
 import { dd, isoOf, todayISO, weekdayOf } from '#utils/dates.js'
 import {
-  getPlayerRating, expectedScore, calcEloDelta, confidenceProgress,
+  getPlayerRating, expectedScore,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, matchCodeOf, DEFAULT_RATING,
 } from '#lib/rating.js'
 import {
   searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount,
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
-import { buildPlayableVideoUrl, formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
+import { formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
@@ -50,7 +49,6 @@ function getShortDisplayName(fullName, allMembers = []) {
 
 export default function Matches() {
   const { db, a } = useApp()
-  const { profile } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const isMobile = useMobile(900)
@@ -398,57 +396,6 @@ export default function Matches() {
     return searchResults.filter((m) => editedIds.has(m.id)).length
   }, [db.matchEdits, searchResults])
 
-  const searchHeaderTitle = useMemo(() => {
-    if (playerA && playerB) {
-      return t('matchSearch.matchesSummary', {
-        count: searchResults.length,
-        nameA: memberNameOf(playerA),
-        nameB: memberNameOf(playerB),
-      })
-    }
-    if (playerA) {
-      return t('matchSearch.matchesSummarySingle', {
-        count: searchResults.length,
-        name: memberNameOf(playerA),
-      })
-    }
-    if (playerB) {
-      return t('matchSearch.matchesSummarySingle', {
-        count: searchResults.length,
-        name: memberNameOf(playerB),
-      })
-    }
-    return t('matchSearch.matchesSummaryAll', { count: searchResults.length })
-  }, [playerA, playerB, searchResults.length, memberNameOf])
-
-  const handleExportFilteredMatchesCsv = () => {
-    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
-    csvContent += 'Mã trận,Thời gian,Đội thắng,Tỷ số,Đội thua,Dự đoán,Nguồn\n' // i18n-ok: csv header
-    searchResults.forEach((m) => {
-      const teamA = m.teamA || []
-      const teamB = m.teamB || []
-      // winnerTeam có thể là null (hoà set / chưa nhập đủ) — khi đó không có đội thắng để ghi,
-      // nhánh cũ `aWon ? teamA : teamB` gán luôn đội B là đội thắng và lật ngược tỷ số.
-      const aWon = m.winnerTeam === 'A'
-      const hasWinner = m.winnerTeam === 'A' || m.winnerTeam === 'B'
-      const winnerTeam = hasWinner ? (aWon ? teamA : teamB) : []
-      const loserTeam = hasWinner ? (aWon ? teamB : teamA) : []
-      const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
-      const loserNames = loserTeam.map(memberNameOf).join(' · ')
-      const scoreSets = (m.sets || []).map(([a, b]) => `${aWon ? a : b}-${aWon ? b : a}`).join('; ')
-      const source = (m.challengeId || m.sourceType === 'challenge') ? 'Kèo' : 'Buổi CLB' // i18n-ok: csv source
-      const time = m.at ? new Date(m.at).toLocaleString('vi-VN') : ''
-      csvContent += `"${matchCodeOf(db, m)}","${time}","${winnerNames}","${scoreSets}","${loserNames}","${m.predictedWinner || ''}","${source}"\n`
-    })
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `badminclub_tim_tran_${searchResults.length}_tran.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
   // Thống kê Đối đầu H2H chi tiết giữa Player A và Player B cho Tab Search
   const h2hSummary = useMemo(() => {
     if (!playerA || !playerB || playerA === playerB) return null
@@ -620,26 +567,6 @@ export default function Matches() {
     })
   }, [neverMetList, db.sessions, db.attendance, db.matches, memberMap, db.members])
 
-  const handleExportMatrixCsv = () => {
-    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
-    const names = topMembersForMatrix.map((m) => m.name)
-    csvContent += `Thành viên,${names.map((n) => `"${n}"`).join(',')}\n` // i18n-ok: csv header
-    topMembersForMatrix.forEach((p1) => {
-      const rowCells = topMembersForMatrix.map((p2) => {
-        if (p1.id === p2.id) return '"—"'
-        const cell = matrixData[p1.id]?.[p2.id] || { wins: 0, losses: 0 }
-        return `"${cell.wins}-${cell.losses}"`
-      })
-      csvContent += `"${p1.name}",${rowCells.join(',')}\n`
-    })
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', 'badminclub_ma_tran_doi_dau.csv')
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   return (
     <div style={{ ...S.page, gap: isMobile ? 10 : 16 }}>
@@ -756,7 +683,6 @@ export default function Matches() {
               const isPlayed = c.status === 'played'
               const isPending = c.status === 'pending'
               const isAccepted = c.status === 'accepted'
-              const isCreator = myId && c.createdBy === myId
               const isParticipant = myId && [...teamA, ...teamB].includes(myId)
               const isOpen = !teamB.length || teamB.length < (teamA.length > 1 ? 2 : 1)
 

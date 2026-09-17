@@ -2,6 +2,7 @@
 // Kiểm thử các hàm thuần trong src/lib/activity.js
 
 import assert from 'node:assert/strict'
+import { t } from '#i18n'
 import {
   detectMatchNarrative,
   getPersonalHighlights,
@@ -219,6 +220,23 @@ const notifRsvp = resolveNotificationPayload(
 )
 assert.equal(notifRsvp.date, '17/09')
 
+// 9. resolveNotificationPayload refund_session & refund_bulk
+const notifRefundSession = resolveNotificationPayload(
+  { type: 'refund_session', payload: { amount: '50.000', date: '2026-09-02' } },
+  mockDb
+)
+assert.equal(notifRefundSession.date, '02/09')
+const msgSession = t('notification.refund_session', notifRefundSession)
+assert.ok(msgSession.includes('50.000') && msgSession.includes('02/09'), 'refund_session message must contain amount and date')
+
+const notifRefundBulk = resolveNotificationPayload(
+  { type: 'refund_bulk', payload: { amount: '100.000', n: 2, month: '2026-09' } },
+  mockDb
+)
+const msgBulk = t('notification.refund_bulk', notifRefundBulk)
+assert.ok(msgBulk.includes('100.000') && msgBulk.includes('2') && msgBulk.includes('2026-09'), 'refund_bulk message must contain amount, n and month')
+
 console.log('payload resolvers: OK')
+
 
 

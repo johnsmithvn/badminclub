@@ -302,7 +302,7 @@ export const guestPaidRev = (db, sid) => sGuests(db, sid).filter((g) => g.paid).
 
 /** Giá khách theo trình độ và giới tính, chốt tại thời điểm buổi. */
 export function guestPrice(db, level, gender) {
-  const r = db.guestPrices.find((x) => x.level === level)
+  const r = (db?.guestPrices || []).find((x) => x.level === level)
   if (!r) return 0
   return gender === 'nu' ? r.nu : r.nam
 }
@@ -577,6 +577,27 @@ export const adjustKey = (month, gid, mid, kind) => [month, gid, mid, kind].join
 export const savedAdjust = (db, key) => (db.adjustments || []).find((x) => x.key === key) || null
 
 /**
+ * Danh sách các buổi tập đã chốt khớp với một dòng đối chiếu của thành viên trong tháng.
+ *   absent_back: buổi vắng mặt (hoặc buổi bị huỷ sân / 0 sân đánh)
+ *   extra_session: buổi đi thêm của thành viên ngoài nhóm
+ */
+export function adjustSessions(db, monthKey, row) {
+  if (!db || !row) return []
+  const sess = monthSessions(db, monthKey).filter((s) => s.groupId === row.groupId && s.status === 'closed')
+  const att = (s) => (db.attendance || {})[s.id] || {}
+  return sess.filter((s) => {
+    if (row.kind === 'absent_back') {
+      if (rows(s).length > 0 && playedCourts(s) === 0) return true
+      return att(s)[row.memberId] === false
+    }
+    if (row.kind === 'extra_session') {
+      return att(s)[row.memberId] === 'extra'
+    }
+    return false
+  })
+}
+
+/**
  * ĐỐI CHIẾU BUỔI cuối tháng — hai chiều, cùng một đơn giá, chỉ khác dấu.
  *
  *   absent_back    người cố định của nhóm mà VẮNG buổi đã chốt   amount ÂM    quỹ nợ người
@@ -615,6 +636,7 @@ export function adjustRows(db, monthKey) {
       paidAt: saved ? saved.paidAt : null,
       id: saved ? saved.id : null,
       claimedAt: saved ? saved.claimedAt : null,
+      settledSessions: saved ? (saved.settledSessions || []) : [],
       saved: !!saved, orphan: false,
     })
   }
@@ -676,7 +698,9 @@ export function adjustRows(db, monthKey) {
       groupId: x.groupId, memberId: x.memberId,
       sessions: x.sessions, unit: x.unit, amount: x.amount, total: u.n, fee: u.fee,
       settle: x.settle, paid: !!x.paid, paidAt: x.paidAt,
-      id: x.id, claimedAt: x.claimedAt || null, saved: true, orphan: true,
+      id: x.id, claimedAt: x.claimedAt || null,
+      settledSessions: x.settledSessions || [],
+      saved: true, orphan: true,
     })
   })
 
@@ -788,12 +812,17 @@ export function debtRows(db, monthKey, { memberId = null, claimedOnly = false } 
   adjustRows(db, monthKey).forEach((r) => {
     if (!mine(r.memberId) || !take(r.claimedAt)) return
     if (r.amount <= 0 || r.paid || !r.id) return
+    const settled = Array.isArray(r.settledSessions) ? r.settledSessions.length : 0
+    const remainSessions = settled > 0 ? Math.max(0, (r.sessions || 0) - settled) : r.sessions
+    const unit = r.unit || (r.sessions ? Math.round(Math.abs(r.amount) / r.sessions) : 0)
+    const amount = settled > 0 ? unit * remainSessions : r.amount
+    if (amount <= 0) return
     out.push({
       kind: 'adjust', id: r.id, key: 'adj:' + r.id,
       memberId: r.memberId, name: r.member ? r.member.name : who(r.memberId).name,
       label: t('debts.myKind.adjust'),
       sub: (r.group && r.group.name) || '',
-      date: r.month + '-28', amount: r.amount,
+      date: r.month + '-28', amount,
       claimedAt: r.claimedAt || null,
     })
   })

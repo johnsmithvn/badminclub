@@ -370,6 +370,12 @@ export function resolveNotificationPayload(item, db) {
     }
   }
 
+  if (item?.type === 'refund_session') {
+    if (p.date && p.date.includes('-')) {
+      res.date = dd(p.date)
+    }
+  }
+
   return res
 }
 

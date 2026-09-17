@@ -92,6 +92,11 @@ function Overview() {
 
   adjustRows(db, month).forEach((ar) => {
     if (ar.paid || ar.amount <= 0) return
+    const settled = Array.isArray(ar.settledSessions) ? ar.settledSessions.length : 0
+    const remainSessions = settled > 0 ? Math.max(0, (ar.sessions || 0) - settled) : ar.sessions
+    const unit = ar.unit || (ar.sessions ? Math.round(Math.abs(ar.amount) / ar.sessions) : 0)
+    const amt = settled > 0 ? unit * remainSessions : ar.amount
+    if (amt <= 0) return
     const k = ar.memberId
     const who = ar.member
     if (!debtorMap[k]) {
@@ -106,7 +111,7 @@ function Overview() {
         desc: [],
       }
     }
-    debtorMap[k].debt += ar.amount
+    debtorMap[k].debt += amt
     debtorMap[k].desc.push(ar.label)
   })
 
@@ -155,10 +160,14 @@ function Overview() {
   const backRows = []
   adjustRows(db, month).forEach((ar) => {
     if (ar.paid || ar.amount >= 0) return
+    const settled = Array.isArray(ar.settledSessions) ? ar.settledSessions.length : 0
+    const remainSessions = settled > 0 ? Math.max(0, (ar.sessions || 0) - settled) : ar.sessions
+    const unit = ar.unit || (ar.sessions ? Math.round(Math.abs(ar.amount) / ar.sessions) : 0)
+    const amt = settled > 0 ? unit * remainSessions : Math.abs(ar.amount)
+    if (amt <= 0) return
     backRows.push(ar)
     const k = ar.memberId
     const who = ar.member
-    const amt = Math.abs(ar.amount)
     if (!creditorMap[k]) {
       creditorMap[k] = {
         id: k,

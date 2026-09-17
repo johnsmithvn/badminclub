@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Icon, Select, StatCard, Avatar } from '#ds'
 import { ConfidenceChip, LevelChip } from '#ui'
 import { playerName } from '#lib/money.js'
@@ -39,11 +39,13 @@ export default function MemberProfileTab({
   const [subTab, setSubTab] = useState(initialSubTab || 'overview')
   const [inspectingPair, setInspectingPair] = useState(null)
 
-  useEffect(() => {
+  const [prevProps, setPrevProps] = useState({ initialSubTab, memberId: member?.id })
+  if (prevProps.initialSubTab !== initialSubTab || prevProps.memberId !== member?.id) {
+    setPrevProps({ initialSubTab, memberId: member?.id })
     if (initialSubTab) {
       setSubTab(initialSubTab)
     }
-  }, [initialSubTab, member?.id])
+  }
 
   const matches = useMemo(() => db.matches || [], [db.matches])
   const mid = member?.id

@@ -77,7 +77,7 @@ export default function AnimeMobileBadgeDetail({
       return getBadgeOwners(activeTierBadge.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
     }
     return []
-  }, [db, activeTierBadge?.id, currentSeason, preloadedSeasonMatches, preloadedClubStats])
+  }, [db, activeTierBadge.id, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   // 2. Dữ liệu chuỗi 10 trận gần nhất
   const streakTimeline = useMemo(() => {
@@ -85,7 +85,7 @@ export default function AnimeMobileBadgeDetail({
       return getStreakTimeline(currentMember.id, db, 10)
     }
     return []
-  }, [db, currentMember?.id])
+  }, [db, currentMember])
 
   // Chuẩn bị dải 10 ô chuỗi thắng
   const streakCells = useMemo(() => {

@@ -15,7 +15,7 @@ import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
-import { buildPlayableVideoUrl, formatGapMinutes, calcSessionTimeStats, parseVideoProvider, formatVideoDisplayLabel } from '#utils/videoUtils.js'
+import { formatGapMinutes, calcSessionTimeStats, parseVideoProvider, formatVideoDisplayLabel } from '#utils/videoUtils.js'
 
 export default function SessionMatchesTab({ s, onSwitchTab }) {
   const { db, a } = useApp()
@@ -37,7 +37,6 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   const [editingMatch, setEditingMatch] = useState(null)
   const [attachVideoMatch, setAttachVideoMatch] = useState(null)
   const [playingVideoMatch, setPlayingVideoMatch] = useState(null)
-  const [expandedVideoMatchId, setExpandedVideoMatchId] = useState(null)
   const [matchSourceFilter, setMatchSourceFilter] = useState('all') // 'all' | 'challenge' | 'session'
   const [challengeTab, setChallengeTab] = useState('my')
   const [selectedChallenge, setSelectedChallenge] = useState(null)
@@ -729,12 +728,6 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                       losePts: aWon ? b : a,
                     }))
                     const isMultiSet = scoreSets.length > 1
-                    const winSetsCount = isMultiSet ? scoreSets.filter((s) => s.winPts > s.losePts).length : 0
-                    const loseSetsCount = isMultiSet ? scoreSets.filter((s) => s.losePts > s.winPts).length : 0
-                    const fullScoreStr = isMultiSet
-                      ? `${winSetsCount}–${loseSetsCount} (${scoreSets.map((s) => `${s.winPts}-${s.losePts}`).join(', ')})`
-                      : (scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : '')
-
                     const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
                     const isRated = m.ratingEnabled !== false
                     const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')

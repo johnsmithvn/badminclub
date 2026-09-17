@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button, Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { playerName, myMember } from '#lib/money.js'
@@ -13,10 +13,12 @@ import {
 
 export function TimePickerSheet({ open, onClose, value, onSelect, isMobile }) {
   const [currentVal, setCurrentVal] = useState(value || '00:00')
+  const [prev, setPrev] = useState({ value, open })
 
-  useEffect(() => {
+  if (prev.value !== value || prev.open !== open) {
+    setPrev({ value, open })
     setCurrentVal(value || '00:00')
-  }, [value, open])
+  }
 
   const parts = parseSecondsToParts(currentVal)
 
