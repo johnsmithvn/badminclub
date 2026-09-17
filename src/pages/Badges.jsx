@@ -42,7 +42,6 @@ import badgesConfig from '#config/badges.json'
  * - A3: Đổi Kệ trưng bày
  * - A4: Bảng treo thưởng Bounty Hunters
  * - A5: BXH Người sưu tập & Huy hiệu Hiếm
- * - Bảng tin Thành tích & Tương tác CLB (Feed)
  */
 /** Tab hợp lệ của trang — dùng để lọc `?tab=` trước khi đưa vào state. */
 const TAB_IDS = ['collection', 'bounty', 'leaderboard']
@@ -339,7 +338,7 @@ export default function Badges() {
             allMembers={db?.members || []}
           />
         ) : (
-          /* Các tab còn lại trên Mobile (Bounty / Leaderboard / Feed) */
+          /* Các tab còn lại trên Mobile (Bounty / Leaderboard) */
           <div
             style={{
               width: '100%',
