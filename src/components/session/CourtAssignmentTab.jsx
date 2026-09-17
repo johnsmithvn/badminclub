@@ -189,11 +189,11 @@ export default function CourtAssignmentTab({ s }) {
     }))
   }, [s.courts])
 
-  // Kèo đã nhận trong buổi (chưa hoàn thành hoặc chuỗi BO3 đang đấu dở)
+  // Kèo đã nhận trong buổi (chưa hoàn thành hoặc chuỗi BO3 đang đấu dở hoặc đang trên sân)
   const acceptedChallenges = useMemo(() => {
     return (db.challenges || []).filter((c) => {
       if (c.sessionId !== s.id) return false
-      if (c.status === 'accepted') return true
+      if (c.status === 'accepted' || c.status === 'oncourt') return true
       if (c.status === 'played' && (c.bestOf || 1) > 1) {
         const prog = getChallengeSeriesProgress(c, db.matches || [])
         return !prog.isComplete
@@ -206,7 +206,7 @@ export default function CourtAssignmentTab({ s }) {
   const unlinkedChallenges = useMemo(() => {
     return (db.challenges || []).filter((c) => {
       if (c.sessionId) return false
-      if (c.status === 'accepted') return true
+      if (c.status === 'accepted' || c.status === 'oncourt') return true
       if (c.status === 'played' && (c.bestOf || 1) > 1) {
         const prog = getChallengeSeriesProgress(c, db.matches || [])
         return !prog.isComplete

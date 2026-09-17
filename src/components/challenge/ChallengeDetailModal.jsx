@@ -31,7 +31,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const isParticipant = Boolean(myId && [...teamA, ...teamB].includes(myId))
   const isPending = c.status === 'pending'
   const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt).getTime() <= now)
-  const isAccepted = c.status === 'accepted'
+  const isAccepted = c.status === 'accepted' || c.status === 'oncourt'
   const isPlayed = c.status === 'played'
 
   const prog = useMemo(() => getChallengeAcceptanceProgress(c), [c])
