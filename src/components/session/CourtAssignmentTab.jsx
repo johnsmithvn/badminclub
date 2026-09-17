@@ -1852,38 +1852,56 @@ export default function CourtAssignmentTab({ s }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: isMobile ? 'space-between' : 'flex-end',
-              gap: 12,
+              gap: 8,
               width: isMobile ? '100%' : 'auto',
               paddingTop: isMobile ? 8 : 0,
               borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <div
+                style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
+                title={ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
+                onClick={() => setRatingEnabled((v) => !v)}
+              >
                 <Switch
+                  size="sm"
                   checked={Boolean(ratingEnabled)}
                   onChange={(e) => {
                     const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
                     setRatingEnabled(Boolean(nextVal))
                   }}
                 />
-                <span
-                  onClick={() => setRatingEnabled((v) => !v)}
-                  style={{ fontSize: 13, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)', userSelect: 'none' }}
-                >
-                  {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
-                </span>
               </div>
               <Button
                 variant="secondary"
                 size="sm"
                 icon="mic"
                 onClick={() => setShowVoiceModal(true)}
-              >
-                {t('voiceMatch.btnVoiceRecord')}
-              </Button>
+                title={t('voiceMatch.btnVoiceRecord')}
+                aria-label={t('voiceMatch.btnVoiceRecord')}
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                icon="play"
+                disabled={!isCourtFull}
+                onClick={handleDeployToCourt}
+                title={t('assign.deployCourtBtn')}
+                aria-label={t('assign.deployCourtBtn')}
+                style={{
+                  background: isCourtFull ? 'var(--action-accent-bg, #00B2A9)' : undefined,
+                  color: isCourtFull ? '#fff' : undefined,
+                  boxShadow: isCourtFull ? '0 2px 8px rgba(0, 178, 169, 0.35)' : 'none',
+                }}
+              />
               {(teamA.length > 0 || teamB.length > 0) && (
-                <Button variant="ghost" size="sm" icon="eraser" onClick={handleClearLineup}>
-                  {t('assign.clearCourt')}
-                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="eraser"
+                  onClick={handleClearLineup}
+                  title={t('assign.clearCourt')}
+                  aria-label={t('assign.clearCourt')}
+                />
               )}
             </div>
           </div>
@@ -2222,46 +2240,7 @@ export default function CourtAssignmentTab({ s }) {
             )}
           </div>
 
-          {/* ---------------- NÚT XÁC NHẬN VÀO SÂN (GHI NHANH) ---------------- */}
-          {isCourtFull && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                padding: '12px 14px',
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, rgba(0, 178, 169, 0.15) 0%, rgba(0, 178, 169, 0.05) 100%)',
-                border: '1px solid rgba(0, 178, 169, 0.35)',
-                margin: '12px 0',
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: "600 13.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                  {t('assign.deployCourtTitle', { court: courtOptions.find((c) => c.value === courtIdx)?.label || t('session.courtNum', { n: courtIdx + 1 }) })}
-                </div>
-                <div style={{ font: "400 12px/1.35 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', marginTop: 2 }}>
-                  {t('assign.deployCourtDesc')}
-                </div>
-              </div>
-              <Button
-                variant="primary"
-                size={isMobile ? 'md' : 'lg'}
-                icon="play"
-                onClick={handleDeployToCourt}
-                style={{
-                  fontWeight: 700,
-                  background: 'var(--action-accent-bg, #00B2A9)',
-                  color: '#fff',
-                  whiteSpace: 'nowrap',
-                  boxShadow: '0 2px 8px rgba(0, 178, 169, 0.35)',
-                }}
-              >
-                {t('assign.deployCourtBtn')}
-              </Button>
-            </div>
-          )}
+
 
           {/* ---------------- 5. KHỐI NHẬP TỶ SỐ & GHI KẾT QUẢ (MOCKUP 02) ---------------- */}
           {teamA.length > 0 && teamB.length > 0 && (
