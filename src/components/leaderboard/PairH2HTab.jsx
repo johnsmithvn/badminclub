@@ -551,9 +551,6 @@ export default function PairH2HTab({
                   opacity: matchupData?.matches?.length ? 1 : 0.4,
                 }}
               >
-                  opacity: matchupData?.matches?.length ? 1 : 0.4,
-                }}
-              >
                 {t('pairH2H.exportCsv')}
               </button>
             )}
