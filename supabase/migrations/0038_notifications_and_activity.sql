@@ -30,6 +30,39 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Bổ sung các cột mới nếu bảng notifications cũ từ 0001_init.sql đã tồn tại
+ALTER TABLE public.notifications
+  ADD COLUMN IF NOT EXISTS type text,
+  ADD COLUMN IF NOT EXISTS ref_type text,
+  ADD COLUMN IF NOT EXISTS ref_id uuid,
+  ADD COLUMN IF NOT EXISTS read_at timestamptz,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+-- Gỡ bỏ các ràng buộc NOT NULL của các cột cũ từ 0001_init.sql (nếu có)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'kind'
+  ) THEN
+    ALTER TABLE public.notifications ALTER COLUMN kind DROP NOT NULL;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'channel'
+  ) THEN
+    ALTER TABLE public.notifications ALTER COLUMN channel DROP NOT NULL;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'status'
+  ) THEN
+    ALTER TABLE public.notifications ALTER COLUMN status DROP NOT NULL;
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_notif_member_unread ON public.notifications(member_id, read_at, created_at DESC);
 
 -- 3. Row Level Security (RLS)
@@ -57,6 +90,11 @@ CREATE POLICY activity_events_insert ON public.activity_events
   );
 
 -- 3b. Quyền với notifications
+-- Xoá các policy cũ từ 0001_init.sql (nếu có)
+DROP POLICY IF EXISTS notifications_read ON public.notifications;
+DROP POLICY IF EXISTS notifications_ins  ON public.notifications;
+DROP POLICY IF EXISTS notifications_upd  ON public.notifications;
+DROP POLICY IF EXISTS notifications_del  ON public.notifications;
 DROP POLICY IF EXISTS notifications_select ON public.notifications;
 CREATE POLICY notifications_select ON public.notifications
   FOR SELECT TO authenticated
