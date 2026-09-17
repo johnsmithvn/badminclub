@@ -2759,8 +2759,8 @@
     "errNoScore": "Vui lòng nhập tỷ số trận đấu.",
     "errTie": "Tỷ số cầu lông không thể hòa. Vui lòng kiểm tra lại điểm số.",
     "pendingChalBanner": "Có {{n}} kèo đã nhận đang chờ ghi kết quả",
-    "loadChal": "Nạp kèo vào form",
-    "loadChalSuccess": "Đã nạp kèo {{code}} vào form!",
+    "loadChal": "Đấu",
+    "loadChalSuccess": "Đã sẵn sàng đấu kèo {{code}}!",
     "historyTitle": "Các trận đã ghi trong buổi này",
     "historySub": "Danh sách trận vừa đấu theo thứ tự mới nhất",
     "emptyHistory": "Chưa có trận nào được ghi trong buổi này",
@@ -2862,7 +2862,7 @@
     "clubChallengesModalTitle": "Kèo hẹn trước trong CLB",
     "clubChallengesModalDesc": "Danh sách các kèo đấu hẹn trước giữa các thành viên chưa gắn vào buổi tập",
     "noUnlinkedChallenges": "Hiện không có kèo hẹn trước nào chưa gắn buổi",
-    "loadDirectlyToCourt": "Nạp lên sân",
+    "loadDirectlyToCourt": "Đấu ngay",
     "absentWarning": "Có người chơi vắng mặt buổi này: {{names}}",
     "playerAbsentShort": "Có người vắng",
     "absentInSessionAlert": "Có thành viên báo vắng trong buổi {{date}}: {{names}}. Vui lòng chuyển buổi hoặc gỡ kèo.",
@@ -2969,7 +2969,7 @@
     "seriesPlaying": "Đang đấu ({{score}})",
     "seriesSetShort": "Hiệp {{set}}",
     "deciderSet": "Hiệp quyết định",
-    "loadNextSetBtn": "Nạp hiệp {{set}}",
+    "loadNextSetBtn": "Đấu hiệp {{set}}",
     "saveSetBtn": "Lưu kết quả Hiệp {{set}}"
   },
   "scoreModal": {

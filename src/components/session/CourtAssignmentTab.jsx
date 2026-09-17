@@ -2145,42 +2145,25 @@ export default function CourtAssignmentTab({ s }) {
                   <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
                     {t('scoreModal.predictTitle')}
                   </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div
-                      onClick={() => setRatingEnabled((v) => !v)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}
-                    >
-                      <Switch
-                        size="sm"
-                        checked={Boolean(ratingEnabled)}
-                        onChange={(e) => {
-                          const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
-                          setRatingEnabled(Boolean(nextVal))
-                        }}
-                      />
-                      <span style={{ fontSize: 12, fontWeight: 500, color: ratingEnabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                      </span>
-                    </div>
-                    <span
-                      style={
-                        ratingEnabled
-                          ? (activeDelta > COURT_IMBALANCE_THRESHOLD
-                            ? { ...S.balancedTag, background: 'rgba(225,68,52,.12)', color: '#FF9A8F', borderColor: 'rgba(225,68,52,.4)' }
-                            : activeDelta > COURT_BALANCE_THRESHOLD
-                              ? { ...S.balancedTag, background: 'rgba(224,138,0,.12)', color: '#F0B75C', borderColor: 'rgba(224,138,0,.4)' }
-                              : S.balancedTag)
-                          : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }
-                      }
-                    >
-                      {ratingEnabled
+                  <span
+                    style={
+                      ratingEnabled
                         ? (activeDelta > COURT_IMBALANCE_THRESHOLD
-                          ? t('scoreModal.imbalancedTag')
+                          ? { ...S.balancedTag, background: 'rgba(225,68,52,.12)', color: '#FF9A8F', borderColor: 'rgba(225,68,52,.4)' }
                           : activeDelta > COURT_BALANCE_THRESHOLD
-                            ? t('scoreModal.slightTag')
-                            : t('scoreModal.balancedTag'))
-                        : t('scoreModal.unratedTag')}
-                    </span>
-                  </div>
+                            ? { ...S.balancedTag, background: 'rgba(224,138,0,.12)', color: '#F0B75C', borderColor: 'rgba(224,138,0,.4)' }
+                            : S.balancedTag)
+                        : { ...S.balancedTag, background: 'var(--surface-sunken)', color: 'var(--text-muted)' }
+                    }
+                  >
+                    {ratingEnabled
+                      ? (activeDelta > COURT_IMBALANCE_THRESHOLD
+                        ? t('scoreModal.imbalancedTag')
+                        : activeDelta > COURT_BALANCE_THRESHOLD
+                          ? t('scoreModal.slightTag')
+                          : t('scoreModal.balancedTag'))
+                      : t('scoreModal.unratedTag')}
+                  </span>
                 </div>
                 {ratingEnabled ? (
                   <>
@@ -2341,17 +2324,8 @@ export default function CourtAssignmentTab({ s }) {
                 </div>
               )}
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                  {t('scoreModal.instruction')}
-                </div>
-                <Button
-                  variant="secondary"
-                  size="xs"
-                  icon="mic"
-                  onClick={() => setShowVoiceModal(true)}
-                >
-                </Button>
+              <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 2 }}>
+                {t('scoreModal.instruction')}
               </div>
 
               {/* 2 Thẻ Đội A và Đội B */}
@@ -2639,28 +2613,16 @@ export default function CourtAssignmentTab({ s }) {
                 )}
               </div>
 
-              {/* NÚT LƯU KẾT QUẢ & XÁC NHẬN VÀO SÂN */}
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={handleSaveResult}
-                  style={{ ...S.bigSaveBtn, flex: 1 }}
-                >
-                  {activeLoadedChallenge && (activeLoadedChallenge.bestOf || 1) > 1
-                    ? t('challenge.saveSetBtn', { set: activeSeriesProg?.nextSetNumber || 1 })
-                    : t('scoreModal.saveResult')}
-                </button>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  icon="play"
-                  onClick={handleDeployToCourt}
-                  style={{ minHeight: 56, fontWeight: 700, whiteSpace: 'nowrap' }}
-                  title={t('assign.deployCourtDesc')}
-                >
-                  {t('assign.deployCourtBtn')}
-                </Button>
-              </div>
+              {/* NÚT LƯU KẾT QUẢ */}
+              <button
+                type="button"
+                onClick={handleSaveResult}
+                style={{ ...S.bigSaveBtn, width: '100%' }}
+              >
+                {activeLoadedChallenge && (activeLoadedChallenge.bestOf || 1) > 1
+                  ? t('challenge.saveSetBtn', { set: activeSeriesProg?.nextSetNumber || 1 })
+                  : t('scoreModal.saveResult')}
+              </button>
             </div>
           )}
         </div>
