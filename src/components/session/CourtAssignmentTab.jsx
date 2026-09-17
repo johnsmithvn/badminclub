@@ -1054,6 +1054,157 @@ export default function CourtAssignmentTab({ s }) {
                     : `${seriesProg.seriesScoreText} (${t('challenge.seriesSetShort', { set: seriesProg.nextSetNumber })})`
                 }
 
+                const actionButtons = hasAbsent ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon="calendar-days"
+                      onClick={() => setSelectingSessionChallenge(c)}
+                      title={t('challenge.changeSession')}
+                    >
+                      {!isMobile && t('challenge.changeSession')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon="unlink"
+                      style={{
+                        color: 'var(--status-incident-fg, #ef4444)',
+                        borderColor: 'rgba(239, 68, 68, 0.35)',
+                      }}
+                      onClick={() => {
+                        a.confirm({
+                          title: t('challenge.confirmUnlinkTitle'),
+                          message: t('challenge.confirmUnlinkMsg', { code: c.code }),
+                          tone: 'danger',
+                          onConfirm: () => a.linkChallengeToSession(c.id, null),
+                        })
+                      }}
+                      title={t('challenge.btnUnlinkSession')}
+                    >
+                      {!isMobile && t('challenge.btnUnlinkSession')}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="flame-btn-deploy"
+                    icon={hasPlayedSets ? 'play' : 'flame'}
+                    onClick={() => handleLoadChallenge(c)}
+                  >
+                    {hasPlayedSets
+                      ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
+                      : t('quickMatch.loadChal')}
+                  </Button>
+                )
+
+                if (isMobile) {
+                  return (
+                    <div
+                      key={c.id}
+                      className={!hasAbsent ? 'chal-chip-flame' : undefined}
+                      style={{
+                        ...S.chalChip,
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        flexDirection: 'column',
+                        alignItems: 'stretch',
+                        gap: 8,
+                        width: '100%',
+                        transition: 'all 0.25s ease',
+                        ...(hasAbsent
+                          ? {
+                              borderColor: 'var(--status-incident-fg, #ef4444)',
+                              background: 'rgba(239, 68, 68, 0.05)',
+                            }
+                          : {}),
+                      }}
+                    >
+                      {/* Hàng 1 trên Mobile: Mã kèo + Tag ván + Nút Đấu */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {!hasAbsent && (
+                            <span className="flame-icon-burn" style={{ fontSize: 16 }}>🔥</span>
+                          )}
+                          <span style={{
+                            font: "700 11px/1 'IBM Plex Mono', monospace",
+                            color: '#FFA040',
+                            letterSpacing: '0.04em',
+                            background: 'rgba(255, 107, 0, 0.15)',
+                            padding: '3px 6px',
+                            borderRadius: 4,
+                            border: '1px solid rgba(255, 107, 0, 0.35)',
+                          }}>
+                            #{c.code}
+                          </span>
+                          <span
+                            className={!hasAbsent ? 'flame-tag-bo' : undefined}
+                            style={{
+                              ...S.tagSub,
+                              padding: '3px 8px',
+                              borderRadius: 6,
+                              fontWeight: 700,
+                              fontSize: 11,
+                              ...(hasAbsent
+                                ? {
+                                    background: 'var(--surface-card)',
+                                    color: 'var(--text-muted)',
+                                  }
+                                : {}),
+                            }}
+                          >
+                            ⚔️ {seriesTagText}
+                          </span>
+                        </div>
+                        {actionButtons}
+                      </div>
+
+                      {hasAbsent && (
+                        <span
+                          style={{
+                            color: 'var(--status-incident-fg, #ef4444)',
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          <Icon name="triangle-alert" size={13} />
+                          {t('challenge.absentWarning', { names: absentNames.join(', ') })}
+                        </span>
+                      )}
+
+                      {/* Hàng 2 trên Mobile: Đối đầu Đội A ⚔️ Đội B */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingTop: 8,
+                        borderTop: '1px dashed rgba(255, 140, 0, 0.25)',
+                        gap: 8,
+                      }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5, flex: 1, textAlign: 'left', lineHeight: 1.3 }}>
+                          {nameA}
+                        </span>
+                        <span style={{
+                          fontSize: 15,
+                          padding: '0 6px',
+                          filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.5))',
+                          userSelect: 'none',
+                        }}>
+                          ⚔️
+                        </span>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5, flex: 1, textAlign: 'right', lineHeight: 1.3 }}>
+                          {nameB}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                }
+
                 return (
                   <div
                     key={c.id}
@@ -1087,14 +1238,12 @@ export default function CourtAssignmentTab({ s }) {
                     </span>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5 }}>{nameA}</span>
                     <span style={{
-                      font: "800 11px/1 'IBM Plex Sans', sans-serif",
-                      background: 'linear-gradient(180deg, #FFE259 0%, #FFA751 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.4))',
+                      fontSize: 14,
                       padding: '0 2px',
+                      filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.4))',
+                      userSelect: 'none',
                     }}>
-                      VS
+                      ⚔️
                     </span>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5 }}>{nameB}</span>
                     <span
@@ -1114,7 +1263,6 @@ export default function CourtAssignmentTab({ s }) {
                     >
                       ⚔️ {seriesTagText}
                     </span>
-
                     {hasAbsent ? (
                       <>
                         <span
@@ -1161,17 +1309,7 @@ export default function CourtAssignmentTab({ s }) {
                         </Button>
                       </>
                     ) : (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        className="flame-btn-deploy"
-                        icon={hasPlayedSets ? 'play' : 'flame'}
-                        onClick={() => handleLoadChallenge(c)}
-                      >
-                        {hasPlayedSets
-                          ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
-                          : t('quickMatch.loadChal')}
-                      </Button>
+                      actionButtons
                     )}
                   </div>
                 )
@@ -1184,7 +1322,7 @@ export default function CourtAssignmentTab({ s }) {
         {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - GIAO DIỆN CS1) ---------------- */}
         <Card
           title={t('assign.waitingCount', { n: waitingPlayers.length })}
-          subtitle={isMobile ? `${waitingPlayers.length}/${players.length}` : t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
+          subtitle={isMobile ? undefined : t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
           icon="users"
           padding="12px 14px"
           actions={
@@ -1265,7 +1403,7 @@ export default function CourtAssignmentTab({ s }) {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={S.searchInput}
               />
-              <span style={S.touchHint}>{t('assign.poolTouchHint')}</span>
+              {!isMobile && <span style={S.touchHint}>{t('assign.poolTouchHint')}</span>}
             </div>
 
             {/* Hàng sort & lọc dính ở đầu (CS1 mockup) */}
@@ -2321,9 +2459,11 @@ export default function CourtAssignmentTab({ s }) {
                 </div>
               )}
 
-              <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 2 }}>
-                {t('scoreModal.instruction')}
-              </div>
+              {!isMobile && (
+                <div style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 2 }}>
+                  {t('scoreModal.instruction')}
+                </div>
+              )}
 
               {/* 2 Thẻ Đội A và Đội B */}
               <div style={{ ...S.teamsChoiceGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>

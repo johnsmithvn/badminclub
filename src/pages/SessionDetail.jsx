@@ -643,9 +643,11 @@ export default function SessionDetail() {
           </button>
         </div>
       </TabTrack>
-      <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', margin: '0 0 14px' }}>
-        {activeTab === 'attend' ? t('sessionTabs.hintAttend') : activeTab === 'planner' ? t('sessionTabs.hintPlanner') : activeTab === 'courts' ? t('sessionTabs.hintCourts') : t('sessionTabs.hintMatches')}
-      </div>
+      {!isMobile && (
+        <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', margin: '0 0 14px' }}>
+          {activeTab === 'attend' ? t('sessionTabs.hintAttend') : activeTab === 'planner' ? t('sessionTabs.hintPlanner') : activeTab === 'courts' ? t('sessionTabs.hintCourts') : t('sessionTabs.hintMatches')}
+        </div>
+      )}
 
       {/* Khối nguyện vọng thành viên */}
       {me && !isClosed && (
