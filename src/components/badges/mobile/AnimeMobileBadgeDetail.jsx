@@ -544,7 +544,7 @@ export default function AnimeMobileBadgeDetail({
             }}
           >
             <span style={{ flex: 1, minWidth: 0, font: "700 12px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-              {t('badges.detail.ownersTitle')}
+              {t('badges.detail.ownersTitle', { count: badgeOwners.length })}
             </span>
             <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
               {badgeOwners.length > 0

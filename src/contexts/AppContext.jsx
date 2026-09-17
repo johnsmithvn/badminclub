@@ -99,6 +99,15 @@ export function StoreProvider({ children }) {
     return { toast, navRef, a: makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) }
   }, [reload])
 
+  // Dọn kèo chết một lần sau mỗi lần nạp CLB — xem `A.sweepStaleChallenges`. Khoá theo clubId vì
+  // `db` đổi ở MỌI thao tác; thiếu khoá là quét lại sau từng lần gõ phím.
+  const sweptFor = useRef(null)
+  useEffect(() => {
+    if (!db || !db.clubId || sweptFor.current === db.clubId) return
+    sweptFor.current = db.clubId
+    api.a.sweepStaleChallenges()
+  }, [db, api])
+
   const value = useMemo(() => ({ db, ui, error, reload, setDb, setUi, ...api }), [db, ui, error, reload, api])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

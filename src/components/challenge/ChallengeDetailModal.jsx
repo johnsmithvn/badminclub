@@ -5,11 +5,11 @@ import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { t } from '#i18n'
 
-export default function ChallengeDetailModal({ challenge, session, onClose, onDeployed, onScoreInput, onOpenMatch }) {
+export default function ChallengeDetailModal({ challenge, session, onClose, onScoreInput, onOpenMatch }) {
   const { db, a } = useApp()
   const isMobile = useMobile()
   const [selectedPartner, setSelectedPartner] = useState(null)
@@ -33,7 +33,11 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const isTeamB = Boolean(myId && teamB.includes(myId))
   const isParticipant = Boolean(myId && [...teamA, ...teamB].includes(myId))
   const isPending = c.status === 'pending'
-  const isExpired = c.status === 'expired' || (c.expiresAt && new Date(c.expiresAt).getTime() <= now)
+  // Dùng chung `isChallengeExpired`: bản viết tay cũ ở đây bỏ qua `status`, nên kèo đã NHẬN mà
+  // quá hạn-nhận-kèo cũng bị coi là hết hạn và khoá luôn cổng cược — nhận kèo lúc 19h, 20h vào
+  // đặt thì bị báo hết hạn dù trận còn chưa đánh.
+  const isExpired = isChallengeExpired(c, now)
+  // 'oncourt' đã bỏ khỏi máy trạng thái (migration 0043); dòng cũ xử như 'accepted'.
   const isAccepted = c.status === 'accepted' || c.status === 'oncourt'
   const isPlayed = c.status === 'played'
 
@@ -157,8 +161,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   // SP bị giam KHÔNG tính phiếu nằm trên kèo đã chết (huỷ / từ chối / quá hạn) — kèo quá hạn mà
   // không ai bấm vào thì `status` không bao giờ đổi, và điểm của người đặt bị giam vĩnh viễn.
   const availableSp = useMemo(
-    () => availableSeasonPoints(totalSp, predictions, db.challenges, myId),
-    [totalSp, predictions, db.challenges, myId],
+    () => availableSeasonPoints(totalSp, predictions, db.challenges, db.sessions, myId),
+    [totalSp, predictions, db.challenges, db.sessions, myId],
   )
   // Luật cược đọc từ MỘT chỗ dùng chung với `a.placePrediction`, không chép lại điều kiện ở đây.
   const predGate = useMemo(
@@ -268,9 +272,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const createdTimeStr = c.createdAt
     ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : '20:14'
-  const expireTimeStr = c.expiresAt
-    ? new Date(c.expiresAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-    : (c.createdAt ? new Date(new Date(c.createdAt).getTime() + 60 * 60 * 1000).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '21:14')
+  const expireAtMs = challengeExpiryAt(c)
+  const expireTimeStr = expireAtMs
+    ? new Date(expireAtMs).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    : '21:14'
   const acceptedTimeStr = c.acceptedAt
     ? new Date(c.acceptedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : createdTimeStr
@@ -398,12 +403,15 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
 
           {isAccepted && (
             <>
-              {onDeployed && (
+              {/* Nút này ghi "Nhập kết quả" nhưng trước đây gọi `onDeployed` — tức là xếp 4
+                  người vào sân rồi điều hướng, KHÔNG mở ô nhập điểm. Giờ gọi đúng
+                  `onScoreInput`, đúng việc nhãn của nó hứa. */}
+              {onScoreInput && (
                 <button
                   type="button"
                   onClick={() => {
                     onClose()
-                    onDeployed(c)
+                    onScoreInput(c)
                   }}
                   style={{
                     flex: 1,
@@ -869,7 +877,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                 {t('challenge.pickTwo')}
               </span>
               <span style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                {t('challenge.presentMembers')}
+                {t('challenge.presentMembers', { n: pickablePartners.length })}
               </span>
             </div>
             <div style={{ display: 'grid', gap: 6, maxHeight: 150, overflowY: 'auto' }}>
@@ -975,7 +983,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                 sub: (isAccepted || isPlayed)
                   ? t('challenge.step2Sub', { time: acceptedTimeStr })
                   : (c.status === 'declined'
-                    ? t('challenge.toastDeclined')
+                    ? t('challenge.toastDeclined', { code: c.code })
                     : (prog.totalCount > 0 ? t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount }) : t('challenge.status.pending'))),
                 status: (isAccepted || isPlayed) ? 'done' : (isPending ? 'current' : 'pending'),
               },

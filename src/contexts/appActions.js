@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, staleChallenges } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -2879,9 +2879,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const myMem = myMember(d0)
       const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
       if (!canAssign() && !isPlayer) return
-      // Kèo đã đánh xong thì không huỷ được. UI có chặn, nhưng luật này phải nằm ở action: gọi
-      // thẳng là huỷ được cả kèo 'played', để lại kèo 'cancelled' mà trận vẫn còn trong sổ.
-      if (chal.status !== 'pending' && chal.status !== 'accepted') {
+      // Kèo ĐÃ CÓ KẾT QUẢ thì không huỷ được — huỷ sẽ để lại kèo 'cancelled' mà trận vẫn nằm
+      // trong sổ. ('oncourt' chỉ còn ở dòng cũ trước migration 0043, xử như 'accepted'.)
+      if (chal.status !== 'pending' && chal.status !== 'accepted' && chal.status !== 'oncourt') {
         toast(t('challenge.cancelTooLate'))
         return
       }
@@ -2917,7 +2917,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       // cửa nợ điểm, và cũng không có cửa "thua quá sàn thì thua miễn phí" như trước.
       const seasonRes = calculateSeasonLeaderboard(d0)
       const totalSp = (seasonRes?.leaderboard || []).find((r) => r.id === myId)?.totalSeasonPoints || 0
-      const available = availableSeasonPoints(totalSp, d0.challengePredictions, d0.challenges, myId)
+      const available = availableSeasonPoints(totalSp, d0.challengePredictions, d0.challenges, d0.sessions, myId)
 
       // Mọi luật còn lại đọc từ MỘT chỗ: `canMemberPredict`. Trước đây luật này nằm rải ở ba nơi
       // (modal, action, và chính hàm đó) và đã lệch nhau.
@@ -3089,53 +3089,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       } else {
         toast(t('challenge.toastUnlinkedFromSession', { code: chal.code }))
       }
-    },
-
-    deployChallenge: (challengeId, courtIdx) => {
-      if (!canAssign()) return
-      const d0 = db()
-      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
-      if (!chal || !chal.sessionId) return
-      const sid = chal.sessionId
-      const s = sessionOf(d0, sid)
-      if (!s) return
-      const courtName = (s.courts[courtIdx] && courtOf(d0, s.courts[courtIdx].courtId).name) || (`${t('units.court')} ${courtIdx + 1}`)
-
-      // Kiểm tra điểm danh buổi: nếu có người chơi vắng mặt / không tham gia buổi thì chặn
-      const allFour = [...(chal.teamA || []), ...(chal.teamB || [])]
-      const sessPlayers = sessionPlayers(d0, s)
-      const presentKeys = new Set(sessPlayers.map((p) => p.key))
-      const absentKeys = allFour.filter((k) => !presentKeys.has(k))
-      if (absentKeys.length > 0) {
-        const absentNames = absentKeys.map((k) => playerName(d0, k) || k)
-        toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
-        return
-      }
-
-      up((d) => {
-        const lineups = { ...(d.lineups || {}) }
-        const curLu = { ...(lineups[sid] || {}) }
-        const allFour = [...(chal.teamA || []), ...(chal.teamB || [])]
-
-        // Dọn 4 người này khỏi các ô khác nếu họ đang ở sân khác
-        Object.keys(curLu).forEach((sl) => {
-          if (allFour.includes(curLu[sl])) delete curLu[sl]
-        })
-
-        // Gán slot cho sân courtIdx (dọn sạch slot cũ của sân trước khi gán để tránh đè 1v1 thành 2v2)
-        const slots = courtSlotIds(courtIdx)
-        slots.forEach((sl) => { delete curLu[sl] })
-        if (chal.teamA[0]) curLu[slots[0]] = chal.teamA[0]
-        if (chal.teamA[1]) curLu[slots[1]] = chal.teamA[1]
-        if (chal.teamB[0]) curLu[slots[2]] = chal.teamB[0]
-        if (chal.teamB[1]) curLu[slots[3]] = chal.teamB[1]
-        lineups[sid] = curLu
-
-        // Đánh dấu kèo là oncourt và khoá cược dự đoán
-        const challenges = (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'oncourt', predictionsLocked: true } : c))
-        return { lineups, challenges }
-      })
-      toast(t('challenge.toastDeployed', { code: chal.code, court: courtName }))
     },
 
     saveMatchScore: ({ sid, sessionId, ci, courtIdx, courtIndex, sets, challengeCode, challengeId, teamA: propTeamA, teamB: propTeamB, ratingEnabled: propRatingEnabled, minutes }) => {
@@ -3363,6 +3316,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
                 status: 'accepted',
                 matchId: null,
                 seriesScore: chalSeriesProg ? { winsA: chalSeriesProg.winsA, winsB: chalSeriesProg.winsB } : null,
+                // Ghi xong hiệp đầu là ĐÓNG cổng cược. Trước đây việc này do nút "Đưa lên sân"
+                // làm; bỏ nút rồi mà không khoá ở đây thì khán giả xem xong hiệp 1 biết tỷ số
+                // rồi mới đặt — cược khi đã biết bài.
+                predictionsLocked: true,
               }
             })
           : (d.challenges || [])
@@ -3926,6 +3883,50 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
    * mode 'id', dòng nào có trong ảnh chụp cũ mà vắng ở mảng mới là nó XOÁ dưới DB. Server chỉ
    * trả 100 dòng mới nhất, nên thay thẳng là tự tay xoá đúng những dòng vừa bị đẩy khỏi top 100.
    */
+  /**
+   * Dọn các kèo đã chết trên thực tế nhưng cột `status` chưa kịp đổi, và hoàn phiếu cho chúng.
+   * Gọi một lần sau mỗi lần nạp CLB (`AppContext`).
+   *
+   * Thay cho một tiến trình quét chạy nền: dự án không có chỗ chạy cron, và pg_cron thì không
+   * chắc bật được trên Supabase Free. Không dọn thì có hai thứ rò rỉ mãi mãi —
+   *   · kèo quá hạn / kèo gắn vào buổi đã chốt nằm lì trong danh sách "chờ sân";
+   *   · SP của người đã đặt phiếu trên chúng bị giam vĩnh viễn, vì phiếu không bao giờ tới lượt
+   *     được quyết toán.
+   *
+   * CỐ Ý không gọi `reload()` khi RPC hoàn phiếu lỗi: hàm này chạy NGAY SAU một lần nạp, reload
+   * tiếp là quay vòng vô tận. Lỗi thì ghi log, lần nạp sau dọn lại.
+   */
+  A.sweepStaleChallenges = () => {
+    const d0 = db()
+    if (!d0.clubId) return
+    const stale = staleChallenges(d0)
+    if (!stale.length) return
+
+    const ids = new Set(stale.map((c) => c.id))
+    up((d) => ({
+      challenges: (d.challenges || []).map((c) => (
+        ids.has(c.id) ? { ...c, status: 'expired', predictionsLocked: true } : c
+      )),
+      challengePredictions: [...ids].reduce(
+        (list, id) => settlePredictionsLocal(list, id, null, new Date().toISOString()),
+        d.challengePredictions || [],
+      ),
+    }))
+
+    if (!supabase) return
+    stale.forEach((c) => {
+      const hasPending = (d0.challengePredictions || []).some(
+        (p) => p.challengeId === c.id && p.status === 'pending'
+      )
+      if (!hasPending) return
+      supabase
+        .rpc('settle_challenge_predictions', { p_challenge_id: c.id, p_winner_team: null })
+        .then(({ error }) => {
+          if (error) console.warn('[prediction] sweep refund error:', c.code, error.message)
+        })
+    })
+  }
+
   A.reloadNotifications = async () => {
     const d0 = db()
     if (!d0.clubId || !supabase) return

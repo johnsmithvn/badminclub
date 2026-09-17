@@ -8,9 +8,9 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import cfg from '#config/app.json' with { type: 'json' }
-import { playerName, courtOf, myMember, playerOf, openSessions, sessionMembers, sGuests, isPresent } from '#lib/money.js'
-import { sessionPlayers, firstEmptyCourtIdx } from '#lib/assign.js'
-import { dd, isoOf, todayISO, weekdayOf } from '#utils/dates.js'
+import { playerName, courtOf, myMember, playerOf, sessionMembers, sGuests, isPresent, timeTxt, courtTxt, presentCount } from '#lib/money.js'
+import { sessionPlayers } from '#lib/assign.js'
+import { dd, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
 import {
   getPlayerRating, expectedScore,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, matchCodeOf, DEFAULT_RATING,
@@ -20,7 +20,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats, challengeExpiryAt, isChallengeExpired } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -89,12 +89,28 @@ export default function Matches() {
   const [viewingChallenge, setViewingChallenge] = useState(null)
   const [scoringChallenge, setScoringChallenge] = useState(null)
 
+  /**
+   * Buổi có thể gắn kèo vào.
+   *
+   * Trước đây là: buổi đang mở lên đầu, rồi NỐI TOÀN BỘ buổi còn lại của CLB vào sau, giữ
+   * nguyên thứ tự thô của `db.sessions`. Nên danh sách hiện cả buổi đã chốt sổ từ đầu tháng,
+   * lộn xộn ngày, và người dùng chọn phải một buổi đã qua thì kèo coi như mất tích.
+   *
+   * Giờ chỉ giữ buổi CHƯA kết thúc (nháp hoặc đang mở, và chưa qua ngày), sắp theo ngày tăng
+   * dần. Buổi đang gắn thì luôn giữ lại dù nó đã qua — không thì người dùng mở modal ra không
+   * thấy kèo của mình đang nằm ở đâu để mà gỡ.
+   */
   const availableSessions = useMemo(() => {
-    const open = openSessions(db) || []
-    const openIds = new Set(open.map((s) => s.id))
-    const others = (db.sessions || []).filter((s) => !openIds.has(s.id))
-    return [...open, ...others]
-  }, [db])
+    const today = db.today
+    const linkedId = selectingSessionChallenge?.sessionId || null
+    return (db.sessions || [])
+      .filter((s) => (
+        s.id === linkedId
+        || ((s.status === 'draft' || s.status === 'open') && s.date >= today)
+      ))
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [db.sessions, db.today, selectingSessionChallenge])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 10000)
@@ -815,7 +831,9 @@ export default function Matches() {
 
               const isPlayed = c.status === 'played'
               const isPending = c.status === 'pending'
-              const isAccepted = c.status === 'accepted'
+              // 'oncourt' đã bỏ khỏi máy trạng thái (migration 0043). Dòng cũ chưa nạp lại thì
+              // xử như 'accepted' — "đang đánh" giờ suy từ SỐ HIỆP ĐÃ GHI, xem `statusBadgeText`.
+              const isAccepted = c.status === 'accepted' || c.status === 'oncourt'
               const isParticipant = myId && [...teamA, ...teamB].includes(myId)
               const isOpen = !teamB.length || teamB.length < (teamA.length > 1 ? 2 : 1)
 
@@ -825,8 +843,8 @@ export default function Matches() {
               const hasAccepted = myId && (c.acceptedPlayers || []).includes(myId)
 
               // Countdown hết hạn
-              const expTime = c.expiresAt ? new Date(c.expiresAt).getTime() : (c.createdAt ? new Date(c.createdAt).getTime() + 60 * 60 * 1000 : null)
-              const isExpired = c.status === 'expired' || (expTime && expTime <= now)
+              const expTime = challengeExpiryAt(c)
+              const isExpired = isChallengeExpired(c, now)
               let expStr = ''
               if (expTime && isPending && !isExpired) {
                 const diff = expTime - now
@@ -1201,38 +1219,7 @@ export default function Matches() {
                       </button>
                     )}
 
-                    {/* Đưa lên sân trống nếu kèo đã được nhận và có buổi gắn kèm */}
-                    {isAccepted && sessionObj && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const curLu = db.lineups?.[sessionObj.id] || {}
-                          const emptyCourtIdx = firstEmptyCourtIdx(curLu, sessionObj)
-                          if (emptyCourtIdx !== undefined) {
-                            a.deployChallenge(c.id, emptyCourtIdx)
-                            navigate(`/buoi-tap/${sessionObj.id}?tab=courts`)
-                          } else {
-                            a.toast(t('challenge.noEmptyCourt'))
-                            navigate(`/buoi-tap/${sessionObj.id}?tab=courts`)
-                          }
-                        }}
-                        style={{
-                          ...S.smallPrimaryBtn,
-                          ...(hasPlayedSets ? { background: 'rgba(168, 85, 247, 0.85)', color: '#fff', borderColor: 'transparent' } : {}),
-                        }}
-                        title={t('challenge.deployToCourt')}
-                      >
-                        <Icon name="play" size={14} />
-                        <span>
-                          {hasPlayedSets
-                            ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
-                            : t('challenge.deployToCourt')}
-                        </span>
-                      </button>
-                    )}
-
-                    {/* Vào buổi chơi nếu kèo đã được nhận và có buổi gắn kèm */}
+                    {/* Vào buổi tập */}
                     {isAccepted && sessionObj && (
                       <button
                         type="button"
@@ -1248,35 +1235,6 @@ export default function Matches() {
                     )}
 
                     {/* Đổi buổi hoặc Gỡ khỏi buổi nếu kèo đã gắn vào buổi */}
-                    {isAccepted && sessionObj && (isParticipant || isAdmin) && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectingSessionChallenge(c)
-                          }}
-                          style={S.smallSecondaryBtn}
-                          title={t('challenge.chooseSession')}
-                        >
-                          <Icon name="calendar-days" size={14} />
-                          <span>{t('challenge.changeSession')}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            a.linkChallengeToSession(c.id, null)
-                          }}
-                          style={S.smallGhostBtn}
-                          title={t('challenge.btnUnlinkSession')}
-                        >
-                          <Icon name="unlink" size={14} />
-                          <span>{t('challenge.btnUnlinkSession')}</span>
-                        </button>
-                      </>
-                    )}
-
                     {/* Đưa kèo tự do vào buổi chơi: Mở dialog chọn buổi rõ ràng */}
                     {isAccepted && !sessionObj && (
                       <button
@@ -1330,30 +1288,40 @@ export default function Matches() {
                     )}
 
                     {/* Xóa vĩnh viễn kèo nếu là Chủ CLB/Admin (mọi trạng thái) */}
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          a.confirm({
+                    {/* Thao tác dọn dẹp gom vào menu ⋯: chúng là việc thỉnh thoảng mới làm,
+                        để phẳng ra thì card kèo có tới 6 nút ngang hàng nhau và không nút nào
+                        nổi lên là việc chính. */}
+                    <CardMenu
+                      items={[
+                        ...(isAccepted && sessionObj && (isParticipant || isAdmin) ? [
+                          {
+                            key: 'change',
+                            icon: 'calendar-days',
+                            label: t('challenge.changeSession'),
+                            onClick: () => setSelectingSessionChallenge(c),
+                          },
+                          {
+                            key: 'unlink',
+                            icon: 'unlink',
+                            label: t('challenge.btnUnlinkSession'),
+                            onClick: () => a.linkChallengeToSession(c.id, null),
+                          },
+                        ] : []),
+                        ...(isAdmin ? [{
+                          key: 'delete',
+                          icon: 'trash-2',
+                          label: t('challenge.btnDelete'),
+                          danger: true,
+                          onClick: () => a.confirm({
                             title: t('challenge.confirmDeleteTitle'),
                             message: t('challenge.confirmDeleteMsg'),
                             tone: 'danger',
                             confirmText: t('challenge.btnDelete'),
                             onConfirm: () => a.deleteChallenge(c.id),
-                          })
-                        }}
-                        style={{
-                          ...S.smallGhostBtn,
-                          color: 'var(--red-500, #ef4444)',
-                          borderColor: 'rgba(239, 68, 68, 0.25)',
-                        }}
-                        title={t('challenge.btnDelete')}
-                      >
-                        <Icon name="trash-2" size={14} />
-                        <span>{t('challenge.btnDelete')}</span>
-                      </button>
-                    )}
+                          }),
+                        }] : []),
+                      ]}
+                    />
                   </div>
                 </div>
               )
@@ -3460,6 +3428,9 @@ export default function Matches() {
                 {availableSessions.map((s) => {
                   const isOpen = s.status === 'open'
                   const isCurrent = selectingSessionChallenge.sessionId === s.id
+                  // Chỉ mỗi ngày thì không đủ để chọn: cùng một tuần có mấy buổi, phải biết
+                  // giờ nào, mấy sân, đã có ai đi chưa.
+                  const attendN = presentCount(db, s)
                   return (
                     <button
                       key={s.id}
@@ -3484,8 +3455,20 @@ export default function Matches() {
                       <div style={{ display: 'grid', gap: 3 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ font: '600 14px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
-                            {t('challenge.sessionItemDate', { date: dd(s.date) })}
+                            {wd(s.date)} · {t('challenge.sessionItemDate', { date: dd(s.date) })}
                           </span>
+                          {!isOpen && (
+                            <span style={{
+                              fontSize: 11,
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: 'var(--surface-sunken)',
+                              color: 'var(--text-muted)',
+                              fontWeight: 600,
+                            }}>
+                              {t(`sessionState.${s.status}`)}
+                            </span>
+                          )}
                           {isOpen && (
                             <span style={{
                               fontSize: 11,
@@ -3510,6 +3493,14 @@ export default function Matches() {
                               {t('challenge.sessionStatusCurrent')}
                             </span>
                           )}
+                        </div>
+                        <div style={{ font: '400 12px/1.3 var(--font-sans)', color: 'var(--text-muted)' }}>
+                          {t('challenge.sessionItemMeta', { time: timeTxt(s), courts: courtTxt(db, s) })}
+                        </div>
+                        <div style={{ font: '400 12px/1.3 var(--font-sans)', color: attendN > 0 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                          {attendN > 0
+                            ? t('challenge.sessionItemAttend', { n: attendN })
+                            : t('challenge.sessionItemNoAttend')}
                         </div>
                         {s.title && (
                           <div style={{ font: '400 12px/1.3 var(--font-sans)', color: 'var(--text-muted)' }}>
@@ -3561,23 +3552,6 @@ export default function Matches() {
           challenge={viewingChallenge}
           session={(db.sessions || []).find((s) => s.id === viewingChallenge.sessionId)}
           onClose={() => setViewingChallenge(null)}
-          onDeployed={(c) => {
-            setViewingChallenge(null)
-            if (c.sessionId) {
-              const sess = (db.sessions || []).find((s) => s.id === c.sessionId)
-              const curLu = db.lineups?.[c.sessionId] || {}
-              const emptyCourtIdx = firstEmptyCourtIdx(curLu, sess)
-              if (emptyCourtIdx !== undefined) {
-                a.deployChallenge(c.id, emptyCourtIdx)
-                navigate(`/buoi-tap/${c.sessionId}?tab=courts`)
-              } else {
-                a.toast(t('challenge.noEmptyCourt'))
-                navigate(`/buoi-tap/${c.sessionId}?tab=courts`)
-              }
-            } else {
-              setSelectingSessionChallenge(c)
-            }
-          }}
           onScoreInput={(c) => {
             setViewingChallenge(null)
             setScoringChallenge(c)
@@ -3597,6 +3571,82 @@ export default function Matches() {
           onClose={() => setScoringChallenge(null)}
           onSaved={() => setScoringChallenge(null)}
         />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Menu ⋯ cho các thao tác phụ trên card kèo.
+ *
+ * Tự viết vì bộ DS (`components/ds/`, VENDORED — không sửa tay) không có dropdown. Bắt click ra
+ * ngoài bằng một lớp phủ trong suốt thay vì nghe `document`: không phải dọn listener, và không
+ * đụng tới các lớp z-index khác của trang.
+ */
+function CardMenu({ items }) {
+  const [open, setOpen] = useState(false)
+  if (!items || items.length === 0) return null
+  return (
+    <div style={{ position: 'relative', marginLeft: 'auto' }}>
+      <button
+        type="button"
+        aria-label={t('common.more')}
+        title={t('common.more')}
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
+        style={{ ...S.smallGhostBtn, padding: '0 8px' }}
+      >
+        <Icon name="ellipsis" size={14} />
+      </button>
+      {open && (
+        <>
+          <div
+            onClick={(e) => { e.stopPropagation(); setOpen(false) }}
+            style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 4px)',
+              right: 0,
+              zIndex: 41,
+              minWidth: 178,
+              display: 'grid',
+              gap: 2,
+              padding: 4,
+              borderRadius: 8,
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-default)',
+              boxShadow: 'var(--shadow-lg, 0 8px 24px rgba(0,0,0,.18))',
+            }}
+          >
+            {items.map((it) => (
+              <button
+                key={it.key}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setOpen(false); it.onClick() }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  height: 32,
+                  padding: '0 8px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: 'transparent',
+                  color: it.danger ? 'var(--red-500, #ef4444)' : 'var(--text-primary)',
+                  font: '500 12.5px/1 var(--font-sans)',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <Icon name={it.icon} size={14} />
+                <span>{it.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
@@ -3754,6 +3804,7 @@ const S = {
   },
   smallPrimaryBtn: {
     height: 28,
+    whiteSpace: 'nowrap',
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,
@@ -3767,6 +3818,7 @@ const S = {
   },
   smallSecondaryBtn: {
     height: 28,
+    whiteSpace: 'nowrap',
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,
@@ -3780,6 +3832,7 @@ const S = {
   },
   smallGhostBtn: {
     height: 28,
+    whiteSpace: 'nowrap',
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,
@@ -3793,6 +3846,7 @@ const S = {
   },
   smallDangerBtn: {
     height: 28,
+    whiteSpace: 'nowrap',
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,

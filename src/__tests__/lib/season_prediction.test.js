@@ -4,6 +4,8 @@ import {
   getPredictionStats,
   getMemberPrediction,
   isChallengeDead,
+  isChallengeExpired,
+  staleChallenges,
   pendingStakeOf,
   availableSeasonPoints,
   settlePredictionsLocal,
@@ -229,47 +231,108 @@ assert.equal(
 // 6. SP khả dụng: phiếu trên kèo đã chết không được giam điểm
 // ==========================================
 const nowTs = Date.parse('2026-09-17T12:00:00Z')
+const sessionsForStake = [
+  { id: 's_open', status: 'open' },
+  { id: 's_closed', status: 'closed' },
+]
 const chalsForStake = [
-  { id: 'c_live', status: 'accepted', expiresAt: '2026-09-17T23:00:00Z' },
+  { id: 'c_live', status: 'accepted', sessionId: 's_open', expiresAt: '2026-09-17T23:00:00Z' },
   { id: 'c_cancelled', status: 'cancelled' },
   { id: 'c_declined', status: 'declined' },
   // Quá hạn mà cột status CHƯA đổi — không có tiến trình nào quét kèo hết hạn,
   // status chỉ đổi khi có người bấm vào nó.
   { id: 'c_stale', status: 'pending', expiresAt: '2026-09-17T09:00:00Z' },
+  // Bốn người đã nhận kèo rồi bỏ đó, buổi đã chốt sổ -> trận không bao giờ đánh nữa.
+  { id: 'c_abandoned', status: 'accepted', sessionId: 's_closed', expiresAt: '2026-09-17T23:00:00Z' },
+  // Đã đẩy lên sân rồi cả nhóm về, không ai nhập tỷ số, buổi chốt sổ.
+  { id: 'c_oncourt_dead', status: 'oncourt', sessionId: 's_closed' },
+  // Đang đánh thật trong buổi còn mở -> SỐNG, không được thả cọc.
+  { id: 'c_oncourt_live', status: 'oncourt', sessionId: 's_open' },
 ]
-assert.equal(isChallengeDead(chalsForStake[0], nowTs), false, 'Kèo còn hạn là kèo sống')
-assert.equal(isChallengeDead(chalsForStake[1], nowTs), true)
-assert.equal(isChallengeDead(chalsForStake[2], nowTs), true)
-assert.equal(isChallengeDead(chalsForStake[3], nowTs), true, 'Quá giờ hết hạn là chết, kể cả khi status còn pending')
+const sessOf = (c) => sessionsForStake.find((x) => x.id === c.sessionId) || null
+
+assert.equal(isChallengeDead(chalsForStake[0], sessOf(chalsForStake[0]), nowTs), false, 'Kèo còn hạn, buổi còn mở là kèo sống')
+assert.equal(isChallengeDead(chalsForStake[1], null, nowTs), true)
+assert.equal(isChallengeDead(chalsForStake[2], null, nowTs), true)
+assert.equal(isChallengeDead(chalsForStake[3], null, nowTs), true, 'Quá giờ hết hạn là chết, kể cả khi status còn pending')
+assert.equal(
+  isChallengeDead(chalsForStake[4], sessOf(chalsForStake[4]), nowTs), true,
+  'Kèo đã nhận nhưng buổi đã chốt sổ thì chết — đây là đường duy nhất giết kèo accepted bị bỏ rơi',
+)
+
+// `expiresAt` là hạn NHẬN KÈO, chỉ có nghĩa khi còn 'pending'. Kèo đã nhận thì đang chờ sân và vẫn sẽ
+// được đánh — coi nó là chết là thả cọc ra cho người đặt tiêu lại đúng số điểm đang treo trên một
+// trận sắp quyết toán (tiêu hai lần một đồng điểm).
+assert.equal(
+  isChallengeDead({ id: 'c_acc', status: 'accepted', expiresAt: '2026-09-17T09:00:00Z' }, null, nowTs),
+  false,
+  'Kèo ĐÃ NHẬN thì quá hạn nhận kèo không làm nó chết — cọc phải giữ',
+)
+assert.equal(isChallengeExpired({ status: 'accepted', expiresAt: '2026-09-17T09:00:00Z' }, nowTs), false)
+assert.equal(isChallengeExpired({ status: 'pending', expiresAt: '2026-09-17T09:00:00Z' }, nowTs), true)
+assert.equal(isChallengeExpired({ status: 'expired' }, nowTs), true)
+assert.equal(isChallengeExpired({ status: 'oncourt', expiresAt: '2026-09-17T09:00:00Z' }, nowTs), false, 'Kèo đang trên sân không bao giờ là hết hạn')
+// Dòng cũ chưa có cột expiresAt: suy từ createdAt + defaultExpireMins của config
+assert.equal(isChallengeExpired({ status: 'pending', createdAt: '2026-09-17T08:00:00Z' }, nowTs), true)
+assert.equal(isChallengeExpired({ status: 'pending', createdAt: '2026-09-17T11:45:00Z' }, nowTs), false)
+
+// staleChallenges: đầu vào cho a.sweepStaleChallenges
+const stale = staleChallenges({ challenges: chalsForStake, sessions: sessionsForStake }, nowTs)
+assert.deepEqual(
+  stale.map((c) => c.id).sort(), ['c_abandoned', 'c_oncourt_dead', 'c_stale'],
+  'Chỉ gom kèo đang mang status còn sống nhưng thực tế đã chết',
+)
+assert.equal(
+  isChallengeDead(chalsForStake[5], sessionsForStake[1], nowTs), true,
+  'Kèo đẩy lên sân rồi bỏ dở, buổi đã chốt sổ -> chết',
+)
+assert.equal(
+  isChallengeDead(chalsForStake[6], sessionsForStake[0], nowTs), false,
+  'Kèo đang trên sân của buổi còn mở thì SỐNG — đang đánh thật, cọc phải giữ',
+)
+assert.equal(
+  isChallengeDead({ id: 'p1', status: 'played', sessionId: 's_closed' }, sessionsForStake[1], nowTs), false,
+  'Kèo đã có kết quả thì không chết, phiếu của nó đã quyết toán theo kết quả',
+)
 
 const stakePreds = [
   { memberId: 'm1', challengeId: 'c_live', stakePoints: 2, status: 'pending' },
   { memberId: 'm1', challengeId: 'c_cancelled', stakePoints: 3, status: 'pending' },
   { memberId: 'm1', challengeId: 'c_stale', stakePoints: 3, status: 'pending' },
+  { memberId: 'm1', challengeId: 'c_abandoned', stakePoints: 3, status: 'pending' },
   { memberId: 'm1', challengeId: 'c_live', stakePoints: 3, status: 'won' }, // đã quyết toán, không giam
   { memberId: 'm2', challengeId: 'c_live', stakePoints: 3, status: 'pending' }, // người khác
 ]
 assert.equal(
-  pendingStakeOf(stakePreds, chalsForStake, 'm1', nowTs), 2,
-  'Chỉ 2 SP trên kèo còn sống bị giam; phiếu trên kèo huỷ / quá hạn được thả',
+  pendingStakeOf(stakePreds, chalsForStake, sessionsForStake, 'm1', nowTs), 2,
+  'Chỉ 2 SP trên kèo còn sống bị giam; phiếu trên kèo huỷ / quá hạn / bị bỏ rơi được thả',
 )
-assert.equal(availableSeasonPoints(10, stakePreds, chalsForStake, 'm1', nowTs), 8)
+assert.equal(availableSeasonPoints(10, stakePreds, chalsForStake, sessionsForStake, 'm1', nowTs), 8)
 // Hết điểm là 0, không âm — và 0 nghĩa là không được cược.
-assert.equal(availableSeasonPoints(1, stakePreds, chalsForStake, 'm1', nowTs), 0)
+assert.equal(availableSeasonPoints(1, stakePreds, chalsForStake, sessionsForStake, 'm1', nowTs), 0)
 assert.equal(
   canMemberPredict(chalValid, 'v_new', { members: [{ id: 'v_new', active: true }] }, 0).reason,
   'insufficient_points',
   'Khả dụng = 0 thì KHÔNG được cược',
 )
 
-// Kèo quá hạn phải chặn theo mốc giờ, không chờ cột status đổi
+// Kèo quá hạn NHẬN phải chặn theo mốc giờ, không chờ cột status đổi
 assert.equal(
   canMemberPredict(
     { ...chalValid, status: 'pending', expiresAt: '2026-01-01T00:00:00Z' },
     'v_new', { members: [{ id: 'v_new', active: true }] }, 10,
   ).reason,
   'locked',
-  'Kèo đã quá giờ hết hạn thì không nhận cược nữa',
+  'Kèo chưa ai nhận mà quá giờ thì không nhận cược nữa',
+)
+// ...nhưng kèo ĐÃ NHẬN thì vẫn cược được cho tới lúc lên sân
+assert.equal(
+  canMemberPredict(
+    { ...chalValid, status: 'accepted', expiresAt: '2026-01-01T00:00:00Z' },
+    'v_new', { members: [{ id: 'v_new', active: true }] }, 10,
+  ).ok,
+  true,
+  'Kèo đã nhận: quá hạn-nhận-kèo không khoá cổng cược',
 )
 
 // ==========================================
@@ -302,3 +365,69 @@ assert.equal(refunded[0].payoutPoints, 2, 'Hoàn trả đúng số đã đặt, 
 assert.equal(refunded[2].status, 'cancelled')
 
 console.log('prediction rules check: OK')
+
+// ==========================================
+// 8. Cột "điểm sau" của sổ cái phải cộng ra tổng
+// ==========================================
+// Trước đây vòng lặp trận chỉ cộng điểm TRẬN còn điểm dự đoán cộng một phát ở cuối, nên dòng cuối
+// sổ cái không bao giờ khớp `totalSeasonPoints`.
+const ledgerMembers = [{ id: 'L1', name: 'Ledger', level: 'trung_binh', active: true, joined: '2026-01-01' }]
+const ledgerMatches = [
+  {
+    id: 'lm1', sessionId: 'ls1', at: Date.parse('2026-08-10T10:00:00Z'),
+    teamA: ['L1'], teamB: ['X1'], winnerTeam: 'A', sets: [[21, 15]],
+    initialRatingA: 1000, initialRatingB: 1000, ratingEnabled: true,
+  },
+  {
+    id: 'lm2', sessionId: 'ls1', at: Date.parse('2026-08-20T10:00:00Z'),
+    teamA: ['L1'], teamB: ['X1'], winnerTeam: 'A', sets: [[21, 17]],
+    initialRatingA: 1000, initialRatingB: 1000, ratingEnabled: true,
+  },
+]
+const ledgerPreds = [
+  // Giữa hai trận
+  { id: 'lp1', challengeId: 'lc1', memberId: 'L1', team: 'A', stakePoints: 2, payoutPoints: 4, status: 'won', settledAt: '2026-08-15T10:00:00Z' },
+  // Sau trận cuối
+  { id: 'lp2', challengeId: 'lc2', memberId: 'L1', team: 'B', stakePoints: 1, payoutPoints: 0, status: 'lost', settledAt: '2026-08-25T10:00:00Z' },
+]
+const ledgerDb = { members: ledgerMembers, matches: ledgerMatches, challengePredictions: ledgerPreds }
+const ledgerRow = calculateSeasonLeaderboard(ledgerDb, seasonQ3).leaderboard[0]
+
+assert.equal(ledgerRow.predictionLogs.length, 2, 'Hai phiếu đều có dòng trong sổ')
+// Phiếu 1 quyết toán SAU trận 1 -> điểm sau của nó = điểm sau trận 1 cộng +2
+assert.equal(
+  ledgerRow.predictionLogs[0].pointsAfter,
+  ledgerRow.matchLogs[0].pointsAfter + 2,
+  'Phiếu thắng giữa hai trận cộng thẳng vào điểm đang có lúc đó',
+)
+// Trận 2 diễn ra sau phiếu 1 -> điểm sau của nó đã gồm +2 của phiếu
+assert.equal(
+  ledgerRow.matchLogs[1].pointsAfter,
+  ledgerRow.matchLogs[0].pointsAfter + ledgerRow.matchLogs[1].effectiveChange + 2,
+  'Điểm sau của trận sau phải gồm cả phiếu đã quyết toán trước nó',
+)
+// Dòng CUỐI CÙNG của sổ phải bằng đúng tổng điểm mùa — đây là cái vênh cũ
+assert.equal(
+  ledgerRow.predictionLogs[1].pointsAfter,
+  ledgerRow.totalSeasonPoints,
+  'Dòng cuối sổ cái phải cộng ra đúng tổng điểm mùa',
+)
+
+// Không đụng gì tới TỔNG: điểm trận vẫn nguyên, phiếu vẫn net +2-1 = +1
+assert.equal(ledgerRow.breakdown.predictionNetPoints, 1)
+
+// Người chỉ đoán kèo, không đánh trận nào: vẫn phải có dòng và điểm sau đúng
+const onlyPredRow = calculateSeasonLeaderboard(
+  { members: ledgerMembers, matches: [], challengePredictions: ledgerPreds }, seasonQ3,
+).leaderboard[0]
+assert.equal(onlyPredRow.matchLogs.length, 0)
+assert.equal(onlyPredRow.predictionLogs.length, 2)
+assert.equal(onlyPredRow.predictionLogs[1].pointsAfter, onlyPredRow.totalSeasonPoints)
+
+// Sổ cái đọc thẳng predictionLogs, không dựng lại công thức thứ hai
+const ledgerOut = getMemberSeasonLedger('L1', ledgerDb, seasonQ3)
+const predRows = ledgerOut.recentEvents.filter((e) => e.isPrediction)
+assert.equal(predRows.length, 2)
+assert.equal(predRows[0].pointsAfter, ledgerRow.totalSeasonPoints, 'Dòng phiếu mới nhất mang điểm sau khớp tổng')
+
+console.log('ledger pointsAfter check: OK')

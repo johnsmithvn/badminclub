@@ -1,5 +1,7 @@
 // Quản lý nghiệp vụ Kèo đấu (Challenge) — Pure functions, không phụ thuộc React/Supabase.
 
+import cfg from '#config/app.json' with { type: 'json' }
+
 /** Sinh mã kèo kế tiếp dạng C-0125 */
 export function nextChallengeCode(existingChallenges = []) {
   const maxNum = existingChallenges.reduce((max, c) => {
@@ -12,6 +14,37 @@ export function nextChallengeCode(existingChallenges = []) {
     return max
   }, 100)
   return 'C-' + String(maxNum + 1).padStart(4, '0')
+}
+
+/**
+ * Mốc giờ kèo hết hạn NHẬN. Thiếu `expiresAt` (dòng cũ trước khi có cột đó) thì suy từ lúc tạo.
+ * Trả về mili-giây, hoặc null nếu không suy ra được.
+ */
+export function challengeExpiryAt(challenge) {
+  if (challenge?.expiresAt) return new Date(challenge.expiresAt).getTime()
+  if (challenge?.createdAt) {
+    return new Date(challenge.createdAt).getTime() + (cfg.challenge?.defaultExpireMins ?? 60) * 60000
+  }
+  return null
+}
+
+/**
+ * Kèo đã hết hạn NHẬN chưa.
+ *
+ * `expiresAt` là hạn để đối thủ bấm nhận kèo, KHÔNG phải hạn của trận. Kèo đã 'accepted' là bốn
+ * người đã đồng ý và đang chờ sân — quá giờ đó không làm nó hết hiệu lực, `deployChallengeToCourt`
+ * vẫn nạp nó lên sân bình thường.
+ *
+ * Trước đây mỗi màn tự viết lại biểu thức này một kiểu (5 bản sao), và bản trong
+ * `ChallengeDetailModal` bỏ qua `status` nên khoá luôn cổng cược của kèo đã nhận — người ta nhận
+ * kèo lúc 19h, 20h vào đặt thì bị báo hết hạn dù trận còn chưa đánh.
+ */
+export function isChallengeExpired(challenge, now = Date.now()) {
+  if (!challenge) return false
+  if (challenge.status === 'expired') return true
+  if (challenge.status !== 'pending') return false
+  const exp = challengeExpiryAt(challenge)
+  return Boolean(exp && exp <= now)
 }
 
 /** Tiến độ nhận kèo của các đấu thủ */
@@ -46,7 +79,7 @@ export function isChallengeFullyAccepted(challenge) {
 /** Kiểm tra thành viên có thể bấm Nhận kèo không */
 export function canMemberAcceptChallenge(challenge, myMemberId, isAdmin = false) {
   if (!challenge || challenge.status !== 'pending') return false
-  if (challenge.expiresAt && new Date(challenge.expiresAt).getTime() <= Date.now()) return false
+  if (isChallengeExpired(challenge)) return false
 
   const allCurrent = Array.from(new Set([...(challenge.teamA || []), ...(challenge.teamB || [])]))
   const acceptedList = challenge.acceptedPlayers || []
@@ -205,9 +238,9 @@ export function canMemberPredict(challenge, memberId, db = {}, availablePoints =
   if (challenge.predictionsLocked || challenge.status === 'oncourt' || challenge.status === 'played' || challenge.status === 'cancelled' || challenge.status === 'expired' || challenge.status === 'declined') {
     return { ok: false, reason: 'locked' }
   }
-  // Quá hạn phải chặn theo MỐC GIỜ chứ không theo cột `status`: không có tiến trình nào quét kèo
-  // hết hạn, `status` chỉ đổi khi có người bấm vào nó. Kèo treo qua đêm vẫn đang là 'pending'.
-  if (challenge.expiresAt && new Date(challenge.expiresAt).getTime() <= Date.now()) {
+  // Chặn theo MỐC GIỜ chứ không theo cột `status`: kèo quá hạn mà chưa ai bấm vào thì `status`
+  // vẫn đang là 'pending'. Chỉ áp cho kèo chưa ai nhận — xem `isChallengeExpired`.
+  if (isChallengeExpired(challenge)) {
     return { ok: false, reason: 'locked' }
   }
 
@@ -237,37 +270,70 @@ export function canMemberPredict(challenge, memberId, db = {}, availablePoints =
   return { ok: true, reason: null }
 }
 
-/**
- * Trạng thái kèo mà phiếu dự đoán KHÔNG còn cơ hội được quyết toán nữa.
- *
- * Quan trọng cho `pendingStakeOf`: phiếu nằm trên một kèo đã chết thì không được giam SP của
- * người đặt. Đây là chỗ đã làm mất điểm vĩnh viễn — kèo hết hạn mà không ai bấm vào thì cột
- * `status` không bao giờ đổi, phiếu ở lại 'pending' mãi, và SP khả dụng bị trừ mãi.
- */
+/** Trạng thái kèo đã kết thúc hẳn, không còn đường quay lại sân. */
 const DEAD_CHALLENGE_STATUS = new Set(['cancelled', 'declined', 'expired'])
 
-export function isChallengeDead(challenge, now = Date.now()) {
+/** Trạng thái buổi tập mà mọi kèo gắn vào nó không còn cơ hội được đánh. */
+const DEAD_SESSION_STATUS = new Set(['closed', 'cancelled'])
+
+/**
+ * Kèo đã chết trên THỰC TẾ — tính cả những kèo mà cột `status` chưa kịp đổi.
+ *
+ * Ba đường chết:
+ *   1. `status` đã là cancelled / declined / expired.
+ *   2. Còn 'pending' nhưng quá hạn nhận kèo (không có tiến trình nào quét, `status` chỉ đổi khi
+ *      có người bấm vào nó).
+ *   3. Gắn vào một buổi đã CHỐT SỔ hoặc bị HUỶ — trận sẽ không bao giờ được đánh nữa. Đây là
+ *      đường duy nhất giết được kèo 'accepted' bị bỏ rơi; thiếu nó thì cọc của người đặt bị
+ *      giam vĩnh viễn vì bốn người đã nhận kèo rồi không ai bấm gì thêm.
+ *
+ * Kèo 'played' KHÔNG chết: nó đã có kết quả để quyết toán.
+ *
+ * 'oncourt' thì CÓ, nhưng chỉ qua đường số 3. Quản trò đẩy kèo lên sân rồi cả nhóm về mất, không
+ * ai nhập tỷ số — `status` nằm lại 'oncourt' vĩnh viễn và phiếu không bao giờ tới lượt được
+ * quyết toán. Kèo 'oncourt' trong một buổi ĐANG MỞ thì vẫn sống: nó đang đánh thật.
+ *
+ * @param session buổi tập của kèo (có thể null nếu kèo tự do, chưa gắn buổi nào)
+ */
+const ALIVE_CHALLENGE_STATUS = new Set(['pending', 'accepted', 'oncourt'])
+
+export function isChallengeDead(challenge, session = null, now = Date.now()) {
   if (!challenge) return true
   if (DEAD_CHALLENGE_STATUS.has(challenge.status)) return true
-  // Kèo chưa lên sân mà đã quá giờ hết hạn thì coi như chết, kể cả khi `status` còn 'pending'.
-  if (
-    (challenge.status === 'pending' || challenge.status === 'accepted')
-    && challenge.expiresAt
-    && new Date(challenge.expiresAt).getTime() <= now
-  ) return true
+  if (!ALIVE_CHALLENGE_STATUS.has(challenge.status)) return false
+  if (isChallengeExpired(challenge, now)) return true
+  if (session && DEAD_SESSION_STATUS.has(session.status)) return true
   return false
+}
+
+/**
+ * Các kèo đang mang `status` còn sống nhưng thực tế đã chết — đầu vào cho `a.sweepStaleChallenges`.
+ *
+ * Thay cho một tiến trình quét chạy nền (dự án không có chỗ chạy cron, và Supabase Free thì
+ * pg_cron không chắc bật được): app tự dọn một lần mỗi khi nạp CLB. Cùng kiểu "dọn khi chạm vào"
+ * mà `respondChallenge` đang làm, chỉ khác là không phải chờ đúng người đó bấm đúng nút.
+ */
+export function staleChallenges(db, now = Date.now()) {
+  const sessions = new Map((db?.sessions || []).map((s) => [s.id, s]))
+  return (db?.challenges || []).filter((c) => {
+    if (!ALIVE_CHALLENGE_STATUS.has(c.status)) return false
+    return isChallengeDead(c, c.sessionId ? sessions.get(c.sessionId) || null : null, now)
+  })
 }
 
 /**
  * Tổng SP đang bị giam trong các phiếu CHỜ quyết toán của một thành viên.
  * Bỏ qua phiếu nằm trên kèo đã chết — xem `isChallengeDead`.
  */
-export function pendingStakeOf(predictions = [], challenges = [], memberId, now = Date.now()) {
+export function pendingStakeOf(predictions = [], challenges = [], sessions = [], memberId, now = Date.now()) {
   if (!memberId) return 0
   const byId = new Map((challenges || []).map((c) => [c.id, c]))
+  const sessById = new Map((sessions || []).map((s) => [s.id, s]))
   return (predictions || []).reduce((sum, p) => {
     if (p.memberId !== memberId || p.status !== 'pending') return sum
-    if (isChallengeDead(byId.get(p.challengeId), now)) return sum
+    const chal = byId.get(p.challengeId)
+    const sess = chal?.sessionId ? sessById.get(chal.sessionId) || null : null
+    if (isChallengeDead(chal, sess, now)) return sum
     return sum + (Number(p.stakePoints) || 0)
   }, 0)
 }
@@ -276,9 +342,9 @@ export function pendingStakeOf(predictions = [], challenges = [], memberId, now 
  * SP còn dùng được để đặt cược = điểm mùa hiện có trừ phần đang bị giam.
  * Bằng 0 là KHÔNG được cược — không có cửa nợ điểm.
  */
-export function availableSeasonPoints(totalSeasonPoints, predictions = [], challenges = [], memberId, now = Date.now()) {
+export function availableSeasonPoints(totalSeasonPoints, predictions = [], challenges = [], sessions = [], memberId, now = Date.now()) {
   const total = Number(totalSeasonPoints) || 0
-  return Math.max(0, total - pendingStakeOf(predictions, challenges, memberId, now))
+  return Math.max(0, total - pendingStakeOf(predictions, challenges, sessions, memberId, now))
 }
 
 /**

@@ -456,6 +456,54 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     // Sàn 0 của TỔNG vẫn giữ: điểm mùa không âm, nhưng thua là tụt thật cho tới khi chạm 0.
     totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints)
 
+    // Cột "điểm sau" của sổ cái.
+    //
+    // Vòng lặp trận ở trên chỉ cộng điểm TRẬN, còn điểm dự đoán cộng một phát ở cuối — nên
+    // `pointsAfter` của từng trận không bao giờ cộng ra `totalSeasonPoints`, và người đọc sổ
+    // thấy cột cuối vênh với tổng mà không hiểu vì sao.
+    //
+    // Sửa bằng một lượt quét SAU, không đụng vào vòng lặp trận: `matchPointsOnly` phải giữ
+    // nguyên từng bit, nếu không là đổi điểm mùa của cả CLB (LUẬT SỐ 0 — backtest).
+    // Mỗi mốc cộng thêm phần điểm dự đoán đã quyết toán TRƯỚC thời điểm đó, kẹp cùng công thức
+    // với tổng nên dòng cuối luôn khớp `totalSeasonPoints`.
+    const predsAsc = [...myPredictions].sort((a, b) => Date.parse(a.settledAt) - Date.parse(b.settledAt))
+    const predictionLogs = []
+    let predNetSoFar = 0
+    let predIdx = 0
+    let matchPtsSoFar = myMatches.length ? startPoints : 0
+    const clampNet = (n) => Math.min(15, n)
+
+    matchLogs.forEach((log) => {
+      const at = Number(log.at) || 0
+      // Phiếu quyết toán trước trận này thì đã nằm trong điểm lúc trận diễn ra.
+      while (predIdx < predsAsc.length && Date.parse(predsAsc[predIdx].settledAt) <= at) {
+        const p = predsAsc[predIdx]
+        predNetSoFar += (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0)
+        predictionLogs.push({
+          prediction: p,
+          at: Date.parse(p.settledAt),
+          numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
+          pointsAfter: Math.max(0, matchPtsSoFar + clampNet(predNetSoFar)),
+        })
+        predIdx++
+      }
+      matchPtsSoFar = log.pointsAfter
+      log.pointsAfter = Math.max(0, matchPtsSoFar + clampNet(predNetSoFar))
+    })
+
+    // Phiếu quyết toán sau trận cuối (hoặc người chưa đánh trận nào trong mùa).
+    while (predIdx < predsAsc.length) {
+      const p = predsAsc[predIdx]
+      predNetSoFar += (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0)
+      predictionLogs.push({
+        prediction: p,
+        at: Date.parse(p.settledAt),
+        numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
+        pointsAfter: Math.max(0, matchPtsSoFar + clampNet(predNetSoFar)),
+      })
+      predIdx++
+    }
+
     // 3. Số buổi có mặt
     let attendedCount = 0
     seasonSessions.forEach((s) => {
@@ -505,6 +553,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       daysSinceLastMatch,
       lastMatchAt,
       matchLogs,
+      predictionLogs,
       breakdown: {
         matchNetPts,
         streakBonusPts,
@@ -632,36 +681,28 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     }
   })
 
-  // Sổ cái cũng phải bó trong mùa, đúng khuôn `calculateSeasonLeaderboard`: không thì dòng phiếu
-  // mùa trước hiện lẫn vào sổ mùa này dù nó không còn cộng vào tổng.
-  const ledgerStartTs = season.startDate ? Date.parse(`${season.startDate}T00:00:00Z`) : 0
-  const ledgerEndTs = season.endDate ? Date.parse(`${season.endDate}T23:59:59Z`) : Infinity
-  const predEvents = (db.challengePredictions || [])
-    .filter((p) => {
-      if (p.memberId !== memberId) return false
-      if (p.status !== 'won' && p.status !== 'lost') return false
-      const ts = p.settledAt ? Date.parse(p.settledAt) : NaN
-      return Number.isFinite(ts) && ts >= ledgerStartTs && ts <= ledgerEndTs
-    })
-    .map((p) => {
-      const isWon = p.status === 'won'
-      const chal = (db.challenges || []).find((c) => c.id === p.challengeId)
-      const code = chal?.code || ''
-      const timeStr = p.settledAt ? new Date(p.settledAt).toTimeString().slice(0, 5) : ''
-      const pts = isWon ? `+${p.stakePoints}` : `-${p.stakePoints}`
-      return {
-        time: timeStr,
-        titleKey: isWon ? 'season.ledgerPredictionWon' : 'season.ledgerPredictionLost',
-        code,
-        scoreText: code,
-        gapText: '',
-        pts,
-        numPts: isWon ? p.stakePoints : -p.stakePoints,
-        type: isWon ? 'win' : 'loss',
-        isPrediction: true,
-        at: p.settledAt ? new Date(p.settledAt).getTime() : 0,
-      }
-    })
+  // Phiếu dự đoán lấy thẳng `predictionLogs` do `calculateSeasonLeaderboard` dựng: nó đã bó
+  // trong khung mùa VÀ mang sẵn `pointsAfter` tính cùng một dòng thời gian với các trận. Dựng
+  // lại ở đây là có hai công thức cho một con số, và đó đúng là lý do cột "điểm sau" từng vênh.
+  const predEvents = (memberRow.predictionLogs || []).map((log) => {
+    const p = log.prediction
+    const isWon = p.status === 'won'
+    const chal = (db.challenges || []).find((c) => c.id === p.challengeId)
+    const code = chal?.code || ''
+    return {
+      time: p.settledAt ? new Date(p.settledAt).toTimeString().slice(0, 5) : '',
+      titleKey: isWon ? 'season.ledgerPredictionWon' : 'season.ledgerPredictionLost',
+      code,
+      scoreText: code,
+      gapText: '',
+      pts: log.numPts > 0 ? `+${log.numPts}` : String(log.numPts),
+      numPts: log.numPts,
+      pointsAfter: log.pointsAfter,
+      type: isWon ? 'win' : 'loss',
+      isPrediction: true,
+      at: log.at || 0,
+    }
+  })
 
   const combinedEvents = [...events, ...predEvents].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 10)
 

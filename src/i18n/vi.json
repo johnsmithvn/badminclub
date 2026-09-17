@@ -2885,6 +2885,9 @@
     "sessionItemDate": "Buổi {{date}}",
     "sessionStatusOpen": "Đang mở",
     "sessionStatusCurrent": "Hiện tại",
+    "sessionItemMeta": "{{time}} · {{courts}}",
+    "sessionItemAttend": "{{n}} người đã điểm danh",
+    "sessionItemNoAttend": "Chưa ai điểm danh",
     "acceptedProgress": "Đã nhận {{count}}/{{total}}",
     "youAcceptedWaiting": "Bạn đã nhận (chờ đối thủ)",
     "btnAdminApprove": "Duyệt kèo",
@@ -3050,6 +3053,8 @@
     "predictionNoPoints": "Bạn đã hết Điểm Mùa khả dụng — thắng thêm trận rồi quay lại cược nhé!",
     "predictionSettleFailed": "Không quyết toán được phiếu dự đoán. Đang nạp lại dữ liệu từ máy chủ.",
     "cancelTooLate": "Kèo này đã đánh xong, không huỷ được nữa.",
+    "btnUndeploy": "Gỡ khỏi sân",
+    "toastUndeployed": "Đã gỡ kèo {{code}} khỏi sân, kèo quay lại hàng chờ",
     "predictionSuccess": "Đã dự đoán {{team}} thắng ({{points}} SP)",
     "predictionCancelLocked": "Kèo đã vào thi đấu hoặc kết thúc, không thể hủy dự đoán",
     "predictionCannotCancelSettled": "Dự đoán này đã được giải quyết hoặc đã hủy",
@@ -4410,7 +4415,7 @@
     "acceptOpenChallenge": "Nhận kèo này",
     "sessionLinked": "Buổi {{date}}",
     "noSessionLinked": "Kèo tự do CLB",
-    "viewInSession": "Vào buổi chơi để đưa lên sân",
+    "viewInSession": "Vào buổi tập",
     "createBtn": "Tạo kèo mới"
   },
   "matchIo": {

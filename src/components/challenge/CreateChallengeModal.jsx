@@ -366,7 +366,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                 color: isImbalanced ? 'var(--status-delayed-fg)' : gap <= BALANCE_THRESHOLD ? 'var(--status-delivered-fg)' : 'var(--status-transit-fg)',
                 marginTop: 2,
               }}>
-                {isImbalanced ? t('challenge.imbalancedWarn') : gap <= BALANCE_THRESHOLD ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
+                {isImbalanced ? t('challenge.imbalancedWarn', { gap: IMBALANCE_THRESHOLD }) : gap <= BALANCE_THRESHOLD ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
               </div>
             </div>
 

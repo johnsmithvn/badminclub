@@ -4,10 +4,10 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
-import { firstEmptyCourtIdx } from '#lib/assign.js'
+
 import { useMobile } from '#hooks/useMobile.js'
 import { Icon } from '#ds'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, challengeExpiryAt } from '#lib/challenge.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
@@ -147,17 +147,6 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   }, [matches])
 
   // Đưa kèo lên sân trống
-  const handleDeployChallenge = (challenge) => {
-    const curLu = db.lineups?.[s.id] || {}
-    const emptyCourtIdx = firstEmptyCourtIdx(curLu, s)
-    if (emptyCourtIdx === undefined) {
-      a.toast(t('challenge.noEmptyCourt'))
-      if (onSwitchTab) onSwitchTab('courts')
-      return
-    }
-    a.deployChallenge(challenge.id, emptyCourtIdx)
-    if (onSwitchTab) onSwitchTab('courts')
-  }
 
   return (
     <div style={{ ...S.layout, gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px' }}>
@@ -728,6 +717,11 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                       losePts: aWon ? b : a,
                     }))
                     const isMultiSet = scoreSets.length > 1
+                    // Hai const này khai báo ở khối .map() phía trên (dòng ~308) nhưng khối NÀY
+                    // là khối anh em, không nhìn thấy chúng — dòng 863/867 bên dưới đọc thẳng
+                    // nên hễ gặp trận nhiều set là ReferenceError, trắng màn Trận trong buổi.
+                    const winSetsCount = isMultiSet ? scoreSets.filter((x) => x.winPts > x.losePts).length : 0
+                    const loseSetsCount = isMultiSet ? scoreSets.filter((x) => x.losePts > x.winPts).length : 0
                     const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
                     const isRated = m.ratingEnabled !== false
                     const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
@@ -1270,7 +1264,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const isParticipant = Boolean(myId && [...(c.teamA || []), ...(c.teamB || [])].includes(myId))
 
               // DT2 countdown hết hạn
-              const expTime = c.expiresAt ? new Date(c.expiresAt).getTime() : (c.createdAt ? new Date(c.createdAt).getTime() + 60 * 60 * 1000 : null)
+              const expTime = challengeExpiryAt(c)
               let expStr = '24:12'
               if (expTime) {
                 const diff = expTime - now
@@ -1452,21 +1446,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
 
                   {isAccepted && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeployChallenge(c)
-                        }}
-                        style={{
-                          ...S.smallPrimaryBtn,
-                          ...(hasPlayedSets ? { background: 'rgba(168, 85, 247, 0.85)', color: '#fff', borderColor: 'transparent' } : {}),
-                        }}
-                      >
-                        {hasPlayedSets
-                          ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
-                          : t('challenge.deployToCourt')}
-                      </button>
+                      {isAdmin && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1475,8 +1455,12 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                         }}
                         style={S.smallGhostBtn}
                       >
-                        {t('scoreModal.title')}
+                        {/* KHÔNG dùng `scoreModal.title`: key đó có biến {{court}}, mà ở đây kèo
+                            chưa lên sân nên không có sân để truyền — nút hiện nguyên chữ
+                            "{{court}}" trên giao diện. */}
+                        {t('challenge.btnEnterScore')}
                       </button>
+                      )}
                       {isAdmin && (
                         <button
                           type="button"
@@ -1584,10 +1568,6 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           challenge={selectedChallenge}
           session={s}
           onClose={() => setSelectedChallenge(null)}
-          onDeployed={(c) => {
-            setSelectedChallenge(null)
-            handleDeployChallenge(c)
-          }}
           onScoreInput={(c) => {
             setSelectedChallenge(null)
             setScoringChallenge(c)
@@ -1733,11 +1713,17 @@ const S = {
     border: '1px solid',
   },
   smallPrimaryBtn: {
-    flex: 1,
+    // `flex: 1` = `1 1 0%`: ô co lại dưới bề rộng chữ nên nhãn hai từ trở lên bị ngắt thành hai
+    // dòng trong một ô cao 32px và tràn ra ngoài. `nowrap` ghim bề rộng tối thiểu bằng cả câu,
+    // `1 1 auto` lấy nội dung làm mốc — cùng luật với header bảng ở DESIGN.md.
+    flex: '1 1 auto',
+    whiteSpace: 'nowrap',
     height: 32,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    padding: '0 12px',
     borderRadius: 'var(--radius-md)',
     background: 'var(--action-primary-bg)',
     border: 'none',
@@ -1747,6 +1733,8 @@ const S = {
     cursor: 'pointer',
   },
   smallGhostBtn: {
+    whiteSpace: 'nowrap',
+    gap: 6,
     height: 32,
     display: 'flex',
     alignItems: 'center',

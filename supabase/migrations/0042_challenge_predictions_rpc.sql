@@ -98,13 +98,20 @@ BEGIN
   IF v_chal.status NOT IN ('pending', 'accepted') THEN
     RAISE EXCEPTION 'Kèo không còn nhận dự đoán';
   END IF;
-  -- Hết hạn là hết hạn, kể cả khi chưa ai bấm gì để cột status kịp đổi.
-  IF v_chal.expires_at IS NOT NULL AND v_chal.expires_at <= now() THEN
+  -- `expires_at` là hạn ĐỂ ĐỐI THỦ NHẬN KÈO, không phải hạn của trận. Chỉ chặn khi kèo còn
+  -- 'pending' — kèo đã 'accepted' là bốn người đã đồng ý và đang chờ sân, vẫn nhận cược cho tới
+  -- lúc lên sân. Kiểm theo mốc giờ vì không có tiến trình nào quét, cột status chỉ đổi khi có
+  -- người bấm vào nó.
+  IF v_chal.status = 'pending'
+     AND v_chal.expires_at IS NOT NULL AND v_chal.expires_at <= now() THEN
     RAISE EXCEPTION 'Kèo đã quá hạn';
   END IF;
 
   -- Luật cứng: đấu thủ trong trận không được cược chính trận của mình.
-  IF v_chal.created_by = v_my_mem_id OR EXISTS (
+  -- Xét theo `challenge_players` thôi, KHÔNG xét `created_by`: quản trò dựng kèo hộ bốn người
+  -- khác thì không phải đấu thủ, và client (`canMemberPredict`) cũng chỉ chặn theo đội hình.
+  -- Chặn thêm ở đây là server từ chối một thao tác mà UI vừa mời người ta bấm.
+  IF EXISTS (
     SELECT 1 FROM challenge_players
      WHERE challenge_id = p_challenge_id AND member_id = v_my_mem_id
   ) THEN
@@ -162,6 +169,7 @@ DECLARE
   v_my_mem_id uuid;
   v_can_assign boolean;
   v_is_player boolean;
+  v_is_dead boolean;
 BEGIN
   SELECT * INTO v_chal FROM challenges WHERE id = p_challenge_id;
   IF v_chal.id IS NULL THEN
@@ -202,7 +210,21 @@ BEGIN
       AND status IN ('pending', 'won', 'lost')
       AND team <> p_winner_team;
   ELSE
-    IF NOT (v_can_assign OR v_is_player) THEN
+    -- Hoàn phiếu trên một kèo ĐÃ CHẾT là dọn dẹp máy móc, ai trong CLB chạm vào cũng được: kèo
+    -- mở hết hạn thì người phát hiện ra thường là một khán giả bất kỳ bấm "nhận kèo", không
+    -- phải đấu thủ cũng không phải admin.
+    -- Kèo còn sống thì vẫn chỉ đấu thủ / ban quản trị, không thì đây thành nút xoá sạch cửa
+    -- cược của một trận sắp đánh.
+    v_is_dead := v_chal.status IN ('cancelled', 'declined', 'expired')
+      OR (v_chal.status = 'pending' AND v_chal.expires_at IS NOT NULL AND v_chal.expires_at <= now())
+      -- Kèo gắn vào buổi đã chốt sổ / bị huỷ thì trận sẽ không bao giờ được đánh. Đây là đường
+      -- duy nhất giết được kèo 'accepted' bị bỏ rơi (xem `staleChallenges` phía client).
+      OR EXISTS (
+        SELECT 1 FROM sessions se
+         WHERE se.id = v_chal.session_id AND se.status IN ('closed', 'cancelled')
+      );
+
+    IF NOT (v_can_assign OR v_is_player OR (v_is_dead AND v_my_mem_id IS NOT NULL)) THEN
       RAISE EXCEPTION 'Chỉ đấu thủ trong kèo hoặc ban quản trị mới được hoàn phiếu dự đoán';
     END IF;
 
