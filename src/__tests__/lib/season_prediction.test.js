@@ -3,6 +3,10 @@ import {
   canMemberPredict,
   getPredictionStats,
   getMemberPrediction,
+  isChallengeDead,
+  pendingStakeOf,
+  availableSeasonPoints,
+  settlePredictionsLocal,
 } from '#lib/challenge.js'
 import {
   calculateSeasonLeaderboard,
@@ -145,7 +149,7 @@ const resRefunded = calculateSeasonLeaderboard({ members: mockMembers, matches: 
 const rowRefunded = resRefunded.leaderboard[0]
 assert.equal(rowRefunded.breakdown.predictionNetPoints, 0, 'Phiếu hoàn / huỷ có net delta = 0')
 
-// 4.4 Kẹp trần/sàn Season Cap: Clamp [-15, +15] SP
+// 4.4 Trần Season Cap: chỉ kẹp CHIỀU THẮNG ở +15 SP, chiều thua trừ thật
 // Giả sử thắng liên tiếp 10 kèo x 3 SP = 30 SP thắng
 const predsHugeWin = Array.from({ length: 10 }, (_, i) => ({
   id: `pw_${i}`,
@@ -177,7 +181,10 @@ const predsHugeLoss = Array.from({ length: 10 }, (_, i) => ({
 const resHugeLoss = calculateSeasonLeaderboard({ members: mockMembers, matches: [], challengePredictions: predsHugeLoss })
 const rowHugeLoss = resHugeLoss.leaderboard[0]
 assert.equal(rowHugeLoss.breakdown.predictionLostPoints, 30, 'Tổng thua danh nghĩa là 30 SP')
-assert.equal(rowHugeLoss.breakdown.predictionNetPoints, -15, 'Nhưng net points bị kẹp tối thiểu -15 SP')
+// TRẦN CHỈ CHẶN CHIỀU THẮNG. Sàn -15 cũ là một lỗ hổng cược miễn phí: chạm -15 rồi thì thua
+// thêm không mất gì nữa trong khi thắng vẫn được cộng.
+assert.equal(rowHugeLoss.breakdown.predictionNetPoints, -30, 'Thua là trừ thật, không còn sàn -15')
+assert.equal(rowHugeLoss.totalSeasonPoints, 0, 'Sàn 0 của TỔNG vẫn giữ — điểm mùa không âm')
 
 // 4.5 Ledger: Kiểm tra hiển thị sự kiện trong sổ cái mùa giải getMemberSeasonLedger
 const ledgerData = getMemberSeasonLedger('m1', {
@@ -196,3 +203,102 @@ assert.equal(ledgerData.recentEvents[0].pts, '-1')
 assert.equal(ledgerData.recentEvents[1].pts, '+2')
 
 console.log('season_prediction check: OK')
+
+// ==========================================
+// 5. Lọc theo mùa: phiếu ngoài khung mùa không được cộng vào điểm mùa này
+// ==========================================
+const seasonQ3 = { id: 's-q3', code: 'Q3', name: 'Q3', startDate: '2026-07-01', endDate: '2026-09-30' }
+const predsCrossSeason = [
+  // Trong mùa
+  { id: 'in1', challengeId: 'ci', memberId: 'm1', team: 'A', stakePoints: 2, payoutPoints: 4, status: 'won', settledAt: '2026-08-15T10:00:00Z' },
+  // Mùa trước — trước đây vẫn bị cộng vào vì khối tính điểm không lọc gì
+  { id: 'out1', challengeId: 'co', memberId: 'm1', team: 'A', stakePoints: 3, payoutPoints: 6, status: 'won', settledAt: '2026-05-01T10:00:00Z' },
+  // Chưa quyết toán thì không tính, dù nằm trong mùa
+  { id: 'pend', challengeId: 'cp', memberId: 'm1', team: 'B', stakePoints: 3, payoutPoints: 0, status: 'pending', settledAt: null },
+]
+const resSeasonScoped = calculateSeasonLeaderboard(
+  { members: mockMembers, matches: [], challengePredictions: predsCrossSeason },
+  seasonQ3,
+)
+assert.equal(
+  resSeasonScoped.leaderboard[0].breakdown.predictionNetPoints, 2,
+  'Chỉ phiếu quyết toán TRONG mùa được tính (2 SP), phiếu mùa trước bị loại',
+)
+
+// ==========================================
+// 6. SP khả dụng: phiếu trên kèo đã chết không được giam điểm
+// ==========================================
+const nowTs = Date.parse('2026-09-17T12:00:00Z')
+const chalsForStake = [
+  { id: 'c_live', status: 'accepted', expiresAt: '2026-09-17T23:00:00Z' },
+  { id: 'c_cancelled', status: 'cancelled' },
+  { id: 'c_declined', status: 'declined' },
+  // Quá hạn mà cột status CHƯA đổi — không có tiến trình nào quét kèo hết hạn,
+  // status chỉ đổi khi có người bấm vào nó.
+  { id: 'c_stale', status: 'pending', expiresAt: '2026-09-17T09:00:00Z' },
+]
+assert.equal(isChallengeDead(chalsForStake[0], nowTs), false, 'Kèo còn hạn là kèo sống')
+assert.equal(isChallengeDead(chalsForStake[1], nowTs), true)
+assert.equal(isChallengeDead(chalsForStake[2], nowTs), true)
+assert.equal(isChallengeDead(chalsForStake[3], nowTs), true, 'Quá giờ hết hạn là chết, kể cả khi status còn pending')
+
+const stakePreds = [
+  { memberId: 'm1', challengeId: 'c_live', stakePoints: 2, status: 'pending' },
+  { memberId: 'm1', challengeId: 'c_cancelled', stakePoints: 3, status: 'pending' },
+  { memberId: 'm1', challengeId: 'c_stale', stakePoints: 3, status: 'pending' },
+  { memberId: 'm1', challengeId: 'c_live', stakePoints: 3, status: 'won' }, // đã quyết toán, không giam
+  { memberId: 'm2', challengeId: 'c_live', stakePoints: 3, status: 'pending' }, // người khác
+]
+assert.equal(
+  pendingStakeOf(stakePreds, chalsForStake, 'm1', nowTs), 2,
+  'Chỉ 2 SP trên kèo còn sống bị giam; phiếu trên kèo huỷ / quá hạn được thả',
+)
+assert.equal(availableSeasonPoints(10, stakePreds, chalsForStake, 'm1', nowTs), 8)
+// Hết điểm là 0, không âm — và 0 nghĩa là không được cược.
+assert.equal(availableSeasonPoints(1, stakePreds, chalsForStake, 'm1', nowTs), 0)
+assert.equal(
+  canMemberPredict(chalValid, 'v_new', { members: [{ id: 'v_new', active: true }] }, 0).reason,
+  'insufficient_points',
+  'Khả dụng = 0 thì KHÔNG được cược',
+)
+
+// Kèo quá hạn phải chặn theo mốc giờ, không chờ cột status đổi
+assert.equal(
+  canMemberPredict(
+    { ...chalValid, status: 'pending', expiresAt: '2026-01-01T00:00:00Z' },
+    'v_new', { members: [{ id: 'v_new', active: true }] }, 10,
+  ).reason,
+  'locked',
+  'Kèo đã quá giờ hết hạn thì không nhận cược nữa',
+)
+
+// ==========================================
+// 7. settlePredictionsLocal phải khớp từng dòng với RPC settle_challenge_predictions (0042)
+// ==========================================
+const toSettle = [
+  { id: 'a', challengeId: 'cx', team: 'A', stakePoints: 2, status: 'pending', payoutPoints: 0 },
+  { id: 'b', challengeId: 'cx', team: 'B', stakePoints: 3, status: 'pending', payoutPoints: 0 },
+  { id: 'c', challengeId: 'cx', team: 'A', stakePoints: 1, status: 'cancelled', payoutPoints: 1 },
+  { id: 'd', challengeId: 'other', team: 'A', stakePoints: 2, status: 'pending', payoutPoints: 0 },
+]
+const settled = settlePredictionsLocal(toSettle, 'cx', 'A', '2026-09-17T12:00:00Z')
+assert.equal(settled[0].status, 'won')
+assert.equal(settled[0].payoutPoints, 4, 'Thắng nhận payout = stake x 2')
+assert.equal(settled[1].status, 'lost')
+assert.equal(settled[1].payoutPoints, 0)
+assert.equal(settled[2].status, 'cancelled', 'Phiếu đã huỷ không bị lôi vào quyết toán')
+assert.equal(settled[3].status, 'pending', 'Kèo khác không bị đụng tới')
+
+// Sửa tỷ số lật đội thắng -> phiếu ĐÃ quyết toán phải chạy lại theo kết quả mới
+const reSettled = settlePredictionsLocal(settled, 'cx', 'B', '2026-09-17T13:00:00Z')
+assert.equal(reSettled[0].status, 'lost', 'Lật kèo thì phiếu đang thắng chuyển thành thua')
+assert.equal(reSettled[1].status, 'won')
+assert.equal(reSettled[1].payoutPoints, 6)
+
+// Hoàn phiếu: chỉ đụng phiếu đang chờ, không gỡ kết quả đã ăn/thua
+const refunded = settlePredictionsLocal(toSettle, 'cx', null, '2026-09-17T14:00:00Z')
+assert.equal(refunded[0].status, 'refunded')
+assert.equal(refunded[0].payoutPoints, 2, 'Hoàn trả đúng số đã đặt, net = 0')
+assert.equal(refunded[2].status, 'cancelled')
+
+console.log('prediction rules check: OK')

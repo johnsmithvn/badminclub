@@ -5,7 +5,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getPredictionStats, getMemberPrediction } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { t } from '#i18n'
 
@@ -145,29 +145,47 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const predictions = useMemo(() => db.challengePredictions || [], [db.challengePredictions])
   const predStats = useMemo(() => getPredictionStats(predictions, c.id), [predictions, c.id])
   const myPred = useMemo(() => getMemberPrediction(predictions, c.id, myId), [predictions, c.id, myId])
-  const seasonRes = useMemo(() => calculateSeasonLeaderboard(db), [db])
+  // Quét lại toàn bộ lịch sử trận cả mùa chỉ để lấy một con số SP, nên bám vào đúng ba mảng
+  // liên quan thay vì cả `db` — `db` đổi ở mọi thao tác, kể cả thao tác chẳng dính gì tới điểm.
+  const seasonRes = useMemo(
+    () => calculateSeasonLeaderboard(db),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [db.matches, db.members, db.challengePredictions, db.levels],
+  )
   const myLbRow = useMemo(() => (seasonRes?.leaderboard || []).find((r) => r.id === myId), [seasonRes, myId])
   const totalSp = myLbRow?.totalSeasonPoints || 0
-  const pendingSum = useMemo(() => predictions.filter((p) => p.memberId === myId && p.status === 'pending').reduce((sum, p) => sum + (Number(p.stakePoints) || 0), 0), [predictions, myId])
-  const availableSp = Math.max(0, totalSp - pendingSum)
+  // SP bị giam KHÔNG tính phiếu nằm trên kèo đã chết (huỷ / từ chối / quá hạn) — kèo quá hạn mà
+  // không ai bấm vào thì `status` không bao giờ đổi, và điểm của người đặt bị giam vĩnh viễn.
+  const availableSp = useMemo(
+    () => availableSeasonPoints(totalSp, predictions, db.challenges, myId),
+    [totalSp, predictions, db.challenges, myId],
+  )
+  // Luật cược đọc từ MỘT chỗ dùng chung với `a.placePrediction`, không chép lại điều kiện ở đây.
+  const predGate = useMemo(
+    () => canMemberPredict(c, myId, db, availableSp),
+    [c, myId, db, availableSp],
+  )
   const isPredLocked = Boolean(c.predictionsLocked || c.status === 'oncourt' || c.status === 'played' || c.status === 'cancelled' || isExpired)
+  const noPointsLeft = predGate.reason === 'insufficient_points'
 
   // Handlers
-  const handlePlacePrediction = () => {
+  // `await`: hai hàm này giờ đi qua RPC nên là async. Không chờ thì nút nhả ngay lập tức và
+  // người dùng bấm được lần hai trước khi server trả lời.
+  const handlePlacePrediction = async () => {
     if (!predTeam || !predStake) return
     setSubmitting(true)
     try {
-      a.placePrediction({ challengeId: c.id, team: predTeam, stakePoints: predStake })
+      await a.placePrediction({ challengeId: c.id, team: predTeam, stakePoints: predStake })
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleCancelPrediction = () => {
+  const handleCancelPrediction = async () => {
     if (!myPred) return
     setSubmitting(true)
     try {
-      a.cancelPrediction(myPred.id)
+      await a.cancelPrediction(myPred.id)
     } finally {
       setSubmitting(false)
     }
@@ -700,8 +718,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                   </button>
                 )}
               </div>
-            ) : isPredLocked ? (
-              /* Chưa dự đoán nhưng kèo đã khoá */
+            ) : isPredLocked || noPointsLeft ? (
+              /* Chưa dự đoán nhưng kèo đã khoá, hoặc hết Điểm Mùa khả dụng */
               <div style={{
                 padding: '8px 12px',
                 borderRadius: 'var(--radius-sm)',
@@ -711,7 +729,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
                 color: 'var(--text-muted)',
                 lineHeight: 1.4,
               }}>
-                {t('challenge.predictionLockedDesc')}
+                {noPointsLeft && !isPredLocked ? t('challenge.predictionNoPoints') : t('challenge.predictionLockedDesc')}
               </div>
             ) : (
               /* Form đặt dự đoán */

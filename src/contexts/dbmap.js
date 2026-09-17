@@ -473,20 +473,6 @@ export function toRows(db, ctx) {
     })
   })
 
-  ;(db.challengePredictions || []).forEach((p) => {
-    put('challenge_predictions', {
-      id: p.id,
-      challenge_id: p.challengeId,
-      club_id: cid,
-      member_id: p.memberId,
-      team: p.team,
-      stake_points: num(p.stakePoints),
-      payout_points: num(p.payoutPoints),
-      status: p.status || 'pending',
-      settled_at: p.settledAt || null,
-    })
-  })
-
   ;(db.matches || []).forEach((mt) => {
     put('matches', {
       id: mt.id, session_id: mt.sessionId, court_index: mt.courtIdx, minutes: mt.minutes,
@@ -676,7 +662,12 @@ export const TABLES = [
   { table: 'match_players', mode: 'scope', scope: ['match_id'] },
   { table: 'challenges', mode: 'id' },
   { table: 'challenge_players', mode: 'key', conflict: 'challenge_id,member_id', scope: ['challenge_id'], child: 'member_id' },
-  { table: 'challenge_predictions', mode: 'id' },
+  // `challenge_predictions` CỐ Ý không có ở đây. 0041 đã revoke UPDATE/DELETE của `authenticated`
+  // để ép mọi thay đổi đi qua RPC, mà đường đồng bộ này ghi bằng `.upsert(onConflict:'id')` =
+  // `INSERT ... ON CONFLICT DO UPDATE` — Postgres đòi quyền UPDATE cho câu đó ngay lúc lập kế
+  // hoạch, nên MỌI lượt ghi trả 42501, kể cả insert đầu tiên. Thêm lại dòng này là tính năng Dự
+  // đoán chết lần nữa, và vì bảng đứng trước `player_ratings` nên nó kéo theo cả Elo không lưu.
+  // Đặt / huỷ / quyết toán phiếu: xem `appActions.js` gọi RPC ở 0042.
   { table: 'group_memberships', mode: 'key', conflict: 'month,group_id,member_id', scope: ['month', 'group_id'], child: 'member_id' },
   { table: 'roster_locks', mode: 'scope', scope: ['club_id'] },
   { table: 'monthly_dues', mode: 'id' },

@@ -339,6 +339,43 @@ Khoảng cách Elo: $\text{gap} = \text{round}(\text{teamElo} - \text{opponentTe
 
 ---
 
+### 3.2b. Điểm dự đoán kèo (Prediction Points)
+
+*(`calculateSeasonLeaderboard` trong `src/lib/season.js`; luật đặt cược ở `src/lib/challenge.js`)*
+
+Khán giả ngoài trận được đặt **1, 2 hoặc 3 SP** đoán đội thắng của một kèo. Đoán đúng ăn
+$+	ext{stake}$, đoán sai mất $-	ext{stake}$ (bản ghi lưu `payout_points = stake 	imes 2` cho phiếu thắng,
+tức hoàn cọc cộng tiền ăn).
+
+| Luật | Chi tiết |
+|---|---|
+| Đấu thủ trong trận | **Cấm tuyệt đối** dự Đoán chính trận của mình (chặn cả ở client và trong RPC) |
+| Mỗi người | Một phiếu cho mỗi kèo (`UNIQUE (challenge_id, member_id)`); huỷ rồi đặt lại thì **dùng lại chính dòng đó** |
+| **Hết điểm là không được cược** | SP khả dụng $= \max(0,\ 	ext{điểm mùa} - 	ext{SP đang bị giam})$. Bằng 0 là khoá cổng, không có cửa nợ điểm |
+| SP bị giam | Chỉ tính phiếu chờ trên kèo **còn sống**. Kèo huỷ / từ chối / quá hạn thì nhả điểm ra ngay |
+| Trần muùa | $	ext{net} = \min(15,\ 	ext{thắng} - 	ext{thua})$ — **chỉ kẹp chiều thắng** |
+| Khoảng muùa | Phiếu tính vào mùa theo `settled_at`, không phải lúc đặt |
+
+> **Vì sao trần chỉ chặn một chiều.** Bản đầu kẹp đối xứng $[-15, +15]$, và cái sàn đó là một lỗ
+> hổng cược miễn phí: chạm $-15$ rồi thì thua thêm **không mất gì** trong khi thắng vẫn được cộng —
+> cứ thua cho đủ 15 rồi cược mức cao mãi, chỉ có lợi. Bỏ sàn thì thua trừ thật, và luật "hết điểm là
+> không được cược" mới có răng. Trần thắng giữ nguyên để BXH vẫn là bảng **thi đấu**: không ai leo
+> hạng bằng cách ngồi ngoài đoán kèo. Sàn $0$ của **tổng** điểm mùa vẫn giữ — điểm không âm.
+
+**Quyết toán đi qua RPC, không qua đồng bộ chung.** `challenge_predictions` bị revoke quyền UPDATE
+(0041) nên **cố ý không nằm trong `dbmap.TABLES`** — xem migration `0042` và ghi chú tại chỗ trong
+`dbmap.js`. Ba cửa duy nhất: `place_challenge_prediction`, `settle_challenge_predictions`,
+`unsettle_challenge_predictions` (cộng `cancel_challenge_prediction` từ 0041). Quyết toán chạy
+**lại được**: sửa tỷ số làm lật đội thắng thì phiếu đổi theo, gỡ trận làm chuỗi dang dở thì phiếu
+về lại trạng thái chờ.
+
+> **Giới hạn của backtest.** Bộ dữ liệu trong `src/__tests__/backtest/data/` là file "Xuất trận",
+> **không chứa phiếu dự đoán**. Mọi thay đổi ở khối này đi qua backtest mà mốc **không đổi** — đó là
+> vì bộ số không chạm tới nhánh này, không phải vì công thức không đổi. Đổi luật cược thì phải
+> kiểm bằng `src/__tests__/lib/season_prediction.test.js`.
+
+---
+
 ### 3.3. Quy tắc Reset điểm theo Quý (Quarterly Reset)
 
 - **Chu kỳ mùa giải:** Mặc định 1 Quý (3 tháng): Quý 1 (01/01–31/03), Quý 2 (01/04–30/06), Quý 3 (01/07–30/09), Quý 4 (01/10–31/12). Có thể tùy chỉnh linh hoạt qua `SeasonSettingsModal`.

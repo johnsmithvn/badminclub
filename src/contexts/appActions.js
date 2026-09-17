@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -123,6 +123,43 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
   const patchSession = (sid, fn) =>
     up((d) => ({ sessions: d.sessions.map((x) => (x.id === sid ? fn(x, d) : x)) }))
 
+  /**
+   * Quyết toán hoặc hoàn phiếu dự đoán của một kèo.
+   *
+   * Đi qua RPC `settle_challenge_predictions` chứ KHÔNG qua đường đồng bộ chung: 0041 đã revoke
+   * UPDATE của `authenticated` trên `challenge_predictions`, mà đồng bộ chung ghi bằng
+   * `.upsert(onConflict:'id')` — Postgres đòi quyền UPDATE cho câu đó ngay lúc lập kế hoạch nên
+   * mọi lượt ghi trả 42501, và vì bảng đứng trước `player_ratings` trong hàng đợi, nó kéo theo
+   * cả Elo không được lưu. Xem `dbmap.js: TABLES` và migration 0042.
+   *
+   * @param winnerTeam 'A' | 'B' để chia thắng thua; null để hoàn phiếu (huỷ / từ chối / hết hạn).
+   */
+  const settlePredictions = (challengeId, winnerTeam) => {
+    if (!challengeId) return
+    const d0 = db()
+    const touched = (d0.challengePredictions || []).some((p) => (
+      p.challengeId === challengeId
+      && (p.status === 'pending' || ((winnerTeam === 'A' || winnerTeam === 'B') && (p.status === 'won' || p.status === 'lost')))
+    ))
+    if (!touched) return // Kèo không ai cược thì khỏi gọi server
+
+    const at = new Date().toISOString()
+    up((d) => ({
+      challengePredictions: settlePredictionsLocal(d.challengePredictions, challengeId, winnerTeam || null, at),
+    }))
+
+    if (!supabase) return
+    supabase
+      .rpc('settle_challenge_predictions', { p_challenge_id: challengeId, p_winner_team: winnerTeam || null })
+      .then(({ error }) => {
+        if (!error) return
+        console.warn('[prediction] settle error:', error.message)
+        // State vừa cập nhật lạc quan giờ là lời nói dối. Nạp lại cho màn hình nói thật.
+        toast(t('challenge.predictionSettleFailed'))
+        reload()
+      })
+  }
+
   const emitEvent = ({
     type,
     payload = {},
@@ -192,6 +229,35 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           if (error) console.warn('[notifications] insert error:', error.message)
         })
     }
+  }
+
+  /**
+   * Đưa phiếu đã ăn/thua về lại trạng thái chờ. Dùng khi gỡ trận làm chuỗi kèo quay về dang dở:
+   * để nguyên thì phiếu đứng theo một kết quả đã bị xoá, và điểm mùa sai cho tới khi có người
+   * nhập lại tỷ số.
+   */
+  const unsettlePredictions = (challengeId) => {
+    const d0 = db()
+    const touched = (d0.challengePredictions || []).some(
+      (p) => p.challengeId === challengeId && (p.status === 'won' || p.status === 'lost')
+    )
+    if (!touched) return
+
+    up((d) => ({
+      challengePredictions: (d.challengePredictions || []).map((p) => (
+        p.challengeId === challengeId && (p.status === 'won' || p.status === 'lost')
+          ? { ...p, status: 'pending', payoutPoints: 0, settledAt: null, updatedAt: new Date().toISOString() }
+          : p
+      )),
+    }))
+
+    if (!supabase) return
+    supabase.rpc('unsettle_challenge_predictions', { p_challenge_id: challengeId }).then(({ error }) => {
+      if (!error) return
+      console.warn('[prediction] unsettle error:', error.message)
+      toast(t('challenge.predictionSettleFailed'))
+      reload()
+    })
   }
 
   const A = {
@@ -2591,6 +2657,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           clubCalibration: nextCals,
         }
       })
+      // Gỡ trận làm chuỗi kèo đổi: còn đủ thắng thì quyết toán lại theo đội thắng mới, quay về
+      // dang dở thì đưa phiếu về chờ. Không làm thì phiếu đứng theo trận vừa bị xoá.
+      if (last.challengeId) {
+        const chalNow = (db().challenges || []).find((k) => k.id === last.challengeId)
+        if (chalNow) {
+          const prog = getChallengeSeriesProgress(chalNow, updatedMatches)
+          if (prog.isComplete) settlePredictions(chalNow.id, prog.winnerTeam)
+          else unsettlePredictions(chalNow.id)
+        }
+      }
       toast(t('toast.matchUndone'))
     },
 
@@ -2666,6 +2742,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         up((d) => ({
           challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'expired' } : c)),
         }))
+        // Kèo chết thì phiếu phải được hoàn, không thì SP của người đặt bị giam vĩnh viễn —
+        // không có tiến trình nào quét kèo quá hạn, đây là lần DUY NHẤT ta biết nó đã hết hạn.
+        settlePredictions(challengeId, null)
         toast(t('challenge.toastExpired'))
         return
       }
@@ -2674,6 +2753,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         up((d) => ({
           challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'declined' } : c)),
         }))
+        settlePredictions(challengeId, null)
         emitEvent({
           type: 'challenge_declined',
           payload: { chalId: chal.id, code: chal.code, declinedById: myMem?.id || null },
@@ -2733,6 +2813,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         up((d) => ({
           challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'expired' } : c)),
         }))
+        // Kèo chết thì phiếu phải được hoàn, không thì SP của người đặt bị giam vĩnh viễn —
+        // không có tiến trình nào quét kèo quá hạn, đây là lần DUY NHẤT ta biết nó đã hết hạn.
+        settlePredictions(challengeId, null)
         toast(t('challenge.toastExpired'))
         return
       }
@@ -2778,22 +2861,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         toast(t('common.unauthorized'))
         return
       }
-      const nowIso = new Date().toISOString()
       up((d) => ({
         challenges: (d.challenges || []).filter((c) => c.id !== challengeId),
         matches: (d.matches || []).map((m) => (m.challengeId === challengeId ? { ...m, challengeId: null } : m)),
-        challengePredictions: (d.challengePredictions || []).map((p) => {
-          if (p.challengeId === challengeId && p.status === 'pending') {
-            return {
-              ...p,
-              status: 'refunded',
-              payoutPoints: p.stakePoints,
-              settledAt: nowIso,
-              updatedAt: nowIso,
-            }
-          }
-          return p
-        }),
+        // Không đánh dấu 'refunded' mà XOÁ hẳn: `challenge_predictions.challenge_id` là khoá
+        // ngoại ON DELETE CASCADE, xoá kèo dưới DB là phiếu bay theo. State phải gương đúng thế,
+        // không thì còn lại một đống phiếu mồ côi trỏ vào kèo không tồn tại.
+        challengePredictions: (d.challengePredictions || []).filter((p) => p.challengeId !== challengeId),
       }))
       toast(t('challenge.toastDeleted', { code: chal.code }))
     },
@@ -2805,35 +2879,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const myMem = myMember(d0)
       const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
       if (!canAssign() && !isPlayer) return
-      const nowIso = new Date().toISOString()
+      // Kèo đã đánh xong thì không huỷ được. UI có chặn, nhưng luật này phải nằm ở action: gọi
+      // thẳng là huỷ được cả kèo 'played', để lại kèo 'cancelled' mà trận vẫn còn trong sổ.
+      if (chal.status !== 'pending' && chal.status !== 'accepted') {
+        toast(t('challenge.cancelTooLate'))
+        return
+      }
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'cancelled', predictionsLocked: true } : c)),
-        challengePredictions: (d.challengePredictions || []).map((p) => {
-          if (p.challengeId === challengeId && p.status === 'pending') {
-            return {
-              ...p,
-              status: 'refunded',
-              payoutPoints: p.stakePoints,
-              settledAt: nowIso,
-              updatedAt: nowIso,
-            }
-          }
-          return p
-        }),
       }))
-      // Kèo đã chốt giờ mà một bên rút thì bên kia phải biết, không thì họ giữ sân chờ.
-      emitEvent({
-        type: 'challenge_cancelled',
-        payload: { chalId: chal.id, code: chal.code, cancelledById: myMem?.id || null },
-        recipients: [chal.createdBy, ...(chal.teamA || []), ...(chal.teamB || [])],
-        refType: 'challenge',
-        refId: chal.id,
-        actorId: myMem?.id || null,
-      })
+      settlePredictions(challengeId, null)
       toast(t('challenge.toastCancelled', { code: chal.code }))
     },
 
-    placePrediction: ({ challengeId, team, stakePoints }) => {
+    placePrediction: async ({ challengeId, team, stakePoints }) => {
       const d0 = db()
       const myMem = myMember(d0)
       const myId = myMem?.id || null
@@ -2846,34 +2905,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         toast(t('challenge.predictionNotFound'))
         return { ok: false, error: 'not_found' }
       }
-      if (chal.status !== 'pending' && chal.status !== 'accepted') {
-        toast(t('challenge.predictionMatchLocked'))
-        return { ok: false, error: 'locked' }
-      }
-      if (chal.predictionsLocked) {
-        toast(t('challenge.predictionMatchLocked'))
-        return { ok: false, error: 'locked' }
-      }
-      if (chal.predictionsEnabled === false) {
-        toast(t('challenge.predictionDisabled'))
-        return { ok: false, error: 'disabled' }
-      }
-
-      // Check conflict: Không cho phép VĐV trong trận đặt cược
-      const inMatch = [...(chal.teamA || []), ...(chal.teamB || [])].includes(myId)
-      if (inMatch) {
-        toast(t('challenge.predictionConflictSelf'))
-        return { ok: false, error: 'conflict' }
-      }
-
-      // Check đã cược chưa
-      const existing = (d0.challengePredictions || []).find(
-        (p) => p.challengeId === challengeId && p.memberId === myId && p.status === 'pending'
-      )
-      if (existing) {
-        toast(t('challenge.predictionAlreadyPlaced'))
-        return { ok: false, error: 'already_placed' }
-      }
 
       const stake = Number(stakePoints)
       if (![1, 2, 3].includes(stake)) {
@@ -2881,23 +2912,50 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return { ok: false, error: 'invalid_stake' }
       }
 
-      // Tính điểm khả dụng
+      // SP khả dụng phải tính ở client: server không dựng lại được điểm mùa (nó là hàm dẫn xuất
+      // từ toàn bộ lịch sử trận, không có bảng nào lưu). Hết điểm là KHÔNG được cược — không có
+      // cửa nợ điểm, và cũng không có cửa "thua quá sàn thì thua miễn phí" như trước.
       const seasonRes = calculateSeasonLeaderboard(d0)
-      const myRow = (seasonRes?.leaderboard || []).find((r) => r.id === myId)
-      const totalSp = myRow?.totalSeasonPoints || 0
-      const pendingSum = (d0.challengePredictions || [])
-        .filter((p) => p.memberId === myId && p.status === 'pending')
-        .reduce((sum, p) => sum + (Number(p.stakePoints) || 0), 0)
-      const available = Math.max(0, totalSp - pendingSum)
+      const totalSp = (seasonRes?.leaderboard || []).find((r) => r.id === myId)?.totalSeasonPoints || 0
+      const available = availableSeasonPoints(totalSp, d0.challengePredictions, d0.challenges, myId)
 
+      // Mọi luật còn lại đọc từ MỘT chỗ: `canMemberPredict`. Trước đây luật này nằm rải ở ba nơi
+      // (modal, action, và chính hàm đó) và đã lệch nhau.
+      const gate = canMemberPredict(chal, myId, d0, available)
+      if (!gate.ok) {
+        toast(t({
+          disabled: 'challenge.predictionDisabled',
+          locked: 'challenge.predictionMatchLocked',
+          player_conflict: 'challenge.predictionConflictSelf',
+          already_predicted: 'challenge.predictionAlreadyPlaced',
+          insufficient_points: 'challenge.predictionNoPoints',
+          member_inactive: 'common.unauthorized',
+        }[gate.reason] || 'common.unauthorized'))
+        return { ok: false, error: gate.reason }
+      }
       if (stake > available) {
         toast(t('challenge.predictionNotEnoughPoints', { available }))
         return { ok: false, error: 'insufficient_points' }
       }
+      if (!supabase) return { ok: false, error: 'offline' }
+
+      // RPC chứ không INSERT thẳng: `uq_chal_member_prediction` chặn dòng thứ hai cho cùng cặp
+      // (kèo, người), mà huỷ phiếu thì GIỮ NGUYÊN dòng cũ ở trạng thái 'cancelled'. Đặt lại sau
+      // khi huỷ mà insert là đâm vào UNIQUE. RPC dùng ON CONFLICT DO UPDATE để đặt lại dòng đó.
+      const { data, error } = await supabase.rpc('place_challenge_prediction', {
+        p_challenge_id: challengeId,
+        p_team: team,
+        p_stake: stake,
+      })
+      if (error) {
+        console.warn('[prediction] place error:', error.message)
+        toast(error.message)
+        return { ok: false, error: 'rpc_failed' }
+      }
 
       const nowIso = new Date().toISOString()
       const newPred = {
-        id: uid(),
+        id: data,
         challengeId,
         clubId: d0.clubId,
         memberId: myId,
@@ -2909,10 +2967,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         createdAt: nowIso,
         updatedAt: nowIso,
       }
-
-      up((d) => ({
-        challengePredictions: [newPred, ...(d.challengePredictions || [])],
-      }))
+      // Thay tại chỗ nếu đây là lần đặt lại trên chính dòng vừa huỷ.
+      up((d) => {
+        const rest = (d.challengePredictions || []).filter(
+          (p) => !(p.challengeId === challengeId && p.memberId === myId)
+        )
+        return { challengePredictions: [newPred, ...rest] }
+      })
 
       toast(t('challenge.predictionSuccess', {
         team: team === 'A' ? t('challenge.teamA') : t('challenge.teamB'),
@@ -2921,10 +2982,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       return { ok: true, prediction: newPred }
     },
 
-    cancelPrediction: (predictionId) => {
+    cancelPrediction: async (predictionId) => {
       const d0 = db()
-      const myMem = myMember(d0)
-      const myId = myMem?.id || null
+      const myId = myMember(d0)?.id || null
       if (!myId) {
         toast(t('common.unauthorized'))
         return { ok: false, error: 'unauthorized' }
@@ -2933,35 +2993,37 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const pred = (d0.challengePredictions || []).find((p) => p.id === predictionId)
       if (!pred) return { ok: false, error: 'not_found' }
 
-      const isOwner = pred.memberId === myId
-      if (!isOwner && !canAssign()) {
+      // Chỉ chính chủ. RPC `cancel_challenge_prediction` (0041) cũng chỉ cho chính chủ, nên nhánh
+      // "admin huỷ hộ" trước đây có gọi cũng bị server từ chối — bỏ cho khớp.
+      if (pred.memberId !== myId) {
         toast(t('common.unauthorized'))
         return { ok: false, error: 'unauthorized' }
       }
-
+      if (pred.status !== 'pending') {
+        toast(t('challenge.predictionCannotCancelSettled'))
+        return { ok: false, error: 'not_pending' }
+      }
       const chal = (d0.challenges || []).find((c) => c.id === pred.challengeId)
       if (chal?.predictionsLocked || chal?.status === 'oncourt' || chal?.status === 'played') {
         toast(t('challenge.predictionCancelLocked'))
         return { ok: false, error: 'locked' }
       }
+      if (!supabase) return { ok: false, error: 'offline' }
 
-      if (pred.status !== 'pending') {
-        toast(t('challenge.predictionCannotCancelSettled'))
-        return { ok: false, error: 'not_pending' }
+      const { error } = await supabase.rpc('cancel_challenge_prediction', { p_prediction_id: predictionId })
+      if (error) {
+        console.warn('[prediction] cancel error:', error.message)
+        toast(error.message)
+        return { ok: false, error: 'rpc_failed' }
       }
 
       const nowIso = new Date().toISOString()
       up((d) => ({
-        challengePredictions: (d.challengePredictions || []).map((p) => {
-          if (p.id !== predictionId) return p
-          return {
-            ...p,
-            status: 'cancelled',
-            payoutPoints: p.stakePoints,
-            settledAt: nowIso,
-            updatedAt: nowIso,
-          }
-        }),
+        challengePredictions: (d.challengePredictions || []).map((p) => (
+          p.id === predictionId
+            ? { ...p, status: 'cancelled', payoutPoints: p.stakePoints, settledAt: nowIso, updatedAt: nowIso }
+            : p
+        )),
       }))
 
       toast(t('challenge.predictionCancelSuccess'))
@@ -3305,32 +3367,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             })
           : (d.challenges || [])
 
-        let nextChallengePredictions = d.challengePredictions || []
-        if (chal && isChalComplete) {
-          const nowIso = new Date().toISOString()
-          const winTeam = chalSeriesProg?.winnerTeam || winnerTeam
-          nextChallengePredictions = nextChallengePredictions.map((p) => {
-            if (p.challengeId !== chal.id || p.status !== 'pending') return p
-            if (winTeam && (winTeam === 'A' || winTeam === 'B')) {
-              const won = p.team === winTeam
-              return {
-                ...p,
-                status: won ? 'won' : 'lost',
-                payoutPoints: won ? p.stakePoints * 2 : 0,
-                settledAt: nowIso,
-                updatedAt: nowIso,
-              }
-            }
-            return {
-              ...p,
-              status: 'refunded',
-              payoutPoints: p.stakePoints,
-              settledAt: nowIso,
-              updatedAt: nowIso,
-            }
-          })
-        }
-
         const nextMatches = (d.matches || []).concat([newMatch])
         const memberMap = {}
         ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
@@ -3356,7 +3392,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           playing,
           matches: nextMatches,
           challenges,
-          challengePredictions: nextChallengePredictions,
           playerRatings,
           clubCalibration: nextCals,
         }
@@ -3369,6 +3404,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         toast(t('challenge.toastSeriesCompleted', { code: chal.code, score: chalSeriesProg?.seriesScoreText || scoreText, winner }))
       } else {
         toast(t('scoreModal.toastSaved', { winner, loser, score: scoreText }))
+      }
+
+      // Quyết toán phiếu dự đoán — CỐ Ý nằm ngoài `up()`. Trước đây nó đổi state trong updater
+      // rồi để đồng bộ chung ghi xuống, mà bảng đó đã bị revoke quyền UPDATE: op ném 42501 giữa
+      // hàng đợi, và vì nó đứng TRƯỚC `player_ratings` nên Elo của trận vừa lưu không xuống DB.
+      if (chal && isChalComplete) {
+        settlePredictions(chal.id, chalSeriesProg?.winnerTeam || winnerTeam || null)
       }
 
       // Phát sự kiện Social Activity & Notification sau khi lưu trận
@@ -3549,6 +3591,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
 
       const newScoreStr = playedSets.map((s) => `${s[0]}-${s[1]}`).join(', ')
+      // Sửa tỷ số một ván trong kèo có thể LẬT đội thắng chung cuộc. Trước đây phiếu dự đoán
+      // đứng nguyên theo kết quả cũ mãi mãi — người đoán đúng vẫn bị ghi là thua. Tính lại chuỗi
+      // trên bộ trận SAU khi sửa rồi quyết toán lại; RPC 0042 nhận cả phiếu đã ăn/thua.
+      if (match.challengeId) {
+        const chalNow = (db().challenges || []).find((c) => c.id === match.challengeId)
+        if (chalNow) {
+          const prog = getChallengeSeriesProgress(chalNow, updatedMatches)
+          if (prog.isComplete) settlePredictions(chalNow.id, prog.winnerTeam)
+        }
+      }
+
       emitEvent({
         type: 'match_edited',
         payload: {

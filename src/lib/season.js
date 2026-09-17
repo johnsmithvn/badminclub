@@ -245,6 +245,17 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     return ts >= startTs && ts <= endTs
   })
 
+  // Phiếu dự đoán cũng phải bó trong khung mùa, đúng như trận. Trước đây khối tính điểm dự đoán
+  // ở dưới quét thẳng `db.challengePredictions` không lọc gì — phiếu mùa trước cộng vào điểm
+  // mùa này vĩnh viễn, trong khi comment ngay tại đó ghi là "thuộc mùa giải đang xét".
+  // Mốc thời gian lấy `settledAt` (lúc ăn/thua) chứ không phải lúc đặt: đó mới là lúc điểm sinh ra.
+  const seasonPredictions = (db.challengePredictions || []).filter((p) => {
+    if (p.status !== 'won' && p.status !== 'lost') return false
+    if (!p.settledAt) return false
+    const ts = Date.parse(p.settledAt)
+    return Number.isFinite(ts) && ts >= startTs && ts <= endTs
+  })
+
   // Sắp xếp các trận theo thời gian tăng dần (chronological) để tính điểm lũy kế sàn Floor 0 và streak.
   // BẮT BUỘC tie-break theo id: sàn Floor 0 kẹp sau MỖI trận nên phép tính phụ thuộc thứ tự
   // (thua-rồi-thắng = 14đ, thắng-rồi-thua = 6đ). Hai sân bấm lưu cùng mili-giây mà không có
@@ -422,11 +433,16 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       })
     })
 
-    // 2b. Điểm dự đoán kèo đấu (Prediction Net Points) — Capped ±15 SP
-    // Chỉ tính các phiếu đã có kết quả (won hoặc lost) thuộc mùa giải đang xét
-    const myPredictions = (db.challengePredictions || []).filter(
-      (p) => p.memberId === memberId && (p.status === 'won' || p.status === 'lost')
-    )
+    // 2b. Điểm dự đoán kèo đấu (Prediction Net Points)
+    //
+    // TRẦN +15 CHỈ CHẶN CHIỀU THẮNG. Trước đây kẹp đối xứng [-15, +15], và cái sàn đó là một lỗ
+    // hổng cược miễn phí: chạm -15 rồi thì thua thêm KHÔNG mất gì nữa trong khi thắng vẫn được
+    // cộng — cứ thua cho đủ 15 rồi cược mức cao mãi, chỉ có lợi. Bỏ sàn thì thua trừ thật, và
+    // luật "hết điểm là không được cược" (`availableSeasonPoints`) mới có răng.
+    //
+    // Trần thắng giữ nguyên để bảng xếp hạng vẫn là bảng THI ĐẤU: không ai leo hạng bằng cách
+    // ngồi ngoài đoán kèo.
+    const myPredictions = seasonPredictions.filter((p) => p.memberId === memberId)
     let predictionWonPoints = 0
     let predictionLostPoints = 0
     myPredictions.forEach((p) => {
@@ -435,8 +451,9 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       else if (p.status === 'lost') predictionLostPoints += pts
     })
     const rawPredictionNet = predictionWonPoints - predictionLostPoints
-    const predictionNetPoints = Math.min(15, Math.max(-15, rawPredictionNet))
+    const predictionNetPoints = Math.min(15, rawPredictionNet)
     const matchPointsOnly = totalSeasonPoints
+    // Sàn 0 của TỔNG vẫn giữ: điểm mùa không âm, nhưng thua là tụt thật cho tới khi chạm 0.
     totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints)
 
     // 3. Số buổi có mặt
@@ -615,8 +632,17 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     }
   })
 
+  // Sổ cái cũng phải bó trong mùa, đúng khuôn `calculateSeasonLeaderboard`: không thì dòng phiếu
+  // mùa trước hiện lẫn vào sổ mùa này dù nó không còn cộng vào tổng.
+  const ledgerStartTs = season.startDate ? Date.parse(`${season.startDate}T00:00:00Z`) : 0
+  const ledgerEndTs = season.endDate ? Date.parse(`${season.endDate}T23:59:59Z`) : Infinity
   const predEvents = (db.challengePredictions || [])
-    .filter((p) => p.memberId === memberId && (p.status === 'won' || p.status === 'lost'))
+    .filter((p) => {
+      if (p.memberId !== memberId) return false
+      if (p.status !== 'won' && p.status !== 'lost') return false
+      const ts = p.settledAt ? Date.parse(p.settledAt) : NaN
+      return Number.isFinite(ts) && ts >= ledgerStartTs && ts <= ledgerEndTs
+    })
     .map((p) => {
       const isWon = p.status === 'won'
       const chal = (db.challenges || []).find((c) => c.id === p.challengeId)
