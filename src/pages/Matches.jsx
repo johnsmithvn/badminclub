@@ -19,7 +19,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -114,6 +114,70 @@ export default function Matches() {
     next.delete('challenge')
     setSearchParams(next, { replace: true })
   }, [searchParams, myId, setSearchParams])
+
+  const [highlightedChallengeId, setHighlightedChallengeId] = useState(null)
+
+  // Đồng bộ tab từ URL searchParams khi được điều hướng từ ngoài vào (ví dụ thông báo)
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'search' || tab === 'history') {
+      setActiveTab('search')
+    } else if (tab === 'matrix') {
+      setActiveTab('matrix')
+    } else if (tab === 'challenges') {
+      setActiveTab('challenges')
+    }
+  }, [searchParams])
+
+  // Tự động định vị và làm nổi bật kèo khi có ?challengeId= từ thông báo
+  useEffect(() => {
+    const cid = searchParams.get('challengeId')
+    if (!cid) return
+
+    setActiveTab('challenges')
+
+    const targetChal = (db.challenges || []).find((c) => c.id === cid)
+    if (targetChal) {
+      const isMine = myId && (
+        (targetChal.teamA || []).includes(myId) ||
+        (targetChal.teamB || []).includes(myId) ||
+        targetChal.createdBy === myId
+      )
+      if (isMine) {
+        setChallengeSubTab('my')
+      } else if (targetChal.status === 'pending') {
+        setChallengeSubTab('pending')
+      } else if (targetChal.status === 'played') {
+        setChallengeSubTab('played')
+      } else {
+        setChallengeSubTab('all')
+      }
+    } else {
+      setChallengeSubTab('all')
+    }
+
+    setHighlightedChallengeId(cid)
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`challenge-card-${cid}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 200)
+
+    const clearTimer = setTimeout(() => {
+      setHighlightedChallengeId((curr) => (curr === cid ? null : curr))
+    }, 4500)
+
+    const next = new URLSearchParams(searchParams)
+    next.delete('challengeId')
+    setSearchParams(next, { replace: true })
+
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(clearTimer)
+    }
+  }, [searchParams, db.challenges, myId, setSearchParams])
 
   // State Tìm trận & Lịch sử
   const [playerA, setPlayerA] = useState(() => searchParams.get('playerA') || '')
@@ -740,25 +804,36 @@ export default function Matches() {
               const hasAbsentInSession = absentPlayerKeys.length > 0
               const absentInSessionNames = absentPlayerKeys.map((id) => memberNameOf(id) || id)
 
+              const predStats = getPredictionStats(db.challengePredictions || [], c.id)
+
               return (
                 <div
                   key={c.id}
+                  id={`challenge-card-${c.id}`}
                   style={{
                     ...S.challengeCard,
-                    ...(hasAbsentInSession
+                    ...(highlightedChallengeId === c.id
                       ? {
-                          borderColor: 'rgba(239, 68, 68, 0.45)',
-                          boxShadow: '0 0 0 1px rgba(239, 68, 68, 0.25)',
+                          borderColor: '#00F5D4',
+                          boxShadow: '0 0 0 2px rgba(0, 245, 212, 0.4), 0 0 24px rgba(0, 245, 212, 0.35)',
+                          transform: 'scale(1.015)',
+                          transition: 'all 0.3s ease',
+                          zIndex: 2,
                         }
-                      : hasPlayedSets && !isPlayed
+                      : hasAbsentInSession
                         ? {
-                            borderColor: 'rgba(168, 85, 247, 0.35)',
-                            boxShadow: '0 0 0 1px rgba(168, 85, 247, 0.15)',
+                            borderColor: 'rgba(239, 68, 68, 0.45)',
+                            boxShadow: '0 0 0 1px rgba(239, 68, 68, 0.25)',
                           }
-                        : {}),
+                        : hasPlayedSets && !isPlayed
+                          ? {
+                              borderColor: 'rgba(168, 85, 247, 0.35)',
+                              boxShadow: '0 0 0 1px rgba(168, 85, 247, 0.15)',
+                            }
+                          : {}),
                   }}
                 >
-                  {/* Hàng 1: Mã kèo & Trạng thái & Buổi & Tiến độ nhận */}
+                  {/* Hàng 1: Mã kèo & Trạng thái & Buổi & Tiến độ nhận & Dự đoán */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={S.monoCode}>{c.code}</span>
@@ -804,6 +879,24 @@ export default function Matches() {
                         }}>
                           <Icon name="check" size={12} />
                           <span>{t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}</span>
+                        </span>
+                      )}
+                      {predStats.totalCount > 0 && (
+                        <span style={{
+                          fontSize: 11,
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          background: 'var(--surface-sunken)',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid var(--border-subtle)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}>
+                          <Icon name="target" size={12} style={{ color: 'var(--status-transit-fg)' }} />
+                          <span>{predStats.pctA}% : {predStats.pctB}% ({predStats.totalCount})</span>
                         </span>
                       )}
                     </div>

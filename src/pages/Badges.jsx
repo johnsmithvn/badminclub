@@ -427,6 +427,7 @@ export default function Badges() {
                     navigate('/tran-dau?tab=challenges')
                   }
                 }}
+                onViewBadge={(b) => handleSelectBadge(b)}
               />
             )}
             {activeTab === 'leaderboard' && (
@@ -441,6 +442,7 @@ export default function Badges() {
                   setActiveTab('collection')
                 }}
                 onSelectBadge={handleSelectBadge}
+                onViewBadge={handleSelectBadge}
               />
             )}
           </div>
@@ -1195,7 +1197,7 @@ export default function Badges() {
           rarestBadges={rarestBadges}
           onSelectMember={(m) => {
             if (m && m.id) {
-              setViewingMemberId(m.id)
+              setViewingMemberId(m.id === currentMember?.id ? null : m.id)
               setActiveTab('collection')
             }
           }}
@@ -1322,7 +1324,7 @@ export default function Badges() {
                 {memberBadges.all
                   .filter((b) => b.unlocked || b.tier === 'fun')
                   .map((badge) => {
-                    const isEquipped = (currentMember.badge_shelf || []).includes(badge.id)
+                    const isEquipped = (currentMember?.badge_shelf || currentMember?.badgeShelf || []).includes(badge.id)
                     const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
 
                     return (

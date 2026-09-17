@@ -601,7 +601,7 @@ export default function AnimeMobileCollection({
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <span style={{ width: 3, height: 15, background: 'linear-gradient(180deg, #6D14FF, #2EE9FF)' }} />
               <span style={{ font: "700 12.5px/1 'Oswald', sans-serif", letterSpacing: '.1em', color: '#FFFFFF' }}>
-                {t(`badges.groups.${activeGroup.id}.title`, { defaultValue: activeGroup.title || activeGroup.name || '' }).toUpperCase()}
+                {t(`badges.groups.${activeGroup.key || activeGroup.id}`, { defaultValue: activeGroup.title || activeGroup.name || '' }).toUpperCase()}
               </span>
               <span
                 style={{
@@ -741,7 +741,7 @@ export default function AnimeMobileCollection({
                     color: '#FFFFFF',
                   }}
                 >
-                  {t(`badges.groups.${g.id}.title`, { defaultValue: g.title || g.name || '' }).toUpperCase()}
+                  {t(`badges.groups.${g.key || g.id}`, { defaultValue: g.title || g.name || '' }).toUpperCase()}
                 </span>
                 <span
                   style={{

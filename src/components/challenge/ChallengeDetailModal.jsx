@@ -5,7 +5,8 @@ import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getPredictionStats, getMemberPrediction } from '#lib/challenge.js'
+import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { t } from '#i18n'
 
 export default function ChallengeDetailModal({ challenge, session, onClose, onDeployed, onScoreInput, onOpenMatch }) {
@@ -13,6 +14,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
   const isMobile = useMobile()
   const [selectedPartner, setSelectedPartner] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [predTeam, setPredTeam] = useState('A')
+  const [predStake, setPredStake] = useState(1)
   const [now] = useState(() => Date.now())
 
   const c = useMemo(() => challenge || {}, [challenge])
@@ -92,7 +95,37 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
     return (isMeInA && wonA) || (!isMeInA && !wonA) ? 'W' : 'L'
   })
 
+  // Predictions
+  const predictions = useMemo(() => db.challengePredictions || [], [db.challengePredictions])
+  const predStats = useMemo(() => getPredictionStats(predictions, c.id), [predictions, c.id])
+  const myPred = useMemo(() => getMemberPrediction(predictions, c.id, myId), [predictions, c.id, myId])
+  const seasonRes = useMemo(() => calculateSeasonLeaderboard(db), [db])
+  const myLbRow = useMemo(() => (seasonRes?.leaderboard || []).find((r) => r.id === myId), [seasonRes, myId])
+  const totalSp = myLbRow?.totalSeasonPoints || 0
+  const pendingSum = useMemo(() => predictions.filter((p) => p.memberId === myId && p.status === 'pending').reduce((sum, p) => sum + (Number(p.stakePoints) || 0), 0), [predictions, myId])
+  const availableSp = Math.max(0, totalSp - pendingSum)
+  const isPredLocked = Boolean(c.predictionsLocked || c.status === 'oncourt' || c.status === 'played' || c.status === 'cancelled' || isExpired)
+
   // Handlers
+  const handlePlacePrediction = () => {
+    if (!predTeam || !predStake) return
+    setSubmitting(true)
+    try {
+      a.placePrediction({ challengeId: c.id, team: predTeam, stakePoints: predStake })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCancelPrediction = () => {
+    if (!myPred) return
+    setSubmitting(true)
+    try {
+      a.cancelPrediction(myPred.id)
+    } finally {
+      setSubmitting(false)
+    }
+  }
   const handleAccept = () => {
     setSubmitting(true)
     try {
@@ -510,6 +543,253 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onDe
             </div>
           )}
         </div>
+
+        {/* K6: Dự đoán kết quả (Thưởng Season Points) */}
+        {c.predictionsEnabled !== false && (
+          <div style={S.boxCard}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="target" size={15} style={{ color: 'var(--status-transit-fg)' }} />
+                <span style={{ font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                  {t('challenge.predictionTitle')}
+                </span>
+              </div>
+              {isPredLocked ? (
+                <span style={{
+                  font: '600 11px/1 "IBM Plex Sans", sans-serif',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-chip)',
+                  background: 'var(--surface-sunken)',
+                  color: 'var(--text-muted)',
+                  border: '1px solid var(--border-subtle)',
+                }}>
+                  {t('challenge.predictionLockedBadge')}
+                </span>
+              ) : (
+                <span style={{ font: '400 11.5px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                  {t('challenge.predictionVotes', { count: predStats.totalCount, points: predStats.totalPoints })}
+                </span>
+              )}
+            </div>
+
+            {/* Thanh tỉ lệ dự đoán */}
+            <div style={{ display: 'grid', gap: 5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+                <span style={{ color: 'var(--action-accent-bg, var(--teal-500))', fontWeight: 600 }}>
+                  {t('challenge.teamA')}: {predStats.pctA}% ({predStats.pointsA} SP)
+                </span>
+                <span style={{ color: 'var(--status-incident, var(--red-500))', fontWeight: 600 }}>
+                  {t('challenge.teamB')}: {predStats.pctB}% ({predStats.pointsB} SP)
+                </span>
+              </div>
+              <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-sunken)' }}>
+                <div style={{ width: `${predStats.pctA}%`, background: 'var(--action-accent-bg, var(--teal-500))', height: '100%', transition: 'width 0.3s' }} />
+                <div style={{ width: `${predStats.pctB}%`, background: 'var(--status-incident, var(--red-500))', height: '100%', transition: 'width 0.3s' }} />
+              </div>
+            </div>
+
+            {/* Trường hợp đấu thủ trong trận: Cấm tham gia */}
+            {isParticipant ? (
+              <div style={{
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--status-delayed-bg)',
+                border: '1px solid var(--status-delayed)',
+                fontSize: 12,
+                color: 'var(--status-delayed-fg)',
+                lineHeight: 1.4,
+              }}>
+                {t('challenge.predictionPlayerConflict')}
+              </div>
+            ) : myPred ? (
+              /* Đã dự đoán */
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border-subtle)',
+              }}>
+                <div style={{ display: 'grid', gap: 2 }}>
+                  <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                    {t('challenge.predictionMyVote', {
+                      team: myPred.team === 'A' ? t('challenge.teamA') : t('challenge.teamB'),
+                      points: myPred.stakePoints,
+                    })}
+                  </span>
+                  <span style={{ font: '500 11.5px/1.2 "IBM Plex Sans", sans-serif', color: myPred.status === 'won' ? 'var(--status-delivered-fg)' : myPred.status === 'lost' ? 'var(--red-500, #ef4444)' : 'var(--text-muted)' }}>
+                    {myPred.status === 'won'
+                      ? t('challenge.predictionStatusWon', { net: myPred.stakePoints })
+                      : myPred.status === 'lost'
+                      ? t('challenge.predictionStatusLost', { stake: myPred.stakePoints })
+                      : myPred.status === 'refunded'
+                      ? t('challenge.predictionStatusRefunded', { points: myPred.payoutPoints })
+                      : t('challenge.predictionStatusPending')}
+                  </span>
+                </div>
+                {myPred.status === 'pending' && !isPredLocked && (
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={handleCancelPrediction}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      color: 'var(--red-500, #ef4444)',
+                      font: '600 12px/1 "IBM Plex Sans", sans-serif',
+                      cursor: submitting ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {t('challenge.predictionCancelBtn')}
+                  </button>
+                )}
+              </div>
+            ) : isPredLocked ? (
+              /* Chưa dự đoán nhưng kèo đã khoá */
+              <div style={{
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                lineHeight: 1.4,
+              }}>
+                {t('challenge.predictionLockedDesc')}
+              </div>
+            ) : (
+              /* Form đặt dự đoán */
+              <div style={{ display: 'grid', gap: 10, marginTop: 4 }}>
+                {/* Chọn đội A hoặc B */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPredTeam('A')}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-md)',
+                      background: predTeam === 'A' ? 'rgba(0,178,169,0.14)' : 'var(--surface-sunken)',
+                      border: predTeam === 'A' ? '1.5px solid var(--action-accent-bg, var(--teal-500))' : '1px solid var(--border-subtle)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 2,
+                    }}
+                  >
+                    <span style={{ font: '700 13px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)' }}>
+                      {t('challenge.teamA')}
+                    </span>
+                    <span style={{ font: '400 11px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                      {teamA.map((id) => playerName(db, id)).join(' · ')}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPredTeam('B')}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-md)',
+                      background: predTeam === 'B' ? 'rgba(239,68,68,0.12)' : 'var(--surface-sunken)',
+                      border: predTeam === 'B' ? '1.5px solid var(--status-incident, var(--red-500))' : '1px solid var(--border-subtle)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 2,
+                    }}
+                  >
+                    <span style={{ font: '700 13px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'B' ? 'var(--red-500, #ef4444)' : 'var(--text-primary)' }}>
+                      {t('challenge.teamB')}
+                    </span>
+                    <span style={{ font: '400 11px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                      {resolvedTeamB.length ? resolvedTeamB.map((id) => playerName(db, id)).join(' · ') : t('challenge.teamB')}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Chọn mức SP: 1 SP / 2 SP / 3 SP */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ font: '500 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
+                    {t('challenge.predictionStakeLabel')}
+                  </span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[1, 2, 3].map((pt) => {
+                      const isSelected = predStake === pt
+                      const disabled = pt > availableSp
+                      return (
+                        <button
+                          key={pt}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => setPredStake(pt)}
+                          style={{
+                            minWidth: 44,
+                            padding: '5px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: isSelected ? 'var(--action-accent-bg, var(--teal-500))' : 'var(--surface-sunken)',
+                            color: isSelected ? 'var(--gray-0, #fff)' : disabled ? 'var(--text-disabled)' : 'var(--text-primary)',
+                            border: isSelected ? '1px solid var(--action-accent-bg, var(--teal-500))' : '1px solid var(--border-subtle)',
+                            font: '700 12px/1 "IBM Plex Mono", monospace',
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                            opacity: disabled ? 0.5 : 1,
+                          }}
+                        >
+                          {pt} SP
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Số SP khả dụng & Tỉ lệ thưởng */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: 11.5,
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                }}>
+                  <span>{t('challenge.predictionAvailableSp', { points: availableSp })}</span>
+                  <span style={{ color: predStake > availableSp ? 'var(--red-500, #ef4444)' : 'var(--status-delivered-fg)' }}>
+                    {t('challenge.predictionWinReward', { payout: predStake * 2, stake: predStake })}
+                  </span>
+                </div>
+
+                {/* Nút gửi dự đoán */}
+                <button
+                  type="button"
+                  disabled={submitting || !myId || predStake > availableSp}
+                  onClick={handlePlacePrediction}
+                  style={{
+                    width: '100%',
+                    height: 38,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--action-accent-bg, var(--teal-500))',
+                    border: 'none',
+                    font: '700 13.5px/1 "IBM Plex Sans", sans-serif',
+                    color: 'var(--gray-0, #fff)',
+                    cursor: (submitting || !myId || predStake > availableSp) ? 'not-allowed' : 'pointer',
+                    opacity: (submitting || !myId || predStake > availableSp) ? 0.6 : 1,
+                    boxShadow: 'var(--shadow-xs)',
+                  }}
+                >
+                  <Icon name="target" size={14} />
+                  <span>{t('challenge.predictionPlaceBtn')}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* K5: Chọn đồng đội khi nhận kèo mở */}
         {isOpen && !isTeamA && !isCreator && teamA.length > 1 && (

@@ -38,8 +38,9 @@ export default function NotificationPanel({ open, onClose }) {
     if (!item.readAt) {
       a.markNotificationRead(item.id)
     }
-    if (item.refType === 'challenge') {
-      a.go('challenges')
+    if (item.refType === 'challenge' || item.type?.startsWith('challenge_')) {
+      const targetId = item.refId || item.payload?.chalId
+      a.go('challenges', targetId)
       onClose()
     } else if (item.refType === 'session' && item.refId) {
       a.openSession(item.refId)

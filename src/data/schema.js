@@ -274,7 +274,7 @@ export const SCHEMA_GROUPS = [
           f('status', 'enum pending/accepted/declined/cancelled/oncourt/played'),
           f('court_id', 'uuid null', 'FK'), f('scheduled_at', 'timestamptz null'),
           f('best_of', 'int'), f('rating_enabled', 'bool'), f('expires_at', 'timestamptz'),
-          f('match_id', 'uuid null', 'FK'),
+          f('match_id', 'uuid null', 'FK'), f('predictions_enabled', 'bool'), f('predictions_locked', 'bool'),
         ],
       },
       {
@@ -282,6 +282,15 @@ export const SCHEMA_GROUPS = [
         fields: [
           f('id', 'uuid', 'PK'), f('challenge_id', 'uuid', 'FK'),
           f('member_id', 'uuid', 'FK'), f('team', 'enum team_a/team_b'),
+        ],
+      },
+      {
+        name: 'challenge_predictions',
+        fields: [
+          f('id', 'uuid', 'PK'), f('challenge_id', 'uuid', 'FK'), f('club_id', 'uuid', 'FK'),
+          f('member_id', 'uuid', 'FK'), f('team', 'text A/B'), f('stake_points', 'int'),
+          f('payout_points', 'int'), f('status', 'enum pending/won/lost/refunded/cancelled'),
+          f('settled_at', 'timestamptz null'), f('created_at', 'timestamptz'),
         ],
       },
       {

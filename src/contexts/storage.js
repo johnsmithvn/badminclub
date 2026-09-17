@@ -40,7 +40,7 @@ export async function load(clubId) {
     dues, adjustments, courtBills, manual, guestPrices,
     locks, rosterRows, changes, levelRows, joinRequests,
     challenges, playerRatings, matchEdits, clubCalibration,
-    notifications,
+    notifications, challengePredictions,
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
@@ -68,6 +68,7 @@ export async function load(clubId) {
     of('match_edits'),
     of('club_calibration'),
     of('notifications').order('created_at', { ascending: false }).limit(100),
+    of('challenge_predictions'),
   ])
 
   const clubRowRaw = unwrap(club)
@@ -124,6 +125,7 @@ export async function load(clubId) {
     matchEdits: matchEdits.error ? [] : (matchEdits.data || []),
     clubCalibration: clubCalibration.error ? [] : (clubCalibration.data || []),
     notifications: notifications.error ? [] : (notifications.data || []),
+    challengePredictions: challengePredictions.error ? [] : (challengePredictions.data || []),
   }
 
   const today = todayISO()

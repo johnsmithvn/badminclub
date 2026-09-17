@@ -282,10 +282,24 @@ export function toDb(raw, ctx) {
         ratingEnabled: c.rating_enabled !== false, expiresAt: c.expires_at || '',
         matchId: c.match_id || null,
         acceptedPlayers: c.accepted_players || [],
+        predictionsEnabled: c.predictions_enabled !== false,
+        predictionsLocked: Boolean(c.predictions_locked),
         teamA: players.filter((p) => p.team === 'A').map((p) => p.member_id),
         teamB: players.filter((p) => p.team === 'B').map((p) => p.member_id),
       }
     }),
+    challengePredictions: (raw.challengePredictions || []).map((p) => ({
+      id: p.id,
+      challengeId: p.challenge_id,
+      clubId: p.club_id,
+      memberId: p.member_id,
+      team: p.team,
+      stakePoints: num(p.stake_points),
+      payoutPoints: num(p.payout_points),
+      status: p.status || 'pending',
+      settledAt: p.settled_at || null,
+      createdAt: p.created_at || null,
+    })),
     playerRatings: (() => {
       const map = {}
       ;(raw.playerRatings || []).forEach((r) => {
@@ -448,12 +462,28 @@ export function toRows(db, ctx) {
       rating_enabled: c.ratingEnabled !== false, expires_at: c.expiresAt || null,
       match_id: uu(c.matchId),
       accepted_players: c.acceptedPlayers || [],
+      predictions_enabled: c.predictionsEnabled !== false,
+      predictions_locked: Boolean(c.predictionsLocked),
     })
     ;(c.teamA || []).forEach((mid) => {
       if (memberIdSet.has(mid)) put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'A' })
     })
     ;(c.teamB || []).forEach((mid) => {
       if (memberIdSet.has(mid)) put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'B' })
+    })
+  })
+
+  ;(db.challengePredictions || []).forEach((p) => {
+    put('challenge_predictions', {
+      id: p.id,
+      challenge_id: p.challengeId,
+      club_id: cid,
+      member_id: p.memberId,
+      team: p.team,
+      stake_points: num(p.stakePoints),
+      payout_points: num(p.payoutPoints),
+      status: p.status || 'pending',
+      settled_at: p.settledAt || null,
     })
   })
 
@@ -646,6 +676,7 @@ export const TABLES = [
   { table: 'match_players', mode: 'scope', scope: ['match_id'] },
   { table: 'challenges', mode: 'id' },
   { table: 'challenge_players', mode: 'key', conflict: 'challenge_id,member_id', scope: ['challenge_id'], child: 'member_id' },
+  { table: 'challenge_predictions', mode: 'id' },
   { table: 'group_memberships', mode: 'key', conflict: 'month,group_id,member_id', scope: ['month', 'group_id'], child: 'member_id' },
   { table: 'roster_locks', mode: 'scope', scope: ['club_id'] },
   { table: 'monthly_dues', mode: 'id' },

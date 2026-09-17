@@ -46,8 +46,11 @@ export const pageOf = (key) => ({
   desc: t('pages.' + (PATHS[key] ? key : 'home') + '.desc'),
 })
 
-/** Key → URL. Route 'session' cần id. */
+/** Key → URL. Route 'session' cần id, 'challenges' dẫn sang tab Sàn kèo. */
 export function pathOf(key, id) {
+  if (key === 'challenges') {
+    return id ? `/tran-dau?tab=challenges&challengeId=${id}` : '/tran-dau?tab=challenges'
+  }
   const p = PATHS[key]
   if (!p) return PATHS.home
   return id ? p.replace(':id', id) : p

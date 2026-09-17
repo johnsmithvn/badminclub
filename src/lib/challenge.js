@@ -167,3 +167,108 @@ export function getChallengeSeriesProgress(challenge, matches = []) {
   }
 }
 
+/**
+ * Thống kê tỷ lệ và số điểm dự đoán cho một Kèo đấu
+ */
+export function getPredictionStats(predictions = [], challengeId) {
+  const activePreds = (predictions || []).filter(
+    (p) => p && p.challengeId === challengeId && p.status !== 'cancelled'
+  )
+
+  let countA = 0
+  let countB = 0
+  let pointsA = 0
+  let pointsB = 0
+  const predictorsA = []
+  const predictorsB = []
+
+  activePreds.forEach((p) => {
+    const pts = Number(p.stakePoints) || 0
+    if (p.team === 'A') {
+      countA++
+      pointsA += pts
+      predictorsA.push(p)
+    } else if (p.team === 'B') {
+      countB++
+      pointsB += pts
+      predictorsB.push(p)
+    }
+  })
+
+  const totalCount = countA + countB
+  const totalPoints = pointsA + pointsB
+
+  let pctA = 50
+  let pctB = 50
+  if (totalPoints > 0) {
+    pctA = Math.round((pointsA / totalPoints) * 100)
+    pctB = 100 - pctA
+  } else if (totalCount > 0) {
+    pctA = Math.round((countA / totalCount) * 100)
+    pctB = 100 - pctA
+  }
+
+  return {
+    countA,
+    countB,
+    totalCount,
+    pointsA,
+    pointsB,
+    totalPoints,
+    pctA,
+    pctB,
+    predictorsA,
+    predictorsB,
+  }
+}
+
+/**
+ * Lấy phiếu dự đoán của thành viên cho một kèo cụ thể
+ */
+export function getMemberPrediction(predictions = [], challengeId, memberId) {
+  if (!challengeId || !memberId) return null
+  return (predictions || []).find(
+    (p) => p.challengeId === challengeId && p.memberId === memberId && p.status !== 'cancelled'
+  ) || null
+}
+
+/**
+ * Kiểm tra thành viên có đủ điều kiện gửi dự đoán cho Kèo đấu không
+ */
+export function canMemberPredict(challenge, memberId, db = {}, availablePoints = 0) {
+  if (!challenge || !memberId) return { ok: false, reason: 'invalid_params' }
+
+  // 1. Kiểm tra cờ cho phép dự đoán và khóa sổ
+  if (challenge.predictionsEnabled === false) {
+    return { ok: false, reason: 'disabled' }
+  }
+  if (challenge.predictionsLocked || challenge.status === 'oncourt' || challenge.status === 'played' || challenge.status === 'cancelled' || challenge.status === 'expired' || challenge.status === 'declined') {
+    return { ok: false, reason: 'locked' }
+  }
+
+  // 2. Luật 1: Cấm tuyệt đối đấu thủ trong trận dự đoán
+  const allPlayers = [...(challenge.teamA || []), ...(challenge.teamB || [])]
+  if (allPlayers.includes(memberId)) {
+    return { ok: false, reason: 'player_conflict' }
+  }
+
+  // 3. Kiểm tra thành viên đang hoạt động
+  const member = (db.members || []).find((m) => m.id === memberId)
+  if (!member || member.active === false) {
+    return { ok: false, reason: 'member_inactive' }
+  }
+
+  // 4. Kiểm tra đã có phiếu cược chưa (mỗi người 1 phiếu)
+  const existing = getMemberPrediction(db.challengePredictions || [], challenge.id, memberId)
+  if (existing && existing.status === 'pending') {
+    return { ok: false, reason: 'already_predicted', existing }
+  }
+
+  // 5. Kiểm tra số dư SP tối thiểu (>= 1 SP)
+  if (Number(availablePoints) < 1) {
+    return { ok: false, reason: 'insufficient_points' }
+  }
+
+  return { ok: true, reason: null }
+}
+

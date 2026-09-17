@@ -12,13 +12,15 @@ import badgesConfig from '#config/badges.json'
 export default function CollectorLeaderboardTab({
   collectors = [],
   rarestBadges = [],
-  seasonRows = [],
+  _seasonRows = [],
   currentMemberId,
   onSelectMember,
   onViewBadge,
+  onSelectBadge,
   hideHeader = false,
   isMobile = false,
 }) {
+  const handleViewBadge = onViewBadge || onSelectBadge
 
   // Dữ liệu thật từ DB (không dùng demo fallback)
   const collectorList = collectors || []
@@ -61,6 +63,7 @@ export default function CollectorLeaderboardTab({
             collectorList.map((c, i) => {
               const isTop1 = c.rank === 1
               const isTop3 = c.rank <= 3
+              const isCurrent = Boolean(currentMemberId && (c.id === currentMemberId || c.memberId === currentMemberId))
               const shelfBadges = c.shelf || []
 
               return (
@@ -77,8 +80,10 @@ export default function CollectorLeaderboardTab({
                     clipPath: NOTCH_S_CLIP,
                     background: isTop1
                       ? 'linear-gradient(100deg, #2B0617, #160B26 65%)'
-                      : 'rgba(255,255,255,.035)',
-                    borderTop: isTop1 ? '1px solid #FF2E7E' : '1px solid transparent',
+                      : isCurrent
+                        ? 'rgba(109,20,255,.18)'
+                        : 'rgba(255,255,255,.035)',
+                    borderTop: isTop1 ? '1px solid #FF2E7E' : isCurrent ? '1px solid #8B2BFF' : '1px solid transparent',
                     cursor: onSelectMember ? 'pointer' : 'default',
                     transition: 'background 0.15s ease',
                   }}
@@ -226,12 +231,12 @@ export default function CollectorLeaderboardTab({
               return (
                 <div
                   key={r.id}
-                  onClick={() => onViewBadge && onViewBadge(r)}
+                  onClick={() => handleViewBadge && handleViewBadge(r)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
-                    cursor: onViewBadge ? 'pointer' : 'default',
+                    cursor: handleViewBadge ? 'pointer' : 'default',
                   }}
                 >
                   <BadgeHex
@@ -456,6 +461,7 @@ export default function CollectorLeaderboardTab({
             collectorList.map((c, i) => {
             const isTop1 = c.rank === 1
             const isTop3 = c.rank <= 3
+            const isCurrent = Boolean(currentMemberId && (c.id === currentMemberId || c.memberId === currentMemberId))
             const initial = c.name ? c.name.charAt(0).toUpperCase() : '?'
             const sigText = c.signature ? `“${c.signature}”` : ''
 
@@ -474,8 +480,10 @@ export default function CollectorLeaderboardTab({
                   clipPath: NOTCH_S_CLIP,
                   background: isTop1
                     ? 'linear-gradient(100deg, #2B0617, #160B26 60%)'
-                    : 'rgba(255,255,255,.035)',
-                  borderTop: isTop1 ? '1px solid #FF2E7E' : '1px solid transparent',
+                    : isCurrent
+                      ? 'rgba(109,20,255,.18)'
+                      : 'rgba(255,255,255,.035)',
+                  borderTop: isTop1 ? '1px solid #FF2E7E' : isCurrent ? '1px solid #8B2BFF' : '1px solid transparent',
                   cursor: onSelectMember ? 'pointer' : 'default',
                   transition: 'background 0.15s ease',
                 }}
@@ -680,12 +688,12 @@ export default function CollectorLeaderboardTab({
                 return (
                   <div
                     key={r.id}
-                    onClick={() => onViewBadge && onViewBadge(r)}
+                    onClick={() => handleViewBadge && handleViewBadge(r)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
-                      cursor: onViewBadge ? 'pointer' : 'default',
+                      cursor: handleViewBadge ? 'pointer' : 'default',
                     }}
                   >
                     <BadgeHex

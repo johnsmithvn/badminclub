@@ -422,6 +422,23 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       })
     })
 
+    // 2b. Điểm dự đoán kèo đấu (Prediction Net Points) — Capped ±15 SP
+    // Chỉ tính các phiếu đã có kết quả (won hoặc lost) thuộc mùa giải đang xét
+    const myPredictions = (db.challengePredictions || []).filter(
+      (p) => p.memberId === memberId && (p.status === 'won' || p.status === 'lost')
+    )
+    let predictionWonPoints = 0
+    let predictionLostPoints = 0
+    myPredictions.forEach((p) => {
+      const pts = Number(p.stakePoints) || 0
+      if (p.status === 'won') predictionWonPoints += pts
+      else if (p.status === 'lost') predictionLostPoints += pts
+    })
+    const rawPredictionNet = predictionWonPoints - predictionLostPoints
+    const predictionNetPoints = Math.min(15, Math.max(-15, rawPredictionNet))
+    const matchPointsOnly = totalSeasonPoints
+    totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints)
+
     // 3. Số buổi có mặt
     let attendedCount = 0
     seasonSessions.forEach((s) => {
@@ -475,6 +492,11 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
         matchNetPts,
         streakBonusPts,
         upsetBonusPts,
+        matchPointsOnly,
+        predictionWonPoints,
+        predictionLostPoints,
+        predictionNetPoints,
+        rawPredictionNet,
       },
     }
   })
@@ -589,8 +611,33 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
       isChallenge,
       partnerName,
       oppNamesStr,
+      at: m.at || 0,
     }
   })
+
+  const predEvents = (db.challengePredictions || [])
+    .filter((p) => p.memberId === memberId && (p.status === 'won' || p.status === 'lost'))
+    .map((p) => {
+      const isWon = p.status === 'won'
+      const chal = (db.challenges || []).find((c) => c.id === p.challengeId)
+      const code = chal?.code || ''
+      const timeStr = p.settledAt ? new Date(p.settledAt).toTimeString().slice(0, 5) : ''
+      const pts = isWon ? `+${p.stakePoints}` : `-${p.stakePoints}`
+      return {
+        time: timeStr,
+        titleKey: isWon ? 'season.ledgerPredictionWon' : 'season.ledgerPredictionLost',
+        code,
+        scoreText: code,
+        gapText: '',
+        pts,
+        numPts: isWon ? p.stakePoints : -p.stakePoints,
+        type: isWon ? 'win' : 'loss',
+        isPrediction: true,
+        at: p.settledAt ? new Date(p.settledAt).getTime() : 0,
+      }
+    })
+
+  const combinedEvents = [...events, ...predEvents].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 10)
 
   return {
     season,
@@ -604,7 +651,7 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     isQualified: memberRow.isQualified,
     daysSinceLastMatch: memberRow.daysSinceLastMatch,
     breakdown: memberRow.breakdown,
-    recentEvents: events,
+    recentEvents: combinedEvents,
   }
 }
 

@@ -21,7 +21,7 @@ import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { getMemberStreak } from '#lib/badges.js'
-import { seasonMatchesOf } from '#lib/season.js'
+import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
@@ -105,7 +105,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
   }
 
   /** Điều hướng qua React Router. */
-  const nav = (key, id) => navRef.current && navRef.current(pathOf(key, id))
+  const nav = (key, id) => {
+    if (!navRef.current) return
+    if (typeof key === 'string' && key.startsWith('/')) {
+      navRef.current(key)
+    } else {
+      navRef.current(pathOf(key, id))
+    }
+  }
 
   const patchSession = (sid, fn) =>
     up((d) => ({ sessions: d.sessions.map((x) => (x.id === sid ? fn(x, d) : x)) }))
@@ -2736,9 +2743,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         toast(t('common.unauthorized'))
         return
       }
+      const nowIso = new Date().toISOString()
       up((d) => ({
         challenges: (d.challenges || []).filter((c) => c.id !== challengeId),
         matches: (d.matches || []).map((m) => (m.challengeId === challengeId ? { ...m, challengeId: null } : m)),
+        challengePredictions: (d.challengePredictions || []).map((p) => {
+          if (p.challengeId === challengeId && p.status === 'pending') {
+            return {
+              ...p,
+              status: 'refunded',
+              payoutPoints: p.stakePoints,
+              settledAt: nowIso,
+              updatedAt: nowIso,
+            }
+          }
+          return p
+        }),
       }))
       toast(t('challenge.toastDeleted', { code: chal.code }))
     },
@@ -2750,10 +2770,158 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const myMem = myMember(d0)
       const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
       if (!canAssign() && !isPlayer) return
+      const nowIso = new Date().toISOString()
       up((d) => ({
-        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'cancelled' } : c)),
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'cancelled', predictionsLocked: true } : c)),
+        challengePredictions: (d.challengePredictions || []).map((p) => {
+          if (p.challengeId === challengeId && p.status === 'pending') {
+            return {
+              ...p,
+              status: 'refunded',
+              payoutPoints: p.stakePoints,
+              settledAt: nowIso,
+              updatedAt: nowIso,
+            }
+          }
+          return p
+        }),
       }))
       toast(t('challenge.toastCancelled', { code: chal.code }))
+    },
+
+    placePrediction: ({ challengeId, team, stakePoints }) => {
+      const d0 = db()
+      const myMem = myMember(d0)
+      const myId = myMem?.id || null
+      if (!myId) {
+        toast(t('common.unauthorized'))
+        return { ok: false, error: 'unauthorized' }
+      }
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) {
+        toast(t('challenge.predictionNotFound'))
+        return { ok: false, error: 'not_found' }
+      }
+      if (chal.status !== 'pending' && chal.status !== 'accepted') {
+        toast(t('challenge.predictionMatchLocked'))
+        return { ok: false, error: 'locked' }
+      }
+      if (chal.predictionsLocked) {
+        toast(t('challenge.predictionMatchLocked'))
+        return { ok: false, error: 'locked' }
+      }
+      if (chal.predictionsEnabled === false) {
+        toast(t('challenge.predictionDisabled'))
+        return { ok: false, error: 'disabled' }
+      }
+
+      // Check conflict: Không cho phép VĐV trong trận đặt cược
+      const inMatch = [...(chal.teamA || []), ...(chal.teamB || [])].includes(myId)
+      if (inMatch) {
+        toast(t('challenge.predictionConflictSelf'))
+        return { ok: false, error: 'conflict' }
+      }
+
+      // Check đã cược chưa
+      const existing = (d0.challengePredictions || []).find(
+        (p) => p.challengeId === challengeId && p.memberId === myId && p.status === 'pending'
+      )
+      if (existing) {
+        toast(t('challenge.predictionAlreadyPlaced'))
+        return { ok: false, error: 'already_placed' }
+      }
+
+      const stake = Number(stakePoints)
+      if (![1, 2, 3].includes(stake)) {
+        toast(t('challenge.predictionInvalidStake'))
+        return { ok: false, error: 'invalid_stake' }
+      }
+
+      // Tính điểm khả dụng
+      const seasonRes = calculateSeasonLeaderboard(d0)
+      const myRow = (seasonRes?.leaderboard || []).find((r) => r.id === myId)
+      const totalSp = myRow?.totalSeasonPoints || 0
+      const pendingSum = (d0.challengePredictions || [])
+        .filter((p) => p.memberId === myId && p.status === 'pending')
+        .reduce((sum, p) => sum + (Number(p.stakePoints) || 0), 0)
+      const available = Math.max(0, totalSp - pendingSum)
+
+      if (stake > available) {
+        toast(t('challenge.predictionNotEnoughPoints', { available }))
+        return { ok: false, error: 'insufficient_points' }
+      }
+
+      const nowIso = new Date().toISOString()
+      const newPred = {
+        id: uid(),
+        challengeId,
+        clubId: d0.clubId,
+        memberId: myId,
+        team,
+        stakePoints: stake,
+        payoutPoints: 0,
+        status: 'pending',
+        settledAt: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      }
+
+      up((d) => ({
+        challengePredictions: [newPred, ...(d.challengePredictions || [])],
+      }))
+
+      toast(t('challenge.predictionSuccess', {
+        team: team === 'A' ? t('challenge.teamA') : t('challenge.teamB'),
+        points: stake,
+      }))
+      return { ok: true, prediction: newPred }
+    },
+
+    cancelPrediction: (predictionId) => {
+      const d0 = db()
+      const myMem = myMember(d0)
+      const myId = myMem?.id || null
+      if (!myId) {
+        toast(t('common.unauthorized'))
+        return { ok: false, error: 'unauthorized' }
+      }
+
+      const pred = (d0.challengePredictions || []).find((p) => p.id === predictionId)
+      if (!pred) return { ok: false, error: 'not_found' }
+
+      const isOwner = pred.memberId === myId
+      if (!isOwner && !canAssign()) {
+        toast(t('common.unauthorized'))
+        return { ok: false, error: 'unauthorized' }
+      }
+
+      const chal = (d0.challenges || []).find((c) => c.id === pred.challengeId)
+      if (chal?.predictionsLocked || chal?.status === 'oncourt' || chal?.status === 'played') {
+        toast(t('challenge.predictionCancelLocked'))
+        return { ok: false, error: 'locked' }
+      }
+
+      if (pred.status !== 'pending') {
+        toast(t('challenge.predictionCannotCancelSettled'))
+        return { ok: false, error: 'not_pending' }
+      }
+
+      const nowIso = new Date().toISOString()
+      up((d) => ({
+        challengePredictions: (d.challengePredictions || []).map((p) => {
+          if (p.id !== predictionId) return p
+          return {
+            ...p,
+            status: 'cancelled',
+            payoutPoints: p.stakePoints,
+            settledAt: nowIso,
+            updatedAt: nowIso,
+          }
+        }),
+      }))
+
+      toast(t('challenge.predictionCancelSuccess'))
+      return { ok: true }
     },
 
     linkChallengeToSession: (challengeId, sessionId) => {
@@ -2857,8 +3025,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         if (chal.teamB[1]) curLu[slots[3]] = chal.teamB[1]
         lineups[sid] = curLu
 
-        // Đánh dấu kèo là oncourt
-        const challenges = (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'oncourt' } : c))
+        // Đánh dấu kèo là oncourt và khoá cược dự đoán
+        const challenges = (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'oncourt', predictionsLocked: true } : c))
         return { lineups, challenges }
       })
       toast(t('challenge.toastDeployed', { code: chal.code, court: courtName }))
@@ -3080,6 +3248,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
                   matchId,
                   winnerTeam: chalSeriesProg?.winnerTeam || winnerTeam,
                   seriesScore: chalSeriesProg ? { winsA: chalSeriesProg.winsA, winsB: chalSeriesProg.winsB } : null,
+                  predictionsLocked: true,
                 }
               }
               // Chưa hoàn tất chuỗi: Giữ ở trạng thái accepted để tiếp tục nạp vào sân cho ván sau
@@ -3091,6 +3260,32 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
               }
             })
           : (d.challenges || [])
+
+        let nextChallengePredictions = d.challengePredictions || []
+        if (chal && isChalComplete) {
+          const nowIso = new Date().toISOString()
+          const winTeam = chalSeriesProg?.winnerTeam || winnerTeam
+          nextChallengePredictions = nextChallengePredictions.map((p) => {
+            if (p.challengeId !== chal.id || p.status !== 'pending') return p
+            if (winTeam && (winTeam === 'A' || winTeam === 'B')) {
+              const won = p.team === winTeam
+              return {
+                ...p,
+                status: won ? 'won' : 'lost',
+                payoutPoints: won ? p.stakePoints * 2 : 0,
+                settledAt: nowIso,
+                updatedAt: nowIso,
+              }
+            }
+            return {
+              ...p,
+              status: 'refunded',
+              payoutPoints: p.stakePoints,
+              settledAt: nowIso,
+              updatedAt: nowIso,
+            }
+          })
+        }
 
         const nextMatches = (d.matches || []).concat([newMatch])
         const memberMap = {}
@@ -3117,6 +3312,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           playing,
           matches: nextMatches,
           challenges,
+          challengePredictions: nextChallengePredictions,
           playerRatings,
           clubCalibration: nextCals,
         }

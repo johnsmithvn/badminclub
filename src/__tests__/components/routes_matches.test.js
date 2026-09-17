@@ -28,4 +28,9 @@ test('Matches & Challenges Routes & Navigation Verification', async (t) => {
     assert.equal(pathOf('matches'), '/tran-dau')
     assert.notEqual(pathOf('leaderboard'), pathOf('matches'))
   })
+
+  await t.test('pathOf resolves challenges tab and specific challenge ID', () => {
+    assert.equal(pathOf('challenges'), '/tran-dau?tab=challenges')
+    assert.equal(pathOf('challenges', 'c123'), '/tran-dau?tab=challenges&challengeId=c123')
+  })
 })
