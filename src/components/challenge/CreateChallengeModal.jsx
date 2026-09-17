@@ -5,7 +5,7 @@ import {
   expectedScore, calcEloDelta, getPlayerRating, confidenceProgress,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
-import { playerName, playerOf, openSessions } from '#lib/money.js'
+import { playerName, playerOf } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -17,22 +17,38 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   const [ratingEnabled, setRatingEnabled] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
-  const openList = useMemo(() => openSessions(db), [db])
-  const [selectedSessionId, setSelectedSessionId] = useState(() => session?.id || openList[0]?.id || (db.sessions || [])[0]?.id || null)
+  const [selectedSessionId, setSelectedSessionId] = useState(() => session?.id || null)
   const activeSession = useMemo(() => {
     if (session) return session
+    if (!selectedSessionId) return null
     return (db.sessions || []).find((s) => s.id === selectedSessionId) || null
   }, [session, db.sessions, selectedSessionId])
 
-  // Danh sách thành viên: nếu trong buổi, chỉ lấy những người đã ĐIỂM DANH CÓ MẶT (att[m.id] === true)
-  // Khách (guests) KHÔNG được tham gia kèo theo đặc tả handoff.
+  // Toàn bộ thành viên hoạt động trong CLB
+  const allActiveMembers = useMemo(() => {
+    return (db.members || []).filter((m) => m.active !== false)
+  }, [db.members])
+
+  // Danh sách thành viên đã điểm danh có mặt trong buổi
+  const presentMembers = useMemo(() => {
+    if (!activeSession) return []
+    const att = db.attendance?.[activeSession.id] || {}
+    return allActiveMembers.filter((m) => att[m.id] === true)
+  }, [activeSession, db.attendance, allActiveMembers])
+
+  // Trạng thái lọc: nếu buổi có người có mặt thì có thể lọc người có mặt, mặc định hoặc khi chọn Tất cả thì cho phép chọn bất kỳ thành viên nào
+  const [onlyPresent, setOnlyPresent] = useState(false)
+
+  // Danh sách thành viên chọn:
+  // - Nếu không gắn buổi: toàn bộ thành viên CLB
+  // - Nếu gắn buổi nhưng buổi chưa có ai có mặt: fallback toàn bộ thành viên CLB (không chặn trống)
+  // - Nếu gắn buổi và bật lọc có mặt: chỉ người có mặt
   const pickableMembers = useMemo(() => {
-    if (activeSession) {
-      const att = db.attendance?.[activeSession.id] || {}
-      return db.members.filter((m) => m.active !== false && att[m.id] === true)
+    if (activeSession && onlyPresent && presentMembers.length > 0) {
+      return presentMembers
     }
-    return db.members.filter((m) => m.active !== false)
-  }, [db.attendance, db.members, activeSession])
+    return allActiveMembers
+  }, [activeSession, onlyPresent, presentMembers, allActiveMembers])
 
   // Lấy rating của từng người (an toàn với cả Map lẫn Array)
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid, playerOf(db, mid), db.levels).rating
@@ -136,17 +152,23 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
           <button type="button" onClick={onClose} style={S.closeBtn}>{t('common.close')}</button>
         </div>
 
-        {!session && (db.sessions || []).length > 1 && (
+        {!session && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('common.pick')}:</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('challenge.chooseSession')}:</span>
             <select
               value={selectedSessionId || ''}
-              onChange={(e) => setSelectedSessionId(e.target.value || null)}
+              onChange={(e) => {
+                setSelectedSessionId(e.target.value || null)
+                setOnlyPresent(false)
+              }}
               style={{ background: 'transparent', border: 'none', fontSize: 13, color: 'var(--text-primary)', outline: 'none', cursor: 'pointer', fontWeight: 600 }}
             >
-              {(db.sessions || []).slice(0, 8).map((s) => (
+              <option value="" style={{ background: 'var(--surface-card)', color: 'var(--text-primary)' }}>
+                {t('matchesPage.noSessionLinked')}
+              </option>
+              {(db.sessions || []).slice(0, 12).map((s) => (
                 <option key={s.id} value={s.id} style={{ background: 'var(--surface-card)', color: 'var(--text-primary)' }}>
-                  {s.date} {s.title ? `· ${s.title}` : ''}
+                  {t('challenge.sessionItemDate', { date: s.date })} {s.title ? `· ${s.title}` : ''}
                 </option>
               ))}
             </select>
@@ -207,9 +229,56 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
 
           {/* Danh sách thành viên chọn */}
           <div style={{ display: 'grid', gap: 8 }}>
-            <div style={S.sectionLabel}>
-              {t('challenge.pickableLabel', { n: pickableMembers.length })}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <div style={S.sectionLabel}>
+                {activeSession && onlyPresent && presentMembers.length > 0
+                  ? t('challenge.presentMembers', { n: pickableMembers.length })
+                  : t('challenge.pickableAll', { n: pickableMembers.length })}
+              </div>
+              {activeSession && presentMembers.length > 0 && (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => setOnlyPresent(true)}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: '1px solid',
+                      cursor: 'pointer',
+                      background: onlyPresent ? 'var(--teal-700)' : 'transparent',
+                      borderColor: onlyPresent ? 'var(--teal-500)' : 'var(--border-subtle)',
+                      color: onlyPresent ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    {t('challenge.filterPresent', { n: presentMembers.length })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOnlyPresent(false)}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: '1px solid',
+                      cursor: 'pointer',
+                      background: !onlyPresent ? 'var(--teal-700)' : 'transparent',
+                      borderColor: !onlyPresent ? 'var(--teal-500)' : 'var(--border-subtle)',
+                      color: !onlyPresent ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    {t('challenge.filterAll', { n: allActiveMembers.length })}
+                  </button>
+                </div>
+              )}
             </div>
+            {activeSession && presentMembers.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                {t('challenge.noPresentFallback')}
+              </div>
+            )}
             <div style={S.chipWrap}>
               {pickableMembers.map((m) => {
                 const inA = teamA.includes(m.id)
