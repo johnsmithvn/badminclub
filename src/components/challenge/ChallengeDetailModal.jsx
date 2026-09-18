@@ -1100,8 +1100,11 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   </button>
                 )}
               </div>
-            ) : isPredLocked || noPointsLeft ? (
-              /* Chưa dự đoán nhưng kèo đã khoá, hoặc hết Điểm Mùa khả dụng */
+            ) : !predGate.ok ? (
+              /* Chưa dự đoán nhưng cổng cược đóng, hoặc hết Điểm Mùa khả dụng.
+                 Hỏi thẳng `predGate` chứ KHÔNG dựng lại điều kiện bằng `isPredLocked`: bản viết
+                 tay ở trên thiếu `status === 'declined'`, nên kèo đã bị từ chối vẫn hiện form mời
+                 cược rồi ăn lỗi từ RPC — UI mời bấm một thao tác mà server từ chối. */
               <div style={{
                 padding: '8px 12px',
                 borderRadius: 'var(--radius-sm)',
@@ -1111,7 +1114,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 color: 'var(--text-muted)',
                 lineHeight: 1.4,
               }}>
-                {noPointsLeft && !isPredLocked ? t('challenge.predictionNoPoints') : t('challenge.predictionLockedDesc')}
+                {noPointsLeft ? t('challenge.predictionNoPoints') : t('challenge.predictionLockedDesc')}
               </div>
             ) : (
               /* Form đặt dự đoán */

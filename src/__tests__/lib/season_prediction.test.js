@@ -51,6 +51,26 @@ const rConflictB = canMemberPredict(chalValid, 'p3', mockDb, 10)
 assert.equal(rConflictB.ok, false)
 assert.equal(rConflictB.reason, 'player_conflict', 'Đấu thủ team B không được cược chính trận của mình')
 
+// 1.1b MỌI trạng thái kèo đã chết đều đóng cổng cược.
+//
+// Bug thật ở giao diện: `ChallengeDetailModal` dựng lại điều kiện khoá bằng tay và THIẾU
+// 'declined', nên kèo đã bị từ chối vẫn hiện form mời cược, bấm xong mới ăn lỗi từ RPC. Giao diện
+// giờ hỏi thẳng `canMemberPredict`, còn đây là chỗ khoá danh sách trạng thái đó lại.
+const deadStatusDb = { members: [{ id: 'viewer', active: true }] }
+for (const dead of ['declined', 'cancelled', 'expired', 'played', 'oncourt']) {
+  const r = canMemberPredict({ ...chalValid, status: dead }, 'viewer', deadStatusDb, 10)
+  assert.equal(r.ok, false, `Kèo ${dead} phải đóng cổng cược`)
+  assert.equal(r.reason, 'locked', `Kèo ${dead} trả đúng lý do 'locked'`)
+}
+// Ngược lại, hai trạng thái còn sống vẫn nhận cược
+for (const alive of ['pending', 'accepted']) {
+  assert.equal(
+    canMemberPredict({ ...chalValid, status: alive }, 'viewer', deadStatusDb, 10).ok,
+    true,
+    `Kèo ${alive} vẫn nhận cược`,
+  )
+}
+
 // 1.2 Thành viên ngoài trận được phép dự đoán nếu chưa cược
 const rViewerValid = canMemberPredict(chalValid, 'v_new', { members: [{ id: 'v_new', active: true }] }, 5)
 assert.equal(rViewerValid.ok, true, 'Khán giả ngoài trận có điểm khả dụng được phép cược')
