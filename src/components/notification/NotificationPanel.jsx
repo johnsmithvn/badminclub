@@ -55,6 +55,11 @@ export default function NotificationPanel({ open, onClose }) {
       a.setTab('debts', 'sessions')
       a.go('debts')
       onClose()
+    } else if (item.refType === 'member') {
+      // Yêu cầu CHỜ DUYỆT nằm ở màn Thành viên (nút Duyệt / Từ chối); kết quả duyệt thì người
+      // nhận chỉ cần xem hồ sơ của chính mình.
+      a.go(item.type === 'member_change_requested' ? 'members' : 'profile')
+      onClose()
     }
   }
 

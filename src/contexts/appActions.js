@@ -12,7 +12,7 @@ import {
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
-import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
+import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
@@ -869,6 +869,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           p_items: list.map((x) => ({ kind: x.kind, id: x.id })),
         }))
         await reload()
+        // Khai xong mà không báo ai thì thủ quỹ phải tự vào Công nợ soi mới biết có người khai.
+        // Gửi cho người có quyền 'money' — đúng những người bấm được nút đối chiếu.
+        if (n > 0) {
+          const d1 = db()
+          const meId = myMember(d1)?.id || null
+          emitEvent({
+            type: 'claim_submitted',
+            payload: { memberId: meId, n },
+            recipients: membersWithPerm(d1.members, 'money'),
+            refType: 'debts',
+            refId: null,
+            actorId: meId,
+            skipActivity: true,
+          })
+        }
         toast(n > 0 ? t('toast.claimSent', { n }) : t('toast.claimNothing'))
       } catch (e) {
         const m = String(e.message || '')
@@ -963,6 +978,23 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           return mine && ss && monthOf(ss.date) === d.month ? { ...g, paid: true, paidAt: g.paidAt || d.today } : g
         }),
       }))
+      // Cùng một việc "ghi nhận đã thu" mà `payDue` và `toggleGuestPaid` thì báo, nút này thì
+      // không — thành viên khai xong không biết đã được đối chiếu hay chưa, tuỳ thủ quỹ bấm nút
+      // nào. Báo ở đây cho khớp. Chỉ báo khi người đó ĐÃ KHAI: chưa khai thì họ không chờ gì cả.
+      const claimed = d0.sessionGuests.find((g) => {
+        const ss = sessionOf(d0, g.sessionId)
+        return g.memberId === id && g.claimedAt && !g.paid && ss && monthOf(ss.date) === d0.month
+      })
+      if (claimed) {
+        emitEvent({
+          type: 'claim_approved',
+          payload: { kind: 'guest', claimId: claimed.id },
+          recipients: [id],
+          refType: 'claim',
+          refId: claimed.id,
+          skipActivity: true,
+        })
+      }
       toast(t('toast.debtCollected', { name: row ? chargeName(d0, row) : guestOf(d0, id).name }))
     },
 
@@ -1204,6 +1236,19 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         }
         return { members, changes: d.changes.map((x) => (x.id === id ? { ...x, status: ok ? 'approved' : 'rejected' } : x)) }
       })
+      // Đọc yêu cầu từ state TRƯỚC khi `up()` ghi đè trạng thái — sau đó vẫn còn dòng, nhưng
+      // lấy ở đây cho rõ là ta báo theo đúng cái vừa duyệt.
+      const chg = (db().changes || []).find((x) => x.id === id)
+      if (chg?.memberId) {
+        emitEvent({
+          type: ok ? 'member_change_approved' : 'member_change_rejected',
+          payload: { field: chg.field, to: chg.to },
+          recipients: [chg.memberId],
+          refType: 'member',
+          refId: id,
+          skipActivity: true,
+        })
+      }
       toast(t(ok ? 'toast.changeApproved' : 'toast.changeRejected'))
     },
 
@@ -2405,12 +2450,25 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if ((d0.changes || []).some((c) => c.status === 'pending' && c.memberId === me.id && c.field === field)) {
         return toast(t('toast.changeDup'))
       }
+      // Tách `id` ra khỏi `up()` để dòng thông báo trỏ được vào đúng yêu cầu vừa tạo.
+      const changeId = uid()
       up((d) => ({
         changes: (d.changes || []).concat([{
-          id: uid(), memberId: me.id, field, from, to, by: 'member',
+          id: changeId, memberId: me.id, field, from, to, by: 'member',
           effective: field === 'phone' ? 'now' : 'next', status: 'pending',
         }]),
       }))
+      // Yêu cầu nằm im trong màn Thành viên cho tới khi chủ CLB tình cờ mở ra. Gửi cho người có
+      // quyền 'members' — đúng những người bấm được nút Duyệt / Từ chối.
+      emitEvent({
+        type: 'member_change_requested',
+        payload: { memberId: me.id, field },
+        recipients: membersWithPerm(d0.members, 'members'),
+        refType: 'member',
+        refId: changeId,
+        actorId: me.id,
+        skipActivity: true,
+      })
       toast(t(field === 'phone' ? 'toast.changeAskedNow' : 'toast.changeAskedNext'))
     },
 
@@ -2984,6 +3042,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'cancelled', predictionsLocked: true } : c)),
       }))
       settlePredictions(challengeId, null)
+      // `notification.challenge_cancelled` và icon của nó đã có sẵn từ lâu, chỉ thiếu đúng lời
+      // gọi này — nên huỷ kèo là đối thủ ĐÃ NHẬN KÈO thấy kèo biến mất mà không ai báo, và
+      // người đặt phiếu thì bị hoàn điểm im lặng. Lấy ID từ `d0` (ảnh chụp TRƯỚC khi hoàn phiếu),
+      // sau `settlePredictions` thì không còn phiếu 'pending' nào để dò.
+      const predictorIds = (d0.challengePredictions || [])
+        .filter((p) => p.challengeId === challengeId && p.status === 'pending')
+        .map((p) => p.memberId)
+      emitEvent({
+        type: 'challenge_cancelled',
+        payload: { code: chal.code },
+        recipients: [...(chal.teamA || []), ...(chal.teamB || []), chal.createdBy, ...predictorIds],
+        refType: 'challenge',
+        refId: challengeId,
+      })
       toast(t('challenge.toastCancelled', { code: chal.code }))
     },
 
@@ -3861,6 +3933,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           matchEdits: [editLog, ...(d.matchEdits || [])],
           clubCalibration: nextCals,
         }
+      })
+
+      // Huỷ trận chạy `replayRatingCascade` — Elo và điểm mùa của bốn người đổi ngay tại đây.
+      // `match_edited` đã báo khi SỬA điểm; huỷ hẳn còn đổi nhiều hơn mà trước giờ im lặng.
+      emitEvent({
+        type: 'match_cancelled',
+        payload: {
+          matchId,
+          matchCode: match.code || match.id.slice(0, 8),
+          reason: reason || '',
+        },
+        recipients: match.playerKeys || [...(match.teamA || []), ...(match.teamB || [])],
+        refType: 'match',
+        refId: matchId,
+        actorId: myId,
       })
 
       toast(t('common.delete') + ': ' + match.id)
