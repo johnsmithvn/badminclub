@@ -5,8 +5,9 @@ import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
+import cfg from '#config/app.json'
 import { t } from '#i18n'
 
 export default function ChallengeDetailModal({ challenge, session, onClose, onScoreInput, onOpenMatch }) {
@@ -16,6 +17,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   const [submitting, setSubmitting] = useState(false)
   const [predTeam, setPredTeam] = useState('A')
   const [predStake, setPredStake] = useState(1)
+  const [stakeEditing, setStakeEditing] = useState(false)
+  const [stakeDraft, setStakeDraft] = useState('')
   const [now] = useState(() => Date.now())
 
   const c = useMemo(() => challenge || {}, [challenge])
@@ -42,6 +45,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
 
   const prog = useMemo(() => getChallengeAcceptanceProgress(c), [c])
   const canAccept = canMemberAcceptChallenge(c, myId, isAdmin)
+  const canForceAccept = canAdminForceAcceptChallenge(c, isAdmin)
 
   // Match liên quan nếu đã tạo/nhập tỷ số
   const matchObj = useMemo(() => {
@@ -163,6 +167,13 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     () => availableSeasonPoints(totalSp, predictions, db.challenges, db.sessions, myId),
     [totalSp, predictions, db.challenges, db.sessions, myId],
   )
+  // Trần tuyệt đối của một phiếu. Trùng số với CHECK trong migration 0047 — SQL không đọc được
+  // JSON nên hai chỗ phải tự giữ khớp nhau.
+  const maxStake = cfg.challenge?.maxStakePoints ?? 100
+  // Ô nhập để rỗng được lúc đang gõ, nên `predStake` có thể là ''. Mọi so sánh phải qua số.
+  const stakeNum = Number(predStake) || 0
+  const overStake = stakeNum > availableSp || stakeNum > maxStake
+  const stakeInvalid = stakeNum < 1 || overStake
   // Luật cược đọc từ MỘT chỗ dùng chung với `a.placePrediction`, không chép lại điều kiện ở đây.
   const predGate = useMemo(
     () => canMemberPredict(c, myId, db, availableSp),
@@ -175,10 +186,11 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   // `await`: hai hàm này giờ đi qua RPC nên là async. Không chờ thì nút nhả ngay lập tức và
   // người dùng bấm được lần hai trước khi server trả lời.
   const handlePlacePrediction = async () => {
-    if (!predTeam || !predStake) return
+    // Ô nhập tự do có thể đang rỗng hoặc vượt số dư — chặn ở đây chứ không đẩy lỗi xuống server.
+    if (!predTeam || stakeInvalid) return
     setSubmitting(true)
     try {
-      await a.placePrediction({ challengeId: c.id, team: predTeam, stakePoints: predStake })
+      await a.placePrediction({ challengeId: c.id, team: predTeam, stakePoints: stakeNum })
     } finally {
       setSubmitting(false)
     }
@@ -197,6 +209,18 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     setSubmitting(true)
     try {
       a.respondChallenge(c.id, true)
+      onClose()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Admin duyệt hộ CẢ kèo. Tách khỏi `handleAccept` vì đây là hành động khác hẳn: nhận thay cho
+  // mọi đấu thủ, kể cả người chưa có tài khoản nên không bao giờ tự bấm được.
+  const handleForceAccept = () => {
+    setSubmitting(true)
+    try {
+      a.respondChallenge(c.id, true, true)
       onClose()
     } finally {
       setSubmitting(false)
@@ -275,6 +299,31 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   )
   const hasBets = (db.challengePredictions || []).some((x) => x.challengeId === c.id && x.status === 'pending')
 
+  // GIAO KÈO — thoả thuận đời thật. Thuần trang trí: không dính điểm, không dính tiền, app không
+  // thu hộ ai. Ai đứng trong kèo (hoặc admin) đều sửa được, kể cả sau khi đã đánh xong.
+  const stakeText = c.stakeText || ''
+  const canEditStake = Boolean(isAdmin || isCreator || isParticipant)
+  const stakeMaxLen = cfg.challenge?.stakeMaxLen ?? 120
+  // Liệt kê TƯỜNG MINH từng key thay vì ghép chuỗi `stakeTpl${i}` — `smoke/i18n.test.js` quét key
+  // dùng thẳng trong code, ghép động là nó không thấy và báo key chết.
+  const stakeTemplates = [
+    t('challenge.stakeTpl1'),
+    t('challenge.stakeTpl2'),
+    t('challenge.stakeTpl3'),
+    t('challenge.stakeTpl4'),
+    t('challenge.stakeTpl5'),
+  ]
+
+  const openStakeEditor = () => {
+    setStakeDraft(stakeText)
+    setStakeEditing(true)
+  }
+
+  const handleSaveStake = (value) => {
+    a.setChallengeStake(c.id, value)
+    setStakeEditing(false)
+  }
+
   const handleFormat = (b) => {
     if (b === bestOf || submitting) return
     setSubmitting(true)
@@ -286,9 +335,19 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   }
 
   const creatorName = c.createdBy ? playerName(db, c.createdBy) : (teamA[0] ? playerName(db, teamA[0]) : '')
-  const acceptorName = c.acceptedBy
+  // Bước 2 của timeline nói về BÊN NHẬN KÈO, nên tên ở đây luôn là đội B — KHÔNG phải `acceptedBy`.
+  // `acceptedBy` là người bấm nhát cuối làm kèo đủ chữ ký; ở kèo đôi người đó có thể thuộc đội A
+  // (hoặc là admin duyệt hộ, chẳng đánh trận nào). Lấy nó làm tên bước 2 thì thành "Nam nhận kèo"
+  // với Nam là đồng đội của chính người tạo kèo.
+  const acceptorName = teamB[0]
+    ? playerName(db, teamB[0])
+    : (isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB'))
+
+  // Người chốt kèo chỉ đáng nhắc khi KHÔNG phải đội B — tức admin duyệt hộ hoặc người đội A bấm
+  // cuối. Đội B tự nhận là chuyện đương nhiên, nói ra chỉ thừa.
+  const closerName = (c.acceptedBy && !teamB.includes(c.acceptedBy))
     ? playerName(db, c.acceptedBy)
-    : (teamB[0] ? playerName(db, teamB[0]) : (isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB')))
+    : ''
 
   const createdTimeStr = c.createdAt
     ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
@@ -351,7 +410,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
             </div>
           )}
 
-          {isPending && !isExpired && canAccept && (
+          {/* Tự nhận cho MÌNH — chỉ đấu thủ trong kèo. Admin ngoài trận đi đường "Duyệt cả kèo". */}
+          {isPending && !isExpired && isParticipant && canAccept && (
             <button
               type="button"
               disabled={submitting}
@@ -371,7 +431,35 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 boxShadow: 'var(--shadow-xs)',
               }}
             >
-              {isAdmin && !isParticipant ? t('challenge.btnAdminApprove') : t('challenge.btnAccept')}
+              {t('challenge.btnAccept')}
+            </button>
+          )}
+
+          {/* Admin nhận hộ TẤT CẢ. Hiện cả khi admin đang đánh trong kèo và đã tự nhận rồi —
+              đó là lối thoát duy nhất cho kèo có người chưa ghép tài khoản. Khi đứng cạnh nút
+              "Nhận kèo" thì hạ xuống dạng viền để không tranh chỗ nút chính. */}
+          {isPending && !isExpired && canForceAccept && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleForceAccept}
+              title={t('challenge.btnAdminApproveAllHint')}
+              style={{
+                flex: 1,
+                height: isMobile ? 56 : 44,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--radius-md)',
+                background: (isParticipant && canAccept) ? 'transparent' : 'var(--status-delivered)',
+                border: (isParticipant && canAccept) ? '1px solid var(--status-delivered)' : 'none',
+                font: '700 15px/1 "IBM Plex Sans", sans-serif',
+                color: (isParticipant && canAccept) ? 'var(--status-delivered-fg)' : 'var(--gray-0)',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                boxShadow: (isParticipant && canAccept) ? 'none' : 'var(--shadow-xs)',
+              }}
+            >
+              {t('challenge.btnAdminApproveAll')}
             </button>
           )}
 
@@ -604,6 +692,182 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               </span>
             )}
           </div>
+        )}
+
+        {/* GIAO KÈO — thoả thuận ngoài sân. Highlight riêng để đập vào mắt, nhưng KHÔNG dùng màu
+            xanh/đỏ của trạng thái kèo: nó không phải một trạng thái, chỉ là ghi chú vui. */}
+        {(stakeText || (canEditStake && stakeEditing)) && (
+          <div style={{
+            padding: '10px 12px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--status-delayed-bg)',
+            border: '1px solid var(--status-delayed)',
+            display: 'grid',
+            gap: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Icon name="award" size={15} style={{ color: 'var(--status-delayed-fg)' }} />
+              <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--status-delayed-fg)' }}>
+                {t('challenge.stakeLabel')}
+              </span>
+              {!stakeEditing && canEditStake && (
+                <button
+                  type="button"
+                  onClick={openStakeEditor}
+                  style={{
+                    marginLeft: 'auto',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    font: '600 12px/1 "IBM Plex Sans", sans-serif',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  <Icon name="pencil" size={12} />
+                  <span>{t('common.edit')}</span>
+                </button>
+              )}
+            </div>
+
+            {!stakeEditing && (
+              <>
+                <span style={{ font: '600 14px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                  {stakeText}
+                </span>
+                <span style={{ font: '400 11px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                  {t('challenge.stakeHint')}
+                </span>
+              </>
+            )}
+
+            {stakeEditing && (
+              <div style={{ display: 'grid', gap: 8 }}>
+                <input
+                  type="text"
+                  value={stakeDraft}
+                  maxLength={stakeMaxLen}
+                  autoFocus
+                  placeholder={t('challenge.stakePlaceholder')}
+                  onChange={(e) => setStakeDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveStake(stakeDraft) }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-card)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-default)',
+                    font: '500 13.5px/1.3 "IBM Plex Sans", sans-serif',
+                  }}
+                />
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  <span style={{ font: '500 11px/1.6 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
+                    {t('challenge.stakeTplTitle')}:
+                  </span>
+                  {stakeTemplates.map((tpl) => (
+                    <button
+                      key={tpl}
+                      type="button"
+                      onClick={() => setStakeDraft(tpl)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 999,
+                        background: 'var(--surface-card)',
+                        border: '1px solid var(--border-subtle)',
+                        font: '500 11.5px/1.4 "IBM Plex Sans", sans-serif',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {tpl}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveStake(stakeDraft)}
+                    style={{
+                      flex: 1,
+                      height: 34,
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--status-delivered)',
+                      border: 'none',
+                      font: '700 13px/1 "IBM Plex Sans", sans-serif',
+                      color: 'var(--gray-0)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('common.save')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStakeEditing(false)}
+                    style={{
+                      height: 34,
+                      padding: '0 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'transparent',
+                      border: '1px solid var(--border-default)',
+                      font: '600 13px/1 "IBM Plex Sans", sans-serif',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  {stakeText && (
+                    <button
+                      type="button"
+                      onClick={() => handleSaveStake('')}
+                      style={{
+                        height: 34,
+                        padding: '0 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'transparent',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        font: '600 13px/1 "IBM Plex Sans", sans-serif',
+                        color: 'var(--red-500, #ef4444)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {t('challenge.stakeClear')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Chưa có giao kèo thì chỉ là một dòng mời, không chiếm chỗ */}
+        {!stakeText && !stakeEditing && canEditStake && (
+          <button
+            type="button"
+            onClick={openStakeEditor}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              alignSelf: 'start',
+              padding: '5px 10px',
+              borderRadius: 999,
+              background: 'transparent',
+              border: '1px dashed var(--border-default)',
+              font: '600 12px/1 "IBM Plex Sans", sans-serif',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+            }}
+          >
+            <Icon name="award" size={13} />
+            <span>{t('challenge.stakeAdd')}</span>
+          </button>
         )}
 
         {/* Matchup Card */}
@@ -847,37 +1111,42 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   </button>
                 </div>
 
-                {/* Chọn mức SP: 1 SP / 2 SP / 3 SP */}
+                {/* Mức SP: nhập tự do. Ba nút 1/2/3 cũ đã bỏ — trần thật nằm ở SP khả dụng của
+                    chính người đặt, và ở `maxStakePoints` (server cũng chặn, xem 0047). */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <span style={{ font: '500 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
                     {t('challenge.predictionStakeLabel')}
                   </span>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {[1, 2, 3].map((pt) => {
-                      const isSelected = predStake === pt
-                      const disabled = pt > availableSp
-                      return (
-                        <button
-                          key={pt}
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => setPredStake(pt)}
-                          style={{
-                            minWidth: 44,
-                            padding: '5px 8px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: isSelected ? 'var(--action-accent-bg, var(--teal-500))' : 'var(--surface-sunken)',
-                            color: isSelected ? 'var(--gray-0, #fff)' : disabled ? 'var(--text-disabled)' : 'var(--text-primary)',
-                            border: isSelected ? '1px solid var(--action-accent-bg, var(--teal-500))' : '1px solid var(--border-subtle)',
-                            font: '700 12px/1 "IBM Plex Mono", monospace',
-                            cursor: disabled ? 'not-allowed' : 'pointer',
-                            opacity: disabled ? 0.5 : 1,
-                          }}
-                        >
-                          {pt} SP
-                        </button>
-                      )
-                    })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={maxStake}
+                      value={predStake}
+                      onChange={(e) => {
+                        // Cho phép ô rỗng lúc đang gõ; nút Gửi tự khoá vì 0 > availableSp là false
+                        // nhưng `!predTeam || !predStake` ở `handlePredict` chặn lại.
+                        const raw = e.target.value
+                        if (raw === '') { setPredStake(''); return }
+                        const n = Math.floor(Number(raw))
+                        if (!Number.isFinite(n)) return
+                        setPredStake(Math.max(0, Math.min(maxStake, n)))
+                      }}
+                      style={{
+                        width: 78,
+                        padding: '6px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--surface-sunken)',
+                        color: 'var(--text-primary)',
+                        border: overStake
+                          ? '1px solid var(--red-500, #ef4444)'
+                          : '1px solid var(--border-subtle)',
+                        font: '700 13px/1 "IBM Plex Mono", monospace',
+                        textAlign: 'right',
+                      }}
+                    />
+                    <span style={{ font: '600 12px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>SP</span>
                   </div>
                 </div>
 
@@ -890,15 +1159,15 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   fontFamily: 'var(--font-sans)',
                 }}>
                   <span>{t('challenge.predictionAvailableSp', { points: availableSp })}</span>
-                  <span style={{ color: predStake > availableSp ? 'var(--red-500, #ef4444)' : 'var(--status-delivered-fg)' }}>
-                    {t('challenge.predictionWinReward', { payout: predStake * 2, stake: predStake })}
+                  <span style={{ color: overStake ? 'var(--red-500, #ef4444)' : 'var(--status-delivered-fg)' }}>
+                    {t('challenge.predictionWinReward', { payout: stakeNum * 2, stake: stakeNum })}
                   </span>
                 </div>
 
                 {/* Nút gửi dự đoán */}
                 <button
                   type="button"
-                  disabled={submitting || !myId || predStake > availableSp}
+                  disabled={submitting || !myId || stakeInvalid}
                   onClick={handlePlacePrediction}
                   style={{
                     width: '100%',
@@ -912,8 +1181,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     border: 'none',
                     font: '700 13.5px/1 "IBM Plex Sans", sans-serif',
                     color: 'var(--gray-0, #fff)',
-                    cursor: (submitting || !myId || predStake > availableSp) ? 'not-allowed' : 'pointer',
-                    opacity: (submitting || !myId || predStake > availableSp) ? 0.6 : 1,
+                    cursor: (submitting || !myId || stakeInvalid) ? 'not-allowed' : 'pointer',
+                    opacity: (submitting || !myId || stakeInvalid) ? 0.6 : 1,
                     boxShadow: 'var(--shadow-xs)',
                   }}
                 >
@@ -1035,9 +1304,16 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 status: 'done',
               },
               {
-                title: t('challenge.step2Accept', { name: acceptorName || t('challenge.teamB') }),
+                // Tiêu đề PHẢI đổi theo trạng thái. Bản cũ luôn ghi "X nhận kèo" kể cả lúc còn
+                // pending, mà `acceptorName` thì fallback về teamB[0] — thành ra kèo vừa tạo đã
+                // hiện "Hùng nhận kèo" dù Hùng chưa đụng vào, đọc y như đã nhận rồi.
+                title: (isAccepted || isPlayed)
+                  ? t('challenge.step2Accept', { name: acceptorName || t('challenge.teamB') })
+                  : t('challenge.step2AcceptPending', { name: acceptorName || t('challenge.teamB') }),
                 sub: (isAccepted || isPlayed)
-                  ? t('challenge.step2Sub', { time: acceptedTimeStr })
+                  ? (closerName
+                    ? t('challenge.step2SubBy', { time: acceptedTimeStr, name: closerName })
+                    : t('challenge.step2Sub', { time: acceptedTimeStr }))
                   : (c.status === 'declined'
                     ? t('challenge.toastDeclined', { code: c.code })
                     : (prog.totalCount > 0 ? t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount }) : t('challenge.status.pending'))),
@@ -1068,13 +1344,16 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                       height: 12,
                       borderRadius: 999,
                       marginTop: 3,
+                      // `current` CỐ Ý không dùng xanh `--status-delivered` nữa: trùng đúng màu
+                      // của `done` nên bước đang chờ trông y hệt bước đã xong. Vàng `delayed` là
+                      // màu "đang treo" dùng chung với badge Chờ nhận ở bảng kèo.
                       background: st.status === 'done' ? 'var(--status-delivered)' : st.status === 'current' ? 'var(--surface-card)' : 'var(--surface-sunken)',
                       border: st.status === 'done'
                         ? '2px solid var(--status-delivered)'
                         : st.status === 'current'
-                        ? '2px solid var(--status-delivered)'
+                        ? '2px solid var(--status-delayed)'
                         : '2px solid var(--border-default)',
-                      boxShadow: st.status === 'current' ? '0 0 0 3px rgba(14, 138, 85, 0.16)' : 'none',
+                      boxShadow: st.status === 'current' ? '0 0 0 3px rgba(240, 183, 92, 0.22)' : 'none',
                       zIndex: 1,
                     }} />
                     {!isLast && (

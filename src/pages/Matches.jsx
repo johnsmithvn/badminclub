@@ -1058,6 +1058,32 @@ export default function Matches() {
                     </div>
                   </div>
 
+                  {/* Giao kèo đời thật. Chỉ hiện khi có — kèo không giao kèo thì không chiếm chỗ. */}
+                  {c.stakeText && (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      alignSelf: 'flex-start',
+                      maxWidth: '100%',
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      background: 'var(--status-delayed-bg)',
+                      border: '1px solid var(--status-delayed)',
+                    }}>
+                      <Icon name="award" size={13} style={{ color: 'var(--status-delayed-fg)', flexShrink: 0 }} />
+                      <span style={{
+                        font: '600 12px/1.4 var(--font-sans)',
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {c.stakeText}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Cảnh báo thành viên báo vắng trong buổi đã gắn kèo */}
                   {hasAbsentInSession && (
                     <div style={{

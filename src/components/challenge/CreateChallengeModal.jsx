@@ -15,6 +15,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   const [teamB, setTeamB] = useState(initialTeamB)
   const [bestOf, setBestOf] = useState(cfg.challenge?.defaultBestOf || 3)
   const [ratingEnabled, setRatingEnabled] = useState(true)
+  const [stakeText, setStakeText] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const [selectedSessionId, setSelectedSessionId] = useState(() => session?.id || null)
@@ -117,6 +118,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
         teamB,
         bestOf,
         ratingEnabled,
+        stakeText,
       })
       if (created && onCreated) onCreated(created)
       onClose()
@@ -126,6 +128,16 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   }
 
   const memberNameOf = (id) => playerName(db, id)
+
+  // Liệt kê TƯỜNG MINH từng key — `smoke/i18n.test.js` quét key dùng thẳng, ghép `stakeTpl${i}`
+  // là nó không thấy và báo key chết.
+  const stakeTemplates = [
+    t('challenge.stakeTpl1'),
+    t('challenge.stakeTpl2'),
+    t('challenge.stakeTpl3'),
+    t('challenge.stakeTpl4'),
+    t('challenge.stakeTpl5'),
+  ]
 
   return (
     <div style={S.overlay}>
@@ -410,6 +422,50 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                     BO{b}
                   </button>
                 ))}
+              </div>
+
+              {/* GIAO KÈO — thoả thuận đời thật, tuỳ chọn. Không dính điểm, không dính tiền. */}
+              <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="award" size={13} style={{ color: 'var(--status-delayed-fg)' }} />
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('challenge.stakeLabel')}:</span>
+                </div>
+                <input
+                  type="text"
+                  value={stakeText}
+                  maxLength={cfg.challenge?.stakeMaxLen ?? 120}
+                  placeholder={t('challenge.stakePlaceholder')}
+                  onChange={(e) => setStakeText(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-card)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-default)',
+                    font: '500 13px/1.3 var(--font-sans)',
+                  }}
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {stakeTemplates.map((tpl) => (
+                    <button
+                      key={tpl}
+                      type="button"
+                      onClick={() => setStakeText(tpl)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 999,
+                        background: 'var(--surface-card)',
+                        border: '1px solid var(--border-subtle)',
+                        font: '500 11.5px/1.4 var(--font-sans)',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {tpl}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

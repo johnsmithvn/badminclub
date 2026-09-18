@@ -15,6 +15,7 @@ import {
   getChallengeAcceptanceProgress,
   isChallengeFullyAccepted,
   canMemberAcceptChallenge,
+  canAdminForceAcceptChallenge,
 } from '#lib/challenge.js'
 
 // Kèo đơn 1v1: Người tạo m1 đã chấp nhận, m2 chưa chấp nhận
@@ -69,6 +70,48 @@ const cDoubleFull = {
   acceptedPlayers: ['m1', 'm2', 'm3', 'm4'],
 }
 assert.ok(isChallengeFullyAccepted(cDoubleFull), 'Kèo đôi: đủ 4/4 người -> fully accepted')
+
+// 3. Admin duyệt hộ CẢ kèo — lối thoát cho người chưa có tài khoản
+//
+// Bẫy cũ: `canMemberAcceptChallenge` thoát sớm ở nhánh "người gọi là đấu thủ", nên admin TỰ ĐÁNH
+// trong kèo và đã tự nhận thì không còn nút nào để bấm. Kèo với người chưa ghép tài khoản (không
+// đăng nhập được -> không bao giờ tự nhận) kẹt `pending` tới lúc hết hạn, mà kèo pending thì
+// `CourtAssignmentTab` không cho lên sân. Kèo chết hẳn, không đường cứu.
+const cAdminInside = {
+  createdBy: 'admin',
+  teamA: ['admin'],
+  teamB: ['no_account'],
+  acceptedPlayers: ['admin'],
+  status: 'pending',
+}
+assert.ok(
+  !canMemberAcceptChallenge(cAdminInside, 'admin', true),
+  'Admin đã tự nhận rồi thì KHÔNG hiện nút nhận lại (hành vi cũ, giữ nguyên)',
+)
+assert.ok(
+  canAdminForceAcceptChallenge(cAdminInside, true),
+  'Nhưng admin VẪN duyệt hộ được cả kèo — lối thoát cho người chưa có tài khoản',
+)
+assert.ok(
+  !canAdminForceAcceptChallenge(cAdminInside, false),
+  'Người thường không có quyền duyệt hộ',
+)
+assert.ok(
+  !canAdminForceAcceptChallenge({ ...cAdminInside, teamB: [] }, true),
+  'Kèo mở chưa đủ người thì admin không duyệt hộ được',
+)
+assert.ok(
+  !canAdminForceAcceptChallenge({ ...cAdminInside, acceptedPlayers: ['admin', 'no_account'] }, true),
+  'Đã nhận đủ thì nút duyệt hộ biến mất',
+)
+assert.ok(
+  !canAdminForceAcceptChallenge({ ...cAdminInside, expiresAt: new Date(Date.now() - 60000).toISOString() }, true),
+  'Kèo quá hạn thì không duyệt hộ được',
+)
+
+// `isFullTeam` được expose để nút duyệt hộ dùng chung một định nghĩa "đủ người" với phần còn lại
+assert.equal(getChallengeAcceptanceProgress(cAdminInside).isFullTeam, true, 'Kèo đơn đủ 1v1 -> isFullTeam')
+assert.equal(getChallengeAcceptanceProgress({ ...cAdminInside, teamB: [] }).isFullTeam, false, 'Kèo mở -> chưa đủ đội')
 
 console.log('challenge check: OK')
 

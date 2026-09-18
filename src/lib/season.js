@@ -231,6 +231,21 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
   // Ngưỡng Elo để tính là thắng lội ngược dòng — lấy từ config, không hard-code (RULES §3.2)
   const upsetMinGap = bonusCfg.upsetMinGap ?? 150
 
+  // Hệ số điểm mùa cho trận sinh ra từ KÈO. Mục đích là kích cầu việc gạ kèo: cùng một trận,
+  // đánh trong kèo thì đáng giá gấp đôi so với trận xếp sân thường.
+  //
+  // CỐ Ý phẳng — mọi kèo, mọi bên, thắng lẫn thua đều cùng một hệ số. Bản thiết kế đầu có hệ số
+  // riêng cho bên gạ / bên bị gạ (2.5 khi kẻ yếu thắng, 1.0 khi kẻ yếu thua) nhưng bị bỏ vì hai
+  // lẽ: (1) hệ dải Elo ở `calcSeasonMatchDelta` ĐÃ ưu ái kẻ yếu sẵn (+22 so với +14), thêm tầng
+  // nữa là ưu ái hai lần chồng nhau; (2) hệ số thắng/thua lệch nhau đẻ ra lỗ hổng — kèo BO3 thua
+  // 1-2 vẫn ra tổng DƯƠNG, nên gạ kèo với người mạnh nhất rồi thua cũng có lãi.
+  //
+  // Elo KHÔNG nhân hệ số này. Kèo tính Elo y hệt trận thường — xem `lib/rating.js`, nó không hề
+  // biết trận đến từ đâu, và cố ý giữ như vậy.
+  const challengeMultiplier = Number(
+    season.challengeMultiplier ?? cfg?.season?.challengeMultiplier ?? 1,
+  ) || 1
+
   const members = (db.members || []).filter((m) => m.active !== false)
   const allSessions = db.sessions || []
   const seasonMatches = seasonMatchesOf(db, season)
@@ -387,31 +402,61 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     let upsetsCount = 0
     const matchLogs = []
 
-    myMatches.forEach((match) => {
-      const { delta, tier, gap } = calcSeasonMatchDelta(match.myElo, match.oppElo, match.won, season.deltaScale)
+    // Gom các set theo KÈO trước khi cộng điểm. Một kèo BO3 sinh 2-3 trận riêng trong `matches`,
+    // nhưng với chuỗi thắng thì nó phải đếm là MỘT lần — không thì thắng một kèo BO3 2-0 đã cho
+    // streak 2, và BO3 biến thành đường cày mốc thưởng streak 3/5.
+    // `lastIdx` đánh dấu set cuối của kèo: đó là chỗ duy nhất chuỗi được cập nhật.
+    const chalAgg = new Map()
+    myMatches.forEach((mt, idx) => {
+      if (!mt.challengeId) return
+      const cur = chalAgg.get(mt.challengeId) || { wins: 0, losses: 0, lastIdx: idx }
+      if (mt.won) cur.wins += 1
+      else cur.losses += 1
+      cur.lastIdx = idx
+      chalAgg.set(mt.challengeId, cur)
+    })
+
+    myMatches.forEach((match, idx) => {
+      const { delta: rawDelta, tier, gap } = calcSeasonMatchDelta(match.myElo, match.oppElo, match.won, season.deltaScale)
+
+      // Hệ số kèo áp cho TỪNG set: kèo BO3 thắng 2-0 ăn gấp đôi kèo BO1 thắng. Đó là chủ đích
+      // (kích cầu), không phải sót — xem ghi chú ở `challengeMultiplier`.
+      const isChallengeMatch = Boolean(match.challengeId || match.sourceType === 'challenge')
+      const delta = isChallengeMatch ? Math.round(rawDelta * challengeMultiplier) : rawDelta
+
       let matchBonus = 0
       let earnedStreakBonus = 0
       let earnedUpsetBonus = 0
 
-      if (match.won) {
-        streak++
-        if (streak === 3) {
-          earnedStreakBonus = bonusCfg.streak3 || 5
-          streakBonusPts += earnedStreakBonus
-          matchBonus += earnedStreakBonus
-        } else if (streak === 5) {
-          earnedStreakBonus = bonusCfg.streak5 || 10
-          streakBonusPts += earnedStreakBonus
-          matchBonus += earnedStreakBonus
+      // Set giữa chuỗi không đụng tới streak; set cuối tính một lần theo kết quả CẢ kèo.
+      const agg = match.challengeId ? chalAgg.get(match.challengeId) : null
+      const countsForStreak = !agg || agg.lastIdx === idx
+      const streakWon = agg ? agg.wins > agg.losses : match.won
+
+      if (countsForStreak) {
+        if (streakWon) {
+          streak++
+          if (streak === 3) {
+            earnedStreakBonus = bonusCfg.streak3 || 5
+            streakBonusPts += earnedStreakBonus
+            matchBonus += earnedStreakBonus
+          } else if (streak === 5) {
+            earnedStreakBonus = bonusCfg.streak5 || 10
+            streakBonusPts += earnedStreakBonus
+            matchBonus += earnedStreakBonus
+          }
+        } else {
+          streak = 0
         }
-        if (match.isUpset) {
-          upsetsCount++
-          earnedUpsetBonus = bonusCfg.upset150 || 5
-          upsetBonusPts += earnedUpsetBonus
-          matchBonus += earnedUpsetBonus
-        }
-      } else {
-        streak = 0
+      }
+
+      // Upset CỐ Ý vẫn tính theo từng set: nó thưởng cho việc hạ đối thủ mạnh trong một ván cụ
+      // thể, không phải cho cả chuỗi. Gom nó theo kèo là đổi ý nghĩa của mốc thưởng.
+      if (match.won && match.isUpset) {
+        upsetsCount++
+        earnedUpsetBonus = bonusCfg.upset150 || 5
+        upsetBonusPts += earnedUpsetBonus
+        matchBonus += earnedUpsetBonus
       }
 
       matchNetPts += delta

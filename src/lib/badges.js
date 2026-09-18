@@ -2,6 +2,7 @@ import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { isPresent, myDebtCounts, playerName } from '#lib/money.js'
 import { countInvitedBy, monthsSince } from '#lib/xp.js'
 import { seasonMatchesOf, resolveSeason } from '#lib/season.js'
+import { collapseChallengeSets } from '#lib/challenge.js'
 
 /**
  * ĐỘNG CƠ DANH HIỆU & TREO THƯỞNG (BADGES & BOUNTY ENGINE)
@@ -261,15 +262,24 @@ export function getMemberStreak(memberId, db, season = null, preloadedSeasonMatc
   const desc = sortMatchesDesc(memberMatches, db)
   const asc = sortMatchesAsc(memberMatches, db)
 
+  const wonOf = (mt) => {
+    const inA = (mt.teamA || []).includes(memberId)
+    const inB = (mt.teamB || []).includes(memberId)
+    return (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
+  }
+
+  // Một KÈO đếm đúng một lần vào chuỗi, không phải mỗi set một lần — cùng luật với điểm mùa
+  // (`calculateSeasonLeaderboard`). Trước đây hai chỗ này đếm khác nhau: kèo BO3 thắng 2-0 cho
+  // điểm mùa thấy chuỗi 1 còn danh hiệu thấy chuỗi 2, nên cùng một người có hai con số chuỗi.
+  const ascUnits = collapseChallengeSets(asc, wonOf)
+  const descUnits = collapseChallengeSets(desc, wonOf)
+
   let maxStreak = 0
   let curRunning = 0
 
   // Duyệt từ cũ tới mới để tìm maxStreak
-  asc.forEach((mt) => {
-    const inA = (mt.teamA || []).includes(memberId)
-    const inB = (mt.teamB || []).includes(memberId)
-    const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
-    if (won) {
+  ascUnits.forEach((u) => {
+    if (u.won) {
       curRunning++
       if (curRunning > maxStreak) maxStreak = curRunning
     } else {
@@ -279,19 +289,20 @@ export function getMemberStreak(memberId, db, season = null, preloadedSeasonMatc
 
   // Duyệt từ mới nhất để tìm streak đang chạy
   let streak = 0
+  // Trận THẬT nằm trong chuỗi đang chạy. Phải trả ra riêng: từ khi kèo đếm gộp, `streak` là số
+  // ĐƠN VỊ chứ không còn là số trận, nên `matches.slice(0, streak)` ở phía gọi sẽ hụt trận.
+  const streakMatches = []
   let broken = false
-  for (const mt of desc) {
-    const inA = (mt.teamA || []).includes(memberId)
-    const inB = (mt.teamB || []).includes(memberId)
-    const won = (inA && mt.winnerTeam === 'A') || (inB && mt.winnerTeam === 'B')
-    if (won && !broken) {
+  for (const u of descUnits) {
+    if (u.won && !broken) {
       streak++
+      streakMatches.push(...u.matches)
     } else {
       broken = true
     }
   }
 
-  return { streak, maxStreak, matches: desc }
+  return { streak, maxStreak, matches: desc, streakMatches }
 }
 
 /**
@@ -391,15 +402,13 @@ export function getActiveBounties(db, season = null, preloadedMatches = null) {
 
   // 1. Quét cá nhân
   members.forEach((m) => {
-    const { streak } = getMemberStreak(m.id, db, resolvedSeason, targetMatches)
+    const { streak, streakMatches } = getMemberStreak(m.id, db, resolvedSeason, targetMatches)
     if (streak >= minSingle) {
       const hot = streak >= hotStreak
       const rew = hot ? rewHot : rewNorm
-      // Đếm số trận đối thủ đã cố gắng hạ người này trong chuỗi
-      const filteredMatches = targetMatches
-        .filter((mt) => (mt.teamA || []).includes(m.id) || (mt.teamB || []).includes(m.id))
-      const myMatches = sortMatchesDesc(filteredMatches, db)
-      const streakMatches = myMatches.slice(0, streak)
+      // Đếm số trận đối thủ đã cố gắng hạ người này trong chuỗi. Dùng `streakMatches` từ chính
+      // `getMemberStreak` thay vì cắt `slice(0, streak)`: kèo BO3 là MỘT đơn vị chuỗi nhưng hai
+      // ba trận thật, cắt theo số đơn vị thì đếm thiếu đối thủ và lấy sai ngày mở chuỗi.
       const triesCount = streakMatches.reduce((acc, mt) => {
         const opps = (mt.teamA || []).includes(m.id) ? (mt.teamB || []) : (mt.teamA || [])
         return acc + opps.length

@@ -2675,7 +2675,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     /* ---------- Kèo & Thi đấu (Challenge & Rating) ---------- */
-    createChallenge: ({ sessionId, teamA, teamB, courtId, bestOf = (cfg.challenge?.defaultBestOf ?? 3), ratingEnabled = true, scheduledAt }) => {
+    createChallenge: ({ sessionId, teamA, teamB, courtId, bestOf = (cfg.challenge?.defaultBestOf ?? 3), ratingEnabled = true, scheduledAt, stakeText = '' }) => {
       const d0 = db()
       const myMem = myMember(d0)
       const myId = myMem?.id || null
@@ -2707,6 +2707,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         expiresAt: new Date(Date.now() + expireMins * 60 * 1000).toISOString(),
         matchId: null,
         acceptedPlayers,
+        // Kèo tạo ra đã đủ chữ ký (người tạo đánh một mình cả hai đội thì không xảy ra, nhưng
+        // admin duyệt sẵn thì có) cũng phải có mốc nhận, không thì timeline lại rơi về giờ tạo.
+        acceptedAt: isFullyAccepted ? new Date().toISOString() : '',
+        acceptedBy: isFullyAccepted ? myId : null,
+        deployedAt: '',
+        stakeText: String(stakeText || '').slice(0, cfg.challenge?.stakeMaxLen ?? 120),
         teamA: teamA || [],
         teamB: teamB || [],
       }
@@ -2766,7 +2772,40 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       toast(t('challenge.formatChangedToast', { code: chal.code, bo: next }))
     },
 
-    respondChallenge: (challengeId, accept) => {
+    /**
+     * Đặt / sửa / xoá GIAO KÈO — thoả thuận đời thật ("thua mua 2 chai nước").
+     *
+     * Thuần trang trí: không đụng điểm mùa, Elo, SP hay công nợ. App chỉ ghi lại cho hai bên khỏi
+     * cãi nhau lúc tan sân; nó không thu hộ và không nhắc nợ ai.
+     *
+     * Sửa được tới tận lúc kèo đánh xong — khác `setChallengeFormat` phải khoá khi có tỷ số, vì
+     * chữ này không tham gia tính toán gì nên đổi lúc nào cũng vô hại.
+     */
+    setChallengeStake: (challengeId, stakeText) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) return
+
+      const myMem = myMember(d0)
+      const isCreator = Boolean(myMem && chal.createdBy === myMem.id)
+      const isParticipant = Boolean(myMem && [...(chal.teamA || []), ...(chal.teamB || [])].includes(myMem.id))
+      if (!canAssign() && !isCreator && !isParticipant) {
+        toast(t('common.unauthorized'))
+        return
+      }
+
+      // Cắt đúng trần của cột DB (`challenges_stake_text_len` trong 0048). Cắt ở đây thay vì để
+      // server chửi: người dùng gõ dài thì mất phần đuôi, không phải mất cả thao tác.
+      const next = String(stakeText || '').trim().slice(0, cfg.challenge?.stakeMaxLen ?? 120)
+      if (next === (chal.stakeText || '')) return
+
+      up((d) => ({
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, stakeText: next } : c)),
+      }))
+      toast(next ? t('challenge.stakeSavedToast') : t('challenge.stakeClearedToast'))
+    },
+
+    respondChallenge: (challengeId, accept, force = false) => {
       const d0 = db()
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)
       if (!chal) return
@@ -2806,8 +2845,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       }
 
       let nextAccepted = chal.acceptedPlayers || []
-      if (canAssign() && !isParticipant) {
-        // Admin duyệt nhanh: chấp nhận toàn bộ đấu thủ
+      if (canAssign() && (force || !isParticipant)) {
+        // Admin duyệt nhanh: chấp nhận toàn bộ đấu thủ.
+        // `force` là nút "Duyệt cả kèo" — admin ĐANG đánh trong kèo cũng bấm được. Thiếu nó thì
+        // kèo có người chưa ghép tài khoản không ai nhận nổi (xem `canAdminForceAcceptChallenge`).
         nextAccepted = Array.from(new Set([...nextAccepted, ...allPlayers]))
       } else if (myMem) {
         nextAccepted = Array.from(new Set([...nextAccepted, myMem.id]))
@@ -2817,7 +2858,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const nextStatus = isFullyAccepted ? 'accepted' : 'pending'
 
       up((d) => ({
-        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, acceptedPlayers: nextAccepted, status: nextStatus } : c)),
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId
+          ? {
+            ...c,
+            acceptedPlayers: nextAccepted,
+            status: nextStatus,
+            // Mốc nhận ghi đúng lúc kèo ĐỦ chữ ký, không phải lúc người đầu tiên bấm — timeline
+            // hỏi "kèo chốt lúc mấy giờ", không hỏi "ai bấm trước".
+            ...(isFullyAccepted ? { acceptedAt: new Date().toISOString(), acceptedBy: myMem?.id || null } : {}),
+          }
+          : c)),
       }))
 
       if (isFullyAccepted) {
@@ -2870,7 +2920,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const status = isFullyAccepted ? 'accepted' : 'pending'
 
       up((d) => ({
-        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, teamB, acceptedPlayers: nextAccepted, status } : c)),
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId
+          ? {
+            ...c,
+            teamB,
+            acceptedPlayers: nextAccepted,
+            status,
+            ...(isFullyAccepted ? { acceptedAt: new Date().toISOString(), acceptedBy: myId } : {}),
+          }
+          : c)),
       }))
 
       // Kèo MỞ: người tạo treo kèo rồi đi làm việc khác. Không bắn ở đây thì họ không có cách
@@ -3339,11 +3397,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         const challenges = chal
           ? (d.challenges || []).map((k) => {
               if (k.id !== chal.id) return k
+              // Mốc RA SÂN: app không còn nút "Đưa lên sân" riêng, nên lúc ván ĐẦU của kèo được
+              // ghi chính là lúc kèo thật sự ra sân. `|| k.deployedAt` giữ mốc cũ cho các ván sau
+              // của chuỗi BO3 — ván 2, ván 3 không được đẩy mốc này lên nữa.
+              const deployedAt = k.deployedAt || new Date().toISOString()
               if (isChalComplete) {
                 return {
                   ...k,
                   status: 'played',
                   matchId,
+                  deployedAt,
                   winnerTeam: chalSeriesProg?.winnerTeam || winnerTeam,
                   seriesScore: chalSeriesProg ? { winsA: chalSeriesProg.winsA, winsB: chalSeriesProg.winsB } : null,
                   predictionsLocked: true,
@@ -3354,6 +3417,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
                 ...k,
                 status: 'accepted',
                 matchId: null,
+                deployedAt,
                 seriesScore: chalSeriesProg ? { winsA: chalSeriesProg.winsA, winsB: chalSeriesProg.winsB } : null,
                 // Ghi xong hiệp đầu là ĐÓNG cổng cược. Trước đây việc này do nút "Đưa lên sân"
                 // làm; bỏ nút rồi mà không khoá ở đây thì khán giả xem xong hiệp 1 biết tỷ số

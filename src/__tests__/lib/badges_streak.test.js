@@ -152,5 +152,34 @@ test('Badges Streak & Chasers Engine Suite', async (t) => {
     assert.equal(streak, 0, 'Trận cuối cùng ghi nhận là Thua nên chuỗi hiện tại phải bằng 0')
     assert.equal(maxStreak, 2, 'Kỷ lục trước đó trong buổi đạt 2 trận thắng')
   })
+
+  await t.test('Chuỗi thắng gom theo KÈO — khớp với cách điểm mùa đếm', () => {
+    // Một kèo BO3 thắng 2-0 rồi một trận thường thắng.
+    // Đếm theo set thì ra chuỗi 3; đếm theo kèo thì ra 2. Điểm mùa
+    // (`calculateSeasonLeaderboard`) đếm theo kèo, nên chỗ này phải ra CÙNG con số — trước đây
+    // hai bên lệch nhau và cùng một người mang hai số chuỗi khác nhau.
+    const db = {
+      matches: [
+        { id: 'k1s1', challengeId: 'k1', at: Date.parse('2026-09-01T08:00:00Z'), teamA: ['userA'], teamB: ['userB'], winnerTeam: 'A' },
+        { id: 'k1s2', challengeId: 'k1', at: Date.parse('2026-09-01T08:30:00Z'), teamA: ['userA'], teamB: ['userB'], winnerTeam: 'A' },
+        { id: 'm3', at: Date.parse('2026-09-01T09:00:00Z'), teamA: ['userA'], teamB: ['userC'], winnerTeam: 'A' },
+      ],
+    }
+    const { streak, maxStreak, streakMatches } = getMemberStreak('userA', db)
+    assert.equal(streak, 2, 'Kèo BO3 thắng 2-0 + 1 trận thường = chuỗi 2, không phải 3')
+    assert.equal(maxStreak, 2, 'Kỷ lục cũng đếm theo kèo')
+    assert.equal(streakMatches.length, 3, 'Nhưng chuỗi đó vẫn gồm đủ 3 TRẬN thật')
+
+    // Thua chuỗi kèo thì chuỗi cắt, dù thắng set lẻ bên trong
+    const db2 = {
+      matches: [
+        { id: 'm0', at: Date.parse('2026-09-01T07:00:00Z'), teamA: ['userA'], teamB: ['userC'], winnerTeam: 'A' },
+        { id: 'k2s1', challengeId: 'k2', at: Date.parse('2026-09-01T08:00:00Z'), teamA: ['userA'], teamB: ['userB'], winnerTeam: 'A' },
+        { id: 'k2s2', challengeId: 'k2', at: Date.parse('2026-09-01T08:30:00Z'), teamA: ['userA'], teamB: ['userB'], winnerTeam: 'B' },
+        { id: 'k2s3', challengeId: 'k2', at: Date.parse('2026-09-01T09:00:00Z'), teamA: ['userA'], teamB: ['userB'], winnerTeam: 'B' },
+      ],
+    }
+    assert.equal(getMemberStreak('userA', db2).streak, 0, 'Thua kèo 1-2 -> chuỗi về 0, set thắng lẻ không cứu')
+  })
 })
 

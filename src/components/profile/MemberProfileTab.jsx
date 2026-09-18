@@ -10,6 +10,7 @@ import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#l
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
 import { useMobile } from '#hooks/useMobile.js'
+import cfgApp from '#config/app.json'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t } from '#i18n'
 
@@ -103,6 +104,8 @@ export default function MemberProfileTab({
   }, [mid, db, seasonConfig])
 
   // Tỷ lệ thanh phân bổ Stacked Bar cho Điểm mùa
+  // Hệ số điểm mùa của kèo — hiện thẳng trên tag, cùng cách với MemberSeasonLedgerModal.
+  const chalMult = Number(ledgerData?.season?.challengeMultiplier ?? cfgApp?.season?.challengeMultiplier ?? 1) || 1
   const seasonTotal = Math.max(1, ledgerData?.totalPoints ?? 0)
   const seasonBreakdown = ledgerData?.breakdown || {}
   const pMatchNet = Math.round((Math.max(0, seasonBreakdown.matchNetPts ?? seasonBreakdown.winPts ?? 0) / seasonTotal) * 100)
@@ -803,8 +806,11 @@ export default function MemberProfileTab({
                                       ? '1px solid rgba(249, 115, 22, 0.35)'
                                       : '1px solid rgba(56, 189, 248, 0.25)',
                                   }}
+                                  title={(ev.isChallenge && chalMult > 1) ? t('season.tagChallengeMultHint', { mult: chalMult }) : undefined}
                                 >
-                                  {ev.isChallenge ? t('season.tagChallenge') : t('season.tagMatch')}
+                                  {ev.isChallenge
+                                    ? (chalMult > 1 ? t('season.tagChallengeMult', { mult: chalMult }) : t('season.tagChallenge'))
+                                    : t('season.tagMatch')}
                                 </span>
 
                                 {/* Highlight Pill Elo Gap: Kèo trên / Kèo cân / Kèo dưới */}

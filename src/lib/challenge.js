@@ -61,7 +61,7 @@ export function isChallengeAccepted(challenge) {
 
 /** Tiến độ nhận kèo của các đấu thủ */
 export function getChallengeAcceptanceProgress(challenge) {
-  if (!challenge) return { acceptedCount: 0, totalCount: 0, isFullyAccepted: false, pendingPlayerIds: [] }
+  if (!challenge) return { acceptedCount: 0, totalCount: 0, isFullyAccepted: false, isFullTeam: false, pendingPlayerIds: [] }
   const isDoubles = (challenge.teamA || []).length > 1
   const totalCount = isDoubles ? 4 : 2
   const allCurrent = Array.from(new Set([...(challenge.teamA || []), ...(challenge.teamB || [])]))
@@ -78,6 +78,7 @@ export function getChallengeAcceptanceProgress(challenge) {
     acceptedCount,
     totalCount,
     isFullyAccepted,
+    isFullTeam,
     pendingPlayerIds,
     isDoubles,
   }
@@ -111,6 +112,73 @@ export function canMemberAcceptChallenge(challenge, myMemberId, isAdmin = false)
   }
 
   return false
+}
+
+/**
+ * Thu danh sách trận thành các ĐƠN VỊ tính chuỗi thắng: mỗi kèo đếm đúng MỘT lần.
+ *
+ * Luật chung cho mọi nơi đếm chuỗi (điểm mùa lẫn danh hiệu): một kèo BO3 thắng 2-1 là MỘT lần
+ * thắng, không phải hai. Thiếu nó thì BO3 thành đường cày mốc thưởng streak, và tệ hơn là điểm
+ * mùa với danh hiệu nói hai con số khác nhau về cùng một chuỗi.
+ *
+ * Kết quả của kèo lấy theo đa số set thắng trong PHẠM VI danh sách truyền vào — chuỗi đang đánh
+ * dở thì tính theo những set đã có, đúng như người xem đang thấy.
+ *
+ * Đơn vị kèo nằm ở vị trí của set ĐẦU TIÊN gặp trong mảng, nên hàm này giữ nguyên chiều sắp xếp
+ * của đầu vào: truyền mảng tăng dần thì ra tăng dần, giảm dần thì ra giảm dần.
+ *
+ * @param {Array} matches danh sách trận đã sắp thứ tự
+ * @param {(mt: object) => boolean} wonOf trả về true nếu người đang xét thắng trận đó
+ * @returns {Array<{ challengeId: string|null, won: boolean, wins: number, losses: number, matches: Array }>}
+ */
+export function collapseChallengeSets(matches = [], wonOf) {
+  const out = []
+  const seen = new Map()
+
+  for (const mt of matches) {
+    const won = Boolean(wonOf(mt))
+    const cid = mt?.challengeId || null
+
+    if (cid && seen.has(cid)) {
+      const unit = out[seen.get(cid)]
+      if (won) unit.wins += 1
+      else unit.losses += 1
+      unit.matches.push(mt)
+      continue
+    }
+
+    if (cid) seen.set(cid, out.length)
+    out.push({ challengeId: cid, wins: won ? 1 : 0, losses: won ? 0 : 1, matches: [mt] })
+  }
+
+  // Hoà set (2-2 ở BO5 dở dang) tính là CHƯA thắng — chuỗi thắng phải có thắng thật mới nối.
+  return out.map((u) => ({ ...u, won: u.wins > u.losses }))
+}
+
+/**
+ * Admin duyệt nhanh CẢ kèo — nhận hộ mọi đấu thủ trong một lần bấm.
+ *
+ * Tách khỏi `canMemberAcceptChallenge` vì hai câu hỏi khác nhau: hàm kia hỏi "tôi có được tự
+ * nhận cho mình không", hàm này hỏi "admin có được nhận hộ cả kèo không". Nhồi chung thì nhánh
+ * admin nằm SAU cái `return` sớm của nhánh đấu thủ, nên admin tự đánh kèo là không bao giờ với
+ * tới được — đó chính là cái bẫy đang có.
+ *
+ * Vì sao cần: thành viên chưa ghép tài khoản (`userId` rỗng, xem `myMember`) không đăng nhập
+ * được nên KHÔNG BAO GIỜ tự bấm nhận. Admin tự đánh với người như vậy thì kèo kẹt `pending` tới
+ * lúc hết hạn, và kèo pending thì không lên sân được (`CourtAssignmentTab` chỉ lấy kèo đã nhận).
+ * Đây là đường thoát duy nhất.
+ *
+ * Cố ý KHÔNG nhận `myMemberId`: quyền này thuộc về vai admin, không phụ thuộc người bấm có đứng
+ * trong kèo hay không — chính chỗ phụ thuộc đó đã đẻ ra bug.
+ */
+export function canAdminForceAcceptChallenge(challenge, isAdmin = false) {
+  if (!isAdmin) return false
+  if (!challenge || challenge.status !== 'pending') return false
+  if (isChallengeExpired(challenge)) return false
+
+  // Kèo mở còn trống chỗ thì không duyệt được: chưa biết ai là đối thủ để nhận hộ.
+  const prog = getChallengeAcceptanceProgress(challenge)
+  return Boolean(prog.isFullTeam && !prog.isFullyAccepted)
 }
 
 /**

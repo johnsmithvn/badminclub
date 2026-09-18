@@ -65,6 +65,7 @@
     "startPoints": 100,
     "minMatchesOfficial": 8,
     "inactiveDays": 21,
+    "challengeMultiplier": 2,
     "bonusConfig": {
       "streak3": 5,
       "streak5": 10,
@@ -170,7 +171,9 @@
   },
   "challenge": {
     "defaultBestOf": 3,
-    "defaultExpireMins": 60
+    "defaultExpireMins": 60,
+    "maxStakePoints": 100,
+    "stakeMaxLen": 120
   },
   "ui": {
     "contentMaxWidth": 1440,

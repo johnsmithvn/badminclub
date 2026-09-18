@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Avatar } from '#ds'
 import { getMemberSeasonLedger } from '#lib/season.js'
+import cfg from '#config/app.json'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -77,6 +78,10 @@ export default function MemberSeasonLedgerModal({
     breakdown,
     recentEvents,
   } = ledgerData
+
+  // Hệ số điểm mùa của kèo — hiện thẳng trên tag để người chơi thấy phần thưởng, không phải đoán
+  // vì sao cùng một dải Elo mà trận này ăn gấp đôi trận kia.
+  const chalMult = Number(season?.challengeMultiplier ?? cfg?.season?.challengeMultiplier ?? 1) || 1
 
   // Tỷ lệ thanh phân bổ Stacked Bar
   const total = Math.max(1, totalPoints)
@@ -354,8 +359,11 @@ export default function MemberSeasonLedgerModal({
                               ? '1px solid rgba(249, 115, 22, 0.35)'
                               : '1px solid rgba(56, 189, 248, 0.25)',
                           }}
+                          title={(ev.isChallenge && chalMult > 1) ? t('season.tagChallengeMultHint', { mult: chalMult }) : undefined}
                         >
-                          {ev.isChallenge ? t('season.tagChallenge') : t('season.tagMatch')}
+                          {ev.isChallenge
+                            ? (chalMult > 1 ? t('season.tagChallengeMult', { mult: chalMult }) : t('season.tagChallenge'))
+                            : t('season.tagMatch')}
                         </span>
 
                         {/* Highlight Pill Elo Gap: Kèo trên / Kèo cân / Kèo dưới */}

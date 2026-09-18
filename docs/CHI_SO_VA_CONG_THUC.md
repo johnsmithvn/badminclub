@@ -292,7 +292,38 @@ Cả hai người cùng đội nhận **cùng delta**.
 > `heavyFavored` và `deepUnderdog` **chưa bao giờ chạy một lần nào**. Thực tế chỉ có 3 dải hoạt
 > động: balanced 120 trận · favored 42 · underdog 38.
 
-### 3.3. Thưởng
+### 3.3. Hệ số KÈO (`challengeMultiplier`)
+
+Trận sinh từ **kèo** (`matches.challengeId` có giá trị, hoặc `sourceType = 'challenge'`) được
+nhân delta điểm mùa với `app.json → season.challengeMultiplier` (**hiện = 2**).
+
+```
+delta = round(delta_dải × challengeMultiplier)    ← CHỈ điểm mùa
+```
+
+| | Kèo | Trận thường |
+|---|---|---|
+| **Elo** | tính bình thường, công thức y hệt | tính bình thường |
+| **Điểm mùa** | delta **×2** | delta ×1 |
+
+**`rating.js` không biết trận đến từ đâu và cố ý giữ như vậy** — hệ số này thuần điểm mùa.
+
+Hệ số **phẳng**: mọi kèo, cả hai bên, thắng lẫn thua đều cùng một số. Bản thiết kế đầu có hệ số
+riêng cho bên gạ / bên bị gạ (×2,5 khi kẻ yếu thắng, ×1,0 khi kẻ yếu thua) nhưng đã bỏ vì:
+
+1. Dải Elo ở §3.2 **đã** ưu ái kẻ yếu sẵn (+22 so với +14) — thêm tầng nữa là ưu ái hai lần chồng
+   nhau, đẩy một kèo thắng lên +110 trong khi vốn đầu mùa chỉ có 100.
+2. Hệ số thắng/thua lệch nhau đẻ ra lỗ hổng: kèo BO3 **thua** 1−2 vẫn ra tổng **dương** (+49), nên
+   gạ kèo với người mạnh nhất CLB rồi thua cũng có lãi.
+
+Hệ số áp cho **từng set**, nên kèo BO3 thắng 2−0 ăn gấp đôi BO1 thắng. Đây là chủ đích (kích cầu
+điểm mùa), không phải sót.
+
+> ⚠️ **Bộ backtest không phủ được phần này** — `src/__tests__/backtest/data/` không có trận nào
+> mang `challengeId`, nên đổi hệ số vẫn để backtest xanh. Lưới gác là
+> `src/__tests__/lib/season_challenge_multiplier.test.js`.
+
+### 3.4. Thưởng
 
 | Thưởng | Điều kiện | Điểm |
 |---|---|---:|
@@ -302,10 +333,26 @@ Cả hai người cùng đội nhận **cùng delta**.
 
 Chuỗi reset về 0 khi thua. Thắng trận thứ 4, 6, 7… **không** thưởng thêm (chỉ mốc 3 và 5).
 
+**Chuỗi đếm theo KÈO, không theo set.** Một kèo BO3 thắng 2−1 cộng **một** vào chuỗi, không phải
+hai. Thua chuỗi thì chuỗi về 0 dù có thắng set lẻ bên trong. Thiếu quy tắc này thì BO3 thành
+đường cày mốc thưởng 3/5.
+
+Luật này nằm ở **một chỗ dùng chung**: `collapseChallengeSets()` trong `src/lib/challenge.js`.
+Cả điểm mùa (`season.js`) lẫn danh hiệu (`badges.js → getMemberStreak`) đều đi qua nó. Trước
+2026-09-18 hai bên tự đếm riêng, nên cùng một người có hai con số chuỗi khác nhau: kèo BO3 thắng
+2−0 cho điểm mùa thấy chuỗi 1 còn danh hiệu thấy chuỗi 2.
+
+> ⚠️ `getMemberStreak` trả thêm `streakMatches` — danh sách **trận thật** trong chuỗi. Từ khi kèo
+> đếm gộp, `streak` là số ĐƠN VỊ chứ không còn là số trận, nên `matches.slice(0, streak)` ở phía
+> gọi sẽ hụt trận (đếm thiếu đối thủ, lấy sai ngày mở chuỗi).
+
+Ngược lại, `upset150` **vẫn tính theo từng set** — nó thưởng cho việc hạ đối thủ mạnh trong một
+ván cụ thể, không phải cho cả chuỗi.
+
 > 📊 Ngưỡng upset 150 > chênh đội tối đa 123 → **`totalUpsets = 0`**, thưởng lật kèo chưa từng
 > phát một lần. Đang chờ user quyết có hạ xuống ~90 không.
 
-### 3.4. Sàn 0 và thứ tự
+### 3.5. Sàn 0 và thứ tự
 
 ```
 sau MỖI trận:  điểm = max(0, điểm + delta + thưởng)
@@ -317,7 +364,7 @@ sàn. Nên bắt buộc sắp xếp theo `at` và tie-break theo `id`.
 > 📊 Trước khi có `startPoints`, sàn này tạo ra **+201 điểm từ hư không** = 21.8% của 921 điểm
 > hiển thị, cho 11/22 người. Sau khi thêm 100 điểm đệm → **0**.
 
-### 3.5. Điểm cược kèo
+### 3.6. Điểm cược kèo
 
 ```
 rawNet = tổng phiếu thắng − tổng phiếu thua  (chỉ phiếu quyết toán TRONG mùa, theo settledAt)
@@ -332,7 +379,7 @@ trừ thật, và luật "hết điểm là không được cược" mới có r
 Trần thắng giữ để bảng xếp hạng vẫn là bảng **thi đấu** — không ai leo hạng bằng cách ngồi ngoài
 đoán kèo.
 
-### 3.6. Điều kiện xếp hạng
+### 3.7. Điều kiện xếp hạng
 
 | Nhãn | Điều kiện |
 |---|---|
@@ -352,14 +399,14 @@ Trần thắng giữ để bảng xếp hạng vẫn là bảng **thi đấu** �
 >
 > Đặt `minMatchesOfficial: 0` là **tắt hẳn** cổng này.
 
-### 3.7. Trận giao lưu (`ratingEnabled = false`)
+### 3.8. Trận giao lưu (`ratingEnabled = false`)
 
 - Không sinh điểm mùa
 - Không tính vào mốc 8 trận
 - **Không cắt đứt chuỗi thắng** đang treo thưởng
 - Vẫn tính là "có mặt buổi đó"
 
-### 3.8. Vua Lì Đòn — `getSeasonBountyPlayer(db)`
+### 3.9. Vua Lì Đòn — `getSeasonBountyPlayer(db)`
 
 Người đang giữ **chuỗi thắng ĐANG CHẠY** dài nhất CLB, tối thiểu 3 trận. Đếm ngược từ trận mới
 nhất, bỏ qua trận giao lưu.
