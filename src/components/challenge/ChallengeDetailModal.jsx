@@ -21,14 +21,17 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   const [stakeDraft, setStakeDraft] = useState('')
   const [now] = useState(() => Date.now())
 
-  const c = useMemo(() => challenge || {}, [challenge])
+  const c = useMemo(() => {
+    if (!challenge?.id) return challenge || {}
+    return (db.challenges || []).find((x) => x.id === challenge.id) || challenge
+  }, [db.challenges, challenge])
   const myMem = myMember(db)
   const myId = myMem?.id || null
   const role = db.viewAs || myMem?.role || 'member'
   const isAdmin = role === 'owner' || role === 'treasurer'
 
-  const teamA = useMemo(() => challenge?.teamA || [], [challenge?.teamA])
-  const teamB = useMemo(() => challenge?.teamB || [], [challenge?.teamB])
+  const teamA = useMemo(() => c?.teamA || [], [c?.teamA])
+  const teamB = useMemo(() => c?.teamB || [], [c?.teamB])
   const isOpen = !teamB.length || (teamB && teamB.length < (teamA.length > 1 ? 2 : 1))
 
   const isCreator = Boolean(myId && c.createdBy === myId)

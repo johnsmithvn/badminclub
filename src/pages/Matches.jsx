@@ -3591,8 +3591,8 @@ export default function Matches() {
       {/* Modal chi tiết/thao tác kèo */}
       {viewingChallenge && (
         <ChallengeDetailModal
-          challenge={viewingChallenge}
-          session={(db.sessions || []).find((s) => s.id === viewingChallenge.sessionId)}
+          challenge={(db.challenges || []).find((c) => c.id === viewingChallenge.id) || viewingChallenge}
+          session={(db.sessions || []).find((s) => s.id === ((db.challenges || []).find((c) => c.id === viewingChallenge.id) || viewingChallenge).sessionId)}
           onClose={() => setViewingChallenge(null)}
           onScoreInput={(c) => {
             setViewingChallenge(null)

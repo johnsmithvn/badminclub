@@ -2755,8 +2755,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       const myMem = myMember(d0)
       const isCreator = Boolean(myMem && chal.createdBy === myMem.id)
-      if (!canAssign() && !isCreator) {
-        toast(t('common.unauthorized'))
+      if (!isCreator && !canAssign()) {
         return
       }
 
@@ -2789,8 +2788,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       const myMem = myMember(d0)
       const isCreator = Boolean(myMem && chal.createdBy === myMem.id)
       const isParticipant = Boolean(myMem && [...(chal.teamA || []), ...(chal.teamB || [])].includes(myMem.id))
-      if (!canAssign() && !isCreator && !isParticipant) {
-        toast(t('common.unauthorized'))
+      if (!isCreator && !isParticipant && !canAssign()) {
         return
       }
 
