@@ -375,9 +375,29 @@ export function resolveNotificationPayload(item, db) {
     }
   }
 
+  if (item?.type === 'match_cancelled') {
+    if (!res.matchCode && p.matchId) {
+      const mt = (db?.matches || []).find((m) => m.id === p.matchId)
+      res.matchCode = mt?.code || ''
+    }
+  }
+
   if (item?.type === 'claim_approved' || item?.type === 'claim_rejected') {
     const kindKey = p.kind ? `notification.kind_${p.kind}` : ''
     res.kind = kindKey ? t(kindKey) : (p.kind || '')
+  }
+
+  if (item?.type === 'claim_submitted' || item?.type === 'member_change_requested') {
+    res.name = p.name || getEntityName(db, p.memberId)
+  }
+
+  // Tên trường là KEY dưới DB ('phone' / 'level') — nhãn tiếng Việt dựng lúc render, theo
+  // RULES §3.3. Đổi câu chữ không được làm đổi dòng đã ghi.
+  if (item?.type === 'member_change_requested'
+    || item?.type === 'member_change_approved'
+    || item?.type === 'member_change_rejected') {
+    const fieldKey = p.field ? `notification.field_${p.field}` : ''
+    res.field = fieldKey ? t(fieldKey) : (p.field || '')
   }
 
   if (item?.type === 'attendance_reported') {

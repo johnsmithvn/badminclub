@@ -7,7 +7,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { ROLE_KEYS, ROLES, allowedRoutes, can, effRoute, footerSlots, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
+import { ROLE_KEYS, ROLES, allowedRoutes, can, effRoute, footerSlots, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import perm from '#config/permissions.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
 
@@ -128,6 +128,38 @@ assert.deepEqual(
 )
 assert.equal(footerSlots('owner').length, 5, 'số slot luôn luôn là 5')
 assert.equal(footerSlots('member').length, 5, 'số slot luôn luôn là 5')
+
+/* ---------- membersWithPerm: ai là người PHẢI xử lý một yêu cầu ---------- */
+//
+// Dùng làm danh sách người nhận cho `claim_submitted` (khai đã chuyển tiền) và
+// `member_change_requested` (xin đổi hồ sơ). Sai ở đây = yêu cầu nằm im không ai được báo,
+// hoặc ngược lại: cả CLB bị rung điện thoại vì một việc không phải của họ.
+const roster = [
+  { id: 'o1', role: 'owner', userId: 'u1', active: true },
+  { id: 't1', role: 'treasurer', userId: 'u2', active: true },
+  { id: 'm1', role: 'member', userId: 'u3', active: true },
+  { id: 't2', role: 'treasurer', userId: 'u4', active: false },
+  { id: 'o2', role: 'owner', userId: null, active: true },
+]
+
+assert.deepEqual(
+  membersWithPerm(roster, 'money'), ['o1', 't1'],
+  'tiền: chủ CLB + thủ quỹ. Sót một người là phiếu khai nằm im tới khi có người tình cờ mở Công nợ'
+)
+assert.deepEqual(
+  membersWithPerm(roster, 'members'), ['o1'],
+  'hồ sơ: chỉ chủ CLB bấm được Duyệt/Từ chối — báo cho thủ quỹ là báo cho người không làm gì được'
+)
+assert.equal(
+  membersWithPerm(roster, 'money').includes('t2'), false,
+  'người đã ngưng hoạt động không còn trách nhiệm xử lý'
+)
+assert.equal(
+  membersWithPerm(roster, 'money').includes('o2'), false,
+  'chưa liên kết tài khoản thì RLS notifications không cho đọc — dòng gửi đi là rác chiếm chỗ'
+)
+assert.deepEqual(membersWithPerm(null, 'money'), [], 'CLB rỗng không được throw')
+assert.deepEqual(membersWithPerm([{ id: 'x' }], 'money'), [], 'thiếu role/userId thì bỏ qua, không throw')
 
 console.log('lib/roles check: OK')
 

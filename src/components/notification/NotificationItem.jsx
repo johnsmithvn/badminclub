@@ -39,6 +39,10 @@ export default function NotificationItem({ item, onRead }) {
       case 'match_recorded':
       case 'match_edited':
         return { icon: 'activity', color: '#3B82F6' }
+      case 'match_cancelled':
+        return { icon: 'x', color: '#EF4444' }
+      case 'claim_submitted':
+        return { icon: 'banknote', color: '#F59E0B' }
       case 'claim_approved':
         return { icon: 'check', color: '#10B981' }
       case 'claim_rejected':
@@ -49,6 +53,12 @@ export default function NotificationItem({ item, onRead }) {
       case 'join_approved':
       case 'join_rejected':
         return { icon: 'user', color: '#8B5CF6' }
+      case 'member_change_requested':
+        return { icon: 'user', color: '#F59E0B' }
+      case 'member_change_approved':
+        return { icon: 'check', color: '#10B981' }
+      case 'member_change_rejected':
+        return { icon: 'x', color: '#EF4444' }
       case 'session_rsvp_invite':
         return { icon: 'calendar', color: '#3B82F6' }
       case 'attendance_reported':

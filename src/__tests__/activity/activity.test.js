@@ -206,6 +206,44 @@ const notifClaim = resolveNotificationPayload(
 )
 assert.equal(notifClaim.kind, 'quỹ tháng')
 
+// 6b. resolveNotificationPayload — các loại vừa vá chỗ thủng thông báo
+//
+// Trước đây báo đã chuyển tiền / xin đổi hồ sơ / huỷ trận KHÔNG sinh thông báo nào; người phải
+// xử lý chỉ biết khi tình cờ mở đúng màn. Giờ có dòng rồi thì nó phải đọc được ra tên và nhãn,
+// không thì người nhận thấy "{{name}} báo đã chuyển tiền" nguyên văn.
+const notifClaimSubmitted = resolveNotificationPayload(
+  { type: 'claim_submitted', payload: { memberId: 'm1', n: 3 } },
+  mockDb
+)
+assert.equal(notifClaimSubmitted.name, 'Quân', 'payload ghi ID, tên giải lúc render — RULES §3.3')
+const msgClaimSubmitted = t('notification.claim_submitted', notifClaimSubmitted)
+assert.ok(
+  msgClaimSubmitted.includes('Quân') && msgClaimSubmitted.includes('3'),
+  'thủ quỹ phải thấy AI khai và BAO NHIÊU khoản, không thì vẫn phải tự đi dò'
+)
+
+const notifChangeAsk = resolveNotificationPayload(
+  { type: 'member_change_requested', payload: { memberId: 'm1', field: 'level' } },
+  mockDb
+)
+assert.equal(notifChangeAsk.name, 'Quân')
+assert.equal(notifChangeAsk.field, 'trình độ', "field lưu KEY 'level', nhãn tiếng Việt dựng lúc render")
+
+const notifChangeOk = resolveNotificationPayload(
+  { type: 'member_change_approved', payload: { field: 'phone', to: '0900' } },
+  mockDb
+)
+assert.equal(notifChangeOk.field, 'số điện thoại')
+
+const notifMatchCancelled = resolveNotificationPayload(
+  { type: 'match_cancelled', payload: { matchId: 'mt1' } },
+  { ...mockDb, matches: [{ id: 'mt1', code: 'M-12' }] }
+)
+assert.equal(
+  notifMatchCancelled.matchCode, 'M-12',
+  'dòng cũ chỉ ghi matchId — không dò ra code thì người nhận không biết trận nào bị huỷ'
+)
+
 // 7. resolveNotificationPayload attendance_reported
 const notifAtt = resolveNotificationPayload(
   { type: 'attendance_reported', payload: { memberId: 'm1', date: '2026-09-17', status: 'present' } },

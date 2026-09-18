@@ -49,6 +49,20 @@ import { Card, StatCard, DataTable, Button, Select, Switch, Tabs, Alert, Dialog 
 **Màu trình độ** (`money.js: levelStyle`) — dùng hàm này, đừng viết lại map:
 `Newbie → status-idle` · `TBY → status-scheduled` · `TB- → status-transit` · `TB → status-delivered`.
 
+### 2.1 Hai hex chép tay nằm ngoài token — đổi màu là phải sửa cả hai
+
+PWA đọc màu từ file tĩnh, không đọc được CSS variable, nên hai giá trị dưới đây là hex **chép
+tay**. Chúng chỉ hiện ở thanh trạng thái điện thoại và màn splash lúc mở app, nên trôi lệch khỏi
+token thì không ai phát hiện ra trong lúc dùng thường ngày.
+
+| Nơi | Giá trị | Phải khớp token |
+| --- | --- | --- |
+| `public/manifest.json` → `theme_color` | `#00B2A9` | `--teal-500` (`tokens/colors.css`) |
+| `public/manifest.json` → `background_color` | `#0B1220` | `--surface-page` dark (`tokens/dark.css`) |
+| `index.html` → 2 thẻ `<meta name="theme-color">` | `#00B2A9` / `#0B1220` | như trên |
+
+Đổi `--teal-500` hoặc `--surface-page` dark → sửa luôn ba chỗ này.
+
 ## 3. Typography
 
 ```
