@@ -9,6 +9,7 @@ import {
   getPairStreak,
   calculateMemberBadges,
   getBadgeChasers,
+  getActiveBounties,
 } from '../../lib/badges.js'
 
 test('Badges Streak & Chasers Engine Suite', async (t) => {
@@ -180,6 +181,39 @@ test('Badges Streak & Chasers Engine Suite', async (t) => {
       ],
     }
     assert.equal(getMemberStreak('userA', db2).streak, 0, 'Thua kèo 1-2 -> chuỗi về 0, set thắng lẻ không cứu')
+  })
+
+  await t.test('getActiveBounties đếm đủ TRẬN THẬT trong chuỗi có kèo', () => {
+    // Từ khi kèo đếm gộp, `streak` là số ĐƠN VỊ chứ không còn là số trận. Code cũ cắt
+    // `matches.slice(0, streak)` để đếm đối thủ và tìm ngày mở chuỗi — với chuỗi có kèo BO3 thì
+    // cắt hụt mất trận, làm `tries` thiếu và `streakDate` chỉ vào trận mới hơn thực tế.
+    //
+    // Chuỗi dựng ở đây: 1 kèo BO3 thắng 2-0 (2 trận) + 4 trận thường thắng = 5 ĐƠN VỊ, 6 TRẬN.
+    const day = (d) => Date.parse(`2026-09-${String(d).padStart(2, '0')}T08:00:00Z`)
+    const db = {
+      members: [{ id: 'u1', name: 'Người Đang Cháy' }],
+      matches: [
+        { id: 'k1s1', challengeId: 'k1', at: day(1), teamA: ['u1'], teamB: ['x1'], winnerTeam: 'A' },
+        { id: 'k1s2', challengeId: 'k1', at: day(2), teamA: ['u1'], teamB: ['x1'], winnerTeam: 'A' },
+        { id: 'm1', at: day(3), teamA: ['u1'], teamB: ['x2'], winnerTeam: 'A' },
+        { id: 'm2', at: day(4), teamA: ['u1'], teamB: ['x3'], winnerTeam: 'A' },
+        { id: 'm3', at: day(5), teamA: ['u1'], teamB: ['x4'], winnerTeam: 'A' },
+        { id: 'm4', at: day(6), teamA: ['u1'], teamB: ['x5'], winnerTeam: 'A' },
+      ],
+    }
+
+    assert.equal(getMemberStreak('u1', db).streak, 5, 'Kèo BO3 + 4 trận thường = 5 đơn vị chuỗi')
+    assert.equal(getMemberStreak('u1', db).streakMatches.length, 6, 'Nhưng gồm 6 trận thật')
+
+    const bounties = getActiveBounties(db).filter((b) => b.type === 'single')
+    assert.equal(bounties.length, 1, 'Chạm mốc 5 thì bị treo thưởng')
+    assert.equal(bounties[0].streak, 5, 'Chuỗi hiển thị theo ĐƠN VỊ')
+    assert.equal(
+      bounties[0].tries,
+      6,
+      'Nhưng số đối thủ đã cố hạ phải đếm đủ 6 TRẬN — slice(0, streak) cũ chỉ ra 5',
+    )
+    assert.equal(bounties[0].streakDate, '01/09', 'Ngày mở chuỗi là set ĐẦU của kèo, không phải trận sau đó')
   })
 })
 

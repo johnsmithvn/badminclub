@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, isChallengeAccepted } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf } from '#routes'
@@ -3003,12 +3003,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return { ok: false, error: 'not_found' }
       }
 
-      // Mức cược NHẬP TỰ DO: chỉ chặn số nguyên ≥ 1 và trần tuyệt đối. Trần này trùng số với
-      // CHECK trong migration 0047 và guard trong RPC — ba chốt cùng một con số, SQL không đọc
-      // được JSON nên phải tự giữ khớp.
+      // Mức cược NHẬP TỰ DO. Luật đọc từ MỘT chỗ dùng chung với modal (`validateStakePoints`) —
+      // trước đây chỗ này chặn cứng `[1,2,3]` và là chốt thứ ba còn sót khi mở sang nhập tự do.
+      // Trần trùng số với CHECK trong 0047 và guard trong RPC; SQL không đọc được JSON.
       const maxStake = cfg.challenge?.maxStakePoints ?? 100
       const stake = Number(stakePoints)
-      if (!Number.isInteger(stake) || stake < 1 || stake > maxStake) {
+      if (!validateStakePoints({ stake, maxStake }).ok) {
         toast(t('challenge.predictionInvalidStake', { max: maxStake }))
         return { ok: false, error: 'invalid_stake' }
       }

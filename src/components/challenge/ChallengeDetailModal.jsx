@@ -5,7 +5,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
 import { t } from '#i18n'
@@ -183,9 +183,11 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   // JSON nên hai chỗ phải tự giữ khớp nhau.
   const maxStake = cfg.challenge?.maxStakePoints ?? 100
   // Ô nhập để rỗng được lúc đang gõ, nên `predStake` có thể là ''. Mọi so sánh phải qua số.
+  // Luật hợp lệ đọc từ `validateStakePoints` — CHUNG với `a.placePrediction`, không chép lại.
   const stakeNum = Number(predStake) || 0
-  const overStake = stakeNum > availableSp || stakeNum > maxStake
-  const stakeInvalid = stakeNum < 1 || overStake
+  const stakeCheck = validateStakePoints({ stake: predStake, maxStake, availableSp })
+  const stakeInvalid = !stakeCheck.ok
+  const overStake = stakeCheck.reason === 'over_max' || stakeCheck.reason === 'over_balance'
   // Luật cược đọc từ MỘT chỗ dùng chung với `a.placePrediction`, không chép lại điều kiện ở đây.
   const predGate = useMemo(
     () => canMemberPredict(c, myId, db, availableSp),
@@ -357,9 +359,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
 
   // Người chốt kèo chỉ đáng nhắc khi KHÔNG phải đội B — tức admin duyệt hộ hoặc người đội A bấm
   // cuối. Đội B tự nhận là chuyện đương nhiên, nói ra chỉ thừa.
-  const closerName = (c.acceptedBy && !teamB.includes(c.acceptedBy))
-    ? playerName(db, c.acceptedBy)
-    : ''
+  const closerId = challengeCloserOf(c)
+  const closerName = closerId ? playerName(db, closerId) : ''
 
   const createdTimeStr = c.createdAt
     ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })

@@ -16,6 +16,9 @@ import {
   isChallengeFullyAccepted,
   canMemberAcceptChallenge,
   canAdminForceAcceptChallenge,
+  collapseChallengeSets,
+  validateStakePoints,
+  challengeCloserOf,
 } from '#lib/challenge.js'
 
 // Kèo đơn 1v1: Người tạo m1 đã chấp nhận, m2 chưa chấp nhận
@@ -112,6 +115,108 @@ assert.ok(
 // `isFullTeam` được expose để nút duyệt hộ dùng chung một định nghĩa "đủ người" với phần còn lại
 assert.equal(getChallengeAcceptanceProgress(cAdminInside).isFullTeam, true, 'Kèo đơn đủ 1v1 -> isFullTeam')
 assert.equal(getChallengeAcceptanceProgress({ ...cAdminInside, teamB: [] }).isFullTeam, false, 'Kèo mở -> chưa đủ đội')
+
+// 4. collapseChallengeSets — gom set của một kèo thành MỘT đơn vị chuỗi
+//
+// Luật dùng chung cho cả điểm mùa (`calculateSeasonLeaderboard`) lẫn danh hiệu (`badges.js`).
+// Trước khi có nó, hai bên đếm chuỗi khác nhau: kèo BO3 thắng 2-0 cho điểm mùa thấy chuỗi 1 còn
+// danh hiệu thấy chuỗi 2, nên cùng một người mang hai con số chuỗi.
+const wonA = (mt) => mt.winner === 'me'
+
+assert.deepEqual(
+  collapseChallengeSets(
+    [{ id: 'a', winner: 'me' }, { id: 'b', winner: 'opp' }],
+    wonA,
+  ).map((u) => u.won),
+  [true, false],
+  'Trận thường: mỗi trận là một đơn vị, giữ nguyên kết quả',
+)
+
+const bo3Win21 = collapseChallengeSets(
+  [
+    { id: 's1', challengeId: 'k1', winner: 'me' },
+    { id: 's2', challengeId: 'k1', winner: 'opp' },
+    { id: 's3', challengeId: 'k1', winner: 'me' },
+  ],
+  wonA,
+)
+assert.equal(bo3Win21.length, 1, 'Kèo BO3 ba set gom thành MỘT đơn vị')
+assert.equal(bo3Win21[0].won, true, 'Thắng 2-1 -> đơn vị thắng')
+assert.equal(bo3Win21[0].wins, 2, 'Vẫn giữ số set thắng')
+assert.equal(bo3Win21[0].losses, 1, 'Vẫn giữ số set thua')
+assert.equal(bo3Win21[0].matches.length, 3, 'Và giữ đủ ba trận thật bên trong')
+
+const bo3Lose12 = collapseChallengeSets(
+  [
+    { id: 's1', challengeId: 'k1', winner: 'me' },
+    { id: 's2', challengeId: 'k1', winner: 'opp' },
+    { id: 's3', challengeId: 'k1', winner: 'opp' },
+  ],
+  wonA,
+)
+assert.equal(bo3Lose12[0].won, false, 'Thua 1-2 -> đơn vị THUA, set thắng lẻ không cứu được')
+
+// Hoà set (BO5 dở dang 2-2) chưa tính là thắng — chuỗi phải có thắng thật mới nối
+const drawn = collapseChallengeSets(
+  [
+    { id: 's1', challengeId: 'k1', winner: 'me' },
+    { id: 's2', challengeId: 'k1', winner: 'opp' },
+  ],
+  wonA,
+)
+assert.equal(drawn[0].won, false, 'Hoà set thì chưa coi là thắng kèo')
+
+// Hai kèo khác nhau không bị trộn vào nhau, và thứ tự đầu vào được giữ nguyên
+const mixed = collapseChallengeSets(
+  [
+    { id: 'x', winner: 'me' },
+    { id: 'k1s1', challengeId: 'k1', winner: 'me' },
+    { id: 'k2s1', challengeId: 'k2', winner: 'opp' },
+    { id: 'k1s2', challengeId: 'k1', winner: 'me' },
+  ],
+  wonA,
+)
+assert.equal(mixed.length, 3, 'Một trận thường + hai kèo = ba đơn vị')
+assert.deepEqual(mixed.map((u) => u.challengeId), [null, 'k1', 'k2'], 'Giữ thứ tự xuất hiện đầu tiên')
+assert.equal(mixed[1].matches.length, 2, 'Set thứ hai của k1 gộp về đúng đơn vị của nó')
+
+assert.deepEqual(collapseChallengeSets([], wonA), [], 'Danh sách rỗng trả rỗng, không nổ')
+
+// 5. validateStakePoints — mức cược nhập tự do
+//
+// Luật này từng nằm rải ở BA nơi với ba con số (CHECK trong DB, guard RPC, guard trong
+// `a.placePrediction`). Khi mở sang nhập tự do, chỗ thứ ba vẫn chặn cứng [1,2,3] nên gõ 20 SP là
+// bị từ chối ngay tại máy người dùng, request còn chưa rời trình duyệt.
+assert.equal(validateStakePoints({ stake: 20, maxStake: 100 }).ok, true, '20 SP hợp lệ khi trần 100')
+assert.equal(validateStakePoints({ stake: 1, maxStake: 100 }).ok, true, 'Cận dưới 1 SP hợp lệ')
+assert.equal(validateStakePoints({ stake: 100, maxStake: 100 }).ok, true, 'Đúng trần vẫn hợp lệ')
+assert.equal(validateStakePoints({ stake: 101, maxStake: 100 }).reason, 'over_max', 'Vượt trần bị chặn')
+assert.equal(validateStakePoints({ stake: 0, maxStake: 100 }).reason, 'too_low', '0 SP không cược được')
+assert.equal(validateStakePoints({ stake: -5, maxStake: 100 }).reason, 'too_low', 'Số âm bị chặn')
+assert.equal(validateStakePoints({ stake: 2.5, maxStake: 100 }).reason, 'not_integer', 'Số lẻ bị chặn')
+assert.equal(validateStakePoints({ stake: '', maxStake: 100 }).reason, 'empty', 'Ô rỗng lúc đang gõ')
+assert.equal(validateStakePoints({ stake: 'abc', maxStake: 100 }).reason, 'not_integer', 'Chữ bị chặn')
+assert.equal(
+  validateStakePoints({ stake: 50, maxStake: 100, availableSp: 20 }).reason,
+  'over_balance',
+  'Cược quá số dư bị chặn — luật riêng của client, server không tính nổi điểm mùa',
+)
+assert.equal(
+  validateStakePoints({ stake: 50, maxStake: 100, availableSp: null }).ok,
+  true,
+  'Không biết số dư (phía server) thì chỉ kiểm trần',
+)
+
+// 6. challengeCloserOf — người chốt kèo, chỉ khi KHÔNG phải đội B
+//
+// Bước 2 dòng thời gian nói về BÊN NHẬN nên tên luôn là đội B. `acceptedBy` là người bấm nhát
+// cuối; ở kèo đôi người đó có thể thuộc đội A, hoặc là admin duyệt hộ. Lấy nó làm tên bước 2 thì
+// thành "Nam nhận kèo" với Nam là đồng đội của chính người tạo kèo.
+assert.equal(challengeCloserOf({ teamB: ['b1'], acceptedBy: 'b1' }), null, 'Đội B tự nhận thì không nhắc')
+assert.equal(challengeCloserOf({ teamB: ['b1', 'b2'], acceptedBy: 'a1' }), 'a1', 'Người đội A bấm cuối thì có nhắc')
+assert.equal(challengeCloserOf({ teamB: ['b1'], acceptedBy: 'admin' }), 'admin', 'Admin duyệt hộ thì có nhắc')
+assert.equal(challengeCloserOf({ teamB: ['b1'] }), null, 'Kèo cũ chưa có acceptedBy -> null, không nổ')
+assert.equal(challengeCloserOf(null), null, 'Đầu vào rỗng trả null')
 
 console.log('challenge check: OK')
 

@@ -507,5 +507,46 @@ const rawSession = {
 const dbFromRaw = toDb({ ...clone(db), sessions: [rawSession] }, ctx)
 assert.deepEqual(dbFromRaw.sessions[0].planner, dPlan.sessions[0].planner, 'toDb phải đọc được planner jsonb từ Supabase')
 
+/* ---------- Bốn cột kèo thêm ở 0046 / 0048 phải đi được CẢ HAI CHIỀU ----------
+ *
+ * Sai chiều nào cũng hỏng âm thầm: thiếu ở toRows thì mốc nhận kèo và giao kèo không bao giờ
+ * lên server (người dùng gõ xong, F5 là mất); thiếu ở toDb thì dữ liệu có trên server mà màn
+ * hình không thấy, và dòng thời gian lại rơi về giờ tạo kèo như trước khi sửa.
+ */
+const chalRaw = {
+  id: 'CH_TEST',
+  code: 'C-0199',
+  club_id: 'CL1',
+  status: 'accepted',
+  created_by: db.members[0].id,
+  best_of: 3,
+  accepted_at: '2026-09-18T13:05:00.000Z',
+  accepted_by: db.members[0].id,
+  deployed_at: '2026-09-18T13:40:00.000Z',
+  stake_text: 'Thua mua 2 chai nước',
+  challenge_players: [{ team: 'A', member_id: db.members[0].id }],
+}
+const chalClient = toDb({ ...clone(db), challenges: [chalRaw] }, ctx).challenges[0]
+assert.equal(chalClient.acceptedAt, '2026-09-18T13:05:00.000Z', 'toDb phải đọc accepted_at')
+assert.equal(chalClient.acceptedBy, db.members[0].id, 'toDb phải đọc accepted_by')
+assert.equal(chalClient.deployedAt, '2026-09-18T13:40:00.000Z', 'toDb phải đọc deployed_at')
+assert.equal(chalClient.stakeText, 'Thua mua 2 chai nước', 'toDb phải đọc stake_text')
+
+const chalRows = toRows({ ...clone(db), challenges: [chalClient] }, ctx).challenges
+const backRow = chalRows.find((r) => r.id === 'CH_TEST')
+assert.ok(backRow, 'toRows phải sinh dòng cho kèo')
+assert.equal(backRow.accepted_at, '2026-09-18T13:05:00.000Z', 'toRows phải ghi accepted_at')
+assert.equal(backRow.accepted_by, db.members[0].id, 'toRows phải ghi accepted_by')
+assert.equal(backRow.deployed_at, '2026-09-18T13:40:00.000Z', 'toRows phải ghi deployed_at')
+assert.equal(backRow.stake_text, 'Thua mua 2 chai nước', 'toRows phải ghi stake_text')
+
+// Kèo cũ chưa có mốc: phải ra NULL chứ không phải chuỗi rỗng — cột timestamptz không nhận ''.
+const emptyChal = toDb({ ...clone(db), challenges: [{ ...chalRaw, accepted_at: null, accepted_by: null, deployed_at: null, stake_text: null }] }, ctx).challenges[0]
+const emptyRow = toRows({ ...clone(db), challenges: [emptyChal] }, ctx).challenges.find((r) => r.id === 'CH_TEST')
+assert.equal(emptyRow.accepted_at, null, 'Chưa có mốc nhận -> null, không phải ""')
+assert.equal(emptyRow.deployed_at, null, 'Chưa lên sân -> null, không phải ""')
+assert.equal(emptyRow.accepted_by, null, 'Chưa ai chốt -> null')
+assert.equal(emptyRow.stake_text, null, 'Không có giao kèo -> null')
+
 console.log('dbmap check: OK')
 
