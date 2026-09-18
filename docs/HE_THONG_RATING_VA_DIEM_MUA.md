@@ -1,5 +1,20 @@
 # HỆ THỐNG ĐIỂM ELO CAREER VÀ CƠ CHẾ ĐIỂM MÙA GIẢI (SEASON POINTS) — BADMINCLUB
 
+> # ⚠️ BẢN CŨ — ĐÃ LỆCH VỚI CODE
+>
+> **Đọc `docs/CHI_SO_VA_CONG_THUC.md` thay cho file này.**
+>
+> Các chỗ đã sai so với code hiện hành:
+> - §5.1 ghi trọng số điểm cân bằng sân **35/20/15/15/15** — code hiện là **55/20/15/10**, và
+>   H2H **không** cộng vào điểm tổng.
+> - §5.1 ghi `S_Elo = 100 − Δ/50 × 6` — code hiện là `100 − expectedGapPp` (thang xác suất).
+> - §5.1 ghi sàn `S_Fairness = max(40, …)` — code hiện là sàn **0**; partner/opponent sàn **10**.
+> - §5.2 tả `arrangeBestOfN` (Monte Carlo 80 phương án) — **đã xoá khỏi code**.
+> - §3.1 thiếu `season.startPoints = 100` (điểm khởi đầu, chỉ cấp cho người đã ra sân ≥ 1 trận).
+> - Thiếu ghi chú H2H nền 88 / đếm theo trận, và hệ số đều-lượt đã đổi 6 → 14.
+>
+> Giữ lại vì phần Elo (§2) và cascade (§4) vẫn đúng và chi tiết hơn.
+
 > **Tài liệu kỹ thuật đặc tả kiến trúc, công thức toán học, cơ chế lưu trữ và tác động nghiệp vụ**  
 > *Được trích xuất và chuẩn hoá trực tiếp từ mã nguồn thực tế của dự án BadminClub (`src/lib/rating.js`, `src/lib/xp.js`, `src/lib/assign.js`, `src/config/app.json`, `supabase/migrations/`).*
 

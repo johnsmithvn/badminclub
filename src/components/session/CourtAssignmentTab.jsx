@@ -11,7 +11,7 @@ import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWait
 import { getChallengeSeriesProgress, isChallengeAccepted } from '#lib/challenge.js'
 import {
   expectedScore, getPlayerRating,
-  teamRating, computeClubCalibration,
+  teamRating, computeClubCalibration, effectiveTeamRating,
   calcPlayerDeltas, calcPairImpact, DEFAULT_RATING,
   COURT_BALANCE_THRESHOLD, COURT_IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
@@ -681,13 +681,18 @@ export default function CourtAssignmentTab({ s }) {
       ; (db?.guests || []).forEach((g) => { if (g?.id) memberMap[g.id] = g })
     players.forEach((p) => { if (p?.key) memberMap[p.key] = { ...(memberMap[p.key] || {}), ...p } })
     const cals = computeClubCalibration(db.matches || [], memberMap)
-    const midBucket = cals.find((c) => c.bucket === '100-300') || { observedWinRate: 27, sampleSize: 40, learnedAdjustment: 38 }
+    // Chưa có rổ '100-300' nghĩa là CLB CHƯA ĐỦ DỮ LIỆU. Trước đây chỗ này rơi vào một bộ số
+    // bịa sẵn (sampleSize 40, learnedAdjustment 38, winRate 27) — tức là không có dữ liệu thì
+    // app tự dựng ra 40 trận mẫu, vượt luôn cổng "≥ 15 trận mẫu" ở dưới và áp hiệu chỉnh giả
+    // vào điểm cân bằng. Không có dữ liệu thì phải là 0, để cổng đó chặn đúng việc của nó.
+    const midBucket = cals.find((c) => c.bucket === '100-300') || { observedWinRate: 0, sampleSize: 0, learnedAdjustment: 0 }
 
-    // Tính effective rating (cộng hệ số hiệu chỉnh cho bên có nữ nếu chéo)
-    let effA = ratingA
-    let effB = ratingB
-    if (hasFemaleA && !hasFemaleB) effA += (midBucket.learnedAdjustment || 38) * 2
-    else if (hasFemaleB && !hasFemaleA) effB += (midBucket.learnedAdjustment || 38) * 2
+    // Hiệu chỉnh áp cho TỪNG NGƯỜI rồi mới lấy trung bình đội (`effectiveTeamRating`), đúng
+    // đơn vị của `learnedAdjustment`. Trước đây chỗ này cộng thẳng `learnedAdjustment × 2` vào
+    // rating ĐỘI: hệ số 2 không có trong app.json, không có trong `effectiveRating()`, và với
+    // đội 1 nam 1 nữ nó thổi mức dịch lên GẤP BỐN so với con số CLB học được.
+    const effA = effectiveTeamRating(teamA, ratingsMap, memberMap, hasFemaleA && !hasFemaleB, cals)
+    const effB = effectiveTeamRating(teamB, ratingsMap, memberMap, hasFemaleB && !hasFemaleA, cals)
 
     const effDelta = Math.abs(effA - effB)
 
@@ -721,11 +726,13 @@ export default function CourtAssignmentTab({ s }) {
       effA: Math.round(effA),
       effB: Math.round(effB),
       effDelta,
-      sampleMatches: midBucket.sampleSize || 40,
-      femaleWinRate: midBucket.observedWinRate || 27,
+      sampleMatches: midBucket.sampleSize || 0,
+      // `observedWinRate` là tỉ lệ 0..1, còn câu hiển thị gắn sẵn dấu '%' — phải nhân 100 ở đây.
+      // Trước đây không nhân, và số duy nhất từng hiện ra đúng là con số bịa 27 ở nhánh fallback.
+      femaleWinRate: Math.round((midBucket.observedWinRate || 0) * 100),
       suggestion,
     }
-  }, [teamA, teamB, players, ratingA, ratingB, deltaRating, db, ratingsMap])
+  }, [teamA, teamB, players, deltaRating, db, ratingsMap])
 
   // Điểm cân bằng chi tiết (Detailed Balance Score - Mockup 01 & M2)
   const balanceDetails = useMemo(() => {

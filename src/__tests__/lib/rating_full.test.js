@@ -10,6 +10,7 @@ import {
   computeClubCalibration,
   rankTopCrossGenderPlayers,
   effectiveRating,
+  effectiveTeamRating,
   replayRatingCascade,
   evalBalance,
 } from '../../lib/rating.js'
@@ -83,8 +84,11 @@ test('Comprehensive Rating & Elo Engine Tests', async (t) => {
     assert.equal(confidenceOf(30), 'very_high')
     assert.equal(confidenceOf(100), 'very_high')
 
-    // Nếu chỉ định explicit deviation
-    assert.equal(confidenceOf(100, 300), 'low') // deviation quá cao ép về low
+    // Nhánh `deviation` ĐÃ BỊ XOÁ (app không tính độ lệch chuẩn ở đâu cả, cột
+    // player_ratings.rating_deviation luôn là 350 mặc định — migration 0045 xoá hẳn cột).
+    // Test này giữ lại để gác chiều ngược: nếu ai đó cắm lại một nhánh ăn theo tham số thứ hai
+    // mà không đi kèm mô hình Glicko thật, dòng dưới sẽ đỏ.
+    assert.equal(confidenceOf(100, 300), 'very_high', 'Tham số thứ hai phải bị bỏ qua hoàn toàn')
   })
 
   await t.test('evalBalance thresholds', () => {
@@ -169,6 +173,42 @@ test('Comprehensive Rating & Elo Engine Tests', async (t) => {
     assert.equal(effectiveRating(memberFemale, false, calib), 1600)
     // Nam gặp nữ không đổi base rating
     assert.equal(effectiveRating(memberMale, true, calib), 1600)
+
+    // Giới tính ghi có dấu ('nữ') vẫn phải được nhận. Trước đây hàm so thẳng `=== 'nu'` nên
+    // hồ sơ nào lưu có dấu là hiệu chỉnh chéo giới im lặng không chạy.
+    assert.equal(effectiveRating({ gender: 'nữ', rating: 1600 }, true, calib), 1635)
+    assert.equal(effectiveRating({ gender: 'Nữ', rating: 1600 }, true, calib), 1635)
+    assert.equal(effectiveRating({ gender: 'female', rating: 1600 }, true, calib), 1635)
+  })
+
+  await t.test('effectiveTeamRating: hiệu chỉnh theo NGƯỜI rồi mới trung bình', () => {
+    const calib = [{ bucket: '100-300', learnedAdjustment: -40 }]
+    const ratings = { f1: 500, f2: 500, m1: 500, m2: 500 }
+    const members = {
+      f1: { gender: 'nu' }, f2: { gender: 'nữ' },
+      m1: { gender: 'nam' }, m2: { gender: 'nam' },
+    }
+
+    // Đội 1 nam 1 nữ: chỉ MỘT người được hiệu chỉnh -> trung bình đội dịch đúng MỘT NỬA.
+    // Đây là chỗ code cũ cộng thẳng `learnedAdjustment × 2` vào rating đội, tức gấp BỐN lần.
+    assert.equal(effectiveTeamRating(['m1', 'f1'], ratings, members, true, calib), 480)
+
+    // Đội hai nữ: cả hai được hiệu chỉnh -> dịch trọn một lần
+    assert.equal(effectiveTeamRating(['f1', 'f2'], ratings, members, true, calib), 460)
+
+    // Đội toàn nam: không ai được hiệu chỉnh
+    assert.equal(effectiveTeamRating(['m1', 'm2'], ratings, members, true, calib), 500)
+
+    // Không phải kèo chéo giới thì giữ nguyên, y hệt teamRating
+    assert.equal(effectiveTeamRating(['m1', 'f1'], ratings, members, false, calib), 500)
+    assert.equal(effectiveTeamRating(['m1', 'f1'], ratings, members, false, calib), teamRating(['m1', 'f1'], ratings))
+
+    // Chưa có dữ liệu hiệu chỉnh (CLB mới) thì tuyệt đối không được tự dịch điểm ai
+    assert.equal(effectiveTeamRating(['m1', 'f1'], ratings, members, true, []), 500)
+    assert.equal(effectiveTeamRating(['m1', 'f1'], ratings, members, true, [{ bucket: '100-300', learnedAdjustment: 0 }]), 500)
+
+    // Đội rỗng trả về mốc mặc định, không NaN
+    assert.equal(effectiveTeamRating([], ratings, members, true, calib), DEFAULT_RATING)
   })
 
   await t.test('replayRatingCascade recalculates all subsequent matches', () => {

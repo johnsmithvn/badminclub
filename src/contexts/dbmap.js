@@ -306,7 +306,7 @@ export function toDb(raw, ctx) {
         map[r.member_id] = {
           id: r.id, memberId: r.member_id, rating: num(r.rating),
           gamesCount: num(r.games_count), winsCount: num(r.wins_count), lossesCount: num(r.losses_count),
-          deviation: num(r.rating_deviation), confidence: r.confidence_label || 'low',
+          confidence: r.confidence_label || 'low',
         }
       })
       return map
@@ -517,7 +517,10 @@ export function toRows(db, ctx) {
       id: rid, club_id: cid, member_id: mid,
       rating: r.rating || 0, games_count: r.gamesCount || 0,
       wins_count: r.winsCount || 0, losses_count: r.lossesCount || 0,
-      rating_deviation: r.deviation || cfg.rating?.defaultDeviation || 350, confidence_label: r.confidence || 'low',
+      // KHÔNG ghi `rating_deviation`: app không tính độ lệch chuẩn ở đâu cả, cột đó chỉ nhận đi
+      // nhận lại đúng giá trị mặc định 350. Migration 0045 xoá hẳn cột. Không gửi trường này là
+      // chạy được với CẢ HAI phiên bản schema, nên thứ tự triển khai code/migration không quan trọng.
+      confidence_label: r.confidence || 'low',
     })
   })
 

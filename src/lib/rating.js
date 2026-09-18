@@ -176,6 +176,19 @@ export function rankTierOf(rating = 0, themeKey = 'street') {
   }
 }
 
+/**
+ * Người này có phải nữ không — nhận mọi cách CLB đang ghi giới tính.
+ *
+ * Trước đây file này có BA bản sao y hệt nhau của phép kiểm tra này, còn `effectiveRating`
+ * thì so thẳng `member.gender === 'nu'` nên bản ghi nào lưu 'nữ' (có dấu) là hiệu chỉnh
+ * chéo giới im lặng không chạy.
+ */
+export function isFemalePlayer(p) {
+  if (!p) return false
+  const g = String(p.gender || p.profile?.gender || p.sex || '').toLowerCase().trim()
+  return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: data matching
+}
+
 /** Đánh giá độ cân bằng giữa 2 mức rating */
 export function evalBalance(ra, rb) {
   const gap = Math.abs(ra - rb)
@@ -369,18 +382,20 @@ export function calcPlayerDeltas({ teamA = [], teamB = [], aWon, ratingsMap = {}
 }
 
 /**
- * Xác định nhãn độ tin cậy dựa vào số trận đã đấu và độ lệch chuẩn.
- * @param {number} gamesCount 
- * @param {number} [deviation]
+ * Xác định nhãn độ tin cậy theo số trận đã đấu. Mốc 5 / 15 / 30 dùng CHUNG với `kFactorOf`,
+ * `confidenceLevelOf` và `confidenceProgress`.
+ *
+ * TỪNG có nhánh thứ hai nhận thêm `deviation` (độ lệch chuẩn kiểu Glicko) và ép nhãn xuống
+ * khi độ lệch cao. Nhánh đó KHÔNG BAO GIỜ chạy: app không tính độ lệch ở đâu cả, cột
+ * `player_ratings.rating_deviation` chỉ luôn giữ đúng giá trị mặc định 350. Giữ lại một nhánh
+ * chết trong hàm gác độ tin cậy là mời người sau tin rằng hệ đang đo cái nó không hề đo.
+ * Muốn có độ lệch thật thì phải đổi sang mô hình Glicko — việc đó bắt đầu ở `calcPlayerDeltas`,
+ * không phải ở đây.
+ *
+ * @param {number} gamesCount
  * @returns {'low' | 'medium' | 'high' | 'very_high'}
  */
-export function confidenceOf(gamesCount, deviation) {
-  if (deviation !== undefined) {
-    if (gamesCount < 5 || deviation > 250) return 'low'
-    if (gamesCount < 15 || deviation > 150) return 'medium'
-    if (gamesCount < 30 || deviation > 90) return 'high'
-    return 'very_high'
-  }
+export function confidenceOf(gamesCount) {
   if (gamesCount < 5) return 'low'
   if (gamesCount < 15) return 'medium'
   if (gamesCount < 30) return 'high'
@@ -405,12 +420,6 @@ export function computeClubCalibration(matches = [], membersMap = {}, ratingsMap
   const memMap = Array.isArray(membersMap)
     ? membersMap.reduce((acc, m) => { if (m?.id) acc[m.id] = m; return acc }, {})
     : (membersMap || {})
-
-  const checkFemale = (p) => {
-    if (!p) return false
-    const g = String(p.gender || p.profile?.gender || p.sex || '').toLowerCase().trim()
-    return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: data matching
-  }
 
   const resolveWinner = (m) => {
     const w = String(m?.winnerTeam || m?.winner_team || '').trim().toUpperCase()
@@ -450,8 +459,8 @@ export function computeClubCalibration(matches = [], membersMap = {}, ratingsMap
     const teamAPlayers = teamAIds.map((id) => memMap[id] || { id, name: id })
     const teamBPlayers = teamBIds.map((id) => memMap[id] || { id, name: id })
 
-    const countFemaleA = teamAPlayers.filter(checkFemale).length
-    const countFemaleB = teamBPlayers.filter(checkFemale).length
+    const countFemaleA = teamAPlayers.filter(isFemalePlayer).length
+    const countFemaleB = teamBPlayers.filter(isFemalePlayer).length
     const countMaleA = teamAPlayers.length - countFemaleA
     const countMaleB = teamBPlayers.length - countFemaleB
 
@@ -565,15 +574,41 @@ export function rankTopCrossGenderPlayers(topCrossMap, membersMap, limit = 8) {
 }
 
 /**
- * Tính toán Effective Rating cho một người chơi khi thi đấu với đối phương,
- * áp dụng hiệu chỉnh học được từ CLB nếu là trận chéo giới tính.
+ * Tính toán Effective Rating cho MỘT người chơi khi gặp đối phương khác giới,
+ * áp dụng hiệu chỉnh học được từ lịch sử CLB.
+ *
+ * Đơn vị là rating của MỘT NGƯỜI. Muốn ra rating hiệu dụng của cả đội thì chạy hàm này cho
+ * từng người rồi lấy TRUNG BÌNH — đúng như `teamRating`. Đừng cộng thẳng `learnedAdjustment`
+ * (hay bội số của nó) vào rating đội: đội 1 nam 1 nữ chỉ có một người được hiệu chỉnh, nên
+ * mức dịch của cả đội là một nửa, không phải một lần và càng không phải hai lần.
  */
 export function effectiveRating(member, opponentHasOppositeGender, calibrationList) {
   const base = member.rating != null ? member.rating : DEFAULT_RATING
   if (!opponentHasOppositeGender || !calibrationList || !calibrationList.length) return base
   const cal = calibrationList.find((c) => c.bucket === '100-300') || calibrationList[0]
   if (!cal || !cal.learnedAdjustment) return base
-  return member.gender === 'nu' ? base + cal.learnedAdjustment : base
+  return isFemalePlayer(member) ? base + cal.learnedAdjustment : base
+}
+
+/**
+ * Rating hiệu dụng TRUNG BÌNH của một đội khi gặp đội khác giới — bản theo đội của
+ * `effectiveRating`, để mọi màn hình dùng chung một phép tính.
+ *
+ * @param {Array<string>} ids - Khoá người chơi trong đội
+ * @param {Object} ratingsMap - map khoá -> rating (số, hoặc object có `.rating`)
+ * @param {Object} membersMap - map khoá -> hồ sơ (cần `gender`)
+ * @param {boolean} opponentHasOppositeGender
+ * @param {Array} calibrationList - kết quả `computeClubCalibration`
+ * @returns {number}
+ */
+export function effectiveTeamRating(ids = [], ratingsMap = {}, membersMap = {}, opponentHasOppositeGender = false, calibrationList = []) {
+  if (!ids.length) return DEFAULT_RATING
+  const sum = ids.reduce((acc, id) => {
+    const raw = ratingsMap && ratingsMap[id] != null ? ratingsMap[id] : DEFAULT_RATING
+    const r = typeof raw === 'number' ? raw : (typeof raw?.rating === 'number' ? raw.rating : DEFAULT_RATING)
+    return acc + effectiveRating({ ...(membersMap?.[id] || {}), rating: r }, opponentHasOppositeGender, calibrationList)
+  }, 0)
+  return Math.round(sum / ids.length)
 }
 
 /**
@@ -1222,11 +1257,6 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
     }
   })
 
-  const checkFemale = (m) => {
-    const g = String(m?.gender || '').toLowerCase().trim()
-    return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: gender check
-  }
-
   const list = []
   pairMap.forEach(([p1, p2]) => {
     const info = calcPairImpact(matches, p1, p2, ratingsMap)
@@ -1235,8 +1265,8 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
     const m1 = membersMap[p1] || { id: p1, name: p1 }
     const m2 = membersMap[p2] || { id: p2, name: p2 }
 
-    const isF1 = checkFemale(m1)
-    const isF2 = checkFemale(m2)
+    const isF1 = isFemalePlayer(m1)
+    const isF2 = isFemalePlayer(m2)
     let format = 'MD'
     if (isF1 && isF2) format = 'WD'
     else if (isF1 || isF2) format = 'XD'
@@ -1309,11 +1339,6 @@ export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, 
     singles: { wins: 0, total: 0 },
   }
 
-  const checkFemale = (p) => {
-    const g = String(p?.gender || '').toLowerCase().trim()
-    return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: gender check
-  }
-
   ;(matches || []).forEach((m) => {
     if (!m || !m.winnerTeam) return
     const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
@@ -1335,8 +1360,8 @@ export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, 
       if (isWon) buckets.doubles.wins++
 
       const teamPlayers = myTeam.map((id) => membersMap[id] || { id, name: id })
-      const hasFemale = teamPlayers.some(checkFemale)
-      const hasMale = teamPlayers.some((p) => !checkFemale(p))
+      const hasFemale = teamPlayers.some(isFemalePlayer)
+      const hasMale = teamPlayers.some((p) => !isFemalePlayer(p))
       if (hasFemale && hasMale) {
         buckets.mixed.total++
         if (isWon) buckets.mixed.wins++

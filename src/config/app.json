@@ -105,7 +105,6 @@
       "r4": 20,
       "r5": 16
     },
-    "defaultDeviation": 350,
     "balanceThreshold": 120,
     "imbalanceThreshold": 250,
     "courtBalanceThreshold": 80,

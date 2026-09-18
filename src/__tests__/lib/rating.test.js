@@ -32,9 +32,9 @@ assert.equal(deltaA + deltaB, 0, 'Tổng delta Elo của hai đội phải bằn
 
 // 5. Độ tin cậy (Confidence)
 assert.equal(confidenceOf(2), 'low', 'Dưới 5 trận độ tin cậy phải là thấp')
-assert.equal(confidenceOf(10, 120), 'medium', 'Từ 5 đến 14 trận độ tin cậy là trung bình')
-assert.equal(confidenceOf(20, 80), 'high', 'Từ 15 đến 29 trận độ tin cậy là cao')
-assert.equal(confidenceOf(35, 50), 'very_high', 'Trên 30 trận độ tin cậy là rất cao')
+assert.equal(confidenceOf(10), 'medium', 'Từ 5 đến 14 trận độ tin cậy là trung bình')
+assert.equal(confidenceOf(20), 'high', 'Từ 15 đến 29 trận độ tin cậy là cao')
+assert.equal(confidenceOf(35), 'very_high', 'Trên 30 trận độ tin cậy là rất cao')
 
 // 6. Replay rating cascade khi sửa kết quả trận
 const members = [{ id: 'm1' }, { id: 'm2' }, { id: 'm3' }, { id: 'm4' }]

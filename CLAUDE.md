@@ -61,6 +61,7 @@ Load documentation only when relevant.
 | Features | docs/FEATURES.md |
 | Tasks | docs/TASKS.md |
 | Đổi công thức Elo / điểm mùa | docs/BACKTEST.md |
+| Tra công thức / chỉ số bất kỳ | docs/CHI_SO_VA_CONG_THUC.md |
 
 Never load unrelated documentation.
 
