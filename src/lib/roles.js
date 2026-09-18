@@ -24,6 +24,18 @@ export const viewAsOptions = (myRole) => {
   return i < 0 ? ROLE_KEYS.slice() : ROLE_KEYS.slice(i)
 }
 
+/**
+ * ID những người CÓ TRÁCH NHIỆM xử lý một loại việc — dùng làm người nhận thông báo cho các
+ * yêu cầu chờ người khác duyệt (khai đã chuyển tiền → `money`, xin đổi hồ sơ → `members`).
+ *
+ * Lọc `userId` là cố ý: RLS của `notifications` đọc theo `club_members.user_id = auth.uid()`,
+ * nên dòng gửi cho người chưa liên kết tài khoản KHÔNG ai đọc được — nó chỉ nằm đó chiếm chỗ
+ * trong cửa sổ 100 dòng mà `storage.load()` lấy về, đẩy thông báo thật ra ngoài.
+ */
+export const membersWithPerm = (members, what) => (members || [])
+  .filter((m) => m && m.active !== false && m.userId && can(m.role, what))
+  .map((m) => m.id)
+
 /** Route không được phép → về home, không hiện trang lỗi. */
 export function effRoute(role, route) {
   const a = allowedRoutes(role)
