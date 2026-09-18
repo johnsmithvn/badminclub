@@ -336,19 +336,26 @@ Trần thắng giữ để bảng xếp hạng vẫn là bảng **thi đấu** �
 
 | Nhãn | Điều kiện |
 |---|---|
-| **Qualified** | ≥ **20** trận tính rating trong mùa (`minMatchesOfficial`) |
+| **Qualified** | ≥ **8** trận tính rating trong mùa (`minMatchesOfficial`) |
 | **Inactive** | Đã đánh ≥ 1 trận nhưng > **21** ngày không ra sân (`inactiveDays`) |
 
 **Thứ tự xếp hạng:** (1) Qualified đứng trên chưa qualified → (2) điểm mùa giảm dần →
 (3) số trận thắng → (4) tỷ lệ thắng.
 
-Ưu tiên (1) chính là cơ chế **chống ôm rank**: đánh 3 trận thắng cả 3 (100 + 14×3 + 5 thưởng chuỗi
+Ưu tiên (1) là cơ chế **chống ôm rank**: đánh 3 trận thắng cả 3 (100 + 14×3 + 5 thưởng chuỗi
 = 147đ) không được đứng trên người đã cày 25 trận.
+
+> Ngưỡng này **hạ từ 20 xuống 8 ngày 2026-09-18**. Đo trên mô phỏng một mùa đầy đủ: ở mốc 20, cái
+> cổng đẩy nhầm người xứng đáng top 5 xuống dưới trong **19.2%** số lần, mà chỉ chặn ôm rank được
+> từ 1.4% xuống 1.0% — đổi chác quá tệ. Ở mốc 8, đẩy nhầm còn **2.2%** mà vẫn chặn ôm rank ở 0.7%.
+> Nhóm đi 2 buổi/tháng (≈14 trận/mùa) từ chỗ chỉ 11% đủ điều kiện lên **95%**.
+>
+> Đặt `minMatchesOfficial: 0` là **tắt hẳn** cổng này.
 
 ### 3.7. Trận giao lưu (`ratingEnabled = false`)
 
 - Không sinh điểm mùa
-- Không tính vào mốc 20 trận
+- Không tính vào mốc 8 trận
 - **Không cắt đứt chuỗi thắng** đang treo thưởng
 - Vẫn tính là "có mặt buổi đó"
 

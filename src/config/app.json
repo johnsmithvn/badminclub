@@ -63,7 +63,7 @@
     "cycle": "quarter",
     "totalSessionsExpected": 14,
     "startPoints": 100,
-    "minMatchesOfficial": 20,
+    "minMatchesOfficial": 8,
     "inactiveDays": 21,
     "bonusConfig": {
       "streak3": 5,

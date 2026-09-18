@@ -207,7 +207,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     endDate: '2026-09-30',
     cycle: 'quarter',
     totalSessionsExpected: 14,
-    minMatchesOfficial: 20,
+    minMatchesOfficial: 8,
     inactiveDays: 21,
     bonusConfig: {
       streak3: 5,
@@ -528,7 +528,9 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     const lastMatchAt = lastMatch ? lastMatch.at : null
     const daysSinceLastMatch = lastMatchAt ? Math.max(0, Math.floor((refDate - lastMatchAt) / (1000 * 60 * 60 * 24))) : null
     const isInactive = matchesCount > 0 && daysSinceLastMatch > (season.inactiveDays || 21)
-    const isQualified = matchesCount >= (season.minMatchesOfficial || 20)
+    // `??` chu khong phai `||`: dat nguong = 0 la co y TAT cai cong nay di, con `||` thi 0 bi
+    // coi la thieu cau hinh va roi ve mac dinh — tat khong duoc.
+    const isQualified = matchesCount >= (season.minMatchesOfficial ?? 8)
 
     return {
       id: m.id,

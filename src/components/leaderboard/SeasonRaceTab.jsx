@@ -1673,7 +1673,7 @@ export default function SeasonRaceTab({
             <div>• {t('season.ruleFloorZero')}</div>
             <div>• {t('season.ruleStreakMilestone')}</div>
             <div>• {t('season.ruleUpsetMilestone')}</div>
-            <div>• {t('season.ruleMinMatches')}</div>
+            <div>• {t('season.ruleMinMatches', { n: season?.minMatchesOfficial ?? 8 })}</div>
             <div>• {t('season.ruleInactive21Days')}</div>
           </div>
         </div>
