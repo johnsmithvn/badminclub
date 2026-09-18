@@ -6,6 +6,7 @@ import {
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
 import { playerName, playerOf } from '#lib/money.js'
+import { calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -105,6 +106,24 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
 
   const deltaA_win = calcEloDelta(avgRatingA, avgRatingB, true).deltaA
   const deltaB_win = calcEloDelta(avgRatingA, avgRatingB, false).deltaB
+
+  // Dự báo ĐIỂM MÙA của kèo. Trước đây modal này chỉ preview Elo, mà Elo thì kèo không ăn hệ số
+  // gì — nên hệ số ×2 hoàn toàn vô hình cho tới lúc đánh xong mới lòi ra trong sổ điểm.
+  // Không gồm thưởng chuỗi/lật kèo: hai cái đó cần cả lịch sử mùa của từng người mới tính được.
+  const seasonPreview = useMemo(() => {
+    if (!teamA.length || !teamB.length || !ratingEnabled) return null
+    const multiplier = challengeMultiplierOf(db)
+    const at = (myElo, oppElo, won) => calcSeasonMatchDeltaFinal(myElo, oppElo, won, { isChallenge: true, multiplier })
+    const aWin = at(avgRatingA, avgRatingB, true)
+    return {
+      multiplier,
+      aWin: aWin.delta,
+      aLose: at(avgRatingA, avgRatingB, false).delta,
+      bWin: at(avgRatingB, avgRatingA, true).delta,
+      bLose: at(avgRatingB, avgRatingA, false).delta,
+      baseWin: aWin.baseDelta,
+    }
+  }, [teamA.length, teamB.length, ratingEnabled, avgRatingA, avgRatingB, db])
 
   const ready = (teamA.length === 2 && teamB.length === 2) || (teamA.length === 1 && teamB.length === 1)
 
@@ -469,6 +488,58 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               </div>
             </div>
           </div>
+
+          {/* Dự báo ĐIỂM MÙA — luôn hiện khi đã đủ hai đội, không đợi kèo lệch như khối dưới */}
+          {seasonPreview && (
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--surface-sunken)',
+              border: '1px solid var(--border-subtle)',
+              display: 'grid',
+              gap: 8,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ font: '600 12px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }}>
+                  {t('challenge.seasonPreviewTitle')}
+                </span>
+                {seasonPreview.multiplier > 1 && (
+                  <span style={{
+                    padding: '2px 7px',
+                    borderRadius: 4,
+                    background: 'rgba(249, 115, 22, 0.14)',
+                    border: '1px solid rgba(249, 115, 22, 0.35)',
+                    font: '700 10.5px/1.3 var(--font-sans)',
+                    color: '#EA580C',
+                  }}>
+                    {t('challenge.seasonPreviewMultBadge', { mult: seasonPreview.multiplier })}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+                {[
+                  { label: t('challenge.teamA'), win: seasonPreview.aWin, lose: seasonPreview.aLose },
+                  { label: t('challenge.teamB'), win: seasonPreview.bWin, lose: seasonPreview.bLose },
+                ].map((row) => (
+                  <div key={row.label} style={{ display: 'grid', gap: 2 }}>
+                    <span style={{ font: '600 11px/1.2 var(--font-sans)', color: 'var(--text-muted)' }}>{row.label}</span>
+                    <span style={{ font: '700 13px/1.2 var(--font-mono)' }}>
+                      <span style={{ color: 'var(--status-delivered-fg)' }}>+{row.win}</span>
+                      <span style={{ color: 'var(--text-disabled)' }}> / </span>
+                      <span style={{ color: 'var(--red-500, #ef4444)' }}>{row.lose}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <span style={{ font: '400 11px/1.4 var(--font-sans)', color: 'var(--text-muted)' }}>
+                {seasonPreview.multiplier > 1
+                  ? t('challenge.seasonPreviewNoteMult', { base: seasonPreview.baseWin, mult: seasonPreview.multiplier })
+                  : t('challenge.seasonPreviewNote')}
+              </span>
+            </div>
+          )}
 
           {/* Cảnh báo K3: Kèo lệch trình độ & Chi tiết delta 2 kịch bản */}
           {isImbalanced && (

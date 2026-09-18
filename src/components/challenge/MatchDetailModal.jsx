@@ -11,7 +11,7 @@ import {
   confidenceLevelOf,
   DEFAULT_RATING,
 } from '#lib/rating.js'
-import { calcSeasonMatchDelta } from '#lib/season.js'
+import { calcSeasonMatchDeltaFinal, isChallengeMatch } from '#lib/season.js'
 import { dd } from '#utils/dates.js'
 import { buildPlayableVideoUrl, parseVideoProvider } from '#utils/videoUtils.js'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
@@ -191,8 +191,9 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
     // Tầng 4: Điểm mùa giải
     const winElo = aWon ? ra : rb
     const loseElo = aWon ? rb : ra
+    // Trận từ kèo ăn hệ số điểm mùa — phải hiện đúng con số đã vào sổ, không phải delta gốc.
     const seasonDelta = match?.ratingEnabled !== false
-      ? calcSeasonMatchDelta(winElo, loseElo, true).delta
+      ? calcSeasonMatchDeltaFinal(winElo, loseElo, true, { isChallenge: isChallengeMatch(match) }).delta
       : 0
 
     return {

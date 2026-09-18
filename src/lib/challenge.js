@@ -115,6 +115,45 @@ export function canMemberAcceptChallenge(challenge, myMemberId, isAdmin = false)
 }
 
 /**
+ * Kiểm mức cược của một phiếu dự đoán.
+ *
+ * MỘT chỗ duy nhất giữ luật này, vì nó từng nằm rải ở ba nơi với ba con số: CHECK trong DB,
+ * guard trong RPC, và guard trong `a.placePrediction`. Khi mở sang nhập tự do, hai chỗ đầu được
+ * gỡ còn chỗ thứ ba vẫn chặn cứng `[1,2,3]` — người dùng gõ 20 SP thì ăn toast từ chối ngay tại
+ * máy mình, request còn chưa rời trình duyệt.
+ *
+ * `availableSp` để `null` khi phía gọi chưa biết số dư (server không dựng lại được điểm mùa).
+ *
+ * @returns {{ ok: boolean, reason: 'empty'|'not_integer'|'too_low'|'over_max'|'over_balance'|null }}
+ */
+export function validateStakePoints({ stake, maxStake = 100, availableSp = null } = {}) {
+  if (stake === '' || stake === null || stake === undefined) return { ok: false, reason: 'empty' }
+  const n = Number(stake)
+  if (!Number.isFinite(n)) return { ok: false, reason: 'not_integer' }
+  if (!Number.isInteger(n)) return { ok: false, reason: 'not_integer' }
+  if (n < 1) return { ok: false, reason: 'too_low' }
+  if (n > maxStake) return { ok: false, reason: 'over_max' }
+  if (availableSp !== null && n > Number(availableSp)) return { ok: false, reason: 'over_balance' }
+  return { ok: true, reason: null }
+}
+
+/**
+ * Người CHỐT kèo, chỉ khi đó không phải đội B.
+ *
+ * Bước "nhận kèo" trên dòng thời gian nói về BÊN NHẬN, nên tên ở đó luôn là đội B. `acceptedBy`
+ * là người bấm nhát cuối làm kèo đủ chữ ký — ở kèo đôi người đó có thể thuộc đội A, hoặc là admin
+ * duyệt hộ chẳng đánh trận nào. Lấy nó làm tên bước 2 thì thành "Nam nhận kèo" với Nam là đồng
+ * đội của chính người tạo kèo.
+ *
+ * Đội B tự nhận là chuyện đương nhiên nên trả `null` — nói ra chỉ thừa.
+ */
+export function challengeCloserOf(challenge) {
+  const by = challenge?.acceptedBy
+  if (!by) return null
+  return (challenge.teamB || []).includes(by) ? null : by
+}
+
+/**
  * Thu danh sách trận thành các ĐƠN VỊ tính chuỗi thắng: mỗi kèo đếm đúng MỘT lần.
  *
  * Luật chung cho mọi nơi đếm chuỗi (điểm mùa lẫn danh hiệu): một kèo BO3 thắng 2-1 là MỘT lần

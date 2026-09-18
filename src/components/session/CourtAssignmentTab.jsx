@@ -15,7 +15,7 @@ import {
   calcPlayerDeltas, calcPairImpact, DEFAULT_RATING,
   COURT_BALANCE_THRESHOLD, COURT_IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
-import { calcSeasonMatchDelta, seasonConfigOf } from '#lib/season.js'
+import { calcSeasonMatchDeltaFinal, challengeMultiplierOf, seasonConfigOf } from '#lib/season.js'
 import { t } from '#i18n'
 import CourtWaitingFilterSheet from '#components/session/CourtWaitingFilterSheet.jsx'
 import SessionStatsSheet from '#components/session/SessionStatsSheet.jsx'
@@ -807,16 +807,24 @@ export default function CourtAssignmentTab({ s }) {
     const ra = teamRating(teamA, rawRatingsMap)
     const rb = teamRating(teamB, rawRatingsMap)
 
+    // Đang nạp một KÈO lên sân thì điểm mùa của trận này ăn hệ số — preview phải nói đúng con số
+    // sẽ vào sổ, không thì người chơi thấy +14 rồi nhận +28 và không hiểu vì sao.
+    const isChal = Boolean(selectedChallengeId)
+
     const out = {}
     const put = (ids, myElo, oppElo, won) => {
-      const { delta } = calcSeasonMatchDelta(myElo, oppElo, won, seasonCfg.deltaScale)
+      const { delta } = calcSeasonMatchDeltaFinal(myElo, oppElo, won, {
+        isChallenge: isChal,
+        scaleConfig: seasonCfg.deltaScale,
+        multiplier: challengeMultiplierOf(db),
+      })
       const bonus = won && (oppElo - myElo >= upsetMinGap) ? upsetBonus : 0
       ids.forEach((id) => { out[id] = delta + bonus })
     }
     put(teamA, ra, rb, winnerTeam === 'A')
     put(teamB, rb, ra, winnerTeam === 'B')
     return out
-  }, [teamA, teamB, winnerTeam, ratingEnabled, rawRatingsMap, db])
+  }, [teamA, teamB, winnerTeam, ratingEnabled, rawRatingsMap, db, selectedChallengeId])
 
   // Lưu kết quả trận đấu
   const handleSaveResult = () => {

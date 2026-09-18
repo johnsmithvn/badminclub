@@ -118,6 +118,49 @@ export function calcSeasonMatchDelta(teamElo, opponentTeamElo, won, scaleConfig 
 }
 
 /**
+ * Delta điểm mùa CUỐI CÙNG của một trận — đã tính hệ số kèo.
+ *
+ * MỌI nơi cộng hoặc HIỂN THỊ điểm mùa của một trận phải đi qua đây, không gọi thẳng
+ * `calcSeasonMatchDelta`. Hàm kia chỉ biết dải Elo, cố tình không biết trận đến từ đâu.
+ *
+ * Vì sao tách: khi hệ số kèo mới thêm vào, nó nằm bên trong `calculateSeasonLeaderboard` nên hai
+ * màn preview (`CourtAssignmentTab` lúc ghi tỉ số, `MatchDetailModal` lúc xem lại trận) vẫn gọi
+ * hàm gốc và hiện +14 trong khi sổ điểm ghi +28. Preview nói một đằng, điểm thật một nẻo.
+ *
+ * @param {number} teamElo Elo đội người chơi
+ * @param {number} opponentTeamElo Elo đội đối thủ
+ * @param {boolean} won thắng hay thua
+ * @param {object} [opts]
+ * @param {boolean} [opts.isChallenge] trận sinh từ kèo
+ * @param {object} [opts.scaleConfig] thang 5 dải
+ * @param {number} [opts.multiplier] hệ số kèo; bỏ trống thì đọc config
+ * @returns {{ delta: number, baseDelta: number, multiplier: number, tier: string, gap: number }}
+ */
+export function calcSeasonMatchDeltaFinal(teamElo, opponentTeamElo, won, opts = {}) {
+  const { isChallenge = false, scaleConfig = null, multiplier = null } = opts
+  const base = calcSeasonMatchDelta(teamElo, opponentTeamElo, won, scaleConfig)
+  const mult = Number(multiplier ?? cfg?.season?.challengeMultiplier ?? 1) || 1
+  const applied = isChallenge ? mult : 1
+  return {
+    ...base,
+    delta: applied === 1 ? base.delta : Math.round(base.delta * applied),
+    baseDelta: base.delta,
+    multiplier: applied,
+  }
+}
+
+/** Trận này có sinh từ kèo không — một định nghĩa dùng chung, đừng chép lại điều kiện. */
+export function isChallengeMatch(match) {
+  return Boolean(match?.challengeId || match?.sourceType === 'challenge')
+}
+
+/** Hệ số điểm mùa của kèo đang áp dụng, ưu tiên cấu hình mùa của CLB. */
+export function challengeMultiplierOf(db, season = null) {
+  const s = season || db?.settings?.season || cfg?.season || {}
+  return Number(s.challengeMultiplier ?? cfg?.season?.challengeMultiplier ?? 1) || 1
+}
+
+/**
  * Tìm cấu hình mùa giải áp dụng (active season) với đầy đủ fallback.
  * @param {Object} [db]
  * @param {Object} [season]
@@ -417,12 +460,14 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     })
 
     myMatches.forEach((match, idx) => {
-      const { delta: rawDelta, tier, gap } = calcSeasonMatchDelta(match.myElo, match.oppElo, match.won, season.deltaScale)
-
       // Hệ số kèo áp cho TỪNG set: kèo BO3 thắng 2-0 ăn gấp đôi kèo BO1 thắng. Đó là chủ đích
       // (kích cầu), không phải sót — xem ghi chú ở `challengeMultiplier`.
-      const isChallengeMatch = Boolean(match.challengeId || match.sourceType === 'challenge')
-      const delta = isChallengeMatch ? Math.round(rawDelta * challengeMultiplier) : rawDelta
+      // Đi qua `calcSeasonMatchDeltaFinal` để dùng CHUNG luật với hai màn preview.
+      const { delta, tier, gap } = calcSeasonMatchDeltaFinal(match.myElo, match.oppElo, match.won, {
+        isChallenge: isChallengeMatch(match),
+        scaleConfig: season.deltaScale,
+        multiplier: challengeMultiplier,
+      })
 
       let matchBonus = 0
       let earnedStreakBonus = 0

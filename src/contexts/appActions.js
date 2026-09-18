@@ -3003,9 +3003,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return { ok: false, error: 'not_found' }
       }
 
+      // Mức cược NHẬP TỰ DO: chỉ chặn số nguyên ≥ 1 và trần tuyệt đối. Trần này trùng số với
+      // CHECK trong migration 0047 và guard trong RPC — ba chốt cùng một con số, SQL không đọc
+      // được JSON nên phải tự giữ khớp.
+      const maxStake = cfg.challenge?.maxStakePoints ?? 100
       const stake = Number(stakePoints)
-      if (![1, 2, 3].includes(stake)) {
-        toast(t('challenge.predictionInvalidStake'))
+      if (!Number.isInteger(stake) || stake < 1 || stake > maxStake) {
+        toast(t('challenge.predictionInvalidStake', { max: maxStake }))
         return { ok: false, error: 'invalid_stake' }
       }
 

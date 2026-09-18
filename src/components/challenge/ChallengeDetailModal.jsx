@@ -6,7 +6,7 @@ import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
-import { calculateSeasonLeaderboard } from '#lib/season.js'
+import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
 import { t } from '#i18n'
 
@@ -84,6 +84,18 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   const ratB = resolvedTeamB.length
     ? Math.round(resolvedTeamB.reduce((sum, id) => sum + getRating(id), 0) / resolvedTeamB.length)
     : 0
+
+  // Điểm mùa dự kiến của kèo. Dùng CHUNG `calcSeasonMatchDeltaFinal` với màn ghi tỉ số và với
+  // `calculateSeasonLeaderboard` — ba nơi một luật, không nơi nào tự nhân hệ số lấy.
+  // Không gồm thưởng chuỗi/lật kèo: hai cái đó cần cả lịch sử mùa của từng người.
+  const seasonPreview = useMemo(() => {
+    if (isPlayed || c.ratingEnabled === false) return null
+    if (!teamA.length || !resolvedTeamB.length || !ratB) return null
+    const multiplier = challengeMultiplierOf(db)
+    const win = calcSeasonMatchDeltaFinal(ratA, ratB, true, { isChallenge: true, multiplier })
+    const lose = calcSeasonMatchDeltaFinal(ratA, ratB, false, { isChallenge: true, multiplier })
+    return { multiplier, aWin: win.delta, aLose: lose.delta, baseWin: win.baseDelta }
+  }, [isPlayed, c.ratingEnabled, teamA.length, resolvedTeamB.length, ratA, ratB, db])
 
   const gap = Math.abs(ratA - ratB)
   const expA = expectedScore(ratA, ratB || ratA)
@@ -938,6 +950,44 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 <div style={{ width: `${pctA}%`, background: 'var(--action-accent-bg, var(--teal-500))', height: '100%' }} />
                 <div style={{ width: `${pctB}%`, background: 'var(--border-default)', height: '100%' }} />
               </div>
+            </div>
+          )}
+
+          {/* Điểm mùa dự kiến — đọc cùng một hàm với lúc ghi tỉ số và với sổ điểm, nên ba nơi
+              không thể nói ba con số khác nhau. Kèo tắt xếp hạng thì không có điểm nào để khoe. */}
+          {seasonPreview && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              flexWrap: 'wrap',
+              marginTop: 6,
+              paddingTop: 8,
+              borderTop: '1px solid var(--border-subtle)',
+            }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ font: '600 11.5px/1.2 var(--font-sans)', color: 'var(--text-muted)' }}>
+                  {t('challenge.seasonPreviewTitle')}
+                </span>
+                {seasonPreview.multiplier > 1 && (
+                  <span style={{
+                    padding: '2px 7px',
+                    borderRadius: 4,
+                    background: 'rgba(249, 115, 22, 0.14)',
+                    border: '1px solid rgba(249, 115, 22, 0.35)',
+                    font: '700 10.5px/1.3 var(--font-sans)',
+                    color: '#EA580C',
+                  }}>
+                    {t('challenge.seasonPreviewMultBadge', { mult: seasonPreview.multiplier })}
+                  </span>
+                )}
+              </div>
+              <span style={{ font: '700 12.5px/1.2 var(--font-mono)' }}>
+                <span style={{ color: 'var(--status-delivered-fg)' }}>+{seasonPreview.aWin}</span>
+                <span style={{ color: 'var(--text-disabled)' }}> / </span>
+                <span style={{ color: 'var(--red-500, #ef4444)' }}>{seasonPreview.aLose}</span>
+              </span>
             </div>
           )}
         </div>
