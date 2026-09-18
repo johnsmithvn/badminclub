@@ -2731,6 +2731,41 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       return newChal
     },
 
+    /**
+     * Đổi thể thức kèo (BO1 ⇄ BO3) sau khi đã tạo.
+     *
+     * CHỈ cho đổi khi kèo CHƯA ghi set nào. `getChallengeSeriesProgress` suy số hiệp phải
+     * thắng ra từ `bestOf`, nên đổi giữa chừng là đổi luôn điều kiện thắng của chính loạt
+     * đang đánh: đang dẫn 1-0 ở BO3 mà hạ xuống BO1 thì loạt đó lập tức thành đã kết thúc, còn
+     * BO1 đã xong mà nâng lên BO3 thì trận đã chốt bị mở lại.
+     */
+    setChallengeFormat: (challengeId, bestOf) => {
+      const d0 = db()
+      const chal = (d0.challenges || []).find((c) => c.id === challengeId)
+      if (!chal) return
+      const next = Number(bestOf)
+      if (next !== 1 && next !== 3) return
+      if ((Number(chal.bestOf) || 1) === next) return
+
+      const myMem = myMember(d0)
+      const isCreator = Boolean(myMem && chal.createdBy === myMem.id)
+      if (!canAssign() && !isCreator) {
+        toast(t('common.unauthorized'))
+        return
+      }
+
+      const hasScore = (d0.matches || []).some((m) => m.challengeId === challengeId)
+      if (hasScore || chal.status === 'played' || chal.status === 'cancelled' || chal.status === 'expired') {
+        toast(t('challenge.formatLockedToast'))
+        return
+      }
+
+      up((d) => ({
+        challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, bestOf: next } : c)),
+      }))
+      toast(t('challenge.formatChangedToast', { code: chal.code, bo: next }))
+    },
+
     respondChallenge: (challengeId, accept) => {
       const d0 = db()
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)

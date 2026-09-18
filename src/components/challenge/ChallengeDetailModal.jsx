@@ -263,6 +263,28 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     })
   }
 
+  // Đổi thể thức BO1 ⇄ BO3, chỉ khi CHƯA ghi set nào. Điều kiện ở đây cố ý CHẶT HƠN hoặc bằng
+  // `a.setChallengeFormat` — nút chỉ được phép ẩn đi, không bao giờ hiện ra rồi bấm vào ăn toast
+  // từ chối. Dùng `isAdmin` cho khớp với nút Xoá ngay bên dưới trong cùng modal này.
+  const bestOf = Number(c.bestOf) || 1
+  const canEditFormat = Boolean(
+    (isAdmin || isCreator)
+    && !matchObj
+    && c.status !== 'played' && c.status !== 'cancelled' && c.status !== 'expired'
+    && !isExpired
+  )
+  const hasBets = (db.challengePredictions || []).some((x) => x.challengeId === c.id && x.status === 'pending')
+
+  const handleFormat = (b) => {
+    if (b === bestOf || submitting) return
+    setSubmitting(true)
+    try {
+      a.setChallengeFormat(c.id, b)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const creatorName = c.createdBy ? playerName(db, c.createdBy) : (teamA[0] ? playerName(db, teamA[0]) : '')
   const acceptorName = c.acceptedBy
     ? playerName(db, c.acceptedBy)
@@ -549,6 +571,41 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
       }
     >
       <div style={{ display: 'grid', gap: 14 }}>
+        {/* Đổi thể thức BO1 / BO3 khi chưa ghi tỷ số */}
+        {canEditFormat && (
+          <div style={{ display: 'grid', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('challenge.formatLabel')}:</span>
+              {[1, 3].map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleFormat(b)}
+                  style={{
+                    height: 30,
+                    minWidth: 52,
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid',
+                    font: '600 12px/1 var(--font-mono)',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    background: bestOf === b ? 'var(--navy-500)' : 'var(--surface-card)',
+                    borderColor: bestOf === b ? 'var(--navy-400)' : 'var(--border-default)',
+                    color: bestOf === b ? 'var(--action-primary-fg)' : 'var(--text-secondary)',
+                  }}
+                >
+                  BO{b}
+                </button>
+              ))}
+            </div>
+            {hasBets && (
+              <span style={{ font: '400 11.5px/1.4 var(--font-sans)', color: 'var(--status-delayed-fg)' }}>
+                {t('challenge.formatHasBets')}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Matchup Card */}
         <div style={S.boxCard}>
           {isPending && !isExpired && (
