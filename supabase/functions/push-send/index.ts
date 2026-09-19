@@ -165,8 +165,24 @@ Deno.serve(async (req) => {
       .select('id, member_id, endpoint, p256dh, auth')
       .in('member_id', verifiedMemberIds)
 
-    if (subsError || !subscriptions || subscriptions.length === 0) {
-      return new Response(JSON.stringify({ success: true, sentCount: 0, note: 'No subscriptions found' }), {
+    if (subsError) {
+      console.error('[push-send] Doc push_subscriptions loi:', subsError)
+      return new Response(JSON.stringify({ error: 'Subscription lookup failed', detail: subsError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Nhánh này TRƯỚC ĐÂY trả 200 mà không ghi gì — nhìn từ Invocations y hệt lúc gửi thành
+    // công, và Logs trống trơn. Đó là chỗ duy nhất trong hàm im lặng, nên phải nói ra.
+    if (!subscriptions || subscriptions.length === 0) {
+      console.warn('[push-send] Khong tim thay subscription nao cho member_ids:', verifiedMemberIds)
+      return new Response(JSON.stringify({
+        success: true,
+        sentCount: 0,
+        note: 'No subscriptions found',
+        checkedMemberIds: verifiedMemberIds,
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
