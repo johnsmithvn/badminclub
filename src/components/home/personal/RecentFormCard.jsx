@@ -1,13 +1,14 @@
 import { t } from '#i18n'
 
-export default function RecentFormCard({ formData, isMobile }) {
+export default function RecentFormCard({ form, formData, isMobile }) {
+  const activeForm = form || formData || {}
   const {
     matches = [],
     winsCount = 0,
     streak = 0,
     nextBadgeStreak = 5,
     winsNeededForBadge = 3,
-  } = formData || {}
+  } = activeForm
 
   const displaySlots = [...matches]
   while (displaySlots.length < 5) {

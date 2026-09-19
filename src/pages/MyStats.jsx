@@ -204,20 +204,31 @@ export default function MyStats() {
       <div style={S.desktopGrid}>
         {/* Cột chính (Trái) */}
         <div style={S.mainCol}>
+          {/* 01. Hạng của tôi */}
           <HeroRankCard hero={heroStats} data={heroStats} isMobile={false} />
-          <RivalGoalCard
-            rivalAnalysis={rivalAnalysis}
-            isMobile={false}
-            onChallenge={handleLogMatch}
-          />
+
+          {/* Hàng 2 cột: 02. Phong độ 5 trận + 03. Mục tiêu */}
+          <div style={S.twoColRow}>
+            <RecentFormCard
+              form={formStats}
+              formData={formStats}
+              isMobile={false}
+            />
+            <RivalGoalCard
+              rivalData={rivalAnalysis}
+              rivalAnalysis={rivalAnalysis}
+              isMobile={false}
+              onChallenge={handleLogMatch}
+              onH2HClick={handleLogMatch}
+            />
+          </div>
+
+          {/* 04. Đường đua mùa · 6 tuần */}
           <SeasonRaceCard raceData={seasonRace} data={seasonRace} />
+
+          {/* 05. Trận gần nhất của tôi (3 trận) */}
           <RecentMatchesCard
             matches={recentMatches}
-            isMobile={false}
-            onViewAll={handleViewMatches}
-          />
-          <ClubFeedCard
-            events={clubHighlights}
             isMobile={false}
             onViewAll={handleViewMatches}
           />
@@ -225,11 +236,22 @@ export default function MyStats() {
 
         {/* Cột phụ (Phải - 352px) */}
         <div style={S.sideCol}>
-          <RecentFormCard form={formStats} isMobile={false} />
+          {/* 06. Buổi tới */}
+          <UpcomingSessionCard
+            session={upcomingSession}
+            isMobile={false}
+            onViewSchedule={handleViewSchedule}
+            onViewAssignment={handleViewAssignment}
+            onChallenge={handleLogMatch}
+          />
+
+          {/* 07. Quanh bạn trên BXH */}
           <NearbyStandingsCard
             standings={nearbyStandings}
             onViewLeaderboard={handleViewLeaderboard}
           />
+
+          {/* 08. Người hợp với tôi */}
           <SynergyBadgesCard
             bestPartner={partnerStats.bestPartner}
             underperformingPartner={partnerStats.underperformingPartner}
@@ -238,12 +260,12 @@ export default function MyStats() {
             winsNeededForStreak={formStats.winsNeededForBadge}
             isMobile={false}
           />
-          <UpcomingSessionCard
-            session={upcomingSession}
+
+          {/* 09. CLB hôm nay */}
+          <ClubFeedCard
+            events={clubHighlights}
             isMobile={false}
-            onViewSchedule={handleViewSchedule}
-            onViewAssignment={handleViewAssignment}
-            onChallenge={handleLogMatch}
+            onViewAll={handleViewMatches}
           />
         </div>
       </div>
@@ -361,12 +383,12 @@ const S = {
     whiteSpace: 'nowrap',
   },
   desktopGrid: {
-    display: 'flex',
-    gap: 16,
-    alignItems: 'flex-start',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) 352px',
+    gap: 18,
+    alignItems: 'start',
   },
   mainCol: {
-    flex: 1,
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
@@ -374,9 +396,15 @@ const S = {
   },
   sideCol: {
     width: 352,
-    flex: '0 0 352px',
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
+  },
+  twoColRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    gap: 16,
+    alignItems: 'stretch',
   },
 }

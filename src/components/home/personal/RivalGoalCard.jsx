@@ -1,11 +1,14 @@
 import { t } from '#i18n'
 
-export default function RivalGoalCard({ rivalData, isMobile, onH2HClick }) {
-  if (!rivalData || !rivalData.rival) {
+export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2HClick, onChallenge }) {
+  const activeRivalData = rivalData || rivalAnalysis
+  const handleH2H = onH2HClick || onChallenge
+
+  if (!activeRivalData || !activeRivalData.rival) {
     return null
   }
 
-  const { me, rival, chaser } = rivalData
+  const { me, rival, chaser } = activeRivalData
   const rivalInitial = (rival.name || 'N').charAt(0).toUpperCase()
 
   const h2hText = rival.h2h?.myWins || rival.h2h?.rivalWins
@@ -31,7 +34,7 @@ export default function RivalGoalCard({ rivalData, isMobile, onH2HClick }) {
         </div>
         <button
           type="button"
-          onClick={onH2HClick}
+          onClick={handleH2H}
           style={S.h2hButton}
         >
           {h2hText}

@@ -21,25 +21,93 @@ export default function HeroRankCard({ hero, data, isMobile }) {
   const sign = eloDeltaWeek > 0 ? '↑ ' : eloDeltaWeek < 0 ? '↓ ' : ''
   const absDelta = Math.abs(eloDeltaWeek)
 
+  if (!isMobile) {
+    return (
+      <div style={S.cardDesktop}>
+        <span style={S.glowDesktop} />
+        {/* Cụm trái: Rank + Elo */}
+        <div style={S.desktopLeftCluster}>
+          <div style={S.rankCol}>
+            <span style={S.rankOverline}>{t('home.personal.rankHero')}</span>
+            <span style={S.bigRankDesktop}>#{rank}</span>
+            <span style={S.totalLabel}>{t('home.personal.overTotal', { total: totalMembers })}</span>
+          </div>
+          <div style={S.desktopEloSubCol}>
+            <span style={S.eloNumDesktop}>{elo}</span>
+            <span style={S.eloMono}>{t('home.personal.eloHighConfidence')}</span>
+            {eloDeltaWeek !== 0 && (
+              <span style={eloDeltaWeek >= 0 ? S.deltaGreen : S.deltaRed}>
+                {sign}{absDelta} {t('home.personal.upWeek', { delta: '' }).trim()}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Cụm phải: 4 ô stat + Thanh tiến độ */}
+        <div style={S.desktopRightCluster}>
+          <div style={S.statsGrid}>
+            <span style={S.statPill}>
+              <span style={S.statVal}>{seasonMatches}</span>
+              <span style={S.statDesc}>{t('home.personal.seasonMatches')}</span>
+            </span>
+            <span style={S.statPill}>
+              <span style={S.statVal}>{seasonWins}</span>
+              <span style={S.statDesc}>{t('home.personal.winRateWithPct', { pct: seasonWinRate })}</span>
+            </span>
+            <span style={S.statPill}>
+              <span style={S.statValGreen}>{seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}</span>
+              <span style={S.statDesc}>{t('home.personal.seasonPoints')}</span>
+            </span>
+            <span style={S.statPill}>
+              <span style={S.statValGold}>{badgesCount}</span>
+              <span style={S.statDesc}>{t('home.personal.badgesCount')}</span>
+            </span>
+          </div>
+
+          <div style={S.progressBoxDesktop}>
+            <div style={S.progressTextRow}>
+              {isLeader ? (
+                <span style={S.targetText}>{t('home.personal.rankLeader')}</span>
+              ) : (
+                <span style={S.targetText}>
+                  {targetRival?.name
+                    ? t('home.personal.pointsToOvertake', { points: pointsToNextRank, name: targetRival.name, rank: rank - 1 })
+                    : t('home.personal.pointsToRank', { points: pointsToNextRank, rank: rank - 1 })}
+                </span>
+              )}
+            </div>
+            {!isLeader && (
+              <div style={S.progressBarRow}>
+                <span style={S.trackLabel}>#{rank} · {elo}</span>
+                <span style={S.track}>
+                  <span style={{ ...S.fill, width: `${progressPct}%` }} />
+                </span>
+                <span style={S.trackLabelRight}>#{rank - 1}{targetRival?.elo ? ` · ${targetRival.elo}` : ''}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Mobile layout
   return (
     <div style={S.card}>
       <span style={S.glow} />
-      <div style={isMobile ? S.mobileHeroRow : S.desktopHeroRow}>
+      <div style={S.mobileHeroRow}>
         <div style={S.rankCol}>
-          {!isMobile && (
-            <span style={S.rankOverline}>{t('home.personal.rankHero')}</span>
-          )}
-          <span style={isMobile ? S.bigRankMobile : S.bigRankDesktop}>#{rank}</span>
+          <span style={S.bigRankMobile}>#{rank}</span>
           <span style={S.totalLabel}>{t('home.personal.overTotal', { total: totalMembers })}</span>
         </div>
 
-        <div style={isMobile ? S.eloColMobile : S.eloColDesktop}>
+        <div style={S.eloColMobile}>
           <div style={S.eloRow}>
-            <span style={isMobile ? S.eloNumMobile : S.eloNumDesktop}>{elo}</span>
-            <span style={S.eloMono}>{isMobile ? t('home.personal.eloNormal') : t('home.personal.eloHighConfidence')}</span>
+            <span style={S.eloNumMobile}>{elo}</span>
+            <span style={S.eloMono}>{t('home.personal.eloNormal')}</span>
             {eloDeltaWeek !== 0 && (
               <span style={eloDeltaWeek >= 0 ? S.deltaGreen : S.deltaRed}>
-                {sign}{absDelta} {isMobile ? '' : t('home.personal.upWeek', { delta: '' }).trim()}
+                {sign}{absDelta}
               </span>
             )}
           </div>
@@ -50,23 +118,13 @@ export default function HeroRankCard({ hero, data, isMobile }) {
               <span style={S.statDesc}>{t('home.personal.seasonMatches')}</span>
             </span>
             <span style={S.statPill}>
-              <span style={S.statVal}>
-                {isMobile ? `${seasonWinRate}%` : `${seasonWins}`}
-              </span>
-              <span style={S.statDesc}>
-                {isMobile ? t('home.personal.winRate') : t('home.personal.winRateWithPct', { pct: seasonWinRate })}
-              </span>
+              <span style={S.statVal}>{seasonWinRate}%</span>
+              <span style={S.statDesc}>{t('home.personal.winRate')}</span>
             </span>
             <span style={S.statPill}>
               <span style={S.statValGreen}>{seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}</span>
               <span style={S.statDesc}>{t('home.personal.seasonPoints')}</span>
             </span>
-            {!isMobile && (
-              <span style={S.statPill}>
-                <span style={S.statValGold}>{badgesCount}</span>
-                <span style={S.statDesc}>{t('home.personal.badgesCount')}</span>
-              </span>
-            )}
           </div>
         </div>
       </div>
@@ -106,6 +164,17 @@ const S = {
     border: '1px solid var(--border-default)',
     overflow: 'hidden',
   },
+  cardDesktop: {
+    position: 'relative',
+    padding: '22px 24px',
+    borderRadius: 'var(--radius-card, 18px)',
+    background: 'linear-gradient(140deg, var(--surface-card), var(--surface-inset))',
+    border: '1px solid var(--border-default)',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 28,
+  },
   glow: {
     position: 'absolute',
     top: -40,
@@ -116,17 +185,47 @@ const S = {
     background: 'radial-gradient(circle, var(--status-delayed-bg), transparent 68%)',
     pointerEvents: 'none',
   },
+  glowDesktop: {
+    position: 'absolute',
+    top: -70,
+    right: 80,
+    width: 280,
+    height: 280,
+    borderRadius: 999,
+    background: 'radial-gradient(circle, var(--status-delayed-bg), transparent 66%)',
+    pointerEvents: 'none',
+  },
   mobileHeroRow: {
     position: 'relative',
     display: 'flex',
     alignItems: 'flex-start',
     gap: 14,
   },
-  desktopHeroRow: {
+  desktopLeftCluster: {
     position: 'relative',
     display: 'flex',
-    alignItems: 'center',
-    gap: 28,
+    alignItems: 'flex-end',
+    gap: 16,
+    flex: '0 0 auto',
+  },
+  desktopEloSubCol: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    paddingBottom: 6,
+  },
+  desktopRightCluster: {
+    position: 'relative',
+    flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 13,
+  },
+  progressBoxDesktop: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
   },
   rankCol: {
     display: 'flex',
