@@ -1,5 +1,27 @@
 import { t } from '#i18n'
 
+function getEventTitle(item) {
+  if (item.type === 'match_finished') {
+    return t('home.personal.feedMatchFinished', {
+      winner: item.winnerNames,
+      score: item.score,
+      loser: item.loserNames,
+    })
+  }
+  if (item.type === 'challenge') {
+    return t('home.personal.feedChallengePending', {
+      challengers: item.challengers,
+    })
+  }
+  if (item.type === 'session_locked') {
+    return t('home.personal.feedSessionLocked', {
+      date: item.date,
+      venue: item.venue,
+    })
+  }
+  return item.title || ''
+}
+
 export default function ClubFeedCard({ events = [], isMobile, onViewAll }) {
   return (
     <div style={S.card}>
@@ -20,7 +42,7 @@ export default function ClubFeedCard({ events = [], isMobile, onViewAll }) {
             <div key={item.id} style={S.eventRow}>
               <span style={{ ...S.dot, background: item.dotColor || 'var(--status-delivered-fg)' }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={S.eventTitle}>{item.title}</div>
+                <div style={S.eventTitle}>{getEventTitle(item)}</div>
                 {!isMobile && item.timeAgo && (
                   <div style={S.eventTime}>{item.timeAgo}</div>
                 )}

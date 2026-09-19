@@ -241,7 +241,7 @@ export function seasonMatchesOf(db, season = null) {
  * @param {Object} [customSeason] - Cấu hình mùa giải tùy biến
  */
 export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
-  const season = customSeason || db?.settings?.season || cfg?.season || {
+  const season = resolveSeason(db, customSeason) || cfg?.season || {
     id: '2026-Q3',
     code: '2026-Q3',
     name: 'Thu Rực Lửa', // i18n-ok: default season name

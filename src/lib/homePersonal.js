@@ -4,8 +4,15 @@
 
 import { getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
 import { calculateMemberBadges, getMemberStreak } from '#lib/badges.js'
-import { calculateSeasonLeaderboard, getMemberSeasonLedger, resolveSeason, seasonMatchesOf } from '#lib/season.js'
-import { memberOf } from '#lib/money.js'
+import {
+  calculateSeasonLeaderboard,
+  getMemberSeasonLedger,
+  resolveSeason,
+  seasonMatchesOf,
+  calcSeasonMatchDeltaFinal,
+  isChallengeMatch,
+} from '#lib/season.js'
+import { memberOf, courtTxt, timeTxt } from '#lib/money.js'
 import { formatScoreString } from '#lib/activity.js'
 
 /**
@@ -544,55 +551,28 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
 export function getRecentPlayerMatches(db, memberId, limit = 3) {
   if (!db || !memberId || !Array.isArray(db.matches)) return []
 
-  const myName = memberOf(db, memberId)?.name || ''
+  const season = resolveSeason(db)
 
-  // 1. Ưu tiên đọc từ sổ điểm mùa giải getMemberSeasonLedger (chứa streak bonus, upset bonus và effectiveChange chuẩn)
+  // Đọc trước ledger để tra cứu điểm mùa chuẩn (có streak/upset bonus nếu có)
+  const eventByMatchId = new Map()
+  const eventByTimestamp = new Map()
   try {
-    const ledger = getMemberSeasonLedger(memberId, db)
+    const ledger = getMemberSeasonLedger(memberId, db, season)
     if (ledger?.events && ledger.events.length > 0) {
-      const logs = ledger.events.slice(0, limit)
-      return logs.map((ev, idx) => {
-        const won = ev.type === 'win'
-        const myTeamNames = ev.partnerName ? `${myName} · ${ev.partnerName}` : myName
-        const oppTeamNames = ev.oppNamesStr || '—'
-        const score = ev.scoreText || '—'
-        const seasonChange = ev.pts || '0'
-
-        let dateStr = '—'
-        if (ev.at) {
-          const matchDate = new Date(ev.at)
-          const d = String(matchDate.getDate()).padStart(2, '0')
-          const mo = String(matchDate.getMonth() + 1).padStart(2, '0')
-          dateStr = `${d}/${mo}`
-        }
-
-        // Đọc eloDelta số thật từ match tương ứng
-        const matchObj = (db.matches || []).find((m) => m && (m.id === ev.id || m.at === ev.at))
-        const eloDelta = matchObj ? (Number(matchObj.eloDelta) || 0) : 0
-        const eloChange = eloDelta > 0 ? (won ? `+${eloDelta}` : `−${eloDelta}`) : '0'
-
-        return {
-          id: ev.id || `match-${idx}`,
-          won,
-          myTeamNames,
-          oppTeamNames,
-          score,
-          eloDelta,
-          eloChange,
-          seasonChange,
-          dateStr,
-        }
+      ledger.events.forEach((ev) => {
+        if (ev.id) eventByMatchId.set(ev.id, ev)
+        if (ev.at) eventByTimestamp.set(ev.at, ev)
       })
     }
   } catch {}
 
-  // 2. Fallback khi chưa có ledger: duyệt db.matches trực tiếp
+  // Lấy các trận gần nhất của người chơi từ db.matches
   const playerMatches = db.matches
     .filter((m) => m && m.winnerTeam && ((m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId)))
     .sort((a, b) => (b.at || 0) - (a.at || 0))
     .slice(0, limit)
 
-  return playerMatches.map((m) => {
+  return playerMatches.map((m, idx) => {
     const inA = (m.teamA || []).includes(memberId)
     const won = (inA && m.winnerTeam === 'A') || (!inA && m.winnerTeam === 'B')
 
@@ -614,15 +594,41 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
       dateStr = `${d}/${mo}`
     }
 
+    // Tra cứu điểm mùa:
+    // 1. Ưu tiên từ ledger event
+    const matchedEvent = eventByMatchId.get(m.id) || eventByTimestamp.get(m.at)
+    let seasonChange = '—'
+
+    if (matchedEvent) {
+      seasonChange = matchedEvent.pts || (matchedEvent.numPts > 0 ? `+${matchedEvent.numPts}` : `${matchedEvent.numPts}`)
+    } else if (m.ratingEnabled === false) {
+      // Trận giao lưu không tính điểm mùa
+      seasonChange = '—'
+    } else {
+      // 2. Tính trực tiếp qua công thức dải Elo của mùa giải
+      let myElo = inA ? m.initialRatingA : m.initialRatingB
+      let oppElo = inA ? m.initialRatingB : m.initialRatingA
+      if (myElo == null || oppElo == null) {
+        myElo = DEFAULT_RATING
+        oppElo = DEFAULT_RATING
+      }
+      const { delta } = calcSeasonMatchDeltaFinal(myElo, oppElo, won, {
+        isChallenge: isChallengeMatch(m),
+        scaleConfig: season?.deltaScale,
+        multiplier: season?.challengeMultiplier,
+      })
+      seasonChange = delta > 0 ? `+${delta}` : `${delta}`
+    }
+
     return {
-      id: m.id,
+      id: m.id || `match-${idx}`,
       won,
       myTeamNames,
       oppTeamNames,
       score,
       eloDelta,
       eloChange,
-      seasonChange: '—',
+      seasonChange,
       dateStr,
     }
   })
@@ -650,15 +656,68 @@ export function getNextUpcomingSession(db, memberId) {
   const goingCount = Object.keys(att).length || 0
   const expectedMatches = Math.max(1, Math.round(goingCount * 0.35))
 
+  const venue = courtTxt(db, s) || s.courtTxt || s.venue || ''
+  const time = timeTxt(s) || s.time || ''
+  const isToday = s.date === nowStr
+
+  let dateFormatted = ''
+  if (s.date) {
+    const parts = s.date.split('-')
+    if (parts.length === 3) {
+      dateFormatted = `${parts[2]}/${parts[1]}`
+    }
+  }
+
+  // Lọc các kèo của buổi tập này hoặc các kèo đang mở sắp tới
+  const allChallenges = db.challenges || []
+  const sessionChallenges = allChallenges.filter(
+    (c) =>
+      c &&
+      (c.sessionId === s.id || (!c.sessionId && (c.status === 'pending' || c.status === 'accepted'))) &&
+      c.status !== 'cancelled' &&
+      c.status !== 'completed' &&
+      c.status !== 'played',
+  )
+
+  // Sắp xếp: Kèo của bản thân lên đầu, tiếp theo là kèo pending, rồi accepted
+  sessionChallenges.sort((a, b) => {
+    const aIsMine = (a.teamA || []).includes(memberId) || (a.teamB || []).includes(memberId)
+    const bIsMine = (b.teamA || []).includes(memberId) || (b.teamB || []).includes(memberId)
+    if (aIsMine && !bIsMine) return -1
+    if (!aIsMine && bIsMine) return 1
+    if (a.status === 'pending' && b.status !== 'pending') return -1
+    if (a.status !== 'pending' && b.status === 'pending') return 1
+    return 0
+  })
+
+  const challengesList = sessionChallenges.slice(0, 3).map((c) => {
+    const isMine = (c.teamA || []).includes(memberId) || (c.teamB || []).includes(memberId)
+    const teamANames = (c.teamA || []).map((id) => memberOf(db, id)?.name || id).join(' · ')
+    const teamBNames = (c.teamB || []).length > 0
+      ? (c.teamB || []).map((id) => memberOf(db, id)?.name || id).join(' · ')
+      : ''
+    return {
+      id: c.id,
+      code: c.code || '',
+      isMine,
+      status: c.status,
+      teamANames,
+      teamBNames,
+    }
+  })
+
   return {
     id: s.id,
     date: s.date,
-    time: s.time || '',
-    venue: s.courtTxt || '',
+    dateFormatted,
+    isToday,
+    time,
+    venue,
     courtsCount,
     goingCount,
     isRegistered,
     expectedMatches,
+    challenges: challengesList,
   }
 }
 
@@ -672,7 +731,34 @@ export function getClubTodayHighlights(db, memberId, limit = 4) {
   const events = []
   if (!db) return events
 
-  // 1. Kèo thách đấu đang chờ
+  // 1. Trận đấu vừa kết thúc gần nhất
+  const matches = db.matches || []
+  if (matches.length > 0) {
+    const sortedMatches = [...matches]
+      .filter((m) => m && m.winnerTeam)
+      .sort((a, b) => (b.at || 0) - (a.at || 0))
+    const lastMatch = sortedMatches[0]
+    if (lastMatch) {
+      const inA = lastMatch.winnerTeam === 'A'
+      const winIds = inA ? (lastMatch.teamA || []) : (lastMatch.teamB || [])
+      const loseIds = inA ? (lastMatch.teamB || []) : (lastMatch.teamA || [])
+      const winnerNames = winIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
+      const loserNames = loseIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
+      const score = formatScoreString(lastMatch) || '—'
+
+      events.push({
+        id: `match-${lastMatch.id}`,
+        dotColor: 'var(--status-delivered-fg)',
+        type: 'match_finished',
+        winnerNames,
+        loserNames,
+        score,
+        timeAgo: lastMatch.at ? new Date(lastMatch.at).toTimeString().slice(0, 5) : '',
+      })
+    }
+  }
+
+  // 2. Kèo thách đấu đang chờ
   const challenges = db.challenges || []
   const pendingChallenge = challenges.find((c) => c.status === 'pending')
   if (pendingChallenge) {
@@ -682,19 +768,21 @@ export function getClubTodayHighlights(db, memberId, limit = 4) {
       dotColor: 'var(--text-link)',
       type: 'challenge',
       challengers,
-      timeAgo: '1d',
+      timeAgo: pendingChallenge.createdAt ? new Date(pendingChallenge.createdAt).toTimeString().slice(0, 5) : '',
     })
   }
 
-  // 2. Buổi tập chốt chia sân
+  // 3. Buổi tập chốt chia sân
   const closedSession = (db.sessions || []).find((s) => s.status === 'closed')
   if (closedSession) {
+    const venue = courtTxt(db, closedSession) || closedSession.venue || ''
     events.push({
       id: `session-${closedSession.id}`,
       dotColor: 'var(--text-muted)',
       type: 'session_locked',
       date: closedSession.date,
-      timeAgo: '1d',
+      venue,
+      timeAgo: '',
     })
   }
 

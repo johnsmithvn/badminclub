@@ -1,8 +1,9 @@
 import { t } from '#i18n'
 
 function formatSeasonPoints(val, won) {
-  if (!val || val === '—') return `0 ${t('home.personal.seasonPointsShort')}`
+  if (!val || val === '—') return '—'
   const str = String(val).trim()
+  if (str === '0' || str === '+0' || str === '−0' || str === '-0') return `0 ${t('home.personal.seasonPointsShort')}`
   if (str.startsWith('+') || str.startsWith('−') || str.startsWith('-')) {
     return `${str} ${t('home.personal.seasonPointsShort')}`
   }
@@ -61,7 +62,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
             </span>
           </span>
           <span style={S.pillPadded}>
-            <span style={m.won ? S.greenMono : S.redMono}>
+            <span style={m.seasonChange && m.seasonChange !== '—' ? (m.won ? S.greenMono : S.redMono) : S.mutedMono}>
               {formatSeasonPoints(m.seasonChange, m.won)}
             </span>
           </span>
@@ -93,7 +94,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
             <span style={m.won ? S.desktopDeltaGreen : S.desktopDeltaRed}>
               {m.eloDelta ? (m.won ? `+${m.eloDelta} ${t('home.personal.eloNormal')}` : `−${m.eloDelta} ${t('home.personal.eloNormal')}`) : (m.eloChange ? `${m.eloChange} ${t('home.personal.eloNormal')}` : `0 ${t('home.personal.eloNormal')}`)}
             </span>
-            <span style={m.won ? S.desktopSeasonGreen : S.desktopSeasonRed}>
+            <span style={m.seasonChange && m.seasonChange !== '—' ? (m.won ? S.desktopSeasonGreen : S.desktopSeasonRed) : S.desktopSeasonMuted}>
               {formatSeasonPoints(m.seasonChange, m.won)}
             </span>
           </div>
@@ -190,6 +191,10 @@ const S = {
     font: '600 12px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
   },
+  mutedMono: {
+    font: '600 12px/1 var(--font-mono)',
+    color: 'var(--text-muted)',
+  },
   desktopList: {
     display: 'flex',
     flexDirection: 'column',
@@ -246,6 +251,12 @@ const S = {
     textAlign: 'right',
     font: '600 12px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
+  },
+  desktopSeasonMuted: {
+    width: 86,
+    textAlign: 'right',
+    font: '600 12px/1 var(--font-mono)',
+    color: 'var(--text-muted)',
   },
   emptyState: {
     padding: '12px 0',

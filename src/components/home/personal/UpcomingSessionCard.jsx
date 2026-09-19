@@ -30,7 +30,7 @@ export default function UpcomingSessionCard({
   }
 
   const timeStr = session.time || '—'
-  const venueStr = session.venue || t('common.unknown')
+  const venueStr = session.venue || t('home.personal.defaultVenue')
   const goingCount = session.goingCount || 0
   const isRegistered = session.isRegistered ?? false
   const expectedMatches = session.expectedMatches || 0
@@ -43,22 +43,59 @@ export default function UpcomingSessionCard({
     ? statusText
     : `${statusText} · ${t('home.personal.expectedMatchesCount', { n: expectedMatches })}`
 
+  const overlineText = session.isToday
+    ? (session.time ? t('home.personal.upcomingSessionToday', { time: session.time }) : t('home.personal.upcomingTimeDefault', { time: '—' }))
+    : (session.time ? t('home.personal.upcomingSessionDate', { date: session.dateFormatted || session.date, time: session.time }) : (session.dateFormatted || session.date))
+
+  const challenges = session.challenges || []
+
   return (
     <div style={isMobile ? S.cardMobile : S.cardDesktop}>
       <div style={S.infoCol}>
-        <span style={S.overline}>{t('home.personal.upcomingTimeDefault', { time: timeStr })}</span>
+        <span style={S.overline}>{overlineText}</span>
         <span style={isMobile ? S.titleMobile : S.titleDesktop}>{venueStr}</span>
         <span style={S.meta}>{subtitle}</span>
       </div>
 
+      {/* Danh sách kèo hot / Kèo của bản thân trong buổi tập */}
+      {challenges.length > 0 && (
+        <div style={S.challengesBox}>
+          {challenges.map((c) => (
+            <div key={c.id} style={c.isMine ? S.challengeRowMine : S.challengeRow}>
+              <span style={c.isMine ? S.tagMine : (c.status === 'pending' ? S.tagPending : S.tagAccepted)}>
+                {c.isMine
+                  ? t('home.personal.myChallengeTag')
+                  : (c.status === 'pending' ? t('home.personal.seekingOpponentTag') : t('home.personal.readyTag'))}
+              </span>
+              <div style={S.matchupCol}>
+                <span style={c.isMine ? S.teamANameMine : S.teamAName}>{c.teamANames}</span>
+                <span style={S.vsText}> vs </span>
+                <span style={c.teamBNames ? (c.isMine ? S.teamBNameMine : S.teamBName) : S.teamBEmpty}>
+                  {c.teamBNames || t('home.personal.challengeSeekingOpponent')}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {isMobile ? (
-        <button
-          type="button"
-          onClick={onViewSchedule}
-          style={S.btnPrimaryMobile}
-        >
-          {t('home.personal.viewSchedule')}
-        </button>
+        <div style={S.mobileActions}>
+          <button
+            type="button"
+            onClick={onViewAssignment}
+            style={S.btnPrimaryMobile}
+          >
+            {t('home.personal.viewCourtAssignment')}
+          </button>
+          <button
+            type="button"
+            onClick={onChallenge}
+            style={S.btnSecondaryMobile}
+          >
+            {t('home.personal.challengeAction')}
+          </button>
+        </div>
       ) : (
         <div style={S.desktopActions}>
           <button
@@ -83,12 +120,12 @@ export default function UpcomingSessionCard({
 
 const S = {
   cardMobile: {
-    padding: '13px 14px',
+    padding: '14px 15px',
     borderRadius: 14,
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
     display: 'flex',
-    alignItems: 'center',
+    flexDirection: 'column',
     gap: 12,
   },
   cardDesktop: {
@@ -98,11 +135,9 @@ const S = {
     border: '1px solid var(--border-subtle)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 11,
+    gap: 12,
   },
   infoCol: {
-    flex: 1,
-    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: 3,
@@ -114,7 +149,7 @@ const S = {
     color: 'var(--text-link)',
   },
   titleMobile: {
-    font: '700 15.5px/1.25 var(--font-display)',
+    font: '700 16px/1.25 var(--font-display)',
     color: 'var(--text-primary)',
   },
   titleDesktop: {
@@ -130,14 +165,117 @@ const S = {
     color: 'var(--text-muted)',
     marginTop: 4,
   },
-  btnPrimaryMobile: {
+  challengesBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    padding: '9px 10px',
+    borderRadius: 10,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-default)',
+  },
+  challengeRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 12,
+  },
+  challengeRowMine: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 12,
+    padding: '3px 5px',
+    borderRadius: 6,
+    background: 'var(--status-delayed-bg)',
+  },
+  tagMine: {
+    font: '600 9.5px/1 var(--font-sans)',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    padding: '3px 6px',
+    borderRadius: 999,
+    background: 'var(--status-delayed-fg)',
+    color: '#1a1002',
     flex: '0 0 auto',
+  },
+  tagPending: {
+    font: '600 9.5px/1 var(--font-sans)',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    padding: '3px 6px',
+    borderRadius: 999,
+    background: 'var(--status-delivered-bg)',
+    color: 'var(--status-delivered-fg)',
+    flex: '0 0 auto',
+  },
+  tagAccepted: {
+    font: '600 9.5px/1 var(--font-sans)',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    padding: '3px 6px',
+    borderRadius: 999,
+    background: 'var(--surface-card)',
+    color: 'var(--text-muted)',
+    border: '1px solid var(--border-subtle)',
+    flex: '0 0 auto',
+  },
+  matchupCol: {
+    flex: 1,
+    minWidth: 0,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    font: '500 12px/1.3 var(--font-sans)',
+  },
+  teamAName: {
+    color: 'var(--text-primary)',
+    fontWeight: 600,
+  },
+  teamANameMine: {
+    color: 'var(--text-primary)',
+    fontWeight: 700,
+  },
+  vsText: {
+    color: 'var(--text-muted)',
+    margin: '0 4px',
+    fontWeight: 400,
+  },
+  teamBName: {
+    color: 'var(--text-secondary)',
+  },
+  teamBNameMine: {
+    color: 'var(--text-secondary)',
+    fontWeight: 600,
+  },
+  teamBEmpty: {
+    color: 'var(--status-delayed-fg)',
+    fontStyle: 'italic',
+  },
+  mobileActions: {
+    display: 'flex',
+    gap: 8,
+  },
+  btnPrimaryMobile: {
+    flex: 1,
+    textAlign: 'center',
     font: '600 12.5px/1 var(--font-sans)',
-    padding: '11px 14px',
+    padding: '10px 12px',
     borderRadius: 999,
     background: 'var(--action-primary-bg)',
     color: 'var(--action-primary-fg)',
     border: 'none',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  btnSecondaryMobile: {
+    flex: '0 0 auto',
+    font: '600 12.5px/1 var(--font-sans)',
+    padding: '10px 14px',
+    borderRadius: 999,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-default)',
+    color: 'var(--text-secondary)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
   },
