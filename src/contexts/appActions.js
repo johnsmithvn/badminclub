@@ -39,27 +39,34 @@ const recentSelfCheckins = new Map()
 /** Cache chống bắn trùng thông báo điểm danh cùng loại trong thời gian ngắn */
 const recentAttendanceEvents = new Map()
 
-/** Danh sách 18 sự kiện gửi Web Push Notifications (trên tổng số 25 loại sự kiện của app) */
+/**
+ * Sự kiện được đẩy lên MÀN KHOÁ điện thoại. Danh sách này cố ý NGẮN.
+ *
+ * Tiêu chí: chỉ những việc cần người nhận PHẢN HỒI, và bỏ lỡ thì hỏng việc. Mọi loại khác vẫn
+ * vào chuông trong app như thường — bỏ khỏi đây chỉ là không rung máy.
+ *
+ * Lý do phải khắt khe: hộp thông báo chỉ nạp 100 dòng mới nhất (`reloadNotifications`), và
+ * người bị rung vì việc không đáng sẽ tắt quyền thông báo — mất luôn những cái đáng đọc.
+ */
 const PUSH_EVENTS = new Set([
-  'claim_submitted',
-  'claim_approved',
-  'claim_rejected',
-  'refund_session',
-  'refund_bulk',
-  'challenge_created',
-  'challenge_teammate',
-  'challenge_accepted',
-  'challenge_declined',
-  'challenge_cancelled',
-  'challenge_completed',
-  'bounty_broken',
-  'session_rsvp_invite',
-  'session_cancelled',
-  'join_approved',
-  'join_rejected',
-  'member_change_requested',
-  'member_change_approved',
-  'member_change_rejected',
+  'challenge_created',   // bị thách đấu — phải nhận/từ chối trước khi kèo hết hạn 60 phút
+  'challenge_teammate',  // bị xếp đánh cặp — kèo không thành nếu thiếu chữ ký của họ
+  'challenge_cancelled', // kèo biến mất, và phiếu dự đoán được hoàn
+  'session_rsvp_invite', // mở điểm danh — quản trò cần câu trả lời để xếp sân
+
+  // ---- ĐÃ BỎ khỏi push (vẫn còn chuông trong app) ----
+  // 'challenge_accepted'  'challenge_declined'  'challenge_completed'
+  //      Không gấp: mở app là thấy. Một kèo sinh tới 4 thông báo cho cùng nhóm người,
+  //      đánh 5 kèo một buổi là 20 lần rung máy.
+  // 'bounty_broken'
+  //      Tin vui, không phải việc cần làm.
+  // 'session_cancelled'
+  //      Giữ chuông; người đã điểm danh sẽ thấy khi mở app.
+  //
+  // ---- TẠM TẮT: phần TIỀN, chờ test kỹ cơ chế chống spam ----
+  // 'claim_submitted'  'claim_approved'  'claim_rejected'
+  // 'refund_session'   'refund_bulk'
+  //      Dồn vào cuối tháng, dễ bắn hàng loạt. Bật lại sau khi đã đo thực tế.
 ])
 
 export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) {

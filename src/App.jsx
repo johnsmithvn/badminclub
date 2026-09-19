@@ -13,6 +13,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { PAGES, PUBLIC_PATHS, keyOfPath } from '#routes'
 import { allowedRoutes } from '#lib/roles.js'
+import { myMember } from '#lib/money.js'
 import { hasSupabase } from '#supabase'
 import { t } from '#i18n'
 import Account from '#pages/Account.jsx'
@@ -43,6 +44,7 @@ const SCREEN = {
 
 export default function App() {
   const { status, activeClubId, setActiveClub, clubs } = useAuth()
+  const { db, a } = useApp()
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
 
@@ -76,10 +78,37 @@ export default function App() {
     }
     // Xong việc thì gỡ param khỏi URL — để lại thì nút Back quay về vòng chuyển CLB, và mọi
     // lần `setSearchParams` của các màn sau đều kéo theo nó.
+    // CHỈ gỡ `club`: `n` được effect bên dưới xử lý và phải sống tới lúc thông báo nạp xong.
     params.delete('club')
     const rest = params.toString()
     navigate({ pathname, search: rest ? `?${rest}` : '' }, { replace: true })
   }, [search, pathname, status, activeClubId, clubs, setActiveClub, navigate])
+
+  // Bấm vào thông báo đẩy → đánh dấu dòng đó ĐÃ ĐỌC.
+  //
+  // Trước đây chỉ `NotificationPanel` mới gọi `markNotificationRead`, nên bấm push thì app
+  // nhảy đúng màn nhưng chuông vẫn giữ nguyên số và dòng vẫn đậm như chưa đọc.
+  //
+  // `n` có dạng `<type>_<refId>` — đúng bằng `tag` của notification (xem `buildPushUrl`).
+  // So khớp nguyên chuỗi, không tách, vì `type` tự nó đã chứa dấu gạch dưới.
+  useEffect(() => {
+    if (!search || status !== 'in') return
+    const params = new URLSearchParams(search)
+    const mark = params.get('n')
+    if (!mark) return
+    // Chờ dữ liệu CLB nạp xong mới dò được id dòng thông báo — gỡ `n` sớm là mất dấu.
+    if (!db?.notifications) return
+
+    const myId = myMember(db)?.id || null
+    const hit = db.notifications.find((x) => (
+      x.memberId === myId && !x.readAt && x.refId && `${x.type}_${x.refId}` === mark
+    ))
+    if (hit) a.markNotificationRead(hit.id)
+
+    params.delete('n')
+    const rest = params.toString()
+    navigate({ pathname, search: rest ? `?${rest}` : '' }, { replace: true })
+  }, [search, pathname, status, db, a, navigate])
 
   // Chưa biết có phiên hay không thì đừng render gì — tránh nháy sang màn đăng nhập rồi bật lại.
   if (status === 'loading') return <Splash />

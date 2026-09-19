@@ -67,8 +67,16 @@ export function keyOfPath(pathname) {
 }
 
 /**
- * Tạo URL điều hướng cho Web Push notification kèm tham số ?club=
+ * Tạo URL điều hướng cho Web Push notification.
  * Xử lý đầy đủ 6 refType: challenge, session, match, claim, debts, member
+ *
+ * Hai tham số gắn thêm, cả hai đều bị App.jsx gỡ khỏi URL ngay sau khi dùng:
+ *   club=  → chuyển sang đúng CLB trước khi render (deep link không mang CLB thì mở nhầm sổ).
+ *   n=     → dấu "tới đây TỪ một thông báo", để app đánh dấu dòng đó đã đọc.
+ *
+ * `n` phải nằm trong URL chứ không thể truyền qua postMessage: khi app đã đóng hẳn, Service
+ * Worker mở cửa sổ mới bằng `openWindow` và KHÔNG có client nào để gửi message — mà đó lại là
+ * trường hợp phổ biến nhất trên điện thoại. Giá trị trùng với `tag` của notification.
  */
 export function buildPushUrl({ type, refType, refId, clubId }) {
   let path = '/'
@@ -85,8 +93,11 @@ export function buildPushUrl({ type, refType, refId, clubId }) {
   } else if (refType === 'member') {
     path = type === 'member_change_requested' ? pathOf('members') : pathOf('profile')
   }
-  if (!clubId) return path
+  const extra = []
+  if (clubId) extra.push(`club=${clubId}`)
+  if (type && refId) extra.push(`n=${type}_${refId}`)
+  if (!extra.length) return path
   const sep = path.includes('?') ? '&' : '?'
-  return `${path}${sep}club=${clubId}`
+  return `${path}${sep}${extra.join('&')}`
 }
 

@@ -12,7 +12,7 @@ test('Web Push URL Generation (buildPushUrl)', async (t) => {
       refId: 'chal-456',
       clubId,
     })
-    assert.equal(url, '/tran-dau?tab=challenges&challengeId=chal-456&club=club-uuid-123')
+    assert.equal(url, '/tran-dau?tab=challenges&challengeId=chal-456&club=club-uuid-123&n=challenge_created_chal-456')
   })
 
   await t.test('Session refType maps to /buoi-tap/:id?club=...', () => {
@@ -22,7 +22,7 @@ test('Web Push URL Generation (buildPushUrl)', async (t) => {
       refId: 'sess-789',
       clubId,
     })
-    assert.equal(url, '/buoi-tap/sess-789?club=club-uuid-123')
+    assert.equal(url, '/buoi-tap/sess-789?club=club-uuid-123&n=session_rsvp_invite_sess-789')
   })
 
   await t.test('Match refType maps to /tran-dau?tab=search&matchId=...&club=...', () => {
@@ -32,7 +32,7 @@ test('Web Push URL Generation (buildPushUrl)', async (t) => {
       refId: 'match-101',
       clubId,
     })
-    assert.equal(url, '/tran-dau?tab=search&matchId=match-101&club=club-uuid-123')
+    assert.equal(url, '/tran-dau?tab=search&matchId=match-101&club=club-uuid-123&n=bounty_broken_match-101')
   })
 
   await t.test('Claim refType maps to /so-quy?club=...', () => {
@@ -42,7 +42,7 @@ test('Web Push URL Generation (buildPushUrl)', async (t) => {
       refId: 'claim-1',
       clubId,
     })
-    assert.equal(url, '/so-quy?club=club-uuid-123')
+    assert.equal(url, '/so-quy?club=club-uuid-123&n=claim_approved_claim-1')
   })
 
   await t.test('Debts refType (claim_submitted, refund) maps to /cong-no?club=...', () => {
@@ -62,7 +62,7 @@ test('Web Push URL Generation (buildPushUrl)', async (t) => {
       refId: 'mem-1',
       clubId,
     })
-    assert.equal(url, '/thanh-vien?club=club-uuid-123')
+    assert.equal(url, '/thanh-vien?club=club-uuid-123&n=member_change_requested_mem-1')
   })
 
   await t.test('Member approval / rejection maps to /ca-nhan?club=...', () => {
@@ -72,7 +72,7 @@ test('Web Push URL Generation (buildPushUrl)', async (t) => {
       refId: 'mem-1',
       clubId,
     })
-    assert.equal(urlApproved, '/ca-nhan?club=club-uuid-123')
+    assert.equal(urlApproved, '/ca-nhan?club=club-uuid-123&n=join_approved_mem-1')
 
     const urlChangeApproved = buildPushUrl({
       type: 'member_change_approved',
@@ -80,7 +80,7 @@ test('Web Push URL Generation (buildPushUrl)', async (t) => {
       refId: 'mem-1',
       clubId,
     })
-    assert.equal(urlChangeApproved, '/ca-nhan?club=club-uuid-123')
+    assert.equal(urlChangeApproved, '/ca-nhan?club=club-uuid-123&n=member_change_approved_mem-1')
   })
 
   await t.test('Without clubId returns bare path without &club=', () => {
