@@ -4218,22 +4218,40 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
   A.markNotificationRead = (notifId) => {
     const now = new Date().toISOString()
+    // Optimistic local update
     up((d) => ({
       notifications: (d.notifications || []).map((n) =>
         n.id === notifId ? { ...n, readAt: now } : n
       ),
     }))
+    // Persist to DB (fire-and-forget, nếu lỗi thì lần reload sẽ hiển thị lại unread)
+    if (supabase) {
+      supabase.from('notifications').update({ read_at: now }).eq('id', notifId).then(({ error }) => {
+        if (error) console.warn('[notifications] markRead error:', error.message)
+      })
+    }
   }
 
   A.markAllNotificationsRead = () => {
     const d0 = db()
     const myId = myMember(d0)?.id || null
     const now = new Date().toISOString()
+    // Collect IDs to update before mutating state
+    const idsToMark = (d0.notifications || [])
+      .filter((n) => (!myId || n.memberId === myId) && !n.readAt)
+      .map((n) => n.id)
+    // Optimistic local update
     up((d) => ({
       notifications: (d.notifications || []).map((n) =>
         (!myId || n.memberId === myId) && !n.readAt ? { ...n, readAt: now } : n
       ),
     }))
+    // Persist to DB
+    if (supabase && idsToMark.length > 0) {
+      supabase.from('notifications').update({ read_at: now }).in('id', idsToMark).then(({ error }) => {
+        if (error) console.warn('[notifications] markAllRead error:', error.message)
+      })
+    }
   }
 
   A.memberSelfCheckin = (sessionId, status) => {
