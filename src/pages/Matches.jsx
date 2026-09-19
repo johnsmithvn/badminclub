@@ -683,6 +683,16 @@ export default function Matches() {
   }, [neverMetList, db.sessions, db.attendance, db.matches, memberMap, db.members])
 
 
+
+  // Grid style dùng lại cho cả sections
+  const challengeGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))',
+    gap: 12,
+    width: '100%',
+    alignItems: 'start',
+  }
+
   return (
     <div style={{ ...S.page, gap: isMobile ? 10 : 16 }}>
       <PageHeader
@@ -824,15 +834,10 @@ export default function Matches() {
             </div>
           )}
 
-          {/* Danh sách thẻ Kèo */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))',
-            gap: 12,
-            width: '100%',
-            alignItems: 'start',
-          }}>
-            {displayedChallenges.map((c) => {
+          {/* Danh sách thẻ Kèo — tab "Của tôi" chia sections, tab khác flat list */}
+          {(() => {
+            // Card renderer dùng chung — extract để tránh duplicate 530 dòng
+            const challengeCardMapper = (c) => {
               const teamA = c.teamA || []
               const teamB = c.teamB || []
               const ratA = teamA.length ? Math.round(teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length) : 0
@@ -1365,28 +1370,104 @@ export default function Matches() {
                   </div>
                 </div>
               )
-            })}
+            }
 
-            {displayedChallenges.length === 0 && (
-              <div style={S.emptyBox}>
-                <Icon name="history" size={32} style={{ color: 'var(--text-muted)' }} />
-                <div style={S.emptyTitle}>{t('matchesPage.emptyChallenges')}</div>
-                <div style={S.emptySub}>{t('matchesPage.createChallengePrompt')}</div>
-                <Button
-                  variant="secondary"
-                  icon="plus"
-                  onClick={() => {
-                    setInitialTeamA(myId ? [myId] : [])
-                    setInitialTeamB([])
-                    setChallengeModalOpen(true)
-                  }}
-                  style={{ marginTop: 8 }}
-                >
-                  {t('matchesPage.createBtn')}
-                </Button>
+            // Tab "Của tôi" → chia sections
+            if (challengeSubTab === 'my') {
+              return (
+                <div style={{ display: 'grid', gap: 16, width: '100%' }}>
+                  {/* Section 1: Đang diễn ra — luôn mở */}
+                  <div>
+                    <div style={S.sectionHeader}>
+                      <Icon name="zap" size={15} style={{ color: 'var(--status-transit-fg)' }} />
+                      <span style={S.sectionLabel}>{t('challenge.sectionActive')}</span>
+                      <span style={S.sectionCount}>{myActiveChallenges.length}</span>
+                    </div>
+                    {myActiveChallenges.length > 0 ? (
+                      <div style={challengeGridStyle}>
+                        {myActiveChallenges.map(challengeCardMapper)}
+                      </div>
+                    ) : (
+                      <div style={{ ...S.emptyBox, padding: '24px 20px' }}>
+                        <Icon name="check-circle" size={24} style={{ color: 'var(--text-muted)' }} />
+                        <div style={S.emptySub}>{t('matchesPage.emptyChallenges')}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section 2: Đã kết thúc — collapse mặc định */}
+                  {myEndedChallenges.length > 0 && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setMyEndedCollapsed(!myEndedCollapsed)}
+                        style={{ ...S.sectionHeader, cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left' }}
+                      >
+                        <Icon
+                          name={myEndedCollapsed ? 'chevron-right' : 'chevron-down'}
+                          size={15}
+                          style={{ color: 'var(--text-muted)' }}
+                        />
+                        <span style={S.sectionLabel}>{t('challenge.sectionEnded')}</span>
+                        <span style={S.sectionCount}>{myEndedChallenges.length}</span>
+                      </button>
+                      {!myEndedCollapsed && (
+                        <div style={challengeGridStyle}>
+                          {myEndedChallenges.map(challengeCardMapper)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {myChallenges.length === 0 && (
+                    <div style={S.emptyBox}>
+                      <Icon name="history" size={32} style={{ color: 'var(--text-muted)' }} />
+                      <div style={S.emptyTitle}>{t('matchesPage.emptyChallenges')}</div>
+                      <div style={S.emptySub}>{t('matchesPage.createChallengePrompt')}</div>
+                      <Button
+                        variant="secondary"
+                        icon="plus"
+                        onClick={() => {
+                          setInitialTeamA(myId ? [myId] : [])
+                          setInitialTeamB([])
+                          setChallengeModalOpen(true)
+                        }}
+                        style={{ marginTop: 8 }}
+                      >
+                        {t('matchesPage.createBtn')}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            // Tab khác → flat list
+            return (
+              <div style={challengeGridStyle}>
+                {displayedChallenges.map(challengeCardMapper)}
+                {displayedChallenges.length === 0 && (
+                  <div style={S.emptyBox}>
+                    <Icon name="history" size={32} style={{ color: 'var(--text-muted)' }} />
+                    <div style={S.emptyTitle}>{t('matchesPage.emptyChallenges')}</div>
+                    <div style={S.emptySub}>{t('matchesPage.createChallengePrompt')}</div>
+                    <Button
+                      variant="secondary"
+                      icon="plus"
+                      onClick={() => {
+                        setInitialTeamA(myId ? [myId] : [])
+                        setInitialTeamB([])
+                        setChallengeModalOpen(true)
+                      }}
+                      style={{ marginTop: 8 }}
+                    >
+                      {t('matchesPage.createBtn')}
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })()}
         </div>
       )}
 
@@ -3914,6 +3995,26 @@ const S = {
     font: '600 12px/1 var(--font-sans)',
     border: '1px solid rgba(225,68,52,.3)',
     cursor: 'pointer',
+  },
+  sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 4px',
+    marginBottom: 8,
+  },
+  sectionLabel: {
+    font: '600 13px/1.2 var(--font-sans)',
+    color: 'var(--text-secondary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  sectionCount: {
+    font: '600 11px/1 var(--font-mono)',
+    color: 'var(--text-muted)',
+    background: 'var(--surface-sunken)',
+    padding: '2px 7px',
+    borderRadius: 999,
   },
   emptyBox: {
     padding: '36px 20px',
