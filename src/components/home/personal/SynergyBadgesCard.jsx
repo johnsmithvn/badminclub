@@ -1,3 +1,4 @@
+import { Avatar } from '#ds'
 import { t } from '#i18n'
 
 export default function SynergyBadgesCard({
@@ -46,6 +47,23 @@ export default function SynergyBadgesCard({
     )
   }
 
+  const bestAvatar =
+    bestPartner?.partner?.avatarUrl ||
+    bestPartner?.partner?.avatar_url ||
+    bestPartner?.partner?.avatar ||
+    bestPartner?.partner?.profile?.avatar_url ||
+    bestPartner?.partner?.profile?.avatarUrl ||
+    bestPartner?.avatarUrl ||
+    ''
+  const underAvatar =
+    underperformingPartner?.partner?.avatarUrl ||
+    underperformingPartner?.partner?.avatar_url ||
+    underperformingPartner?.partner?.avatar ||
+    underperformingPartner?.partner?.profile?.avatar_url ||
+    underperformingPartner?.partner?.profile?.avatarUrl ||
+    underperformingPartner?.avatarUrl ||
+    ''
+
   // Desktop layout: Thẻ "Người hợp với tôi"
   return (
     <div style={S.desktopCard}>
@@ -56,9 +74,7 @@ export default function SynergyBadgesCard({
       ) : (
         <>
           <div style={S.partnerRow}>
-            <span style={S.avatarGreen}>
-              {bestPartner.name.charAt(0).toUpperCase()}
-            </span>
+            <Avatar name={bestPartner.name} src={bestAvatar} size={36} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={S.partnerNameBold}>{bestPartner.name}</div>
               <div style={S.partnerMeta}>
@@ -72,9 +88,7 @@ export default function SynergyBadgesCard({
             <>
               <div style={S.divider} />
               <div style={S.partnerRow}>
-                <span style={S.avatarBlue}>
-                  {underperformingPartner.name.charAt(0).toUpperCase()}
-                </span>
+                <Avatar name={underperformingPartner.name} src={underAvatar} size={36} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={S.partnerName}>{underperformingPartner.name}</div>
                   <div style={S.partnerMeta}>

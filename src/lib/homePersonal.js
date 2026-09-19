@@ -30,6 +30,11 @@ export function calcSeasonWeek(startDate, targetDate = new Date()) {
  * @param {Object} db
  * @returns {Array<{ id: string, name: string, member: Object, elo: number, rank: number, gamesCount: number, confidence: string }>}
  */
+function getMemberAvatarUrl(m) {
+  if (!m) return ''
+  return m.avatarUrl || m.avatar_url || m.avatar || m.profile?.avatar_url || m.profile?.avatarUrl || ''
+}
+
 export function getClubEloLeaderboard(db) {
   if (!db || !Array.isArray(db.members)) return []
   const activeMembers = db.members.filter((m) => m && m.active !== false)
@@ -39,6 +44,7 @@ export function getClubEloLeaderboard(db) {
     return {
       id: m.id,
       name: m.name || '',
+      avatarUrl: getMemberAvatarUrl(m),
       member: m,
       elo,
       gamesCount: pr?.gamesCount || 0,
@@ -307,6 +313,7 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     rival = {
       id: rivalItem.id,
       name: rivalItem.name,
+      avatarUrl: getMemberAvatarUrl(rivalItem.member) || rivalItem.avatarUrl || '',
       rank: rivalItem.rank,
       elo: rivalItem.elo,
       streak: rivalStreak,
@@ -330,6 +337,7 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     chaser = {
       id: chaserItem.id,
       name: chaserItem.name,
+      avatarUrl: getMemberAvatarUrl(chaserItem.member) || chaserItem.avatarUrl || '',
       rank: chaserItem.rank,
       elo: chaserItem.elo,
       streak: chaserStreak,

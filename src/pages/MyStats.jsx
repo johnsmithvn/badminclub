@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
+import { Avatar } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useAuth } from '#contexts/AuthContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { myMember } from '#lib/money.js'
@@ -26,9 +28,11 @@ import SynergyBadgesCard from '#components/home/personal/SynergyBadgesCard.jsx'
 import UpcomingSessionCard from '#components/home/personal/UpcomingSessionCard.jsx'
 import ClubFeedCard from '#components/home/personal/ClubFeedCard.jsx'
 import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.jsx'
+import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
 
 export default function MyStats() {
   const { db, a } = useApp()
+  const { profile } = useAuth()
   const isMobile = useMobile(768)
 
   // Chỉ lấy bản ghi của thành viên đang đăng nhập; nếu không thuộc CLB thì không hiển thị thành tích người khác
@@ -36,6 +40,13 @@ export default function MyStats() {
 
   const memberId = currentMember?.id || ''
   const memberName = currentMember?.name || ''
+  const myAvatarUrl =
+    currentMember?.avatarUrl ||
+    currentMember?.avatar_url ||
+    currentMember?.avatar ||
+    profile?.avatar_url ||
+    profile?.avatarUrl ||
+    ''
 
   // Lấy cấu hình mùa giải đang áp dụng (active) của CLB qua resolveSeason
   const season = useMemo(() => resolveSeason(db) || {}, [db])
@@ -66,15 +77,17 @@ export default function MyStats() {
     [db, memberId, isMobile],
   )
 
-  // 6. Thống kê cặp ăn ý dùng hàm chuẩn getPlayerPartnersAndMatchups từ rating.js
+  // 6. Thống kê cặp ăn ý & đối thủ dùng hàm chuẩn getPlayerPartnersAndMatchups từ rating.js
   const partnerStats = useMemo(() => {
-    if (!db || !memberId) return { bestPartner: null, underperformingPartner: null }
+    if (!db || !memberId) return { bestPartner: null, underperformingPartner: null, nemesis: null, favoriteOpponent: null }
     const membersMap = Object.fromEntries((db.members || []).map((m) => [m.id, m]))
     const res = getPlayerPartnersAndMatchups(db.matches || [], memberId, membersMap, db.playerRatings || {})
     const partners = res?.partners || []
     const bestPartner = partners[0] || null
     const underperformingPartner = partners.length > 1 ? partners.at(-1) : null
-    return { bestPartner, underperformingPartner }
+    const nemesis = res?.nemeses?.[0] || null
+    const favoriteOpponent = res?.favoriteOpponents?.[0] || null
+    return { bestPartner, underperformingPartner, nemesis, favoriteOpponent }
   }, [db, memberId])
 
   // 7. Buổi tập sắp tới
@@ -90,7 +103,13 @@ export default function MyStats() {
   const handleLogMatch = () => a.go('matches')
   const handleViewMatches = () => a.go('matches')
   const handleViewSchedule = () => a.go('calendar')
-  const handleViewAssignment = () => a.go('assign')
+  const handleViewAssignment = () => {
+    if (upcomingSession?.id) {
+      a.go(`/buoi-tap/${upcomingSession.id}?tab=courts`)
+    } else {
+      a.go('sessions')
+    }
+  }
   const handleViewLeaderboard = () => a.go('leaderboard')
 
   // Nếu người dùng chưa phải thành viên trong CLB này
@@ -122,9 +141,13 @@ export default function MyStats() {
               })}
             </div>
           </div>
-          <button type="button" onClick={handleLogMatch} style={S.logMatchBtnMobile}>
-            {t('home.personal.logMatch')}
-          </button>
+          <Avatar
+            name={memberName}
+            src={myAvatarUrl}
+            size={34}
+            onClick={() => a.go('profile')}
+            style={{ cursor: 'pointer' }}
+          />
         </div>
 
         {/* Thẻ 01: Hero Rank */}
@@ -157,6 +180,13 @@ export default function MyStats() {
           badgesCount={heroStats.badgesCount}
           nextStreakBadge={formStats.nextBadgeStreak}
           winsNeededForStreak={formStats.winsNeededForBadge}
+          isMobile={true}
+        />
+
+        {/* Thẻ 06b: Đối thủ của tôi */}
+        <MyOpponentsCard
+          nemesis={partnerStats.nemesis}
+          favoriteOpponent={partnerStats.favoriteOpponent}
           isMobile={true}
         />
 
@@ -196,9 +226,13 @@ export default function MyStats() {
             })}
           </div>
         </div>
-        <button type="button" onClick={handleLogMatch} style={S.logMatchBtnDesktop}>
-          {t('home.personal.logMatch')}
-        </button>
+        <Avatar
+          name={memberName}
+          src={myAvatarUrl}
+          size={36}
+          onClick={() => a.go('profile')}
+          style={{ cursor: 'pointer' }}
+        />
       </div>
 
       <div style={S.desktopGrid}>
@@ -258,6 +292,13 @@ export default function MyStats() {
             badgesCount={heroStats.badgesCount}
             nextStreakBadge={formStats.nextBadgeStreak}
             winsNeededForStreak={formStats.winsNeededForBadge}
+            isMobile={false}
+          />
+
+          {/* 08b. Đối thủ của tôi */}
+          <MyOpponentsCard
+            nemesis={partnerStats.nemesis}
+            favoriteOpponent={partnerStats.favoriteOpponent}
             isMobile={false}
           />
 
@@ -336,17 +377,6 @@ const S = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  logMatchBtnMobile: {
-    flex: '0 0 auto',
-    padding: '9px 14px',
-    borderRadius: 999,
-    background: 'var(--action-primary-bg)',
-    color: 'var(--action-primary-fg)',
-    font: '600 12.5px/1 var(--font-sans)',
-    border: 'none',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
   desktopWrapper: {
     display: 'flex',
     flexDirection: 'column',
@@ -370,17 +400,6 @@ const S = {
   desktopSub: {
     font: '400 13px/1.3 var(--font-mono)',
     color: 'var(--text-muted)',
-  },
-  logMatchBtnDesktop: {
-    flex: '0 0 auto',
-    padding: '11px 18px',
-    borderRadius: 999,
-    background: 'var(--action-primary-bg)',
-    color: 'var(--action-primary-fg)',
-    font: '600 13.5px/1 var(--font-sans)',
-    border: 'none',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
   },
   desktopGrid: {
     display: 'grid',

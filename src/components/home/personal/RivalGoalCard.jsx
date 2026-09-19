@@ -1,3 +1,4 @@
+import { Avatar } from '#ds'
 import { t } from '#i18n'
 
 export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2HClick, onChallenge }) {
@@ -9,7 +10,6 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
   }
 
   const { me, rival, chaser } = activeRivalData
-  const rivalInitial = (rival.name || 'N').charAt(0).toUpperCase()
 
   const h2hText = rival.h2h?.myWins || rival.h2h?.rivalWins
     ? t('home.personal.h2hScore', { w: rival.h2h.myWins, l: rival.h2h.rivalWins })
@@ -24,7 +24,7 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
       </div>
 
       <div style={S.rivalRow}>
-        <span style={isMobile ? S.avatarMobile : S.avatarDesktop}>{rivalInitial}</span>
+        <Avatar name={rival.name} src={rival.avatarUrl} size={isMobile ? 38 : 42} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={isMobile ? S.rivalNameMobile : S.rivalNameDesktop}>{rival.name}</div>
           <div style={S.rivalMeta}>

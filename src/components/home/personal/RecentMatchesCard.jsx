@@ -1,5 +1,24 @@
 import { t } from '#i18n'
 
+function formatSeasonPoints(val, won) {
+  if (!val || val === '—') return `0 ${t('home.personal.seasonPointsShort')}`
+  const str = String(val).trim()
+  if (str.startsWith('+') || str.startsWith('−') || str.startsWith('-')) {
+    return `${str} ${t('home.personal.seasonPointsShort')}`
+  }
+  const num = Number(str)
+  if (!isNaN(num) && num > 0) {
+    return `+${num} ${t('home.personal.seasonPointsShort')}`
+  }
+  if (!isNaN(num) && num < 0) {
+    return `−${Math.abs(num)} ${t('home.personal.seasonPointsShort')}`
+  }
+  if (won) {
+    return `+${str} ${t('home.personal.seasonPointsShort')}`
+  }
+  return `${str} ${t('home.personal.seasonPointsShort')}`
+}
+
 export default function RecentMatchesCard({ matches = [], isMobile, onViewAll }) {
   if (!matches.length) {
     return (
@@ -42,7 +61,9 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
             </span>
           </span>
           <span style={S.pillPadded}>
-            <span style={m.won ? S.greenMono : S.redMono}>{m.seasonChange}</span>
+            <span style={m.won ? S.greenMono : S.redMono}>
+              {formatSeasonPoints(m.seasonChange, m.won)}
+            </span>
           </span>
         </div>
       </div>
@@ -71,6 +92,9 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
             <span style={m.won ? S.desktopScoreGreen : S.desktopScoreRed}>{m.score}</span>
             <span style={m.won ? S.desktopDeltaGreen : S.desktopDeltaRed}>
               {m.eloDelta ? (m.won ? `+${m.eloDelta} ${t('home.personal.eloNormal')}` : `−${m.eloDelta} ${t('home.personal.eloNormal')}`) : (m.eloChange ? `${m.eloChange} ${t('home.personal.eloNormal')}` : `0 ${t('home.personal.eloNormal')}`)}
+            </span>
+            <span style={m.won ? S.desktopSeasonGreen : S.desktopSeasonRed}>
+              {formatSeasonPoints(m.seasonChange, m.won)}
             </span>
           </div>
         ))}
@@ -207,6 +231,18 @@ const S = {
   },
   desktopDeltaRed: {
     width: 74,
+    textAlign: 'right',
+    font: '600 12px/1 var(--font-mono)',
+    color: 'var(--status-incident-fg)',
+  },
+  desktopSeasonGreen: {
+    width: 86,
+    textAlign: 'right',
+    font: '600 12px/1 var(--font-mono)',
+    color: 'var(--status-delivered-fg)',
+  },
+  desktopSeasonRed: {
+    width: 86,
     textAlign: 'right',
     font: '600 12px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
