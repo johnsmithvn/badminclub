@@ -308,7 +308,7 @@ export default function Matches() {
   }, [allChallenges])
 
   const pendingChallenges = useMemo(() => {
-    return allChallenges.filter((c) => c.status === 'pending')
+    return allChallenges.filter((c) => c.status === 'pending' || isChallengeAccepted(c))
   }, [allChallenges])
 
   const playedChallenges = useMemo(() => {
@@ -1389,7 +1389,7 @@ export default function Matches() {
                       </div>
                     ) : (
                       <div style={{ ...S.emptyBox, padding: '24px 20px' }}>
-                        <Icon name="check-circle" size={24} style={{ color: 'var(--text-muted)' }} />
+                        <Icon name="circle-check" size={24} style={{ color: 'var(--text-muted)' }} />
                         <div style={S.emptySub}>{t('matchesPage.emptyChallenges')}</div>
                       </div>
                     )}

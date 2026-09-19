@@ -97,8 +97,8 @@ export function convertNumberWordsToDigits(normText, excludeWords = new Set()) {
     if (!word.includes(' ') && excludeWords.has(word)) {
       continue
     }
-    const regex = new RegExp(`(?<=\\s)${word}(?=\\s)`, 'g')
-    res = res.replace(regex, String(val))
+    const regex = new RegExp(`(\\s)${word}(?=\\s)`, 'g')
+    res = res.replace(regex, `$1${val}`)
   }
   return res.trim().replace(/\s+/g, ' ')
 }
@@ -136,19 +136,19 @@ function extractOneTrailingScore(text) {
   if (!trimmed) return null
 
   // 1. Kiểm tra nếu token cuối cùng là số Ả Rập (\d{1,2})
-  const digitMatch = trimmed.match(/(?<=\s|^)(\d{1,2})$/)
+  const digitMatch = trimmed.match(/(?:^|\s)(\d{1,2})$/)
   if (digitMatch) {
     const val = parseInt(digitMatch[1], 10)
-    const remaining = trimmed.slice(0, digitMatch.index).trim()
+    const remaining = trimmed.slice(0, trimmed.length - digitMatch[1].length).trim()
     return { val, remaining }
   }
 
   // 2. Kiểm tra các mẫu số bằng chữ (từ cụm dài đến từ đơn)
   for (const { word, val } of VIETNAMESE_NUMBERS) {
-    const regex = new RegExp(`(?<=\\s|^)${word}$`)
+    const regex = new RegExp(`(?:^|\\s)${word}$`)
     const match = trimmed.match(regex)
     if (match) {
-      const remaining = trimmed.slice(0, match.index).trim()
+      const remaining = trimmed.slice(0, trimmed.length - word.length).trim()
       return { val, remaining }
     }
   }
@@ -165,7 +165,7 @@ export function extractTrailingScores(text) {
   if (!text || typeof text !== 'string') return null
   let working = text.trim()
   // Cho phép từ đệm nhẹ ở cuối câu nếu có (ví dụ "nhe", "a", "di", "roi")
-  working = working.replace(/(?<=\s)(nhe|a|di|roi)$/, '').trim()
+  working = working.replace(/\s+(nhe|a|di|roi)$/, '').trim()
 
   // Bóc số thứ 2 (ở ngoài cùng bên phải)
   const res2 = extractOneTrailingScore(working)
@@ -273,16 +273,17 @@ export function matchPlayersInPhrase(phrase, aliasList = [], allowedPlayerIds = 
     if (allowedPlayerIds && !allowedPlayerIds.has(item.id)) continue
     if (foundIds.has(item.id)) continue
 
-    const regex = new RegExp(`(?<=^|\\s)${item.term}(?=\\s|$)`, 'g')
+    const regex = new RegExp(`(?:^|\\s)${item.term}(?=\\s|$)`, 'g')
     const match = regex.exec(trackingText)
     if (match) {
+      const termIndex = match.index + (match[0].startsWith(' ') ? 1 : 0)
       foundPlayers.push({
         player: item.player,
         matchedTerm: item.term,
-        startIndex: match.index,
+        startIndex: termIndex,
       })
       foundIds.add(item.id)
-      trackingText = trackingText.replace(regex, ' '.repeat(item.term.length))
+      trackingText = trackingText.slice(0, termIndex) + ' '.repeat(item.term.length) + trackingText.slice(termIndex + item.term.length)
     }
   }
 
@@ -431,17 +432,17 @@ export function parseVoiceMatch({
   let pIdx = 0
 
   for (const ta of thangAliases) {
-    const regex = new RegExp(`(?<=^|\\s)${ta.term}(?=\\s|$)`, 'g')
+    const regex = new RegExp(`(?:^|\\s)${ta.term}(?=\\s|$)`, 'g')
     if (regex.test(protectedText)) {
       const ph = `__PROTECTED_NAME_${pIdx++}__`
-      protectedText = protectedText.replace(regex, ph)
+      protectedText = protectedText.replace(regex, (m) => (m.startsWith(' ') ? ` ${ph}` : ph))
       protectedMap.set(ph, ta.term)
     }
   }
 
   // Tìm từ khóa hành động: Thắng (win, uyn, thang) hoặc Thua (thua, lose)
-  let actionMatch = protectedText.match(/(?<=^|\s)(win|uyn|thang|thua|lose)(?=\s|$)/)
-  if (!actionMatch) {
+  let actionMatchRaw = protectedText.match(/(?:^|\s)(win|uyn|thang|thua|lose)(?=\s|$)/)
+  if (!actionMatchRaw) {
     return {
       status: 'invalid_syntax',
       reason: 'missing_win_keyword',
@@ -449,16 +450,23 @@ export function parseVoiceMatch({
     }
   }
 
+  const prefixOffset = actionMatchRaw[0].startsWith(' ') ? 1 : 0
+  let actionMatch = {
+    0: actionMatchRaw[1],
+    1: actionMatchRaw[1],
+    index: actionMatchRaw.index + prefixOffset,
+  }
+
   // Nếu match đầu tiên rơi vào index 0 (clause1 sẽ rỗng), kiểm tra xem đằng sau có từ khóa hành động nào khác không
   // (ví dụ: "Thắng thắng Thành" -> từ "thang" đầu là tên người chơi, từ "thang" thứ hai là động từ)
   if (actionMatch.index === 0) {
     const afterFirst = protectedText.slice(actionMatch[0].length)
-    const secondMatch = afterFirst.match(/(?<=\s)(win|uyn|thang|thua|lose)(?=\s|$)/)
-    if (secondMatch) {
+    const secondMatchRaw = afterFirst.match(/\s(win|uyn|thang|thua|lose)(?=\s|$)/)
+    if (secondMatchRaw) {
       actionMatch = {
-        0: secondMatch[0],
-        1: secondMatch[1],
-        index: actionMatch[0].length + secondMatch.index,
+        0: secondMatchRaw[1],
+        1: secondMatchRaw[1],
+        index: actionMatch[0].length + secondMatchRaw.index + 1,
       }
     }
   }

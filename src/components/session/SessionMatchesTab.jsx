@@ -7,7 +7,7 @@ import { searchMatches } from '#lib/matchSearch.js'
 
 import { useMobile } from '#hooks/useMobile.js'
 import { Icon } from '#ds'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, challengeExpiryAt, challengeCountdown } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, challengeExpiryAt, challengeCountdown, isChallengeAccepted } from '#lib/challenge.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
@@ -89,40 +89,45 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   const matchesWithVideo = useMemo(() => matches.filter((m) => Boolean(m.videoUrl)), [matches])
   const matchesWithoutVideo = useMemo(() => matches.filter((m) => !m.videoUrl), [matches])
 
-  // Danh sách kèo trong buổi này
-  const challenges = useMemo(() => {
+  // Toàn bộ kèo trong CLB
+  const allClubChallenges = useMemo(() => {
     return (db.challenges || [])
-      .filter((c) => c.sessionId === s.id)
       .slice()
       .sort((c1, c2) => (c2.createdAt || '').localeCompare(c1.createdAt || ''))
-  }, [db.challenges, s.id])
+  }, [db.challenges])
 
   const myChallenges = useMemo(() => {
-    return challenges.filter((c) => {
-      if (!myId) return false
+    if (!myId) return []
+    return allClubChallenges.filter((c) => {
       return c.createdBy === myId || (c.teamA || []).includes(myId) || (c.teamB || []).includes(myId)
     })
-  }, [challenges, myId])
+  }, [allClubChallenges, myId])
 
   const pendingChallenges = useMemo(() => {
-    return challenges.filter((c) => c.status === 'pending')
-  }, [challenges])
+    return allClubChallenges.filter((c) => c.status === 'pending' || isChallengeAccepted(c))
+  }, [allClubChallenges])
 
   const openChallenges = useMemo(() => {
-    return challenges.filter((c) => !c.teamB?.length || (c.teamB && c.teamB.length < (c.teamA?.length > 1 ? 2 : 1)))
-  }, [challenges])
+    return allClubChallenges.filter((c) => {
+      const isPending = c.status === 'pending'
+      const teamB = c.teamB || []
+      const teamA = c.teamA || []
+      const needsMembers = !teamB.length || teamB.length < (teamA.length > 1 ? 2 : 1)
+      return isPending && needsMembers
+    })
+  }, [allClubChallenges])
 
   const playedChallenges = useMemo(() => {
-    return challenges.filter((c) => c.status === 'played')
-  }, [challenges])
+    return allClubChallenges.filter((c) => c.status === 'played')
+  }, [allClubChallenges])
 
   const displayedChallenges = useMemo(() => {
-    if (challengeTab === 'my') return myChallenges.length ? myChallenges : challenges
+    if (challengeTab === 'my') return myChallenges.length ? myChallenges : allClubChallenges
     if (challengeTab === 'pending') return pendingChallenges
     if (challengeTab === 'open') return openChallenges
     if (challengeTab === 'played') return playedChallenges
-    return challenges
-  }, [challengeTab, myChallenges, pendingChallenges, openChallenges, playedChallenges, challenges])
+    return allClubChallenges
+  }, [challengeTab, myChallenges, pendingChallenges, openChallenges, playedChallenges, allClubChallenges])
 
   const memberNameOf = (id) => playerName(db, id)
 
