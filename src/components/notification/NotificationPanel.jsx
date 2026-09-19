@@ -33,12 +33,13 @@ export default function NotificationPanel({ open, onClose }) {
         return
       }
       const perm = getPushPermissionState()
-      const subbed = await isPushSubscribed()
+      // Kiểm cả dòng dưới DB, không chỉ trình duyệt — xem `isPushSubscribed`.
+      const subbed = await isPushSubscribed(supabase, db.currentUserId)
       if (active) setPushState({ supported: true, subscribed: subbed, permission: perm })
     }
     checkPush()
     return () => { active = false }
-  }, [open])
+  }, [open, db.currentUserId])
 
   const handleEnablePush = async () => {
     if (enablingPush) return

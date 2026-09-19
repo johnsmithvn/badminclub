@@ -55,12 +55,13 @@ export default function GeneralTab({
         return
       }
       const perm = getPushPermissionState()
-      const subbed = await isPushSubscribed()
+      // Kiểm cả dòng dưới DB, không chỉ trình duyệt — xem `isPushSubscribed`.
+      const subbed = await isPushSubscribed(supabase, session?.user?.id)
       if (active) setPushState({ supported: true, subscribed: subbed, permission: perm })
     }
     checkPush()
     return () => { active = false }
-  }, [])
+  }, [session])
 
   const handleTogglePush = async (checked) => {
     if (togglingPush) return

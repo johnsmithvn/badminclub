@@ -61,11 +61,36 @@ export async function getExistingSubscription() {
 }
 
 /**
- * Kiểm tra xem người dùng hiện tại đã có subscription hoạt động chưa
+ * Đã bật push thật sự chưa?
+ *
+ * Trình duyệt có subscription là CHƯA ĐỦ. `pushManager.subscribe()` chạy trước, lưu DB chạy
+ * sau — upsert hỏng (chưa chạy migration 0049, RLS chặn, mất mạng) thì trình duyệt vẫn giữ
+ * subscription, công tắc vẫn hiện BẬT, mà bảng `push_subscriptions` rỗng nên Edge Function
+ * không tìm thấy ai để gửi. Người dùng thấy "đã bật" và không bao giờ nhận được gì, cũng
+ * không bấm lại được vì bấm là TẮT.
+ *
+ * Truyền `supabase` + `userId` để kiểm cả dòng dưới DB. Không truyền thì chỉ kiểm trình duyệt
+ * (dùng cho chỗ không có phiên đăng nhập).
  */
-export async function isPushSubscribed() {
+export async function isPushSubscribed(supabase, userId) {
   const sub = await getExistingSubscription()
-  return Boolean(sub)
+  if (!sub) return false
+  if (!supabase || !userId) return true
+
+  try {
+    const memberIds = await getMyMemberIds(supabase, userId, { activeOnly: true })
+    if (!memberIds.length) return false
+    const { data, error } = await supabase
+      .from('push_subscriptions')
+      .select('id')
+      .eq('endpoint', sub.endpoint)
+      .in('member_id', memberIds)
+      .limit(1)
+    if (error) return false
+    return (data || []).length > 0
+  } catch {
+    return false
+  }
 }
 
 /**
