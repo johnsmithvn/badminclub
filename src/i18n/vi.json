@@ -2267,7 +2267,7 @@
     "bestPartnerBox": "Đồng đội tốt nhất",
     "matchupSection": "Đối đầu",
     "favoriteMatchup": "Dễ ăn khi gặp",
-    "nemesisMatchup": "Nuốt không trôi",
+    "nemesisMatchup": "Đối thủ truyền kiếp",
     "whyUnderperforming": "Vì sao {{name}} · {{partner}} dưới kỳ vọng",
     "form10Title": "Phong độ 10 trận",
     "form10OldestLeft": "cũ nhất bên trái"
@@ -4674,7 +4674,7 @@
     "best_partner": "Bạn và {{partnerName}} là cặp bài trùng ăn ý nhất với {{wins}}/{{games}} trận thắng (tỷ lệ {{winRate}}%)!",
     "reliable_partner": "Bạn vừa có thêm cạ cứng tin cậy: {{partnerName}} (bất bại {{streak}} trận gần nhất cùng nhau)!",
     "arch_rival": "{{rivalName}} là kỳ phùng địch thủ của bạn (đối đầu {{games}} trận, tỷ số {{myWins}}-{{oppWins}} vô cùng căng thẳng)!",
-    "nemesis_beaten": "Rửa hận thành công! Bạn vừa chấm dứt chuỗi thua và đánh bại đối thủ kỵ giơ {{rivalName}}!",
+    "nemesis_beaten": "Rửa hận thành công! Bạn vừa chấm dứt chuỗi thua và đánh bại đối thủ truyền kiếp {{rivalName}}!",
     "hot_streak": "Bạn đang có phong độ đỉnh cao với chuỗi {{streak}} trận thắng liên tiếp!"
   }
 }

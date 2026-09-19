@@ -1355,7 +1355,7 @@ export default function MemberProfileTab({
                 </div>
               </div>
 
-              {/* Right Column: Đồng đội tốt nhất, Khắc chế & kỵ giơ, Phân tích dưới kỳ vọng, Phong độ 10 trận */}
+              {/* Right Column: Đồng đội tốt nhất, Đối đầu & Đối thủ truyền kiếp, Phân tích dưới kỳ vọng, Phong độ 10 trận */}
               <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
                 {/* Đồng đội tốt nhất */}
                 {partnersAndMatchups?.bestPartner && (() => {
@@ -1398,7 +1398,7 @@ export default function MemberProfileTab({
                   )
                 })()}
 
-                {/* Khắc chế & kỵ giơ */}
+                {/* Đối đầu & Đối thủ truyền kiếp */}
                 <div style={{ background: isDark ? '#141D2E' : 'var(--surface-card)', border: isDark ? '1px solid #22304A' : '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', minWidth: 0, boxShadow: 'var(--shadow-xs)' }}>
                   <div style={{ padding: '11px 14px', background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border-subtle)', font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
                     {t('profile.matchupSection')}
@@ -1487,7 +1487,7 @@ export default function MemberProfileTab({
                       )}
                     </div>
 
-                    {/* Kỵ giơ */}
+                    {/* Đối thủ truyền kiếp */}
                     <div style={{ display: 'grid', gap: 7, borderTop: '1px solid var(--border-subtle)', paddingTop: 11, minWidth: 0 }}>
                       <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: isDark ? '#F0B75C' : '#B45309' }}>
                         {t('profile.nemesisMatchup')}
