@@ -58,7 +58,7 @@
     "dongPerHour": "đ/h",
     "win": "thắng",
     "times": "lần",
-    "day": "ngày"
+    "day": "ngày", "hour": "giờ"
   },
   "season": {
     "headerSub": "Mùa 3 · 2026 — Thu Rực Lửa · 01/07 → 30/09 · còn 23 ngày",
@@ -3134,7 +3134,8 @@
     "tabPending": "Đang chờ",
     "tabOpen": "Đang mở",
     "tabPlayed": "Đã đấu",
-    "tabAll": "Tất cả",
+    "sectionActive": "Đang diễn ra",
+    "sectionEnded": "Đã kết thúc",
     "expiresIn": "hết hạn {{time}}",
     "gapWarningNotBlocked": "Lệch {{gap}} điểm — cảnh báo, không chặn",
     "railChallengeNote": "Nhận kèo xong, cặp thành thẻ chờ sân ở tab Chia sân. Match chỉ sinh khi nhập tỷ số.",

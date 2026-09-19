@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
@@ -2825,7 +2825,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return
       }
       const code = nextChallengeCode(d0.challenges)
-      const expireMins = cfg.challenge?.defaultExpireMins ?? 60
+      // Hạn NHẬN kèo. 60 phút cũ quá ngắn: gạ kèo buổi sáng cho buổi tối là kèo chết trước khi
+      // người ta kịp mở app. `defaultExpireMins` vẫn giữ trong config nhưng CHỈ còn dùng để suy
+      // cho dòng cũ thiếu `expiresAt` (xem `challengeExpiryAt`) — kèo tạo từ đây ghi thẳng mốc.
+      const expireDays = cfg.challenge?.pendingExpireDays ?? 7
       const allInMatch = [...(teamA || []), ...(teamB || [])]
       const acceptedPlayers = allInMatch.includes(myId) ? [myId] : []
       const newChalTemp = {
@@ -2845,7 +2848,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         scheduledAt: scheduledAt || null,
         bestOf,
         ratingEnabled,
-        expiresAt: new Date(Date.now() + expireMins * 60 * 1000).toISOString(),
+        expiresAt: new Date(Date.now() + expireDays * 86400000).toISOString(),
         matchId: null,
         acceptedPlayers,
         // Kèo tạo ra đã đủ chữ ký (người tạo đánh một mình cả hai đội thì không xảy ra, nhưng
@@ -4233,13 +4236,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     if (!d0.clubId) return
     const expired = expiredChallenges(d0)
     const orphaned = orphanedChallenges(d0)
-    if (!expired.length && !orphaned.length) return
+    const abandoned = abandonedChallenges(d0)
+    if (!expired.length && !orphaned.length && !abandoned.length) return
 
     const hasPending = (id) => (d0.challengePredictions || []).some(
       (p) => p.challengeId === id && p.status === 'pending'
     )
     if (supabase) {
-      [...expired, ...orphaned].forEach((c) => {
+      [...expired, ...orphaned, ...abandoned].forEach((c) => {
         if (!hasPending(c.id)) return
         supabase
           .rpc('settle_challenge_predictions', { p_challenge_id: c.id, p_winner_team: null })
@@ -4252,11 +4256,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     const at = new Date().toISOString()
     const expiredIds = new Set(expired.map((c) => c.id))
     const orphanIds = new Set(orphaned.map((c) => c.id))
+    const abandonedIds = new Set(abandoned.map((c) => c.id))
     const playedSetsOf = (c) => getChallengeSeriesProgress(c, d0.matches || []).totalSetsPlayed
 
     up((d) => ({
       challenges: (d.challenges || []).map((c) => {
         if (expiredIds.has(c.id)) return { ...c, status: 'expired', predictionsLocked: true }
+        // Đã nhận mà bỏ hoang quá hạn → 'cancelled', KHÔNG phải 'expired': 'expired' nghĩa là
+        // hết giờ nhận kèo, mà kèo này thì đã nhận rồi. Nhãn "Đã huỷ" đọc đúng chuyện hơn.
+        if (abandonedIds.has(c.id)) return { ...c, status: 'cancelled', predictionsLocked: true }
         if (!orphanIds.has(c.id)) return c
         return {
           ...c,
@@ -4266,7 +4274,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           predictionsLocked: playedSetsOf(c) > 0,
         }
       }),
-      challengePredictions: [...expiredIds, ...orphanIds].reduce(
+      challengePredictions: [...expiredIds, ...orphanIds, ...abandonedIds].reduce(
         (list, id) => settlePredictionsLocal(list, id, null, at),
         d.challengePredictions || [],
       ),

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { nextChallengeCode } from '#lib/challenge.js'
+import { nextChallengeCode, challengeCountdown, abandonedChallenges } from '#lib/challenge.js'
+import cfg from '#config/app.json' with { type: 'json' }
 
 // 1. Sinh mã kèo
 assert.equal(nextChallengeCode([]), 'C-0101', 'Danh sách rỗng sinh mã khởi tạo C-0101')
@@ -217,6 +218,74 @@ assert.equal(challengeCloserOf({ teamB: ['b1', 'b2'], acceptedBy: 'a1' }), 'a1',
 assert.equal(challengeCloserOf({ teamB: ['b1'], acceptedBy: 'admin' }), 'admin', 'Admin duyệt hộ thì có nhắc')
 assert.equal(challengeCloserOf({ teamB: ['b1'] }), null, 'Kèo cũ chưa có acceptedBy -> null, không nổ')
 assert.equal(challengeCloserOf(null), null, 'Đầu vào rỗng trả null')
+
+/* ---------- challengeCountdown: chia bậc thời gian còn lại ---------- */
+//
+// Hạn nhận kèo là 7 NGÀY. Bản cũ in thẳng `phút:giây` nên 7 ngày ra "10080:23" — con số đó
+// không nói với người dùng điều gì, và họ không biết kèo còn sống hay sắp chết.
+
+assert.equal(challengeCountdown(null), null, 'Không có hạn thì không có gì để đếm')
+assert.deepEqual(challengeCountdown(0), { kind: 'over' }, 'Đúng mốc hạn là đã hết')
+assert.deepEqual(challengeCountdown(-5000), { kind: 'over' }, 'Quá hạn')
+
+assert.deepEqual(
+  challengeCountdown(7 * 86400000), { kind: 'day', n: 7 },
+  'Từ 1 ngày trở lên đếm theo NGÀY — đây chính là ca làm vỡ bản cũ'
+)
+assert.deepEqual(
+  challengeCountdown(86400000 + 3600000), { kind: 'day', n: 1 },
+  '1 ngày 1 giờ vẫn là 1 ngày, làm tròn XUỐNG để không hứa dài hơn thực tế'
+)
+assert.deepEqual(
+  challengeCountdown(86400000 - 1000), { kind: 'hour', n: 23 },
+  'Sát dưới 1 ngày phải rơi xuống bậc GIỜ, không được nhảy về 0 ngày'
+)
+assert.deepEqual(challengeCountdown(5 * 3600000), { kind: 'hour', n: 5 })
+assert.deepEqual(
+  challengeCountdown(3600000 - 1000), { kind: 'clock', text: '59:59' },
+  'Dưới 1 giờ mới hiện giây — lúc này từng phút mới đáng nhìn'
+)
+assert.deepEqual(challengeCountdown(45 * 60000 + 7000), { kind: 'clock', text: '45:07' },
+  'Giây phải đệm số 0, không thì ra "45:7"')
+
+/* ---------- abandonedChallenges: kèo ĐÃ NHẬN mà bỏ hoang ---------- */
+//
+// Vì sao đáng test: nhánh này HUỶ kèo và HOÀN điểm cược. Bắt nhầm một kèo đang đánh dở là xoá
+// kết quả thật và kéo theo cả Elo; bỏ sót thì điểm của người đặt phiếu bị giam không ngày trả.
+
+const DAY = 86400000
+const nowTs = Date.parse('2026-09-20T12:00:00Z')
+const overdue = new Date(nowTs - (cfg.challenge.abandonedAcceptedDays + 1) * DAY).toISOString()
+const fresh = new Date(nowTs - 2 * DAY).toISOString()
+
+assert.deepEqual(
+  abandonedChallenges({ challenges: [{ id: 'c1', status: 'accepted', acceptedAt: fresh }] }, nowTs).map((c) => c.id),
+  [], 'Mới nhận 2 ngày thì chưa phải bỏ hoang'
+)
+assert.deepEqual(
+  abandonedChallenges({ challenges: [{ id: 'c1', status: 'accepted', acceptedAt: overdue }] }, nowTs).map((c) => c.id),
+  ['c1'], 'Quá hạn mà chưa đánh hiệp nào -> bỏ hoang'
+)
+assert.deepEqual(
+  abandonedChallenges({
+    challenges: [{ id: 'c1', status: 'accepted', acceptedAt: overdue, bestOf: 3 }],
+    matches: [{ challengeId: 'c1', sets: [[21, 15]], winnerTeam: 'A' }],
+  }, nowTs).map((c) => c.id),
+  [], 'ĐÃ ĐÁNH một hiệp thì không đụng: huỷ nó là xoá kết quả thật và tính lại Elo'
+)
+assert.deepEqual(
+  abandonedChallenges({ challenges: [{ id: 'c1', status: 'pending', createdAt: overdue }] }, nowTs).map((c) => c.id),
+  [], "Kèo 'pending' thuộc nhánh hết hạn NHẬN, không phải nhánh này — hai luật khác mốc"
+)
+assert.deepEqual(
+  abandonedChallenges({ challenges: [{ id: 'c1', status: 'accepted' }] }, nowTs).map((c) => c.id),
+  [], 'Không biết kèo bao nhiêu tuổi thì để yên, thà treo còn hơn huỷ nhầm'
+)
+assert.deepEqual(
+  abandonedChallenges({ challenges: [{ id: 'c1', status: 'accepted', createdAt: overdue }] }, nowTs).map((c) => c.id),
+  ['c1'], 'Dòng cũ thiếu acceptedAt thì lùi về createdAt'
+)
+assert.deepEqual(abandonedChallenges(null, nowTs), [], 'CLB rỗng không được throw')
 
 console.log('challenge check: OK')
 

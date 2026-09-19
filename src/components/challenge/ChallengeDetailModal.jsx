@@ -368,10 +368,16 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   const createdTimeStr = c.createdAt
     ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : '20:14'
+  // Hạn nhận kèo giờ là 7 ngày, nên chỉ in GIỜ là mất nghĩa ("hết hạn 21:14" — ngày nào?).
+  // Kèm ngày/tháng khi hạn không rơi vào hôm nay.
   const expireAtMs = challengeExpiryAt(c)
-  const expireTimeStr = expireAtMs
-    ? new Date(expireAtMs).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-    : '21:14'
+  const expireTimeStr = (() => {
+    if (!expireAtMs) return ''
+    const d = new Date(expireAtMs)
+    const hm = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    const sameDay = d.toDateString() === new Date(now).toDateString()
+    return sameDay ? hm : `${hm} ${d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}`
+  })()
   const acceptedTimeStr = c.acceptedAt
     ? new Date(c.acceptedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : createdTimeStr
