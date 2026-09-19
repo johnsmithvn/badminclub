@@ -62,7 +62,7 @@ export default function MyOpponentsCard({
         onClick={() => setGenderFilter('all')}
         style={genderFilter === 'all' ? S.genderBtnActive : S.genderBtn}
       >
-        {t('common.all')}
+        {t('gender.all')}
       </button>
       <button
         type="button"
@@ -115,11 +115,14 @@ export default function MyOpponentsCard({
                       </span>
                     </div>
                     <div style={S.meta}>
-                      {t('home.personal.matchesAgainst', {
-                        total: opp.gamesCount,
-                        w: opp.winsCount,
-                        pct: opp.actualWinPct,
-                      })}
+                      <span style={S.numBold}>{opp.gamesCount}</span>{' '}
+                      <span style={S.metaDim}>{t('home.personal.matchesAgainstUnit')}</span>
+                      <span style={S.dotSep}>·</span>
+                      <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>{' '}
+                      <span style={S.numBold}>{opp.winsCount}</span>{' '}
+                      <span style={S.metaDim}>(</span>
+                      <span style={S.numBold}>{opp.actualWinPct}%</span>
+                      <span style={S.metaDim}>)</span>
                     </div>
                   </div>
                   <span style={isNemesis ? S.impactRed : S.impactGreen}>
@@ -160,7 +163,8 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   genderToggle: {
     display: 'inline-flex',
@@ -169,32 +173,36 @@ const S = {
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
     gap: 2,
+    flexShrink: 0,
   },
   genderBtn: {
     background: 'none',
     border: 'none',
-    padding: '2px 7px',
+    padding: '2px 6px',
     borderRadius: 5,
     font: '600 10.5px/1 var(--font-sans)',
     color: 'var(--text-muted)',
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
     transition: 'all 0.15s ease',
   },
   genderBtnActive: {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-default)',
-    padding: '2px 7px',
+    padding: '2px 6px',
     borderRadius: 5,
     font: '600 10.5px/1 var(--font-sans)',
     color: 'var(--text-primary)',
     boxShadow: 'var(--shadow-sm)',
     cursor: 'default',
+    whiteSpace: 'nowrap',
   },
   label: {
-    font: '600 10.5px/1 var(--font-sans)',
-    letterSpacing: '0.1em',
+    font: '600 11px/1.1 var(--font-sans)',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   list: {
     display: 'flex',
@@ -236,6 +244,22 @@ const S = {
   meta: {
     font: '400 11.5px/1.35 var(--font-mono)',
     color: 'var(--text-muted)',
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  numBold: {
+    font: '700 12px/1.35 var(--font-mono)',
+    color: 'var(--text-primary)',
+  },
+  metaDim: {
+    font: '400 11.5px/1.35 var(--font-mono)',
+    color: 'var(--text-muted)',
+  },
+  dotSep: {
+    color: 'var(--text-muted)',
+    opacity: 0.5,
+    margin: '0 3px',
   },
   impactRed: {
     font: '700 15px/1 var(--font-mono)',

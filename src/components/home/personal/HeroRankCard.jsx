@@ -60,20 +60,24 @@ export default function HeroRankCard({ hero, data, isMobile }) {
     if (rankDelta > 0) {
       return (
         <span style={S.rankDeltaGreen}>
-          {t('home.personal.rankUp', { n: rankDelta })}
+          {isMobile
+            ? t('home.personal.rankUpMobile', { n: rankDelta })
+            : t('home.personal.rankUp', { n: rankDelta })}
         </span>
       )
     }
     if (rankDelta < 0) {
       return (
         <span style={S.rankDeltaRed}>
-          {t('home.personal.rankDown', { n: Math.abs(rankDelta) })}
+          {isMobile
+            ? t('home.personal.rankDownMobile', { n: Math.abs(rankDelta) })
+            : t('home.personal.rankDown', { n: Math.abs(rankDelta) })}
         </span>
       )
     }
     return (
       <span style={S.rankDeltaMuted}>
-        {t('home.personal.rankSame')}
+        {isMobile ? t('home.personal.rankSameMobile') : t('home.personal.rankSame')}
       </span>
     )
   }
@@ -465,8 +469,10 @@ const S = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
     marginTop: 10,
+    width: '100%',
+    minWidth: 0,
   },
   desktopLeftCluster: {
     position: 'relative',
@@ -508,7 +514,7 @@ const S = {
     color: 'var(--status-delayed-fg)',
   },
   bigRankMobile: {
-    font: '700 52px/0.92 var(--font-display)',
+    font: '700 50px/0.92 var(--font-display)',
     letterSpacing: '-0.03em',
     color: 'var(--text-primary)',
   },
@@ -538,7 +544,7 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
-    paddingLeft: 14,
+    paddingLeft: 10,
     borderLeft: '1px solid var(--border-subtle)',
   },
   eloColDesktop: {
@@ -580,14 +586,18 @@ const S = {
   },
   statsGrid: {
     display: 'flex',
-    gap: 8,
+    gap: 6,
+    width: '100%',
+    minWidth: 0,
   },
   statPill: {
     flex: 1,
-    padding: '7px 9px',
+    minWidth: 0,
+    padding: '6px 6px',
     borderRadius: 'var(--radius-sm, 8px)',
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
+    overflow: 'hidden',
   },
   statVal: {
     display: 'block',

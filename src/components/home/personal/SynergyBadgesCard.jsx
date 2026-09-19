@@ -74,7 +74,7 @@ export default function SynergyBadgesCard({
         onClick={() => setGenderFilter('all')}
         style={genderFilter === 'all' ? S.genderBtnActive : S.genderBtn}
       >
-        {t('common.all')}
+        {t('gender.all')}
       </button>
       <button
         type="button"
@@ -93,57 +93,9 @@ export default function SynergyBadgesCard({
     </div>
   )
 
-  // Mobile layout: 2 card đôi
-  if (isMobile) {
-    const topPartner = filteredPartners[0] || bestPartner
-    return (
-      <div style={S.mobileRow}>
-        <div style={S.mobileBox}>
-          <div style={S.mobileBoxHeader}>
-            <span style={S.label}>{t('home.personal.bestPartnersTitle')}</span>
-            <div style={S.controlsRow}>
-              {sortToggleBtn}
-              {genderToggle}
-            </div>
-          </div>
-          {topPartner ? (
-            <>
-              <span style={S.valBarlow}>{t('home.personal.synergyWith', { name: topPartner.name })}</span>
-              <span style={S.greenMono}>
-                {sortMode === 'matches'
-                  ? t('home.personal.matchesSummary', {
-                      total: topPartner.games,
-                      impact: topPartner.pairImpact >= 0 ? `+${topPartner.pairImpact}` : topPartner.pairImpact,
-                    })
-                  : t('home.personal.synergySummary', {
-                      w: topPartner.wins,
-                      total: topPartner.games,
-                      impact: topPartner.pairImpact,
-                    })}
-              </span>
-            </>
-          ) : (
-            <span style={S.emptyHint}>{t('common.empty')}</span>
-          )}
-        </div>
-
-        <div style={S.mobileBox}>
-          <span style={S.label}>{t('home.personal.badgesTitle')}</span>
-          <span style={S.valBarlow}>{t('home.personal.badgesUnit', { n: badgesCount })}</span>
-          <span style={S.goldMono}>
-            {t('home.personal.badgeProgress', {
-              need: winsNeededForStreak,
-              n: nextStreakBadge,
-            })}
-          </span>
-        </div>
-      </div>
-    )
-  }
-
-  // Desktop layout: Thẻ "Đồng đội tốt của tôi"
+  // Layout đồng bộ Mobile & Desktop: Hiển thị tối đa 4 người mỗi tab, header wrap chống tràn
   return (
-    <div style={S.desktopCard}>
+    <div style={isMobile ? S.cardMobile : S.desktopCard}>
       <div style={S.headerRow}>
         <span style={S.label}>{t('home.personal.bestPartnersTitle')}</span>
         <div style={S.controlsRow}>
@@ -177,9 +129,25 @@ export default function SynergyBadgesCard({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={S.partnerNameBold}>{p.name}</div>
                     <div style={S.partnerMeta}>
-                      {sortMode === 'matches'
-                        ? t('home.personal.matchesTogetherWins', { w: p.wins, impact: impactStr })
-                        : t('home.personal.matchesTogether', { total: p.games, w: p.wins })}
+                      {sortMode === 'matches' ? (
+                        <>
+                          <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>{' '}
+                          <span style={S.numBold}>{p.wins}</span>
+                          <span style={S.dotSep}>·</span>
+                          <span style={isPositive ? S.impactInlineGreen : S.impactInlineRed}>
+                            {impactStr}
+                          </span>{' '}
+                          <span style={S.metaDim}>{t('home.personal.synergySuffix')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span style={S.numBold}>{p.games}</span>{' '}
+                          <span style={S.metaDim}>{t('home.personal.matchesTogetherUnit')}</span>
+                          <span style={S.dotSep}>·</span>
+                          <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>{' '}
+                          <span style={S.numBold}>{p.wins}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   {sortMode === 'matches' ? (
@@ -202,53 +170,45 @@ export default function SynergyBadgesCard({
 }
 
 const S = {
-  mobileRow: {
-    display: 'flex',
-    gap: 11,
-  },
-  mobileBox: {
-    flex: 1,
-    minWidth: 0,
-    padding: '12px 13px',
+  cardMobile: {
+    padding: '14px 15px',
     borderRadius: 14,
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 7,
-  },
-  mobileBoxHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
-    flexWrap: 'wrap',
+    gap: 10,
   },
   headerRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 8,
+    flexWrap: 'wrap',
   },
   controlsRow: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    flexShrink: 0,
   },
   sortToggleBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 4,
+    gap: 3.5,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
-    padding: '2px 7px',
+    padding: '2px 6px',
     borderRadius: 7,
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
     transition: 'all 0.15s ease',
   },
   sortToggleText: {
     font: '600 10.5px/1 var(--font-sans)',
     color: 'var(--text-primary)',
+    whiteSpace: 'nowrap',
   },
   genderToggle: {
     display: 'inline-flex',
@@ -257,32 +217,36 @@ const S = {
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
     gap: 2,
+    flexShrink: 0,
   },
   genderBtn: {
     background: 'none',
     border: 'none',
-    padding: '2px 7px',
+    padding: '2px 6px',
     borderRadius: 5,
     font: '600 10.5px/1 var(--font-sans)',
     color: 'var(--text-muted)',
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
     transition: 'all 0.15s ease',
   },
   genderBtnActive: {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-default)',
-    padding: '2px 7px',
+    padding: '2px 6px',
     borderRadius: 5,
     font: '600 10.5px/1 var(--font-sans)',
     color: 'var(--text-primary)',
     boxShadow: 'var(--shadow-sm)',
     cursor: 'default',
+    whiteSpace: 'nowrap',
   },
   label: {
-    font: '600 10.5px/1 var(--font-sans)',
-    letterSpacing: '0.1em',
+    font: '600 11px/1.1 var(--font-sans)',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   valBarlow: {
     font: '700 15px/1.2 var(--font-display)',
@@ -332,6 +296,30 @@ const S = {
   partnerMeta: {
     font: '400 11.5px/1.35 var(--font-mono)',
     color: 'var(--text-muted)',
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  numBold: {
+    font: '700 12px/1.35 var(--font-mono)',
+    color: 'var(--text-primary)',
+  },
+  metaDim: {
+    font: '400 11.5px/1.35 var(--font-mono)',
+    color: 'var(--text-muted)',
+  },
+  impactInlineGreen: {
+    font: '700 12px/1.35 var(--font-mono)',
+    color: 'var(--status-delivered-fg)',
+  },
+  impactInlineRed: {
+    font: '700 12px/1.35 var(--font-mono)',
+    color: 'var(--status-incident-fg)',
+  },
+  dotSep: {
+    color: 'var(--text-muted)',
+    opacity: 0.5,
+    margin: '0 3px',
   },
   matchesBadge: {
     font: '700 13.5px/1 var(--font-mono)',
