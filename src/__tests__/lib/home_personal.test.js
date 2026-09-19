@@ -12,6 +12,8 @@ import {
   getSurroundingStandings,
   getSurroundingSeasonStandings,
   getPersonalGreeting,
+  getClubTodayHighlights,
+  calcSessionAttendanceHistory,
 } from '../../lib/homePersonal.js'
 import { isFemalePlayer } from '../../lib/rating.js'
 
@@ -246,26 +248,108 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
   })
 
   await t.test('13. getPersonalGreeting generates gendered greeting and contextual subtitle', () => {
-    // Nam
+    // Nam - Top 1 (dùng shape chuẩn rank / seasonRank)
     const maleMem = { id: 'm1', name: 'Tiến Đạt', gender: 'nam' }
-    const heroStats1 = { seasonRank: 1, totalMembers: 12 }
+    const heroStats1 = { rank: 1, seasonRank: 1, totalMembers: 12, seasonTotalMembers: 12 }
     const g1 = getPersonalGreeting(maleMem, heroStats1, { streak: 1 }, [], null, mockDb)
     assert.ok(g1.greetingKey.startsWith('home.personal.greetingMale'))
-    assert.equal(g1.subKey, 'home.personal.subRank1')
+    assert.ok(g1.subKey.startsWith('home.personal.subRank1'))
 
-    // Nữ với chuỗi thắng >= 3
+    // Nữ với chuỗi thắng >= 3 (seasonRank 6 để cô lập trạng thái chuỗi thắng, không lẫn với top 2-4)
     const femaleMem = { id: 'm2', name: 'Vân Anh', gender: 'nu' }
-    const heroStats4 = { seasonRank: 4, totalMembers: 12 }
-    const g2 = getPersonalGreeting(femaleMem, heroStats4, { streak: 4 }, [], null, mockDb)
+    const heroStatsStreak = { rank: 6, seasonRank: 6, totalMembers: 12, seasonTotalMembers: 12 }
+    const g2 = getPersonalGreeting(femaleMem, heroStatsStreak, { streak: 4 }, [], null, mockDb)
     assert.ok(g2.greetingKey.startsWith('home.personal.greetingFemale'))
-    assert.equal(g2.subKey, 'home.personal.subWinStreakFemale')
+    assert.ok(g2.subKey.startsWith('home.personal.subWinStreakFemale'))
     assert.equal(g2.subParams.streak, 4)
 
-    // Đáy bảng mùa (thuộc top 4-5 người cuối bảng, ví dụ hạng 9 trên 12 người)
+    // Đáy bảng mùa ALL (thuộc 4-5 người cuối bảng ALL, ví dụ hạng 9 trên 12 người)
     const bottomMem = { id: 'm3', name: 'Linh', gender: 'nam' }
-    const heroStatsBottom = { seasonRank: 9, seasonTotalMembers: 12 }
+    const heroStatsBottom = { rank: 9, seasonRank: 9, totalMembers: 12, seasonTotalMembers: 12 }
     const g3 = getPersonalGreeting(bottomMem, heroStatsBottom, { streak: 0 }, [], null, mockDb)
     assert.ok(g3.subKey.startsWith('home.personal.subRankBottom'))
+
+    // Đáy bảng mùa riêng NỮ (ví dụ rank all là 11/20 không phải đáy all, nhưng rank nữ là 5/6 nữ)
+    const bottomFemale = { id: 'm_fem', name: 'Thu', gender: 'nu' }
+    const heroStatsBottomFem = { rank: 11, seasonRank: 11, totalMembers: 20, seasonTotalMembers: 20, genderSeasonRank: 5, genderSeasonTotal: 6 }
+    const g4 = getPersonalGreeting(bottomFemale, heroStatsBottomFem, { streak: 0 }, [], null, null)
+    assert.ok(g4.subKey.startsWith('home.personal.subRankBottom'))
+
+    // Đáy bảng mùa riêng NAM (ví dụ rank all là 11/25 không phải đáy all, nhưng rank nam là 9/12 nam)
+    const bottomMale = { id: 'm_male', name: 'Huy', gender: 'nam' }
+    const heroStatsBottomMale = { rank: 11, seasonRank: 11, totalMembers: 25, seasonTotalMembers: 25, genderSeasonRank: 9, genderSeasonTotal: 12 }
+    const g5 = getPersonalGreeting(bottomMale, heroStatsBottomMale, { streak: 0 }, [], null, null)
+    assert.ok(g5.subKey.startsWith('home.personal.subRankBottom'))
+
+    // Top 2-4 bảng mùa
+    const top3Mem = { id: 'm_top', name: 'Tú', gender: 'nam' }
+    const heroStatsTop3 = { rank: 3, seasonRank: 3, totalMembers: 12, seasonTotalMembers: 12 }
+    const g6 = getPersonalGreeting(top3Mem, heroStatsTop3, { streak: 0 }, [], null, null)
+    assert.ok(g6.subKey.startsWith('home.personal.subRankTop'))
+    assert.equal(g6.subParams.rank, 3)
+
+    // Chuỗi thua (2 trận gần nhất đều thua trong formStats.matches)
+    const loseMem = { id: 'm_lose', name: 'Dũng', gender: 'nam' }
+    const heroStatsMid = { rank: 5, seasonRank: 5, totalMembers: 12, seasonTotalMembers: 12 }
+    const formStatsLose = {
+      matches: [{ id: 'mt-a', won: false }, { id: 'mt-b', won: false }],
+      streak: 0,
+    }
+    const g7 = getPersonalGreeting(loseMem, heroStatsMid, formStatsLose, [], null, null)
+    assert.ok(g7.subKey.startsWith('home.personal.subLoseStreak'))
+
+    // Tối nay có lịch
+    const todaySession = { dateKey: 'today' }
+    const g8 = getPersonalGreeting(loseMem, heroStatsMid, { streak: 0 }, [], todaySession, null)
+    assert.ok(g8.subKey.startsWith('home.personal.subSessionToday'))
+  })
+
+  await t.test('14. getClubTodayHighlights returns only sports feeds (matches, challenges, streaks, top 1)', () => {
+    const highlights = getClubTodayHighlights(mockDb, 'm1')
+    assert.ok(Array.isArray(highlights))
+    assert.ok(highlights.length > 0)
+    // Không bao giờ chứa tin hành chính session_locked
+    assert.ok(highlights.every((h) => h.type !== 'session_locked'))
+    // Chứa tin trận đấu hoặc top 1
+    const types = highlights.map((h) => h.type)
+    assert.ok(types.includes('match_finished') || types.includes('rank_top1'))
+  })
+
+  await t.test('15. calcSessionAttendanceHistory correctly tracks missed sessions and comeback state', () => {
+    const sessionDb = {
+      today: '2026-09-20',
+      sessions: [
+        { id: 's3', date: '2026-09-18', status: 'closed' },
+        { id: 's2', date: '2026-09-15', status: 'closed' },
+        { id: 's1', date: '2026-09-12', status: 'closed' },
+      ],
+      attendance: {
+        s3: { memA: false, memB: true },
+        s2: { memA: false, memB: false },
+        s1: { memA: true, memB: false },
+      },
+    }
+
+    // memA vắng 2 buổi gần nhất (s3, s2)
+    const histA = calcSessionAttendanceHistory(sessionDb, 'memA')
+    assert.equal(histA.missedSessions, 2)
+    assert.equal(histA.isComeback, false)
+
+    const memAObj = { id: 'memA', name: 'Hoàng', gender: 'nam' }
+    const heroStatsA = { seasonRank: 6, seasonTotalMembers: 12 }
+    const gA = getPersonalGreeting(memAObj, heroStatsA, { streak: 0 }, [], null, sessionDb)
+    assert.ok(gA.subKey.startsWith('home.personal.subInactive'))
+    assert.equal(gA.subParams.n, 2)
+
+    // memB có mặt ở s3 (buổi gần nhất), nhưng trước đó vắng s2 và s1 (2 buổi liên tiếp)
+    const histB = calcSessionAttendanceHistory(sessionDb, 'memB')
+    assert.equal(histB.missedSessions, 0)
+    assert.equal(histB.isComeback, true)
+
+    const memBObj = { id: 'memB', name: 'Quân', gender: 'nam' }
+    const heroStatsB = { seasonRank: 6, seasonTotalMembers: 12 }
+    const gB = getPersonalGreeting(memBObj, heroStatsB, { streak: 0 }, [], null, sessionDb)
+    assert.ok(gB.subKey.startsWith('home.personal.subComeback'))
   })
 })
 

@@ -1,22 +1,41 @@
 import { t } from '#i18n'
 
 function getEventTitle(item) {
+  if (item.type === 'streak_broken') {
+    return t('home.personal.feedStreakBroken', {
+      winner: item.winnerNames,
+      streak: item.streak,
+      loser: item.loserNames,
+    })
+  }
+  if (item.type === 'win_streak_milestone') {
+    return t('home.personal.feedWinStreakMilestone', {
+      winner: item.winnerNames,
+      streak: item.streak,
+    })
+  }
+  if (item.type === 'rank_top1') {
+    return t('home.personal.feedRankTop1', {
+      name: item.name,
+      points: item.points,
+    })
+  }
+  if (item.type === 'challenge_accepted') {
+    return t('home.personal.feedChallengeAccepted', {
+      teamA: item.teamANames,
+      teamB: item.teamBNames,
+    })
+  }
+  if (item.type === 'challenge' || item.type === 'challenge_pending') {
+    return t('home.personal.feedChallengePending', {
+      challengers: item.challengers,
+    })
+  }
   if (item.type === 'match_finished') {
     return t('home.personal.feedMatchFinished', {
       winner: item.winnerNames,
       score: item.score,
       loser: item.loserNames,
-    })
-  }
-  if (item.type === 'challenge') {
-    return t('home.personal.feedChallengePending', {
-      challengers: item.challengers,
-    })
-  }
-  if (item.type === 'session_locked') {
-    return t('home.personal.feedSessionLocked', {
-      date: item.date,
-      venue: item.venue,
     })
   }
   return item.title || ''

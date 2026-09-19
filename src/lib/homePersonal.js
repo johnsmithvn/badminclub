@@ -12,8 +12,24 @@ import {
   calcSeasonMatchDeltaFinal,
   isChallengeMatch,
 } from '#lib/season.js'
-import { memberOf, courtTxt, timeTxt } from '#lib/money.js'
+import { memberOf, courtTxt, timeTxt, isPresent } from '#lib/money.js'
 import { formatScoreString } from '#lib/activity.js'
+
+/**
+ * Hàm băm xác định (Deterministic PRNG) để chọn biến thể giao diện ổn định trong phiên
+ * @param {string} seedStr
+ * @param {number} [range=2]
+ * @returns {number} 0 đến range - 1
+ */
+export function getDeterministicRoll(seedStr, range = 2) {
+  if (!seedStr || range <= 1) return 0
+  let hash = 0
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = ((hash << 5) - hash) + seedStr.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash) % range
+}
 
 /**
  * Tính số tuần hiện tại của mùa giải (1-indexed)
@@ -173,6 +189,8 @@ export function getMyHeroStats(db, memberId) {
   let isSeasonLeader = false
   let seasonLatestDelta = 0
   let seasonPctChange = 0
+  let genderSeasonRank = 0
+  let genderSeasonTotal = 0
 
   let sLeaderboard = []
   try {
@@ -204,6 +222,15 @@ export function getMyHeroStats(db, memberId) {
             seasonProgressPct = Math.min(95, Math.max(10, Math.round(100 - (seasonPointsToNextRank / 40) * 100)))
           }
         }
+
+        const isFemale = isFemalePlayer(myItem.member || myItem)
+        const genderRows = sLeaderboard.filter((r) => {
+          const mObj = memberOf(db, r.id) || r.member
+          return isFemale ? isFemalePlayer(mObj) : !isFemalePlayer(mObj)
+        })
+        genderSeasonTotal = genderRows.length
+        const myGenderIdx = genderRows.findIndex((r) => r.id === myItem.id)
+        genderSeasonRank = myGenderIdx >= 0 ? myGenderIdx + 1 : 0
 
         // Tính thứ hạng mùa giải buổi trước của CLB (kể cả không đi thì vẫn có biến động)
         if (latestClubDayStart > 0) {
@@ -355,6 +382,8 @@ export function getMyHeroStats(db, memberId) {
     pointsToNextRank,
     progressPct,
     isLeader,
+    genderSeasonRank,
+    genderSeasonTotal,
   }
 }
 
@@ -465,23 +494,27 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     // ponytail: neededWins = ceil(gap / 20) là ước lượng xấp xỉ trực quan dựa trên mức delta ~20 Elo/trận (chưa tính trường hợp đối thủ cùng thua làm co khoảng cách ~2x).
     const neededWins = Math.max(1, Math.min(5, Math.ceil(gapPoints / 20)))
 
-    const myStreak = getMemberStreak(memberId, db)?.streak || 0
+    let myStreak = 0
+    try {
+      myStreak = getMemberStreak(memberId, db)?.streak || 0
+    } catch {}
+
     let rivalInsightKey = 'rivalInsightMedium'
     let rivalInsightParams = { name: rivalItem.name, gap: gapPoints, n: neededWins }
 
     if (gapPoints === 0) {
       rivalInsightKey = 'rivalInsightEven'
       rivalInsightParams = { name: rivalItem.name }
-    } else if (myH2HWins >= 2 && myH2HWins > rivalH2HWins) {
-      rivalInsightKey = 'rivalInsightH2H'
-      rivalInsightParams = { name: rivalItem.name, myWins: myH2HWins, rivalWins: rivalH2HWins }
-    } else if (myStreak >= 3) {
-      rivalInsightKey = 'rivalInsightOnFire'
-      rivalInsightParams = { name: rivalItem.name, streak: myStreak }
-    } else if (neededWins === 1 || gapPoints <= 20) {
-      const v = Math.random() < 0.5 ? '1' : '2'
+    } else if (gapPoints <= 20) {
+      const v = getDeterministicRoll(`${memberId}_${rivalItem.id}_rivalClose`, 2) === 0 ? '1' : '2'
       rivalInsightKey = `rivalInsightClose${v}`
       rivalInsightParams = { name: rivalItem.name, rank: rivalItem.rank }
+    } else if (myStreak >= 3 && gapPoints <= 50) {
+      rivalInsightKey = 'rivalInsightOnFire'
+      rivalInsightParams = { name: rivalItem.name, streak: myStreak }
+    } else if (myH2HWins >= 2 && myH2HWins > rivalH2HWins && gapPoints <= 60) {
+      rivalInsightKey = 'rivalInsightH2H'
+      rivalInsightParams = { name: rivalItem.name, myWins: myH2HWins, rivalWins: rivalH2HWins }
     } else if (neededWins <= 3) {
       rivalInsightKey = 'rivalInsightMedium'
       rivalInsightParams = { name: rivalItem.name, gap: gapPoints, n: neededWins }
@@ -523,7 +556,7 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     let chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
 
     if (chaserGap <= 25 && chaserStreak >= 2) {
-      const v = Math.random() < 0.5 ? '1' : '2'
+      const v = getDeterministicRoll(`${memberId}_${chaserItem.id}_chaserThreat`, 2) === 0 ? '1' : '2'
       chaserWarningKey = `chaserWarningThreat${v}`
       chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap, streak: chaserStreak }
     } else if (chaserGap <= 25) {
@@ -533,7 +566,7 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
       chaserWarningKey = 'chaserWarningHot'
       chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, streak: chaserStreak }
     } else if (chaserGap > 50) {
-      const v = Math.random() < 0.5 ? '1' : '2'
+      const v = getDeterministicRoll(`${memberId}_${chaserItem.id}_chaserSafe`, 2) === 0 ? '1' : '2'
       chaserWarningKey = `chaserWarningSafe${v}`
       chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
     }
@@ -1196,6 +1229,7 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
 
     return {
       id: m.id || `match-${idx}`,
+      at: m.at || (m.ended_at ? new Date(m.ended_at).getTime() : 0),
       won,
       myTeamNames,
       oppTeamNames,
@@ -1312,58 +1346,156 @@ export function getClubTodayHighlights(db, memberId, limit = 4) {
   const events = []
   if (!db) return events
 
-  // 1. Trận đấu vừa kết thúc gần nhất
-  const matches = db.matches || []
-  if (matches.length > 0) {
-    const sortedMatches = [...matches]
-      .filter((m) => m && m.winnerTeam)
-      .sort((a, b) => (b.at || 0) - (a.at || 0))
-    const lastMatch = sortedMatches[0]
-    if (lastMatch) {
-      const inA = lastMatch.winnerTeam === 'A'
-      const winIds = inA ? (lastMatch.teamA || []) : (lastMatch.teamB || [])
-      const loseIds = inA ? (lastMatch.teamB || []) : (lastMatch.teamA || [])
-      const winnerNames = winIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
-      const loserNames = loseIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
-      const score = formatScoreString(lastMatch) || '—'
+  const matches = (db.matches || []).filter((m) => m && m.winnerTeam)
+  const sortedMatches = [...matches].sort((a, b) => (b.at || 0) - (a.at || 0))
 
+  // 1. Phân tích các trận đấu gần nhất (hạ chuỗi, chuỗi thắng, kết quả trận)
+  if (sortedMatches.length > 0) {
+    const lastMatch = sortedMatches[0]
+    const inA = lastMatch.winnerTeam === 'A'
+    const winIds = inA ? (lastMatch.teamA || []) : (lastMatch.teamB || [])
+    const loseIds = inA ? (lastMatch.teamB || []) : (lastMatch.teamA || [])
+    const winnerNames = winIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
+    const loserNames = loseIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
+    const score = formatScoreString(lastMatch) || '—'
+    const timeAgo = lastMatch.at ? new Date(lastMatch.at).toTimeString().slice(0, 5) : ''
+
+    // 1a. Hạ chuỗi: Đối thủ ở phe thua có ai vừa bị cắt chuỗi thắng >= 3 không
+    let brokenStreakInfo = null
+    for (const lId of loseIds) {
+      const prevMatches = sortedMatches.filter(
+        (m) => (m.at || 0) < (lastMatch.at || 0) && ((m.teamA || []).includes(lId) || (m.teamB || []).includes(lId))
+      )
+      let st = 0
+      for (const pm of prevMatches) {
+        const pmWon = (pm.winnerTeam === 'A' && (pm.teamA || []).includes(lId)) ||
+                      (pm.winnerTeam === 'B' && (pm.teamB || []).includes(lId))
+        if (pmWon) st++
+        else break
+      }
+      if (st >= 3) {
+        const loserSingleName = memberOf(db, lId)?.name || lId
+        brokenStreakInfo = { loserName: loserSingleName, streak: st }
+        break
+      }
+    }
+
+    if (brokenStreakInfo) {
       events.push({
-        id: `match-${lastMatch.id}`,
-        dotColor: 'var(--status-delivered-fg)',
-        type: 'match_finished',
+        id: `streak-broken-${lastMatch.id}`,
+        dotColor: 'var(--status-incident-fg)',
+        type: 'streak_broken',
         winnerNames,
-        loserNames,
-        score,
-        timeAgo: lastMatch.at ? new Date(lastMatch.at).toTimeString().slice(0, 5) : '',
+        loserNames: brokenStreakInfo.loserName,
+        streak: brokenStreakInfo.streak,
+        timeAgo,
       })
     }
+
+    // 1b. Cán mốc chuỗi thắng: Phe thắng có ai chạm mốc chuỗi thắng >= 3 không
+    let winStreakInfo = null
+    for (const wId of winIds) {
+      const allPlayerMatches = sortedMatches.filter(
+        (m) => (m.at || 0) <= (lastMatch.at || 0) && ((m.teamA || []).includes(wId) || (m.teamB || []).includes(wId))
+      )
+      let st = 0
+      for (const pm of allPlayerMatches) {
+        const pmWon = (pm.winnerTeam === 'A' && (pm.teamA || []).includes(wId)) ||
+                      (pm.winnerTeam === 'B' && (pm.teamB || []).includes(wId))
+        if (pmWon) st++
+        else break
+      }
+      if (st >= 3) {
+        const winnerSingleName = memberOf(db, wId)?.name || wId
+        winStreakInfo = { winnerName: winnerSingleName, streak: st }
+        break
+      }
+    }
+
+    if (winStreakInfo) {
+      events.push({
+        id: `win-streak-${lastMatch.id}`,
+        dotColor: 'var(--status-delayed-fg)',
+        type: 'win_streak_milestone',
+        winnerNames: winStreakInfo.winnerName,
+        streak: winStreakInfo.streak,
+        timeAgo,
+      })
+    }
+
+    // 1c. Trận đấu vừa kết thúc
+    events.push({
+      id: `match-${lastMatch.id}`,
+      dotColor: 'var(--status-delivered-fg)',
+      type: 'match_finished',
+      winnerNames,
+      loserNames,
+      score,
+      timeAgo,
+    })
   }
 
-  // 2. Kèo thách đấu đang chờ
+  // 2. Kèo thách đấu đang chờ hoặc đã chốt
   const challenges = db.challenges || []
+  const acceptedChallenge = challenges.find((c) => c.status === 'accepted')
+  if (acceptedChallenge) {
+    const teamANames = (acceptedChallenge.teamA || []).map((id) => memberOf(db, id)?.name || id).join(' · ')
+    const teamBNames = (acceptedChallenge.teamB || []).map((id) => memberOf(db, id)?.name || id).join(' · ')
+    events.push({
+      id: `chal-acc-${acceptedChallenge.id}`,
+      dotColor: 'var(--status-delivered-fg)',
+      type: 'challenge_accepted',
+      teamANames,
+      teamBNames,
+      timeAgo: acceptedChallenge.createdAt ? new Date(acceptedChallenge.createdAt).toTimeString().slice(0, 5) : '',
+    })
+  }
+
   const pendingChallenge = challenges.find((c) => c.status === 'pending')
   if (pendingChallenge) {
     const challengers = (pendingChallenge.teamA || []).map((id) => memberOf(db, id)?.name || id).join(' · ')
     events.push({
-      id: `chal-${pendingChallenge.id}`,
+      id: `chal-pend-${pendingChallenge.id}`,
       dotColor: 'var(--text-link)',
-      type: 'challenge',
+      type: 'challenge_pending',
       challengers,
       timeAgo: pendingChallenge.createdAt ? new Date(pendingChallenge.createdAt).toTimeString().slice(0, 5) : '',
     })
   }
 
-  // 3. Buổi tập chốt chia sân
-  const closedSession = (db.sessions || []).find((s) => s.status === 'closed')
-  if (closedSession) {
-    const venue = courtTxt(db, closedSession) || closedSession.venue || ''
+  // 3. Top 1 Bảng Mùa
+  try {
+    const seasonData = calculateSeasonLeaderboard(db)
+    const topLeader = seasonData?.leaderboard?.[0]
+    if (topLeader && (topLeader.matchesCount > 0 || topLeader.totalSeasonPoints > 0)) {
+      events.push({
+        id: `top1-season-${topLeader.id}`,
+        dotColor: 'var(--status-delayed-fg)',
+        type: 'rank_top1',
+        name: topLeader.name,
+        points: topLeader.totalSeasonPoints || 0,
+        timeAgo: '',
+      })
+    }
+  } catch {}
+
+  // 4. Trận thứ 2 nếu còn chỗ
+  if (sortedMatches.length > 1 && events.length < limit) {
+    const secondMatch = sortedMatches[1]
+    const inA = secondMatch.winnerTeam === 'A'
+    const winIds = inA ? (secondMatch.teamA || []) : (secondMatch.teamB || [])
+    const loseIds = inA ? (secondMatch.teamB || []) : (secondMatch.teamA || [])
+    const winnerNames = winIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
+    const loserNames = loseIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
+    const score = formatScoreString(secondMatch) || '—'
     events.push({
-      id: `session-${closedSession.id}`,
-      dotColor: 'var(--text-muted)',
-      type: 'session_locked',
-      date: closedSession.date,
-      venue,
-      timeAgo: '',
+      id: `match-2-${secondMatch.id}`,
+      dotColor: 'var(--status-delivered-fg)',
+      type: 'match_finished',
+      winnerNames,
+      loserNames,
+      score,
+      timeAgo: secondMatch.at ? new Date(secondMatch.at).toTimeString().slice(0, 5) : '',
     })
   }
 
@@ -1470,6 +1602,114 @@ function rivalGoalCheck(list, myIndex, item) {
 }
 
 /**
+ * Kiểm tra xem thành viên có tham gia một buổi tập hay không
+ */
+function isMemberAttendedSession(s, memberId, db) {
+  if (!s || !memberId) return false
+  const attendance = db?.attendance || {}
+  const attMap = attendance[s.id] || (typeof s.attendance === 'object' && !Array.isArray(s.attendance) ? s.attendance : {})
+  if (isPresent(attMap[memberId])) return true
+  if (Array.isArray(s.attendance) && s.attendance.some((a) => (a.memberId === memberId || a.id === memberId) && (a.status === 'present' || a.present === true))) return true
+  if (Array.isArray(s.attendees) && s.attendees.some((a) => (typeof a === 'string' ? a === memberId : a.memberId === memberId))) return true
+  if (Array.isArray(db?.matches)) {
+    const hasMatch = db.matches.some((m) => m && m.sessionId === s.id && ((m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId)))
+    if (hasMatch) return true
+  }
+  return false
+}
+
+/**
+ * Tính lịch sử tham gia các buổi tập trong quá khứ của CLB
+ * @param {Object} db
+ * @param {string} memberId
+ * @returns {{ missedSessions: number, isComeback: boolean }}
+ */
+export function calcSessionAttendanceHistory(db, memberId) {
+  if (!db || !memberId) return { missedSessions: 0, isComeback: false }
+
+  // 1. Lấy danh sách các buổi tập trong quá khứ của CLB
+  const pastSessions = (db.sessions || [])
+    .filter((s) => s && s.status !== 'cancelled' && s.status !== 'draft')
+    .filter((s) => {
+      if (s.status === 'closed' || s.status === 'completed') return true
+      if (s.date) {
+        const todayStr = db.today || new Date().toISOString().slice(0, 10)
+        return s.date < todayStr
+      }
+      return false
+    })
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
+  let sessionList = []
+
+  if (pastSessions.length > 0) {
+    sessionList = pastSessions.map((s) => ({
+      id: s.id,
+      date: s.date,
+      attended: isMemberAttendedSession(s, memberId, db),
+    }))
+  } else if (Array.isArray(db.matches) && db.matches.length > 0) {
+    // Fallback: Gom theo ngày thi đấu trong quá khứ từ db.matches
+    const todayStart = new Date(db.today || Date.now()).setHours(0, 0, 0, 0)
+    const dayMap = new Map()
+
+    db.matches.forEach((m) => {
+      if (!m) return
+      const ts = m.at || (m.ended_at ? new Date(m.ended_at).getTime() : 0)
+      if (!ts) return
+      const dayStart = new Date(ts).setHours(0, 0, 0, 0)
+      if (dayStart >= todayStart) return
+      if (!dayMap.has(dayStart)) {
+        dayMap.set(dayStart, { dayStart, matches: [] })
+      }
+      dayMap.get(dayStart).matches.push(m)
+    })
+
+    const sortedDays = Array.from(dayMap.values()).sort((a, b) => b.dayStart - a.dayStart)
+    sessionList = sortedDays.map((d) => {
+      const attended = d.matches.some((m) => (m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))
+      return {
+        id: `day-${d.dayStart}`,
+        date: new Date(d.dayStart).toISOString().slice(0, 10),
+        attended,
+      }
+    })
+  }
+
+  if (sessionList.length === 0) {
+    return { missedSessions: 0, isComeback: false }
+  }
+
+  // 2. Tính số buổi vắng liên tiếp gần nhất (tính từ buổi gần nhất trở về trước)
+  let missedSessions = 0
+  for (let i = 0; i < sessionList.length; i++) {
+    if (!sessionList[i].attended) {
+      missedSessions++
+    } else {
+      break
+    }
+  }
+
+  // 3. Kiểm tra comeback: Buổi gần nhất CÓ đi, nhưng 2+ buổi trước đó liên tiếp KHÔNG đi
+  let isComeback = false
+  if (sessionList.length >= 3 && sessionList[0].attended) {
+    let priorMissed = 0
+    for (let i = 1; i < sessionList.length; i++) {
+      if (!sessionList[i].attended) {
+        priorMissed++
+      } else {
+        break
+      }
+    }
+    if (priorMissed >= 2) {
+      isComeback = true
+    }
+  }
+
+  return { missedSessions, isComeback }
+}
+
+/**
  * Lời chào cá nhân & Subtitle tương tác sinh động theo dữ liệu thực tế
  * @param {Object} currentMember
  * @param {Object} heroStats
@@ -1484,9 +1724,11 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
 
   const isFemale = isFemalePlayer(currentMember)
   const memberName = currentMember.name || ''
+  const todayKey = db?.today || new Date().toISOString().slice(0, 10)
+  const seedBase = `${currentMember.id}_${todayKey}`
 
-  // 1. Chọn Greeting Key (ngẫu nhiên 1 trong 3 biến thể theo giới tính)
-  const randIndex = Math.floor(Math.random() * 3) + 1
+  // 1. Chọn Greeting Key (deterministic theo ngày và memberId)
+  const randIndex = getDeterministicRoll(seedBase + '_greet', 3) + 1
   let greetingKey = 'home.personal.greetingNeutral'
   if (isFemale) {
     greetingKey = `home.personal.greetingFemale${randIndex}`
@@ -1495,28 +1737,40 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
   }
 
   // 2. Tính toán thứ hạng Bảng Mùa (ALL và riêng Nam/Nữ)
-  const seasonRank = heroStats?.seasonRank || heroStats?.myRank || heroStats?.rank || 0
-  const seasonTotalMembers = heroStats?.seasonTotalMembers || heroStats?.totalMembers || (db?.members || []).filter((m) => m && m.active !== false).length || 0
+  let seasonRank = heroStats?.seasonRank || heroStats?.myRank || heroStats?.rank || 0
+  let seasonTotalMembers = heroStats?.seasonTotalMembers || heroStats?.totalMembers || 0
+  let genderSeasonRank = heroStats?.genderSeasonRank || 0
+  let genderSeasonTotal = heroStats?.genderSeasonTotal || 0
 
-  let genderSeasonRank = 0
-  let genderSeasonTotal = 0
-  try {
-    const seasonData = calculateSeasonLeaderboard(db)
-    const sLeaderboard = seasonData?.leaderboard || []
-    if (sLeaderboard.length > 0) {
-      const genderRows = sLeaderboard.filter((r) => {
-        const mObj = memberOf(db, r.id) || r.member
-        return isFemale ? isFemalePlayer(mObj) : !isFemalePlayer(mObj)
-      })
-      genderSeasonTotal = genderRows.length
-      const myGenderIdx = genderRows.findIndex((r) => r.id === currentMember.id)
-      if (myGenderIdx >= 0) {
-        genderSeasonRank = myGenderIdx + 1
+  if ((!seasonRank || !genderSeasonRank) && db) {
+    try {
+      const seasonData = calculateSeasonLeaderboard(db)
+      const sLeaderboard = seasonData?.leaderboard || []
+      if (sLeaderboard.length > 0) {
+        if (!seasonTotalMembers) seasonTotalMembers = sLeaderboard.length
+        const myIdx = sLeaderboard.findIndex((r) => r.id === currentMember.id)
+        if (myIdx >= 0 && !seasonRank) {
+          seasonRank = sLeaderboard[myIdx].rank || (myIdx + 1)
+        }
+
+        // Chỉ đồng bộ giới tính từ db nếu db khớp về quy mô hoặc thứ hạng với heroStats
+        const isDbConsistent = !seasonTotalMembers || sLeaderboard.length === seasonTotalMembers || !seasonRank || (myIdx >= 0 && sLeaderboard[myIdx].rank === seasonRank)
+        if (isDbConsistent) {
+          const genderRows = sLeaderboard.filter((r) => {
+            const mObj = memberOf(db, r.id) || r.member
+            return isFemale ? isFemalePlayer(mObj) : !isFemalePlayer(mObj)
+          })
+          if (!genderSeasonTotal) genderSeasonTotal = genderRows.length
+          const myGenderIdx = genderRows.findIndex((r) => r.id === currentMember.id)
+          if (myGenderIdx >= 0 && !genderSeasonRank) {
+            genderSeasonRank = myGenderIdx + 1
+          }
+        }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
-  // Đáy bảng là khoảng 4-5 người cuối bảng (bảng all hoặc bảng riêng nam/nữ)
+  // Đáy bảng là khoảng 4-5 người cuối bảng mùa (bảng all hoặc bảng riêng nam/nữ)
   const isBottomRank = (total, rank) => {
     if (!total || !rank || rank <= 3) return false // Top 1, 2, 3 không tính là đáy
     if (total <= 4) return rank === total
@@ -1530,39 +1784,97 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
   const streak = formStats?.streak || 0
   const lastMatch = recentMatches?.[0]
   const justRankedUp = lastMatch?.rankImpact?.type === 'up'
-  const isTodaySession = upcomingSession?.dateKey === 'today' || (upcomingSession?.date && upcomingSession.date === (db?.today || new Date().toISOString().slice(0, 10)))
+  const isTodaySession = upcomingSession?.dateKey === 'today' || (upcomingSession?.date && upcomingSession.date === todayKey)
+  const isLoseStreak = formStats?.matches?.length >= 2 && formStats.matches.slice(-2).every((x) => !x.won)
 
-  let lastMatchAt = 0
-  if (lastMatch?.at) {
-    lastMatchAt = lastMatch.at
-  } else if (Array.isArray(db?.matches)) {
-    const memMatch = db.matches.find((m) => m && ((m.teamA || []).includes(currentMember.id) || (m.teamB || []).includes(currentMember.id)))
-    lastMatchAt = memMatch?.at || 0
+  // 3. Random 2 tầng cho Subtitle tương tác
+  // TẦNG 1: Thu thập tất cả các trạng thái đang hợp lệ của thành viên (Active Contexts)
+  const candidateStates = []
+
+  const isTop1 = (seasonRank === 1) ||
+                 (isFemale && genderSeasonRank === 1 && seasonRank <= 3 && genderSeasonTotal >= 3) ||
+                 (!isFemale && genderSeasonRank === 1 && seasonRank <= 2 && genderSeasonTotal >= 3)
+
+  if (isTop1) {
+    candidateStates.push({ type: 'top1' })
   }
-  const daysInactive = lastMatchAt > 0 ? Math.floor((Date.now() - lastMatchAt) / (1000 * 60 * 60 * 24)) : 0
+  if (justRankedUp && lastMatch?.rankImpact?.to) {
+    candidateStates.push({ type: 'rank_up', params: { rank: lastMatch.rankImpact.to } })
+  }
+  if (streak >= 3) {
+    candidateStates.push({ type: 'win_streak', params: { streak } })
+  }
+  if (isBottom) {
+    candidateStates.push({ type: 'bottom' })
+  }
+  if ((seasonRank >= 2 && seasonRank <= 4) || (genderSeasonRank >= 2 && genderSeasonRank <= 4 && genderSeasonTotal >= 6)) {
+    candidateStates.push({
+      type: 'top_chaser',
+      params: { rank: (seasonRank >= 2 && seasonRank <= 4) ? seasonRank : genderSeasonRank },
+    })
+  }
+  if (isLoseStreak) {
+    candidateStates.push({ type: 'lose_streak' })
+  }
+  if (isTodaySession) {
+    candidateStates.push({ type: 'session_today' })
+  }
+  // Đánh giá dựa trên số buổi sinh hoạt quá khứ của CLB
+  const { missedSessions, isComeback } = calcSessionAttendanceHistory(db, currentMember.id)
 
+  if (missedSessions >= 2) {
+    candidateStates.push({ type: 'inactive', params: { n: missedSessions } })
+  }
+  if (isComeback) {
+    candidateStates.push({ type: 'comeback' })
+  }
+
+  // TẦNG 2: Bốc ngẫu nhiên 1 trạng thái, sau đó bốc ngẫu nhiên 1 biến thể câu thoại của trạng thái đó
   let subKey = null
   let subParams = {}
 
-  if (seasonRank === 1 || (genderSeasonRank === 1 && genderSeasonTotal >= 3)) {
-    subKey = 'home.personal.subRank1'
-  } else if (justRankedUp && lastMatch?.rankImpact?.to) {
-    subKey = 'home.personal.subRankUp'
-    subParams = { rank: lastMatch.rankImpact.to }
-  } else if (streak >= 3) {
-    subKey = isFemale ? 'home.personal.subWinStreakFemale' : 'home.personal.subWinStreakMale'
-    subParams = { streak }
-  } else if (isBottom) {
-    subKey = Math.random() < 0.5 ? 'home.personal.subRankBottom' : 'home.personal.subRankBottom2'
-  } else if ((seasonRank >= 2 && seasonRank <= 4) || (genderSeasonRank >= 2 && genderSeasonRank <= 4 && genderSeasonTotal >= 6)) {
-    subKey = 'home.personal.subRankTop'
-    subParams = { rank: (seasonRank >= 2 && seasonRank <= 4) ? seasonRank : genderSeasonRank }
-  } else if (streak <= -2 || (lastMatch && !lastMatch.won && formStats?.form5?.slice(-2).every((w) => !w))) {
-    subKey = 'home.personal.subLoseStreak'
-  } else if (isTodaySession) {
-    subKey = 'home.personal.subSessionToday'
-  } else if (daysInactive >= 7) {
-    subKey = 'home.personal.subInactive'
+  if (candidateStates.length > 0) {
+    const chosenIndex = getDeterministicRoll(seedBase + '_state', candidateStates.length)
+    const chosen = candidateStates[chosenIndex]
+    subParams = chosen.params || {}
+    const coin = getDeterministicRoll(seedBase + '_coin', 2) === 0
+
+    switch (chosen.type) {
+      case 'top1':
+        subKey = coin ? 'home.personal.subRank1' : 'home.personal.subRank1b'
+        break
+      case 'rank_up':
+        subKey = coin ? 'home.personal.subRankUp' : 'home.personal.subRankUp2'
+        break
+      case 'win_streak':
+        if (isFemale) {
+          subKey = coin ? 'home.personal.subWinStreakFemale' : 'home.personal.subWinStreakFemale2'
+        } else {
+          subKey = coin ? 'home.personal.subWinStreakMale' : 'home.personal.subWinStreakMale2'
+        }
+        break
+      case 'bottom':
+        subKey = coin ? 'home.personal.subRankBottom' : 'home.personal.subRankBottom2'
+        break
+      case 'top_chaser':
+        subKey = coin ? 'home.personal.subRankTop' : 'home.personal.subRankTop2'
+        break
+      case 'lose_streak':
+        subKey = coin ? 'home.personal.subLoseStreak' : 'home.personal.subLoseStreak2'
+        break
+      case 'session_today':
+        subKey = coin ? 'home.personal.subSessionToday' : 'home.personal.subSessionToday2'
+        break
+      case 'inactive':
+        subKey = coin ? 'home.personal.subInactive' : 'home.personal.subInactive2'
+        break
+      case 'comeback':
+        subKey = coin ? 'home.personal.subComeback' : 'home.personal.subComeback2'
+        break
+    }
+  } else {
+    // Trạng thái bình thường (lưng chừng bảng, phong độ ổn định): câu chào khích lệ chung
+    subKey = getDeterministicRoll(seedBase + '_gen', 2) === 0 ? 'home.personal.subGeneral1' : 'home.personal.subGeneral2'
   }
 
   return {
