@@ -12,7 +12,6 @@ import {
   getMyHeroStats,
   getPlayerForm5,
   getRivalAnalysis,
-  calcSeasonRaceHistory,
   getRecentPlayerMatches,
   getNextUpcomingSession,
   getClubTodayHighlights,
@@ -66,13 +65,7 @@ export default function MyStats() {
     [db, memberId, heroStats.targetRival?.id],
   )
 
-  // 4. Biểu đồ đường đua mùa
-  const seasonRace = useMemo(
-    () => calcSeasonRaceHistory(db, memberId, rivalAnalysis?.rival?.id),
-    [db, memberId, rivalAnalysis?.rival?.id],
-  )
-
-  // 5. Trận gần nhất (Mobile: 1 trận, Desktop: 3 trận)
+  // 4. Trận gần nhất (Mobile: 1 trận, Desktop: 3 trận)
   const recentMatches = useMemo(
     () => getRecentPlayerMatches(db, memberId, isMobile ? 1 : 3),
     [db, memberId, isMobile],
@@ -94,11 +87,19 @@ export default function MyStats() {
     }
     const membersMap = Object.fromEntries((db.members || []).map((m) => [m.id, m]))
     const res = getPlayerPartnersAndMatchups(db.matches || [], memberId, membersMap, db.playerRatings || {})
-    const partners = res?.partners || []
+    
+    // Chỉ lấy thành viên chính thức, không tính khách (guests)
+    const isOfficialMember = (mObj, id) => {
+      const targetId = mObj?.id || id
+      const mem = membersMap[targetId]
+      return Boolean(mem && !mem.isGuest && mem.type !== 'guest')
+    }
+
+    const partners = (res?.partners || []).filter((p) => isOfficialMember(p.partner, p.id))
     const bestPartner = partners[0] || null
     const underperformingPartner = partners.length > 1 ? partners.at(-1) : null
-    const nemeses = res?.nemeses || []
-    const favoriteOpponents = res?.favoriteOpponents || []
+    const nemeses = (res?.nemeses || []).filter((o) => isOfficialMember(o.opponent, o.id))
+    const favoriteOpponents = (res?.favoriteOpponents || []).filter((o) => isOfficialMember(o.opponent, o.id))
     const nemesis = nemeses[0] || null
     const favoriteOpponent = favoriteOpponents[0] || null
     const opponents = [...nemeses, ...favoriteOpponents]
@@ -176,7 +177,7 @@ export default function MyStats() {
         </div>
 
         {/* Thẻ 01: Hero Rank */}
-        <HeroRankCard hero={heroStats} data={heroStats} isMobile={true} />
+        <HeroRankCard hero={heroStats} isMobile={true} />
 
         {/* Thẻ 02: Recent Form */}
         <RecentFormCard form={formStats} isMobile={true} />
@@ -193,8 +194,6 @@ export default function MyStats() {
           db={db}
           memberId={memberId}
           defaultRivalId={rivalAnalysis?.rival?.id}
-          raceData={seasonRace}
-          data={seasonRace}
         />
 
         {/* Thẻ 05: Trận gần nhất */}
@@ -274,17 +273,15 @@ export default function MyStats() {
         {/* Cột chính (Trái) */}
         <div style={S.mainCol}>
           {/* 01. Hạng của tôi */}
-          <HeroRankCard hero={heroStats} data={heroStats} isMobile={false} />
+          <HeroRankCard hero={heroStats} isMobile={false} />
 
           {/* Hàng 2 cột: 02. Phong độ 5 trận + 03. Mục tiêu */}
           <div style={S.twoColRow}>
             <RecentFormCard
               form={formStats}
-              formData={formStats}
               isMobile={false}
             />
             <RivalGoalCard
-              rivalData={rivalAnalysis}
               rivalAnalysis={rivalAnalysis}
               isMobile={false}
               onChallenge={handleLogMatch}
@@ -297,8 +294,6 @@ export default function MyStats() {
             db={db}
             memberId={memberId}
             defaultRivalId={rivalAnalysis?.rival?.id}
-            raceData={seasonRace}
-            data={seasonRace}
           />
 
           {/* 05. Trận gần nhất của tôi (3 trận) */}

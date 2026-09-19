@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Avatar, Icon } from '#ds'
 import { t } from '#i18n'
+import { isFemalePlayer } from '#lib/rating.js'
 
 export default function SynergyBadgesCard({
   partners = [],
@@ -36,8 +37,7 @@ export default function SynergyBadgesCard({
     return list
       .filter((p) => {
         if (genderFilter === 'all') return true
-        const g = p?.partner?.gender || 'nam'
-        const isNu = g === 'nu' || g === 'female'
+        const isNu = isFemalePlayer(p?.partner)
         return genderFilter === 'nu' ? isNu : !isNu
       })
       .slice(0, 4)
@@ -54,7 +54,7 @@ export default function SynergyBadgesCard({
     >
       <Icon
         name="repeat"
-        size={11.5}
+        size={12}
         style={{
           transform: sortMode === 'matches' ? 'rotate(180deg)' : 'none',
           transition: 'transform 0.25s ease',
@@ -74,7 +74,7 @@ export default function SynergyBadgesCard({
         onClick={() => setGenderFilter('all')}
         style={genderFilter === 'all' ? S.genderBtnActive : S.genderBtn}
       >
-        {t('gender.all')}
+        {t('home.personal.allShort')}
       </button>
       <button
         type="button"
@@ -131,21 +131,29 @@ export default function SynergyBadgesCard({
                     <div style={S.partnerMeta}>
                       {sortMode === 'matches' ? (
                         <>
-                          <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>{' '}
-                          <span style={S.numBold}>{p.wins}</span>
+                          <span style={S.metaSegment}>
+                            <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>
+                            <span style={S.numBold}>{p.wins}</span>
+                          </span>
                           <span style={S.dotSep}>·</span>
-                          <span style={isPositive ? S.impactInlineGreen : S.impactInlineRed}>
-                            {impactStr}
-                          </span>{' '}
-                          <span style={S.metaDim}>{t('home.personal.synergySuffix')}</span>
+                          <span style={S.metaSegment}>
+                            <span style={isPositive ? S.impactInlineGreen : S.impactInlineRed}>
+                              {impactStr}
+                            </span>
+                            <span style={S.metaDim}>{t('home.personal.synergySuffix')}</span>
+                          </span>
                         </>
                       ) : (
                         <>
-                          <span style={S.numBold}>{p.games}</span>{' '}
-                          <span style={S.metaDim}>{t('home.personal.matchesTogetherUnit')}</span>
+                          <span style={S.metaSegment}>
+                            <span style={S.numBold}>{p.games}</span>
+                            <span style={S.metaDim}>{t('home.personal.matchesTogetherUnit')}</span>
+                          </span>
                           <span style={S.dotSep}>·</span>
-                          <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>{' '}
-                          <span style={S.numBold}>{p.wins}</span>
+                          <span style={S.metaSegment}>
+                            <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>
+                            <span style={S.numBold}>{p.wins}</span>
+                          </span>
                         </>
                       )}
                     </div>
@@ -198,22 +206,23 @@ const S = {
     gap: 3.5,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
-    padding: '2px 6px',
-    borderRadius: 7,
+    padding: '4px 9px',
+    borderRadius: 999,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     flexShrink: 0,
+    minHeight: 28,
     transition: 'all 0.15s ease',
   },
   sortToggleText: {
-    font: '600 10.5px/1 var(--font-sans)',
+    font: '600 11px/1 var(--font-sans)',
     color: 'var(--text-primary)',
     whiteSpace: 'nowrap',
   },
   genderToggle: {
     display: 'inline-flex',
     padding: 2,
-    borderRadius: 7,
+    borderRadius: 999,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
     gap: 2,
@@ -222,24 +231,32 @@ const S = {
   genderBtn: {
     background: 'none',
     border: 'none',
-    padding: '2px 6px',
-    borderRadius: 5,
-    font: '600 10.5px/1 var(--font-sans)',
+    padding: '4px 9px',
+    borderRadius: 999,
+    font: '600 11px/1 var(--font-sans)',
     color: 'var(--text-muted)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    minHeight: 28,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     transition: 'all 0.15s ease',
   },
   genderBtnActive: {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-default)',
-    padding: '2px 6px',
-    borderRadius: 5,
-    font: '600 10.5px/1 var(--font-sans)',
+    padding: '4px 9px',
+    borderRadius: 999,
+    font: '600 11px/1 var(--font-sans)',
     color: 'var(--text-primary)',
     boxShadow: 'var(--shadow-sm)',
     cursor: 'default',
     whiteSpace: 'nowrap',
+    minHeight: 28,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   label: {
     font: '600 11px/1.1 var(--font-sans)',
@@ -299,6 +316,12 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
+    gap: '3px 4px',
+  },
+  metaSegment: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3.5,
   },
   numBold: {
     font: '700 12px/1.35 var(--font-mono)',
@@ -319,7 +342,7 @@ const S = {
   dotSep: {
     color: 'var(--text-muted)',
     opacity: 0.5,
-    margin: '0 3px',
+    margin: '0 4px',
   },
   matchesBadge: {
     font: '700 13.5px/1 var(--font-mono)',

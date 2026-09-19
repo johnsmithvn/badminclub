@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Avatar } from '#ds'
 import { t } from '#i18n'
+import { isFemalePlayer } from '#lib/rating.js'
 
 export default function MyOpponentsCard({
   opponents = [],
@@ -13,19 +14,26 @@ export default function MyOpponentsCard({
   const [genderFilter, setGenderFilter] = useState('all') // 'all' | 'nam' | 'nu'
 
   const filteredOpponents = useMemo(() => {
-    let nSource = nemeses?.length ? nemeses : (nemesis ? [nemesis] : [])
-    let fSource = favoriteOpponents?.length ? favoriteOpponents : (favoriteOpponent ? [favoriteOpponent] : [])
+    const isOfficial = (opp) => {
+      if (opp?.opponent?.isGuest || opp?.isGuest) return false
+      const name = opp?.oppName || opp?.opponent?.name || ''
+      if (/^[0-9a-f-]{30,}$/i.test(name)) return false
+      return true
+    }
+
+    let nSource = (nemeses?.length ? nemeses : (nemesis ? [nemesis] : [])).filter(isOfficial)
+    let fSource = (favoriteOpponents?.length ? favoriteOpponents : (favoriteOpponent ? [favoriteOpponent] : [])).filter(isOfficial)
 
     if (!nSource.length && !fSource.length && opponents?.length) {
-      nSource = opponents.filter((x) => (x.matchupImpact ?? 0) < 0)
-      fSource = opponents.filter((x) => (x.matchupImpact ?? 0) >= 0)
+      const valid = opponents.filter(isOfficial)
+      nSource = valid.filter((x) => (x.matchupImpact ?? 0) < 0)
+      fSource = valid.filter((x) => (x.matchupImpact ?? 0) >= 0)
     }
 
     const filterByGender = (list) =>
       list.filter((opp) => {
         if (genderFilter === 'all') return true
-        const g = opp?.opponent?.gender || 'nam'
-        const isNu = g === 'nu' || g === 'female'
+        const isNu = isFemalePlayer(opp?.opponent)
         return genderFilter === 'nu' ? isNu : !isNu
       })
 
@@ -43,17 +51,7 @@ export default function MyOpponentsCard({
     return [...nList.slice(0, nTake), ...fList.slice(0, fTake)]
   }, [opponents, nemeses, favoriteOpponents, nemesis, favoriteOpponent, genderFilter])
 
-  const getOpponentAvatar = (opp) => {
-    const m = opp?.opponent
-    return (
-      m?.avatarUrl ||
-      m?.avatar_url ||
-      m?.avatar ||
-      m?.profile?.avatar_url ||
-      m?.profile?.avatarUrl ||
-      ''
-    )
-  }
+  const getOpponentAvatar = (opp) => opp?.opponent?.avatarUrl || ''
 
   const genderToggle = (
     <div style={S.genderToggle}>
@@ -62,7 +60,7 @@ export default function MyOpponentsCard({
         onClick={() => setGenderFilter('all')}
         style={genderFilter === 'all' ? S.genderBtnActive : S.genderBtn}
       >
-        {t('gender.all')}
+        {t('home.personal.allShort')}
       </button>
       <button
         type="button"
@@ -115,14 +113,19 @@ export default function MyOpponentsCard({
                       </span>
                     </div>
                     <div style={S.meta}>
-                      <span style={S.numBold}>{opp.gamesCount}</span>{' '}
-                      <span style={S.metaDim}>{t('home.personal.matchesAgainstUnit')}</span>
+                      <span style={S.metaSegment}>
+                        <span style={S.metaDim}>{t('home.personal.meetPrefix')}</span>
+                        <span style={S.numBold}>{opp.gamesCount}</span>
+                        <span style={S.metaDim}>{t('home.personal.matchesUnit')}</span>
+                      </span>
                       <span style={S.dotSep}>·</span>
-                      <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>{' '}
-                      <span style={S.numBold}>{opp.winsCount}</span>{' '}
-                      <span style={S.metaDim}>(</span>
-                      <span style={S.numBold}>{opp.actualWinPct}%</span>
-                      <span style={S.metaDim}>)</span>
+                      <span style={S.metaSegment}>
+                        <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>
+                        <span style={S.numBold}>{opp.winsCount}</span>
+                        <span style={S.metaDim}>(</span>
+                        <span style={S.numBold}>{opp.actualWinPct}%</span>
+                        <span style={S.metaDim}>)</span>
+                      </span>
                     </div>
                   </div>
                   <span style={isNemesis ? S.impactRed : S.impactGreen}>
@@ -169,7 +172,7 @@ const S = {
   genderToggle: {
     display: 'inline-flex',
     padding: 2,
-    borderRadius: 7,
+    borderRadius: 999,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
     gap: 2,
@@ -178,24 +181,32 @@ const S = {
   genderBtn: {
     background: 'none',
     border: 'none',
-    padding: '2px 6px',
-    borderRadius: 5,
-    font: '600 10.5px/1 var(--font-sans)',
+    padding: '4px 9px',
+    borderRadius: 999,
+    font: '600 11px/1 var(--font-sans)',
     color: 'var(--text-muted)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'all 0.15s ease',
+    minHeight: 28,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   genderBtnActive: {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-default)',
-    padding: '2px 6px',
-    borderRadius: 5,
-    font: '600 10.5px/1 var(--font-sans)',
+    padding: '4px 9px',
+    borderRadius: 999,
+    font: '600 11px/1 var(--font-sans)',
     color: 'var(--text-primary)',
     boxShadow: 'var(--shadow-sm)',
     cursor: 'default',
     whiteSpace: 'nowrap',
+    minHeight: 28,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   label: {
     font: '600 11px/1.1 var(--font-sans)',
@@ -247,6 +258,12 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
+    gap: '3px 4px',
+  },
+  metaSegment: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3.5,
   },
   numBold: {
     font: '700 12px/1.35 var(--font-mono)',
@@ -259,7 +276,7 @@ const S = {
   dotSep: {
     color: 'var(--text-muted)',
     opacity: 0.5,
-    margin: '0 3px',
+    margin: '0 4px',
   },
   impactRed: {
     font: '700 15px/1 var(--font-mono)',

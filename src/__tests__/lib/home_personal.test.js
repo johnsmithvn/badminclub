@@ -12,6 +12,7 @@ import {
   getSurroundingStandings,
   getSurroundingSeasonStandings,
 } from '../../lib/homePersonal.js'
+import { isFemalePlayer } from '../../lib/rating.js'
 
 test('Home Personal Dashboard Logic Suite', async (t) => {
   const mockDb = {
@@ -219,6 +220,28 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     // Backward compatibility
     assert.equal(race.rivalName, r1.name)
     assert.equal(race.svgPointsRival, r1.svgPoints)
+  })
+
+  await t.test('12. isFemalePlayer handles all gender variants and edge cases correctly', () => {
+    // 4 biến thể nữ hợp lệ
+    assert.equal(isFemalePlayer({ gender: 'nữ' }), true)
+    assert.equal(isFemalePlayer({ gender: 'NỮ' }), true)
+    assert.equal(isFemalePlayer({ gender: 'nu' }), true)
+    assert.equal(isFemalePlayer({ gender: 'NU' }), true)
+    assert.equal(isFemalePlayer({ gender: 'female' }), true)
+    assert.equal(isFemalePlayer({ gender: 'FEMALE' }), true)
+    assert.equal(isFemalePlayer({ gender: 'f' }), true)
+    assert.equal(isFemalePlayer({ gender: ' F ' }), true)
+    assert.equal(isFemalePlayer({ profile: { gender: 'nữ' } }), true)
+    assert.equal(isFemalePlayer({ sex: 'female' }), true)
+
+    // Nam và các trường hợp không phải nữ
+    assert.equal(isFemalePlayer({ gender: 'nam' }), false)
+    assert.equal(isFemalePlayer({ gender: 'male' }), false)
+    assert.equal(isFemalePlayer({ gender: 'm' }), false)
+    assert.equal(isFemalePlayer({ gender: '' }), false)
+    assert.equal(isFemalePlayer({}), false)
+    assert.equal(isFemalePlayer(null), false)
   })
 })
 

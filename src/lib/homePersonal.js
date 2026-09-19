@@ -900,15 +900,68 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
     }
   } catch {}
 
-  // Chuẩn bị trajectory của tất cả active members để tính biến động thứ hạng (rankImpact)
-  const allTrajectories = new Map()
+  // Chuẩn bị trajectory điểm mùa của tất cả active members để tính biến động thứ hạng mùa (season rankImpact)
+  const allSeasonTrajectories = new Map()
+  const allEloTrajectories = new Map()
   const activeMembers = (db.members || []).filter((mem) => mem && mem.active !== false)
+
+  let seasonData = null
+  try {
+    seasonData = calculateSeasonLeaderboard(db, season)
+  } catch {}
+
+  const startTs = season?.startDate ? Date.parse(`${season.startDate}T00:00:00Z`) : 0
+  const startPoints = season?.startPoints ?? 0
+
+  if (seasonData?.leaderboard) {
+    const rowByMemId = new Map(seasonData.leaderboard.map((r) => [r.id, r]))
+    activeMembers.forEach((mem) => {
+      const row = rowByMemId.get(mem.id)
+      if (row) {
+        let currentPoints = row.totalSeasonPoints || 0
+        const events = []
+        ;(row.matchLogs || []).forEach((l) => {
+          if (l.at) events.push({ at: Number(l.at), points: l.pointsAfter })
+        })
+        ;(row.predictionLogs || []).forEach((p) => {
+          if (p.at) events.push({ at: Number(p.at), points: p.pointsAfter })
+        })
+        events.sort((a, b) => a.at - b.at)
+
+        const traj = []
+        if (startTs > 0 && events.length > 0 && events[0].at > startTs) {
+          traj.push({ at: startTs, points: startPoints })
+        }
+        events.forEach((ev) => traj.push({ at: ev.at, points: ev.points }))
+        traj.push({ at: Date.now(), points: currentPoints })
+        allSeasonTrajectories.set(mem.id, traj)
+      } else {
+        allSeasonTrajectories.set(mem.id, [{ at: 0, points: 0 }, { at: Date.now(), points: 0 }])
+      }
+    })
+  }
+
+  // Dự phòng trajectory Elo
   activeMembers.forEach((mem) => {
-    allTrajectories.set(mem.id, buildMemberEloTrajectory(db, mem.id))
+    allEloTrajectories.set(mem.id, buildMemberEloTrajectory(db, mem.id))
   })
 
+  const getMemberSeasonPointsAt = (mid, ts) => {
+    const traj = allSeasonTrajectories.get(mid)
+    if (!traj || !traj.length) return 0
+    let points = traj[0].points
+    for (const pt of traj) {
+      if (pt.at && pt.at <= ts) {
+        points = pt.points
+      } else if (pt.at && pt.at > ts) {
+        break
+      }
+    }
+    return points
+  }
+
   const getMemberRatingAt = (mid, ts) => {
-    const traj = allTrajectories.get(mid)
+    const traj = allEloTrajectories.get(mid)
     if (!traj || !traj.length) return DEFAULT_RATING
     let rating = traj[0].rating
     for (const pt of traj) {
@@ -934,17 +987,78 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
     const myTeamIds = inA ? (m.teamA || []) : (m.teamB || [])
     const oppTeamIds = inA ? (m.teamB || []) : (m.teamA || [])
 
-    const myTeamNames = myTeamIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
-    const oppTeamNames = oppTeamIds.map((id) => memberOf(db, id)?.name || id).join(' · ')
+    const myTeamPlayers = myTeamIds.map((id) => ({
+      id,
+      name: memberOf(db, id)?.name || id,
+      isMe: id === memberId,
+    }))
+    const oppTeamPlayers = oppTeamIds.map((id) => ({
+      id,
+      name: memberOf(db, id)?.name || id,
+      isMe: false,
+    }))
 
-    const score = formatScoreString(m) || '—'
+    const myTeamNames = myTeamPlayers.map((p) => p.name).join(' · ')
+    const oppTeamNames = oppTeamPlayers.map((p) => p.name).join(' · ')
+
+    // Trích xuất điểm số phân biệt bên user (myScore) và bên đối thủ (oppScore)
+    let scoreSets = []
+    if (Array.isArray(m.sets) && m.sets.length > 0) {
+      scoreSets = m.sets
+        .map((s) => {
+          if (Array.isArray(s)) {
+            const myScore = inA ? s[0] : s[1]
+            const oppScore = inA ? s[1] : s[0]
+            return { myScore, oppScore }
+          }
+          return null
+        })
+        .filter(Boolean)
+    }
+
+    if (scoreSets.length === 0) {
+      const sA = m.scoreA ?? m.score_a
+      const sB = m.scoreB ?? m.score_b
+      if (sA != null && sB != null) {
+        scoreSets = [
+          {
+            myScore: inA ? sA : sB,
+            oppScore: inA ? sB : sA,
+          },
+        ]
+      } else if (m.scoreText || m.score) {
+        const rawStr = String(m.scoreText || m.score).trim()
+        const parts = rawStr.split('-').map((x) => x.trim())
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          scoreSets = [
+            {
+              myScore: inA ? parts[0] : parts[1],
+              oppScore: inA ? parts[1] : parts[0],
+            },
+          ]
+        }
+      }
+    }
+
+    const score =
+      scoreSets.length > 0
+        ? scoreSets.map((s) => `${s.myScore}-${s.oppScore}`).join(', ')
+        : formatScoreString(m) || '—'
+
     const eloDelta = Number(m.eloDelta) || 0
     const eloChange = eloDelta > 0 ? (won ? `+${eloDelta}` : `−${eloDelta}`) : '0'
 
     let dateStr = '—'
     let dateKey = null
+    let timeStr = ''
     if (m.at) {
       const matchDate = new Date(m.at)
+      if (!isNaN(matchDate.getTime())) {
+        const hh = String(matchDate.getHours()).padStart(2, '0')
+        const mm = String(matchDate.getMinutes()).padStart(2, '0')
+        timeStr = `${hh}:${mm}`
+      }
+
       const now = new Date()
       const isToday = matchDate.getFullYear() === now.getFullYear() &&
                       matchDate.getMonth() === now.getMonth() &&
@@ -966,22 +1080,38 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
       dateStr = `${d}/${mo}`
     }
 
-    // Tính biến động thứ hạng (rankImpact: lên hạng, xuống hạng, giữ hạng)
+    // Tính biến động thứ hạng mùa giải (seasonRankImpact), fallback về Elo nếu chưa có mùa
     let rankImpact = null
     const matchTs = m.at || 0
     if (matchTs > 0 && activeMembers.length > 0) {
-      const myRatingBefore = getMemberRatingAt(memberId, matchTs - 1)
-      const myRatingAfter = getMemberRatingAt(memberId, matchTs)
+      if (allSeasonTrajectories.size > 0) {
+        const myPointsBefore = getMemberSeasonPointsAt(memberId, matchTs - 1)
+        const myPointsAfter = getMemberSeasonPointsAt(memberId, matchTs)
 
-      const rankBefore = 1 + activeMembers.filter((other) => other.id !== memberId && getMemberRatingAt(other.id, matchTs - 1) > myRatingBefore).length
-      const rankAfter = 1 + activeMembers.filter((other) => other.id !== memberId && getMemberRatingAt(other.id, matchTs) > myRatingAfter).length
+        const rankBefore = 1 + activeMembers.filter((other) => other.id !== memberId && getMemberSeasonPointsAt(other.id, matchTs - 1) > myPointsBefore).length
+        const rankAfter = 1 + activeMembers.filter((other) => other.id !== memberId && getMemberSeasonPointsAt(other.id, matchTs) > myPointsAfter).length
 
-      if (rankAfter < rankBefore) {
-        rankImpact = { type: 'up', from: rankBefore, to: rankAfter }
-      } else if (rankAfter > rankBefore) {
-        rankImpact = { type: 'down', from: rankBefore, to: rankAfter }
+        if (rankAfter < rankBefore) {
+          rankImpact = { type: 'up', from: rankBefore, to: rankAfter }
+        } else if (rankAfter > rankBefore) {
+          rankImpact = { type: 'down', from: rankBefore, to: rankAfter }
+        } else {
+          rankImpact = { type: 'same', from: rankBefore, to: rankAfter }
+        }
       } else {
-        rankImpact = { type: 'same', from: rankBefore, to: rankAfter }
+        const myRatingBefore = getMemberRatingAt(memberId, matchTs - 1)
+        const myRatingAfter = getMemberRatingAt(memberId, matchTs)
+
+        const rankBefore = 1 + activeMembers.filter((other) => other.id !== memberId && getMemberRatingAt(other.id, matchTs - 1) > myRatingBefore).length
+        const rankAfter = 1 + activeMembers.filter((other) => other.id !== memberId && getMemberRatingAt(other.id, matchTs) > myRatingAfter).length
+
+        if (rankAfter < rankBefore) {
+          rankImpact = { type: 'up', from: rankBefore, to: rankAfter }
+        } else if (rankAfter > rankBefore) {
+          rankImpact = { type: 'down', from: rankBefore, to: rankAfter }
+        } else {
+          rankImpact = { type: 'same', from: rankBefore, to: rankAfter }
+        }
       }
     }
 
@@ -1016,12 +1146,16 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
       won,
       myTeamNames,
       oppTeamNames,
+      myTeamPlayers,
+      oppTeamPlayers,
       score,
+      scoreSets,
       eloDelta,
       eloChange,
       seasonChange,
       dateStr,
       dateKey,
+      timeStr,
       rankImpact,
     }
   })

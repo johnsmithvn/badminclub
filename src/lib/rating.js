@@ -1446,6 +1446,11 @@ export function getPlayerPartnersAndMatchups(matches = [], memberId, membersMap 
 
   const partners = []
   partnerKeys.forEach((partnerId) => {
+    // Bỏ qua khách nếu có membersMap
+    if (membersMap && Object.keys(membersMap).length > 0) {
+      const mem = membersMap[partnerId]
+      if (!mem || mem.isGuest || mem.type === 'guest') return
+    }
     const info = calcPairImpact(matches, memberId, partnerId, ratingsMap)
     if (!info.gamesCount) return
     const partnerObj = membersMap[partnerId] || { id: partnerId, name: partnerId }
@@ -1463,6 +1468,11 @@ export function getPlayerPartnersAndMatchups(matches = [], memberId, membersMap 
 
   const opponents = []
   opponentKeys.forEach((oppId) => {
+    // Bỏ qua khách nếu có membersMap
+    if (membersMap && Object.keys(membersMap).length > 0) {
+      const mem = membersMap[oppId]
+      if (!mem || mem.isGuest || mem.type === 'guest') return
+    }
     const edge = calcMatchupEdge(matches, [memberId], [oppId], ratingsMap)
     if (!edge.gamesCount) return
     const oppObj = membersMap[oppId] || { id: oppId, name: oppId }

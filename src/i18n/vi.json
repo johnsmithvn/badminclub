@@ -309,7 +309,7 @@
     "filterGenderTitle": "Lọc giới tính"
   },
   "gender": {
-    "all": "All",
+    "all": "Tất cả",
     "nam": "Nam",
     "nu": "Nữ"
   },
@@ -908,6 +908,9 @@
       "synergySuffix": "ăn ý",
       "matchesTogetherUnit": "trận chung",
       "matchesAgainstUnit": "trận đối đầu",
+      "meetPrefix": "Gặp",
+      "matchesUnit": "trận",
+      "allShort": "All",
       "upcomingSession": "Buổi tới · {{time}}",
       "upcomingTimeDefault": "Tối nay · {{time}}",
       "upcomingSessionToday": "Tối nay · {{time}}",

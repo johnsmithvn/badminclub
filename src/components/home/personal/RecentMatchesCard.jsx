@@ -36,20 +36,67 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
   if (isMobile) {
     const m = matches[0]
     const dateLabel = m.dateKey === 'today' ? t('home.personal.today') : (m.dateKey === 'yesterday' ? t('home.personal.yesterday') : m.dateStr)
+    const myPlayers = m.myTeamPlayers?.length
+      ? m.myTeamPlayers
+      : [{ id: 'me', name: m.myTeamNames, isMe: true }]
+    const oppPlayers = m.oppTeamPlayers?.length
+      ? m.oppTeamPlayers
+      : [{ id: 'opp', name: m.oppTeamNames, isMe: false }]
+
     return (
       <div style={S.card}>
         <div style={S.headerRow}>
           <span style={S.title}>{t('home.personal.recentMatchTitleMobile')}</span>
-          <span style={S.timeMono}>{dateLabel}</span>
+          <span style={S.timeMono}>
+            {dateLabel}
+            {m.timeStr ? ` · ${m.timeStr}` : ''}
+          </span>
         </div>
 
         <div style={S.mobileMatchRow}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={S.teamNames}>{m.myTeamNames}</span>
-            <span style={S.oppNames}>{m.oppTeamNames}</span>
+            <div style={S.mobileTeamRow}>
+              {myPlayers.map((p, pIdx) => (
+                <span key={p.id || pIdx}>
+                  {pIdx > 0 && <span style={S.playerSep}>·</span>}
+                  <span
+                    style={
+                      p.isMe
+                        ? m.won
+                          ? S.myPlayerWin
+                          : S.myPlayerLoss
+                        : S.partnerPlayer
+                    }
+                  >
+                    {p.name}
+                  </span>
+                </span>
+              ))}
+            </div>
+            <div style={S.mobileOppRow}>
+              {oppPlayers.map((p, pIdx) => (
+                <span key={p.id || pIdx}>
+                  {pIdx > 0 && <span style={S.playerSep}>·</span>}
+                  <span style={S.oppPlayer}>{p.name}</span>
+                </span>
+              ))}
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
-            <span style={m.won ? S.scoreGreen : S.scoreRed}>{m.score}</span>
+            <div style={S.mobileScoreCol}>
+              {m.scoreSets && m.scoreSets.length > 0 ? (
+                m.scoreSets.map((s, sIdx) => (
+                  <span key={sIdx} style={S.scoreSetRow}>
+                    {sIdx > 0 && <span style={S.scoreComma}>, </span>}
+                    <span style={m.won ? S.myScoreWinMobile : S.myScoreLossMobile}>{s.myScore}</span>
+                    <span style={S.scoreSepMobile}>-</span>
+                    <span style={S.oppScoreMobile}>{s.oppScore}</span>
+                  </span>
+                ))
+              ) : (
+                <span style={m.won ? S.scoreGreen : S.scoreRed}>{m.score}</span>
+              )}
+            </div>
             <span style={m.won ? S.badgeWin : S.badgeLoss}>
               {m.won ? t('home.personal.win') : t('home.personal.loss')}
             </span>
@@ -59,7 +106,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
         <div style={S.pillsRow}>
           <span style={S.pillPadded}>
             <span style={m.won ? S.greenMono : S.redMono}>
-              {m.eloDelta ? (m.won ? `+${m.eloDelta} ${t('home.personal.eloNormal')}` : `−${m.eloDelta} ${t('home.personal.eloNormal')}`) : (m.eloChange ? `${m.eloChange} ${t('home.personal.eloNormal')}` : `0 ${t('home.personal.eloNormal')}`)}
+              {formatSeasonPoints(m.seasonChange, m.won)}
             </span>
           </span>
           <span style={S.pillPadded}>
@@ -70,9 +117,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
                 {m.rankImpact.type === 'same' && t('home.personal.keepRank', { rank: m.rankImpact.to })}
               </span>
             ) : (
-              <span style={m.seasonChange && m.seasonChange !== '—' ? (m.won ? S.greenMono : S.redMono) : S.mutedMono}>
-                {formatSeasonPoints(m.seasonChange, m.won)}
-              </span>
+              <span style={S.mutedMono}>—</span>
             )}
           </span>
         </div>
@@ -93,31 +138,85 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
       <div style={S.desktopList}>
         {matches.map((m) => {
           const dateLabel = m.dateKey === 'today' ? t('home.personal.today') : (m.dateKey === 'yesterday' ? t('home.personal.yesterday') : m.dateStr)
+          const myPlayers = m.myTeamPlayers?.length
+            ? m.myTeamPlayers
+            : [{ id: 'me', name: m.myTeamNames, isMe: true }]
+          const oppPlayers = m.oppTeamPlayers?.length
+            ? m.oppTeamPlayers
+            : [{ id: 'opp', name: m.oppTeamNames, isMe: false }]
+
           return (
             <div key={m.id} style={S.desktopRow}>
-              <span style={S.desktopDateCol}>{dateLabel}</span>
+              {/* Cột 1: Ngày + Giờ biến động */}
+              <span style={S.desktopDateCol}>
+                <span style={S.dateLabelText}>{dateLabel}</span>
+                {m.timeStr ? <span style={S.timeLabelText}>{m.timeStr}</span> : null}
+              </span>
+
+              {/* Cột 2: Matchup (Highlight tên user sáng lên: thắng xanh, thua đỏ) */}
               <span style={S.desktopMatchupCol}>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{m.myTeamNames}</span>
-                <span style={{ color: 'var(--text-muted)', fontWeight: 400, margin: '0 6px' }}>vs</span>
-                <span style={{ color: 'var(--text-secondary)' }}>{m.oppTeamNames}</span>
+                <span style={S.teamSpan}>
+                  {myPlayers.map((p, pIdx) => (
+                    <span key={p.id || pIdx}>
+                      {pIdx > 0 && <span style={S.playerSep}>·</span>}
+                      <span
+                        style={
+                          p.isMe
+                            ? m.won
+                              ? S.myPlayerWin
+                              : S.myPlayerLoss
+                            : S.partnerPlayer
+                        }
+                      >
+                        {p.name}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+                <span style={S.vsSep}>vs</span>
+                <span style={S.oppSpan}>
+                  {oppPlayers.map((p, pIdx) => (
+                    <span key={p.id || pIdx}>
+                      {pIdx > 0 && <span style={S.playerSep}>·</span>}
+                      <span style={S.oppPlayer}>{p.name}</span>
+                    </span>
+                  ))}
+                </span>
               </span>
-              <span style={m.won ? S.desktopScoreGreen : S.desktopScoreRed}>{m.score}</span>
+
+              {/* Cột 3: Tỷ số (Highlight điểm của bên user) */}
+              <span style={S.desktopScoreCol}>
+                {m.scoreSets && m.scoreSets.length > 0 ? (
+                  m.scoreSets.map((s, sIdx) => (
+                    <span key={sIdx} style={S.scoreSetRow}>
+                      {sIdx > 0 && <span style={S.scoreComma}>, </span>}
+                      <span style={m.won ? S.myScoreWin : S.myScoreLoss}>{s.myScore}</span>
+                      <span style={S.scoreSep}>-</span>
+                      <span style={S.oppScore}>{s.oppScore}</span>
+                    </span>
+                  ))
+                ) : (
+                  <span style={m.won ? S.desktopScoreGreen : S.desktopScoreRed}>{m.score}</span>
+                )}
+              </span>
+
+              {/* Cột 4: Biến động Điểm Mùa */}
               <span style={m.won ? S.desktopDeltaGreen : S.desktopDeltaRed}>
-                {m.eloDelta ? (m.won ? `+${m.eloDelta} ${t('home.personal.eloNormal')}` : `−${m.eloDelta} ${t('home.personal.eloNormal')}`) : (m.eloChange ? `${m.eloChange} ${t('home.personal.eloNormal')}` : `0 ${t('home.personal.eloNormal')}`)}
+                {formatSeasonPoints(m.seasonChange, m.won)}
               </span>
+
+              {/* Cột 5: Biến động Hạng Mùa */}
               <span style={S.desktopRankCol}>
                 {m.rankImpact ? (
                   m.rankImpact.type === 'up' ? (
-                    <span style={S.rankPillUp}>#{m.rankImpact.from} → #{m.rankImpact.to}</span>
+                    <span style={S.rankTextUp}>#{m.rankImpact.from} → #{m.rankImpact.to}</span>
                   ) : m.rankImpact.type === 'down' ? (
-                    <span style={S.rankPillDown}>#{m.rankImpact.from} → #{m.rankImpact.to}</span>
+                    <span style={S.rankTextDown}>#{m.rankImpact.from} → #{m.rankImpact.to}</span>
                   ) : (
-                    <span style={S.rankPillSame}>{t('home.personal.keepRank', { rank: m.rankImpact.to })}</span>
+                    <span style={S.rankTextSame}>{t('home.personal.keepRank', { rank: m.rankImpact.to })}</span>
                   )
                 ) : (
-                  <span style={m.seasonChange && m.seasonChange !== '—' ? (m.won ? S.desktopSeasonGreen : S.desktopSeasonRed) : S.desktopSeasonMuted}>
-                    {formatSeasonPoints(m.seasonChange, m.won)}
-                  </span>
+                  <span style={S.rankTextSame}>—</span>
                 )}
               </span>
             </div>
@@ -167,13 +266,57 @@ const S = {
     alignItems: 'center',
     gap: 10,
   },
-  teamNames: {
-    font: '600 14.5px/1.25 var(--font-display)',
-    color: 'var(--text-primary)',
+  mobileTeamRow: {
+    font: '600 14px/1.25 var(--font-display)',
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
-  oppNames: {
+  mobileOppRow: {
     font: '400 11.5px/1.3 var(--font-mono)',
     color: 'var(--text-muted)',
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  teamSpan: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  oppSpan: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  myPlayerWin: {
+    color: 'var(--status-delivered-fg)',
+    fontWeight: 700,
+    textShadow: '0 0 10px rgba(16, 185, 129, 0.3)',
+  },
+  myPlayerLoss: {
+    color: 'var(--status-incident-fg)',
+    fontWeight: 700,
+    textShadow: '0 0 10px rgba(239, 68, 68, 0.3)',
+  },
+  partnerPlayer: {
+    color: 'var(--text-primary)',
+    fontWeight: 500,
+  },
+  oppPlayer: {
+    color: 'var(--text-secondary)',
+    fontWeight: 400,
+  },
+  playerSep: {
+    color: 'var(--text-muted)',
+    opacity: 0.5,
+    margin: '0 4px',
+  },
+  vsSep: {
+    color: 'var(--text-muted)',
+    fontWeight: 400,
+    margin: '0 7px',
+    fontSize: '12px',
   },
   scoreGreen: {
     font: '700 20px/1 var(--font-display)',
@@ -234,15 +377,90 @@ const S = {
     border: '1px solid var(--border-default)',
   },
   desktopDateCol: {
-    width: 62,
+    width: 68,
     flex: '0 0 auto',
-    font: '400 11px/1.3 var(--font-mono)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  dateLabelText: {
+    font: '500 11.5px/1.2 var(--font-sans)',
+    color: 'var(--text-primary)',
+    whiteSpace: 'nowrap',
+  },
+  timeLabelText: {
+    font: '400 10.5px/1 var(--font-mono)',
     color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   desktopMatchupCol: {
     flex: 1,
     minWidth: 0,
-    font: '600 14px/1.3 var(--font-display)',
+    font: '500 14px/1.3 var(--font-display)',
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  desktopScoreCol: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 1,
+    whiteSpace: 'nowrap',
+  },
+  scoreSetRow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+  },
+  myScoreWin: {
+    font: '700 16.5px/1 var(--font-display)',
+    color: 'var(--status-delivered-fg)',
+    textShadow: '0 0 10px rgba(16, 185, 129, 0.35)',
+  },
+  myScoreLoss: {
+    font: '700 16.5px/1 var(--font-display)',
+    color: 'var(--status-incident-fg)',
+    textShadow: '0 0 10px rgba(239, 68, 68, 0.35)',
+  },
+  scoreSep: {
+    font: '400 15px/1 var(--font-display)',
+    color: 'var(--text-muted)',
+    opacity: 0.6,
+    margin: '0 1.5px',
+  },
+  oppScore: {
+    font: '500 15px/1 var(--font-display)',
+    color: 'var(--text-muted)',
+  },
+  scoreComma: {
+    color: 'var(--text-muted)',
+    marginRight: 4,
+  },
+  mobileScoreCol: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 1,
+    whiteSpace: 'nowrap',
+  },
+  myScoreWinMobile: {
+    font: '700 20px/1 var(--font-display)',
+    color: 'var(--status-delivered-fg)',
+    textShadow: '0 0 10px rgba(16, 185, 129, 0.35)',
+  },
+  myScoreLossMobile: {
+    font: '700 20px/1 var(--font-display)',
+    color: 'var(--status-incident-fg)',
+    textShadow: '0 0 10px rgba(239, 68, 68, 0.35)',
+  },
+  scoreSepMobile: {
+    font: '400 18px/1 var(--font-display)',
+    color: 'var(--text-muted)',
+    opacity: 0.6,
+    margin: '0 2px',
+  },
+  oppScoreMobile: {
+    font: '500 18px/1 var(--font-display)',
+    color: 'var(--text-muted)',
   },
   desktopScoreGreen: {
     font: '700 16px/1 var(--font-display)',
@@ -253,16 +471,18 @@ const S = {
     color: 'var(--status-incident-fg)',
   },
   desktopDeltaGreen: {
-    width: 74,
+    width: 96,
     textAlign: 'right',
     font: '600 12px/1 var(--font-mono)',
     color: 'var(--status-delivered-fg)',
+    whiteSpace: 'nowrap',
   },
   desktopDeltaRed: {
-    width: 74,
+    width: 96,
     textAlign: 'right',
     font: '600 12px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
+    whiteSpace: 'nowrap',
   },
   desktopRankCol: {
     width: 86,
@@ -271,38 +491,21 @@ const S = {
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
-  rankPillUp: {
-    padding: '3px 8px',
-    borderRadius: 6,
-    background: 'var(--status-delivered-bg)',
-    border: '1px solid var(--status-delivered-fg)',
+  rankTextUp: {
+    font: '700 13px/1 var(--font-mono)',
     color: 'var(--status-delivered-fg)',
-    font: '600 11.5px/1 var(--font-mono)',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     whiteSpace: 'nowrap',
   },
-  rankPillDown: {
-    padding: '3px 8px',
-    borderRadius: 6,
-    background: 'var(--status-incident-bg)',
-    border: '1px solid var(--status-incident-fg)',
+  rankTextDown: {
+    font: '700 13px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
-    font: '600 11.5px/1 var(--font-mono)',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     whiteSpace: 'nowrap',
   },
-  rankPillSame: {
-    padding: '3px 8px',
+  rankTextSame: {
     font: '400 12px/1 var(--font-sans)',
     color: 'var(--text-muted)',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     whiteSpace: 'nowrap',
+    opacity: 0.85,
   },
   desktopSeasonGreen: {
     width: 86,
