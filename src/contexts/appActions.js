@@ -28,7 +28,16 @@ import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
 import { detectMatchNarrative, notifyRecipients, resolveNotificationPayload } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
-const uid = () => crypto.randomUUID()
+const uid = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
 
 /** Các trường SỐ của một nhóm cố định — dùng để biết ô nhập nào phải đi qua intOf. */
 const GROUP_NUM = ['feeNam', 'feeNu', 'unitNam', 'unitNu']
