@@ -288,6 +288,20 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.ok(g6.subKey.startsWith('home.personal.subRankTop'))
     assert.equal(g6.subParams.rank, 3)
 
+    // Nữ hạng #2 toàn CLB nhưng #1 bảng nữ: KHÔNG BAO GIỜ hô "số 1 CLB" (subRank1)
+    const top2FemMem = { id: 'm_top2f', name: 'Hà', gender: 'nu' }
+    const heroStatsTop2Fem = { rank: 2, seasonRank: 2, totalMembers: 12, seasonTotalMembers: 12, genderSeasonRank: 1, genderSeasonTotal: 5 }
+    const gTop2Fem = getPersonalGreeting(top2FemMem, heroStatsTop2Fem, { streak: 0 }, [], null, null)
+    assert.ok(gTop2Fem.subKey.startsWith('home.personal.subGenderTop1Female') || gTop2Fem.subKey.startsWith('home.personal.subRankTop'))
+    assert.ok(!gTop2Fem.subKey.startsWith('home.personal.subRank1'))
+
+    // Thành viên chưa có trận mùa nào (seasonRank = 0) -> không nhận top1 hay top_chaser
+    const noSeasonMem = { id: 'm_zero', name: 'Bình', gender: 'nam' }
+    const heroStatsZero = { rank: 1, seasonRank: 0, totalMembers: 12, seasonTotalMembers: 12 }
+    const gZero = getPersonalGreeting(noSeasonMem, heroStatsZero, { streak: 0 }, [], null, null)
+    assert.ok(!gZero.subKey.startsWith('home.personal.subRank1'))
+    assert.ok(!gZero.subKey.startsWith('home.personal.subRankTop'))
+
     // Chuỗi thua (2 trận gần nhất đều thua trong formStats.matches)
     const loseMem = { id: 'm_lose', name: 'Dũng', gender: 'nam' }
     const heroStatsMid = { rank: 5, seasonRank: 5, totalMembers: 12, seasonTotalMembers: 12 }
@@ -315,10 +329,11 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.ok(types.includes('match_finished') || types.includes('rank_top1'))
   })
 
-  await t.test('15. calcSessionAttendanceHistory correctly tracks missed sessions and comeback state', () => {
+  await t.test('15. calcSessionAttendanceHistory correctly tracks missed sessions, comeback state, and caps at 5', () => {
     const sessionDb = {
       today: '2026-09-20',
       sessions: [
+        { id: 's_unclosed_empty', date: '2026-09-19', status: 'open' }, // Buổi hôm qua chưa chốt và không có dữ liệu -> phải bị bỏ qua
         { id: 's3', date: '2026-09-18', status: 'closed' },
         { id: 's2', date: '2026-09-15', status: 'closed' },
         { id: 's1', date: '2026-09-12', status: 'closed' },
@@ -329,6 +344,11 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
         s1: { memA: true, memB: false },
       },
     }
+
+    // Thành viên mới chưa từng tham gia buổi nào -> missedSessions = 0 (không bị báo vắng 87 buổi)
+    const histNew = calcSessionAttendanceHistory(sessionDb, 'memNew')
+    assert.equal(histNew.missedSessions, 0)
+    assert.equal(histNew.isComeback, false)
 
     // memA vắng 2 buổi gần nhất (s3, s2)
     const histA = calcSessionAttendanceHistory(sessionDb, 'memA')
@@ -350,6 +370,21 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     const heroStatsB = { seasonRank: 6, seasonTotalMembers: 12 }
     const gB = getPersonalGreeting(memBObj, heroStatsB, { streak: 0 }, [], null, sessionDb)
     assert.ok(gB.subKey.startsWith('home.personal.subComeback'))
+
+    // Kiểm tra chặn trần tối đa 5 buổi vắng
+    const longAbsentDb = {
+      today: '2026-09-20',
+      sessions: Array.from({ length: 20 }, (_, i) => ({
+        id: `s_old_${i}`,
+        date: `2026-08-${String(i + 1).padStart(2, '0')}`,
+        status: 'closed',
+      })),
+      attendance: {
+        s_old_0: { memOld: true }, // Có từng đi 1 buổi xa xưa
+      },
+    }
+    const histOld = calcSessionAttendanceHistory(longAbsentDb, 'memOld')
+    assert.equal(histOld.missedSessions, 5) // Chặn trần tại 5, không vọt lên 19 hay 87
   })
 })
 

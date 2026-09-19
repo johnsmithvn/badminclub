@@ -32,7 +32,7 @@ export default function SeasonRaceCard({
             rank: m.rank,
           }))
         if (sList.length > 0) return sList
-      } catch {}
+      } catch { /* không dựng được BXH mùa: rơi sang BXH Elo bên dưới */ }
     }
     const eloList = getClubEloLeaderboard(db)
     return eloList

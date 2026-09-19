@@ -257,7 +257,7 @@ export function getMyHeroStats(db, memberId) {
         }
       }
     }
-  } catch {}
+  } catch { /* thiếu log buổi trước: giữ seasonRankDelta = 0 */ }
 
   // Buổi người đó đi gần nhất (most recent attended session)
   try {
@@ -332,7 +332,7 @@ export function getMyHeroStats(db, memberId) {
   try {
     const badgesData = calculateMemberBadges(myItem.id, db)
     badgesCount = (badgesData?.unlocked || []).length
-  } catch {}
+  } catch { /* không tính được huy hiệu: giữ badgesCount = 0 */ }
 
   // Đối thủ đứng ngay trên (Mục tiêu)
   let targetRival = null
@@ -402,7 +402,8 @@ export function getPlayerForm5(db, memberId) {
   }
   if (!db || !memberId || !Array.isArray(db.matches)) return result
 
-  const playerMatches = db.matches
+  const targetMatches = seasonMatchesOf(db)
+  const playerMatches = (targetMatches || [])
     .filter((m) => m && m.winnerTeam && ((m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId)))
     .sort((a, b) => (b.at || 0) - (a.at || 0))
 
@@ -426,7 +427,7 @@ export function getPlayerForm5(db, memberId) {
   try {
     const streakInfo = getMemberStreak(memberId, db)
     streak = streakInfo?.streak || 0
-  } catch {}
+  } catch { /* không tính được chuỗi: giữ streak = 0 */ }
 
   const milestones = [3, 5, 7, 10, 15]
   const nextBadgeStreak = milestones.find((m) => m > streak) || (streak + 3)
@@ -453,6 +454,10 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
   const myIndex = rankedList.findIndex((x) => x.id === memberId)
   if (myIndex < 0) return null
 
+  // Ngày vào seed để hai câu insight xoay vòng theo NGÀY, giống câu chào — nhưng đứng yên
+  // trong suốt một ngày nên chữ không nhảy mỗi lần db sync.
+  const todayKey = db.today || new Date().toISOString().slice(0, 10)
+
   const myItem = rankedList[myIndex]
 
   let rivalItem = null
@@ -470,7 +475,7 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     let rivalStreak = 0
     try {
       rivalStreak = getMemberStreak(rivalItem.id, db)?.streak || 0
-    } catch {}
+    } catch { /* không tính được chuỗi của đối thủ: giữ 0 */ }
 
     let myH2HWins = 0
     let rivalH2HWins = 0
@@ -497,7 +502,7 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     let myStreak = 0
     try {
       myStreak = getMemberStreak(memberId, db)?.streak || 0
-    } catch {}
+    } catch { /* không tính được chuỗi của mình: giữ 0 */ }
 
     let rivalInsightKey = 'rivalInsightMedium'
     let rivalInsightParams = { name: rivalItem.name, gap: gapPoints, n: neededWins }
@@ -506,7 +511,7 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
       rivalInsightKey = 'rivalInsightEven'
       rivalInsightParams = { name: rivalItem.name }
     } else if (gapPoints <= 20) {
-      const v = getDeterministicRoll(`${memberId}_${rivalItem.id}_rivalClose`, 2) === 0 ? '1' : '2'
+      const v = getDeterministicRoll(`${memberId}_${rivalItem.id}_${todayKey}_rivalClose`, 2) === 0 ? '1' : '2'
       rivalInsightKey = `rivalInsightClose${v}`
       rivalInsightParams = { name: rivalItem.name, rank: rivalItem.rank }
     } else if (myStreak >= 3 && gapPoints <= 50) {
@@ -549,14 +554,14 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     let chaserStreak = 0
     try {
       chaserStreak = getMemberStreak(chaserItem.id, db)?.streak || 0
-    } catch {}
+    } catch { /* không tính được chuỗi của người bám đuổi: giữ 0 */ }
 
     const chaserGap = Math.max(0, myItem.elo - chaserItem.elo)
     let chaserWarningKey = 'chaserWarningNormal'
     let chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
 
     if (chaserGap <= 25 && chaserStreak >= 2) {
-      const v = getDeterministicRoll(`${memberId}_${chaserItem.id}_chaserThreat`, 2) === 0 ? '1' : '2'
+      const v = getDeterministicRoll(`${memberId}_${chaserItem.id}_${todayKey}_chaserThreat`, 2) === 0 ? '1' : '2'
       chaserWarningKey = `chaserWarningThreat${v}`
       chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap, streak: chaserStreak }
     } else if (chaserGap <= 25) {
@@ -566,7 +571,7 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
       chaserWarningKey = 'chaserWarningHot'
       chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, streak: chaserStreak }
     } else if (chaserGap > 50) {
-      const v = getDeterministicRoll(`${memberId}_${chaserItem.id}_chaserSafe`, 2) === 0 ? '1' : '2'
+      const v = getDeterministicRoll(`${memberId}_${chaserItem.id}_${todayKey}_chaserSafe`, 2) === 0 ? '1' : '2'
       chaserWarningKey = `chaserWarningSafe${v}`
       chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
     }
@@ -673,7 +678,7 @@ function buildMemberSeasonPointsTrajectory(db, memberId, activeSeason = null) {
         }
       })
     }
-  } catch {}
+  } catch { /* thiếu phiếu dự đoán: quỹ đạo vẫn dựng từ các trận */ }
 
   events.sort((a, b) => a.at - b.at)
 
@@ -759,7 +764,7 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
           name = row.name
           rank = row.rank
         }
-      } catch {}
+      } catch { /* không tra được BXH mùa: để trống, rơi sang BXH Elo bên dưới */ }
     }
     if (!name) {
       if (!eloLeaderboard) {
@@ -984,7 +989,7 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
         if (ev.at) eventByTimestamp.set(ev.at, ev)
       })
     }
-  } catch {}
+  } catch { /* không dựng được sổ điểm mùa: rơi sang nhánh duyệt db.matches */ }
 
   // Chuẩn bị trajectory điểm mùa của tất cả active members để tính biến động thứ hạng mùa (season rankImpact)
   const allSeasonTrajectories = new Map()
@@ -994,7 +999,7 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
   let seasonData = null
   try {
     seasonData = calculateSeasonLeaderboard(db, season)
-  } catch {}
+  } catch { /* không tính được BXH mùa: giữ seasonData = null */ }
 
   const startTs = season?.startDate ? Date.parse(`${season.startDate}T00:00:00Z`) : 0
   const startPoints = season?.startPoints ?? 0
@@ -1477,7 +1482,7 @@ export function getClubTodayHighlights(db, memberId, limit = 4) {
         timeAgo: '',
       })
     }
-  } catch {}
+  } catch { /* không lấy được top 1 mùa: bỏ tin này khỏi feed */ }
 
   // 4. Trận thứ 2 nếu còn chỗ
   if (sortedMatches.length > 1 && events.length < limit) {
@@ -1520,7 +1525,7 @@ export function getSurroundingStandings(db, memberId, windowSize = 5, mode = 'el
         try {
           const st = getMemberStreak(r.id, db)?.streak || 0
           if (st >= 3) streakWins = st
-        } catch {}
+        } catch { /* không tính được chuỗi: coi như không có chuỗi */ }
         return {
           id: r.id,
           name: r.name,
@@ -1554,7 +1559,7 @@ export function getSurroundingStandings(db, memberId, windowSize = 5, mode = 'el
           }
         })
       }
-    } catch {}
+    } catch { /* không dựng được BXH mùa: giữ nguyên danh sách Elo đã tính */ }
   }
 
   const list = getClubEloLeaderboard(db)
@@ -1581,7 +1586,7 @@ export function getSurroundingStandings(db, memberId, windowSize = 5, mode = 'el
       if (st >= 3) {
         streakWins = st
       }
-    } catch {}
+    } catch { /* không tính được chuỗi: coi như không có chuỗi */ }
 
     return {
       ...item,
@@ -1602,23 +1607,6 @@ function rivalGoalCheck(list, myIndex, item) {
 }
 
 /**
- * Kiểm tra xem thành viên có tham gia một buổi tập hay không
- */
-function isMemberAttendedSession(s, memberId, db) {
-  if (!s || !memberId) return false
-  const attendance = db?.attendance || {}
-  const attMap = attendance[s.id] || (typeof s.attendance === 'object' && !Array.isArray(s.attendance) ? s.attendance : {})
-  if (isPresent(attMap[memberId])) return true
-  if (Array.isArray(s.attendance) && s.attendance.some((a) => (a.memberId === memberId || a.id === memberId) && (a.status === 'present' || a.present === true))) return true
-  if (Array.isArray(s.attendees) && s.attendees.some((a) => (typeof a === 'string' ? a === memberId : a.memberId === memberId))) return true
-  if (Array.isArray(db?.matches)) {
-    const hasMatch = db.matches.some((m) => m && m.sessionId === s.id && ((m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId)))
-    if (hasMatch) return true
-  }
-  return false
-}
-
-/**
  * Tính lịch sử tham gia các buổi tập trong quá khứ của CLB
  * @param {Object} db
  * @param {string} memberId
@@ -1627,33 +1615,103 @@ function isMemberAttendedSession(s, memberId, db) {
 export function calcSessionAttendanceHistory(db, memberId) {
   if (!db || !memberId) return { missedSessions: 0, isComeback: false }
 
-  // 1. Lấy danh sách các buổi tập trong quá khứ của CLB
+  const attendance = db?.attendance || {}
+  const allMatches = Array.isArray(db?.matches) ? db.matches : []
+  const allSessionIdsWithMatches = new Set()
+  const memberSessionIds = new Set()
+  let memberHasMatches = false
+
+  for (const m of allMatches) {
+    if (!m) continue
+    if (m.sessionId) {
+      allSessionIdsWithMatches.add(m.sessionId)
+    }
+    const inA = (m.teamA || []).includes(memberId)
+    const inB = (m.teamB || []).includes(memberId)
+    if (inA || inB) {
+      memberHasMatches = true
+      if (m.sessionId) {
+        memberSessionIds.add(m.sessionId)
+      }
+    }
+  }
+
+  let memberHasAttendance = false
+  for (const sId in attendance) {
+    if (isPresent(attendance[sId]?.[memberId])) {
+      memberHasAttendance = true
+      break
+    }
+  }
+
+  // 1. Kiểm tra thành viên đã từng tham gia bất kỳ buổi nào hay chưa
+  const hasEverAttended = memberHasMatches || memberHasAttendance
+  if (!hasEverAttended) {
+    // Thành viên mới hoặc chưa từng tham gia buổi nào -> không báo vắng nhiều buổi
+    return { missedSessions: 0, isComeback: false }
+  }
+
+  const checkAttended = (s) => {
+    if (!s) return false
+    const attMap = attendance[s.id] || (typeof s.attendance === 'object' && !Array.isArray(s.attendance) ? s.attendance : {})
+    if (isPresent(attMap[memberId])) return true
+    if (Array.isArray(s.attendance) && s.attendance.some((a) => (a.memberId === memberId || a.id === memberId) && (a.status === 'present' || a.present === true))) return true
+    if (Array.isArray(s.attendees) && s.attendees.some((a) => (typeof a === 'string' ? a === memberId : a.memberId === memberId))) return true
+    if (memberSessionIds.has(s.id)) return true
+    return false
+  }
+
+  const todayStr = db.today || new Date().toISOString().slice(0, 10)
+
+  // 2. Lấy danh sách các buổi tập trong quá khứ của CLB
   const pastSessions = (db.sessions || [])
     .filter((s) => s && s.status !== 'cancelled' && s.status !== 'draft')
     .filter((s) => {
       if (s.status === 'closed' || s.status === 'completed') return true
-      if (s.date) {
-        const todayStr = db.today || new Date().toISOString().slice(0, 10)
-        return s.date < todayStr
+      // Buổi chưa đóng chỉ tính là buổi quá khứ hợp lệ nếu đã diễn ra trước hôm nay VÀ có dữ liệu thực tế (điểm danh hoặc trận đấu)
+      if (s.date && s.date < todayStr) {
+        const hasAttData = attendance[s.id] && Object.keys(attendance[s.id]).length > 0
+        return Boolean(hasAttData || allSessionIdsWithMatches.has(s.id))
       }
       return false
     })
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
-  let sessionList = []
-
   if (pastSessions.length > 0) {
-    sessionList = pastSessions.map((s) => ({
-      id: s.id,
-      date: s.date,
-      attended: isMemberAttendedSession(s, memberId, db),
-    }))
-  } else if (Array.isArray(db.matches) && db.matches.length > 0) {
-    // Fallback: Gom theo ngày thi đấu trong quá khứ từ db.matches
+    // Tính lười (lazy check) - chỉ kiểm tra tối đa 5 buổi gần nhất
+    const firstAttended = checkAttended(pastSessions[0])
+    if (!firstAttended) {
+      let missed = 1
+      const maxCheck = Math.min(pastSessions.length, 5)
+      for (let i = 1; i < maxCheck; i++) {
+        if (!checkAttended(pastSessions[i])) {
+          missed++
+        } else {
+          break
+        }
+      }
+      return { missedSessions: Math.min(missed, 5), isComeback: false }
+    } else {
+      // Buổi gần nhất có đi -> kiểm tra xem có phải comeback sau khi vắng >= 2 buổi trước đó
+      let priorMissed = 0
+      const maxCheck = Math.min(pastSessions.length, 4)
+      for (let i = 1; i < maxCheck; i++) {
+        if (!checkAttended(pastSessions[i])) {
+          priorMissed++
+        } else {
+          break
+        }
+      }
+      return { missedSessions: 0, isComeback: priorMissed >= 2 }
+    }
+  }
+
+  // Fallback: Gom theo ngày thi đấu trong quá khứ từ allMatches nếu db.sessions không có
+  if (allMatches.length > 0) {
     const todayStart = new Date(db.today || Date.now()).setHours(0, 0, 0, 0)
     const dayMap = new Map()
 
-    db.matches.forEach((m) => {
+    allMatches.forEach((m) => {
       if (!m) return
       const ts = m.at || (m.ended_at ? new Date(m.ended_at).getTime() : 0)
       if (!ts) return
@@ -1666,47 +1724,36 @@ export function calcSessionAttendanceHistory(db, memberId) {
     })
 
     const sortedDays = Array.from(dayMap.values()).sort((a, b) => b.dayStart - a.dayStart)
-    sessionList = sortedDays.map((d) => {
-      const attended = d.matches.some((m) => (m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))
-      return {
-        id: `day-${d.dayStart}`,
-        date: new Date(d.dayStart).toISOString().slice(0, 10),
-        attended,
-      }
-    })
-  }
-
-  if (sessionList.length === 0) {
-    return { missedSessions: 0, isComeback: false }
-  }
-
-  // 2. Tính số buổi vắng liên tiếp gần nhất (tính từ buổi gần nhất trở về trước)
-  let missedSessions = 0
-  for (let i = 0; i < sessionList.length; i++) {
-    if (!sessionList[i].attended) {
-      missedSessions++
-    } else {
-      break
-    }
-  }
-
-  // 3. Kiểm tra comeback: Buổi gần nhất CÓ đi, nhưng 2+ buổi trước đó liên tiếp KHÔNG đi
-  let isComeback = false
-  if (sessionList.length >= 3 && sessionList[0].attended) {
-    let priorMissed = 0
-    for (let i = 1; i < sessionList.length; i++) {
-      if (!sessionList[i].attended) {
-        priorMissed++
+    if (sortedDays.length > 0) {
+      const checkDayAttended = (d) => d.matches.some((m) => (m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))
+      const firstAttended = checkDayAttended(sortedDays[0])
+      if (!firstAttended) {
+        let missed = 1
+        const maxCheck = Math.min(sortedDays.length, 5)
+        for (let i = 1; i < maxCheck; i++) {
+          if (!checkDayAttended(sortedDays[i])) {
+            missed++
+          } else {
+            break
+          }
+        }
+        return { missedSessions: Math.min(missed, 5), isComeback: false }
       } else {
-        break
+        let priorMissed = 0
+        const maxCheck = Math.min(sortedDays.length, 4)
+        for (let i = 1; i < maxCheck; i++) {
+          if (!checkDayAttended(sortedDays[i])) {
+            priorMissed++
+          } else {
+            break
+          }
+        }
+        return { missedSessions: 0, isComeback: priorMissed >= 2 }
       }
-    }
-    if (priorMissed >= 2) {
-      isComeback = true
     }
   }
 
-  return { missedSessions, isComeback }
+  return { missedSessions: 0, isComeback: false }
 }
 
 /**
@@ -1719,15 +1766,15 @@ export function calcSessionAttendanceHistory(db, memberId) {
  * @param {Object} db
  * @returns {{ greetingKey: string, greetingParams: Object, subKey: string|null, subParams: Object }}
  */
-export function getPersonalGreeting(currentMember, heroStats, formStats, recentMatches, upcomingSession, db) {
+export function getPersonalGreeting(currentMember, heroStats, formStats, recentMatches, upcomingSession, db, sessionSeed = 0) {
   if (!currentMember) return null
 
   const isFemale = isFemalePlayer(currentMember)
   const memberName = currentMember.name || ''
   const todayKey = db?.today || new Date().toISOString().slice(0, 10)
-  const seedBase = `${currentMember.id}_${todayKey}`
+  const seedBase = `${currentMember.id}_${todayKey}_${sessionSeed}`
 
-  // 1. Chọn Greeting Key (deterministic theo ngày và memberId)
+  // 1. Chọn Greeting Key (deterministic theo ngày, memberId và sessionSeed)
   const randIndex = getDeterministicRoll(seedBase + '_greet', 3) + 1
   let greetingKey = 'home.personal.greetingNeutral'
   if (isFemale) {
@@ -1737,23 +1784,22 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
   }
 
   // 2. Tính toán thứ hạng Bảng Mùa (ALL và riêng Nam/Nữ)
-  let seasonRank = heroStats?.seasonRank || heroStats?.myRank || heroStats?.rank || 0
-  let seasonTotalMembers = heroStats?.seasonTotalMembers || heroStats?.totalMembers || 0
-  let genderSeasonRank = heroStats?.genderSeasonRank || 0
-  let genderSeasonTotal = heroStats?.genderSeasonTotal || 0
+  let seasonRank = heroStats?.seasonRank ?? 0
+  let seasonTotalMembers = heroStats?.seasonTotalMembers ?? 0
+  let genderSeasonRank = heroStats?.genderSeasonRank ?? 0
+  let genderSeasonTotal = heroStats?.genderSeasonTotal ?? 0
 
-  if ((!seasonRank || !genderSeasonRank) && db) {
+  if (heroStats?.seasonRank == null && db) {
     try {
       const seasonData = calculateSeasonLeaderboard(db)
       const sLeaderboard = seasonData?.leaderboard || []
       if (sLeaderboard.length > 0) {
         if (!seasonTotalMembers) seasonTotalMembers = sLeaderboard.length
         const myIdx = sLeaderboard.findIndex((r) => r.id === currentMember.id)
-        if (myIdx >= 0 && !seasonRank) {
+        if (myIdx >= 0) {
           seasonRank = sLeaderboard[myIdx].rank || (myIdx + 1)
         }
 
-        // Chỉ đồng bộ giới tính từ db nếu db khớp về quy mô hoặc thứ hạng với heroStats
         const isDbConsistent = !seasonTotalMembers || sLeaderboard.length === seasonTotalMembers || !seasonRank || (myIdx >= 0 && sLeaderboard[myIdx].rank === seasonRank)
         if (isDbConsistent) {
           const genderRows = sLeaderboard.filter((r) => {
@@ -1762,17 +1808,17 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
           })
           if (!genderSeasonTotal) genderSeasonTotal = genderRows.length
           const myGenderIdx = genderRows.findIndex((r) => r.id === currentMember.id)
-          if (myGenderIdx >= 0 && !genderSeasonRank) {
+          if (myGenderIdx >= 0) {
             genderSeasonRank = myGenderIdx + 1
           }
         }
       }
-    } catch {}
+    } catch { /* không tra được BXH mùa: giữ genderSeasonRank = 0 */ }
   }
 
   // Đáy bảng là khoảng 4-5 người cuối bảng mùa (bảng all hoặc bảng riêng nam/nữ)
   const isBottomRank = (total, rank) => {
-    if (!total || !rank || rank <= 3) return false // Top 1, 2, 3 không tính là đáy
+    if (!total || !rank || rank <= 3) return false // Top 1, 2, 3 không tính là đáy; rank = 0 không tính
     if (total <= 4) return rank === total
     const threshold = Math.max(4, total - 4) // Khoảng 4-5 người cuối bảng
     return rank >= threshold
@@ -1791,12 +1837,13 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
   // TẦNG 1: Thu thập tất cả các trạng thái đang hợp lệ của thành viên (Active Contexts)
   const candidateStates = []
 
-  const isTop1 = (seasonRank === 1) ||
-                 (isFemale && genderSeasonRank === 1 && seasonRank <= 3 && genderSeasonTotal >= 3) ||
-                 (!isFemale && genderSeasonRank === 1 && seasonRank <= 2 && genderSeasonTotal >= 3)
+  const isTop1 = (seasonRank === 1)
+  const isGenderTop1 = (!isTop1 && genderSeasonRank === 1 && genderSeasonTotal >= 3)
 
   if (isTop1) {
     candidateStates.push({ type: 'top1' })
+  } else if (isGenderTop1) {
+    candidateStates.push({ type: 'gender_top1' })
   }
   if (justRankedUp && lastMatch?.rankImpact?.to) {
     candidateStates.push({ type: 'rank_up', params: { rank: lastMatch.rankImpact.to } })
@@ -1807,10 +1854,10 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
   if (isBottom) {
     candidateStates.push({ type: 'bottom' })
   }
-  if ((seasonRank >= 2 && seasonRank <= 4) || (genderSeasonRank >= 2 && genderSeasonRank <= 4 && genderSeasonTotal >= 6)) {
+  if (seasonRank >= 2 && seasonRank <= 4) {
     candidateStates.push({
       type: 'top_chaser',
-      params: { rank: (seasonRank >= 2 && seasonRank <= 4) ? seasonRank : genderSeasonRank },
+      params: { rank: seasonRank },
     })
   }
   if (isLoseStreak) {
@@ -1842,6 +1889,13 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
     switch (chosen.type) {
       case 'top1':
         subKey = coin ? 'home.personal.subRank1' : 'home.personal.subRank1b'
+        break
+      case 'gender_top1':
+        if (isFemale) {
+          subKey = coin ? 'home.personal.subGenderTop1Female' : 'home.personal.subGenderTop1Female2'
+        } else {
+          subKey = coin ? 'home.personal.subGenderTop1Male' : 'home.personal.subGenderTop1Male2'
+        }
         break
       case 'rank_up':
         subKey = coin ? 'home.personal.subRankUp' : 'home.personal.subRankUp2'

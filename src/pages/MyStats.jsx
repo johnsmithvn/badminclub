@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Avatar } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
@@ -119,10 +119,17 @@ export default function MyStats() {
   // 7. Buổi tập sắp tới
   const upcomingSession = useMemo(() => getNextUpcomingSession(db, memberId), [db, memberId])
 
+  // Seed ngẫu nhiên đúng MỘT lần khi mount trang: F5 đổi câu chào, nhưng mọi lần db sync lại
+  // vẫn ra cùng một câu nên chữ không nhảy trước mắt người đang đọc.
+  // Dùng useState với hàm khởi tạo lười, KHÔNG dùng useRef: `useRef(expr)` đánh giá `expr` ở mọi
+  // lần render rồi vứt đi (gọi hàm bất thuần lúc render), và đọc `ref.current` trong useMemo là
+  // đọc ref lúc render — cả hai đều bị react-hooks/purity và react-hooks/refs chặn.
+  const [sessionSeed] = useState(() => Math.floor(Math.random() * 10000))
+
   // Lời chào cá nhân & Subtitle tương tác sinh động theo dữ liệu thực tế
   const personalGreeting = useMemo(
-    () => getPersonalGreeting(currentMember, heroStats, formStats, recentMatches, upcomingSession, db),
-    [currentMember, heroStats, formStats, recentMatches, upcomingSession, db],
+    () => getPersonalGreeting(currentMember, heroStats, formStats, recentMatches, upcomingSession, db, sessionSeed),
+    [currentMember, heroStats, formStats, recentMatches, upcomingSession, db, sessionSeed],
   )
 
   // 8. Tin tức nổi bật hôm nay
