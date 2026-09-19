@@ -210,7 +210,8 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       if (saved?.bountyBroken) {
         const losingTeam = saved.winnerTeam === 'A' ? teamB : teamA
         const winningTeam = saved.winnerTeam === 'A' ? teamA : teamB
-        const victimName = losingTeam.map((id) => playerName(db, id)).join(' · ')
+        const victims = (saved.bountyVictimIds && saved.bountyVictimIds.length > 0) ? saved.bountyVictimIds : losingTeam
+        const victimName = victims.map((id) => playerName(db, id)).join(' · ')
         const baseBadge = getBadgeById('ke_ngat_chuoi') || {}
         badgeToUnlock = {
           id: 'ke_ngat_chuoi',

@@ -366,6 +366,7 @@
   "monthPrefix": "Tháng",
   "nav": {
     "home": "Home",
+    "overview": "Tổng quan CLB",
     "calendar": "Lịch tháng",
     "sessions": "Buổi tập",
     "assign": "Chia sân",
@@ -388,12 +389,12 @@
   },
   "pages": {
     "home": {
-      "title": "Home",
-      "desc": "Toàn cảnh quỹ, buổi tập và công nợ"
-    },
-    "myStats": {
-      "title": "Bảng thành tích",
+      "title": "Trang chủ",
       "desc": "Thành tích, thứ hạng và phong độ thi đấu của tôi"
+    },
+    "overview": {
+      "title": "Tổng quan CLB",
+      "desc": "Toàn cảnh quỹ, buổi tập và công nợ"
     },
     "matches": {
       "title": "Trận đấu & Kèo",

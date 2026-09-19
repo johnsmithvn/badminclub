@@ -1,11 +1,12 @@
 import { t } from '#i18n'
 
-export default function SeasonRaceCard({ raceData }) {
-  if (!raceData || raceData.empty) {
+export default function SeasonRaceCard({ raceData, data }) {
+  const activeData = raceData || data
+  if (!activeData || activeData.empty) {
     return (
       <div style={S.card}>
         <div style={S.headerRow}>
-          <span style={S.title}>{t('home.personal.seasonRaceTitle', { weeks: raceData?.weeks || 6 })}</span>
+          <span style={S.title}>{t('home.personal.seasonRaceTitle', { weeks: activeData?.weeks || 6 })}</span>
         </div>
         <div style={S.emptyState}>
           {t('home.personal.emptyMatches')}
@@ -28,7 +29,7 @@ export default function SeasonRaceCard({ raceData }) {
     latestMyY = 22,
     initialGap = 0,
     currentGap = 0,
-  } = raceData
+  } = activeData
 
   const sign = deltaElo >= 0 ? '+' : ''
 

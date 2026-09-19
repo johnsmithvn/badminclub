@@ -17,6 +17,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 const NAV = [
   { value: 'home', icon: 'layout-dashboard' },
   { section: 'ops' },
+  { value: 'overview', icon: 'building-2' },
   { value: 'calendar', icon: 'calendar-days' },
   { value: 'sessions', icon: 'clipboard-check', badge: 'unclosedSessions' },
   { value: 'matches', icon: 'history', badge: 'pendingChallenges' },

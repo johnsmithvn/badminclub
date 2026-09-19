@@ -3455,6 +3455,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // B2: Kiểm tra nếu trận đấu có tính điểm thi đấu (isRated) làm đứt chuỗi thắng Bounty của đối thủ
         let bountyBroken = false
         let brokenStreak = 0
+        let bountyVictims = []
         const minBountyStreak = Number(cfgBadges?.bounty?.minStreakSingle || 5)
         if (isRated && (winnerTeam === 'A' || winnerTeam === 'B')) {
           // Danh hiệu là phần TRANG TRÍ của việc lưu trận. Nếu nó ném lỗi thì chỉ được mất
@@ -3462,21 +3463,22 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           try {
             const losingPlayers = winnerTeam === 'A' ? (teamB || []) : (teamA || [])
             const currentSeasonMatches = seasonMatchesOf(d)
-            let maxLosingStreak = 0
-            for (const pid of losingPlayers) {
+            const streakers = losingPlayers.map((pid) => {
               const { streak } = getMemberStreak(pid, d, null, currentSeasonMatches)
-              if (streak > maxLosingStreak) {
-                maxLosingStreak = streak
-              }
-            }
+              return { pid, streak }
+            })
+            const maxLosingStreak = Math.max(0, ...streakers.map((s) => s.streak))
             if (maxLosingStreak >= minBountyStreak) {
               bountyBroken = true
               brokenStreak = maxLosingStreak
+              // Chỉ người có chuỗi đạt mốc maxLosingStreak mới là nạn nhân thực sự bị ngắt chuỗi
+              bountyVictims = streakers.filter((s) => s.streak === maxLosingStreak).map((s) => s.pid)
             }
           } catch (err) {
             console.warn('[badges] bỏ qua tính bounty cho trận này:', err)
             bountyBroken = false
             brokenStreak = 0
+            bountyVictims = []
           }
         }
 
@@ -3501,6 +3503,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           eloDelta: Math.abs(delta),
           bountyBroken,
           brokenStreak,
+          bountyVictimIds: bountyVictims,
         }
 
         if (chal) {
@@ -3633,7 +3636,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             matchId: newMatch.id,
             streak: newMatch.brokenStreak,
             breakerIds: winIds,
-            victimIds: loseIds,
+            victimIds: bountyVictims.length > 0 ? bountyVictims : loseIds,
           },
           recipients: [...winIds, ...loseIds],
           refType: 'match',
@@ -3645,13 +3648,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       if (chal && isChalComplete) {
         const cWinners = (chalSeriesProg?.winnerTeam === 'A' ? chal.teamA : chal.teamB) || winIds
         const cLosers = (chalSeriesProg?.winnerTeam === 'A' ? chal.teamB : chal.teamA) || loseIds
+        const winTeam = chalSeriesProg?.winnerTeam || newMatch.winnerTeam
+        const winSets = chalSeriesProg ? (winTeam === 'B' ? chalSeriesProg.winsB : chalSeriesProg.winsA) : 1
+        const loseSets = chalSeriesProg ? (winTeam === 'B' ? chalSeriesProg.winsA : chalSeriesProg.winsB) : 0
         emitEvent({
           type: 'challenge_completed',
           payload: {
             chalId: chal.id,
             code: chal.code,
-            winnerTeam: chalSeriesProg?.winnerTeam || newMatch.winnerTeam,
-            seriesScore: chalSeriesProg ? `${chalSeriesProg.winsA}-${chalSeriesProg.winsB}` : '1-0',
+            winnerTeam: winTeam,
+            seriesScore: `${winSets}-${loseSets}`,
             winnerIds: cWinners,
             loserIds: cLosers,
           },
@@ -3697,27 +3703,28 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
       let bountyBroken = false
       let brokenStreak = 0
+      let bountyVictims = []
       const minBountyStreak = Number(cfgBadges?.bounty?.minStreakSingle || 5)
       const isRated = match.ratingEnabled !== false
       if (isRated && (winnerTeam === 'A' || winnerTeam === 'B')) {
         try {
           const losingPlayers = winnerTeam === 'A' ? (match.teamB || []) : (match.teamA || [])
           const currentSeasonMatches = seasonMatchesOf(d0).filter((m) => m.id !== matchId)
-          let maxLosingStreak = 0
-          for (const pid of losingPlayers) {
+          const streakers = losingPlayers.map((pid) => {
             const { streak } = getMemberStreak(pid, d0, null, currentSeasonMatches)
-            if (streak > maxLosingStreak) {
-              maxLosingStreak = streak
-            }
-          }
+            return { pid, streak }
+          })
+          const maxLosingStreak = Math.max(0, ...streakers.map((s) => s.streak))
           if (maxLosingStreak >= minBountyStreak) {
             bountyBroken = true
             brokenStreak = maxLosingStreak
+            bountyVictims = streakers.filter((s) => s.streak === maxLosingStreak).map((s) => s.pid)
           }
         } catch (err) {
           console.warn('[badges] bỏ qua tính bounty khi editMatchScore:', err)
           bountyBroken = false
           brokenStreak = 0
+          bountyVictims = []
         }
       }
 
@@ -3731,6 +3738,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
               winnerTeam: winnerTeam || m.winnerTeam,
               bountyBroken,
               brokenStreak,
+              bountyVictimIds: bountyVictims,
             }
           : m,
       )
@@ -3805,11 +3813,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         winnerTeam: winnerTeam || match.winnerTeam,
         bountyBroken,
         brokenStreak,
+        bountyVictimIds: bountyVictims,
       }
       return {
         ...updatedTargetMatch,
         bountyBroken,
         brokenStreak,
+        bountyVictimIds: bountyVictims,
         nextPlayerRatings: finalRatings,
       }
     },

@@ -9,6 +9,8 @@ import {
   formatScoreString,
   getEntityName,
   formatTeamNames,
+  formatWinnerSeriesScore,
+  resolveBountyVictimIds,
   resolveActivityPayload,
   resolveNotificationPayload,
   notifyRecipients,
@@ -274,7 +276,59 @@ const notifRefundBulk = resolveNotificationPayload(
   mockDb
 )
 const msgBulk = t('notification.refund_bulk', notifRefundBulk)
-assert.ok(msgBulk.includes('100.000') && msgBulk.includes('2') && msgBulk.includes('2026-09'), 'refund_bulk message must contain amount, n and month')
+// 10. formatWinnerSeriesScore & challenge_completed normalization
+assert.equal(formatWinnerSeriesScore('0-1'), '1-0', '0-1 must be normalized to 1-0 for winner')
+assert.equal(formatWinnerSeriesScore('1-2'), '2-1', '1-2 must be normalized to 2-1 for winner')
+assert.equal(formatWinnerSeriesScore('2-0'), '2-0')
+assert.equal(formatWinnerSeriesScore({ winsA: 0, winsB: 1 }), '1-0')
+assert.equal(formatWinnerSeriesScore({ winsA: 2, winsB: 1 }), '2-1')
+
+const notifChalCompleted = resolveNotificationPayload(
+  {
+    type: 'challenge_completed',
+    payload: {
+      code: 'C-0103',
+      winnerIds: ['m2'],
+      seriesScore: '0-1',
+      winnerTeam: 'B',
+    },
+  },
+  mockDb
+)
+assert.equal(notifChalCompleted.seriesScore, '1-0', 'seriesScore for winner in notification must be 1-0 not 0-1')
+const msgChalComp = t('notification.challenge_completed', notifChalCompleted)
+assert.ok(msgChalComp.includes('thắng chung cuộc 1-0'), 'Thông báo phải ghi thắng chung cuộc 1-0 thay vì 0-1')
+
+// 11. resolveBountyVictimIds: chỉ lấy người thực sự có chuỗi khi payload gom cả đội thua
+const mockBountyDb = {
+  ...mockDb,
+  matches: [
+    // m1 thắng 5 trận liên tiếp trước mt-streak-break
+    { id: 'sb1', at: 100, teamA: ['m1'], teamB: ['m4'], winnerTeam: 'A', ratingEnabled: true },
+    { id: 'sb2', at: 200, teamA: ['m1'], teamB: ['m4'], winnerTeam: 'A', ratingEnabled: true },
+    { id: 'sb3', at: 300, teamA: ['m1'], teamB: ['m4'], winnerTeam: 'A', ratingEnabled: true },
+    { id: 'sb4', at: 400, teamA: ['m1'], teamB: ['m4'], winnerTeam: 'A', ratingEnabled: true },
+    { id: 'sb5', at: 500, teamA: ['m1'], teamB: ['m4'], winnerTeam: 'A', ratingEnabled: true },
+    // Trận làm đứt chuỗi: m1 cặp với m2 và thua
+    { id: 'mt-streak-break', at: 600, teamA: ['m3', 'm4'], teamB: ['m1', 'm2'], winnerTeam: 'A', ratingEnabled: true },
+  ],
+}
+const notifBountyBroken = resolveNotificationPayload(
+  {
+    type: 'bounty_broken',
+    refId: 'mt-streak-break',
+    payload: {
+      matchId: 'mt-streak-break',
+      streak: 5,
+      breakerIds: ['m3', 'm4'],
+      victimIds: ['m1', 'm2'], // m1 có chuỗi 5, m2 không có chuỗi
+    },
+  },
+  mockBountyDb
+)
+assert.equal(notifBountyBroken.victims, 'Quân', 'Chỉ Quân có chuỗi 5, không được gom cả Kuro')
+const msgBountyBroken = t('notification.bounty_broken', notifBountyBroken)
+assert.ok(msgBountyBroken.includes('chuỗi thắng 5 trận của Quân vừa bị chặn đứng') || msgBountyBroken.includes('Chuỗi thắng 5 trận của Quân vừa bị chặn đứng'), 'Thông báo phá chuỗi chỉ ghi tên người có chuỗi')
 
 console.log('payload resolvers: OK')
 

@@ -98,7 +98,7 @@ export default function MyStats() {
     return (
       <div style={S.emptyScreenContainer}>
         <div style={S.emptyCard}>
-          <h2 style={S.emptyTitle}>{t('pages.myStats.title')}</h2>
+          <h2 style={S.emptyTitle}>{t('pages.home.title')}</h2>
           <p style={S.emptyDesc}>{t('home.personal.notMember')}</p>
         </div>
       </div>
@@ -128,7 +128,7 @@ export default function MyStats() {
         </div>
 
         {/* Thẻ 01: Hero Rank */}
-        <HeroRankCard data={heroStats} isMobile={true} />
+        <HeroRankCard hero={heroStats} data={heroStats} isMobile={true} />
 
         {/* Thẻ 02: Recent Form */}
         <RecentFormCard form={formStats} isMobile={true} />
@@ -141,7 +141,7 @@ export default function MyStats() {
         />
 
         {/* Thẻ 04: Season Race */}
-        <SeasonRaceCard data={seasonRace} />
+        <SeasonRaceCard raceData={seasonRace} data={seasonRace} />
 
         {/* Thẻ 05: Trận gần nhất */}
         <RecentMatchesCard
@@ -204,13 +204,13 @@ export default function MyStats() {
       <div style={S.desktopGrid}>
         {/* Cột chính (Trái) */}
         <div style={S.mainCol}>
-          <HeroRankCard data={heroStats} isMobile={false} />
+          <HeroRankCard hero={heroStats} data={heroStats} isMobile={false} />
           <RivalGoalCard
             rivalAnalysis={rivalAnalysis}
             isMobile={false}
             onChallenge={handleLogMatch}
           />
-          <SeasonRaceCard data={seasonRace} />
+          <SeasonRaceCard raceData={seasonRace} data={seasonRace} />
           <RecentMatchesCard
             matches={recentMatches}
             isMobile={false}

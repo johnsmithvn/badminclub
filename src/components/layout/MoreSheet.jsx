@@ -62,6 +62,7 @@ export default function MoreSheet({ open, onClose, route }) {
     {
       title: t('nav.section.ops'),
       items: [
+        { value: 'overview', icon: 'building-2' },
         {
           value: 'matches',
           icon: 'history',

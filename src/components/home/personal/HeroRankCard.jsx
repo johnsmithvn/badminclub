@@ -1,6 +1,7 @@
 import { t } from '#i18n'
 
-export default function HeroRankCard({ hero, isMobile }) {
+export default function HeroRankCard({ hero, data, isMobile }) {
+  const activeHero = hero || data || {}
   const {
     rank = 1,
     totalMembers = 0,
@@ -15,7 +16,7 @@ export default function HeroRankCard({ hero, isMobile }) {
     pointsToNextRank = 0,
     progressPct = 100,
     isLeader = false,
-  } = hero || {}
+  } = activeHero
 
   const sign = eloDeltaWeek > 0 ? '↑ ' : eloDeltaWeek < 0 ? '↓ ' : ''
   const absDelta = Math.abs(eloDeltaWeek)

@@ -36,7 +36,7 @@ import Sessions from '#pages/Sessions.jsx'
 import Settings from '#pages/Settings.jsx'
 
 const SCREEN = {
-  home: Home, myStats: MyStats, calendar: Calendar, sessions: Sessions, session: SessionDetail, assign: Assign,
+  home: MyStats, overview: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail, assign: Assign,
   matches: Matches, leaderboard: Leaderboard, badges: Badges, members: Members, debts: Debts, fund: Fund,
   profile: Profile, settings: Settings, schema: Schema,
 }

@@ -471,7 +471,8 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
         const isWinnerMe = !currentMember?.id || winningTeam.includes(currentMember.id)
 
         if (isWinnerMe) {
-          const victimName = losingTeam.map((id) => playerName(db, id)).join(' · ')
+          const victims = (saved.bountyVictimIds && saved.bountyVictimIds.length > 0) ? saved.bountyVictimIds : losingTeam
+          const victimName = victims.map((id) => playerName(db, id)).join(' · ')
           const baseBadge = getBadgeById('ke_ngat_chuoi') || {}
           badgeToUnlock = {
             id: 'ke_ngat_chuoi',

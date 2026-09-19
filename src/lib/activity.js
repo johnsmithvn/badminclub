@@ -4,6 +4,7 @@
 
 import { getPlayerPartnersAndMatchups } from '#lib/rating.js'
 import { getMemberStreak } from '#lib/badges.js'
+import { seasonMatchesOf } from '#lib/season.js'
 import { dd } from '#utils/dates.js'
 import { t } from '#i18n'
 
@@ -300,6 +301,48 @@ export function notifyRecipients(recipients, actorId, memberIds) {
 }
 
 /**
+ * Chuẩn hoá tỷ số chuỗi của đội thắng để số ván thắng luôn đứng trước (ví dụ "1-0", "2-1").
+ */
+export function formatWinnerSeriesScore(seriesScore) {
+  if (!seriesScore) return '1-0'
+  if (typeof seriesScore === 'object' && seriesScore !== null) {
+    const wA = Number(seriesScore.winsA) || 0
+    const wB = Number(seriesScore.winsB) || 0
+    return `${Math.max(wA, wB)}-${Math.min(wA, wB)}`
+  }
+  const match = String(seriesScore).match(/^(\d+)\s*[-–]\s*(\d+)$/)
+  if (match) {
+    const s1 = parseInt(match[1], 10)
+    const s2 = parseInt(match[2], 10)
+    return `${Math.max(s1, s2)}-${Math.min(s1, s2)}`
+  }
+  return String(seriesScore)
+}
+
+/**
+ * Lọc danh sách nạn nhân thực sự bị ngắt chuỗi (nếu payload gom cả đội thua nhưng chỉ 1 người có chuỗi).
+ */
+export function resolveBountyVictimIds(victimIds, item, db) {
+  if (!Array.isArray(victimIds) || victimIds.length <= 1 || !db) return victimIds || []
+  const p = item?.payload || {}
+  const streakReq = p.streak
+  if (!streakReq) return victimIds
+  try {
+    const matchId = p.matchId || item?.refId
+    const mt = matchId ? (db?.matches || []).find((m) => m.id === matchId) : null
+    const prevMatches = (db?.matches || []).filter((m) => m.id !== matchId && (mt?.at ? m.at < mt.at : true))
+    const seasonMatches = seasonMatchesOf({ ...db, matches: prevMatches })
+    const actualVictims = victimIds.filter((pid) => {
+      const { streak } = getMemberStreak(pid, db, null, seasonMatches)
+      return streak === streakReq || streak >= streakReq
+    })
+    return actualVictims.length > 0 ? actualVictims : victimIds
+  } catch (err) {
+    return victimIds
+  }
+}
+
+/**
  * Trích xuất và giải mã tên hiển thị từ payload (chứa ID) phục vụ render giao diện và i18n
  */
 export function resolveActivityPayload(item, db) {
@@ -320,8 +363,9 @@ export function resolveActivityPayload(item, db) {
   }
 
   if (item?.type === 'bounty_broken') {
+    const victimIds = resolveBountyVictimIds(p.victimIds, item, db)
     res.breakers = p.breakers || formatTeamNames(db, p.breakerIds)
-    res.victims = p.victims || formatTeamNames(db, p.victimIds)
+    res.victims = p.victims || formatTeamNames(db, victimIds)
   }
 
   if (item?.type === 'challenge_created') {
@@ -332,6 +376,9 @@ export function resolveActivityPayload(item, db) {
   if (item?.type === 'challenge_completed') {
     res.winners = p.winners || formatTeamNames(db, p.winnerIds)
     res.losers = p.losers || formatTeamNames(db, p.loserIds)
+    if (res.seriesScore) {
+      res.seriesScore = formatWinnerSeriesScore(res.seriesScore)
+    }
   }
 
   if (item?.type === 'member_joined') {
@@ -361,10 +408,14 @@ export function resolveNotificationPayload(item, db) {
 
   if (item?.type === 'challenge_completed') {
     res.winners = p.winners || formatTeamNames(db, p.winnerIds)
+    if (res.seriesScore) {
+      res.seriesScore = formatWinnerSeriesScore(res.seriesScore)
+    }
   }
 
   if (item?.type === 'bounty_broken') {
-    res.victims = p.victims || formatTeamNames(db, p.victimIds)
+    const victimIds = resolveBountyVictimIds(p.victimIds, item, db)
+    res.victims = p.victims || formatTeamNames(db, victimIds)
   }
 
   if (item?.type === 'match_recorded') {
