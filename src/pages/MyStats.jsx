@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
-import { Avatar } from '#ds'
+import { useMemo, useState, useRef } from 'react'
+import { Avatar, Button, IconButton } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { myMember } from '#lib/money.js'
@@ -34,6 +36,7 @@ import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
 export default function MyStats() {
   const { db, a } = useApp()
   const { profile } = useAuth()
+  const { isDark, toggleTheme } = useTheme()
   const isMobile = useMobile(768)
 
   // Chỉ lấy bản ghi của thành viên đang đăng nhập; nếu không thuộc CLB thì không hiển thị thành tích người khác
@@ -66,10 +69,10 @@ export default function MyStats() {
     [db, memberId, heroStats.targetRival?.id],
   )
 
-  // 4. Trận gần nhất (Mobile: 1 trận, Desktop: 3 trận)
+  // 4. Trận gần nhất (Hiển thị tối đa 3 trận cho cả Mobile và Desktop)
   const recentMatches = useMemo(
-    () => getRecentPlayerMatches(db, memberId, isMobile ? 1 : 3),
-    [db, memberId, isMobile],
+    () => getRecentPlayerMatches(db, memberId, 3),
+    [db, memberId],
   )
 
   // 6. Thống kê cặp ăn ý & đối thủ dùng hàm chuẩn getPlayerPartnersAndMatchups từ rating.js
@@ -189,13 +192,23 @@ export default function MyStats() {
                   })}
             </div>
           </div>
-          <Avatar
-            name={memberName}
-            src={myAvatarUrl}
-            size={34}
-            onClick={() => a.go('profile')}
-            style={{ cursor: 'pointer' }}
-          />
+          <div style={S.mobileHeaderActions}>
+            <IconButton
+              icon={isDark ? 'sun' : 'moon'}
+              size="sm"
+              variant="ghost"
+              label={isDark ? t('common.themeLight') : t('common.themeDark')}
+              onClick={toggleTheme}
+            />
+            <NotificationBell />
+            <Avatar
+              name={memberName}
+              src={myAvatarUrl}
+              size={34}
+              onClick={() => a.go('profile')}
+              style={{ cursor: 'pointer' }}
+            />
+          </div>
         </div>
 
         {/* Thẻ 01: Hero Rank */}
@@ -223,6 +236,13 @@ export default function MyStats() {
           matches={recentMatches}
           isMobile={true}
           onViewAll={handleViewMatches}
+        />
+
+        {/* Thẻ 05b: Quanh bạn trên BXH */}
+        <NearbyStandingsCard
+          standings={nearbyStandings}
+          seasonStandings={nearbySeasonStandings}
+          onViewLeaderboard={handleViewLeaderboard}
         />
 
         {/* Thẻ 06: Cặp ăn ý & Huy hiệu */}
@@ -290,13 +310,30 @@ export default function MyStats() {
                 })}
           </div>
         </div>
-        <Avatar
-          name={memberName}
-          src={myAvatarUrl}
-          size={36}
-          onClick={() => a.go('profile')}
-          style={{ cursor: 'pointer' }}
-        />
+        <div style={S.headerActions}>
+          <IconButton
+            icon={isDark ? 'sun' : 'moon'}
+            size="sm"
+            variant="ghost"
+            label={isDark ? t('common.themeLight') : t('common.themeDark')}
+            onClick={toggleTheme}
+          />
+          <NotificationBell />
+          <Button
+            variant="primary"
+            icon="plus"
+            onClick={handleLogMatch}
+          >
+            {t('home.personal.logMatch')}
+          </Button>
+          <Avatar
+            name={memberName}
+            src={myAvatarUrl}
+            size={36}
+            onClick={() => a.go('profile')}
+            style={{ cursor: 'pointer' }}
+          />
+        </div>
       </div>
 
       <div style={S.desktopGrid}>
@@ -426,6 +463,12 @@ const S = {
     gap: 12,
     padding: '4px 2px',
   },
+  mobileHeaderActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
   headerCol: {
     display: 'flex',
     flexDirection: 'column',
@@ -451,21 +494,30 @@ const S = {
   desktopWrapper: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 16,
-    maxWidth: 1200,
+    gap: 18,
+    width: '100%',
+    maxWidth: 1440,
     margin: '0 auto',
-    padding: '8px 0 32px 0',
+    padding: '0 0 32px 0',
+    boxSizing: 'border-box',
   },
   desktopHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16,
-    padding: '4px 2px',
+    padding: '6px 0 14px 0',
+    borderBottom: '1px solid var(--border-subtle)',
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
   },
   desktopGreeting: {
     margin: 0,
-    font: '700 26px/1.2 var(--font-display)',
+    font: '700 24px/1.2 var(--font-display)',
     color: 'var(--text-primary)',
   },
   desktopSub: {
@@ -474,27 +526,27 @@ const S = {
   },
   desktopGrid: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) 352px',
-    gap: 18,
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(360px, 395px)',
+    gap: 20,
     alignItems: 'start',
   },
   mainCol: {
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: 16,
+    gap: 18,
   },
   sideCol: {
-    width: 352,
+    width: '100%',
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: 16,
+    gap: 18,
   },
   twoColRow: {
     display: 'grid',
     gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-    gap: 16,
+    gap: 18,
     alignItems: 'stretch',
   },
 }

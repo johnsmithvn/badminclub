@@ -33,102 +33,111 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
     )
   }
 
-  // Mobile: Chỉ hiển thị 1 trận gần nhất
+  // Mobile: Hiển thị danh sách các trận gần nhất (tối đa 3 trận)
   if (isMobile) {
-    const m = matches[0]
-    const dateLabel = m.dateKey === 'today' ? t('home.personal.today') : (m.dateKey === 'yesterday' ? t('home.personal.yesterday') : m.dateStr)
-    const myPlayers = m.myTeamPlayers?.length
-      ? m.myTeamPlayers
-      : [{ id: 'me', name: m.myTeamNames, isMe: true }]
-    const oppPlayers = m.oppTeamPlayers?.length
-      ? m.oppTeamPlayers
-      : [{ id: 'opp', name: m.oppTeamNames, isMe: false }]
-
     return (
       <div style={S.card}>
         <div style={S.headerRow}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={S.title}>{t('home.personal.recentMatchTitleMobile')}</span>
-            {m.isChallenge && (
-              <span style={S.challengeBadgeMobile} title={t('home.personal.challengeMatchTooltip')}>
-                <Icon name="swords" size={10} style={{ color: 'var(--status-delayed-fg)' }} />
-                <span>{t('home.personal.challengeMatchBadge')}</span>
-              </span>
-            )}
-          </div>
-          <span style={S.timeMono}>
-            {dateLabel}
-            {m.timeStr ? ` · ${m.timeStr}` : ''}
-          </span>
+          <span style={S.title}>{t('home.personal.recentMatchesTitle')}</span>
+          <button type="button" onClick={onViewAll} style={S.viewAllBtn}>
+            {t('home.personal.viewAll')}
+          </button>
         </div>
 
-        <div style={S.mobileMatchRow}>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <div style={S.mobileTeamRow}>
-              {myPlayers.map((p, pIdx) => (
-                <span key={p.id || pIdx}>
-                  {pIdx > 0 && <span style={S.playerSep}>·</span>}
-                  <span
-                    style={
-                      p.isMe
-                        ? m.won
-                          ? S.myPlayerWin
-                          : S.myPlayerLoss
-                        : S.partnerPlayer
-                    }
-                  >
-                    {p.name}
-                  </span>
-                </span>
-              ))}
-            </div>
-            <div style={S.mobileOppRow}>
-              {oppPlayers.map((p, pIdx) => (
-                <span key={p.id || pIdx}>
-                  {pIdx > 0 && <span style={S.playerSep}>·</span>}
-                  <span style={S.oppPlayer}>{p.name}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
-            <div style={S.mobileScoreCol}>
-              {m.scoreSets && m.scoreSets.length > 0 ? (
-                m.scoreSets.map((s, sIdx) => (
-                  <span key={sIdx} style={S.scoreSetRow}>
-                    {sIdx > 0 && <span style={S.scoreComma}>, </span>}
-                    <span style={m.won ? S.myScoreWinMobile : S.myScoreLossMobile}>{s.myScore}</span>
-                    <span style={S.scoreSepMobile}>-</span>
-                    <span style={S.oppScoreMobile}>{s.oppScore}</span>
-                  </span>
-                ))
-              ) : (
-                <span style={m.won ? S.scoreGreen : S.scoreRed}>{m.score}</span>
-              )}
-            </div>
-            <span style={m.won ? S.badgeWin : S.badgeLoss}>
-              {m.won ? t('home.personal.win') : t('home.personal.loss')}
-            </span>
-          </div>
-        </div>
+        <div style={S.mobileList}>
+          {matches.slice(0, 3).map((m, idx) => {
+            const dateLabel = m.dateKey === 'today' ? t('home.personal.today') : (m.dateKey === 'yesterday' ? t('home.personal.yesterday') : m.dateStr)
+            const myPlayers = m.myTeamPlayers?.length
+              ? m.myTeamPlayers
+              : [{ id: 'me', name: m.myTeamNames, isMe: true }]
+            const oppPlayers = m.oppTeamPlayers?.length
+              ? m.oppTeamPlayers
+              : [{ id: 'opp', name: m.oppTeamNames, isMe: false }]
 
-        <div style={S.pillsRow}>
-          <span style={S.pillPadded}>
-            <span style={m.won ? S.greenMono : S.redMono}>
-              {formatSeasonPoints(m.seasonChange, m.won)}
-            </span>
-          </span>
-          <span style={S.pillPadded}>
-            {m.rankImpact ? (
-              <span style={m.rankImpact.type === 'up' ? S.greenMono : (m.rankImpact.type === 'down' ? S.redMono : S.mutedMono)}>
-                {m.rankImpact.type === 'up' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
-                {m.rankImpact.type === 'down' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
-                {m.rankImpact.type === 'same' && t('home.personal.keepRank', { rank: m.rankImpact.to })}
-              </span>
-            ) : (
-              <span style={S.mutedMono}>—</span>
-            )}
-          </span>
+            return (
+              <div key={m.id || idx} style={idx > 0 ? S.mobileMatchItemWithDivider : S.mobileMatchItem}>
+                <div style={S.mobileItemHeader}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {m.isChallenge && (
+                      <span style={S.challengeBadgeMobile} title={t('home.personal.challengeMatchTooltip')}>
+                        <Icon name="swords" size={10} style={{ color: 'var(--status-delayed-fg)' }} />
+                        <span>{t('home.personal.challengeMatchBadge')}</span>
+                      </span>
+                    )}
+                    <span style={S.timeMono}>
+                      {dateLabel}
+                      {m.timeStr ? ` · ${m.timeStr}` : ''}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={m.won ? S.greenMono : S.redMono}>
+                      {formatSeasonPoints(m.seasonChange, m.won)}
+                    </span>
+                    <span style={m.won ? S.badgeWin : S.badgeLoss}>
+                      {m.won ? t('home.personal.win') : t('home.personal.loss')}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={S.mobileMatchRow}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={S.mobileTeamRow}>
+                      {myPlayers.map((p, pIdx) => (
+                        <span key={p.id || pIdx}>
+                          {pIdx > 0 && <span style={S.playerSep}>·</span>}
+                          <span
+                            style={
+                              p.isMe
+                                ? m.won
+                                  ? S.myPlayerWin
+                                  : S.myPlayerLoss
+                                : S.partnerPlayer
+                            }
+                          >
+                            {p.name}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                    <div style={S.mobileOppRow}>
+                      {oppPlayers.map((p, pIdx) => (
+                        <span key={p.id || pIdx}>
+                          {pIdx > 0 && <span style={S.playerSep}>·</span>}
+                          <span style={S.oppPlayer}>{p.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                    <div style={S.mobileScoreCol}>
+                      {m.scoreSets && m.scoreSets.length > 0 ? (
+                        m.scoreSets.map((s, sIdx) => (
+                          <span key={sIdx} style={S.scoreSetRow}>
+                            {sIdx > 0 && <span style={S.scoreComma}>, </span>}
+                            <span style={m.won ? S.myScoreWinMobile : S.myScoreLossMobile}>{s.myScore}</span>
+                            <span style={S.scoreSepMobile}>-</span>
+                            <span style={S.oppScoreMobile}>{s.oppScore}</span>
+                          </span>
+                        ))
+                      ) : (
+                        <span style={m.won ? S.scoreGreen : S.scoreRed}>{m.score}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {m.rankImpact && m.rankImpact.type !== 'same' && (
+                  <div style={S.mobileRankImpactRow}>
+                    <span style={m.rankImpact.type === 'up' ? S.greenMono : S.redMono}>
+                      {m.rankImpact.type === 'up' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
+                      {m.rankImpact.type === 'down' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     )

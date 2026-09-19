@@ -86,4 +86,47 @@ test('Mobile Responsiveness & Confidence Progression Tests', async (t) => {
     assert.ok(tableMinWidthDesktop > 390, 'Table minWidth exceeds mobile screen width to trigger horizontal scroll')
     assert.ok(tableMinWidthMobile > 390, 'Mobile match card table width exceeds 390px to prevent cramped data')
   })
+
+  await t.test('Mobile Home page renders all 10 personal dashboard cards without omissions', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const myStatsPath = path.resolve('src/pages/MyStats.jsx')
+    const code = await fs.readFile(myStatsPath, 'utf8')
+
+    // Find the mobile block
+    const mobileBlockMatch = code.match(/if\s*\(isMobile\)\s*\{([\s\S]*?)return\s*\(\s*<div style=\{S\.mobileContainer\}>([\s\S]*?)<\/div>\s*\)\s*\}/)
+    assert.ok(mobileBlockMatch, 'MyStats should have an explicit mobile container block')
+
+    const mobileContent = mobileBlockMatch[2]
+    const requiredCards = [
+      'HeroRankCard',
+      'RecentFormCard',
+      'RivalGoalCard',
+      'SeasonRaceCard',
+      'RecentMatchesCard',
+      'NearbyStandingsCard',
+      'SynergyBadgesCard',
+      'MyOpponentsCard',
+      'UpcomingSessionCard',
+      'ClubFeedCard',
+    ]
+
+    for (const card of requiredCards) {
+      assert.ok(
+        mobileContent.includes(`<${card}`),
+        `Mobile home container must include ${card}`,
+      )
+    }
+  })
+
+  await t.test('Recent matches query retrieves up to 3 matches for mobile and desktop feeds', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const myStatsPath = path.resolve('src/pages/MyStats.jsx')
+    const code = await fs.readFile(myStatsPath, 'utf8')
+
+    // Ensure recentMatches is not capped to 1 on mobile
+    assert.ok(!code.includes('isMobile ? 1 : 3'), 'recentMatches must not cap mobile to 1 match')
+    assert.ok(code.includes('getRecentPlayerMatches(db, memberId, 3)'), 'recentMatches must query 3 matches')
+  })
 })

@@ -43,9 +43,10 @@ export default function UpcomingSessionCard({
     ? statusText
     : `${statusText} · ${t('home.personal.expectedMatchesCount', { n: expectedMatches })}`
 
+  const timePart = session.time || '—'
   const overlineText = session.isToday
-    ? (session.time ? t('home.personal.upcomingSessionToday', { time: session.time }) : t('home.personal.upcomingTimeDefault', { time: '—' }))
-    : (session.time ? t('home.personal.upcomingSessionDate', { date: session.dateFormatted || session.date, time: session.time }) : (session.dateFormatted || session.date))
+    ? t('home.personal.upcomingSessionToday', { time: timePart })
+    : t('home.personal.upcomingSessionDate', { date: session.dateFormatted || session.date, time: timePart })
 
   const challenges = session.challenges || []
 
@@ -129,35 +130,35 @@ const S = {
     gap: 12,
   },
   cardDesktop: {
-    padding: '16px 17px',
+    padding: '18px 18px',
     borderRadius: 14,
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
+    gap: 14,
   },
   infoCol: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 3,
+    gap: 4,
   },
   overline: {
-    font: '600 10.5px/1 var(--font-sans)',
-    letterSpacing: '0.1em',
+    font: '700 11px/1 var(--font-mono)',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--text-link)',
   },
   titleMobile: {
-    font: '700 16px/1.25 var(--font-display)',
+    font: '700 16px/1.3 var(--font-display)',
     color: 'var(--text-primary)',
   },
   titleDesktop: {
-    font: '700 18px/1.25 var(--font-display)',
+    font: '700 18px/1.3 var(--font-display)',
     color: 'var(--text-primary)',
   },
   meta: {
-    font: '400 11.5px/1.35 var(--font-mono)',
+    font: '400 12px/1.4 var(--font-mono)',
     color: 'var(--text-muted)',
   },
   emptyState: {
@@ -168,8 +169,8 @@ const S = {
   challengesBox: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 6,
-    padding: '9px 10px',
+    gap: 7,
+    padding: '10px 11px',
     borderRadius: 10,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-default)',
@@ -178,43 +179,46 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    fontSize: 12,
+    fontSize: 12.5,
+    minHeight: 24,
   },
   challengeRowMine: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    fontSize: 12,
-    padding: '3px 5px',
+    fontSize: 12.5,
+    padding: '3px 6px',
     borderRadius: 6,
     background: 'var(--status-delayed-bg)',
+    minHeight: 24,
   },
   tagMine: {
-    font: '600 10px/1 var(--font-sans)',
-    letterSpacing: '0.08em',
+    font: '700 9.5px/1 var(--font-sans)',
+    letterSpacing: '0.05em',
     textTransform: 'uppercase',
     padding: '3px 6px',
-    borderRadius: 999,
+    borderRadius: 6,
     background: 'var(--status-delayed-bg)',
     color: 'var(--status-delayed-fg)',
+    border: '1px solid var(--status-delayed-fg)',
     flex: '0 0 auto',
   },
   tagPending: {
-    font: '600 10px/1 var(--font-sans)',
-    letterSpacing: '0.08em',
+    font: '700 9.5px/1 var(--font-sans)',
+    letterSpacing: '0.05em',
     textTransform: 'uppercase',
     padding: '3px 6px',
-    borderRadius: 999,
+    borderRadius: 6,
     background: 'var(--status-delivered-bg)',
     color: 'var(--status-delivered-fg)',
     flex: '0 0 auto',
   },
   tagAccepted: {
-    font: '600 10px/1 var(--font-sans)',
-    letterSpacing: '0.08em',
+    font: '700 9.5px/1 var(--font-sans)',
+    letterSpacing: '0.05em',
     textTransform: 'uppercase',
     padding: '3px 6px',
-    borderRadius: 999,
+    borderRadius: 6,
     background: 'var(--surface-card)',
     color: 'var(--text-muted)',
     border: '1px solid var(--border-subtle)',
@@ -226,7 +230,7 @@ const S = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    font: '500 12px/1.3 var(--font-sans)',
+    font: '500 12.5px/1.35 var(--font-sans)',
   },
   teamAName: {
     color: 'var(--text-primary)',

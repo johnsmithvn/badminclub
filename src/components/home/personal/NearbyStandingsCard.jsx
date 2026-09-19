@@ -94,6 +94,7 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
+    flexWrap: 'wrap',
   },
   title: {
     flex: 1,

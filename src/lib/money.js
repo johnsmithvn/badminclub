@@ -204,7 +204,8 @@ export function courtTxt(db, s) {
     const nm = courtOf(db, c.courtId).name.replace(t('session.courtPrefix'), '')
     return nm + (c.sold ? ' ' + t('session.soldMark') : c.extra ? ' ' + t('session.extraMark') : '')
   })
-  return n + ' ' + t('units.court') + ' · ' + names.join(', ')
+  const uniqueNames = [...new Set(names)]
+  return n + ' ' + t('units.court') + ' · ' + uniqueNames.join(', ')
 }
 
 export function timeTxt(s) {

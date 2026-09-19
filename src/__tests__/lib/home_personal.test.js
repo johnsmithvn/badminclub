@@ -386,5 +386,17 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     const histOld = calcSessionAttendanceHistory(longAbsentDb, 'memOld')
     assert.equal(histOld.missedSessions, 5) // Chặn trần tại 5, không vọt lên 19 hay 87
   })
+
+  await t.test('16. Mobile & desktop match count and standings contract', () => {
+    const matches = getRecentPlayerMatches(mockDb, 'm1', 3)
+    assert.equal(matches.length, 3, 'Recent matches returns 3 matches when available')
+
+    const standings = getSurroundingStandings(mockDb, 'm1', 5)
+    assert.ok(standings.length > 0, 'Nearby standings available for both mobile and desktop')
+    assert.ok(standings.some((s) => s.isMe), 'Current user is present in nearby standings')
+
+    const seasonStandings = getSurroundingSeasonStandings(mockDb, 'm1', 5)
+    assert.ok(Array.isArray(seasonStandings), 'Season standings returns an array')
+  })
 })
 

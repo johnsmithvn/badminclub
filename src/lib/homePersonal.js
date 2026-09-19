@@ -1276,7 +1276,14 @@ export function getNextUpcomingSession(db, memberId) {
   const goingCount = Object.keys(att).length || 0
   const expectedMatches = Math.max(1, Math.round(goingCount * 0.35))
 
-  const venue = courtTxt(db, s) || s.courtTxt || s.venue || ''
+  let venue = courtTxt(db, s) || s.courtTxt || s.venue || ''
+  if (venue.includes(' · ')) {
+    const parts = venue.split(' · ')
+    // Nếu có dạng "X sân · Tên Sân" -> đảo lại thành "Tên Sân · X sân" chuẩn mockup D1 DESKTOP 1440
+    if (parts.length === 2 && /^\d+/.test(parts[0])) {
+      venue = `${parts[1]} · ${parts[0]}`
+    }
+  }
   const time = timeTxt(s) || s.time || ''
   const isToday = s.date === nowStr
 
