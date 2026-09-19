@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Avatar } from '#ds'
+import { Avatar, Icon } from '#ds'
 import { t } from '#i18n'
 
 export default function SynergyBadgesCard({
@@ -11,15 +11,26 @@ export default function SynergyBadgesCard({
   winsNeededForStreak = 3,
   isMobile,
 }) {
+  const [sortMode, setSortMode] = useState('synergy') // 'synergy' | 'matches'
   const [genderFilter, setGenderFilter] = useState('all') // 'all' | 'nam' | 'nu'
+
+  const toggleSortMode = () => {
+    setSortMode((prev) => (prev === 'synergy' ? 'matches' : 'synergy'))
+  }
 
   const filteredPartners = useMemo(() => {
     let list = []
     if (partners && partners.length > 0) {
-      list = partners
+      list = [...partners]
     } else if (bestPartner) {
       list = [bestPartner]
       if (underperformingPartner) list.push(underperformingPartner)
+    }
+
+    if (sortMode === 'matches') {
+      list.sort((a, b) => (b.games || 0) - (a.games || 0) || (b.synergyScore || 0) - (a.synergyScore || 0))
+    } else {
+      list.sort((a, b) => (b.synergyScore || 0) - (a.synergyScore || 0) || (b.games || 0) - (a.games || 0))
     }
 
     return list
@@ -30,9 +41,31 @@ export default function SynergyBadgesCard({
         return genderFilter === 'nu' ? isNu : !isNu
       })
       .slice(0, 4)
-  }, [partners, bestPartner, underperformingPartner, genderFilter])
+  }, [partners, bestPartner, underperformingPartner, sortMode, genderFilter])
 
   const hasPartnerData = filteredPartners.length > 0
+
+  const sortToggleBtn = (
+    <button
+      type="button"
+      onClick={toggleSortMode}
+      style={S.sortToggleBtn}
+      title={sortMode === 'synergy' ? t('home.personal.sortMatches') : t('home.personal.sortSynergy')}
+    >
+      <Icon
+        name="repeat"
+        size={11.5}
+        style={{
+          transform: sortMode === 'matches' ? 'rotate(180deg)' : 'none',
+          transition: 'transform 0.25s ease',
+          color: 'var(--action-accent-bg)',
+        }}
+      />
+      <span style={S.sortToggleText}>
+        {sortMode === 'synergy' ? t('home.personal.sortSynergy') : t('home.personal.sortMatches')}
+      </span>
+    </button>
+  )
 
   const genderToggle = (
     <div style={S.genderToggle}>
@@ -68,17 +101,25 @@ export default function SynergyBadgesCard({
         <div style={S.mobileBox}>
           <div style={S.mobileBoxHeader}>
             <span style={S.label}>{t('home.personal.bestPartnersTitle')}</span>
-            {genderToggle}
+            <div style={S.controlsRow}>
+              {sortToggleBtn}
+              {genderToggle}
+            </div>
           </div>
           {topPartner ? (
             <>
               <span style={S.valBarlow}>{t('home.personal.synergyWith', { name: topPartner.name })}</span>
               <span style={S.greenMono}>
-                {t('home.personal.synergySummary', {
-                  w: topPartner.wins,
-                  total: topPartner.games,
-                  impact: topPartner.pairImpact,
-                })}
+                {sortMode === 'matches'
+                  ? t('home.personal.matchesSummary', {
+                      total: topPartner.games,
+                      impact: topPartner.pairImpact >= 0 ? `+${topPartner.pairImpact}` : topPartner.pairImpact,
+                    })
+                  : t('home.personal.synergySummary', {
+                      w: topPartner.wins,
+                      total: topPartner.games,
+                      impact: topPartner.pairImpact,
+                    })}
               </span>
             </>
           ) : (
@@ -105,7 +146,10 @@ export default function SynergyBadgesCard({
     <div style={S.desktopCard}>
       <div style={S.headerRow}>
         <span style={S.label}>{t('home.personal.bestPartnersTitle')}</span>
-        {genderToggle}
+        <div style={S.controlsRow}>
+          {sortToggleBtn}
+          {genderToggle}
+        </div>
       </div>
 
       {!hasPartnerData ? (
@@ -123,6 +167,7 @@ export default function SynergyBadgesCard({
               ''
             const impact = p.pairImpact ?? 0
             const isPositive = impact >= 0
+            const impactStr = isPositive ? `+${impact}` : `${impact}`
 
             return (
               <div key={p.id || idx}>
@@ -132,12 +177,20 @@ export default function SynergyBadgesCard({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={S.partnerNameBold}>{p.name}</div>
                     <div style={S.partnerMeta}>
-                      {t('home.personal.matchesTogether', { total: p.games, w: p.wins })}
+                      {sortMode === 'matches'
+                        ? t('home.personal.matchesTogetherWins', { w: p.wins, impact: impactStr })
+                        : t('home.personal.matchesTogether', { total: p.games, w: p.wins })}
                     </div>
                   </div>
-                  <span style={isPositive ? S.impactGreen : S.impactRed}>
-                    {isPositive ? `+${impact}` : impact}
-                  </span>
+                  {sortMode === 'matches' ? (
+                    <span style={S.matchesBadge}>
+                      {t('home.personal.matchesCountUnit', { n: p.games })}
+                    </span>
+                  ) : (
+                    <span style={isPositive ? S.impactGreen : S.impactRed}>
+                      {impactStr}
+                    </span>
+                  )}
                 </div>
               </div>
             )
@@ -176,6 +229,26 @@ const S = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
+  },
+  controlsRow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sortToggleBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+    padding: '2px 7px',
+    borderRadius: 7,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  sortToggleText: {
+    font: '600 10.5px/1 var(--font-sans)',
+    color: 'var(--text-primary)',
   },
   genderToggle: {
     display: 'inline-flex',
@@ -259,6 +332,10 @@ const S = {
   partnerMeta: {
     font: '400 11.5px/1.35 var(--font-mono)',
     color: 'var(--text-muted)',
+  },
+  matchesBadge: {
+    font: '700 13.5px/1 var(--font-mono)',
+    color: 'var(--status-delayed-fg)',
   },
   impactGreen: {
     font: '700 15px/1 var(--font-mono)',
