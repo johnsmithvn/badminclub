@@ -148,8 +148,20 @@ export function getMyHeroStats(db, memberId) {
   // Elo delta tuần từ trận thật
   const eloDeltaWeek = getRecentEloDelta(db, myItem.id, 7)
 
+  // Buổi gần nhất của CLB (tìm ngày diễn ra trận đấu gần nhất của CLB)
+  let latestClubDayStart = 0
+  const validMatches = (db.matches || []).filter((m) => m && m.winnerTeam && m.ratingEnabled !== false)
+  validMatches.forEach((m) => {
+    const ts = m.at || (m.ended_at ? new Date(m.ended_at).getTime() : 0)
+    if (ts > 0) {
+      const day = new Date(ts).setHours(0, 0, 0, 0)
+      if (day > latestClubDayStart) latestClubDayStart = day
+    }
+  })
+
   // Điểm mùa từ calculateSeasonLeaderboard thật
   let seasonRank = myRank
+  let seasonRankDelta = 0
   let seasonTotalMembers = totalMembers
   let seasonMatches = 0
   let seasonWins = 0
@@ -162,9 +174,10 @@ export function getMyHeroStats(db, memberId) {
   let seasonLatestDelta = 0
   let seasonPctChange = 0
 
+  let sLeaderboard = []
   try {
     const seasonData = calculateSeasonLeaderboard(db)
-    const sLeaderboard = seasonData?.leaderboard || []
+    sLeaderboard = seasonData?.leaderboard || []
     if (sLeaderboard.length > 0) {
       seasonTotalMembers = sLeaderboard.length
       const mySeasonIndex = sLeaderboard.findIndex((r) => r.id === myItem.id)
@@ -191,27 +204,59 @@ export function getMyHeroStats(db, memberId) {
             seasonProgressPct = Math.min(95, Math.max(10, Math.round(100 - (seasonPointsToNextRank / 40) * 100)))
           }
         }
+
+        // Tính thứ hạng mùa giải buổi trước của CLB (kể cả không đi thì vẫn có biến động)
+        if (latestClubDayStart > 0) {
+          const prevSeasonScores = sLeaderboard.map((row) => {
+            const logs = row.matchLogs || []
+            const latestSessionLogs = logs.filter((l) => {
+              const ts = l.at ? Number(l.at) : 0
+              return ts > 0 && new Date(ts).setHours(0, 0, 0, 0) === latestClubDayStart
+            })
+            const latestDelta = latestSessionLogs.reduce((s, l) => s + (Number(l.effectiveChange) || 0), 0)
+            const prevPoints = (row.totalSeasonPoints || 0) - latestDelta
+            return {
+              id: row.id,
+              name: row.name,
+              prevPoints,
+            }
+          })
+          prevSeasonScores.sort((a, b) => b.prevPoints - a.prevPoints || a.name.localeCompare(b.name))
+          const myPrevIndex = prevSeasonScores.findIndex((r) => r.id === myItem.id)
+          if (myPrevIndex >= 0) {
+            const prevRank = myPrevIndex + 1
+            seasonRankDelta = prevRank - seasonRank
+          }
+        }
       }
     }
   } catch {}
 
+  // Buổi người đó đi gần nhất (most recent attended session)
   try {
-    const activeSeason = resolveSeason(db)
-    const ledger = getMemberSeasonLedger(myItem.id, db, activeSeason)
-    const events = (ledger?.events || []).filter((e) => e && Number.isFinite(e.at))
-    if (events.length > 0) {
-      events.sort((a, b) => a.at - b.at)
-      const latestAt = events[events.length - 1].at
-      const latestDayStart = new Date(latestAt).setHours(0, 0, 0, 0)
-      const sessionEvents = events.filter((ev) => new Date(ev.at).setHours(0, 0, 0, 0) === latestDayStart)
-      seasonLatestDelta = sessionEvents.reduce((sum, ev) => sum + (Number(ev.numPts) || 0), 0)
-      const pointsBeforeSession = sessionEvents[0].pointsBefore ?? (seasonPoints - seasonLatestDelta)
+    const myRow = sLeaderboard.find((r) => r.id === myItem.id)
+    const myLogs = (myRow?.matchLogs || []).filter((l) => l.at && Number.isFinite(Number(l.at)))
+    if (myLogs.length > 0) {
+      myLogs.sort((a, b) => Number(a.at) - Number(b.at))
+      const myLatestAt = Number(myLogs[myLogs.length - 1].at)
+      const myLatestDayStart = new Date(myLatestAt).setHours(0, 0, 0, 0)
+      const myLatestSessionLogs = myLogs.filter(
+        (l) => new Date(Number(l.at)).setHours(0, 0, 0, 0) === myLatestDayStart
+      )
+      seasonLatestDelta = myLatestSessionLogs.reduce(
+        (sum, l) => sum + (Number(l.effectiveChange) || 0),
+        0
+      )
+      const firstLogOfSession = myLatestSessionLogs[0]
+      const pointsBeforeSession = (firstLogOfSession.pointsAfter ?? seasonPoints) - (firstLogOfSession.effectiveChange || 0)
       if (pointsBeforeSession > 0) {
         seasonPctChange = Math.round((seasonLatestDelta / pointsBeforeSession) * 100)
       } else if (seasonLatestDelta > 0) {
         seasonPctChange = 100
       } else if (seasonLatestDelta < 0) {
         seasonPctChange = -100
+      } else {
+        seasonPctChange = 0
       }
     } else {
       seasonLatestDelta = seasonPoints
@@ -220,6 +265,36 @@ export function getMyHeroStats(db, memberId) {
   } catch {
     seasonLatestDelta = seasonPoints
     seasonPctChange = 0
+  }
+
+  // Thứ hạng Elo buổi trước của CLB
+  let eloRankDelta = 0
+  if (rankedList.length > 0 && latestClubDayStart > 0) {
+    const prevEloScores = rankedList.map((item) => {
+      const memberMatches = validMatches.filter((m) => {
+        const ts = m.at || (m.ended_at ? new Date(m.ended_at).getTime() : 0)
+        const inDay = ts > 0 && new Date(ts).setHours(0, 0, 0, 0) === latestClubDayStart
+        const inTeam = (m.teamA || []).includes(item.id) || (m.teamB || []).includes(item.id)
+        return inDay && inTeam
+      })
+      let dayEloDelta = 0
+      memberMatches.forEach((m) => {
+        const inA = (m.teamA || []).includes(item.id)
+        const delta = Number(m.eloDelta) || 0
+        dayEloDelta += (inA ? m.winnerTeam === 'A' : m.winnerTeam === 'B') ? delta : -delta
+      })
+      return {
+        id: item.id,
+        name: item.name,
+        prevElo: item.elo - dayEloDelta,
+      }
+    })
+    prevEloScores.sort((a, b) => b.prevElo - a.prevElo || a.name.localeCompare(b.name))
+    const myPrevEloIndex = prevEloScores.findIndex((r) => r.id === myItem.id)
+    if (myPrevEloIndex >= 0) {
+      const prevRank = myPrevEloIndex + 1
+      eloRankDelta = prevRank - myRank
+    }
   }
 
   const prevElo = myElo - eloDeltaWeek
@@ -261,7 +336,9 @@ export function getMyHeroStats(db, memberId) {
     elo: myElo,
     eloDeltaWeek,
     eloPctChange,
+    eloRankDelta,
     seasonRank,
+    seasonRankDelta,
     seasonTotalMembers,
     seasonMatches,
     seasonWins,

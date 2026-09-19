@@ -7,11 +7,13 @@ export default function HeroRankCard({ hero, data, isMobile }) {
   const {
     rank = 1,
     eloRank = 1,
+    eloRankDelta = 0,
     totalMembers = 0,
     elo = 0,
     eloDeltaWeek = 0,
     eloPctChange = 0,
     seasonRank = 1,
+    seasonRankDelta = 0,
     seasonTotalMembers = 0,
     seasonMatches = 0,
     seasonWins = 0,
@@ -32,7 +34,7 @@ export default function HeroRankCard({ hero, data, isMobile }) {
 
   const isSeasonMode = mode === 'season'
   const displayRank = isSeasonMode ? (seasonRank || rank) : (eloRank || rank)
-  const displayTotalMembers = isSeasonMode ? (seasonTotalMembers || totalMembers) : totalMembers
+  const rankDelta = isSeasonMode ? (seasonRankDelta ?? 0) : (eloRankDelta ?? 0)
   const absDelta = Math.abs(eloDeltaWeek)
 
   const toggleNode = (
@@ -54,6 +56,28 @@ export default function HeroRankCard({ hero, data, isMobile }) {
     </div>
   )
 
+  const renderRankDelta = () => {
+    if (rankDelta > 0) {
+      return (
+        <span style={S.rankDeltaGreen}>
+          {t('home.personal.rankUp', { n: rankDelta })}
+        </span>
+      )
+    }
+    if (rankDelta < 0) {
+      return (
+        <span style={S.rankDeltaRed}>
+          {t('home.personal.rankDown', { n: Math.abs(rankDelta) })}
+        </span>
+      )
+    }
+    return (
+      <span style={S.rankDeltaMuted}>
+        {t('home.personal.rankSame')}
+      </span>
+    )
+  }
+
   if (!isMobile) {
     return (
       <div style={S.cardDesktop}>
@@ -74,7 +98,7 @@ export default function HeroRankCard({ hero, data, isMobile }) {
           <div style={S.desktopLeftCluster}>
             <div style={S.rankCol}>
               <span style={S.bigRankDesktop}>#{displayRank}</span>
-              <span style={S.totalLabel}>{t('home.personal.overTotal', { total: displayTotalMembers })}</span>
+              {renderRankDelta()}
             </div>
 
             {isSeasonMode ? (
@@ -84,11 +108,11 @@ export default function HeroRankCard({ hero, data, isMobile }) {
                 </span>
                 {seasonPctChange !== 0 ? (
                   <span style={seasonPctChange > 0 ? S.deltaGreen : S.deltaRed}>
-                    {seasonPctChange > 0 ? '↑' : '↓'} {Math.abs(seasonPctChange)}% {t('home.personal.vsPrevSession')}
+                    {seasonPctChange > 0 ? '↑' : '↓'} {Math.abs(seasonPctChange)}% {t('home.personal.latestAttendedSession')}
                   </span>
                 ) : (
                   <span style={S.deltaMuted}>
-                    0% {t('home.personal.vsPrevSession')}
+                    0% {t('home.personal.latestAttendedSession')}
                   </span>
                 )}
               </div>
@@ -216,7 +240,7 @@ export default function HeroRankCard({ hero, data, isMobile }) {
       <div style={S.mobileHeroRow}>
         <div style={S.rankCol}>
           <span style={S.bigRankMobile}>#{displayRank}</span>
-          <span style={S.totalLabel}>{t('home.personal.overTotal', { total: displayTotalMembers })}</span>
+          {renderRankDelta()}
         </div>
 
         <div style={S.eloColMobile}>
@@ -227,11 +251,11 @@ export default function HeroRankCard({ hero, data, isMobile }) {
               </span>
               {seasonPctChange !== 0 ? (
                 <span style={seasonPctChange > 0 ? S.deltaGreen : S.deltaRed}>
-                  {seasonPctChange > 0 ? '↑' : '↓'} {Math.abs(seasonPctChange)}% {t('home.personal.vsPrevSession')}
+                  {seasonPctChange > 0 ? '↑' : '↓'} {Math.abs(seasonPctChange)}% {t('home.personal.latestAttendedSession')}
                 </span>
               ) : (
                 <span style={S.deltaMuted}>
-                  0% {t('home.personal.vsPrevSession')}
+                  0% {t('home.personal.latestAttendedSession')}
                 </span>
               )}
             </div>
@@ -440,22 +464,23 @@ const S = {
   mobileHeroRow: {
     position: 'relative',
     display: 'flex',
-    alignItems: 'flex-start',
-    gap: 14,
+    alignItems: 'center',
+    gap: 16,
     marginTop: 10,
   },
   desktopLeftCluster: {
     position: 'relative',
     display: 'flex',
-    alignItems: 'flex-end',
-    gap: 16,
+    alignItems: 'center',
+    gap: 20,
     flex: '0 0 auto',
   },
   desktopEloSubCol: {
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
-    paddingBottom: 6,
+    paddingLeft: 18,
+    borderLeft: '1px solid var(--border-subtle)',
   },
   desktopRightCluster: {
     position: 'relative',
@@ -473,7 +498,7 @@ const S = {
   rankCol: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
+    gap: 4,
     flex: '0 0 auto',
   },
   rankOverline: {
@@ -483,20 +508,29 @@ const S = {
     color: 'var(--status-delayed-fg)',
   },
   bigRankMobile: {
-    font: '700 56px/0.92 var(--font-display)',
+    font: '700 52px/0.92 var(--font-display)',
     letterSpacing: '-0.03em',
     color: 'var(--text-primary)',
   },
   bigRankDesktop: {
-    font: '700 84px/0.86 var(--font-display)',
+    font: '700 80px/0.88 var(--font-display)',
     letterSpacing: '-0.04em',
     color: 'var(--text-primary)',
   },
-  totalLabel: {
-    font: '600 10.5px/1 var(--font-mono)',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: 'var(--status-delayed-fg)',
+  rankDeltaGreen: {
+    font: '600 11.5px/1.2 var(--font-mono)',
+    color: 'var(--status-delivered-fg)',
+    whiteSpace: 'nowrap',
+  },
+  rankDeltaRed: {
+    font: '600 11.5px/1.2 var(--font-mono)',
+    color: 'var(--status-incident-fg)',
+    whiteSpace: 'nowrap',
+  },
+  rankDeltaMuted: {
+    font: '500 11.5px/1.2 var(--font-mono)',
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   eloColMobile: {
     flex: 1,
@@ -504,7 +538,8 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
-    paddingTop: 3,
+    paddingLeft: 14,
+    borderLeft: '1px solid var(--border-subtle)',
   },
   eloColDesktop: {
     flex: 1,
