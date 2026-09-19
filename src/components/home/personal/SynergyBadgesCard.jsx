@@ -1,7 +1,9 @@
+import { useState, useMemo } from 'react'
 import { Avatar } from '#ds'
 import { t } from '#i18n'
 
 export default function SynergyBadgesCard({
+  partners = [],
   bestPartner = null,
   underperformingPartner = null,
   badgesCount = 0,
@@ -9,22 +11,73 @@ export default function SynergyBadgesCard({
   winsNeededForStreak = 3,
   isMobile,
 }) {
-  const hasPartnerData = Boolean(bestPartner)
+  const [genderFilter, setGenderFilter] = useState('all') // 'all' | 'nam' | 'nu'
+
+  const filteredPartners = useMemo(() => {
+    let list = []
+    if (partners && partners.length > 0) {
+      list = partners
+    } else if (bestPartner) {
+      list = [bestPartner]
+      if (underperformingPartner) list.push(underperformingPartner)
+    }
+
+    return list
+      .filter((p) => {
+        if (genderFilter === 'all') return true
+        const g = p?.partner?.gender || 'nam'
+        const isNu = g === 'nu' || g === 'female'
+        return genderFilter === 'nu' ? isNu : !isNu
+      })
+      .slice(0, 4)
+  }, [partners, bestPartner, underperformingPartner, genderFilter])
+
+  const hasPartnerData = filteredPartners.length > 0
+
+  const genderToggle = (
+    <div style={S.genderToggle}>
+      <button
+        type="button"
+        onClick={() => setGenderFilter('all')}
+        style={genderFilter === 'all' ? S.genderBtnActive : S.genderBtn}
+      >
+        {t('common.all')}
+      </button>
+      <button
+        type="button"
+        onClick={() => setGenderFilter('nam')}
+        style={genderFilter === 'nam' ? S.genderBtnActive : S.genderBtn}
+      >
+        {t('gender.nam')}
+      </button>
+      <button
+        type="button"
+        onClick={() => setGenderFilter('nu')}
+        style={genderFilter === 'nu' ? S.genderBtnActive : S.genderBtn}
+      >
+        {t('gender.nu')}
+      </button>
+    </div>
+  )
 
   // Mobile layout: 2 card đôi
   if (isMobile) {
+    const topPartner = filteredPartners[0] || bestPartner
     return (
       <div style={S.mobileRow}>
         <div style={S.mobileBox}>
-          <span style={S.label}>{t('home.personal.synergyPartner')}</span>
-          {hasPartnerData ? (
+          <div style={S.mobileBoxHeader}>
+            <span style={S.label}>{t('home.personal.bestPartnersTitle')}</span>
+            {genderToggle}
+          </div>
+          {topPartner ? (
             <>
-              <span style={S.valBarlow}>{t('home.personal.synergyWith', { name: bestPartner.name })}</span>
+              <span style={S.valBarlow}>{t('home.personal.synergyWith', { name: topPartner.name })}</span>
               <span style={S.greenMono}>
                 {t('home.personal.synergySummary', {
-                  w: bestPartner.wins,
-                  total: bestPartner.games,
-                  impact: bestPartner.pairImpact,
+                  w: topPartner.wins,
+                  total: topPartner.games,
+                  impact: topPartner.pairImpact,
                 })}
               </span>
             </>
@@ -47,62 +100,49 @@ export default function SynergyBadgesCard({
     )
   }
 
-  const bestAvatar =
-    bestPartner?.partner?.avatarUrl ||
-    bestPartner?.partner?.avatar_url ||
-    bestPartner?.partner?.avatar ||
-    bestPartner?.partner?.profile?.avatar_url ||
-    bestPartner?.partner?.profile?.avatarUrl ||
-    bestPartner?.avatarUrl ||
-    ''
-  const underAvatar =
-    underperformingPartner?.partner?.avatarUrl ||
-    underperformingPartner?.partner?.avatar_url ||
-    underperformingPartner?.partner?.avatar ||
-    underperformingPartner?.partner?.profile?.avatar_url ||
-    underperformingPartner?.partner?.profile?.avatarUrl ||
-    underperformingPartner?.avatarUrl ||
-    ''
-
-  // Desktop layout: Thẻ "Người hợp với tôi"
+  // Desktop layout: Thẻ "Đồng đội tốt của tôi"
   return (
     <div style={S.desktopCard}>
-      <span style={S.label}>{t('home.personal.bestPartnersTitle')}</span>
+      <div style={S.headerRow}>
+        <span style={S.label}>{t('home.personal.bestPartnersTitle')}</span>
+        {genderToggle}
+      </div>
 
       {!hasPartnerData ? (
         <div style={S.emptyState}>{t('common.empty')}</div>
       ) : (
-        <>
-          <div style={S.partnerRow}>
-            <Avatar name={bestPartner.name} src={bestAvatar} size={36} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={S.partnerNameBold}>{bestPartner.name}</div>
-              <div style={S.partnerMeta}>
-                {t('home.personal.matchesTogether', { total: bestPartner.games, w: bestPartner.wins })}
-              </div>
-            </div>
-            <span style={S.impactGreen}>{bestPartner.pairImpact}</span>
-          </div>
+        <div style={S.partnerList}>
+          {filteredPartners.map((p, idx) => {
+            const avatar =
+              p?.partner?.avatarUrl ||
+              p?.partner?.avatar_url ||
+              p?.partner?.avatar ||
+              p?.partner?.profile?.avatar_url ||
+              p?.partner?.profile?.avatarUrl ||
+              p?.avatarUrl ||
+              ''
+            const impact = p.pairImpact ?? 0
+            const isPositive = impact >= 0
 
-          {underperformingPartner && (
-            <>
-              <div style={S.divider} />
-              <div style={S.partnerRow}>
-                <Avatar name={underperformingPartner.name} src={underAvatar} size={36} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={S.partnerName}>{underperformingPartner.name}</div>
-                  <div style={S.partnerMeta}>
-                    {t('home.personal.matchesTogether', {
-                      total: underperformingPartner.games,
-                      w: underperformingPartner.wins,
-                    })}
+            return (
+              <div key={p.id || idx}>
+                {idx > 0 && <div style={S.divider} />}
+                <div style={S.partnerRow}>
+                  <Avatar name={p.name} src={avatar} size={36} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={S.partnerNameBold}>{p.name}</div>
+                    <div style={S.partnerMeta}>
+                      {t('home.personal.matchesTogether', { total: p.games, w: p.wins })}
+                    </div>
                   </div>
+                  <span style={isPositive ? S.impactGreen : S.impactRed}>
+                    {isPositive ? `+${impact}` : impact}
+                  </span>
                 </div>
-                <span style={S.impactRed}>{underperformingPartner.pairImpact}</span>
               </div>
-            </>
-          )}
-        </>
+            )
+          })}
+        </div>
       )}
     </div>
   )
@@ -123,6 +163,47 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 7,
+  },
+  mobileBoxHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  headerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  genderToggle: {
+    display: 'inline-flex',
+    padding: 2,
+    borderRadius: 7,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+    gap: 2,
+  },
+  genderBtn: {
+    background: 'none',
+    border: 'none',
+    padding: '2px 7px',
+    borderRadius: 5,
+    font: '600 10.5px/1 var(--font-sans)',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  genderBtnActive: {
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    padding: '2px 7px',
+    borderRadius: 5,
+    font: '600 10.5px/1 var(--font-sans)',
+    color: 'var(--text-primary)',
+    boxShadow: 'var(--shadow-sm)',
+    cursor: 'default',
   },
   label: {
     font: '600 10.5px/1 var(--font-sans)',
@@ -161,41 +242,18 @@ const S = {
     color: 'var(--text-muted)',
     textAlign: 'center',
   },
+  partnerList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 9,
+  },
   partnerRow: {
     display: 'flex',
     alignItems: 'center',
     gap: 11,
   },
-  avatarGreen: {
-    width: 36,
-    height: 36,
-    flex: '0 0 auto',
-    borderRadius: 999,
-    background: 'var(--status-delivered-bg)',
-    border: '1px solid var(--status-delivered-fg)',
-    display: 'grid',
-    placeItems: 'center',
-    font: '700 13px/1 var(--font-display)',
-    color: 'var(--status-delivered-fg)',
-  },
-  avatarBlue: {
-    width: 36,
-    height: 36,
-    flex: '0 0 auto',
-    borderRadius: 999,
-    background: 'var(--status-scheduled-bg)',
-    border: '1px solid var(--status-scheduled-fg)',
-    display: 'grid',
-    placeItems: 'center',
-    font: '700 13px/1 var(--font-display)',
-    color: 'var(--status-scheduled-fg)',
-  },
   partnerNameBold: {
     font: '700 15px/1.2 var(--font-display)',
-    color: 'var(--text-primary)',
-  },
-  partnerName: {
-    font: '600 15px/1.2 var(--font-display)',
     color: 'var(--text-primary)',
   },
   partnerMeta: {
@@ -213,5 +271,6 @@ const S = {
   divider: {
     height: 1,
     background: 'var(--border-subtle)',
+    margin: '4px 0',
   },
 }

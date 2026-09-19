@@ -80,15 +80,38 @@ export default function MyStats() {
 
   // 6. Thống kê cặp ăn ý & đối thủ dùng hàm chuẩn getPlayerPartnersAndMatchups từ rating.js
   const partnerStats = useMemo(() => {
-    if (!db || !memberId) return { bestPartner: null, underperformingPartner: null, nemesis: null, favoriteOpponent: null }
+    if (!db || !memberId) {
+      return {
+        bestPartner: null,
+        underperformingPartner: null,
+        nemesis: null,
+        favoriteOpponent: null,
+        partners: [],
+        nemeses: [],
+        favoriteOpponents: [],
+        opponents: [],
+      }
+    }
     const membersMap = Object.fromEntries((db.members || []).map((m) => [m.id, m]))
     const res = getPlayerPartnersAndMatchups(db.matches || [], memberId, membersMap, db.playerRatings || {})
     const partners = res?.partners || []
     const bestPartner = partners[0] || null
     const underperformingPartner = partners.length > 1 ? partners.at(-1) : null
-    const nemesis = res?.nemeses?.[0] || null
-    const favoriteOpponent = res?.favoriteOpponents?.[0] || null
-    return { bestPartner, underperformingPartner, nemesis, favoriteOpponent }
+    const nemeses = res?.nemeses || []
+    const favoriteOpponents = res?.favoriteOpponents || []
+    const nemesis = nemeses[0] || null
+    const favoriteOpponent = favoriteOpponents[0] || null
+    const opponents = [...nemeses, ...favoriteOpponents]
+    return {
+      bestPartner,
+      underperformingPartner,
+      nemesis,
+      favoriteOpponent,
+      partners,
+      nemeses,
+      favoriteOpponents,
+      opponents,
+    }
   }, [db, memberId])
 
   // 7. Buổi tập sắp tới
@@ -183,6 +206,7 @@ export default function MyStats() {
 
         {/* Thẻ 06: Cặp ăn ý & Huy hiệu */}
         <SynergyBadgesCard
+          partners={partnerStats.partners}
           bestPartner={partnerStats.bestPartner}
           underperformingPartner={partnerStats.underperformingPartner}
           badgesCount={heroStats.badgesCount}
@@ -193,6 +217,9 @@ export default function MyStats() {
 
         {/* Thẻ 06b: Đối thủ của tôi */}
         <MyOpponentsCard
+          opponents={partnerStats.opponents}
+          nemeses={partnerStats.nemeses}
+          favoriteOpponents={partnerStats.favoriteOpponents}
           nemesis={partnerStats.nemesis}
           favoriteOpponent={partnerStats.favoriteOpponent}
           isMobile={true}
@@ -300,8 +327,9 @@ export default function MyStats() {
             onViewLeaderboard={handleViewLeaderboard}
           />
 
-          {/* 08. Người hợp với tôi */}
+          {/* 08. Đồng đội tốt của tôi */}
           <SynergyBadgesCard
+            partners={partnerStats.partners}
             bestPartner={partnerStats.bestPartner}
             underperformingPartner={partnerStats.underperformingPartner}
             badgesCount={heroStats.badgesCount}
@@ -312,6 +340,9 @@ export default function MyStats() {
 
           {/* 08b. Đối thủ của tôi */}
           <MyOpponentsCard
+            opponents={partnerStats.opponents}
+            nemeses={partnerStats.nemeses}
+            favoriteOpponents={partnerStats.favoriteOpponents}
             nemesis={partnerStats.nemesis}
             favoriteOpponent={partnerStats.favoriteOpponent}
             isMobile={false}
