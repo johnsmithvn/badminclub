@@ -3636,7 +3636,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             matchId: newMatch.id,
             streak: newMatch.brokenStreak,
             breakerIds: winIds,
-            victimIds: bountyVictims.length > 0 ? bountyVictims : loseIds,
+            victimIds: newMatch.bountyVictimIds?.length > 0 ? newMatch.bountyVictimIds : loseIds,
           },
           recipients: [...winIds, ...loseIds],
           refType: 'match',
