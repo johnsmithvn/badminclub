@@ -753,6 +753,7 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     const sign = m.effectiveChange > 0 ? `+${m.effectiveChange}` : `${m.effectiveChange}`
 
     return {
+      id: m.id,
       time: timeStr,
       titleKey: m.won ? 'season.ledgerWin' : 'season.ledgerLoss',
       scoreText: scoreStr,
