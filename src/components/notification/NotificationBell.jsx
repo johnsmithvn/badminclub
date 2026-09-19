@@ -27,9 +27,18 @@ export default function NotificationBell({ size = 'sm', style = {} }) {
       if (document.visibilityState === 'visible') a.reloadNotifications()
     }
     const onSwMessage = (event) => {
-      if (event.data?.type === 'push-received') {
-        a.reloadNotifications()
-      }
+      if (event.data?.type !== 'push-received') return
+      a.reloadNotifications()
+      // `sw.js` giờ LUÔN hiện notification, vì `visibilityState` mà Service Worker nhìn thấy
+      // không đáng tin (xem chú thích ở đó). Trang thì biết chắc mình có đang hiển thị hay
+      // không — nếu có thì dọn luôn banner thừa, người dùng đã thấy chuông nhảy số rồi.
+      if (document.visibilityState !== 'visible') return
+      const tag = event.data.tag
+      if (!tag) return
+      navigator.serviceWorker.ready
+        .then((reg) => reg.getNotifications({ tag }))
+        .then((list) => list.forEach((n) => n.close()))
+        .catch(() => {})
     }
     onFocus()
     document.addEventListener('visibilitychange', onFocus)
