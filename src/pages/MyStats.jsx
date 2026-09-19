@@ -105,7 +105,7 @@ export default function MyStats() {
 
     const partners = (res?.partners || []).filter((p) => isOfficialMember(p.partner, p.id))
     const bestPartner = partners[0] || null
-    const underperformingPartner = partners.length > 1 ? partners.at(-1) : null
+    const underperformingPartner = partners.length > 1 ? partners[partners.length - 1] : null
     const nemeses = (res?.nemeses || []).filter((o) => isOfficialMember(o.opponent, o.id))
     const favoriteOpponents = (res?.favoriteOpponents || []).filter((o) => isOfficialMember(o.opponent, o.id))
     const nemesis = nemeses[0] || null
