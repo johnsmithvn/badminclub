@@ -96,6 +96,91 @@ npx supabase db reset
 - Quản lý hồ sơ tài khoản dùng chung mọi CLB tại `/tai-khoan` (ngoài CLB).
 - Phê duyệt người xin vào CLB nằm ở **Cài đặt → Tài khoản & quyền** của từng CLB (chọn lọc 6 trường khi ghép).
 
+## Thông báo đẩy (Web Push)
+
+App chạy được bình thường mà **không cần** phần này — thiếu cấu hình thì công tắc "Thông báo đẩy"
+trong Cài đặt báo lỗi, mọi thứ còn lại không đổi. Dựng khi muốn thành viên nhận thông báo lúc
+đã đóng app.
+
+Cần **một project Supabase cloud**: Edge Function không chạy trên bản local.
+
+### 1. Sinh cặp khoá VAPID (một lần duy nhất cho cả dự án)
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+In ra `Public Key` và `Private Key`. Sinh lại lần nữa là **mọi đăng ký cũ thành rác** — phải xoá
+sạch bảng `push_subscriptions` và cho mọi người bật lại.
+
+### 2. Đặt secret cho Edge Function
+
+Dashboard → project → **Edge Functions** → tab **Secrets**:
+
+| Name | Value |
+| --- | --- |
+| `VAPID_PUBLIC_KEY` | Public Key ở bước 1 |
+| `VAPID_PRIVATE_KEY` | Private Key ở bước 1 — **không bao giờ đưa xuống client** |
+| `VAPID_SUBJECT` | `mailto:email-that@cua-ban` (không đặt thì code dùng mặc định) |
+
+`SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY` **không phải khai** — Supabase tự bơm vào.
+
+### 3. Tạo bảng trên DB cloud
+
+SQL Editor → dán toàn bộ `supabase/migrations/0049_push_subscriptions.sql` → Run.
+
+> ⛔ **Không** dùng `supabase db reset` trên cloud — lệnh đó xoá sạch dữ liệu CLB.
+
+Kiểm: `select count(*) from public.push_subscriptions;` ra `0` là được.
+
+### 4. Đặt Public Key cho web
+
+**Vercel** → Settings → Environment Variables → `VITE_VAPID_PUBLIC_KEY` = Public Key ở bước 1.
+
+Vite nhúng biến này lúc **build**, không đọc lúc chạy — thêm biến xong **phải deploy lại**.
+Thiếu biến thì build vẫn pass, chỉ là bản đó không bật được thông báo.
+
+`.env.local` chỉ cần khi chạy `npm run dev` ở máy.
+
+### 5. Deploy Edge Function
+
+```bash
+npx supabase login
+npx supabase link --project-ref <ref-trong-url-dashboard>
+npx supabase functions deploy push-send
+```
+
+### Thử
+
+Đóng app hẳn → mở lại → Cài đặt → bật Thông báo đẩy → kiểm
+`select member_id, left(endpoint,50) from push_subscriptions;` phải có dòng → **đóng app hẳn** →
+nhờ người khác tạo kèo.
+
+Phải đóng hẳn: `public/sw.js` **cố ý không nổ thông báo hệ thống khi app đang mở và đang hiển
+thị**, chỉ cập nhật chuông trong app — tránh báo hai lần cho cùng một việc.
+
+iOS cần **16.4+** và app **đã Add to Home Screen**; tab Safari trên iPhone không nhận được push.
+
+### Khi không nhận được gì
+
+Mở Console trên máy **người gửi** (chỗ gọi `push-send`), tìm dòng `[push]`:
+
+| Thấy gì | Nghĩa là |
+| --- | --- |
+| không có dòng nào | người gửi đang chạy bản build cũ chưa có code push |
+| `[push] Thiếu VITE_VAPID_PUBLIC_KEY` | bước 4 chưa tới được bản deploy |
+| `[push] gửi thất bại: …` | Edge Function từ chối hoặc chưa deploy |
+| `{ sentCount: 0, totalSubs: 0 }` | không có subscription — xem lại bước 3 và công tắc |
+| `{ sentCount: 0, failedCount: N }` | gửi tới APNs/FCM nhưng bị từ chối — log Edge Function có mã HTTP. `403` gần như luôn là public key ở bước 4 lệch với `VAPID_PUBLIC_KEY` ở bước 2 |
+
+### Chi phí
+
+Không tốn tiền. Web Push của Apple (APNs) và Google (FCM) **miễn phí**, không tính theo tin.
+Phần Supabase nằm gọn trong gói Free: mỗi sự kiện tốn **một** lượt gọi Edge Function (hàm tự lặp
+qua các thiết bị bên trong) — CLB ~22 người rơi vào khoảng **vài trăm lượt/tháng** trên hạn mức
+**500.000**. Gói Free cũng không cho phát sinh cước: vượt hạn mức thì project bị tạm dừng chứ
+không bị tính tiền.
+
 ## Stack
 
 React 19 · Vite 8 · React Router 7 · Supabase · JavaScript thuần · lucide-react · jsqr · ESLint 9.

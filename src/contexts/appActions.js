@@ -270,8 +270,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             tag: refId ? `${type}_${refId}` : undefined,
           },
         })
-          .then(({ error }) => {
-            if (error) console.warn('[push] gửi thất bại:', error)
+          .then(({ data, error }) => {
+            if (error) return console.warn('[push] gửi thất bại:', error)
+            // Function trả 200 ngay cả khi không gửi được cái nào (không có subscription, hoặc
+            // mọi lượt gửi đều lỗi). Không nói ra thì đứng ngoài nhìn y hệt lúc thành công.
+            if (data && (data.sentCount === 0 || data.failedCount > 0)) {
+              console.warn('[push] không gửi được:', type, data)
+            }
           })
           .catch((e) => console.warn('[push] gửi thất bại:', e))
       }
