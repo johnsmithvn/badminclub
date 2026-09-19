@@ -17,6 +17,7 @@ import {
   getNextUpcomingSession,
   getClubTodayHighlights,
   getSurroundingStandings,
+  getSurroundingSeasonStandings,
 } from '#lib/homePersonal.js'
 
 import HeroRankCard from '#components/home/personal/HeroRankCard.jsx'
@@ -97,7 +98,8 @@ export default function MyStats() {
   const clubHighlights = useMemo(() => getClubTodayHighlights(db, memberId), [db, memberId])
 
   // 9. BXH quanh bạn (Desktop)
-  const nearbyStandings = useMemo(() => getSurroundingStandings(db, memberId, 5), [db, memberId])
+  const nearbyStandings = useMemo(() => getSurroundingStandings(db, memberId, 5, 'elo'), [db, memberId])
+  const nearbySeasonStandings = useMemo(() => getSurroundingSeasonStandings(db, memberId, 5), [db, memberId])
 
   // Callbacks điều hướng dùng a.go(key) chuẩn
   const handleLogMatch = () => a.go('matches')
@@ -282,6 +284,7 @@ export default function MyStats() {
           {/* 07. Quanh bạn trên BXH */}
           <NearbyStandingsCard
             standings={nearbyStandings}
+            seasonStandings={nearbySeasonStandings}
             onViewLeaderboard={handleViewLeaderboard}
           />
 

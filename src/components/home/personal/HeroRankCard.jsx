@@ -1,16 +1,25 @@
+import { useState } from 'react'
 import { t } from '#i18n'
 
 export default function HeroRankCard({ hero, data, isMobile }) {
+  const [mode, setMode] = useState('season') // 'season' | 'elo'
   const activeHero = hero || data || {}
   const {
     rank = 1,
+    eloRank = 1,
     totalMembers = 0,
     elo = 0,
     eloDeltaWeek = 0,
+    seasonRank = 1,
+    seasonTotalMembers = 0,
     seasonMatches = 0,
     seasonWins = 0,
     seasonWinRate = 0,
     seasonPoints = 0,
+    seasonTargetRival = null,
+    seasonPointsToNextRank = 0,
+    seasonProgressPct = 100,
+    isSeasonLeader = false,
     badgesCount = 0,
     targetRival = null,
     pointsToNextRank = 0,
@@ -18,29 +27,70 @@ export default function HeroRankCard({ hero, data, isMobile }) {
     isLeader = false,
   } = activeHero
 
+  const isSeasonMode = mode === 'season'
+  const displayRank = isSeasonMode ? (seasonRank || rank) : (eloRank || rank)
+  const displayTotalMembers = isSeasonMode ? (seasonTotalMembers || totalMembers) : totalMembers
   const sign = eloDeltaWeek > 0 ? '↑ ' : eloDeltaWeek < 0 ? '↓ ' : ''
   const absDelta = Math.abs(eloDeltaWeek)
+
+  const toggleNode = (
+    <div style={S.modeToggle}>
+      <button
+        type="button"
+        onClick={() => setMode('season')}
+        style={isSeasonMode ? S.modeBtnActive : S.modeBtn}
+      >
+        {t('home.personal.seasonTab')}
+      </button>
+      <button
+        type="button"
+        onClick={() => setMode('elo')}
+        style={!isSeasonMode ? S.modeBtnActive : S.modeBtn}
+      >
+        {t('home.personal.eloTab')}
+      </button>
+    </div>
+  )
 
   if (!isMobile) {
     return (
       <div style={S.cardDesktop}>
         <span style={S.glowDesktop} />
-        {/* Cụm trái: Rank + Elo */}
+        <div style={S.desktopToggleContainer}>
+          {toggleNode}
+        </div>
+
+        {/* Cụm trái: Rank + Metric chính */}
         <div style={S.desktopLeftCluster}>
           <div style={S.rankCol}>
-            <span style={S.rankOverline}>{t('home.personal.rankHero')}</span>
-            <span style={S.bigRankDesktop}>#{rank}</span>
-            <span style={S.totalLabel}>{t('home.personal.overTotal', { total: totalMembers })}</span>
+            <span style={S.rankOverline}>
+              {isSeasonMode ? t('home.personal.seasonRankHero') : t('home.personal.rankHero')}
+            </span>
+            <span style={S.bigRankDesktop}>#{displayRank}</span>
+            <span style={S.totalLabel}>{t('home.personal.overTotal', { total: displayTotalMembers })}</span>
           </div>
-          <div style={S.desktopEloSubCol}>
-            <span style={S.eloNumDesktop}>{elo}</span>
-            <span style={S.eloMono}>{t('home.personal.eloHighConfidence')}</span>
-            {eloDeltaWeek !== 0 && (
-              <span style={eloDeltaWeek >= 0 ? S.deltaGreen : S.deltaRed}>
-                {sign}{absDelta} {t('home.personal.upWeek', { delta: '' }).trim()}
+
+          {isSeasonMode ? (
+            <div style={S.desktopEloSubCol}>
+              <span style={S.seasonPointsDesktop}>
+                {seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}
               </span>
-            )}
-          </div>
+              <span style={S.eloMono}>{t('home.personal.seasonPoints')}</span>
+              <span style={S.subMetricMuted}>
+                {elo} {t('home.personal.eloNormal')}
+              </span>
+            </div>
+          ) : (
+            <div style={S.desktopEloSubCol}>
+              <span style={S.eloNumDesktop}>{elo}</span>
+              <span style={S.eloMono}>{t('home.personal.eloHighConfidence')}</span>
+              {eloDeltaWeek !== 0 && (
+                <span style={eloDeltaWeek >= 0 ? S.deltaGreen : S.deltaRed}>
+                  {sign}{absDelta} {t('home.personal.upWeek', { delta: '' }).trim()}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Cụm phải: 4 ô stat + Thanh tiến độ */}
@@ -54,10 +104,17 @@ export default function HeroRankCard({ hero, data, isMobile }) {
               <span style={S.statVal}>{seasonWins}</span>
               <span style={S.statDesc}>{t('home.personal.winRateWithPct', { pct: seasonWinRate })}</span>
             </span>
-            <span style={S.statPill}>
-              <span style={S.statValGreen}>{seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}</span>
-              <span style={S.statDesc}>{t('home.personal.seasonPoints')}</span>
-            </span>
+            {isSeasonMode ? (
+              <span style={S.statPill}>
+                <span style={S.statVal}>{elo}</span>
+                <span style={S.statDesc}>{t('home.personal.eloNormal')}</span>
+              </span>
+            ) : (
+              <span style={S.statPill}>
+                <span style={S.statValGreen}>{seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}</span>
+                <span style={S.statDesc}>{t('home.personal.seasonPoints')}</span>
+              </span>
+            )}
             <span style={S.statPill}>
               <span style={S.statValGold}>{badgesCount}</span>
               <span style={S.statDesc}>{t('home.personal.badgesCount')}</span>
@@ -66,24 +123,67 @@ export default function HeroRankCard({ hero, data, isMobile }) {
 
           <div style={S.progressBoxDesktop}>
             <div style={S.progressTextRow}>
-              {isLeader ? (
+              {isSeasonMode ? (
+                isSeasonLeader ? (
+                  <span style={S.targetText}>{t('home.personal.rankSeasonLeader')}</span>
+                ) : (
+                  <span style={S.targetText}>
+                    {seasonTargetRival?.name
+                      ? t('home.personal.pointsToOvertakeSeason', {
+                          points: seasonPointsToNextRank,
+                          name: seasonTargetRival.name,
+                          rank: Math.max(1, displayRank - 1),
+                        })
+                      : t('home.personal.pointsToRankSeason', {
+                          points: seasonPointsToNextRank,
+                          rank: Math.max(1, displayRank - 1),
+                        })}
+                  </span>
+                )
+              ) : isLeader ? (
                 <span style={S.targetText}>{t('home.personal.rankLeader')}</span>
               ) : (
                 <span style={S.targetText}>
                   {targetRival?.name
-                    ? t('home.personal.pointsToOvertake', { points: pointsToNextRank, name: targetRival.name, rank: rank - 1 })
-                    : t('home.personal.pointsToRank', { points: pointsToNextRank, rank: rank - 1 })}
+                    ? t('home.personal.pointsToOvertake', {
+                        points: pointsToNextRank,
+                        name: targetRival.name,
+                        rank: displayRank - 1,
+                      })
+                    : t('home.personal.pointsToRank', {
+                        points: pointsToNextRank,
+                        rank: displayRank - 1,
+                      })}
                 </span>
               )}
             </div>
-            {!isLeader && (
-              <div style={S.progressBarRow}>
-                <span style={S.trackLabel}>#{rank} · {elo}</span>
-                <span style={S.track}>
-                  <span style={{ ...S.fill, width: `${progressPct}%` }} />
-                </span>
-                <span style={S.trackLabelRight}>#{rank - 1}{targetRival?.elo ? ` · ${targetRival.elo}` : ''}</span>
-              </div>
+
+            {isSeasonMode ? (
+              !isSeasonLeader && (
+                <div style={S.progressBarRow}>
+                  <span style={S.trackLabel}>
+                    #{displayRank} · {seasonPoints} {t('home.personal.seasonPointsShortUnit')}
+                  </span>
+                  <span style={S.track}>
+                    <span style={{ ...S.fill, width: `${seasonProgressPct}%` }} />
+                  </span>
+                  <span style={S.trackLabelRight}>
+                    #{Math.max(1, displayRank - 1)}{seasonTargetRival?.points != null ? ` · ${seasonTargetRival.points} ${t('home.personal.seasonPointsShortUnit')}` : ''}
+                  </span>
+                </div>
+              )
+            ) : (
+              !isLeader && (
+                <div style={S.progressBarRow}>
+                  <span style={S.trackLabel}>#{displayRank} · {elo}</span>
+                  <span style={S.track}>
+                    <span style={{ ...S.fill, width: `${progressPct}%` }} />
+                  </span>
+                  <span style={S.trackLabelRight}>
+                    #{displayRank - 1}{targetRival?.elo ? ` · ${targetRival.elo}` : ''}
+                  </span>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -95,22 +195,39 @@ export default function HeroRankCard({ hero, data, isMobile }) {
   return (
     <div style={S.card}>
       <span style={S.glow} />
+      <div style={S.mobileTopRow}>
+        <span style={S.rankOverline}>
+          {isSeasonMode ? t('home.personal.seasonRankHero') : t('home.personal.rankHero')}
+        </span>
+        {toggleNode}
+      </div>
+
       <div style={S.mobileHeroRow}>
         <div style={S.rankCol}>
-          <span style={S.bigRankMobile}>#{rank}</span>
-          <span style={S.totalLabel}>{t('home.personal.overTotal', { total: totalMembers })}</span>
+          <span style={S.bigRankMobile}>#{displayRank}</span>
+          <span style={S.totalLabel}>{t('home.personal.overTotal', { total: displayTotalMembers })}</span>
         </div>
 
         <div style={S.eloColMobile}>
-          <div style={S.eloRow}>
-            <span style={S.eloNumMobile}>{elo}</span>
-            <span style={S.eloMono}>{t('home.personal.eloNormal')}</span>
-            {eloDeltaWeek !== 0 && (
-              <span style={eloDeltaWeek >= 0 ? S.deltaGreen : S.deltaRed}>
-                {sign}{absDelta}
+          {isSeasonMode ? (
+            <div style={S.eloRow}>
+              <span style={S.seasonPointsMobile}>
+                {seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}
               </span>
-            )}
-          </div>
+              <span style={S.eloMono}>{t('home.personal.seasonPoints')}</span>
+              <span style={S.subMetricMuted}>({elo} Elo)</span>
+            </div>
+          ) : (
+            <div style={S.eloRow}>
+              <span style={S.eloNumMobile}>{elo}</span>
+              <span style={S.eloMono}>{t('home.personal.eloNormal')}</span>
+              {eloDeltaWeek !== 0 && (
+                <span style={eloDeltaWeek >= 0 ? S.deltaGreen : S.deltaRed}>
+                  {sign}{absDelta}
+                </span>
+              )}
+            </div>
+          )}
 
           <div style={S.statsGrid}>
             <span style={S.statPill}>
@@ -121,34 +238,82 @@ export default function HeroRankCard({ hero, data, isMobile }) {
               <span style={S.statVal}>{seasonWinRate}%</span>
               <span style={S.statDesc}>{t('home.personal.winRate')}</span>
             </span>
-            <span style={S.statPill}>
-              <span style={S.statValGreen}>{seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}</span>
-              <span style={S.statDesc}>{t('home.personal.seasonPoints')}</span>
-            </span>
+            {isSeasonMode ? (
+              <span style={S.statPill}>
+                <span style={S.statVal}>{elo}</span>
+                <span style={S.statDesc}>{t('home.personal.eloNormal')}</span>
+              </span>
+            ) : (
+              <span style={S.statPill}>
+                <span style={S.statValGreen}>{seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}</span>
+                <span style={S.statDesc}>{t('home.personal.seasonPoints')}</span>
+              </span>
+            )}
           </div>
         </div>
       </div>
 
       <div style={S.progressBox}>
         <div style={S.progressTextRow}>
-          {isLeader ? (
+          {isSeasonMode ? (
+            isSeasonLeader ? (
+              <span style={S.targetText}>{t('home.personal.rankSeasonLeader')}</span>
+            ) : (
+              <span style={S.targetText}>
+                {seasonTargetRival?.name
+                  ? t('home.personal.pointsToOvertakeSeason', {
+                      points: seasonPointsToNextRank,
+                      name: seasonTargetRival.name,
+                      rank: Math.max(1, displayRank - 1),
+                    })
+                  : t('home.personal.pointsToRankSeason', {
+                      points: seasonPointsToNextRank,
+                      rank: Math.max(1, displayRank - 1),
+                    })}
+              </span>
+            )
+          ) : isLeader ? (
             <span style={S.targetText}>{t('home.personal.rankLeader')}</span>
           ) : (
             <span style={S.targetText}>
               {targetRival?.name
-                ? t('home.personal.pointsToOvertake', { points: pointsToNextRank, name: targetRival.name, rank: rank - 1 })
-                : t('home.personal.pointsToRank', { points: pointsToNextRank, rank: rank - 1 })}
+                ? t('home.personal.pointsToOvertake', {
+                    points: pointsToNextRank,
+                    name: targetRival.name,
+                    rank: displayRank - 1,
+                  })
+                : t('home.personal.pointsToRank', {
+                    points: pointsToNextRank,
+                    rank: displayRank - 1,
+                  })}
             </span>
           )}
         </div>
-        {!isLeader && (
-          <div style={S.progressBarRow}>
-            <span style={S.trackLabel}>#{rank}</span>
-            <span style={S.track}>
-              <span style={{ ...S.fill, width: `${progressPct}%` }} />
-            </span>
-            <span style={S.trackLabelRight}>#{rank - 1}</span>
-          </div>
+
+        {isSeasonMode ? (
+          !isSeasonLeader && (
+            <div style={S.progressBarRow}>
+              <span style={S.trackLabel}>
+                #{displayRank} · {seasonPoints} {t('home.personal.seasonPointsShortUnit')}
+              </span>
+              <span style={S.track}>
+                <span style={{ ...S.fill, width: `${seasonProgressPct}%` }} />
+              </span>
+              <span style={S.trackLabelRight}>
+                #{Math.max(1, displayRank - 1)}{seasonTargetRival?.points != null ? ` · ${seasonTargetRival.points} ${t('home.personal.seasonPointsShortUnit')}` : ''}
+              </span>
+            </div>
+          )
+        ) : (
+          !isLeader && (
+            <div style={S.progressBarRow}>
+              <span style={S.trackLabel}>#{displayRank}</span>
+              <span style={S.track}>
+                <span style={{ ...S.fill, width: `${progressPct}%` }} />
+              </span>
+              <span style={S.trackLabelRight}>#{displayRank - 1}</span>
+            </div>
+          )
         )}
       </div>
     </div>
@@ -174,6 +339,58 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 28,
+  },
+  desktopToggleContainer: {
+    position: 'absolute',
+    top: 14,
+    right: 18,
+    zIndex: 2,
+  },
+  mobileTopRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modeToggle: {
+    display: 'inline-flex',
+    padding: 2,
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+    gap: 2,
+  },
+  modeBtn: {
+    background: 'none',
+    border: 'none',
+    padding: '3px 9px',
+    borderRadius: 6,
+    font: '600 11px/1 var(--font-sans)',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  modeBtnActive: {
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    padding: '3px 9px',
+    borderRadius: 6,
+    font: '600 11px/1 var(--font-sans)',
+    color: 'var(--text-primary)',
+    boxShadow: 'var(--shadow-sm)',
+    cursor: 'default',
+  },
+  seasonPointsDesktop: {
+    font: '700 30px/1 var(--font-display)',
+    color: 'var(--status-delivered-fg)',
+  },
+  seasonPointsMobile: {
+    font: '700 24px/1 var(--font-display)',
+    color: 'var(--status-delivered-fg)',
+  },
+  subMetricMuted: {
+    font: '400 11px/1 var(--font-mono)',
+    color: 'var(--text-muted)',
   },
   glow: {
     position: 'absolute',

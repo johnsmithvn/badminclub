@@ -149,18 +149,47 @@ export function getMyHeroStats(db, memberId) {
   const eloDeltaWeek = getRecentEloDelta(db, myItem.id, 7)
 
   // Điểm mùa từ calculateSeasonLeaderboard thật
+  let seasonRank = myRank
+  let seasonTotalMembers = totalMembers
   let seasonMatches = 0
   let seasonWins = 0
   let seasonWinRate = 0
   let seasonPoints = 0
+  let seasonTargetRival = null
+  let seasonPointsToNextRank = 0
+  let seasonProgressPct = 100
+  let isSeasonLeader = false
+
   try {
     const seasonData = calculateSeasonLeaderboard(db)
-    const mySeasonRow = (seasonData?.leaderboard || []).find((r) => r.id === myItem.id)
-    if (mySeasonRow) {
-      seasonMatches = mySeasonRow.matchesCount || 0
-      seasonWins = mySeasonRow.winsCount || 0
-      seasonWinRate = mySeasonRow.winRate || 0
-      seasonPoints = mySeasonRow.totalSeasonPoints || 0
+    const sLeaderboard = seasonData?.leaderboard || []
+    if (sLeaderboard.length > 0) {
+      seasonTotalMembers = sLeaderboard.length
+      const mySeasonIndex = sLeaderboard.findIndex((r) => r.id === myItem.id)
+      if (mySeasonIndex >= 0) {
+        const mySeasonRow = sLeaderboard[mySeasonIndex]
+        seasonRank = mySeasonRow.rank || (mySeasonIndex + 1)
+        seasonMatches = mySeasonRow.matchesCount || 0
+        seasonWins = mySeasonRow.winsCount || 0
+        seasonWinRate = mySeasonRow.winRate || 0
+        seasonPoints = mySeasonRow.totalSeasonPoints || 0
+        isSeasonLeader = seasonRank === 1
+
+        if (seasonRank > 1 && mySeasonIndex > 0) {
+          const rivalRow = sLeaderboard[mySeasonIndex - 1]
+          if (rivalRow) {
+            seasonTargetRival = {
+              id: rivalRow.id,
+              name: rivalRow.name,
+              rank: rivalRow.rank || mySeasonIndex,
+              points: rivalRow.totalSeasonPoints || 0,
+            }
+            seasonPointsToNextRank = Math.max(1, (rivalRow.totalSeasonPoints || 0) - seasonPoints)
+            // 40 điểm mùa làm mẫu số tham chiếu trực quan cho thanh tiến độ leo rank mùa
+            seasonProgressPct = Math.min(95, Math.max(10, Math.round(100 - (seasonPointsToNextRank / 40) * 100)))
+          }
+        }
+      }
     }
   } catch {}
 
@@ -195,13 +224,20 @@ export function getMyHeroStats(db, memberId) {
 
   return {
     rank: myRank,
+    eloRank: myRank,
     totalMembers,
     elo: myElo,
     eloDeltaWeek,
+    seasonRank,
+    seasonTotalMembers,
     seasonMatches,
     seasonWins,
     seasonWinRate,
     seasonPoints,
+    seasonTargetRival,
+    seasonPointsToNextRank,
+    seasonProgressPct,
+    isSeasonLeader,
     badgesCount,
     targetRival,
     pointsToNextRank,
@@ -794,9 +830,56 @@ export function getClubTodayHighlights(db, memberId, limit = 4) {
  * @param {Object} db
  * @param {string} memberId
  * @param {number} [windowSize=5]
+ * @param {'elo'|'season'} [mode='elo']
  */
-export function getSurroundingStandings(db, memberId, windowSize = 5) {
+export function getSurroundingStandings(db, memberId, windowSize = 5, mode = 'elo') {
   if (!db || !memberId) return []
+
+  if (mode === 'season') {
+    try {
+      const seasonData = calculateSeasonLeaderboard(db)
+      const list = (seasonData?.leaderboard || []).map((r) => {
+        let streakWins = 0
+        try {
+          const st = getMemberStreak(r.id, db)?.streak || 0
+          if (st >= 3) streakWins = st
+        } catch {}
+        return {
+          id: r.id,
+          name: r.name,
+          rank: r.rank,
+          points: r.totalSeasonPoints,
+          elo: r.member ? getPlayerRating(db.playerRatings, r.id, r.member, db.levels)?.displayRating ?? DEFAULT_RATING : DEFAULT_RATING,
+          isQualified: r.isQualified,
+          streakWins,
+        }
+      })
+
+      if (list.length > 0) {
+        const myIndex = list.findIndex((x) => x.id === memberId)
+        if (myIndex < 0) return list.slice(0, windowSize)
+
+        let start = Math.max(0, myIndex - Math.floor(windowSize / 2))
+        let end = start + windowSize
+        if (end > list.length) {
+          end = list.length
+          start = Math.max(0, end - windowSize)
+        }
+
+        const windowRows = list.slice(start, end)
+        return windowRows.map((item) => {
+          const isMe = item.id === memberId
+          const isTarget = myIndex > 0 && list[myIndex - 1]?.id === item.id
+          return {
+            ...item,
+            isMe,
+            isTarget,
+          }
+        })
+      }
+    } catch {}
+  }
+
   const list = getClubEloLeaderboard(db)
   if (!list.length) return []
 
@@ -830,6 +913,10 @@ export function getSurroundingStandings(db, memberId, windowSize = 5) {
       streakWins,
     }
   })
+}
+
+export function getSurroundingSeasonStandings(db, memberId, windowSize = 5) {
+  return getSurroundingStandings(db, memberId, windowSize, 'season')
 }
 
 function rivalGoalCheck(list, myIndex, item) {

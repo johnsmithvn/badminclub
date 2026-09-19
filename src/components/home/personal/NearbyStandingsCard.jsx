@@ -1,23 +1,50 @@
+import { useState } from 'react'
 import { t } from '#i18n'
 
-export default function NearbyStandingsCard({ standings = [], onViewLeaderboard }) {
+export default function NearbyStandingsCard({ standings = [], seasonStandings = [], onViewLeaderboard }) {
+  const [mode, setMode] = useState('season') // 'season' | 'elo'
+  const isSeason = mode === 'season'
+  const displayList = isSeason && seasonStandings && seasonStandings.length > 0 ? seasonStandings : standings
+
   return (
     <div style={S.card}>
       <div style={S.headerRow}>
         <span style={S.title}>{t('home.personal.aroundYouTitle')}</span>
+
+        <div style={S.modeToggle}>
+          <button
+            type="button"
+            onClick={() => setMode('season')}
+            style={isSeason ? S.modeBtnActive : S.modeBtn}
+          >
+            {t('home.personal.seasonTab')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('elo')}
+            style={!isSeason ? S.modeBtnActive : S.modeBtn}
+          >
+            {t('home.personal.eloTab')}
+          </button>
+        </div>
+
         <button type="button" onClick={onViewLeaderboard} style={S.viewBtn}>
           {t('home.personal.viewLeaderboard')}
         </button>
       </div>
 
       <div style={S.rowsList}>
-        {standings.map((item) => {
+        {displayList.map((item) => {
+          const metricVal = isSeason
+            ? `${item.points ?? item.elo} ${t('home.personal.seasonPointsShortUnit')}`
+            : item.elo
+
           if (item.isMe) {
             return (
               <div key={item.id} style={S.rowActive}>
                 <span style={S.rankActive}>#{item.rank}</span>
                 <span style={S.nameActive}>{t('home.personal.you')}</span>
-                <span style={S.eloActive}>{item.elo}</span>
+                <span style={S.eloActive}>{metricVal}</span>
               </div>
             )
           }
@@ -30,7 +57,7 @@ export default function NearbyStandingsCard({ standings = [], onViewLeaderboard 
                   {item.name}
                   <span style={S.targetTag}> · {t('home.personal.targetTag')}</span>
                 </span>
-                <span style={S.eloTarget}>{item.elo}</span>
+                <span style={S.eloTarget}>{metricVal}</span>
               </div>
             )
           }
@@ -40,11 +67,11 @@ export default function NearbyStandingsCard({ standings = [], onViewLeaderboard 
               <span style={S.rankNormal}>#{item.rank}</span>
               <span style={S.nameNormal}>
                 {item.name}
-                {item.streakNote && (
-                  <span style={S.streakNote}> · {item.streakNote}</span>
+                {item.streakWins >= 3 && (
+                  <span style={S.streakNote}> · 🔥 {item.streakWins}T</span>
                 )}
               </span>
-              <span style={S.eloNormal}>{item.elo}</span>
+              <span style={S.eloNormal}>{metricVal}</span>
             </div>
           )
         })}
@@ -74,6 +101,34 @@ const S = {
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
     color: 'var(--text-muted)',
+  },
+  modeToggle: {
+    display: 'inline-flex',
+    padding: 2,
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+    gap: 2,
+  },
+  modeBtn: {
+    background: 'none',
+    border: 'none',
+    padding: '3px 8px',
+    borderRadius: 6,
+    font: '600 11px/1 var(--font-sans)',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  modeBtnActive: {
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    padding: '3px 8px',
+    borderRadius: 6,
+    font: '600 11px/1 var(--font-sans)',
+    color: 'var(--text-primary)',
+    boxShadow: 'var(--shadow-sm)',
+    cursor: 'default',
   },
   viewBtn: {
     background: 'none',

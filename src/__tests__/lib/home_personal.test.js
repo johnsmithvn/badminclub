@@ -10,6 +10,7 @@ import {
   calcSeasonRaceHistory,
   getRecentPlayerMatches,
   getSurroundingStandings,
+  getSurroundingSeasonStandings,
 } from '../../lib/homePersonal.js'
 
 test('Home Personal Dashboard Logic Suite', async (t) => {
@@ -184,6 +185,20 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.equal(shortPoints.length, 2)
     const shortLastPoint = shortPoints[shortPoints.length - 1]
     assert.equal(shortLastPoint, `${shortRace.latestMyX},${shortRace.latestMyY}`)
+  })
+
+  await t.test('10. getSurroundingSeasonStandings and getMyHeroStats season rank', () => {
+    const seasonStandings = getSurroundingSeasonStandings(mockDb, 'm1', 3)
+    assert.ok(Array.isArray(seasonStandings))
+    assert.ok(seasonStandings.length > 0)
+    const meRow = seasonStandings.find((x) => x.isMe)
+    assert.ok(meRow)
+    assert.equal(meRow.name, 'Minh')
+    assert.equal(typeof meRow.points, 'number')
+
+    const hero = getMyHeroStats(mockDb, 'm1')
+    assert.equal(typeof hero.seasonRank, 'number')
+    assert.equal(typeof hero.seasonProgressPct, 'number')
   })
 })
 
