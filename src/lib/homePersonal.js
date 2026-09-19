@@ -442,51 +442,151 @@ function buildMemberEloTrajectory(db, memberId, seasonMatches = null) {
 }
 
 /**
- * 04. Biểu đồ đường đua mùa (Season Race Time-Series) dựng từ lịch sử trận thật
+ * Xây dựng chuỗi điểm mùa lịch sử thực tế của một thành viên trong mùa giải hiện tại
+ * @param {Object} db
+ * @param {string} memberId
+ * @param {Object} [activeSeason]
+ * @returns {Array<{ at: number, points: number }>}
+ */
+function buildMemberSeasonPointsTrajectory(db, memberId, activeSeason = null) {
+  if (!db || !memberId) return []
+  const season = activeSeason || resolveSeason(db)
+  const startTs = season?.startDate ? Date.parse(`${season.startDate}T00:00:00Z`) : 0
+  const startPoints = season?.startPoints ?? 0
+
+  let currentPoints = 0
+  const events = []
+
+  try {
+    const seasonData = calculateSeasonLeaderboard(db, season)
+    const memberRow = (seasonData?.leaderboard || []).find((r) => r.id === memberId)
+    if (memberRow) {
+      currentPoints = memberRow.totalSeasonPoints || 0
+      const logs = memberRow.matchLogs || []
+      logs.forEach((l) => {
+        if (l.at) {
+          events.push({ at: Number(l.at), points: l.pointsAfter })
+        }
+      })
+      const preds = memberRow.predictionLogs || []
+      preds.forEach((p) => {
+        if (p.at) {
+          events.push({ at: Number(p.at), points: p.pointsAfter })
+        }
+      })
+    }
+  } catch {}
+
+  events.sort((a, b) => a.at - b.at)
+
+  if (events.length === 0) {
+    return [
+      { at: startTs || 0, points: currentPoints },
+      { at: Date.now(), points: currentPoints },
+    ]
+  }
+
+  const trajectory = []
+  if (startTs > 0 && events[0].at > startTs) {
+    trajectory.push({ at: startTs, points: startPoints })
+  }
+  events.forEach((ev) => {
+    trajectory.push({ at: ev.at, points: ev.points })
+  })
+
+  trajectory.push({ at: Date.now(), points: currentPoints })
+  return trajectory
+}
+
+/**
+ * 04. Biểu đồ đường đua mùa / Elo (Season / Elo Race Time-Series) dựng từ lịch sử trận thật
  * @param {Object} db
  * @param {string} memberId
  * @param {string} [rivalId]
  * @param {number} [weeksCount=6]
+ * @param {'season'|'elo'} [metric='elo']
  */
-export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount = 6) {
+export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount = 6, metric = 'elo') {
   if (!db || !memberId) return { empty: true }
 
   const activeSeason = resolveSeason(db)
   const seasonMatches = seasonMatchesOf(db, activeSeason)
 
-  const myTrajectory = buildMemberEloTrajectory(db, memberId, seasonMatches)
-  if (myTrajectory.length <= 1) {
+  // Elo Trajectory
+  const myEloTrajectory = buildMemberEloTrajectory(db, memberId, seasonMatches)
+  const currentMyElo = myEloTrajectory.length > 0 ? myEloTrajectory[myEloTrajectory.length - 1].rating : DEFAULT_RATING
+  const startMyElo = myEloTrajectory.length > 0 ? myEloTrajectory[0].rating : DEFAULT_RATING
+
+  let rivalEloTrajectory = []
+  if (rivalId) {
+    rivalEloTrajectory = buildMemberEloTrajectory(db, rivalId, seasonMatches)
+  }
+
+  // Season Points Trajectory
+  const mySeasonTrajectory = buildMemberSeasonPointsTrajectory(db, memberId, activeSeason)
+  const currentMySeasonPts = mySeasonTrajectory.length > 0 ? mySeasonTrajectory[mySeasonTrajectory.length - 1].points : 0
+  const startMySeasonPts = mySeasonTrajectory.length > 0 ? mySeasonTrajectory[0].points : 0
+
+  let rivalSeasonTrajectory = []
+  if (rivalId) {
+    rivalSeasonTrajectory = buildMemberSeasonPointsTrajectory(db, rivalId, activeSeason)
+  }
+
+  const isSeason = metric === 'season'
+  const myTrajectory = isSeason ? mySeasonTrajectory : myEloTrajectory
+  const rivalTrajectory = isSeason ? rivalSeasonTrajectory : rivalEloTrajectory
+
+  if (myTrajectory.length <= 1 && myEloTrajectory.length <= 1) {
     return { empty: true }
   }
 
-  const currentMyElo = myTrajectory[myTrajectory.length - 1].rating
-  const startMyElo = myTrajectory[0].rating
-
-  const leaderboard = getClubEloLeaderboard(db)
-  const rivalRankItem = rivalId ? leaderboard.find((x) => x.id === rivalId) : null
-
-  let rivalTrajectory = []
+  // Thông tin đối thủ (tên, thứ hạng theo metric)
+  let rivalName = ''
+  let rivalRank = null
   if (rivalId) {
-    rivalTrajectory = buildMemberEloTrajectory(db, rivalId, seasonMatches)
+    if (isSeason) {
+      try {
+        const seasonData = calculateSeasonLeaderboard(db, activeSeason)
+        const row = (seasonData?.leaderboard || []).find((x) => x.id === rivalId)
+        if (row) {
+          rivalName = row.name
+          rivalRank = row.rank
+        }
+      } catch {}
+    }
+    if (!rivalName) {
+      const eloList = getClubEloLeaderboard(db)
+      const row = eloList.find((x) => x.id === rivalId)
+      if (row) {
+        rivalName = row.name
+        rivalRank = row.rank
+      }
+    }
+    if (!rivalName) {
+      rivalName = memberOf(db, rivalId)?.name || rivalId
+    }
   }
 
   const hasRivalTrajectory = rivalTrajectory.length > 1
 
   // Lấy các mốc mẫu từ trajectory
-  const samplePoints = (traj, count) => {
+  const samplePoints = (traj, count, key = 'rating') => {
     if (!traj || !traj.length) return []
-    if (traj.length === 1) return Array(count).fill(traj[0].rating)
+    if (traj.length === 1) return Array(count).fill(traj[0][key])
     const res = []
     for (let i = 0; i < count; i++) {
       const idx = Math.min(traj.length - 1, Math.round((i / (count - 1)) * (traj.length - 1)))
-      res.push(traj[idx].rating)
+      res.push(traj[idx][key])
     }
     return res
   }
 
-  let myWeeklyElo = []
-  let rivalWeeklyElo = []
+  let myWeeklyValues = []
+  let rivalWeeklyValues = []
   let effectiveWeeksCount = weeksCount
+
+  const currentVal = isSeason ? currentMySeasonPts : currentMyElo
+  const startValDirect = isSeason ? startMySeasonPts : startMyElo
 
   const startTs = activeSeason?.startDate ? Date.parse(`${activeSeason.startDate}T00:00:00Z`) : 0
   if (startTs > 0 && Number.isFinite(startTs)) {
@@ -495,84 +595,93 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
     effectiveWeeksCount = span
     const firstWeek = Math.max(1, nowWeek - span + 1)
 
-    // Gom mốc Elo theo tuần của mùa giải
-    const getRatingAtWeek = (traj, weekIdx) => {
+    const getValueAtWeek = (traj, weekIdx, key) => {
       const weekCutoff = startTs + weekIdx * 7 * 86400000
-      let latestRating = traj[0].rating
+      let latestVal = traj[0]?.[key] ?? 0
       for (const pt of traj) {
         if (pt.at && pt.at <= weekCutoff) {
-          latestRating = pt.rating
+          latestVal = pt[key]
         } else if (pt.at && pt.at > weekCutoff) {
           break
         }
       }
-      return latestRating
+      return latestVal
     }
 
-    myWeeklyElo = Array.from({ length: span }, (_, i) => {
+    const key = isSeason ? 'points' : 'rating'
+    myWeeklyValues = Array.from({ length: span }, (_, i) => {
       const weekIdx = firstWeek + i
       if (weekIdx >= nowWeek) {
-        return currentMyElo
+        return currentVal
       }
-      return getRatingAtWeek(myTrajectory, weekIdx)
+      return getValueAtWeek(myTrajectory, weekIdx, key)
     })
 
     if (hasRivalTrajectory) {
-      const currentRivalElo = rivalTrajectory[rivalTrajectory.length - 1].rating
-      rivalWeeklyElo = Array.from({ length: span }, (_, i) => {
+      const currentRivalVal = rivalTrajectory[rivalTrajectory.length - 1][key]
+      rivalWeeklyValues = Array.from({ length: span }, (_, i) => {
         const weekIdx = firstWeek + i
         if (weekIdx >= nowWeek) {
-          return currentRivalElo
+          return currentRivalVal
         }
-        return getRatingAtWeek(rivalTrajectory, weekIdx)
+        return getValueAtWeek(rivalTrajectory, weekIdx, key)
       })
     }
   } else {
-    myWeeklyElo = samplePoints(myTrajectory, weeksCount)
+    const key = isSeason ? 'points' : 'rating'
+    myWeeklyValues = samplePoints(myTrajectory, weeksCount, key)
     if (hasRivalTrajectory) {
-      rivalWeeklyElo = samplePoints(rivalTrajectory, weeksCount)
+      rivalWeeklyValues = samplePoints(rivalTrajectory, weeksCount, key)
     }
   }
 
   // Toạ độ SVG (viewBox 0 0 660 96)
-  const allRatings = hasRivalTrajectory ? [...myWeeklyElo, ...rivalWeeklyElo] : [...myWeeklyElo]
-  const minElo = Math.min(...allRatings) - 15
-  const maxElo = Math.max(...allRatings) + 15
-  const eloRange = Math.max(30, maxElo - minElo)
+  const allValues = hasRivalTrajectory ? [...myWeeklyValues, ...rivalWeeklyValues] : [...myWeeklyValues]
+  const minVal = Math.min(...allValues) - 10
+  const maxVal = Math.max(...allValues) + 10
+  const range = Math.max(20, maxVal - minVal)
 
-  // Mốc đầu tiên của biểu đồ khớp với giá trị điểm đầu trên đường vẽ
-  const startElo = myWeeklyElo[0] ?? startMyElo
-  const deltaElo = currentMyElo - startElo
+  const startVal = myWeeklyValues[0] ?? startValDirect
+  const deltaVal = currentVal - startVal
 
   // Tính toạ độ X linh hoạt theo số mốc thực tế của biểu đồ
-  const xPointsCount = myWeeklyElo.length
+  const xPointsCount = myWeeklyValues.length
   const xCoords = Array.from({ length: xPointsCount }, (_, i) => Math.round(20 + (i / Math.max(1, xPointsCount - 1)) * 620))
   const toY = (val) => {
-    const normalized = (val - minElo) / eloRange
+    const normalized = (val - minVal) / range
     return Math.round(84 - normalized * 64)
   }
 
-  const svgPointsMy = myWeeklyElo.map((val, idx) => `${xCoords[idx]},${toY(val)}`).join(' ')
-  const svgPointsRival = hasRivalTrajectory ? rivalWeeklyElo.map((val, idx) => `${xCoords[idx]},${toY(val)}`).join(' ') : ''
+  const svgPointsMy = myWeeklyValues.map((val, idx) => `${xCoords[idx]},${toY(val)}`).join(' ')
+  const svgPointsRival = hasRivalTrajectory ? rivalWeeklyValues.map((val, idx) => `${xCoords[idx]},${toY(val)}`).join(' ') : ''
 
-  const startRivalElo = hasRivalTrajectory ? (rivalWeeklyElo[0] ?? rivalTrajectory[0].rating) : null
-  const currentRivalElo = hasRivalTrajectory ? (rivalWeeklyElo[rivalWeeklyElo.length - 1] ?? rivalTrajectory[rivalTrajectory.length - 1].rating) : null
-  const initialGap = (startRivalElo != null) ? Math.abs(startRivalElo - startElo) : null
-  const currentGap = (currentRivalElo != null) ? Math.abs(currentRivalElo - currentMyElo) : null
+  const startRivalVal = hasRivalTrajectory ? (rivalWeeklyValues[0] ?? rivalTrajectory[0][isSeason ? 'points' : 'rating']) : null
+  const currentRivalVal = hasRivalTrajectory ? (rivalWeeklyValues[rivalWeeklyValues.length - 1] ?? rivalTrajectory[rivalTrajectory.length - 1][isSeason ? 'points' : 'rating']) : null
+  const initialGap = (startRivalVal != null) ? Math.abs(startRivalVal - startVal) : null
+  const currentGap = (currentRivalVal != null) ? Math.abs(currentRivalVal - currentVal) : null
+
+  const effectiveStartElo = isSeason ? startMyElo : startVal
+  const effectiveDeltaElo = isSeason ? (currentMyElo - startMyElo) : deltaVal
 
   return {
     empty: false,
+    metric,
+    unitKey: isSeason ? 'seasonPointsShortUnit' : 'eloNormal',
     weeks: effectiveWeeksCount,
-    startElo,
+    startVal,
+    currentVal,
+    deltaVal,
+    startElo: effectiveStartElo,
     currentElo: currentMyElo,
-    deltaElo,
-    rivalName: rivalRankItem?.name || '',
-    rivalRank: rivalRankItem?.rank || null,
+    deltaElo: effectiveDeltaElo,
+    rivalId,
+    rivalName,
+    rivalRank,
     svgPointsMy,
     svgPointsRival,
     hasRivalTrajectory,
     latestMyX: xCoords[xCoords.length - 1],
-    latestMyY: toY(currentMyElo),
+    latestMyY: toY(currentVal),
     initialGap,
     currentGap,
   }

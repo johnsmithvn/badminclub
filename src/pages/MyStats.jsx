@@ -166,7 +166,13 @@ export default function MyStats() {
         />
 
         {/* Thẻ 04: Season Race */}
-        <SeasonRaceCard raceData={seasonRace} data={seasonRace} />
+        <SeasonRaceCard
+          db={db}
+          memberId={memberId}
+          defaultRivalId={rivalAnalysis?.rival?.id}
+          raceData={seasonRace}
+          data={seasonRace}
+        />
 
         {/* Thẻ 05: Trận gần nhất */}
         <RecentMatchesCard
@@ -260,7 +266,13 @@ export default function MyStats() {
           </div>
 
           {/* 04. Đường đua mùa · 6 tuần */}
-          <SeasonRaceCard raceData={seasonRace} data={seasonRace} />
+          <SeasonRaceCard
+            db={db}
+            memberId={memberId}
+            defaultRivalId={rivalAnalysis?.rival?.id}
+            raceData={seasonRace}
+            data={seasonRace}
+          />
 
           {/* 05. Trận gần nhất của tôi (3 trận) */}
           <RecentMatchesCard
