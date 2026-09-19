@@ -172,6 +172,8 @@
   "challenge": {
     "defaultBestOf": 3,
     "defaultExpireMins": 60,
+  "pendingExpireDays": 7,
+  "abandonedAcceptedDays": 14,
     "maxStakePoints": 100,
     "stakeMaxLen": 120
   },

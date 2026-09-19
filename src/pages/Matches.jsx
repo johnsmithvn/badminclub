@@ -20,7 +20,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats, challengeExpiryAt, isChallengeExpired, isChallengeAccepted } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats, challengeExpiryAt, challengeCountdown, isChallengeExpired, isChallengeAccepted } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -70,7 +70,8 @@ export default function Matches() {
     : (tabParam === 'matrix' ? 'matrix' : 'challenges')
 
   const [activeTab, setActiveTab] = useState(initialTab)
-  const [challengeSubTab, setChallengeSubTab] = useState('my') // 'my' | 'open' | 'pending' | 'played' | 'all'
+  const [challengeSubTab, setChallengeSubTab] = useState('my') // 'my' | 'open' | 'pending' | 'played'
+  const [myEndedCollapsed, setMyEndedCollapsed] = useState(true)
 
   // Đồng bộ URL khi đổi tab
   const handleSelectTab = (newTab) => {
@@ -177,10 +178,10 @@ export default function Matches() {
         } else if (targetChal.status === 'played') {
           setChallengeSubTab('played')
         } else {
-          setChallengeSubTab('all')
+          setChallengeSubTab('pending')
         }
       } else {
-        setChallengeSubTab('all')
+        setChallengeSubTab('pending')
       }
     }
   }, [searchParams, cidParam, matchIdParam, db.challenges, db.matches, myId])
@@ -282,6 +283,20 @@ export default function Matches() {
     })
   }, [allChallenges, myId])
 
+  const ACTIVE_STATUS = new Set(['pending', 'accepted', 'oncourt'])
+  const STATUS_ORDER = { pending: 0, accepted: 1, oncourt: 2 }
+
+  const myActiveChallenges = useMemo(() => {
+    return myChallenges
+      .filter((c) => ACTIVE_STATUS.has(c.status))
+      .slice()
+      .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
+  }, [myChallenges])
+
+  const myEndedChallenges = useMemo(() => {
+    return myChallenges.filter((c) => !ACTIVE_STATUS.has(c.status))
+  }, [myChallenges])
+
   const openChallenges = useMemo(() => {
     return allChallenges.filter((c) => {
       const isPending = c.status === 'pending'
@@ -307,7 +322,6 @@ export default function Matches() {
       case 'open': list = openChallenges; break
       case 'pending': list = pendingChallenges; break
       case 'played': list = playedChallenges; break
-      case 'all': list = allChallenges; break
       default: list = myChallenges
     }
 
@@ -320,7 +334,7 @@ export default function Matches() {
       }
     }
     return list
-  }, [challengeSubTab, myChallenges, openChallenges, pendingChallenges, playedChallenges, allChallenges, highlightedChallengeId])
+  }, [challengeSubTab, myChallenges, openChallenges, pendingChallenges, playedChallenges, highlightedChallengeId])
 
   // =========================================================================
   // TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - BÊ NGUYÊN TỪ LEADERBOARD CŨ
@@ -741,7 +755,6 @@ export default function Matches() {
               { id: 'open', label: t('challenge.tabOpen'), count: openChallenges.length, color: 'var(--status-transit-fg)' },
               { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: 'var(--status-delayed-fg)' },
               { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
-              { id: 'all', label: t('challenge.tabAll'), count: allChallenges.length },
             ].map((st) => {
               const active = challengeSubTab === st.id
               return (
@@ -844,12 +857,14 @@ export default function Matches() {
               // Countdown hết hạn
               const expTime = challengeExpiryAt(c)
               const isExpired = isChallengeExpired(c, now)
+              // Chia bậc: hạn nhận kèo là 7 ngày, in phút:giây thì ra "10080:23".
               let expStr = ''
               if (expTime && isPending && !isExpired) {
-                const diff = expTime - now
-                const mins = Math.floor(diff / 60000)
-                const secs = Math.floor((diff % 60000) / 1000)
-                expStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`
+                const cd = challengeCountdown(expTime - now)
+                expStr = !cd || cd.kind === 'over' ? ''
+                  : cd.kind === 'day' ? `${cd.n} ${t('units.day')}`
+                    : cd.kind === 'hour' ? `${cd.n} ${t('units.hour')}`
+                      : cd.text
               }
 
               const isBoSeries = (c.bestOf || 1) > 1

@@ -17,8 +17,35 @@ export function nextChallengeCode(existingChallenges = []) {
 }
 
 /**
+ * Đồng hồ đếm ngược, chia theo bậc thời gian còn lại.
+ *
+ * Trước đây mỗi màn tự in `phút:giây`. Hạn kèo giờ là 7 NGÀY, in kiểu đó ra `"10080:23"` —
+ * không ai đọc được đó là gì. Trả về dữ liệu thô, để màn hình tự ghép chữ (RULES §3.1: lib
+ * không chứa chuỗi tiếng Việt).
+ *
+ *   { kind: 'over' }                 đã quá hạn
+ *   { kind: 'day',   n: 6 }          còn từ 1 ngày trở lên
+ *   { kind: 'hour',  n: 5 }          còn dưới 1 ngày
+ *   { kind: 'clock', text: '45:07' } còn dưới 1 giờ — lúc này giây mới đáng nhìn
+ */
+export function challengeCountdown(ms) {
+  if (ms == null || Number.isNaN(ms)) return null
+  if (ms <= 0) return { kind: 'over' }
+  const days = Math.floor(ms / 86400000)
+  if (days >= 1) return { kind: 'day', n: days }
+  const hours = Math.floor(ms / 3600000)
+  if (hours >= 1) return { kind: 'hour', n: hours }
+  const mins = Math.floor(ms / 60000)
+  const secs = Math.floor((ms % 60000) / 1000)
+  return { kind: 'clock', text: `${mins}:${secs < 10 ? '0' : ''}${secs}` }
+}
+
+/**
  * Mốc giờ kèo hết hạn NHẬN. Thiếu `expiresAt` (dòng cũ trước khi có cột đó) thì suy từ lúc tạo.
  * Trả về mili-giây, hoặc null nếu không suy ra được.
+ *
+ * `defaultExpireMins` (60) CHỈ dùng cho nhánh suy dòng cũ — giữ nguyên để kèo cũ hành xử y như
+ * trước. Kèo tạo từ giờ ghi thẳng `expiresAt` theo `pendingExpireDays`, xem `createChallenge`.
  */
 export function challengeExpiryAt(challenge) {
   if (challenge?.expiresAt) return new Date(challenge.expiresAt).getTime()
@@ -457,6 +484,34 @@ export function orphanedChallenges(db, now = Date.now()) {
     if (isChallengeExpired(c, now)) return false // đã thuộc nhóm hết hạn ở trên
     const sess = c.sessionId ? sessions.get(c.sessionId) || null : null
     return Boolean(sess && DEAD_SESSION_STATUS.has(sess.status))
+  })
+}
+
+/**
+ * Kèo ĐÃ NHẬN nhưng bỏ hoang: bốn người đã ký tên rồi không ai đánh, quá `abandonedAcceptedDays`.
+ *
+ * TÁCH KHỎI 'expired' vì `isChallengeExpired` cố ý trả false cho kèo đã nhận — hạn nhận kèo và
+ * hạn đánh kèo là hai chuyện. Nhưng kèo đã nhận mà treo vô thời hạn cũng không được: ai đã đặt
+ * phiếu vào đó bị giam SP không có ngày trả.
+ *
+ * Mốc đếm từ `acceptedAt`; dòng cũ thiếu mốc đó thì lùi về `createdAt`, không có cả hai thì BỎ
+ * QUA — thà để kèo treo còn hơn huỷ nhầm một kèo không biết nó bao nhiêu tuổi.
+ *
+ * ĐÁNH RỒI THÌ KHÔNG ĐỤNG: còn một hiệp đã đánh nghĩa là loạt đang dở, huỷ nó là xoá kết quả
+ * thật và kéo theo cả Elo. Đó là việc của người, không phải của máy quét.
+ */
+export function abandonedChallenges(db, now = Date.now()) {
+  const days = cfg.challenge?.abandonedAcceptedDays
+  if (!days || days <= 0) return []
+  const cutoff = days * 86400000
+  const matches = db?.matches || []
+  return (db?.challenges || []).filter((c) => {
+    if (!isChallengeAccepted(c)) return false
+    const since = c.acceptedAt || c.createdAt
+    if (!since) return false
+    const t = new Date(since).getTime()
+    if (Number.isNaN(t) || now - t < cutoff) return false
+    return getChallengeSeriesProgress(c, matches).totalSetsPlayed === 0
   })
 }
 

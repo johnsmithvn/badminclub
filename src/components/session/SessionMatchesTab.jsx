@@ -7,7 +7,7 @@ import { searchMatches } from '#lib/matchSearch.js'
 
 import { useMobile } from '#hooks/useMobile.js'
 import { Icon } from '#ds'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, challengeExpiryAt } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, challengeExpiryAt, challengeCountdown } from '#lib/challenge.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
@@ -1263,26 +1263,22 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const canAccept = canMemberAcceptChallenge(c, myId, isAdmin)
               const isParticipant = Boolean(myId && [...(c.teamA || []), ...(c.teamB || [])].includes(myId))
 
-              // DT2 countdown hết hạn
+              // DT2 countdown hết hạn. Hạn nhận kèo là 7 ngày nên phải chia bậc — in thẳng
+              // phút:giây thì ra "10080:23", không ai hiểu đó là gì. Xem `challengeCountdown`.
               const expTime = challengeExpiryAt(c)
-              let expStr = '24:12'
-              if (expTime) {
-                const diff = expTime - now
-                if (diff <= 0) {
-                  expStr = '00:00'
-                } else {
-                  const mins = Math.floor(diff / 60000)
-                  const secs = Math.floor((diff % 60000) / 1000)
-                  expStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`
-                }
-              }
+              const cd = expTime ? challengeCountdown(expTime - now) : null
+              const expStr = !cd ? ''
+                : cd.kind === 'over' ? '00:00'
+                  : cd.kind === 'day' ? `${cd.n} ${t('units.day')}`
+                    : cd.kind === 'hour' ? `${cd.n} ${t('units.hour')}`
+                      : cd.text
 
               const isBoSeries = (c.bestOf || 1) > 1
               const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
               const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
 
               const statusText = isPending
-                ? `${t('challenge.status.pending')} · ${t('challenge.expiresIn', { time: expStr })}`
+                ? `${t('challenge.status.pending')}${expStr ? ` · ${t('challenge.expiresIn', { time: expStr })}` : ''}`
                 : isAccepted && hasPlayedSets
                   ? `${t('challenge.seriesPlaying', { score: seriesProg.seriesScoreText })} · ${t('challenge.seriesSetShort', { set: seriesProg.nextSetNumber })}`
                   : (t('challenge.status.' + c.status) || c.status)
