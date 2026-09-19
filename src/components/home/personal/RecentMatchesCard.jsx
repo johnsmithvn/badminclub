@@ -4,21 +4,21 @@ import { t } from '#i18n'
 function formatSeasonPoints(val, won) {
   if (!val || val === '—') return '—'
   const str = String(val).trim()
-  if (str === '0' || str === '+0' || str === '−0' || str === '-0') return `0 ${t('home.personal.seasonPointsShort')}`
+  if (str === '0' || str === '+0' || str === '−0' || str === '-0') return '0'
   if (str.startsWith('+') || str.startsWith('−') || str.startsWith('-')) {
-    return `${str} ${t('home.personal.seasonPointsShort')}`
+    return str
   }
   const num = Number(str)
   if (!isNaN(num) && num > 0) {
-    return `+${num} ${t('home.personal.seasonPointsShort')}`
+    return `+${num}`
   }
   if (!isNaN(num) && num < 0) {
-    return `−${Math.abs(num)} ${t('home.personal.seasonPointsShort')}`
+    return `−${Math.abs(num)}`
   }
   if (won) {
-    return `+${str} ${t('home.personal.seasonPointsShort')}`
+    return `+${str}`
   }
-  return `${str} ${t('home.personal.seasonPointsShort')}`
+  return str
 }
 
 export default function RecentMatchesCard({ matches = [], isMobile, onViewAll }) {
@@ -109,7 +109,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                  <div style={S.mobileScoreAndRankCol}>
                     <div style={S.mobileScoreCol}>
                       {m.scoreSets && m.scoreSets.length > 0 ? (
                         m.scoreSets.map((s, sIdx) => (
@@ -124,17 +124,29 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
                         <span style={m.won ? S.scoreGreen : S.scoreRed}>{m.score}</span>
                       )}
                     </div>
+
+                    {m.rankImpact ? (
+                      <span
+                        style={
+                          m.rankImpact.type === 'up'
+                            ? S.rankTextUpMobile
+                            : m.rankImpact.type === 'down'
+                              ? S.rankTextDownMobile
+                              : S.rankTextSameMobile
+                        }
+                      >
+                        {m.rankImpact.type === 'up' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
+                        {m.rankImpact.type === 'down' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
+                        {m.rankImpact.type === 'same' &&
+                          t('home.personal.rankSame', {
+                            rank: m.rankImpact.current || m.rankImpact.to || m.rankImpact.from,
+                          })}
+                      </span>
+                    ) : (
+                      <span style={S.rankTextSameMobile}>—</span>
+                    )}
                   </div>
                 </div>
-
-                {m.rankImpact && m.rankImpact.type !== 'same' && (
-                  <div style={S.mobileRankImpactRow}>
-                    <span style={m.rankImpact.type === 'up' ? S.greenMono : S.redMono}>
-                      {m.rankImpact.type === 'up' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
-                      {m.rankImpact.type === 'down' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
-                    </span>
-                  </div>
-                )}
               </div>
             )
           })}
@@ -260,6 +272,7 @@ const S = {
     borderRadius: 14,
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
+    boxShadow: 'var(--shadow-sm)',
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
@@ -321,12 +334,27 @@ const S = {
     flexWrap: 'wrap',
     width: '100%',
   },
-  mobileRankImpactRow: {
+  mobileScoreAndRankCol: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    fontSize: 11,
-    width: '100%',
+    flexDirection: 'column',
+    gap: 3,
+    alignItems: 'flex-end',
+    flexShrink: 0,
+  },
+  rankTextUpMobile: {
+    font: '700 11.5px/1 var(--font-mono)',
+    color: 'var(--status-delivered-fg)',
+    whiteSpace: 'nowrap',
+  },
+  rankTextDownMobile: {
+    font: '700 11.5px/1 var(--font-mono)',
+    color: 'var(--status-incident-fg)',
+    whiteSpace: 'nowrap',
+  },
+  rankTextSameMobile: {
+    font: '500 11px/1 var(--font-mono)',
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
   },
   mobileMatchRow: {
     display: 'flex',
@@ -361,12 +389,12 @@ const S = {
   myPlayerWin: {
     color: 'var(--status-delivered-fg)',
     fontWeight: 700,
-    textShadow: '0 0 10px rgba(16, 185, 129, 0.3)',
+    textShadow: '0 0 10px rgba(16, 185, 129, 0.2)',
   },
   myPlayerLoss: {
     color: 'var(--status-incident-fg)',
     fontWeight: 700,
-    textShadow: '0 0 10px rgba(239, 68, 68, 0.3)',
+    textShadow: '0 0 10px rgba(239, 68, 68, 0.2)',
   },
   partnerPlayer: {
     color: 'var(--text-primary)',
@@ -436,16 +464,24 @@ const S = {
     color: 'var(--status-incident-fg)',
   },
   badgeWin: {
-    font: '600 10.5px/1 var(--font-sans)',
-    letterSpacing: '0.1em',
+    font: '700 10px/1 var(--font-sans)',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--status-delivered-fg)',
+    background: 'var(--status-delivered-bg)',
+    border: '1px solid rgba(16, 185, 129, 0.25)',
+    padding: '2.5px 7px',
+    borderRadius: 999,
   },
   badgeLoss: {
-    font: '600 10.5px/1 var(--font-sans)',
-    letterSpacing: '0.1em',
+    font: '700 10px/1 var(--font-sans)',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--status-incident-fg)',
+    background: 'var(--status-incident-bg)',
+    border: '1px solid rgba(239, 68, 68, 0.25)',
+    padding: '2.5px 7px',
+    borderRadius: 999,
   },
   pillsRow: {
     display: 'flex',
@@ -460,11 +496,11 @@ const S = {
     textAlign: 'center',
   },
   greenMono: {
-    font: '600 12px/1 var(--font-mono)',
+    font: '700 12.5px/1 var(--font-mono)',
     color: 'var(--status-delivered-fg)',
   },
   redMono: {
-    font: '600 12px/1 var(--font-mono)',
+    font: '700 12.5px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
   },
   mutedMono: {

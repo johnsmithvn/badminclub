@@ -1,34 +1,17 @@
+// Hai ca đã bỏ khỏi file này, cố ý — đừng thêm lại:
+//   1. `useMobile` chạy trong Node: phải mock dispatcher qua
+//      `React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE`, vỡ mỗi lần nâng
+//      React, mà chỉ khẳng định được `typeof === 'boolean'`. RULES §4: code gọi hook/Supabase
+//      không nằm trong bộ test này.
+//   2. "Mobile layout constraints": khai hai hằng `680`/`540` NGAY TRONG test rồi assert
+//      `680 > 390`. Hai số đó không tồn tại ở bất kỳ card nào, nên ca đó không bao giờ đỏ —
+//      sửa minWidth thật vẫn xanh. Muốn gác thật thì export hằng từ component rồi assert hằng đó.
+
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { confidenceProgress } from '../../lib/rating.js'
-import { useMobile } from '../../hooks/useMobile.js'
-
-import React from 'react'
 
 test('Mobile Responsiveness & Confidence Progression Tests', async (t) => {
-  await t.test('useMobile returns boolean safely in SSR/Node without window', () => {
-    const internals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE || React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
-    const origH = internals ? (internals.H || internals.ReactCurrentDispatcher?.current) : null
-    if (internals) {
-      const mockDispatcher = {
-        useState: (init) => [typeof init === 'function' ? init() : init, () => {}],
-        useEffect: () => {},
-      }
-      if (internals.H !== undefined) internals.H = mockDispatcher
-      if (internals.ReactCurrentDispatcher) internals.ReactCurrentDispatcher.current = mockDispatcher
-    }
-    try {
-      const isMob = useMobile(768)
-      assert.equal(typeof isMob, 'boolean')
-      assert.equal(isMob, false) // In node environment without window, safely defaults to false
-    } finally {
-      if (internals) {
-        if (internals.H !== undefined) internals.H = origH
-        if (internals.ReactCurrentDispatcher) internals.ReactCurrentDispatcher.current = origH
-      }
-    }
-  })
-
   await t.test('confidenceProgress calculates R1 through R5 correctly', () => {
     // R1: 0 - 4 games (<5)
     const r1 = confidenceProgress(2)
@@ -78,13 +61,6 @@ test('Mobile Responsiveness & Confidence Progression Tests', async (t) => {
     assert.equal(r5.needed, 0)
     assert.equal(r5.pct, 100)
     assert.equal(r5.isMax, true)
-  })
-
-  await t.test('Mobile layout constraints enforce touch scroll boundaries', () => {
-    const tableMinWidthDesktop = 680
-    const tableMinWidthMobile = 540
-    assert.ok(tableMinWidthDesktop > 390, 'Table minWidth exceeds mobile screen width to trigger horizontal scroll')
-    assert.ok(tableMinWidthMobile > 390, 'Mobile match card table width exceeds 390px to prevent cramped data')
   })
 
   await t.test('Mobile Home page renders all 10 personal dashboard cards without omissions', async () => {

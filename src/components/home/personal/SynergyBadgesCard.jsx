@@ -7,9 +7,6 @@ export default function SynergyBadgesCard({
   partners = [],
   bestPartner = null,
   underperformingPartner = null,
-  badgesCount = 0,
-  nextStreakBadge = 5,
-  winsNeededForStreak = 3,
   isMobile,
 }) {
   const [sortMode, setSortMode] = useState('synergy') // 'synergy' | 'matches'

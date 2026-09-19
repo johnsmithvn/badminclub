@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react'
+import { useMemo, useState } from 'react'
 import { Avatar, Button, IconButton } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
@@ -7,10 +7,8 @@ import NotificationBell from '#components/notification/NotificationBell.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { myMember } from '#lib/money.js'
-import { resolveSeason } from '#lib/season.js'
 import { getPlayerPartnersAndMatchups } from '#lib/rating.js'
 import {
-  calcSeasonWeek,
   getMyHeroStats,
   getPlayerForm5,
   getRivalAnalysis,
@@ -51,11 +49,6 @@ export default function MyStats() {
     profile?.avatar_url ||
     profile?.avatarUrl ||
     ''
-
-  // Lấy cấu hình mùa giải đang áp dụng (active) của CLB qua resolveSeason
-  const season = useMemo(() => resolveSeason(db) || {}, [db])
-  const seasonWeek = calcSeasonWeek(season.startDate)
-  const seasonName = season.name || ''
 
   // 1. Thẻ Hero & thứ hạng
   const heroStats = useMemo(() => getMyHeroStats(db, memberId), [db, memberId])
@@ -242,9 +235,6 @@ export default function MyStats() {
           partners={partnerStats.partners}
           bestPartner={partnerStats.bestPartner}
           underperformingPartner={partnerStats.underperformingPartner}
-          badgesCount={heroStats.badgesCount}
-          nextStreakBadge={formStats.nextBadgeStreak}
-          winsNeededForStreak={formStats.winsNeededForBadge}
           isMobile={true}
         />
 
@@ -378,9 +368,6 @@ export default function MyStats() {
             partners={partnerStats.partners}
             bestPartner={partnerStats.bestPartner}
             underperformingPartner={partnerStats.underperformingPartner}
-            badgesCount={heroStats.badgesCount}
-            nextStreakBadge={formStats.nextBadgeStreak}
-            winsNeededForStreak={formStats.winsNeededForBadge}
             isMobile={false}
           />
 

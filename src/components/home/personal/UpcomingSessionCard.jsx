@@ -29,7 +29,6 @@ export default function UpcomingSessionCard({
     )
   }
 
-  const timeStr = session.time || '—'
   const venueStr = session.venue || t('home.personal.defaultVenue')
   const goingCount = session.goingCount || 0
   const isRegistered = session.isRegistered ?? false
@@ -125,6 +124,7 @@ const S = {
     borderRadius: 14,
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
+    boxShadow: 'var(--shadow-sm)',
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
@@ -135,6 +135,7 @@ const S = {
     borderRadius: 14,
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
+    boxShadow: 'var(--shadow-sm)',
     display: 'flex',
     flexDirection: 'column',
     gap: 14,

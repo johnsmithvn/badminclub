@@ -19,7 +19,13 @@ export default function AppHeader({ route }) {
 
   const isSettings = route === 'settings'
 
-  // Màn SessionDetail, Giao dịch (Fund), Bảng xếp hạng (Leaderboard), Trận đấu (Matches) và Trang chủ (Home/MyStats) có header riêng chuẩn thiết kế -> ẩn AppHeader mặc định để tránh 2 header
+  // Màn SessionDetail, Giao dịch (Fund), Bảng xếp hạng (Leaderboard), Trận đấu (Matches) và
+  // Trang chủ (route 'home') có header riêng chuẩn thiết kế -> ẩn AppHeader mặc định để tránh 2 header.
+  //
+  // CẨN THẬN khi đọc danh sách này: route 'home' ('/') render `MyStats.jsx` — màn này TỰ dựng
+  // header. Màn Trang chủ CŨ (`pages/Home.jsx`) nằm ở route 'overview' ('/tong-quan') và KHÔNG tự
+  // dựng header, nên tuyệt đối không thêm 'overview' vào đây (thêm vào là màn đó mất tiêu đề +
+  // nút đổi theme). Xem bảng SCREEN trong `src/App.jsx`.
   if (route === 'session' || route === 'fund' || route === 'leaderboard' || route === 'matches' || route === 'home') {
     return null
   }

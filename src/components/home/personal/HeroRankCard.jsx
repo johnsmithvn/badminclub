@@ -8,13 +8,10 @@ export default function HeroRankCard({ hero, data, isMobile }) {
     rank = 1,
     eloRank = 1,
     eloRankDelta = 0,
-    totalMembers = 0,
     elo = 0,
     eloDeltaWeek = 0,
-    eloPctChange = 0,
     seasonRank = 1,
     seasonRankDelta = 0,
-    seasonTotalMembers = 0,
     seasonMatches = 0,
     seasonWins = 0,
     seasonWinRate = 0,
@@ -107,22 +104,29 @@ export default function HeroRankCard({ hero, data, isMobile }) {
 
             {isSeasonMode ? (
               <div style={S.desktopEloSubCol}>
-                <span style={seasonLatestDelta >= 0 ? S.seasonPointsDesktop : S.seasonPointsDesktopRed}>
-                  {seasonLatestDelta > 0 ? `+${seasonLatestDelta}` : (seasonLatestDelta < 0 ? `−${Math.abs(seasonLatestDelta)}` : '0')}
-                </span>
-                {seasonPctChange !== 0 ? (
-                  <span style={seasonPctChange > 0 ? S.deltaGreen : S.deltaRed}>
-                    {seasonPctChange > 0 ? '↑' : '↓'} {Math.abs(seasonPctChange)}% {t('home.personal.latestAttendedSession')}
+                <div style={S.eloRow}>
+                  <span style={seasonPoints >= 0 ? S.seasonPointsDesktop : S.seasonPointsDesktopRed}>
+                    {seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}
+                  </span>
+                  <span style={S.subMetricUnit}>{t('home.personal.seasonPointsShortUnit')}</span>
+                </div>
+                {seasonLatestDelta !== 0 || seasonPctChange !== 0 ? (
+                  <span style={seasonLatestDelta >= 0 ? S.deltaGreen : S.deltaRed}>
+                    {seasonLatestDelta > 0 ? `+${seasonLatestDelta}` : (seasonLatestDelta < 0 ? `−${Math.abs(seasonLatestDelta)}` : '0')}
+                    {seasonPctChange !== 0 ? ` (${seasonPctChange > 0 ? '↑' : '↓'} ${Math.abs(seasonPctChange)}%)` : ''} {t('home.personal.latestAttendedSession')}
                   </span>
                 ) : (
                   <span style={S.deltaMuted}>
-                    0% {t('home.personal.latestAttendedSession')}
+                    0 {t('home.personal.latestAttendedSession')}
                   </span>
                 )}
               </div>
             ) : (
               <div style={S.desktopEloSubCol}>
-                <span style={S.eloNumDesktop}>{elo}</span>
+                <div style={S.eloRow}>
+                  <span style={S.eloNumDesktop}>{elo}</span>
+                  <span style={S.subMetricUnit}>{t('home.personal.eloNormal')}</span>
+                </div>
                 {eloDeltaWeek !== 0 ? (
                   <span style={eloDeltaWeek > 0 ? S.deltaGreen : S.deltaRed}>
                     {eloDeltaWeek > 0 ? '↑' : '↓'} {absDelta} Elo {t('home.personal.thisWeek')}
@@ -136,7 +140,7 @@ export default function HeroRankCard({ hero, data, isMobile }) {
             )}
           </div>
 
-          {/* Cụm phải: 4 ô stat được highlight màu mè + Thanh tiến độ */}
+          {/* Cụm phải: 3 ô stat tinh gọn + Mục tiêu & Thanh tiến độ */}
           <div style={S.desktopRightCluster}>
             <div style={S.statsGrid}>
               <span style={S.statPill}>
@@ -146,10 +150,6 @@ export default function HeroRankCard({ hero, data, isMobile }) {
               <span style={S.statPill}>
                 <span style={S.statValGreen}>{seasonWins}</span>
                 <span style={S.statDesc}>{t('home.personal.winRateWithPct', { pct: seasonWinRate })}</span>
-              </span>
-              <span style={S.statPill}>
-                <span style={S.statValAmber}>{seasonPoints >= 0 ? `+${seasonPoints}` : seasonPoints}</span>
-                <span style={S.statDesc}>{t('home.personal.totalSeasonPoints')}</span>
               </span>
               <span style={S.statPill}>
                 <span style={S.statValPurple}>{badgesCount}</span>
@@ -184,11 +184,11 @@ export default function HeroRankCard({ hero, data, isMobile }) {
                       ? t('home.personal.pointsToOvertake', {
                           points: pointsToNextRank,
                           name: targetRival.name,
-                          rank: displayRank - 1,
+                          rank: Math.max(1, displayRank - 1),
                         })
                       : t('home.personal.pointsToRank', {
                           points: pointsToNextRank,
-                          rank: displayRank - 1,
+                          rank: Math.max(1, displayRank - 1),
                         })}
                   </span>
                 )}
@@ -216,7 +216,7 @@ export default function HeroRankCard({ hero, data, isMobile }) {
                       <span style={{ ...S.fill, width: `${progressPct}%` }} />
                     </span>
                     <span style={S.trackLabelRight}>
-                      #{displayRank - 1}{targetRival?.elo ? ` · ${targetRival.elo}` : ''}
+                      #{Math.max(1, displayRank - 1)}{targetRival?.elo ? ` · ${targetRival.elo}` : ''}
                     </span>
                   </div>
                 )
@@ -322,11 +322,11 @@ export default function HeroRankCard({ hero, data, isMobile }) {
                 ? t('home.personal.pointsToOvertake', {
                     points: pointsToNextRank,
                     name: targetRival.name,
-                    rank: displayRank - 1,
+                    rank: Math.max(1, displayRank - 1),
                   })
                 : t('home.personal.pointsToRank', {
                     points: pointsToNextRank,
-                    rank: displayRank - 1,
+                    rank: Math.max(1, displayRank - 1),
                   })}
             </span>
           )}
@@ -353,7 +353,7 @@ export default function HeroRankCard({ hero, data, isMobile }) {
               <span style={S.track}>
                 <span style={{ ...S.fill, width: `${progressPct}%` }} />
               </span>
-              <span style={S.trackLabelRight}>#{displayRank - 1}</span>
+              <span style={S.trackLabelRight}>#{Math.max(1, displayRank - 1)}</span>
             </div>
           )
         )}
@@ -369,6 +369,7 @@ const S = {
     borderRadius: 'var(--radius-card, 16px)',
     background: 'linear-gradient(155deg, var(--surface-card), var(--surface-inset))',
     border: '1px solid var(--border-default)',
+    boxShadow: 'var(--shadow-sm)',
     overflow: 'hidden',
   },
   cardDesktop: {
@@ -377,6 +378,7 @@ const S = {
     borderRadius: 'var(--radius-card, 18px)',
     background: 'linear-gradient(140deg, var(--surface-card), var(--surface-inset))',
     border: '1px solid var(--border-default)',
+    boxShadow: 'var(--shadow-sm)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
@@ -393,8 +395,8 @@ const S = {
   },
   desktopBody: {
     display: 'flex',
-    alignItems: 'center',
-    gap: 28,
+    alignItems: 'flex-start',
+    gap: 24,
     width: '100%',
   },
   modeToggle: {
@@ -436,12 +438,17 @@ const S = {
     whiteSpace: 'nowrap',
   },
   seasonPointsDesktop: {
-    font: '700 30px/1 var(--font-display)',
+    font: '700 28px/1 var(--font-display)',
     color: 'var(--status-delivered-fg)',
   },
   seasonPointsDesktopRed: {
-    font: '700 30px/1 var(--font-display)',
+    font: '700 28px/1 var(--font-display)',
     color: 'var(--status-incident-fg)',
+  },
+  subMetricUnit: {
+    font: '600 12px/1 var(--font-sans)',
+    color: 'var(--text-muted)',
+    marginLeft: 3,
   },
   seasonPointsMobile: {
     font: '700 24px/1 var(--font-display)',
@@ -487,7 +494,7 @@ const S = {
   desktopLeftCluster: {
     position: 'relative',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 20,
     flex: '0 0 auto',
   },
@@ -495,7 +502,7 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
-    paddingLeft: 18,
+    paddingLeft: 20,
     borderLeft: '1px solid var(--border-subtle)',
   },
   desktopRightCluster: {
@@ -504,7 +511,7 @@ const S = {
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: 13,
+    gap: 10,
   },
   progressBoxDesktop: {
     display: 'flex',
@@ -529,8 +536,8 @@ const S = {
     color: 'var(--text-primary)',
   },
   bigRankDesktop: {
-    font: '700 80px/0.88 var(--font-display)',
-    letterSpacing: '-0.04em',
+    font: '700 52px/1 var(--font-display)',
+    letterSpacing: '-0.03em',
     color: 'var(--text-primary)',
   },
   rankDeltaGreen: {

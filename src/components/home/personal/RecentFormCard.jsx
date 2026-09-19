@@ -75,6 +75,7 @@ const S = {
     borderRadius: 'var(--radius-card, 14px)',
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
+    boxShadow: 'var(--shadow-sm)',
     display: 'flex',
     flexDirection: 'column',
     gap: 10,

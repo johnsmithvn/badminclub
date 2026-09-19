@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import {
   calcSeasonWeek,
   getClubEloLeaderboard,
-  getRecentEloDelta,
   getMyHeroStats,
   getPlayerForm5,
   getRivalAnalysis,
