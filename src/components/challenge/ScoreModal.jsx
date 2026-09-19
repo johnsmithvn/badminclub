@@ -25,7 +25,7 @@ function badgesSnapshotOf(memberId, dbSnapshot) {
   return calculateMemberBadges(memberId, dbSnapshot, season, seasonMatches, clubStats)
 }
 
-export default function ScoreModal({ court, session, challenge, onClose, onSaved }) {
+export default function ScoreModal({ court, session, challenge, onClose, onSaved, onLoadToCourt }) {
   const { db, a } = useApp()
   const navigate = useNavigate()
   const isMobile = useMobile()
@@ -36,20 +36,23 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
 
   // Xác định Đội A và Đội B từ court hoặc challenge
   const teamA = useMemo(() => {
+    if (court?.teamA?.length) return court.teamA
     if (challenge) return challenge.teamA || []
     if (court && court.slots) return [court.slots[0], court.slots[1]].filter(Boolean)
     return []
   }, [challenge, court])
 
   const teamB = useMemo(() => {
+    if (court?.teamB?.length) return court.teamB
     if (challenge) return challenge.teamB || []
     if (court && court.slots) return [court.slots[2], court.slots[3]].filter(Boolean)
     return []
   }, [challenge, court])
 
   // Trận chia sân / phong trào mặc định 1 set (1 ván 21đ). Kèo thách đấu BO3 mới mặc định 3 set.
-  const isChallengeBo3 = challenge?.bestOf === 3
+  const isChallengeBo3 = challenge?.bestOf === 3 || court?.bestOf === 3
   const [sets, setSets] = useState(() => {
+    if (court?.initialSets?.length) return court.initialSets
     if (isChallengeBo3) {
       return [[21, 0], [0, 21], [21, 0]]
     }
@@ -141,7 +144,10 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
     })
   }, [winnerTeam, teamA, teamB, sets, db])
 
+  const isRatingEnabled = challenge ? challenge.ratingEnabled !== false : (court?.ratingEnabled !== undefined ? court.ratingEnabled : true)
+
   const ratingDeltaPreview = useMemo(() => {
+    if (!isRatingEnabled) return null
     if (!playerDeltasPreview) return null
     const { deltas, multiplier } = playerDeltasPreview
     const deltasA = teamA.map((id) => ({
@@ -159,7 +165,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       deltasB,
       mult: multiplier || 1,
     }
-  }, [playerDeltasPreview, teamA, teamB, db])
+  }, [isRatingEnabled, playerDeltasPreview, teamA, teamB, db])
 
   const handleFinishScore = (highlightBadgeId = null) => {
     if (pendingSavedRes && onSaved) onSaved(pendingSavedRes)
@@ -188,15 +194,15 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
       const finalSets = sets.filter(([a, b]) => a > 0 || b > 0)
       const res = a.saveMatchScore({
         sessionId: session?.id || null,
-        courtIdx: court?.courtIndex ?? 0,
+        courtIdx: court?.courtIndex ?? court?.courtIdx ?? 0,
         courtId: court?.courtId || null,
-        challengeId: challenge?.id || court?.fromChallengeId || null,
-        ratingEnabled: challenge ? challenge.ratingEnabled !== false : true,
+        challengeId: challenge?.id || court?.fromChallengeId || court?.selectedChallengeId || null,
+        ratingEnabled: isRatingEnabled,
         teamA,
         teamB,
         sets: finalSets.length ? finalSets : sets,
         winnerTeam,
-        minutes: court?.minutes || cfg.match?.defaultMinutes || 20,
+        minutes: court?.minutes || (court?.startedAt ? Math.max(1, Math.round((Date.now() - court.startedAt) / 60000)) : cfg.match?.defaultMinutes || 20),
       })
 
       // saveMatchScore trả kèm nextPlayerRatings — tách ra để phần dưới làm việc với một match
@@ -272,71 +278,96 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
     }
   }
 
-  const courtName = court ? court.name : ''
-  const isChallenge = Boolean(challenge || court?.fromChallengeId)
-  const challengeCode = challenge?.code || court?.fromChallengeCode || ''
+  const courtName = court ? (court.name || court.courtLabel || (court.courtIdx !== undefined ? t('session.courtNum', { n: court.courtIdx + 1 }) : '')) : ''
+  const isChallenge = Boolean(challenge || court?.fromChallengeId || court?.selectedChallengeId)
+  const challengeCode = challenge?.code || court?.fromChallengeCode || court?.challengeCode || ''
 
   return (
     <>
       <Dialog
         open={!unlockedBadge}
-      sheet={isMobile}
-      width={520}
-      title={t('scoreModal.title', { court: courtName || '1' })}
-      description={
-        isChallenge
-          ? t('scoreModal.sourceFromChallenge', { code: challengeCode })
-          : t('scoreModal.sourceFromSession')
-      }
-      onClose={onClose}
-      style={{
-        paddingBottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : undefined,
-      }}
-      footer={
-        <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-          <button
-            type="button"
-            disabled={!winnerTeam || submitting}
-            onClick={handleSave}
-            style={{
-              flex: 1,
-              height: isMobile ? 56 : 44,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--action-primary-bg)',
-              border: 'none',
-              font: '700 15px/1 "IBM Plex Sans", sans-serif',
-              color: 'var(--gray-0)',
-              cursor: !winnerTeam || submitting ? 'not-allowed' : 'pointer',
-              opacity: !winnerTeam || submitting ? 0.45 : 1,
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          >
-            {submitting ? t('common.saving') : t('scoreModal.save')}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              height: isMobile ? 56 : 44,
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0 20px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-default)',
-              font: '600 14px/1 "IBM Plex Sans", sans-serif',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            {t('common.cancel')}
-          </button>
-        </div>
-      }
-    >
+        sheet={isMobile}
+        width={520}
+        title={isChallenge && challengeCode ? t('challenge.quickScoreChallengeTitle', { code: challengeCode }) : t('scoreModal.title', { court: courtName || '1' })}
+        description={
+          !isRatingEnabled
+            ? t('scoreModal.sourceCasual')
+            : isChallenge
+              ? t('scoreModal.sourceFromChallenge', { code: challengeCode })
+              : t('scoreModal.sourceFromSession')
+        }
+        onClose={onClose}
+        style={{
+          paddingBottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : undefined,
+        }}
+        footer={
+          <div style={{ display: 'flex', gap: 10, width: '100%', flexWrap: 'wrap' }}>
+            {onLoadToCourt && (
+              <button
+                type="button"
+                onClick={() => {
+                  onLoadToCourt()
+                  onClose()
+                }}
+                style={{
+                  height: isMobile ? 56 : 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 16px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--surface-card)',
+                  border: '1px solid var(--border-default)',
+                  font: '600 13px/1 "IBM Plex Sans", sans-serif',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('assign.loadBackToCourt')}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={!winnerTeam || submitting}
+              onClick={handleSave}
+              style={{
+                flex: 1,
+                height: isMobile ? 56 : 44,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--action-primary-bg)',
+                border: 'none',
+                font: '700 15px/1 "IBM Plex Sans", sans-serif',
+                color: 'var(--gray-0)',
+                cursor: !winnerTeam || submitting ? 'not-allowed' : 'pointer',
+                opacity: !winnerTeam || submitting ? 0.45 : 1,
+                boxShadow: 'var(--shadow-xs)',
+              }}
+            >
+              {submitting ? t('common.saving') : t('scoreModal.save')}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                height: isMobile ? 56 : 44,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 20px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--surface-card)',
+                border: '1px solid var(--border-default)',
+                font: '600 14px/1 "IBM Plex Sans", sans-serif',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        }
+      >
       <div style={{ display: 'grid', gap: 14 }}>
         {/* Tên 2 đội */}
         <div style={S.teamsHeader}>
@@ -558,6 +589,12 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                   {ratingDeltaPreview.deltasB.map((p) => `${p.name} (${p.delta > 0 ? `+${p.delta}` : p.delta})`).join(' · ')}
                 </div>
               </div>
+            </div>
+          )}
+          {!isRatingEnabled && (
+            <div style={{ ...S.summaryRow, alignItems: 'center', paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>{t('scoreModal.ratingDelta')}</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{t('scoreModal.unratedExplain')}</span>
             </div>
           )}
         </div>
