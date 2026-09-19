@@ -11,6 +11,7 @@ import {
   getRecentPlayerMatches,
   getSurroundingStandings,
   getSurroundingSeasonStandings,
+  getPersonalGreeting,
 } from '../../lib/homePersonal.js'
 import { isFemalePlayer } from '../../lib/rating.js'
 
@@ -242,6 +243,29 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.equal(isFemalePlayer({ gender: '' }), false)
     assert.equal(isFemalePlayer({}), false)
     assert.equal(isFemalePlayer(null), false)
+  })
+
+  await t.test('13. getPersonalGreeting generates gendered greeting and contextual subtitle', () => {
+    // Nam
+    const maleMem = { id: 'm1', name: 'Tiến Đạt', gender: 'nam' }
+    const heroStats1 = { seasonRank: 1, totalMembers: 12 }
+    const g1 = getPersonalGreeting(maleMem, heroStats1, { streak: 1 }, [], null, mockDb)
+    assert.ok(g1.greetingKey.startsWith('home.personal.greetingMale'))
+    assert.equal(g1.subKey, 'home.personal.subRank1')
+
+    // Nữ với chuỗi thắng >= 3
+    const femaleMem = { id: 'm2', name: 'Vân Anh', gender: 'nu' }
+    const heroStats4 = { seasonRank: 4, totalMembers: 12 }
+    const g2 = getPersonalGreeting(femaleMem, heroStats4, { streak: 4 }, [], null, mockDb)
+    assert.ok(g2.greetingKey.startsWith('home.personal.greetingFemale'))
+    assert.equal(g2.subKey, 'home.personal.subWinStreakFemale')
+    assert.equal(g2.subParams.streak, 4)
+
+    // Đáy bảng mùa (thuộc top 4-5 người cuối bảng, ví dụ hạng 9 trên 12 người)
+    const bottomMem = { id: 'm3', name: 'Linh', gender: 'nam' }
+    const heroStatsBottom = { seasonRank: 9, seasonTotalMembers: 12 }
+    const g3 = getPersonalGreeting(bottomMem, heroStatsBottom, { streak: 0 }, [], null, mockDb)
+    assert.ok(g3.subKey.startsWith('home.personal.subRankBottom'))
   })
 })
 

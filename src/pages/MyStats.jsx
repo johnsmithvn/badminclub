@@ -17,6 +17,7 @@ import {
   getClubTodayHighlights,
   getSurroundingStandings,
   getSurroundingSeasonStandings,
+  getPersonalGreeting,
 } from '#lib/homePersonal.js'
 
 import HeroRankCard from '#components/home/personal/HeroRankCard.jsx'
@@ -118,6 +119,12 @@ export default function MyStats() {
   // 7. Buổi tập sắp tới
   const upcomingSession = useMemo(() => getNextUpcomingSession(db, memberId), [db, memberId])
 
+  // Lời chào cá nhân & Subtitle tương tác sinh động theo dữ liệu thực tế
+  const personalGreeting = useMemo(
+    () => getPersonalGreeting(currentMember, heroStats, formStats, recentMatches, upcomingSession, db),
+    [currentMember, heroStats, formStats, recentMatches, upcomingSession, db],
+  )
+
   // 8. Tin tức nổi bật hôm nay
   const clubHighlights = useMemo(() => getClubTodayHighlights(db, memberId), [db, memberId])
 
@@ -157,14 +164,22 @@ export default function MyStats() {
         <div style={S.mobileHeader}>
           <div style={S.headerCol}>
             <h1 style={S.mobileGreeting}>
-              {t('home.personal.greeting', { name: memberName })}
+              {personalGreeting?.greetingKey
+                ? t(personalGreeting.greetingKey, personalGreeting.greetingParams)
+                : t('home.personal.greeting', { name: memberName })}
             </h1>
             <div style={S.mobileSub}>
-              {t('home.personal.subtitleMobile', {
-                club: db.club?.name || t('common.unknown'),
-                season: seasonName,
-                week: seasonWeek,
-              })}
+              {personalGreeting?.subKey
+                ? `${t(personalGreeting.subKey, personalGreeting.subParams)} · ${t('home.personal.subtitleMobile', {
+                    club: db.club?.name || t('common.unknown'),
+                    season: seasonName,
+                    week: seasonWeek,
+                  })}`
+                : t('home.personal.subtitleMobile', {
+                    club: db.club?.name || t('common.unknown'),
+                    season: seasonName,
+                    week: seasonWeek,
+                  })}
             </div>
           </div>
           <Avatar
@@ -250,14 +265,22 @@ export default function MyStats() {
       <div style={S.desktopHeader}>
         <div style={S.headerCol}>
           <h1 style={S.desktopGreeting}>
-            {t('home.personal.greeting', { name: memberName })}
+            {personalGreeting?.greetingKey
+              ? t(personalGreeting.greetingKey, personalGreeting.greetingParams)
+              : t('home.personal.greeting', { name: memberName })}
           </h1>
           <div style={S.desktopSub}>
-            {t('home.personal.subtitleDesktop', {
-              season: seasonName,
-              week: seasonWeek,
-              members: heroStats.totalMembers,
-            })}
+            {personalGreeting?.subKey
+              ? `${t(personalGreeting.subKey, personalGreeting.subParams)} · ${t('home.personal.subtitleDesktop', {
+                  season: seasonName,
+                  week: seasonWeek,
+                  members: heroStats.totalMembers,
+                })}`
+              : t('home.personal.subtitleDesktop', {
+                  season: seasonName,
+                  week: seasonWeek,
+                  members: heroStats.totalMembers,
+                })}
           </div>
         </div>
         <Avatar

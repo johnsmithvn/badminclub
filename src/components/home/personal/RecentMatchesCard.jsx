@@ -1,3 +1,4 @@
+import { Icon } from '#ds'
 import { t } from '#i18n'
 
 function formatSeasonPoints(val, won) {
@@ -46,7 +47,15 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
     return (
       <div style={S.card}>
         <div style={S.headerRow}>
-          <span style={S.title}>{t('home.personal.recentMatchTitleMobile')}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={S.title}>{t('home.personal.recentMatchTitleMobile')}</span>
+            {m.isChallenge && (
+              <span style={S.challengeBadgeMobile} title={t('home.personal.challengeMatchTooltip')}>
+                <Icon name="swords" size={10} style={{ color: 'var(--status-delayed-fg)' }} />
+                <span>{t('home.personal.challengeMatchBadge')}</span>
+              </span>
+            )}
+          </div>
           <span style={S.timeMono}>
             {dateLabel}
             {m.timeStr ? ` · ${m.timeStr}` : ''}
@@ -146,7 +155,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
             : [{ id: 'opp', name: m.oppTeamNames, isMe: false }]
 
           return (
-            <div key={m.id} style={S.desktopRow}>
+            <div key={m.id} style={m.isChallenge ? S.desktopRowChallenge : S.desktopRow}>
               {/* Cột 1: Ngày + Giờ biến động */}
               <span style={S.desktopDateCol}>
                 <span style={S.dateLabelText}>{dateLabel}</span>
@@ -173,7 +182,16 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
                     </span>
                   ))}
                 </span>
-                <span style={S.vsSep}>vs</span>
+                {m.isChallenge ? (
+                  <span style={S.vsChallenge} title={t('home.personal.challengeMatchTooltip')}>
+                    <Icon name="swords" size={12} style={S.swordsChallengeIcon} />
+                    <span style={S.challengeBadgeText}>{t('home.personal.challengeMatchBadge')}</span>
+                  </span>
+                ) : (
+                  <span style={S.vsNormal} title={t('home.personal.matchAgainst')}>
+                    <Icon name="swords" size={13} style={S.swordsNormalIcon} />
+                  </span>
+                )}
                 <span style={S.oppSpan}>
                   {oppPlayers.map((p, pIdx) => (
                     <span key={p.id || pIdx}>
@@ -312,11 +330,51 @@ const S = {
     opacity: 0.5,
     margin: '0 4px',
   },
-  vsSep: {
+  vsNormal: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 8px',
+    flexShrink: 0,
+    verticalAlign: 'middle',
+  },
+  swordsNormalIcon: {
     color: 'var(--text-muted)',
-    fontWeight: 400,
-    margin: '0 7px',
-    fontSize: '12px',
+    opacity: 0.65,
+  },
+  vsChallenge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    margin: '0 8px',
+    padding: '2px 7px',
+    borderRadius: 999,
+    background: 'var(--status-delayed-bg)',
+    border: '1px solid rgba(240, 183, 92, 0.4)',
+    color: 'var(--status-delayed-fg)',
+    flexShrink: 0,
+    boxShadow: '0 0 8px rgba(240, 183, 92, 0.15)',
+  },
+  swordsChallengeIcon: {
+    color: 'var(--status-delayed-fg)',
+  },
+  challengeBadgeText: {
+    font: '700 10px/1 var(--font-mono)',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
+  challengeBadgeMobile: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3.5,
+    padding: '1.5px 6px',
+    borderRadius: 999,
+    background: 'var(--status-delayed-bg)',
+    border: '1px solid rgba(240, 183, 92, 0.35)',
+    color: 'var(--status-delayed-fg)',
+    font: '700 9.5px/1 var(--font-mono)',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
   },
   scoreGreen: {
     font: '700 20px/1 var(--font-display)',
@@ -375,6 +433,17 @@ const S = {
     borderRadius: 11,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-default)',
+  },
+  desktopRowChallenge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    padding: '11px 13px 11px 10px',
+    borderRadius: 11,
+    background: 'linear-gradient(90deg, rgba(240, 183, 92, 0.08) 0%, var(--surface-inset) 28%)',
+    border: '1px solid var(--border-default)',
+    borderLeft: '3px solid var(--status-delayed-fg)',
+    boxShadow: '0 0 10px rgba(240, 183, 92, 0.06)',
   },
   desktopDateCol: {
     width: 68,

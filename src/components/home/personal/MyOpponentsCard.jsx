@@ -122,9 +122,7 @@ export default function MyOpponentsCard({
                       <span style={S.metaSegment}>
                         <span style={S.metaDim}>{t('home.personal.winPrefix')}</span>
                         <span style={S.numBold}>{opp.winsCount}</span>
-                        <span style={S.metaDim}>(</span>
-                        <span style={S.numBold}>{opp.actualWinPct}%</span>
-                        <span style={S.metaDim}>)</span>
+                        <span style={S.metaDim}>(</span><span style={S.numBold}>{opp.actualWinPct}%</span><span style={S.metaDim}>)</span>
                       </span>
                     </div>
                   </div>
@@ -166,8 +164,8 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
     gap: 8,
+    flexWrap: 'nowrap',
   },
   genderToggle: {
     display: 'inline-flex',
@@ -175,20 +173,20 @@ const S = {
     borderRadius: 999,
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
-    gap: 2,
+    gap: 1.5,
     flexShrink: 0,
   },
   genderBtn: {
     background: 'none',
     border: 'none',
-    padding: '4px 9px',
+    padding: '3px 7px',
     borderRadius: 999,
     font: '600 11px/1 var(--font-sans)',
     color: 'var(--text-muted)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'all 0.15s ease',
-    minHeight: 28,
+    minHeight: 26,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -196,14 +194,14 @@ const S = {
   genderBtnActive: {
     background: 'var(--surface-card)',
     border: '1px solid var(--border-default)',
-    padding: '4px 9px',
+    padding: '3px 7px',
     borderRadius: 999,
     font: '600 11px/1 var(--font-sans)',
     color: 'var(--text-primary)',
     boxShadow: 'var(--shadow-sm)',
     cursor: 'default',
     whiteSpace: 'nowrap',
-    minHeight: 28,
+    minHeight: 26,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',

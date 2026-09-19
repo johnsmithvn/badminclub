@@ -2,7 +2,7 @@
 // Logic thuần phục vụ Màn Thành tích của tôi (Bảng thành tích cá nhân).
 // HÀM THUẦN — không gọi React hay Supabase, test độc lập bằng Node (docs/RULES.md §4).
 
-import { getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
+import { getPlayerRating, DEFAULT_RATING, isFemalePlayer } from '#lib/rating.js'
 import { calculateMemberBadges, getMemberStreak } from '#lib/badges.js'
 import {
   calculateSeasonLeaderboard,
@@ -465,6 +465,31 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     // ponytail: neededWins = ceil(gap / 20) là ước lượng xấp xỉ trực quan dựa trên mức delta ~20 Elo/trận (chưa tính trường hợp đối thủ cùng thua làm co khoảng cách ~2x).
     const neededWins = Math.max(1, Math.min(5, Math.ceil(gapPoints / 20)))
 
+    const myStreak = getMemberStreak(memberId, db)?.streak || 0
+    let rivalInsightKey = 'rivalInsightMedium'
+    let rivalInsightParams = { name: rivalItem.name, gap: gapPoints, n: neededWins }
+
+    if (gapPoints === 0) {
+      rivalInsightKey = 'rivalInsightEven'
+      rivalInsightParams = { name: rivalItem.name }
+    } else if (myH2HWins >= 2 && myH2HWins > rivalH2HWins) {
+      rivalInsightKey = 'rivalInsightH2H'
+      rivalInsightParams = { name: rivalItem.name, myWins: myH2HWins, rivalWins: rivalH2HWins }
+    } else if (myStreak >= 3) {
+      rivalInsightKey = 'rivalInsightOnFire'
+      rivalInsightParams = { name: rivalItem.name, streak: myStreak }
+    } else if (neededWins === 1 || gapPoints <= 20) {
+      const v = Math.random() < 0.5 ? '1' : '2'
+      rivalInsightKey = `rivalInsightClose${v}`
+      rivalInsightParams = { name: rivalItem.name, rank: rivalItem.rank }
+    } else if (neededWins <= 3) {
+      rivalInsightKey = 'rivalInsightMedium'
+      rivalInsightParams = { name: rivalItem.name, gap: gapPoints, n: neededWins }
+    } else {
+      rivalInsightKey = 'rivalInsightFar'
+      rivalInsightParams = { name: rivalItem.name, gap: gapPoints }
+    }
+
     rival = {
       id: rivalItem.id,
       name: rivalItem.name,
@@ -479,6 +504,10 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
       },
       gapPoints,
       neededWins,
+      tacticalInsight: {
+        key: rivalInsightKey,
+        params: rivalInsightParams,
+      },
     }
   }
 
@@ -489,6 +518,26 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
       chaserStreak = getMemberStreak(chaserItem.id, db)?.streak || 0
     } catch {}
 
+    const chaserGap = Math.max(0, myItem.elo - chaserItem.elo)
+    let chaserWarningKey = 'chaserWarningNormal'
+    let chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
+
+    if (chaserGap <= 25 && chaserStreak >= 2) {
+      const v = Math.random() < 0.5 ? '1' : '2'
+      chaserWarningKey = `chaserWarningThreat${v}`
+      chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap, streak: chaserStreak }
+    } else if (chaserGap <= 25) {
+      chaserWarningKey = 'chaserWarningClose'
+      chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
+    } else if (chaserStreak >= 2) {
+      chaserWarningKey = 'chaserWarningHot'
+      chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, streak: chaserStreak }
+    } else if (chaserGap > 50) {
+      const v = Math.random() < 0.5 ? '1' : '2'
+      chaserWarningKey = `chaserWarningSafe${v}`
+      chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
+    }
+
     chaser = {
       id: chaserItem.id,
       name: chaserItem.name,
@@ -496,7 +545,11 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
       rank: chaserItem.rank,
       elo: chaserItem.elo,
       streak: chaserStreak,
-      gapPoints: Math.max(0, myItem.elo - chaserItem.elo),
+      gapPoints: chaserGap,
+      warningInsight: {
+        key: chaserWarningKey,
+        params: chaserWarningParams,
+      },
     }
   }
 
@@ -1157,6 +1210,7 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
       dateKey,
       timeStr,
       rankImpact,
+      isChallenge: isChallengeMatch(m),
     }
   })
 }
@@ -1414,3 +1468,108 @@ function rivalGoalCheck(list, myIndex, item) {
   if (myIndex <= 0) return false
   return list[myIndex - 1]?.id === item.id
 }
+
+/**
+ * Lời chào cá nhân & Subtitle tương tác sinh động theo dữ liệu thực tế
+ * @param {Object} currentMember
+ * @param {Object} heroStats
+ * @param {Object} formStats
+ * @param {Array} recentMatches
+ * @param {Object} upcomingSession
+ * @param {Object} db
+ * @returns {{ greetingKey: string, greetingParams: Object, subKey: string|null, subParams: Object }}
+ */
+export function getPersonalGreeting(currentMember, heroStats, formStats, recentMatches, upcomingSession, db) {
+  if (!currentMember) return null
+
+  const isFemale = isFemalePlayer(currentMember)
+  const memberName = currentMember.name || ''
+
+  // 1. Chọn Greeting Key (ngẫu nhiên 1 trong 3 biến thể theo giới tính)
+  const randIndex = Math.floor(Math.random() * 3) + 1
+  let greetingKey = 'home.personal.greetingNeutral'
+  if (isFemale) {
+    greetingKey = `home.personal.greetingFemale${randIndex}`
+  } else {
+    greetingKey = `home.personal.greetingMale${randIndex}`
+  }
+
+  // 2. Tính toán thứ hạng Bảng Mùa (ALL và riêng Nam/Nữ)
+  const seasonRank = heroStats?.seasonRank || heroStats?.myRank || heroStats?.rank || 0
+  const seasonTotalMembers = heroStats?.seasonTotalMembers || heroStats?.totalMembers || (db?.members || []).filter((m) => m && m.active !== false).length || 0
+
+  let genderSeasonRank = 0
+  let genderSeasonTotal = 0
+  try {
+    const seasonData = calculateSeasonLeaderboard(db)
+    const sLeaderboard = seasonData?.leaderboard || []
+    if (sLeaderboard.length > 0) {
+      const genderRows = sLeaderboard.filter((r) => {
+        const mObj = memberOf(db, r.id) || r.member
+        return isFemale ? isFemalePlayer(mObj) : !isFemalePlayer(mObj)
+      })
+      genderSeasonTotal = genderRows.length
+      const myGenderIdx = genderRows.findIndex((r) => r.id === currentMember.id)
+      if (myGenderIdx >= 0) {
+        genderSeasonRank = myGenderIdx + 1
+      }
+    }
+  } catch {}
+
+  // Đáy bảng là khoảng 4-5 người cuối bảng (bảng all hoặc bảng riêng nam/nữ)
+  const isBottomRank = (total, rank) => {
+    if (!total || !rank || rank <= 3) return false // Top 1, 2, 3 không tính là đáy
+    if (total <= 4) return rank === total
+    const threshold = Math.max(4, total - 4) // Khoảng 4-5 người cuối bảng
+    return rank >= threshold
+  }
+
+  const isBottom = isBottomRank(seasonTotalMembers, seasonRank) ||
+                   (genderSeasonTotal >= 4 && isBottomRank(genderSeasonTotal, genderSeasonRank))
+
+  const streak = formStats?.streak || 0
+  const lastMatch = recentMatches?.[0]
+  const justRankedUp = lastMatch?.rankImpact?.type === 'up'
+  const isTodaySession = upcomingSession?.dateKey === 'today' || (upcomingSession?.date && upcomingSession.date === (db?.today || new Date().toISOString().slice(0, 10)))
+
+  let lastMatchAt = 0
+  if (lastMatch?.at) {
+    lastMatchAt = lastMatch.at
+  } else if (Array.isArray(db?.matches)) {
+    const memMatch = db.matches.find((m) => m && ((m.teamA || []).includes(currentMember.id) || (m.teamB || []).includes(currentMember.id)))
+    lastMatchAt = memMatch?.at || 0
+  }
+  const daysInactive = lastMatchAt > 0 ? Math.floor((Date.now() - lastMatchAt) / (1000 * 60 * 60 * 24)) : 0
+
+  let subKey = null
+  let subParams = {}
+
+  if (seasonRank === 1 || (genderSeasonRank === 1 && genderSeasonTotal >= 3)) {
+    subKey = 'home.personal.subRank1'
+  } else if (justRankedUp && lastMatch?.rankImpact?.to) {
+    subKey = 'home.personal.subRankUp'
+    subParams = { rank: lastMatch.rankImpact.to }
+  } else if (streak >= 3) {
+    subKey = isFemale ? 'home.personal.subWinStreakFemale' : 'home.personal.subWinStreakMale'
+    subParams = { streak }
+  } else if (isBottom) {
+    subKey = Math.random() < 0.5 ? 'home.personal.subRankBottom' : 'home.personal.subRankBottom2'
+  } else if ((seasonRank >= 2 && seasonRank <= 4) || (genderSeasonRank >= 2 && genderSeasonRank <= 4 && genderSeasonTotal >= 6)) {
+    subKey = 'home.personal.subRankTop'
+    subParams = { rank: (seasonRank >= 2 && seasonRank <= 4) ? seasonRank : genderSeasonRank }
+  } else if (streak <= -2 || (lastMatch && !lastMatch.won && formStats?.form5?.slice(-2).every((w) => !w))) {
+    subKey = 'home.personal.subLoseStreak'
+  } else if (isTodaySession) {
+    subKey = 'home.personal.subSessionToday'
+  } else if (daysInactive >= 7) {
+    subKey = 'home.personal.subInactive'
+  }
+
+  return {
+    greetingKey,
+    greetingParams: { name: memberName },
+    subKey,
+    subParams,
+  }
+}
+

@@ -43,7 +43,9 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
 
       <div style={S.insightBox}>
         <span>
-          {t('home.personal.rivalTacticalInsight', { n: rival.neededWins || 2, name: rival.name })}
+          {rival.tacticalInsight?.key
+            ? t(`home.personal.${rival.tacticalInsight.key}`, rival.tacticalInsight.params)
+            : t('home.personal.rivalTacticalInsight', { n: rival.neededWins || 2, name: rival.name })}
         </span>
       </div>
 
@@ -77,12 +79,14 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
           <div style={S.chaserRowDesktop}>
             <span style={S.redDot} />
             <span style={{ flex: 1, minWidth: 0 }}>
-              {t('home.personal.chaserWarning', {
-                name: chaser.name,
-                rank: chaser.rank,
-                gap: chaser.gapPoints,
-                streak: chaser.streak || 2,
-              })}
+              {chaser.warningInsight?.key
+                ? t(`home.personal.${chaser.warningInsight.key}`, chaser.warningInsight.params)
+                : t('home.personal.chaserWarning', {
+                    name: chaser.name,
+                    rank: chaser.rank,
+                    gap: chaser.gapPoints,
+                    streak: chaser.streak || 2,
+                  })}
             </span>
           </div>
         )
