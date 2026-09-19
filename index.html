@@ -26,6 +26,24 @@
       document.documentElement.setAttribute('data-theme-mode', 'glamorous');
       document.documentElement.style.colorScheme = t;
     } catch (e) {}
+
+    window.addEventListener('error', function(e) {
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && (!root.childNodes || root.childNodes.length === 0)) {
+          var box = document.getElementById('app-boot-error');
+          if (!box) {
+            box = document.createElement('div');
+            box.id = 'app-boot-error';
+            box.style.cssText = 'position:fixed;inset:0;padding:24px;background:#0B1220;color:#f87171;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;line-height:1.5;z-index:99999;overflow:auto;';
+            document.body.appendChild(box);
+          }
+          var msg = (e && e.message) ? e.message : String(e);
+          var src = (e && e.filename) ? (e.filename + ':' + e.lineno) : '';
+          box.innerHTML = '<h3 style="color:#ef4444;margin-top:0">Lỗi khởi động ứng dụng</h3><pre style="background:#1e293b;padding:12px;border-radius:6px;overflow-x:auto;color:#fca5a5;white-space:pre-wrap;word-break:break-all;">' + msg + (src ? '\n\n' + src : '') + '</pre><p style="color:#94a3b8;font-size:12px">Vui lòng chụp ảnh màn hình này để được hỗ trợ.</p>';
+        }
+      }, 500);
+    });
   })();
 </script>
 </head>
