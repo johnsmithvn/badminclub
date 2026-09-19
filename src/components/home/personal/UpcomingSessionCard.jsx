@@ -128,6 +128,7 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
+    overflow: 'hidden',
   },
   cardDesktop: {
     padding: '18px 18px',
@@ -259,6 +260,7 @@ const S = {
   mobileActions: {
     display: 'flex',
     gap: 8,
+    flexWrap: 'wrap',
   },
   btnPrimaryMobile: {
     flex: 1,

@@ -176,7 +176,7 @@ export default function SeasonRaceCard({
                   size="sm"
                   placeholder={t('home.personal.compareWith')}
                   menuWidth={260}
-                  style={{ minWidth: 160, maxWidth: 320 }}
+                  style={{ minWidth: 120, maxWidth: '100%', flex: 1 }}
                 />
               </div>
             )}
@@ -288,6 +288,7 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
+    overflow: 'hidden',
   },
   headerRow: {
     display: 'flex',
@@ -302,10 +303,17 @@ const S = {
     gap: 12,
     flexWrap: 'wrap',
   },
+  controlsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   rightHeaderGroup: {
     display: 'flex',
     alignItems: 'baseline',
     gap: 8,
+    flexWrap: 'wrap',
   },
   actionsRow: {
     display: 'flex',

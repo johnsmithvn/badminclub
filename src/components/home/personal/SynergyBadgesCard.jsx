@@ -186,13 +186,14 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+    overflow: 'hidden',
   },
   headerRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
   },
   controlsRow: {
     display: 'inline-flex',
