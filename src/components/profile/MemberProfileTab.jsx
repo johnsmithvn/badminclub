@@ -86,6 +86,9 @@ export default function MemberProfileTab({
   const { isDark } = useTheme()
   const [subTab, setSubTab] = useState(initialSubTab || 'overview')
   const [inspectingPair, setInspectingPair] = useState(null)
+  const [expandedPartners, setExpandedPartners] = useState(false)
+  const [expandedFavorites, setExpandedFavorites] = useState(false)
+  const [expandedNemeses, setExpandedNemeses] = useState(false)
 
   const [prevProps, setPrevProps] = useState({ initialSubTab, memberId: member?.id })
   if (prevProps.initialSubTab !== initialSubTab || prevProps.memberId !== member?.id) {
@@ -93,6 +96,9 @@ export default function MemberProfileTab({
     if (initialSubTab) {
       setSubTab(initialSubTab)
     }
+    setExpandedPartners(false)
+    setExpandedFavorites(false)
+    setExpandedNemeses(false)
   }
 
   const matches = useMemo(() => db.matches || [], [db.matches])
@@ -1120,9 +1126,25 @@ export default function MemberProfileTab({
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gap: 8,
+                      minWidth: 0,
+                      ...(expandedPartners && (partnersAndMatchups?.partners || []).length > 5 ? {
+                        maxHeight: 440,
+                        overflowY: 'auto',
+                        paddingRight: 4,
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: isDark ? 'rgba(255,255,255,0.18) transparent' : 'rgba(0,0,0,0.18) transparent',
+                      } : {}),
+                    }}
+                  >
                     {(partnersAndMatchups?.partners || []).length > 0 ? (
-                      (partnersAndMatchups?.partners || []).map((part, pIdx) => {
+                      (expandedPartners
+                        ? (partnersAndMatchups?.partners || [])
+                        : (partnersAndMatchups?.partners || []).slice(0, 5)
+                      ).map((part, pIdx) => {
                         const isTopPartner = pIdx === 0 && part.synergyScore >= 80
                         const isLowPartner = part.pairImpact <= -10 && part.games >= 5
                         const absImpact = Math.min(50, Math.abs(part.pairImpact || 0))
@@ -1301,6 +1323,35 @@ export default function MemberProfileTab({
                       </div>
                     )}
                   </div>
+
+                  {(partnersAndMatchups?.partners || []).length > 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedPartners(!expandedPartners)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        background: isDark ? 'rgba(255,255,255,0.04)' : 'var(--surface-sunken)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-secondary)',
+                        font: "600 12.5px 'IBM Plex Sans', sans-serif",
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>
+                        {expandedPartners
+                          ? t('profile.collapse')
+                          : t('profile.showMoreCount', { n: (partnersAndMatchups?.partners || []).length - 5 })}
+                      </span>
+                      <Icon name={expandedPartners ? 'chevron-up' : 'chevron-down'} size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1358,36 +1409,81 @@ export default function MemberProfileTab({
                       <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: isDark ? '#5FDBD3' : '#0D9488' }}>
                         {t('profile.favoriteMatchup')}
                       </div>
-                      {(partnersAndMatchups?.matchups?.favorite || []).length > 0 ? (
-                        (partnersAndMatchups?.matchups?.favorite || []).map((fav, fIdx) => {
-                          const favMember = membersMap[fav.oppId] || fav.opponent
-                          const fAvatar = getMemberAvatar(favMember)
-                          return (
-                            <div
-                              key={fIdx}
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                gap: 8,
-                                padding: '8px 10px',
-                                borderRadius: 6,
-                                background: isDark ? 'rgba(0,178,169,.09)' : 'rgba(13,148,136,.08)',
-                                font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif",
-                                color: 'var(--text-primary)',
-                                minWidth: 0,
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
-                                <Avatar name={fav.oppName} src={fAvatar} size={20} />
-                                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vs {fav.oppName}</span>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gap: 7,
+                          minWidth: 0,
+                          ...(expandedFavorites && (partnersAndMatchups?.matchups?.favorite || []).length > 4 ? {
+                            maxHeight: 220,
+                            overflowY: 'auto',
+                            paddingRight: 4,
+                            scrollbarWidth: 'thin',
+                            scrollbarColor: isDark ? 'rgba(255,255,255,0.18) transparent' : 'rgba(0,0,0,0.18) transparent',
+                          } : {}),
+                        }}
+                      >
+                        {(partnersAndMatchups?.matchups?.favorite || []).length > 0 ? (
+                          (expandedFavorites
+                            ? (partnersAndMatchups?.matchups?.favorite || [])
+                            : (partnersAndMatchups?.matchups?.favorite || []).slice(0, 4)
+                          ).map((fav, fIdx) => {
+                            const favMember = membersMap[fav.oppId] || fav.opponent
+                            const fAvatar = getMemberAvatar(favMember)
+                            return (
+                              <div
+                                key={fIdx}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  padding: '8px 10px',
+                                  borderRadius: 6,
+                                  background: isDark ? 'rgba(0,178,169,.09)' : 'rgba(13,148,136,.08)',
+                                  font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif",
+                                  color: 'var(--text-primary)',
+                                  minWidth: 0,
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                                  <Avatar name={fav.oppName} src={fAvatar} size={20} />
+                                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vs {fav.oppName}</span>
+                                </div>
+                                <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : '#0D9488', fontWeight: 600, flexShrink: 0 }}>{fav.winRate}%</span>
                               </div>
-                              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : '#0D9488', fontWeight: 600, flexShrink: 0 }}>{fav.winRate}%</span>
-                            </div>
-                          )
-                        })
-                      ) : (
-                        <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>{t('common.noData')}</div>
+                            )
+                          })
+                        ) : (
+                          <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>{t('common.noData')}</div>
+                        )}
+                      </div>
+                      {(partnersAndMatchups?.matchups?.favorite || []).length > 4 && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedFavorites(!expandedFavorites)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                            width: '100%',
+                            padding: '6px 8px',
+                            borderRadius: 6,
+                            background: isDark ? 'rgba(255,255,255,0.04)' : 'var(--surface-sunken)',
+                            border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-secondary)',
+                            font: "500 11.5px 'IBM Plex Sans', sans-serif",
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <span>
+                            {expandedFavorites
+                              ? t('profile.collapse')
+                              : t('profile.showMoreCount', { n: (partnersAndMatchups?.matchups?.favorite || []).length - 4 })}
+                          </span>
+                          <Icon name={expandedFavorites ? 'chevron-up' : 'chevron-down'} size={12} />
+                        </button>
                       )}
                     </div>
 
@@ -1396,36 +1492,81 @@ export default function MemberProfileTab({
                       <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.06em', textTransform: 'uppercase', color: isDark ? '#F0B75C' : '#B45309' }}>
                         {t('profile.nemesisMatchup')}
                       </div>
-                      {(partnersAndMatchups?.matchups?.nemesis || []).length > 0 ? (
-                        (partnersAndMatchups?.matchups?.nemesis || []).map((nem, nIdx) => {
-                          const nemMember = membersMap[nem.oppId] || nem.opponent
-                          const nAvatar = getMemberAvatar(nemMember)
-                          return (
-                            <div
-                              key={nIdx}
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                gap: 8,
-                                padding: '8px 10px',
-                                borderRadius: 6,
-                                background: isDark ? 'rgba(224,138,0,.10)' : 'rgba(217,119,6,.08)',
-                                font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif",
-                                color: 'var(--text-primary)',
-                                minWidth: 0,
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
-                                <Avatar name={nem.oppName} src={nAvatar} size={20} />
-                                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vs {nem.oppName}</span>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gap: 7,
+                          minWidth: 0,
+                          ...(expandedNemeses && (partnersAndMatchups?.matchups?.nemesis || []).length > 4 ? {
+                            maxHeight: 220,
+                            overflowY: 'auto',
+                            paddingRight: 4,
+                            scrollbarWidth: 'thin',
+                            scrollbarColor: isDark ? 'rgba(255,255,255,0.18) transparent' : 'rgba(0,0,0,0.18) transparent',
+                          } : {}),
+                        }}
+                      >
+                        {(partnersAndMatchups?.matchups?.nemesis || []).length > 0 ? (
+                          (expandedNemeses
+                            ? (partnersAndMatchups?.matchups?.nemesis || [])
+                            : (partnersAndMatchups?.matchups?.nemesis || []).slice(0, 4)
+                          ).map((nem, nIdx) => {
+                            const nemMember = membersMap[nem.oppId] || nem.opponent
+                            const nAvatar = getMemberAvatar(nemMember)
+                            return (
+                              <div
+                                key={nIdx}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  padding: '8px 10px',
+                                  borderRadius: 6,
+                                  background: isDark ? 'rgba(224,138,0,.10)' : 'rgba(217,119,6,.08)',
+                                  font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif",
+                                  color: 'var(--text-primary)',
+                                  minWidth: 0,
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                                  <Avatar name={nem.oppName} src={nAvatar} size={20} />
+                                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vs {nem.oppName}</span>
+                                </div>
+                                <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#F0B75C' : '#B45309', fontWeight: 600, flexShrink: 0 }}>{nem.winRate}%</span>
                               </div>
-                              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#F0B75C' : '#B45309', fontWeight: 600, flexShrink: 0 }}>{nem.winRate}%</span>
-                            </div>
-                          )
-                        })
-                      ) : (
-                        <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>{t('common.noData')}</div>
+                            )
+                          })
+                        ) : (
+                          <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>{t('common.noData')}</div>
+                        )}
+                      </div>
+                      {(partnersAndMatchups?.matchups?.nemesis || []).length > 4 && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedNemeses(!expandedNemeses)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                            width: '100%',
+                            padding: '6px 8px',
+                            borderRadius: 6,
+                            background: isDark ? 'rgba(255,255,255,0.04)' : 'var(--surface-sunken)',
+                            border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-secondary)',
+                            font: "500 11.5px 'IBM Plex Sans', sans-serif",
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <span>
+                            {expandedNemeses
+                              ? t('profile.collapse')
+                              : t('profile.showMoreCount', { n: (partnersAndMatchups?.matchups?.nemesis || []).length - 4 })}
+                          </span>
+                          <Icon name={expandedNemeses ? 'chevron-up' : 'chevron-down'} size={12} />
+                        </button>
                       )}
                     </div>
                   </div>

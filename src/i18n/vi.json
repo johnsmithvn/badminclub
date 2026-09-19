@@ -2262,6 +2262,8 @@
     "singlesFormat": "Đơn nam",
     "whoSynergizes": "Ai hợp với {{name}}",
     "partnerFilterMin5": "{{count}} đồng đội · lọc ≥ 5 trận",
+    "showMoreCount": "Xem thêm {{n}} người",
+    "collapse": "Thu gọn",
     "bestPartnerBox": "Đồng đội tốt nhất",
     "matchupSection": "Đối đầu",
     "favoriteMatchup": "Dễ ăn khi gặp",
