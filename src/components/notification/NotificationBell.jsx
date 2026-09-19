@@ -26,15 +26,25 @@ export default function NotificationBell({ size = 'sm', style = {} }) {
     const onFocus = () => {
       if (document.visibilityState === 'visible') a.reloadNotifications()
     }
+    const onSwMessage = (event) => {
+      if (event.data?.type === 'push-received') {
+        a.reloadNotifications()
+      }
+    }
     onFocus()
     document.addEventListener('visibilitychange', onFocus)
     window.addEventListener('focus', onFocus)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', onSwMessage)
+    }
     return () => {
       document.removeEventListener('visibilitychange', onFocus)
       window.removeEventListener('focus', onFocus)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', onSwMessage)
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db.clubId])
+  }, [a])
 
   // Cố ý KHÔNG đánh dấu đã đọc ở đây: làm vậy thì panel mở ra khi mọi dòng đã là "đã đọc" —
   // mất sạch chấm xanh, chữ đậm và cả nút "Đã đọc tất cả". Đọc là do người dùng bấm.

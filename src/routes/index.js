@@ -64,3 +64,28 @@ export function keyOfPath(pathname) {
   const hit = ROUTE_KEYS.find((k) => PATHS[k] === pathname)
   return hit || 'home'
 }
+
+/**
+ * Tạo URL điều hướng cho Web Push notification kèm tham số ?club=
+ * Xử lý đầy đủ 6 refType: challenge, session, match, claim, debts, member
+ */
+export function buildPushUrl({ type, refType, refId, clubId }) {
+  let path = '/'
+  if (refType === 'challenge' || type?.startsWith('challenge_')) {
+    path = pathOf('challenges', refId)
+  } else if (refType === 'session' && refId) {
+    path = pathOf('session', refId)
+  } else if (refType === 'match') {
+    path = refId ? `${pathOf('matches')}?tab=search&matchId=${refId}` : pathOf('matches')
+  } else if (refType === 'claim') {
+    path = pathOf('fund')
+  } else if (refType === 'debts') {
+    path = pathOf('debts')
+  } else if (refType === 'member') {
+    path = type === 'member_change_requested' ? pathOf('members') : pathOf('profile')
+  }
+  if (!clubId) return path
+  const sep = path.includes('?') ? '&' : '?'
+  return `${path}${sep}club=${clubId}`
+}
+

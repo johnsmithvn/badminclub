@@ -1,15 +1,63 @@
 // src/components/notification/NotificationPanel.jsx
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Icon, IconButton } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'
 import { getPersonalHighlights } from '#lib/activity.js'
 import NotificationItem from './NotificationItem.jsx'
 import { t } from '#i18n'
+import { supabase } from '#supabase'
+import {
+  isPushSupported,
+  getPushPermissionState,
+  isPushSubscribed,
+  subscribePush,
+} from '#lib/pushSubscription.js'
 
 export default function NotificationPanel({ open, onClose }) {
   const { db, a } = useApp()
   const [activeTab, setActiveTab] = useState('notifications') // 'notifications' | 'highlights'
+  const [pushState, setPushState] = useState({
+    supported: false,
+    subscribed: false,
+    permission: 'default',
+  })
+  const [enablingPush, setEnablingPush] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    const checkPush = async () => {
+      if (!isPushSupported()) {
+        if (active) setPushState({ supported: false, subscribed: false, permission: 'unsupported' })
+        return
+      }
+      const perm = getPushPermissionState()
+      const subbed = await isPushSubscribed()
+      if (active) setPushState({ supported: true, subscribed: subbed, permission: perm })
+    }
+    checkPush()
+    return () => { active = false }
+  }, [open])
+
+  const handleEnablePush = async () => {
+    if (enablingPush) return
+    setEnablingPush(true)
+    try {
+      await subscribePush(supabase, db.currentUserId)
+      setPushState((s) => ({ ...s, subscribed: true, permission: 'granted' }))
+      a?.toast?.(t('toast.pushEnabled'))
+    } catch (err) {
+      if (err?.message === 'PERMISSION_DENIED') {
+        setPushState((s) => ({ ...s, permission: 'denied', subscribed: false }))
+        a?.toast?.(t('toast.pushDenied'))
+      } else {
+        a?.toast?.(t('toast.pushError'))
+      }
+    } finally {
+      setEnablingPush(false)
+    }
+  }
 
   const myMem = myMember(db)
   const myId = myMem?.id || null
@@ -197,6 +245,47 @@ export default function NotificationPanel({ open, onClose }) {
             {t('notification.tabHighlights')}
           </button>
         </div>
+
+        {/* Banner nhắc bật Web Push (chỉ hiện khi được hỗ trợ, chưa đăng ký và permission là 'default') */}
+        {pushState.supported && !pushState.subscribed && pushState.permission === 'default' && (
+          <div
+            style={{
+              padding: '12px 16px',
+              backgroundColor: 'var(--surface-accent-soft)',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+              <Icon name="bell" size={18} style={{ color: 'var(--text-accent, #00786F)', flexShrink: 0 }} />
+              <div style={{ fontSize: 12.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                {t('notification.pushBannerText')}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={enablingPush}
+              onClick={handleEnablePush}
+              style={{
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 600,
+                backgroundColor: 'var(--action-accent-bg, #00786F)',
+                color: 'var(--action-accent-fg, #fff)',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t('notification.pushBannerBtn')}
+            </button>
+          </div>
+        )}
 
         {/* Nội dung danh sách */}
         <div style={{ flex: 1, overflowY: 'auto' }}>

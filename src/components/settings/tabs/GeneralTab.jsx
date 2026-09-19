@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { Button, Icon, Input, Select } from '#ds'
 import { AvatarUpload, DeleteClubDialog, SearchSelect, QrModal } from '#ui'
 import {
@@ -12,6 +12,16 @@ import {
 import { scanQrCodeFromImage, parseVietQr, getVietQrUrl, findBank } from '#utils/vietqr.js'
 import banks from '#config/banks.json' with { type: 'json' }
 import { t } from '#i18n'
+import { useAuth } from '#contexts/AuthContext.jsx'
+import { useApp } from '#contexts/AppContext.jsx'
+import { supabase } from '#supabase'
+import {
+  isPushSupported,
+  getPushPermissionState,
+  isPushSubscribed,
+  subscribePush,
+  unsubscribePush,
+} from '#lib/pushSubscription.js'
 
 export default function GeneralTab({
   data,
@@ -27,6 +37,56 @@ export default function GeneralTab({
   const [showQrModal, setShowQrModal] = useState(false)
   const [openDelete, setOpenDelete] = useState(false)
   const fileRef = useRef(null)
+
+  const { session } = useAuth()
+  const { a } = useApp()
+  const [pushState, setPushState] = useState({
+    supported: false,
+    subscribed: false,
+    permission: 'default',
+  })
+  const [togglingPush, setTogglingPush] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    const checkPush = async () => {
+      if (!isPushSupported()) {
+        if (active) setPushState({ supported: false, subscribed: false, permission: 'unsupported' })
+        return
+      }
+      const perm = getPushPermissionState()
+      const subbed = await isPushSubscribed()
+      if (active) setPushState({ supported: true, subscribed: subbed, permission: perm })
+    }
+    checkPush()
+    return () => { active = false }
+  }, [])
+
+  const handleTogglePush = async (checked) => {
+    if (togglingPush) return
+    setTogglingPush(true)
+    const uid = session?.user?.id
+    try {
+      if (checked) {
+        await subscribePush(supabase, uid)
+        setPushState((s) => ({ ...s, subscribed: true, permission: 'granted' }))
+        a?.toast?.(t('toast.pushEnabled'))
+      } else {
+        await unsubscribePush(supabase, uid)
+        setPushState((s) => ({ ...s, subscribed: false }))
+        a?.toast?.(t('toast.pushDisabled'))
+      }
+    } catch (err) {
+      if (err?.message === 'PERMISSION_DENIED') {
+        setPushState((s) => ({ ...s, permission: 'denied', subscribed: false }))
+        a?.toast?.(t('toast.pushDenied'))
+      } else {
+        a?.toast?.(t('toast.pushError'))
+      }
+    } finally {
+      setTogglingPush(false)
+    }
+  }
 
   const bank = data.bank || {}
 
@@ -231,6 +291,32 @@ export default function GeneralTab({
             disabled={!canEdit}
             options={debtBannerOptions}
             onChange={(e) => onChange('debtBanner', e.target.value)}
+          />
+        </FormRow>
+      </SettingsCard>
+
+      {/* Thông báo đẩy thiết bị */}
+      <SettingsCard
+        title={t('settings.pushTitle')}
+        subtitle={t('settings.pushSub')}
+        icon="bell"
+      >
+        <FormRow
+          isToggle
+          label={t('settings.pushToggle')}
+          note={
+            !pushState.supported
+              ? t('settings.pushUnsupported')
+              : pushState.permission === 'denied'
+                ? t('settings.pushDenied')
+                : t('settings.pushToggleNote')
+          }
+          last
+        >
+          <ToggleSwitch
+            checked={pushState.subscribed}
+            disabled={!pushState.supported || pushState.permission === 'denied' || togglingPush}
+            onChange={handleTogglePush}
           />
         </FormRow>
       </SettingsCard>

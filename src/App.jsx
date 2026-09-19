@@ -41,8 +41,44 @@ const SCREEN = {
 }
 
 export default function App() {
-  const { status, activeClubId } = useAuth()
-  const { pathname } = useLocation()
+  const { status, activeClubId, setActiveClub, clubs } = useAuth()
+  const { pathname, search } = useLocation()
+  const navigate = useNavigate()
+
+  // Lắng nghe điều hướng từ Service Worker khi người dùng bấm thông báo.
+  // CLB không đọc từ message: `sw.js` chỉ gửi { type, url }. CLB nằm trong `?club=` của chính
+  // URL đó, và effect bên dưới xử lý — kể cả khi app mở nguội bằng `openWindow`.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const onMessage = (event) => {
+      if (event.data?.type === 'navigate' && event.data.url) {
+        navigate(event.data.url)
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [navigate])
+
+  // Xử lý tham số ?club= khi mở app từ deep link Web Push.
+  //
+  // Chỉ dọn `?club=` SAU khi `clubs` đã nạp xong: lúc mở nguội từ notification, render đầu tiên
+  // còn `clubs` rỗng — xoá param ngay lúc đó là vứt mất đích đến trước khi kịp chuyển CLB.
+  useEffect(() => {
+    if (!search || status !== 'in') return
+    const params = new URLSearchParams(search)
+    const clubParam = params.get('club')
+    if (!clubParam) return
+    if (!(clubs || []).length) return
+
+    if (clubParam !== activeClubId && clubs.some((c) => c.id === clubParam)) {
+      setActiveClub?.(clubParam)
+    }
+    // Xong việc thì gỡ param khỏi URL — để lại thì nút Back quay về vòng chuyển CLB, và mọi
+    // lần `setSearchParams` của các màn sau đều kéo theo nó.
+    params.delete('club')
+    const rest = params.toString()
+    navigate({ pathname, search: rest ? `?${rest}` : '' }, { replace: true })
+  }, [search, pathname, status, activeClubId, clubs, setActiveClub, navigate])
 
   // Chưa biết có phiên hay không thì đừng render gì — tránh nháy sang màn đăng nhập rồi bật lại.
   if (status === 'loading') return <Splash />

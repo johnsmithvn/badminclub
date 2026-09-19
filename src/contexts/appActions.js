@@ -18,14 +18,14 @@ import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatin
 import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
-import { pathOf } from '#routes'
+import { pathOf, buildPushUrl } from '#routes'
 import { t } from '#i18n'
 import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
-import { detectMatchNarrative, notifyRecipients } from '#lib/activity.js'
+import { detectMatchNarrative, notifyRecipients, resolveNotificationPayload } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => crypto.randomUUID()
@@ -38,6 +38,28 @@ const recentSelfCheckins = new Map()
 
 /** Cache chống bắn trùng thông báo điểm danh cùng loại trong thời gian ngắn */
 const recentAttendanceEvents = new Map()
+
+/** Danh sách 18 sự kiện gửi Web Push Notifications (trên tổng số 25 loại sự kiện của app) */
+const PUSH_EVENTS = new Set([
+  'claim_submitted',
+  'claim_approved',
+  'claim_rejected',
+  'refund_session',
+  'refund_bulk',
+  'challenge_created',
+  'challenge_accepted',
+  'challenge_declined',
+  'challenge_cancelled',
+  'challenge_completed',
+  'bounty_broken',
+  'session_rsvp_invite',
+  'session_cancelled',
+  'join_approved',
+  'join_rejected',
+  'member_change_requested',
+  'member_change_approved',
+  'member_change_rejected',
+])
 
 export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) {
   const db = () => dbRef.current
@@ -228,6 +250,31 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         .then(({ error }) => {
           if (error) console.warn('[notifications] insert error:', error.message)
         })
+
+      // 3. Web Push Notifications
+      if (PUSH_EVENTS.has(type)) {
+        const rp = resolveNotificationPayload({ type, payload, refId }, d0)
+        const notifKey = (type === 'challenge_created' && !rp.creator) ? 'challenge_created_simple' : type
+        const text = t(`notification.${notifKey}`, rp)
+        const deepUrl = buildPushUrl({ type, refType, refId, clubId })
+        // `functions.invoke` KHÔNG reject: lỗi HTTP (401/403/500) được bắt bên trong và trả về
+        // qua `error` — `.catch()` chỉ bắt được lỗi mạng. Đọc `error` ở `.then`, không thì
+        // Edge Function hỏng mà console sạch trơn, không có gì để lần.
+        supabase.functions.invoke('push-send', {
+          body: {
+            member_ids: validRecipients,
+            club_id: clubId,
+            title: d0.club?.name || 'BadminClub',
+            body: text,
+            url: deepUrl,
+            tag: refId ? `${type}_${refId}` : undefined,
+          },
+        })
+          .then(({ error }) => {
+            if (error) console.warn('[push] gửi thất bại:', error)
+          })
+          .catch((e) => console.warn('[push] gửi thất bại:', e))
+      }
     }
   }
 

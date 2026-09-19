@@ -7,6 +7,7 @@ import { hasSupabase, supabase, unwrap } from '#supabase'
 import { intOf } from '#lib/money.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
+import { unsubscribePush, syncMissingSubscriptions } from '#lib/pushSubscription.js'
 
 const Ctx = createContext(null)
 
@@ -48,6 +49,8 @@ export function AuthProvider({ children }) {
     setProfile(p.data || null)
     setClubs(c.data || [])
     setRequests(r.data || [])
+    // Bổ sung subscription nếu user đang bật push và vừa tham gia CLB mới
+    syncMissingSubscriptions(supabase, uid).catch(() => {})
     return c.data || []
   }, [])
 
@@ -136,6 +139,14 @@ export function AuthProvider({ children }) {
 
     async signOut() {
       if (!supabase) return
+      try {
+        const uid = session && session.user ? session.user.id : null
+        if (uid) {
+          await unsubscribePush(supabase, uid)
+        }
+      } catch (err) {
+        console.warn('[push] Lỗi huỷ đăng ký khi signOut', err)
+      }
       setActiveClub(null)
       await supabase.auth.signOut()
     },
