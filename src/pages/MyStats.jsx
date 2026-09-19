@@ -178,19 +178,11 @@ export default function MyStats() {
                 ? t(personalGreeting.greetingKey, personalGreeting.greetingParams)
                 : t('home.personal.greeting', { name: memberName })}
             </h1>
-            <div style={S.mobileSub}>
-              {personalGreeting?.subKey
-                ? `${t(personalGreeting.subKey, personalGreeting.subParams)} · ${t('home.personal.subtitleMobile', {
-                    club: db.club?.name || t('common.unknown'),
-                    season: seasonName,
-                    week: seasonWeek,
-                  })}`
-                : t('home.personal.subtitleMobile', {
-                    club: db.club?.name || t('common.unknown'),
-                    season: seasonName,
-                    week: seasonWeek,
-                  })}
-            </div>
+            {personalGreeting?.subKey ? (
+              <div style={S.mobileSubQuote}>
+                “{t(personalGreeting.subKey, personalGreeting.subParams)}”
+              </div>
+            ) : null}
           </div>
           <div style={S.mobileHeaderActions}>
             <IconButton
@@ -296,19 +288,11 @@ export default function MyStats() {
               ? t(personalGreeting.greetingKey, personalGreeting.greetingParams)
               : t('home.personal.greeting', { name: memberName })}
           </h1>
-          <div style={S.desktopSub}>
-            {personalGreeting?.subKey
-              ? `${t(personalGreeting.subKey, personalGreeting.subParams)} · ${t('home.personal.subtitleDesktop', {
-                  season: seasonName,
-                  week: seasonWeek,
-                  members: heroStats.totalMembers,
-                })}`
-              : t('home.personal.subtitleDesktop', {
-                  season: seasonName,
-                  week: seasonWeek,
-                  members: heroStats.totalMembers,
-                })}
-          </div>
+          {personalGreeting?.subKey ? (
+            <div style={S.desktopSubQuote}>
+              “{t(personalGreeting.subKey, personalGreeting.subParams)}”
+            </div>
+          ) : null}
         </div>
         <div style={S.headerActions}>
           <IconButton
@@ -488,12 +472,12 @@ const S = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  mobileSub: {
-    font: '400 12px/1.3 var(--font-mono)',
-    color: 'var(--text-muted)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+  mobileSubQuote: {
+    font: '500 13px/1.4 var(--font-sans)',
+    fontStyle: 'italic',
+    color: 'var(--status-transit-fg)',
+    marginTop: 2,
+    lineHeight: 1.35,
   },
   desktopWrapper: {
     display: 'flex',
@@ -524,9 +508,12 @@ const S = {
     font: '700 24px/1.2 var(--font-display)',
     color: 'var(--text-primary)',
   },
-  desktopSub: {
-    font: '400 13px/1.3 var(--font-mono)',
-    color: 'var(--text-muted)',
+  desktopSubQuote: {
+    font: '500 14px/1.4 var(--font-sans)',
+    fontStyle: 'italic',
+    color: 'var(--status-transit-fg)',
+    marginTop: 3,
+    lineHeight: 1.4,
   },
   desktopGrid: {
     display: 'grid',
