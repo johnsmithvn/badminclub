@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
+import { SearchSelect } from '#ui'
 import { calcSeasonRaceHistory, getClubEloLeaderboard } from '#lib/homePersonal.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 
@@ -13,9 +14,6 @@ export default function SeasonRaceCard({
 }) {
   const [mode, setMode] = useState('season') // 'season' | 'elo'
   const isSeason = mode === 'season'
-
-  const initialRivalId = defaultRivalId || raceData?.rivalId || data?.rivalId || ''
-  const [selectedRivalId, setSelectedRivalId] = useState(initialRivalId)
 
   // Danh sách ứng viên đối thủ hiển thị trong dropdown, tự động sắp xếp theo mode (mùa giải / Elo)
   const memberOptions = useMemo(() => {
@@ -46,15 +44,36 @@ export default function SeasonRaceCard({
       }))
   }, [db, memberId, isSeason, rivalOptions])
 
-  // Nếu selectedRivalId chưa được chọn thì lấy người đầu tiên trong danh sách (hoặc defaultRivalId)
-  const currentRivalId = selectedRivalId || defaultRivalId || memberOptions[0]?.id || null
+  const initialRivalIds = useMemo(() => {
+    if (Array.isArray(defaultRivalId)) return defaultRivalId
+    if (defaultRivalId) return [defaultRivalId]
+    if (Array.isArray(raceData?.rivalIds)) return raceData.rivalIds
+    if (raceData?.rivalId) return [raceData.rivalId]
+    return []
+  }, [defaultRivalId, raceData])
+
+  const [selectedRivalIds, setSelectedRivalIds] = useState(initialRivalIds)
+
+  // Nếu selectedRivalIds chưa được chọn thì lấy người đầu tiên trong danh sách (hoặc defaultRivalId)
+  const currentRivalIds = useMemo(() => {
+    if (selectedRivalIds.length > 0) return selectedRivalIds
+    if (memberOptions[0]?.id) return [memberOptions[0].id]
+    return []
+  }, [selectedRivalIds, memberOptions])
+
+  const selectOptions = useMemo(() => {
+    return memberOptions.map((opt) => ({
+      value: opt.id,
+      label: `${opt.rank ? `#${opt.rank} · ` : ''}${opt.name}`,
+    }))
+  }, [memberOptions])
 
   const activeData = useMemo(() => {
     if (db && memberId) {
-      return calcSeasonRaceHistory(db, memberId, currentRivalId, 6, mode)
+      return calcSeasonRaceHistory(db, memberId, currentRivalIds, 6, mode)
     }
     return raceData || data
-  }, [db, memberId, currentRivalId, mode, raceData, data])
+  }, [db, memberId, currentRivalIds, mode, raceData, data])
 
   if (!activeData || activeData.empty) {
     return (
@@ -95,6 +114,7 @@ export default function SeasonRaceCard({
     startElo = 0,
     currentElo = 0,
     deltaElo = 0,
+    rivals = [],
     rivalName = '',
     rivalRank = 1,
     svgPointsMy = '',
@@ -102,9 +122,12 @@ export default function SeasonRaceCard({
     hasRivalTrajectory = false,
     latestMyX = 640,
     latestMyY = 22,
+    gapNoteKey = null,
+    gapFrom = null,
+    gapTo = null,
+    gapWeeks = null,
   } = activeData
 
-  const unit = isSeason ? t('home.personal.seasonPointsShortUnit') : t('home.personal.eloNormal')
   const displayStart = startVal ?? startElo
   const displayCurrent = currentVal ?? currentElo
   const displayDelta = deltaVal ?? deltaElo
@@ -113,56 +136,61 @@ export default function SeasonRaceCard({
   return (
     <div style={S.card}>
       <div style={S.headerRow}>
-        <div style={S.titleCluster}>
+        <div style={S.leftHeaderGroup}>
           <span style={S.title}>
             {isSeason
               ? t('home.personal.seasonRaceTitle', { weeks })
               : t('home.personal.eloRaceTitle', { weeks })}
           </span>
-          <span style={S.rangeMono}>
-            {displayStart} → {displayCurrent} {unit}
-          </span>
-          <span style={displayDelta >= 0 ? S.deltaGreen : S.deltaRed}>
-            {sign}{displayDelta} {unit}
-          </span>
+
+          <div style={S.actionsRow}>
+            {/* Toggle Mùa giải | Elo */}
+            <div style={S.modeToggle}>
+              <button
+                type="button"
+                onClick={() => setMode('season')}
+                style={isSeason ? S.modeBtnActive : S.modeBtn}
+              >
+                {t('home.personal.seasonTab')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('elo')}
+                style={!isSeason ? S.modeBtnActive : S.modeBtn}
+              >
+                {t('home.personal.eloTab')}
+              </button>
+            </div>
+
+            {/* Select Multiple Rivals với SearchSelect có sẵn */}
+            {memberOptions.length > 0 && (
+              <div style={S.selectWrapper}>
+                <SearchSelect
+                  options={selectOptions}
+                  value={currentRivalIds}
+                  onChange={(nextVals) => {
+                    const arr = Array.isArray(nextVals) ? nextVals : [nextVals].filter(Boolean)
+                    setSelectedRivalIds(arr)
+                  }}
+                  multiple={true}
+                  size="sm"
+                  placeholder={t('home.personal.compareWith')}
+                  menuWidth={260}
+                  style={{ minWidth: 160, maxWidth: 320 }}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
-        <div style={S.actionsRow}>
-          {/* Toggle Mùa giải | Elo */}
-          <div style={S.modeToggle}>
-            <button
-              type="button"
-              onClick={() => setMode('season')}
-              style={isSeason ? S.modeBtnActive : S.modeBtn}
-            >
-              {t('home.personal.seasonTab')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('elo')}
-              style={!isSeason ? S.modeBtnActive : S.modeBtn}
-            >
-              {t('home.personal.eloTab')}
-            </button>
-          </div>
-
-          {/* Select Rival */}
-          {memberOptions.length > 0 && (
-            <div style={S.selectWrapper}>
-              <select
-                value={currentRivalId || ''}
-                onChange={(e) => setSelectedRivalId(e.target.value)}
-                style={S.select}
-                title={t('home.personal.compareWith')}
-              >
-                {memberOptions.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.rank ? `#${opt.rank} · ` : ''}{opt.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+        {/* Dải số bên phải header: 1.246 → 1.284  +38 */}
+        <div style={S.rightHeaderGroup}>
+          <span style={S.rangeMono}>
+            {Number(displayStart || 0).toLocaleString('vi-VN')} → {Number(displayCurrent || 0).toLocaleString('vi-VN')}
+          </span>
+          <span style={displayDelta >= 0 ? S.deltaGreen : S.deltaRed}>
+            {sign}{Math.abs(displayDelta).toLocaleString('vi-VN')}
+          </span>
         </div>
       </div>
 
@@ -170,15 +198,34 @@ export default function SeasonRaceCard({
         <svg viewBox="0 0 660 96" preserveAspectRatio="none" style={S.svg}>
           <line x1="0" y1="24" x2="660" y2="24" stroke="var(--border-subtle)" strokeWidth="1" />
           <line x1="0" y1="60" x2="660" y2="60" stroke="var(--border-subtle)" strokeWidth="1" />
-          {hasRivalTrajectory && svgPointsRival && (
-            <polyline
-              points={svgPointsRival}
-              fill="none"
-              stroke="var(--text-muted)"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
-            />
+
+          {/* Đường của các đối thủ với màu sắc riêng biệt */}
+          {rivals.length > 0 ? (
+            rivals.map((rival) => (
+              rival.hasTrajectory && rival.svgPoints && (
+                <polyline
+                  key={rival.id}
+                  points={rival.svgPoints}
+                  fill="none"
+                  stroke={rival.color}
+                  strokeWidth="1.5"
+                  strokeDasharray="4 4"
+                />
+              )
+            ))
+          ) : (
+            hasRivalTrajectory && svgPointsRival && (
+              <polyline
+                points={svgPointsRival}
+                fill="none"
+                stroke="var(--text-muted)"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+              />
+            )
           )}
+
+          {/* Đường của bạn: nét liền dày */}
           {svgPointsMy && (
             <polyline
               points={svgPointsMy}
@@ -196,14 +243,35 @@ export default function SeasonRaceCard({
       </div>
 
       <div style={S.legendRow}>
-        <div style={S.myLegend}>
-          <span style={S.myBar} />
-          <span>{isSeason ? t('home.personal.mySeasonLegend') : t('home.personal.myEloLegend')}</span>
+        <div style={S.legendLeft}>
+          <div style={S.myLegend}>
+            <span style={S.myBar} />
+            <span>{isSeason ? t('home.personal.mySeasonLegend') : t('home.personal.myEloLegend')}</span>
+          </div>
+
+          {/* Legend từng đối thủ với màu tương ứng */}
+          {rivals.length > 0 ? (
+            rivals.map((rival) => (
+              rival.hasTrajectory && (
+                <div key={rival.id} style={S.rivalLegend}>
+                  <span style={{ ...S.rivalBar, background: rival.color }} />
+                  <span>{t('home.personal.rivalEloLegend', { name: rival.name, rank: rival.rank })}</span>
+                </div>
+              )
+            ))
+          ) : (
+            hasRivalTrajectory && svgPointsRival && rivalName && (
+              <div style={S.rivalLegend}>
+                <span style={S.rivalBar} />
+                <span>{t('home.personal.rivalEloLegend', { name: rivalName, rank: rivalRank })}</span>
+              </div>
+            )
+          )}
         </div>
-        {hasRivalTrajectory && svgPointsRival && rivalName && (
-          <div style={S.rivalLegend}>
-            <span style={S.rivalBar} />
-            <span>{t('home.personal.rivalEloLegend', { name: rivalName, rank: rivalRank })}</span>
+
+        {gapNoteKey && (
+          <div style={S.trendNote}>
+            {t(`home.personal.${gapNoteKey}`, { from: gapFrom, to: gapTo, weeks: gapWeeks })}
           </div>
         )}
       </div>
@@ -226,13 +294,18 @@ const S = {
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
-  titleCluster: {
+  leftHeaderGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  rightHeaderGroup: {
     display: 'flex',
     alignItems: 'baseline',
     gap: 8,
-    flexWrap: 'wrap',
   },
   actionsRow: {
     display: 'flex',
@@ -246,15 +319,15 @@ const S = {
     color: 'var(--text-muted)',
   },
   rangeMono: {
-    font: '400 11.5px/1 var(--font-mono)',
-    color: 'var(--text-muted)',
+    font: '500 12px/1 var(--font-mono)',
+    color: 'var(--text-secondary)',
   },
   deltaGreen: {
-    font: '600 12px/1 var(--font-mono)',
+    font: '700 13px/1 var(--font-mono)',
     color: 'var(--status-delivered-fg)',
   },
   deltaRed: {
-    font: '600 12px/1 var(--font-mono)',
+    font: '700 13px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
   },
   modeToggle: {
@@ -310,8 +383,21 @@ const S = {
   },
   legendRow: {
     display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  legendLeft: {
+    display: 'flex',
+    alignItems: 'center',
     gap: 16,
     flexWrap: 'wrap',
+  },
+  trendNote: {
+    font: '400 11.5px/1.3 var(--font-sans)',
+    color: 'var(--text-muted)',
+    textAlign: 'right',
   },
   myLegend: {
     display: 'flex',

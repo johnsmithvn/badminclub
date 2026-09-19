@@ -35,11 +35,12 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
   // Mobile: Chỉ hiển thị 1 trận gần nhất
   if (isMobile) {
     const m = matches[0]
+    const dateLabel = m.dateKey === 'today' ? t('home.personal.today') : (m.dateKey === 'yesterday' ? t('home.personal.yesterday') : m.dateStr)
     return (
       <div style={S.card}>
         <div style={S.headerRow}>
           <span style={S.title}>{t('home.personal.recentMatchTitleMobile')}</span>
-          <span style={S.timeMono}>{m.dateStr}</span>
+          <span style={S.timeMono}>{dateLabel}</span>
         </div>
 
         <div style={S.mobileMatchRow}>
@@ -62,9 +63,17 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
             </span>
           </span>
           <span style={S.pillPadded}>
-            <span style={m.seasonChange && m.seasonChange !== '—' ? (m.won ? S.greenMono : S.redMono) : S.mutedMono}>
-              {formatSeasonPoints(m.seasonChange, m.won)}
-            </span>
+            {m.rankImpact ? (
+              <span style={m.rankImpact.type === 'up' ? S.greenMono : (m.rankImpact.type === 'down' ? S.redMono : S.mutedMono)}>
+                {m.rankImpact.type === 'up' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
+                {m.rankImpact.type === 'down' && `#${m.rankImpact.from} → #${m.rankImpact.to}`}
+                {m.rankImpact.type === 'same' && t('home.personal.keepRank', { rank: m.rankImpact.to })}
+              </span>
+            ) : (
+              <span style={m.seasonChange && m.seasonChange !== '—' ? (m.won ? S.greenMono : S.redMono) : S.mutedMono}>
+                {formatSeasonPoints(m.seasonChange, m.won)}
+              </span>
+            )}
           </span>
         </div>
       </div>
@@ -82,23 +91,38 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
       </div>
 
       <div style={S.desktopList}>
-        {matches.map((m) => (
-          <div key={m.id} style={S.desktopRow}>
-            <span style={S.desktopDateCol}>{m.dateStr}</span>
-            <span style={S.desktopMatchupCol}>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{m.myTeamNames}</span>
-              <span style={{ color: 'var(--text-muted)', fontWeight: 400, margin: '0 6px' }}>vs</span>
-              <span style={{ color: 'var(--text-secondary)' }}>{m.oppTeamNames}</span>
-            </span>
-            <span style={m.won ? S.desktopScoreGreen : S.desktopScoreRed}>{m.score}</span>
-            <span style={m.won ? S.desktopDeltaGreen : S.desktopDeltaRed}>
-              {m.eloDelta ? (m.won ? `+${m.eloDelta} ${t('home.personal.eloNormal')}` : `−${m.eloDelta} ${t('home.personal.eloNormal')}`) : (m.eloChange ? `${m.eloChange} ${t('home.personal.eloNormal')}` : `0 ${t('home.personal.eloNormal')}`)}
-            </span>
-            <span style={m.seasonChange && m.seasonChange !== '—' ? (m.won ? S.desktopSeasonGreen : S.desktopSeasonRed) : S.desktopSeasonMuted}>
-              {formatSeasonPoints(m.seasonChange, m.won)}
-            </span>
-          </div>
-        ))}
+        {matches.map((m) => {
+          const dateLabel = m.dateKey === 'today' ? t('home.personal.today') : (m.dateKey === 'yesterday' ? t('home.personal.yesterday') : m.dateStr)
+          return (
+            <div key={m.id} style={S.desktopRow}>
+              <span style={S.desktopDateCol}>{dateLabel}</span>
+              <span style={S.desktopMatchupCol}>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{m.myTeamNames}</span>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 400, margin: '0 6px' }}>vs</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{m.oppTeamNames}</span>
+              </span>
+              <span style={m.won ? S.desktopScoreGreen : S.desktopScoreRed}>{m.score}</span>
+              <span style={m.won ? S.desktopDeltaGreen : S.desktopDeltaRed}>
+                {m.eloDelta ? (m.won ? `+${m.eloDelta} ${t('home.personal.eloNormal')}` : `−${m.eloDelta} ${t('home.personal.eloNormal')}`) : (m.eloChange ? `${m.eloChange} ${t('home.personal.eloNormal')}` : `0 ${t('home.personal.eloNormal')}`)}
+              </span>
+              <span style={S.desktopRankCol}>
+                {m.rankImpact ? (
+                  m.rankImpact.type === 'up' ? (
+                    <span style={S.rankPillUp}>#{m.rankImpact.from} → #{m.rankImpact.to}</span>
+                  ) : m.rankImpact.type === 'down' ? (
+                    <span style={S.rankPillDown}>#{m.rankImpact.from} → #{m.rankImpact.to}</span>
+                  ) : (
+                    <span style={S.rankPillSame}>{t('home.personal.keepRank', { rank: m.rankImpact.to })}</span>
+                  )
+                ) : (
+                  <span style={m.seasonChange && m.seasonChange !== '—' ? (m.won ? S.desktopSeasonGreen : S.desktopSeasonRed) : S.desktopSeasonMuted}>
+                    {formatSeasonPoints(m.seasonChange, m.won)}
+                  </span>
+                )}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -210,7 +234,7 @@ const S = {
     border: '1px solid var(--border-default)',
   },
   desktopDateCol: {
-    width: 58,
+    width: 62,
     flex: '0 0 auto',
     font: '400 11px/1.3 var(--font-mono)',
     color: 'var(--text-muted)',
@@ -239,6 +263,46 @@ const S = {
     textAlign: 'right',
     font: '600 12px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
+  },
+  desktopRankCol: {
+    width: 86,
+    flex: '0 0 auto',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  rankPillUp: {
+    padding: '3px 8px',
+    borderRadius: 6,
+    background: 'var(--status-delivered-bg)',
+    border: '1px solid var(--status-delivered-fg)',
+    color: 'var(--status-delivered-fg)',
+    font: '600 11.5px/1 var(--font-mono)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    whiteSpace: 'nowrap',
+  },
+  rankPillDown: {
+    padding: '3px 8px',
+    borderRadius: 6,
+    background: 'var(--status-incident-bg)',
+    border: '1px solid var(--status-incident-fg)',
+    color: 'var(--status-incident-fg)',
+    font: '600 11.5px/1 var(--font-mono)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    whiteSpace: 'nowrap',
+  },
+  rankPillSame: {
+    padding: '3px 8px',
+    font: '400 12px/1 var(--font-sans)',
+    color: 'var(--text-muted)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    whiteSpace: 'nowrap',
   },
   desktopSeasonGreen: {
     width: 86,

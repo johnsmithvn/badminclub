@@ -159,6 +159,8 @@ export function getMyHeroStats(db, memberId) {
   let seasonPointsToNextRank = 0
   let seasonProgressPct = 100
   let isSeasonLeader = false
+  let seasonLatestDelta = 0
+  let seasonPctChange = 0
 
   try {
     const seasonData = calculateSeasonLeaderboard(db)
@@ -192,6 +194,36 @@ export function getMyHeroStats(db, memberId) {
       }
     }
   } catch {}
+
+  try {
+    const activeSeason = resolveSeason(db)
+    const ledger = getMemberSeasonLedger(myItem.id, db, activeSeason)
+    const events = (ledger?.events || []).filter((e) => e && Number.isFinite(e.at))
+    if (events.length > 0) {
+      events.sort((a, b) => a.at - b.at)
+      const latestAt = events[events.length - 1].at
+      const latestDayStart = new Date(latestAt).setHours(0, 0, 0, 0)
+      const sessionEvents = events.filter((ev) => new Date(ev.at).setHours(0, 0, 0, 0) === latestDayStart)
+      seasonLatestDelta = sessionEvents.reduce((sum, ev) => sum + (Number(ev.numPts) || 0), 0)
+      const pointsBeforeSession = sessionEvents[0].pointsBefore ?? (seasonPoints - seasonLatestDelta)
+      if (pointsBeforeSession > 0) {
+        seasonPctChange = Math.round((seasonLatestDelta / pointsBeforeSession) * 100)
+      } else if (seasonLatestDelta > 0) {
+        seasonPctChange = 100
+      } else if (seasonLatestDelta < 0) {
+        seasonPctChange = -100
+      }
+    } else {
+      seasonLatestDelta = seasonPoints
+      seasonPctChange = 0
+    }
+  } catch {
+    seasonLatestDelta = seasonPoints
+    seasonPctChange = 0
+  }
+
+  const prevElo = myElo - eloDeltaWeek
+  const eloPctChange = prevElo > 0 ? Math.round((eloDeltaWeek / prevElo) * 100) : 0
 
   // Số lượng huy hiệu đã mở
   let badgesCount = 0
@@ -228,12 +260,15 @@ export function getMyHeroStats(db, memberId) {
     totalMembers,
     elo: myElo,
     eloDeltaWeek,
+    eloPctChange,
     seasonRank,
     seasonTotalMembers,
     seasonMatches,
     seasonWins,
     seasonWinRate,
     seasonPoints,
+    seasonLatestDelta,
+    seasonPctChange,
     seasonTargetRival,
     seasonPointsToNextRank,
     seasonProgressPct,
@@ -498,11 +533,20 @@ function buildMemberSeasonPointsTrajectory(db, memberId, activeSeason = null) {
   return trajectory
 }
 
+export const RIVAL_COLORS = [
+  'var(--violet-400)',
+  'var(--amber-500)',
+  'var(--rank-rookie)',
+  'var(--rank-court-boss)',
+  'var(--rank-solid)',
+  'var(--status-incident-fg)',
+]
+
 /**
  * 04. Biểu đồ đường đua mùa / Elo (Season / Elo Race Time-Series) dựng từ lịch sử trận thật
  * @param {Object} db
  * @param {string} memberId
- * @param {string} [rivalId]
+ * @param {string|Array<string>} [rivalId] ID hoặc danh sách ID đối thủ cần so sánh
  * @param {number} [weeksCount=6]
  * @param {'season'|'elo'} [metric='elo']
  */
@@ -512,64 +556,64 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
   const activeSeason = resolveSeason(db)
   const seasonMatches = seasonMatchesOf(db, activeSeason)
 
-  // Elo Trajectory
+  const isSeason = metric === 'season'
+
+  // Elo & Season Trajectory của bản thân
   const myEloTrajectory = buildMemberEloTrajectory(db, memberId, seasonMatches)
   const currentMyElo = myEloTrajectory.length > 0 ? myEloTrajectory[myEloTrajectory.length - 1].rating : DEFAULT_RATING
   const startMyElo = myEloTrajectory.length > 0 ? myEloTrajectory[0].rating : DEFAULT_RATING
 
-  let rivalEloTrajectory = []
-  if (rivalId) {
-    rivalEloTrajectory = buildMemberEloTrajectory(db, rivalId, seasonMatches)
-  }
-
-  // Season Points Trajectory
   const mySeasonTrajectory = buildMemberSeasonPointsTrajectory(db, memberId, activeSeason)
   const currentMySeasonPts = mySeasonTrajectory.length > 0 ? mySeasonTrajectory[mySeasonTrajectory.length - 1].points : 0
   const startMySeasonPts = mySeasonTrajectory.length > 0 ? mySeasonTrajectory[0].points : 0
 
-  let rivalSeasonTrajectory = []
-  if (rivalId) {
-    rivalSeasonTrajectory = buildMemberSeasonPointsTrajectory(db, rivalId, activeSeason)
-  }
-
-  const isSeason = metric === 'season'
   const myTrajectory = isSeason ? mySeasonTrajectory : myEloTrajectory
-  const rivalTrajectory = isSeason ? rivalSeasonTrajectory : rivalEloTrajectory
 
   if (myTrajectory.length <= 1 && myEloTrajectory.length <= 1) {
     return { empty: true }
   }
 
-  // Thông tin đối thủ (tên, thứ hạng theo metric)
-  let rivalName = ''
-  let rivalRank = null
-  if (rivalId) {
+  // Chuẩn hoá danh sách rivalIds
+  const rivalIds = Array.isArray(rivalId)
+    ? rivalId.filter(Boolean)
+    : (rivalId ? [rivalId] : [])
+
+  // Thông tin đối thủ và quỹ đạo của từng đối thủ
+  let seasonLeaderboard = null
+  let eloLeaderboard = null
+
+  const getRivalMeta = (rId) => {
+    let name = ''
+    let rank = null
     if (isSeason) {
       try {
-        const seasonData = calculateSeasonLeaderboard(db, activeSeason)
-        const row = (seasonData?.leaderboard || []).find((x) => x.id === rivalId)
+        if (!seasonLeaderboard) {
+          const seasonData = calculateSeasonLeaderboard(db, activeSeason)
+          seasonLeaderboard = seasonData?.leaderboard || []
+        }
+        const row = seasonLeaderboard.find((x) => x.id === rId)
         if (row) {
-          rivalName = row.name
-          rivalRank = row.rank
+          name = row.name
+          rank = row.rank
         }
       } catch {}
     }
-    if (!rivalName) {
-      const eloList = getClubEloLeaderboard(db)
-      const row = eloList.find((x) => x.id === rivalId)
+    if (!name) {
+      if (!eloLeaderboard) {
+        eloLeaderboard = getClubEloLeaderboard(db)
+      }
+      const row = eloLeaderboard.find((x) => x.id === rId)
       if (row) {
-        rivalName = row.name
-        rivalRank = row.rank
+        name = row.name
+        rank = row.rank
       }
     }
-    if (!rivalName) {
-      rivalName = memberOf(db, rivalId)?.name || rivalId
+    if (!name) {
+      name = memberOf(db, rId)?.name || rId
     }
+    return { name, rank }
   }
 
-  const hasRivalTrajectory = rivalTrajectory.length > 1
-
-  // Lấy các mốc mẫu từ trajectory
   const samplePoints = (traj, count, key = 'rating') => {
     if (!traj || !traj.length) return []
     if (traj.length === 1) return Array(count).fill(traj[0][key])
@@ -581,21 +625,22 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
     return res
   }
 
-  let myWeeklyValues = []
-  let rivalWeeklyValues = []
-  let effectiveWeeksCount = weeksCount
-
   const currentVal = isSeason ? currentMySeasonPts : currentMyElo
   const startValDirect = isSeason ? startMySeasonPts : startMyElo
 
+  let myWeeklyValues = []
+  let effectiveWeeksCount = weeksCount
+
   const startTs = activeSeason?.startDate ? Date.parse(`${activeSeason.startDate}T00:00:00Z`) : 0
+  const key = isSeason ? 'points' : 'rating'
+
   if (startTs > 0 && Number.isFinite(startTs)) {
     const nowWeek = calcSeasonWeek(activeSeason.startDate)
     const span = Math.max(1, Math.min(weeksCount, nowWeek))
     effectiveWeeksCount = span
     const firstWeek = Math.max(1, nowWeek - span + 1)
 
-    const getValueAtWeek = (traj, weekIdx, key) => {
+    const getValueAtWeek = (traj, weekIdx) => {
       const weekCutoff = startTs + weekIdx * 7 * 86400000
       let latestVal = traj[0]?.[key] ?? 0
       for (const pt of traj) {
@@ -608,35 +653,74 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
       return latestVal
     }
 
-    const key = isSeason ? 'points' : 'rating'
     myWeeklyValues = Array.from({ length: span }, (_, i) => {
       const weekIdx = firstWeek + i
       if (weekIdx >= nowWeek) {
         return currentVal
       }
-      return getValueAtWeek(myTrajectory, weekIdx, key)
+      return getValueAtWeek(myTrajectory, weekIdx)
     })
+  } else {
+    myWeeklyValues = samplePoints(myTrajectory, weeksCount, key)
+  }
 
-    if (hasRivalTrajectory) {
-      const currentRivalVal = rivalTrajectory[rivalTrajectory.length - 1][key]
-      rivalWeeklyValues = Array.from({ length: span }, (_, i) => {
+  // Dựng dữ liệu cho từng rival
+  const rivals = rivalIds.map((rId, idx) => {
+    const meta = getRivalMeta(rId)
+    const traj = isSeason
+      ? buildMemberSeasonPointsTrajectory(db, rId, activeSeason)
+      : buildMemberEloTrajectory(db, rId, seasonMatches)
+
+    let weeklyValues = []
+    if (startTs > 0 && Number.isFinite(startTs)) {
+      const nowWeek = calcSeasonWeek(activeSeason.startDate)
+      const span = effectiveWeeksCount
+      const firstWeek = Math.max(1, nowWeek - span + 1)
+      const currentRivalVal = traj.length > 0 ? traj[traj.length - 1][key] : 0
+
+      const getValueAtWeek = (weekIdx) => {
+        const weekCutoff = startTs + weekIdx * 7 * 86400000
+        let latestVal = traj[0]?.[key] ?? 0
+        for (const pt of traj) {
+          if (pt.at && pt.at <= weekCutoff) {
+            latestVal = pt[key]
+          } else if (pt.at && pt.at > weekCutoff) {
+            break
+          }
+        }
+        return latestVal
+      }
+
+      weeklyValues = Array.from({ length: span }, (_, i) => {
         const weekIdx = firstWeek + i
         if (weekIdx >= nowWeek) {
           return currentRivalVal
         }
-        return getValueAtWeek(rivalTrajectory, weekIdx, key)
+        return getValueAtWeek(weekIdx)
       })
+    } else {
+      weeklyValues = samplePoints(traj, weeksCount, key)
     }
-  } else {
-    const key = isSeason ? 'points' : 'rating'
-    myWeeklyValues = samplePoints(myTrajectory, weeksCount, key)
-    if (hasRivalTrajectory) {
-      rivalWeeklyValues = samplePoints(rivalTrajectory, weeksCount, key)
+
+    return {
+      id: rId,
+      name: meta.name,
+      rank: meta.rank,
+      color: RIVAL_COLORS[idx % RIVAL_COLORS.length],
+      trajectory: traj,
+      weeklyValues,
+      hasTrajectory: traj.length > 1,
     }
-  }
+  })
 
   // Toạ độ SVG (viewBox 0 0 660 96)
-  const allValues = hasRivalTrajectory ? [...myWeeklyValues, ...rivalWeeklyValues] : [...myWeeklyValues]
+  const allValues = [...myWeeklyValues]
+  rivals.forEach((r) => {
+    if (r.hasTrajectory) {
+      allValues.push(...r.weeklyValues)
+    }
+  })
+
   const minVal = Math.min(...allValues) - 10
   const maxVal = Math.max(...allValues) + 10
   const range = Math.max(20, maxVal - minVal)
@@ -653,12 +737,34 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
   }
 
   const svgPointsMy = myWeeklyValues.map((val, idx) => `${xCoords[idx]},${toY(val)}`).join(' ')
-  const svgPointsRival = hasRivalTrajectory ? rivalWeeklyValues.map((val, idx) => `${xCoords[idx]},${toY(val)}`).join(' ') : ''
 
-  const startRivalVal = hasRivalTrajectory ? (rivalWeeklyValues[0] ?? rivalTrajectory[0][isSeason ? 'points' : 'rating']) : null
-  const currentRivalVal = hasRivalTrajectory ? (rivalWeeklyValues[rivalWeeklyValues.length - 1] ?? rivalTrajectory[rivalTrajectory.length - 1][isSeason ? 'points' : 'rating']) : null
+  // Gán svgPoints cho từng rival
+  rivals.forEach((r) => {
+    r.svgPoints = r.weeklyValues.map((val, idx) => `${xCoords[idx]},${toY(val)}`).join(' ')
+  })
+
+  // Rival đầu tiên (để tương thích ngược)
+  const firstRival = rivals[0] || null
+  const hasRivalTrajectory = firstRival?.hasTrajectory || false
+  const svgPointsRival = firstRival?.svgPoints || ''
+  const rivalName = firstRival?.name || ''
+  const rivalRank = firstRival?.rank || 1
+
+  const startRivalVal = firstRival?.weeklyValues?.[0] ?? (firstRival?.trajectory?.[0]?.[key] ?? null)
+  const currentRivalVal = firstRival?.weeklyValues?.[firstRival.weeklyValues.length - 1] ?? (firstRival?.trajectory?.[firstRival.trajectory.length - 1]?.[key] ?? null)
   const initialGap = (startRivalVal != null) ? Math.abs(startRivalVal - startVal) : null
   const currentGap = (currentRivalVal != null) ? Math.abs(currentRivalVal - currentVal) : null
+
+  let gapNoteKey = null
+  let gapFrom = null
+  let gapTo = null
+  let gapWeeks = null
+  if (hasRivalTrajectory && initialGap != null && currentGap != null && initialGap !== currentGap) {
+    gapFrom = Math.round(initialGap)
+    gapTo = Math.round(currentGap)
+    gapWeeks = Math.max(1, Math.round(effectiveWeeksCount / 2))
+    gapNoteKey = currentGap < initialGap ? 'gapShrinkNote' : 'gapWidenNote'
+  }
 
   const effectiveStartElo = isSeason ? startMyElo : startVal
   const effectiveDeltaElo = isSeason ? (currentMyElo - startMyElo) : deltaVal
@@ -674,7 +780,9 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
     startElo: effectiveStartElo,
     currentElo: currentMyElo,
     deltaElo: effectiveDeltaElo,
-    rivalId,
+    rivalId: rivalIds[0] || null,
+    rivalIds,
+    rivals,
     rivalName,
     rivalRank,
     svgPointsMy,
@@ -684,6 +792,10 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
     latestMyY: toY(currentVal),
     initialGap,
     currentGap,
+    gapNoteKey,
+    gapFrom,
+    gapTo,
+    gapWeeks,
   }
 }
 
@@ -711,6 +823,27 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
     }
   } catch {}
 
+  // Chuẩn bị trajectory của tất cả active members để tính biến động thứ hạng (rankImpact)
+  const allTrajectories = new Map()
+  const activeMembers = (db.members || []).filter((mem) => mem && mem.active !== false)
+  activeMembers.forEach((mem) => {
+    allTrajectories.set(mem.id, buildMemberEloTrajectory(db, mem.id))
+  })
+
+  const getMemberRatingAt = (mid, ts) => {
+    const traj = allTrajectories.get(mid)
+    if (!traj || !traj.length) return DEFAULT_RATING
+    let rating = traj[0].rating
+    for (const pt of traj) {
+      if (pt.at && pt.at <= ts) {
+        rating = pt.rating
+      } else if (pt.at && pt.at > ts) {
+        break
+      }
+    }
+    return rating
+  }
+
   // Lấy các trận gần nhất của người chơi từ db.matches
   const playerMatches = db.matches
     .filter((m) => m && m.winnerTeam && ((m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId)))
@@ -732,11 +865,47 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
     const eloChange = eloDelta > 0 ? (won ? `+${eloDelta}` : `−${eloDelta}`) : '0'
 
     let dateStr = '—'
+    let dateKey = null
     if (m.at) {
       const matchDate = new Date(m.at)
+      const now = new Date()
+      const isToday = matchDate.getFullYear() === now.getFullYear() &&
+                      matchDate.getMonth() === now.getMonth() &&
+                      matchDate.getDate() === now.getDate()
+      const yesterday = new Date(now)
+      yesterday.setDate(now.getDate() - 1)
+      const isYesterday = matchDate.getFullYear() === yesterday.getFullYear() &&
+                          matchDate.getMonth() === yesterday.getMonth() &&
+                          matchDate.getDate() === yesterday.getDate()
+
+      if (isToday) {
+        dateKey = 'today'
+      } else if (isYesterday) {
+        dateKey = 'yesterday'
+      }
+
       const d = String(matchDate.getDate()).padStart(2, '0')
       const mo = String(matchDate.getMonth() + 1).padStart(2, '0')
       dateStr = `${d}/${mo}`
+    }
+
+    // Tính biến động thứ hạng (rankImpact: lên hạng, xuống hạng, giữ hạng)
+    let rankImpact = null
+    const matchTs = m.at || 0
+    if (matchTs > 0 && activeMembers.length > 0) {
+      const myRatingBefore = getMemberRatingAt(memberId, matchTs - 1)
+      const myRatingAfter = getMemberRatingAt(memberId, matchTs)
+
+      const rankBefore = 1 + activeMembers.filter((other) => other.id !== memberId && getMemberRatingAt(other.id, matchTs - 1) > myRatingBefore).length
+      const rankAfter = 1 + activeMembers.filter((other) => other.id !== memberId && getMemberRatingAt(other.id, matchTs) > myRatingAfter).length
+
+      if (rankAfter < rankBefore) {
+        rankImpact = { type: 'up', from: rankBefore, to: rankAfter }
+      } else if (rankAfter > rankBefore) {
+        rankImpact = { type: 'down', from: rankBefore, to: rankAfter }
+      } else {
+        rankImpact = { type: 'same', from: rankBefore, to: rankAfter }
+      }
     }
 
     // Tra cứu điểm mùa:
@@ -775,6 +944,8 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
       eloChange,
       seasonChange,
       dateStr,
+      dateKey,
+      rankImpact,
     }
   })
 }

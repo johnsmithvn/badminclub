@@ -200,5 +200,25 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.equal(typeof hero.seasonRank, 'number')
     assert.equal(typeof hero.seasonProgressPct, 'number')
   })
+
+  await t.test('11. calcSeasonRaceHistory supports multiple rivals with distinct colors', () => {
+    const race = calcSeasonRaceHistory(mockDb, 'm1', ['m2', 'm3'], 6)
+    assert.equal(race.empty, false)
+    assert.ok(Array.isArray(race.rivals))
+    assert.equal(race.rivals.length, 2)
+
+    const [r1, r2] = race.rivals
+    assert.equal(r1.id, 'm2')
+    assert.equal(r2.id, 'm3')
+    assert.ok(r1.color)
+    assert.ok(r2.color)
+    assert.notEqual(r1.color, r2.color) // Mỗi người thể hiện màu khác nhau
+    assert.ok(r1.svgPoints)
+    assert.ok(r2.svgPoints)
+
+    // Backward compatibility
+    assert.equal(race.rivalName, r1.name)
+    assert.equal(race.svgPointsRival, r1.svgPoints)
+  })
 })
 
