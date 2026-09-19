@@ -176,6 +176,9 @@ export function toDb(raw, ctx) {
       id: s.id, date: s.date, groupId: s.group_id || 'ALL', scheduleId: s.schedule_id || null,
       status: s.status, note: s.note || '', closedAt: dOf(s.closed_at),
       planner: s.planner || null,
+      // Mốc đã gửi lời mời điểm danh — xem migration 0051. Có giá trị thì đóng/mở lại buổi
+      // KHÔNG mời lần nữa.
+      rsvpInvitedAt: s.rsvp_invited_at || null,
       courts: rows.map((r) => ({
         courtId: r.court_id, label: r.court_label || '', from: hm(r.start_time), to: hm(r.end_time),
         sold: r.is_sold, soldAmount: num(r.sold_amount), soldTo: r.sold_to || '', extra: r.is_extra,
@@ -409,6 +412,7 @@ export function toRows(db, ctx) {
       date: s.date, status: s.status, note: s.note || null,
       closed_at: s.closedAt || null, group_mode: !!(db.groupMode || {})[s.id],
       planner: s.planner || null,
+      rsvp_invited_at: s.rsvpInvitedAt || null,
     })
     const mins = (db.courtMin || {})[s.id] || {}
     ;(s.courts || []).forEach((r, i) => put('session_courts', {

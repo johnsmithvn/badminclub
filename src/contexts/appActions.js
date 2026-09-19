@@ -429,14 +429,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       await reload()
       const targetMemberId = mid || db().members.find((m) => m.userId === req.userId)?.id
       if (targetMemberId) {
-        emitEvent({
-          type: 'join_approved',
-          payload: { clubId: d0.clubId, memberId: targetMemberId },
-          recipients: [targetMemberId],
-          refType: 'member',
-          refId: targetMemberId,
-          skipActivity: true,
-        })
+        // TẮT theo yêu cầu: toàn bộ thông báo mục Thành viên (cả chuông lẫn push).
+        // Người vừa được duyệt đang đứng ngay trong app và thấy CLB hiện ra — dòng thông báo
+        // không thêm thông tin gì. Bật lại: bỏ comment khối dưới.
+        // emitEvent({
+        //   type: 'join_approved',
+        //   payload: { clubId: d0.clubId, memberId: targetMemberId },
+        //   recipients: [targetMemberId],
+        //   refType: 'member',
+        //   refId: targetMemberId,
+        //   skipActivity: true,
+        // })
         emitEvent({
           type: 'member_joined',
           payload: { memberId: targetMemberId },
@@ -463,16 +466,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         return toast(e.message)
       }
       await reload()
-      if (req?.matchedMemberId) {
-        emitEvent({
-          type: 'join_rejected',
-          payload: { clubId: d0.clubId },
-          recipients: [req.matchedMemberId],
-          refType: 'member',
-          refId: req.id,
-          skipActivity: true,
-        })
-      }
+      // TẮT theo yêu cầu: toàn bộ thông báo mục Thành viên (cả chuông lẫn push).
+      // if (req?.matchedMemberId) {
+      //   emitEvent({
+      //     type: 'join_rejected',
+      //     payload: { clubId: d0.clubId },
+      //     recipients: [req.matchedMemberId],
+      //     refType: 'member',
+      //     refId: req.id,
+      //     skipActivity: true,
+      //   })
+      // }
       toast(t('toast.joinRejected'))
     },
     toggleLinkMode: (k) => {
@@ -704,16 +708,24 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           refId: sid,
         })
         const cur = sessionOf(db(), sid)
-        // Chỉ mời người CHƯA trả lời. Chốt sổ rồi mở lại để sửa là chuyện thường, mà lần nào
-        // cũng nã lời mời vào máy cả nhóm thì người ta tắt thông báo — mất luôn những cái đáng
-        // đọc. Lọc theo từng người chứ không theo cả buổi: quản trò tick sẵn vài người lúc còn
-        // nháp là chuyện bình thường, chặn cả buổi vì mấy người đó là 37 người còn lại mất mời.
+        // MỘT BUỔI CHỈ MỜI MỘT LẦN. `rsvpInvitedAt` (migration 0051) là chốt chặn: đóng rồi mở
+        // lại — sửa sân, sửa giờ, hay chỉ để test — không mời lại lần nào nữa. Lọc "người chưa
+        // trả lời" thôi thì chưa đủ, vì đúng nhóm chưa kịp trả lời lại là nhóm bị nã nhiều nhất.
+        // Muốn mời lại có chủ đích: đặt `rsvp_invited_at = NULL` cho buổi đó dưới DB.
+        //
+        // Vẫn lọc theo TỪNG NGƯỜI trong lần mời duy nhất đó: quản trò tick sẵn vài người lúc
+        // còn nháp là chuyện thường, chặn cả buổi vì mấy người đó là những người còn lại mất mời.
         const att = db().attendance?.[sid] || {}
-        if (cur?.groupId) {
+        if (cur?.groupId && !cur.rsvpInvitedAt) {
           const inviteeIds = groupMembers(db(), cur.groupId, monthOf(cur.date || db().today))
             .map((m) => m.id)
             .filter((id) => att[id] === undefined)
           if (inviteeIds.length > 0) {
+            // Ghi mốc TRƯỚC khi bắn: bắn xong mới ghi mà giữa chừng lỗi thì lần mở sau mời lại.
+            const invitedAt = new Date().toISOString()
+            up((d) => ({
+              sessions: d.sessions.map((x) => (x.id === sid ? { ...x, rsvpInvitedAt: invitedAt } : x)),
+            }))
             emitEvent({
               type: 'session_rsvp_invite',
               payload: { sessionId: sid, date: cur.date || dateStr },
@@ -1298,17 +1310,18 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       })
       // Đọc yêu cầu từ state TRƯỚC khi `up()` ghi đè trạng thái — sau đó vẫn còn dòng, nhưng
       // lấy ở đây cho rõ là ta báo theo đúng cái vừa duyệt.
-      const chg = (db().changes || []).find((x) => x.id === id)
-      if (chg?.memberId) {
-        emitEvent({
-          type: ok ? 'member_change_approved' : 'member_change_rejected',
-          payload: { field: chg.field, to: chg.to },
-          recipients: [chg.memberId],
-          refType: 'member',
-          refId: id,
-          skipActivity: true,
-        })
-      }
+      // TẮT theo yêu cầu: toàn bộ thông báo mục Thành viên (cả chuông lẫn push).
+      // const chg = (db().changes || []).find((x) => x.id === id)
+      // if (chg?.memberId) {
+      //   emitEvent({
+      //     type: ok ? 'member_change_approved' : 'member_change_rejected',
+      //     payload: { field: chg.field, to: chg.to },
+      //     recipients: [chg.memberId],
+      //     refType: 'member',
+      //     refId: id,
+      //     skipActivity: true,
+      //   })
+      // }
       toast(t(ok ? 'toast.changeApproved' : 'toast.changeRejected'))
     },
 
@@ -2518,17 +2531,19 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           effective: field === 'phone' ? 'now' : 'next', status: 'pending',
         }]),
       }))
-      // Yêu cầu nằm im trong màn Thành viên cho tới khi chủ CLB tình cờ mở ra. Gửi cho người có
-      // quyền 'members' — đúng những người bấm được nút Duyệt / Từ chối.
-      emitEvent({
-        type: 'member_change_requested',
-        payload: { memberId: me.id, field },
-        recipients: membersWithPerm(d0.members, 'members'),
-        refType: 'member',
-        refId: changeId,
-        actorId: me.id,
-        skipActivity: true,
-      })
+      // TẮT theo yêu cầu: toàn bộ thông báo mục Thành viên (cả chuông lẫn push).
+      //
+      // ⚠️ Hệ quả: yêu cầu đổi SĐT / trình độ nằm im trong màn Thành viên cho tới khi chủ CLB
+      // tình cờ mở ra. Không có đường nào khác để họ biết. Bật lại khi thấy sót yêu cầu.
+      // emitEvent({
+      //   type: 'member_change_requested',
+      //   payload: { memberId: me.id, field },
+      //   recipients: membersWithPerm(d0.members, 'members'),
+      //   refType: 'member',
+      //   refId: changeId,
+      //   actorId: me.id,
+      //   skipActivity: true,
+      // })
       toast(t(field === 'phone' ? 'toast.changeAskedNow' : 'toast.changeAskedNext'))
     },
 
@@ -3843,7 +3858,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           newScore: newScoreStr,
           reason: reason || '',
         },
-        recipients: match.playerKeys || [...(match.teamA || []), ...(match.teamB || [])],
+        // `recipients: []` là cố ý, như `match_recorded` ngay trên: sửa tỷ số xảy ra liên tục
+        // trong buổi (nhập nhầm rồi sửa là chuyện thường), mà hộp thông báo chỉ giữ 100 dòng —
+        // mỗi dòng sửa điểm là một dòng đẩy 'đã duyệt hoàn tiền' hay 'mời điểm danh' ra ngoài.
+        // Bảng tin hoạt động vẫn kể chuyện này (không có `skipActivity`).
+        recipients: [],
         refType: 'match',
         refId: matchId,
         actorId: myId,
@@ -4045,7 +4064,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           matchCode: match.code || match.id.slice(0, 8),
           reason: reason || '',
         },
-        recipients: match.playerKeys || [...(match.teamA || []), ...(match.teamB || [])],
+        // `recipients: []` như `match_edited`: huỷ trận thường đi kèm nhập lại ngay, bắn cho
+        // bốn người mỗi lần là ngập hộp thông báo. Bảng tin hoạt động vẫn ghi.
+        recipients: [],
         refType: 'match',
         refId: matchId,
         actorId: myId,
