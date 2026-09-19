@@ -18,7 +18,6 @@ const UI0 = {
   toast: null,
   picked: null,
   expanded: {},
-  assignId: null,
   asnMode: 'balance',
 }
 

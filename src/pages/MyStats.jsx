@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Avatar, Button, IconButton } from '#ds'
+import { Avatar, Button, IconButton, Tabs } from '#ds'
+import { TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -30,12 +31,22 @@ import UpcomingSessionCard from '#components/home/personal/UpcomingSessionCard.j
 import ClubFeedCard from '#components/home/personal/ClubFeedCard.jsx'
 import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.jsx'
 import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
+import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
 
 export default function MyStats() {
-  const { db, a } = useApp()
+  const { db, a, ui } = useApp()
   const { profile } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const isMobile = useMobile(768)
+
+  const tab = ui?.tab?.home === 'match' ? 'match' : 'personal'
+  const tabItems = useMemo(
+    () => [
+      { value: 'personal', label: t('home.tabPersonal') },
+      { value: 'match', label: t('home.tabMatch') },
+    ],
+    [],
+  )
 
   // Chỉ lấy bản ghi của thành viên đang đăng nhập; nếu không thuộc CLB thì không hiển thị thành tích người khác
   const currentMember = useMemo(() => myMember(db), [db])
@@ -196,73 +207,89 @@ export default function MyStats() {
           </div>
         </div>
 
-        {/* Thẻ 01: Hero Rank */}
-        <HeroRankCard hero={heroStats} isMobile={true} />
+        {/* TabTrack & Tabs Mobile */}
+        <TabTrack>
+          <Tabs
+            variant="underline"
+            items={tabItems}
+            value={tab}
+            onChange={(v) => a.setTab('home', v)}
+          />
+        </TabTrack>
 
-        {/* Thẻ 02: Recent Form */}
-        <RecentFormCard form={formStats} isMobile={true} />
+        {tab === 'match' ? (
+          <HomeMatchTab />
+        ) : (
+          <>
+            {/* Thẻ 01: Hero Rank */}
+            <HeroRankCard hero={heroStats} isMobile={true} />
 
-        {/* Thẻ 03: Rival Goal */}
-        <RivalGoalCard
-          rivalAnalysis={rivalAnalysis}
-          isMobile={true}
-          onChallenge={handleLogMatch}
-        />
+            {/* Thẻ 02: Recent Form */}
+            <RecentFormCard form={formStats} isMobile={true} />
 
-        {/* Thẻ 04: Season Race */}
-        <SeasonRaceCard
-          db={db}
-          memberId={memberId}
-          defaultRivalId={rivalAnalysis?.rival?.id}
-        />
+            {/* Thẻ 03: Rival Goal */}
+            <RivalGoalCard
+              rivalAnalysis={rivalAnalysis}
+              isMobile={true}
+              onChallenge={handleLogMatch}
+            />
 
-        {/* Thẻ 05: Trận gần nhất */}
-        <RecentMatchesCard
-          matches={recentMatches}
-          isMobile={true}
-          onViewAll={handleViewMatches}
-        />
+            {/* Thẻ 04: Season Race */}
+            <SeasonRaceCard
+              db={db}
+              memberId={memberId}
+              defaultRivalId={rivalAnalysis?.rival?.id}
+            />
 
-        {/* Thẻ 05b: Quanh bạn trên BXH */}
-        <NearbyStandingsCard
-          standings={nearbyStandings}
-          seasonStandings={nearbySeasonStandings}
-          onViewLeaderboard={handleViewLeaderboard}
-        />
+            {/* Thẻ 05: Trận gần nhất */}
+            <RecentMatchesCard
+              matches={recentMatches}
+              isMobile={true}
+              onViewAll={handleViewMatches}
+            />
 
-        {/* Thẻ 06: Cặp ăn ý & Huy hiệu */}
-        <SynergyBadgesCard
-          partners={partnerStats.partners}
-          bestPartner={partnerStats.bestPartner}
-          underperformingPartner={partnerStats.underperformingPartner}
-          isMobile={true}
-        />
+            {/* Thẻ 05b: Quanh bạn trên BXH */}
+            <NearbyStandingsCard
+              standings={nearbyStandings}
+              seasonStandings={nearbySeasonStandings}
+              onViewLeaderboard={handleViewLeaderboard}
+            />
 
-        {/* Thẻ 06b: Đối thủ của tôi */}
-        <MyOpponentsCard
-          opponents={partnerStats.opponents}
-          nemeses={partnerStats.nemeses}
-          favoriteOpponents={partnerStats.favoriteOpponents}
-          nemesis={partnerStats.nemesis}
-          favoriteOpponent={partnerStats.favoriteOpponent}
-          isMobile={true}
-        />
+            {/* Thẻ 06: Cặp ăn ý & Huy hiệu */}
+            <SynergyBadgesCard
+              partners={partnerStats.partners}
+              bestPartner={partnerStats.bestPartner}
+              underperformingPartner={partnerStats.underperformingPartner}
+              isMobile={true}
+            />
 
-        {/* Thẻ 07: Buổi tập sắp tới */}
-        <UpcomingSessionCard
-          session={upcomingSession}
-          isMobile={true}
-          onViewSchedule={handleViewSchedule}
-          onViewAssignment={handleViewAssignment}
-          onChallenge={handleLogMatch}
-        />
+            {/* Thẻ 06b: Đối thủ của tôi */}
+            <MyOpponentsCard
+              opponents={partnerStats.opponents}
+              nemeses={partnerStats.nemeses}
+              favoriteOpponents={partnerStats.favoriteOpponents}
+              nemesis={partnerStats.nemesis}
+              favoriteOpponent={partnerStats.favoriteOpponent}
+              isMobile={true}
+            />
 
-        {/* Thẻ 08: Hoạt động CLB hôm nay */}
-        <ClubFeedCard
-          events={clubHighlights}
-          isMobile={true}
-          onViewAll={handleViewMatches}
-        />
+            {/* Thẻ 07: Buổi tập sắp tới */}
+            <UpcomingSessionCard
+              session={upcomingSession}
+              isMobile={true}
+              onViewSchedule={handleViewSchedule}
+              onViewAssignment={handleViewAssignment}
+              onChallenge={handleLogMatch}
+            />
+
+            {/* Thẻ 08: Hoạt động CLB hôm nay */}
+            <ClubFeedCard
+              events={clubHighlights}
+              isMobile={true}
+              onViewAll={handleViewMatches}
+            />
+          </>
+        )}
       </div>
     )
   }
@@ -310,85 +337,99 @@ export default function MyStats() {
         </div>
       </div>
 
-      <div style={S.desktopGrid}>
-        {/* Cột chính (Trái) */}
-        <div style={S.mainCol}>
-          {/* 01. Hạng của tôi */}
-          <HeroRankCard hero={heroStats} isMobile={false} />
+      {/* TabTrack & Tabs Desktop */}
+      <TabTrack>
+        <Tabs
+          variant="underline"
+          items={tabItems}
+          value={tab}
+          onChange={(v) => a.setTab('home', v)}
+        />
+      </TabTrack>
 
-          {/* Hàng 2 cột: 02. Phong độ 5 trận + 03. Mục tiêu */}
-          <div style={S.twoColRow}>
-            <RecentFormCard
-              form={formStats}
-              isMobile={false}
+      {tab === 'match' ? (
+        <HomeMatchTab />
+      ) : (
+        <div style={S.desktopGrid}>
+          {/* Cột chính (Trái) */}
+          <div style={S.mainCol}>
+            {/* 01. Hạng của tôi */}
+            <HeroRankCard hero={heroStats} isMobile={false} />
+
+            {/* Hàng 2 cột: 02. Phong độ 5 trận + 03. Mục tiêu */}
+            <div style={S.twoColRow}>
+              <RecentFormCard
+                form={formStats}
+                isMobile={false}
+              />
+              <RivalGoalCard
+                rivalAnalysis={rivalAnalysis}
+                isMobile={false}
+                onChallenge={handleLogMatch}
+                onH2HClick={handleLogMatch}
+              />
+            </div>
+
+            {/* 04. Đường đua mùa · 6 tuần */}
+            <SeasonRaceCard
+              db={db}
+              memberId={memberId}
+              defaultRivalId={rivalAnalysis?.rival?.id}
             />
-            <RivalGoalCard
-              rivalAnalysis={rivalAnalysis}
+
+            {/* 05. Trận gần nhất của tôi (3 trận) */}
+            <RecentMatchesCard
+              matches={recentMatches}
               isMobile={false}
-              onChallenge={handleLogMatch}
-              onH2HClick={handleLogMatch}
+              onViewAll={handleViewMatches}
             />
           </div>
 
-          {/* 04. Đường đua mùa · 6 tuần */}
-          <SeasonRaceCard
-            db={db}
-            memberId={memberId}
-            defaultRivalId={rivalAnalysis?.rival?.id}
-          />
+          {/* Cột phụ (Phải - 352px) */}
+          <div style={S.sideCol}>
+            {/* 06. Buổi tới */}
+            <UpcomingSessionCard
+              session={upcomingSession}
+              isMobile={false}
+              onViewSchedule={handleViewSchedule}
+              onViewAssignment={handleViewAssignment}
+              onChallenge={handleLogMatch}
+            />
 
-          {/* 05. Trận gần nhất của tôi (3 trận) */}
-          <RecentMatchesCard
-            matches={recentMatches}
-            isMobile={false}
-            onViewAll={handleViewMatches}
-          />
+            {/* 07. Quanh bạn trên BXH */}
+            <NearbyStandingsCard
+              standings={nearbyStandings}
+              seasonStandings={nearbySeasonStandings}
+              onViewLeaderboard={handleViewLeaderboard}
+            />
+
+            {/* 08. Đồng đội tốt của tôi */}
+            <SynergyBadgesCard
+              partners={partnerStats.partners}
+              bestPartner={partnerStats.bestPartner}
+              underperformingPartner={partnerStats.underperformingPartner}
+              isMobile={false}
+            />
+
+            {/* 08b. Đối thủ của tôi */}
+            <MyOpponentsCard
+              opponents={partnerStats.opponents}
+              nemeses={partnerStats.nemeses}
+              favoriteOpponents={partnerStats.favoriteOpponents}
+              nemesis={partnerStats.nemesis}
+              favoriteOpponent={partnerStats.favoriteOpponent}
+              isMobile={false}
+            />
+
+            {/* 09. CLB hôm nay */}
+            <ClubFeedCard
+              events={clubHighlights}
+              isMobile={false}
+              onViewAll={handleViewMatches}
+            />
+          </div>
         </div>
-
-        {/* Cột phụ (Phải - 352px) */}
-        <div style={S.sideCol}>
-          {/* 06. Buổi tới */}
-          <UpcomingSessionCard
-            session={upcomingSession}
-            isMobile={false}
-            onViewSchedule={handleViewSchedule}
-            onViewAssignment={handleViewAssignment}
-            onChallenge={handleLogMatch}
-          />
-
-          {/* 07. Quanh bạn trên BXH */}
-          <NearbyStandingsCard
-            standings={nearbyStandings}
-            seasonStandings={nearbySeasonStandings}
-            onViewLeaderboard={handleViewLeaderboard}
-          />
-
-          {/* 08. Đồng đội tốt của tôi */}
-          <SynergyBadgesCard
-            partners={partnerStats.partners}
-            bestPartner={partnerStats.bestPartner}
-            underperformingPartner={partnerStats.underperformingPartner}
-            isMobile={false}
-          />
-
-          {/* 08b. Đối thủ của tôi */}
-          <MyOpponentsCard
-            opponents={partnerStats.opponents}
-            nemeses={partnerStats.nemeses}
-            favoriteOpponents={partnerStats.favoriteOpponents}
-            nemesis={partnerStats.nemesis}
-            favoriteOpponent={partnerStats.favoriteOpponent}
-            isMobile={false}
-          />
-
-          {/* 09. CLB hôm nay */}
-          <ClubFeedCard
-            events={clubHighlights}
-            isMobile={false}
-            onViewAll={handleViewMatches}
-          />
-        </div>
-      </div>
+      )}
     </div>
   )
 }

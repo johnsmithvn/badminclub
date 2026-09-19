@@ -17,7 +17,6 @@ import { myMember } from '#lib/money.js'
 import { hasSupabase } from '#supabase'
 import { t } from '#i18n'
 import Account from '#pages/Account.jsx'
-import Assign from '#pages/Assign.jsx'
 import Badges from '#pages/Badges.jsx'
 import Calendar from '#pages/Calendar.jsx'
 import Clubs from '#pages/Clubs.jsx'
@@ -37,7 +36,7 @@ import Sessions from '#pages/Sessions.jsx'
 import Settings from '#pages/Settings.jsx'
 
 const SCREEN = {
-  home: MyStats, overview: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail, assign: Assign,
+  home: MyStats, overview: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail,
   matches: Matches, leaderboard: Leaderboard, badges: Badges, members: Members, debts: Debts, fund: Fund,
   profile: Profile, settings: Settings, schema: Schema,
 }

@@ -2548,7 +2548,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
 
     /* ---------- chia sân ---------- */
-    setAssignSession: (id) => upUi(() => ({ assignId: id, picked: null })),
     setAsnMode: (v) => upUi(() => ({ asnMode: v })),
     pickPlayer: (key) => upUi((u) => ({ picked: u.picked === key ? null : key })),
     place: (sid, slot, key) => {
