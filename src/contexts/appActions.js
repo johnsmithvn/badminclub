@@ -47,6 +47,7 @@ const PUSH_EVENTS = new Set([
   'refund_session',
   'refund_bulk',
   'challenge_created',
+  'challenge_teammate',
   'challenge_accepted',
   'challenge_declined',
   'challenge_cancelled',
@@ -2843,6 +2844,23 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         refId: newChal.id,
         actorId: myId,
       })
+      // Đồng đội ở ĐỘI A cũng phải bấm nhận thì kèo mới thành (`challenge.js: isFullyAccepted`
+      // đòi đủ chữ ký CẢ HAI đội), nhưng trước đây chỉ `teamB` được báo — người đội A không hề
+      // biết có kèo, kèo nằm chờ chữ ký của họ rồi hết hạn sau 60 phút.
+      // Loại `challenge_created`: câu đó viết cho đối thủ ("nhận được lời thách đấu từ X"),
+      // đọc sai nghĩa khi X là đồng đội mình.
+      const teammates = (teamA || []).filter((id) => id !== myId)
+      if (teammates.length) {
+        emitEvent({
+          type: 'challenge_teammate',
+          payload: { chalId: newChal.id, code },
+          recipients: teammates,
+          refType: 'challenge',
+          refId: newChal.id,
+          actorId: myId,
+          skipActivity: true, // `challenge_created` đã ghi dòng hoạt động cho kèo này rồi
+        })
+      }
       toast(t('challenge.toastCreated', { code }))
       return newChal
     },
@@ -3050,6 +3068,20 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         actorId: myId,
         skipActivity: !isFullyAccepted,
       })
+
+      // Người được rủ đánh cặp bị kéo thẳng vào `teamB` mà không ai báo — cùng lỗi với nhánh
+      // tạo kèo: họ phải bấm nhận thì kèo mới đủ chữ ký.
+      if (validPartner) {
+        emitEvent({
+          type: 'challenge_teammate',
+          payload: { chalId: chal.id, code: chal.code },
+          recipients: [validPartner],
+          refType: 'challenge',
+          refId: chal.id,
+          actorId: myId,
+          skipActivity: true,
+        })
+      }
 
       if (isFullyAccepted) {
         toast(t('challenge.toastAccepted', { code: chal.code }))

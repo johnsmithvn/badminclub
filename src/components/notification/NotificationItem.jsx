@@ -28,6 +28,7 @@ export default function NotificationItem({ item, onRead }) {
       case 'challenge_created':
       case 'challenge_accepted':
       case 'challenge_declined':
+      case 'challenge_teammate':
         return { icon: 'swords', color: '#00F5D4' }
       case 'challenge_cancelled':
       case 'session_cancelled':

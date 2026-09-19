@@ -4632,6 +4632,7 @@
     "unreadCount": "{{count}} thông báo chưa đọc",
     "challenge_created": "⚔️ Bạn nhận được lời thách đấu kèo {{code}} từ {{creator}}!",
     "challenge_created_simple": "⚔️ Bạn nhận được lời thách đấu kèo {{code}}!",
+    "challenge_teammate": "🤝 Bạn được xếp đánh cặp ở kèo {{code}} — vào xác nhận thì kèo mới được tính.",
     "challenge_accepted": "🤝 Kèo {{code}} của bạn đã được đối thủ chấp nhận!",
     "challenge_declined": "🛡️ Kèo {{code}} của bạn đã bị từ chối.",
     "challenge_cancelled": "🚫 Kèo {{code}} đã bị huỷ.",
