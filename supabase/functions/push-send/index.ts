@@ -108,8 +108,27 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle()
 
-    if (callerCheckError || !callerMember) {
-      return new Response(JSON.stringify({ error: 'Forbidden: caller is not a member of this club' }), {
+    // Gộp "truy vấn LỖI" và "không tìm thấy" vào cùng một câu trả lời là không phân biệt được
+    // service role hỏng với người gửi thật sự ngoài CLB — hai nguyên nhân sửa hai kiểu khác hẳn.
+    if (callerCheckError) {
+      console.error('[push-send] Truy vấn club_members lỗi (service role?):', callerCheckError)
+      return new Response(JSON.stringify({
+        error: 'Member lookup failed',
+        detail: callerCheckError.message,
+        hint: 'SUPABASE_SERVICE_ROLE_KEY co the khong hop le hoac da bi vo hieu hoa',
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!callerMember) {
+      console.warn('[push-send] Caller khong thuoc club:', { callerUserId, club_id })
+      return new Response(JSON.stringify({
+        error: 'Forbidden: caller is not a member of this club',
+        callerUserId,
+        club_id,
+      }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -122,7 +141,16 @@ Deno.serve(async (req) => {
       .eq('club_id', club_id)
       .in('id', member_ids)
 
-    if (memberCheckError || !validMembers || validMembers.length === 0) {
+    if (memberCheckError) {
+      console.error('[push-send] Loc member_ids loi:', memberCheckError)
+      return new Response(JSON.stringify({ error: 'Member filter failed', detail: memberCheckError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!validMembers || validMembers.length === 0) {
+      console.warn('[push-send] Khong co member_id nao thuoc club:', { club_id, member_ids })
       return new Response(JSON.stringify({ success: true, sentCount: 0, note: 'No valid members found in club' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
