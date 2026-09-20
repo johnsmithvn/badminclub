@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, Fragment } from 'react'
 import { Button, Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { playerName, courtOf, playerOf } from '#lib/money.js'
 import {
   matchCodeOf,
@@ -19,6 +20,7 @@ import { t } from '#i18n'
 
 export default function MatchDetailModal({ match, onClose, onEdit }) {
   const { db } = useApp()
+  const isMobile = useMobile(640)
   const [watchingVideo, setWatchingVideo] = useState(false)
 
   const liveMatch = (db.matches || []).find((m) => m.id === match?.id) || match
@@ -219,6 +221,51 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   const isDoubles = teamA.length === 2 && teamB.length === 2
   const matchCategory = isDoubles ? 'Đôi nam' : 'Đơn nam' // i18n-ok
 
+  const tiers = useMemo(() => [
+    {
+      key: 'elo',
+      title: t('matchDetail.tier1Elo'),
+      sub: t('matchDetail.tier1EloSub'),
+      desc: `Kỳ vọng ${expA}% · thắng thật → ${isUpset ? 'bất ngờ lớn, biến động mạnh' : 'tăng nhẹ vì đúng dự đoán'}`, // i18n-ok
+      value: playerDeltas.listA.map((p) => `${p.name} ${p.delta >= 0 ? `+${p.delta}` : p.delta}`).join(' · '),
+      color: '#5FDBD3',
+    },
+    {
+      key: 'synergy',
+      title: t('matchDetail.tier2Synergy'),
+      sub: t('matchDetail.tier2SynergySub'),
+      desc: `${winPairName} lên ${synGames} trận · thực tế ${actualWinPct}% so kỳ vọng ${expWinPct}%`, // i18n-ok
+      value: `${synBefore} → ${synAfter}`,
+      color: '#5FDBD3',
+    },
+    {
+      key: 'season',
+      title: t('matchDetail.tier4Season'),
+      sub: t('matchDetail.tier4SeasonSub'),
+      desc: match?.ratingEnabled === false
+        ? t('matchDetail.tier4Casual')
+        : t('matchDetail.tier4PointsEarned', { pts: seasonDelta }),
+      value: match?.ratingEnabled === false ? '+0' : (seasonDelta >= 0 ? `+${seasonDelta}` : `${seasonDelta}`),
+      color: '#5FDBD3',
+    },
+    {
+      key: 'matchup',
+      title: t('matchDetail.tier3Matchup'),
+      sub: t('matchDetail.tier3MatchupSub'),
+      desc: `${winPairName} → ${losePairName}: ${matchupGames} trận, lên đủ mẫu ${matchupConf?.tier || 'R1'}`, // i18n-ok
+      value: `${edgeBefore} → ${edgeAfter}`,
+      color: '#5FDBD3',
+    },
+    {
+      key: 'h2h',
+      title: t('matchDetail.tierH2H'),
+      sub: t('matchDetail.tierH2HSub'),
+      desc: t('matchDetail.h2hHistoryOnlyNote'),
+      value: `${h2hP1} ${h2hWins1}–${h2hWins2} ${h2hP2}`,
+      color: '#8494AA',
+    },
+  ], [t, expA, isUpset, playerDeltas.listA, winPairName, synGames, actualWinPct, expWinPct, synBefore, synAfter, match?.ratingEnabled, seasonDelta, losePairName, matchupGames, matchupConf, h2hP1, h2hWins1, h2hWins2, h2hP2])
+
   return (
     <>
       <Dialog
@@ -226,7 +273,10 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
         onClose={onClose}
         title={t('matchDetail.matchCode', { code: matchCode })}
         description={matchWhen || t('matchDetail.title')}
-        width={720}
+        width={isMobile ? '100%' : 720}
+        style={{
+          paddingBottom: isMobile ? 'calc(14px + env(safe-area-inset-bottom, 0px))' : undefined,
+        }}
       >
       {/* ═══ EA1 · KỲ VỌNG VS THỰC TẾ TRONG CHI TIẾT TRẬN ═══ */}
       <div
@@ -240,13 +290,14 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          gap: 14,
+          gap: isMobile ? 11 : 14,
+          margin: isMobile ? '-4px -6px' : undefined,
         }}
       >
         {/* Header Bar */}
         <div
           style={{
-            padding: '14px 18px',
+            padding: isMobile ? '10px 12px' : '14px 18px',
             borderBottom: '1px solid #22304A',
             display: 'flex',
             alignItems: 'center',
@@ -254,40 +305,40 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
           }}
         >
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-            <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
+            <div style={{ font: isMobile ? '600 15px/1.25 Barlow, sans-serif' : '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
               {t('matchDetail.matchCode', { code: matchCode })} · {courtLabel || t('session.courtNum', { n: 1 })} · {timeStr}
             </div>
-            <div style={{ font: "400 13px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+            <div style={{ font: isMobile ? "400 12px/1.4 'IBM Plex Mono', monospace" : "400 13px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
               {matchCategory} · {t('session.sessionTitle')} {dateStr || '02/09'} · {t('matchDetail.eloApplied')}
             </div>
           </div>
           <div style={{ width: 14, height: 14, borderRadius: 3, background: 'rgba(255,255,255,.18)' }} />
         </div>
 
-        <div style={{ padding: '0 18px 18px', display: 'grid', gap: 14 }}>
+        <div style={{ padding: isMobile ? '0 12px 14px' : '0 18px 18px', display: 'grid', gap: isMobile ? 11 : 14 }}>
           {/* Tỷ số & Kỳ vọng */}
           <div
             style={{
               background: '#141D2E',
               border: '1px solid #22304A',
               borderRadius: 10,
-              padding: 14,
+              padding: isMobile ? '10px 8px' : 14,
               display: 'grid',
-              gridTemplateColumns: 'minmax(0,1fr) 92px minmax(0,1fr)',
-              gap: 12,
+              gridTemplateColumns: isMobile ? 'minmax(0,1fr) 72px minmax(0,1fr)' : 'minmax(0,1fr) 92px minmax(0,1fr)',
+              gap: isMobile ? 8 : 12,
               alignItems: 'center',
             }}
           >
             <div style={{ display: 'grid', gap: 3 }}>
-              <div style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: aWon ? '#5FDBD3' : '#A8B7CB' }}>
+              <div style={{ font: isMobile ? "600 13px/1.3 'IBM Plex Sans', sans-serif" : "600 14px/1.3 'IBM Plex Sans', sans-serif", color: aWon ? '#5FDBD3' : '#A8B7CB' }}>
                 {nameTeamA}
               </div>
-              <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+              <div style={{ font: isMobile ? "400 10.5px/1.35 'IBM Plex Mono', monospace" : "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                 {teamA.length > 1 ? `${rA0} + ${rA1}` : rA0} · {t('leaderboard.expectedWinPct', { pct: expA })}
               </div>
             </div>
             <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ font: '700 22px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
+              <div style={{ font: isMobile ? '700 19px/1 Barlow, sans-serif' : '700 22px/1 Barlow, sans-serif', color: '#E9EFF7' }}>
                 {sets.length > 1
                   ? `${sets.filter(([sa, sb]) => sa > sb).length}–${sets.filter(([sa, sb]) => sb > sa).length}`
                   : (sets.length > 0 ? `${sets[0][0]}–${sets[0][1]}` : '21–18')}
@@ -314,10 +365,10 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
               )}
             </div>
             <div style={{ display: 'grid', gap: 3, textAlign: 'right' }}>
-              <div style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: !aWon ? '#5FDBD3' : '#A8B7CB' }}>
+              <div style={{ font: isMobile ? "600 13px/1.3 'IBM Plex Sans', sans-serif" : "600 14px/1.3 'IBM Plex Sans', sans-serif", color: !aWon ? '#5FDBD3' : '#A8B7CB' }}>
                 {nameTeamB}
               </div>
-              <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+              <div style={{ font: isMobile ? "400 10.5px/1.35 'IBM Plex Mono', monospace" : "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                 {teamB.length > 1 ? `${rB0} + ${rB1}` : rB0} · {t('leaderboard.expectedWinPct', { pct: expB })}
               </div>
             </div>
@@ -396,13 +447,13 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '10px 13px',
+              padding: isMobile ? '8px 10px' : '10px 13px',
               borderRadius: 8,
               background: 'rgba(0,178,169,.10)',
               border: '1px solid #00786F',
             }}
           >
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB', flex: 1 }}>
+            <div style={{ font: isMobile ? "400 12px/1.45 'IBM Plex Sans', sans-serif" : "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB', flex: 1 }}>
               {isCloseMargin
                 ? t('matchDetail.movSoftenedNote', { diff: 4, mult: mov.toFixed(2) })
                 : t('matchDetail.movSoftenedBlowoutNote', { diff: maxDiff, mult: mov.toFixed(2) })}
@@ -415,238 +466,134 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
               {t('matchDetail.whatUpdatesTitle')}
             </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '112px 1fr',
-                gap: 0,
-                borderRadius: 9,
-                overflow: 'hidden',
-                border: '1px solid #22304A',
-              }}
-            >
-              {/* Tầng 1: Elo */}
+            {isMobile ? (
+              /* Mobile: Bố cục dạng thẻ xếp chồng không bị ép dẹp chữ */
               <div
                 style={{
-                  background: '#101927',
-                  borderRight: '1px solid #22304A',
-                  padding: 12,
-                  display: 'grid',
-                  gap: 3,
-                  alignContent: 'center',
-                }}
-              >
-                <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                  {t('matchDetail.tier1Elo')}
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('matchDetail.tier1EloSub')}
-                </div>
-              </div>
-              <div
-                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  borderRadius: 9,
+                  overflow: 'hidden',
+                  border: '1px solid #22304A',
                   background: '#141D2E',
-                  padding: '12px 14px',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto',
-                  gap: 8,
-                  alignItems: 'center',
                 }}
               >
-                <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                  Kỳ vọng {expA}% · thắng thật → {isUpset ? 'bất ngờ lớn, biến động mạnh' : 'tăng nhẹ vì đúng dự đoán'} {/* i18n-ok */}
-                </div>
-                <div
-                  style={{
-                    font: "600 13px/1 'IBM Plex Mono', monospace",
-                    color: '#5FDBD3',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {playerDeltas.listA.map((p) => `${p.name} ${p.delta >= 0 ? `+${p.delta}` : p.delta}`).join(' · ')}
-                </div>
+                {tiers.map((tier, idx) => (
+                  <div
+                    key={tier.key}
+                    style={{
+                      padding: '10px 12px',
+                      borderTop: idx === 0 ? 'none' : '1px solid #22304A',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 5,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                          {tier.title}
+                        </span>
+                        <span
+                          style={{
+                            font: "500 10.5px/1 'IBM Plex Mono', monospace",
+                            color: '#8494AA',
+                            background: '#101927',
+                            padding: '2px 5px',
+                            borderRadius: 4,
+                            border: '1px solid #22304A',
+                          }}
+                        >
+                          {tier.sub}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          font: "600 12px/1.2 'IBM Plex Mono', monospace",
+                          color: tier.color,
+                          textAlign: 'right',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {tier.value}
+                      </div>
+                    </div>
+                    <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                      {tier.desc}
+                    </div>
+                  </div>
+                ))}
               </div>
+            ) : (
+              /* Desktop: Bố cục 2 cột truyền thống với căn đều hai bên */
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '120px 1fr',
+                  gap: 0,
+                  borderRadius: 9,
+                  overflow: 'hidden',
+                  border: '1px solid #22304A',
+                }}
+              >
+                {tiers.map((tier, idx) => (
+                  <Fragment key={tier.key}>
+                    <div
+                      style={{
+                        background: '#101927',
+                        borderRight: '1px solid #22304A',
+                        borderTop: idx === 0 ? 'none' : '1px solid #22304A',
+                        padding: 12,
+                        display: 'grid',
+                        gap: 3,
+                        alignContent: 'center',
+                      }}
+                    >
+                      <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                        {tier.title}
+                      </div>
+                      <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                        {tier.sub}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        background: '#141D2E',
+                        borderTop: idx === 0 ? 'none' : '1px solid #22304A',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB', flex: 1, minWidth: 0 }}>
+                        {tier.desc}
+                      </div>
+                      <div
+                        style={{
+                          font: "600 13px/1 'IBM Plex Mono', monospace",
+                          color: tier.color,
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {tier.value}
+                      </div>
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
+            )}
 
-              {/* Tầng 2: Ăn ý */}
-              <div
-                style={{
-                  background: '#101927',
-                  borderRight: '1px solid #22304A',
-                  borderTop: '1px solid #22304A',
-                  padding: 12,
-                  display: 'grid',
-                  gap: 3,
-                  alignContent: 'center',
-                }}
-              >
-                <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                  {t('matchDetail.tier2Synergy')}
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('matchDetail.tier2SynergySub')}
-                </div>
-              </div>
-              <div
-                style={{
-                  background: '#141D2E',
-                  borderTop: '1px solid #22304A',
-                  padding: '12px 14px',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto',
-                  gap: 8,
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                  {winPairName} lên {synGames} trận · thực tế {actualWinPct}% so kỳ vọng {expWinPct}% {/* i18n-ok */}
-                </div>
-                <div
-                  style={{
-                    font: "600 13px/1 'IBM Plex Mono', monospace",
-                    color: '#5FDBD3',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {synBefore} → {synAfter}
-                </div>
-              </div>
-
-              {/* Tầng 4: Điểm mùa giải */}
-              <div
-                style={{
-                  background: '#101927',
-                  borderRight: '1px solid #22304A',
-                  borderTop: '1px solid #22304A',
-                  padding: 12,
-                  display: 'grid',
-                  gap: 3,
-                  alignContent: 'center',
-                }}
-              >
-                <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                  {t('matchDetail.tier4Season')}
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('matchDetail.tier4SeasonSub')}
-                </div>
-              </div>
-              <div
-                style={{
-                  background: '#141D2E',
-                  borderTop: '1px solid #22304A',
-                  padding: '12px 14px',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto',
-                  gap: 8,
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                  {match?.ratingEnabled === false
-                    ? t('matchDetail.tier4Casual')
-                    : t('matchDetail.tier4PointsEarned', { pts: seasonDelta })}
-                </div>
-                <div
-                  style={{
-                    font: "600 13px/1 'IBM Plex Mono', monospace",
-                    color: '#5FDBD3',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {match?.ratingEnabled === false ? '+0' : (seasonDelta >= 0 ? `+${seasonDelta}` : `${seasonDelta}`)}
-                </div>
-              </div>
-
-              {/* Tầng 3: Khắc chế */}
-              <div
-                style={{
-                  background: '#101927',
-                  borderRight: '1px solid #22304A',
-                  borderTop: '1px solid #22304A',
-                  padding: 12,
-                  display: 'grid',
-                  gap: 3,
-                  alignContent: 'center',
-                }}
-              >
-                <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                  {t('matchDetail.tier3Matchup')}
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('matchDetail.tier3MatchupSub')}
-                </div>
-              </div>
-              <div
-                style={{
-                  background: '#141D2E',
-                  borderTop: '1px solid #22304A',
-                  padding: '12px 14px',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto',
-                  gap: 8,
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                  {winPairName} → {losePairName}: {matchupGames} trận, lên đủ mẫu {matchupConf?.tier || 'R1'} {/* i18n-ok */}
-                </div>
-                <div
-                  style={{
-                    font: "600 13px/1 'IBM Plex Mono', monospace",
-                    color: '#5FDBD3',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {edgeBefore} → {edgeAfter}
-                </div>
-              </div>
-
-              {/* H2H: Bổ sung */}
-              <div
-                style={{
-                  background: '#101927',
-                  borderRight: '1px solid #22304A',
-                  borderTop: '1px solid #22304A',
-                  padding: 12,
-                  display: 'grid',
-                  gap: 3,
-                  alignContent: 'center',
-                }}
-              >
-                <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                  {t('matchDetail.tierH2H')}
-                </div>
-                <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                  {t('matchDetail.tierH2HSub')}
-                </div>
-              </div>
-              <div
-                style={{
-                  background: '#141D2E',
-                  borderTop: '1px solid #22304A',
-                  padding: '12px 14px',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto',
-                  gap: 8,
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                  {t('matchDetail.h2hHistoryOnlyNote')}
-                </div>
-                <div
-                  style={{
-                    font: "600 13px/1 'IBM Plex Mono', monospace",
-                    color: '#8494AA',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {h2hP1} {h2hWins1}–{h2hWins2} {h2hP2}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#8494AA', paddingTop: 2 }}>
+            <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA', paddingTop: 2 }}>
               {t('matchDetail.tierUpdateRuleNote')}
             </div>
           </div>
@@ -718,14 +665,23 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
           )}
 
           {/* NÚT THAO TÁC */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 6 }}>
-            <Button variant="ghost" onClick={onClose}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              justifyContent: isMobile ? 'stretch' : 'flex-end',
+              flexWrap: 'wrap',
+              paddingTop: 6,
+            }}
+          >
+            <Button variant="ghost" onClick={onClose} style={{ flex: isMobile ? 1 : undefined }}>
               {t('matchDetail.btnClose')}
             </Button>
             {hasVideo && (
               <Button
                 variant="secondary"
                 onClick={() => setWatchingVideo(true)}
+                style={{ flex: isMobile ? 1 : undefined }}
               >
                 <span style={{ fontSize: 11 }}>▶</span>
                 <span>{t('matchVideo.btnWatch')}{Number(liveMatch?.videoViews) > 0 ? ` · ${liveMatch.videoViews}` : ''}</span>
@@ -738,6 +694,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                   onClose()
                   onEdit(liveMatch)
                 }}
+                style={{ flex: isMobile ? 1 : undefined }}
               >
                 <Icon name="pencil" size={14} />
                 <span>{t('matchDetail.btnEditScore')}</span>

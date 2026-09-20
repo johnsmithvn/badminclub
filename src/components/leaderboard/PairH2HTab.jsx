@@ -260,6 +260,8 @@ export default function PairH2HTab({
     return results
   }, [matches, membersMap, ratingsMap, rivalryFormatFilter])
 
+  const topRivalry = clubRivalries[0] || null
+
   // Lọc options cho từng ô chọn để tránh trùng người
   const optionsA1 = memberList
   const optionsA2 = useMemo(() => memberList.filter((m) => m.value !== playerA1), [memberList, playerA1])
@@ -415,6 +417,123 @@ export default function PairH2HTab({
             })}
           </div>
         </div>
+
+        {/* Hero Card: Kình địch tiêu biểu */}
+        {topRivalry && (
+          <div
+            onClick={() => {
+              setPairA(topRivalry.pairA[0], topRivalry.pairA[1])
+              setPairB(topRivalry.pairB[0], topRivalry.pairB[1])
+            }}
+            title={t('leaderboard.viewH2HDetail')}
+            style={{
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.20) 0%, rgba(245, 158, 11, 0.14) 50%, #141D2E 100%)'
+                : 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.06) 50%, var(--surface-card) 100%)',
+              border: isDark ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid rgba(245, 158, 11, 0.35)',
+              boxShadow: isDark ? '0 4px 22px rgba(239, 68, 68, 0.12)' : 'var(--shadow-sm)',
+              borderRadius: 10,
+              padding: '14px 16px',
+              display: 'grid',
+              gap: 9,
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease, border-color 0.15s ease',
+            }}
+          >
+            <span
+              style={{
+                font: "700 10px/1 'IBM Plex Mono', monospace",
+                letterSpacing: '.06em',
+                padding: '4px 9px',
+                borderRadius: 999,
+                background: 'linear-gradient(90deg, #FF5722 0%, #FF9800 100%)',
+                color: '#FFFFFF',
+                boxShadow: '0 2px 8px rgba(255, 87, 34, 0.35)',
+                justifySelf: 'start',
+              }}
+            >
+              {t('leaderboard.topRivalryBadge')}
+            </span>
+
+            <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: textWhite, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>{topRivalry.fromName}</span>
+              <span style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#FF7A45' }}>⚔️</span>
+              <span style={{ color: textWhite }}>{topRivalry.toName}</span>
+            </div>
+
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textSecondary }}>
+              {t('leaderboard.topRivalryDesc', {
+                from: topRivalry.fromName,
+                to: topRivalry.toName,
+                score: topRivalry.score,
+                games: topRivalry.games,
+                exp: topRivalry.expected,
+                wins: topRivalry.wins,
+              })}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 16,
+                paddingTop: 8,
+                borderTop: `1px solid ${borderCard}`,
+                marginTop: 2,
+                flexWrap: 'wrap',
+                alignItems: 'flex-end',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ font: '700 18px/1 Barlow, sans-serif', color: '#FF7A45' }}>
+                    {topRivalry.score}
+                  </span>
+                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#FFA940' }}>
+                    🔥
+                  </span>
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: textMuted }}>
+                  {t('leaderboard.rivalryAdvantage')}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: textWhite }}>
+                  {topRivalry.impact >= 0 ? `+${topRivalry.impact}pp` : `${topRivalry.impact}pp`}
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: textMuted }}>
+                  {t('leaderboard.advantageEdge')}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ font: '700 18px/1 Barlow, sans-serif', color: textWhite }}>
+                  {topRivalry.games}
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: textMuted }}>
+                  {t('leaderboard.games')}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ font: "600 14px/1 'IBM Plex Mono', monospace", color: '#5FD9A2', marginBottom: 2 }}>
+                  {topRivalry.wins}T – {topRivalry.losses}B
+                </div>
+                <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: textMuted }}>
+                  {t('leaderboard.h2hRecord')}
+                </div>
+              </div>
+
+              <div style={{ flex: '1 1 0%' }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#F0B75C' }}>
+                  {t('leaderboard.viewH2HDetail')} →
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Danh sách các cặp đối đầu kình địch */}
         <div
