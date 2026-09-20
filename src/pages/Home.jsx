@@ -10,6 +10,7 @@ import {
 } from '#lib/money.js'
 import { monthFlow } from '#lib/ledger.js'
 import { t } from '#i18n'
+import { FundOverviewCards } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
 import { scheduleForm } from '#lib/forms.js'
 import { PUBLIC_PATHS } from '#routes'
