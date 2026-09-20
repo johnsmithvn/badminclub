@@ -39,6 +39,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   const [playingVideoMatch, setPlayingVideoMatch] = useState(null)
   const [matchSourceFilter, setMatchSourceFilter] = useState('all') // 'all' | 'challenge' | 'session'
   const [challengeTab, setChallengeTab] = useState('my')
+  const [challengeSearch, setChallengeSearch] = useState('')
   const [selectedChallenge, setSelectedChallenge] = useState(null)
   const [scoringChallenge, setScoringChallenge] = useState(null)
 
@@ -104,17 +105,11 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   }, [allClubChallenges, myId])
 
   const pendingChallenges = useMemo(() => {
-    return allClubChallenges.filter((c) => c.status === 'pending' || isChallengeAccepted(c))
+    return allClubChallenges.filter((c) => c.status === 'pending')
   }, [allClubChallenges])
 
-  const openChallenges = useMemo(() => {
-    return allClubChallenges.filter((c) => {
-      const isPending = c.status === 'pending'
-      const teamB = c.teamB || []
-      const teamA = c.teamA || []
-      const needsMembers = !teamB.length || teamB.length < (teamA.length > 1 ? 2 : 1)
-      return isPending && needsMembers
-    })
+  const acceptedChallenges = useMemo(() => {
+    return allClubChallenges.filter((c) => isChallengeAccepted(c))
   }, [allClubChallenges])
 
   const playedChallenges = useMemo(() => {
@@ -122,12 +117,29 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   }, [allClubChallenges])
 
   const displayedChallenges = useMemo(() => {
-    if (challengeTab === 'my') return myChallenges.length ? myChallenges : allClubChallenges
-    if (challengeTab === 'pending') return pendingChallenges
-    if (challengeTab === 'open') return openChallenges
-    if (challengeTab === 'played') return playedChallenges
-    return allClubChallenges
-  }, [challengeTab, myChallenges, pendingChallenges, openChallenges, playedChallenges, allClubChallenges])
+    let list
+    switch (challengeTab) {
+      case 'my': list = myChallenges; break
+      case 'pending': list = pendingChallenges; break
+      case 'accepted': list = acceptedChallenges; break
+      case 'played': list = playedChallenges; break
+      default: list = myChallenges
+    }
+
+    if (challengeSearch.trim()) {
+      const q = challengeSearch.trim().toLowerCase()
+      list = list.filter((c) => {
+        const matchCode = (c.code || '').toLowerCase().includes(q)
+        const matchStake = (c.stakeText || '').toLowerCase().includes(q)
+        const matchPlayer = [...(c.teamA || []), ...(c.teamB || [])].some((pid) => {
+          const name = playerName(db, pid) || ''
+          return name.toLowerCase().includes(q)
+        })
+        return matchCode || matchStake || matchPlayer
+      })
+    }
+    return list
+  }, [challengeTab, myChallenges, pendingChallenges, acceptedChallenges, playedChallenges, challengeSearch, db])
 
   const memberNameOf = (id) => playerName(db, id)
 
@@ -1196,44 +1208,87 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
             </button>
           </div>
 
-          {/* Sub-tabs K1 (Của tôi, Đang chờ, Đang mở, Đã đấu) */}
-          <div style={{ display: 'flex', gap: 6, padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-sunken)' }}>
-            {[
-              { id: 'my', label: t('challenge.tabMy'), count: myChallenges.length },
-              { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: 'var(--status-delayed-fg)' },
-              { id: 'open', label: t('challenge.tabOpen'), count: openChallenges.length, color: 'var(--status-transit-fg)' },
-              { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
-            ].map((tb) => {
-              const active = challengeTab === tb.id
-              return (
+          {/* Sub-tabs K1 (Của tôi, Chờ nhận, Đã nhận, Đã đấu) & Ô tìm kiếm */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-sunken)' }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[
+                { id: 'my', label: t('challenge.tabMy'), count: myChallenges.length },
+                { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: 'var(--status-delayed-fg)' },
+                { id: 'accepted', label: t('challenge.tabAccepted'), count: acceptedChallenges.length, color: 'var(--status-transit-fg)' },
+                { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
+              ].map((tb) => {
+                const active = challengeTab === tb.id
+                return (
+                  <button
+                    key={tb.id}
+                    type="button"
+                    onClick={() => setChallengeTab(tb.id)}
+                    style={{
+                      flex: 1,
+                      minHeight: 34,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 2,
+                      borderRadius: 'var(--radius-sm)',
+                      background: active ? 'var(--surface-card)' : 'transparent',
+                      border: active ? '1px solid var(--border-default)' : '1px solid transparent',
+                      cursor: 'pointer',
+                      boxShadow: active ? 'var(--shadow-xs)' : 'none',
+                    }}
+                  >
+                    <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      {tb.label}
+                    </span>
+                    <span style={{ font: '500 11px/1 "IBM Plex Mono", monospace', color: tb.color || (active ? 'var(--text-primary)' : 'var(--text-muted)') }}>
+                      {tb.count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Ô tìm kiếm theo tên hoặc mã kèo */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+              <Icon name="search" size={14} style={{ position: 'absolute', left: 10, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder={t('challenge.searchPlaceholder')}
+                value={challengeSearch}
+                onChange={(e) => setChallengeSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: 32,
+                  borderRadius: 6,
+                  border: '1px solid var(--border-default)',
+                  background: 'var(--surface-card)',
+                  color: 'var(--text-primary)',
+                  padding: '0 28px 0 30px',
+                  fontSize: 12,
+                  outline: 'none',
+                }}
+              />
+              {challengeSearch && (
                 <button
-                  key={tb.id}
                   type="button"
-                  onClick={() => setChallengeTab(tb.id)}
+                  onClick={() => setChallengeSearch('')}
                   style={{
-                    flex: 1,
-                    minHeight: 34,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 2,
-                    borderRadius: 'var(--radius-sm)',
-                    background: active ? 'var(--surface-card)' : 'transparent',
-                    border: active ? '1px solid var(--border-default)' : '1px solid transparent',
+                    position: 'absolute',
+                    right: 8,
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
                     cursor: 'pointer',
-                    boxShadow: active ? 'var(--shadow-xs)' : 'none',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
                   }}
                 >
-                  <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                    {tb.label}
-                  </span>
-                  <span style={{ font: '500 11px/1 "IBM Plex Mono", monospace', color: tb.color || (active ? 'var(--text-primary)' : 'var(--text-muted)') }}>
-                    {tb.count}
-                  </span>
+                  <Icon name="x" size={13} />
                 </button>
-              )
-            })}
+              )}
+            </div>
           </div>
 
           <div style={{ padding: '12px 14px', display: 'grid', gap: 10 }}>
@@ -1282,11 +1337,33 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
               const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
 
+              const chalProg = seriesProg || getChallengeSeriesProgress(c, db.matches || [])
+              const winnerTeam = chalProg.winnerTeam || c.winnerTeam
+              const playedMts = chalProg.playedMatches || []
+              const firstMatch = playedMts[0] || (c.matchId ? (db.matches || []).find((m) => m.id === c.matchId) : null)
+              let singleScoreA = null
+              let singleScoreB = null
+              if (firstMatch) {
+                if (firstMatch.sets && firstMatch.sets.length > 0) {
+                  singleScoreA = firstMatch.sets[0][0]
+                  singleScoreB = firstMatch.sets[0][1]
+                } else if (firstMatch.scoreText && firstMatch.scoreText.includes('-')) {
+                  const [sa, sb] = firstMatch.scoreText.split('-').map((v) => Number(v.trim()))
+                  singleScoreA = sa
+                  singleScoreB = sb
+                }
+              }
+              const setsDetailText = isBoSeries
+                ? playedMts.map((m) => (m.sets?.[0] ? `${m.sets[0][0]}:${m.sets[0][1]}` : m.scoreText)).filter(Boolean).join(', ')
+                : ''
+
               const statusText = isPending
                 ? `${t('challenge.status.pending')}${expStr ? ` · ${t('challenge.expiresIn', { time: expStr })}` : ''}`
                 : isAccepted && hasPlayedSets
                   ? `${t('challenge.seriesPlaying', { score: seriesProg.seriesScoreText })} · ${t('challenge.seriesSetShort', { set: seriesProg.nextSetNumber })}`
-                  : (t('challenge.status.' + c.status) || c.status)
+                  : isPlayed && isBoSeries && seriesProg
+                    ? `${t('challenge.status.played')} (${seriesProg.seriesScoreText})`
+                    : (t('challenge.status.' + c.status) || c.status)
 
               return (
                 <div
@@ -1340,17 +1417,70 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     </span>
                   </div>
 
-                  {/* 2 Đội với TB rating */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {/* 2 Đội với TB rating, Icon kiếm & Điểm số (nếu đã đấu) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>{namesA}</div>
+                      <div style={{
+                        font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif',
+                        color: isPlayed && winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-primary)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: 5,
+                      }}>
+                        {isPlayed && winnerTeam === 'A' && (
+                          <span style={{ fontSize: 13 }} title={t('challenge.winnerBadge')}>👑</span>
+                        )}
+                        <span>{namesA}</span>
+                      </div>
                       <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                         {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
                       </div>
                     </div>
-                    <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)' }}>VS</span>
+
+                    {/* Icon kiếm và điểm số */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 6px', flexShrink: 0 }}>
+                      <Icon name="swords" size={16} style={{ color: 'var(--text-muted)', opacity: 0.7 }} />
+                      {isPlayed && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ font: "700 14px/1 var(--font-mono)", display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{ color: winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-secondary)' }}>
+                              {isBoSeries ? chalProg.winsA : (singleScoreA ?? chalProg.winsA)}
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>–</span>
+                            <span style={{ color: winnerTeam === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-secondary)' }}>
+                              {isBoSeries ? chalProg.winsB : (singleScoreB ?? chalProg.winsB)}
+                            </span>
+                          </div>
+                          {isBoSeries && setsDetailText && (
+                            <div style={{ font: "500 9.5px/1 var(--font-mono)", color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap' }}>
+                              ({setsDetailText})
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {!isPlayed && hasPlayedSets && (
+                        <div style={{ font: "700 12px/1 var(--font-mono)", color: '#D8B4FE' }}>
+                          {seriesProg.seriesScoreText}
+                        </div>
+                      )}
+                    </div>
+
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                      <div style={{ font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>{namesB}</div>
+                      <div style={{
+                        font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif',
+                        color: isPlayed && winnerTeam === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-secondary)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        justifyContent: 'flex-end',
+                        alignItems: 'center',
+                        gap: 5,
+                      }}>
+                        <span>{namesB}</span>
+                        {isPlayed && winnerTeam === 'B' && (
+                          <span style={{ fontSize: 13 }} title={t('challenge.winnerBadge')}>👑</span>
+                        )}
+                      </div>
                       <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                         {ratB > 0 ? t('challenge.avgRating', { r: ratB.toLocaleString('vi-VN') }) : '—'}
                       </div>

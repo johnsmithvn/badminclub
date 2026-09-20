@@ -58,7 +58,8 @@
     "dongPerHour": "đ/h",
     "win": "thắng",
     "times": "lần",
-    "day": "ngày", "hour": "giờ"
+    "day": "ngày",
+    "hour": "giờ"
   },
   "season": {
     "headerSub": "Mùa 3 · 2026 — Thu Rực Lửa · 01/07 → 30/09 · còn 23 ngày",
@@ -716,7 +717,7 @@
     "twoWaySub": "Rating thô nói lệch, effective rating tính theo lịch sử nam-nữ của CLB",
     "skewDiff": "lệch {{d}}",
     "courtEmptySlot": "+ Ô trống",
-    "waitingPool": "Đang chờ",
+    "waitingPool": "Đã Nhận",
     "waitingSub": "{{n}}/{{total}} chưa lên sân",
     "poolTouchHint": "Chạm một người để vào ô trống, hoặc chạm người trên sân để gỡ.",
     "fewestBtn": "Ai ít trận nhất",
@@ -3131,9 +3132,12 @@
     "ifWinB": "Nếu Đội B thắng",
     "gamesCountMeta": "{{n}} trận",
     "tabMy": "Của tôi",
-    "tabPending": "Đang chờ",
+    "tabPending": "Chờ nhận",
+    "tabAccepted": "Đã nhận",
     "tabOpen": "Đang mở",
     "tabPlayed": "Đã đấu",
+    "winnerBadge": "Thắng",
+    "searchPlaceholder": "Tìm theo tên hoặc mã kèo...",
     "sectionActive": "Đang diễn ra",
     "sectionEnded": "Đã kết thúc",
     "expiresIn": "hết hạn {{time}}",
