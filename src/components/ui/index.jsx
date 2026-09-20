@@ -24,11 +24,14 @@ export function SessionPill({ status, size = 'sm' }) {
  * `levels` là thang của CLB (db.levels): màu chia theo VỊ TRÍ trong thang, nên CLB đặt thang
  * riêng vẫn ra dải màu yếu→mạnh đúng. Bỏ trống thì dùng thang mặc định.
  */
-export function LevelChip({ level, levels }) {
+export function LevelChip({ level, levels, style }) {
   return (
     <span style={{
       font: '600 10px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 99,
-      whiteSpace: 'nowrap', ...levelStyle(level, levels),
+      whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center',
+      border: '1px solid var(--border-subtle)',
+      ...levelStyle(level, levels),
+      ...style,
     }}>
       {level}
     </span>
@@ -48,6 +51,7 @@ export function GenderChip({ gender, style }) {
       whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center',
       background: isNu ? 'var(--gender-nu-bg)' : 'var(--gender-nam-bg)',
       color: isNu ? 'var(--gender-nu-fg)' : 'var(--gender-nam-fg)',
+      border: isNu ? '1px solid rgba(236,72,153,.25)' : '1px solid rgba(59,130,246,.25)',
       ...style,
     }}>
       {genderTxt(gender)}

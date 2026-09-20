@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Icon, Select, StatCard, Avatar } from '#ds'
-import { ConfidenceChip, LevelChip } from '#ui'
+import { ConfidenceChip, LevelChip, GenderChip } from '#ui'
 import { playerName } from '#lib/money.js'
 import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
@@ -418,11 +418,7 @@ export default function MemberProfileTab({
                     {member.name}
                   </span>
                   <LevelChip level={member.level} levels={db.levels} />
-                  {member.gender && (
-                    <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                      {member.gender}
-                    </span>
-                  )}
+                  <GenderChip gender={member.gender} />
                 </div>
 
                 {/* Hàng 2: Châm ngôn tự đặt */}
@@ -483,9 +479,10 @@ export default function MemberProfileTab({
                 alignItems: 'center',
                 gap: 8,
                 width: isMobile ? '100%' : 'auto',
-                justifyContent: isMobile ? 'space-between' : 'flex-end',
-                flexWrap: 'wrap',
+                justifyContent: isMobile ? 'flex-start' : 'flex-end',
+                flexWrap: 'nowrap',
                 flexShrink: 0,
+                marginTop: isMobile ? 4 : 0,
               }}
             >
               {allMembers && allMembers.length > 0 && onSelectMember && (
@@ -493,17 +490,46 @@ export default function MemberProfileTab({
                   value={member.id}
                   options={allMembers.map((m) => ({ value: m.id, label: m.name }))}
                   onChange={(e) => onSelectMember(e.target.value)}
-                  style={{ width: isMobile ? 'calc(100% - 120px)' : 160 }}
+                  containerStyle={{ flex: isMobile ? 1 : '0 0 auto', minWidth: 0 }}
+                  style={{
+                    width: isMobile ? '100%' : 160,
+                    height: 38,
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-control)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
                 />
               )}
               {onChallenge && (
                 <button
                   type="button"
                   onClick={() => onChallenge(member.id)}
-                  style={S.challengeBtn}
+                  title={t('leaderboard.challengePrompt')}
+                  aria-label={t('leaderboard.challengePrompt')}
+                  style={isMobile ? {
+                    height: 38,
+                    width: 44,
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 'var(--radius-control)',
+                    background: 'linear-gradient(135deg, #FF6B00 0%, #EA580C 100%)',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    boxShadow: '0 2px 8px rgba(234, 88, 12, 0.35)',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
+                  } : {
+                    ...S.challengeBtn,
+                    gap: 6,
+                  }}
                 >
-                  <Icon name="target" size={14} />
-                  <span>{t('leaderboard.challengePrompt')}</span>
+                  <Icon name="swords" size={isMobile ? 18 : 15} />
+                  {!isMobile && <span>{t('leaderboard.challengePrompt')}</span>}
                 </button>
               )}
             </div>
