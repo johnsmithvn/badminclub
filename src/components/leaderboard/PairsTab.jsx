@@ -404,7 +404,6 @@ function getScoreVisuals(score, isTop) {
   }, [matches, membersMap, ratingsMap, db, formatFilter])
 
   const topRivalry = clubRivalries[0] || null
-  const directionalMatchups = clubRivalries.slice(0, 4)
 
   return (
     <div
@@ -1394,6 +1393,9 @@ function getScoreVisuals(score, isTop) {
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 color: textMuted,
+                position: 'sticky',
+                top: 0,
+                zIndex: 2,
               }}
             >
               <span>{t('leaderboard.pairCol')}</span>
@@ -1404,546 +1406,351 @@ function getScoreVisuals(score, isTop) {
               <span style={{ textAlign: 'right' }}>{t('leaderboard.confidenceCol')}</span>
             </div>
 
-            {/* Rows */}
-            {rankedPairs.length > 0 ? (
-              rankedPairs.map((pair, idx) => {
-                const isTop = idx === 0
-                const isLow = pair.pairImpact <= -10 && pair.gamesCount >= 5
-                const isProvisional = (pair.gamesCount || 0) < 5
-                const scoreVis = getScoreVisuals(pair.synergyScore || 50, isTop)
+            {/* Scrollable Rows Container */}
+            <div style={{ maxHeight: 560, overflowY: 'auto' }}>
+              {rankedPairs.length > 0 ? (
+                rankedPairs.map((pair, idx) => {
+                  const isTop = idx === 0
+                  const isLow = pair.pairImpact <= -10 && pair.gamesCount >= 5
+                  const isProvisional = (pair.gamesCount || 0) < 5
+                  const scoreVis = getScoreVisuals(pair.synergyScore || 50, isTop)
 
-                const impactVal = pair.pairImpact || 0
-                const confTier = getPairConfTier(pair)
+                  const impactVal = pair.pairImpact || 0
+                  const confTier = getPairConfTier(pair)
 
-                const rowBg = isTop
-                  ? (isDark ? 'rgba(0,178,169,.07)' : 'rgba(0,178,169,.05)')
-                  : isLow
-                    ? (isDark ? 'rgba(224,138,0,.06)' : 'rgba(224,138,0,.05)')
-                    : 'transparent'
+                  const rowBg = isTop
+                    ? (isDark ? 'rgba(0,178,169,.07)' : 'rgba(0,178,169,.05)')
+                    : isLow
+                      ? (isDark ? 'rgba(224,138,0,.06)' : 'rgba(224,138,0,.05)')
+                      : 'transparent'
 
-                const dateStr = pair.lastMatchDate
-                  ? t('leaderboard.recentDate', { date: new Date(pair.lastMatchDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) })
-                  : pair.format === 'XD'
-                    ? t('leaderboard.mixedFormatShort')
-                    : t('leaderboard.newlyPaired')
+                  const dateStr = pair.lastMatchDate
+                    ? t('leaderboard.recentDate', { date: new Date(pair.lastMatchDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) })
+                    : pair.format === 'XD'
+                      ? t('leaderboard.mixedFormatShort')
+                      : t('leaderboard.newlyPaired')
 
-                const trend = pair.trend || 'steady'
+                  const trend = pair.trend || 'steady'
 
-                // Form 5 trận gần nhất
-                const recentResults = pair.recentResults || []
-                const form5 = []
-                for (let i = 0; i < 5; i++) {
-                  form5.push(i < recentResults.length ? recentResults[i] : null)
-                }
+                  // Form 5 trận gần nhất
+                  const recentResults = pair.recentResults || []
+                  const form5 = []
+                  for (let i = 0; i < 5; i++) {
+                    form5.push(i < recentResults.length ? recentResults[i] : null)
+                  }
 
-                const [mA, mB] = getPairMembers(pair)
-                const isFirstProvisional = hasQualified && isProvisional && (idx === 0 || (rankedPairs[idx - 1].gamesCount || 0) >= PAIR_OFFICIAL_MIN_GAMES)
-                const isFirstOfficial = hasQualified && idx === 0 && !isProvisional
+                  const [mA, mB] = getPairMembers(pair)
+                  const isFirstProvisional = hasQualified && isProvisional && (idx === 0 || (rankedPairs[idx - 1].gamesCount || 0) >= PAIR_OFFICIAL_MIN_GAMES)
+                  const isFirstOfficial = hasQualified && idx === 0 && !isProvisional
 
-                return (
-                  <div key={getPairKey(pair) || idx}>
-                    {isFirstOfficial && (
-                      <div
-                        style={{
-                          padding: '7px 15px',
-                          background: 'rgba(0, 178, 169, 0.08)',
-                          borderBottom: `1px solid ${borderCard}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          font: "600 11.5px/1.2 'IBM Plex Sans', sans-serif",
-                          color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
-                          letterSpacing: '0.04em',
-                        }}
-                      >
-                        <span>★</span>
-                        <span>{t('leaderboard.officialPairsSection')}</span>
-                      </div>
-                    )}
-                    {isFirstProvisional && (
-                      <div
-                        style={{
-                          padding: '7px 15px',
-                          background: 'rgba(240, 183, 92, 0.08)',
-                          borderBottom: `1px solid ${borderCard}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          font: "600 11.5px/1.2 'IBM Plex Sans', sans-serif",
-                          color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)',
-                          letterSpacing: '0.04em',
-                        }}
-                      >
-                        <span>~</span>
-                        <span>{t('leaderboard.provisionalPairsSection')}</span>
-                      </div>
-                    )}
-                    <div
-                      onClick={() => setSelectedPair(pair)}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'minmax(0, 1.35fr) 95px 120px 145px 65px 75px',
-                        gap: 10,
-                        padding: '12px 15px',
-                        borderBottom: `1px solid ${borderCard}`,
-                        alignItems: 'center',
-                        background: rowBg,
-                        cursor: 'pointer',
-                        transition: 'background 0.15s ease',
-                      }}
-                    >
-                      {/* Cột 1: Cặp + Tag + Meta */}
-                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <span style={{ display: 'flex', flex: '0 0 auto', alignItems: 'center' }}>
-                          <Avatar
-                            name={mA.name}
-                            src={mA.avatarUrl || mA.avatar}
-                            size={26}
-                            style={{ border: `2px solid ${bgCard}`, zIndex: 2 }}
-                          />
-                          <Avatar
-                            name={mB.name}
-                            src={mB.avatarUrl || mB.avatar}
-                            size={26}
-                            style={{ border: `2px solid ${bgCard}`, marginLeft: -9, zIndex: 1 }}
-                          />
-                        </span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <span style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: textWhite }}>
-                              {getPairNames(pair).join(' · ')}
-                            </span>
-                          {isTop && (
-                            <span style={{
-                              font: '700 9.5px/1 "IBM Plex Sans", sans-serif',
-                              padding: '2px 5px',
-                              borderRadius: 4,
-                              background: 'rgba(0, 178, 169, 0.18)',
-                              color: '#5FDBD3',
-                              border: '1px solid rgba(0, 178, 169, 0.35)',
-                              letterSpacing: '0.04em',
-                            }}>
-                              {t('leaderboard.tagTop1')}
-                            </span>
-                          )}
-                          {!isTop && pair.formKey === 'hot' && (
-                            <span style={{
-                              font: '700 9.5px/1 "IBM Plex Sans", sans-serif',
-                              padding: '2px 5px',
-                              borderRadius: 4,
-                              background: 'rgba(214, 59, 43, 0.18)',
-                              color: '#F09A8E',
-                              border: '1px solid rgba(214, 59, 43, 0.35)',
-                              letterSpacing: '0.04em',
-                            }}>
-                              {t('leaderboard.tagHot')}
-                            </span>
-                          )}
-                          {!isTop && pair.formKey === 'stable' && (pair.gamesCount || 0) >= 5 && (
-                            <span style={{
-                              font: '600 9.5px/1 "IBM Plex Sans", sans-serif',
-                              padding: '2px 5px',
-                              borderRadius: 4,
-                              background: 'rgba(60, 116, 196, 0.16)',
-                              color: '#7AA3DC',
-                              border: '1px solid rgba(60, 116, 196, 0.3)',
-                              letterSpacing: '0.04em',
-                            }}>
-                              {t('leaderboard.tagStable')}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                          {typeof pair.combinedRating === 'number' && !isNaN(pair.combinedRating) ? `${t('leaderboard.pairCombinedElo', { n: pair.combinedRating })} · ` : ''}
-                          {pair.gamesCount} {t('units.match')} · {dateStr}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Cột 2: Ăn ý + Trend */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                        <span
+                  return (
+                    <div key={getPairKey(pair) || idx}>
+                      {isFirstOfficial && (
+                        <div
                           style={{
-                            font: '800 18px/1 Barlow, sans-serif',
-                            color: scoreVis.color,
-                            textShadow: scoreVis.textShadow,
+                            padding: '7px 15px',
+                            background: 'rgba(0, 178, 169, 0.08)',
+                            borderBottom: `1px solid ${borderCard}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            font: "600 11.5px/1.2 'IBM Plex Sans', sans-serif",
+                            color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
+                            letterSpacing: '0.04em',
                           }}
                         >
-                          {pair.synergyScore}
-                        </span>
-                        {isProvisional && (
-                          <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>~</span>
-                        )}
-                      </div>
-                      <div style={{
-                        font: "600 10.5px/1.2 'IBM Plex Sans', sans-serif",
-                        color: trend === 'up' ? '#5FDBD3' : trend === 'down' ? '#F09A8E' : '#8494AA',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        marginTop: 2,
-                      }}>
-                        <span>{trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}</span>
-                        <span>
-                          {trend === 'up'
-                            ? t('leaderboard.trendUp')
-                            : trend === 'down'
-                            ? t('leaderboard.trendDown')
-                            : t('leaderboard.trendSteady')}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Cột 3: Form 5 trận */}
-                    <div style={{ display: 'flex', gap: 3 }}>
-                      {form5.map((res, fIdx) => {
-                        if (res === 'W') {
-                          return (
-                            <span
-                              key={fIdx}
-                              style={{
-                                width: 18,
-                                height: 18,
-                                borderRadius: 3,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                font: '700 10px/1 "IBM Plex Sans", sans-serif',
-                                background: 'rgba(14, 122, 77, 0.16)',
+                          <span>★</span>
+                          <span>{t('leaderboard.officialPairsSection')}</span>
+                        </div>
+                      )}
+                      {isFirstProvisional && (
+                        <div
+                          style={{
+                            padding: '7px 15px',
+                            background: 'rgba(240, 183, 92, 0.08)',
+                            borderBottom: `1px solid ${borderCard}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            font: "600 11.5px/1.2 'IBM Plex Sans', sans-serif",
+                            color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)',
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          <span>~</span>
+                          <span>{t('leaderboard.provisionalPairsSection')}</span>
+                        </div>
+                      )}
+                      <div
+                        onClick={() => setSelectedPair(pair)}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'minmax(0, 1.35fr) 95px 120px 145px 65px 75px',
+                          gap: 10,
+                          padding: '12px 15px',
+                          borderBottom: `1px solid ${borderCard}`,
+                          alignItems: 'center',
+                          background: rowBg,
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease',
+                        }}
+                      >
+                        {/* Cột 1: Cặp + Tag + Meta */}
+                        <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
+                          <span style={{ display: 'flex', flex: '0 0 auto', alignItems: 'center' }}>
+                            <Avatar
+                              name={mA.name}
+                              src={mA.avatarUrl || mA.avatar}
+                              size={26}
+                              style={{ border: `2px solid ${bgCard}`, zIndex: 2 }}
+                            />
+                            <Avatar
+                              name={mB.name}
+                              src={mB.avatarUrl || mB.avatar}
+                              size={26}
+                              style={{ border: `2px solid ${bgCard}`, marginLeft: -9, zIndex: 1 }}
+                            />
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <span style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: textWhite }}>
+                                {getPairNames(pair).join(' · ')}
+                              </span>
+                            {isTop && (
+                              <span style={{
+                                font: '700 9.5px/1 "IBM Plex Sans", sans-serif',
+                                padding: '2px 5px',
+                                borderRadius: 4,
+                                background: 'rgba(0, 178, 169, 0.18)',
                                 color: '#5FDBD3',
-                                border: '1px solid rgba(14, 122, 77, 0.35)',
-                              }}
-                            >
-                              T
-                            </span>
-                          )
-                        }
-                        if (res === 'L') {
-                          return (
-                            <span
-                              key={fIdx}
-                              style={{
-                                width: 18,
-                                height: 18,
-                                borderRadius: 3,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                font: '700 10px/1 "IBM Plex Sans", sans-serif',
+                                border: '1px solid rgba(0, 178, 169, 0.35)',
+                                letterSpacing: '0.04em',
+                              }}>
+                                {t('leaderboard.tagTop1')}
+                              </span>
+                            )}
+                            {!isTop && pair.formKey === 'hot' && (
+                              <span style={{
+                                font: '700 9.5px/1 "IBM Plex Sans", sans-serif',
+                                padding: '2px 5px',
+                                borderRadius: 4,
                                 background: 'rgba(214, 59, 43, 0.18)',
                                 color: '#F09A8E',
                                 border: '1px solid rgba(214, 59, 43, 0.35)',
-                              }}
-                            >
-                              B
-                            </span>
-                          )
-                        }
-                        return (
-                          <span
-                            key={fIdx}
-                            style={{
-                              width: 18,
-                              height: 18,
-                              borderRadius: 3,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              font: '400 10px/1 "IBM Plex Mono", monospace',
-                              background: 'rgba(255, 255, 255, 0.04)',
-                              color: '#50607A',
-                              border: '1px solid #22304A',
-                            }}
-                          >
-                            —
-                          </span>
-                        )
-                      })}
-                    </div>
-
-                    {/* Cột 4: Kỳ vọng → Thực tế */}
-                    {(() => {
-                      const exp = pair.expectedWinPct ?? 50
-                      const act = pair.actualWinPct ?? 50
-                      const barColor = impactVal >= 0 ? '#00B2A9' : (isLow ? '#D63B2B' : '#E08A00')
-                      const loFill = Math.min(exp, act)
-                      const hiFill = Math.max(exp, act)
-                      const isOver = act >= exp
-                      return (
-                        <div style={{ display: 'grid', gap: 4, width: '100%' }}>
-                          {/* Track */}
-                          <div style={{
-                            position: 'relative',
-                            height: 8,
-                            borderRadius: 999,
-                            background: '#0B1220',
-                            border: '1px solid #22304A',
-                          }}>
-                            {/* Segment "đến min(exp,act)" — luôn hiện */}
-                            <div style={{
-                              position: 'absolute', left: 0, top: 0, bottom: 0,
-                              width: `${loFill}%`,
-                              borderRadius: '999px 0 0 999px',
-                              background: isOver ? '#1A3A55' : barColor,
-                            }} />
-                            {/* Segment "khoảng lệch" — màu nổi bật */}
-                            <div style={{
-                              position: 'absolute', left: `${loFill}%`, top: 0, bottom: 0,
-                              width: `${hiFill - loFill}%`,
-                              borderRadius: loFill === 0 ? '999px 0 0 999px' : '0',
-                              background: barColor,
-                            }} />
-                            {/* Needle kỳ vọng — vạch trắng thẳng đứng */}
-                            <div style={{
-                              position: 'absolute',
-                              left: `${exp}%`,
-                              top: -1, bottom: -1,
-                              width: 2,
-                              marginLeft: -1,
-                              background: '#fff',
-                              borderRadius: 1,
-                              opacity: 0.7,
-                            }} />
+                                letterSpacing: '0.04em',
+                              }}>
+                                {t('leaderboard.tagHot')}
+                              </span>
+                            )}
+                            {!isTop && pair.formKey === 'stable' && (pair.gamesCount || 0) >= 5 && (
+                              <span style={{
+                                font: '600 9.5px/1 "IBM Plex Sans", sans-serif',
+                                padding: '2px 5px',
+                                borderRadius: 4,
+                                background: 'rgba(60, 116, 196, 0.16)',
+                                color: '#7AA3DC',
+                                border: '1px solid rgba(60, 116, 196, 0.3)',
+                                letterSpacing: '0.04em',
+                              }}>
+                                {t('leaderboard.tagStable')}
+                              </span>
+                            )}
                           </div>
-                          {/* Labels */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#5B6B81' }}>
-                              kv {exp}%
-                            </span>
-                            <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#5B6B81' }}>·</span>
-                            <span style={{ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: barColor }}>
-                              tt {act}%
-                            </span>
+                          <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                            {typeof pair.combinedRating === 'number' && !isNaN(pair.combinedRating) ? `${t('leaderboard.pairCombinedElo', { n: pair.combinedRating })} · ` : ''}
+                            {pair.gamesCount} {t('units.match')} · {dateStr}
                           </div>
                         </div>
-                      )
-                    })()}
+                      </div>
 
-                    {/* Cột 5: Lệch pp */}
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{
-                        font: "700 13px/1 'IBM Plex Mono', monospace",
-                        color: impactVal >= 0 ? '#5FDBD3' : (isLow ? '#F09A8E' : '#F0B75C'),
-                      }}>
-                        {impactVal >= 0 ? `+${impactVal}` : `${impactVal}`}pp
-                      </span>
-                    </div>
+                      {/* Cột 2: Ăn ý + Trend */}
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                          <span
+                            style={{
+                              font: '800 18px/1 Barlow, sans-serif',
+                              color: scoreVis.color,
+                              textShadow: scoreVis.textShadow,
+                            }}
+                          >
+                            {pair.synergyScore}
+                          </span>
+                          {isProvisional && (
+                            <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>~</span>
+                          )}
+                        </div>
+                        <div style={{
+                          font: "600 10.5px/1.2 'IBM Plex Sans', sans-serif",
+                          color: trend === 'up' ? '#5FDBD3' : trend === 'down' ? '#F09A8E' : '#8494AA',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          marginTop: 2,
+                        }}>
+                          <span>{trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}</span>
+                          <span>
+                            {trend === 'up'
+                              ? t('leaderboard.trendUp')
+                              : trend === 'down'
+                              ? t('leaderboard.trendDown')
+                              : t('leaderboard.trendSteady')}
+                          </span>
+                        </div>
+                      </div>
 
-                    {/* Cột 6: Độ tin cậy */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                      <ConfidenceChip confidence={confTier} />
+                      {/* Cột 3: Form 5 trận */}
+                      <div style={{ display: 'flex', gap: 3 }}>
+                        {form5.map((res, fIdx) => {
+                          if (res === 'W') {
+                            return (
+                              <span
+                                key={fIdx}
+                                style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: 3,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  font: '700 10px/1 "IBM Plex Sans", sans-serif',
+                                  background: 'rgba(14, 122, 77, 0.16)',
+                                  color: '#5FDBD3',
+                                  border: '1px solid rgba(14, 122, 77, 0.35)',
+                                }}
+                              >
+                                T
+                              </span>
+                            )
+                          }
+                          if (res === 'L') {
+                            return (
+                              <span
+                                key={fIdx}
+                                style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: 3,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  font: '700 10px/1 "IBM Plex Sans", sans-serif',
+                                  background: 'rgba(214, 59, 43, 0.18)',
+                                  color: '#F09A8E',
+                                  border: '1px solid rgba(214, 59, 43, 0.35)',
+                                }}
+                              >
+                                B
+                              </span>
+                            )
+                          }
+                          return (
+                            <span
+                              key={fIdx}
+                              style={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: 3,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                font: '400 10px/1 "IBM Plex Mono", monospace',
+                                background: 'rgba(255, 255, 255, 0.04)',
+                                color: '#50607A',
+                                border: '1px solid #22304A',
+                              }}
+                            >
+                              —
+                            </span>
+                          )
+                        })}
+                      </div>
+
+                      {/* Cột 4: Kỳ vọng → Thực tế */}
+                      {(() => {
+                        const exp = pair.expectedWinPct ?? 50
+                        const act = pair.actualWinPct ?? 50
+                        const barColor = impactVal >= 0 ? '#00B2A9' : (isLow ? '#D63B2B' : '#E08A00')
+                        const loFill = Math.min(exp, act)
+                        const hiFill = Math.max(exp, act)
+                        const isOver = act >= exp
+                        return (
+                          <div style={{ display: 'grid', gap: 4, width: '100%' }}>
+                            {/* Track */}
+                            <div style={{
+                              position: 'relative',
+                              height: 8,
+                              borderRadius: 999,
+                              background: '#0B1220',
+                              border: '1px solid #22304A',
+                            }}>
+                              {/* Segment "đến min(exp,act)" — luôn hiện */}
+                              <div style={{
+                                position: 'absolute', left: 0, top: 0, bottom: 0,
+                                width: `${loFill}%`,
+                                borderRadius: '999px 0 0 999px',
+                                background: isOver ? '#1A3A55' : barColor,
+                              }} />
+                              {/* Segment "khoảng lệch" — màu nổi bật */}
+                              <div style={{
+                                position: 'absolute', left: `${loFill}%`, top: 0, bottom: 0,
+                                width: `${hiFill - loFill}%`,
+                                borderRadius: loFill === 0 ? '999px 0 0 999px' : '0',
+                                background: barColor,
+                              }} />
+                              {/* Needle kỳ vọng — vạch trắng thẳng đứng */}
+                              <div style={{
+                                position: 'absolute',
+                                left: `${exp}%`,
+                                top: -1, bottom: -1,
+                                width: 2,
+                                marginLeft: -1,
+                                background: '#fff',
+                                borderRadius: 1,
+                                opacity: 0.7,
+                              }} />
+                            </div>
+                            {/* Labels */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#5B6B81' }}>
+                                kv {exp}%
+                              </span>
+                              <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#5B6B81' }}>·</span>
+                              <span style={{ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: barColor }}>
+                                tt {act}%
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Cột 5: Lệch pp */}
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{
+                          font: "700 13px/1 'IBM Plex Mono', monospace",
+                          color: impactVal >= 0 ? '#5FDBD3' : (isLow ? '#F09A8E' : '#F0B75C'),
+                        }}>
+                          {impactVal >= 0 ? `+${impactVal}` : `${impactVal}`}pp
+                        </span>
+                      </div>
+
+                      {/* Cột 6: Độ tin cậy */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                        <ConfidenceChip confidence={confTier} />
+                      </div>
                     </div>
                   </div>
+                )
+                })
+              ) : (
+                <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', font: "400 13px 'IBM Plex Sans', sans-serif" }}>
+                  {t('leaderboard.empty')}
                 </div>
-              )
-              })
-            ) : (
-              <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', font: "400 13px 'IBM Plex Sans', sans-serif" }}>
-                {t('leaderboard.empty')}
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Chú thích đáy bảng DP1 */}
             <div style={{ padding: '10px 15px', background: bgSunken, borderTop: `1px solid ${borderCard}`, font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: textMuted }}>
               {t('leaderboard.dp1FooterNote')}
-            </div>
-          </div>
-
-          {/* 2 Subcards below table */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-            {/* Subcard 1: Khắc chế có hướng */}
-            <div
-              style={{
-                background: bgCard,
-                border: `1px solid ${borderCard}`,
-                borderRadius: 10,
-                padding: '13px 15px',
-                display: 'grid',
-                gap: 10,
-              }}
-            >
-              <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: textWhite }}>
-                {t('leaderboard.directionalMatchupTitle')}
-              </div>
-              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
-                {t('leaderboard.directionalMatchupDesc')}
-              </div>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {directionalMatchups.length > 0 ? (
-                  directionalMatchups.map((mItem, mIdx) => {
-                    const isDominant = mItem.score >= 60
-                    return (
-                      <div
-                        key={mIdx}
-                        onClick={() => setSelectedH2HPair({ pairA: mItem.pairA, pairB: mItem.pairB })}
-                        title={t('leaderboard.viewH2HDetail')}
-                        style={{
-                          display: 'grid',
-                          gap: 6,
-                          padding: '10px 12px',
-                          borderRadius: 8,
-                          background: bgSunken,
-                          border: `1px solid ${borderCard}`,
-                          cursor: 'pointer',
-                          transition: 'border-color 0.15s ease, background 0.15s ease',
-                        }}
-                      >
-                        {/* Dòng 1: Cặp A ⚔️ Cặp B + Tag + Điểm kình địch */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: textWhite, flex: 1, minWidth: 0 }}>
-                            {mItem.fromName} ⚔️ {mItem.toName}
-                          </span>
-                          <span
-                            style={{
-                              font: "700 9.5px/1 'IBM Plex Sans', sans-serif",
-                              letterSpacing: '0.04em',
-                              padding: '2.5px 6px',
-                              borderRadius: 4,
-                              background: isDominant ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                              color: isDominant ? '#FF7A45' : '#F0B75C',
-                              border: `1px solid ${isDominant ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {isDominant ? t('leaderboard.rivalryDominant') : t('leaderboard.rivalryAdvantageBadge')}
-                          </span>
-                          <span style={{ font: "700 15px/1 Barlow, sans-serif", color: '#FF7A45', whiteSpace: 'nowrap' }}>
-                            {mItem.score} 🔥
-                          </span>
-                        </div>
-
-                        {/* Dòng 2: Chi tiết chỉ số */}
-                        <div style={{ font: "400 11.5px/1.45 'IBM Plex Mono', monospace", color: textMuted, display: 'flex', flexWrap: 'wrap', gap: '4px 8px', alignItems: 'center' }}>
-                          <span style={{ color: textSecondary }}>
-                            {t('leaderboard.rivalryStats', { wins: mItem.wins, losses: mItem.losses, games: mItem.games })}
-                          </span>
-                          <span style={{ color: textMuted }}>•</span>
-                          <span style={{ color: mItem.impact >= 0 ? '#5FD9A2' : '#FF9A8F' }}>
-                            {mItem.impact >= 0 ? `+${mItem.impact}pp` : `${mItem.impact}pp`} {t('leaderboard.advantageEdge')}
-                          </span>
-                          <span style={{ color: textMuted }}>•</span>
-                          <span>
-                            {t('leaderboard.expToActual', { exp: mItem.expected, actual: mItem.actual })}
-                          </span>
-                          {mItem.avgScoreDiff && mItem.avgScoreDiff !== '0.0' && (
-                            <>
-                              <span style={{ color: '#5B6B81' }}>•</span>
-                              <span style={{ color: mItem.avgScoreDiff.startsWith('+') ? '#5FD9A2' : '#FF9A8F' }}>
-                                {t('leaderboard.scoreDiffPerSet', { diff: mItem.avgScoreDiff })}
-                              </span>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Dòng 3: Set gần nhất (nếu có) */}
-                        {mItem.recentScores?.length > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', paddingTop: 2 }}>
-                            <span style={{ font: "400 10.5px/1 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>
-                              {t('leaderboard.recentSets')}:
-                            </span>
-                            {mItem.recentScores.slice(-3).map((sc, scIdx) => (
-                              <span
-                                key={scIdx}
-                                style={{
-                                  font: "500 10.5px/1 'IBM Plex Mono', monospace",
-                                  padding: '1.5px 5px',
-                                  borderRadius: 4,
-                                  background: '#141D2E',
-                                  border: '1px solid #22304A',
-                                  color: '#A8B7CB',
-                                }}
-                              >
-                                {sc}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })
-                ) : (
-                  <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: textMuted }}>
-                    {t('leaderboard.noCrossMatchupHistory')}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Subcard 2: Ăn ý so với kỳ vọng */}
-            <div
-              style={{
-                background: bgCard,
-                border: `1px solid ${borderCard}`,
-                borderRadius: 10,
-                padding: '13px 15px',
-                display: 'grid',
-                gap: 10,
-              }}
-            >
-              <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: textWhite }}>
-                {t('leaderboard.synergyVsExpectedTitle')}
-              </div>
-              <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
-                {t('leaderboard.synergyVsExpectedDesc')}
-              </div>
-              <div style={{ display: 'grid', gap: 9 }}>
-                {topPair && (
-                  <div style={{ display: 'grid', gap: 5, padding: '9px 11px', borderRadius: 7, background: bgSunken, border: `1px solid ${borderCard}` }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: textWhite }}>
-                        {getPairNames(topPair).join(' · ')}
-                      </span>
-                      <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: textMuted }}>
-                        {t('leaderboard.oppExpectedPct', { exp: topPair.expectedWinPct })}
-                      </span>
-                      <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)' }}>
-                        {topPair.actualWinPct}%
-                      </span>
-                    </div>
-                    <div style={{ height: 7, borderRadius: 999, background: isDark ? '#0B1220' : 'var(--surface-sunken)', overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${topPair.expectedWinPct}%`, background: isDark ? '#2E3E5C' : '#CBD5E1' }} />
-                      <div style={{ width: `${Math.max(0, topPair.actualWinPct - topPair.expectedWinPct)}%`, background: '#00B2A9' }} />
-                    </div>
-                    <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)' }}>
-                      {t('leaderboard.impactSummary', {
-                        sign: '+',
-                        pp: topPair.pairImpact,
-                        games: topPair.gamesCount,
-                        conf: getPairConfTier(topPair),
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {underperformingPair && getPairKey(underperformingPair) !== getPairKey(topPair) && (
-                  <div style={{ display: 'grid', gap: 5, padding: '9px 11px', borderRadius: 7, background: bgSunken, border: `1px solid ${borderCard}` }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: textWhite }}>
-                        {getPairNames(underperformingPair).join(' · ')}
-                      </span>
-                      <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: textMuted }}>
-                        {t('leaderboard.oppExpectedPct', { exp: underperformingPair.expectedWinPct })}
-                      </span>
-                      <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#F09A8E' }}>
-                        {underperformingPair.actualWinPct}%
-                      </span>
-                    </div>
-                    <div style={{ height: 7, borderRadius: 999, background: isDark ? '#0B1220' : 'var(--surface-sunken)', overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${underperformingPair.actualWinPct}%`, background: isDark ? '#2E3E5C' : '#CBD5E1' }} />
-                      <div style={{ width: `${Math.max(0, underperformingPair.expectedWinPct - underperformingPair.actualWinPct)}%`, background: '#D63B2B' }} />
-                    </div>
-                    <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#F09A8E' }}>
-                      {t('leaderboard.impactSummary', {
-                        sign: '',
-                        pp: underperformingPair.pairImpact,
-                        games: underperformingPair.gamesCount,
-                        conf: getPairConfTier(underperformingPair),
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>

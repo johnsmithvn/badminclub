@@ -163,37 +163,102 @@ export default function PairH2HTab({
       })
   }, [pairAIds, matches, membersMap])
 
-  // Kình địch CLB
-  const topRivalries = useMemo(() => {
-    const matchupCount = new Map()
-    ;(matches || []).forEach((m) => {
-      if (!m || !m.winnerTeam) return
+  const [rivalryFormatFilter, setRivalryFormatFilter] = useState('all')
+
+  // Tính toán tất cả các cặp đối đầu kình địch trong CLB
+  const clubRivalries = useMemo(() => {
+    if (!matches || matches.length === 0) return []
+
+    const checkFemale = (id) => {
+      const m = membersMap?.[id]
+      const g = String(m?.gender || '').toLowerCase().trim()
+      return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: gender check
+    }
+
+    const getFormatOfPair = (pairIds) => {
+      const isF1 = checkFemale(pairIds[0])
+      const isF2 = checkFemale(pairIds[1])
+      if (isF1 && isF2) return 'WD'
+      if (isF1 || isF2) return 'XD'
+      return 'MD'
+    }
+
+    const matchupMap = new Map()
+
+    for (const m of matches) {
+      if (!m || !m.winnerTeam || m.ratingEnabled === false) continue
       const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
       const teamB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
-      if (teamA.length >= 2 && teamB.length >= 2) {
-        const keyA = [teamA[0], teamA[1]].sort().join(':')
-        const keyB = [teamB[0], teamB[1]].sort().join(':')
-        if (keyA === keyB) return
-        const matchKey = [keyA, keyB].sort().join('__vs__')
-        matchupCount.set(matchKey, (matchupCount.get(matchKey) || 0) + 1)
+      if (teamA.length < 2 || teamB.length < 2) continue
+
+      const pA = [...teamA].sort()
+      const pB = [...teamB].sort()
+      const keyA = pA.join(':')
+      const keyB = pB.join(':')
+      if (keyA === keyB) continue
+
+      const formatA = getFormatOfPair(pA)
+      const formatB = getFormatOfPair(pB)
+      if (formatA !== formatB) continue
+
+      if (rivalryFormatFilter !== 'all' && formatA !== rivalryFormatFilter) continue
+
+      const comboKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`
+      if (!matchupMap.has(comboKey)) {
+        matchupMap.set(comboKey, { pA, pB, format: formatA })
       }
-    })
-    return Array.from(matchupCount.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map(([key, count]) => {
-        const [kA, kB] = key.split('__vs__')
-        const [a1, a2] = kA.split(':')
-        const [b1, b2] = kB.split(':')
-        return {
-          key,
-          a1, a2, b1, b2,
-          nameA: `${nameOf(a1)} · ${nameOf(a2)}`,
-          nameB: `${nameOf(b1)} · ${nameOf(b2)}`,
-          count,
-        }
+    }
+
+    const results = []
+    for (const item of matchupMap.values()) {
+      const edgeAB = calcMatchupEdge(matches, item.pA, item.pB, ratingsMap)
+      const games = edgeAB.gamesCount != null ? edgeAB.gamesCount : (edgeAB.games || 0)
+      if (games < 1) continue
+
+      const edgeBA = calcMatchupEdge(matches, item.pB, item.pA, ratingsMap)
+
+      const namesPairA = item.pA.map((id) => nameOf(id) || id).join(' · ')
+      const namesPairB = item.pB.map((id) => nameOf(id) || id).join(' · ')
+
+      const aAdvantage = (edgeAB.advantageScore || 50) >= (edgeBA.advantageScore || 50)
+      const dominant = aAdvantage ? edgeAB : edgeBA
+      const fromKeys = aAdvantage ? item.pA : item.pB
+      const toKeys = aAdvantage ? item.pB : item.pA
+      const fromName = aAdvantage ? namesPairA : namesPairB
+      const toName = aAdvantage ? namesPairB : namesPairA
+
+      const score = dominant.advantageScore != null ? dominant.advantageScore : 50
+      const impact = dominant.matchupImpact != null ? dominant.matchupImpact : (dominant.actualWinPct - dominant.expectedWinPct)
+      const wins = dominant.winsCount != null ? dominant.winsCount : 0
+      const losses = games - wins
+      const expected = dominant.expectedWinPct != null ? dominant.expectedWinPct : 50
+      const actual = dominant.actualWinPct != null ? dominant.actualWinPct : 50
+
+      const intensity = games * 15 + Math.abs(score - 50) * 1.8
+
+      results.push({
+        pairA: fromKeys,
+        pairB: toKeys,
+        fromName,
+        toName,
+        games,
+        wins,
+        losses,
+        score,
+        impact: Math.round(impact),
+        expected: Math.round(expected),
+        actual: Math.round(actual),
+        avgScoreDiff: dominant.avgScoreDiff != null ? dominant.avgScoreDiff : '0.0',
+        intensity,
+        confidence: dominant.confidence?.tier || 'R1',
+        recentScores: dominant.recentScores || [],
+        format: item.format,
       })
-  }, [matches, membersMap])
+    }
+
+    results.sort((a, b) => b.intensity - a.intensity)
+    return results
+  }, [matches, membersMap, ratingsMap, rivalryFormatFilter])
 
   // Lọc options cho từng ô chọn để tránh trùng người
   const optionsA1 = memberList
@@ -288,6 +353,188 @@ export default function PairH2HTab({
         padding: isMobile ? '12px 14px' : '0 0 24px',
       }}
     >
+      {/* ---------------- 0. Khối Lợi thế kình địch trong CLB ---------------- */}
+      <div
+        style={{
+          background: bgCard,
+          border: `1px solid ${borderCard}`,
+          borderRadius: 10,
+          padding: '14px 16px',
+          display: 'grid',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ font: "600 15px/1.3 'IBM Plex Sans', sans-serif", color: textWhite, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>⚔️</span>
+              <span>{t('leaderboard.directionalMatchupTitle')}</span>
+            </div>
+            <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: textMuted, marginTop: 2 }}>
+              {t('leaderboard.directionalMatchupDesc')}
+            </div>
+          </div>
+
+          {/* Quick Format Filter Chips */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 4,
+              padding: 3,
+              borderRadius: 8,
+              background: bgSunken,
+              border: `1px solid ${borderCard}`,
+            }}
+          >
+            {[
+              { key: 'all', label: t('leaderboard.filterAllFormats') },
+              { key: 'MD', label: t('leaderboard.filterMD') },
+              { key: 'WD', label: t('leaderboard.filterWD') },
+              { key: 'XD', label: t('leaderboard.filterXD') },
+            ].map((item) => {
+              const active = rivalryFormatFilter === item.key
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setRivalryFormatFilter(item.key)}
+                  style={{
+                    font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: active ? '#1D50A0' : 'transparent',
+                    color: active ? '#fff' : textSecondary,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Danh sách các cặp đối đầu kình địch */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+            gap: 10,
+          }}
+        >
+          {clubRivalries.length > 0 ? (
+            clubRivalries.slice(0, 6).map((mItem, mIdx) => {
+              const isDominant = mItem.score >= 60
+              const isCurrentPair =
+                (selectedPairAKey === mItem.pairA.join(':') && selectedPairBKey === mItem.pairB.join(':')) ||
+                (selectedPairAKey === mItem.pairB.join(':') && selectedPairBKey === mItem.pairA.join(':'))
+
+              return (
+                <div
+                  key={mIdx}
+                  onClick={() => {
+                    setPairA(mItem.pairA[0], mItem.pairA[1])
+                    setPairB(mItem.pairB[0], mItem.pairB[1])
+                  }}
+                  title={t('leaderboard.viewH2HDetail')}
+                  style={{
+                    display: 'grid',
+                    gap: 6,
+                    padding: '11px 13px',
+                    borderRadius: 8,
+                    background: isCurrentPair
+                      ? (isDark ? 'rgba(0, 178, 169, 0.12)' : 'rgba(0, 178, 169, 0.08)')
+                      : bgSunken,
+                    border: isCurrentPair
+                      ? '1px solid #00B2A9'
+                      : `1px solid ${borderCard}`,
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s ease, background 0.15s ease, transform 0.15s ease',
+                  }}
+                >
+                  {/* Dòng 1: Cặp A ⚔️ Cặp B + Tag + Điểm kình địch */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: textWhite, flex: 1, minWidth: 0 }}>
+                      {mItem.fromName} ⚔️ {mItem.toName}
+                    </span>
+                    <span
+                      style={{
+                        font: "700 9.5px/1 'IBM Plex Sans', sans-serif",
+                        letterSpacing: '0.04em',
+                        padding: '2.5px 6px',
+                        borderRadius: 4,
+                        background: isDominant ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                        color: isDominant ? '#FF7A45' : '#F0B75C',
+                        border: `1px solid ${isDominant ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {isDominant ? t('leaderboard.rivalryDominant') : t('leaderboard.rivalryAdvantageBadge')}
+                    </span>
+                    <span style={{ font: "700 15px/1 Barlow, sans-serif", color: '#FF7A45', whiteSpace: 'nowrap' }}>
+                      {mItem.score} 🔥
+                    </span>
+                  </div>
+
+                  {/* Dòng 2: Chi tiết chỉ số */}
+                  <div style={{ font: "400 11.5px/1.45 'IBM Plex Mono', monospace", color: textMuted, display: 'flex', flexWrap: 'wrap', gap: '4px 8px', alignItems: 'center' }}>
+                    <span style={{ color: textSecondary }}>
+                      {t('leaderboard.rivalryStats', { wins: mItem.wins, losses: mItem.losses, games: mItem.games })}
+                    </span>
+                    <span style={{ color: textMuted }}>•</span>
+                    <span style={{ color: mItem.impact >= 0 ? '#5FD9A2' : '#FF9A8F' }}>
+                      {mItem.impact >= 0 ? `+${mItem.impact}pp` : `${mItem.impact}pp`} {t('leaderboard.advantageEdge')}
+                    </span>
+                    <span style={{ color: textMuted }}>•</span>
+                    <span>
+                      {t('leaderboard.expToActual', { exp: mItem.expected, actual: mItem.actual })}
+                    </span>
+                    {mItem.avgScoreDiff && mItem.avgScoreDiff !== '0.0' && (
+                      <>
+                        <span style={{ color: '#5B6B81' }}>•</span>
+                        <span style={{ color: mItem.avgScoreDiff.startsWith('+') ? '#5FD9A2' : '#FF9A8F' }}>
+                          {t('leaderboard.scoreDiffPerSet', { diff: mItem.avgScoreDiff })}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Dòng 3: Set gần nhất (nếu có) */}
+                  {mItem.recentScores?.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', paddingTop: 2 }}>
+                      <span style={{ font: "400 10.5px/1 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>
+                        {t('leaderboard.recentSets')}:
+                      </span>
+                      {mItem.recentScores.slice(-3).map((sc, scIdx) => (
+                        <span
+                          key={scIdx}
+                          style={{
+                            font: "500 10.5px/1 'IBM Plex Mono', monospace",
+                            padding: '1.5px 5px',
+                            borderRadius: 4,
+                            background: isDark ? '#141D2E' : 'rgba(0,0,0,0.05)',
+                            border: `1px solid ${borderCard}`,
+                            color: textSecondary,
+                          }}
+                        >
+                          {sc}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          ) : (
+            <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: textMuted, padding: '12px 0', gridColumn: isMobile ? '1' : '1 / -1' }}>
+              {t('leaderboard.noCrossMatchupHistory')}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* ---------------- 1. Bộ chọn Tra cứu hai cặp (Tra đối đầu) ---------------- */}
       <div
         style={{
@@ -299,42 +546,6 @@ export default function PairH2HTab({
           gap: 12,
         }}
       >
-        {/* Kình địch CLB gợi ý nhanh */}
-        {topRivalries.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-            <span style={{ font: "600 11px/1 'IBM Plex Sans', sans-serif", color: '#F0B75C', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-              🔥 {t('pairH2H.topRivalries')}:
-            </span>
-            {topRivalries.map((r) => (
-              <button
-                key={r.key}
-                type="button"
-                onClick={() => {
-                  setPairA(r.a1, r.a2)
-                  setPairB(r.b1, r.b2)
-                }}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 999,
-                  background: bgSunken,
-                  border: `1px solid ${borderSunken}`,
-                  color: textWhite,
-                  font: "500 12px/1 'IBM Plex Sans', sans-serif",
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <span>{r.nameA} <span style={{ color: '#8494AA' }}>vs</span> {r.nameB}</span>
-                <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#00B2A9' }}>
-                  ({t('pairH2H.gamesCountLabel', { n: r.count })})
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
 
         <div
           style={{
