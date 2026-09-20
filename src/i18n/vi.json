@@ -2291,7 +2291,9 @@
     "nemesisMatchup": "Đối thủ truyền kiếp",
     "whyUnderperforming": "Vì sao {{name}} · {{partner}} dưới kỳ vọng",
     "form10Title": "Phong độ 10 trận",
-    "form10OldestLeft": "cũ nhất bên trái"
+    "form10OldestLeft": "cũ nhất bên trái",
+    "formOldest": "Cũ",
+    "formNewest": "Mới nhất"
   },
   "account": {
     "title": "Hồ sơ tài khoản",
@@ -3904,7 +3906,7 @@
     "h2hVsEdgeTitle": "Đối đầu khác kình địch thế nào",
     "h2hVsEdgeDesc": "Đối đầu là lịch sử thô: ai thắng bao nhiêu trận. Kình địch là phần thắng vượt kỳ vọng sau khi trừ chênh lệch Elo.",
     "weightH2H": "Đối đầu · trọng số cân sân",
-    "weightEdge": "Kình địch · trọng số cân sân",
+    "weightEdge": "Đối thủ· trọng số cân sân",
     "h2hWeightNote": "H2H hạ từ 20 xuống 4 vì đã bị đếm hai lần: kình địch cũng đọc chính những trận này.",
     "noMatchHistory": "Hai cặp này chưa từng gặp nhau trong lịch sử.",
     "sheetTitle": "Sheet đối đầu v1.1",
@@ -3921,7 +3923,7 @@
     "swapSides": "Đổi bên",
     "frequentPartners": "Bạn cặp quen",
     "historicOpponents": "Đối thủ từng gặp",
-    "topRivalries": "Kình địch CLB",
+    "topRivalries": "Đối thủ CLB",
     "gamesCountLabel": "{{n}} trận",
     "noH2HYet": "Chưa từng chạm trán trực tiếp · Dự đoán theo Elo",
     "pickPlayerPrompt": "Chọn người chơi..."
@@ -4214,7 +4216,7 @@
         "cond": "Không phải bàn"
       },
       "hoa_hau_nhat_cau": {
-        "name": "Hoa hậu nhặt cầu",
+        "name": "Người có sức hút",
         "cond": "Tay ai mà nhặt nhanh thế"
       },
       "tho_san_goc_chet": {

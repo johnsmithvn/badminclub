@@ -5,10 +5,11 @@ import { playerName } from '#lib/money.js'
 import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
-import { calculateMemberBadges, TIER_ORDER } from '#lib/badges.js'
+import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS } from '#lib/badges.js'
 import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
+import BadgeHex from '#components/badges/BadgeHex.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import cfgApp from '#config/app.json'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -78,13 +79,13 @@ export default function MemberProfileTab({
   onSelectTheme,
   isMobile: propIsMobile,
   onChallenge,
-  initialSubTab = 'overview',
+  initialSubTab = 'h2h',
   seasonConfig,
 }) {
   const isMobileHook = useMobile()
   const isMobile = propIsMobile !== undefined ? Boolean(propIsMobile) : isMobileHook
   const { isDark } = useTheme()
-  const [subTab, setSubTab] = useState(initialSubTab || 'overview')
+  const [subTab, setSubTab] = useState(initialSubTab || 'h2h')
   const [inspectingPair, setInspectingPair] = useState(null)
   const [expandedPartners, setExpandedPartners] = useState(false)
   const [expandedFavorites, setExpandedFavorites] = useState(false)
@@ -362,47 +363,149 @@ export default function MemberProfileTab({
   const lastMatchIso = lastMatchAtOf(matches, mid)
   const decayInfo = applyInactivityDecay(pr.rating, lastMatchIso)
 
+  // Danh hiệu được gắn trên kệ (tối đa 3 danh hiệu); nếu không có thì lấy 1 danh hiệu hiếm nhất đã mở khóa
+  const shelfBadges = useMemo(() => {
+    const rawIds = member?.badge_shelf || member?.badgeShelf || []
+    if (Array.isArray(rawIds) && rawIds.length > 0) {
+      const equipped = rawIds
+        .slice(0, 3)
+        .map((id) => getBadgeById(id))
+        .filter(Boolean)
+      if (equipped.length > 0) return equipped
+    }
+    // Trường hợp không có danh hiệu gắn trên kệ: lấy 1 danh hiệu hiếm nhất đã mở khóa của họ
+    if (!mid || !db) return []
+    const res = calculateMemberBadges(mid, db)
+    const unlocked = res?.officialUnlocked || []
+    if (!unlocked.length) return []
+    const maxScore = Math.max(...unlocked.map((b) => TIER_ORDER[b.tier] || 0))
+    const highestBadges = unlocked.filter((b) => (TIER_ORDER[b.tier] || 0) === maxScore)
+    if (!highestBadges.length) return []
+    // Random 1 danh hiệu trong nhóm hiếm nhất
+    const randomIdx = Math.floor(Math.random() * highestBadges.length)
+    const picked = highestBadges[randomIdx]
+    const badgeObj = getBadgeById(picked.id) || picked
+    return [badgeObj]
+  }, [member?.badge_shelf, member?.badgeShelf, mid, db])
+
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {/* HEADER HỒ SƠ VĐV */}
       <div style={S.card}>
         <div style={{ padding: 18, background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', paddingRight: isMobile ? 36 : 42 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: isMobile ? 'flex-start' : 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexWrap: 'wrap',
+              paddingRight: isMobile ? 36 : 42,
+            }}
+          >
+            {/* Cụm thông tin VĐV bên trái */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, minWidth: 0, flex: '1 1 280px' }}>
               <Avatar
                 name={member.name}
                 src={getMemberAvatar(member)}
-                size={56}
-                style={{ flexShrink: 0, border: '1px solid var(--border-subtle)' }}
+                size={isMobile ? 52 : 60}
+                style={{ flexShrink: 0, border: '1px solid var(--border-subtle)', marginTop: 2 }}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                <div style={{ font: '700 22px/1.2 Barlow, sans-serif', color: 'var(--text-primary)' }}>
-                  {member.name}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                  <LevelChip level={member.level} levels={db.levels} />
-                  <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                    {member.gender} · {member.group || 'CLB'}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
+                {/* Hàng 1: Tên + LevelChip + Giới tính */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ font: '700 22px/1.2 Barlow, sans-serif', color: 'var(--text-primary)' }}>
+                    {member.name}
                   </span>
+                  <LevelChip level={member.level} levels={db.levels} />
+                  {member.gender && (
+                    <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                      {member.gender}
+                    </span>
+                  )}
                 </div>
+
+                {/* Hàng 2: Châm ngôn tự đặt */}
+                {member.signature && (
+                  <div
+                    style={{
+                      font: "italic 400 13px/1.4 'IBM Plex Sans', sans-serif",
+                      color: isDark ? '#A8B7CB' : 'var(--text-secondary)',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    “{member.signature}”
+                  </div>
+                )}
+
+                {/* Hàng 3: Danh hiệu được gắn trên kệ hoặc danh hiệu hiếm nhất (chỉ tên danh hiệu) */}
+                {shelfBadges.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                    {shelfBadges.map((b) => {
+                      const bName = t(`badges.items.${b.id}.name`, { defaultValue: b.name })
+                      const tierInfo = ANIME_TIERS[b.tier] || ANIME_TIERS.rare
+                      return (
+                        <div
+                          key={b.id}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 7,
+                            padding: '3px 10px 3px 5px',
+                            borderRadius: 999,
+                            background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'var(--surface-card)',
+                            border: `1px solid ${tierInfo.bd || 'var(--border-subtle)'}`,
+                            boxShadow: `0 2px 8px ${alphaColor(tierInfo.bd || '#000', '26', 15)}`,
+                          }}
+                        >
+                          <BadgeHex tier={b.tier} glyph={b.glyph} size={20} />
+                          <span
+                            style={{
+                              font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif",
+                              color: isDark ? '#E9EFF7' : 'var(--text-primary)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {bName}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
-              <Select
-                value={member.id}
-                options={allMembers.map((m) => ({ value: m.id, label: m.name }))}
-                onChange={(e) => onSelectMember(e.target.value)}
-                style={{ width: isMobile ? '100%' : 160 }}
-              />
-              <button
-                type="button"
-                onClick={() => onChallenge && onChallenge(member.id)}
-                style={S.challengeBtn}
-              >
-                <Icon name="target" size={14} />
-                <span>{t('leaderboard.challengePrompt')}</span>
-              </button>
+            {/* Cụm đối diện bên phải: Select & Nút Gạ kèo */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                width: isMobile ? '100%' : 'auto',
+                justifyContent: isMobile ? 'space-between' : 'flex-end',
+                flexWrap: 'wrap',
+                flexShrink: 0,
+              }}
+            >
+              {allMembers && allMembers.length > 0 && onSelectMember && (
+                <Select
+                  value={member.id}
+                  options={allMembers.map((m) => ({ value: m.id, label: m.name }))}
+                  onChange={(e) => onSelectMember(e.target.value)}
+                  style={{ width: isMobile ? 'calc(100% - 120px)' : 160 }}
+                />
+              )}
+              {onChallenge && (
+                <button
+                  type="button"
+                  onClick={() => onChallenge(member.id)}
+                  style={S.challengeBtn}
+                >
+                  <Icon name="target" size={14} />
+                  <span>{t('leaderboard.challengePrompt')}</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -515,12 +618,7 @@ export default function MemberProfileTab({
               {/* Dải 10 trận gần nhất */}
               <div style={S.cardBox}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={S.cardBoxLabel}>{t('leaderboard.last10Title')}</span>
-                    <span style={{ font: '400 11px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                      ({t('profile.form10OldestLeft')})
-                    </span>
-                  </div>
+                  <span style={S.cardBoxLabel}>{t('leaderboard.last10Title')}</span>
                   <span style={{ font: '600 13px/1.3 "IBM Plex Mono", monospace', color: isDark ? '#5FD9A2' : '#059669' }}>
                     {stats.wins10}T · {stats.losses10}B
                   </span>
@@ -554,6 +652,35 @@ export default function MemberProfileTab({
                     ))
                   )}
                 </div>
+                {stats.last10.length > 1 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: 10,
+                      color: 'var(--text-muted)',
+                      fontFamily: '"IBM Plex Mono", monospace',
+                      padding: '0 2px',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <span>{t('profile.formOldest')}</span>
+                    <div
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        margin: '0 8px',
+                        opacity: 0.35,
+                      }}
+                    >
+                      <div style={{ flex: 1, height: 1, background: 'currentColor' }} />
+                      <span style={{ fontSize: 8, lineHeight: 1, marginLeft: -1 }}>▶</span>
+                    </div>
+                    <span>{t('profile.formNewest')}</span>
+                  </div>
+                )}
               </div>
 
               {/* 4 Ô Chất lượng trận */}

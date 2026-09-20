@@ -50,7 +50,7 @@ export default function Leaderboard() {
 
   // State cho Tab 2 (Biểu đồ / Profile)
   const [selectedMemberId, setSelectedMemberId] = useState(null)
-  const [profileInitialTab, setProfileInitialTab] = useState('overview')
+  const [profileInitialTab, setProfileInitialTab] = useState('h2h')
 
   // State cho Gạ kèo (K6)
   const [challengeModalOpen, setChallengeModalOpen] = useState(false)
@@ -404,7 +404,7 @@ export default function Leaderboard() {
           onGenderFilterChange={setGenderFilter}
           onSelectMember={(m) => {
             setSelectedMemberId(m.id || m)
-            setProfileInitialTab('overview')
+            setProfileInitialTab('h2h')
           }}
           isMobile={isMobile}
         />
