@@ -11,6 +11,7 @@ import {
 } from '#components/settings/SettingsComponents.jsx'
 import { scanQrCodeFromImage, parseVietQr, getVietQrUrl, findBank } from '#utils/vietqr.js'
 import banks from '#config/banks.json' with { type: 'json' }
+import { myMember } from '#lib/money.js'
 import { t } from '#i18n'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -21,6 +22,7 @@ import {
   isPushSubscribed,
   subscribePush,
   unsubscribePush,
+  sendTestPush,
 } from '#lib/pushSubscription.js'
 
 export default function GeneralTab({
@@ -39,13 +41,56 @@ export default function GeneralTab({
   const fileRef = useRef(null)
 
   const { session } = useAuth()
-  const { a } = useApp()
+  const { db, a } = useApp()
   const [pushState, setPushState] = useState({
     supported: false,
     subscribed: false,
     permission: 'default',
   })
   const [togglingPush, setTogglingPush] = useState(false)
+  const [testingPush, setTestingPush] = useState(false)
+  const [testTarget, setTestTarget] = useState('')
+
+  /**
+   * Người có THỂ nhận push: đã liên kết tài khoản và còn hoạt động.
+   *
+   * KHÔNG lọc được theo "đã đăng ký thiết bị hay chưa": RLS của `push_subscriptions` chỉ cho
+   * mỗi người đọc dòng của chính mình, nên client không có cách nào biết ai đã bật. Thay vào
+   * đó cứ gửi rồi đọc `sentCount` trong toast — 0 nghĩa là người đó chưa bật.
+   */
+  const pushTargets = useMemo(() => (db?.members || [])
+    .filter((m) => m.userId && m.active !== false)
+    .map((m) => ({ value: m.id, label: m.name })), [db?.members])
+
+  /**
+   * Bắn push thử cho chính mình. Bấm TRÊN MÁY TÍNH thì điện thoại rung — cách duy nhất thử được
+   * trạng thái "app đã kill" mà vẫn bấm được nút.
+   * Nói thẳng số thiết bị đã gửi ra toast: `sentCount: 0` nghĩa là lỗi nằm ở server, còn
+   * `sentCount: 1` mà máy im thì lỗi ở thiết bị. Khỏi phải đi lục Dashboard để biết.
+   */
+  const handleTestPush = async () => {
+    if (testingPush) return
+    const targetId = testTarget || myMember(db)?.id
+    if (!targetId) return
+    const targetName = (db?.members || []).find((m) => m.id === targetId)?.name || ''
+    setTestingPush(true)
+    try {
+      const res = await sendTestPush(supabase, {
+        memberId: targetId,
+        clubId: db?.clubId,
+        title: db?.club?.name || 'BadminClub',
+        body: t('settings.pushTestBody'),
+      })
+      const sent = res.sentCount ?? 0
+      a?.toast?.(sent > 0
+        ? t('toast.pushTestSent', { n: sent, name: targetName })
+        : t('toast.pushTestNoDevice', { name: targetName }))
+    } catch (err) {
+      a?.toast?.(t('toast.pushTestFailed', { msg: err?.message || '' }))
+    } finally {
+      setTestingPush(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -312,13 +357,40 @@ export default function GeneralTab({
                 ? t('settings.pushDenied')
                 : t('settings.pushToggleNote')
           }
-          last
         >
           <ToggleSwitch
             checked={pushState.subscribed}
             disabled={!pushState.supported || pushState.permission === 'denied' || togglingPush}
             onChange={handleTogglePush}
           />
+        </FormRow>
+
+        {/* Bắn thử — bấm TRÊN MÁY TÍNH thì điện thoại rung, đó là cách duy nhất thử được
+            trạng thái app đã bị kill mà vẫn bấm được nút. */}
+        <FormRow
+          label={t('settings.pushTestLabel')}
+          note={t('settings.pushTestNote')}
+          last
+          alignTop
+        >
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <SearchSelect
+              size="sm"
+              value={testTarget || myMember(db)?.id || ''}
+              options={pushTargets}
+              placeholder={t('settings.pushTestPick')}
+              onChange={(val) => setTestTarget(val || '')}
+              style={{ minWidth: 160 }}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={testingPush || !pushTargets.length}
+              onClick={handleTestPush}
+            >
+              {t('settings.pushTestBtn')}
+            </Button>
+          </div>
         </FormRow>
       </SettingsCard>
 

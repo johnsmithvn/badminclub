@@ -14,6 +14,7 @@ import {
   resolveActivityPayload,
   resolveNotificationPayload,
   notifyRecipients,
+  notifiableMemberIds,
 } from '#lib/activity.js'
 
 console.log('--- Testing detectMatchNarrative ---')
@@ -364,6 +365,37 @@ assert.deepEqual(notifyRecipients(undefined, 'm1', clubMembers), [])
 
 // Ca tran toan khach -> khong con ai, emitEvent bo qua buoc insert
 assert.deepEqual(notifyRecipients(['g1', 'g2'], 'm1', clubMembers), [])
+
+/* ---------- notifiableMemberIds: ai THẬT SỰ đọc được thông báo ---------- */
+//
+// Vì sao đáng khoá bằng test: RLS của `notifications` (0038) lọc theo
+// `member_id IN (SELECT id FROM club_members WHERE user_id = auth.uid())`. Thành viên chưa
+// liên kết tài khoản thì KHÔNG AI đọc nổi dòng gửi cho họ — kể cả chính họ. Mỗi dòng như vậy
+// chiếm một suất trong cửa sổ 100 dòng và kéo theo một lượt gọi push-send trả về sentCount 0.
+// CLB thật có phần lớn thành viên chưa có tài khoản, nên sót ở đây là ngập hộp thông báo.
+const roster = [
+  { id: 'm1', name: 'Quân', userId: 'u1' },
+  { id: 'm2', name: 'Trường', userId: null },   // thành viên do chủ CLB tạo, chưa có tài khoản
+  { id: 'm3', name: 'Kuro', userId: 'u3' },
+]
+
+assert.deepEqual(
+  [...notifiableMemberIds(roster)], ['m1', 'm3'],
+  'Người chưa có tài khoản bị loại: dòng gửi cho họ không ai đọc được'
+)
+assert.deepEqual([...notifiableMemberIds([])], [], 'CLB rỗng không được throw')
+assert.deepEqual([...notifiableMemberIds(null)], [], 'Đầu vào null không được throw')
+assert.deepEqual(
+  [...notifiableMemberIds([{ id: 'm9', userId: 'u9', active: false }])], ['m9'],
+  'CỐ Ý không lọc theo active: người đã ngưng vẫn đọc được thông báo của mình, RLS không kiểm cờ đó'
+)
+
+// Ghép với notifyRecipients: đây là cách `emitEvent` dùng hai hàm này
+assert.deepEqual(
+  notifyRecipients(['m1', 'm2', 'm3'], 'm3', notifiableMemberIds(roster)),
+  ['m1'],
+  'Loại người gửi (m3) và người chưa có tài khoản (m2), còn đúng m1'
+)
 
 console.log('notifyRecipients: OK')
 

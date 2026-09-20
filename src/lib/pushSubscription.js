@@ -207,6 +207,36 @@ export async function unsubscribePush(supabase, userId) {
 }
 
 /**
+ * Bắn một push THỬ cho chính mình, không cần dựng kèo thật.
+ *
+ * Cách dùng đúng: bấm nút này **trên máy tính**, điện thoại rung. Đó là cách duy nhất thử được
+ * trạng thái "app đã bị kill" mà vẫn bấm được nút — bấm trên chính điện thoại thì app đang mở.
+ *
+ * `tag` phải DUY NHẤT mỗi lần. Android coi hai notification cùng `tag` là một: cái sau thay cái
+ * trước và KHÔNG rung/kêu lại (`renotify` mặc định false). Đặt tag cố định là lần thử thứ hai
+ * trở đi im ru, rồi lại tưởng push hỏng.
+ *
+ * Trả về nguyên `{ totalSubs, sentCount, failedCount }` của Edge Function để màn hình nói thẳng
+ * cho người dùng biết server đã gửi được mấy cái — khỏi phải đi lục Dashboard.
+ */
+export async function sendTestPush(supabase, { memberId, clubId, title, body, url = '/' }) {
+  if (!supabase) throw new Error('NO_SUPABASE')
+  if (!memberId || !clubId) throw new Error('NO_MEMBER')
+  const { data, error } = await supabase.functions.invoke('push-send', {
+    body: {
+      member_ids: [memberId],
+      club_id: clubId,
+      title,
+      body,
+      url,
+      tag: `test_${Date.now()}`,
+    },
+  })
+  if (error) throw error
+  return data || {}
+}
+
+/**
  * Ghi bù subscription: khi user tham gia thêm CLB mới, bổ sung subscription row cho member_id mới
  */
 export async function syncMissingSubscriptions(supabase, userId) {
