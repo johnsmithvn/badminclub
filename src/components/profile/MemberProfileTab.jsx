@@ -459,8 +459,10 @@ export default function MemberProfileTab({
                         <button
                           key={b.id}
                           type="button"
-                          onClick={() => {
-                            const detailed = memberBadges.find((x) => x.id === b.id) || b
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            const detailed = memberBadges.find((x) => x.id === b.id) || getBadgeById(b.id) || b
                             setInspectingBadge(detailed)
                           }}
                           title={bName}
@@ -2037,8 +2039,15 @@ export default function MemberProfileTab({
                 ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 9 }}>
                   {achievements.map((ach) => (
-                    <div
+                    <button
                       key={ach.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        const detailed = memberBadges.find((x) => x.id === ach.id) || getBadgeById(ach.id) || ach
+                        setInspectingBadge(detailed)
+                      }}
                       style={{
                         background: ach.achieved ? 'var(--surface-card)' : 'var(--surface-sunken)',
                         border: ach.achieved ? (isDark ? '1px solid #00786F' : '1px solid rgba(13,148,136,.4)') : '1px dashed var(--border-default)',
@@ -2046,7 +2055,11 @@ export default function MemberProfileTab({
                         padding: 12,
                         display: 'flex',
                         flexDirection: 'column',
+                        textAlign: 'left',
                         gap: 4,
+                        cursor: 'pointer',
+                        outline: 'none',
+                        transition: 'transform 0.15s ease, border-color 0.15s ease',
                       }}
                     >
                       <span style={{ font: '600 14px/1.3 "IBM Plex Sans", sans-serif', color: ach.achieved ? 'var(--text-primary)' : 'var(--text-muted)' }}>
@@ -2055,7 +2068,7 @@ export default function MemberProfileTab({
                       <span style={{ font: '400 12px/1.4 "IBM Plex Mono", monospace', color: ach.achieved ? (isDark ? '#5FDBD3' : 'var(--text-accent)') : 'var(--text-muted)' }}>
                         {ach.progressText}
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
                 )}

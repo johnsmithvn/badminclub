@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import BadgeHex from './BadgeHex.jsx'
 import { NOTCH_CLIP, NOTCH_S_CLIP, HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers } from '#lib/badges.js'
 import { t } from '#i18n'
@@ -98,20 +99,20 @@ export default function BadgeDetailModal({
     },
   ]
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 1000,
+        zIndex: 10050,
         background: 'rgba(5, 2, 12, 0.85)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px 14px',
+        padding: '16px 12px',
         overflowY: 'auto',
       }}
       onClick={(e) => {
@@ -127,6 +128,7 @@ export default function BadgeDetailModal({
           border: '1px solid #2A1145',
           borderRadius: 14,
           overflow: 'hidden',
+          onClick: (e) => e.stopPropagation(),
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(109, 20, 255, 0.25)',
@@ -791,4 +793,6 @@ export default function BadgeDetailModal({
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent
 }
