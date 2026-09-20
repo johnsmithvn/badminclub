@@ -863,7 +863,17 @@ function getScoreVisuals(score, isTop) {
                     </div>
                   </div>
                 )
-          )}
+              })
+            ) : (
+              <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', font: "400 13px/1.4 'IBM Plex Sans', sans-serif" }}>
+                {t('leaderboard.noPairsFound')}
+              </div>
+            )}
+
+            <div style={{ font: "400 12px/1.55 'IBM Plex Sans', sans-serif", color: '#8494AA', padding: '4px 0 12px' }}>
+              {t('leaderboard.dp1FooterNote')}
+            </div>
+          </div>
         </div>
       ) : (
         <>
