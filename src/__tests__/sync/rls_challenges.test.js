@@ -14,7 +14,7 @@ import { TABLES } from '#contexts/dbmap.js'
 // Lớp sync ghi `challenges` bằng UPSERT (`mode: 'id'` -> `INSERT ... ON CONFLICT DO UPDATE`), mà
 // Postgres áp CẢ policy INSERT lẫn UPDATE cho câu đó. Migration 0037 nới `challenges_upd` và
 // `challenge_players_ins` cho thành viên, nhưng bỏ sót `challenges_ins` — nên nửa đường vẫn bị
-// chặn. Sửa ở 0049.
+// chặn. Sửa ở 0052.
 //
 // Hành vi RLS chỉ kiểm được trên Postgres thật với nhiều phiên đăng nhập khác nhau, ngoài tầm
 // của bộ test thuần này. Nhưng cái SINH RA bug thì kiểm tĩnh được: policy INSERT của một bảng
