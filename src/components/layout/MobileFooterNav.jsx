@@ -9,6 +9,7 @@ import { t } from '#i18n'
 
 const SLOT_ICONS = {
   home: 'layout-dashboard',
+  matches: 'history',
   sessions: 'clipboard-check',
   debts: 'clock-alert',
   leaderboard: 'trophy',
@@ -30,7 +31,18 @@ export default function MobileFooterNav({ route, isMoreOpen, onToggleMore }) {
   const pendingChanges = (db.changes || []).filter((c) => c.status === 'pending').length
   const morePending = pendingJoins + pendingChanges
 
+  const currentMember = (db.members || []).find((m) => m.userId === db.currentUserId)
+  const myMemId = currentMember?.id || null
+  const pendingChallenges = (db.challenges || []).filter((c) => {
+    if (c.status !== 'pending') return false
+    if (myMemId) {
+      return (c.teamB || []).includes(myMemId) || (c.teamA || []).includes(myMemId)
+    }
+    return true
+  }).length
+
   const getBadge = (slot) => {
+    if (slot === 'matches') return pendingChallenges > 0 ? pendingChallenges : null
     if (slot === 'sessions') return unclosedSessions > 0 ? unclosedSessions : null
     if (slot === 'debts') return debtPending > 0 ? debtPending : null
     if (slot === 'more') return morePending > 0 ? morePending : null
@@ -41,6 +53,7 @@ export default function MobileFooterNav({ route, isMoreOpen, onToggleMore }) {
     if (slot === 'more') return isMoreOpen
     if (isMoreOpen) return false
     if (slot === 'home') return route === 'home'
+    if (slot === 'matches') return route === 'matches'
     if (slot === 'sessions') return route === 'sessions' || route === 'session'
     if (slot === 'debts') return route === 'debts'
     if (slot === 'leaderboard') return route === 'leaderboard'

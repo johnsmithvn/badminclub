@@ -50,7 +50,7 @@ export function effRoute(role, route) {
 export function footerSlots(role) {
   const canMoney = can(role, 'money')
   return canMoney
-    ? ['home', 'sessions', 'debts', 'leaderboard', 'more']
-    : ['home', 'sessions', 'leaderboard', 'profile', 'more']
+    ? ['home', 'matches', 'debts', 'leaderboard', 'more']
+    : ['home', 'matches', 'leaderboard', 'profile', 'more']
 }
 

@@ -129,87 +129,44 @@ export default function ActivityTab() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '16px 0' }}>
+    <div style={S.container}>
       {/* Danh sách các sự kiện */}
       {events.length === 0 && !loading ? (
-        <div
-          style={{
-            padding: '48px 24px',
-            textAlign: 'center',
-            color: 'var(--text-muted)',
-          }}
-        >
-          <Icon name="activity" size={36} style={{ marginBottom: 12, opacity: 0.4 }} />
-          <div style={{ fontSize: 15 }}>{t('activity.empty')}</div>
+        <div style={S.card}>
+          <div style={S.emptyState}>
+            <Icon name="activity" size={32} style={{ opacity: 0.4 }} />
+            <div>{t('activity.empty')}</div>
+          </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {events.map((item) => {
-            const meta = getEventMeta(item)
-            const resolvedPayload = resolveActivityPayload(item, db)
-            const text = t('activity.' + meta.key, resolvedPayload)
+        <div style={S.card}>
+          <div style={S.headerRow}>
+            <span style={S.headerTitle}>{t('activity.tabName')}</span>
+            <span style={S.countBadge}>{events.length}</span>
+          </div>
+          <div style={S.eventsList}>
+            {events.map((item) => {
+              const meta = getEventMeta(item)
+              const resolvedPayload = resolveActivityPayload(item, db)
+              const text = t('activity.' + meta.key, resolvedPayload)
 
-            return (
-              <div
-                key={item.id}
-                style={{
-                  padding: 16,
-                  borderRadius: 12,
-                  backgroundColor: 'var(--surface-card)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 14,
-                  boxShadow: 'var(--shadow-xs, 0 1px 3px rgba(0, 0, 0, 0.08))',
-                }}
-              >
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    backgroundColor: meta.badgeColor,
-                    color: meta.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon name={meta.icon} size={20} />
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 15,
-                      lineHeight: 1.45,
-                      color: 'var(--text-primary)',
-                      fontWeight: 500,
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {text}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--text-muted)',
-                      marginTop: 6,
-                    }}
-                  >
-                    {formatActivityTime(item.created_at)}
+              return (
+                <div key={item.id} style={S.eventRow}>
+                  <span style={{ ...S.dot, background: meta.color }} />
+                  <div style={S.eventContent}>
+                    <div style={S.eventTitle}>{text}</div>
+                    <div style={S.eventTime}>{formatActivityTime(item.created_at)}</div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       )}
 
       {/* Nút xem thêm */}
       {hasMore && !loading && (
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
+        <div style={S.loadMoreBox}>
           <Button variant="secondary" onClick={handleLoadMore}>
             {t('activity.loadMore')}
           </Button>
@@ -217,10 +174,105 @@ export default function ActivityTab() {
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)' }}>
+        <div style={S.loadingBox}>
           {t('activity.loading')}
         </div>
       )}
     </div>
   )
+}
+
+const S = {
+  container: {
+    maxWidth: 680,
+    margin: '0 auto',
+    padding: '16px 0 32px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+  card: {
+    padding: '16px 18px',
+    borderRadius: 14,
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
+    boxShadow: 'var(--shadow-sm)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  headerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 8,
+    borderBottom: '1px solid var(--border-subtle)',
+  },
+  headerTitle: {
+    font: '600 11px/1 var(--font-sans)',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--text-muted)',
+  },
+  countBadge: {
+    font: '500 11px/1 var(--font-mono)',
+    color: 'var(--text-muted)',
+    background: 'var(--surface-sunken)',
+    padding: '3px 7px',
+    borderRadius: 999,
+  },
+  eventsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  eventRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: '2px 0',
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: '50%',
+    flexShrink: 0,
+    marginTop: 6,
+  },
+  eventContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eventTitle: {
+    font: '500 13px/1.4 var(--font-sans)',
+    color: 'var(--text-primary)',
+    wordBreak: 'break-word',
+  },
+  eventTime: {
+    font: '400 11px/1.2 var(--font-sans)',
+    color: 'var(--text-muted)',
+    marginTop: 3,
+  },
+  emptyState: {
+    padding: '48px 20px',
+    textAlign: 'center',
+    color: 'var(--text-muted)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 10,
+    font: '500 14px/1.4 var(--font-sans)',
+  },
+  loadMoreBox: {
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  loadingBox: {
+    textAlign: 'center',
+    padding: '16px 0',
+    color: 'var(--text-muted)',
+    font: '400 13px/1.4 var(--font-sans)',
+  },
 }

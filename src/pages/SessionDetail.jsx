@@ -225,7 +225,22 @@ export default function SessionDetail() {
   // Cố định của nhóm + người đi thêm hôm nay. Người đi thêm trả tiền theo ĐƠN GIÁ MỘT BUỔI
   // của nhóm, không phải giá khách — họ là người nhà, xem tab Đối chiếu ở Công nợ.
   const att = db.attendance[s.id] || {}
-  const members = sortAttendanceMembers(sessionMembers(db, s), att)
+  const [sortKey, setSortKey] = useState(0)
+
+  // Thứ tự thành viên được tính ban đầu (hoặc khi người dùng chủ động bấm "Gom nhóm").
+  // Trong quá trình bấm đổi trạng thái điểm danh, thứ tự được giữ cố định để không bị nhảy vị trí.
+  const orderedMemberIds = useMemo(() => {
+    return sortAttendanceMembers(sessionMembers(db, s), att).map((m) => m.id)
+  }, [s.id, sortKey])
+
+  const currentMembers = sessionMembers(db, s)
+  const memberMap = useMemo(() => new Map(currentMembers.map((m) => [m.id, m])), [currentMembers])
+  const members = useMemo(() => {
+    const sorted = orderedMemberIds.map((mid) => memberMap.get(mid)).filter(Boolean)
+    const existing = new Set(orderedMemberIds)
+    const rest = currentMembers.filter((m) => !existing.has(m.id))
+    return [...sorted, ...rest]
+  }, [orderedMemberIds, memberMap, currentMembers])
   // Khối "Khách giao lưu" chỉ liệt kê khách NGOÀI CLB. Dòng thu của thành viên đi buổi đột xuất
   // nằm trong bảng điểm danh, ngay cạnh tên họ — không tách ra hai chỗ cho cùng một người.
   const guests = sGuestsOnly(db, s.id)
@@ -250,223 +265,264 @@ export default function SessionDetail() {
     ? t('session.courtTimeSub', { time: timeRange, courts: courtNames })
     : `${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`
 
-  // Nhóm thành viên theo 4 trạng thái điểm danh và chỉ giữ lại section có thành viên
-  const unmarked = []
-  const present = []
-  const absent = []
-  const extra = []
+  const [attStatusFilter, setAttStatusFilter] = useState('all')
+  const [attKindFilter, setAttKindFilter] = useState('all')
 
-  members.forEach((m) => {
+  const KIND_COLORS = {
+    member: '#00B2A9',
+    guest: '#E0A03C',
+    extra: '#8A7BE8',
+  }
+
+  const hexA = (hex, a) => {
+    const h = (hex || '#00B2A9').replace('#', '')
+    const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+  }
+
+  // 1. Thành viên cố định của nhóm
+  const fixedMembers = members.filter((m) => att[m.id] !== 'extra').map((m) => {
     const state = att[m.id]
-    if (state === 'extra') {
-      extra.push(m)
-    } else if (allSold || state === false) {
-      absent.push(m)
-    } else if (state === true) {
-      present.push(m)
-    } else {
-      unmarked.push(m)
+    const isPresent = state === true
+    const isNoShow = state === 'noshow'
+    const isAbsent = allSold || state === false
+    const status = isPresent ? 'present' : isNoShow ? 'noshow' : isAbsent ? 'absent' : 'pending'
+    const due = dues.find((d) => d.memberId === m.id && d.groupId === s.groupId)
+    const charge = adhoc ? charges.find((c) => c.memberId === m.id) : null
+    let owe = false
+    if (charge) {
+      owe = !charge.paid
+    } else if (due) {
+      const ds = dueState(due)
+      owe = ds.state !== 'full'
+    }
+    return {
+      id: m.id,
+      name: m.name,
+      gender: m.gender === 'nu' || m.gender === 'F' ? 'F' : 'M',
+      level: levelOf(m, month),
+      kind: 'member',
+      status,
+      owe,
+      raw: m,
     }
   })
 
-  const attendanceSections = [
-    {
-      id: 'unmarked',
-      label: t('attend.unmarked'),
-      count: unmarked.length,
-      members: unmarked,
-      dotColor: 'var(--text-disabled)',
-      textColor: 'var(--text-secondary)',
-      badgeBg: 'var(--surface-sunken)',
-      border: '1px solid var(--border-subtle)',
-      lineGradient: 'linear-gradient(90deg, var(--border-subtle) 0%, transparent 100%)',
-    },
-    {
-      id: 'present',
-      label: t('attend.present'),
-      count: present.length,
-      members: present,
-      dotColor: 'var(--teal-500, #00B2A9)',
-      textColor: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
-      badgeBg: isDark ? 'rgba(0,178,169,0.12)' : 'var(--teal-50, rgba(0,178,169,0.12))',
-      border: isDark ? '1px solid rgba(0,178,169,0.3)' : '1px solid var(--teal-200, rgba(0,178,169,0.3))',
-      lineGradient: isDark ? 'linear-gradient(90deg, rgba(0,178,169,0.35) 0%, transparent 100%)' : 'linear-gradient(90deg, var(--teal-300, #7ADFD9) 0%, transparent 100%)',
-    },
-    {
-      id: 'absent',
-      label: t('attend.absent'),
-      count: absent.length,
-      members: absent,
-      dotColor: 'var(--text-disabled)',
-      textColor: 'var(--text-muted)',
-      badgeBg: 'var(--surface-sunken)',
-      border: '1px solid var(--border-subtle)',
-      lineGradient: 'linear-gradient(90deg, var(--border-subtle) 0%, transparent 100%)',
-    },
-    {
-      id: 'extra',
-      label: t('attend.extra'),
-      count: extra.length,
-      members: extra,
-      dotColor: isDark ? '#F0B75C' : 'var(--amber-500, #E08A00)',
-      textColor: isDark ? '#F0B75C' : 'var(--amber-700, #784A15)',
-      badgeBg: isDark ? 'rgba(224,138,0,0.15)' : 'var(--amber-100, rgba(224,138,0,0.15))',
-      border: isDark ? '1px solid rgba(240,183,92,0.3)' : '1px solid rgba(224,138,0,0.3)',
-      lineGradient: isDark ? 'linear-gradient(90deg, rgba(240,183,92,0.3) 0%, transparent 100%)' : 'linear-gradient(90deg, rgba(224,138,0,0.3) 0%, transparent 100%)',
-    },
-  ].filter((sec) => sec.count > 0)
-
-  const renderMemberRow = (m) => {
-    const state = att[m.id]
-    const extra = state === 'extra'
-    const due = dues.find((d) => d.memberId === m.id && d.groupId === s.groupId)
+  // 2. Người đi thêm hôm nay
+  const extraMembers = members.filter((m) => att[m.id] === 'extra').map((m) => {
     const charge = adhoc ? charges.find((c) => c.memberId === m.id) : null
-
-    let dueText = ''
-    let dueColor = 'var(--text-muted)'
-    if (charge) {
-      dueText = charge.paid ? t('session.guestPaid') : t('session.guestDebt')
-      if (!charge.paid) dueColor = isDark ? '#F0B75C' : 'var(--amber-700, #784A15)'
-    } else if (extra) {
-      dueText = t('session.extraDueTag')
-    } else if (due) {
-      const ds = dueState(due)
-      if (ds.state === 'full') {
-        dueText = t('session.duePaidTag')
-        dueColor = 'var(--text-muted)'
-      } else if (ds.state === 'partial') {
-        dueText = t('session.duePartialTag', { amount: fmtK(ds.remain) })
-        dueColor = isDark ? '#F0B75C' : 'var(--amber-700, #784A15)'
-      } else {
-        dueText = t('session.dueUnpaidTag')
-        dueColor = isDark ? '#F0B75C' : 'var(--amber-700, #784A15)'
-      }
-    } else {
-      dueText = t('session.noDueTag')
+    const owe = charge ? !charge.paid : false
+    return {
+      id: m.id,
+      name: m.name,
+      gender: m.gender === 'nu' || m.gender === 'F' ? 'F' : 'M',
+      level: levelOf(m, month),
+      kind: 'extra',
+      status: 'present',
+      owe,
+      raw: m,
     }
+  })
 
-    const isPresent = state === true
-    const isNoShow = state === 'noshow'
-    const isAbsent = state === false || allSold
+  // 3. Khách ngoài giao lưu
+  const guestMembers = guests.map((g) => {
+    const gInfo = guestOf(db, g.guestId)
+    return {
+      id: g.id,
+      guestId: g.guestId,
+      name: gInfo.name,
+      gender: g.gender === 'nu' || g.gender === 'F' ? 'F' : 'M',
+      level: g.level || gInfo.level,
+      kind: 'guest',
+      status: 'present',
+      owe: !g.paid,
+      raw: g,
+    }
+  })
 
-    let rowBg = 'var(--surface-card)'
-    let rowBorder = '1px solid var(--border-subtle)'
-    let statusText = t('attend.unmarked')
-    let statusColor = 'var(--text-disabled)'
+  const everyone = [...fixedMembers, ...extraMembers, ...guestMembers]
 
-    if (allSold) {
-      rowBg = 'var(--surface-sunken)'
-      rowBorder = '1px solid var(--border-subtle)'
-      statusText = t('attend.absent')
-      statusColor = 'var(--text-muted)'
-    } else if (isPresent) {
-      rowBg = isDark ? 'rgba(0,178,169,.14)' : 'rgba(0,178,169,.06)'
-      rowBorder = isDark ? '1px solid var(--teal-500)' : '1px solid var(--teal-300, #7ADFD9)'
-      statusText = t('attend.present')
-      statusColor = isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)'
+  const dGoing = everyone.filter((m) => m.status === 'present').length
+  const nMemPresent = everyone.filter((m) => m.status === 'present' && m.kind === 'member').length
+  const nGuestPresent = everyone.filter((m) => m.status === 'present' && m.kind === 'guest').length
+  const nExtraPresent = everyone.filter((m) => m.status === 'present' && m.kind === 'extra').length
+  const dBreak = t('attend.breakdown', {
+    members: nMemPresent,
+    guests: nGuestPresent,
+    extras: nExtraPresent,
+  })
+
+  const dStatusTabs = [
+    { key: 'all', label: t('common.all'), count: everyone.length },
+    { key: 'present', label: t('attend.present'), count: everyone.filter((m) => m.status === 'present').length },
+    { key: 'absent', label: t('attend.absent'), count: everyone.filter((m) => m.status === 'absent' || m.status === 'noshow').length },
+    { key: 'pending', label: t('attend.unmarked'), count: everyone.filter((m) => m.status === 'pending').length },
+  ]
+
+  const dKindTabs = [
+    { key: 'all', label: t('common.all'), count: everyone.length },
+    { key: 'member', label: t('attend.member'), count: everyone.filter((m) => m.kind === 'member').length },
+    { key: 'guest', label: t('attend.guest'), count: everyone.filter((m) => m.kind === 'guest').length },
+    { key: 'extra', label: t('attend.extra'), count: everyone.filter((m) => m.kind === 'extra').length },
+  ]
+
+  const filteredEveryone = everyone.filter((m) => {
+    const matchStatus =
+      attStatusFilter === 'all' ||
+      (attStatusFilter === 'present'
+        ? m.status === 'present'
+        : attStatusFilter === 'absent'
+        ? m.status === 'absent' || m.status === 'noshow'
+        : m.status === 'pending')
+    const matchKind = attKindFilter === 'all' || m.kind === attKindFilter
+    return matchStatus && matchKind
+  })
+
+  const dMen = filteredEveryone.filter((m) => m.gender === 'M')
+  const dWomen = filteredEveryone.filter((m) => m.gender === 'F')
+
+  const dMenAll = everyone.filter((m) => m.gender === 'M')
+  const dWomenAll = everyone.filter((m) => m.gender === 'F')
+
+  const laneLabel = (arr) => {
+    const presentList = arr.filter((m) => m.status === 'present')
+    const gCount = presentList.filter((m) => m.kind === 'guest').length
+    const eCount = presentList.filter((m) => m.kind === 'extra').length
+    const tail = [
+      gCount ? t('attend.laneGuests', { n: gCount }) : '',
+      eCount ? t('attend.laneExtras', { n: eCount }) : '',
+    ].filter(Boolean).join(' · ')
+    return tail
+      ? `${t('attend.laneLabel', { present: presentList.length })} · ${tail}`
+      : t('attend.laneLabel', { present: presentList.length })
+  }
+
+  const dMenLabel = laneLabel(dMenAll)
+  const dWomenLabel = laneLabel(dWomenAll)
+
+  const renderChip = (m) => {
+    const c = KIND_COLORS[m.kind] || '#00B2A9'
+    const isPresent = m.status === 'present'
+    const isAbsent = m.status === 'absent'
+    const isNoShow = m.status === 'noshow'
+
+    let bg = 'var(--surface-inset, #101927)'
+    let border = '1px dashed var(--border-default, #33435F)'
+    let color = 'var(--text-secondary, #A8B7CB)'
+
+    if (isPresent) {
+      bg = hexA(c, isDark ? 0.17 : 0.12)
+      border = `1px solid ${hexA(c, isDark ? 0.42 : 0.35)}`
+      color = 'var(--text-primary, #E9EFF7)'
     } else if (isNoShow) {
-      // Amber = "có gì đó chưa ổn nhưng vẫn phải trả tiền", cùng tông với công nợ (DESIGN.md §2).
-      rowBg = 'var(--status-delayed-bg)'
-      rowBorder = '1px solid var(--status-delayed)'
-      statusText = t('attend.noshow')
-      statusColor = 'var(--status-delayed-fg)'
+      bg = isDark ? 'rgba(234, 88, 12, 0.22)' : 'rgba(234, 88, 12, 0.12)'
+      border = isDark ? '1px solid rgba(251, 146, 60, 0.50)' : '1px solid rgba(234, 88, 12, 0.45)'
+      color = isDark ? '#FB923C' : '#C2410C'
     } else if (isAbsent) {
-      rowBg = 'var(--surface-sunken)'
-      rowBorder = '1px solid var(--border-subtle)'
-      statusText = t('attend.absent')
-      statusColor = 'var(--text-muted)'
-    } else if (extra) {
-      rowBg = isDark ? 'rgba(0,178,169,.08)' : 'rgba(0,178,169,.04)'
-      rowBorder = isDark ? '1px solid var(--teal-500)' : '1px solid var(--teal-300, #7ADFD9)'
-      statusText = t('attend.extra')
-      statusColor = isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)'
+      bg = 'transparent'
+      border = '1px solid var(--border-subtle, #2A3A56)'
+      color = 'var(--text-muted, #8494AA)'
     }
+
+    const handleClick = () => {
+      if (!canEdit || isInactive || isClosed) return
+      if (m.kind === 'member') {
+        a.toggleAtt(s.id, m.id)
+      } else if (m.kind === 'extra') {
+        a.confirm({
+          title: t('session.dropExtraTitle'),
+          message: t('session.dropExtraMsg', { name: m.name }),
+          tone: 'danger',
+          confirmText: t('session.dropExtraOk'),
+          onConfirm: () => a.removeExtra(s.id, m.id),
+        })
+      } else if (m.kind === 'guest') {
+        setEditingGuest(guestOf(db, m.guestId))
+      }
+    }
+
+    const chipTitle = `${m.name} · ${
+      isPresent
+        ? t('attend.present')
+        : isNoShow
+        ? t('attend.noshowTooltip')
+        : isAbsent
+        ? t('attend.absent')
+        : t('attend.unmarked')
+    }${m.owe ? ' · ' + t('attend.legendOwe') : ''}`
 
     return (
-      <div
-        key={m.id}
+      <button
+        key={`${m.kind}-${m.id}`}
+        type="button"
+        onClick={handleClick}
+        disabled={!canEdit || isInactive || isClosed}
+        title={chipTitle}
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          padding: '9px 11px',
-          borderRadius: 8,
-          background: rowBg,
-          border: rowBorder,
-          opacity: isInactive ? 0.75 : 1,
-          transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          gap: 6,
+          height: 30,
+          padding: '0 8px 0 7px',
+          borderRadius: 6,
+          width: '100%',
+          minWidth: 0,
+          font: "600 12px/1 'IBM Plex Sans', sans-serif",
+          borderLeft: `3px solid ${isPresent ? c : hexA(c, 0.4)}`,
+          background: bg,
+          borderTop: border,
+          borderRight: border,
+          borderBottom: border,
+          color,
+          cursor: canEdit && !isInactive && !isClosed ? 'pointer' : 'default',
+          textAlign: 'left',
+          transition: 'all 0.15s ease',
         }}
       >
-        <button
-          type="button"
-          disabled={!canEdit || extra || isInactive || isClosed}
-          onClick={() => a.toggleAtt(s.id, m.id)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flex: 1,
-            minWidth: 0,
-            background: 'none',
-            border: 0,
-            padding: 0,
-            textAlign: 'left',
-            cursor: canEdit && !extra && !isInactive && !isClosed ? 'pointer' : 'default',
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={S.label}>{m.name}</div>
-            <div style={{
-              ...S.caption,
-              color: dueColor,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}>
-              {genderTxt(m.gender) + ' · ' + levelOf(m, month) + ' · ' + dueText}
-            </div>
-          </div>
-          <LevelChip level={levelOf(m, month)} levels={db.levels} />
-          <span style={{
-            font: "600 13px/1.2 'IBM Plex Sans', sans-serif",
-            color: statusColor,
-            whiteSpace: 'nowrap',
-            minWidth: 56,
-            textAlign: 'right',
-          }}>
-            {statusText}
+        <span style={{
+          flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {m.name}
+        </span>
+        {isNoShow && (
+          <span
+            style={{
+              font: "700 9.5px/1 'IBM Plex Sans', sans-serif",
+              padding: '2px 4px',
+              borderRadius: 3,
+              background: isDark ? 'rgba(234, 88, 12, 0.35)' : 'rgba(234, 88, 12, 0.20)',
+              color: isDark ? '#FDBA74' : '#C2410C',
+              flex: '0 0 auto',
+              letterSpacing: '0.2px',
+            }}
+          >
+            {t('attend.noshowShort')}
           </span>
-        </button>
-
-        {charge && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <Mono weight={600} color="var(--text-primary)">{fmt(charge.price)}</Mono>
-            <span style={charge.paid ? S.tagGreen : S.tagAmber}>
-              {t(charge.paid ? 'session.guestPaid' : 'session.guestDebt')}
-            </span>
-          </div>
         )}
-
-        {extra && canEdit && !isClosed && (
-          <IconButton
-            icon="trash-2"
-            size="sm"
-            variant="ghost"
-            style={{ color: 'var(--status-incident)' }}
-            label={t('common.delete')}
-            onClick={(e) => {
-              e.stopPropagation()
-              a.confirm({
-                title: t('session.dropExtraTitle'),
-                message: t('session.dropExtraMsg', { name: m.name }),
-                tone: 'danger',
-                confirmText: t('session.dropExtraOk'),
-                onConfirm: () => a.removeExtra(s.id, m.id),
-              })
+        {m.owe && (
+          <span
+            title={t('attend.legendOwe')}
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#E0A03C',
+              flex: '0 0 auto',
             }}
           />
         )}
-      </div>
+        <span style={{
+          font: "400 10.5px/1 'IBM Plex Mono', monospace",
+          color: isAbsent ? 'var(--text-disabled)' : 'var(--text-muted)',
+          flex: '0 0 auto',
+        }}>
+          {m.level}
+        </span>
+      </button>
     )
   }
 
@@ -882,149 +938,329 @@ export default function SessionDetail() {
         {/* ---------------- điểm danh ---------------- */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <SelfAttendanceCard s={s} db={db} a={a} isMobile={isMobile} isClosed={isClosed} />
-          <Card
-          title={t('session.attendTitle')}
-          subtitle={t('session.attendSub')}
-          icon="user-round-check"
-          padding="14px 16px"
-          actions={canEdit && !isInactive && !isClosed && (
-            <div style={{ display: 'flex', gap: 6, width: isMobile ? 'auto' : 'auto' }}>
-              <Button
-                variant="secondary"
-                size="sm"
+          {/* ---------------- Khối Điểm Danh 2a ---------------- */}
+          <div
+            style={{
+              background: 'var(--surface-card, #141D2E)',
+              border: '1px solid var(--border-default, #22304A)',
+              borderRadius: 12,
+              boxShadow: '0 1px 2px rgba(0,0,0,.35)',
+              padding: '14px 16px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 11,
+            }}
+          >
+            {/* Header: Badge 2a, Tiêu đề, Badge số người đi, Breakdown, Nút Tất cả có mặt & Xoá */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+              <span
                 style={{
-                  height: 32,
-                  background: 'var(--surface-inset)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  justifyContent: 'center',
-                  padding: isMobile ? '0 8px' : '0 12px',
-                }}
-                onClick={() => a.markAll(s.id, true)}
-              >
-                {isMobile ? t('session.allPresentShort') : t('session.allPresent')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                style={{
-                  height: 32,
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  justifyContent: 'center',
-                  padding: isMobile ? '0 8px' : '0 12px',
-                }}
-                onClick={() => a.markAll(s.id, false)}
-              >
-                {isMobile ? t('session.allAbsentShort') : t('session.allAbsent')}
-              </Button>
-            </div>
-          )}
-        >
-          <div style={{ display: 'grid', gap: 7 }}>
-            {isCancelled && <Alert tone="danger">{t('session.cancelledNotice')}</Alert>}
-            {allSold && <Alert tone="warning">{t('session.allSoldNotice')}</Alert>}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 4 }}>
-              <span style={{
-                font: "700 11.5px/1 'IBM Plex Sans', sans-serif",
-                color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
-                background: isDark ? 'rgba(0,178,169,.14)' : 'var(--teal-50, rgba(0,178,169,.14))',
-                padding: '4px 8px',
-                borderRadius: 4,
-                border: isDark ? '1px solid rgba(0,178,169,.35)' : '1px solid var(--teal-300, rgba(0,178,169,.35))',
-              }}>
-                {t('session.attendSummary', { total: headCount(db, s) })}
-              </span>
-              <span style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
-                {t('session.attendCount', { present: presentCount(db, s), total: members.length })}
-              </span>
-              {guests.length > 0 && (
-                <span style={{
-                  font: "700 11.5px/1 'IBM Plex Sans', sans-serif",
-                  color: isDark ? '#F0B75C' : 'var(--amber-700, #784A15)',
-                  background: isDark ? 'rgba(224,138,0,.18)' : 'var(--amber-100, rgba(224,138,0,.18))',
-                  padding: '3px 7px',
+                  font: "600 11px/1 'IBM Plex Mono', monospace",
+                  color: '#04302C',
+                  background: 'var(--teal-500, #00B2A9)',
+                  padding: '4px 7px',
                   borderRadius: 4,
-                }}>
-                  {t('session.guestCountTag', { n: guests.length })}
-                </span>
+                }}
+              >
+                2a
+              </span>
+              <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                {`${t('session.attendTitle')} ${dd(s.date)}`}
+              </div>
+              <span style={{ flex: 1 }} />
+              <span
+                style={{
+                  font: "700 12px/1 'IBM Plex Sans', sans-serif",
+                  color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
+                  background: isDark ? 'rgba(0,178,169,.14)' : 'rgba(0,178,169,.10)',
+                  border: '1px solid ' + (isDark ? 'rgba(0,178,169,.35)' : 'rgba(0,178,169,.30)'),
+                  padding: '5px 9px',
+                  borderRadius: 5,
+                }}
+              >
+                {t('attend.peopleGoing', { n: dGoing })}
+              </span>
+              <span style={{ font: "400 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
+                {dBreak}
+              </span>
+              {canEdit && !isInactive && !isClosed && (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => a.markAll(s.id, true)}
+                    style={{
+                      height: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '0 10px',
+                      borderRadius: 6,
+                      background: 'var(--surface-inset, #1A2437)',
+                      border: '1px solid var(--border-default, #2E3E5C)',
+                      font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                      color: 'var(--text-primary, #E9EFF7)',
+                    }}
+                  >
+                    {t('session.allPresent')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => a.markAll(s.id, false)}
+                    style={{
+                      height: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '0 10px',
+                      borderRadius: 6,
+                      font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                      color: 'var(--text-muted, #8494AA)',
+                    }}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </>
               )}
             </div>
+
+            {/* Thanh Filter kép: Trạng thái + Phân loại */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                flexWrap: 'wrap',
+                paddingBottom: 11,
+                borderBottom: '1px solid var(--border-subtle, #1D2A42)',
+              }}
+            >
+              {dStatusTabs.map((tab) => {
+                const isActive = attStatusFilter === tab.key
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setAttStatusFilter(tab.key)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      height: 28,
+                      padding: '0 10px',
+                      borderRadius: 6,
+                      font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                      background: isActive
+                        ? (isDark ? 'var(--teal-500, #00B2A9)' : 'var(--teal-600, #00786F)')
+                        : 'var(--surface-inset, #101927)',
+                      border: '1px solid ' + (isActive ? 'var(--teal-500, #00B2A9)' : 'var(--border-default, #2E3E5C)'),
+                      color: isActive ? '#04231F' : 'var(--text-secondary, #A8B7CB)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      style={{
+                        font: "600 10.5px/1 'IBM Plex Mono', monospace",
+                        opacity: isActive ? 0.85 : 0.6,
+                      }}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                )
+              })}
+
+              <span style={{ width: 1, height: 18, background: 'var(--border-subtle, #2A3A56)', margin: '0 3px' }} />
+
+              {dKindTabs.map((tab) => {
+                const isActive = attKindFilter === tab.key
+                const col = tab.key === 'all' ? (isDark ? '#00B2A9' : '#00786F') : (KIND_COLORS[tab.key] || '#00B2A9')
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setAttKindFilter(tab.key)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      height: 28,
+                      padding: '0 10px',
+                      borderRadius: 6,
+                      font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                      background: isActive
+                        ? hexA(col, isDark ? 0.22 : 0.15)
+                        : 'var(--surface-inset, #101927)',
+                      border: '1px solid ' + (isActive ? col : 'var(--border-default, #2E3E5C)'),
+                      color: isActive ? (isDark ? '#E9EFF7' : 'var(--text-primary)') : 'var(--text-secondary, #A8B7CB)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      style={{
+                        font: "600 10.5px/1 'IBM Plex Mono', monospace",
+                        opacity: isActive ? 0.85 : 0.6,
+                      }}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                )
+              })}
+
+              <span style={{ flex: 1 }} />
+
+              <button
+                type="button"
+                title={t('attend.reorderHint')}
+                onClick={() => setSortKey((k) => k + 1)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  height: 28,
+                  padding: '0 9px',
+                  borderRadius: 6,
+                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                  background: 'var(--surface-inset, #1A2437)',
+                  border: '1px solid var(--border-default, #2E3E5C)',
+                  color: 'var(--text-secondary, #A8B7CB)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="rotate-ccw" size={12} color="var(--text-muted)" />
+                <span>{t('attend.reorderBtn')}</span>
+              </button>
+            </div>
+
+            {/* Thông báo huỷ / bán sân */}
+            {isCancelled && <Alert tone="danger">{t('session.cancelledNotice')}</Alert>}
+            {allSold && <Alert tone="warning">{t('session.allSoldNotice')}</Alert>}
             {adhoc && <Alert tone="info">{t('session.adhocChargeNote')}</Alert>}
-            {members.length === 0 && <Empty icon="users" title={t('members.emptyGroup')} hint={t('members.emptyGroupHint')} />}
-            {attendanceSections.map((sec, secIdx) => (
-              <div key={sec.id} style={{ display: 'grid', gap: 7 }}>
+            {everyone.length === 0 && <Empty icon="users" title={t('members.emptyGroup')} hint={t('members.emptyGroupHint')} />}
+
+            {/* Lưới 2 làn: Nam và Nữ */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                gap: 16,
+                alignItems: 'start',
+              }}
+            >
+              {/* Làn Nam */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    margin: secIdx === 0 ? '2px 0 3px' : '10px 0 3px',
-                    padding: '0 2px',
-                    userSelect: 'none',
+                    padding: '6px 9px',
+                    borderRadius: 7,
+                    background: isDark ? 'rgba(91,155,232,.10)' : 'rgba(91,155,232,.08)',
+                    border: isDark ? '1px solid rgba(91,155,232,.28)' : '1px solid rgba(91,155,232,.20)',
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '2px 8px',
-                      borderRadius: 99,
-                      background: sec.badgeBg,
-                      border: sec.border,
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                      transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: '50%',
-                        background: sec.dotColor,
-                        display: 'inline-block',
-                      }}
-                    />
-                    <span
-                      style={{
-                        font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
-                        color: sec.textColor,
-                        letterSpacing: '0.3px',
-                      }}
-                    >
-                      {sec.label}
-                    </span>
-                    <span
-                      style={{
-                        font: "700 10.5px/1.2 'IBM Plex Mono', monospace",
-                        color: sec.textColor,
-                        opacity: 0.85,
-                        marginLeft: 2,
-                      }}
-                    >
-                      {sec.count}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      flex: 1,
-                      height: 1,
-                      background: sec.lineGradient,
-                    }}
-                  />
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#5B9BE8', flex: '0 0 auto' }} />
+                  <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                    {t('gender.nam')}
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  <span style={{ font: "600 11.5px/1 'IBM Plex Mono', monospace", color: isDark ? '#9CC4F2' : '#3B82F6' }}>
+                    {dMenLabel}
+                  </span>
                 </div>
-
-                {sec.members.map(renderMemberRow)}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {dMen.map(renderChip)}
+                </div>
               </div>
-            ))}
-            {canEdit && !isInactive && !isClosed && <ExtraPicker s={s} members={members} isMobile={isMobile} />}
+
+              {/* Làn Nữ */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 9px',
+                    borderRadius: 7,
+                    background: isDark ? 'rgba(232,138,184,.10)' : 'rgba(232,138,184,.08)',
+                    border: isDark ? '1px solid rgba(232,138,184,.28)' : '1px solid rgba(232,138,184,.20)',
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#E88AB8', flex: '0 0 auto' }} />
+                  <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                    {t('gender.nu')}
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  <span style={{ font: "600 11.5px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0B2D0' : '#EC4899' }}>
+                    {dWomenLabel}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {dWomen.map(renderChip)}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer chú thích (Legend) */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                flexWrap: 'wrap',
+                paddingTop: 6,
+                borderTop: '1px solid var(--border-subtle, #1D2A42)',
+                font: "400 11.5px/1.4 'IBM Plex Sans', sans-serif",
+                color: 'var(--text-muted, #8494AA)',
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 4, height: 14, borderRadius: 2, background: 'var(--teal-500, #00B2A9)' }} />
+                {t('attend.member')}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 4, height: 14, borderRadius: 2, background: '#E0A03C' }} />
+                {t('attend.guest')}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 4, height: 14, borderRadius: 2, background: '#8A7BE8' }} />
+                {t('attend.extra')}
+              </span>
+              <span style={{ width: 1, height: 14, background: 'var(--border-subtle, #2A3A56)' }} />
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 11, height: 11, borderRadius: 3, background: 'rgba(0,178,169,.20)', border: '1px solid rgba(0,178,169,.45)' }} />
+                {t('attend.legendPresent')}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 11, height: 11, borderRadius: 3, border: '1px solid var(--border-subtle, #2A3A56)', background: 'transparent' }} />
+                {t('attend.legendAbsent')}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 11, height: 11, borderRadius: 3, background: 'rgba(234, 88, 12, 0.25)', border: '1px solid rgba(251, 146, 60, 0.50)' }} />
+                {t('attend.legendNoshow')}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 11, height: 11, borderRadius: 3, border: '1px dashed var(--border-default, #33435F)' }} />
+                {t('attend.legendPending')}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#E0A03C' }} />
+                {t('attend.legendOwe')}
+              </span>
+              <span style={{ flex: 1 }} />
+            </div>
+
+            {/* ExtraPicker */}
+            {canEdit && !isInactive && !isClosed && (
+              <ExtraPicker s={s} members={members} isMobile={isMobile} />
+            )}
           </div>
-        </Card>
         </div>
 
         {/* ---------------- cột phải ---------------- */}
@@ -1443,9 +1679,10 @@ function GuestForm({ s, isMobile }) {
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
+      {/* Hàng 1: Tên khách + Giới tính + Trình độ */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr 1fr' : '1.4fr 110px 95px minmax(180px, 1.6fr) auto',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 110px 90px',
         gap: 9,
         alignItems: 'flex-end',
       }}>
@@ -1527,7 +1764,16 @@ function GuestForm({ s, isMobile }) {
             onChange={(e) => set('gLevel', e.target.value)}
           />
         </div>
-        <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
+      </div>
+
+      {/* Hàng 2: Người rủ + Nút Thêm */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+        gap: 9,
+        alignItems: 'flex-end',
+      }}>
+        <div style={{ minWidth: 0 }}>
           <SearchSelect
             label={t('session.guestBy')}
             value={f.gBy || ''}
@@ -1546,10 +1792,9 @@ function GuestForm({ s, isMobile }) {
           style={{
             whiteSpace: 'nowrap',
             fontWeight: 600,
-            minWidth: 90,
+            minWidth: 100,
             justifyContent: 'center',
-            gridColumn: isMobile ? '1 / -1' : 'auto',
-            height: isMobile ? 36 : undefined,
+            height: 36,
           }}
           onClick={() => { setOpen(false); a.addGuest() }}
         >

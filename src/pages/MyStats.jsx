@@ -32,6 +32,7 @@ import ClubFeedCard from '#components/home/personal/ClubFeedCard.jsx'
 import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.jsx'
 import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
 import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
+import ActivityTab from '#components/home/ActivityTab.jsx'
 
 export default function MyStats() {
   const { db, a, ui } = useApp()
@@ -39,11 +40,12 @@ export default function MyStats() {
   const { isDark, toggleTheme } = useTheme()
   const isMobile = useMobile(768)
 
-  const tab = ui?.tab?.home === 'match' ? 'match' : 'personal'
+  const tab = ui?.tab?.home === 'match' ? 'match' : ui?.tab?.home === 'activity' ? 'activity' : 'personal'
   const tabItems = useMemo(
     () => [
       { value: 'personal', label: t('home.tabPersonal') },
       { value: 'match', label: t('home.tabMatch') },
+      { value: 'activity', label: t('activity.tabName') },
     ],
     [],
   )
@@ -219,6 +221,8 @@ export default function MyStats() {
 
         {tab === 'match' ? (
           <HomeMatchTab />
+        ) : tab === 'activity' ? (
+          <ActivityTab />
         ) : (
           <>
             {/* Thẻ 01: Hero Rank */}
@@ -286,7 +290,7 @@ export default function MyStats() {
             <ClubFeedCard
               events={clubHighlights}
               isMobile={true}
-              onViewAll={handleViewMatches}
+              onViewAll={() => a.setTab('home', 'activity')}
             />
           </>
         )}
@@ -349,6 +353,8 @@ export default function MyStats() {
 
       {tab === 'match' ? (
         <HomeMatchTab />
+      ) : tab === 'activity' ? (
+        <ActivityTab />
       ) : (
         <div style={S.desktopGrid}>
           {/* Cột chính (Trái) */}
@@ -425,7 +431,7 @@ export default function MyStats() {
             <ClubFeedCard
               events={clubHighlights}
               isMobile={false}
-              onViewAll={handleViewMatches}
+              onViewAll={() => a.setTab('home', 'activity')}
             />
           </div>
         </div>
