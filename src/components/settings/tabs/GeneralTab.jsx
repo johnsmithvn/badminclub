@@ -11,6 +11,7 @@ import {
 } from '#components/settings/SettingsComponents.jsx'
 import { scanQrCodeFromImage, parseVietQr, getVietQrUrl, findBank } from '#utils/vietqr.js'
 import banks from '#config/banks.json' with { type: 'json' }
+import { myMember } from '#lib/money.js'
 import { t } from '#i18n'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -21,6 +22,7 @@ import {
   isPushSubscribed,
   subscribePush,
   unsubscribePush,
+  sendTestPush,
 } from '#lib/pushSubscription.js'
 
 export default function GeneralTab({
@@ -39,13 +41,41 @@ export default function GeneralTab({
   const fileRef = useRef(null)
 
   const { session } = useAuth()
-  const { a } = useApp()
+  const { db, a } = useApp()
   const [pushState, setPushState] = useState({
     supported: false,
     subscribed: false,
     permission: 'default',
   })
   const [togglingPush, setTogglingPush] = useState(false)
+  const [testingPush, setTestingPush] = useState(false)
+
+  /**
+   * Bắn push thử cho chính mình. Bấm TRÊN MÁY TÍNH thì điện thoại rung — cách duy nhất thử được
+   * trạng thái "app đã kill" mà vẫn bấm được nút.
+   * Nói thẳng số thiết bị đã gửi ra toast: `sentCount: 0` nghĩa là lỗi nằm ở server, còn
+   * `sentCount: 1` mà máy im thì lỗi ở thiết bị. Khỏi phải đi lục Dashboard để biết.
+   */
+  const handleTestPush = async () => {
+    if (testingPush) return
+    setTestingPush(true)
+    try {
+      const res = await sendTestPush(supabase, {
+        memberId: myMember(db)?.id,
+        clubId: db?.clubId,
+        title: db?.club?.name || 'BadminClub',
+        body: t('settings.pushTestBody'),
+      })
+      const sent = res.sentCount ?? 0
+      a?.toast?.(sent > 0
+        ? t('toast.pushTestSent', { n: sent })
+        : t('toast.pushTestNoDevice'))
+    } catch (err) {
+      a?.toast?.(t('toast.pushTestFailed', { msg: err?.message || '' }))
+    } finally {
+      setTestingPush(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -312,13 +342,30 @@ export default function GeneralTab({
                 ? t('settings.pushDenied')
                 : t('settings.pushToggleNote')
           }
-          last
         >
           <ToggleSwitch
             checked={pushState.subscribed}
             disabled={!pushState.supported || pushState.permission === 'denied' || togglingPush}
             onChange={handleTogglePush}
           />
+        </FormRow>
+
+        {/* Bắn thử — bấm TRÊN MÁY TÍNH thì điện thoại rung, đó là cách duy nhất thử được
+            trạng thái app đã bị kill mà vẫn bấm được nút. */}
+        <FormRow
+          isToggle
+          label={t('settings.pushTestLabel')}
+          note={t('settings.pushTestNote')}
+          last
+        >
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={testingPush}
+            onClick={handleTestPush}
+          >
+            {t('settings.pushTestBtn')}
+          </Button>
         </FormRow>
       </SettingsCard>
 

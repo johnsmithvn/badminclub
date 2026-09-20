@@ -248,6 +248,15 @@ Deno.serve(async (req) => {
         .in('id', deadSubIds)
     }
 
+    // Ghi kết quả ra Logs. Supabase KHÔNG lưu body của response, nên không có dòng này thì
+    // đứng ngoài chỉ đoán được qua `execution_time_ms` — mà đoán là thứ đã làm mất mấy vòng.
+    console.log('[push-send] ket qua:', JSON.stringify({
+      totalSubs: subscriptions.length,
+      sentCount,
+      failedCount,
+      cleanedDeadSubs: deadSubIds.length,
+    }))
+
     return new Response(
       JSON.stringify({
         success: true,
