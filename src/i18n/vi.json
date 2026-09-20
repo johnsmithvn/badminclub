@@ -2291,7 +2291,9 @@
     "nemesisMatchup": "Đối thủ truyền kiếp",
     "whyUnderperforming": "Vì sao {{name}} · {{partner}} dưới kỳ vọng",
     "form10Title": "Phong độ 10 trận",
-    "form10OldestLeft": "cũ nhất bên trái"
+    "form10OldestLeft": "cũ nhất bên trái",
+    "formOldest": "Cũ",
+    "formNewest": "Mới nhất"
   },
   "account": {
     "title": "Hồ sơ tài khoản",
@@ -4214,7 +4216,7 @@
         "cond": "Không phải bàn"
       },
       "hoa_hau_nhat_cau": {
-        "name": "Hoa hậu nhặt cầu",
+        "name": "Người có sức hút",
         "cond": "Tay ai mà nhặt nhanh thế"
       },
       "tho_san_goc_chet": {

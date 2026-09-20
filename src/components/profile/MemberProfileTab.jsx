@@ -9,6 +9,7 @@ import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS } from '#l
 import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
+import BadgeHex from '#components/badges/BadgeHex.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import cfgApp from '#config/app.json'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -69,18 +70,6 @@ function getTierPill(gap, gapText, isDark) {
   }
 }
 
-function getBadgeGlyphCode(b, name) {
-  if (!b) return 'DH'
-  if (b.glyph && b.glyph.length <= 3 && !['flame','shuriken','wing','crystal','thunder','horn','moon','fang','eye','blossom','skull','crosshair','sparkle'].includes(b.glyph)) {
-    return b.glyph.toUpperCase()
-  }
-  const words = (name || b.name || '').trim().split(/\s+/)
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase()
-  }
-  return (name || b.name || 'DH').slice(0, 2).toUpperCase()
-}
-
 export default function MemberProfileTab({
   member,
   allMembers,
@@ -90,13 +79,13 @@ export default function MemberProfileTab({
   onSelectTheme,
   isMobile: propIsMobile,
   onChallenge,
-  initialSubTab = 'overview',
+  initialSubTab = 'h2h',
   seasonConfig,
 }) {
   const isMobileHook = useMobile()
   const isMobile = propIsMobile !== undefined ? Boolean(propIsMobile) : isMobileHook
   const { isDark } = useTheme()
-  const [subTab, setSubTab] = useState(initialSubTab || 'overview')
+  const [subTab, setSubTab] = useState(initialSubTab || 'h2h')
   const [inspectingPair, setInspectingPair] = useState(null)
   const [expandedPartners, setExpandedPartners] = useState(false)
   const [expandedFavorites, setExpandedFavorites] = useState(false)
@@ -374,15 +363,30 @@ export default function MemberProfileTab({
   const lastMatchIso = lastMatchAtOf(matches, mid)
   const decayInfo = applyInactivityDecay(pr.rating, lastMatchIso)
 
-  // Danh hiệu được gắn trên kệ (tối đa 3 danh hiệu)
+  // Danh hiệu được gắn trên kệ (tối đa 3 danh hiệu); nếu không có thì lấy 1 danh hiệu hiếm nhất đã mở khóa
   const shelfBadges = useMemo(() => {
     const rawIds = member?.badge_shelf || member?.badgeShelf || []
-    if (!Array.isArray(rawIds) || !rawIds.length) return []
-    return rawIds
-      .slice(0, 3)
-      .map((id) => getBadgeById(id))
-      .filter(Boolean)
-  }, [member?.badge_shelf, member?.badgeShelf])
+    if (Array.isArray(rawIds) && rawIds.length > 0) {
+      const equipped = rawIds
+        .slice(0, 3)
+        .map((id) => getBadgeById(id))
+        .filter(Boolean)
+      if (equipped.length > 0) return equipped
+    }
+    // Trường hợp không có danh hiệu gắn trên kệ: lấy 1 danh hiệu hiếm nhất đã mở khóa của họ
+    if (!mid || !db) return []
+    const res = calculateMemberBadges(mid, db)
+    const unlocked = res?.officialUnlocked || []
+    if (!unlocked.length) return []
+    const maxScore = Math.max(...unlocked.map((b) => TIER_ORDER[b.tier] || 0))
+    const highestBadges = unlocked.filter((b) => (TIER_ORDER[b.tier] || 0) === maxScore)
+    if (!highestBadges.length) return []
+    // Random 1 danh hiệu trong nhóm hiếm nhất
+    const randomIdx = Math.floor(Math.random() * highestBadges.length)
+    const picked = highestBadges[randomIdx]
+    const badgeObj = getBadgeById(picked.id) || picked
+    return [badgeObj]
+  }, [member?.badge_shelf, member?.badgeShelf, mid, db])
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -434,13 +438,12 @@ export default function MemberProfileTab({
                   </div>
                 )}
 
-                {/* Hàng 3: Danh hiệu được gắn trên kệ (tối đa 3, chỉ tên danh hiệu) */}
+                {/* Hàng 3: Danh hiệu được gắn trên kệ hoặc danh hiệu hiếm nhất (chỉ tên danh hiệu) */}
                 {shelfBadges.length > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
                     {shelfBadges.map((b) => {
                       const bName = t(`badges.items.${b.id}.name`, { defaultValue: b.name })
                       const tierInfo = ANIME_TIERS[b.tier] || ANIME_TIERS.rare
-                      const glyphCode = getBadgeGlyphCode(b, bName)
                       return (
                         <div
                           key={b.id}
@@ -455,23 +458,7 @@ export default function MemberProfileTab({
                             boxShadow: `0 2px 8px ${alphaColor(tierInfo.bd || '#000', '26', 15)}`,
                           }}
                         >
-                          <span
-                            style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: '50%',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: tierInfo.core || (isDark ? '#141D2E' : '#FFFFFF'),
-                              border: `1.5px solid ${tierInfo.bd || '#5FDBD3'}`,
-                              color: tierInfo.ink || '#5FDBD3',
-                              font: "700 9.5px/1 'IBM Plex Mono', monospace",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {glyphCode}
-                          </span>
+                          <BadgeHex tier={b.tier} glyph={b.glyph} size={20} />
                           <span
                             style={{
                               font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif",
@@ -631,12 +618,7 @@ export default function MemberProfileTab({
               {/* Dải 10 trận gần nhất */}
               <div style={S.cardBox}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={S.cardBoxLabel}>{t('leaderboard.last10Title')}</span>
-                    <span style={{ font: '400 11px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                      ({t('profile.form10OldestLeft')})
-                    </span>
-                  </div>
+                  <span style={S.cardBoxLabel}>{t('leaderboard.last10Title')}</span>
                   <span style={{ font: '600 13px/1.3 "IBM Plex Mono", monospace', color: isDark ? '#5FD9A2' : '#059669' }}>
                     {stats.wins10}T · {stats.losses10}B
                   </span>
@@ -670,6 +652,35 @@ export default function MemberProfileTab({
                     ))
                   )}
                 </div>
+                {stats.last10.length > 1 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: 10,
+                      color: 'var(--text-muted)',
+                      fontFamily: '"IBM Plex Mono", monospace',
+                      padding: '0 2px',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <span>{t('profile.formOldest')}</span>
+                    <div
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        margin: '0 8px',
+                        opacity: 0.35,
+                      }}
+                    >
+                      <div style={{ flex: 1, height: 1, background: 'currentColor' }} />
+                      <span style={{ fontSize: 8, lineHeight: 1, marginLeft: -1 }}>▶</span>
+                    </div>
+                    <span>{t('profile.formNewest')}</span>
+                  </div>
+                )}
               </div>
 
               {/* 4 Ô Chất lượng trận */}
