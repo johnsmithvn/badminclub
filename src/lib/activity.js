@@ -301,6 +301,24 @@ export function notifyRecipients(recipients, actorId, memberIds) {
 }
 
 /**
+ * ID của những thành viên THẬT SỰ đọc được thông báo — truyền vào `notifyRecipients`.
+ *
+ * Phải có `userId`. RLS của `notifications` (migration 0038) cho đọc theo
+ * `member_id IN (SELECT id FROM club_members WHERE user_id = auth.uid())`, nên dòng gửi cho
+ * thành viên CHƯA liên kết tài khoản thì KHÔNG AI đọc được, mãi mãi — kể cả chính người đó.
+ *
+ * Không lọc thì mỗi sự kiện đẻ ra vài dòng chết: chúng chiếm chỗ trong cửa sổ 100 dòng mà
+ * `reloadNotifications` lấy về (đẩy thông báo thật ra ngoài), và mỗi dòng còn kéo theo một lượt
+ * gọi `push-send` chỉ để nhận lại `sentCount: 0`.
+ *
+ * CỐ Ý không lọc theo `active`: người đã ngưng hoạt động vẫn đọc được thông báo của mình —
+ * RLS không kiểm cờ đó. Ở đây chỉ loại thứ vật lý không đọc nổi.
+ */
+export function notifiableMemberIds(members = []) {
+  return new Set((members || []).filter((m) => m && m.id && m.userId).map((m) => m.id))
+}
+
+/**
  * Chuẩn hoá tỷ số chuỗi của đội thắng để số ván thắng luôn đứng trước (ví dụ "1-0", "2-1").
  */
 export function formatWinnerSeriesScore(seriesScore) {

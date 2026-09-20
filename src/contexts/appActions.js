@@ -25,7 +25,7 @@ import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
-import { detectMatchNarrative, notifyRecipients, resolveNotificationPayload } from '#lib/activity.js'
+import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
 const uid = () => {
@@ -248,7 +248,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     }
 
     // 2. Personal Notifications — xem `notifyRecipients` để biết vì sao phải lọc theo members
-    const memberIds = new Set((d0.members || []).map((m) => m.id))
+    // Chỉ người ĐÃ LIÊN KẾT TÀI KHOẢN mới đọc được thông báo — xem `notifiableMemberIds`.
+    const memberIds = notifiableMemberIds(d0.members)
     const validRecipients = notifyRecipients(recipients, effectiveActorId, memberIds)
 
     if (validRecipients.length > 0 && clubId && supabase) {
