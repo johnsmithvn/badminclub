@@ -158,7 +158,8 @@ export default function PairH2HTab({
           key,
           p1: o1,
           p2: o2,
-          names: `${nameOf(o1)} · ${nameOf(o2)}`,
+          names: `${shortName(nameOf(o1))} · ${shortName(nameOf(o2))}`,
+          namesFull: `${nameOf(o1)} · ${nameOf(o2)}`,
           count,
         }
       })
@@ -218,8 +219,8 @@ export default function PairH2HTab({
 
       const edgeBA = calcMatchupEdge(matches, item.pB, item.pA, ratingsMap)
 
-      const namesPairA = item.pA.map((id) => nameOf(id) || id).join(' · ')
-      const namesPairB = item.pB.map((id) => nameOf(id) || id).join(' · ')
+      const namesPairA = item.pA.map((id) => shortName(nameOf(id)) || id).join(' · ')
+      const namesPairB = item.pB.map((id) => shortName(nameOf(id)) || id).join(' · ')
 
       const aAdvantage = (edgeAB.advantageScore || 50) >= (edgeBA.advantageScore || 50)
       const dominant = aAdvantage ? edgeAB : edgeBA
@@ -274,6 +275,9 @@ export default function PairH2HTab({
 
   const namesA = pairAIds.map(nameOf).join(' · ')
   const namesB = pairBIds.map(nameOf).join(' · ')
+  // Bản rút gọn để VẼ. `namesA`/`namesB` giữ nguyên vì tên file CSV và nội dung CSV dùng chúng.
+  const shortA = pairAIds.map((id) => shortName(nameOf(id))).join(' · ')
+  const shortB = pairBIds.map((id) => shortName(nameOf(id))).join(' · ')
 
   // Tính toán chỉ số đối đầu thô & kỵ giơ
   const matchupData = useMemo(() => {
@@ -289,12 +293,14 @@ export default function PairH2HTab({
       .slice(0, 5)
       .map((opp) => {
         const oppIds = opp.key.split(':')
-        const oppNames = oppIds.map(nameOf).join(' · ')
+        const oppNames = oppIds.map((id) => shortName(nameOf(id))).join(' · ')
+        const oppNamesFull = oppIds.map(nameOf).join(' · ')
         const edge = calcMatchupEdge(matches, pairAIds, oppIds, ratingsMap)
         const winsB = edge.gamesCount - edge.winsCount
         return {
           key: opp.key,
           names: oppNames,
+          namesFull: oppNamesFull,
           record: `${edge.winsCount}T–${winsB}B`,
           tier: edge.confidence?.tier || 'R1',
         }
@@ -683,7 +689,7 @@ export default function PairH2HTab({
               </span>
               {pairAIds.length === 2 && (
                 <span style={{ font: "500 12px/1 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
-                  {namesA}
+                  <span title={namesA}>{shortA}</span>
                 </span>
               )}
             </div>
@@ -784,7 +790,7 @@ export default function PairH2HTab({
               </span>
               {pairBIds.length === 2 && (
                 <span style={{ font: "500 12px/1 'IBM Plex Sans', sans-serif", color: textSecondary }}>
-                  {namesB}
+                  <span title={namesB}>{shortB}</span>
                 </span>
               )}
             </div>
@@ -835,7 +841,7 @@ export default function PairH2HTab({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {opp.names} <span style={{ color: textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>({opp.count})</span>
+                      <span title={opp.namesFull}>{opp.names}</span> <span style={{ color: textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>({opp.count})</span>
                     </button>
                   )
                 })}
@@ -917,7 +923,7 @@ export default function PairH2HTab({
                   {winsCount}
                 </div>
                 <div style={{ font: "400 12.5px/1.35 'IBM Plex Sans', sans-serif", color: textMuted, marginTop: 4 }}>
-                  {t('pairH2H.winsCount', { name: namesA })}
+                  {t('pairH2H.winsCount', { name: shortA })}
                 </div>
               </div>
               <span style={{ font: "400 26px/1.7 'IBM Plex Mono', monospace", color: textMuted }}>–</span>
@@ -926,7 +932,7 @@ export default function PairH2HTab({
                   {winsB}
                 </div>
                 <div style={{ font: "400 12.5px/1.35 'IBM Plex Sans', sans-serif", color: textMuted, marginTop: 4 }}>
-                  {t('pairH2H.winsCount', { name: namesB })}
+                  {t('pairH2H.winsCount', { name: shortB })}
                 </div>
               </div>
               <div style={{ flex: '1 1 0%' }} />
@@ -1104,7 +1110,7 @@ export default function PairH2HTab({
                 color: textWhite,
               }}
             >
-              {t('pairH2H.otherH2HOf', { name: namesA })}
+              {t('pairH2H.otherH2HOf', { name: shortA })}
             </div>
             {otherMatchups.length > 0 ? (
               otherMatchups.map((om, oIdx) => (
@@ -1137,7 +1143,7 @@ export default function PairH2HTab({
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    vs {om.names}
+                    <span title={om.namesFull}>vs {om.names}</span>
                   </span>
                   <span style={{ font: "400 13px/1 'IBM Plex Mono', monospace", color: '#5FD9A2' }}>
                     {om.record}

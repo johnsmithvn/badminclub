@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
+import { shortName } from '#lib/money.js'
 import { calcMatchupEdge } from '#lib/rating.js'
 
 export default function PairH2HModal({
@@ -17,6 +18,8 @@ export default function PairH2HModal({
 
   const namesA = pairA.map(nameOf).join(' · ')
   const namesB = pairB.map(nameOf).join(' · ')
+  const shortA = pairA.map((id) => shortName(nameOf(id))).join(' · ')
+  const shortB = pairB.map((id) => shortName(nameOf(id))).join(' · ')
 
   const matchup = useMemo(() => {
     if (!pairA?.length || !pairB?.length) return null
@@ -91,7 +94,7 @@ export default function PairH2HModal({
         {/* Tiêu đề & Subtitle */}
         <div style={{ display: 'grid', gap: 3 }}>
           <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
-            {namesA} vs {namesB}
+            <span title={`${namesA} vs ${namesB}`}>{shortA} vs {shortB}</span>
           </div>
           <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
             {t('pairH2H.sheetSub', {
@@ -117,14 +120,14 @@ export default function PairH2HModal({
             <div>
               <div style={{ font: '700 34px/1 Barlow, sans-serif', color: '#5FD9A2' }}>{winsCount}</div>
               <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                {t('pairH2H.winsCount', { name: namesA })}
+                {t('pairH2H.winsCount', { name: shortA })}
               </div>
             </div>
             <span style={{ font: "400 20px/1.5 'IBM Plex Mono', monospace", color: '#5B6B81' }}>–</span>
             <div>
               <div style={{ font: '700 34px/1 Barlow, sans-serif', color: '#FF9A8F' }}>{winsB}</div>
               <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                {t('pairH2H.winsCount', { name: namesB })}
+                {t('pairH2H.winsCount', { name: shortB })}
               </div>
             </div>
             <div style={{ flex: 1 }} />

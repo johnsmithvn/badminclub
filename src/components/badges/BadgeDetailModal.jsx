@@ -53,6 +53,9 @@ export default function BadgeDetailModal({
   const badgeName = t(`badges.items.${activeTierBadge.id}.name`, { defaultValue: activeTierBadge.name || '???' })
   const badgeCond = t(`badges.items.${activeTierBadge.id}.cond`, { defaultValue: activeTierBadge.cond || '' })
 
+  // `pct` vắng mặt khi modal được mở bằng bản ĐỊNH NGHĨA danh hiệu (getBadgeById) thay vì bản
+  // đã tính tiến độ cho một người — không chặn thì in thẳng ra chữ "undefined%".
+  const pct = Number(activeTierBadge.pct) || 0
   const isWinStreak = activeTierBadge.checkType === 'win_streak'
   const isHolding = isWinStreak ? Number(activeTierBadge.currentVal) > 0 : activeTierBadge.pct > 0
 
@@ -77,7 +80,7 @@ export default function BadgeDetailModal({
     {
       ok: activeTierBadge.unlocked,
       text: badgeCond,
-      val: activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${activeTierBadge.pct}%`),
+      val: activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${pct}%`),
     },
     {
       ok: true,
@@ -166,27 +169,15 @@ export default function BadgeDetailModal({
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            position: 'relative',
+            // Header dính trên cùng, phần thân cuộn bên dưới. `background` phải đục vì nội dung
+            // chạy NGAY DƯỚI nó khi cuộn — nền thẻ modal không tự che.
+            position: 'sticky',
+            top: 0,
+            zIndex: 5,
+            background: '#07030F',
+            flexShrink: 0,
           }}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              font: "600 12px/1 'Oswald', sans-serif",
-              letterSpacing: '.14em',
-              color: '#9C8ABE',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            {t('badges.detail.back')}
-          </button>
-          <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#4E3F6B' }}>/</span>
           <span
             style={{
               font: "600 12px/1 'Oswald', sans-serif",
@@ -480,7 +471,7 @@ export default function BadgeDetailModal({
                     {t('badges.detail.yourProgress')}
                   </span>
                   <span style={{ font: "700 22px/1 'Oswald', sans-serif", color: '#FFE24B' }}>
-                    {activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : activeTierBadge.progressStr || `${activeTierBadge.pct}%`}
+                    {activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : activeTierBadge.progressStr || `${pct}%`}
                   </span>
                 </div>
                 <div
@@ -493,7 +484,7 @@ export default function BadgeDetailModal({
                   <div
                     style={{
                       height: '100%',
-                      width: `${activeTierBadge.pct}%`,
+                      width: `${pct}%`,
                       background: meta.edge || 'linear-gradient(90deg, #FF2E7E, #FFE24B)',
                     }}
                   />

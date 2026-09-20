@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useCallback, useState, useMemo } from 'react'
 import { Icon, Select, StatCard, Avatar } from '#ds'
 import { ConfidenceChip, LevelChip, GenderChip } from '#ui'
 import { playerName, shortName } from '#lib/money.js'
@@ -341,13 +341,26 @@ export default function MemberProfileTab({
   const xpLedger = useMemo(() => getMemberXpLedger(mid, db), [mid, db])
   const seasonBounty = useMemo(() => getSeasonBountyPlayer(db), [db])
 
+  // Danh hiệu của thành viên này, TÍNH MỘT LẦN. Ba nơi cần nó (thành tựu, kệ danh hiệu, và
+  // modal chi tiết khi bấm vào) — trước đây gọi `calculateMemberBadges` hai lần.
+  const memberBadgeData = useMemo(() => (mid ? calculateMemberBadges(mid, db) : null), [mid, db])
+
+  /**
+   * Bản danh hiệu ĐÃ TÍNH tiến độ cho người này. `getBadgeById` chỉ trả bản định nghĩa tĩnh —
+   * không có `pct`/`unlocked`, và `BadgeDetailModal` nhận phải nó thì in ra "undefined%".
+   */
+  const badgeDetailOf = useCallback(
+    (id) => (memberBadgeData?.all || []).find((x) => x.id === id) || getBadgeById(id) || null,
+    [memberBadgeData]
+  )
+
   // 4b. Thành tựu = DANH HIỆU THẬT từ `#lib/badges.js`, một nguồn sự thật duy nhất với
   // trang Danh hiệu. Trước đây khối này đọc `getMemberAchievements()` của xp.js — bộ 4 mốc
   // viết cứng, đếm all-time, nên hồ sơ và trang Danh hiệu báo lệch nhau.
   // Ưu tiên danh hiệu đang gần đạt nhất, thiếu thì lấp bằng danh hiệu bậc cao đã mở.
   const achievements = useMemo(() => {
-    if (!mid) return []
-    const res = calculateMemberBadges(mid, db)
+    const res = memberBadgeData
+    if (!res) return []
     const chasing = [...(res.inProgress || [])].sort((a, b) => b.pct - a.pct)
     const owned = [...(res.officialUnlocked || [])].sort(
       (a, b) => (TIER_ORDER[b.tier] || 0) - (TIER_ORDER[a.tier] || 0)
@@ -358,7 +371,7 @@ export default function MemberProfileTab({
       achieved: !!b.unlocked,
       progressText: b.unlocked ? t('badges.openedStatus') : b.progressStr,
     }))
-  }, [mid, db])
+  }, [memberBadgeData])
 
   // 5. Rating & Inactivity
   const pr = getPlayerRating(db.playerRatings, mid, member, db.levels)
@@ -371,13 +384,12 @@ export default function MemberProfileTab({
     if (Array.isArray(badgeShelf) && badgeShelf.length > 0) {
       const equipped = badgeShelf
         .slice(0, 3)
-        .map((id) => getBadgeById(id))
+        .map((id) => badgeDetailOf(id))
         .filter(Boolean)
       if (equipped.length > 0) return equipped
     }
     // Trường hợp không có danh hiệu gắn trên kệ: lấy 1 danh hiệu hiếm nhất đã mở khóa của họ
-    if (!mid || !db) return []
-    const res = calculateMemberBadges(mid, db)
+    const res = memberBadgeData
     const unlocked = res?.officialUnlocked || []
     if (!unlocked.length) return []
     const maxScore = Math.max(...unlocked.map((b) => TIER_ORDER[b.tier] || 0))
@@ -386,9 +398,9 @@ export default function MemberProfileTab({
     // Chọn 1 danh hiệu ổn định (pure) theo mã thành viên
     const hash = String(mid).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
     const picked = highestBadges[hash % highestBadges.length]
-    const badgeObj = getBadgeById(picked.id) || picked
+    const badgeObj = badgeDetailOf(picked.id) || picked
     return [badgeObj]
-  }, [badgeShelf, mid, db])
+  }, [badgeShelf, mid, memberBadgeData, badgeDetailOf])
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -462,7 +474,7 @@ export default function MemberProfileTab({
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            const detailed = getBadgeById(b.id) || b
+                            const detailed = badgeDetailOf(b.id) || b
                             setInspectingBadge(detailed)
                           }}
                           title={bName}
@@ -2045,7 +2057,7 @@ export default function MemberProfileTab({
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        const detailed = getBadgeById(ach.id) || ach
+                        const detailed = badgeDetailOf(ach.id) || ach
                         setInspectingBadge(detailed)
                       }}
                       style={{

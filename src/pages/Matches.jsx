@@ -3254,7 +3254,7 @@ export default function Matches() {
                           textOverflow: 'ellipsis',
                         }}
                       >
-                        {isMobile ? getShortDisplayName(m.name, topMembersForMatrix) : m.name}
+                        {isMobile ? getShortDisplayName(m.name, topMembersForMatrix) : shortName(m.name)}
                       </th>
                     ))}
                   </tr>
@@ -3283,7 +3283,7 @@ export default function Matches() {
                           textOverflow: 'ellipsis',
                         }}
                       >
-                        {isMobile ? getShortDisplayName(p1.name, topMembersForMatrix) : p1.name}
+                        {isMobile ? getShortDisplayName(p1.name, topMembersForMatrix) : shortName(p1.name)}
                       </td>
                       {topMembersForMatrix.map((p2) => {
                         if (p1.id === p2.id) {
@@ -3492,10 +3492,10 @@ export default function Matches() {
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--teal-500)' }}
                       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)' }}
-                      title={t('matchSearch.title')}
+                      title={`${item.player1.name} · ${item.player2.name}`}
                     >
                       <span style={{ flex: 1, minWidth: 0, font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t('matchSearch.cardH2HTitle', { nameA: item.player1.name, nameB: item.player2.name })}
+                        {t('matchSearch.cardH2HTitle', { nameA: shortName(item.player1.name), nameB: shortName(item.player2.name) })}
                       </span>
                       <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {item.total} {t('units.match')}
@@ -3557,7 +3557,7 @@ export default function Matches() {
                       }}
                     >
                       <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.p1.name} · {item.p2.name}
+                        <span title={`${item.p1.name} · ${item.p2.name}`}>{shortName(item.p1.name)} · {shortName(item.p2.name)}</span>
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                         <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap' }}>
