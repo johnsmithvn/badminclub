@@ -63,11 +63,16 @@ export default function MoreSheet({ open, onClose, route }) {
       title: t('nav.section.ops'),
       items: [
         { value: 'overview', icon: 'building-2' },
-        {
+        ...(!currentSlots.includes('sessions') ? [{
+          value: 'sessions',
+          icon: 'clipboard-check',
+          badge: counts.unclosedSessions > 0 ? counts.unclosedSessions : null,
+        }] : []),
+        ...(!currentSlots.includes('matches') ? [{
           value: 'matches',
           icon: 'history',
           badge: counts.pendingChallenges,
-        },
+        }] : []),
         { value: 'badges', icon: 'award' },
         {
           value: 'members',

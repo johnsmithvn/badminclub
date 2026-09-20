@@ -113,17 +113,17 @@ ROLE_KEYS.forEach((r) => {
 /* ---------- footerSlots: 5 slot mobile theo vai (Handoff §1.2 & §B3) ---------- */
 assert.deepEqual(
   footerSlots('owner'),
-  ['home', 'sessions', 'debts', 'leaderboard', 'more'],
+  ['home', 'matches', 'debts', 'leaderboard', 'more'],
   'owner có flag money -> slot 3 là debts, slot 5 là more'
 )
 assert.deepEqual(
   footerSlots('treasurer'),
-  ['home', 'sessions', 'debts', 'leaderboard', 'more'],
+  ['home', 'matches', 'debts', 'leaderboard', 'more'],
   'treasurer có flag money -> slot 3 là debts, slot 5 là more'
 )
 assert.deepEqual(
   footerSlots('member'),
-  ['home', 'sessions', 'leaderboard', 'profile', 'more'],
+  ['home', 'matches', 'leaderboard', 'profile', 'more'],
   'member không có flag money -> slot 3 là leaderboard, slot 4 là profile, slot 5 là more'
 )
 assert.equal(footerSlots('owner').length, 5, 'số slot luôn luôn là 5')
