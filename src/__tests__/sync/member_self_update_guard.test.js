@@ -15,7 +15,7 @@ import { TABLES } from '#contexts/dbmap.js'
 //   * trigger `guard_member_self_update()` gác CỘT (danh sách trắng cột được tự đổi)
 //
 // `badge_shelf` và `signature` thêm ở 0027 — SAU khi hàm guard ra đời ở 0010 — nên không có
-// trong danh sách trắng, và mọi lượt ghi của thành viên thường bị trigger ném lỗi. Sửa ở 0050.
+// trong danh sách trắng, và mọi lượt ghi của thành viên thường bị trigger ném lỗi. Sửa ở 0053.
 //
 // Đây là cái bẫy sẽ lặp lại: hễ ai thêm một cột trang trí mới vào `club_members` mà quên ghé
 // hàm guard, tính năng đó im lặng hỏng với mọi tài khoản không phải chủ CLB — và hỏng theo kiểu
@@ -62,7 +62,7 @@ test('Trigger gác cột club_members', async (t) => {
         new RegExp(`'${col}'`),
         `Cột '${col}' không có trong danh sách trắng của guard_member_self_update `
         + `(bản cuối ở ${guard.file}). Thiếu nó thì thành viên thường sửa cột này là trigger ném lỗi — `
-        + 'đúng cách mà kệ danh hiệu và châm ngôn đã hỏng trước 0050.',
+        + 'đúng cách mà kệ danh hiệu và châm ngôn đã hỏng trước 0053.',
       )
     }
   })
@@ -100,7 +100,7 @@ test('Trigger gác cột club_members', async (t) => {
 // Postgres bắt câu đó lọt qua `WITH CHECK` của policy INSERT trước khi tới policy UPDATE.
 //
 // `cm_write` (0001) chỉ cho `has_club_perm(club_id, 'members')` — chủ CLB. Thành viên thường sửa
-// hồ sơ của chính mình vẫn ăn "new row violates row-level security policy". Sửa ở 0051.
+// hồ sơ của chính mình vẫn ăn "new row violates row-level security policy". Sửa ở 0054.
 //
 // Chẩn đoán nhầm lớp là chuyện đã xảy ra thật: thấy trigger thiếu cột thì tưởng đã xong, nhưng
 // lỗi người dùng gặp lại là RLS. Hai assert dưới khoá cả hai lớp để lần sau không lặp lại.

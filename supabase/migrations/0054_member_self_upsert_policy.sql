@@ -1,10 +1,10 @@
--- 0051_member_self_upsert_policy.sql
+-- 0054_member_self_upsert_policy.sql
 -- SỬA LỖI: thành viên thường gắn danh hiệu lên kệ bị chặn với
 --   new row violates row-level security policy for table "club_members"
 --
 -- ================================ NGUYÊN NHÂN ================================
 --
--- Cùng một cái bẫy với 0049 (`challenges`), ở bảng khác.
+-- Cùng một cái bẫy với 0052 (`challenges`), ở bảng khác.
 --
 -- Lớp sync ghi `club_members` bằng UPSERT chứ không phải UPDATE:
 --   `dbmap.js` khai `{ table: 'club_members', mode: 'id' }`
@@ -19,13 +19,13 @@
 -- 0010 đã thêm `cm_update_self_name` cho UPDATE và trigger gác cột, nhưng bỏ qua INSERT — nên
 -- nửa đường sync vẫn tắc. Đây là chỗ vá nốt.
 --
--- ============================ QUAN HỆ VỚI 0050 ==============================
+-- ============================ QUAN HỆ VỚI 0053 ==============================
 --
 -- Hai migration chặn ở hai lớp khác nhau, CẦN CẢ HAI:
---   0051 (file này) — RLS cho phép câu upsert đi qua.
---   0050            — trigger gác cột cho phép `badge_shelf` / `signature` được đổi.
--- Thiếu 0051 thì lỗi là "violates row-level security policy" (tiếng Anh, từ Postgres).
--- Thiếu 0050 thì lỗi là "Bạn chỉ đổi được tên hiển thị..." (tiếng Việt, từ trigger).
+--   0054 (file này) — RLS cho phép câu upsert đi qua.
+--   0053            — trigger gác cột cho phép `badge_shelf` / `signature` được đổi.
+-- Thiếu 0054 thì lỗi là "violates row-level security policy" (tiếng Anh, từ Postgres).
+-- Thiếu 0053 thì lỗi là "Bạn chỉ đổi được tên hiển thị..." (tiếng Việt, từ trigger).
 --
 -- ================================ PHẠM VI NỚI ================================
 --

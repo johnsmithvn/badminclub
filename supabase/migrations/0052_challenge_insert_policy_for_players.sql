@@ -1,4 +1,4 @@
--- 0049_challenge_insert_policy_for_players.sql
+-- 0052_challenge_insert_policy_for_players.sql
 -- SỬA LỖI: thành viên thường bấm "Nhận kèo" bị chặn với
 --   new row violates row-level security policy for table "challenges"
 --

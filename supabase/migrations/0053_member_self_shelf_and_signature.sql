@@ -1,4 +1,4 @@
--- 0050_member_self_shelf_and_signature.sql
+-- 0053_member_self_shelf_and_signature.sql
 -- SỬA LỖI: thành viên thường không gắn được danh hiệu lên kệ, và cũng không đổi được châm ngôn.
 --
 -- ================================ NGUYÊN NHÂN ================================
