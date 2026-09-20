@@ -3228,6 +3228,7 @@
     "predictionAvailableSp": "SP khả dụng: {{points}}",
     "predictionLockedBadge": "Đã khóa dự đoán",
     "predictionLockedDesc": "Trận đấu đã vào sân hoặc đã hoàn tất, không thể đặt dự đoán.",
+    "predictionGuestHint": "Vui lòng đăng nhập để tham gia dự đoán.",
     "predictionPlayerConflict": "Bạn là đấu thủ trong trận này, không được tham gia dự đoán.",
     "predictionWinReward": "Thắng: nhận {{payout}} SP (hoàn cược + thưởng net +{{stake}} SP)",
     "predictionNotFound": "Không tìm thấy kèo thi đấu",

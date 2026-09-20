@@ -10,6 +10,7 @@ import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#l
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
+import BadgeDetailModal from '#components/badges/BadgeDetailModal.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import cfgApp from '#config/app.json'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -87,6 +88,7 @@ export default function MemberProfileTab({
   const { isDark } = useTheme()
   const [subTab, setSubTab] = useState(initialSubTab || 'h2h')
   const [inspectingPair, setInspectingPair] = useState(null)
+  const [inspectingBadge, setInspectingBadge] = useState(null)
   const [expandedPartners, setExpandedPartners] = useState(false)
   const [expandedFavorites, setExpandedFavorites] = useState(false)
   const [expandedNemeses, setExpandedNemeses] = useState(false)
@@ -436,35 +438,58 @@ export default function MemberProfileTab({
 
                 {/* Hàng 3: Danh hiệu được gắn trên kệ hoặc danh hiệu hiếm nhất (chỉ tên danh hiệu) */}
                 {shelfBadges.length > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: isMobile ? 6 : 8,
+                      flexWrap: isMobile ? 'nowrap' : 'wrap',
+                      overflowX: isMobile ? 'auto' : 'visible',
+                      scrollbarWidth: 'none',
+                      WebkitOverflowScrolling: 'touch',
+                      maxWidth: '100%',
+                      paddingBottom: isMobile ? 2 : 0,
+                      marginTop: 2,
+                    }}
+                  >
                     {shelfBadges.map((b) => {
                       const bName = t(`badges.items.${b.id}.name`, { defaultValue: b.name })
                       const tierInfo = ANIME_TIERS[b.tier] || ANIME_TIERS.rare
                       return (
-                        <div
+                        <button
                           key={b.id}
+                          type="button"
+                          onClick={() => {
+                            const detailed = memberBadges.find((x) => x.id === b.id) || b
+                            setInspectingBadge(detailed)
+                          }}
+                          title={bName}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 7,
-                            padding: '3px 10px 3px 5px',
+                            gap: isMobile ? 5 : 7,
+                            padding: isMobile ? '2.5px 8px 2.5px 4px' : '3px 10px 3px 5px',
                             borderRadius: 999,
                             background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'var(--surface-card)',
                             border: `1px solid ${tierInfo.bd || 'var(--border-subtle)'}`,
                             boxShadow: `0 2px 8px ${alphaColor(tierInfo.bd || '#000', '26', 15)}`,
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            outline: 'none',
+                            transition: 'transform 0.15s ease, filter 0.15s ease',
                           }}
                         >
-                          <BadgeHex tier={b.tier} glyph={b.glyph} size={20} />
+                          <BadgeHex tier={b.tier} glyph={b.glyph} size={isMobile ? 18 : 20} />
                           <span
                             style={{
-                              font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif",
+                              font: isMobile ? "600 11.5px/1.2 'IBM Plex Sans', sans-serif" : "600 12.5px/1.2 'IBM Plex Sans', sans-serif",
                               color: isDark ? '#E9EFF7' : 'var(--text-primary)',
                               whiteSpace: 'nowrap',
                             }}
                           >
                             {bName}
                           </span>
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
@@ -2047,6 +2072,16 @@ export default function MemberProfileTab({
           onClose={() => setInspectingPair(null)}
           ratingsMap={db.playerRatings || {}}
           matches={matches}
+        />
+      )}
+
+      {/* Modal A2: Chi tiết danh hiệu từ hồ sơ */}
+      {inspectingBadge && (
+        <BadgeDetailModal
+          badge={inspectingBadge}
+          db={db}
+          currentMember={member}
+          onClose={() => setInspectingBadge(null)}
         />
       )}
     </div>

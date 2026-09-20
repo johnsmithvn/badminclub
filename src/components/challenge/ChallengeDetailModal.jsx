@@ -1120,7 +1120,15 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 color: 'var(--text-muted)',
                 lineHeight: 1.4,
               }}>
-                {noPointsLeft ? t('challenge.predictionNoPoints') : t('challenge.predictionLockedDesc')}
+                {!myId
+                  ? t('challenge.predictionGuestHint')
+                  : predGate.reason === 'player_conflict'
+                  ? t('challenge.predictionPlayerConflict')
+                  : predGate.reason === 'disabled'
+                  ? t('challenge.predictionDisabled')
+                  : noPointsLeft
+                  ? t('challenge.predictionNoPoints')
+                  : t('challenge.predictionLockedDesc')}
               </div>
             ) : (
               /* Form đặt dự đoán */
