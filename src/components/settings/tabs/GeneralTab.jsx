@@ -49,6 +49,18 @@ export default function GeneralTab({
   })
   const [togglingPush, setTogglingPush] = useState(false)
   const [testingPush, setTestingPush] = useState(false)
+  const [testTarget, setTestTarget] = useState('')
+
+  /**
+   * Người có THỂ nhận push: đã liên kết tài khoản và còn hoạt động.
+   *
+   * KHÔNG lọc được theo "đã đăng ký thiết bị hay chưa": RLS của `push_subscriptions` chỉ cho
+   * mỗi người đọc dòng của chính mình, nên client không có cách nào biết ai đã bật. Thay vào
+   * đó cứ gửi rồi đọc `sentCount` trong toast — 0 nghĩa là người đó chưa bật.
+   */
+  const pushTargets = useMemo(() => (db?.members || [])
+    .filter((m) => m.userId && m.active !== false)
+    .map((m) => ({ value: m.id, label: m.name })), [db?.members])
 
   /**
    * Bắn push thử cho chính mình. Bấm TRÊN MÁY TÍNH thì điện thoại rung — cách duy nhất thử được
@@ -58,18 +70,21 @@ export default function GeneralTab({
    */
   const handleTestPush = async () => {
     if (testingPush) return
+    const targetId = testTarget || myMember(db)?.id
+    if (!targetId) return
+    const targetName = (db?.members || []).find((m) => m.id === targetId)?.name || ''
     setTestingPush(true)
     try {
       const res = await sendTestPush(supabase, {
-        memberId: myMember(db)?.id,
+        memberId: targetId,
         clubId: db?.clubId,
         title: db?.club?.name || 'BadminClub',
         body: t('settings.pushTestBody'),
       })
       const sent = res.sentCount ?? 0
       a?.toast?.(sent > 0
-        ? t('toast.pushTestSent', { n: sent })
-        : t('toast.pushTestNoDevice'))
+        ? t('toast.pushTestSent', { n: sent, name: targetName })
+        : t('toast.pushTestNoDevice', { name: targetName }))
     } catch (err) {
       a?.toast?.(t('toast.pushTestFailed', { msg: err?.message || '' }))
     } finally {
@@ -353,19 +368,29 @@ export default function GeneralTab({
         {/* Bắn thử — bấm TRÊN MÁY TÍNH thì điện thoại rung, đó là cách duy nhất thử được
             trạng thái app đã bị kill mà vẫn bấm được nút. */}
         <FormRow
-          isToggle
           label={t('settings.pushTestLabel')}
           note={t('settings.pushTestNote')}
           last
+          alignTop
         >
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={testingPush}
-            onClick={handleTestPush}
-          >
-            {t('settings.pushTestBtn')}
-          </Button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <SearchSelect
+              size="sm"
+              value={testTarget || myMember(db)?.id || ''}
+              options={pushTargets}
+              placeholder={t('settings.pushTestPick')}
+              onChange={(val) => setTestTarget(val || '')}
+              style={{ minWidth: 160 }}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={testingPush || !pushTargets.length}
+              onClick={handleTestPush}
+            >
+              {t('settings.pushTestBtn')}
+            </Button>
+          </div>
         </FormRow>
       </SettingsCard>
 
