@@ -364,10 +364,10 @@ export default function MemberProfileTab({
   const decayInfo = applyInactivityDecay(pr.rating, lastMatchIso)
 
   // Danh hiệu được gắn trên kệ (tối đa 3 danh hiệu); nếu không có thì lấy 1 danh hiệu hiếm nhất đã mở khóa
+  const badgeShelf = member?.badge_shelf || member?.badgeShelf
   const shelfBadges = useMemo(() => {
-    const rawIds = member?.badge_shelf || member?.badgeShelf || []
-    if (Array.isArray(rawIds) && rawIds.length > 0) {
-      const equipped = rawIds
+    if (Array.isArray(badgeShelf) && badgeShelf.length > 0) {
+      const equipped = badgeShelf
         .slice(0, 3)
         .map((id) => getBadgeById(id))
         .filter(Boolean)
@@ -381,12 +381,12 @@ export default function MemberProfileTab({
     const maxScore = Math.max(...unlocked.map((b) => TIER_ORDER[b.tier] || 0))
     const highestBadges = unlocked.filter((b) => (TIER_ORDER[b.tier] || 0) === maxScore)
     if (!highestBadges.length) return []
-    // Random 1 danh hiệu trong nhóm hiếm nhất
-    const randomIdx = Math.floor(Math.random() * highestBadges.length)
-    const picked = highestBadges[randomIdx]
+    // Chọn 1 danh hiệu ổn định (pure) theo mã thành viên
+    const hash = String(mid).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+    const picked = highestBadges[hash % highestBadges.length]
     const badgeObj = getBadgeById(picked.id) || picked
     return [badgeObj]
-  }, [member?.badge_shelf, member?.badgeShelf, mid, db])
+  }, [badgeShelf, mid, db])
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>

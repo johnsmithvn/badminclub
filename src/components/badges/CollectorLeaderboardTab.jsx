@@ -3,6 +3,7 @@ import { t } from '#i18n'
 import BadgeHex from './BadgeHex.jsx'
 import { ANIME_TIERS, HEX_CLIP, NOTCH_CLIP, NOTCH_S_CLIP } from '#lib/badges.js'
 import badgesConfig from '#config/badges.json'
+import { useMobile } from '#hooks/useMobile.js'
 
 /**
  * Màn A5: Tab Xếp hạng Sưu tập (Collector Leaderboard).
@@ -18,8 +19,10 @@ export default function CollectorLeaderboardTab({
   onViewBadge,
   onSelectBadge,
   hideHeader = false,
-  isMobile = false,
+  isMobile: propIsMobile,
 }) {
+  const isMobileHook = useMobile(768)
+  const isMobile = propIsMobile !== undefined ? Boolean(propIsMobile) : isMobileHook
   const handleViewBadge = onViewBadge || onSelectBadge
 
   // Dữ liệu thật từ DB (không dùng demo fallback)

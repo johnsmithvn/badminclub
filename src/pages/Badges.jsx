@@ -437,6 +437,7 @@ export default function Badges() {
                 seasonRows={seasonRows}
                 currentMemberId={activeMemberId}
                 hideHeader={true}
+                isMobile={true}
                 onSelectMember={(mId) => {
                   setViewingMemberId(mId === currentMember?.id ? null : mId)
                   setActiveTab('collection')
@@ -1225,6 +1226,8 @@ export default function Badges() {
         <CollectorLeaderboardTab
           collectors={collectors}
           rarestBadges={rarestBadges}
+          isMobile={isMobile}
+          currentMemberId={activeMemberId}
           onSelectMember={(m) => {
             if (m && m.id) {
               setViewingMemberId(m.id === currentMember?.id ? null : m.id)
