@@ -225,7 +225,22 @@ export default function SessionDetail() {
   // Cố định của nhóm + người đi thêm hôm nay. Người đi thêm trả tiền theo ĐƠN GIÁ MỘT BUỔI
   // của nhóm, không phải giá khách — họ là người nhà, xem tab Đối chiếu ở Công nợ.
   const att = db.attendance[s.id] || {}
-  const members = sortAttendanceMembers(sessionMembers(db, s), att)
+  const [sortKey, setSortKey] = useState(0)
+
+  // Thứ tự thành viên được tính ban đầu (hoặc khi người dùng chủ động bấm "Gom nhóm").
+  // Trong quá trình bấm đổi trạng thái điểm danh, thứ tự được giữ cố định để không bị nhảy vị trí.
+  const orderedMemberIds = useMemo(() => {
+    return sortAttendanceMembers(sessionMembers(db, s), att).map((m) => m.id)
+  }, [s.id, sortKey])
+
+  const currentMembers = sessionMembers(db, s)
+  const memberMap = useMemo(() => new Map(currentMembers.map((m) => [m.id, m])), [currentMembers])
+  const members = useMemo(() => {
+    const sorted = orderedMemberIds.map((mid) => memberMap.get(mid)).filter(Boolean)
+    const existing = new Set(orderedMemberIds)
+    const rest = currentMembers.filter((m) => !existing.has(m.id))
+    return [...sorted, ...rest]
+  }, [orderedMemberIds, memberMap, currentMembers])
   // Khối "Khách giao lưu" chỉ liệt kê khách NGOÀI CLB. Dòng thu của thành viên đi buổi đột xuất
   // nằm trong bảng điểm danh, ngay cạnh tên họ — không tách ra hai chỗ cho cùng một người.
   const guests = sGuestsOnly(db, s.id)
@@ -400,9 +415,9 @@ export default function SessionDetail() {
       border = `1px solid ${hexA(c, isDark ? 0.42 : 0.35)}`
       color = 'var(--text-primary, #E9EFF7)'
     } else if (isNoShow) {
-      bg = 'var(--status-delayed-bg)'
-      border = '1px solid var(--status-delayed)'
-      color = 'var(--status-delayed-fg)'
+      bg = isDark ? 'rgba(234, 88, 12, 0.22)' : 'rgba(234, 88, 12, 0.12)'
+      border = isDark ? '1px solid rgba(251, 146, 60, 0.50)' : '1px solid rgba(234, 88, 12, 0.45)'
+      color = isDark ? '#FB923C' : '#C2410C'
     } else if (isAbsent) {
       bg = 'transparent'
       border = '1px solid var(--border-subtle, #2A3A56)'
@@ -426,13 +441,23 @@ export default function SessionDetail() {
       }
     }
 
+    const chipTitle = `${m.name} · ${
+      isPresent
+        ? t('attend.present')
+        : isNoShow
+        ? t('attend.noshowTooltip')
+        : isAbsent
+        ? t('attend.absent')
+        : t('attend.unmarked')
+    }${m.owe ? ' · ' + t('attend.legendOwe') : ''}`
+
     return (
       <button
         key={`${m.kind}-${m.id}`}
         type="button"
         onClick={handleClick}
         disabled={!canEdit || isInactive || isClosed}
-        title={m.kind === 'extra' ? t('session.extraMark') : m.kind === 'guest' ? t('common.edit') : undefined}
+        title={chipTitle}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -463,6 +488,21 @@ export default function SessionDetail() {
         }}>
           {m.name}
         </span>
+        {isNoShow && (
+          <span
+            style={{
+              font: "700 9.5px/1 'IBM Plex Sans', sans-serif",
+              padding: '2px 4px',
+              borderRadius: 3,
+              background: isDark ? 'rgba(234, 88, 12, 0.35)' : 'rgba(234, 88, 12, 0.20)',
+              color: isDark ? '#FDBA74' : '#C2410C',
+              flex: '0 0 auto',
+              letterSpacing: '0.2px',
+            }}
+          >
+            {t('attend.noshowShort')}
+          </span>
+        )}
         {m.owe && (
           <span
             title={t('attend.legendOwe')}
@@ -1070,6 +1110,31 @@ export default function SessionDetail() {
                   </button>
                 )
               })}
+
+              <span style={{ flex: 1 }} />
+
+              <button
+                type="button"
+                title={t('attend.reorderHint')}
+                onClick={() => setSortKey((k) => k + 1)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  height: 28,
+                  padding: '0 9px',
+                  borderRadius: 6,
+                  font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                  background: 'var(--surface-inset, #1A2437)',
+                  border: '1px solid var(--border-default, #2E3E5C)',
+                  color: 'var(--text-secondary, #A8B7CB)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon name="rotate-ccw" size={12} color="var(--text-muted)" />
+                <span>{t('attend.reorderBtn')}</span>
+              </button>
             </div>
 
             {/* Thông báo huỷ / bán sân */}
@@ -1171,6 +1236,14 @@ export default function SessionDetail() {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ width: 11, height: 11, borderRadius: 3, background: 'rgba(0,178,169,.20)', border: '1px solid rgba(0,178,169,.45)' }} />
                 {t('attend.legendPresent')}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 11, height: 11, borderRadius: 3, border: '1px solid var(--border-subtle, #2A3A56)', background: 'transparent' }} />
+                {t('attend.legendAbsent')}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 11, height: 11, borderRadius: 3, background: 'rgba(234, 88, 12, 0.25)', border: '1px solid rgba(251, 146, 60, 0.50)' }} />
+                {t('attend.legendNoshow')}
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ width: 11, height: 11, borderRadius: 3, border: '1px dashed var(--border-default, #33435F)' }} />
