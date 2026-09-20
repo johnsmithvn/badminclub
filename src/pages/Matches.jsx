@@ -70,7 +70,8 @@ export default function Matches() {
     : (tabParam === 'matrix' ? 'matrix' : 'challenges')
 
   const [activeTab, setActiveTab] = useState(initialTab)
-  const [challengeSubTab, setChallengeSubTab] = useState('my') // 'my' | 'open' | 'pending' | 'played'
+  const [challengeSubTab, setChallengeSubTab] = useState('my') // 'my' | 'pending' | 'accepted' | 'played'
+  const [challengeSearch, setChallengeSearch] = useState('')
   const [myEndedCollapsed, setMyEndedCollapsed] = useState(true)
 
   // Đồng bộ URL khi đổi tab
@@ -177,6 +178,8 @@ export default function Matches() {
           setChallengeSubTab('pending')
         } else if (targetChal.status === 'played') {
           setChallengeSubTab('played')
+        } else if (isChallengeAccepted(targetChal)) {
+          setChallengeSubTab('accepted')
         } else {
           setChallengeSubTab('pending')
         }
@@ -297,18 +300,12 @@ export default function Matches() {
     return myChallenges.filter((c) => !ACTIVE_STATUS.has(c.status))
   }, [myChallenges])
 
-  const openChallenges = useMemo(() => {
-    return allChallenges.filter((c) => {
-      const isPending = c.status === 'pending'
-      const teamB = c.teamB || []
-      const teamA = c.teamA || []
-      const needsMembers = !teamB.length || teamB.length < (teamA.length > 1 ? 2 : 1)
-      return isPending && needsMembers
-    })
+  const pendingChallenges = useMemo(() => {
+    return allChallenges.filter((c) => c.status === 'pending')
   }, [allChallenges])
 
-  const pendingChallenges = useMemo(() => {
-    return allChallenges.filter((c) => c.status === 'pending' || isChallengeAccepted(c))
+  const acceptedChallenges = useMemo(() => {
+    return allChallenges.filter((c) => isChallengeAccepted(c))
   }, [allChallenges])
 
   const playedChallenges = useMemo(() => {
@@ -319,10 +316,23 @@ export default function Matches() {
     let list
     switch (challengeSubTab) {
       case 'my': list = myChallenges; break
-      case 'open': list = openChallenges; break
       case 'pending': list = pendingChallenges; break
+      case 'accepted': list = acceptedChallenges; break
       case 'played': list = playedChallenges; break
       default: list = myChallenges
+    }
+
+    if (challengeSearch.trim()) {
+      const q = challengeSearch.trim().toLowerCase()
+      list = list.filter((c) => {
+        const matchCode = (c.code || '').toLowerCase().includes(q)
+        const matchStake = (c.stakeText || '').toLowerCase().includes(q)
+        const matchPlayer = [...(c.teamA || []), ...(c.teamB || [])].some((pid) => {
+          const name = memberNameOf(pid) || ''
+          return name.toLowerCase().includes(q)
+        })
+        return matchCode || matchStake || matchPlayer
+      })
     }
 
     if (highlightedChallengeId) {
@@ -334,7 +344,7 @@ export default function Matches() {
       }
     }
     return list
-  }, [challengeSubTab, myChallenges, openChallenges, pendingChallenges, playedChallenges, highlightedChallengeId])
+  }, [challengeSubTab, myChallenges, pendingChallenges, acceptedChallenges, playedChallenges, challengeSearch, memberNameOf, allChallenges, highlightedChallengeId])
 
   // =========================================================================
   // TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - BÊ NGUYÊN TỪ LEADERBOARD CŨ
@@ -758,34 +768,77 @@ export default function Matches() {
       {/* ========================================================================= */}
       {activeTab === 'challenges' && (
         <div style={{ display: 'grid', gap: 14, width: '100%', minWidth: 0 }}>
-          {/* Subtabs lọc kèo */}
-          <div style={S.subTabWrap}>
-            {[
-              { id: 'my', label: t('challenge.tabMy'), count: myChallenges.length },
-              { id: 'open', label: t('challenge.tabOpen'), count: openChallenges.length, color: 'var(--status-transit-fg)' },
-              { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: 'var(--status-delayed-fg)' },
-              { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
-            ].map((st) => {
-              const active = challengeSubTab === st.id
-              return (
+          {/* Subtabs lọc kèo & Ô tìm kiếm */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <div style={S.subTabWrap}>
+              {[
+                { id: 'my', label: t('challenge.tabMy'), count: myChallenges.length },
+                { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: 'var(--status-delayed-fg)' },
+                { id: 'accepted', label: t('challenge.tabAccepted'), count: acceptedChallenges.length, color: 'var(--status-transit-fg)' },
+                { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
+              ].map((st) => {
+                const active = challengeSubTab === st.id
+                return (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setChallengeSubTab(st.id)}
+                    style={{
+                      ...S.subTabBtn,
+                      background: active ? 'var(--surface-card)' : 'transparent',
+                      border: active ? '1px solid var(--border-default)' : '1px solid transparent',
+                      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    <span style={{ fontWeight: active ? 600 : 500 }}>{st.label}</span>
+                    <span style={{ ...S.subTabCount, color: st.color || (active ? 'var(--text-primary)' : 'var(--text-muted)') }}>
+                      {st.count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Ô tìm kiếm theo tên hoặc mã kèo */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: isMobile ? '100%' : 240, flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
+              <Icon name="search" size={14} style={{ position: 'absolute', left: 10, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder={t('challenge.searchPlaceholder')}
+                value={challengeSearch}
+                onChange={(e) => setChallengeSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: 34,
+                  borderRadius: 8,
+                  border: '1px solid var(--border-default)',
+                  background: 'var(--surface-sunken)',
+                  color: 'var(--text-primary)',
+                  padding: '0 28px 0 32px',
+                  fontSize: 12.5,
+                  outline: 'none',
+                }}
+              />
+              {challengeSearch && (
                 <button
-                  key={st.id}
                   type="button"
-                  onClick={() => setChallengeSubTab(st.id)}
+                  onClick={() => setChallengeSearch('')}
                   style={{
-                    ...S.subTabBtn,
-                    background: active ? 'var(--surface-card)' : 'transparent',
-                    border: active ? '1px solid var(--border-default)' : '1px solid transparent',
-                    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    position: 'absolute',
+                    right: 8,
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
                   }}
                 >
-                  <span style={{ fontWeight: active ? 600 : 500 }}>{st.label}</span>
-                  <span style={{ ...S.subTabCount, color: st.color || (active ? 'var(--text-primary)' : 'var(--text-muted)') }}>
-                    {st.count}
-                  </span>
+                  <Icon name="x" size={13} />
                 </button>
-              )
-            })}
+              )}
+            </div>
           </div>
 
           {/* Banner thông báo kèo đang được chọn/làm nổi bật */}
@@ -875,6 +928,26 @@ export default function Matches() {
               const isBoSeries = (c.bestOf || 1) > 1
               const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
               const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
+
+              const chalProg = seriesProg || getChallengeSeriesProgress(c, db.matches || [])
+              const winnerTeam = chalProg.winnerTeam || c.winnerTeam
+              const playedMts = chalProg.playedMatches || []
+              const firstMatch = playedMts[0] || (c.matchId ? (db.matches || []).find((m) => m.id === c.matchId) : null)
+              let singleScoreA = null
+              let singleScoreB = null
+              if (firstMatch) {
+                if (firstMatch.sets && firstMatch.sets.length > 0) {
+                  singleScoreA = firstMatch.sets[0][0]
+                  singleScoreB = firstMatch.sets[0][1]
+                } else if (firstMatch.scoreText && firstMatch.scoreText.includes('-')) {
+                  const [sa, sb] = firstMatch.scoreText.split('-').map((v) => Number(v.trim()))
+                  singleScoreA = sa
+                  singleScoreB = sb
+                }
+              }
+              const setsDetailText = isBoSeries
+                ? playedMts.map((m) => (m.sets?.[0] ? `${m.sets[0][0]}:${m.sets[0][1]}` : m.scoreText)).filter(Boolean).join(', ')
+                : ''
 
               const statusBadgeText = (isPending && isExpired) || c.status === 'expired'
                 ? t('challenge.status.expired')
@@ -1037,10 +1110,20 @@ export default function Matches() {
                     </span>
                   </div>
 
-                  {/* Hàng 2: Đối đầu Team A vs Team B (Kèm tick nhận kèo) */}
+                  {/* Hàng 2: Đối đầu Team A vs Team B (Kèm swords icon, điểm số & crown nếu đã đấu) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ ...S.teamName, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      <div style={{
+                        ...S.teamName,
+                        color: isPlayed && winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-primary)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}>
+                        {isPlayed && winnerTeam === 'A' && (
+                          <span style={{ fontSize: 13 }} title={t('challenge.winnerBadge')}>👑</span>
+                        )}
                         {teamA.map((id) => {
                           const isAcc = (c.acceptedPlayers || []).includes(id)
                           return (
@@ -1057,9 +1140,45 @@ export default function Matches() {
                         {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
                       </div>
                     </div>
-                    <span style={S.vsText}>VS</span>
+
+                    {/* Icon kiếm và điểm số */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 8px', flexShrink: 0 }}>
+                      <Icon name="swords" size={16} style={{ color: 'var(--text-muted)', opacity: 0.7 }} />
+                      {isPlayed && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ font: "700 15px/1 var(--font-mono)", display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{ color: winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-secondary)' }}>
+                              {isBoSeries ? chalProg.winsA : (singleScoreA ?? chalProg.winsA)}
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>–</span>
+                            <span style={{ color: winnerTeam === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-secondary)' }}>
+                              {isBoSeries ? chalProg.winsB : (singleScoreB ?? chalProg.winsB)}
+                            </span>
+                          </div>
+                          {isBoSeries && setsDetailText && (
+                            <div style={{ font: "500 10px/1 var(--font-mono)", color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap' }}>
+                              ({setsDetailText})
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {!isPlayed && hasPlayedSets && (
+                        <div style={{ font: "700 13px/1 var(--font-mono)", color: '#D8B4FE' }}>
+                          {seriesProg.seriesScoreText}
+                        </div>
+                      )}
+                    </div>
+
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                      <div style={{ ...S.teamName, color: teamB.length ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
+                      <div style={{
+                        ...S.teamName,
+                        color: isPlayed && winnerTeam === 'B' ? 'var(--status-delivered-fg)' : (teamB.length ? 'var(--text-primary)' : 'var(--text-muted)'),
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        justifyContent: 'flex-end',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}>
                         {teamB.length ? teamB.map((id) => {
                           const isAcc = (c.acceptedPlayers || []).includes(id)
                           return (
@@ -1071,6 +1190,9 @@ export default function Matches() {
                             </span>
                           )
                         }) : t('challenge.teamEmptyHint')}
+                        {isPlayed && winnerTeam === 'B' && (
+                          <span style={{ fontSize: 13 }} title={t('challenge.winnerBadge')}>👑</span>
+                        )}
                       </div>
                       <div style={S.teamRatingMono}>
                         {ratB > 0 ? t('challenge.avgRating', { r: ratB.toLocaleString('vi-VN') }) : '—'}
