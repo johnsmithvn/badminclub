@@ -9,19 +9,15 @@ import {
   openSessions, sessionOf,
 } from '#lib/money.js'
 import { monthFlow } from '#lib/ledger.js'
-import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
-import ActivityTab from '#components/home/ActivityTab.jsx'
 import { t } from '#i18n'
-import { Detail, FundOverviewCards } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
 import { scheduleForm } from '#lib/forms.js'
 import { PUBLIC_PATHS } from '#routes'
 import cfg from '#config/app.json' with { type: 'json' }
 
 export default function Home() {
-  const { db, ui, a } = useApp()
-  const tab = ui.tab.home || 'overview'
-  const canMoney = can(db.viewAs || 'owner', 'money')
+  const { ui, a } = useApp()
+  const tab = ui.tab.home === 'report' ? 'report' : 'overview'
 
   return (
     <>
@@ -31,9 +27,6 @@ export default function Home() {
           variant="underline"
           items={[
             { value: 'overview', label: t('home.tabs.overview') },
-            { value: 'activity', label: t('activity.tabName') },
-            { value: 'match', label: t('home.tabMatch') },
-            { value: 'transactions', label: t('home.tabTransactions') },
             { value: 'report', label: t('home.tabReport') },
           ]}
           value={tab}
@@ -42,12 +35,6 @@ export default function Home() {
       </TabTrack>
       {tab === 'overview' ? (
         <Overview />
-      ) : tab === 'activity' ? (
-        <ActivityTab />
-      ) : tab === 'match' ? (
-        <HomeMatchTab />
-      ) : tab === 'transactions' ? (
-        <Detail canMoney={canMoney} />
       ) : (
         <Report />
       )}
