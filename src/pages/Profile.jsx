@@ -17,7 +17,7 @@ import { AvatarUpload, Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { genderTxt, nextLevelStep, playerName } from '#lib/money.js'
+import { genderTxt, nextLevelStep, playerName, shortName } from '#lib/money.js'
 import { roleName } from '#lib/roles.js'
 import { getPlayerRating, rankTierOf, confidenceProgress, MIN_RATING } from '#lib/rating.js'
 import { ddmy } from '#utils/dates.js'
@@ -242,7 +242,7 @@ function MeCard({ me, myGroups, db, a, profile }) {
             <div style={S.idRow}>
               <Avatar name={me.name} src={avatarUrl || me.avatarUrl || (profile && (profile.avatar_url || profile.avatarUrl))} size={46} />
               <div style={{ minWidth: 0 }}>
-                <div style={S.h3}>{me.name}</div>
+                <div style={S.h3} title={me.name}>{shortName(me.name)}</div>
                 {me.fullName && <div style={S.caption}>{me.fullName}</div>}
                 <Mono color="var(--text-muted)">{me.phone || t('common.notYet')}</Mono>
               </div>

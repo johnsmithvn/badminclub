@@ -518,6 +518,11 @@
     "failed": "Chưa lưu được xuống máy chủ: {{msg}}. Thay đổi vẫn còn trên màn hình, sẽ thử lại.",
     "fatal": "Máy chủ từ chối thay đổi vừa rồi ({{msg}}). Màn hình đã nạp lại đúng dữ liệu đang có — làm lại thao tác đó, đừng làm tiếp lên số cũ."
   },
+  "screenError": {
+    "title": "Màn hình này gặp lỗi",
+    "desc": "Các màn khác vẫn dùng được — bấm sang mục khác ở thanh điều hướng, hoặc tải lại trang.",
+    "reload": "Tải lại trang"
+  },
   "setup": {
     "title": "Chưa cấu hình cơ sở dữ liệu",
     "cardTitle": "CLB mới — bốn bước để dùng được",

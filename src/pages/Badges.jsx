@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { t } from '#i18n'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -272,6 +273,119 @@ export default function Badges() {
     setIsEditingSignature(false)
   }
 
+  const renderSignatureModal = () => {
+    if (!isEditingSignature) return null
+    const modal = (
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 10050,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(7, 3, 15, 0.85)',
+          backdropFilter: 'blur(8px)',
+          padding: 16,
+        }}
+        onClick={() => setIsEditingSignature(false)}
+      >
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: 480,
+            padding: 1,
+            clipPath: NOTCH_CLIP,
+            background: 'linear-gradient(135deg, #FF2E7E, #FFE24B)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            style={{
+              clipPath: NOTCH_CLIP,
+              background: '#15082A',
+              padding: '24px 26px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span
+                style={{
+                  font: '700 18px/1 Oswald, sans-serif',
+                  letterSpacing: '.06em',
+                  color: '#FFFFFF',
+                }}
+              >
+                {t('badges.signatureModal.title')}
+              </span>
+              <span style={{ font: "400 12px/1.4 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>
+                {t('badges.signatureModal.sub')}
+              </span>
+            </div>
+
+            <input
+              type="text"
+              maxLength={60}
+              value={signatureDraft}
+              onChange={(e) => setSignatureDraft(e.target.value)}
+              placeholder={t('badges.signatureModal.placeholder')}
+              style={{
+                background: 'rgba(0, 0, 0, 0.35)',
+                border: '1px solid #6D14FF',
+                borderRadius: 6,
+                color: '#FFFFFF',
+                padding: '12px 14px',
+                fontSize: 14,
+                fontFamily: "'Be Vietnam Pro', sans-serif",
+                outline: 'none',
+              }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setIsEditingSignature(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#C9B8E6',
+                  padding: '8px 16px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  font: '600 12px/1 Oswald, sans-serif',
+                }}
+              >
+                {t('badges.signatureModal.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSignature}
+                style={{
+                  background: 'linear-gradient(135deg, #FFE24B, #FF7A18)',
+                  border: 'none',
+                  color: '#140109',
+                  padding: '8px 18px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  font: '700 12px/1 Oswald, sans-serif',
+                  letterSpacing: '.1em',
+                }}
+              >
+                {t('badges.signatureModal.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+    return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  }
+
   const selectedBadgeId = selectedBadge?.id
   const currentMemberId = currentMember?.id
 
@@ -335,6 +449,10 @@ export default function Badges() {
             onSelectBadge={handleSelectBadge}
             onReorderShelf={() => setShowShelfModal(true)}
             onSelectMember={(memberId) => setViewingMemberId(memberId === currentMember?.id ? null : memberId)}
+            onEditSignature={() => {
+              setSignatureDraft(currentMember?.signature || '')
+              setIsEditingSignature(true)
+            }}
             allMembers={db?.members || []}
           />
         ) : (
@@ -554,6 +672,9 @@ export default function Badges() {
             </div>
           </div>
         )}
+
+        {/* Modal Sửa châm ngôn cá nhân trên mobile */}
+        {renderSignatureModal()}
       </div>
     )
   }
@@ -1495,114 +1616,7 @@ export default function Badges() {
       )}
 
       {/* ═══ MODAL SỬA CHÂM NGÔN / CHỮ KÝ ═══ */}
-      {isEditingSignature && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(7, 3, 15, 0.85)',
-            backdropFilter: 'blur(8px)',
-            padding: 16,
-          }}
-          onClick={() => setIsEditingSignature(false)}
-        >
-          <div
-            style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: 480,
-              padding: 1,
-              clipPath: NOTCH_CLIP,
-              background: 'linear-gradient(135deg, #FF2E7E, #FFE24B)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                clipPath: NOTCH_CLIP,
-                background: '#15082A',
-                padding: '24px 26px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span
-                  style={{
-                    font: '700 18px/1 Oswald, sans-serif',
-                    letterSpacing: '.06em',
-                    color: '#FFFFFF',
-                  }}
-                >
-                  {t('badges.signatureModal.title')}
-                </span>
-                <span style={{ font: "400 12px/1.4 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>
-                  {t('badges.signatureModal.sub')}
-                </span>
-              </div>
-
-              <input
-                type="text"
-                maxLength={60}
-                value={signatureDraft}
-                onChange={(e) => setSignatureDraft(e.target.value)}
-                placeholder={t('badges.signatureModal.placeholder')}
-                style={{
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid #6D14FF',
-                  borderRadius: 6,
-                  color: '#FFFFFF',
-                  padding: '12px 14px',
-                  fontSize: 14,
-                  fontFamily: "'Be Vietnam Pro', sans-serif",
-                  outline: 'none',
-                }}
-              />
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingSignature(false)}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: 'none',
-                    color: '#C9B8E6',
-                    padding: '8px 16px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    font: '600 12px/1 Oswald, sans-serif',
-                  }}
-                >
-                  {t('badges.signatureModal.cancel')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveSignature}
-                  style={{
-                    background: 'linear-gradient(135deg, #FFE24B, #FF7A18)',
-                    border: 'none',
-                    color: '#140109',
-                    padding: '8px 18px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    font: '700 12px/1 Oswald, sans-serif',
-                    letterSpacing: '.1em',
-                  }}
-                >
-                  {t('badges.signatureModal.save')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {renderSignatureModal()}
     </div>
   )
 }

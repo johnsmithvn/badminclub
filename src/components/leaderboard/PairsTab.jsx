@@ -3,7 +3,7 @@ import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
 import { Icon, Avatar } from '#ds'
 import { rankPairs, calcMatchupEdge } from '#lib/rating.js'
-import { playerName } from '#lib/money.js'
+import { playerName, shortName } from '#lib/money.js'
 import { ConfidenceChip } from '#ui'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import PairDetailModal from './PairDetailModal.jsx'
@@ -233,6 +233,10 @@ export default function PairsTab({
     const b = resolve(pair?.memberB?.name, p2)
     return [a, b]
   }
+
+  /** Nhãn cặp để VẼ — tên đầy đủ đi vào `title`. Tên dài làm tràn cả thẻ cặp đôi. */
+  const pairLabel = (pair) => getPairNames(pair).map(shortName).join(' · ')
+  const pairTitle = (pair) => getPairNames(pair).join(' · ')
 
   function getPairMembers(pair) {
     const p1 = pair?.playerA || pair?.memberA?.id
@@ -499,7 +503,7 @@ function getScoreVisuals(score, isTop) {
               {t('leaderboard.pairBestOfSeason')}
             </span>
             <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: textWhite }}>
-              {getPairNames(topPair).join(' · ')}
+              <span title={pairTitle(topPair)}>{pairLabel(topPair)}</span>
             </div>
             <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textSecondary }}>
               {topPair.pairImpact < 0
@@ -727,7 +731,7 @@ function getScoreVisuals(score, isTop) {
                           />
                         </span>
                         <span style={{ flex: 1, font: "600 16px/1.25 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                          {getPairNames(pair).join(' · ')}
+                          <span title={pairTitle(pair)}>{pairLabel(pair)}</span>
                         </span>
                         <span
                           style={{
@@ -1117,7 +1121,7 @@ function getScoreVisuals(score, isTop) {
                           <div style={{ minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               <span style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: textWhite }}>
-                                {getPairNames(pair).join(' · ')}
+                                <span title={pairTitle(pair)}>{pairLabel(pair)}</span>
                               </span>
                             {isTop && (
                               <span style={{
@@ -1377,7 +1381,7 @@ function getScoreVisuals(score, isTop) {
               <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: textSecondary }}>
                 {underperformingPair
                   ? t('leaderboard.underperformingLossSummary', {
-                      names: getPairNames(underperformingPair).join(' · '),
+                      names: pairLabel(underperformingPair),
                       losses: underperformingPair.losses,
                       games: underperformingPair.gamesCount,
                       exp: underperformingPair.expectedWinPct,
@@ -1396,7 +1400,7 @@ function getScoreVisuals(score, isTop) {
                       font: "400 12px/1.4 'IBM Plex Mono', monospace",
                     }}
                   >
-                    <span style={{ color: textSecondary }}>{getPairNames(p).join(' · ')}</span>
+                    <span style={{ color: textSecondary }} title={pairTitle(p)}>{pairLabel(p)}</span>
                     <span style={{ color: p.pairImpact <= -12 ? '#F09A8E' : (isDark ? '#F0B75C' : 'var(--amber-700, #B45309)') }}>
                       {p.pairImpact} {t('leaderboard.pointsPct')}
                     </span>
@@ -1450,7 +1454,7 @@ function getScoreVisuals(score, isTop) {
                   }}
                 >
                   <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: textWhite }}>
-                    {getPairNames(p).join(' · ')}
+                    <span title={pairTitle(p)}>{pairLabel(p)}</span>
                   </span>
                   <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
                     {p.gamesCount}/5 {t('leaderboard.matchesAbbr')}

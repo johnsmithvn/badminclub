@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { calcMatchupEdge, rankPairs } from '#lib/rating.js'
+import { shortName } from '#lib/money.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { SearchSelect } from '#ui'
@@ -731,7 +732,7 @@ export default function PairH2HTab({
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {fp.name} <span style={{ color: '#8494AA', fontFamily: "'IBM Plex Mono', monospace" }}>({fp.count})</span>
+                    <span title={fp.name}>{shortName(fp.name)}</span> <span style={{ color: '#8494AA', fontFamily: "'IBM Plex Mono', monospace" }}>({fp.count})</span>
                   </button>
                 ))}
               </div>

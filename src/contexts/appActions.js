@@ -82,8 +82,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
   const db = () => dbRef.current
   /** Form đang nhập — đọc qua ref, KHÔNG đọc qua updater của setUi (updater không chạy đồng bộ). */
   const form = () => uiRef.current.form || {}
-  /** Ghi db: fn(d) trả về phần thay đổi. */
-  const up = (fn) => setDb((d) => ({ ...d, ...fn(d) }))
+  /**
+   * Ghi db: fn(d) trả về phần thay đổi.
+   *
+   * `d` có thể là null: đổi CLB làm `setDb(null)` (xem AppContext), nên mọi action async đang
+   * chờ (`reloadNotifications`, các `.then` của Supabase) khi quay lại sẽ chạy fn(null) và ném
+   * "Cannot read properties of null" — React không có error boundary nên gỡ sạch cây, người
+   * dùng thấy màn "Lỗi khởi động ứng dụng". Bỏ qua patch là đúng: CLB cũ không còn trên màn.
+   */
+  const up = (fn) => setDb((d) => (d ? { ...d, ...fn(d) } : d))
 
   /**
    * Ghi/đè một dòng đối chiếu buổi. Lần đầu chạm vào là LƯU con số hiện tại — từ đó sửa điểm
@@ -4284,7 +4291,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
   A.reloadNotifications = async () => {
     const d0 = db()
-    if (!d0.clubId || !supabase) return
+    // `?.` vì hàm này chạy theo sự kiện focus tab / message của Service Worker — có thể nổ
+    // đúng lúc đang đổi CLB, khi `db` là null.
+    if (!d0?.clubId || !supabase) return
     const { data, error } = await supabase
       .from('notifications')
       .select('*')

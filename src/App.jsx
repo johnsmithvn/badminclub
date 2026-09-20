@@ -5,9 +5,9 @@
 // Thiếu .env.local thì app KHÔNG chạy được: mọi dữ liệu nằm ở Supabase, không có chế độ
 // dữ liệu mẫu. Xem README mục Chạy.
 
-import { useEffect } from 'react'
+import { Component, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Skeleton } from '#ds'
+import { Button, Skeleton } from '#ds'
 import AppLayout from '#components/layout/AppLayout.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
@@ -163,16 +163,55 @@ function InClub() {
 
   return (
     <AppLayout route={route}>
-      <Routes>
-        {PAGES.map((p) => {
-          const C = SCREEN[p.key]
-          return <Route key={p.key} path={p.path} element={<C />} />
-        })}
-        <Route path="/lich-co-dinh" element={<Navigate to="/cai-dat" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <ScreenError key={route}>
+        <Routes>
+          {PAGES.map((p) => {
+            const C = SCREEN[p.key]
+            return <Route key={p.key} path={p.path} element={<C />} />
+          })}
+          <Route path="/lich-co-dinh" element={<Navigate to="/cai-dat" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ScreenError>
     </AppLayout>
   )
+}
+
+/**
+ * Một màn nổ thì chỉ mất màn đó — header và thanh điều hướng vẫn còn để đi chỗ khác.
+ *
+ * Trước đây app KHÔNG có ranh giới lỗi nào: một lỗi chưa bắt làm React gỡ sạch cây, `#root`
+ * rỗng, và thứ hiện ra là màn "Lỗi khởi động ứng dụng" của `index.html` — nói sai hoàn toàn
+ * nguyên nhân, vì nó chỉ hiện khi `#root` rỗng chứ không phải chỉ lúc khởi động.
+ *
+ * Không có nút "thử lại": nơi gọi truyền `key={route}`, đổi màn là React dựng lại component
+ * này từ đầu nên state lỗi tự sạch.
+ */
+class ScreenError extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { err: null }
+  }
+
+  static getDerivedStateFromError(err) {
+    return { err }
+  }
+
+  componentDidCatch(err, info) {
+    console.error('[screen] lỗi chưa bắt', err, info?.componentStack)
+  }
+
+  render() {
+    if (!this.state.err) return this.props.children
+    return (
+      <div style={S.screenErr}>
+        <div style={{ font: 'var(--type-h3)', color: 'var(--text-primary)' }}>{t('screenError.title')}</div>
+        <div style={{ color: 'var(--text-muted)' }}>{t('screenError.desc')}</div>
+        <pre style={S.pre}>{this.state.err.message}</pre>
+        <Button onClick={() => window.location.reload()}>{t('screenError.reload')}</Button>
+      </div>
+    )
+  }
 }
 
 function Splash({ text }) {
@@ -220,6 +259,10 @@ const S = {
   splash: {
     minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24,
     background: 'var(--surface-page)', font: 'var(--type-caption)', color: 'var(--text-muted)',
+  },
+  screenErr: {
+    display: 'grid', gap: 12, justifyItems: 'start', alignContent: 'start',
+    padding: '24px 22px', maxWidth: 720, margin: '0 auto', width: '100%', boxSizing: 'border-box',
   },
   pre: {
     font: 'var(--type-mono)', background: 'var(--surface-sunken)', color: 'var(--text-primary)',

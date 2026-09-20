@@ -85,6 +85,24 @@ export const playerName = (db, id) => {
   if (!id) return ''
   return playerOf(db, id)?.name || id
 }
+
+/** Tên hiển thị tối đa bấy nhiêu TỪ, và tối đa bấy nhiêu KÝ TỰ. */
+export const NAME_WORDS = 3
+export const NAME_CHARS = 18
+/**
+ * Tên để VẼ LÊN MÀN HÌNH. Tên thật trong db không đổi — chỗ nào gọi hàm này thì gắn kèm
+ * `title={tên đầy đủ}` để hover ra tên gốc.
+ *
+ * Cắt theo TỪ chứ không theo ký tự: tên người Việt 2–3 từ ("Lê Minh Thắng") giữ nguyên, chỉ
+ * tên đặt cho vui mới bị cắt. Trần ký tự đi kèm là để chặn một từ dài liền không dấu cách —
+ * đếm từ không cứu được trường hợp đó, mà chính nó mới là thứ đẩy toang layout.
+ */
+export const shortName = (name) => {
+  const words = String(name ?? '').trim().split(/\s+/).filter(Boolean)
+  const cut = words.slice(0, NAME_WORDS).join(' ')
+  if (cut.length > NAME_CHARS) return `${cut.slice(0, NAME_CHARS).trimEnd()}…`
+  return words.length > NAME_WORDS ? `${cut}…` : cut
+}
 export const sessionOf = (db, id) => db.sessions.find((s) => s.id === id)
 
 export function groupOf(db, id) {

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Avatar, Icon } from '#ds'
 import { t } from '#i18n'
 import { isFemalePlayer } from '#lib/rating.js'
+import { shortName } from '#lib/money.js'
 
 export default function SynergyBadgesCard({
   partners = [],
@@ -124,7 +125,7 @@ export default function SynergyBadgesCard({
                 <div style={S.partnerRow}>
                   <Avatar name={p.name} src={avatar} size={36} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={S.partnerNameBold}>{p.name}</div>
+                    <div style={S.partnerNameBold} title={p.name}>{shortName(p.name)}</div>
                     <div style={S.partnerMeta}>
                       {sortMode === 'matches' ? (
                         <>

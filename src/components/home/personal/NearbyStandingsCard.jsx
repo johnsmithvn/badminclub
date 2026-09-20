@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { t } from '#i18n'
+import { shortName } from '#lib/money.js'
 
 export default function NearbyStandingsCard({ standings = [], seasonStandings = [], onViewLeaderboard }) {
   const [mode, setMode] = useState('season') // 'season' | 'elo'
@@ -54,7 +55,7 @@ export default function NearbyStandingsCard({ standings = [], seasonStandings = 
               <div key={item.id} style={S.rowTarget}>
                 <span style={S.rankTarget}>#{item.rank}</span>
                 <span style={S.nameTarget}>
-                  {item.name}
+                  <span title={item.name}>{shortName(item.name)}</span>
                   <span style={S.targetTag}> · {t('home.personal.targetTag')}</span>
                 </span>
                 <span style={S.eloTarget}>{metricVal}</span>
@@ -66,7 +67,7 @@ export default function NearbyStandingsCard({ standings = [], seasonStandings = 
             <div key={item.id} style={S.rowNormal}>
               <span style={S.rankNormal}>#{item.rank}</span>
               <span style={S.nameNormal}>
-                {item.name}
+                <span title={item.name}>{shortName(item.name)}</span>
                 {item.streakWins >= 3 && (
                   <span style={S.streakNote}> · 🔥 {item.streakWins}T</span>
                 )}

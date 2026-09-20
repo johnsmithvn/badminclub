@@ -3,7 +3,7 @@ import { Button, Card, Dialog, Icon, IconButton, Select, Switch } from '#ds'
 import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { playerName, genderTxt, isFemaleGender, isMaleGender, openSessions } from '#lib/money.js'
+import { playerName, genderTxt, isFemaleGender, isMaleGender, openSessions, shortName } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
 import { compareVietnameseNames } from '#lib/members.js'
 import { can } from '#lib/roles.js'
@@ -1669,7 +1669,7 @@ export default function CourtAssignmentTab({ s }) {
                               title={p.name}
                             >
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={S.cs1PlayerName}>{p.name}</div>
+                                <div style={S.cs1PlayerName} title={p.name}>{shortName(p.name)}</div>
                                 <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
                                   {genderTxt(p.gender)} · {p.level || 'TB'}
                                   {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
@@ -1790,7 +1790,7 @@ export default function CourtAssignmentTab({ s }) {
                           title={p.name}
                         >
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={S.cs1PlayerName}>{p.name}</div>
+                            <div style={S.cs1PlayerName} title={p.name}>{shortName(p.name)}</div>
                             <div style={{ ...S.cs1PlayerMeta, color: isFemale ? '#E86BA8' : '#8494AA' }}>
                               {genderTxt(p.gender)} · {p.level || 'TB'}
                               {canManage && sortOption === 'wait' && (playerWaitTimeMap[p.key] || 0) > 0 && (
@@ -2185,7 +2185,7 @@ export default function CourtAssignmentTab({ s }) {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                          <span style={S.slotName}>{p.name}</span>
+                          <span style={S.slotName} title={p.name}>{shortName(p.name)}</span>
                           <LevelChip level={p.level} levels={db.levels} size="sm" />
                           {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
                         </div>
@@ -2291,7 +2291,7 @@ export default function CourtAssignmentTab({ s }) {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                          <span style={S.slotName}>{p.name}</span>
+                          <span style={S.slotName} title={p.name}>{shortName(p.name)}</span>
                           <LevelChip level={p.level} levels={db.levels} size="sm" />
                           {p.guest && <span style={S.guestTag}>{t('home.tagGuest')}</span>}
                         </div>

@@ -7,6 +7,7 @@ import BadgeHex from '#components/badges/BadgeHex.jsx'
 import { getMemberHighestBadge, getMemberStreak, computeClubBadgeStats } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
+import { shortName } from '#lib/money.js'
 
 function BountyBadgeTag({ streak = 0 }) {
   if (streak < 5) return null
@@ -490,7 +491,7 @@ export default function CareerEloTab({
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                         <SingleBadgeSlot badge={displayList[0].highestBadge} size={19} />
                         <span style={{ font: "700 15.5px/1.15 'Barlow', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {displayList[0].name}
+                          <span title={displayList[0].name}>{shortName(displayList[0].name)}</span>
                         </span>
                         {myMember?.id === displayList[0].id && (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
@@ -579,7 +580,7 @@ export default function CareerEloTab({
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                         <SingleBadgeSlot badge={displayList[1].highestBadge} size={18} />
                         <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {displayList[1].name}
+                          <span title={displayList[1].name}>{shortName(displayList[1].name)}</span>
                         </span>
                         {myMember?.id === displayList[1].id && (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
@@ -665,7 +666,7 @@ export default function CareerEloTab({
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                         <SingleBadgeSlot badge={displayList[2].highestBadge} size={18} />
                         <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {displayList[2].name}
+                          <span title={displayList[2].name}>{shortName(displayList[2].name)}</span>
                         </span>
                         {myMember?.id === displayList[2].id && (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
@@ -811,7 +812,7 @@ export default function CareerEloTab({
                       </div>
                       <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                         <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {displayList[0].name}
+                          <span title={displayList[0].name}>{shortName(displayList[0].name)}</span>
                         </div>
                         <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
                           {displayList[0].rating}
@@ -877,7 +878,7 @@ export default function CareerEloTab({
                       </div>
                       <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                         <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {displayList[1].name}
+                          <span title={displayList[1].name}>{shortName(displayList[1].name)}</span>
                         </div>
                         <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
                           {displayList[1].rating}
@@ -943,7 +944,7 @@ export default function CareerEloTab({
                       </div>
                       <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                         <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {displayList[2].name}
+                          <span title={displayList[2].name}>{shortName(displayList[2].name)}</span>
                         </div>
                         <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F5E0D0' }}>
                           {displayList[2].rating}
@@ -1004,7 +1005,7 @@ export default function CareerEloTab({
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 2 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {player.name}
+                          <span title={player.name}>{shortName(player.name)}</span>
                         </span>
                         {isMe && (
                           <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '3px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
@@ -1148,7 +1149,7 @@ export default function CareerEloTab({
                         <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {player.name}
+                              <span title={player.name}>{shortName(player.name)}</span>
                             </span>
                             {isMe && (
                               <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
@@ -1327,7 +1328,7 @@ export default function CareerEloTab({
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            {player.name}
+                            <span title={player.name}>{shortName(player.name)}</span>
                           </span>
                           {myMember && myMember.id === player.id && (
                             <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>

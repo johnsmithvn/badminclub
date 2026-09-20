@@ -7,7 +7,7 @@ import { EditGuestDialog, Empty, GenderChip, LevelChip, Mono, Overline, QrModal,
 import { findBank, getVietQrUrl } from '#utils/vietqr.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { ddmy, monthTxt } from '#utils/dates.js'
-import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberRefs, nextLevelStep, offBackSuggest, rosterStatus, guestStats, normalizeText } from '#lib/money.js'
+import { dueState, duesOf, duesTotal, fmt, genderTxt, memberOf, levelOf, memberRefs, nextLevelStep, offBackSuggest, rosterStatus, guestStats, normalizeText, shortName } from '#lib/money.js'
 import { FILTER0, duesStatusOf, filterMembers, fixedGroups, hasFilter, nextSort, sortMembers } from '#lib/members.js'
 import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -534,7 +534,7 @@ function AllMembers({ canEdit }) {
                   <Avatar name={r.name} src={r.avatarUrl} size={40} />
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{r.name}</div>
+                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }} title={r.name}>{shortName(r.name)}</div>
                       <LevelChip level={levelOf(r, db.month)} levels={db.levels} />
                       <GenderChip gender={r.gender} />
                       {isInactive ? (
@@ -927,7 +927,7 @@ function NextMonth({ month, canEdit }) {
                         background: color[0], border: '1px solid ' + color[1], color: color[2],
                         cursor: canEdit && !locked ? 'pointer' : 'default', font: 'inherit',
                       }}>
-                      <span style={{ font: 'var(--type-label)' }}>{m.name}</span>
+                      <span style={{ font: 'var(--type-label)' }} title={m.name}>{shortName(m.name)}</span>
                       <span style={{ font: 'var(--type-caption)', opacity: 0.85 }}>{t('rosterState.' + st)}</span>
                     </button>
                   )
@@ -945,7 +945,7 @@ function NextMonth({ month, canEdit }) {
               <div key={x.g.id + x.mid} style={S.row}>
                 <Avatar name={x.m.name} src={x.m.avatarUrl} size={30} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={S.label}>{x.m.name}</div>
+                  <div style={S.label} title={x.m.name}>{shortName(x.m.name)}</div>
                   <Mono color="var(--text-muted)">{x.g.name + ' · ' + monthTxt(month).toLowerCase()}</Mono>
                 </div>
                 {canEdit && (
@@ -1011,7 +1011,7 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Avatar name={x.m.name} src={x.m.avatarUrl} size={36} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{x.m.name}</div>
+                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }} title={x.m.name}>{shortName(x.m.name)}</div>
                     <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                       {t('members.mobileGroupNextTitle', { group: x.g.name })}
                     </div>
@@ -1081,7 +1081,7 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Avatar name={m.name} src={m.avatarUrl} size={36} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{m.name}</div>
+                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }} title={m.name}>{shortName(m.name)}</div>
                       <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                         {t('members.mobileChangeTitle', { field: t('members.changeField.' + c.field) })}
                       </div>
@@ -1163,7 +1163,7 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
                   <Avatar name={m.name} src={m.avatarUrl} size={30} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={S.label}>
-                      {m.name + ' · ' + t('members.changeField.' + c.field)}
+                      <span title={m.name}>{shortName(m.name) + ' · ' + t('members.changeField.' + c.field)}</span>
                     </div>
                     <Mono color="var(--text-muted)">
                       {t('members.changeArrow', { from: c.from, to: c.to }) + ' · ' +

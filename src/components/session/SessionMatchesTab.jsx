@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
-import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
+import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 
@@ -142,6 +142,8 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   }, [challengeTab, myChallenges, pendingChallenges, acceptedChallenges, playedChallenges, challengeSearch, db])
 
   const memberNameOf = (id) => playerName(db, id)
+  /** Tên rút gọn để vẽ trong hàng trận — tên đầy đủ đi vào `title` để hover ra. */
+  const shortNameOf = (id) => shortName(playerName(db, id))
 
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid, playerOf(db, mid), db.levels).rating
 
@@ -303,8 +305,10 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const aWon = m.winnerTeam === 'A'
                 const winnerTeam = aWon ? teamA : teamB
                 const loserTeam = aWon ? teamB : teamA
-                const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
-                const loserNames = loserTeam.map(memberNameOf).join(' · ')
+                const winnerNames = winnerTeam.map(shortNameOf).join(' · ')
+                const loserNames = loserTeam.map(shortNameOf).join(' · ')
+                const winnerFull = winnerTeam.map(memberNameOf).join(' · ')
+                const loserFull = loserTeam.map(memberNameOf).join(' · ')
 
                 const scoreSets = (m.sets || []).map(([a, b]) => ({
                   winPts: aWon ? a : b,
@@ -562,7 +566,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            {winnerNames}
+                            <span title={winnerFull}>{winnerNames}</span>
                           </span>
                         </div>
                         <div style={{ flex: '0 0 auto' }}>
@@ -601,7 +605,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            {loserNames}
+                            <span title={loserFull}>{loserNames}</span>
                           </span>
                         </div>
                         <div style={{ flex: '0 0 auto' }}>
@@ -726,8 +730,10 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     const aWon = m.winnerTeam === 'A'
                     const winnerTeam = aWon ? teamA : teamB
                     const loserTeam = aWon ? teamB : teamA
-                    const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
-                    const loserNames = loserTeam.map(memberNameOf).join(' · ')
+                    const winnerNames = winnerTeam.map(shortNameOf).join(' · ')
+                    const loserNames = loserTeam.map(shortNameOf).join(' · ')
+                    const winnerFull = winnerTeam.map(memberNameOf).join(' · ')
+                    const loserFull = loserTeam.map(memberNameOf).join(' · ')
 
                     const scoreSets = (m.sets || []).map(([a, b]) => ({
                       winPts: aWon ? a : b,
@@ -860,7 +866,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                           {/* Cột 5: Đội thắng */}
                           <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                             <span style={{ font: "600 13px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {winnerNames}
+                              <span title={winnerFull}>{winnerNames}</span>
                             </span>
                             <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-delivered-fg)' }}>
                               {winnerDeltaStr}
@@ -896,7 +902,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                           {/* Cột 7: Đội thua */}
                           <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                             <span style={{ font: "500 12.5px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {loserNames}
+                              <span title={loserFull}>{loserNames}</span>
                             </span>
                             <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-incident-fg)' }}>
                               {loserDeltaStr}
@@ -1295,8 +1301,8 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
             {displayedChallenges.map((c) => {
               const teamA = c.teamA || []
               const teamB = c.teamB || []
-              const namesA = teamA.map(memberNameOf).join(' · ')
-              const namesB = teamB.length ? teamB.map(memberNameOf).join(' · ') : t('challenge.teamEmptyHint')
+              const namesA = teamA.map(shortNameOf).join(' · ')
+              const namesB = teamB.length ? teamB.map(shortNameOf).join(' · ') : t('challenge.teamEmptyHint')
               const ratA = teamA.length ? Math.round(teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length) : 0
               const ratB = teamB.length ? Math.round(teamB.reduce((sum, id) => sum + getRating(id), 0) / teamB.length) : 0
               const gap = Math.abs(ratA - ratB)
@@ -1431,7 +1437,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                         {isPlayed && winnerTeam === 'A' && (
                           <span style={{ fontSize: 13 }} title={t('challenge.winnerBadge')}>👑</span>
                         )}
-                        <span>{namesA}</span>
+                        <span title={teamA.map(memberNameOf).join(' · ')}>{namesA}</span>
                       </div>
                       <div style={{ font: '400 11.5px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                         {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
@@ -1476,7 +1482,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                         alignItems: 'center',
                         gap: 5,
                       }}>
-                        <span>{namesB}</span>
+                        <span title={teamB.map(memberNameOf).join(' · ')}>{namesB}</span>
                         {isPlayed && winnerTeam === 'B' && (
                           <span style={{ fontSize: 13 }} title={t('challenge.winnerBadge')}>👑</span>
                         )}

@@ -7,7 +7,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { dd, wd } from '#utils/dates.js'
 import { pathOf } from '#routes'
 
-import { playerName, isPresent } from '#lib/money.js'
+import { playerName, isPresent, shortName } from '#lib/money.js'
 import { getPlayerRating } from '#lib/rating.js'
 import { neverMetPairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
 import { t } from '#i18n'
@@ -489,7 +489,7 @@ export default function HomeMatchTab() {
                       {idx + 1}
                     </span>
                     <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                      {p.name}
+                      <span title={p.name}>{shortName(p.name)}</span>
                     </span>
                     <LevelChip level={p.level} size="sm" />
                     {p.isGuest && (
@@ -614,7 +614,7 @@ export default function HomeMatchTab() {
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {item.name}
+                      <span title={item.name}>{shortName(item.name)}</span>
                     </span>
                     <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
                       <div

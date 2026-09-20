@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
 import { calcMatchupEdge } from '#lib/rating.js'
-import { playerName } from '#lib/money.js'
+import { playerName, shortName } from '#lib/money.js'
 import { ConfidenceChip } from '#ui'
 import { Avatar } from '#ds'
 
@@ -193,7 +193,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
-                {pairNames.join(' · ')}
+                <span title={pairNames.join(' · ')}>{pairNames.map(shortName).join(' · ')}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                 <span>{t('leaderboard.synergy')} · {gamesCount} {t('units.match')}</span>
@@ -418,7 +418,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
           </span>
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
             <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#fff' }}>
-              {pairNames.join(' · ')}
+              <span title={pairNames.join(' · ')}>{pairNames.map(shortName).join(' · ')}</span>
             </div>
             <div style={{ font: "400 13px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
               {dateSub}

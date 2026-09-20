@@ -10,7 +10,7 @@ import {
 } from '#components/settings/SettingsComponents.jsx'
 import { ROLES, roleDesc } from '#lib/roles.js'
 import { digits, mergeRows } from '#lib/members.js'
-import { levelOf, genderTxt } from '#lib/money.js'
+import { levelOf, genderTxt, shortName } from '#lib/money.js'
 import { ddmy } from '#utils/dates.js'
 import { t } from '#i18n'
 
@@ -57,7 +57,7 @@ function JoinRow({ r, canEdit, unlinked, db, ui, a }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Avatar name={u.name || ''} src={u.avatarUrl} size={36} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)' }}>{u.name}</div>
+          <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)' }} title={u.name}>{shortName(u.name)}</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
             {t('settings.joinMeta', { phone: u.phone || '—', code: r.code, date: ddmy(r.at) })}
           </div>
@@ -418,7 +418,7 @@ export default function AccessTab({
                   <div data-label={t('settings.colMemberCaps')} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                     <Avatar name={m.name} src={m.avatarUrl} size={30} />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }} title={m.name}>{shortName(m.name)}</div>
                       {m.fullName && <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{m.fullName}</div>}
                     </div>
                   </div>
@@ -440,7 +440,7 @@ export default function AccessTab({
                           display: 'inline-block',
                         }}
                       >
-                        {user.nick || user.name}
+                        <span title={user.nick || user.name}>{shortName(user.nick || user.name)}</span>
                       </span>
                     ) : (
                       <span

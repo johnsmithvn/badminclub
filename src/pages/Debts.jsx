@@ -10,6 +10,7 @@ import {
   adjustRows, adjustSessions, advanceRows, clubDebtCounts, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
   genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, myDebtCounts, myMember, pendingClaims,
   sessionOf, timeTxt,
+  shortName,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
 import { useMobile } from '#hooks/useMobile.js'
@@ -1337,7 +1338,7 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {p.name}
+                          <span title={p.name}>{shortName(p.name)}</span>
                         </span>
                         {(p.bankName && p.bankNo) && (
                           <IconButton
@@ -1505,7 +1506,7 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {p.name}
+                          <span title={p.name}>{shortName(p.name)}</span>
                         </div>
                         {(p.bankName && p.bankNo) && (
                           <IconButton
@@ -2218,7 +2219,7 @@ function Dues({ dues, canMoney }) {
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                     <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {mb.name}
+                      <span title={mb.name}>{shortName(mb.name)}</span>
                     </div>
                     <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                       {t('debts.mobilePaidOn', { date: ddmy(x.paidAt || db.today) })}
@@ -2490,7 +2491,7 @@ function Dues({ dues, canMoney }) {
                     <Avatar name={mb.name} src={mb.avatarUrl} size={32} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {mb.name}
+                        <span title={mb.name}>{shortName(mb.name)}</span>
                       </div>
                       <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
                         {group?.name}

@@ -18,6 +18,7 @@ import {
   fmt, fmtK, genderTxt, groupMembers, groupOf, guestOf, guestPrice, headCount, levelOf,
   isAdhoc, isMemberCharge, memberOf, presentCount, rowCost, sGuests, sGuestsOnly, sessionMembers,
   sessionOf, normalizeText, guestStats, myMember,
+  shortName,
 } from '#lib/money.js'
 import { addCourtForm, guestForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -486,7 +487,7 @@ export default function SessionDetail() {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>
-          {m.name}
+          <span title={m.name}>{shortName(m.name)}</span>
         </span>
         {isNoShow && (
           <span
@@ -1446,7 +1447,7 @@ export default function SessionDetail() {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={S.label}>{guestOf(db, g.guestId).name}</div>
+                          <div style={S.label} title={guestOf(db, g.guestId).name}>{shortName(guestOf(db, g.guestId).name)}</div>
                           <div style={S.caption}>{genderTxt(g.gender) + ' · ' + g.level}</div>
                         </div>
                         <Mono weight={600} color="var(--text-primary)">{fmt(g.price)}</Mono>
@@ -1715,7 +1716,7 @@ function GuestForm({ s, isMobile }) {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600 }}>{g.name}</span>
+                      <span style={{ fontWeight: 600 }} title={g.name}>{shortName(g.name)}</span>
                       <LevelChip level={g.level} levels={db.levels} />
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{genderTxt(g.gender)}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>

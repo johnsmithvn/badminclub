@@ -4,6 +4,7 @@ import BadgeHex from './BadgeHex.jsx'
 import { ANIME_TIERS, HEX_CLIP, NOTCH_CLIP, NOTCH_S_CLIP } from '#lib/badges.js'
 import badgesConfig from '#config/badges.json'
 import { useMobile } from '#hooks/useMobile.js'
+import { shortName } from '#lib/money.js'
 
 /**
  * Màn A5: Tab Xếp hạng Sưu tập (Collector Leaderboard).
@@ -140,7 +141,7 @@ export default function CollectorLeaderboardTab({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {c.name}
+                        <span title={c.name}>{shortName(c.name)}</span>
                       </span>
                       <span
                         style={{
@@ -570,7 +571,7 @@ export default function CollectorLeaderboardTab({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {c.name}
+                      <span title={c.name}>{shortName(c.name)}</span>
                     </span>
                     <span
                       style={{

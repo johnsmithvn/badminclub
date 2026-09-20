@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
-import { playerName, playerOf } from '#lib/money.js'
+import { playerName, playerOf, shortName } from '#lib/money.js'
 import { Avatar } from '#ds'
 
 export default function PlannerTimelineCol({
@@ -192,7 +192,7 @@ export default function PlannerTimelineCol({
                   {freePlayers.slice(0, 10).map((p) => (
                     <span key={p.key} style={S.playerChipFree}>
                       <Avatar name={p.name} src={p.avatarUrl} size={15} style={{ flexShrink: 0, marginRight: 5 }} />
-                      <span>{p.name}</span>
+                      <span title={p.name}>{shortName(p.name)}</span>
                     </span>
                   ))}
                 </div>

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { dd } from '#utils/dates.js'
-import { playerName } from '#lib/money.js'
+import { playerName, shortName } from '#lib/money.js'
 import { calculatePlayerWaitTime, sessionFairnessRows } from '#lib/assign.js'
 import { DEFAULT_RATING } from '#lib/rating.js'
 import { t } from '#i18n'
@@ -250,7 +250,7 @@ export default function SessionStatsSheet({
                 return (
                   <div key={item.key} style={S.playerBarRow}>
                     <div style={S.playerBarName} title={item.name}>
-                      {item.name}
+                      {shortName(item.name)}
                     </div>
                     <div style={S.barTrack}>
                       <div
@@ -280,7 +280,7 @@ export default function SessionStatsSheet({
               {statsWaiting.map((item) => (
                 <div key={item.key} style={S.waitingRow}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={S.waitingName}>{item.name}</div>
+                    <div style={S.waitingName} title={item.name}>{shortName(item.name)}</div>
                     <div style={S.waitingMeta}>
                       {item.count} {t('units.match')}
                     </div>
@@ -316,7 +316,7 @@ export default function SessionStatsSheet({
                   </div>
                   {fairnessRows.map((r) => (
                     <div key={r.key} style={S.fairRow}>
-                      <div style={S.fairName}>{r.name}</div>
+                      <div style={S.fairName} title={r.name}>{shortName(r.name)}</div>
                       <div style={S.fairNum}>{r.played}</div>
                       <div style={{ ...S.fairNum, ...(r.waitTurns >= 3 ? S.fairNumUrgent : {}) }}>{r.waitTurns}</div>
                       <div

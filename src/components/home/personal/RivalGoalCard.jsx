@@ -1,5 +1,6 @@
 import { Avatar } from '#ds'
 import { t } from '#i18n'
+import { shortName } from '#lib/money.js'
 
 export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2HClick, onChallenge }) {
   const activeRivalData = rivalData || rivalAnalysis
@@ -26,7 +27,7 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
       <div style={S.rivalRow}>
         <Avatar name={rival.name} src={rival.avatarUrl} size={isMobile ? 38 : 42} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={isMobile ? S.rivalNameMobile : S.rivalNameDesktop}>{rival.name}</div>
+          <div style={isMobile ? S.rivalNameMobile : S.rivalNameDesktop} title={rival.name}>{shortName(rival.name)}</div>
           <div style={S.rivalMeta}>
             #{rival.rank} · {rival.elo} {t('home.personal.eloNormal')}
             {rival.streak > 0 ? ` · ${t('home.personal.recentWinsStreak', { n: rival.streak })}` : ''}
@@ -53,7 +54,7 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
         <div style={S.mobileStandings}>
           <div style={S.standingRow}>
             <span style={S.standingRank}>#{rival.rank}</span>
-            <span style={S.standingName}>{rival.name}</span>
+            <span style={S.standingName} title={rival.name}>{shortName(rival.name)}</span>
             <span style={S.standingElo}>{rival.elo}</span>
           </div>
           <div style={S.standingRowActive}>
@@ -65,7 +66,7 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
             <div style={S.standingRow}>
               <span style={S.standingRank}>#{chaser.rank}</span>
               <span style={S.standingName}>
-                {chaser.name}
+                <span title={chaser.name}>{shortName(chaser.name)}</span>
                 {chaser.streak >= 2 && (
                   <span style={S.streakNote}> · {t('home.personal.chaserWarningShort', { streak: chaser.streak })}</span>
                 )}

@@ -8,7 +8,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import cfg from '#config/app.json' with { type: 'json' }
-import { playerName, courtOf, myMember, playerOf, sessionMembers, sGuests, isPresent, timeTxt, courtTxt, presentCount } from '#lib/money.js'
+import { playerName, courtOf, myMember, playerOf, sessionMembers, sGuests, isPresent, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
 import { sessionPlayers } from '#lib/assign.js'
 import { dd, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
 import {
@@ -266,6 +266,8 @@ export default function Matches() {
   }, [db])
 
   const memberNameOf = useCallback((id) => playerName(db, id), [db])
+  /** Tên rút gọn để vẽ trong hàng trận — tên đầy đủ đi vào `title` để hover ra. */
+  const shortNameOf = useCallback((id) => shortName(playerName(db, id)), [db])
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid, playerOf(db, mid), db.levels).rating
 
   // =========================================================================
@@ -1128,7 +1130,7 @@ export default function Matches() {
                           const isAcc = (c.acceptedPlayers || []).includes(id)
                           return (
                             <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                              <span>{memberNameOf(id)}</span>
+                              <span title={memberNameOf(id)}>{shortNameOf(id)}</span>
                               {isPending && isAcc && (
                                 <Icon name="check" size={12} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
                               )}
@@ -1183,7 +1185,7 @@ export default function Matches() {
                           const isAcc = (c.acceptedPlayers || []).includes(id)
                           return (
                             <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                              <span>{memberNameOf(id)}</span>
+                              <span title={memberNameOf(id)}>{shortNameOf(id)}</span>
                               {isPending && isAcc && (
                                 <Icon name="check" size={12} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
                               )}
@@ -2224,8 +2226,10 @@ export default function Matches() {
                         const aWon = m.winnerTeam === 'A'
                         const winnerTeam = aWon ? teamA : teamB
                         const loserTeam = aWon ? teamB : teamA
-                        const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
-                        const loserNames = loserTeam.map(memberNameOf).join(' · ')
+                        const winnerNames = winnerTeam.map(shortNameOf).join(' · ')
+                        const loserNames = loserTeam.map(shortNameOf).join(' · ')
+                        const winnerFull = winnerTeam.map(memberNameOf).join(' · ')
+                        const loserFull = loserTeam.map(memberNameOf).join(' · ')
 
                         const scoreSets = (m.sets || []).map(([a, b]) => ({
                           winPts: aWon ? a : b,
@@ -2547,7 +2551,7 @@ export default function Matches() {
                                       whiteSpace: 'nowrap',
                                     }}
                                   >
-                                    {winnerNames}
+                                    <span title={winnerFull}>{winnerNames}</span>
                                   </span>
                                 </div>
                                 <div style={{ flex: '0 0 auto' }}>
@@ -2586,7 +2590,7 @@ export default function Matches() {
                                       whiteSpace: 'nowrap',
                                     }}
                                   >
-                                    {loserNames}
+                                    <span title={loserFull}>{loserNames}</span>
                                   </span>
                                 </div>
                                 <div style={{ flex: '0 0 auto' }}>
@@ -2749,8 +2753,10 @@ export default function Matches() {
                       const aWon = m.winnerTeam === 'A'
                       const winnerTeam = aWon ? teamA : teamB
                       const loserTeam = aWon ? teamB : teamA
-                      const winnerNames = winnerTeam.map(memberNameOf).join(' · ')
-                      const loserNames = loserTeam.map(memberNameOf).join(' · ')
+                      const winnerNames = winnerTeam.map(shortNameOf).join(' · ')
+                      const loserNames = loserTeam.map(shortNameOf).join(' · ')
+                      const winnerFull = winnerTeam.map(memberNameOf).join(' · ')
+                      const loserFull = loserTeam.map(memberNameOf).join(' · ')
 
                       const scoreSets = (m.sets || []).map(([a, b]) => ({
                         winPts: aWon ? a : b,
@@ -2929,7 +2935,7 @@ export default function Matches() {
                             {/* Cột 5: Đội thắng */}
                             <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                               <span style={{ font: "600 13px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--status-delivered-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {winnerNames}
+                                <span title={winnerFull}>{winnerNames}</span>
                               </span>
                               <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-delivered-fg)' }}>
                                 {winnerDeltaStr}
@@ -2965,7 +2971,7 @@ export default function Matches() {
                             {/* Cột 7: Đội thua */}
                             <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                               <span style={{ font: "500 12.5px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {loserNames}
+                                <span title={loserFull}>{loserNames}</span>
                               </span>
                               <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--status-incident-fg)' }}>
                                 {loserDeltaStr}
@@ -3062,7 +3068,7 @@ export default function Matches() {
                               matchCode={matchCode}
                               timeStr={matchTime}
                               courtVenueStr={`${courtLabel} · ${venue?.name || ''}`}
-                              teamText={`${winnerNames} vs ${loserNames}`}
+                              teamText={`${winnerFull} vs ${loserFull}`}
                               scoreText={fullScoreStr}
                               onSave={(videoData) => {
                                 a.attachMatchVideo(m.id, videoData)

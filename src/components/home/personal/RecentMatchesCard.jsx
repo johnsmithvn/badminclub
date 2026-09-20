@@ -1,5 +1,6 @@
 import { Icon } from '#ds'
 import { t } from '#i18n'
+import { shortName } from '#lib/money.js'
 
 function formatSeasonPoints(val, won) {
   if (!val || val === '—') return '—'
@@ -94,7 +95,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
                                 : S.partnerPlayer
                             }
                           >
-                            {p.name}
+                            <span title={p.name}>{shortName(p.name)}</span>
                           </span>
                         </span>
                       ))}
@@ -103,7 +104,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
                       {oppPlayers.map((p, pIdx) => (
                         <span key={p.id || pIdx}>
                           {pIdx > 0 && <span style={S.playerSep}>·</span>}
-                          <span style={S.oppPlayer}>{p.name}</span>
+                          <span style={S.oppPlayer} title={p.name}>{shortName(p.name)}</span>
                         </span>
                       ))}
                     </div>
@@ -198,7 +199,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
                             : S.partnerPlayer
                         }
                       >
-                        {p.name}
+                        <span title={p.name}>{shortName(p.name)}</span>
                       </span>
                     </span>
                   ))}
@@ -217,7 +218,7 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
                   {oppPlayers.map((p, pIdx) => (
                     <span key={p.id || pIdx}>
                       {pIdx > 0 && <span style={S.playerSep}>·</span>}
-                      <span style={S.oppPlayer}>{p.name}</span>
+                      <span style={S.oppPlayer} title={p.name}>{shortName(p.name)}</span>
                     </span>
                   ))}
                 </span>

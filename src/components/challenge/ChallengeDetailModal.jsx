@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { courtOf, myMember, playerName, playerOf } from '#lib/money.js'
+import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
@@ -1302,7 +1302,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                       border: isSelected ? '5px solid var(--status-transit-fg)' : '1.5px solid var(--border-default)',
                     }} />
                     <span style={{ flex: 1, font: '600 13px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                      {m.name}
+                      <span title={m.name}>{shortName(m.name)}</span>
                     </span>
                     <span style={{ font: '500 12px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                       {r} Elo

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
-import { isPresent } from '#lib/money.js'
+import { isPresent, shortName } from '#lib/money.js'
 import { Avatar } from '#ds'
 
 export default function PlannerPlayerCol({
@@ -77,7 +77,7 @@ export default function PlannerPlayerCol({
 
               {/* Tên */}
               <span style={S.playerName} title={p.name}>
-                {p.name}
+                <span title={p.name}>{shortName(p.name)}</span>
               </span>
 
               {/* Badge Khách nếu là khách */}

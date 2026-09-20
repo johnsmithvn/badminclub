@@ -5,7 +5,7 @@ import {
   expectedScore, calcEloDelta, getPlayerRating, confidenceProgress,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
-import { playerName, playerOf } from '#lib/money.js'
+import { shortName, playerName, playerOf } from '#lib/money.js'
 import { calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -362,7 +362,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                       color: inA || inB ? 'var(--action-primary-fg)' : 'var(--text-primary)',
                     }}
                   >
-                    <span>{m.name}</span>
+                    <span title={m.name}>{shortName(m.name)}</span>
                     <span style={{ ...S.monoRating, color: inA || inB ? 'var(--navy-200)' : 'var(--text-muted)' }}>{r}</span>
                     <span style={confBadgeStyle(conf.level)}>{conf.level}</span>
                     {inA && <span style={S.teamTag}>A</span>}

@@ -9,6 +9,7 @@ import {
   groupBadgesByFamily,
 } from '#lib/badges.js'
 import { t } from '#i18n'
+import { shortName } from '#lib/money.js'
 
 /**
  * AM1 · Bộ sưu tập · Hồ sơ + Kệ + Lưới (Bản Anime Mobile).
@@ -34,6 +35,7 @@ export default function AnimeMobileCollection({
   onSelectBadge,
   onReorderShelf,
   onSelectMember,
+  onEditSignature,
   allMembers = [],
 }) {
   // Nhóm đang được chọn để hiển thị lưới 3 cột (mặc định là nhóm đầu tiên)
@@ -209,7 +211,7 @@ export default function AnimeMobileCollection({
             >
               {allMembers.map((m) => (
                 <option key={m.id} value={m.id} style={{ background: '#1D0D35', color: '#FFFFFF' }}>
-                  {m.name} {m.id === currentMember?.id ? `(${t('badges.collectorProfile.rankMe')})` : ''}
+                  {shortName(m.name)} {m.id === currentMember?.id ? `(${t('badges.collectorProfile.rankMe')})` : ''}
                 </option>
               ))}
             </select>
@@ -281,7 +283,7 @@ export default function AnimeMobileCollection({
             }}
           >
             <span style={{ font: "600 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#FFFFFF' }}>
-              👁 {activeMember?.name}
+              👁 <span title={activeMember?.name}>{shortName(activeMember?.name)}</span>
             </span>
             <button
               type="button"
@@ -416,6 +418,53 @@ export default function AnimeMobileCollection({
                   {t('badges.openedStatus').toUpperCase()}
                 </span>
               </div>
+            </div>
+
+            {/* Dòng 1.5: Châm ngôn cá nhân */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {isViewingSelf ? (
+                <button
+                  type="button"
+                  onClick={() => onEditSignature && onEditSignature()}
+                  title={t('badges.signatureModal.title')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 10px',
+                    background: 'rgba(255, 226, 75, 0.12)',
+                    border: '1px solid rgba(255, 226, 75, 0.35)',
+                    borderRadius: 999,
+                    cursor: 'pointer',
+                    outline: 'none',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontStyle: 'italic',
+                      fontSize: 11.5,
+                      color: activeMember?.signature ? '#FFE24B' : '#A899C5',
+                      fontFamily: "'Be Vietnam Pro', sans-serif",
+                    }}
+                  >
+                    “{activeMember?.signature || t('badges.collectorProfile.notSelected')}”
+                  </span>
+                  <span style={{ fontSize: 11, color: '#FFE24B' }}>✎</span>
+                </button>
+              ) : activeMember?.signature ? (
+                <span
+                  style={{
+                    fontStyle: 'italic',
+                    fontSize: 11.5,
+                    color: '#FFE24B',
+                    fontFamily: "'Be Vietnam Pro', sans-serif",
+                    opacity: 0.9,
+                  }}
+                >
+                  “{activeMember.signature}”
+                </span>
+              ) : null}
             </div>
 
             {/* Dòng 2: Thanh tiến độ XP lên cấp tiếp theo */}

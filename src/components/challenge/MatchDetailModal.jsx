@@ -2,7 +2,7 @@ import { useState, useMemo, Fragment } from 'react'
 import { Button, Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { playerName, courtOf, playerOf } from '#lib/money.js'
+import { playerName, courtOf, playerOf, shortName } from '#lib/money.js'
 import {
   matchCodeOf,
   getPlayerRating,
@@ -227,7 +227,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
       title: t('matchDetail.tier1Elo'),
       sub: t('matchDetail.tier1EloSub'),
       desc: `Kỳ vọng ${expA}% · thắng thật → ${isUpset ? 'bất ngờ lớn, biến động mạnh' : 'tăng nhẹ vì đúng dự đoán'}`, // i18n-ok
-      value: playerDeltas.listA.map((p) => `${p.name} ${p.delta >= 0 ? `+${p.delta}` : p.delta}`).join(' · '),
+      value: playerDeltas.listA.map((p) => `${shortName(p.name)} ${p.delta >= 0 ? `+${p.delta}` : p.delta}`).join(' · '),
       color: '#5FDBD3',
     },
     {

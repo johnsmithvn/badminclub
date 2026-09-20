@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
 import { Icon, Select, StatCard, Avatar } from '#ds'
 import { ConfidenceChip, LevelChip, GenderChip } from '#ui'
-import { playerName } from '#lib/money.js'
-import { getPlayerRating, rankTierOf, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
-import { getMemberBadge, RANK_THEMES } from '#data/rankThemes.js'
+import { playerName, shortName } from '#lib/money.js'
+import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
+import { RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
 import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS } from '#lib/badges.js'
 import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
@@ -417,7 +417,7 @@ export default function MemberProfileTab({
                 {/* Hàng 1: Tên + LevelChip + Giới tính */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ font: '700 22px/1.2 Barlow, sans-serif', color: 'var(--text-primary)' }}>
-                    {member.name}
+                    <span title={member.name}>{shortName(member.name)}</span>
                   </span>
                   <LevelChip level={member.level} levels={db.levels} />
                   <GenderChip gender={member.gender} />
@@ -462,7 +462,7 @@ export default function MemberProfileTab({
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            const detailed = memberBadges.find((x) => x.id === b.id) || getBadgeById(b.id) || b
+                            const detailed = getBadgeById(b.id) || b
                             setInspectingBadge(detailed)
                           }}
                           title={bName}
@@ -1376,7 +1376,7 @@ export default function MemberProfileTab({
                                 <Avatar name={part.name} src={pAvatar} size={26} />
                                 <div style={{ minWidth: 0 }}>
                                   <div style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {part.name}
+                                    <span title={part.name}>{shortName(part.name)}</span>
                                   </div>
                                   <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
                                     {part.format === 'XD' ? t('leaderboard.filterXD') : t('leaderboard.filterMD')} · {part.games} {t('leaderboard.matchesAbbr')}
@@ -1461,7 +1461,7 @@ export default function MemberProfileTab({
                             <Avatar name={part.name} src={pAvatar} size={26} />
                             <div style={{ minWidth: 0 }}>
                               <div style={{ font: "600 13.5px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {part.name}
+                                <span title={part.name}>{shortName(part.name)}</span>
                               </div>
                               <div style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {part.format === 'XD' ? t('leaderboard.filterXD') : t('leaderboard.filterMD')} · {part.games} {t('leaderboard.matchesAbbr')}
@@ -1562,7 +1562,7 @@ export default function MemberProfileTab({
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Avatar name={partnersAndMatchups.bestPartner.name} src={bpAvatar} size={36} />
                         <div style={{ font: '700 20px/1.2 Barlow, sans-serif', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-                          {partnersAndMatchups.bestPartner.name}
+                          <span title={partnersAndMatchups.bestPartner.name}>{shortName(partnersAndMatchups.bestPartner.name)}</span>
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -1818,7 +1818,7 @@ export default function MemberProfileTab({
                         <Avatar name={member.name} src={getMemberAvatar(member)} size={32} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                           <span style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {member.name}
+                            <span title={member.name}>{shortName(member.name)}</span>
                           </span>
                           <span style={{ font: '700 22px/1.05 Barlow, sans-serif', color: isDark ? '#5FD9A2' : '#059669' }}>
                             {h2hData.mostMet.wins}
@@ -1829,7 +1829,7 @@ export default function MemberProfileTab({
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end', minWidth: 0 }}>
                           <span style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {playerName(db, h2hData.mostMet.id)}
+                            <span title={playerName(db, h2hData.mostMet.id)}>{shortName(playerName(db, h2hData.mostMet.id))}</span>
                           </span>
                           <span style={{ font: '700 22px/1.05 Barlow, sans-serif', color: 'var(--text-secondary)' }}>
                             {h2hData.mostMet.total - h2hData.mostMet.wins}
@@ -1867,7 +1867,7 @@ export default function MemberProfileTab({
                         <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)' }}>
                           <Avatar name={playerName(db, op.id)} src={opAvatar} size={26} />
                           <span style={{ flex: 1, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', minWidth: 0, color: 'var(--text-primary)' }}>
-                            {playerName(db, op.id)}
+                            <span title={playerName(db, op.id)}>{shortName(playerName(db, op.id))}</span>
                             {op.isGuest && (
                               <span style={{ marginLeft: 6, font: '600 10px/1 "IBM Plex Sans", sans-serif', padding: '2px 6px', borderRadius: 999, background: 'rgba(224,138,0,.18)', color: isDark ? '#F0B75C' : '#B45309' }}>
                                 {t('leaderboard.guestTag')}
@@ -1901,7 +1901,7 @@ export default function MemberProfileTab({
                         <div key={pt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: isDark ? 'rgba(0,178,169,.14)' : 'rgba(13,148,136,.08)', border: isDark ? '1px solid #00786F' : '1px solid rgba(13,148,136,.3)' }}>
                           <Avatar name={playerName(db, pt.id)} src={ptAvatar} size={26} />
                           <span style={{ flex: 1, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', minWidth: 0, color: isDark ? '#5FDBD3' : '#0F766E' }}>
-                            {member.name} + {playerName(db, pt.id)}
+                            <span title={`${member.name} + ${playerName(db, pt.id)}`}>{shortName(member.name)} + {shortName(playerName(db, pt.id))}</span>
                           </span>
                           <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
                             {pt.total} {t('units.match')}
@@ -1929,7 +1929,7 @@ export default function MemberProfileTab({
                       {t('leaderboard.xpTitle')}
                     </span>
                     <span style={{ font: '400 13px/1.4 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                      {member.name} · {xpData.sessionCount} {t('units.session')} · {xpData.matchCount} {t('units.match')}
+                      <span title={member.name}>{shortName(member.name)}</span> · {xpData.sessionCount} {t('units.session')} · {xpData.matchCount} {t('units.match')}
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
@@ -2045,7 +2045,7 @@ export default function MemberProfileTab({
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        const detailed = memberBadges.find((x) => x.id === ach.id) || getBadgeById(ach.id) || ach
+                        const detailed = getBadgeById(ach.id) || ach
                         setInspectingBadge(detailed)
                       }}
                       style={{

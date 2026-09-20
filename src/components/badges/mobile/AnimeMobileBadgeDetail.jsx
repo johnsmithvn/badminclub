@@ -9,6 +9,7 @@ import {
   getStreakTimeline,
 } from '#lib/badges.js'
 import { t } from '#i18n'
+import { shortName } from '#lib/money.js'
 
 /**
  * AM2 · Chi tiết danh hiệu · Điều kiện · Chuỗi (Bản Anime Mobile).
@@ -594,7 +595,7 @@ export default function AnimeMobileBadgeDetail({
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                     <span style={{ font: "600 11.5px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF' }}>
-                      {owner.name}
+                      <span title={owner.name}>{shortName(owner.name)}</span>
                     </span>
                     {owner.note && (
                       <span style={{ font: "400 9.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
