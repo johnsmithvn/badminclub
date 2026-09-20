@@ -913,36 +913,47 @@ export default function Badges() {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isViewingSelf) {
+                            setSignatureDraft(currentMember.signature || '')
+                            setIsEditingSignature(true)
+                          }
+                        }}
+                        disabled={!isViewingSelf}
+                        title={isViewingSelf ? t('badges.signatureModal.title') : undefined}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '3px 10px',
+                          borderRadius: 6,
+                          background: isViewingSelf ? 'rgba(255, 226, 75, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                          border: isViewingSelf ? '1px solid rgba(255, 226, 75, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
+                          color: '#FFE24B',
+                          cursor: isViewingSelf ? 'pointer' : 'default',
+                          fontSize: 12,
+                          fontFamily: "'IBM Plex Sans', sans-serif",
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span style={{ fontStyle: 'italic', color: activeMember.signature ? '#FFE24B' : '#A899C5' }}>
+                          “{activeMember.signature || t('badges.collectorProfile.notSelected')}”
+                        </span>
+                        {isViewingSelf && (
+                          <span style={{ fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3, color: '#FFE24B' }}>
+                            ✎ {t('common.edit')}
+                          </span>
+                        )}
+                      </button>
                       <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                        {t('badges.collectorProfile.signature', {
-                          sig: activeMember.signature || t('badges.collectorProfile.notSelected'),
+                        · {t('badges.collectorProfile.shelfSlotsLabel', {
                           shelf: memberBadges.shelfBadges?.length || 0,
                           max: badgesConfig.shelfSlots || 3,
                         })}
                       </span>
-                      {isViewingSelf && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSignatureDraft(currentMember.signature || '')
-                            setIsEditingSignature(true)
-                          }}
-                          title={t('badges.signatureModal.title')}
-                          style={{
-                            background: 'rgba(255, 226, 75, 0.1)',
-                            border: '1px solid rgba(255, 226, 75, 0.3)',
-                            borderRadius: 4,
-                            color: '#FFE24B',
-                            padding: '1px 6px',
-                            cursor: 'pointer',
-                            fontSize: 10,
-                            fontFamily: "'IBM Plex Mono', monospace",
-                          }}
-                        >
-                          ✎
-                        </button>
-                      )}
                     </div>
                   </div>
 

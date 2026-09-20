@@ -3959,6 +3959,7 @@
     "collectorProfile": {
       "level": "CẤP {{level}}",
       "signature": "chữ ký: {{sig}} · kệ đang gắn {{shelf}} / {{max}} ô",
+      "shelfSlotsLabel": "kệ {{shelf}} / {{max}} ô",
       "notSelected": "chưa chọn",
       "unlockedCount": "{{unlocked}} / {{total}}",
       "unlockedLabel": "HUY HIỆU ĐÃ MỞ",
