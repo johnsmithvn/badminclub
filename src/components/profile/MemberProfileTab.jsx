@@ -1095,7 +1095,7 @@ export default function MemberProfileTab({
                               {(ev.oppNamesStr || ev.partnerName) && (
                                 <>
                                   <span style={{ color: 'var(--text-muted)' }}>·</span>
-                                  <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <span style={{ color: 'var(--text-secondary)', flex: '1 1 auto', minWidth: 0, overflowWrap: 'anywhere' }}>
                                     {ev.partnerName
                                       ? t('season.matchWithPartnerVs', { partner: ev.partnerName, opponents: ev.oppNamesStr })
                                       : t('season.matchVsOpponents', { opponents: ev.oppNamesStr })}

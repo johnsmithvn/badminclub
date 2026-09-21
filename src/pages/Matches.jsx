@@ -3254,7 +3254,7 @@ export default function Matches() {
                           textOverflow: 'ellipsis',
                         }}
                       >
-                        {isMobile ? getShortDisplayName(m.name, topMembersForMatrix) : shortName(m.name)}
+                        {getShortDisplayName(m.name, topMembersForMatrix)}
                       </th>
                     ))}
                   </tr>
@@ -3283,7 +3283,7 @@ export default function Matches() {
                           textOverflow: 'ellipsis',
                         }}
                       >
-                        {isMobile ? getShortDisplayName(p1.name, topMembersForMatrix) : shortName(p1.name)}
+                        {getShortDisplayName(p1.name, topMembersForMatrix)}
                       </td>
                       {topMembersForMatrix.map((p2) => {
                         if (p1.id === p2.id) {

@@ -762,13 +762,19 @@ export default function HomeMatchTab() {
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: winColor }}>
+                      <span
+                        title={(winTeam || []).map((id) => playerName(db, id)).join(' · ')}
+                        style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: winColor, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}
+                      >
                         {(winTeam || []).map((id) => playerName(db, id)).join(' · ')}
                       </span>
                       <span style={{ font: '700 18px/1 Barlow, sans-serif', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                         {scoreDisplay}
                       </span>
-                      <span style={{ flex: 1, minWidth: 0, textAlign: 'right', font: "500 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
+                      <span
+                        title={(loseTeam || []).map((id) => playerName(db, id)).join(' · ')}
+                        style={{ flex: 1, minWidth: 0, textAlign: 'right', font: "500 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}
+                      >
                         {(loseTeam || []).map((id) => playerName(db, id)).join(' · ')}
                       </span>
                     </div>

@@ -308,6 +308,10 @@ const S = {
   partnerNameBold: {
     font: '700 15px/1.2 var(--font-display)',
     color: 'var(--text-primary)',
+    // Trần ký tự của shortName chỉ là lưới an toàn; cắt cho vừa ô là việc của CSS.
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   partnerMeta: {
     font: '400 11.5px/1.35 var(--font-mono)',

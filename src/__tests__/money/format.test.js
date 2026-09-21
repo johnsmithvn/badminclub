@@ -119,14 +119,16 @@ assert.equal(genderTxt('nam'), 'Nam')
 assert.equal(genderTxt(''), 'Nam', 'giá trị lạ rơi về Nam, không ra chuỗi rỗng')
 assert.equal(genderTxt(undefined), 'Nam')
 
-/* ---------- tên hiển thị: cắt tên dài, giữ tên thường ---------- */
-// Lý do có hàm này: một thành viên đặt tên dài cả dòng làm tràn mọi list và đẩy app rộng ra.
+/* ---------- tên hiển thị: trần an toàn, không phải cách cắt chính ---------- */
+// Một thành viên đặt tên dài cả dòng làm tràn mọi list và đẩy app rộng ra. Cắt cho vừa ô là
+// việc của CSS; hàm này chỉ chặn cái tên dài tới mức CSS cũng không cứu nổi.
 assert.equal(shortName('Kuro'), 'Kuro', 'tên ngắn giữ nguyên, KHÔNG thêm dấu …')
-assert.equal(shortName('Vân Anh'), 'Vân Anh')
-assert.equal(shortName('Lê Minh Thắng'), 'Lê Minh Thắng', 'đúng 3 từ thì chưa cắt')
-assert.equal(shortName('Vương Hiếu Khánh'), 'Vương Hiếu Khánh')
-assert.equal(shortName('Trông kia đàn gà con lông vàng'), 'Trông kia đàn…', 'quá 3 từ thì cắt')
-assert.equal(shortName('a'.repeat(40)), `${'a'.repeat(18)}…`, 'một từ dài liền cũng phải bị chặn')
+assert.equal(shortName('Lê Minh Thắng'), 'Lê Minh Thắng')
+assert.equal(shortName('Bát canh thập cẩm'), 'Bát canh thập cẩm', '4 chữ vẫn phải lọt')
+assert.equal(shortName('Tiểu Công Chúa đang muốn đi ngủ'), 'Tiểu Công Chúa đang…', 'cắt ở ranh giới từ')
+assert.equal(shortName('Trông kia đàn gà con lông vàng'), 'Trông kia đàn gà con…')
+assert.ok(shortName('Trông kia đàn gà con lông vàng ◕ᴗ◕ Đi theo mẹ').length <= 25, 'không vượt trần')
+assert.equal(shortName('a'.repeat(40)), `${'a'.repeat(24)}…`, 'một từ dài liền thì cắt cứng, không có chỗ nào để lùi')
 assert.equal(shortName('  Hương   Giang  '), 'Hương Giang', 'gộp khoảng trắng thừa')
 assert.equal(shortName(''), '')
 assert.equal(shortName(null), '', 'không có tên thì ra chuỗi rỗng, không ra "null"')

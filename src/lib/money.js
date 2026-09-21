@@ -86,22 +86,27 @@ export const playerName = (db, id) => {
   return playerOf(db, id)?.name || id
 }
 
-/** Tên hiển thị tối đa bấy nhiêu TỪ, và tối đa bấy nhiêu KÝ TỰ. */
-export const NAME_WORDS = 3
-export const NAME_CHARS = 18
+/** Trần ĐỘ DÀI của tên khi vẽ lên màn hình. */
+export const NAME_CHARS = 24
 /**
  * Tên để VẼ LÊN MÀN HÌNH. Tên thật trong db không đổi — chỗ nào gọi hàm này thì gắn kèm
  * `title={tên đầy đủ}` để hover ra tên gốc.
  *
- * Cắt theo TỪ chứ không theo ký tự: tên người Việt 2–3 từ ("Lê Minh Thắng") giữ nguyên, chỉ
- * tên đặt cho vui mới bị cắt. Trần ký tự đi kèm là để chặn một từ dài liền không dấu cách —
- * đếm từ không cứu được trường hợp đó, mà chính nó mới là thứ đẩy toang layout.
+ * Đây là TRẦN AN TOÀN, không phải cách cắt chính. Cắt cho vừa ô là việc của CSS
+ * (`overflow:hidden` + `text-overflow:ellipsis`), vì chỉ CSS mới biết ô rộng bao nhiêu —
+ * cùng một cái tên, cột BXH trên desktop thừa chỗ mà thẻ trên điện thoại thì không.
+ * Hàm này chỉ chặn những cái tên dài tới mức CSS cũng không cứu nổi: chỗ nào không có
+ * chiều rộng cố định thì tên đẩy toác cả layout ra ngoài màn hình.
+ *
+ * Trần cố ý ĐỂ RỘNG: tên người thật, kể cả 4–5 chữ ("Bát canh thập cẩm"), phải qua lọt.
+ * Cắt tại ranh giới từ gần nhất cho đỡ gãy chữ, trừ khi tên là một từ dài liền.
  */
 export const shortName = (name) => {
-  const words = String(name ?? '').trim().split(/\s+/).filter(Boolean)
-  const cut = words.slice(0, NAME_WORDS).join(' ')
-  if (cut.length > NAME_CHARS) return `${cut.slice(0, NAME_CHARS).trimEnd()}…`
-  return words.length > NAME_WORDS ? `${cut}…` : cut
+  const s = String(name ?? '').trim().replace(/\s+/g, ' ')
+  if (s.length <= NAME_CHARS) return s
+  const cut = s.slice(0, NAME_CHARS)
+  const sp = cut.lastIndexOf(' ')
+  return `${(sp > NAME_CHARS * 0.6 ? cut.slice(0, sp) : cut).trimEnd()}…`
 }
 export const sessionOf = (db, id) => db.sessions.find((s) => s.id === id)
 

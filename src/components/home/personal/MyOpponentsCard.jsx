@@ -105,7 +105,7 @@ export default function MyOpponentsCard({
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={S.nameRow}>
-                      <span style={S.nameBold}>{opp.oppName}</span>
+                      <span style={S.nameBold} title={opp.oppName}>{opp.oppName}</span>
                       <span style={isNemesis ? S.tagRed : S.tagGreen}>
                         {isNemesis
                           ? t('home.personal.nemesisLabel')
@@ -232,6 +232,10 @@ const S = {
   nameBold: {
     font: '700 15px/1.2 var(--font-display)',
     color: 'var(--text-primary)',
+    // Trần ký tự của shortName chỉ là lưới an toàn; cắt cho vừa ô là việc của CSS.
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   tagRed: {
     font: '600 10px/1 var(--font-sans)',
