@@ -597,13 +597,13 @@ export default function HomeMatchTab() {
               </span>
             </div>
 
-            <div style={{ padding: '12px 14px', display: 'grid', gap: 8 }}>
+            <div style={{ minWidth: 0, padding: '12px 14px', display: 'grid', gap: 8 }}>
               {unevenPlayData.counts.map((item) => {
                 const isZero = item.count === 0
                 const isLow = item.count < Math.ceil(unevenPlayData.maxCount / 2)
                 const pct = Math.round((item.count / unevenPlayData.maxCount) * 100)
                 return (
-                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div key={item.id} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span
                       style={{
                         width: 68,

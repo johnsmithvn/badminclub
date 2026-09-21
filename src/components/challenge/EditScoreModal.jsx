@@ -1037,11 +1037,11 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
               </span>
             </div>
 
-            <div style={{ padding: '10px 14px', display: 'grid', gap: 8 }}>
+            <div style={{ minWidth: 0, padding: '10px 14px', display: 'grid', gap: 8 }}>
               {[...ratingComparison.teamA, ...ratingComparison.teamB].map((row) => (
                 <div
                   key={row.id}
-                  style={{
+                  style={{ minWidth: 0,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',

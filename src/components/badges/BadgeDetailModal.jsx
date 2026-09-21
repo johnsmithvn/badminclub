@@ -649,7 +649,7 @@ export default function BadgeDetailModal({
                   </span>
                 ) : (
                   <div
-                    style={{
+                    style={{ minWidth: 0,
                       maxHeight: 210,
                       overflowY: 'auto',
                       display: 'flex',
@@ -666,7 +666,7 @@ export default function BadgeDetailModal({
                         : t('badges.detail.ownersCondNote', { val: o.streak || o.threshold || 1 })
 
                       return (
-                        <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                        <div key={o.id} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 11 }}>
                           <div
                             style={{
                               width: 34,

@@ -1,5 +1,11 @@
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;font:var(--type-body);color:var(--text-primary);background:var(--surface-page);-webkit-font-smoothing:antialiased}
+/* Không gì được phép làm trang rộng hơn màn hình. Một chuỗi flex thiếu `min-width:0` ở
+   bất kỳ cấp nào là đủ để một cái tên dài đẩy toác cả app ra ngoài viewport — và trên
+   điện thoại thì người dùng kéo ngang mãi không về được. `clip` chứ không `hidden`:
+   `hidden` biến body thành vùng cuộn và làm hỏng `position:sticky` của header.
+   Dòng `hidden` phía trước là dự phòng cho trình duyệt chưa hiểu `clip`. */
+html,body{overflow-x:hidden;overflow-x:clip}
 h1,h2,h3,h4,p{margin:0}
 a{color:var(--text-link);text-decoration:none}
 a:hover{color:var(--text-link-hover);text-decoration:underline;text-underline-offset:2px}

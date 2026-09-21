@@ -363,7 +363,7 @@ export default function BountyBoardTab({
 
                       {/* Header thẻ: Badge Lục giác + Tên đối tượng + Tag bậc */}
                       <div
-                        style={{
+                        style={{ minWidth: 0,
                           position: 'relative',
                           display: 'flex',
                           alignItems: 'center',

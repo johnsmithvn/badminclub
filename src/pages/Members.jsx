@@ -508,7 +508,7 @@ function AllMembers({ canEdit }) {
         </div>
 
         {/* Member cards list */}
-        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ minWidth: 0, padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {rows.length === 0 ? (
             hasFilter(flt)
               ? <Empty icon="search" title={t('members.fltEmpty')} hint={t('members.fltEmptyHint')} />
@@ -524,7 +524,7 @@ function AllMembers({ canEdit }) {
                 <div
                   key={r.id}
                   onClick={() => canEdit && a.openDialog('editMember', editMemberForm(r))}
-                  style={{
+                  style={{ minWidth: 0,
                     background: '#141D2E', border: '1px solid #22304A', borderRadius: 10,
                     boxShadow: '0 1px 1px rgba(0,0,0,.30)', padding: '12px 13px',
                     display: 'flex', alignItems: 'center', gap: 12,
@@ -533,7 +533,7 @@ function AllMembers({ canEdit }) {
                 >
                   <Avatar name={r.name} src={r.avatarUrl} size={40} />
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.name}>{r.name}</div>
                       <LevelChip level={levelOf(r, db.month)} levels={db.levels} />
                       <GenderChip gender={r.gender} />
@@ -1003,14 +1003,14 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
             {pendingRosterRows.map((x) => (
               <div
                 key={x.g.id + x.mid}
-                style={{
+                style={{ minWidth: 0,
                   background: '#141D2E', border: '1px solid #22304A', borderRadius: 10,
                   boxShadow: '0 1px 1px rgba(0,0,0,.30)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Avatar name={x.m.name} src={x.m.avatarUrl} size={36} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={x.m.name}>{x.m.name}</div>
                     <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                       {t('members.mobileGroupNextTitle', { group: x.g.name })}
@@ -1073,14 +1073,14 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
               return (
                 <div
                   key={c.id}
-                  style={{
+                  style={{ minWidth: 0,
                     background: '#141D2E', border: '1px solid #22304A', borderRadius: 10,
                     boxShadow: '0 1px 1px rgba(0,0,0,.30)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Avatar name={m.name} src={m.avatarUrl} size={36} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.name}>{m.name}</div>
                       <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                         {t('members.mobileChangeTitle', { field: t('members.changeField.' + c.field) })}

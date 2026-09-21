@@ -1504,7 +1504,7 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <Avatar name={p.name} src={p.avatarUrl} size={34} />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           <span title={p.name}>{p.name}</span>
                         </div>
@@ -2212,7 +2212,7 @@ function Dues({ dues, canMoney }) {
               return (
                 <div
                   key={x.id}
-                  style={{
+                  style={{ minWidth: 0,
                     background: '#141D2E', border: '1px solid #22304A', borderRadius: 10,
                     padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: 0.85,
                   }}
@@ -2486,7 +2486,7 @@ function Dues({ dues, canMoney }) {
                   background: st.remain > 0 ? 'var(--surface-card)' : 'var(--surface-card)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
                     <Avatar name={mb.name} src={mb.avatarUrl} size={32} />
                     <div style={{ minWidth: 0 }}>

@@ -1383,7 +1383,7 @@ export default function MemberProfileTab({
                             }}
                           >
                             {/* Hàng 1: Avatar + Tên + (Thể thức · Số trận) bên trái | W-L + Synergy bên phải */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 auto' }}>
                                 <Avatar name={part.name} src={pAvatar} size={26} />
                                 <div style={{ minWidth: 0 }}>
@@ -1825,8 +1825,8 @@ export default function MemberProfileTab({
                         {h2hData.mostMet.total} {t('units.match')}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Avatar name={member.name} src={getMemberAvatar(member)} size={32} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                           <span style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1838,7 +1838,7 @@ export default function MemberProfileTab({
                         </div>
                       </div>
                       <span style={{ font: '600 12px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>VS</span>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                      <div style={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end', minWidth: 0 }}>
                           <span style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <span title={playerName(db, h2hData.mostMet.id)}>{playerName(db, h2hData.mostMet.id)}</span>
@@ -1868,7 +1868,7 @@ export default function MemberProfileTab({
               {/* Đối thủ khó nhất */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <span style={S.cardBoxLabel}>{t('leaderboard.h2hToughest')}</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {h2hData.toughest.length === 0 ? (
                     <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('common.noData')}</span>
                   ) : (
@@ -1876,7 +1876,7 @@ export default function MemberProfileTab({
                       const opMember = membersMap[op.id]
                       const opAvatar = getMemberAvatar(opMember)
                       return (
-                        <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)' }}>
+                        <div key={op.id} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)' }}>
                           <Avatar name={playerName(db, op.id)} src={opAvatar} size={26} />
                           <span style={{ flex: 1, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', minWidth: 0, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <span title={playerName(db, op.id)}>{playerName(db, op.id)}</span>

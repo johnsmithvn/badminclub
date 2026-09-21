@@ -130,7 +130,7 @@ export default function CollectorLeaderboardTab({
 
                   {/* Cột thông tin thành viên */}
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 8 }}>
                       <span
                         style={{
                           font: "700 13.5px/1.2 'Be Vietnam Pro', sans-serif",

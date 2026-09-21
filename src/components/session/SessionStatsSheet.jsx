@@ -309,7 +309,7 @@ export default function SessionStatsSheet({
                 <div style={S.fairHint}>{t('assign.fairHint')}</div>
                 <div style={S.fairTable}>
                   <div style={S.fairHeadRow}>
-                    <div style={{ ...S.fairTh, flex: 1, justifyContent: 'flex-start', textAlign: 'left' }}>{t('assign.fairColPlayer')}</div>
+                    <div style={{ minWidth: 0, ...S.fairTh, flex: 1, justifyContent: 'flex-start', textAlign: 'left' }}>{t('assign.fairColPlayer')}</div>
                     <div style={S.fairTh}>{t('assign.fairColPlayed')}</div>
                     <div style={S.fairTh}>{t('assign.fairColWait')}</div>
                     <div style={S.fairTh}>{t('assign.fairColDebt')}</div>

@@ -415,7 +415,7 @@ export default function SeasonRaceTab({
                     </div>
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 5 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ font: "700 16px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <span title={top1?.name}>{top1?.name}</span>
                       </span>
@@ -455,7 +455,7 @@ export default function SeasonRaceTab({
                   <div
                     onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
                     title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
-                    style={{
+                    style={{ minWidth: 0,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
@@ -499,7 +499,7 @@ export default function SeasonRaceTab({
                       </div>
                     </div>
                     <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <span title={top2?.name}>{top2?.name}</span>
                         </span>
@@ -525,7 +525,7 @@ export default function SeasonRaceTab({
                   <div
                     onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
                     title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
-                    style={{
+                    style={{ minWidth: 0,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
@@ -569,7 +569,7 @@ export default function SeasonRaceTab({
                       </div>
                     </div>
                     <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <span title={top3?.name}>{top3?.name}</span>
                         </span>
@@ -856,7 +856,7 @@ export default function SeasonRaceTab({
               <div
                 onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
                 title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
-                style={{
+                style={{ minWidth: 0,
                   background: isDark
                     ? 'linear-gradient(180deg, rgba(201,162,39,.18), var(--surface-card))'
                     : 'linear-gradient(180deg, rgba(245,158,11,.14), var(--surface-card))',
@@ -884,7 +884,7 @@ export default function SeasonRaceTab({
                     {t('season.leaderBadge')}
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flexWrap: 'wrap' }}>
                     <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={34} />
                     <span style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -918,11 +918,11 @@ export default function SeasonRaceTab({
               </div>
 
               {/* #2 Á Quân & #3 Quý Quân chia 2 cột */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ minWidth: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div
                   onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
                   title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
-                  style={{
+                  style={{ minWidth: 0,
                     background: 'var(--surface-card)',
                     border: '1px solid var(--border-default)',
                     borderRadius: 10,
@@ -951,7 +951,7 @@ export default function SeasonRaceTab({
                 <div
                   onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
                   title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
-                  style={{
+                  style={{ minWidth: 0,
                     background: 'var(--surface-card)',
                     border: '1px solid var(--border-default)',
                     borderRadius: 10,
@@ -981,7 +981,7 @@ export default function SeasonRaceTab({
           ) : (
             /* Desktop Podium: 3 cột ngang */
             <div
-              style={{
+              style={{ minWidth: 0,
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
                 gap: 12,
@@ -992,7 +992,7 @@ export default function SeasonRaceTab({
               <div
                 onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
                 title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
-                style={{
+                style={{ minWidth: 0,
                   background: 'var(--surface-card)',
                   border: '1px solid var(--border-default)',
                   borderRadius: 10,
@@ -1023,7 +1023,7 @@ export default function SeasonRaceTab({
               <div
                 onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
                 title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
-                style={{
+                style={{ minWidth: 0,
                   background: isDark
                     ? 'linear-gradient(180deg, rgba(201,162,39,.18), var(--surface-card))'
                     : 'linear-gradient(180deg, rgba(245,158,11,.14), var(--surface-card))',
@@ -1070,7 +1070,7 @@ export default function SeasonRaceTab({
               <div
                 onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
                 title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
-                style={{
+                style={{ minWidth: 0,
                   background: 'var(--surface-card)',
                   border: '1px solid var(--border-default)',
                   borderRadius: 10,
@@ -1137,7 +1137,7 @@ export default function SeasonRaceTab({
                     key={row.id}
                     onClick={() => onOpenLedger && onOpenLedger(row.id)}
                     title={`${t('season.viewLedgerBtn')}: ${row.name}`}
-                    style={{
+                    style={{ minWidth: 0,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 9,
@@ -1159,7 +1159,7 @@ export default function SeasonRaceTab({
                     </span>
                     <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={30} />
                     <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span
                           style={{
                             font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif",
@@ -1336,7 +1336,7 @@ export default function SeasonRaceTab({
                   key={row.id}
                   onClick={() => onOpenLedger && onOpenLedger(row.id)}
                   title={`${t('season.viewLedgerBtn')}: ${row.name}`}
-                  style={{
+                  style={{ minWidth: 0,
                     padding: '11px 14px',
                     borderBottom: '1px solid var(--border-subtle)',
                     display: 'flex',
@@ -1350,7 +1350,7 @@ export default function SeasonRaceTab({
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   {/* Dòng 1: Hạng + Avatar + Tên + Điểm mùa */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
                     <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: rankColor }}>
                       {row.rank}
                     </span>
@@ -1465,7 +1465,7 @@ export default function SeasonRaceTab({
                 key={row.id}
                 onClick={() => onOpenLedger && onOpenLedger(row.id)}
                 title={`${t('season.viewLedgerBtn')}: ${row.name}`}
-                style={{
+                style={{ minWidth: 0,
                   position: 'relative',
                   display: 'grid',
                   gridTemplateColumns: isGlamorous

@@ -487,7 +487,7 @@ export default function CareerEloTab({
                       </div>
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 5 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                         <SingleBadgeSlot badge={displayList[0].highestBadge} size={19} />
                         <span style={{ font: "700 15.5px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <span title={displayList[0].name}>{displayList[0].name}</span>
@@ -531,7 +531,7 @@ export default function CareerEloTab({
                 {displayList[1] && (
                   <div
                     onClick={() => onSelectMember && onSelectMember(displayList[1])}
-                    style={{
+                    style={{ minWidth: 0,
                       position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
@@ -576,7 +576,7 @@ export default function CareerEloTab({
                       </div>
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                         <SingleBadgeSlot badge={displayList[1].highestBadge} size={18} />
                         <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <span title={displayList[1].name}>{displayList[1].name}</span>
@@ -617,7 +617,7 @@ export default function CareerEloTab({
                 {displayList[2] && (
                   <div
                     onClick={() => onSelectMember && onSelectMember(displayList[2])}
-                    style={{
+                    style={{ minWidth: 0,
                       position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
@@ -662,7 +662,7 @@ export default function CareerEloTab({
                       </div>
                     </div>
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                         <SingleBadgeSlot badge={displayList[2].highestBadge} size={18} />
                         <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <span title={displayList[2].name}>{displayList[2].name}</span>
@@ -831,7 +831,7 @@ export default function CareerEloTab({
                   {displayList[1] && (
                     <div
                       onClick={() => onSelectMember && onSelectMember(displayList[1])}
-                      style={{
+                      style={{ minWidth: 0,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 13,
@@ -897,7 +897,7 @@ export default function CareerEloTab({
                   {displayList[2] && (
                     <div
                       onClick={() => onSelectMember && onSelectMember(displayList[2])}
-                      style={{
+                      style={{ minWidth: 0,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 13,
@@ -986,7 +986,7 @@ export default function CareerEloTab({
                   <div
                     key={player.id}
                     onClick={() => onSelectMember && onSelectMember(player)}
-                    style={{
+                    style={{ minWidth: 0,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 9,
@@ -1002,7 +1002,7 @@ export default function CareerEloTab({
                     <Avatar name={player.name} src={player.avatarUrl} size={30} />
                     <SingleBadgeSlot badge={player.highestBadge} size={18} />
                     <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 2 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <span title={player.name}>{player.name}</span>
                         </span>
@@ -1134,7 +1134,7 @@ export default function CareerEloTab({
                       }}
                     >
                       {/* Dòng 1: Hạng + Avatar + Tên + Badge Top 1 + Elo */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
                         {isGlamorous && (player.rank === 1 || player.rank === 2 || player.rank === 3) ? (
                           <div style={{ width: 22, display: 'flex', justifyContent: 'center' }}>
                             <RankMedalIcon rank={player.rank} size={20} />
@@ -1146,7 +1146,7 @@ export default function CareerEloTab({
                         )}
                         <Avatar name={player.name} src={player.avatarUrl} size={22} />
                         <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               <span title={player.name}>{player.name}</span>
                             </span>
@@ -1317,7 +1317,7 @@ export default function CareerEloTab({
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: isGlamorous && player.highestBadge ? 1 : 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span
                             style={{
                               fontWeight: 600,

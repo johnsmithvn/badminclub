@@ -2183,7 +2183,7 @@ export default function CourtAssignmentTab({ s }) {
                       style={S.slotFilled}
                       onClick={() => setActiveSlot({ team: 'A', idx })}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
                           <span style={S.slotName} title={p.name}>{p.name}</span>
                           <LevelChip level={p.level} levels={db.levels} size="sm" />
@@ -2289,7 +2289,7 @@ export default function CourtAssignmentTab({ s }) {
                       style={S.slotFilled}
                       onClick={() => setActiveSlot({ team: 'B', idx })}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
                           <span style={S.slotName} title={p.name}>{p.name}</span>
                           <LevelChip level={p.level} levels={db.levels} size="sm" />
