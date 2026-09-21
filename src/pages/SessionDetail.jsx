@@ -487,7 +487,7 @@ export default function SessionDetail() {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>
-          <span title={m.name}>{shortName(m.name)}</span>
+          <span title={m.name}>{m.name}</span>
         </span>
         {isNoShow && (
           <span

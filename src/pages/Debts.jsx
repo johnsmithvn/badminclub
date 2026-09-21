@@ -1505,8 +1505,8 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
                     <Avatar name={p.name} src={p.avatarUrl} size={34} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <span title={p.name}>{shortName(p.name)}</span>
+                        <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span title={p.name}>{p.name}</span>
                         </div>
                         {(p.bankName && p.bankNo) && (
                           <IconButton
@@ -2218,8 +2218,8 @@ function Dues({ dues, canMoney }) {
                   }}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span title={mb.name}>{shortName(mb.name)}</span>
+                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span title={mb.name}>{mb.name}</span>
                     </div>
                     <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                       {t('debts.mobilePaidOn', { date: ddmy(x.paidAt || db.today) })}
@@ -2490,8 +2490,8 @@ function Dues({ dues, canMoney }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
                     <Avatar name={mb.name} src={mb.avatarUrl} size={32} />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        <span title={mb.name}>{shortName(mb.name)}</span>
+                      <div style={{ font: 'var(--type-label)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span title={mb.name}>{mb.name}</span>
                       </div>
                       <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
                         {group?.name}

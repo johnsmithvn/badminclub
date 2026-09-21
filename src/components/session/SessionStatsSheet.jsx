@@ -250,7 +250,7 @@ export default function SessionStatsSheet({
                 return (
                   <div key={item.key} style={S.playerBarRow}>
                     <div style={S.playerBarName} title={item.name}>
-                      {shortName(item.name)}
+                      {item.name}
                     </div>
                     <div style={S.barTrack}>
                       <div
@@ -316,7 +316,7 @@ export default function SessionStatsSheet({
                   </div>
                   {fairnessRows.map((r) => (
                     <div key={r.key} style={S.fairRow}>
-                      <div style={S.fairName} title={r.name}>{shortName(r.name)}</div>
+                      <div style={S.fairName} title={r.name}>{r.name}</div>
                       <div style={S.fairNum}>{r.played}</div>
                       <div style={{ ...S.fairNum, ...(r.waitTurns >= 3 ? S.fairNumUrgent : {}) }}>{r.waitTurns}</div>
                       <div

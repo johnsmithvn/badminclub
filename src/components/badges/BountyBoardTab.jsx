@@ -4,7 +4,6 @@ import BadgeHex from './BadgeHex.jsx'
 import { ANIME_TIERS, NOTCH_CLIP, NOTCH_S_CLIP } from '#lib/badges.js'
 import { useMobile } from '#hooks/useMobile.js'
 import badgesConfig from '#config/badges.json'
-import { shortName } from '#lib/money.js'
 
 /**
  * Màn A3 (Desktop) & AM3 (Mobile): Tab Bảng treo thưởng (Bảng truy nã).
@@ -394,12 +393,12 @@ export default function BountyBoardTab({
                               letterSpacing: '.04em',
                               textTransform: 'uppercase',
                               color: '#FFFFFF',
-                              overflow: 'hidden',
+                              minWidth: 0, overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            <span title={b.name}>{shortName(b.name)}</span>
+                            <span title={b.name}>{b.name}</span>
                           </span>
                           <span
                             style={{

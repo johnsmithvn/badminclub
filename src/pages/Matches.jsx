@@ -3495,7 +3495,7 @@ export default function Matches() {
                       title={`${item.player1.name} · ${item.player2.name}`}
                     >
                       <span style={{ flex: 1, minWidth: 0, font: '600 13.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t('matchSearch.cardH2HTitle', { nameA: shortName(item.player1.name), nameB: shortName(item.player2.name) })}
+                        {t('matchSearch.cardH2HTitle', { nameA: item.player1.name, nameB: item.player2.name })}
                       </span>
                       <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {item.total} {t('units.match')}
@@ -3556,8 +3556,8 @@ export default function Matches() {
                         border: '1px solid var(--border-subtle)',
                       }}
                     >
-                      <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <span title={`${item.p1.name} · ${item.p2.name}`}>{shortName(item.p1.name)} · {shortName(item.p2.name)}</span>
+                      <span style={{ font: '600 13px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span title={`${item.p1.name} · ${item.p2.name}`}>{item.p1.name} · {item.p2.name}</span>
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                         <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap' }}>

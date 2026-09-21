@@ -534,7 +534,7 @@ function AllMembers({ canEdit }) {
                   <Avatar name={r.name} src={r.avatarUrl} size={40} />
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }} title={r.name}>{shortName(r.name)}</div>
+                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.name}>{r.name}</div>
                       <LevelChip level={levelOf(r, db.month)} levels={db.levels} />
                       <GenderChip gender={r.gender} />
                       {isInactive ? (
@@ -1011,7 +1011,7 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Avatar name={x.m.name} src={x.m.avatarUrl} size={36} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }} title={x.m.name}>{shortName(x.m.name)}</div>
+                    <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={x.m.name}>{x.m.name}</div>
                     <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                       {t('members.mobileGroupNextTitle', { group: x.g.name })}
                     </div>
@@ -1081,7 +1081,7 @@ function Pending({ canEdit, pendingRosterRows = [], month }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Avatar name={m.name} src={m.avatarUrl} size={36} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }} title={m.name}>{shortName(m.name)}</div>
+                      <div style={{ font: "600 16px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.name}>{m.name}</div>
                       <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                         {t('members.mobileChangeTitle', { field: t('members.changeField.' + c.field) })}
                       </div>

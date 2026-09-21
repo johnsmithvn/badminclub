@@ -416,8 +416,8 @@ export default function SeasonRaceTab({
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 5 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ font: "700 16px/1.15 'Barlow', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <span title={top1?.name}>{shortName(top1?.name)}</span>
+                      <span style={{ font: "700 16px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span title={top1?.name}>{top1?.name}</span>
                       </span>
                       {top1?.streak >= 5 ? (
                         <BountyBadgeTag streak={top1.streak} />
@@ -500,8 +500,8 @@ export default function SeasonRaceTab({
                     </div>
                     <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <span title={top2?.name}>{shortName(top2?.name)}</span>
+                        <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span title={top2?.name}>{top2?.name}</span>
                         </span>
                         {top2?.streak >= 5 ? (
                           <BountyBadgeTag streak={top2.streak} />
@@ -570,8 +570,8 @@ export default function SeasonRaceTab({
                     </div>
                     <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <span title={top3?.name}>{shortName(top3?.name)}</span>
+                        <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span title={top3?.name}>{top3?.name}</span>
                         </span>
                         {top3?.streak >= 5 ? (
                           <BountyBadgeTag streak={top3.streak} />
@@ -887,8 +887,8 @@ export default function SeasonRaceTab({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flexWrap: 'wrap' }}>
                     <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={34} />
-                    <span style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span title={top1?.name}>{shortName(top1?.name)}</span>
+                    <span style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span title={top1?.name}>{top1?.name}</span>
                     </span>
                     {top1?.streak >= 5 ? (
                       <BountyBadgeTag streak={top1.streak} />
@@ -936,8 +936,8 @@ export default function SeasonRaceTab({
                   <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#2</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={26} />
-                    <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span title={top2?.name}>{shortName(top2?.name)}</span>
+                    <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span title={top2?.name}>{top2?.name}</span>
                     </div>
                   </div>
                   <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
@@ -965,8 +965,8 @@ export default function SeasonRaceTab({
                   <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#3</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={26} />
-                    <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span title={top3?.name}>{shortName(top3?.name)}</span>
+                    <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span title={top3?.name}>{top3?.name}</span>
                     </div>
                   </div>
                   <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
@@ -1007,8 +1007,8 @@ export default function SeasonRaceTab({
                 <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#2</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
                   <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={30} />
-                  <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span title={top2?.name}>{shortName(top2?.name)}</span>
+                  <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span title={top2?.name}>{top2?.name}</span>
                   </div>
                 </div>
                 <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
@@ -1054,8 +1054,8 @@ export default function SeasonRaceTab({
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                   <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={36} />
-                  <div style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span title={top1?.name}>{shortName(top1?.name)}</span>
+                  <div style={{ font: "600 17px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span title={top1?.name}>{top1?.name}</span>
                   </div>
                 </div>
                 <div style={{ font: "600 32px/1 'IBM Plex Mono', monospace", color: isDark ? '#F7E3A1' : '#B45309' }}>
@@ -1085,8 +1085,8 @@ export default function SeasonRaceTab({
                 <div style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>#3</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
                   <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={30} />
-                  <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span title={top3?.name}>{shortName(top3?.name)}</span>
+                  <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span title={top3?.name}>{top3?.name}</span>
                   </div>
                 </div>
                 <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
@@ -1164,12 +1164,12 @@ export default function SeasonRaceTab({
                           style={{
                             font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif",
                             color: '#E9EFF7',
-                            overflow: 'hidden',
+                            minWidth: 0, overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          <span title={row.name}>{shortName(row.name)}</span>
+                          <span title={row.name}>{row.name}</span>
                         </span>
                         {isMe && (
                           <span
@@ -1356,7 +1356,7 @@ export default function SeasonRaceTab({
                     </span>
                     <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={22} />
                     <span style={{ flex: '1 1 0%', minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span title={row.name}>{shortName(row.name)}</span>
+                      <span title={row.name}>{row.name}</span>
                     </span>
                     <span
                       style={{
@@ -1507,8 +1507,8 @@ export default function SeasonRaceTab({
                 {/* Thành viên + Badges */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                   <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={24} />
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    <span title={row.name}>{shortName(row.name)}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span title={row.name}>{row.name}</span>
                   </span>
                   <MiniShelf shelf={row.badgeShelf || row.member?.badgeShelf || row.member?.badge_shelf || []} />
                   {row.streak >= 5 ? (

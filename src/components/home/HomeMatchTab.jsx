@@ -610,11 +610,11 @@ export default function HomeMatchTab() {
                         font: "600 13px/1.3 'IBM Plex Sans', sans-serif",
                         color: isZero ? '#FF9A8F' : 'var(--text-primary)',
                         whiteSpace: 'nowrap',
-                        overflow: 'hidden',
+                        minWidth: 0, overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      <span title={item.name}>{shortName(item.name)}</span>
+                      <span title={item.name}>{item.name}</span>
                     </span>
                     <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
                       <div

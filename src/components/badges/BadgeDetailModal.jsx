@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom'
 import BadgeHex from './BadgeHex.jsx'
 import { NOTCH_CLIP, NOTCH_S_CLIP, HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers } from '#lib/badges.js'
 import { t } from '#i18n'
-import { shortName } from '#lib/money.js'
 
 /**
  * Màn A2 · Chi tiết một danh hiệu · điều kiện · chuỗi hiện tại · ai đã có · ai đang đuổi.
@@ -689,8 +688,8 @@ export default function BadgeDetailModal({
                             )}
                           </div>
                           <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            <span style={{ font: "600 13px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              <span title={o.name}>{shortName(o.name)}</span>
+                            <span style={{ font: "600 13px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF', whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <span title={o.name}>{o.name}</span>
                             </span>
                             <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
                               {noteText}
@@ -753,7 +752,7 @@ export default function BadgeDetailModal({
                             textOverflow: 'ellipsis',
                           }}
                         >
-                          <span title={c.name}>{c.isMe ? t('badges.detail.you') : shortName(c.name)}</span>
+                          <span title={c.name}>{c.isMe ? t('badges.detail.you') : c.name}</span>
                         </span>
                         <div
                           style={{

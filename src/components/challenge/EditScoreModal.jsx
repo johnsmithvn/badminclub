@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { playerName, myMember, shortName } from '#lib/money.js'
+import { playerName, myMember } from '#lib/money.js'
 import { matchCodeOf, teamRating, calcPlayerDeltas, getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
 import { getBadgeById, calculateMemberBadges, computeClubBadgeStats, newlyUnlockedBadges } from '#lib/badges.js'
 import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
@@ -1051,7 +1051,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
                   }}
                 >
                   <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, color: 'var(--text-primary)', minWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span title={row.name}>{shortName(row.name)}</span>
+                    <span title={row.name}>{row.name}</span>
                   </span>
                   {/* Rating đang lưu */}
                   <span style={{ color: 'var(--text-muted)' }}>
