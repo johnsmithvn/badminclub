@@ -360,6 +360,14 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     ? playerName(db, teamB[0])
     : (isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB'))
 
+  // Lúc CÒN CHỜ thì tên phải là người thật sự chưa ký, không phải `acceptorName`. teamB[0] có thể
+  // đã bấm nhận rồi mà người thiếu là đồng đội họ (hoặc ai đó bên đội A) — đọc "Chờ X nhận kèo"
+  // với X đã nhận xong là sai. `+n` cho số người còn lại thay vì nối chuỗi tên (tên CLB dài).
+  // Kèo chưa đủ người thì không có ai để chờ đích danh, giữ nguyên `acceptorName`.
+  const pendingName = (prog.isFullTeam && prog.pendingPlayerIds.length)
+    ? playerName(db, prog.pendingPlayerIds[0]) + (prog.pendingPlayerIds.length > 1 ? ` +${prog.pendingPlayerIds.length - 1}` : '')
+    : acceptorName
+
   // Người chốt kèo chỉ đáng nhắc khi KHÔNG phải đội B — tức admin duyệt hộ hoặc người đội A bấm
   // cuối. Đội B tự nhận là chuyện đương nhiên, nói ra chỉ thừa.
   const closerId = challengeCloserOf(c)
@@ -1380,7 +1388,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 // hiện "Hùng nhận kèo" dù Hùng chưa đụng vào, đọc y như đã nhận rồi.
                 title: (isAccepted || isPlayed)
                   ? t('challenge.step2Accept', { name: acceptorName || t('challenge.teamB') })
-                  : t('challenge.step2AcceptPending', { name: acceptorName || t('challenge.teamB') }),
+                  : t('challenge.step2AcceptPending', { name: pendingName || t('challenge.teamB') }),
                 sub: (isAccepted || isPlayed)
                   ? (closerName
                     ? t('challenge.step2SubBy', { time: acceptedTimeStr, name: closerName })
