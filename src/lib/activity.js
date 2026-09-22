@@ -403,6 +403,11 @@ export function resolveActivityPayload(item, db) {
     res.name = p.name || getEntityName(db, p.memberId)
   }
 
+  if (item?.type === 'bot_remark') {
+    // Payload chỉ giữ `subject` (id) — tên giải mã lúc render như mọi loại khác (RULES §3.3).
+    res.name = getEntityName(db, p.subject)
+  }
+
   if (item?.type === 'session_opened' || item?.type === 'session_closed' || item?.type === 'session_cancelled') {
     if (p.date && p.date.includes('-')) {
       res.date = dd(p.date)

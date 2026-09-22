@@ -4,6 +4,7 @@ import { Button, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { supabase } from '#supabase'
 import { resolveActivityPayload } from '#lib/activity.js'
+import { botLineKey } from '#lib/bot.js'
 import { t } from '#i18n'
 
 function formatActivityTime(rawTs) {
@@ -107,6 +108,19 @@ export default function ActivityTab() {
       }
     }
 
+    // Bot nói: câu chữ nằm ở `bot.remark.*` chứ không phải `activity.*`, nên trả `fullKey` để
+    // chỗ render bỏ qua tiền tố. Biến thể chọn bằng chính `item.id` — dòng nào cũng ra đúng một
+    // câu cố định của nó, mà không phải lưu số thứ tự xuống DB.
+    if (item.type === 'bot_remark') {
+      return {
+        icon: 'sparkles',
+        color: '#A855F7',
+        key: 'bot_remark',
+        fullKey: botLineKey('remark', item.payload?.kind, item.id),
+        badgeColor: 'rgba(168, 85, 247, 0.15)',
+      }
+    }
+
     switch (item.type) {
       case 'bounty_broken':
         return { icon: 'flame', color: '#FF2E7E', key: 'bounty_broken', badgeColor: 'rgba(255, 46, 126, 0.15)' }
@@ -148,7 +162,10 @@ export default function ActivityTab() {
             {events.map((item) => {
               const meta = getEventMeta(item)
               const resolvedPayload = resolveActivityPayload(item, db)
-              const text = t('activity.' + meta.key, resolvedPayload)
+              // `fullKey` là đường thoát cho loại có câu chữ nằm ngoài nhánh `activity.*` (bot).
+              const text = meta.fullKey
+                ? t(meta.fullKey, resolvedPayload)
+                : t('activity.' + meta.key, resolvedPayload)
 
               return (
                 <div key={item.id} style={S.eventRow}>

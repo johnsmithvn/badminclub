@@ -314,6 +314,14 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     return Number.isFinite(ts) && ts >= startTs && ts <= endTs
   })
 
+  // Ván arcade cũng bó trong khung mùa, cùng khuôn với phiếu dự đoán. Ván hoà không sinh điểm
+  // nên loại luôn ở đây cho khối tính ở dưới khỏi phải xét lại.
+  const seasonArcade = (db.arcadeRounds || []).filter((r) => {
+    if (r.outcome !== 'won' && r.outcome !== 'lost') return false
+    const ts = Date.parse(r.createdAt || '')
+    return Number.isFinite(ts) && ts >= startTs && ts <= endTs
+  })
+
   // Sắp xếp các trận theo thời gian tăng dần (chronological) để tính điểm lũy kế sàn Floor 0 và streak.
   // BẮT BUỘC tie-break theo id: sàn Floor 0 kẹp sau MỖI trận nên phép tính phụ thuộc thứ tự
   // (thua-rồi-thắng = 14đ, thắng-rồi-thua = 6đ). Hai sân bấm lưu cùng mili-giây mà không có
@@ -541,10 +549,35 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       else if (p.status === 'lost') predictionLostPoints += pts
     })
     const rawPredictionNet = predictionWonPoints - predictionLostPoints
-    const predictionNetPoints = Math.min(15, rawPredictionNet)
+    // ĐÃ BỎ TRẦN +15 (2026-09-21, theo quyết định của chủ CLB).
+    //
+    // Trần cũ đặt ra để "bảng xếp hạng vẫn là bảng THI ĐẤU: không ai leo hạng bằng cách ngồi
+    // ngoài đoán kèo". Chủ trương đổi: điểm mùa giờ vừa là điểm BXH vừa là TÀI SẢN đem đi cược,
+    // mà trần thắng cộng với thua-không-trần thì cược luôn là lỗ về kỳ vọng — không ai dám cược,
+    // và cả tính năng chết yểu. Hệ quả đã biết và chấp nhận: người cược giỏi leo được cao hơn
+    // người đánh nhiều.
+    const predictionNetPoints = rawPredictionNet
+
+    // Arcade — ván tay đôi với bot. MỘT dòng mang CẢ HAI phe: người chơi là `memberId`, bot là
+    // `opponentId`, phe bot là dấu ngược. Nhờ vậy tổng điểm hai bên luôn bằng không mà không cần
+    // ai canh — tách thành hai dòng là mở đường cho hai phe lệch nhau.
+    let arcadeNetPoints = 0
+    seasonArcade.forEach((r) => {
+      const pts = Number(r.stake) || 0
+      const playerDelta = r.outcome === 'won' ? pts : -pts
+      if (r.memberId === memberId) arcadeNetPoints += playerDelta
+      else if (r.opponentId === memberId) arcadeNetPoints -= playerDelta
+    })
+
     const matchPointsOnly = totalSeasonPoints
-    // Sàn 0 của TỔNG vẫn giữ: điểm mùa không âm, nhưng thua là tụt thật cho tới khi chạm 0.
-    totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints)
+    // Sàn 0 của TỔNG vẫn giữ, và nó KHÔNG phá luật tổng-bằng-không: `availableSeasonPoints` chặn
+    // không ai cược quá số đang có, nên tổng không bao giờ xuống dưới 0 để sàn phải cắt. Ở đây
+    // nó là lưới an toàn cho dữ liệu hỏng, không phải một luật chơi.
+    //
+    // ⚠️ BACKTEST KHÔNG GÁC KHỐI NÀY. `backtest/data/*.json` chỉ chứa `matches` — không có phiếu
+    // cược hay ván arcade nào — nên mọi thay đổi trong khối điểm cược đều cho ra số y hệt và test
+    // vẫn xanh. Sửa ở đây thì phải tự nghĩ cách kiểm; đừng tin màu xanh của backtest.
+    totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints + arcadeNetPoints)
 
     // Cột "điểm sau" của sổ cái.
     //
@@ -655,6 +688,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
         predictionLostPoints,
         predictionNetPoints,
         rawPredictionNet,
+        arcadeNetPoints,
       },
     }
   })

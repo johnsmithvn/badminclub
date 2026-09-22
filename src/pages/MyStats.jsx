@@ -31,6 +31,9 @@ import UpcomingSessionCard from '#components/home/personal/UpcomingSessionCard.j
 import ClubFeedCard from '#components/home/personal/ClubFeedCard.jsx'
 import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.jsx'
 import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
+import BotTauntCard from '#components/home/personal/BotTauntCard.jsx'
+import BotArcadeCard from '#components/home/personal/BotArcadeCard.jsx'
+import { findBotMember, getBotTaunt, getBotArcadeOffer, spendableSeasonPoints } from '#lib/bot.js'
 import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
 import ActivityTab from '#components/home/ActivityTab.jsx'
 
@@ -144,6 +147,16 @@ export default function MyStats() {
   // 8. Tin tức nổi bật hôm nay
   const clubHighlights = useMemo(() => getClubTodayHighlights(db, memberId), [db, memberId])
 
+  // 8b. Bot cà khịa riêng bạn. Không có bot trong CLB thì cả hai giá trị là null và thẻ tự biến mất.
+  // CỐ Ý không đưa `sessionSeed` vào: câu của bot chốt theo NGÀY, mở lại app trong ngày vẫn câu đó.
+  const botMember = useMemo(() => findBotMember(db), [db])
+  const botTaunt = useMemo(() => getBotTaunt(db, memberId), [db, memberId])
+
+  // 8c. Sòng của bot. `getBotArcadeOffer` dựng lại cả bảng điểm mùa nên BẮT BUỘC memo — không thì
+  // mỗi lần re-render là một lượt quét toàn bộ lịch sử trận.
+  const arcadeOffer = useMemo(() => getBotArcadeOffer(db, memberId), [db, memberId])
+  const spendableSp = useMemo(() => spendableSeasonPoints(db, memberId), [db, memberId])
+
   // 9. BXH quanh bạn (Desktop)
   const nearbyStandings = useMemo(() => getSurroundingStandings(db, memberId, 5, 'elo'), [db, memberId])
   const nearbySeasonStandings = useMemo(() => getSurroundingSeasonStandings(db, memberId, 5), [db, memberId])
@@ -227,6 +240,12 @@ export default function MyStats() {
           <>
             {/* Thẻ 01: Hero Rank */}
             <HeroRankCard hero={heroStats} isMobile={true} />
+
+            {/* Thẻ 01b: Bot cà khịa — ngay dưới hạng, vì câu nó nói là về đúng con số vừa đọc. */}
+            <BotTauntCard bot={botMember} taunt={botTaunt} isMobile={true} />
+
+            {/* Thẻ 01c: Sòng của bot — cược bằng chính SP vừa hiện ở thẻ hạng. */}
+            <BotArcadeCard bot={botMember} offer={arcadeOffer} balance={spendableSp} onPlay={a.playArcade} />
 
             {/* Thẻ 02: Recent Form */}
             <RecentFormCard form={formStats} isMobile={true} />
@@ -361,6 +380,12 @@ export default function MyStats() {
           <div style={S.mainCol}>
             {/* 01. Hạng của tôi */}
             <HeroRankCard hero={heroStats} isMobile={false} />
+
+            {/* 01b. Bot cà khịa — ngay dưới hạng, vì câu nó nói là về đúng con số vừa đọc. */}
+            <BotTauntCard bot={botMember} taunt={botTaunt} isMobile={false} />
+
+            {/* 01c. Sòng của bot — cược bằng chính SP vừa hiện ở thẻ hạng. */}
+            <BotArcadeCard bot={botMember} offer={arcadeOffer} balance={spendableSp} onPlay={a.playArcade} />
 
             {/* Hàng 2 cột: 02. Phong độ 5 trận + 03. Mục tiêu */}
             <div style={S.twoColRow}>

@@ -6,6 +6,7 @@ import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.j
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
+import { botLineKey, getBotMatchReaction, getBotBetLine } from '#lib/bot.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
 import { t } from '#i18n'
@@ -320,6 +321,20 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   // thu hộ ai. Ai đứng trong kèo (hoặc admin) đều sửa được, kể cả sau khi đã đánh xong.
   const stakeText = c.stakeText || ''
   const canEditStake = Boolean(isAdmin || isCreator || isParticipant)
+
+  // BOT DỰNG KÈO. `botReason` chỉ là MÃ; câu chữ dựng lại ở đây từ mã + id kèo, nên không có chữ
+  // nào nằm dưới DB và thêm câu mới vào `vi.json` là mọi kèo cũ cũng đổi theo.
+  // Kèo do người tạo thì `botReason` là null và cả khối này biến mất.
+  const botReasonKey = useMemo(
+    () => (c.botReason ? botLineKey('reason', c.botReason, c.id) : null),
+    [c.botReason, c.id],
+  )
+  const botReaction = useMemo(() => getBotMatchReaction(db, c), [db, c])
+  // Phiếu cược của bot ở kèo này — độc lập với `botReason`: bot cược cả kèo do người thật dựng.
+  const botBet = useMemo(() => getBotBetLine(db, c), [db, c])
+  // Khối bot có tới ba dòng (lý do · phiếu cược · phản ứng) nên tách style ra, khỏi chép bốn lần.
+  const botLabel = { font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)' }
+  const botLine = { font: '400 14px/1.5 "IBM Plex Sans", sans-serif', fontStyle: 'italic', color: 'var(--text-primary)' }
   const stakeMaxLen = cfg.challenge?.stakeMaxLen ?? 120
   // Liệt kê TƯỜNG MINH từng key thay vì ghép chuỗi `stakeTpl${i}` — `smoke/i18n.test.js` quét key
   // dùng thẳng trong code, ghép động là nó không thấy và báo key chết.
@@ -720,6 +735,45 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               <span style={{ font: '400 11.5px/1.4 var(--font-sans)', color: 'var(--status-delayed-fg)' }}>
                 {t('challenge.formatHasBets')}
               </span>
+            )}
+          </div>
+        )}
+
+        {/* BOT DỰNG KÈO — chỉ hiện với kèo bot. Không dùng màu trạng thái kèo (xanh/đỏ) vì đây
+            không phải trạng thái; dùng tông trung tính để nó đọc như một lời bình, không phải
+            một cảnh báo. */}
+        {(botReasonKey || botBet) && (
+          <div style={{
+            padding: '10px 12px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--surface-sunken)',
+            border: '1px solid var(--border-subtle)',
+            display: 'grid',
+            gap: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Icon name="sparkles" size={15} style={{ color: 'var(--text-accent)' }} />
+              <span style={botLabel}>
+                {botReasonKey ? t('bot.challengeLabel') : t('bot.betLabel')}
+              </span>
+            </div>
+
+            {botReasonKey && <span style={botLine}>“{t(botReasonKey)}”</span>}
+
+            {/* Phiếu cược — có cả ở kèo do người thật dựng, nên nhãn riêng khi đứng cạnh lý do. */}
+            {botBet?.lineKey && (
+              <>
+                {botReasonKey && <span style={botLabel}>{t('bot.betLabel')}</span>}
+                <span style={botLine}>“{t(botBet.lineKey, botBet.params)}”</span>
+              </>
+            )}
+
+            {/* Chỉ có sau khi kèo đã đánh xong — `getBotMatchReaction` trả null nếu chưa có trận. */}
+            {botReaction?.lineKey && (
+              <>
+                <span style={botLabel}>{t('bot.reactionLabel')}</span>
+                <span style={botLine}>“{t(botReaction.lineKey)}”</span>
+              </>
             )}
           </div>
         )}
