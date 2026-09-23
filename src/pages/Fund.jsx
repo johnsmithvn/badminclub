@@ -10,7 +10,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { dd, ddmy, monthOf, monthTxt, WD_FULL, weekdayOf, addMonth } from '#utils/dates.js'
 import { fmt } from '#lib/money.js'
 import {
-  CATS, availableBalance, catLabel, editTarget, ledger,
+  CATS, availableBalance, canEditTxDate, catLabel, editTarget, ledger,
   ledgerGrouped, monthFlow, undoTarget,
 } from '#lib/ledger.js'
 import { courtBillForm, editBillForm, editLedgerForm, ledgerForm } from '#lib/forms.js'
@@ -50,6 +50,12 @@ export default function Fund() {
   const [selectedId, setSelectedId] = useState(null)
   const [expandedClusters, setExpandedClusters] = useState({})
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
+  const [editingDateTxId, setEditingDateTxId] = useState(null)
+  const [editDateValue, setEditDateValue] = useState('')
+
+  useEffect(() => {
+    setEditingDateTxId(null)
+  }, [selectedId])
   const filterRef = useRef(null)
   const timeRef = useRef(null)
 
@@ -1022,6 +1028,19 @@ export default function Fund() {
                     )
                   })()}
 
+                  {canMoney && selectedTx.id.startsWith('du') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingDateTxId(selectedTx.id)
+                        setEditDateValue(selectedTx.date)
+                      }}
+                      style={S.editActionBtn}
+                    >
+                      {t('fund.editDueDate')}
+                    </button>
+                  )}
+
                   {(() => {
                     const undo = undoTarget(db, selectedTx.raw || selectedTx)
                     if (!undo || !canMoney) return null
@@ -1043,7 +1062,53 @@ export default function Fund() {
               <div style={S.detailFieldsBox}>
                 <div style={S.detailFieldRow}>
                   <span style={S.fieldKey}>{t('fund.fieldDate')}</span>
-                  <span style={S.fieldVal}>{ddmy(selectedTx.date)}</span>
+                  {editingDateTxId === selectedTx.id ? (
+                    <div style={S.dateEditContainer}>
+                      <input
+                        type="date"
+                        value={editDateValue}
+                        onChange={(e) => setEditDateValue(e.target.value)}
+                        style={S.dateInputInline}
+                      />
+                      <button
+                        type="button"
+                        title={t('common.save')}
+                        onClick={() => {
+                          if (!editDateValue) return
+                          a.updateTxDate(selectedTx.id, editDateValue)
+                          setEditingDateTxId(null)
+                        }}
+                        style={S.saveDateMiniBtn}
+                      >
+                        <Icon name="check" size={13} color="#fff" />
+                      </button>
+                      <button
+                        type="button"
+                        title={t('common.cancel')}
+                        onClick={() => setEditingDateTxId(null)}
+                        style={S.cancelDateMiniBtn}
+                      >
+                        <Icon name="x" size={13} color="var(--text-muted, #78716C)" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={S.fieldValRow}>
+                      <span>{ddmy(selectedTx.date)}</span>
+                      {canMoney && canEditTxDate(db, selectedTx) && (
+                        <button
+                          type="button"
+                          title={t('fund.editTxDate')}
+                          onClick={() => {
+                            setEditingDateTxId(selectedTx.id)
+                            setEditDateValue(selectedTx.date)
+                          }}
+                          style={S.editDateMiniBtn}
+                        >
+                          <Icon name="pencil" size={12} />
+                        </button>
+                      )}
+                    </span>
+                  )}
                 </div>
                 <div style={S.detailFieldRow}>
                   <span style={S.fieldKey}>{t('fund.fieldCat')}</span>
@@ -1164,7 +1229,53 @@ export default function Fund() {
             <div style={S.detailFieldsBox}>
               <div style={S.detailFieldRow}>
                 <span style={S.fieldKey}>{t('fund.fieldDate')}</span>
-                <span style={S.fieldVal}>{ddmy(selectedTx.date)}</span>
+                {editingDateTxId === selectedTx.id ? (
+                  <div style={S.dateEditContainer}>
+                    <input
+                      type="date"
+                      value={editDateValue}
+                      onChange={(e) => setEditDateValue(e.target.value)}
+                      style={S.dateInputInline}
+                    />
+                    <button
+                      type="button"
+                      title={t('common.save')}
+                      onClick={() => {
+                        if (!editDateValue) return
+                        a.updateTxDate(selectedTx.id, editDateValue)
+                        setEditingDateTxId(null)
+                      }}
+                      style={S.saveDateMiniBtn}
+                    >
+                      <Icon name="check" size={13} color="#fff" />
+                    </button>
+                    <button
+                      type="button"
+                      title={t('common.cancel')}
+                      onClick={() => setEditingDateTxId(null)}
+                      style={S.cancelDateMiniBtn}
+                    >
+                      <Icon name="x" size={13} color="var(--text-muted, #78716C)" />
+                    </button>
+                  </div>
+                ) : (
+                  <span style={S.fieldValRow}>
+                    <span>{ddmy(selectedTx.date)}</span>
+                    {canMoney && canEditTxDate(db, selectedTx) && (
+                      <button
+                        type="button"
+                        title={t('fund.editTxDate')}
+                        onClick={() => {
+                          setEditingDateTxId(selectedTx.id)
+                          setEditDateValue(selectedTx.date)
+                        }}
+                        style={S.editDateMiniBtn}
+                      >
+                        <Icon name="pencil" size={12} />
+                      </button>
+                    )}
+                  </span>
+                )}
               </div>
               <div style={S.detailFieldRow}>
                 <span style={S.fieldKey}>{t('fund.fieldCat')}</span>
@@ -1234,6 +1345,19 @@ export default function Fund() {
                   </button>
                 )
               })()}
+
+              {canMoney && selectedTx.id.startsWith('du') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingDateTxId(selectedTx.id)
+                    setEditDateValue(selectedTx.date)
+                  }}
+                  style={S.mobilePrimaryActionBtn}
+                >
+                  {t('fund.editDueDate')}
+                </button>
+              )}
 
               {(() => {
                 const undo = undoTarget(db, selectedTx.raw || selectedTx)
@@ -2033,6 +2157,71 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+  },
+  dateEditContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dateInputInline: {
+    height: 26,
+    padding: '2px 6px',
+    fontSize: 12,
+    borderRadius: 6,
+    border: '1px solid var(--border-subtle, #CBD5E1)',
+    background: 'var(--surface-card, #fff)',
+    color: 'var(--text-primary, #1C1917)',
+    outline: 'none',
+    fontFamily: 'inherit',
+  },
+  saveDateMiniBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    border: 'none',
+    background: 'var(--action-primary-bg, #0D2B5E)',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  cancelDateMiniBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    border: '1px solid var(--border-subtle, #CBD5E1)',
+    background: 'transparent',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  fieldValRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 12.5,
+    fontWeight: 500,
+    color: 'var(--text-secondary, #44403C)',
+    textAlign: 'right',
+    wordBreak: 'break-word',
+  },
+  editDateMiniBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    border: 'none',
+    background: 'var(--surface-card, #fff)',
+    border: '1px solid var(--border-subtle, #E7E5E4)',
+    color: 'var(--text-muted, #78716C)',
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'all 0.15s ease',
   },
   detailFieldRow: {
     display: 'flex',

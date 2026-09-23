@@ -8,7 +8,7 @@ import {
   presentCount, rowCost, sGuests, guestRev, sessionMembers, isPresent,
   sessionOf, timeTxt, unfrozenCost,
   adjustRows, adjustSessions, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
-  adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName,
+  adhocCharges, chargeName, isVault, sGuestsOnly, normalizeText, myMember, playerName,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'

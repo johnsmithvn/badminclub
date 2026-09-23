@@ -1366,7 +1366,7 @@
     "scheduleOff": "Đã tắt lịch {{name}} — không sinh buổi mới",
     "needWeekday": "Chọn thứ trong tuần và ngày bắt đầu",
     "scheduleCreated": "Đã tạo {{n}} buổi từ {{from}} đến {{to}}",
-    "needDate": "Chọn ngày",
+    "needDate": "Vui lòng chọn ngày hợp lệ.",
     "adhocCreated": "Đã tạo buổi đột xuất {{date}}",
     "needVenueAmount": "Nhập sân và số tiền đã trả",
     "billAdded": "Đã ghi tiền sân {{amount}} đ",
@@ -1423,7 +1423,8 @@
     "debtDeleted": "Đã xoá khoản nợ thành công",
     "matchesExported": "Đã tải file {{file}} — {{n}} trận. File này chỉ chứa lịch sử thi đấu, KHÔNG có tiền quỹ hay công nợ.",
     "matchesImported": "Đã nhập {{n}} trận. Bấm Đồng bộ lại Elo để dựng lại bảng xếp hạng từ lịch sử vừa nạp.",
-    "matchesImportBlocked": "Chưa nhập gì cả. Xem lý do trong hộp thoại."
+    "matchesImportBlocked": "Chưa nhập gì cả. Xem lý do trong hộp thoại.",
+    "txDateUpdated": "Đã đổi ngày giao dịch thành {{date}}."
   },
   "group": {
     "allClub": "Cả CLB",
@@ -2240,7 +2241,9 @@
     "csvHeaderBy": "Người trả/Hình thức",
     "csvHeaderIn": "Thu (+)",
     "csvHeaderOut": "Chi (-)",
-    "csvHeaderAmount": "Số tiền"
+    "csvHeaderAmount": "Số tiền",
+    "editDueDate": "Sửa ngày thu",
+    "editTxDate": "Đổi ngày giao dịch"
   },
   "profile": {
     "meTitle": "Hồ sơ của tôi trong CLB",
