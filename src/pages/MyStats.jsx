@@ -167,27 +167,22 @@ export default function MyStats() {
   const botEncounter = useMemo(() => getPersonalBotEncounter(db, memberId), [db, memberId])
   const [encounterOpen, setEncounterOpen] = useState(false)
 
-  // Tự động mở Modal đối thoại nếu Engine chỉ định mode === 'modal'
+  // Tự động mở Modal đối thoại nếu Engine chỉ định mode === 'modal' và ghi nhận memory ngay khi mở
   useEffect(() => {
-    if (botEncounter?.mode === 'modal') {
+    if (botEncounter?.mode === 'modal' && memberId) {
       setEncounterOpen(true)
+      recordEncounterShown(memberId, botEncounter)
     }
-  }, [botEncounter])
+  }, [botEncounter, memberId])
 
   const handleCloseEncounter = () => {
     setEncounterOpen(false)
-    if (botEncounter && memberId) {
-      recordEncounterShown(memberId, botEncounter)
-    }
   }
 
   const handleActionEncounter = (action, scenario) => {
     setEncounterOpen(false)
-    if (botEncounter && memberId) {
-      recordEncounterShown(memberId, botEncounter)
-      if (action?.type && scenario?.scenarioKey) {
-        recordActionTaken(memberId, scenario.scenarioKey, action.type)
-      }
+    if (memberId && action?.type && scenario?.scenarioKey) {
+      recordActionTaken(memberId, scenario.scenarioKey, action.type)
     }
     if (action?.type === 'rank') {
       a.go('leaderboard')

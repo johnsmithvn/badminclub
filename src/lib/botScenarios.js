@@ -144,11 +144,31 @@ export function inspectMemberState(db, memberId, now = Date.now()) {
     daysSincePreviousMatch = Math.round((lastMatchAt - prevAt) / (24 * 3600 * 1000))
   }
 
+  // 8. Thứ hạng trước trận gần nhất (preRank)
+  let preRank = currentRank
+  if (lastMatch) {
+    const preRatings = ratings.map((r) => {
+      if (r.memberId === memberId) {
+        return { memberId, rating: preMatchElo }
+      }
+      if (lastOpponentIds.includes(r.memberId)) {
+        const oppPost = Number(r.rating) || 1500
+        const oppPre = lastMatchWon ? oppPost + lastMatchEloDelta : oppPost - lastMatchEloDelta
+        return { memberId: r.memberId, rating: oppPre }
+      }
+      return { memberId: r.memberId, rating: Number(r.rating) || 1500 }
+    }).sort((a, b) => (b.rating || 0) - (a.rating || 0))
+
+    const pIdx = preRatings.findIndex((r) => r.memberId === memberId)
+    preRank = pIdx >= 0 ? pIdx + 1 : currentRank
+  }
+
   return {
     memberId: member.id,
     member,
     bot,
     currentRank,
+    preRank,
     currentElo,
     preMatchElo,
     botRank,
@@ -168,6 +188,7 @@ export function inspectMemberState(db, memberId, now = Date.now()) {
     lastArcadeAt,
     isRecentArcade,
     daysSincePreviousMatch,
+    myMatches,
   }
 }
 
@@ -220,14 +241,32 @@ export function detectRecentEvents(db, memberId, state, now = Date.now()) {
     }
 
     // Trận đòi nợ thành công (Revenge Complete Callback)
-    // Điều kiện: Trận trước từng thua Rival, trận này vừa thắng lại
-    if (state.rival && opponents.includes(state.rival.id) && state.lastMatchWon && state.rival.myWins > 0 && state.rival.oppWins > 0) {
-      events.push({
-        type: 'revenge_complete',
-        eventKey: matchKey,
-        occurredAt: matchAt,
-        data: { rivalId: state.rival.id, rivalName: state.rival.name },
-      })
+    // Điều kiện: Trận đối đầu gần nhất trước đó THUA đối thủ này, trận này VỪA THẮNG LẠI (<= 24h)
+    if (state.lastMatchWon) {
+      for (const oppId of opponents) {
+        if (oppId === state.bot?.id) continue
+        const prevH2HMatch = (state.myMatches || []).slice(1).find((m) => {
+          const isTeamA = (m.teamA || []).includes(memberId)
+          const isTeamB = (m.teamB || []).includes(memberId)
+          if (!isTeamA && !isTeamB) return false
+          return isTeamA ? (m.teamB || []).includes(oppId) : (m.teamA || []).includes(oppId)
+        })
+
+        if (prevH2HMatch) {
+          const myTeamInPrev = (prevH2HMatch.teamA || []).includes(memberId) ? 'A' : 'B'
+          const iLostPrevH2H = prevH2HMatch.winnerTeam && prevH2HMatch.winnerTeam !== myTeamInPrev
+          if (iLostPrevH2H) {
+            const oppMember = (db.members || []).find((m) => m && m.id === oppId)
+            events.push({
+              type: 'revenge_complete',
+              eventKey: matchKey,
+              occurredAt: matchAt,
+              data: { rivalId: oppId, rivalName: oppMember?.name || oppId },
+            })
+            break
+          }
+        }
+      }
     }
 
     // 2. Overtake Toán Học với Bot
@@ -268,8 +307,8 @@ export function detectRecentEvents(db, memberId, state, now = Date.now()) {
       })
     }
 
-    // 4. Top 3 / Top 5 Milestone
-    if (state.currentRank <= 3 && state.lastMatchWon) {
+    // 4. Bước chân vào Top 3 (Chuyển đổi thứ hạng thực sự: preRank > 3 và currentRank <= 3)
+    if (state.lastMatchWon && (state.preRank || 99) > 3 && state.currentRank <= 3) {
       events.push({
         type: 'top3_entered',
         eventKey: matchKey,
@@ -278,7 +317,31 @@ export function detectRecentEvents(db, memberId, state, now = Date.now()) {
       })
     }
 
-    // 5. Chuyên cần: Quay lại sau nghỉ dài
+    // 5. Chasing Bot (Threshold Crossing): Trận thắng vừa rồi đưa khoảng cách bước vào vùng <= 15 Elo
+    if (state.bot && state.lastMatchWon) {
+      const preBotGap = state.botElo - state.preMatchElo
+      const currentBotGap = state.botElo - state.currentElo
+      if (preBotGap > 15 && currentBotGap > 0 && currentBotGap <= 15) {
+        events.push({
+          type: 'chasing_bot',
+          eventKey: matchKey,
+          occurredAt: matchAt,
+          data: { diff: currentBotGap, botName: state.bot.name },
+        })
+      }
+    }
+
+    // 6. Suýt chạm mốc 5 trận thắng liên tiếp (Trận thứ 4 vừa thắng trong 24h)
+    if (state.lastMatchWon && state.streakType === 'won' && state.streakCount === 4) {
+      events.push({
+        type: 'near_streak_5',
+        eventKey: matchKey,
+        occurredAt: matchAt,
+        data: { current: 4, target: 5 },
+      })
+    }
+
+    // 7. Chuyên cần: Quay lại sau nghỉ dài
     if (state.daysSincePreviousMatch >= 14 && state.lastMatch) {
       events.push({
         type: 'welcome_back',
@@ -308,28 +371,6 @@ export function detectRecentEvents(db, memberId, state, now = Date.now()) {
         data: { stake: state.lastArcade.stake },
       })
     }
-  }
-
-  // --- C. Kịch bản Suýt Đạt Được (Near-miss / Threshold Crossing) ---
-  // Gắn với event trận gần nhất nếu có, hoặc standings key với cooldown 72h
-  const botGap = state.botElo - state.currentElo
-  if (botGap > 0 && botGap <= 15) {
-    const chasingKey = state.lastMatch ? `match:${state.lastMatch.id}` : `standings:${memberId}`
-    events.push({
-      type: 'chasing_bot',
-      eventKey: chasingKey,
-      occurredAt: state.lastMatchAt || now,
-      data: { diff: botGap, botName: state.bot?.name || '' },
-    })
-  }
-
-  if (state.streakType === 'won' && state.streakCount === 4) {
-    events.push({
-      type: 'near_streak_5',
-      eventKey: state.lastMatch ? `match:${state.lastMatch.id}` : `standings:${memberId}`,
-      occurredAt: state.lastMatchAt || now,
-      data: { current: 4, target: 5 },
-    })
   }
 
   return events
