@@ -10,6 +10,9 @@
 import { findBotMember, botLineKey } from '#lib/bot.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { BotMemoryStore } from '#lib/botMemory.js'
+ 
+/** Số trận tối đa kể từ trận thua gần nhất để còn tính là đòi nợ (khoảng 1-2 buổi tập) */
+export const MAX_REVENGE_MATCH_GAP = 6
 
 /**
  * BƯỚC 1: Thu thập toàn bộ trạng thái và biến động toán học của thành viên.
@@ -54,7 +57,7 @@ export function inspectMemberState(db, memberId, now = Date.now()) {
 
   // 3. Lịch sử trận đấu của thành viên (sắp xếp mới nhất lên đầu)
   const myMatches = (db.matches || [])
-    .filter((m) => m && (m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))
+    .filter((m) => m && ((m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId)))
     .sort((a, b) => new Date(b.at || b.playedAt || 0) - new Date(a.at || a.playedAt || 0))
 
   const lastMatch = myMatches[0] || null
@@ -241,27 +244,30 @@ export function detectRecentEvents(db, memberId, state, now = Date.now()) {
     }
 
     // Trận đòi nợ thành công (Revenge Complete Callback)
-    // Điều kiện: Trận đối đầu gần nhất trước đó THUA đối thủ này, trận này VỪA THẮNG LẠI (<= 24h)
+    // Điều kiện: Trận đối đầu gần nhất trước đó THUA đối thủ này, trận này VỪA THẮNG LẠI (<= 24h),
+    // VÀ trận thua đó diễn ra cách đây không quá MAX_REVENGE_MATCH_GAP trận của người chơi (khoảng 1-2 buổi tập).
     if (state.lastMatchWon) {
       for (const oppId of opponents) {
         if (oppId === state.bot?.id) continue
-        const prevH2HMatch = (state.myMatches || []).slice(1).find((m) => {
+        const prevH2HMatchIdx = (state.myMatches || []).slice(1).findIndex((m) => {
           const isTeamA = (m.teamA || []).includes(memberId)
           const isTeamB = (m.teamB || []).includes(memberId)
           if (!isTeamA && !isTeamB) return false
           return isTeamA ? (m.teamB || []).includes(oppId) : (m.teamA || []).includes(oppId)
         })
 
-        if (prevH2HMatch) {
+        if (prevH2HMatchIdx >= 0) {
+          const matchGap = prevH2HMatchIdx + 1
+          const prevH2HMatch = state.myMatches[matchGap]
           const myTeamInPrev = (prevH2HMatch.teamA || []).includes(memberId) ? 'A' : 'B'
           const iLostPrevH2H = prevH2HMatch.winnerTeam && prevH2HMatch.winnerTeam !== myTeamInPrev
-          if (iLostPrevH2H) {
+          if (iLostPrevH2H && matchGap <= MAX_REVENGE_MATCH_GAP) {
             const oppMember = (db.members || []).find((m) => m && m.id === oppId)
             events.push({
               type: 'revenge_complete',
               eventKey: matchKey,
               occurredAt: matchAt,
-              data: { rivalId: oppId, rivalName: oppMember?.name || oppId },
+              data: { rivalId: oppId, rivalName: oppMember?.name || oppId, matchGap },
             })
             break
           }

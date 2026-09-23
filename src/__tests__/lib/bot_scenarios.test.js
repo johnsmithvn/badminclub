@@ -145,6 +145,20 @@ console.log('--- Test 3: Revenge Detection (Trận trước thua, trận này th
   const stateB = inspectMemberState(dbB, 'u1', NOW)
   const eventsB = detectRecentEvents(dbB, 'u1', stateB, NOW)
   assert.ok(!eventsB.some((e) => e.type === 'revenge_complete'), 'Trận trước đã thắng, trận này thắng tiếp -> revenge_complete = FALSE')
+
+  // Case C: Trận thua u2 diễn ra cách đây 8 trận (đã đánh 7 trận khác xen giữa) -> Món nợ quá xa (> 6 trận) -> KHÔNG ĐÒI NỢ
+  const intermediateMatches = Array.from({ length: 7 }, (_, i) => ({
+    id: `m_inter_${i}`,
+    at: NOW - 2 * ONE_DAY + i * 3600 * 1000,
+    winnerTeam: 'A',
+    teamA: ['u1'],
+    teamB: ['u3'],
+    playerKeys: ['u1', 'u3'],
+  }))
+  const dbC = makeMockDb({ myElo: 1512, rivalElo: 1488, matches: [m2_win, ...intermediateMatches, m1_loss] })
+  const stateC = inspectMemberState(dbC, 'u1', NOW)
+  const eventsC = detectRecentEvents(dbC, 'u1', stateC, NOW)
+  assert.ok(!eventsC.some((e) => e.type === 'revenge_complete'), 'Trận thua cách hơn 6 trận của người chơi -> revenge_complete = FALSE')
 }
 
 console.log('--- Test 4: Chasing Bot (Threshold Crossing) & Near Streak Freshness ---')
