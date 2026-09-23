@@ -130,8 +130,15 @@
     "ledgerLoss": "Thua {{score}} · Kèo {{gap}} Elo",
     "ledgerStreakBonus": "Streak +{{pts}}",
     "ledgerUpsetBonus": "Upset +{{pts}}",
+    "ledgerPredictionWon": "Dự đoán đúng · Kèo {{code}}",
+    "ledgerPredictionLost": "Dự đoán sai · Kèo {{code}}",
+    "ledgerArcadeWon": "Thắng ván cược · {{oppName}}",
+    "ledgerArcadeLost": "Thua ván cược · {{oppName}}",
+    "ledgerArcadeDraw": "Hoà ván cược · {{oppName}}",
     "tagMatch": "Trận",
     "tagChallenge": "Kèo",
+    "tagArcade": "Arcade",
+    "tagPrediction": "Dự đoán",
     "tagChallengeMult": "Kèo ×{{mult}}",
     "tagChallengeMultHint": "Trận trong kèo được nhân {{mult}} điểm mùa. Elo vẫn tính như trận thường.",
     "eloGapPill": "Lệch {{gap}} Elo",
@@ -4682,8 +4689,303 @@
     "session_closed": "✅ Buổi {{date}} đã hoàn tất và chốt sổ.",
     "session_cancelled": "🚫 Buổi {{date}} đã bị huỷ.",
     "member_joined": "👋 Chào mừng thành viên mới {{name}} đã gia nhập CLB!",
+    "bot_remark": "{{bot}} vừa nhắc tới {{name}}.",
+    "arcade_won": "{{userName}} đã thắng {{oppName}} trong ván {{game}} (+{{stake}} SP)",
+    "arcade_lost": "{{oppName}} đã thắng {{userName}} trong ván {{game}} (+{{stake}} SP)",
+    "arcade_draw": "{{userName}} và {{oppName}} hoà nhau trong ván {{game}} (hoàn {{stake}} SP)",
+    "arcade_played": "{{userName}} và {{oppName}} vừa đấu ván {{game}} ({{stake}} SP)",
     "loadMore": "Xem thêm hoạt động cũ hơn",
     "loading": "Đang tải hoạt động..."
+  },
+  "bot": {
+    "cardTitle": "{{bot}}",
+    "challengeLabel": "Kèo từ {{bot}}",
+    "reactionLabel": "Nhận xét từ {{bot}}",
+    "gameRps": "Kéo búa bao",
+    "gameCoin": "Tung xu",
+    "reason": {
+      "rank_neighbor": {
+        "1": "Hai người này ngang cơ. Đánh đi, đừng né.",
+        "2": "Cách nhau vài điểm mà chưa ai chịu ai. Lên sân giải quyết.",
+        "3": "Tôi xếp hai người vào đây rồi. Ai không dám thì cứ để kèo hết hạn.",
+        "4": "Sát nhau thế này mà không đánh thì bảng xếp hạng để làm gì?"
+      },
+      "streak_hunt": {
+        "1": "Nghe nói có người đang thắng liền tay. Xem được mấy trận nữa.",
+        "2": "Chuỗi thắng nào rồi cũng có người cắt. Tôi chọn sẵn người rồi.",
+        "3": "Đang hăng à? Tôi tìm được đối thủ cho rồi đấy.",
+        "4": "Thắng mãi cũng chán. Đây, khó hơn một chút."
+      }
+    },
+    "taunt": {
+      "top1": {
+        "1": "Đứng nhất rồi ngồi đó à? Bảng này tuần nào chẳng đổi.",
+        "2": "{{name}} đang số 1. Tận hưởng đi, chưa chắc đến cuối tháng.",
+        "3": "Số 1 thì cũng chỉ là số 1 của hôm nay thôi."
+      },
+      "chaser": {
+        "1": "Trên đầu là {{above}}. Còn định nhìn lâu nữa không?",
+        "2": "Hạng {{rank}}. Gần lắm rồi mà vẫn chưa qua được {{above}}.",
+        "3": "{{above}} chắc chẳng lo gì về bạn đâu. Chứng minh ngược lại đi."
+      },
+      "win_streak": {
+        "1": "Thắng {{n}} trận liền. Được. Nhưng tôi vẫn chưa ấn tượng.",
+        "2": "{{n}} trận rồi đấy. Đợi xem trận tiếp theo thế nào.",
+        "3": "Chuỗi {{n}} trận. Đừng đọc cái này nhiều quá rồi tự tin ảo."
+      },
+      "lose_streak": {
+        "1": "{{n}} trận gần nhất không thắng trận nào. Tôi đếm hộ thôi.",
+        "2": "Đang tịt {{n}} trận. Chắc tại vợt.",
+        "3": "{{n}} trận trắng. Ai cũng có giai đoạn này, dài ngắn tuỳ người."
+      },
+      "rank_up": {
+        "1": "Tăng {{n}} Elo trong tuần. Ừ, công nhận.",
+        "2": "Cộng {{n}} Elo. Lên nhanh thì xuống cũng nhanh, nhớ đấy.",
+        "3": "{{n}} điểm trong bảy ngày. Đang đà, đừng nghỉ."
+      },
+      "rank_down": {
+        "1": "Rơi {{n}} Elo tuần này. Tôi có nên bất ngờ không?",
+        "2": "Mất {{n}} Elo. Số liệu không biết nói dối đâu.",
+        "3": "Tụt {{n}} điểm. Đi đánh bù đi, ngồi đây đọc không lấy lại được."
+      },
+      "rookie": {
+        "1": "Mới {{n}} trận. Chưa đủ để tôi đánh giá, cũng chưa đủ để bạn tự tin.",
+        "2": "{{n}} trận thì Elo còn chưa nói lên điều gì. Đánh thêm đi.",
+        "3": "Người mới. Tôi để mắt đấy."
+      },
+      "idle": {
+        "1": "Chưa đánh trận nào. Bảng xếp hạng không tự leo đâu.",
+        "2": "Không thấy tên trong trận nào cả. Bận à?",
+        "3": "Vắng lâu thế. Mọi người vẫn đánh đều đấy."
+      },
+      "plain": {
+        "1": "Hạng {{rank}}. Không cao không thấp. Cũng không có gì để nói.",
+        "2": "Hạng {{rank}}, phong độ phẳng lì. Hôm nay làm gì đó khác đi.",
+        "3": "Vẫn hạng {{rank}}. Bảng này đứng yên là đang tụt đấy."
+      }
+    },
+    "reaction": {
+      "blowout": {
+        "1": "Tưởng thế nào, hoá ra là một màn out trình không lối thoát. Bên kia thở oxy chưa? 🚑",
+        "2": "Đánh thế này thì chỉ khổ người nhặt cầu thôi. Lệch trình quá, lần sau tôi xếp kèo khác!",
+        "3": "Một bên thì đánh như hack, một bên thì đứng nhìn. Trận này chấm 1 sao vì quá tàn nhẫn 💀"
+      },
+      "clutch": {
+        "1": "Trận này thở không kịp luôn! Đấy, xếp kèo thì chỉ có từ khét lẹt trở lên thôi 🔥",
+        "2": "Rượt đuổi từng điểm một, suýt thì lật kèo! Ai thua trận này tối về chắc mất ngủ cả đêm 🫣",
+        "3": "Đấy! Cứ phải căng như dây đàn thế này xem mới sướng. Kèo chọn có bao giờ xịt đâu 😏"
+      },
+      "normal": {
+        "1": "Xong một kèo! Thắng thì gáy to lên, thua thì lo mà về tập luyện thêm đi nhé 🏸",
+        "2": "Đánh xong rồi thì thanh toán giao kèo đi nào. Đừng có ai giả vờ quên đấy 👀",
+        "3": "Kết quả đã xong. Ai vui ai buồn thì BXH cũng cập nhật hết rồi nhé!"
+      },
+      "declined_bot": {
+        "1": "Ủa {{decliner}}, kèo thơm thế này mà cũng né à? Sợ tụt rank hay sợ đối thủ vả cho không trượt phát nào? 😏",
+        "2": "Biết ngay {{decliner}} sẽ bấm từ chối mà. Thôi để lần sau tìm mấy bạn mới tập đánh cho vừa miếng nhé! 🥱",
+        "3": "Gạ kèo cho đánh mà chạy nhanh như gió. {{decliner}} ơi là {{decliner}}, tính giữ chuỗi bất bại bằng cách không đánh à? 🏃‍♂️"
+      },
+      "declined_user": {
+        "1": "Thấy {{challenger}} gửi kèo là {{decliner}} rén ngay! Nói một câu sợ thì ai người ta cười cho đâu 😏",
+        "2": "Kèo thơm phức mà {{decliner}} không dám nhận của {{challenger}} à? Đúng là chỉ giỏi bắt nạt người yếu hơn thôi 🤡",
+        "3": "Ủa {{challenger}} gạ đánh mà {{decliner}} đã vội quay xe? Nhận đi thua cùng lắm mất vài điểm Elo chứ mấy 🤭"
+      },
+      "cancelled": {
+        "1": "Kèo đang hay thì lại huỷ, giải tán sớm thế các bố? Đang chuẩn bị bỏng ngô hóng biến 🍿",
+        "2": "Vừa nghe tin có kèo định vào xem thì thấy huỷ mất tiêu. Ai lại chơi trò rút lui trong im lặng thế? 🙄",
+        "3": "Huỷ kèo rồi à? Chắc một trong hai bên lại tìm lý do đau tay, bận việc đột xuất chứ gì! Lạ gì các ông 🥱"
+      },
+      "expired": {
+        "1": "Treo kèo từ sáng tới tối mà chẳng ai dám đụng vào. CLB mình dạo này toàn cao thủ ẩn mình... ẩn kỹ quá! 😴",
+        "2": "Hết hạn rồi mà vẫn ế chỏng chơ. Thôi để hôm nào tôi tự đi gạ lại từng đứa một xem dám trốn không 😤",
+        "3": "Kèo ế mốc meo luôn rồi! Chắc thấy đối thủ căng quá nên cả hội giả vờ không online chứ gì? 🙈"
+      }
+    },
+    "betLabel": "Bot đặt cửa",
+    "bet": {
+      "favourite": {
+        "1": "Đặt {{n}} SP cửa {{who}}. Chênh lệch rõ thế này thì có gì phải nghĩ.",
+        "2": "{{n}} SP cho {{who}}. Số liệu bảo thế, tôi làm theo.",
+        "3": "Cửa {{who}}, {{n}} SP. Kèo này không cần đắn đo."
+      },
+      "underdog": {
+        "1": "Đặt {{n}} SP cửa {{who}}. Lần này tôi đi ngược. Đừng hỏi.",
+        "2": "{{n}} SP cho {{who}}. Ai cũng theo cửa kia rồi, chán lắm.",
+        "3": "Cửa dưới {{who}}, {{n}} SP. Linh cảm thôi, mà linh cảm của tôi thì khỏi bàn."
+      },
+      "tilt": {
+        "1": "{{n}} SP cửa {{who}}. Thua mấy phiếu rồi, phiếu này gỡ hết.",
+        "2": "Đặt {{n}} SP cho {{who}}. Tôi chưa thua đâu, mới chỉ là chưa thắng thôi.",
+        "3": "{{n}} SP, cửa {{who}}. Đừng nhìn tôi như thế, tôi kiểm soát được."
+      },
+      "won": {
+        "1": "Ăn {{n}} SP từ cửa {{who}}. Tôi có nói rồi mà.",
+        "2": "{{who}} thắng. Tôi đút túi {{n}} SP. Dễ quá.",
+        "3": "Thắng {{n}} SP. Ai vừa bảo tôi đoán bừa nhỉ?"
+      },
+      "lost": {
+        "1": "Bay {{n}} SP vì {{who}}. Trận đó không tính.",
+        "2": "Mất {{n}} SP. Dữ liệu hôm nay có vấn đề.",
+        "3": "{{n}} SP đi theo {{who}}. Tôi chỉ đang thu thập thêm mẫu thôi."
+      }
+    },
+    "arcade": {
+      "offer": {
+        "1": "Ở đó không? Một ván {{n}} SP. Nhanh thôi.",
+        "2": "Rảnh không? {{n}} SP một ván. Đừng bảo là sợ.",
+        "3": "{{n}} SP. Đúng một ván. Tôi hứa đấy.",
+        "4": "Chơi {{n}} SP không? Tôi đang cần gỡ."
+      },
+      "won": {
+        "1": "Ăn may thôi. Trả {{n}} SP đây. Chơi lại không?",
+        "2": "Được đấy. {{n}} SP của bạn. Tôi chưa tính hết.",
+        "3": "Mất {{n}} SP. Ván sau tôi lấy lại."
+      },
+      "lost": {
+        "1": "Tôi lấy {{n}} SP. Cảm ơn nhé.",
+        "2": "Thua rồi. {{n}} SP vào túi tôi. Dễ quá.",
+        "3": "{{n}} SP. Bạn chơi kiểu này thì tôi sống khoẻ."
+      },
+      "draw": {
+        "1": "Hoà. Chán. Chơi lại đi.",
+        "2": "Nghĩ giống nhau à? Làm ván nữa.",
+        "3": "Không ai ăn ai. Lại từ đầu."
+      },
+      "capped": {
+        "1": "Hôm nay {{n}} ván rồi. Mai quay lại.",
+        "2": "Đủ rồi đấy. Nghỉ đi, mai tôi vẫn ở đây."
+      },
+      "broke": {
+        "1": "Hết điểm rồi thì chơi bằng gì? Đi đánh cầu đi.",
+        "2": "Túi rỗng cả hai bên. Hẹn khi khác."
+      }
+    },
+    "remark": {
+      "rank_climb": {
+        "1": "{{name}} đang lên nhanh bất thường. Tôi có để ý đấy.",
+        "2": "Tuần này {{name}} tăng mạnh. Ai ở trên nên quay lại nhìn một cái.",
+        "3": "{{name}} leo rồi. Không ai định làm gì à?"
+      },
+      "rank_drop": {
+        "1": "{{name}} tụt khá sâu tuần này. Chuyện thường, nhưng vẫn là tụt.",
+        "2": "Elo của {{name}} đang đi xuống. Tôi chỉ nói ra thôi.",
+        "3": "{{name}} mất điểm. Ai đang xếp dưới thì đây là cơ hội."
+      },
+      "streak": {
+        "1": "{{name}} đang thắng liền tay. Có ai định cắt không?",
+        "2": "Chuỗi thắng của {{name}} vẫn chưa ai chặn được. Kỳ lạ.",
+        "3": "{{name}} thắng mãi rồi. CLB này hết người rồi à?"
+      },
+      "rivalry_h2h": {
+        "1": "{{name}} dạo này cày đối đầu gắt thế. Tôi đang theo dõi đấy.",
+        "2": "Cặp đối thủ truyền kiếp của {{name}} vẫn chưa phân thắng bại.",
+        "3": "{{name}} chạm trán đối thủ liên tục. Xem ai bản lĩnh hơn."
+      },
+      "best_duo": {
+        "1": "{{name}} đánh đôi dạo này ăn ý quá, tìm được cạ cứng rồi à?",
+        "2": "Cặp bài trùng có {{name}} đang bất bại. Ai cản nổi không?",
+        "3": "Phối hợp nhịp nhàng thế này thì ai làm lại đôi của {{name}}."
+      },
+      "dominance_boss": {
+        "1": "{{name}} dạo này tìm được đối thủ dễ xơi rồi à?",
+        "2": "Áp đảo thế này thì ai dám đối đầu với {{name}} nữa.",
+        "3": "{{name}} đang là nỗi khiếp sợ mỗi lần bốc thăm."
+      },
+      "top_race": {
+        "1": "{{name}} đang bám sát nhóm đầu mùa này. Cố giữ phong độ nhé.",
+        "2": "Cuộc đua Top 3 đang nóng dần, {{name}} áp sát từng điểm một.",
+        "3": "Top đầu mùa này căng thẳng thật, {{name}} không chịu buông tha."
+      },
+      "bot_overtook": {
+        "1": "{{name}} ơi, đứng yên nhé. Tôi đang vượt lên rồi.",
+        "2": "{{name}} ngó lại sau lưng xem ai vừa vượt qua kìa.",
+        "3": "Tôi vừa vượt qua {{name}} trên bảng xếp hạng rồi đấy nhé."
+      }
+    },
+    "interaction": {
+      "above_me": {
+        "1": "{{name}} ơi, đứng ngay trên đầu tôi chỉ có {{diff}} SP thôi đấy. Coi chừng mất chỗ.",
+        "2": "Tôi đang nhìn theo lưng {{name}} đây. Chỉ cách {{diff}} điểm mùa thôi.",
+        "3": "{{name}} giữ hạng cho kỹ nhé, tôi sắp đuổi kịp rồi đấy."
+      },
+      "chasing_me": {
+        "1": "{{name}} bám sát nút tôi thế (còn {{diff}} SP). Định vượt mặt à?",
+        "2": "Đừng hòng vượt qua tôi nhé {{name}}, {{diff}} điểm mùa này không dễ ăn đâu.",
+        "3": "Thấy {{name}} dí sát sau lưng rồi đấy. Làm ván cược thử tài không?"
+      },
+      "revenge_arcade": {
+        "1": "Hôm trước {{name}} vừa ẵm của tôi {{stake}} SP đấy nhé. Có dám phục thù không?",
+        "2": "{{name}} cầm {{stake}} SP của tôi tiêu hết chưa? Trả lại đây nào.",
+        "3": "Hôm trước ăn may được {{stake}} SP, hôm nay dám solo lại với tôi không {{name}}?"
+      },
+      "user_streak": {
+        "1": "{{name}} đang chuỗi {{streak}} trận thắng kìa. Ra sân làm kèo với tôi xem đứt chuỗi không.",
+        "2": "Thắng {{streak}} trận liên tiếp rồi đấy {{name}}. Tự tin làm ván không?",
+        "3": "Phong độ đang cao thế {{name}}, thử vận may với tôi chút đi."
+      },
+      "declined_arcade": {
+        "1": "Lại né kèo à {{name}}? Sợ mất điểm mùa thế.",
+        "2": "{{name}} né tôi mấy lần rồi đấy. Điểm mùa để ngắm à?",
+        "3": "Không dám nhận kèo à {{name}}? Hẹn lần khác vậy."
+      }
+    },
+    "tones": {
+      "supportive": "Động viên",
+      "competitive": "Thách thức",
+      "friendly": "Thân thiện",
+      "teasing": "Cà khịa"
+    },
+    "encounter": {
+      "modalTitle": "Gặp gỡ {{bot}}",
+      "modalSubtitle": "Bot đang muốn nói chuyện riêng với bạn",
+      "actionViewRank": "Xem Bảng xếp hạng",
+      "actionChallenge": "Gạ kèo đòi nợ",
+      "actionArcade": "Vào Arcade phục thù",
+      "actionLogMatch": "Ghi điểm trận đấu",
+      "actionUnderstand": "Đã hiểu rồi",
+      "supportive": {
+        "streak_lose": "Ba trận rồi đấy {{name}}. Hôm nay hơi xui tí thôi, nghỉ ngơi xíu rồi hôm sau lấy lại nhé!",
+        "overtaken": "{{rival}} vừa leo lên trên bạn một tí thôi {{name}}. BXH còn dài, đừng nản vội!",
+        "rank_drop": "Tụt vài hạng là chuyện thường ở huyện. Đánh một buổi tử tế là đâu lại vào đấy ngay!"
+      },
+      "teasing": {
+        "streak_win": "{{n}} trận thắng liên tiếp rồi đấy {{name}}! Ăn gì mà đánh như hack thế? Đừng để tôi phải ra tay nhé 😏",
+        "overtake_rival": "Vừa vượt mặt {{rival}} xong à {{name}}? Tôi thấy bên kia bắt đầu rén bạn rồi đấy!",
+        "revenge_complete": "Thế là đòi được nợ {{rival}} rồi nhé {{name}}! Tôi tưởng hôm trước bạn chỉ gáy cho vui 😏"
+      },
+      "competitive": {
+        "overtake_bot": "Bạn vừa vượt cả tôi trên BXH à {{name}}? Giỏi đấy, nhưng liệu mà giữ chỗ cho chắc vào!",
+        "chasing_bot": "Nhìn BXH đi {{name}}, bạn đang phả hơi nóng sau gáy tôi rồi đấy. Định cướp ngôi thật à?",
+        "near_streak": "Một trận nữa thôi là chạm mốc 5 trận thắng liên tiếp rồi đấy {{name}}. Liệu mà giữ tay, đừng run phút chót!"
+      },
+      "friendly": {
+        "welcome_back": "Lâu lắm mới thấy mặt bạn trên sân đấy {{name}}! Tưởng bỏ cầu lông đi dưỡng sinh rồi chứ."
+      },
+      "synergy": {
+        "streak_overtake_both": "Vừa chuỗi thắng liên tiếp, lại vừa vượt cả {{rival}} lẫn tôi. Hôm nay bạn hơi tự tin rồi đấy {{name}}! 😏"
+      }
+    }
+  },
+  "arcade": {
+    "title": "Thách đấu {{bot}}",
+    "balance": "Bạn đang có {{n}} SP",
+    "stake": "Cược {{n}} SP",
+    "skip": "Né kèo",
+    "playing": "Đang mở...",
+    "youChose": "Bạn chọn {{a}} · {{bot}} chọn {{b}}",
+    "again": "Chơi ván nữa",
+    "failed": "Không mở được ván này. Thử lại sau.",
+    "game": {
+      "rps": "Kéo búa bao",
+      "coin": "Tung xu"
+    },
+    "choice": {
+      "rock": "Búa",
+      "paper": "Bao",
+      "scissors": "Kéo",
+      "heads": "Ngửa",
+      "tails": "Sấp"
+    }
   },
   "notification": {
     "title": "Thông báo",
@@ -4694,6 +4996,7 @@
     "unreadCount": "{{count}} thông báo chưa đọc",
     "challenge_created": "⚔️ Bạn nhận được lời thách đấu kèo {{code}} từ {{creator}}!",
     "challenge_created_simple": "⚔️ Bạn nhận được lời thách đấu kèo {{code}}!",
+    "bot_challenge": "{{bot}} vừa dựng một kèo và xếp bạn vào đó. Nhận không?",
     "challenge_teammate": "🤝 Bạn được xếp đánh cặp ở kèo {{code}} — vào xác nhận thì kèo mới được tính.",
     "challenge_accepted": "🤝 Kèo {{code}} của bạn đã được đối thủ chấp nhận!",
     "challenge_declined": "🛡️ Kèo {{code}} của bạn đã bị từ chối.",

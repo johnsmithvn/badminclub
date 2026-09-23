@@ -16,6 +16,7 @@ import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/ro
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
+import { pickBotChallenge, findBotMember, pickBotRemark, pickBotPredictions, pickBotPredictionForChallenge, getBotArcadeOffer } from '#lib/bot.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
@@ -2903,6 +2904,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
       }
       toast(t('challenge.toastCreated', { code }))
+      // Bot cược ngay lập tức dựa trên chính đối tượng kèo vừa tạo
+      if (typeof A.botBetOnChallenge === 'function') {
+        A.botBetOnChallenge(newChal)
+      }
       return newChal
     },
 
@@ -2990,6 +2995,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // Kèo chết thì phiếu phải được hoàn, không thì SP của người đặt bị giam vĩnh viễn —
         // không có tiến trình nào quét kèo quá hạn, đây là lần DUY NHẤT ta biết nó đã hết hạn.
         settlePredictions(challengeId, null)
+        if (typeof A.triggerBotReaction === 'function') {
+          A.triggerBotReaction('expired', chal.id)
+        }
         toast(t('challenge.toastExpired'))
         return
       }
@@ -3007,6 +3015,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           refId: chal.id,
           actorId: myMem?.id || null,
         })
+        if (typeof A.triggerBotReaction === 'function') {
+          const bot = findBotMember(d0)
+          const isBotCreated = Boolean(bot && chal.createdBy === bot.id)
+          const kind = isBotCreated ? 'declined_bot' : 'declined_user'
+          A.triggerBotReaction(kind, chal.id)
+        }
         toast(t('challenge.toastDeclined', { code: chal.code }))
         return
       }
@@ -3181,6 +3195,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         refType: 'challenge',
         refId: challengeId,
       })
+      if (typeof A.triggerBotReaction === 'function') {
+        A.triggerBotReaction('cancelled', chal.id)
+      }
       toast(t('challenge.toastCancelled', { code: chal.code }))
     },
 
@@ -3744,6 +3761,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           refId: chal.id,
           actorId: myId,
         })
+        if (chal.botReason && typeof A.triggerBotReaction === 'function') {
+          const narrative = detectMatchNarrative(newMatch)
+          const kind = narrative === 'blowout' ? 'blowout'
+            : (narrative === 'clutch' || narrative === 'comeback') ? 'clutch'
+              : 'normal'
+          A.triggerBotReaction(kind, chal.id)
+        }
       }
 
       // Trận vừa lưu + bảng rating sau trận. Người gọi nào chỉ cần match thì bỏ qua field thừa.
@@ -4259,6 +4283,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             if (error) console.warn('[prediction] sweep refund error:', c.code, error.message)
           })
       })
+      expired.forEach((c) => {
+        if (typeof A.triggerBotReaction === 'function') {
+          A.triggerBotReaction('expired', c.id)
+        }
+      })
+      abandoned.forEach((c) => {
+        if (typeof A.triggerBotReaction === 'function') {
+          A.triggerBotReaction('cancelled', c.id)
+        }
+      })
     }
 
     const at = new Date().toISOString()
@@ -4287,6 +4321,229 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         d.challengePredictions || [],
       ),
     }))
+  }
+
+  /**
+   * NHỊP CỦA BOT CLB — chạy một lần sau mỗi lần nạp CLB, ngay sau `sweepStaleChallenges`.
+   *
+   * KHÔNG có tiến trình nền nào cả: bot đi nhờ lượt mở app của người thật. CLB không ai mở app
+   * thì bot đứng im, và đó là CHỦ ĐÍCH — không đẻ kèo ma vào một CLB đang ngủ, và không tốn
+   * đồng nào cho cron. Muốn bot thức đúng giờ thì bật `pg_cron` gọi thẳng `create_bot_challenge`,
+   * không phải viết lại gì ở đây (RPC đã chừa nhánh cho lời gọi không có phiên đăng nhập).
+   *
+   * MỌI luật gác nằm ở RPC, không ở đây. Cổng trong `pickBotChallenge` chỉ để khỏi gọi RPC vô
+   * ích — client xấu bỏ qua được nó, nhưng server thì không.
+   *
+   * Lỗi thì ghi log chứ KHÔNG toast: người dùng không yêu cầu việc này, không có lý do gì làm
+   * phiền họ khi nó hỏng.
+   */
+  A.botTick = () => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase) return
+    const pick = pickBotChallenge(d0)
+    if (!pick) return
+
+    supabase
+      .rpc('create_bot_challenge', {
+        p_a: pick.aId,
+        p_b: pick.bId,
+        // Gửi MÃ lý do, không gửi câu chữ. Câu dựng lại lúc render từ mã + id kèo (xem
+        // `bot.js: botLineKey`), nên đổi/thêm câu trong `vi.json` là mọi kèo cũ đổi theo.
+        p_reason: pick.reason,
+      })
+      .then(({ data: chalId, error }) => {
+        if (error) return console.warn('[bot] tạo kèo lỗi:', error.message)
+        // NULL = một cổng nào đó đóng (chưa bật cờ `is_bot`, chưa tới nhịp 24h, hoặc máy khác
+        // vừa tạo trước). Đường đi thường ngày, không phải sự cố.
+        if (!chalId) return
+
+        // RPC ghi `notifications` thẳng dưới SQL nên KHÔNG đi qua `emitEvent` — push phải tự
+        // bắn ở đây. Dùng lại đúng đường cũ, chỉ đổi câu chữ.
+        const bot = findBotMember(d0)
+        supabase.functions.invoke('push-send', {
+          body: {
+            member_ids: [pick.aId, pick.bId],
+            club_id: d0.clubId,
+            title: d0.club?.name || 'BadminClub',
+            body: t('notification.bot_challenge', { bot: bot?.name || '' }),
+            url: buildPushUrl({
+              type: 'challenge_created', refType: 'challenge', refId: chalId, clubId: d0.clubId,
+            }),
+            tag: `challenge_created_${chalId}`,
+          },
+        }).then(({ error: pushErr }) => {
+          if (pushErr) console.warn('[bot] push thất bại:', pushErr)
+        })
+
+        // Nạp lại để kèo hiện ra. An toàn khỏi vòng lặp: effect gọi `botTick` khoá theo `clubId`
+        // nên lần nạp này không chạy lại nó, và nếu có thì cổng 24h cũng đã đóng.
+        reload()
+        if (typeof A.botBetOnChallenge === 'function') {
+          A.botBetOnChallenge({
+            id: chalId,
+            teamA: [pick.aId],
+            teamB: [pick.bId],
+            bestOf: pick.bestOf || 1,
+            predictionsEnabled: true,
+            status: 'pending',
+          })
+        }
+      })
+  }
+
+  /**
+   * BOT BÌNH LUẬN CHUYỆN CLB — chạy cùng nhịp với `botTick`.
+   *
+   * Khác với lời cà khịa riêng (tính tại chỗ lúc render, không lưu gì), bình luận toàn CLB phải
+   * GHI: mọi người cần thấy cùng một dòng vào cùng một lúc, và nó phải nằm lại trong dòng Hoạt
+   * động chứ không biến mất khi đóng app.
+   *
+   * Client KHÔNG giữ `activity_events` trong state (ActivityTab tự nạp riêng), nên không có cách
+   * nào biết bot vừa nói cách đây bao lâu — vì vậy ở đây không có cổng nào, cứ có ứng viên là
+   * gọi. RPC chịu trách nhiệm im lặng: nhịp 12h + không nhắc lại cùng chuyện trong 7 ngày. Cái
+   * giá là mỗi lần nạp CLB có thể tốn thêm một lời gọi trả về NULL — một câu SELECT đã có index
+   * `idx_ae_club_time`, chấp nhận được.
+   */
+  A.botRemarkTick = () => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase) return
+    const remark = pickBotRemark(d0)
+    if (!remark) return
+
+    supabase
+      .rpc('post_bot_remark', { p_kind: remark.kind, p_subject: remark.subjectId })
+      .then(({ error }) => {
+        if (error) console.warn('[bot] đăng bình luận lỗi:', error.message)
+        // KHÔNG `reload()` dù thành công: dòng này chỉ hiện ở tab Hoạt động, mà tab đó tự nạp
+        // lấy khi được mở. Nạp lại cả CLB chỉ vì một dòng chữ là phí.
+      })
+  }
+
+  /**
+   * BOT ĐẶT CƯỢC NGAY LẬP TỨC CHO MỘT KÈO CỤ THỂ.
+   *
+   * Không phụ thuộc vào `db().challenges` snapshot cũ: nhận thẳng đối tượng `challenge`,
+   * tính toán tỷ lệ chấp và mức cược theo `pickBotPredictionForChallenge`, gọi RPC `place_bot_prediction`.
+   * Khi thành công thì `reload()` để phiếu cược hiện diện trên toàn hệ thống.
+   */
+  A.botBetOnChallenge = async (challenge) => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase || !challenge?.id) return
+    const bet = pickBotPredictionForChallenge(d0, challenge)
+    if (!bet) return
+
+    try {
+      const { data, error } = await supabase.rpc('place_bot_prediction', {
+        p_challenge_id: bet.challengeId,
+        p_team: bet.team,
+        p_stake: bet.stake,
+      })
+      if (error) {
+        console.warn('[bot] đặt cược ngay lỗi:', bet.challengeId, error.message)
+        return
+      }
+      if (data) reload()
+    } catch (err) {
+      console.warn('[bot] lỗi đặt cược ngay:', err)
+    }
+  }
+
+  /**
+   * BOT PHẢN ỨNG VÒNG ĐỜI KÈO (Từ chối, Huỷ, Hết hạn, Đánh xong).
+   *
+   * Ghi trực tiếp vào `activity_events` qua RPC `post_bot_reaction` để toàn bộ thành viên
+   * CLB thấy dòng bình luận chính thức trên Activity Feed.
+   * RPC đã có advisory lock và check duplicate nên bảo đảm idempotent.
+   */
+  A.triggerBotReaction = async (kind, challengeId) => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase || !challengeId || !kind) return
+    const bot = findBotMember(d0)
+    if (!bot) return
+
+    try {
+      const { error } = await supabase.rpc('post_bot_reaction', {
+        p_kind: kind,
+        p_challenge_id: challengeId,
+      })
+      if (error) {
+        console.warn('[bot] post reaction lỗi:', kind, challengeId, error.message)
+      }
+    } catch (err) {
+      console.warn('[bot] lỗi trigger reaction:', err)
+    }
+  }
+
+  /**
+   * BOT ĐI CƯỢC — chạy cùng nhịp với `botTick`.
+   *
+   * Bot vào MỌI kèo nó được phép vào, nên đây là một loạt lời gọi chứ không phải một. Số lượng
+   * bị chặn tự nhiên bởi số kèo đang mở (vài cái) và bởi số dư SP của bot.
+   *
+   * `Promise.all` rồi mới `reload()` MỘT lần: nạp lại sau từng phiếu thì màn hình giật, và mấy
+   * lần nạp đầu còn thấy trạng thái dở dang.
+   *
+   * Phiếu trùng trả về NULL (đã có phiếu ở kèo đó) — đường đi thường ngày vì hàm này chạy lại ở
+   * mỗi lượt nạp CLB, không phải lỗi.
+   */
+  A.botBetTick = () => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase) return
+    const bets = pickBotPredictions(d0)
+    if (!bets.length) return
+
+    Promise.all(bets.map((b) => supabase
+      .rpc('place_bot_prediction', {
+        p_challenge_id: b.challengeId, p_team: b.team, p_stake: b.stake,
+      })
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn('[bot] đặt phiếu lỗi:', b.challengeId, error.message)
+          return null
+        }
+        return data
+      })))
+      .then((ids) => {
+        if (ids.some(Boolean)) reload()
+      })
+  }
+
+  /**
+   * ARCADE — chơi một ván với bot, ăn thua bằng ĐIỂM MÙA.
+   *
+   * Mức cược KHÔNG nhận từ màn hình: lấy lại từ `getBotArcadeOffer` ngay tại đây. Nhận từ UI thì
+   * ai sửa state cũng cược được 100 SP vào một ván mà bot không trả nổi.
+   *
+   * Kết quả do server quyết (`play_arcade_round`) — tính ở client thì mở devtools chơi lại tới
+   * khi thắng. `reload()` sau đó vì điểm mùa là số dẫn xuất: phải nạp lại `arcade_rounds` rồi
+   * `season.js` mới dựng ra số mới.
+   *
+   * @returns {Promise<Object|null>} kết quả ván, hoặc null nếu không mở được.
+   */
+  A.playArcade = async (choice) => {
+    const d0 = db()
+    const meId = myMember(d0)?.id
+    if (!d0?.clubId || !supabase || !meId) return null
+
+    const offer = getBotArcadeOffer(d0, meId)
+    if (!offer?.game) return null
+
+    const { data, error } = await supabase.rpc('play_arcade_round', {
+      p_game: offer.game, p_stake: offer.stake, p_choice: choice,
+    })
+    if (error) {
+      console.warn('[arcade] lỗi:', error.message)
+      toast(t('arcade.failed'))
+      return null
+    }
+    // NULL = một cổng của RPC đóng (hết lượt hôm nay, chưa bật bot, nước đi không hợp lệ).
+    if (!data) {
+      toast(t('arcade.failed'))
+      return null
+    }
+
+    reload()
+    return data
   }
 
   A.reloadNotifications = async () => {

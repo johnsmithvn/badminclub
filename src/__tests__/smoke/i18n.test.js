@@ -20,6 +20,7 @@ import { CATS, MANUAL_CATS } from '#lib/ledger.js'
 import { BLOCK_KEYS } from '#lib/schedules.js'
 import { MERGE_FIELDS } from '#lib/members.js'
 import { SCHEMA_GROUPS } from '#data/schema.js'
+import { BOT_LINE_VARIANTS, ARCADE_GAMES, ARCADE_CHOICES } from '#lib/bot.js'
 
 // Miền giá trị của các họ key ghép động mà file nguồn không export ra được.
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
@@ -159,6 +160,17 @@ WARN_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('home.warn.' + k 
 Object.values(BLOCK_KEYS).forEach(need)
 ;['groupFree', 'groupLocked', 'del', 'delBlocked'].forEach((k) => need('schedules.' + k))
 ;[...Object.keys(cfg.rating?.crossGenderConfidence || {}), 'very_high'].forEach((k) => need('rating.confidence.' + k))
+// Câu thoại của bot: `bot.js: botLineKey` ghép `bot.<nhóm>.<mã>.<n>` nên regex trên không thấy.
+// Lấy thẳng miền giá trị từ `BOT_LINE_VARIANTS` — tăng số biến thể ở đó là test tự đòi câu mới,
+// và đó chính là điều mình muốn: thêm giọng cho bot không được phép quên viết câu.
+Object.entries(BOT_LINE_VARIANTS).forEach(([group, kinds]) => {
+  Object.entries(kinds).forEach(([kind, count]) => {
+    for (let i = 1; i <= count; i++) need('bot.' + group + '.' + kind + '.' + i)
+  })
+})
+// Tên trò và tên nước đi trong Arcade — cũng ghép động từ hằng số, thêm trò là test đòi nhãn mới.
+ARCADE_GAMES.forEach((g) => need('arcade.game.' + g))
+Object.values(ARCADE_CHOICES).flat().forEach((c) => need('arcade.choice.' + c))
 
 assert.equal(dyn.length, 0, 'key i18n ghép động không tồn tại:\n  ' + dyn.join('\n  '))
 

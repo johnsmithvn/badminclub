@@ -4,6 +4,7 @@ import { Button, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { supabase } from '#supabase'
 import { resolveActivityPayload } from '#lib/activity.js'
+import { botLineKey } from '#lib/bot.js'
 import { t } from '#i18n'
 
 function formatActivityTime(rawTs) {
@@ -107,6 +108,21 @@ export default function ActivityTab() {
       }
     }
 
+    // Bot nói hoặc phản ứng: câu chữ nằm ở `bot.remark.*` hoặc `bot.reaction.*` chứ không phải
+    // `activity.*`, nên trả `fullKey` để chỗ render bỏ qua tiền tố. Biến thể chọn bằng chính `item.id`.
+    if (item.type === 'bot_remark') {
+      const kind = item.payload?.kind
+      const isReaction = ['declined_bot', 'declined_user', 'cancelled', 'expired', 'blowout', 'clutch', 'normal'].includes(kind)
+      const group = isReaction ? 'reaction' : 'remark'
+      return {
+        icon: 'sparkles',
+        color: '#A855F7',
+        key: 'bot_remark',
+        fullKey: botLineKey(group, kind, item.id),
+        badgeColor: 'rgba(168, 85, 247, 0.15)',
+      }
+    }
+
     switch (item.type) {
       case 'bounty_broken':
         return { icon: 'flame', color: '#FF2E7E', key: 'bounty_broken', badgeColor: 'rgba(255, 46, 126, 0.15)' }
@@ -114,15 +130,26 @@ export default function ActivityTab() {
         return { icon: 'trophy', color: '#FFE24B', key: 'challenge_completed', badgeColor: 'rgba(255, 226, 75, 0.15)' }
       case 'challenge_created':
         return { icon: 'swords', color: '#00F5D4', key: 'challenge_created', badgeColor: 'rgba(0, 245, 212, 0.15)' }
+      case 'challenge_declined':
       case 'challenge_cancelled':
       case 'session_cancelled':
         return { icon: 'x', color: '#EF4444', key: item.type, badgeColor: 'rgba(239, 68, 68, 0.15)' }
       case 'session_opened':
         return { icon: 'calendar', color: '#3B82F6', key: 'session_opened', badgeColor: 'rgba(59, 130, 246, 0.15)' }
       case 'session_closed':
-        return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(16, 185, 129, 0.15)' }
+        return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(168, 85, 247, 0.15)' }
       case 'member_joined':
         return { icon: 'user', color: '#EC4899', key: 'member_joined', badgeColor: 'rgba(236, 72, 153, 0.15)' }
+      case 'arcade_played': {
+        const outcome = item.payload?.outcome
+        const isWon = outcome === 'won'
+        return {
+          icon: 'sparkles',
+          color: isWon ? '#10B981' : (outcome === 'lost' ? '#FF2E7E' : '#FFE24B'),
+          key: `arcade_${outcome || 'played'}`,
+          badgeColor: isWon ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 46, 126, 0.15)',
+        }
+      }
       default:
         return { icon: 'activity', color: 'var(--text-accent, #00B2A9)', key: item.type, badgeColor: 'var(--surface-sunken)' }
     }
@@ -148,7 +175,10 @@ export default function ActivityTab() {
             {events.map((item) => {
               const meta = getEventMeta(item)
               const resolvedPayload = resolveActivityPayload(item, db)
-              const text = t('activity.' + meta.key, resolvedPayload)
+              // `fullKey` là đường thoát cho loại có câu chữ nằm ngoài nhánh `activity.*` (bot).
+              const text = meta.fullKey
+                ? t(meta.fullKey, resolvedPayload)
+                : t('activity.' + meta.key, resolvedPayload)
 
               return (
                 <div key={item.id} style={S.eventRow}>
@@ -249,6 +279,32 @@ const S = {
     font: '500 13px/1.4 var(--font-sans)',
     color: 'var(--text-primary)',
     wordBreak: 'break-word',
+  },
+  botCommentBubble: {
+    marginTop: 6,
+    padding: '7px 10px',
+    borderRadius: 'var(--radius-md, 8px)',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+  botCommentHead: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+  },
+  botCommentAuthor: {
+    font: '600 11px/1.2 var(--font-sans)',
+    color: '#A855F7',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  botCommentText: {
+    font: '400 12.5px/1.4 var(--font-sans)',
+    fontStyle: 'italic',
+    color: 'var(--text-primary)',
   },
   eventTime: {
     font: '400 11px/1.2 var(--font-sans)',

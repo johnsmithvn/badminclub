@@ -100,11 +100,23 @@ export function StoreProvider({ children }) {
 
   // Dọn kèo chết một lần sau mỗi lần nạp CLB — xem `A.sweepStaleChallenges`. Khoá theo clubId vì
   // `db` đổi ở MỌI thao tác; thiếu khoá là quét lại sau từng lần gõ phím.
+  //
+  // `botTick` đi nhờ đúng nhịp này: bot không có tiến trình nền, nó tỉnh dậy khi có người mở app.
+  // Thứ tự với `sweepStaleChallenges` KHÔNG quan trọng, và đó là chủ đích: `botGateOpen` xét theo
+  // `expiresAt` chứ không theo `status`, nên kèo bot đã chết mà chưa kịp dọn vẫn được tính là
+  // chết. Nếu nó xét `status` thì hai lời gọi này thành một cặp phụ thuộc thứ tự ngầm — `up()`
+  // của sweep là setState, `db()` ở dòng dưới vẫn đọc ra state cũ.
   const sweptFor = useRef(null)
   useEffect(() => {
     if (!db || !db.clubId || sweptFor.current === db.clubId) return
     sweptFor.current = db.clubId
     api.a.sweepStaleChallenges()
+    api.a.botTick()
+    api.a.botRemarkTick()
+    // Kèo bot vừa dựng ở dòng trên chưa có trong state (RPC + reload đều bất đồng bộ), nên lượt
+    // này bot chưa cược vào chính nó — lượt nạp sau mới cược. Cố ý không chờ: xâu chuỗi hai lời
+    // gọi lại chỉ để bot cược sớm hơn vài giây là không đáng.
+    api.a.botBetTick()
   }, [db, api])
 
   const value = useMemo(() => ({ db, ui, error, reload, setDb, setUi, ...api }), [db, ui, error, reload, api])

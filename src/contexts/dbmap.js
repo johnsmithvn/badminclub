@@ -75,6 +75,9 @@ export function toDb(raw, ctx) {
       badge_shelf: m.badge_shelf || [],
       signature: m.signature || '',
       role: m.role, joined: m.joined_at, active: m.active, userId: m.user_id || null,
+      // CHỈ chiều đọc. `toRows` cố ý KHÔNG ghi `is_bot`: cột không nằm trong danh sách ghi thì
+      // upsert của client không bao giờ đụng tới, nên cờ bot chỉ đổi được bằng tay dưới DB.
+      isBot: m.is_bot === true,
       linkedAt: dOf(m.linked_at), pendingLevel: m.pending_level || null,
       pendingLevelFrom: m.pending_level_from || null,
       note: m.note || '',
@@ -295,6 +298,9 @@ export function toDb(raw, ctx) {
         acceptedBy: c.accepted_by || null,
         deployedAt: c.deployed_at || '',
         stakeText: c.stake_text || '',
+        // CHỈ chiều đọc, như `isBot`. `toRows` không liệt kê `bot_reason` nên upsert của client
+        // không đụng tới — chỉ RPC `create_bot_challenge` ghi được cột này.
+        botReason: c.bot_reason || null,
         predictionsEnabled: c.predictions_enabled !== false,
         predictionsLocked: Boolean(c.predictions_locked),
         teamA: players.filter((p) => p.team === 'A').map((p) => p.member_id),
@@ -312,6 +318,20 @@ export function toDb(raw, ctx) {
       status: p.status || 'pending',
       settledAt: p.settled_at || null,
       createdAt: p.created_at || null,
+    })),
+    // CHỈ chiều đọc. Không có ở `toRows`/`TABLES`: bảng đã REVOKE ghi, mọi ván đi qua RPC
+    // `play_arcade_round` (kết quả phải do server quyết, không thì mở devtools chơi lại tới khi thắng).
+    arcadeRounds: (raw.arcadeRounds || []).map((r) => ({
+      id: r.id,
+      clubId: r.club_id,
+      memberId: r.member_id,
+      opponentId: r.opponent_id,
+      game: r.game,
+      stake: num(r.stake),
+      choice: r.choice,
+      oppChoice: r.opp_choice,
+      outcome: r.outcome,
+      createdAt: r.created_at || null,
     })),
     playerRatings: (() => {
       const map = {}

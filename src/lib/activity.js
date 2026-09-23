@@ -399,8 +399,38 @@ export function resolveActivityPayload(item, db) {
     }
   }
 
+  if (item?.type === 'challenge_declined') {
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    res.code = p.code || chal?.code || ''
+    res.decliner = getEntityName(db, p.declinedById || item.actor_id || item.actorId) || ''
+  }
+
+  if (item?.type === 'challenge_cancelled') {
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    res.code = p.code || chal?.code || ''
+  }
+
   if (item?.type === 'member_joined') {
     res.name = p.name || getEntityName(db, p.memberId)
+  }
+
+  if (item?.type === 'bot_remark') {
+    // Payload chỉ giữ `subject` (id) — tên giải mã lúc render như mọi loại khác (RULES §3.3).
+    res.name = getEntityName(db, p.subject)
+    res.bot = getEntityName(db, item.actor_id || item.actorId)
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    const declinerId = p.declinerId || chal?.declinedBy || chal?.teamB?.[0]
+    res.decliner = getEntityName(db, declinerId) || ''
+    const challengerId = chal?.createdBy || chal?.teamA?.[0]
+    res.challenger = getEntityName(db, challengerId) || ''
+  }
+
+  if (item?.type === 'arcade_played') {
+    res.userName = getEntityName(db, item.actor_id || item.actorId)
+    res.oppName = getEntityName(db, p.opponentId)
+    res.stake = p.stake
+    res.game = t(p.game === 'rps' ? 'bot.gameRps' : 'bot.gameCoin')
+    res.outcome = p.outcome
   }
 
   if (item?.type === 'session_opened' || item?.type === 'session_closed' || item?.type === 'session_cancelled') {
