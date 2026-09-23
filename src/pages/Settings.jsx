@@ -321,15 +321,18 @@ export default function Settings() {
         })
       }
 
-      // 4. Lưu Groups (Đồng bộ mức phí CLB cho các nhóm không có mức riêng để tránh bị nuốt)
-      if (dirtyGroups.length > 0 || isFeeChanged || isRefundChanged) {
-        const syncedGroups = groupsDraft.map((g, idx) => {
-          const isCustom =
-            idx !== 0 &&
-            (intOf(g.feeNam) !== intOf(defGroup.feeNam) ||
-              intOf(g.feeNu) !== intOf(defGroup.feeNu) ||
-              intOf(g.unitNam) !== intOf(defGroup.unitNam) ||
-              intOf(g.unitNu) !== intOf(defGroup.unitNu))
+      // 4. Lưu Groups
+      if (dirtyGroups.length > 0 && !isFeeChanged && !isRefundChanged) {
+        // Người dùng sửa trực tiếp ở tab Nhóm: lưu đúng dữ liệu người dùng đã chỉnh trong groupsDraft
+        a.saveGroupsTab(groupsDraft)
+      } else if (dirtyGroups.length > 0 || isFeeChanged || isRefundChanged) {
+        // Người dùng sửa tab Biểu phí CLB: đồng bộ mức mới cho các nhóm dùng giá CLB
+        const syncedGroups = groupsDraft.map((g) => {
+          const isCustom = g.hasCustomPricing === true ||
+            intOf(g.feeNam) !== intOf(defGroup.feeNam) ||
+            intOf(g.feeNu) !== intOf(defGroup.feeNu) ||
+            intOf(g.unitNam) !== intOf(defGroup.unitNam) ||
+            intOf(g.unitNu) !== intOf(defGroup.unitNu)
 
           if (isCustom) return g
           return {
@@ -386,6 +389,10 @@ export default function Settings() {
     } else {
       setGroupsDraft((prev) => prev.map((g) => (g.id === groupId ? { ...g, [field]: val } : g)))
     }
+  }
+
+  const handleReorderGroups = (newGroups) => {
+    setGroupsDraft(newGroups)
   }
 
   // Ngưỡng cảnh báo "tiền hoàn 1 buổi > quỹ tháng / số buổi": đếm buổi THẬT của tháng đang xem,
@@ -712,6 +719,7 @@ export default function Settings() {
             canEdit={canEdit}
             defGroup={defGroup}
             onGroupFieldChange={handleGroupFieldChange}
+            onReorderGroups={handleReorderGroups}
             onOpenDialog={(name, param) => a.openDialog(name, param)}
             onDeleteGroup={(id, name) => {
               a.confirm({

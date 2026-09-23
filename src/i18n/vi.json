@@ -45,7 +45,9 @@
     "exportCsv": "Xuất CSV",
     "saveChanges": "Lưu thay đổi",
     "history": "Lịch sử",
-    "swap": "Đổi vị trí"
+    "swap": "Đổi vị trí",
+    "moveUp": "Di chuyển lên",
+    "moveDown": "Di chuyển xuống"
   },
   "units": {
     "dong": "đ",
@@ -2213,6 +2215,13 @@
     "filterDirOut": "Chỉ khoản chi (-)",
     "filterCats": "Hạng mục",
     "resetFilter": "Đặt lại bộ lọc",
+    "filteredTotal": "TỔNG TIỀN ĐÃ LỌC",
+    "filteredCountInDays": "{{n}} khoản trong {{days}} ngày",
+    "filteredResult": "Kết quả lọc",
+    "filteredTx": "{{count}} giao dịch",
+    "filteredIn": "Thu",
+    "filteredOut": "Chi",
+    "filteredNet": "Ròng",
     "dirInLabel": "Thu vào quỹ (+)",
     "dirOutLabel": "Chi từ quỹ (-)",
     "fieldDate": "Ngày",

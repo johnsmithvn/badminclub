@@ -129,4 +129,21 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
   assert.deepEqual(currentDb.groups.map((g) => g.feeNam), feeBefore, 'không tick "biểu phí" mà quỹ tháng vẫn đổi → thu sai tiền cả CLB')
   assert.equal(currentDb.club.lockDay, lockBefore, 'không tick "cài đặt chung" mà ngày chốt vẫn đổi → khoá danh sách sai ngày')
   assert.ok(currentDb.courts.some((c) => c.name === 'Sân Mỹ Đình'), 'tick "sân" mà sân mới không vào → nhập từng phần vô dụng')
+
+  // 3. Kiểm tra saveGroupsTab bảo toàn đúng giá trị nhóm đầu tiên và thứ tự nhóm
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 300000, feeNu: 250000, unitNam: 55000, unitNu: 45000 },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000 },
+  ])
+  assert.equal(currentDb.groups[0].feeNam, 300000, 'nhóm đầu tiên phải giữ nguyên mức riêng 300k, không bị ép về giá cũ')
+  assert.equal(currentDb.groups[1].feeNam, 250000, 'nhóm thứ hai phải giữ nguyên mức 250k')
+
+  // 4. Kiểm tra flag hasCustomPricing được bảo toàn
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000, hasCustomPricing: true },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000 },
+  ])
+  assert.equal(currentDb.groups[0].hasCustomPricing, true, 'flag hasCustomPricing phải được lưu qua saveGroupsTab')
+  assert.equal(currentDb.groups[0].feeNam, 250000, 'nhóm có giá trùng CLB nhưng flag custom vẫn giữ giá')
 })
+

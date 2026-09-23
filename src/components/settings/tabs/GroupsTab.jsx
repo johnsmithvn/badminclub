@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Input } from '#ds'
+import { Button, Icon, Input } from '#ds'
 import {
   SettingsCard,
   EmptyState,
@@ -14,6 +14,7 @@ export default function GroupsTab({
   db,
   defGroup = {},
   onGroupFieldChange,
+  onReorderGroups,
   onOpenDialog,
   onDeleteGroup,
   canEdit = true,
@@ -34,12 +35,25 @@ export default function GroupsTab({
       ...prev,
       [groupId]: willBeCustom,
     }))
+    // Lưu flag vào data nhóm để reload vẫn nhớ trạng thái
+    onGroupFieldChange(groupId, 'hasCustomPricing', willBeCustom)
     if (willBeCustom) {
       if (g.feeNam === undefined) onGroupFieldChange(groupId, 'feeNam', defaultFeeNam)
       if (g.feeNu === undefined) onGroupFieldChange(groupId, 'feeNu', defaultFeeNu)
       if (g.unitNam === undefined) onGroupFieldChange(groupId, 'unitNam', defaultUnitNam)
       if (g.unitNu === undefined) onGroupFieldChange(groupId, 'unitNu', defaultUnitNu)
     }
+  }
+
+  const moveGroup = (idx, dir) => {
+    if (!canEdit || !onReorderGroups) return
+    const targetIdx = idx + dir
+    if (targetIdx < 0 || targetIdx >= groups.length) return
+    const next = [...groups]
+    const temp = next[idx]
+    next[idx] = next[targetIdx]
+    next[targetIdx] = temp
+    onReorderGroups(next)
   }
 
   return (
@@ -75,10 +89,14 @@ export default function GroupsTab({
             const hasCustom = Boolean(
               customPricing[g.id] !== undefined
                 ? customPricing[g.id]
-                : (g.feeNam !== undefined && g.feeNam !== defaultFeeNam) ||
-                  (g.feeNu !== undefined && g.feeNu !== defaultFeeNu) ||
-                  (g.unitNam !== undefined && g.unitNam !== defaultUnitNam) ||
-                  (g.unitNu !== undefined && g.unitNu !== defaultUnitNu)
+                : g.hasCustomPricing === true
+                  ? true
+                  : g.hasCustomPricing === false
+                    ? false
+                    : (g.feeNam !== undefined && g.feeNam !== defaultFeeNam) ||
+                      (g.feeNu !== undefined && g.feeNu !== defaultFeeNu) ||
+                      (g.unitNam !== undefined && g.unitNam !== defaultUnitNam) ||
+                      (g.unitNu !== undefined && g.unitNu !== defaultUnitNu)
             )
             const feeNamVal = g.feeNam !== undefined ? g.feeNam : defaultFeeNam
             const feeNuVal = g.feeNu !== undefined ? g.feeNu : defaultFeeNu
@@ -132,23 +150,75 @@ export default function GroupsTab({
                     )}
                   </div>
 
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteGroup && onDeleteGroup(g.id, g.name)}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--text-danger)',
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      {t('settings.groupDel')}
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {canEdit && groups.length > 1 && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 6 }}>
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          title={t('common.moveUp')}
+                          aria-label={t('common.moveUp')}
+                          onClick={() => moveGroup(idx, -1)}
+                          style={{
+                            border: '1px solid var(--border-subtle)',
+                            background: 'var(--surface-card)',
+                            color: idx === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                            borderRadius: 4,
+                            width: 24,
+                            height: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: idx === 0 ? 'default' : 'pointer',
+                            opacity: idx === 0 ? 0.35 : 1,
+                            padding: 0,
+                          }}
+                        >
+                          <Icon name="chevron-up" size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === groups.length - 1}
+                          title={t('common.moveDown')}
+                          aria-label={t('common.moveDown')}
+                          onClick={() => moveGroup(idx, 1)}
+                          style={{
+                            border: '1px solid var(--border-subtle)',
+                            background: 'var(--surface-card)',
+                            color: idx === groups.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                            borderRadius: 4,
+                            width: 24,
+                            height: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: idx === groups.length - 1 ? 'default' : 'pointer',
+                            opacity: idx === groups.length - 1 ? 0.35 : 1,
+                            padding: 0,
+                          }}
+                        >
+                          <Icon name="chevron-down" size={13} />
+                        </button>
+                      </div>
+                    )}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteGroup && onDeleteGroup(g.id, g.name)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'var(--text-danger)',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        {t('settings.groupDel')}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Form fields */}
@@ -267,6 +337,7 @@ export default function GroupsTab({
                           onGroupFieldChange(g.id, 'feeNu', defaultFeeNu)
                           onGroupFieldChange(g.id, 'unitNam', defaultUnitNam)
                           onGroupFieldChange(g.id, 'unitNu', defaultUnitNu)
+                          onGroupFieldChange(g.id, 'hasCustomPricing', false)
                           setCustomPricing((prev) => ({ ...prev, [g.id]: false }))
                         }}
                         style={{

@@ -311,6 +311,45 @@ export default function Fund() {
     }
   }, [monthLedger])
 
+  // Trạng thái đang lọc
+  const isFiltering = Boolean(
+    quickDate !== 'all' ||
+    selectedDay !== null ||
+    dirFilter !== 'all' ||
+    catFilter.length > 0 ||
+    search.trim()
+  )
+
+  const resetAllFilters = () => {
+    setQuickDate('all')
+    setSelectedDay(null)
+    setDirFilter('all')
+    setCatFilter([])
+    setSearch('')
+  }
+
+  // Thống kê các giao dịch đã lọc
+  const filteredStats = useMemo(() => {
+    let inAmount = 0
+    let outAmount = 0
+    const dates = new Set()
+
+    filteredRows.forEach((r) => {
+      dates.add(r.date)
+      if (r.dir === 'in') inAmount += r.amount
+      else if (r.dir === 'out') outAmount += r.amount
+    })
+
+    const net = inAmount - outAmount
+    return {
+      inAmount,
+      outAmount,
+      net,
+      count: filteredRows.length,
+      days: dates.size,
+    }
+  }, [filteredRows])
+
   // Cơ cấu các nhóm chi trong kỳ
   const categoryBreakdown = useMemo(() => {
     const catTotals = {}
@@ -829,6 +868,73 @@ export default function Fund() {
       }}>
         {/* Cột Trái: Danh sách giao dịch gom theo ngày */}
         <div style={S.listColumn}>
+          {/* Thanh tổng tiền khi đang lọc */}
+          {isFiltering && filteredRows.length > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              padding: isMobile ? '10px 12px' : '10px 16px',
+              marginBottom: 10,
+              borderRadius: 10,
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(108,92,231,0.15), rgba(108,92,231,0.06))'
+                : 'linear-gradient(135deg, rgba(108,92,231,0.08), rgba(108,92,231,0.03))',
+              border: `1px solid ${isDark ? 'rgba(108,92,231,0.25)' : 'rgba(108,92,231,0.15)'}`,
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: isDark ? '#A29BFE' : '#6C5CE7',
+                }}>
+                  {t('fund.filteredTotal')}
+                </div>
+                <div style={{
+                  fontSize: 11,
+                  color: 'var(--text-muted, #A8A29E)',
+                }}>
+                  {t('fund.filteredCountInDays', { n: filteredStats.count, days: filteredStats.days })}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 16, flexShrink: 0 }}>
+                {filteredStats.inAmount > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted, #A8A29E)' }}>{t('fund.filteredIn')}</div>
+                    <div style={{ fontSize: isMobile ? 12.5 : 13.5, fontWeight: 600, color: isDark ? '#55efc4' : '#00b894' }}>
+                      +{fmt(filteredStats.inAmount)}
+                    </div>
+                  </div>
+                )}
+                {filteredStats.outAmount > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted, #A8A29E)' }}>{t('fund.filteredOut')}</div>
+                    <div style={{ fontSize: isMobile ? 12.5 : 13.5, fontWeight: 600, color: isDark ? '#ff7675' : '#d63031' }}>
+                      −{fmt(filteredStats.outAmount)}
+                    </div>
+                  </div>
+                )}
+                {filteredStats.inAmount > 0 && filteredStats.outAmount > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted, #A8A29E)' }}>{t('fund.filteredNet')}</div>
+                    <div style={{
+                      fontSize: isMobile ? 12.5 : 13.5,
+                      fontWeight: 700,
+                      color: filteredStats.net >= 0
+                        ? (isDark ? '#55efc4' : '#00b894')
+                        : (isDark ? '#ff7675' : '#d63031'),
+                    }}>
+                      {filteredStats.net >= 0 ? '+' : '−'}{fmt(Math.abs(filteredStats.net))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {dateGroups.length === 0 ? (
             <Empty icon="wallet" title={t('fund.empty')} hint={t('fund.noTxPeriod')} />
           ) : (
