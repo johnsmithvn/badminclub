@@ -3178,6 +3178,7 @@
     "fromCourt": "Chia sân",
     "challenge": "Kèo",
     "imbalanceNotice": "Hệ thống chỉ cảnh báo, không chặn bạn gửi kèo.",
+    "scenarioTitle": "Kịch bản biến động Elo",
     "ifWinA": "Nếu Đội A thắng",
     "ifWinB": "Nếu Đội B thắng",
     "gamesCountMeta": "{{n}} trận",

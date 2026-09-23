@@ -613,11 +613,14 @@ export default function MemberProfileTab({
           <div
             style={{
               display: 'flex',
-              gap: 6,
-              padding: 5,
+              gap: 5,
+              padding: 4,
               background: 'var(--surface-inset)',
-              borderRadius: 12,
+              borderRadius: 10,
               border: '1px solid var(--border-subtle)',
+              overflowX: isMobile ? 'auto' : 'visible',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch',
             }}
           >
             <button
@@ -1323,8 +1326,8 @@ export default function MemberProfileTab({
                       display: 'grid',
                       gap: 8,
                       minWidth: 0,
-                      ...(expandedPartners && (partnersAndMatchups?.partners || []).length > 5 ? {
-                        maxHeight: 440,
+                      ...(expandedPartners && (partnersAndMatchups?.partners || []).length > 8 ? {
+                        maxHeight: 520,
                         overflowY: 'auto',
                         paddingRight: 4,
                         scrollbarWidth: 'thin',
@@ -1335,7 +1338,7 @@ export default function MemberProfileTab({
                     {(partnersAndMatchups?.partners || []).length > 0 ? (
                       (expandedPartners
                         ? (partnersAndMatchups?.partners || [])
-                        : (partnersAndMatchups?.partners || []).slice(0, 5)
+                        : (partnersAndMatchups?.partners || []).slice(0, 8)
                       ).map((part, pIdx) => {
                         const isTopPartner = pIdx === 0 && part.synergyScore >= 80
                         const isLowPartner = part.pairImpact <= -10 && part.games >= 5
@@ -1516,7 +1519,7 @@ export default function MemberProfileTab({
                     )}
                   </div>
 
-                  {(partnersAndMatchups?.partners || []).length > 5 && (
+                  {(partnersAndMatchups?.partners || []).length > 8 && (
                     <button
                       type="button"
                       onClick={() => setExpandedPartners(!expandedPartners)}
@@ -1539,7 +1542,7 @@ export default function MemberProfileTab({
                       <span>
                         {expandedPartners
                           ? t('profile.collapse')
-                          : t('profile.showMoreCount', { n: (partnersAndMatchups?.partners || []).length - 5 })}
+                          : t('profile.showMoreCount', { n: (partnersAndMatchups?.partners || []).length - 8 })}
                       </span>
                       <Icon name={expandedPartners ? 'chevron-up' : 'chevron-down'} size={14} />
                     </button>
@@ -1865,66 +1868,165 @@ export default function MemberProfileTab({
                 </div>
               )}
 
-              {/* Đối thủ khó nhất */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <span style={S.cardBoxLabel}>{t('leaderboard.h2hToughest')}</span>
-                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {h2hData.toughest.length === 0 ? (
-                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('common.noData')}</span>
-                  ) : (
-                    h2hData.toughest.map((op) => {
-                      const opMember = membersMap[op.id]
-                      const opAvatar = getMemberAvatar(opMember)
-                      return (
-                        <div key={op.id} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)' }}>
-                          <Avatar name={playerName(db, op.id)} src={opAvatar} size={26} />
-                          <span style={{ flex: 1, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', minWidth: 0, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <span title={playerName(db, op.id)}>{playerName(db, op.id)}</span>
-                            {op.isGuest && (
-                              <span style={{ marginLeft: 6, font: '600 10px/1 "IBM Plex Sans", sans-serif', padding: '2px 6px', borderRadius: 999, background: 'rgba(224,138,0,.18)', color: isDark ? '#F0B75C' : '#B45309' }}>
-                                {t('leaderboard.guestTag')}
-                              </span>
-                            )}
-                          </span>
-                          <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                            {op.total} {t('units.match')}
-                          </span>
-                          <span style={{ font: '600 14px/1.3 "IBM Plex Mono", monospace', color: isDark ? '#FF8578' : '#DC2626', width: 56, textAlign: 'right' }}>
-                            {op.winRate}%
-                          </span>
-                        </div>
-                      )
-                    })
-                  )}
+              {/* Bố cục 2 bên: Đối thủ khó nhất (trái) & Partner hợp nhất (phải) */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+                  gap: 16,
+                  alignItems: 'start',
+                }}
+              >
+                {/* Cột trái: Đối thủ khó nhất (Highlight cảnh báo đối đầu) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ ...S.cardBoxLabel, color: isDark ? '#FF8578' : '#DC2626' }}>
+                      {t('leaderboard.h2hToughest')}
+                    </span>
+                  </div>
+                  <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {h2hData.toughest.length === 0 ? (
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('common.noData')}</span>
+                    ) : (
+                      h2hData.toughest.map((op) => {
+                        const opMember = membersMap[op.id]
+                        const opAvatar = getMemberAvatar(opMember)
+                        return (
+                          <div
+                            key={op.id}
+                            style={{
+                              minWidth: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              padding: '10px 14px',
+                              borderRadius: 8,
+                              background: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.06)',
+                              border: isDark ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(239, 68, 68, 0.22)',
+                            }}
+                          >
+                            <Avatar name={playerName(db, op.id)} src={opAvatar} size={26} />
+                            <span
+                              style={{
+                                flex: 1,
+                                font: '600 14px/1.3 "IBM Plex Sans", sans-serif',
+                                minWidth: 0,
+                                color: isDark ? '#FFB4AB' : '#B91C1C',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <span title={playerName(db, op.id)}>{playerName(db, op.id)}</span>
+                              {op.isGuest && (
+                                <span
+                                  style={{
+                                    marginLeft: 6,
+                                    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                                    padding: '2px 6px',
+                                    borderRadius: 999,
+                                    background: 'rgba(224,138,0,.18)',
+                                    color: isDark ? '#F0B75C' : '#B45309',
+                                  }}
+                                >
+                                  {t('leaderboard.guestTag')}
+                                </span>
+                              )}
+                            </span>
+                            <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                              {op.total} {t('units.match')}
+                            </span>
+                            <span
+                              style={{
+                                font: '600 14px/1.3 "IBM Plex Mono", monospace',
+                                color: isDark ? '#FF8578' : '#DC2626',
+                                width: 56,
+                                textAlign: 'right',
+                              }}
+                            >
+                              {op.winRate}%
+                            </span>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Partner hợp nhất */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <span style={S.cardBoxLabel}>{t('leaderboard.h2hBestPartner')}</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {h2hData.bestPartners.length === 0 ? (
-                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('common.noData')}</span>
-                  ) : (
-                    h2hData.bestPartners.map((pt) => {
-                      const ptMember = membersMap[pt.id]
-                      const ptAvatar = getMemberAvatar(ptMember)
-                      return (
-                        <div key={pt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: isDark ? 'rgba(0,178,169,.14)' : 'rgba(13,148,136,.08)', border: isDark ? '1px solid #00786F' : '1px solid rgba(13,148,136,.3)' }}>
-                          <Avatar name={playerName(db, pt.id)} src={ptAvatar} size={26} />
-                          <span style={{ flex: 1, font: '600 14px/1.3 "IBM Plex Sans", sans-serif', minWidth: 0, color: isDark ? '#5FDBD3' : '#0F766E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <span title={`${member.name} + ${playerName(db, pt.id)}`}>{member.name} + {playerName(db, pt.id)}</span>
-                          </span>
-                          <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                            {pt.total} {t('units.match')}
-                          </span>
-                          <span style={{ font: '600 14px/1.3 "IBM Plex Mono", monospace', color: isDark ? '#5FDBD3' : '#0F766E', width: 56, textAlign: 'right' }}>
-                            {pt.winRate}%
-                          </span>
-                        </div>
-                      )
-                    })
-                  )}
+                {/* Cột phải: Partner hợp nhất (Highlight đồng đội cạ cứng) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ ...S.cardBoxLabel, color: isDark ? '#5FDBD3' : '#0F766E' }}>
+                      {t('leaderboard.h2hBestPartner')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
+                    {h2hData.bestPartners.length === 0 ? (
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('common.noData')}</span>
+                    ) : (
+                      h2hData.bestPartners.map((pt) => {
+                        const ptMember = membersMap[pt.id]
+                        const ptAvatar = getMemberAvatar(ptMember)
+                        return (
+                          <div
+                            key={pt.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              padding: '10px 14px',
+                              borderRadius: 8,
+                              background: isDark ? 'rgba(0,178,169,.14)' : 'rgba(13,148,136,.08)',
+                              border: isDark ? '1px solid #00786F' : '1px solid rgba(13,148,136,.3)',
+                              minWidth: 0,
+                            }}
+                          >
+                            <Avatar name={playerName(db, pt.id)} src={ptAvatar} size={26} />
+                            <span
+                              style={{
+                                flex: 1,
+                                font: '600 14px/1.3 "IBM Plex Sans", sans-serif',
+                                minWidth: 0,
+                                color: isDark ? '#5FDBD3' : '#0F766E',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <span title={playerName(db, pt.id)}>{playerName(db, pt.id)}</span>
+                              {pt.isGuest && (
+                                <span
+                                  style={{
+                                    marginLeft: 6,
+                                    font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                                    padding: '2px 6px',
+                                    borderRadius: 999,
+                                    background: 'rgba(224,138,0,.18)',
+                                    color: isDark ? '#F0B75C' : '#B45309',
+                                  }}
+                                >
+                                  {t('leaderboard.guestTag')}
+                                </span>
+                              )}
+                            </span>
+                            <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+                              {pt.total} {t('units.match')}
+                            </span>
+                            <span
+                              style={{
+                                font: '600 14px/1.3 "IBM Plex Mono", monospace',
+                                color: isDark ? '#5FDBD3' : '#0F766E',
+                                width: 56,
+                                textAlign: 'right',
+                              }}
+                            >
+                              {pt.winRate}%
+                            </span>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
             </>
@@ -2173,25 +2275,27 @@ const S = {
   },
   subTabBtn: {
     flex: 1,
-    minHeight: 38,
+    minWidth: 0,
+    minHeight: 36,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     padding: '0 10px',
-    borderRadius: 8,
+    borderRadius: 7,
     background: 'transparent',
-    border: '1px solid transparent',
+    border: 'none',
+    outline: 'none',
     font: '600 13px/1 "IBM Plex Sans", sans-serif',
     color: 'var(--text-secondary)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'all 0.15s ease',
   },
   subTabBtnActive: {
     background: 'var(--surface-card)',
-    borderColor: 'var(--border-subtle)',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+    border: '1px solid var(--border-subtle)',
+    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04)',
     color: 'var(--text-accent)',
     fontWeight: 700,
   },
