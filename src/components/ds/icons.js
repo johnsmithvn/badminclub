@@ -23,6 +23,7 @@ import {
   UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X, Zap,
   Filter, Table, Mic, GripVertical,
   Bell, Calendar, Swords, User,
+  Quote, Heart, Smile,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -67,6 +68,7 @@ export const ICONS = {
   filter: Filter,
   'grip-vertical': GripVertical,
   'hand-coins': HandCoins,
+  heart: Heart,
   history: History,
   inbox: Inbox,
   info: Info,
@@ -94,6 +96,7 @@ export const ICONS = {
   play: Play,
   plus: Plus,
   'qr-code': QrCode,
+  quote: Quote,
   receipt: Receipt,
   repeat: Repeat,
   'rotate-ccw': RotateCcw,
@@ -109,6 +112,7 @@ export const ICONS = {
   shield: Shield,
   'shopping-cart': ShoppingCart,
   shuffle: Shuffle,
+  smile: Smile,
   split: Split,
   sun: Sun,
   swords: Swords,

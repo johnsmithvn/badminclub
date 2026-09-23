@@ -33,6 +33,7 @@ import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.j
 import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
 import BotTauntCard from '#components/home/personal/BotTauntCard.jsx'
 import BotArcadeCard from '#components/home/personal/BotArcadeCard.jsx'
+import BotEncounterModal from '#components/bot/BotEncounterModal.jsx'
 import {
   findBotMember,
   getBotTaunt,
@@ -41,6 +42,8 @@ import {
   getBotInteraction,
   recordPopupInteraction,
 } from '#lib/bot.js'
+import { getPersonalBotEncounter } from '#lib/botScenarios.js'
+import { recordEncounterShown, recordActionTaken } from '#lib/botMemory.js'
 import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
 import ActivityTab from '#components/home/ActivityTab.jsx'
 
@@ -160,6 +163,43 @@ export default function MyStats() {
   const botTaunt = useMemo(() => getBotTaunt(db, memberId), [db, memberId])
   const botInteraction = useMemo(() => getBotInteraction(db, memberId), [db, memberId])
 
+  // Bot Scenario Engine v2.2: Kịch bản tương tác NPC theo ngữ cảnh
+  const botEncounter = useMemo(() => getPersonalBotEncounter(db, memberId), [db, memberId])
+  const [encounterOpen, setEncounterOpen] = useState(false)
+
+  // Tự động mở Modal đối thoại nếu Engine chỉ định mode === 'modal'
+  useEffect(() => {
+    if (botEncounter?.mode === 'modal') {
+      setEncounterOpen(true)
+    }
+  }, [botEncounter])
+
+  const handleCloseEncounter = () => {
+    setEncounterOpen(false)
+    if (botEncounter && memberId) {
+      recordEncounterShown(memberId, botEncounter)
+    }
+  }
+
+  const handleActionEncounter = (action, scenario) => {
+    setEncounterOpen(false)
+    if (botEncounter && memberId) {
+      recordEncounterShown(memberId, botEncounter)
+      if (action?.type && scenario?.scenarioKey) {
+        recordActionTaken(memberId, scenario.scenarioKey, action.type)
+      }
+    }
+    if (action?.type === 'rank') {
+      a.go('leaderboard')
+    } else if (action?.type === 'challenge_rival') {
+      a.go('challenges')
+    } else if (action?.type === 'arcade') {
+      a.go('arcade')
+    } else if (action?.type === 'matches') {
+      a.go('matches')
+    }
+  }
+
   // Ghi nhận ngân sách 3 tương tác chủ động / ngày nếu rơi vào Tier 1 Popup
   useEffect(() => {
     if (botInteraction?.mode === 'popup' && memberId) {
@@ -257,7 +297,13 @@ export default function MyStats() {
             <HeroRankCard hero={heroStats} isMobile={true} />
 
             {/* Thẻ 01b: Bot cà khịa — ngay dưới hạng, vì câu nó nói là về đúng con số vừa đọc. */}
-            <BotTauntCard bot={botMember} taunt={botTaunt} interaction={botInteraction} isMobile={true} />
+            <BotTauntCard
+              bot={botMember}
+              taunt={botTaunt}
+              interaction={botInteraction}
+              encounter={botEncounter}
+              isMobile={true}
+            />
 
             {/* Thẻ 01c: Sòng của bot — cược bằng chính SP vừa hiện ở thẻ hạng. */}
             <BotArcadeCard bot={botMember} offer={arcadeOffer} balance={spendableSp} onPlay={a.playArcade} />
@@ -397,7 +443,13 @@ export default function MyStats() {
             <HeroRankCard hero={heroStats} isMobile={false} />
 
             {/* 01b. Bot cà khịa — ngay dưới hạng, vì câu nó nói là về đúng con số vừa đọc. */}
-            <BotTauntCard bot={botMember} taunt={botTaunt} interaction={botInteraction} isMobile={false} />
+            <BotTauntCard
+              bot={botMember}
+              taunt={botTaunt}
+              interaction={botInteraction}
+              encounter={botEncounter}
+              isMobile={false}
+            />
 
             {/* 01c. Sòng của bot — cược bằng chính SP vừa hiện ở thẻ hạng. */}
             <BotArcadeCard bot={botMember} offer={arcadeOffer} balance={spendableSp} onPlay={a.playArcade} />
@@ -476,6 +528,15 @@ export default function MyStats() {
           </div>
         </div>
       )}
+
+      {/* Modal đối thoại NPC 1-1 với Bot */}
+      <BotEncounterModal
+        open={encounterOpen}
+        encounter={botEncounter}
+        bot={botMember}
+        onClose={handleCloseEncounter}
+        onAction={handleActionEncounter}
+      />
     </div>
   )
 }

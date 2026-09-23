@@ -4905,6 +4905,42 @@
         "2": "{{name}} né tôi mấy lần rồi đấy. Điểm mùa để ngắm à?",
         "3": "Không dám nhận kèo à {{name}}? Hẹn lần khác vậy."
       }
+    },
+    "tones": {
+      "supportive": "Động viên",
+      "competitive": "Thách thức",
+      "friendly": "Thân thiện",
+      "teasing": "Cà khịa"
+    },
+    "encounter": {
+      "modalTitle": "Gặp gỡ {{bot}}",
+      "modalSubtitle": "Bot đang muốn nói chuyện riêng với bạn",
+      "actionViewRank": "Xem Bảng xếp hạng",
+      "actionChallenge": "Gạ kèo đòi nợ",
+      "actionArcade": "Vào Arcade phục thù",
+      "actionLogMatch": "Ghi điểm trận đấu",
+      "actionUnderstand": "Đã hiểu rồi",
+      "supportive": {
+        "streak_lose": "Ba trận rồi đấy {{name}}. Hôm nay hơi xui tí thôi, nghỉ ngơi xíu rồi hôm sau lấy lại nhé!",
+        "overtaken": "{{rival}} vừa leo lên trên bạn một tí thôi {{name}}. BXH còn dài, đừng nản vội!",
+        "rank_drop": "Tụt vài hạng là chuyện thường ở huyện. Đánh một buổi tử tế là đâu lại vào đấy ngay!"
+      },
+      "teasing": {
+        "streak_win": "{{n}} trận thắng liên tiếp rồi đấy {{name}}! Ăn gì mà đánh như hack thế? Đừng để tôi phải ra tay nhé 😏",
+        "overtake_rival": "Vừa vượt mặt {{rival}} xong à {{name}}? Tôi thấy bên kia bắt đầu rén bạn rồi đấy!",
+        "revenge_complete": "Thế là đòi được nợ {{rival}} rồi nhé {{name}}! Tôi tưởng hôm trước bạn chỉ gáy cho vui 😏"
+      },
+      "competitive": {
+        "overtake_bot": "Bạn vừa vượt cả tôi trên BXH à {{name}}? Giỏi đấy, nhưng liệu mà giữ chỗ cho chắc vào!",
+        "chasing_bot": "Nhìn BXH đi {{name}}, bạn đang phả hơi nóng sau gáy tôi rồi đấy. Định cướp ngôi thật à?",
+        "near_streak": "Một trận nữa thôi là chạm mốc 5 trận thắng liên tiếp rồi đấy {{name}}. Liệu mà giữ tay, đừng run phút chót!"
+      },
+      "friendly": {
+        "welcome_back": "Lâu lắm mới thấy mặt bạn trên sân đấy {{name}}! Tưởng bỏ cầu lông đi dưỡng sinh rồi chứ."
+      },
+      "synergy": {
+        "streak_overtake_both": "Vừa chuỗi thắng liên tiếp, lại vừa vượt cả {{rival}} lẫn tôi. Hôm nay bạn hơi tự tin rồi đấy {{name}}! 😏"
+      }
     }
   },
   "arcade": {

@@ -9,10 +9,14 @@ import React from 'react'
 import { Icon } from '#ds'
 import { t } from '#i18n'
 
-export default function BotTauntCard({ bot, taunt, interaction, isMobile = false }) {
-  const activeLine = (interaction && interaction.mode !== 'silent' && interaction.lineKey)
+export default function BotTauntCard({ bot, taunt, interaction, encounter, isMobile = false }) {
+  const encounterLine = encounter?.mode === 'card' && encounter.scenario?.lineKey
+    ? { lineKey: encounter.scenario.lineKey, params: encounter.scenario.params }
+    : null
+
+  const activeLine = encounterLine || ((interaction && interaction.mode !== 'silent' && interaction.lineKey)
     ? interaction
-    : taunt
+    : taunt)
 
   if (!bot || !activeLine?.lineKey) return null
 
