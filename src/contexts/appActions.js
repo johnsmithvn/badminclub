@@ -2904,6 +2904,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
       }
       toast(t('challenge.toastCreated', { code }))
+      // Bot phản ứng cược ngay lập tức nếu có hứng thú
+      setTimeout(() => {
+        if (typeof A.botBetTick === 'function') A.botBetTick()
+      }, 50)
       return newChal
     },
 
@@ -4345,6 +4349,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // Nạp lại để kèo hiện ra. An toàn khỏi vòng lặp: effect gọi `botTick` khoá theo `clubId`
         // nên lần nạp này không chạy lại nó, và nếu có thì cổng 24h cũng đã đóng.
         reload()
+        setTimeout(() => {
+          if (typeof A.botBetTick === 'function') A.botBetTick()
+        }, 100)
       })
   }
 

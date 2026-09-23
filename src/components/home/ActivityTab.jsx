@@ -4,7 +4,7 @@ import { Button, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { supabase } from '#supabase'
 import { resolveActivityPayload } from '#lib/activity.js'
-import { botLineKey } from '#lib/bot.js'
+import { botLineKey, getBotChallengeReaction } from '#lib/bot.js'
 import { t } from '#i18n'
 
 function formatActivityTime(rawTs) {
@@ -128,6 +128,7 @@ export default function ActivityTab() {
         return { icon: 'trophy', color: '#FFE24B', key: 'challenge_completed', badgeColor: 'rgba(255, 226, 75, 0.15)' }
       case 'challenge_created':
         return { icon: 'swords', color: '#00F5D4', key: 'challenge_created', badgeColor: 'rgba(0, 245, 212, 0.15)' }
+      case 'challenge_declined':
       case 'challenge_cancelled':
       case 'session_cancelled':
         return { icon: 'x', color: '#EF4444', key: item.type, badgeColor: 'rgba(239, 68, 68, 0.15)' }
@@ -177,11 +178,33 @@ export default function ActivityTab() {
                 ? t(meta.fullKey, resolvedPayload)
                 : t('activity.' + meta.key, resolvedPayload)
 
+              // Phản ứng từ Bot (nếu là sự kiện từ chối hoặc huỷ kèo)
+              let botReaction = null
+              if (item.type === 'challenge_declined' || item.type === 'challenge_cancelled') {
+                const chal = (db.challenges || []).find((c) => c.id === (item.ref_id || item.refId || item.payload?.chalId))
+                if (chal) {
+                  botReaction = getBotChallengeReaction(db, {
+                    ...chal,
+                    status: item.type === 'challenge_declined' ? 'declined' : 'cancelled',
+                    declinedBy: item.payload?.declinedById,
+                  })
+                }
+              }
+
               return (
                 <div key={item.id} style={S.eventRow}>
                   <span style={{ ...S.dot, background: meta.color }} />
                   <div style={S.eventContent}>
                     <div style={S.eventTitle}>{text}</div>
+                    {botReaction?.lineKey && (
+                      <div style={S.botCommentBubble}>
+                        <div style={S.botCommentHead}>
+                          <Icon name="sparkles" size={12} color="#A855F7" />
+                          <span style={S.botCommentAuthor}>{botReaction.params?.bot || ''}</span>
+                        </div>
+                        <div style={S.botCommentText}>“{t(botReaction.lineKey, botReaction.params || {})}”</div>
+                      </div>
+                    )}
                     <div style={S.eventTime}>{formatActivityTime(item.created_at)}</div>
                   </div>
                 </div>
@@ -276,6 +299,32 @@ const S = {
     font: '500 13px/1.4 var(--font-sans)',
     color: 'var(--text-primary)',
     wordBreak: 'break-word',
+  },
+  botCommentBubble: {
+    marginTop: 6,
+    padding: '7px 10px',
+    borderRadius: 'var(--radius-md, 8px)',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+  botCommentHead: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+  },
+  botCommentAuthor: {
+    font: '600 11px/1.2 var(--font-sans)',
+    color: '#A855F7',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  botCommentText: {
+    font: '400 12.5px/1.4 var(--font-sans)',
+    fontStyle: 'italic',
+    color: 'var(--text-primary)',
   },
   eventTime: {
     font: '400 11px/1.2 var(--font-sans)',

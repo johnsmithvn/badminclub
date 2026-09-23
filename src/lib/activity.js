@@ -399,6 +399,17 @@ export function resolveActivityPayload(item, db) {
     }
   }
 
+  if (item?.type === 'challenge_declined') {
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    res.code = p.code || chal?.code || ''
+    res.decliner = getEntityName(db, p.declinedById || item.actor_id || item.actorId) || ''
+  }
+
+  if (item?.type === 'challenge_cancelled') {
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    res.code = p.code || chal?.code || ''
+  }
+
   if (item?.type === 'member_joined') {
     res.name = p.name || getEntityName(db, p.memberId)
   }
