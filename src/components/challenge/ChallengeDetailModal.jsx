@@ -6,7 +6,7 @@ import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.j
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
-import { botLineKey, getBotChallengeReaction, getBotBetLine } from '#lib/bot.js'
+import { botLineKey, getBotMatchReaction, getBotBetLine } from '#lib/bot.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
 import { t } from '#i18n'
@@ -329,7 +329,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     () => (c.botReason ? botLineKey('reason', c.botReason, c.id) : null),
     [c.botReason, c.id],
   )
-  const botReaction = useMemo(() => getBotChallengeReaction(db, c), [db, c])
+  const botReaction = useMemo(() => getBotMatchReaction(db, c), [db, c])
   // Phiếu cược của bot ở kèo này — độc lập với `botReason`: bot cược cả kèo do người thật dựng.
   const botBet = useMemo(() => getBotBetLine(db, c), [db, c])
   const botMember = useMemo(() => (db.members || []).find((m) => m && m.isBot && m.active !== false), [db.members])

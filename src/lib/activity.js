@@ -418,6 +418,11 @@ export function resolveActivityPayload(item, db) {
     // Payload chỉ giữ `subject` (id) — tên giải mã lúc render như mọi loại khác (RULES §3.3).
     res.name = getEntityName(db, p.subject)
     res.bot = getEntityName(db, item.actor_id || item.actorId)
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    const declinerId = p.declinerId || chal?.declinedBy || chal?.teamB?.[0]
+    res.decliner = getEntityName(db, declinerId) || ''
+    const challengerId = chal?.createdBy || chal?.teamA?.[0]
+    res.challenger = getEntityName(db, challengerId) || ''
   }
 
   if (item?.type === 'arcade_played') {

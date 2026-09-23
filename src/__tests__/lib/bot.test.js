@@ -3,7 +3,7 @@ import { calculateSeasonLeaderboard } from '#lib/season.js'
 import {
   findBotMember, botGateOpen, pickBotChallenge, BOT_REASONS,
   botLineKey, BOT_LINE_VARIANTS, getBotTaunt, getBotMatchReaction, getBotChallengeReaction, pickBotRemark,
-  botBetStreak, pickBotPredictions, getBotBetLine,
+  botBetStreak, pickBotPredictions, pickBotPredictionForChallenge, getBotBetLine,
   getBotArcadeOffer, getArcadeResultLine, arcadeRoundsToday,
   spendableSeasonPoints, ARCADE_GAMES, ARCADE_CHOICES, ARCADE_DAILY_CAP,
   getPlayerRelationships, getBotState, getBotInteraction,
@@ -280,6 +280,23 @@ const manyBets = pickBotPredictions(dbManyChals, NOW)
 const totalStaked = manyBets.reduce((s, b) => s + b.stake, 0)
 const botRow = calculateSeasonLeaderboard(dbManyChals).leaderboard.find((r) => r.id === 'bot')
 assert.ok(totalStaked <= (Number(botRow?.totalSeasonPoints) || 0), 'Tổng cược không vượt số dư của bot')
+
+/* ---------- pickBotPredictionForChallenge: cược ngay cho 1 kèo mới tạo ---------- */
+
+const brandNewChal = openChal('k_brand_new', 'm1', 'm2')
+// Kèo này hoàn toàn KHÔNG có trong dbBets.challenges
+const singleBet = pickBotPredictionForChallenge(dbBets, brandNewChal, NOW)
+assert.ok(singleBet, 'Bot tính cược ngay lập tức cho kèo mới tạo')
+assert.equal(singleBet.challengeId, 'k_brand_new')
+assert.ok(['A', 'B'].includes(singleBet.team), 'Phe cược hợp lệ')
+assert.ok(singleBet.stake >= 1, 'Mức cược tối thiểu 1 SP')
+
+// Bot hết tiền thì trả về null
+assert.equal(pickBotPredictionForChallenge(dbNoBudget, brandNewChal, NOW), null, 'Hết tiền thì không cược')
+
+// Bot là đấu thủ thì trả về null (luật cứng không cược kèo mình đánh)
+const botAsPlayerChal = openChal('k_bot_plays', 'bot', 'm1')
+assert.equal(pickBotPredictionForChallenge(dbBets, botAsPlayerChal, NOW), null, 'Bot là đấu thủ thì trả về null')
 
 /* ---------- getBotBetLine: bot nói gì về phiếu của nó ---------- */
 

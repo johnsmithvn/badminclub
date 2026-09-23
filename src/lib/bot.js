@@ -519,6 +519,66 @@ function tiltMultiplier(streak) {
  *
  * @returns {Array<{ challengeId: string, team: 'A'|'B', stake: number }>}
  */
+/** Tính phe cược và mức cược của bot cho một kèo cụ thể dựa trên tỷ lệ chấp và mức tilt. */
+function calculateBotBet(db, challenge, budget, tilt) {
+  const ra = teamRating(db, challenge.teamA)
+  const rb = teamRating(db, challenge.teamB)
+  const favTeam = ra >= rb ? 'A' : 'B'
+  // Độ tự tin của CỬA MẠNH, luôn nằm trong [0.5, 1).
+  const confidence = Math.max(expectedScore(ra, rb), expectedScore(rb, ra))
+
+  const goUnderdog = getDeterministicRoll(`bot-bet-side:${challenge.id}`, UNDERDOG_ONE_IN) === 0
+  const team = goUnderdog ? (favTeam === 'A' ? 'B' : 'A') : favTeam
+
+  // Cửa mạnh: nội suy thẳng từ độ tự tin. Cửa dưới: một mức cố định, vì lúc đó bot không tính.
+  const pct = goUnderdog
+    ? BET_PCT_UNDERDOG
+    : BET_PCT_MIN + (clamp(confidence, 0.5, 1) - 0.5) * 2 * (BET_PCT_MAX - BET_PCT_MIN)
+
+  const raw = Math.round(budget * pct * tilt)
+  const cap = Math.max(1, Math.floor(budget * BET_PCT_HARD_CAP))
+  const stake = clamp(raw, 1, Math.min(cap, budget))
+
+  return { challengeId: challenge.id, team, stake }
+}
+
+/**
+ * Tính phiếu cược của bot cho MỘT kèo cụ thể (ví dụ kèo vừa được tạo).
+ * Không phụ thuộc vào việc kèo đó đã có trong `db.challenges` hay chưa.
+ *
+ * @returns {{ challengeId: string, team: 'A'|'B', stake: number }|null}
+ */
+export function pickBotPredictionForChallenge(db, challenge, now = Date.now()) {
+  if (!challenge || !challenge.id) return null
+  const bot = findBotMember(db)
+  if (!bot || !db?.clubId) return null
+
+  const row = calculateSeasonLeaderboard(db).leaderboard.find((r) => r.id === bot.id)
+  const budget = availableSeasonPoints(
+    Number(row?.totalSeasonPoints) || 0,
+    db.challengePredictions, db.challenges, db.sessions, bot.id, now,
+  )
+  if (budget < 1) return null
+  if (!canMemberPredict(challenge, bot.id, db, budget).ok) return null
+
+  const streak = botBetStreak(db, bot.id)
+  const tilt = tiltMultiplier(streak)
+
+  return calculateBotBet(db, challenge, budget, tilt)
+}
+
+/**
+ * Mọi phiếu bot muốn đặt ngay lúc này — bot vào MỌI kèo nó được phép vào.
+ *
+ * Số dư trừ dần qua từng phiếu trong cùng một lượt, vì `availableSeasonPoints` chỉ thấy những
+ * phiếu ĐÃ nằm trong state. Thiếu bước đó là bot đặt năm kèo, mỗi kèo đều tưởng mình còn nguyên
+ * tiền, và tổng cược vượt số dư thật.
+ *
+ * Server KHÔNG kiểm được số dư (điểm mùa là số dẫn xuất — xem đầu 0047), nên chốt chặn thật nằm
+ * ở đây. Cùng cách phân vai đang áp cho người thật.
+ *
+ * @returns {Array<{ challengeId: string, team: 'A'|'B', stake: number }>}
+ */
 export function pickBotPredictions(db, now = Date.now()) {
   const bot = findBotMember(db)
   if (!bot || !db?.clubId) return []
@@ -542,27 +602,9 @@ export function pickBotPredictions(db, now = Date.now()) {
   const out = []
   open.forEach((c) => {
     if (budget < 1) return
-
-    const ra = teamRating(db, c.teamA)
-    const rb = teamRating(db, c.teamB)
-    const favTeam = ra >= rb ? 'A' : 'B'
-    // Độ tự tin của CỬA MẠNH, luôn nằm trong [0.5, 1).
-    const confidence = Math.max(expectedScore(ra, rb), expectedScore(rb, ra))
-
-    const goUnderdog = getDeterministicRoll(`bot-bet-side:${c.id}`, UNDERDOG_ONE_IN) === 0
-    const team = goUnderdog ? (favTeam === 'A' ? 'B' : 'A') : favTeam
-
-    // Cửa mạnh: nội suy thẳng từ độ tự tin. Cửa dưới: một mức cố định, vì lúc đó bot không tính.
-    const pct = goUnderdog
-      ? BET_PCT_UNDERDOG
-      : BET_PCT_MIN + (clamp(confidence, 0.5, 1) - 0.5) * 2 * (BET_PCT_MAX - BET_PCT_MIN)
-
-    const raw = Math.round(budget * pct * tilt)
-    const cap = Math.max(1, Math.floor(budget * BET_PCT_HARD_CAP))
-    const stake = clamp(raw, 1, Math.min(cap, budget))
-
-    out.push({ challengeId: c.id, team, stake })
-    budget -= stake
+    const bet = calculateBotBet(db, c, budget, tilt)
+    out.push(bet)
+    budget -= bet.stake
   })
 
   return out

@@ -4,7 +4,7 @@ import { Button, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { supabase } from '#supabase'
 import { resolveActivityPayload } from '#lib/activity.js'
-import { botLineKey, getBotChallengeReaction } from '#lib/bot.js'
+import { botLineKey } from '#lib/bot.js'
 import { t } from '#i18n'
 
 function formatActivityTime(rawTs) {
@@ -108,15 +108,17 @@ export default function ActivityTab() {
       }
     }
 
-    // Bot nói: câu chữ nằm ở `bot.remark.*` chứ không phải `activity.*`, nên trả `fullKey` để
-    // chỗ render bỏ qua tiền tố. Biến thể chọn bằng chính `item.id` — dòng nào cũng ra đúng một
-    // câu cố định của nó, mà không phải lưu số thứ tự xuống DB.
+    // Bot nói hoặc phản ứng: câu chữ nằm ở `bot.remark.*` hoặc `bot.reaction.*` chứ không phải
+    // `activity.*`, nên trả `fullKey` để chỗ render bỏ qua tiền tố. Biến thể chọn bằng chính `item.id`.
     if (item.type === 'bot_remark') {
+      const kind = item.payload?.kind
+      const isReaction = ['declined_bot', 'declined_user', 'cancelled', 'expired', 'blowout', 'clutch', 'normal'].includes(kind)
+      const group = isReaction ? 'reaction' : 'remark'
       return {
         icon: 'sparkles',
         color: '#A855F7',
         key: 'bot_remark',
-        fullKey: botLineKey('remark', item.payload?.kind, item.id),
+        fullKey: botLineKey(group, kind, item.id),
         badgeColor: 'rgba(168, 85, 247, 0.15)',
       }
     }
@@ -135,7 +137,7 @@ export default function ActivityTab() {
       case 'session_opened':
         return { icon: 'calendar', color: '#3B82F6', key: 'session_opened', badgeColor: 'rgba(59, 130, 246, 0.15)' }
       case 'session_closed':
-        return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(16, 185, 129, 0.15)' }
+        return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(168, 85, 247, 0.15)' }
       case 'member_joined':
         return { icon: 'user', color: '#EC4899', key: 'member_joined', badgeColor: 'rgba(236, 72, 153, 0.15)' }
       case 'arcade_played': {
@@ -145,7 +147,7 @@ export default function ActivityTab() {
           icon: 'sparkles',
           color: isWon ? '#10B981' : (outcome === 'lost' ? '#FF2E7E' : '#FFE24B'),
           key: `arcade_${outcome || 'played'}`,
-          badgeColor: isWon ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 46, 126, 0.15)',
+          badgeColor: isWon ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 46, 126, 0.15)',
         }
       }
       default:
@@ -178,33 +180,11 @@ export default function ActivityTab() {
                 ? t(meta.fullKey, resolvedPayload)
                 : t('activity.' + meta.key, resolvedPayload)
 
-              // Phản ứng từ Bot (nếu là sự kiện từ chối hoặc huỷ kèo)
-              let botReaction = null
-              if (item.type === 'challenge_declined' || item.type === 'challenge_cancelled') {
-                const chal = (db.challenges || []).find((c) => c.id === (item.ref_id || item.refId || item.payload?.chalId))
-                if (chal) {
-                  botReaction = getBotChallengeReaction(db, {
-                    ...chal,
-                    status: item.type === 'challenge_declined' ? 'declined' : 'cancelled',
-                    declinedBy: item.payload?.declinedById,
-                  })
-                }
-              }
-
               return (
                 <div key={item.id} style={S.eventRow}>
                   <span style={{ ...S.dot, background: meta.color }} />
                   <div style={S.eventContent}>
                     <div style={S.eventTitle}>{text}</div>
-                    {botReaction?.lineKey && (
-                      <div style={S.botCommentBubble}>
-                        <div style={S.botCommentHead}>
-                          <Icon name="sparkles" size={12} color="#A855F7" />
-                          <span style={S.botCommentAuthor}>{botReaction.params?.bot || ''}</span>
-                        </div>
-                        <div style={S.botCommentText}>“{t(botReaction.lineKey, botReaction.params || {})}”</div>
-                      </div>
-                    )}
                     <div style={S.eventTime}>{formatActivityTime(item.created_at)}</div>
                   </div>
                 </div>

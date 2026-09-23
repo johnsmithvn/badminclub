@@ -16,7 +16,7 @@ import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/ro
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
-import { pickBotChallenge, findBotMember, pickBotRemark, pickBotPredictions, getBotArcadeOffer } from '#lib/bot.js'
+import { pickBotChallenge, findBotMember, pickBotRemark, pickBotPredictions, pickBotPredictionForChallenge, getBotArcadeOffer } from '#lib/bot.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
@@ -2904,10 +2904,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         })
       }
       toast(t('challenge.toastCreated', { code }))
-      // Bot phản ứng cược ngay lập tức nếu có hứng thú
-      setTimeout(() => {
-        if (typeof A.botBetTick === 'function') A.botBetTick()
-      }, 50)
+      // Bot cược ngay lập tức dựa trên chính đối tượng kèo vừa tạo
+      if (typeof A.botBetOnChallenge === 'function') {
+        A.botBetOnChallenge(newChal)
+      }
       return newChal
     },
 
@@ -2995,6 +2995,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // Kèo chết thì phiếu phải được hoàn, không thì SP của người đặt bị giam vĩnh viễn —
         // không có tiến trình nào quét kèo quá hạn, đây là lần DUY NHẤT ta biết nó đã hết hạn.
         settlePredictions(challengeId, null)
+        if (typeof A.triggerBotReaction === 'function') {
+          A.triggerBotReaction('expired', chal.id)
+        }
         toast(t('challenge.toastExpired'))
         return
       }
@@ -3012,6 +3015,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           refId: chal.id,
           actorId: myMem?.id || null,
         })
+        if (typeof A.triggerBotReaction === 'function') {
+          const bot = findBotMember(d0)
+          const isBotCreated = Boolean(bot && chal.createdBy === bot.id)
+          const kind = isBotCreated ? 'declined_bot' : 'declined_user'
+          A.triggerBotReaction(kind, chal.id)
+        }
         toast(t('challenge.toastDeclined', { code: chal.code }))
         return
       }
@@ -3186,6 +3195,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         refType: 'challenge',
         refId: challengeId,
       })
+      if (typeof A.triggerBotReaction === 'function') {
+        A.triggerBotReaction('cancelled', chal.id)
+      }
       toast(t('challenge.toastCancelled', { code: chal.code }))
     },
 
@@ -3749,6 +3761,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           refId: chal.id,
           actorId: myId,
         })
+        if (chal.botReason && typeof A.triggerBotReaction === 'function') {
+          const narrative = detectMatchNarrative(newMatch)
+          const kind = narrative === 'blowout' ? 'blowout'
+            : (narrative === 'clutch' || narrative === 'comeback') ? 'clutch'
+              : 'normal'
+          A.triggerBotReaction(kind, chal.id)
+        }
       }
 
       // Trận vừa lưu + bảng rating sau trận. Người gọi nào chỉ cần match thì bỏ qua field thừa.
@@ -4264,6 +4283,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
             if (error) console.warn('[prediction] sweep refund error:', c.code, error.message)
           })
       })
+      expired.forEach((c) => {
+        if (typeof A.triggerBotReaction === 'function') {
+          A.triggerBotReaction('expired', c.id)
+        }
+      })
+      abandoned.forEach((c) => {
+        if (typeof A.triggerBotReaction === 'function') {
+          A.triggerBotReaction('cancelled', c.id)
+        }
+      })
     }
 
     const at = new Date().toISOString()
@@ -4349,9 +4378,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // Nạp lại để kèo hiện ra. An toàn khỏi vòng lặp: effect gọi `botTick` khoá theo `clubId`
         // nên lần nạp này không chạy lại nó, và nếu có thì cổng 24h cũng đã đóng.
         reload()
-        setTimeout(() => {
-          if (typeof A.botBetTick === 'function') A.botBetTick()
-        }, 100)
+        if (typeof A.botBetOnChallenge === 'function') {
+          A.botBetOnChallenge({
+            id: chalId,
+            teamA: [pick.aId],
+            teamB: [pick.bId],
+            bestOf: pick.bestOf || 1,
+            predictionsEnabled: true,
+            status: 'pending',
+          })
+        }
       })
   }
 
@@ -4381,6 +4417,61 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
         // KHÔNG `reload()` dù thành công: dòng này chỉ hiện ở tab Hoạt động, mà tab đó tự nạp
         // lấy khi được mở. Nạp lại cả CLB chỉ vì một dòng chữ là phí.
       })
+  }
+
+  /**
+   * BOT ĐẶT CƯỢC NGAY LẬP TỨC CHO MỘT KÈO CỤ THỂ.
+   *
+   * Không phụ thuộc vào `db().challenges` snapshot cũ: nhận thẳng đối tượng `challenge`,
+   * tính toán tỷ lệ chấp và mức cược theo `pickBotPredictionForChallenge`, gọi RPC `place_bot_prediction`.
+   * Khi thành công thì `reload()` để phiếu cược hiện diện trên toàn hệ thống.
+   */
+  A.botBetOnChallenge = async (challenge) => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase || !challenge?.id) return
+    const bet = pickBotPredictionForChallenge(d0, challenge)
+    if (!bet) return
+
+    try {
+      const { data, error } = await supabase.rpc('place_bot_prediction', {
+        p_challenge_id: bet.challengeId,
+        p_team: bet.team,
+        p_stake: bet.stake,
+      })
+      if (error) {
+        console.warn('[bot] đặt cược ngay lỗi:', bet.challengeId, error.message)
+        return
+      }
+      if (data) reload()
+    } catch (err) {
+      console.warn('[bot] lỗi đặt cược ngay:', err)
+    }
+  }
+
+  /**
+   * BOT PHẢN ỨNG VÒNG ĐỜI KÈO (Từ chối, Huỷ, Hết hạn, Đánh xong).
+   *
+   * Ghi trực tiếp vào `activity_events` qua RPC `post_bot_reaction` để toàn bộ thành viên
+   * CLB thấy dòng bình luận chính thức trên Activity Feed.
+   * RPC đã có advisory lock và check duplicate nên bảo đảm idempotent.
+   */
+  A.triggerBotReaction = async (kind, challengeId) => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase || !challengeId || !kind) return
+    const bot = findBotMember(d0)
+    if (!bot) return
+
+    try {
+      const { error } = await supabase.rpc('post_bot_reaction', {
+        p_kind: kind,
+        p_challenge_id: challengeId,
+      })
+      if (error) {
+        console.warn('[bot] post reaction lỗi:', kind, challengeId, error.message)
+      }
+    } catch (err) {
+      console.warn('[bot] lỗi trigger reaction:', err)
+    }
   }
 
   /**

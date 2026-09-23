@@ -271,6 +271,84 @@ REVOKE EXECUTE ON FUNCTION public.post_bot_remark(text, uuid) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.post_bot_remark(text, uuid) TO authenticated;
 
 -- ---------------------------------------------------------------------------
+-- 3b. Bot phản ứng theo sự kiện vòng đời kèo (Từ chối, Huỷ, Hết hạn).
+--     Ghi thẳng vào activity_events dưới dạng bot_remark, không dính rate-limit 12h
+--     của ambient remarks, nhưng chống spam cùng loại cho cùng một kèo.
+-- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.post_bot_reaction(text, uuid);
+
+CREATE OR REPLACE FUNCTION public.post_bot_reaction(
+  p_kind         text,
+  p_challenge_id uuid
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE
+  v_club uuid;
+  v_bot  uuid;
+  v_id   uuid;
+  v_chal record;
+  v_subject uuid;
+  v_decliner uuid;
+BEGIN
+  IF p_kind IS NULL OR p_challenge_id IS NULL THEN RETURN NULL; END IF;
+
+  SELECT * INTO v_chal FROM challenges WHERE id = p_challenge_id;
+  IF v_chal.id IS NULL THEN RETURN NULL; END IF;
+  v_club := v_chal.club_id;
+
+  IF auth.uid() IS NOT NULL AND NOT is_club_member(v_club) THEN
+    RAISE EXCEPTION 'Bạn không phải thành viên của CLB này';
+  END IF;
+
+  -- Chống đua ghi trùng phản ứng khi nhiều client cùng gửi lifecycle event
+  PERFORM pg_advisory_xact_lock(hashtext('bot_react:' || p_challenge_id::text));
+
+  SELECT id INTO v_bot FROM club_members
+   WHERE club_id = v_club AND is_bot AND active IS NOT FALSE
+   LIMIT 1;
+  IF v_bot IS NULL THEN RETURN NULL; END IF;
+
+  -- Chống ghi trùng phản ứng cùng loại cho cùng một kèo
+  IF EXISTS (
+    SELECT 1 FROM activity_events
+     WHERE club_id = v_club AND type = 'bot_remark'
+       AND payload->>'kind' = p_kind
+       AND ref_type = 'challenge'
+       AND ref_id = p_challenge_id
+  ) THEN RETURN NULL; END IF;
+
+  -- Người bị khịa / đối tượng chính:
+  -- Nếu kèo bị từ chối: người ở Đội B hoặc người bấm từ chối
+  SELECT member_id INTO v_decliner
+    FROM challenge_players
+   WHERE challenge_id = p_challenge_id AND team = 'B'
+   LIMIT 1;
+
+  v_subject := COALESCE(v_decliner, v_chal.created_by);
+
+  INSERT INTO activity_events (club_id, actor_id, type, payload, ref_type, ref_id)
+  VALUES (v_club, v_bot, 'bot_remark',
+          jsonb_build_object(
+            'kind', left(p_kind, 40),
+            'subject', v_subject,
+            'declinerId', v_decliner,
+            'chalId', p_challenge_id,
+            'code', v_chal.code
+          ),
+          'challenge', p_challenge_id)
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$fn$;
+
+REVOKE EXECUTE ON FUNCTION public.post_bot_reaction(text, uuid) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.post_bot_reaction(text, uuid) TO authenticated;
+
+-- ---------------------------------------------------------------------------
 -- 4. Bot đặt phiếu dự đoán.
 --
 -- Bản sao của `place_challenge_prediction` (0047) nhưng ghi dưới tên bot thay vì `auth.uid()`.
