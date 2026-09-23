@@ -14,8 +14,9 @@ import { getArcadeResultLine } from '#lib/bot.js'
 export default function BotArcadeCard({ bot, offer, balance, onPlay }) {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
+  const [declined, setDeclined] = useState(false)
 
-  if (!bot || !offer) return null
+  if (!bot || !offer || declined) return null
 
   const handlePlay = async (choice) => {
     if (busy) return
@@ -35,10 +36,14 @@ export default function BotArcadeCard({ bot, offer, balance, onPlay }) {
   return (
     <div style={S.card}>
       <div style={S.headerRow}>
-        <span style={S.avatarFallback}>
-          <Icon name="sparkles" size={14} style={{ color: 'var(--action-violet-fg)' }} />
-        </span>
-        <span style={S.title}>{t('arcade.title')}</span>
+        {bot.avatarUrl ? (
+          <img src={bot.avatarUrl} alt="" style={S.avatar} />
+        ) : (
+          <span style={S.avatarFallback}>
+            <Icon name="sparkles" size={14} style={{ color: 'var(--action-violet-fg)' }} />
+          </span>
+        )}
+        <span style={S.title}>{t('arcade.title', { bot: bot.name })}</span>
         <span style={S.balance}>{t('arcade.balance', { n: balance })}</span>
       </div>
 
@@ -52,6 +57,7 @@ export default function BotArcadeCard({ bot, offer, balance, onPlay }) {
             {t('arcade.youChose', {
               a: t('arcade.choice.' + result.choice),
               b: t('arcade.choice.' + result.oppChoice),
+              bot: bot.name,
             })}
           </div>
           <Button variant="secondary" onClick={() => setResult(null)}>
@@ -75,6 +81,13 @@ export default function BotArcadeCard({ bot, offer, balance, onPlay }) {
                 {t('arcade.choice.' + choice)}
               </Button>
             ))}
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() => setDeclined(true)}
+            >
+              {t('arcade.skip')}
+            </Button>
           </div>
         </>
       )}
@@ -97,6 +110,13 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
+  },
+  avatar: {
+    width: 24,
+    height: 24,
+    borderRadius: '50%',
+    objectFit: 'cover',
+    flexShrink: 0,
   },
   avatarFallback: {
     width: 24,

@@ -14,7 +14,7 @@ import {
   availableSeasonPoints,
   getMemberPrediction,
 } from '#lib/challenge.js'
-import { detectMatchNarrative, formatTeamNames } from '#lib/activity.js'
+import { detectMatchNarrative, formatTeamNames, getEntityName } from '#lib/activity.js'
 import { getPlayerRating, expectedScore, DEFAULT_RATING } from '#lib/rating.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import {
@@ -35,12 +35,13 @@ export const BOT_REASONS = ['rank_neighbor', 'streak_hunt']
  * Giữ ở một chỗ để không phải đếm tay khi thêm câu.
  */
 export const BOT_LINE_VARIANTS = {
-  reason:   { rank_neighbor: 4, streak_hunt: 4 },
-  taunt:    { top1: 3, chaser: 3, win_streak: 3, lose_streak: 3, rank_up: 3, rank_down: 3, rookie: 3, idle: 3, plain: 3 },
-  reaction: { blowout: 3, clutch: 3, normal: 3 },
-  remark:   { rank_climb: 3, rank_drop: 3, streak: 3 },
-  bet:      { favourite: 3, underdog: 3, tilt: 3, won: 3, lost: 3 },
-  arcade:   { offer: 4, won: 3, lost: 3, draw: 3, capped: 2, broke: 2 },
+  reason:      { rank_neighbor: 4, streak_hunt: 4 },
+  taunt:       { top1: 3, chaser: 3, win_streak: 3, lose_streak: 3, rank_up: 3, rank_down: 3, rookie: 3, idle: 3, plain: 3 },
+  reaction:    { blowout: 3, clutch: 3, normal: 3 },
+  remark:      { rank_climb: 3, rank_drop: 3, streak: 3, rivalry_h2h: 3, best_duo: 3, dominance_boss: 3, top_race: 3, bot_overtook: 3 },
+  bet:         { favourite: 3, underdog: 3, tilt: 3, won: 3, lost: 3 },
+  arcade:      { offer: 4, won: 3, lost: 3, draw: 3, capped: 2, broke: 2 },
+  interaction: { above_me: 3, chasing_me: 3, revenge_arcade: 3, user_streak: 3, declined_arcade: 3 },
 }
 
 /**
@@ -314,11 +315,43 @@ export function pickBotRemark(db, now = Date.now()) {
     } else if (delta <= -REMARK_ELO_SWING) {
       candidates.push({ kind: 'rank_drop', subjectId: row.id })
     } else if (getPlayerForm5(db, row.id).streak >= REMARK_STREAK) {
-      // `else if` chứ không phải `if` rời: một người chỉ vào danh sách một lần, không thì ai
-      // vừa thắng liền tay vừa tăng Elo sẽ chiếm hai suất và át hết người khác.
       candidates.push({ kind: 'streak', subjectId: row.id })
     }
   })
+
+  // Bổ sung các kịch bản quan hệ và sự kiện nổi bật trong CLB
+  const botState = getBotState(db, now)
+  if (botState) {
+    // 1. Cặp đối thủ truyền kiếp (Rivalry)
+    if (botState.clubRivalries && botState.clubRivalries.length > 0) {
+      const riv = botState.clubRivalries[0]
+      candidates.push({ kind: 'rivalry_h2h', subjectId: riv.memberA })
+    }
+
+    // 2. Cặp đôi ăn ý (Best duo)
+    if (botState.clubDuos && botState.clubDuos.length > 0) {
+      const duo = botState.clubDuos[0]
+      candidates.push({ kind: 'best_duo', subjectId: duo.memberA })
+    }
+
+    // 3. Khắc tinh áp đảo (Dominance)
+    if (botState.clubDominance && botState.clubDominance.length > 0) {
+      const dom = botState.clubDominance[0]
+      candidates.push({ kind: 'dominance_boss', subjectId: dom.leaderId })
+    }
+
+    // 4. Cuộc đua Top 3
+    if (botState.topRaces && botState.topRaces.length > 0) {
+      const race = botState.topRaces[0]
+      candidates.push({ kind: 'top_race', subjectId: race.chaser })
+    }
+
+    // 5. Bot bám sát hoặc vượt đối thủ (khi bot có điểm mùa > 0)
+    if (botState.seasonPoints > 0 && botState.aboveMe && botState.gapAbove <= 10) {
+      candidates.push({ kind: 'bot_overtook', subjectId: botState.aboveMe.id })
+    }
+  }
+
   if (!candidates.length) return null
 
   const seed = `bot-remark:${db.clubId}:${new Date(now).toDateString()}`
@@ -614,4 +647,387 @@ export function getArcadeResultLine(round) {
     lineKey: botLineKey('arcade', round.outcome, `bot-arcade-result:${round.id}`),
     params: { n: round.stake },
   }
+}
+
+/**
+ * Phân tích quan hệ đối đầu và phối hợp giữa 2 thành viên từ lịch sử trận đấu (Pure function).
+ * @param {Object} db
+ * @param {string} memberA
+ * @param {string} memberB
+ * @returns {Object}
+ */
+export function getPlayerRelationships(db, memberA, memberB) {
+  if (!db || !memberA || !memberB || memberA === memberB) {
+    return {
+      matchesTogether: 0,
+      matchesAgainst: 0,
+      h2h: { matches: 0, winsA: 0, winsB: 0, leader: null },
+      rivalry: false,
+      synergy: { matches: 0, wins: 0, winRate: 0 },
+      isBestDuo: false,
+      matchupForA: 'even',
+      matchupForB: 'even',
+      dominance: null,
+      isFrequentOpponent: false,
+      isFrequentPartner: false,
+    }
+  }
+
+  let matchesTogether = 0
+  let winsTogether = 0
+  let matchesAgainst = 0
+  let winsA = 0
+  let winsB = 0
+
+  const matches = db.matches || []
+  matches.forEach((m) => {
+    if (!m || !m.winnerTeam) return
+    const teamA = m.teamA || []
+    const teamB = m.teamB || []
+    const aInA = teamA.includes(memberA)
+    const aInB = teamB.includes(memberA)
+    const bInA = teamA.includes(memberB)
+    const bInB = teamB.includes(memberB)
+
+    if ((aInA && bInA) || (aInB && bInB)) {
+      matchesTogether++
+      const myTeam = aInA ? 'A' : 'B'
+      if (m.winnerTeam === myTeam) {
+        winsTogether++
+      }
+    } else if ((aInA && bInB) || (aInB && bInA)) {
+      matchesAgainst++
+      const aTeam = aInA ? 'A' : 'B'
+      if (m.winnerTeam === aTeam) {
+        winsA++
+      } else {
+        winsB++
+      }
+    }
+  })
+
+  const gap = Math.abs(winsA - winsB)
+  const isDominant = matchesAgainst >= 4 && gap >= 4
+  const leader = winsA > winsB ? memberA : (winsB > winsA ? memberB : null)
+  const winRate = matchesTogether > 0 ? winsTogether / matchesTogether : 0
+  const rateA = matchesAgainst > 0 ? winsA / matchesAgainst : 0.5
+
+  return {
+    matchesTogether,
+    matchesAgainst,
+    h2h: { matches: matchesAgainst, winsA, winsB, leader },
+    rivalry: matchesAgainst >= 5 && gap <= 2,
+    synergy: { matches: matchesTogether, wins: winsTogether, winRate: Math.round(winRate * 100) / 100 },
+    isBestDuo: matchesTogether >= 4 && winRate >= 0.75,
+    matchupForA: matchesAgainst >= 3 ? (rateA >= 0.7 ? 'easy' : (rateA <= 0.3 ? 'hard' : 'even')) : 'even',
+    matchupForB: matchesAgainst >= 3 ? (rateA <= 0.3 ? 'easy' : (rateA >= 0.7 ? 'hard' : 'even')) : 'even',
+    dominance: isDominant ? { leader, gap } : null,
+    isFrequentOpponent: matchesAgainst >= 8,
+    isFrequentPartner: matchesTogether >= 4,
+  }
+}
+
+/**
+ * Tổng hợp toàn bộ trạng thái dẫn xuất của Bot CLB và bức tranh quan hệ nổi bật trong mùa.
+ * @param {Object} db
+ * @param {number} [now]
+ * @returns {Object|null}
+ */
+export function getBotState(db, now = Date.now()) {
+  const bot = findBotMember(db)
+  if (!bot) return null
+
+  const seasonBoard = calculateSeasonLeaderboard(db).leaderboard
+  const botIdx = seasonBoard.findIndex((r) => r.id === bot.id)
+  const botRow = botIdx >= 0 ? seasonBoard[botIdx] : null
+  const botRank = botRow?.rank || (botIdx >= 0 ? botIdx + 1 : seasonBoard.length)
+  const botSp = Number(botRow?.totalSeasonPoints) || 0
+
+  const eloBoard = getClubEloLeaderboard(db)
+  const botEloRow = eloBoard.find((r) => r.id === bot.id)
+  const botElo = botEloRow?.elo || DEFAULT_RATING
+
+  const aboveMe = botIdx > 0 ? seasonBoard[botIdx - 1] : null
+  const chasingMe = botIdx >= 0 && botIdx < seasonBoard.length - 1 ? seasonBoard[botIdx + 1] : null
+  const gapAbove = aboveMe ? Math.max(0, (aboveMe.totalSeasonPoints || 0) - botSp) : 0
+  const gapBelow = chasingMe ? Math.max(0, botSp - (chasingMe.totalSeasonPoints || 0)) : 0
+
+  // Tìm các mục tiêu đòi nợ Arcade (user đã thắng bot trong 48h qua)
+  const cutoff48h = now - 48 * 3600 * 1000
+  const revengeRounds = (db.arcadeRounds || [])
+    .filter((r) => r && r.opponentId === bot.id && r.outcome === 'won' && Date.parse(r.createdAt || '') >= cutoff48h)
+    .sort((a, b) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''))
+  const revengeTargets = revengeRounds.map((r) => ({
+    memberId: r.memberId,
+    stake: r.stake,
+    game: r.game,
+    at: Date.parse(r.createdAt || ''),
+  }))
+
+  // Quét các cặp trong CLB (chỉ quét khi đã có lịch sử trận)
+  const activeMembers = (db.matches && db.matches.length > 0)
+    ? (db.members || []).filter((m) => m && m.active !== false && !m.isBot)
+    : []
+  const clubRivalries = []
+  const clubDuos = []
+  const clubDominance = []
+
+  for (let i = 0; i < activeMembers.length; i++) {
+    for (let j = i + 1; j < activeMembers.length; j++) {
+      const mA = activeMembers[i]
+      const mB = activeMembers[j]
+      const rel = getPlayerRelationships(db, mA.id, mB.id)
+      if (rel.rivalry) {
+        clubRivalries.push({ memberA: mA.id, memberB: mB.id, h2h: rel.h2h })
+      }
+      if (rel.isBestDuo) {
+        clubDuos.push({ memberA: mA.id, memberB: mB.id, synergy: rel.synergy })
+      }
+      if (rel.dominance) {
+        clubDominance.push({
+          leaderId: rel.dominance.leader,
+          victimId: rel.dominance.leader === mA.id ? mB.id : mA.id,
+          gap: rel.dominance.gap,
+        })
+      }
+    }
+  }
+
+  // Cuộc đua Top 3 mùa giải — chỉ xét khi đã có >= 5 trận đấu trong mùa và các đấu thủ đều có điểm > 0
+  const hasMatches = (db.matches || []).length >= 5
+  const top1 = seasonBoard[0]
+  const top2 = seasonBoard[1]
+  const top3 = seasonBoard[2]
+  const topRaces = []
+  if (hasMatches) {
+    if (top1 && top2 && (top1.totalSeasonPoints || 0) > 0 && (top2.totalSeasonPoints || 0) > 0 && Math.abs(top1.totalSeasonPoints - top2.totalSeasonPoints) <= 15) {
+      topRaces.push({ leader: top1.id, chaser: top2.id, diff: (top1.totalSeasonPoints || 0) - (top2.totalSeasonPoints || 0) })
+    }
+    if (top2 && top3 && (top2.totalSeasonPoints || 0) > 0 && (top3.totalSeasonPoints || 0) > 0 && Math.abs(top2.totalSeasonPoints - top3.totalSeasonPoints) <= 15) {
+      topRaces.push({ leader: top2.id, chaser: top3.id, diff: (top2.totalSeasonPoints || 0) - (top3.totalSeasonPoints || 0) })
+    }
+  }
+
+  // Xác định mục tiêu của bot (Daily Goal)
+  let goal = { type: 'gain_sp', targetId: null, targetName: '', targetValue: 50 }
+  if (revengeTargets.length > 0) {
+    const rev = revengeTargets[0]
+    goal = { type: 'revenge', targetId: rev.memberId, targetName: getEntityName(db, rev.memberId), targetValue: rev.stake }
+  } else if (chasingMe && gapBelow <= 15) {
+    goal = { type: 'defend_rank', targetId: chasingMe.id, targetName: chasingMe.name, targetValue: gapBelow }
+  } else if (aboveMe && gapAbove <= 20) {
+    goal = { type: 'climb_rank', targetId: aboveMe.id, targetName: aboveMe.name, targetValue: gapAbove }
+  }
+
+  return {
+    bot: {
+      id: bot.id,
+      name: bot.name,
+      avatarUrl: bot.avatarUrl || bot.avatar || '',
+    },
+    rank: botRank,
+    seasonPoints: botSp,
+    elo: botElo,
+    aboveMe: aboveMe ? { id: aboveMe.id, name: aboveMe.name, rank: aboveMe.rank, sp: aboveMe.totalSeasonPoints } : null,
+    chasingMe: chasingMe ? { id: chasingMe.id, name: chasingMe.name, rank: chasingMe.rank, sp: chasingMe.totalSeasonPoints } : null,
+    gapAbove,
+    gapBelow,
+    goal,
+    revengeTargets,
+    clubRivalries,
+    clubDuos,
+    clubDominance,
+    topRaces,
+  }
+}
+
+/**
+ * Kiểm tra xem người này hôm nay có thể nhận Popup chủ động (Tier 1) không (tối đa 3 người/ngày)
+ */
+export function canTriggerPopupToday(memberId, now = Date.now()) {
+  if (typeof window === 'undefined' || !window?.localStorage) return true
+  try {
+    const todayStr = new Date(now).toISOString().slice(0, 10)
+    const key = `badmin_bot_popup_users_${todayStr}`
+    const raw = localStorage.getItem(key)
+    const users = raw ? JSON.parse(raw) : []
+    if (users.includes(memberId)) return true
+    return users.length < 3
+  } catch (e) {
+    return true
+  }
+}
+
+/**
+ * Ghi nhận member đã nhận popup tương tác chủ động hôm nay
+ */
+export function recordPopupInteraction(memberId, now = Date.now()) {
+  if (typeof window === 'undefined' || !window?.localStorage) return
+  try {
+    const todayStr = new Date(now).toISOString().slice(0, 10)
+    const key = `badmin_bot_popup_users_${todayStr}`
+    const raw = localStorage.getItem(key)
+    const users = raw ? JSON.parse(raw) : []
+    if (!users.includes(memberId)) {
+      users.push(memberId)
+      localStorage.setItem(key, JSON.stringify(users))
+    }
+  } catch (e) {}
+}
+
+/**
+ * 3-Tier Interaction Orchestrator:
+ * Quyết định Bot tương tác với người dùng theo 3 tầng biểu hiện:
+ * - Tier 1: Popup trực tiếp (Score >= 60, cần budget tối đa 3 người/ngày)
+ * - Tier 2: Ambient / Activity feed (Score 20 - 59, không tốn budget)
+ * - Tier 3: Silent (Score < 20, giữ im lặng)
+ *
+ * @param {Object} db
+ * @param {string} memberId
+ * @param {number} [now]
+ * @returns {{ mode: 'popup'|'ambient'|'silent', score?: number, type?: string, lineKey?: string, params?: Object, bot?: Object, action?: Object }}
+ */
+export function getBotInteraction(db, memberId, now = Date.now()) {
+  const bot = findBotMember(db)
+  if (!bot || !memberId || bot.id === memberId) {
+    return { mode: 'silent' }
+  }
+
+  const member = (db.members || []).find((m) => m.id === memberId)
+  if (!member) return { mode: 'silent' }
+
+  const botState = getBotState(db, now)
+  if (!botState) return { mode: 'silent' }
+
+  const seed = `bot-interaction:${memberId}:${new Date(now).toDateString()}`
+  const candidates = []
+
+  // 1. [Score 85] User đứng ngay trên Bot (aboveMe, cách <= 15 SP)
+  if (botState.aboveMe && botState.aboveMe.id === memberId && botState.gapAbove <= 15) {
+    candidates.push({
+      score: 85,
+      type: 'above_me',
+      lineKey: botLineKey('interaction', 'above_me', `${seed}:above`),
+      params: { name: member.name, bot: bot.name, diff: botState.gapAbove },
+    })
+  }
+
+  // 2. [Score 80] Đòi nợ Revenge Arcade (User vừa thắng bot trong 48h)
+  const revenge = (botState.revengeTargets || []).find((r) => r.memberId === memberId)
+  if (revenge) {
+    candidates.push({
+      score: 80,
+      type: 'revenge_arcade',
+      lineKey: botLineKey('interaction', 'revenge_arcade', `${seed}:rev`),
+      params: { name: member.name, bot: bot.name, stake: revenge.stake },
+    })
+  }
+
+  // 3. [Score 70] User đang có chuỗi thắng badminton >= 3
+  const form = getPlayerForm5(db, memberId)
+  if (form && form.streak >= 3) {
+    candidates.push({
+      score: 70,
+      type: 'user_streak',
+      lineKey: botLineKey('interaction', 'user_streak', `${seed}:strk`),
+      params: { name: member.name, bot: bot.name, streak: form.streak },
+    })
+  }
+
+  // 4. [Score 65] Bot bị dí sát rank (chasingMe, cách <= 15 SP)
+  if (botState.chasingMe && botState.chasingMe.id === memberId && botState.gapBelow <= 15) {
+    candidates.push({
+      score: 65,
+      type: 'chasing_me',
+      lineKey: botLineKey('interaction', 'chasing_me', `${seed}:chase`),
+      params: { name: member.name, bot: bot.name, diff: botState.gapBelow },
+    })
+  }
+
+  // 5. Tier 2 Candidates (Score 20 - 55)
+  // Quan hệ đối đầu của người này với các thành viên khác
+  const myBoss = (botState.clubDominance || []).find((d) => d.victimId === memberId)
+  if (myBoss) {
+    candidates.push({
+      score: 55,
+      type: 'dominance_boss',
+      lineKey: botLineKey('remark', 'dominance_boss', `${seed}:boss`),
+      params: { name: member.name, bot: bot.name, leader: getEntityName(db, myBoss.leaderId), gap: myBoss.gap },
+    })
+  }
+
+  const myRivalry = (botState.clubRivalries || []).find((r) => r.memberA === memberId || r.memberB === memberId)
+  if (myRivalry) {
+    const oppId = myRivalry.memberA === memberId ? myRivalry.memberB : myRivalry.memberA
+    candidates.push({
+      score: 50,
+      type: 'rivalry_h2h',
+      lineKey: botLineKey('remark', 'rivalry_h2h', `${seed}:riv`),
+      params: { name: member.name, bot: bot.name, rival: getEntityName(db, oppId), n: myRivalry.h2h.matches },
+    })
+  }
+
+  const myDuo = (botState.clubDuos || []).find((d) => d.memberA === memberId || d.memberB === memberId)
+  if (myDuo) {
+    const partnerId = myDuo.memberA === memberId ? myDuo.memberB : myDuo.memberA
+    candidates.push({
+      score: 48,
+      type: 'best_duo',
+      lineKey: botLineKey('remark', 'best_duo', `${seed}:duo`),
+      params: { name: member.name, bot: bot.name, partner: getEntityName(db, partnerId), pct: Math.round(myDuo.synergy.winRate * 100) },
+    })
+  }
+
+  // Fallback: Taunt phong độ thông thường (Score 20)
+  const defaultTaunt = getBotTaunt(db, memberId, now)
+  if (defaultTaunt) {
+    candidates.push({
+      score: 20,
+      type: 'taunt_ambient',
+      lineKey: defaultTaunt.lineKey,
+      params: { ...defaultTaunt.params, bot: bot.name },
+    })
+  }
+
+  if (candidates.length === 0) return { mode: 'silent' }
+
+  // Sắp xếp lấy candidate có điểm số cao nhất
+  candidates.sort((a, b) => b.score - a.score)
+  const topCandidate = candidates[0]
+
+  // Phân tầng theo điểm và ngân sách 3 người/ngày
+  if (topCandidate.score >= 60) {
+    if (canTriggerPopupToday(memberId, now)) {
+      return {
+        mode: 'popup',
+        score: topCandidate.score,
+        type: topCandidate.type,
+        lineKey: topCandidate.lineKey,
+        params: topCandidate.params,
+        bot: botState.bot,
+      }
+    }
+    // Hết budget popup: chuyển xuống Tier 2 ambient
+    return {
+      mode: 'ambient',
+      score: topCandidate.score,
+      type: topCandidate.type,
+      lineKey: topCandidate.lineKey,
+      params: topCandidate.params,
+      bot: botState.bot,
+    }
+  }
+
+  if (topCandidate.score >= 20) {
+    return {
+      mode: 'ambient',
+      score: topCandidate.score,
+      type: topCandidate.type,
+      lineKey: topCandidate.lineKey,
+      params: topCandidate.params,
+      bot: botState.bot,
+    }
+  }
+
+  return { mode: 'silent' }
 }

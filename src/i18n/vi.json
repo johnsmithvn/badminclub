@@ -130,8 +130,15 @@
     "ledgerLoss": "Thua {{score}} · Kèo {{gap}} Elo",
     "ledgerStreakBonus": "Streak +{{pts}}",
     "ledgerUpsetBonus": "Upset +{{pts}}",
+    "ledgerPredictionWon": "Dự đoán đúng · Kèo {{code}}",
+    "ledgerPredictionLost": "Dự đoán sai · Kèo {{code}}",
+    "ledgerArcadeWon": "Thắng ván cược · {{oppName}}",
+    "ledgerArcadeLost": "Thua ván cược · {{oppName}}",
+    "ledgerArcadeDraw": "Hoà ván cược · {{oppName}}",
     "tagMatch": "Trận",
     "tagChallenge": "Kèo",
+    "tagArcade": "Arcade",
+    "tagPrediction": "Dự đoán",
     "tagChallengeMult": "Kèo ×{{mult}}",
     "tagChallengeMultHint": "Trận trong kèo được nhân {{mult}} điểm mùa. Elo vẫn tính như trận thường.",
     "eloGapPill": "Lệch {{gap}} Elo",
@@ -4659,14 +4666,20 @@
     "session_closed": "✅ Buổi {{date}} đã hoàn tất và chốt sổ.",
     "session_cancelled": "🚫 Buổi {{date}} đã bị huỷ.",
     "member_joined": "👋 Chào mừng thành viên mới {{name}} đã gia nhập CLB!",
-    "bot_remark": "🤖 Badmin Bot vừa nhắc tới {{name}}.",
+    "bot_remark": "{{bot}} vừa nhắc tới {{name}}.",
+    "arcade_won": "{{userName}} đã thắng {{oppName}} trong ván {{game}} (+{{stake}} SP)",
+    "arcade_lost": "{{oppName}} đã thắng {{userName}} trong ván {{game}} (+{{stake}} SP)",
+    "arcade_draw": "{{userName}} và {{oppName}} hoà nhau trong ván {{game}} (hoàn {{stake}} SP)",
+    "arcade_played": "{{userName}} và {{oppName}} vừa đấu ván {{game}} ({{stake}} SP)",
     "loadMore": "Xem thêm hoạt động cũ hơn",
     "loading": "Đang tải hoạt động..."
   },
   "bot": {
-    "cardTitle": "Badmin Bot",
-    "challengeLabel": "Bot dựng kèo này",
-    "reactionLabel": "Bot nói gì về trận này",
+    "cardTitle": "{{bot}}",
+    "challengeLabel": "Kèo từ {{bot}}",
+    "reactionLabel": "Nhận xét từ {{bot}}",
+    "gameRps": "Kéo búa bao",
+    "gameCoin": "Tung xu",
     "reason": {
       "rank_neighbor": {
         "1": "Hai người này ngang cơ. Đánh đi, đừng né.",
@@ -4806,29 +4819,81 @@
     },
     "remark": {
       "rank_climb": {
-        "1": "🤖 {{name}} đang lên nhanh bất thường. Tôi có để ý đấy.",
-        "2": "🤖 Tuần này {{name}} tăng mạnh. Ai ở trên nên quay lại nhìn một cái.",
-        "3": "🤖 {{name}} leo rồi. Không ai định làm gì à?"
+        "1": "{{name}} đang lên nhanh bất thường. Tôi có để ý đấy.",
+        "2": "Tuần này {{name}} tăng mạnh. Ai ở trên nên quay lại nhìn một cái.",
+        "3": "{{name}} leo rồi. Không ai định làm gì à?"
       },
       "rank_drop": {
-        "1": "🤖 {{name}} tụt khá sâu tuần này. Chuyện thường, nhưng vẫn là tụt.",
-        "2": "🤖 Elo của {{name}} đang đi xuống. Tôi chỉ nói ra thôi.",
-        "3": "🤖 {{name}} mất điểm. Ai đang xếp dưới thì đây là cơ hội."
+        "1": "{{name}} tụt khá sâu tuần này. Chuyện thường, nhưng vẫn là tụt.",
+        "2": "Elo của {{name}} đang đi xuống. Tôi chỉ nói ra thôi.",
+        "3": "{{name}} mất điểm. Ai đang xếp dưới thì đây là cơ hội."
       },
       "streak": {
-        "1": "🤖 {{name}} đang thắng liền tay. Có ai định cắt không?",
-        "2": "🤖 Chuỗi thắng của {{name}} vẫn chưa ai chặn được. Kỳ lạ.",
-        "3": "🤖 {{name}} thắng mãi rồi. CLB này hết người rồi à?"
+        "1": "{{name}} đang thắng liền tay. Có ai định cắt không?",
+        "2": "Chuỗi thắng của {{name}} vẫn chưa ai chặn được. Kỳ lạ.",
+        "3": "{{name}} thắng mãi rồi. CLB này hết người rồi à?"
+      },
+      "rivalry_h2h": {
+        "1": "{{name}} dạo này cày đối đầu gắt thế. Tôi đang theo dõi đấy.",
+        "2": "Cặp đối thủ truyền kiếp của {{name}} vẫn chưa phân thắng bại.",
+        "3": "{{name}} chạm trán đối thủ liên tục. Xem ai bản lĩnh hơn."
+      },
+      "best_duo": {
+        "1": "{{name}} đánh đôi dạo này ăn ý quá, tìm được cạ cứng rồi à?",
+        "2": "Cặp bài trùng có {{name}} đang bất bại. Ai cản nổi không?",
+        "3": "Phối hợp nhịp nhàng thế này thì ai làm lại đôi của {{name}}."
+      },
+      "dominance_boss": {
+        "1": "{{name}} dạo này tìm được đối thủ dễ xơi rồi à?",
+        "2": "Áp đảo thế này thì ai dám đối đầu với {{name}} nữa.",
+        "3": "{{name}} đang là nỗi khiếp sợ mỗi lần bốc thăm."
+      },
+      "top_race": {
+        "1": "{{name}} đang bám sát nhóm đầu mùa này. Cố giữ phong độ nhé.",
+        "2": "Cuộc đua Top 3 đang nóng dần, {{name}} áp sát từng điểm một.",
+        "3": "Top đầu mùa này căng thẳng thật, {{name}} không chịu buông tha."
+      },
+      "bot_overtook": {
+        "1": "{{name}} ơi, đứng yên nhé. Tôi đang vượt lên rồi.",
+        "2": "{{name}} ngó lại sau lưng xem ai vừa vượt qua kìa.",
+        "3": "Tôi vừa vượt qua {{name}} trên bảng xếp hạng rồi đấy nhé."
+      }
+    },
+    "interaction": {
+      "above_me": {
+        "1": "{{name}} ơi, đứng ngay trên đầu tôi chỉ có {{diff}} SP thôi đấy. Coi chừng mất chỗ.",
+        "2": "Tôi đang nhìn theo lưng {{name}} đây. Chỉ cách {{diff}} điểm mùa thôi.",
+        "3": "{{name}} giữ hạng cho kỹ nhé, tôi sắp đuổi kịp rồi đấy."
+      },
+      "chasing_me": {
+        "1": "{{name}} bám sát nút tôi thế (còn {{diff}} SP). Định vượt mặt à?",
+        "2": "Đừng hòng vượt qua tôi nhé {{name}}, {{diff}} điểm mùa này không dễ ăn đâu.",
+        "3": "Thấy {{name}} dí sát sau lưng rồi đấy. Làm ván cược thử tài không?"
+      },
+      "revenge_arcade": {
+        "1": "Hôm trước {{name}} vừa ẵm của tôi {{stake}} SP đấy nhé. Có dám phục thù không?",
+        "2": "{{name}} cầm {{stake}} SP của tôi tiêu hết chưa? Trả lại đây nào.",
+        "3": "Hôm trước ăn may được {{stake}} SP, hôm nay dám solo lại với tôi không {{name}}?"
+      },
+      "user_streak": {
+        "1": "{{name}} đang chuỗi {{streak}} trận thắng kìa. Ra sân làm kèo với tôi xem đứt chuỗi không.",
+        "2": "Thắng {{streak}} trận liên tiếp rồi đấy {{name}}. Tự tin làm ván không?",
+        "3": "Phong độ đang cao thế {{name}}, thử vận may với tôi chút đi."
+      },
+      "declined_arcade": {
+        "1": "Lại né kèo à {{name}}? Sợ mất điểm mùa thế.",
+        "2": "{{name}} né tôi mấy lần rồi đấy. Điểm mùa để ngắm à?",
+        "3": "Không dám nhận kèo à {{name}}? Hẹn lần khác vậy."
       }
     }
   },
   "arcade": {
-    "title": "Sòng của Bot",
+    "title": "Thách đấu {{bot}}",
     "balance": "Bạn đang có {{n}} SP",
     "stake": "Cược {{n}} SP",
     "skip": "Né kèo",
     "playing": "Đang mở...",
-    "youChose": "Bạn chọn {{a}} · Bot chọn {{b}}",
+    "youChose": "Bạn chọn {{a}} · {{bot}} chọn {{b}}",
     "again": "Chơi ván nữa",
     "failed": "Không mở được ván này. Thử lại sau.",
     "game": {
@@ -4852,7 +4917,7 @@
     "unreadCount": "{{count}} thông báo chưa đọc",
     "challenge_created": "⚔️ Bạn nhận được lời thách đấu kèo {{code}} từ {{creator}}!",
     "challenge_created_simple": "⚔️ Bạn nhận được lời thách đấu kèo {{code}}!",
-    "bot_challenge": "🤖 {{bot}} vừa dựng một kèo và xếp bạn vào đó. Nhận không?",
+    "bot_challenge": "{{bot}} vừa dựng một kèo và xếp bạn vào đó. Nhận không?",
     "challenge_teammate": "🤝 Bạn được xếp đánh cặp ở kèo {{code}} — vào xác nhận thì kèo mới được tính.",
     "challenge_accepted": "🤝 Kèo {{code}} của bạn đã được đối thủ chấp nhận!",
     "challenge_declined": "🛡️ Kèo {{code}} của bạn đã bị từ chối.",

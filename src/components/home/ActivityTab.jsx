@@ -137,6 +137,16 @@ export default function ActivityTab() {
         return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(16, 185, 129, 0.15)' }
       case 'member_joined':
         return { icon: 'user', color: '#EC4899', key: 'member_joined', badgeColor: 'rgba(236, 72, 153, 0.15)' }
+      case 'arcade_played': {
+        const outcome = item.payload?.outcome
+        const isWon = outcome === 'won'
+        return {
+          icon: 'sparkles',
+          color: isWon ? '#10B981' : (outcome === 'lost' ? '#FF2E7E' : '#FFE24B'),
+          key: `arcade_${outcome || 'played'}`,
+          badgeColor: isWon ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 46, 126, 0.15)',
+        }
+      }
       default:
         return { icon: 'activity', color: 'var(--text-accent, #00B2A9)', key: item.type, badgeColor: 'var(--surface-sunken)' }
     }

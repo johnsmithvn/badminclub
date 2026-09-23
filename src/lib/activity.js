@@ -406,6 +406,15 @@ export function resolveActivityPayload(item, db) {
   if (item?.type === 'bot_remark') {
     // Payload chỉ giữ `subject` (id) — tên giải mã lúc render như mọi loại khác (RULES §3.3).
     res.name = getEntityName(db, p.subject)
+    res.bot = getEntityName(db, item.actor_id || item.actorId)
+  }
+
+  if (item?.type === 'arcade_played') {
+    res.userName = getEntityName(db, item.actor_id || item.actorId)
+    res.oppName = getEntityName(db, p.opponentId)
+    res.stake = p.stake
+    res.game = t(p.game === 'rps' ? 'bot.gameRps' : 'bot.gameCoin')
+    res.outcome = p.outcome
   }
 
   if (item?.type === 'session_opened' || item?.type === 'session_closed' || item?.type === 'session_cancelled') {

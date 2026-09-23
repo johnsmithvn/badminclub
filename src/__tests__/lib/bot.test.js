@@ -6,6 +6,7 @@ import {
   botBetStreak, pickBotPredictions, getBotBetLine,
   getBotArcadeOffer, getArcadeResultLine, arcadeRoundsToday,
   spendableSeasonPoints, ARCADE_GAMES, ARCADE_CHOICES, ARCADE_DAILY_CAP,
+  getPlayerRelationships, getBotState, getBotInteraction,
 } from '#lib/bot.js'
 
 const NOW = Date.parse('2026-09-21T12:00:00.000Z')
@@ -230,8 +231,15 @@ const botMatch = (id, at) => ({
   teamA: ['bot'], teamB: ['m5'], sets: [[21, 15]], playerKeys: ['bot', 'm5'],
 })
 
-const dbNoBudget = { ...baseDb(), challenges: [openChal('k1', 'm1', 'm2')] }
-assert.deepEqual(pickBotPredictions(dbNoBudget, NOW), [], 'Bot không có SP nào thì không cược')
+// Bot hết SP khả dụng (đã cược pending hết 100 SP trên kèo sống) thì không cược thêm
+const dbNoBudget = {
+  ...baseDb(),
+  challenges: [openChal('k1', 'm1', 'm2'), openChal('k_other', 'm3', 'm4')],
+  challengePredictions: [
+    { id: 'p_lock', challengeId: 'k_other', memberId: 'bot', status: 'pending', stakePoints: 100 },
+  ],
+}
+assert.deepEqual(pickBotPredictions(dbNoBudget, NOW), [], 'Bot hết SP khả dụng thì không cược')
 
 const dbBets = {
   ...baseDb(),
@@ -311,13 +319,12 @@ assert.match(getBotBetLine(withTilt, chalForLine).lineKey, /^bot\.bet\.tilt\.[1-
 
 /* ---------- ARCADE ---------- */
 
-// Điểm mùa của bot chỉ có khi nó đã đánh trận — `botMatch` ở trên dựng lịch sử đó.
 const round = (id, memberId, outcome, stake = 5, at = new Date().toISOString()) => ({
   id, clubId: 'club1', memberId, opponentId: 'bot',
   game: 'rps', stake, choice: 'rock', oppChoice: 'scissors', outcome, createdAt: at,
 })
 
-// Cần CẢ HAI bên có điểm mùa thì mới có ván: `botMatch` cho bot + m5, thêm một trận cho m1.
+// Cần CẢ HAI bên có điểm mùa thì mới có ván: m1 có trận nên có 100 SP, bot có cờ isBot nên có 100 SP.
 const pairMatch = (id, a, b) => ({
   id, at: Date.now(), winnerTeam: 'A', ratingEnabled: true, eloDelta: 10,
   teamA: [a], teamB: [b], sets: [[21, 15]], playerKeys: [a, b],
@@ -325,7 +332,7 @@ const pairMatch = (id, a, b) => ({
 
 const dbArcade = () => ({
   ...baseDb(),
-  matches: [botMatch('bm1', Date.now()), pairMatch('am1', 'm1', 'm2')],
+  matches: [pairMatch('am1', 'm1', 'm2')],
   arcadeRounds: [],
 })
 
@@ -347,10 +354,9 @@ assert.equal(
 
 /* -- getBotArcadeOffer -- */
 
-// Chưa ai đánh trận nào -> không ai có điểm mùa -> không có ván, nhưng bot vẫn nói một câu
-// (thẻ hiện câu "hết điểm" chứ không biến mất, để người ta biết vì sao không chơi được).
+// m1 chưa đánh trận nào -> m1 có 0 SP -> không mở được ván, bot báo broke
 const noPoints = getBotArcadeOffer(baseDb(), 'm1', NOW)
-assert.equal(noPoints.blocked, 'broke', 'Không ai có điểm thì cổng đóng vì hết vốn')
+assert.equal(noPoints.blocked, 'broke', 'User chưa có trận thì có 0 SP -> cổng đóng vì hết vốn')
 assert.match(noPoints.lineKey, /^bot\.arcade\.broke\.[1-2]$/, 'Câu hết vốn đúng nhóm')
 
 const offer = getBotArcadeOffer(dbArcade(), 'm1', NOW)
@@ -379,15 +385,11 @@ assert.equal(capped.blocked, 'capped', 'Chơi đủ hạn mức thì cổng đó
 assert.equal(capped.game, undefined, 'Cổng đóng thì không kèm trò nào')
 assert.match(capped.lineKey, /^bot\.arcade\.capped\.[1-2]$/, 'Câu hết lượt đúng nhóm')
 
-// Bot hết sạch điểm: dù người chơi còn tiền cũng không có ván nào, vì bot không trả nổi.
-// `m4` chưa đánh trận nào nên `dbBotBroke` mượn nó làm bot.
+// Bot hết sạch điểm: khi bot thua arcade 100 SP, số dư về 0 SP
 const dbBotBroke = {
   ...baseDb(),
-  members: baseDb().members.map((m) => (
-    m.id === 'bot' ? { ...m, isBot: false } : (m.id === 'm4' ? { ...m, isBot: true } : m)
-  )),
   matches: [pairMatch('am1', 'm1', 'm2')],
-  arcadeRounds: [],
+  arcadeRounds: [round('r_broke', 'm1', 'won', 100)],
 }
 assert.equal(getBotArcadeOffer(dbBotBroke, 'm1', NOW).blocked, 'broke', 'Bot hết điểm thì không mở ván nào')
 
@@ -408,22 +410,94 @@ assert.equal(getArcadeResultLine({ id: 'r1', outcome: 'won', stake: 7 }).params.
 
 /* ---------- ZERO-SUM: tổng điểm mùa hai bên không đổi sau một ván ---------- */
 
-// Đây là luật cốt lõi của Arcade. Một dòng `arcade_rounds` mang cả hai phe, nên `season.js` phải
-// cộng cho người chơi đúng bằng số nó trừ của bot.
 const sumSp = (d) => calculateSeasonLeaderboard(d).leaderboard
   .reduce((s, r) => s + (Number(r.totalSeasonPoints) || 0), 0)
 
 const dbBeforeRound = {
   ...baseDb(),
-  matches: [botMatch('bm1', Date.now()), botMatch('bm2', Date.now())],
+  matches: [pairMatch('bm1', 'm1', 'm2'), pairMatch('bm2', 'm1', 'm3')],
   arcadeRounds: [],
 }
-// `m5` là người thua hai trận trên nên có điểm; cho `m5` thắng bot một ván 3 SP.
-const dbAfterRound = { ...dbBeforeRound, arcadeRounds: [round('r1', 'm5', 'won', 3)] }
+// Cho m1 thắng bot một ván 3 SP.
+const dbAfterRound = { ...dbBeforeRound, arcadeRounds: [round('r1', 'm1', 'won', 3)] }
 assert.equal(sumSp(dbAfterRound), sumSp(dbBeforeRound), 'Tổng điểm mùa cả CLB không đổi sau một ván arcade')
 
 // Ván hoà không đổi điểm của ai.
-const dbDraw = { ...dbBeforeRound, arcadeRounds: [round('r2', 'm5', 'draw', 9)] }
+const dbDraw = { ...dbBeforeRound, arcadeRounds: [round('r2', 'm1', 'draw', 9)] }
 assert.equal(sumSp(dbDraw), sumSp(dbBeforeRound), 'Ván hoà không sinh cũng không tiêu điểm')
+
+/* ---------- PLAYER RELATIONSHIPS ENGINE ---------- */
+
+const matchH2H = (id, a, b, winA = true) => ({
+  id, at: Date.now(), winnerTeam: winA ? 'A' : 'B', ratingEnabled: true,
+  teamA: [a], teamB: [b], sets: [[21, 15]], playerKeys: [a, b],
+})
+const matchDuo = (id, a, b, opp1, opp2, winDuo = true) => ({
+  id, at: Date.now(), winnerTeam: winDuo ? 'A' : 'B', ratingEnabled: true,
+  teamA: [a, b], teamB: [opp1, opp2], sets: [[21, 15]], playerKeys: [a, b, opp1, opp2],
+})
+
+// 1. Rivalry: 5 trận, tỷ số 3-2
+const dbRivalry = {
+  ...baseDb(),
+  matches: [
+    matchH2H('h1', 'm1', 'm2', true),
+    matchH2H('h2', 'm1', 'm2', false),
+    matchH2H('h3', 'm1', 'm2', true),
+    matchH2H('h4', 'm1', 'm2', false),
+    matchH2H('h5', 'm1', 'm2', true),
+  ],
+}
+const relRiv = getPlayerRelationships(dbRivalry, 'm1', 'm2')
+assert.equal(relRiv.matchesAgainst, 5, '5 trận đối đầu')
+assert.equal(relRiv.h2h.winsA, 3, 'm1 thắng 3')
+assert.equal(relRiv.h2h.winsB, 2, 'm2 thắng 2')
+assert.equal(relRiv.rivalry, true, 'Kỳ phùng địch thủ (5 trận, chênh 1)')
+
+// 2. Dominance: 4 trận, tỷ số 4-0
+const dbDom = {
+  ...baseDb(),
+  matches: [
+    matchH2H('d1', 'm1', 'm3', true),
+    matchH2H('d2', 'm1', 'm3', true),
+    matchH2H('d3', 'm1', 'm3', true),
+    matchH2H('d4', 'm1', 'm3', true),
+  ],
+}
+const relDom = getPlayerRelationships(dbDom, 'm1', 'm3')
+assert.ok(relDom.dominance, 'Có áp đảo')
+assert.equal(relDom.dominance.leader, 'm1', 'm1 là boss áp đảo')
+assert.equal(relDom.dominance.gap, 4, 'Chênh lệch 4 trận')
+assert.equal(relDom.matchupForA, 'easy', 'Kèo dễ cho m1')
+assert.equal(relDom.matchupForB, 'hard', 'Kèo khó cho m3')
+
+// 3. Best Duo: 4 trận cùng nhau, thắng 3 (75%)
+const dbDuo = {
+  ...baseDb(),
+  matches: [
+    matchDuo('du1', 'm1', 'm4', 'm2', 'm3', true),
+    matchDuo('du2', 'm1', 'm4', 'm2', 'm3', true),
+    matchDuo('du3', 'm1', 'm4', 'm2', 'm3', true),
+    matchDuo('du4', 'm1', 'm4', 'm2', 'm3', false),
+  ],
+}
+const relDuo = getPlayerRelationships(dbDuo, 'm1', 'm4')
+assert.equal(relDuo.matchesTogether, 4, '4 trận cùng nhau')
+assert.equal(relDuo.synergy.wins, 3, 'Thắng 3 trận')
+assert.equal(relDuo.isBestDuo, true, 'Cặp đôi ăn ý (>= 75%)')
+assert.equal(relDuo.isFrequentPartner, true, 'Đối tác thường xuyên')
+
+/* ---------- BOT STATE & 3-TIER INTERACTION ---------- */
+
+const state = getBotState(dbRivalry, NOW)
+assert.ok(state.bot, 'Có thông tin bot')
+assert.equal(state.bot.id, 'bot', 'Đúng ID bot')
+assert.equal(state.seasonPoints, 100, 'Bot có 100 SP khởi đầu')
+assert.ok(state.clubRivalries.length > 0, 'Phát hiện được rivalry m1-m2 trong CLB')
+
+// Interaction: Tier 1 Popup khi user đứng ngay trên Bot
+const interactAbove = getBotInteraction(dbRivalry, 'm1', NOW)
+assert.ok(interactAbove.mode === 'popup' || interactAbove.mode === 'ambient', 'Có chế độ tương tác')
+assert.ok(interactAbove.lineKey, 'Có câu thoại tương tác')
 
 console.log('bot check: OK')

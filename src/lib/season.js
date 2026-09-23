@@ -442,10 +442,10 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     // hạng — cộng cùng một hằng số cho tất cả thì mọi thứ giữ nguyên. Việc nó làm là ĐẨY SÀN 0
     // RA XA: sàn kẹp sau mỗi trận, ai chạm 0 thì các trận thua tiếp theo thành miễn phí và điểm
     // sinh ra từ hư không. Với 100 điểm đệm, người thắng từ ~25% trở lên không bao giờ chạm sàn.
-    // Điểm khởi đầu chỉ cấp cho người ĐÃ RA SÂN ít nhất một trận. Cấp cho cả người chưa đánh
-    // thì họ đứng trên người có đi tập mà thua — đánh dở hoá ra tệ hơn không đánh, ngược hẳn
-    // mục đích của bảng xếp hạng.
-    let totalSeasonPoints = myMatches.length ? startPoints : 0
+    // Điểm khởi đầu chỉ cấp cho người ĐÃ RA SÂN ít nhất một trận hoặc BOT CLB (isBot). Cấp cho
+    // cả người chưa đánh thì họ đứng trên người có đi tập mà thua. Bot không ra sân đánh badminton
+    // nhưng là thành viên tham gia nền kinh tế cược/Arcade nên bắt đầu với đúng startPoints.
+    let totalSeasonPoints = (myMatches.length || m.isBot) ? startPoints : 0
     let streak = 0
     let matchNetPts = 0
     let streakBonusPts = 0
@@ -588,43 +588,84 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     // Sửa bằng một lượt quét SAU, không đụng vào vòng lặp trận: `matchPointsOnly` phải giữ
     // nguyên từng bit, nếu không là đổi điểm mùa của cả CLB (LUẬT SỐ 0 — backtest).
     // Mỗi mốc cộng thêm phần điểm dự đoán đã quyết toán TRƯỚC thời điểm đó, kẹp cùng công thức
-    // với tổng nên dòng cuối luôn khớp `totalSeasonPoints`.
-    const predsAsc = [...myPredictions].sort((a, b) => Date.parse(a.settledAt) - Date.parse(b.settledAt))
+    // Dựng sự kiện ngoài trận đấu (Dự đoán + Arcade) theo trình tự thời gian
+    const myArcade = seasonArcade.filter((r) => r.memberId === memberId || r.opponentId === memberId)
+    const nonMatchEvents = [
+      ...myPredictions.map((p) => ({
+        type: 'prediction',
+        at: Date.parse(p.settledAt || ''),
+        numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
+        item: p,
+      })),
+      ...myArcade.map((r) => {
+        const isPlayer = r.memberId === memberId
+        const outcome = isPlayer ? r.outcome : (r.outcome === 'won' ? 'lost' : (r.outcome === 'lost' ? 'won' : 'draw'))
+        const numPts = outcome === 'won' ? (Number(r.stake) || 0) : (outcome === 'lost' ? -(Number(r.stake) || 0) : 0)
+        return {
+          type: 'arcade',
+          at: Date.parse(r.createdAt || ''),
+          numPts,
+          outcome,
+          item: r,
+        }
+      }),
+    ].sort((a, b) => (a.at || 0) - (b.at || 0))
+
     const predictionLogs = []
-    let predNetSoFar = 0
-    let predIdx = 0
-    let matchPtsSoFar = myMatches.length ? startPoints : 0
-    const clampNet = (n) => Math.min(15, n)
+    const arcadeLogs = []
+    let nonMatchNetSoFar = 0
+    let nmIdx = 0
+    let matchPtsSoFar = (myMatches.length || m.isBot) ? startPoints : 0
 
     matchLogs.forEach((log) => {
       const at = Number(log.at) || 0
-      // Phiếu quyết toán trước trận này thì đã nằm trong điểm lúc trận diễn ra.
-      while (predIdx < predsAsc.length && Date.parse(predsAsc[predIdx].settledAt) <= at) {
-        const p = predsAsc[predIdx]
-        predNetSoFar += (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0)
-        predictionLogs.push({
-          prediction: p,
-          at: Date.parse(p.settledAt),
-          numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
-          pointsAfter: Math.max(0, matchPtsSoFar + clampNet(predNetSoFar)),
-        })
-        predIdx++
+      while (nmIdx < nonMatchEvents.length && (nonMatchEvents[nmIdx].at || 0) <= at) {
+        const ev = nonMatchEvents[nmIdx]
+        nonMatchNetSoFar += ev.numPts
+        const currentPtsAfter = Math.max(0, matchPtsSoFar + nonMatchNetSoFar)
+        if (ev.type === 'prediction') {
+          predictionLogs.push({
+            prediction: ev.item,
+            at: ev.at,
+            numPts: ev.numPts,
+            pointsAfter: currentPtsAfter,
+          })
+        } else if (ev.type === 'arcade') {
+          arcadeLogs.push({
+            round: ev.item,
+            outcome: ev.outcome,
+            at: ev.at,
+            numPts: ev.numPts,
+            pointsAfter: currentPtsAfter,
+          })
+        }
+        nmIdx++
       }
       matchPtsSoFar = log.pointsAfter
-      log.pointsAfter = Math.max(0, matchPtsSoFar + clampNet(predNetSoFar))
+      log.pointsAfter = Math.max(0, matchPtsSoFar + nonMatchNetSoFar)
     })
 
-    // Phiếu quyết toán sau trận cuối (hoặc người chưa đánh trận nào trong mùa).
-    while (predIdx < predsAsc.length) {
-      const p = predsAsc[predIdx]
-      predNetSoFar += (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0)
-      predictionLogs.push({
-        prediction: p,
-        at: Date.parse(p.settledAt),
-        numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
-        pointsAfter: Math.max(0, matchPtsSoFar + clampNet(predNetSoFar)),
-      })
-      predIdx++
+    while (nmIdx < nonMatchEvents.length) {
+      const ev = nonMatchEvents[nmIdx]
+      nonMatchNetSoFar += ev.numPts
+      const currentPtsAfter = Math.max(0, matchPtsSoFar + nonMatchNetSoFar)
+      if (ev.type === 'prediction') {
+        predictionLogs.push({
+          prediction: ev.item,
+          at: ev.at,
+          numPts: ev.numPts,
+          pointsAfter: currentPtsAfter,
+        })
+      } else if (ev.type === 'arcade') {
+        arcadeLogs.push({
+          round: ev.item,
+          outcome: ev.outcome,
+          at: ev.at,
+          numPts: ev.numPts,
+          pointsAfter: currentPtsAfter,
+        })
+      }
+      nmIdx++
     }
 
     // 3. Số buổi có mặt
@@ -679,6 +720,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       lastMatchAt,
       matchLogs,
       predictionLogs,
+      arcadeLogs,
       breakdown: {
         matchNetPts,
         streakBonusPts,
@@ -831,7 +873,32 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     }
   })
 
-  const combinedEvents = [...events, ...predEvents].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 10)
+  const arcadeEvents = (memberRow.arcadeLogs || []).map((log) => {
+    const r = log.round
+    const isWon = log.outcome === 'won'
+    const isLost = log.outcome === 'lost'
+    const oppId = r.memberId === memberId ? r.opponentId : r.memberId
+    const oppName = memberNameOf(oppId)
+    const titleKey = isWon
+      ? 'season.ledgerArcadeWon'
+      : (isLost ? 'season.ledgerArcadeLost' : 'season.ledgerArcadeDraw')
+    return {
+      id: r.id,
+      time: r.createdAt ? new Date(r.createdAt).toTimeString().slice(0, 5) : '',
+      titleKey,
+      oppName,
+      scoreText: oppName,
+      gapText: '',
+      pts: log.numPts > 0 ? `+${log.numPts}` : String(log.numPts),
+      numPts: log.numPts,
+      pointsAfter: log.pointsAfter,
+      type: isWon ? 'win' : (isLost ? 'loss' : 'draw'),
+      isArcade: true,
+      at: log.at || 0,
+    }
+  })
+
+  const combinedEvents = [...events, ...predEvents, ...arcadeEvents].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 10)
 
   return {
     season,

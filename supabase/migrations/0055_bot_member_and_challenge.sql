@@ -304,6 +304,7 @@ DECLARE
   v_chal record;
   v_bot  uuid;
   v_id   uuid;
+  v_bot_sp integer;
 BEGIN
   IF p_team NOT IN ('A', 'B') THEN RETURN NULL; END IF;
   IF p_stake IS NULL OR p_stake < 1 OR p_stake > 100 THEN RETURN NULL; END IF;
@@ -319,6 +320,30 @@ BEGIN
    WHERE club_id = v_chal.club_id AND is_bot AND active IS NOT FALSE
    LIMIT 1;
   IF v_bot IS NULL THEN RETURN NULL; END IF;
+
+  -- Kiểm tra số SP khả dụng của bot: 100 khởi đầu + net cược + net arcade - cược đang chờ
+  SELECT 100
+    + COALESCE(SUM(CASE
+        WHEN status = 'won' THEN payout_points - stake_points
+        WHEN status = 'lost' THEN -stake_points
+        ELSE 0
+      END), 0)
+    - COALESCE(SUM(CASE WHEN status = 'pending' THEN stake_points ELSE 0 END), 0)
+  INTO v_bot_sp
+  FROM challenge_predictions
+  WHERE member_id = v_bot AND club_id = v_chal.club_id;
+
+  v_bot_sp := v_bot_sp + COALESCE((
+    SELECT SUM(CASE
+      WHEN outcome = 'won' THEN -stake
+      WHEN outcome = 'lost' THEN stake
+      ELSE 0
+    END)
+    FROM arcade_rounds
+    WHERE opponent_id = v_bot AND club_id = v_chal.club_id
+  ), 0);
+
+  IF v_bot_sp < p_stake THEN RETURN NULL; END IF;
 
   -- Cổng dự đoán của kèo.
   IF v_chal.predictions_enabled IS FALSE OR v_chal.predictions_locked IS TRUE THEN RETURN NULL; END IF;
@@ -419,8 +444,8 @@ DECLARE
   v_opp     text;
   v_outcome text;
   v_id      uuid;
-  -- Chặn cày: mỗi người mỗi ngày ngần này ván. Server KHÔNG tính được điểm mùa của bot (số dẫn
-  -- xuất — xem đầu 0047), nên đây là thứ duy nhất chặn được việc rút cạn điểm của bot.
+  v_bot_sp  integer;
+  v_user_sp integer;
   c_daily_cap constant integer := 5;
 BEGIN
   IF p_game NOT IN ('rps', 'coin') THEN RETURN NULL; END IF;
@@ -437,6 +462,64 @@ BEGIN
   IF v_bot IS NULL THEN RETURN NULL; END IF;
   -- Bot không tự chơi với chính nó (khi chủ CLB đăng nhập bằng tài khoản bot).
   IF v_me = v_bot THEN RETURN NULL; END IF;
+
+  -- 1. Kiểm tra số SP khả dụng của bot: 100 khởi đầu + net cược + net arcade - cược đang chờ
+  SELECT 100
+    + COALESCE(SUM(CASE
+        WHEN status = 'won' THEN payout_points - stake_points
+        WHEN status = 'lost' THEN -stake_points
+        ELSE 0
+      END), 0)
+    - COALESCE(SUM(CASE WHEN status = 'pending' THEN stake_points ELSE 0 END), 0)
+  INTO v_bot_sp
+  FROM challenge_predictions
+  WHERE member_id = v_bot AND club_id = v_club;
+
+  v_bot_sp := v_bot_sp + COALESCE((
+    SELECT SUM(CASE
+      WHEN outcome = 'won' THEN -stake
+      WHEN outcome = 'lost' THEN stake
+      ELSE 0
+    END)
+    FROM arcade_rounds
+    WHERE opponent_id = v_bot AND club_id = v_club
+  ), 0);
+
+  IF v_bot_sp < p_stake THEN RETURN NULL; END IF;
+
+  -- 2. Kiểm tra số SP khả dụng của user:
+  -- Khớp đúng logic season.js: user có >= 1 trận trong mùa mới mở khoá 100 SP, ngược lại = 0 SP.
+  IF EXISTS (
+    SELECT 1 FROM match_players mp
+      JOIN matches m ON m.id = mp.match_id
+      JOIN sessions s ON s.id = m.session_id
+     WHERE s.club_id = v_club AND mp.player_id = v_me
+  ) THEN
+    SELECT 100
+      + COALESCE(SUM(CASE
+          WHEN status = 'won' THEN payout_points - stake_points
+          WHEN status = 'lost' THEN -stake_points
+          ELSE 0
+        END), 0)
+      - COALESCE(SUM(CASE WHEN status = 'pending' THEN stake_points ELSE 0 END), 0)
+    INTO v_user_sp
+    FROM challenge_predictions
+    WHERE member_id = v_me AND club_id = v_club;
+
+    v_user_sp := v_user_sp + COALESCE((
+      SELECT SUM(CASE
+        WHEN outcome = 'won' THEN stake
+        WHEN outcome = 'lost' THEN -stake
+        ELSE 0
+      END)
+      FROM arcade_rounds
+      WHERE member_id = v_me AND club_id = v_club
+    ), 0);
+  ELSE
+    v_user_sp := 0;
+  END IF;
+
+  IF v_user_sp < p_stake THEN RETURN NULL; END IF;
 
   IF (SELECT count(*) FROM arcade_rounds
        WHERE member_id = v_me AND created_at > now() - interval '1 day') >= c_daily_cap THEN
@@ -467,6 +550,19 @@ BEGIN
   INSERT INTO arcade_rounds (club_id, member_id, opponent_id, game, stake, choice, opp_choice, outcome)
   VALUES (v_club, v_me, v_bot, p_game, p_stake, p_choice, v_opp, v_outcome)
   RETURNING id INTO v_id;
+
+  INSERT INTO activity_events (club_id, actor_id, type, payload, ref_type, ref_id)
+  VALUES (v_club, v_me, 'arcade_played',
+          jsonb_build_object(
+            'memberId', v_me,
+            'opponentId', v_bot,
+            'game', p_game,
+            'stake', p_stake,
+            'outcome', v_outcome,
+            'choice', p_choice,
+            'oppChoice', v_opp
+          ),
+          'arcade', v_id);
 
   RETURN jsonb_build_object(
     'id', v_id, 'outcome', v_outcome, 'oppChoice', v_opp, 'stake', p_stake, 'game', p_game);

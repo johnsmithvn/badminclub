@@ -332,6 +332,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   const botReaction = useMemo(() => getBotMatchReaction(db, c), [db, c])
   // Phiếu cược của bot ở kèo này — độc lập với `botReason`: bot cược cả kèo do người thật dựng.
   const botBet = useMemo(() => getBotBetLine(db, c), [db, c])
+  const botMember = useMemo(() => (db.members || []).find((m) => m && m.isBot && m.active !== false), [db.members])
+  const botName = botMember?.name || ''
   // Khối bot có tới ba dòng (lý do · phiếu cược · phản ứng) nên tách style ra, khỏi chép bốn lần.
   const botLabel = { font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-muted)' }
   const botLine = { font: '400 14px/1.5 "IBM Plex Sans", sans-serif', fontStyle: 'italic', color: 'var(--text-primary)' }
@@ -754,7 +756,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Icon name="sparkles" size={15} style={{ color: 'var(--text-accent)' }} />
               <span style={botLabel}>
-                {botReasonKey ? t('bot.challengeLabel') : t('bot.betLabel')}
+                {botReasonKey ? t('bot.challengeLabel', { bot: botName }) : t('bot.betLabel', { bot: botName })}
               </span>
             </div>
 
@@ -763,7 +765,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
             {/* Phiếu cược — có cả ở kèo do người thật dựng, nên nhãn riêng khi đứng cạnh lý do. */}
             {botBet?.lineKey && (
               <>
-                {botReasonKey && <span style={botLabel}>{t('bot.betLabel')}</span>}
+                {botReasonKey && <span style={botLabel}>{t('bot.betLabel', { bot: botName })}</span>}
                 <span style={botLine}>“{t(botBet.lineKey, botBet.params)}”</span>
               </>
             )}
@@ -771,7 +773,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
             {/* Chỉ có sau khi kèo đã đánh xong — `getBotMatchReaction` trả null nếu chưa có trận. */}
             {botReaction?.lineKey && (
               <>
-                <span style={botLabel}>{t('bot.reactionLabel')}</span>
+                <span style={botLabel}>{t('bot.reactionLabel', { bot: botName })}</span>
                 <span style={botLine}>“{t(botReaction.lineKey)}”</span>
               </>
             )}

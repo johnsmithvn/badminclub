@@ -9,11 +9,17 @@ import React from 'react'
 import { Icon } from '#ds'
 import { t } from '#i18n'
 
-export default function BotTauntCard({ bot, taunt, isMobile = false }) {
-  if (!bot || !taunt?.lineKey) return null
+export default function BotTauntCard({ bot, taunt, interaction, isMobile = false }) {
+  const activeLine = (interaction && interaction.mode !== 'silent' && interaction.lineKey)
+    ? interaction
+    : taunt
+
+  if (!bot || !activeLine?.lineKey) return null
+
+  const isPopup = interaction?.mode === 'popup'
 
   return (
-    <div style={S.card}>
+    <div style={{ ...S.card, ...(isPopup ? S.popupCard : {}) }}>
       <div style={S.headerRow}>
         {bot.avatarUrl ? (
           <img src={bot.avatarUrl} alt="" style={S.avatar} />
@@ -22,11 +28,16 @@ export default function BotTauntCard({ bot, taunt, isMobile = false }) {
             <Icon name="sparkles" size={14} style={{ color: 'var(--action-violet-fg)' }} />
           </span>
         )}
-        <span style={S.title}>{bot.name || t('bot.cardTitle')}</span>
+        <span style={S.title}>{bot.name || t('bot.cardTitle', { bot: bot.name })}</span>
+        {isPopup && (
+          <span style={S.directBadge}>
+            <Icon name="zap" size={12} style={{ color: '#00F5D4' }} />
+          </span>
+        )}
       </div>
 
       <div style={{ ...S.line, fontSize: isMobile ? 14 : 15 }}>
-        “{t(taunt.lineKey, taunt.params)}”
+        “{t(activeLine.lineKey, activeLine.params)}”
       </div>
     </div>
   )
@@ -42,6 +53,16 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+  },
+  popupCard: {
+    border: '1px solid rgba(0, 245, 212, 0.35)',
+    background: 'linear-gradient(180deg, var(--surface-card) 0%, rgba(0, 245, 212, 0.04) 100%)',
+  },
+  directBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 'auto',
   },
   headerRow: {
     display: 'flex',
