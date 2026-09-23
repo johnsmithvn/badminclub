@@ -4474,5 +4474,86 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     toast(t('toast.selfCheckinSuccess'))
   }
 
+  A.setSeasonConfig = (seasonData) => {
+    const d0 = db()
+    const existingSeasons = Array.isArray(d0.seasons) && d0.seasons.length > 0
+      ? d0.seasons
+      : (d0.club?.seasons || [cfg.season])
+
+    const targetId = seasonData.id || seasonData.code
+    let updated = false
+    const newSeasons = existingSeasons.map((s) => {
+      if ((targetId && (s.id === targetId || s.code === targetId)) || (!targetId && s.active)) {
+        updated = true
+        return { ...s, ...seasonData }
+      }
+      return s
+    })
+
+    if (!updated) {
+      newSeasons.push({ ...seasonData, active: true })
+    }
+
+    up((d) => ({
+      seasons: newSeasons,
+      club: {
+        ...(d.club || {}),
+        seasons: newSeasons,
+      },
+    }))
+
+    toast(t('season.saveSeasonSuccess'))
+  }
+
+  A.endSeasonAndStartNew = ({ oldSeasonId, newSeasonData, podiumSnapshot = [] }) => {
+    const d0 = db()
+    const nowIso = new Date().toISOString()
+    const existingSeasons = Array.isArray(d0.seasons) && d0.seasons.length > 0
+      ? d0.seasons
+      : (d0.club?.seasons || [cfg.season])
+
+    const updatedSeasons = existingSeasons.map((s) => {
+      const isTarget = oldSeasonId ? (s.id === oldSeasonId || s.code === oldSeasonId) : s.active
+      if (isTarget) {
+        return {
+          ...s,
+          active: false,
+          closedAt: nowIso,
+          podiumSnapshot: podiumSnapshot.length > 0 ? podiumSnapshot : (s.podiumSnapshot || []),
+        }
+      }
+      return { ...s, active: false }
+    })
+
+    const newSeason = {
+      id: newSeasonData.id || newSeasonData.code || uid(),
+      code: newSeasonData.code || 'SEASON',
+      name: newSeasonData.name || '',
+      fullName: newSeasonData.fullName || newSeasonData.name || '',
+      startDate: newSeasonData.startDate,
+      endDate: newSeasonData.endDate,
+      cycle: newSeasonData.cycle || 'quarter',
+      totalSessionsExpected: Number(newSeasonData.totalSessionsExpected) || 14,
+      minMatchesOfficial: Number(newSeasonData.minMatchesOfficial) || 8,
+      inactiveDays: Number(newSeasonData.inactiveDays) || 21,
+      active: true,
+      closedAt: null,
+      bonusConfig: newSeasonData.bonusConfig || cfg?.season?.bonusConfig || { streak3: 5, streak5: 10, upset150: 5 },
+      deltaScale: newSeasonData.deltaScale || cfg?.season?.deltaScale,
+    }
+
+    const finalSeasons = [newSeason, ...updatedSeasons]
+
+    up((d) => ({
+      seasons: finalSeasons,
+      club: {
+        ...(d.club || {}),
+        seasons: finalSeasons,
+      },
+    }))
+
+    toast(t('season.seasonEndedSuccess'))
+  }
+
   return A
 }

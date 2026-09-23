@@ -59,6 +59,9 @@ export default function SeasonRaceTab({
   isMobile = false,
   genderFilter = 'all',
   onGenderFilterChange,
+  seasons = [],
+  selectedSeasonId = null,
+  onSelectSeason,
 }) {
   const { db } = useApp()
   const { isDark, isGlamorous } = useTheme()
@@ -69,6 +72,7 @@ export default function SeasonRaceTab({
   }, [db])
 
   const { season, leaderboard = [], topStats = {} } = seasonLeaderboardData || {}
+  const isArchived = season && season.active === false
 
   const totalCount = leaderboard.length
   const maleCount = useMemo(() => leaderboard.filter((r) => (r.gender || 'nam') === 'nam').length, [leaderboard])
@@ -110,6 +114,78 @@ export default function SeasonRaceTab({
     >
       {/* CỘT TRÁI (BẢNG ĐUA TOP & TIẾN TRÌNH) */}
       <div style={{ display: 'grid', gap: 12 }}>
+        {/* Bộ chọn Mùa giải (Season Selector) nếu có danh sách mùa */}
+        {seasons && seasons.length > 0 && (
+          <div
+            style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 10,
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              flexWrap: 'wrap',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>🗓</span>
+              <span style={{ font: "600 13px 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                {t('season.selectorTitle')}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <select
+                value={selectedSeasonId || (season?.id || season?.code)}
+                onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
+                style={{
+                  background: 'var(--field-bg)',
+                  border: '1px solid var(--field-border)',
+                  borderRadius: 6,
+                  padding: '6px 12px',
+                  font: "600 12.5px 'IBM Plex Sans', sans-serif",
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                {seasons.map((s) => {
+                  const sId = s.id || s.code
+                  const isActive = Boolean(s.active)
+                  const label = `${s.code || s.id}: ${s.name || s.fullName || ''} (${s.startDate} → ${s.endDate}) ${isActive ? `— [${t('season.activeSeasonBadge')}]` : `— [${t('season.archivedSeasonBadge')}]`}`
+                  return (
+                    <option key={sId} value={sId}>
+                      {label}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Thông báo mùa đã đóng */}
+        {isArchived && (
+          <div
+            style={{
+              background: isDark ? 'rgba(240,210,106,.12)' : 'rgba(245,158,11,.10)',
+              border: '1px solid #F0D26A',
+              borderRadius: 8,
+              padding: '10px 14px',
+              font: "500 12.5px/1.4 'IBM Plex Sans', sans-serif",
+              color: isDark ? '#F0D26A' : '#B45309',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>📁</span>
+            <span>{t('season.archivedSeasonNotice')}</span>
+          </div>
+        )}
+
         {/* 1. Tiến trình mùa */}
         <div
           style={{
@@ -126,8 +202,10 @@ export default function SeasonRaceTab({
             <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
               {t('season.progressTitle')}
             </span>
-            <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-              {t('season.sessionProgress', { n: playedSessions, total: totalSessionsExpected, pct: progressPct })}
+            <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
+              {isArchived
+                ? `${playedSessions} ${t('units.session')}`
+                : t('season.sessionProgress', { n: playedSessions, total: totalSessionsExpected, pct: progressPct })}
             </span>
             <div style={{ flex: '1 1 0%' }} />
             <span
@@ -135,12 +213,14 @@ export default function SeasonRaceTab({
                 font: "600 11px/1 'IBM Plex Mono', monospace",
                 padding: '5px 8px',
                 borderRadius: 999,
-                background: isDark ? 'rgba(0,178,169,.14)' : 'rgba(0,178,169,.10)',
-                border: '1px solid var(--teal-500)',
-                color: isDark ? '#5FDBD3' : 'var(--teal-700)',
+                background: isArchived
+                  ? (isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)')
+                  : (isDark ? 'rgba(0,178,169,.14)' : 'rgba(0,178,169,.10)'),
+                border: isArchived ? '1px solid var(--border-default)' : '1px solid var(--teal-500)',
+                color: isArchived ? 'var(--text-muted)' : (isDark ? '#5FDBD3' : 'var(--teal-700)'),
               }}
             >
-              {t('season.running')}
+              {isArchived ? t('season.archivedSeasonBadge') : t('season.running')}
             </span>
           </div>
 
@@ -156,8 +236,8 @@ export default function SeasonRaceTab({
           >
             <div
               style={{
-                width: `${progressPct}%`,
-                background: 'linear-gradient(90deg, #00786F, #00B2A9)',
+                width: `${isArchived ? 100 : progressPct}%`,
+                background: isArchived ? 'var(--text-muted)' : 'linear-gradient(90deg, #00786F, #00B2A9)',
               }}
             />
           </div>
@@ -166,12 +246,16 @@ export default function SeasonRaceTab({
             style={{
               display: 'flex',
               justifyContent: 'space-between',
-              font: "400 11px/1.2 'IBM Plex Mono', monospace",
-              color: 'var(--text-muted)',
+              font: "500 11px/1.2 'IBM Plex Mono', monospace",
+              color: 'var(--text-secondary)',
             }}
           >
             <span>{season?.startDate?.slice(5) || '01/07'}</span>
-            <span>{t('season.remainingSessionDesc', { n: remainingSessions, pts: maxPossiblePts })}</span>
+            <span>
+              {isArchived
+                ? (season?.closedAt ? t('season.closedAtDate', { date: season.closedAt.slice(0, 10) }) : t('season.archivedSeasonBadge'))
+                : t('season.remainingSessionDesc', { n: remainingSessions, pts: maxPossiblePts })}
+            </span>
             <span>{season?.endDate?.slice(5) || '30/09'}</span>
           </div>
         </div>
@@ -1563,7 +1647,7 @@ export default function SeasonRaceTab({
                     textAlign: 'right',
                     fontFamily: "'IBM Plex Mono', monospace",
                     fontWeight: 600,
-                    color: isGlamTop1 ? '#F7E3A1' : isRank1 ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
+                    color: isGlamTop1 ? (isDark ? '#F7E3A1' : '#B45309') : isRank1 ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
                   }}
                 >
                   {row.totalSeasonPoints.toLocaleString()}
@@ -1609,7 +1693,7 @@ export default function SeasonRaceTab({
                           : `0,${10 + (row.rank % 3)} 12,${9 + (row.rank % 2)} 24,${11 + (row.rank % 3)} 36,10 48,12 60,11 70,13`
                       }
                       fill="none"
-                      stroke={row.streak >= 2 || (row.winRate >= 50 && row.rank <= 5) ? '#00B2A9' : 'var(--text-muted)'}
+                      stroke={row.streak >= 2 || (row.winRate >= 50 && row.rank <= 5) ? (isDark ? '#5FDBD3' : 'var(--teal-700)') : 'var(--text-muted)'}
                       strokeWidth="2"
                     />
                   </svg>
@@ -1646,28 +1730,28 @@ export default function SeasonRaceTab({
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 50px 50px', gap: 8, color: 'var(--text-secondary)' }}>
               <span>{t('season.tierHeavyFavored')}</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#00B2A9', fontWeight: 600 }}>+10</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-12</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? 'var(--status-transit-fg)' : 'var(--status-delivered)', fontWeight: 600 }}>+10</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#FF9A8F' : 'var(--status-incident-fg)' }}>-12</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 50px 50px', gap: 8, color: 'var(--text-secondary)' }}>
               <span>{t('season.tierFavored')}</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#00B2A9', fontWeight: 600 }}>+12</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-10</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? 'var(--status-transit-fg)' : 'var(--status-delivered)', fontWeight: 600 }}>+12</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#FF9A8F' : 'var(--status-incident-fg)' }}>-10</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 50px 50px', gap: 8, color: 'var(--text-primary)', fontWeight: 600, background: isDark ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.03)', padding: '2px 4px', borderRadius: 4 }}>
               <span>{t('season.tierBalanced')}</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#00B2A9', fontWeight: 700 }}>+14</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-8</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? 'var(--status-transit-fg)' : 'var(--status-delivered)', fontWeight: 700 }}>+14</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#FF9A8F' : 'var(--status-incident-fg)' }}>-8</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 50px 50px', gap: 8, color: 'var(--text-secondary)' }}>
               <span>{t('season.tierUnderdog')}</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#00B2A9', fontWeight: 600 }}>+17</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-5</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? 'var(--status-transit-fg)' : 'var(--status-delivered)', fontWeight: 600 }}>+17</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#FF9A8F' : 'var(--status-incident-fg)' }}>-5</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 50px 50px', gap: 8, color: 'var(--text-secondary)' }}>
               <span>{t('season.tierDeepUnderdog')}</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#00B2A9', fontWeight: 600 }}>+22</span>
-              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: '#DC2626' }}>-3</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? 'var(--status-transit-fg)' : 'var(--status-delivered)', fontWeight: 600 }}>+22</span>
+              <span style={{ textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", color: isDark ? '#FF9A8F' : 'var(--status-incident-fg)' }}>-3</span>
             </div>
           </div>
           <div style={{ font: "400 11px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: 9, display: 'grid', gap: 3 }}>
@@ -1698,23 +1782,23 @@ export default function SeasonRaceTab({
             <line x1="0" y1="34" x2="326" y2="34" stroke="var(--border-subtle)" strokeWidth="1" />
             <line x1="0" y1="70" x2="326" y2="70" stroke="var(--border-subtle)" strokeWidth="1" />
             <line x1="0" y1="106" x2="326" y2="106" stroke="var(--border-subtle)" strokeWidth="1" />
-            <polyline points="8,106 60,70 112,70 164,34 216,34 268,34 318,34" fill="none" stroke="#F0D26A" strokeWidth="2.5" />
-            <polyline points="8,34 60,34 112,34 164,70 216,70 268,70 318,70" fill="none" stroke="#7AA3DC" strokeWidth="2.5" />
-            <polyline points="8,70 60,106 112,106 164,106 216,106 268,106 318,106" fill="none" stroke="#00B2A9" strokeWidth="2.5" />
+            <polyline points="8,106 60,70 112,70 164,34 216,34 268,34 318,34" fill="none" stroke={isDark ? '#F0D26A' : '#D97706'} strokeWidth="2.5" />
+            <polyline points="8,34 60,34 112,34 164,70 216,70 268,70 318,70" fill="none" stroke={isDark ? '#7AA3DC' : '#2563EB'} strokeWidth="2.5" />
+            <polyline points="8,70 60,106 112,106 164,106 216,106 268,106 318,106" fill="none" stroke={isDark ? '#5FDBD3' : 'var(--teal-700)'} strokeWidth="2.5" />
             <text x="0" y="128" fill="var(--text-muted)" fontFamily="IBM Plex Mono, monospace" fontSize="10">{t('season.sessionN', { n: 5 })}</text>
             <text x="278" y="128" fill="var(--text-muted)" fontFamily="IBM Plex Mono, monospace" fontSize="10">{t('season.sessionN', { n: 11 })}</text>
           </svg>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', font: "400 11px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 3, background: '#F0D26A' }} />
+              <span style={{ width: 10, height: 3, background: isDark ? '#F0D26A' : '#D97706' }} />
               {top1?.name?.split(' ').pop() || 'Top 1'}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 3, background: '#7AA3DC' }} />
+              <span style={{ width: 10, height: 3, background: isDark ? '#7AA3DC' : '#2563EB' }} />
               {top2?.name?.split(' ').pop() || 'Top 2'}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 3, background: '#00B2A9' }} />
+              <span style={{ width: 10, height: 3, background: isDark ? '#5FDBD3' : 'var(--teal-700)' }} />
               {top3?.name?.split(' ').pop() || 'Top 3'}
             </span>
           </div>

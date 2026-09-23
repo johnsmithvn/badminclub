@@ -67,12 +67,34 @@ export default function Leaderboard() {
   const role = db.viewAs || myMem?.role || 'member'
   const isAdmin = role === 'owner' || role === 'treasurer'
 
+  const allSeasons = useMemo(() => {
+    return Array.isArray(db.seasons) && db.seasons.length > 0
+      ? db.seasons
+      : (Array.isArray(db.club?.seasons) && db.club.seasons.length > 0
+          ? db.club.seasons
+          : [cfg.season])
+  }, [db.seasons, db.club?.seasons])
+
+  const activeSeason = useMemo(() => {
+    return allSeasons.find((s) => s.active) || allSeasons[0] || cfg.season
+  }, [allSeasons])
+
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null)
+
+  const resolvedSeason = useMemo(() => {
+    if (selectedSeasonId) {
+      const match = allSeasons.find((s) => s.id === selectedSeasonId || s.code === selectedSeasonId)
+      if (match) return match
+    }
+    return activeSeason
+  }, [selectedSeasonId, allSeasons, activeSeason])
+
   const activeMembers = useMemo(() => {
     return (db.members || []).filter((m) => m.active !== false)
   }, [db.members])
 
   const seasonLeaderboardData = useMemo(() => {
-    const raw = calculateSeasonLeaderboard(db, cfg.season)
+    const raw = calculateSeasonLeaderboard(db, resolvedSeason)
     const enrichedList = (raw.leaderboard || []).map((row) => {
       const pr = getPlayerRating(db.playerRatings, row.id, row.member || row, db.levels)
       const elo = pr.displayRating ?? pr.rating ?? DEFAULT_RATING
@@ -90,7 +112,7 @@ export default function Leaderboard() {
       ...raw,
       leaderboard: enrichedList,
     }
-  }, [db])
+  }, [db, resolvedSeason])
 
   const handleExportCsv = () => {
     let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
@@ -389,6 +411,9 @@ export default function Leaderboard() {
           isMobile={isMobile}
           genderFilter={genderFilter}
           onGenderFilterChange={setGenderFilter}
+          seasons={allSeasons}
+          selectedSeasonId={resolvedSeason?.id || resolvedSeason?.code}
+          onSelectSeason={(sId) => setSelectedSeasonId(sId)}
         />
       )}
 
@@ -480,11 +505,19 @@ export default function Leaderboard() {
       {/* Modal Cài đặt Mùa giải & Chốt mùa (Screen CE4) */}
       {seasonSettingsOpen && (
         <SeasonSettingsModal
-          season={db.settings?.season || cfg.season}
+          season={activeSeason}
+          topPodium={seasonLeaderboardData?.leaderboard?.slice(0, 3)}
           onClose={() => setSeasonSettingsOpen(false)}
           onSaveSeason={(newSeason) => {
             a.setSeasonConfig?.(newSeason)
             setSeasonSettingsOpen(false)
+          }}
+          onEndSeasonEarly={(payload) => {
+            a.endSeasonAndStartNew?.(payload)
+            setSeasonSettingsOpen(false)
+            if (payload?.newSeasonData?.code) {
+              setSelectedSeasonId(payload.newSeasonData.code)
+            }
           }}
         />
       )}

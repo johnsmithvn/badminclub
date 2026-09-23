@@ -221,6 +221,10 @@ export function toDb(raw, ctx) {
     level: lv, nam: priceOf[lv + '|nam'] || 0, nu: priceOf[lv + '|nu'] || 0,
   }))
 
+  const seasons = (Array.isArray(club.seasons) && club.seasons.length > 0)
+    ? club.seasons
+    : (cfg.season ? [{ ...cfg.season, active: true }] : [])
+
   return {
     club: {
       id: club.id, name: club.name, code: club.code,
@@ -238,8 +242,10 @@ export function toDb(raw, ctx) {
       debtBanner: club.debt_banner || 'slim',
       linkModes: { code: club.allow_code_join, invite: club.allow_invite, phone: club.allow_phone_suggest },
       levels,
+      seasons,
     },
     levels,
+    seasons,
     courts, groups, members, guests, schedules, sessions,
     attendance, sessionGuests, lineups, courtGroups, groupMode, courtMin, matches,
     roster, locked, adjustments, guestPrices,
@@ -625,6 +631,7 @@ export function toRows(db, ctx) {
 /** Riêng bảng `clubs` — một dòng, cập nhật chứ không insert (RPC create_club đã tạo). */
 export function clubRow(db) {
   const c = db.club
+  const seasons = Array.isArray(c?.seasons) ? c.seasons : (Array.isArray(db?.seasons) ? db.seasons : [])
   return {
     name: c.name, opening_balance: c.opening, opening_date: c.openingDate,
     opening_by: c.openingBy || null,
@@ -641,6 +648,7 @@ export function clubRow(db) {
     allow_code_join: !!c.linkModes.code, allow_invite: !!c.linkModes.invite,
     allow_phone_suggest: !!c.linkModes.phone,
     levels: c.levels && c.levels.length ? c.levels : cfg.levelsDefault,
+    seasons: seasons.length ? seasons : null,
   }
 }
 

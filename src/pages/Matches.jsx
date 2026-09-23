@@ -759,7 +759,7 @@ export default function Matches() {
         onChange={handleSelectTab}
         style={{ marginBottom: 4 }}
         items={[
-          { key: 'challenges', label: t('matchesPage.tabChallenges'), tone: 'accent', badge: pendingChallenges.length || null },
+          { key: 'challenges', label: t('matchesPage.tabChallenges'), tone: 'primary', badge: pendingChallenges.length || null },
           { key: 'search', label: 'History', tone: 'primary', badge: (db.matches || []).length },
           { key: 'matrix', label: t('matchesPage.tabMatrix'), tone: 'violet' },
         ]}
@@ -790,10 +790,19 @@ export default function Matches() {
                       background: active ? 'var(--surface-card)' : 'transparent',
                       border: active ? '1px solid var(--border-default)' : '1px solid transparent',
                       color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      boxShadow: active ? 'var(--shadow-xs)' : 'none',
                     }}
                   >
                     <span style={{ fontWeight: active ? 600 : 500 }}>{st.label}</span>
-                    <span style={{ ...S.subTabCount, color: st.color || (active ? 'var(--text-primary)' : 'var(--text-muted)') }}>
+                    <span
+                      style={{
+                        ...S.subTabCount,
+                        color: st.color || (active ? 'var(--text-primary)' : 'var(--text-muted)'),
+                        background: active ? 'var(--surface-sunken)' : 'transparent',
+                        padding: '1px 6px',
+                        borderRadius: 999,
+                      }}
+                    >
                       {st.count}
                     </span>
                   </button>
@@ -2043,10 +2052,11 @@ export default function Matches() {
                     alignItems: 'center',
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: 'rgba(0,178,169,.14)',
-                    border: '1px solid rgba(0,178,169,.42)',
+                    background: isDark ? 'rgba(0,178,169,.14)' : 'var(--status-transit-bg)',
+                    border: '1px solid',
+                    borderColor: isDark ? 'rgba(0,178,169,.42)' : 'var(--teal-300)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: '#5FDBD3',
+                    color: isDark ? '#5FDBD3' : 'var(--status-transit-fg)',
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                   }}
@@ -2065,11 +2075,11 @@ export default function Matches() {
                     gap: 4,
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: sourceFilter === 'challenge' ? 'rgba(168,85,247,.22)' : 'var(--surface-inset)',
+                    background: sourceFilter === 'challenge' ? (isDark ? 'rgba(168,85,247,.22)' : 'var(--violet-100)') : 'var(--surface-inset)',
                     border: '1px solid',
-                    borderColor: sourceFilter === 'challenge' ? '#A855F7' : 'var(--border-subtle)',
+                    borderColor: sourceFilter === 'challenge' ? (isDark ? '#A855F7' : 'var(--violet-500)') : 'var(--border-subtle)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: sourceFilter === 'challenge' ? '#D8B4FE' : 'var(--text-secondary)',
+                    color: sourceFilter === 'challenge' ? (isDark ? '#D8B4FE' : 'var(--violet-700)') : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
@@ -2092,11 +2102,11 @@ export default function Matches() {
                     gap: 4,
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: qualityFilter === 'close' ? 'rgba(224,138,0,.22)' : 'var(--surface-inset)',
+                    background: qualityFilter === 'close' ? (isDark ? 'rgba(224,138,0,.22)' : 'var(--status-delayed-bg)') : 'var(--surface-inset)',
                     border: '1px solid',
-                    borderColor: qualityFilter === 'close' ? '#E08A00' : 'var(--border-subtle)',
+                    borderColor: qualityFilter === 'close' ? (isDark ? '#E08A00' : 'var(--amber-500)') : 'var(--border-subtle)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: qualityFilter === 'close' ? '#FFCB77' : 'var(--text-secondary)',
+                    color: qualityFilter === 'close' ? (isDark ? '#FFCB77' : 'var(--status-delayed-fg)') : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
@@ -2119,11 +2129,11 @@ export default function Matches() {
                     gap: 4,
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: qualityFilter === 'threeSets' ? 'rgba(124,58,237,.22)' : 'var(--surface-inset)',
+                    background: qualityFilter === 'threeSets' ? (isDark ? 'rgba(124,58,237,.22)' : 'var(--violet-100)') : 'var(--surface-inset)',
                     border: '1px solid',
-                    borderColor: qualityFilter === 'threeSets' ? '#7C3AED' : 'var(--border-subtle)',
+                    borderColor: qualityFilter === 'threeSets' ? (isDark ? '#7C3AED' : 'var(--violet-500)') : 'var(--border-subtle)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: qualityFilter === 'threeSets' ? '#C4B5FD' : 'var(--text-secondary)',
+                    color: qualityFilter === 'threeSets' ? (isDark ? '#C4B5FD' : 'var(--violet-700)') : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
@@ -2146,11 +2156,11 @@ export default function Matches() {
                     gap: 4,
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: qualityFilter === 'upset' ? 'rgba(225,68,52,.24)' : 'var(--surface-inset)',
+                    background: qualityFilter === 'upset' ? (isDark ? 'rgba(225,68,52,.24)' : 'var(--status-incident-bg)') : 'var(--surface-inset)',
                     border: '1px solid',
-                    borderColor: qualityFilter === 'upset' ? 'rgba(225,68,52,.7)' : 'var(--border-subtle)',
+                    borderColor: qualityFilter === 'upset' ? (isDark ? 'rgba(225,68,52,.7)' : 'var(--red-500)') : 'var(--border-subtle)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: qualityFilter === 'upset' ? '#FFB0A5' : 'var(--text-secondary)',
+                    color: qualityFilter === 'upset' ? (isDark ? '#FFB0A5' : 'var(--status-incident-fg)') : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
@@ -2197,8 +2207,8 @@ export default function Matches() {
                         gap: 8,
                         padding: '8px 12px',
                         borderRadius: 8,
-                        background: 'rgba(0,178,169,.08)',
-                        border: '1px solid rgba(0,178,169,.15)',
+                        background: isDark ? 'rgba(0,178,169,.08)' : 'var(--surface-inset)',
+                        border: '1px solid var(--border-subtle)',
                       }}
                     >
                       <div
@@ -2206,11 +2216,11 @@ export default function Matches() {
                           width: 6,
                           height: 6,
                           borderRadius: 999,
-                          background: 'var(--teal-500)',
+                          background: 'var(--text-accent)',
                           flexShrink: 0,
                         }}
                       />
-                      <div style={{ font: "600 12.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--teal-500)' }}>
+                      <div style={{ font: "600 12.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-accent)' }}>
                         {group.dateLabel}
                       </div>
                       <div style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
@@ -2720,7 +2730,7 @@ export default function Matches() {
                         gap: 10,
                         minHeight: 36,
                         padding: '0 14px',
-                        background: 'rgba(0,178,169,.06)',
+                        background: isDark ? 'rgba(0,178,169,.06)' : 'var(--surface-inset)',
                         borderBottom: '1px solid var(--border-subtle)',
                       }}
                     >
@@ -2729,13 +2739,13 @@ export default function Matches() {
                           width: 6,
                           height: 6,
                           borderRadius: 999,
-                          background: 'var(--teal-500)',
+                          background: 'var(--text-accent)',
                         }}
                       />
-                      <div style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--teal-500)' }}>
+                      <div style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-accent)' }}>
                         {group.dateLabel}
                       </div>
-                      <div style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                      <div style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
                         {t('matchVideo.subDaySummary', { range: group.timeRange, matches: group.totalMatches, videos: group.videoCount })}
                       </div>
                       <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(0,178,169,.25), rgba(0,178,169,0))' }} />
@@ -2795,28 +2805,28 @@ export default function Matches() {
 
                       if (isUpset) {
                         leftBorderColor = '#E14434'
-                        rowBg = 'rgba(225,68,52,.07)'
+                        rowBg = isDark ? 'rgba(225,68,52,.07)' : 'rgba(225,68,52,.05)'
                         tagLabel = t('matchVideo.tagUpset')
-                        tagBg = 'rgba(225,68,52,.24)'
-                        tagColor = '#FFB0A5'
+                        tagBg = isDark ? 'rgba(225,68,52,.24)' : 'var(--status-incident-bg)'
+                        tagColor = isDark ? '#FFB0A5' : 'var(--status-incident-fg)'
                       } else if (isClose) {
                         leftBorderColor = '#E08A00'
-                        rowBg = 'rgba(224,138,0,.07)'
+                        rowBg = isDark ? 'rgba(224,138,0,.07)' : 'rgba(224,138,0,.05)'
                         tagLabel = t('matchVideo.tagClose')
-                        tagBg = 'rgba(224,138,0,.22)'
-                        tagColor = '#FFCB77'
+                        tagBg = isDark ? 'rgba(224,138,0,.22)' : 'var(--status-delayed-bg)'
+                        tagColor = isDark ? '#FFCB77' : 'var(--status-delayed-fg)'
                       } else if (isThreeSets) {
                         leftBorderColor = '#7C3AED'
-                        rowBg = 'rgba(124,58,237,.07)'
+                        rowBg = isDark ? 'rgba(124,58,237,.07)' : 'rgba(124,58,237,.05)'
                         tagLabel = t('matchVideo.tagThreeSets')
-                        tagBg = 'rgba(124,58,237,.22)'
-                        tagColor = '#C4B5FD'
+                        tagBg = isDark ? 'rgba(124,58,237,.22)' : 'var(--violet-100)'
+                        tagColor = isDark ? '#C4B5FD' : 'var(--violet-700)'
                       } else if (isStreak) {
                         leftBorderColor = '#00B2A9'
-                        rowBg = 'rgba(0,178,169,.06)'
+                        rowBg = isDark ? 'rgba(0,178,169,.06)' : 'rgba(0,178,169,.04)'
                         tagLabel = t('matchVideo.tagStreak', { n: m.brokenStreak })
-                        tagBg = 'rgba(0,178,169,.22)'
-                        tagColor = '#7FE6DF'
+                        tagBg = isDark ? 'rgba(0,178,169,.22)' : 'var(--status-transit-bg)'
+                        tagColor = isDark ? '#7FE6DF' : 'var(--status-transit-fg)'
                       }
 
                       const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
@@ -2861,7 +2871,7 @@ export default function Matches() {
                                   background: 'transparent',
                                   padding: 0,
                                   font: "600 11.5px/1.3 'IBM Plex Mono', monospace",
-                                  color: 'var(--teal-500)',
+                                  color: 'var(--text-accent)',
                                   cursor: 'pointer',
                                   textAlign: 'left',
                                 }}
@@ -2920,7 +2930,7 @@ export default function Matches() {
                                     textDecoration: 'none',
                                   }}
                                   title={`${venue?.name || ''} · ${t('pages.sessions.title')}`}
-                                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--teal-500)' }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-accent)' }}
                                   onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                                 >
                                   {courtLabel || t('session.courtNum', { n: 1 })}
@@ -2945,7 +2955,7 @@ export default function Matches() {
                             {/* Cột 6: Tỷ số */}
                             <div style={{ padding: '0 4px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                               <div style={{ font: "600 16px/1 'IBM Plex Mono', monospace" }}>
-                                <span style={{ color: 'var(--teal-500)' }}>
+                                <span style={{ color: 'var(--text-accent)' }}>
                                   {isMultiSet ? winSetsCount : (scoreSets.length > 0 ? scoreSets[0].winPts : 21)}
                                 </span>
                                 <span style={{ color: 'var(--text-muted)', padding: '0 3px' }}>–</span>
@@ -3013,10 +3023,11 @@ export default function Matches() {
                                     gap: 5,
                                     padding: '0 9px',
                                     borderRadius: 999,
-                                    background: 'rgba(225,68,52,.14)',
-                                    border: '1px solid rgba(225,68,52,.45)',
+                                    background: isDark ? 'rgba(225,68,52,.14)' : 'var(--status-incident-bg)',
+                                    border: '1px solid',
+                                    borderColor: isDark ? 'rgba(225,68,52,.45)' : 'var(--red-500)',
                                     font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
-                                    color: '#FF9A8F',
+                                    color: isDark ? '#FF9A8F' : 'var(--status-incident-fg)',
                                     cursor: 'pointer',
                                     whiteSpace: 'nowrap',
                                   }}
@@ -3980,33 +3991,39 @@ const S = {
     color: 'var(--text-muted)',
   },
   subTabWrap: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 3,
+    padding: 3,
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     overflowX: 'auto',
-    paddingBottom: 4,
+    maxWidth: '100%',
   },
   subTabBtn: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 6,
-    padding: '6px 12px',
+    padding: '5px 12px',
     borderRadius: 6,
     font: '500 12.5px/1 var(--font-sans)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    transition: 'all 0.15s ease',
   },
   subTabCount: {
     font: '600 11px/1 var(--font-mono)',
   },
   challengeCard: {
     background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: 8,
-    padding: '12px 14px',
+    border: '1px solid var(--border-default)',
+    borderRadius: 10,
+    padding: '13px 14px',
     display: 'grid',
     gap: 8,
-    transition: 'border-color 0.15s ease',
+    boxShadow: 'var(--shadow-xs)',
+    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
   },
   monoCode: {
     font: '600 12.5px/1.3 "IBM Plex Mono", monospace',
@@ -4074,13 +4091,14 @@ const S = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,
-    padding: '0 10px',
+    padding: '0 11px',
     borderRadius: 6,
-    background: 'var(--action-accent-bg, var(--teal-500))',
-    color: 'var(--action-accent-fg, #04302C)',
+    background: 'var(--action-primary-bg)',
+    color: '#FFFFFF',
     font: '600 12px/1 var(--font-sans)',
     border: 'none',
     cursor: 'pointer',
+    transition: 'opacity 0.15s ease',
   },
   smallSecondaryBtn: {
     height: 28,
@@ -4128,8 +4146,9 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    padding: '8px 4px',
-    marginBottom: 8,
+    padding: '8px 2px',
+    marginBottom: 12,
+    borderBottom: '1px solid var(--border-subtle)',
   },
   sectionLabel: {
     font: '600 13px/1.2 var(--font-sans)',

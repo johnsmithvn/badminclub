@@ -218,11 +218,16 @@ async function flush() {
     if (club !== synced.club) {
       const row = clubRow(db)
       let res = await supabase.from('clubs').update(row).eq('id', cid)
-      if (res.error && (res.error.message?.includes('has_member_extra_discount') || res.error.message?.includes('member_extra_discount'))) {
-        console.warn('[storage] DB chưa chạy migration 0024 (thiếu cột member_extra_discount). Bỏ qua 2 cột này để không chặn lưu cài đặt CLB.')
+      if (res.error && (res.error.message?.includes('has_member_extra_discount') || res.error.message?.includes('member_extra_discount') || res.error.message?.includes('seasons'))) {
+        console.warn('[storage] DB chưa chạy migration 0024 hoặc 0055. Bỏ qua các cột mới để không chặn lưu cài đặt CLB.')
         const fallback = { ...row }
-        delete fallback.has_member_extra_discount
-        delete fallback.member_extra_discount
+        if (res.error.message?.includes('member_extra_discount') || res.error.message?.includes('has_member_extra_discount')) {
+          delete fallback.has_member_extra_discount
+          delete fallback.member_extra_discount
+        }
+        if (res.error.message?.includes('seasons')) {
+          delete fallback.seasons
+        }
         res = await supabase.from('clubs').update(fallback).eq('id', cid)
       }
       unwrap(res)
