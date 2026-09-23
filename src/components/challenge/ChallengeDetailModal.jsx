@@ -6,7 +6,7 @@ import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.j
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
-import { botLineKey, getBotMatchReaction, getBotBetLine } from '#lib/bot.js'
+import { botLineKey, getBotChallengeReaction, getBotBetLine } from '#lib/bot.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
 import { t } from '#i18n'
@@ -329,7 +329,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     () => (c.botReason ? botLineKey('reason', c.botReason, c.id) : null),
     [c.botReason, c.id],
   )
-  const botReaction = useMemo(() => getBotMatchReaction(db, c), [db, c])
+  const botReaction = useMemo(() => getBotChallengeReaction(db, c), [db, c])
   // Phiếu cược của bot ở kèo này — độc lập với `botReason`: bot cược cả kèo do người thật dựng.
   const botBet = useMemo(() => getBotBetLine(db, c), [db, c])
   const botMember = useMemo(() => (db.members || []).find((m) => m && m.isBot && m.active !== false), [db.members])
@@ -741,10 +741,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
           </div>
         )}
 
-        {/* BOT DỰNG KÈO — chỉ hiện với kèo bot. Không dùng màu trạng thái kèo (xanh/đỏ) vì đây
-            không phải trạng thái; dùng tông trung tính để nó đọc như một lời bình, không phải
-            một cảnh báo. */}
-        {(botReasonKey || botBet) && (
+        {/* BOT DỰNG KÈO & PHẢN ỨNG — hiện với kèo bot, hoặc khi bot cược, hoặc khi bot nhận xét/cà khịa.
+            Dùng tông trung tính để nó đọc như một lời bình, không phải một cảnh báo. */}
+        {(botReasonKey || botBet || botReaction) && (
           <div style={{
             padding: '10px 12px',
             borderRadius: 'var(--radius-md)',
@@ -756,7 +755,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Icon name="sparkles" size={15} style={{ color: 'var(--text-accent)' }} />
               <span style={botLabel}>
-                {botReasonKey ? t('bot.challengeLabel', { bot: botName }) : t('bot.betLabel', { bot: botName })}
+                {botReasonKey ? t('bot.challengeLabel', { bot: botName }) : (botReaction ? t('bot.reactionLabel', { bot: botName }) : t('bot.betLabel', { bot: botName }))}
               </span>
             </div>
 
@@ -770,11 +769,11 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               </>
             )}
 
-            {/* Chỉ có sau khi kèo đã đánh xong — `getBotMatchReaction` trả null nếu chưa có trận. */}
+            {/* Phản ứng của bot — sau trận, khi bị từ chối, huỷ, hoặc hết hạn */}
             {botReaction?.lineKey && (
               <>
-                <span style={botLabel}>{t('bot.reactionLabel', { bot: botName })}</span>
-                <span style={botLine}>“{t(botReaction.lineKey)}”</span>
+                {(botReasonKey || botBet?.lineKey) && <span style={botLabel}>{t('bot.reactionLabel', { bot: botName })}</span>}
+                <span style={botLine}>“{t(botReaction.lineKey, botReaction.params || {})}”</span>
               </>
             )}
           </div>

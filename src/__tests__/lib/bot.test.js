@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import {
   findBotMember, botGateOpen, pickBotChallenge, BOT_REASONS,
-  botLineKey, BOT_LINE_VARIANTS, getBotTaunt, getBotMatchReaction, pickBotRemark,
+  botLineKey, BOT_LINE_VARIANTS, getBotTaunt, getBotMatchReaction, getBotChallengeReaction, pickBotRemark,
   botBetStreak, pickBotPredictions, getBotBetLine,
   getBotArcadeOffer, getArcadeResultLine, arcadeRoundsToday,
   spendableSeasonPoints, ARCADE_GAMES, ARCADE_CHOICES, ARCADE_DAILY_CAP,
@@ -53,21 +53,21 @@ const dbLiveBotChallenge = { ...baseDb(), challenges: [
 ] }
 assert.equal(botGateOpen(dbLiveBotChallenge, NOW), false, 'Kèo bot còn hạn thì cổng đóng')
 
-// Kèo ĐÃ NHẬN nhưng mới tạo: `expiresAt` vẫn ở tương lai vì hạn kèo bot = đúng nhịp 24h.
-// Đây là luật "1 kèo / 24h" được suy ra từ cùng một phép kiểm.
-const dbAcceptedBotChallenge = { ...baseDb(), challenges: [
-  { id: 'c1', createdBy: 'bot', status: 'accepted', expiresAt: hoursFromNow(20), teamA: ['m1'], teamB: ['m2'] },
+// Kèo bot tạo cách đây 5h (chưa qua 24h cooldown) -> cổng đóng
+const dbCreated5hAgo = { ...baseDb(), challenges: [
+  { id: 'c1', createdBy: 'bot', status: 'accepted', createdAt: hoursFromNow(-5), expiresAt: hoursFromNow(19), teamA: ['m1'], teamB: ['m2'] },
 ] }
-assert.equal(botGateOpen(dbAcceptedBotChallenge, NOW), false, 'Kèo bot tạo trong 24h qua thì cổng vẫn đóng')
+assert.equal(botGateOpen(dbCreated5hAgo, NOW), false, 'Kèo bot tạo cách đây 5h thì cổng đóng do cooldown 24h')
 
-const dbStaleBotChallenge = { ...baseDb(), challenges: [
-  { id: 'c1', createdBy: 'bot', status: 'expired', expiresAt: hoursFromNow(-2), teamA: ['m1'], teamB: ['m2'] },
+// Kèo bot tạo cách đây 25h (đã qua 24h cooldown) -> cổng mở lại
+const dbCreated25hAgo = { ...baseDb(), challenges: [
+  { id: 'c1', createdBy: 'bot', status: 'accepted', createdAt: hoursFromNow(-25), expiresAt: hoursFromNow(-1), teamA: ['m1'], teamB: ['m2'] },
 ] }
-assert.equal(botGateOpen(dbStaleBotChallenge, NOW), true, 'Kèo bot đã quá hạn thì cổng mở lại')
+assert.equal(botGateOpen(dbCreated25hAgo, NOW), true, 'Kèo bot tạo cách đây 25h thì cổng mở lại')
 
 // Kèo của NGƯỜI không liên quan tới nhịp của bot.
 const dbHumanChallenge = { ...baseDb(), challenges: [
-  { id: 'c1', createdBy: 'm1', status: 'pending', expiresAt: hoursFromNow(48), teamA: ['m1'], teamB: ['m2'] },
+  { id: 'c1', createdBy: 'm1', status: 'pending', createdAt: hoursFromNow(-1), expiresAt: hoursFromNow(48), teamA: ['m1'], teamB: ['m2'] },
 ] }
 assert.equal(botGateOpen(dbHumanChallenge, NOW), true, 'Kèo người khác tạo không khoá cổng của bot')
 
@@ -499,5 +499,30 @@ assert.ok(state.clubRivalries.length > 0, 'Phát hiện được rivalry m1-m2 t
 const interactAbove = getBotInteraction(dbRivalry, 'm1', NOW)
 assert.ok(interactAbove.mode === 'popup' || interactAbove.mode === 'ambient', 'Có chế độ tương tác')
 assert.ok(interactAbove.lineKey, 'Có câu thoại tương tác')
+
+/* ---------- getBotChallengeReaction (LIFECYCLE) ---------- */
+
+// 1. Kèo bot gạ bị từ chối
+const chalBotDeclined = { id: 'c_decl_bot', createdBy: 'bot', status: 'declined', teamA: ['m1'], teamB: ['m2'], declinedBy: 'm2' }
+const reactBotDecl = getBotChallengeReaction(baseDb(), chalBotDeclined)
+assert.ok(reactBotDecl.lineKey.startsWith('bot.reaction.declined_bot.'), 'Bot khịa m2 từ chối kèo bot')
+assert.equal(reactBotDecl.params.decliner, 'm2')
+
+// 2. Kèo người gạ bị đối thủ từ chối
+const chalUserDeclined = { id: 'c_decl_user', createdBy: 'm1', status: 'declined', teamA: ['m1'], teamB: ['m2'], declinedBy: 'm2' }
+const reactUserDecl = getBotChallengeReaction(baseDb(), chalUserDeclined)
+assert.ok(reactUserDecl.lineKey.startsWith('bot.reaction.declined_user.'), 'Bot châm chọc m2 rén trước m1')
+assert.equal(reactUserDecl.params.challenger, 'm1')
+assert.equal(reactUserDecl.params.decliner, 'm2')
+
+// 3. Kèo bị huỷ
+const chalCancel = { id: 'c_canc', createdBy: 'm1', status: 'cancelled', teamA: ['m1'], teamB: ['m2'] }
+const reactCancel = getBotChallengeReaction(baseDb(), chalCancel)
+assert.ok(reactCancel.lineKey.startsWith('bot.reaction.cancelled.'), 'Bot chọc kèo bị huỷ')
+
+// 4. Kèo hết hạn
+const chalExpired = { id: 'c_exp', createdBy: 'm1', status: 'expired', teamA: ['m1'], teamB: ['m2'] }
+const reactExpired = getBotChallengeReaction(baseDb(), chalExpired)
+assert.ok(reactExpired.lineKey.startsWith('bot.reaction.expired.'), 'Bot khịa kèo hết hạn ế chỏng chơ')
 
 console.log('bot check: OK')

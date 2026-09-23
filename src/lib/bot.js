@@ -37,7 +37,7 @@ export const BOT_REASONS = ['rank_neighbor', 'streak_hunt']
 export const BOT_LINE_VARIANTS = {
   reason:      { rank_neighbor: 4, streak_hunt: 4 },
   taunt:       { top1: 3, chaser: 3, win_streak: 3, lose_streak: 3, rank_up: 3, rank_down: 3, rookie: 3, idle: 3, plain: 3 },
-  reaction:    { blowout: 3, clutch: 3, normal: 3 },
+  reaction:    { blowout: 3, clutch: 3, normal: 3, declined_bot: 3, declined_user: 3, cancelled: 3, expired: 3 },
   remark:      { rank_climb: 3, rank_drop: 3, streak: 3, rivalry_h2h: 3, best_duo: 3, dominance_boss: 3, top_race: 3, bot_overtook: 3 },
   bet:         { favourite: 3, underdog: 3, tilt: 3, won: 3, lost: 3 },
   arcade:      { offer: 4, won: 3, lost: 3, draw: 3, capped: 2, broke: 2 },
@@ -82,18 +82,14 @@ export function findBotMember(db) {
   return (db?.members || []).find((m) => m && m.isBot && m.active !== false) || null
 }
 
+const BOT_CHALLENGE_COOLDOWN_MS = 24 * 60 * 60 * 1000
+
 /**
  * Bot có được dựng kèo mới lúc này không.
  *
- * MỘT phép kiểm cho CẢ HAI luật, và đó không phải trùng hợp: hạn nhận kèo của bot được đặt
- * bằng đúng nhịp giữa hai kèo (24h, xem migration 0055). Nên `expiresAt` của kèo bot vừa là
- * mốc hết hạn nhận, vừa là mốc hết nhịp:
- *
- *   · kèo còn mở nhận      -> expiry > now -> đóng cổng (luật "1 kèo sống")
- *   · kèo đã nhận, tạo 3h trước -> expiry > now -> đóng cổng (luật "1 kèo / 24h")
- *   · kèo tạo 25h trước    -> expiry < now -> mở cổng
- *
- * Đổi một trong hai con số ở 0055 thì phải đổi cả hai, không thì chỗ này suy sai.
+ * Kiểm tra 2 cổng độc lập (khớp 1:1 với RPC `create_bot_challenge` trong migration 0055):
+ *   · Cổng 1: Không có kèo bot nào đang mở nhận (status = 'pending' và chưa hết hạn nhận).
+ *   · Cổng 2: Không có kèo bot nào được tạo trong vòng 24h qua (cooldown nhịp tạo kèo).
  *
  * @param {Object} db
  * @param {number} [now]
@@ -104,8 +100,23 @@ export function botGateOpen(db, now = Date.now()) {
   if (!bot) return false
   return !(db.challenges || []).some((c) => {
     if (!c || c.createdBy !== bot.id) return false
-    const expiry = challengeExpiryAt(c)
-    return expiry != null && expiry > now
+    // Cổng 1: Đang có một kèo bot mở nhận và chưa hết hạn
+    if (c.status === 'pending') {
+      const expiry = challengeExpiryAt(c)
+      if (expiry != null && expiry > now) return true
+    }
+    // Cổng 2: Kèo bot vừa tạo trong vòng 24h qua (tính theo createdAt)
+    if (c.createdAt) {
+      const createdTime = typeof c.createdAt === 'number' ? c.createdAt : new Date(c.createdAt).getTime()
+      if (!Number.isNaN(createdTime) && createdTime + BOT_CHALLENGE_COOLDOWN_MS > now) {
+        return true
+      }
+    } else {
+      // Fallback khi fixture/dữ liệu cũ chưa có createdAt: dùng expiresAt
+      const expiry = challengeExpiryAt(c)
+      if (expiry != null && expiry > now) return true
+    }
+    return false
   })
 }
 
@@ -290,6 +301,64 @@ export function getBotMatchReaction(db, challenge) {
     lineKey: botLineKey('reaction', kind, `bot-reaction:${challenge.id}`),
     params: {},
   }
+}
+
+/**
+ * Phản ứng của Bot theo toàn bộ vòng đời kèo: từ chối, huỷ, hết hạn hoặc đánh xong.
+ *
+ * @param {Object} db
+ * @param {Object} challenge
+ * @returns {{ lineKey: string, params: Object }|null}
+ */
+export function getBotChallengeReaction(db, challenge) {
+  if (!db || !challenge) return null
+  const bot = findBotMember(db)
+  const botName = bot?.name || ''
+
+  // 1. Kèo bị TỪ CHỐI (declined)
+  if (challenge.status === 'declined') {
+    const isBotCreated = Boolean(bot && challenge.createdBy === bot.id)
+    const declinerId = challenge.declinedBy || challenge.teamB?.[0] || challenge.teamA?.[1]
+    const declinerName = getEntityName(db, declinerId) || declinerId || ''
+
+    if (isBotCreated) {
+      return {
+        lineKey: botLineKey('reaction', 'declined_bot', `bot-react-declined:${challenge.id}`),
+        params: { decliner: declinerName, bot: botName },
+      }
+    }
+
+    const challengerId = challenge.createdBy || challenge.teamA?.[0]
+    const challengerName = getEntityName(db, challengerId) || challengerId || ''
+
+    return {
+      lineKey: botLineKey('reaction', 'declined_user', `bot-react-declined-user:${challenge.id}`),
+      params: { challenger: challengerName, decliner: declinerName, bot: botName },
+    }
+  }
+
+  // 2. Kèo bị HUỶ (cancelled)
+  if (challenge.status === 'cancelled') {
+    return {
+      lineKey: botLineKey('reaction', 'cancelled', `bot-react-cancel:${challenge.id}`),
+      params: { bot: botName },
+    }
+  }
+
+  // 3. Kèo HẾT HẠN (expired)
+  if (challenge.status === 'expired') {
+    return {
+      lineKey: botLineKey('reaction', 'expired', `bot-react-expired:${challenge.id}`),
+      params: { bot: botName },
+    }
+  }
+
+  // 4. Kèo ĐÃ ĐÁNH XONG (completed / played hoặc có trận thắng)
+  if (challenge.status === 'completed' || challenge.status === 'played' || (db?.matches || []).some((m) => m && m.challengeId === challenge.id && m.winnerTeam)) {
+    return getBotMatchReaction(db, challenge)
+  }
+
+  return null
 }
 
 /**

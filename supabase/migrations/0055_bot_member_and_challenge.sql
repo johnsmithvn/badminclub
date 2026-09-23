@@ -321,6 +321,9 @@ BEGIN
    LIMIT 1;
   IF v_bot IS NULL THEN RETURN NULL; END IF;
 
+  -- Chống đua tiêu SP của bot (cược kèo + arcade) trên toàn CLB. Khoá tự nhả cuối transaction.
+  PERFORM pg_advisory_xact_lock(hashtext('bot_sp:' || v_chal.club_id::text));
+
   -- Kiểm tra số SP khả dụng của bot: 100 khởi đầu + net cược + net arcade - cược đang chờ
   SELECT 100
     + COALESCE(SUM(CASE
@@ -462,6 +465,9 @@ BEGIN
   IF v_bot IS NULL THEN RETURN NULL; END IF;
   -- Bot không tự chơi với chính nó (khi chủ CLB đăng nhập bằng tài khoản bot).
   IF v_me = v_bot THEN RETURN NULL; END IF;
+
+  -- Chống đua tiêu SP của bot (cược kèo + arcade) trên toàn CLB. Khoá tự nhả cuối transaction.
+  PERFORM pg_advisory_xact_lock(hashtext('bot_sp:' || v_club::text));
 
   -- 1. Kiểm tra số SP khả dụng của bot: 100 khởi đầu + net cược + net arcade - cược đang chờ
   SELECT 100

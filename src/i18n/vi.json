@@ -4743,19 +4743,39 @@
     },
     "reaction": {
       "blowout": {
-        "1": "Tôi xếp hai người này vì tưởng sẽ sát nút. Sai.",
-        "2": "Một chiều thế à. Thôi, lần sau tôi tính lại.",
-        "3": "Chênh lệch hơn tôi nghĩ. Ghi nhận."
+        "1": "Tưởng thế nào, hoá ra là một màn out trình không lối thoát. Bên kia thở oxy chưa? 🚑",
+        "2": "Đánh thế này thì chỉ khổ người nhặt cầu thôi. Lệch trình quá, lần sau tôi xếp kèo khác!",
+        "3": "Một bên thì đánh như hack, một bên thì đứng nhìn. Trận này chấm 1 sao vì quá tàn nhẫn 💀"
       },
       "clutch": {
-        "1": "Đấy. Tôi xếp cặp này là có lý do.",
-        "2": "Sát đến phút cuối. Đúng như tôi tính.",
-        "3": "Trận này hay. Không cần cảm ơn."
+        "1": "Trận này thở không kịp luôn! Đấy, xếp kèo thì chỉ có từ khét lẹt trở lên thôi 🔥",
+        "2": "Rượt đuổi từng điểm một, suýt thì lật kèo! Ai thua trận này tối về chắc mất ngủ cả đêm 🫣",
+        "3": "Đấy! Cứ phải căng như dây đàn thế này xem mới sướng. Kèo chọn có bao giờ xịt đâu 😏"
       },
       "normal": {
-        "1": "Xong. Kèo tôi dựng thì phải ra trận chứ.",
-        "2": "Đánh xong rồi. Mai tôi lại tìm người khác.",
-        "3": "Kết quả ghi nhận. Bảng xếp hạng tự lo phần còn lại."
+        "1": "Xong một kèo! Thắng thì gáy to lên, thua thì lo mà về tập luyện thêm đi nhé 🏸",
+        "2": "Đánh xong rồi thì thanh toán giao kèo đi nào. Đừng có ai giả vờ quên đấy 👀",
+        "3": "Kết quả đã xong. Ai vui ai buồn thì BXH cũng cập nhật hết rồi nhé!"
+      },
+      "declined_bot": {
+        "1": "Ủa {{decliner}}, kèo thơm thế này mà cũng né à? Sợ tụt rank hay sợ đối thủ vả cho không trượt phát nào? 😏",
+        "2": "Biết ngay {{decliner}} sẽ bấm từ chối mà. Thôi để lần sau tìm mấy bạn mới tập đánh cho vừa miếng nhé! 🥱",
+        "3": "Gạ kèo cho đánh mà chạy nhanh như gió. {{decliner}} ơi là {{decliner}}, tính giữ chuỗi bất bại bằng cách không đánh à? 🏃‍♂️"
+      },
+      "declined_user": {
+        "1": "Thấy {{challenger}} gửi kèo là {{decliner}} rén ngay! Nói một câu sợ thì ai người ta cười cho đâu 😏",
+        "2": "Kèo thơm phức mà {{decliner}} không dám nhận của {{challenger}} à? Đúng là chỉ giỏi bắt nạt người yếu hơn thôi 🤡",
+        "3": "Ủa {{challenger}} gạ đánh mà {{decliner}} đã vội quay xe? Nhận đi thua cùng lắm mất vài điểm Elo chứ mấy 🤭"
+      },
+      "cancelled": {
+        "1": "Kèo đang hay thì lại huỷ, giải tán sớm thế các bố? Đang chuẩn bị bỏng ngô hóng biến 🍿",
+        "2": "Vừa nghe tin có kèo định vào xem thì thấy huỷ mất tiêu. Ai lại chơi trò rút lui trong im lặng thế? 🙄",
+        "3": "Huỷ kèo rồi à? Chắc một trong hai bên lại tìm lý do đau tay, bận việc đột xuất chứ gì! Lạ gì các ông 🥱"
+      },
+      "expired": {
+        "1": "Treo kèo từ sáng tới tối mà chẳng ai dám đụng vào. CLB mình dạo này toàn cao thủ ẩn mình... ẩn kỹ quá! 😴",
+        "2": "Hết hạn rồi mà vẫn ế chỏng chơ. Thôi để hôm nào tôi tự đi gạ lại từng đứa một xem dám trốn không 😤",
+        "3": "Kèo ế mốc meo luôn rồi! Chắc thấy đối thủ căng quá nên cả hội giả vờ không online chứ gì? 🙈"
       }
     },
     "betLabel": "Bot đặt cửa",
