@@ -15,14 +15,79 @@ import { BotMemoryStore } from '#lib/botMemory.js'
 export const MAX_REVENGE_MATCH_GAP = 6
 
 /**
+ * Kiểm tra xem một trận đấu có còn thuộc "buổi tập gần nhất" (Session-Aware Freshness) hay không.
+ *
+ * Tiêu chí thông minh theo nhịp sinh hoạt CLB:
+ * 1. Giới hạn trần an toàn: Không quá 7 ngày kể từ khi diễn ra trận đấu.
+ * 2. Người dùng này CHƯA TỪNG xem phản hồi về trận đấu này (First Encounter after session).
+ * 3. Buổi tập tiếp theo của CLB CHƯA diễn ra (chưa đến ngày buổi sau hoặc buổi sau chưa closed).
+ * 4. Chưa có trận đấu thuộc buổi tập mới nào trong CLB diễn ra sau trận này (> 6 tiếng).
+ *
+ * @param {Object} db
+ * @param {string} memberId
+ * @param {Object} lastMatch
+ * @param {number} now
+ * @param {Object} [memoryStore]
+ * @returns {boolean}
+ */
+export function isMatchSessionFresh(db, memberId, lastMatch, now = Date.now(), memoryStore = BotMemoryStore) {
+  if (!lastMatch) return false
+  const matchAt = new Date(lastMatch.at || lastMatch.playedAt || 0).getTime()
+  if (!matchAt) return false
+
+  // 1. Giới hạn trần an toàn: không quá 7 ngày
+  const elapsed = now - matchAt
+  if (elapsed < 0 || elapsed > 7 * 24 * 3600 * 1000) return false
+
+  // 2. Kiểm tra bộ nhớ: Người này đã từng thấy Bot phản ứng về trận này chưa?
+  const matchKey = `match:${lastMatch.id}`
+  if (memoryStore?.hasShownRecently && memoryStore.hasShownRecently(memberId, matchKey, 7, now)) {
+    return false
+  }
+
+  // 3. Kiểm tra xem có buổi tập nào MỚI HƠN đã diễn ra hay chưa (nếu có db.sessions):
+  const matchDate = new Date(matchAt).toISOString().slice(0, 10)
+  const nowDate = new Date(now).toISOString().slice(0, 10)
+
+  if (db && Array.isArray(db.sessions) && db.sessions.length > 0) {
+    const nextSessions = db.sessions
+      .filter((s) => s && s.date && s.date > matchDate && s.status !== 'cancelled')
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    if (nextSessions.length > 0) {
+      const nextSession = nextSessions[0]
+      // Nếu buổi tiếp theo đã chốt sổ (closed), hoặc ngày hiện tại đã vượt qua ngày của buổi tiếp theo
+      if (nextSession.status === 'closed' || nowDate > nextSession.date) {
+        return false
+      }
+    }
+  }
+
+  // 4. Kiểm tra có trận đấu nào mới hơn trong CLB diễn ra sau buổi này (> 6 tiếng) hay không:
+  if (db && Array.isArray(db.matches)) {
+    const hasNewerSessionMatches = db.matches.some((m) => {
+      if (!m || m.id === lastMatch.id) return false
+      const mAt = new Date(m.at || m.playedAt || 0).getTime()
+      return mAt > matchAt + 6 * 3600 * 1000 && mAt <= now
+    })
+    if (hasNewerSessionMatches) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
  * BƯỚC 1: Thu thập toàn bộ trạng thái và biến động toán học của thành viên.
  *
  * @param {Object} db
  * @param {string} memberId
  * @param {number} [now]
+ * @param {Object} [memoryStore]
  * @returns {Object|null}
  */
-export function inspectMemberState(db, memberId, now = Date.now()) {
+export function inspectMemberState(db, memberId, now = Date.now(), memoryStore = BotMemoryStore) {
   if (!db || !memberId) return null
   const member = (db.members || []).find((m) => m && m.id === memberId && m.active !== false)
   if (!member) return null
@@ -63,7 +128,7 @@ export function inspectMemberState(db, memberId, now = Date.now()) {
   const lastMatch = myMatches[0] || null
   const prevMatch = myMatches[1] || null
   const lastMatchAt = lastMatch ? new Date(lastMatch.at || lastMatch.playedAt || 0).getTime() : 0
-  const isRecentMatch = lastMatch && (now - lastMatchAt) <= 24 * 3600 * 1000
+  const isRecentMatch = lastMatch ? isMatchSessionFresh(db, memberId, lastMatch, now, memoryStore) : false
 
   // Phân tích kết quả trận gần nhất
   let lastMatchWon = false
@@ -693,7 +758,8 @@ export function evaluateEncounter(candidates, memberId, now = Date.now(), memory
     if (elapsed <= 2 * 3600 * 1000) finalScore += 10
     else if (elapsed <= 12 * 3600 * 1000) finalScore += 5
     else if (elapsed <= 24 * 3600 * 1000) finalScore += 0
-    else finalScore -= 5
+    else if (elapsed <= 7 * 24 * 3600 * 1000) finalScore -= 2
+    else finalScore -= 10
 
     // 2. Dedupe penalty nếu cùng scenarioKey đã xuất hiện trong 3 ngày qua
     if (memoryStore.hasShownRecently && memoryStore.hasShownRecently(memberId, cand.scenarioKey, 3, now)) {
@@ -756,7 +822,7 @@ export function evaluateEncounter(candidates, memberId, now = Date.now(), memory
  * @returns {{ mode: 'modal'|'card'|'none', scenario: Object|null, eventKey: string|null }}
  */
 export function getPersonalBotEncounter(db, memberId, now = Date.now(), memoryStore = BotMemoryStore) {
-  const state = inspectMemberState(db, memberId, now)
+  const state = inspectMemberState(db, memberId, now, memoryStore)
   if (!state) return { mode: 'none', scenario: null, eventKey: null }
 
   const events = detectRecentEvents(db, memberId, state, now)

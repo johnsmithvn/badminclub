@@ -53,10 +53,26 @@ export function hasSeenModalToday(memberId, now = Date.now()) {
  * @param {number} [now]
  * @returns {boolean}
  */
-export function hasShownRecently(memberId, scenarioKey, withinDays = 3, now = Date.now()) {
+export function hasShownRecently(memberId, key, withinDays = 3, now = Date.now()) {
+  if (!memberId || !key) return false
   const memory = getBotMemory(memberId)
   const cutoff = now - withinDays * 24 * 3600 * 1000
-  return memory.some((rec) => rec.scenarioKey === scenarioKey && (rec.shownAt || 0) >= cutoff)
+  return memory.some((rec) => (rec.scenarioKey === key || rec.eventKey === key) && (rec.shownAt || 0) >= cutoff)
+}
+
+/**
+ * Kiểm tra xem một eventKey cụ thể (ví dụ match:m1) đã được người dùng này xem hay chưa.
+ * @param {string} memberId
+ * @param {string} eventKey
+ * @param {number} withinDays
+ * @param {number} [now]
+ * @returns {boolean}
+ */
+export function hasShownEvent(memberId, eventKey, withinDays = 7, now = Date.now()) {
+  if (!memberId || !eventKey) return false
+  const memory = getBotMemory(memberId)
+  const cutoff = now - withinDays * 24 * 3600 * 1000
+  return memory.some((rec) => rec.eventKey === eventKey && (rec.shownAt || 0) >= cutoff)
 }
 
 /**
@@ -128,6 +144,7 @@ export const BotMemoryStore = {
   getMemory: getBotMemory,
   hasSeenModalToday,
   hasShownRecently,
+  hasShownEvent,
   recordEncounterShown,
   recordActionTaken,
   resolveScenario,

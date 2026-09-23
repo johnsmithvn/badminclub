@@ -113,11 +113,38 @@ console.log('--- Test 2: Overtake toán học từ Elo pre/post & Freshness Wind
   assert.equal(overtakeRival.eventKey, 'match:m_fresh_overtake')
   assert.equal(overtakeRival.data.rivalId, 'u2')
 
-  // Nếu trận đấu diễn ra hơn 48h trước -> Không được xem là tươi mới
+  // Case B: Trận đấu diễn ra 3 ngày trước (First encounter sau buổi tập, buổi tiếp theo chưa tới) -> Vẫn Fresh
+  const sessionFreshMatch = {
+    ...freshMatch,
+    id: 'm_midweek_overtake',
+    at: NOW - 3 * ONE_DAY,
+  }
+  const dbMidweek = makeMockDb({
+    myElo: 1506,
+    rivalElo: 1484,
+    matches: [sessionFreshMatch],
+  })
+  const stateMidweek = inspectMemberState(dbMidweek, 'u1', NOW)
+  const eventsMidweek = detectRecentEvents(dbMidweek, 'u1', stateMidweek, NOW)
+  assert.ok(eventsMidweek.some((e) => e.eventKey === 'match:m_midweek_overtake'), 'Mở app giữa tuần lần đầu sau buổi tập -> Vẫn Fresh')
+
+  // Case C: Trận đấu diễn ra 3 ngày trước NHƯNG buổi tập tiếp theo đã diễn ra (closed) -> Không còn Fresh nữa
+  const dbClosedNext = {
+    ...dbMidweek,
+    sessions: [
+      { id: 's_prev', date: '2026-09-20', status: 'closed' },
+      { id: 's_next', date: '2026-09-22', status: 'closed' }, // Đã diễn ra hôm qua
+    ],
+  }
+  const stateClosedNext = inspectMemberState(dbClosedNext, 'u1', NOW)
+  const eventsClosedNext = detectRecentEvents(dbClosedNext, 'u1', stateClosedNext, NOW)
+  assert.ok(!eventsClosedNext.some((e) => e.eventKey === 'match:m_midweek_overtake'), 'Buổi tiếp theo đã kết thúc -> Trận cũ hết hạn')
+
+  // Case D: Trận đấu diễn ra hơn 7 ngày trước -> Quá hạn trần an toàn -> Không còn Fresh
   const staleMatch = {
     ...freshMatch,
     id: 'm_stale_overtake',
-    at: NOW - 3 * ONE_DAY,
+    at: NOW - 8 * ONE_DAY,
   }
   const dbStale = makeMockDb({
     myElo: 1506,
@@ -126,7 +153,7 @@ console.log('--- Test 2: Overtake toán học từ Elo pre/post & Freshness Wind
   })
   const stateStale = inspectMemberState(dbStale, 'u1', NOW)
   const eventsStale = detectRecentEvents(dbStale, 'u1', stateStale, NOW)
-  assert.ok(!eventsStale.some((e) => e.eventKey === 'match:m_stale_overtake'), 'Trận 3 ngày trước không được xem là tươi mới')
+  assert.ok(!eventsStale.some((e) => e.eventKey === 'match:m_stale_overtake'), 'Trận hơn 7 ngày trước không được xem là tươi mới')
 }
 
 console.log('--- Test 3: Revenge Detection (Trận trước thua, trận này thắng) ---')
@@ -187,22 +214,38 @@ console.log('--- Test 4: Chasing Bot (Threshold Crossing) & Near Streak Freshnes
   assert.ok(chasingEvent, 'Vừa bước vào ngưỡng <= 15 Elo qua trận vừa đánh -> chasing_bot = TRUE')
   assert.equal(chasingEvent.eventKey, 'match:m_chase')
 
-  // Case C: Chuỗi thắng 4 nhưng trận thứ 4 diễn ra 3 ngày trước -> KHÔNG sinh near_streak_5
+  // Case C1: Chuỗi thắng 4 nhưng buổi tập tiếp theo của CLB đã kết thúc -> KHÔNG sinh near_streak_5
   const m1 = { id: 'm1', at: NOW - 6 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
   const m2 = { id: 'm2', at: NOW - 5 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
   const m3 = { id: 'm3', at: NOW - 4 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
-  const m4_old = { id: 'm4', at: NOW - 3 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
-  const dbStreakOld = makeMockDb({ matches: [m4_old, m3, m2, m1] })
-  const stateStreakOld = inspectMemberState(dbStreakOld, 'u1', NOW)
-  const eventsStreakOld = detectRecentEvents(dbStreakOld, 'u1', stateStreakOld, NOW)
-  assert.ok(!eventsStreakOld.some((e) => e.type === 'near_streak_5'), 'Streak 4 từ 3 ngày trước -> KHÔNG sinh near_streak_5')
+  const m4_session_closed = { id: 'm4', at: NOW - 3 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
+  const dbStreakClosed = {
+    ...makeMockDb({ matches: [m4_session_closed, m3, m2, m1] }),
+    sessions: [
+      { id: 's_prev', date: '2026-09-20', status: 'closed' },
+      { id: 's_next', date: '2026-09-22', status: 'closed' },
+    ],
+  }
+  const stateStreakClosed = inspectMemberState(dbStreakClosed, 'u1', NOW)
+  const eventsStreakClosed = detectRecentEvents(dbStreakClosed, 'u1', stateStreakClosed, NOW)
+  assert.ok(!eventsStreakClosed.some((e) => e.type === 'near_streak_5'), 'Buổi tiếp theo đã kết thúc -> KHÔNG sinh near_streak_5')
 
-  // Case D: Trận thứ 4 vừa thắng trong 1 giờ -> near_streak_5 = TRUE
+  // Case C2: Chuỗi thắng 4 nhưng trận thứ 4 diễn ra hơn 7 ngày trước -> Vượt trần an toàn -> KHÔNG sinh near_streak_5
+  const m1_old = { id: 'm1', at: NOW - 11 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
+  const m2_old = { id: 'm2', at: NOW - 10 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
+  const m3_old = { id: 'm3', at: NOW - 9 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
+  const m4_stale = { id: 'm4', at: NOW - 8 * ONE_DAY, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
+  const dbStreakStale = makeMockDb({ matches: [m4_stale, m3_old, m2_old, m1_old] })
+  const stateStreakStale = inspectMemberState(dbStreakStale, 'u1', NOW)
+  const eventsStreakStale = detectRecentEvents(dbStreakStale, 'u1', stateStreakStale, NOW)
+  assert.ok(!eventsStreakStale.some((e) => e.type === 'near_streak_5'), 'Streak 4 từ hơn 7 ngày trước -> KHÔNG sinh near_streak_5')
+
+  // Case D: Trận thứ 4 vừa thắng trong buổi tập gần nhất (chưa có buổi mới, < 7 ngày) -> near_streak_5 = TRUE
   const m4_fresh = { id: 'm4', at: NOW - 1 * ONE_HOUR, winnerTeam: 'A', teamA: ['u1'], teamB: ['u3'], playerKeys: ['u1', 'u3'] }
   const dbStreakFresh = makeMockDb({ matches: [m4_fresh, m3, m2, m1] })
   const stateStreakFresh = inspectMemberState(dbStreakFresh, 'u1', NOW)
   const eventsStreakFresh = detectRecentEvents(dbStreakFresh, 'u1', stateStreakFresh, NOW)
-  assert.ok(eventsStreakFresh.some((e) => e.type === 'near_streak_5'), 'Trận thứ 4 vừa diễn ra trong 24h -> near_streak_5 = TRUE')
+  assert.ok(eventsStreakFresh.some((e) => e.type === 'near_streak_5'), 'Trận thứ 4 vừa diễn ra trong buổi tập gần nhất -> near_streak_5 = TRUE')
 }
 
 console.log('--- Test 5: Top 3 Entered Transition (preRank > 3 && currentRank <= 3) ---')
