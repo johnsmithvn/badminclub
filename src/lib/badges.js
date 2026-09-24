@@ -31,6 +31,12 @@ export const BADGE_ID_ALIASES = {
   de_bep_3: 'de_bep_2',
   tay_doi: 'can_quet_clb',
   hoa_hau_nhat_cau: 'nguoi_co_suc_hut',
+  can_ca_top: 'dai_nao_thien_cung',
+  ke_ngat_chuoi: 'thanh_guom_diet_quy_3',
+  ke_di_san_3: 'ke_di_san_10',
+  ke_di_san_8: 'ke_di_san_10',
+  ke_di_san_15: 'ke_di_san_20',
+  ke_di_san_25: 'ke_di_san_30',
 }
 
 export function resolveBadgeId(id) {
@@ -543,7 +549,7 @@ function countBountiesBroken(memberId, db, distinct = false, matchesPool = null)
   if (!distinct) {
     let count = 0
     matches.forEach((mt) => {
-      const isBroken = mt.bountyBroken || mt.bounty_broken
+      const isBroken = mt.bountyBroken || mt.bounty_broken || ((mt.brokenStreak || 0) >= 5)
       if (!isBroken) return
       const inA = (mt.teamA || []).includes(memberId)
       const inB = (mt.teamB || []).includes(memberId)
@@ -557,7 +563,7 @@ function countBountiesBroken(memberId, db, distinct = false, matchesPool = null)
 
   const distinctVictims = new Set()
   matches.forEach((mt) => {
-    const isBroken = mt.bountyBroken || mt.bounty_broken
+    const isBroken = mt.bountyBroken || mt.bounty_broken || ((mt.brokenStreak || 0) >= 5)
     if (!isBroken) return
     const inA = (mt.teamA || []).includes(memberId)
     const inB = (mt.teamB || []).includes(memberId)
@@ -606,13 +612,17 @@ export function computeClubBadgeStats(db, season = null, seasonMatches = null) {
         m.rating ||
         m.initialRating ||
         0
-      return { id: m.id, r }
+      const isFemale = m.gender === 'nu' || m.gender === 'F'
+      return { id: m.id, r, isFemale, gender: m.gender }
     })
     .sort((a, b) => b.r - a.r)
 
   const topLimit = cfgBadges.topEloRankCount || 5
   const top5EloMemberIds = memberRatings.slice(0, topLimit).map((m) => m.id)
+  const top3EloMemberIds = memberRatings.slice(0, 3).map((m) => m.id)
   const rank1Member = memberRatings[0] || null
+  const rank1Male = memberRatings.find((m) => !m.isFemale) || null
+  const rank1Female = memberRatings.find((m) => m.isFemale) || null
 
   // 2. Quán quân CLB / Mùa trước
   const seasonChampionId =
@@ -776,7 +786,10 @@ export function computeClubBadgeStats(db, season = null, seasonMatches = null) {
 
   return {
     top5EloMemberIds,
+    top3EloMemberIds,
     rank1Member,
+    rank1MaleId: rank1Male?.id || null,
+    rank1FemaleId: rank1Female?.id || null,
     seasonChampionId,
     topPairKey,
     daysRank1Map,
@@ -946,8 +959,116 @@ export function calculateMemberBadges(
   })
   const distinctTop5Beaten = beatenTop5Ids.size
 
+  // 1b. Thống kê hạ các đối thủ Top 5 mỗi người ít nhất 2 lần (Đại Náo Thiên Cung)
+  const top5Targets = clubStats.top5EloMemberIds.filter((id) => id !== memberId)
+  const top5BeatMap = new Map()
+  top5Targets.forEach((id) => top5BeatMap.set(id, 0))
+  wonMatches.forEach((mt) => {
+    const opps = (mt.teamA || []).includes(memberId) ? (mt.teamB || []) : (mt.teamA || [])
+    opps.forEach((opId) => {
+      if (top5BeatMap.has(opId)) {
+        top5BeatMap.set(opId, top5BeatMap.get(opId) + 1)
+      }
+    })
+  })
+  const top5BeatenAtLeast2Count = top5Targets.filter((id) => (top5BeatMap.get(id) || 0) >= 2).length
+
+  // 1c. Thống kê hạ cặp đôi đối thủ có tổng Elo hơn cặp mình >= 150 điểm (Sát Thần Đôi)
+  let beatHighEloPairCount = 0
+  wonMatches.forEach((mt) => {
+    const isDoubles = (mt.teamA || []).length === 2 && (mt.teamB || []).length === 2
+    if (!isDoubles) return
+    const inA = (mt.teamA || []).includes(memberId)
+    const myPairRating = inA ? Number(mt.initialRatingA || 0) : Number(mt.initialRatingB || 0)
+    const oppPairRating = inA ? Number(mt.initialRatingB || 0) : Number(mt.initialRatingA || 0)
+    if ((oppPairRating - myPairRating) >= 150) {
+      beatHighEloPairCount++
+    }
+  })
+
+  // 1d. Thống kê tỷ lệ thắng khi gặp đối thủ dưới mình >= 50 Elo (Kẻ Hủy Diệt Giấc Mơ)
+  let underdogMatchesCount = 0
+  let underdogWinsCount = 0
+  memberMatches.forEach((mt) => {
+    const inA = (mt.teamA || []).includes(memberId)
+    const myRating = inA ? Number(mt.initialRatingA || 0) : Number(mt.initialRatingB || 0)
+    const oppRating = inA ? Number(mt.initialRatingB || 0) : Number(mt.initialRatingA || 0)
+    if ((myRating - oppRating) >= 50) {
+      underdogMatchesCount++
+      const won = (inA && mt.winnerTeam === 'A') || (!inA && mt.winnerTeam === 'B')
+      if (won) underdogWinsCount++
+    }
+  })
+  const underdogWinRate = underdogMatchesCount > 0 ? Math.round((underdogWinsCount / underdogMatchesCount) * 100) : 0
+
+  // 1e. Thống kê gánh tạ: đánh đôi với đồng đội kém mình >= 150 Elo (Gánh Tạ Gãy Lưng)
+  const memberRatingsMap = new Map((db?.members || []).map((m) => {
+    const r = (db?.playerRatings || {})[m.id]?.displayRating || (db?.playerRatings || {})[m.id]?.rating || m.rating || m.initialRating || 0
+    return [m.id, r]
+  }))
+  const myCurrentRating = memberRatingsMap.get(memberId) || 0
+  let heavyCarryWinsCount = 0
+  wonMatches.forEach((mt) => {
+    const isDoubles = (mt.teamA || []).length === 2 && (mt.teamB || []).length === 2
+    if (!isDoubles) return
+    const inA = (mt.teamA || []).includes(memberId)
+    const myTeam = inA ? mt.teamA : mt.teamB
+    const teammateId = myTeam.find((id) => id !== memberId)
+    if (teammateId) {
+      const mateRating = memberRatingsMap.get(teammateId) || 0
+      if ((myCurrentRating - mateRating) >= 150) {
+        heavyCarryWinsCount++
+      }
+    }
+  })
+
+  // 1f. Thống kê Robin Hood: thắng Top 3 nhưng thua người kém mình >= 120 Elo
+  const hasWonTop3 = wonMatches.some((mt) => {
+    const opps = (mt.teamA || []).includes(memberId) ? (mt.teamB || []) : (mt.teamA || [])
+    return opps.some((opId) => (clubStats.top3EloMemberIds || []).includes(opId) && opId !== memberId)
+  })
+  const hasLostToUnderdog120 = memberMatches.some((mt) => {
+    const inA = (mt.teamA || []).includes(memberId)
+    const lost = (inA && mt.winnerTeam === 'B') || (!inA && mt.winnerTeam === 'A')
+    if (!lost) return false
+    const myRating = inA ? Number(mt.initialRatingA || 0) : Number(mt.initialRatingB || 0)
+    const oppRating = inA ? Number(mt.initialRatingB || 0) : Number(mt.initialRatingA || 0)
+    return (myRating - oppRating) >= 120
+  })
+  const isRobinHood = hasWonTop3 && hasLostToUnderdog120
+
+  // 1g. Thống kê đôi Nam Nữ ăn ý (Tâm Đầu Ý Hợp)
+  const isFemale = member?.gender === 'nu' || member?.gender === 'F'
+  const mixedPartnerStats = new Map()
+  memberMatches.forEach((mt) => {
+    const isDoubles = (mt.teamA || []).length === 2 && (mt.teamB || []).length === 2
+    if (!isDoubles) return
+    const inA = (mt.teamA || []).includes(memberId)
+    const myTeam = inA ? mt.teamA : mt.teamB
+    const partnerId = myTeam.find((id) => id !== memberId)
+    if (!partnerId) return
+    const partnerMem = (db?.members || []).find((m) => m.id === partnerId)
+    const partnerFemale = partnerMem?.gender === 'nu' || partnerMem?.gender === 'F'
+    if (isFemale !== partnerFemale) {
+      const stat = mixedPartnerStats.get(partnerId) || { played: 0, wins: 0 }
+      stat.played++
+      const won = (inA && mt.winnerTeam === 'A') || (!inA && mt.winnerTeam === 'B')
+      if (won) stat.wins++
+      mixedPartnerStats.set(partnerId, stat)
+    }
+  })
+  let hasEligibleMixedPartner = false
+  let bestMixedPartnerWinRate = 0
+  mixedPartnerStats.forEach((st) => {
+    if (st.played >= 10) {
+      const wr = Math.round((st.wins / st.played) * 100)
+      if (wr > bestMixedPartnerWinRate) bestMixedPartnerWinRate = wr
+      if (wr >= 80) hasEligibleMixedPartner = true
+    }
+  })
+
   // 2. Số trận thắng đối thủ có Elo cao hơn đáng kể (theo significantEloGap config)
-  const minEloGap = Number(cfgBadges.significantEloGap || 50)
+  const minEloGap = Number(cfgBadges.significantEloGap || 120)
   const significantHigherRankWins = upsetWinsGaps.filter((gap) => gap >= minEloGap).length
 
   // 3. Trận deuce chuẩn: cả 2 bên cùng đạt >= 20 điểm và cách biệt đúng 2 điểm
@@ -1162,6 +1283,88 @@ export function calculateMemberBadges(
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
         break
 
+      case 'distinct_opponents_pct': {
+        const otherActiveCount = (db?.members || []).filter((m) => m.active !== false && m.id !== memberId).length
+        const pctOpponents = otherActiveCount >= 10 ? Math.round((distinctOpponents.size / otherActiveCount) * 100) : 0
+        currentVal = pctOpponents
+        isUnlocked = otherActiveCount >= 10 && pctOpponents >= badge.threshold
+        progressStr = otherActiveCount > 0 ? `${distinctOpponents.size}/${otherActiveCount} (${pctOpponents}%)` : '0 / 0'
+        pct = isUnlocked ? 100 : Math.min(99, Math.round((pctOpponents / badge.threshold) * 100))
+        break
+      }
+
+      case 'beat_all_top5_multi': {
+        currentVal = top5BeatenAtLeast2Count
+        const targetTotal = top5Targets.length || 5
+        isUnlocked = top5Targets.length >= 4 && top5BeatenAtLeast2Count >= targetTotal
+        progressStr = `${top5BeatenAtLeast2Count} / ${targetTotal}`
+        pct = Math.min(100, Math.round((top5BeatenAtLeast2Count / targetTotal) * 100))
+        break
+      }
+
+      case 'beat_high_elo_pair': {
+        currentVal = beatHighEloPairCount
+        isUnlocked = currentVal >= badge.threshold
+        progressStr = `${currentVal} / ${badge.threshold}`
+        pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
+        break
+      }
+
+      case 'gatekeeper_winrate': {
+        const reqMatches = 15
+        isUnlocked = underdogMatchesCount >= reqMatches && underdogWinRate >= badge.threshold
+        currentVal = underdogWinRate
+        progressStr = underdogMatchesCount >= reqMatches
+          ? `${underdogWinRate}% (${underdogWinsCount}/${underdogMatchesCount})`
+          : `${underdogMatchesCount} / ${reqMatches}`
+        pct = isUnlocked ? 100 : (underdogMatchesCount >= reqMatches ? Math.min(99, Math.round((underdogWinRate / badge.threshold) * 100)) : Math.round((underdogMatchesCount / reqMatches) * 50))
+        break
+      }
+
+      case 'rank_1_male': {
+        const isMale = member?.gender !== 'nu' && member?.gender !== 'F'
+        const qualified = memberMatches.length >= 20 && totalWins >= 10
+        isUnlocked = qualified && isMale && clubStats.rank1MaleId === memberId
+        currentVal = isUnlocked ? 1 : 0
+        progressStr = isUnlocked ? '1 / 1' : `${Math.min(20, memberMatches.length)} / 20`
+        pct = isUnlocked ? 100 : Math.round((Math.min(20, memberMatches.length) / 20) * 50)
+        break
+      }
+
+      case 'rank_1_female': {
+        const isFemaleMember = member?.gender === 'nu' || member?.gender === 'F'
+        const qualified = memberMatches.length >= 20 && totalWins >= 10
+        isUnlocked = qualified && isFemaleMember && clubStats.rank1FemaleId === memberId
+        currentVal = isUnlocked ? 1 : 0
+        progressStr = isUnlocked ? '1 / 1' : `${Math.min(20, memberMatches.length)} / 20`
+        pct = isUnlocked ? 100 : Math.round((Math.min(20, memberMatches.length) / 20) * 50)
+        break
+      }
+
+      case 'mixed_doubles_master': {
+        isUnlocked = hasEligibleMixedPartner
+        currentVal = bestMixedPartnerWinRate
+        progressStr = `${bestMixedPartnerWinRate}% / 80%`
+        pct = isUnlocked ? 100 : Math.min(99, Math.round((bestMixedPartnerWinRate / 80) * 100))
+        break
+      }
+
+      case 'heavy_carry_wins': {
+        currentVal = heavyCarryWinsCount
+        isUnlocked = currentVal >= badge.threshold
+        progressStr = `${currentVal} / ${badge.threshold}`
+        pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
+        break
+      }
+
+      case 'robin_hood_season': {
+        isUnlocked = isRobinHood
+        currentVal = isUnlocked ? 1 : 0
+        progressStr = isUnlocked ? '1 / 1' : '0 / 1'
+        pct = isUnlocked ? 100 : (hasWonTop3 ? 50 : 0)
+        break
+      }
+
       case 'first_try_bounty':
         isUnlocked = hasFirstTryBounty
         currentVal = isUnlocked ? 1 : 0
@@ -1275,6 +1478,7 @@ export function calculateMemberBadges(
 
 
 
+      case 'break_streak_5_count':
       case 'bounty_break':
       case 'bounty_break_season': {
         currentVal = bountiesBrokenCount

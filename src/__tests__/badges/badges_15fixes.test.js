@@ -56,11 +56,11 @@ test('15 Fixes: Không trùng ID và tách biệt ke_ngat_chuoi, bounty_hunter, 
   // Sau khi ngắt 1 trận bounty:
   const db1 = { ...mockDb, matches: [mockDb.matches[0]] }
   const res1 = calculateMemberBadges('hunter', db1)
-  const hasKeNgatChuoi = res1.unlocked.some((b) => b.id === 'ke_ngat_chuoi')
+  const hasThanhGuom1 = res1.unlocked.some((b) => b.id === 'thanh_guom_diet_quy_3')
   const hasBountyHunter = res1.unlocked.some((b) => b.id === 'bounty_hunter')
   const hasSatThan = res1.unlocked.some((b) => b.id === 'sat_than')
 
-  assert.equal(hasKeNgatChuoi, true, 'Ngắt 1 bounty phải mở Kẻ ngắt chuỗi')
+  assert.equal(hasThanhGuom1, false, 'Ngắt 1 bounty chưa mở Thanh gươm diệt quỷ I (cần 3 lần)')
   assert.equal(hasBountyHunter, false, 'Ngắt 1 bounty KHÔNG được mở Kẻ săn tiền thưởng (cần 3 lần)')
   assert.equal(hasSatThan, false, 'Ngắt 1 bounty KHÔNG được mở Sát thần (cần 3 người khác nhau)')
 
@@ -74,6 +74,7 @@ test('15 Fixes: Không trùng ID và tách biệt ke_ngat_chuoi, bounty_hunter, 
     ],
   }
   const res3Same = calculateMemberBadges('hunter', db3Same)
+  assert.equal(res3Same.unlocked.some((b) => b.id === 'thanh_guom_diet_quy_3'), true, 'Ngắt 3 lần bounty mở Thanh gươm diệt quỷ I')
   assert.equal(res3Same.unlocked.some((b) => b.id === 'bounty_hunter'), true, 'Ngắt 3 lần bounty mở Kẻ săn tiền thưởng')
   assert.equal(res3Same.unlocked.some((b) => b.id === 'sat_than'), false, 'Chưa ngắt 3 người KHÁC NHAU thì chưa mở Sát thần')
 
@@ -210,21 +211,24 @@ test('15 Fixes: beat_all_top5 yêu cầu 5 người KHÁC NHAU trong Top 5', () 
   }
 
   const res = calculateMemberBadges('hero', mockDb)
-  const b = res.all.find((x) => x.id === 'can_ca_top')
+  const b = res.all.find((x) => x.id === 'dai_nao_thien_cung')
   assert.ok(b)
   assert.equal(b.unlocked, false, 'Chưa mở vì mới hạ 2 người khác nhau trong Top 5')
   assert.equal(b.currentVal, 2, 'Tiến độ là 2/5')
 
-  // Bổ sung thắng t3, t4, t5
+  // Bổ sung thắng t3, t4, t5 (mỗi người 2 lần)
   mockDb.matches.push(
     { id: '6', at: 60, teamA: ['hero'], teamB: ['t3'], winnerTeam: 'A' },
+    { id: '6b', at: 65, teamA: ['hero'], teamB: ['t3'], winnerTeam: 'A' },
     { id: '7', at: 70, teamA: ['hero'], teamB: ['t4'], winnerTeam: 'A' },
-    { id: '8', at: 80, teamA: ['hero'], teamB: ['t5'], winnerTeam: 'A' }
+    { id: '7b', at: 75, teamA: ['hero'], teamB: ['t4'], winnerTeam: 'A' },
+    { id: '8', at: 80, teamA: ['hero'], teamB: ['t5'], winnerTeam: 'A' },
+    { id: '8b', at: 85, teamA: ['hero'], teamB: ['t5'], winnerTeam: 'A' }
   )
 
   const resUnlocked = calculateMemberBadges('hero', mockDb)
-  const bUnlocked = resUnlocked.unlocked.find((x) => x.id === 'can_ca_top')
-  assert.ok(bUnlocked, 'Đã hạ cả 5 người khác nhau trong Top 5 thì mở khóa can_ca_top')
+  const bUnlocked = resUnlocked.unlocked.find((x) => x.id === 'dai_nao_thien_cung')
+  assert.ok(bUnlocked, 'Đã hạ cả 5 người khác nhau trong Top 5 mỗi người >= 2 lần thì mở khóa Đại Náo Thiên Cung')
   assert.equal(bUnlocked.currentVal, 5)
 })
 
@@ -351,31 +355,29 @@ test('15 Fixes: trum_giai đang TẮT cho tới khi có tính năng Giải đấ
   assert.ok(getBadgeById('bat_bai_v'), 'Badge đang bật vẫn tra cứu được bình thường')
 })
 
-test('15 Fixes: sat_than_doi (beat_top_pair) xét cặp đôi uy tín và mở khóa khi đánh bại 2 lần', () => {
+test('15 Fixes: sat_than_doi (beat_high_elo_pair) xét hạ cặp đôi hơn ≥ 150 Elo 5 lần', () => {
   const mockDb = {
     members: [
       { id: 'u1', name: 'User 1' },
       { id: 'u2', name: 'User 2' },
-      { id: 'pairA1', name: 'A1', rating: 800 },
-      { id: 'pairA2', name: 'A2', rating: 750 },
+      { id: 'pairA1', name: 'A1' },
+      { id: 'pairA2', name: 'A2' },
     ],
     matches: [
-      // Cặp A1 & A2 thắng 5 trận liên tiếp (uy tín cao: 5 trận, winrate 100%, rating cân bằng)
-      { id: 'm1', at: 10, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
-      { id: 'm2', at: 20, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
-      { id: 'm3', at: 30, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
-      { id: 'm4', at: 40, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
-      { id: 'm5', at: 50, teamA: ['pairA1', 'pairA2'], teamB: ['other1', 'other2'], winnerTeam: 'A' },
-      // u1 & u2 hạ cặp đôi số 1 CLB lần 1 -> chưa mở khóa (1/2)
-      { id: 'm6', at: 60, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A' },
-      // u1 & u2 hạ cặp đôi số 1 CLB lần 2 -> đủ 2/2 -> mở khóa
-      { id: 'm7', at: 70, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A' },
+      { id: 'm1', at: 10, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A', initialRatingA: 1200, initialRatingB: 1400 },
+      { id: 'm2', at: 20, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A', initialRatingA: 1200, initialRatingB: 1400 },
+      { id: 'm3', at: 30, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A', initialRatingA: 1200, initialRatingB: 1400 },
+      { id: 'm4', at: 40, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A', initialRatingA: 1200, initialRatingB: 1400 },
     ],
   }
 
-  const resU1 = calculateMemberBadges('u1', mockDb)
-  const satThanDoi = resU1.unlocked.find((b) => b.id === 'sat_than_doi')
-  assert.ok(satThanDoi, 'Đánh bại cặp đôi top 1 CLB 2 lần mở được danh hiệu LEGEND Sát Thần Đôi')
+  const res4 = calculateMemberBadges('u1', mockDb)
+  assert.equal(res4.unlocked.some((b) => b.id === 'sat_than_doi'), false, 'Mới 4 trận chưa mở Sát Thần Đôi')
+
+  mockDb.matches.push({ id: 'm5', at: 50, teamA: ['u1', 'u2'], teamB: ['pairA1', 'pairA2'], winnerTeam: 'A', initialRatingA: 1200, initialRatingB: 1400 })
+  const res5 = calculateMemberBadges('u1', mockDb)
+  const satThanDoi = res5.unlocked.find((b) => b.id === 'sat_than_doi')
+  assert.ok(satThanDoi, 'Đánh bại cặp đôi hơn 150 Elo đủ 5 lần mở được danh hiệu LEGEND Sát Thần Đôi')
   assert.equal(satThanDoi.unlocked, true)
 })
 
@@ -479,7 +481,7 @@ test('Modal A4: Kẻ ngắt chuỗi được mở khi trận đấu làm đứt 
   const streakInfo = getMemberStreak(victimId, mockDb)
   assert.equal(streakInfo.streak, 6, 'Đối thủ phải có chuỗi 6 trận')
 
-  // Trận 7: Thợ Săn hạ Vũ Minh
+  // Thợ Săn hạ Vũ Minh 3 lần ngắt chuỗi >= 5
   const match7 = {
     id: 'mt_streak_7',
     at: 2000,
@@ -490,13 +492,15 @@ test('Modal A4: Kẻ ngắt chuỗi được mở khi trận đấu làm đứt 
     brokenStreak: 6,
     ratingEnabled: true,
   }
+  const match8 = { ...match7, id: 'mt_streak_8', at: 2010 }
+  const match9 = { ...match7, id: 'mt_streak_9', at: 2020 }
   const dbAfter = {
     ...mockDb,
-    matches: [...matches, match7],
+    matches: [...matches, match7, match8, match9],
   }
 
-  // Thợ săn nhận được danh hiệu ke_ngat_chuoi
+  // Thợ săn nhận được danh hiệu thanh_guom_diet_quy_3 (alias ke_ngat_chuoi)
   const hunterBadges = calculateMemberBadges(hunterId, dbAfter)
-  const hasKeNgatChuoi = hunterBadges.unlocked.some((b) => b.id === 'ke_ngat_chuoi')
-  assert.equal(hasKeNgatChuoi, true, 'Thợ săn phải mở được danh hiệu ke_ngat_chuoi sau khi ngắt chuỗi')
+  const hasThanhGuom = hunterBadges.unlocked.some((b) => b.id === 'thanh_guom_diet_quy_3')
+  assert.equal(hasThanhGuom, true, 'Thợ săn phải mở được danh hiệu thanh_guom_diet_quy_3 sau 3 lần ngắt chuỗi')
 })

@@ -70,7 +70,7 @@
     }
   ],
   "shelfSlots": 3,
-  "significantEloGap": 50,
+  "significantEloGap": 120,
   "minPairMatches": 5,
   "maxPairEloGap": 250,
   "minPairMemberElo": 300,
@@ -141,7 +141,13 @@
       "key": "ke_di_san",
       "groupId": 0,
       "glyph": "crosshair",
-      "badgeIds": ["ke_di_san_3", "ke_di_san_8", "ke_di_san_15", "ke_di_san_25"]
+      "badgeIds": ["ke_di_san_10", "ke_di_san_20", "ke_di_san_30"]
+    },
+    "thanh_guom_diet_quy": {
+      "key": "thanh_guom_diet_quy",
+      "groupId": 0,
+      "glyph": "skull",
+      "badgeIds": ["thanh_guom_diet_quy_3", "thanh_guom_diet_quy_5", "thanh_guom_diet_quy_10"]
     },
     "trang_buoi": {
       "key": "trang_buoi",
@@ -218,27 +224,51 @@
       }
     },
     {
-      "id": "ke_ngat_chuoi",
+      "id": "thanh_guom_diet_quy_3",
       "groupId": 0,
       "tier": "elite",
-      "glyph": "thunder",
-      "checkType": "bounty_break",
-      "threshold": 1,
+      "glyph": "skull",
+      "checkType": "break_streak_5_count",
+      "threshold": 3,
       "reward": {
-        "xp": 100,
+        "xp": 120,
         "seasonPts": 15
+      }
+    },
+    {
+      "id": "thanh_guom_diet_quy_5",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "skull",
+      "checkType": "break_streak_5_count",
+      "threshold": 5,
+      "reward": {
+        "xp": 220,
+        "seasonPts": 28
+      }
+    },
+    {
+      "id": "thanh_guom_diet_quy_10",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "skull",
+      "checkType": "break_streak_5_count",
+      "threshold": 10,
+      "reward": {
+        "xp": 400,
+        "seasonPts": 50
       }
     },
     {
       "id": "sat_than_doi",
       "groupId": 0,
       "tier": "legend",
-      "glyph": "shuriken",
-      "checkType": "beat_top_pair",
-      "threshold": 2,
+      "glyph": "thunder",
+      "checkType": "beat_high_elo_pair",
+      "threshold": 5,
       "reward": {
-        "xp": 150,
-        "seasonPts": 20
+        "xp": 350,
+        "seasonPts": 45
       }
     },
     {
@@ -754,51 +784,39 @@
       }
     },
     {
-      "id": "ke_di_san_3",
+      "id": "ke_di_san_10",
       "groupId": 0,
       "tier": "rare",
       "glyph": "eye",
       "checkType": "higher_rank_wins",
-      "threshold": 3,
+      "threshold": 10,
       "reward": {
-        "xp": 60,
-        "seasonPts": 8
+        "xp": 100,
+        "seasonPts": 12
       }
     },
     {
-      "id": "ke_di_san_8",
-      "groupId": 0,
-      "tier": "elite",
-      "glyph": "eye",
-      "checkType": "higher_rank_wins",
-      "threshold": 8,
-      "reward": {
-        "xp": 120,
-        "seasonPts": 15
-      }
-    },
-    {
-      "id": "ke_di_san_15",
+      "id": "ke_di_san_20",
       "groupId": 0,
       "tier": "epic",
       "glyph": "eye",
       "checkType": "higher_rank_wins",
-      "threshold": 15,
+      "threshold": 20,
       "reward": {
-        "xp": 220,
-        "seasonPts": 28
+        "xp": 250,
+        "seasonPts": 30
       }
     },
     {
-      "id": "ke_di_san_25",
+      "id": "ke_di_san_30",
       "groupId": 0,
       "tier": "legend",
       "glyph": "eye",
       "checkType": "higher_rank_wins",
-      "threshold": 25,
+      "threshold": 30,
       "reward": {
-        "xp": 400,
-        "seasonPts": 50
+        "xp": 450,
+        "seasonPts": 60
       }
     },
     {
@@ -914,8 +932,8 @@
       "groupId": 0,
       "tier": "elite",
       "glyph": "crystal",
-      "checkType": "distinct_opponents_season",
-      "threshold": 15,
+      "checkType": "distinct_opponents_pct",
+      "threshold": 85,
       "reward": {
         "xp": 150,
         "seasonPts": 20
@@ -958,15 +976,15 @@
       }
     },
     {
-      "id": "can_ca_top",
+      "id": "dai_nao_thien_cung",
       "groupId": 0,
-      "tier": "epic",
-      "glyph": "eye",
-      "checkType": "beat_all_top5",
+      "tier": "legend",
+      "glyph": "flame",
+      "checkType": "beat_all_top5_multi",
       "threshold": 5,
       "reward": {
-        "xp": 250,
-        "seasonPts": 30
+        "xp": 400,
+        "seasonPts": 50
       }
     },
     {
@@ -1039,6 +1057,78 @@
       "reward": {
         "xp": 450,
         "seasonPts": 55
+      }
+    },
+    {
+      "id": "ke_huy_diet_giac_mo",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "skull",
+      "checkType": "gatekeeper_winrate",
+      "threshold": 90,
+      "reward": {
+        "xp": 380,
+        "seasonPts": 48
+      }
+    },
+    {
+      "id": "sao_ma_do_duoc",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "flame",
+      "checkType": "rank_1_male",
+      "threshold": 1,
+      "reward": {
+        "xp": 500,
+        "seasonPts": 70
+      }
+    },
+    {
+      "id": "nu_hoang_san_cau",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "blossom",
+      "checkType": "rank_1_female",
+      "threshold": 1,
+      "reward": {
+        "xp": 500,
+        "seasonPts": 70
+      }
+    },
+    {
+      "id": "tam_dau_y_hop",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "wing",
+      "checkType": "mixed_doubles_master",
+      "threshold": 80,
+      "reward": {
+        "xp": 450,
+        "seasonPts": 60
+      }
+    },
+    {
+      "id": "ganh_ta_gay_lung",
+      "groupId": 0,
+      "tier": "legend",
+      "glyph": "horn",
+      "checkType": "heavy_carry_wins",
+      "threshold": 8,
+      "reward": {
+        "xp": 350,
+        "seasonPts": 45
+      }
+    },
+    {
+      "id": "robin_hood",
+      "groupId": 0,
+      "tier": "epic",
+      "glyph": "shuriken",
+      "checkType": "robin_hood_season",
+      "threshold": 1,
+      "reward": {
+        "xp": 250,
+        "seasonPts": 30
       }
     }
   ],

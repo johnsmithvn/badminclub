@@ -4128,7 +4128,11 @@
       },
       "ke_di_san": {
         "name": "Kẻ Đi Săn",
-        "desc": "Đánh bại các đối thủ có xếp hạng Elo cao hơn"
+        "desc": "Đánh bại các đối thủ có xếp hạng Elo cao hơn từ 120 điểm trở lên"
+      },
+      "thanh_guom_diet_quy": {
+        "name": "Thanh Gươm Diệt Quỷ",
+        "desc": "Chấm dứt chuỗi bất bại từ 5 trận trở lên của đối thủ"
       },
       "trang_buoi": {
         "name": "Trắng Buổi",
@@ -4205,12 +4209,24 @@
         "cond": "Thắng 10 trận liên tiếp trong cùng một mùa"
       },
       "ke_ngat_chuoi": {
-        "name": "Kẻ ngắt chuỗi",
-        "cond": "Hạ người đang có chuỗi ≥ 5 trận"
+        "name": "Thanh gươm diệt quỷ",
+        "cond": "Chấm dứt chuỗi thắng ≥ 5 trận của đối thủ"
+      },
+      "thanh_guom_diet_quy_3": {
+        "name": "Thanh gươm diệt quỷ I",
+        "cond": "Ngắt chuỗi thắng ≥ 5 trận của đối thủ 3 lần"
+      },
+      "thanh_guom_diet_quy_5": {
+        "name": "Thanh gươm diệt quỷ II",
+        "cond": "Ngắt chuỗi thắng ≥ 5 trận của đối thủ 5 lần"
+      },
+      "thanh_guom_diet_quy_10": {
+        "name": "Thanh gươm diệt quỷ III",
+        "cond": "Ngắt chuỗi thắng ≥ 5 trận của đối thủ 10 lần"
       },
       "sat_than_doi": {
         "name": "Sát thần đôi",
-        "cond": "Đánh bại cặp đôi Top 1 CLB (cân bằng Elo, đấu cùng nhau ≥ 5 trận) ít nhất 2 lần"
+        "cond": "Thắng 5 trận đánh đôi trước các cặp đối thủ có tổng Elo hơn mình từ 150 điểm trở lên"
       },
       "trum_giai": {
         "name": "Trùm giải",
@@ -4416,21 +4432,33 @@
         "name": "Bền sức IV",
         "cond": "Thắng 50 trận phải phân định ở set 3"
       },
+      "ke_di_san_10": {
+        "name": "Kẻ đi săn I",
+        "cond": "Hạ 10 người có Elo cao hơn mình từ 120 điểm trở lên"
+      },
+      "ke_di_san_20": {
+        "name": "Kẻ đi săn II",
+        "cond": "Hạ 20 người có Elo cao hơn mình từ 120 điểm trở lên"
+      },
+      "ke_di_san_30": {
+        "name": "Kẻ đi săn III",
+        "cond": "Hạ 30 người có Elo cao hơn mình từ 120 điểm trở lên"
+      },
       "ke_di_san_3": {
         "name": "Kẻ đi săn I",
-        "cond": "Hạ 3 người đang xếp trên mình ở bảng Elo"
+        "cond": "Hạ 10 người có Elo cao hơn mình từ 120 điểm trở lên"
       },
       "ke_di_san_8": {
-        "name": "Kẻ đi săn II",
-        "cond": "Hạ 8 người đang xếp trên mình ở bảng Elo"
+        "name": "Kẻ đi săn I",
+        "cond": "Hạ 10 người có Elo cao hơn mình từ 120 điểm trở lên"
       },
       "ke_di_san_15": {
-        "name": "Kẻ đi săn III",
-        "cond": "Hạ 15 người đang xếp trên mình ở bảng Elo"
+        "name": "Kẻ đi săn II",
+        "cond": "Hạ 20 người có Elo cao hơn mình từ 120 điểm trở lên"
       },
       "ke_di_san_25": {
-        "name": "Kẻ đi săn IV",
-        "cond": "Hạ 25 người đang xếp trên mình ở bảng Elo"
+        "name": "Kẻ đi săn III",
+        "cond": "Hạ 30 người có Elo cao hơn mình từ 120 điểm trở lên"
       },
       "trang_buoi_1": {
         "name": "Trắng buổi I",
@@ -4478,11 +4506,11 @@
       },
       "can_quet_clb": {
         "name": "Càn quét CLB",
-        "cond": "Hạ gục ít nhất 15 đối thủ khác nhau trong mùa giải"
+        "cond": "Đánh bại ít nhất 85% tổng số thành viên đang hoạt động trong CLB"
       },
       "tay_doi": {
         "name": "Càn quét CLB",
-        "cond": "Hạ gục ít nhất 15 đối thủ khác nhau trong mùa giải"
+        "cond": "Đánh bại ít nhất 85% tổng số thành viên đang hoạt động trong CLB"
       },
       "tron_buoi": {
         "name": "Trọn buổi",
@@ -4496,9 +4524,13 @@
         "name": "Thợ săn hoàn hảo",
         "cond": "Hạ một bounty ngay lần thử đầu tiên"
       },
+      "dai_nao_thien_cung": {
+        "name": "Đại náo thiên cung",
+        "cond": "Đánh bại toàn bộ Top 5 Elo CLB trong mùa (mỗi người ≥ 2 lần)"
+      },
       "can_ca_top": {
-        "name": "Cân cả top",
-        "cond": "Thắng cả 5 người trong top 5 Elo cùng một mùa"
+        "name": "Đại náo thiên cung",
+        "cond": "Đánh bại toàn bộ Top 5 Elo CLB trong mùa (mỗi người ≥ 2 lần)"
       },
       "trang_set": {
         "name": "Trắng set",
@@ -4523,6 +4555,30 @@
       "nguoc_dong_the_ky": {
         "name": "Ngược dòng thế kỷ",
         "cond": "Thắng trận sau khi bị dẫn 0–1 và bị dẫn sâu ở set 2"
+      },
+      "ke_huy_diet_giac_mo": {
+        "name": "Kẻ hủy diệt giấc mơ",
+        "cond": "Đấu ≥ 15 trận trước đối thủ kém mình ≥ 50 Elo với tỷ lệ thắng ≥ 90%"
+      },
+      "sao_ma_do_duoc": {
+        "name": "Sao mà đỡ được",
+        "cond": "Chễm chệ ngôi vị Top 1 Elo trên Bảng Xếp Hạng Nam"
+      },
+      "nu_hoang_san_cau": {
+        "name": "Nữ hoàng sân cầu",
+        "cond": "Vương miện tối cao Top 1 Elo trên Bảng Xếp Hạng Nữ"
+      },
+      "tam_dau_y_hop": {
+        "name": "Tâm đầu ý hợp",
+        "cond": "Cặp đôi Nam Nữ thi đấu cùng nhau ≥ 10 trận với tỷ lệ thắng ≥ 80%"
+      },
+      "ganh_ta_gay_lung": {
+        "name": "Gánh tạ gãy lưng",
+        "cond": "Thắng 8 trận đánh đôi khi đồng đội kém mình từ 150 Elo trở lên"
+      },
+      "robin_hood": {
+        "name": "Robin Hood",
+        "cond": "Từng thắng tay vợt trong Top 3 Elo nhưng lại để thua người kém mình ≥ 120 Elo"
       }
     },
     "shelfSaved": "Đã cập nhật kệ huy hiệu!",
