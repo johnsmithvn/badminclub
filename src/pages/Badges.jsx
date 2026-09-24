@@ -151,10 +151,23 @@ export default function Badges() {
     return calculateMemberXp(activeMemberId, db)
   }, [activeMemberId, db])
 
-  // 2. Mùa giải hiện tại.
-  // Dùng `resolveSeason` thay vì tự đọc `db.seasons`: dbmap KHÔNG sinh ra key đó, nên bản cũ
-  // luôn trả `{}` và mọi hàm phía dưới phải tự fallback. Một nguồn sự thật, giống season.js.
-  const currentSeason = useMemo(() => resolveSeason(db), [db])
+  // 2. Danh sách các mùa giải & Mùa giải đang chọn xem
+  const allSeasons = useMemo(() => {
+    return Array.isArray(db?.seasons) && db.seasons.length > 0
+      ? db.seasons
+      : (db?.club?.seasons || [])
+  }, [db?.seasons, db?.club?.seasons])
+
+  const activeSeason = useMemo(() => resolveSeason(db) || allSeasons[0] || null, [allSeasons, db])
+  const [selectedSeasonId, setSelectedSeasonId] = useState(null)
+
+  const currentSeason = useMemo(() => {
+    if (selectedSeasonId) {
+      const match = allSeasons.find((s) => s.id === selectedSeasonId || s.code === selectedSeasonId)
+      if (match) return match
+    }
+    return activeSeason
+  }, [selectedSeasonId, allSeasons, activeSeason])
 
   // Trận đấu thuộc mùa giải đang xét
   const preloadedSeasonMatches = useMemo(() => {
@@ -467,6 +480,9 @@ export default function Badges() {
               setIsEditingSignature(true)
             }}
             allMembers={db?.members || []}
+            allSeasons={allSeasons}
+            selectedSeasonId={selectedSeasonId}
+            onSelectSeason={(sId) => setSelectedSeasonId(sId)}
           />
         ) : (
           /* Các tab còn lại trên Mobile (Bounty / Leaderboard) */
@@ -753,6 +769,37 @@ export default function Badges() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Dropdown chọn Mùa giải */}
+          {allSeasons.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>
+                {t('season.filterSeason', { defaultValue: 'Mùa giải:' })}
+              </span>
+              <select
+                value={currentSeason?.id || currentSeason?.code || ''}
+                onChange={(e) => setSelectedSeasonId(e.target.value)}
+                style={{
+                  background: '#190C2D',
+                  border: '1px solid #3B1B66',
+                  borderRadius: 6,
+                  color: '#2EE9FF',
+                  padding: '5px 10px',
+                  fontSize: 12,
+                  fontFamily: "'Be Vietnam Pro', sans-serif",
+                  fontWeight: 600,
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                {allSeasons.map((s) => (
+                  <option key={s.id || s.code} value={s.id || s.code} style={{ background: '#1D0D35', color: '#FFFFFF' }}>
+                    {s.code || s.name} {s.active ? `(${t('season.activeCurrent', { defaultValue: 'Hiện tại' })})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Dropdown xem nhanh bộ sưu tập thành viên khác */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>

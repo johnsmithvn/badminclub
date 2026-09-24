@@ -1324,20 +1324,48 @@ export function calculateMemberBadges(
       case 'rank_1_male': {
         const isMale = member?.gender !== 'nu' && member?.gender !== 'F'
         const qualified = memberMatches.length >= 20 && totalWins >= 10
-        isUnlocked = qualified && isMale && clubStats.rank1MaleId === memberId
+        const isRank1ThisSeason = qualified && isMale && clubStats.rank1MaleId === memberId
+        const pastSeasonsWon = (db?.seasons || []).filter((s) => {
+          if (!s || s.active) return false
+          if (s.topMaleId && s.topMaleId === memberId) return true
+          const podium = s.podiumSnapshot || []
+          const topMale = podium.find((p) => p.gender !== 'nu' && p.gender !== 'F')
+          return topMale && (topMale.id === memberId || topMale.memberId === memberId)
+        })
+        isUnlocked = isRank1ThisSeason || pastSeasonsWon.length > 0
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : `${Math.min(20, memberMatches.length)} / 20`
         pct = isUnlocked ? 100 : Math.round((Math.min(20, memberMatches.length) / 20) * 50)
+        if (isUnlocked) {
+          const seasonTag = isRank1ThisSeason
+            ? (resolvedSeason?.code || resolvedSeason?.name || '')
+            : (pastSeasonsWon[0]?.code || pastSeasonsWon[0]?.name || '')
+          if (seasonTag) extraData = { seasonCode: seasonTag }
+        }
         break
       }
 
       case 'rank_1_female': {
         const isFemaleMember = member?.gender === 'nu' || member?.gender === 'F'
         const qualified = memberMatches.length >= 20 && totalWins >= 10
-        isUnlocked = qualified && isFemaleMember && clubStats.rank1FemaleId === memberId
+        const isRank1ThisSeason = qualified && isFemaleMember && clubStats.rank1FemaleId === memberId
+        const pastSeasonsWon = (db?.seasons || []).filter((s) => {
+          if (!s || s.active) return false
+          if (s.topFemaleId && s.topFemaleId === memberId) return true
+          const podium = s.podiumSnapshot || []
+          const topFem = podium.find((p) => p.gender === 'nu' || p.gender === 'F')
+          return topFem && (topFem.id === memberId || topFem.memberId === memberId)
+        })
+        isUnlocked = isRank1ThisSeason || pastSeasonsWon.length > 0
         currentVal = isUnlocked ? 1 : 0
         progressStr = isUnlocked ? '1 / 1' : `${Math.min(20, memberMatches.length)} / 20`
         pct = isUnlocked ? 100 : Math.round((Math.min(20, memberMatches.length) / 20) * 50)
+        if (isUnlocked) {
+          const seasonTag = isRank1ThisSeason
+            ? (resolvedSeason?.code || resolvedSeason?.name || '')
+            : (pastSeasonsWon[0]?.code || pastSeasonsWon[0]?.name || '')
+          if (seasonTag) extraData = { seasonCode: seasonTag }
+        }
         break
       }
 

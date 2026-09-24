@@ -401,6 +401,11 @@ export default function BadgeDetailModal({
                 >
                   {isHidden ? '???' : badgeName}
                 </span>
+                {activeTierBadge.seasonCode && (
+                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#2EE9FF', letterSpacing: '.1em' }}>
+                    ✦ {activeTierBadge.seasonCode} ✦
+                  </span>
+                )}
 
                 <span
                   style={{

@@ -125,6 +125,11 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
           }}
         >
           {isHidden ? '???' : displayName}
+          {badge.seasonCode && (
+            <span style={{ display: 'block', fontSize: 10, fontWeight: 500, color: '#2EE9FF', marginTop: 2 }}>
+              · {badge.seasonCode} ·
+            </span>
+          )}
         </span>
 
         {/* 3. Chip phân bậc + Chỉ báo cấp độ chuỗi */}

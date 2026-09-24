@@ -38,6 +38,9 @@ export default function AnimeMobileCollection({
   onSelectMember,
   onEditSignature,
   allMembers = [],
+  allSeasons = [],
+  selectedSeasonId = null,
+  onSelectSeason,
 }) {
   // Nhóm đang được chọn để hiển thị lưới 3 cột (mặc định là nhóm đầu tiên)
   const [selectedGroupIdx, setSelectedGroupIdx] = useState(0)
@@ -197,6 +200,38 @@ export default function AnimeMobileCollection({
             {t('badges.reorderShelf')}
           </button>
         </div>
+
+        {/* Bộ chọn Mùa giải trên Mobile */}
+        {allSeasons && allSeasons.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '2px 0' }}>
+            <span style={{ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>
+              {t('season.filterSeason', { defaultValue: 'Mùa giải:' })}
+            </span>
+            <select
+              value={currentSeason?.id || currentSeason?.code || selectedSeasonId || ''}
+              onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
+              style={{
+                background: '#160B26',
+                border: '1px solid #3B1B66',
+                borderRadius: 6,
+                color: '#2EE9FF',
+                padding: '4px 8px',
+                fontSize: 11,
+                fontFamily: "'Be Vietnam Pro', sans-serif",
+                fontWeight: 600,
+                outline: 'none',
+                cursor: 'pointer',
+                maxWidth: 200,
+              }}
+            >
+              {allSeasons.map((s) => (
+                <option key={s.id || s.code} value={s.id || s.code} style={{ background: '#1D0D35', color: '#FFFFFF' }}>
+                  {s.code || s.name} {s.active ? `(${t('season.activeCurrent', { defaultValue: 'Hiện tại' })})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Bộ chọn thành viên xem (nếu muốn xem hồ sơ người khác) */}
         {allMembers && allMembers.length > 1 && (
