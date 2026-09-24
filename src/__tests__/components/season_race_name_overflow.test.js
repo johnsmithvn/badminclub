@@ -74,5 +74,10 @@ test('Season Race — Chống tràn chữ tên dài trên Mobile & Desktop', asy
     assert.ok(code.includes('shortName(top2?.name)'), 'Top 2 phải dùng shortName(top2?.name)')
     assert.ok(code.includes('shortName(top3?.name)'), 'Top 3 phải dùng shortName(top3?.name)')
     assert.ok(code.includes('shortName(row.name)'), 'Row bảng phải dùng shortName(row.name)')
+
+    // 2.5 Kiểm tra Dropdown chọn mùa giải có bo góc đẹp và giới hạn maxWidth chống tràn
+    assert.ok(code.includes('borderRadius: 8'), 'Dropdown chọn mùa giải phải bo góc 8px đẹp chuẩn TDMS')
+    assert.ok(code.includes('maxWidth: 100%') || code.includes("maxWidth: '100%'"), 'Dropdown chọn mùa giải phải có maxWidth: 100% chống tràn màn hình')
   })
 })
+

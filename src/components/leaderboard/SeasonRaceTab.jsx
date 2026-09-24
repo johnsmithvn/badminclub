@@ -128,33 +128,44 @@ export default function SeasonRaceTab({
               gap: 10,
               flexWrap: 'wrap',
               boxShadow: 'var(--shadow-xs)',
+              minWidth: 0,
+              maxWidth: '100%',
+              overflow: 'hidden',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexShrink: 0 }}>
               <span style={{ fontSize: 16 }}>🗓</span>
-              <span style={{ font: "600 13px 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+              <span style={{ font: "600 13px 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 {t('season.selectorTitle')}
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: isMobile ? '1 1 100%' : '0 1 auto', maxWidth: '100%' }}>
               <select
                 value={selectedSeasonId || (season?.id || season?.code)}
                 onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
                 style={{
-                  background: 'var(--field-bg)',
-                  border: '1px solid var(--field-border)',
-                  borderRadius: 6,
-                  padding: '6px 12px',
+                  width: isMobile ? '100%' : 'auto',
+                  maxWidth: '100%',
+                  minWidth: 0,
+                  background: 'var(--surface-inset)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 8,
+                  padding: '7px 12px',
                   font: "600 12.5px 'IBM Plex Sans', sans-serif",
                   color: 'var(--text-primary)',
                   cursor: 'pointer',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {seasons.map((s) => {
                   const sId = s.id || s.code
                   const isActive = Boolean(s.active)
-                  const label = `${s.code || s.id}: ${s.name || s.fullName || ''} (${s.startDate} → ${s.endDate}) ${isActive ? `— [${t('season.activeSeasonBadge')}]` : `— [${t('season.archivedSeasonBadge')}]`}`
+                  const label = `${s.name || s.code || sId} (${s.startDate} → ${s.endDate}) ${isActive ? `— [${t('season.activeSeasonBadge')}]` : `— [${t('season.archivedSeasonBadge')}]`}`
                   return (
                     <option key={sId} value={sId}>
                       {label}
