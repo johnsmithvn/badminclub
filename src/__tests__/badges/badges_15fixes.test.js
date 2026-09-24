@@ -268,12 +268,24 @@ test('15 Fixes: Ba danh hiệu LEGEND mở được từ dữ liệu thực', ()
     ],
   }
 
-  const res = calculateMemberBadges('challenger', mockDb, season)
-  const beatChamp = res.unlocked.find((b) => b.id === 'ha_nha_vo_dich')
-  const century = res.unlocked.find((b) => b.id === 'nguoc_dong_the_ky')
+  const resInitial = calculateMemberBadges('challenger', mockDb, season)
+  const beatChampInitial = resInitial.unlocked.find((b) => b.id === 'ha_nha_vo_dich')
+  const beatChampProg = resInitial.inProgress.find((b) => b.id === 'ha_nha_vo_dich')
+  const century = resInitial.unlocked.find((b) => b.id === 'nguoc_dong_the_ky')
 
-  assert.ok(beatChamp, 'Hạ Rank 1 (King) mở được danh hiệu LEGEND Hạ nhà vô địch')
+  assert.equal(beatChampInitial, undefined, 'Mới hạ Rank 1 2 lần thì chưa mở Hạ nhà vô địch')
+  assert.equal(beatChampProg?.progressStr, '2 / 5', 'Tiến độ hiển thị 2 / 5')
   assert.ok(century, 'Lội ngược dòng thua set 1 sâu và thắng set 3 nghẹt thở mở được Ngược dòng thế kỷ')
+
+  // Bổ sung thêm 3 trận thắng King để đủ 5 lần hạ Top 1
+  mockDb.matches.push(
+    { id: '3', at: firstMatchTs + 2 * DAY, teamA: ['challenger'], teamB: ['king'], winnerTeam: 'A' },
+    { id: '4', at: firstMatchTs + 3 * DAY, teamA: ['challenger'], teamB: ['king'], winnerTeam: 'A' },
+    { id: '5', at: firstMatchTs + 4 * DAY, teamA: ['challenger'], teamB: ['king'], winnerTeam: 'A' },
+  )
+  const resFull = calculateMemberBadges('challenger', mockDb, season)
+  const beatChampFull = resFull.unlocked.find((b) => b.id === 'ha_nha_vo_dich')
+  assert.ok(beatChampFull, 'Hạ Rank 1 đủ 5 lần mở được danh hiệu LEGEND Hạ nhà vô địch')
 
   // King giữ Rank 1 từ trận đầu (65 ngày trước) tới nay -> vượt mốc 60 ngày
   const resKing = calculateMemberBadges('king', mockDb, season)
@@ -503,4 +515,27 @@ test('Modal A4: Kẻ ngắt chuỗi được mở khi trận đấu làm đứt 
   const hunterBadges = calculateMemberBadges(hunterId, dbAfter)
   const hasThanhGuom = hunterBadges.unlocked.some((b) => b.id === 'thanh_guom_diet_quy_3')
   assert.equal(hasThanhGuom, true, 'Thợ săn phải mở được danh hiệu thanh_guom_diet_quy_3 sau 3 lần ngắt chuỗi')
+
+  // ngat_chuoi_10 chỉ mở khi đối thủ có chuỗi >= 10
+  const hasNgatChuoi10When6 = hunterBadges.unlocked.some((b) => b.id === 'ngat_chuoi_10')
+  assert.equal(hasNgatChuoi10When6, false, 'Ngắt chuỗi 6 thì KHÔNG được mở ngat_chuoi_10')
+
+  // Khi hạ đối thủ có chuỗi >= 10
+  const match10Streak = {
+    id: 'mt_streak_10',
+    at: 2030,
+    teamA: [hunterId],
+    teamB: [victimId],
+    winnerTeam: 'A',
+    bountyBroken: true,
+    brokenStreak: 10,
+    ratingEnabled: true,
+  }
+  const dbWithStreak10 = {
+    ...dbAfter,
+    matches: [...dbAfter.matches, match10Streak],
+  }
+  const hunterBadges10 = calculateMemberBadges(hunterId, dbWithStreak10)
+  const hasNgatChuoi10 = hunterBadges10.unlocked.some((b) => b.id === 'ngat_chuoi_10')
+  assert.equal(hasNgatChuoi10, true, 'Ngắt chuỗi đối thủ >= 10 trận thì mở ngat_chuoi_10')
 })

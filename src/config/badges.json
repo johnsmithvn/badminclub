@@ -1005,6 +1005,7 @@
       "tier": "legend",
       "glyph": "thunder",
       "checkType": "break_streak_10",
+      "streakRequired": 10,
       "threshold": 1,
       "reward": {
         "xp": 350,
@@ -1017,7 +1018,7 @@
       "tier": "legend",
       "glyph": "horn",
       "checkType": "beat_champion",
-      "threshold": 1,
+      "threshold": 5,
       "reward": {
         "xp": 350,
         "seasonPts": 45

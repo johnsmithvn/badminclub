@@ -1388,7 +1388,7 @@ export function calculateMemberBadges(
         break
 
       case 'break_streak_10': {
-        const reqStreak = Number(badge.threshold || 10)
+        const reqStreak = Number(badge.streakRequired || 10)
         const broke10 = wonMatches.some((mt) => (mt.brokenStreak || 0) >= reqStreak)
         isUnlocked = broke10
         currentVal = isUnlocked ? 1 : 0
@@ -1398,7 +1398,8 @@ export function calculateMemberBadges(
       }
 
       case 'beat_champion': {
-        const beatChamp = wonMatches.some((mt) => {
+        const targetReq = Number(badge.threshold || 5)
+        const beatChampCount = wonMatches.filter((mt) => {
           const opps = (mt.teamA || []).includes(memberId) ? (mt.teamB || []) : (mt.teamA || [])
           const rank1AtMatch = clubStats.matchRank1Map?.get(mt.id || '')
           const hitChamp = !!(clubStats.seasonChampionId && opps.includes(clubStats.seasonChampionId))
@@ -1407,11 +1408,11 @@ export function calculateMemberBadges(
           // phải đóng băng tại lúc đạt, không phải hàm của trạng thái hôm nay.
           const hitRank1AtTime = !!(rank1AtMatch && rank1AtMatch !== memberId && opps.includes(rank1AtMatch))
           return hitChamp || hitRank1AtTime
-        })
-        isUnlocked = beatChamp
-        currentVal = isUnlocked ? 1 : 0
-        progressStr = isUnlocked ? '1 / 1' : '0 / 1'
-        pct = isUnlocked ? 100 : 0
+        }).length
+        isUnlocked = beatChampCount >= targetReq
+        currentVal = beatChampCount
+        progressStr = `${Math.min(beatChampCount, targetReq)} / ${targetReq}`
+        pct = Math.min(100, Math.round((beatChampCount / targetReq) * 100))
         break
       }
 

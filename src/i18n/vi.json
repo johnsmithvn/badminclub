@@ -4561,7 +4561,7 @@
       },
       "ha_nha_vo_dich": {
         "name": "Hạ nhà vô địch",
-        "cond": "Hạ người đang giữ danh hiệu Trùm giải CLB"
+        "cond": "Đánh bại người đang giữ vị trí Top 1 Elo ít nhất 5 lần"
       },
       "khong_ti_vet": {
         "name": "Không tì vết",
