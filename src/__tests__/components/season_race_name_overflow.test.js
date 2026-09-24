@@ -4,8 +4,8 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { shortName, NAME_CHARS } from '../../lib/money.js'
 
-test('Season Race — Chống tràn chữ tên dài trên Mobile & Desktop', async (t) => {
-  await t.test('1. shortName: Cắt ngắn tên dài bảo vệ layout không vượt trần NAME_CHARS', () => {
+test('Season Race — Hiển thị đủ tên trên màn lớn và CSS ellipsis chống tràn trên Mobile', async (t) => {
+  await t.test('1. shortName: Cắt ngắn tên dài bảo vệ layout cho các nơi cần rút gọn cố định', () => {
     // Tên bình thường (< 24 ký tự) giữ nguyên
     assert.equal(shortName('Nguyễn Văn A'), 'Nguyễn Văn A')
     assert.equal(shortName('Bát canh thập cẩm'), 'Bát canh thập cẩm')
@@ -28,19 +28,35 @@ test('Season Race — Chống tràn chữ tên dài trên Mobile & Desktop', asy
     assert.equal(shortName(''), '')
   })
 
-  await t.test('2. SeasonRaceTab.jsx: Kiểm tra AST/mã nguồn không cho phép dùng tên thô chưa bọc shortName', async () => {
+  await t.test('2. SeasonRaceTab.jsx: Giữ tên đầy đủ và dùng CSS ellipsis chuẩn CareerEloTab', async () => {
     const filePath = path.resolve('src/components/leaderboard/SeasonRaceTab.jsx')
     const code = await fs.readFile(filePath, 'utf8')
 
-    // 2.1 Bắt buộc phải import shortName từ #lib/money.js
+    // 2.1 Không hard-truncate trong JS bằng shortName trên bảng đua top mùa giải
     assert.ok(
-      code.includes("import { shortName } from '#lib/money.js'") ||
-      code.includes('import { shortName } from "#lib/money.js"') ||
-      code.includes('shortName'),
-      'SeasonRaceTab phải import shortName'
+      !code.includes('shortName(top1?.name)'),
+      'Top 1 không được hard truncate bằng shortName; phải render đủ tên và để CSS ellipsis xử lý'
+    )
+    assert.ok(
+      !code.includes('shortName(top2?.name)'),
+      'Top 2 không được hard truncate bằng shortName'
+    )
+    assert.ok(
+      !code.includes('shortName(top3?.name)'),
+      'Top 3 không được hard truncate bằng shortName'
+    )
+    assert.ok(
+      !code.includes('shortName(row.name)'),
+      'Row bảng không được hard truncate bằng shortName'
     )
 
-    // 2.2 Không được dùng gridTemplateColumns: '1fr 1fr' thiếu minmax(0, 1fr) trên mobile podium
+    // 2.2 Hiển thị tên đầy đủ với thẻ title để tooltip hiển thị trọn vẹn
+    assert.ok(code.includes('<span title={top1?.name}>{top1?.name}</span>'), 'Top 1 hiển thị đầy đủ tên kèm tooltip')
+    assert.ok(code.includes('<span title={top2?.name}>{top2?.name}</span>'), 'Top 2 hiển thị đầy đủ tên kèm tooltip')
+    assert.ok(code.includes('<span title={top3?.name}>{top3?.name}</span>'), 'Top 3 hiển thị đầy đủ tên kèm tooltip')
+    assert.ok(code.includes('<span title={row.name}>{row.name}</span>'), 'Row bảng hiển thị đầy đủ tên kèm tooltip')
+
+    // 2.3 Không được dùng gridTemplateColumns: '1fr 1fr' thiếu minmax(0, 1fr) trên mobile podium
     assert.ok(
       !code.includes("gridTemplateColumns: '1fr 1fr'"),
       "Không được dùng gridTemplateColumns: '1fr 1fr' vì sẽ bị chữ dài đẩy phình cột. Phải dùng minmax(0, 1fr)!"
@@ -49,35 +65,14 @@ test('Season Race — Chống tràn chữ tên dài trên Mobile & Desktop', asy
       !code.includes('gridTemplateColumns: "1fr 1fr"'),
       'Không được dùng gridTemplateColumns: "1fr 1fr"!'
     )
-
-    // 2.3 Mọi chỗ render tên Top 1, Top 2, Top 3 và row bảng mùa phải bọc qua shortName
-    // Bắt các mẫu lỗi trước đây: <span title={top1?.name}>{top1?.name}</span>
     assert.ok(
-      !code.includes('<span title={top1?.name}>{top1?.name}</span>'),
-      'Top 1 không được render {top1?.name} thô, phải bọc shortName(top1?.name)'
-    )
-    assert.ok(
-      !code.includes('<span title={top2?.name}>{top2?.name}</span>'),
-      'Top 2 không được render {top2?.name} thô, phải bọc shortName(top2?.name)'
-    )
-    assert.ok(
-      !code.includes('<span title={top3?.name}>{top3?.name}</span>'),
-      'Top 3 không được render {top3?.name} thô, phải bọc shortName(top3?.name)'
-    )
-    assert.ok(
-      !code.includes('<span title={row.name}>{row.name}</span>'),
-      'Row bảng xếp hạng không được render {row.name} thô, phải bọc shortName(row.name)'
+      code.includes("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'"),
+      'Mobile 2-column podium phải dùng repeat(2, minmax(0, 1fr))'
     )
 
-    // 2.4 Kiểm tra đã dùng shortName cho top1, top2, top3
-    assert.ok(code.includes('shortName(top1?.name)'), 'Top 1 phải dùng shortName(top1?.name)')
-    assert.ok(code.includes('shortName(top2?.name)'), 'Top 2 phải dùng shortName(top2?.name)')
-    assert.ok(code.includes('shortName(top3?.name)'), 'Top 3 phải dùng shortName(top3?.name)')
-    assert.ok(code.includes('shortName(row.name)'), 'Row bảng phải dùng shortName(row.name)')
-
-    // 2.5 Kiểm tra Dropdown chọn mùa giải có bo góc đẹp và giới hạn maxWidth chống tràn
+    // 2.4 Kiểm tra Dropdown chọn mùa giải có bo góc đẹp và giới hạn maxWidth chống tràn
     assert.ok(code.includes('borderRadius: 8'), 'Dropdown chọn mùa giải phải bo góc 8px đẹp chuẩn TDMS')
     assert.ok(code.includes('maxWidth: 100%') || code.includes("maxWidth: '100%'"), 'Dropdown chọn mùa giải phải có maxWidth: 100% chống tràn màn hình')
+    assert.ok(code.includes('boxSizing: border-box') || code.includes("boxSizing: 'border-box'"), 'Dropdown phải có boxSizing border-box')
   })
 })
-
