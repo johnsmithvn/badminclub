@@ -30,7 +30,10 @@ export default function Settings() {
   const pending = db.joinRequests || []
 
   // ----------------- Baseline & Draft State Management -----------------
-  const defGroup = useMemo(() => db.groups?.[0] || {}, [db.groups])
+  const defGroup = useMemo(
+    () => (db.groups || []).find((g) => !g.hasCustomPricing) || db.groups?.[0] || {},
+    [db.groups]
+  )
 
   const [generalDraft, setGeneralDraft] = useState({
     name: db.club?.name || '',
@@ -64,6 +67,24 @@ export default function Settings() {
 
   const [courtsDraft, setCourtsDraft] = useState(db.courts || [])
   const [groupsDraft, setGroupsDraft] = useState(db.groups || [])
+
+  const clubFeeSettings = useMemo(
+    () => ({
+      feeNam: moneyDraft.hasMonthlyFee ? intOf(moneyDraft.feeNam) : 0,
+      feeNu: moneyDraft.hasMonthlyFee ? intOf(moneyDraft.feeNu) : 0,
+      unitNam: moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNam) : 0) : -1,
+      unitNu: moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNu) : 0) : -1,
+    }),
+    [
+      moneyDraft.hasMonthlyFee,
+      moneyDraft.feeNam,
+      moneyDraft.feeNu,
+      moneyDraft.hasRefund,
+      moneyDraft.customRefundUnit,
+      moneyDraft.unitNam,
+      moneyDraft.unitNu,
+    ]
+  )
 
   const [isSaving, setIsSaving] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
@@ -156,7 +177,7 @@ export default function Settings() {
     }
 
     if (dirtyMoney.length === 0) {
-      const dg = db.groups[0] || {}
+      const dg = (db.groups || []).find((g) => !g.hasCustomPricing) || db.groups?.[0] || {}
       setMoneyDraft({
         hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
         feeNam: String(dg.feeNam || ''),
@@ -194,7 +215,7 @@ export default function Settings() {
       levels: db.levels || cfg.levelsDefault,
     })
 
-    const dg = db.groups?.[0] || {}
+    const dg = (db.groups || []).find((g) => !g.hasCustomPricing) || db.groups?.[0] || {}
     setMoneyDraft({
       hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
       feeNam: String(dg.feeNam || ''),
@@ -322,28 +343,21 @@ export default function Settings() {
       }
 
       // 4. Lưu Groups
-      if (dirtyGroups.length > 0 && !isFeeChanged && !isRefundChanged) {
-        // Người dùng sửa trực tiếp ở tab Nhóm: lưu đúng dữ liệu người dùng đã chỉnh trong groupsDraft
-        a.saveGroupsTab(groupsDraft)
-      } else if (dirtyGroups.length > 0 || isFeeChanged || isRefundChanged) {
-        // Người dùng sửa tab Biểu phí CLB: đồng bộ mức mới cho các nhóm dùng giá CLB
-        const syncedGroups = groupsDraft.map((g) => {
-          const isCustom = g.hasCustomPricing === true ||
-            intOf(g.feeNam) !== intOf(defGroup.feeNam) ||
-            intOf(g.feeNu) !== intOf(defGroup.feeNu) ||
-            intOf(g.unitNam) !== intOf(defGroup.unitNam) ||
-            intOf(g.unitNu) !== intOf(defGroup.unitNu)
-
-          if (isCustom) return g
-          return {
-            ...g,
-            feeNam: newClubFeeNam,
-            feeNu: newClubFeeNu,
-            unitNam: newClubUnitNam,
-            unitNu: newClubUnitNu,
+      if (dirtyGroups.length > 0 || isFeeChanged || isRefundChanged) {
+        const finalGroups = groupsDraft.map((g) => {
+          if (g.hasCustomPricing === true) return g
+          if (isFeeChanged || isRefundChanged) {
+            return {
+              ...g,
+              feeNam: newClubFeeNam,
+              feeNu: newClubFeeNu,
+              unitNam: newClubUnitNam,
+              unitNu: newClubUnitNu,
+            }
           }
+          return g
         })
-        a.saveGroupsTab(syncedGroups)
+        a.saveGroupsTab(finalGroups)
       }
 
       setIsSaved(true)
@@ -718,6 +732,7 @@ export default function Settings() {
             db={db}
             canEdit={canEdit}
             defGroup={defGroup}
+            clubFeeSettings={clubFeeSettings}
             onGroupFieldChange={handleGroupFieldChange}
             onReorderGroups={handleReorderGroups}
             onOpenDialog={(name, param) => a.openDialog(name, param)}

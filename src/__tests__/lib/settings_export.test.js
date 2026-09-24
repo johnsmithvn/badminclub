@@ -145,5 +145,35 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
   ])
   assert.equal(currentDb.groups[0].hasCustomPricing, true, 'flag hasCustomPricing phải được lưu qua saveGroupsTab')
   assert.equal(currentDb.groups[0].feeNam, 250000, 'nhóm có giá trùng CLB nhưng flag custom vẫn giữ giá')
+
+  // 5. Kiểm tra saveMoneyTab không bao giờ đè lên nhóm có hasCustomPricing === true
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 300000, feeNu: 250000, unitNam: 55000, unitNu: 45000 },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000, hasCustomPricing: true },
+  ])
+  a.saveMoneyTab({
+    feeNam: 350000,
+    feeNu: 300000,
+    hasRefund: true,
+    unitNam: 60000,
+    unitNu: 50000,
+  })
+  assert.equal(currentDb.groups[0].feeNam, 350000, 'nhóm áp dụng theo CLB phải cập nhật theo biểu phí CLB mới')
+  assert.equal(currentDb.groups[1].feeNam, 250000, 'nhóm có mức riêng hasCustomPricing === true tuyệt đối không bị saveMoneyTab ghi đè')
+
+  // 6. Nhóm đầu tiên là mức riêng thì saveMoneyTab vẫn bảo toàn nhóm đầu và cập nhật nhóm sau
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 280000, feeNu: 220000, unitNam: 50000, unitNu: 40000, hasCustomPricing: true },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 350000, feeNu: 300000, unitNam: 60000, unitNu: 50000 },
+  ])
+  a.saveMoneyTab({
+    feeNam: 320000,
+    feeNu: 270000,
+    hasRefund: true,
+    unitNam: 55000,
+    unitNu: 45000,
+  })
+  assert.equal(currentDb.groups[0].feeNam, 280000, 'nhóm G1 có mức riêng ở vị trí đầu tiên vẫn giữ nguyên 280k')
+  assert.equal(currentDb.groups[1].feeNam, 320000, 'nhóm G2 theo CLB phải cập nhật thành 320k')
 })
 

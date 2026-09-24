@@ -44,7 +44,7 @@ export async function load(clubId) {
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
-    of('member_groups', '*, group_courts(court_id)'),
+    of('member_groups', '*, group_courts(court_id)').order('created_at', { ascending: true }),
     of('club_members', '*, club_member_groups(group_id), profile:profiles(*)'),
     of('guests'),
     of('schedules', '*, schedule_slots(*)'),

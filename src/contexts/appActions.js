@@ -2176,10 +2176,19 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     }) => {
       const parseUnit = (v) => (v === -1 || v === '-1' ? -1 : intOf(v))
       up((d) => {
-        const def = d.groups[0] || {}
-        const isCustom = (g) =>
-          g.id !== def.id &&
-          (g.feeNam !== def.feeNam || g.feeNu !== def.feeNu || g.unitNam !== def.unitNam || g.unitNu !== def.unitNu)
+        const def = (d.groups || []).find((g) => !g.hasCustomPricing) || d.groups[0] || {}
+        const isCustom = (g) => {
+          if (g.hasCustomPricing === true) return true
+          if (g.hasCustomPricing === false) return false
+          if (!def.id || def.hasCustomPricing) return false
+          if (g.id === def.id) return false
+          return (
+            intOf(g.feeNam) !== intOf(def.feeNam) ||
+            intOf(g.feeNu) !== intOf(def.feeNu) ||
+            intOf(g.unitNam) !== intOf(def.unitNam) ||
+            intOf(g.unitNu) !== intOf(def.unitNu)
+          )
+        }
         return {
           club: {
             ...d.club,
@@ -2216,6 +2225,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           ...g,
           name: (g.name || '').trim(),
           short: (g.short || '').trim() || (g.name || '').slice(0, 3),
+          feeNam: intOf(g.feeNam),
+          feeNu: intOf(g.feeNu),
+          unitNam: g.unitNam === -1 || g.unitNam === '-1' ? -1 : intOf(g.unitNam),
+          unitNu: g.unitNu === -1 || g.unitNu === '-1' ? -1 : intOf(g.unitNu),
           from: g.from || '18:00',
           to: g.to || '20:00',
         })),

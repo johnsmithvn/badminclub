@@ -5,7 +5,7 @@ import {
   EmptyState,
 } from '#components/settings/SettingsComponents.jsx'
 import { groupForm } from '#lib/forms.js'
-import { fmtK } from '#lib/money.js'
+import { fmtK, intOf } from '#lib/money.js'
 import { t } from '#i18n'
 
 export default function GroupsTab({
@@ -13,6 +13,7 @@ export default function GroupsTab({
   courts = [],
   db,
   defGroup = {},
+  clubFeeSettings,
   onGroupFieldChange,
   onReorderGroups,
   onOpenDialog,
@@ -20,10 +21,10 @@ export default function GroupsTab({
   canEdit = true,
 }) {
   const noCourt = courts.length === 0
-  const defaultFeeNam = defGroup.feeNam !== undefined ? defGroup.feeNam : (db.groups?.[0]?.feeNam || 0)
-  const defaultFeeNu = defGroup.feeNu !== undefined ? defGroup.feeNu : (db.groups?.[0]?.feeNu || 0)
-  const defaultUnitNam = defGroup.unitNam !== undefined ? defGroup.unitNam : (db.groups?.[0]?.unitNam || 0)
-  const defaultUnitNu = defGroup.unitNu !== undefined ? defGroup.unitNu : (db.groups?.[0]?.unitNu || 0)
+  const defaultFeeNam = clubFeeSettings?.feeNam !== undefined ? clubFeeSettings.feeNam : (defGroup.feeNam !== undefined ? defGroup.feeNam : (db.groups?.[0]?.feeNam || 0))
+  const defaultFeeNu = clubFeeSettings?.feeNu !== undefined ? clubFeeSettings.feeNu : (defGroup.feeNu !== undefined ? defGroup.feeNu : (db.groups?.[0]?.feeNu || 0))
+  const defaultUnitNam = clubFeeSettings?.unitNam !== undefined ? clubFeeSettings.unitNam : (defGroup.unitNam !== undefined ? defGroup.unitNam : (db.groups?.[0]?.unitNam || 0))
+  const defaultUnitNu = clubFeeSettings?.unitNu !== undefined ? clubFeeSettings.unitNu : (defGroup.unitNu !== undefined ? defGroup.unitNu : (db.groups?.[0]?.unitNu || 0))
 
   // Track which group IDs are currently in "custom pricing" edit mode
   const [customPricing, setCustomPricing] = useState({})
@@ -35,13 +36,22 @@ export default function GroupsTab({
       ...prev,
       [groupId]: willBeCustom,
     }))
-    // Lưu flag vào data nhóm để reload vẫn nhớ trạng thái
-    onGroupFieldChange(groupId, 'hasCustomPricing', willBeCustom)
     if (willBeCustom) {
-      if (g.feeNam === undefined) onGroupFieldChange(groupId, 'feeNam', defaultFeeNam)
-      if (g.feeNu === undefined) onGroupFieldChange(groupId, 'feeNu', defaultFeeNu)
-      if (g.unitNam === undefined) onGroupFieldChange(groupId, 'unitNam', defaultUnitNam)
-      if (g.unitNu === undefined) onGroupFieldChange(groupId, 'unitNu', defaultUnitNu)
+      onGroupFieldChange(groupId, {
+        hasCustomPricing: true,
+        feeNam: g.feeNam !== undefined ? g.feeNam : defaultFeeNam,
+        feeNu: g.feeNu !== undefined ? g.feeNu : defaultFeeNu,
+        unitNam: g.unitNam !== undefined ? g.unitNam : defaultUnitNam,
+        unitNu: g.unitNu !== undefined ? g.unitNu : defaultUnitNu,
+      })
+    } else {
+      onGroupFieldChange(groupId, {
+        hasCustomPricing: false,
+        feeNam: defaultFeeNam,
+        feeNu: defaultFeeNu,
+        unitNam: defaultUnitNam,
+        unitNu: defaultUnitNu,
+      })
     }
   }
 
@@ -93,15 +103,15 @@ export default function GroupsTab({
                   ? true
                   : g.hasCustomPricing === false
                     ? false
-                    : (g.feeNam !== undefined && g.feeNam !== defaultFeeNam) ||
-                      (g.feeNu !== undefined && g.feeNu !== defaultFeeNu) ||
-                      (g.unitNam !== undefined && g.unitNam !== defaultUnitNam) ||
-                      (g.unitNu !== undefined && g.unitNu !== defaultUnitNu)
+                    : (intOf(g.feeNam) !== intOf(defaultFeeNam)) ||
+                      (intOf(g.feeNu) !== intOf(defaultFeeNu)) ||
+                      (intOf(g.unitNam) !== intOf(defaultUnitNam)) ||
+                      (intOf(g.unitNu) !== intOf(defaultUnitNu))
             )
-            const feeNamVal = g.feeNam !== undefined ? g.feeNam : defaultFeeNam
-            const feeNuVal = g.feeNu !== undefined ? g.feeNu : defaultFeeNu
-            const unitNamVal = g.unitNam !== undefined ? g.unitNam : defaultUnitNam
-            const unitNuVal = g.unitNu !== undefined ? g.unitNu : defaultUnitNu
+            const feeNamVal = hasCustom ? (g.feeNam !== undefined ? g.feeNam : defaultFeeNam) : defaultFeeNam
+            const feeNuVal = hasCustom ? (g.feeNu !== undefined ? g.feeNu : defaultFeeNu) : defaultFeeNu
+            const unitNamVal = hasCustom ? (g.unitNam !== undefined ? g.unitNam : defaultUnitNam) : defaultUnitNam
+            const unitNuVal = hasCustom ? (g.unitNu !== undefined ? g.unitNu : defaultUnitNu) : defaultUnitNu
 
             const isTimeInvalid = Boolean(g.from && g.to && g.from >= g.to)
             const isNameDup = Boolean(
@@ -333,11 +343,13 @@ export default function GroupsTab({
                       <button
                         type="button"
                         onClick={() => {
-                          onGroupFieldChange(g.id, 'feeNam', defaultFeeNam)
-                          onGroupFieldChange(g.id, 'feeNu', defaultFeeNu)
-                          onGroupFieldChange(g.id, 'unitNam', defaultUnitNam)
-                          onGroupFieldChange(g.id, 'unitNu', defaultUnitNu)
-                          onGroupFieldChange(g.id, 'hasCustomPricing', false)
+                          onGroupFieldChange(g.id, {
+                            hasCustomPricing: false,
+                            feeNam: defaultFeeNam,
+                            feeNu: defaultFeeNu,
+                            unitNam: defaultUnitNam,
+                            unitNu: defaultUnitNu,
+                          })
                           setCustomPricing((prev) => ({ ...prev, [g.id]: false }))
                         }}
                         style={{
