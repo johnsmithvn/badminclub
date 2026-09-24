@@ -7,6 +7,7 @@ import {
   HEX_CLIP,
   getBadgeFamily,
   groupBadgesByFamily,
+  sortBadgesByRarity,
 } from '#lib/badges.js'
 import { t } from '#i18n'
 import { shortName } from '#lib/money.js'
@@ -46,7 +47,9 @@ export default function AnimeMobileCollection({
 
   // Danh sách huy hiệu chính thức đã mở khóa cho Kho Đã Mở
   const unlockedShowcaseBadges = useMemo(() => {
-    return (memberBadges?.unlocked || []).filter((b) => b.tier !== 'fun')
+    const list = memberBadges?.unlocked || []
+    const official = list.filter((b) => b.tier !== 'fun')
+    return sortBadgesByRarity(official)
   }, [memberBadges?.unlocked])
 
   // Danh sách các nhóm
@@ -800,8 +803,8 @@ export default function AnimeMobileCollection({
                 if (filterKind === 'solo' && b.isFamily) return false
                 return true
               })
-              const famBadges = filtered.filter((b) => b.isFamily)
-              const solBadges = filtered.filter((b) => !b.isFamily)
+              const famBadges = sortBadgesByRarity(filtered.filter((b) => b.isFamily))
+              const solBadges = sortBadgesByRarity(filtered.filter((b) => !b.isFamily))
 
               if (filtered.length === 0) {
                 return (

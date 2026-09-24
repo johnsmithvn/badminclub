@@ -2092,3 +2092,52 @@ export function groupBadgesByFamily(badgesList = []) {
   return result
 }
 
+/** Trọng số phẩm cấp phục vụ sắp xếp theo độ hiếm giảm dần */
+export const TIER_WEIGHT = {
+  legend: 5,
+  epic: 4,
+  elite: 3,
+  rare: 2,
+  fun: 1,
+  hidden: 0,
+}
+
+/**
+ * Sắp xếp danh sách danh hiệu theo độ hiếm và trạng thái:
+ * 1. Phẩm cấp cao hơn đứng trước (Legend -> Epic -> Elite -> Rare -> Fun/Hidden).
+ * 2. Đã mở khóa đứng trước danh hiệu chưa mở.
+ * 3. Tiến độ % cao hơn đứng trước.
+ * 4. Giữ thứ tự ổn định theo ID.
+ *
+ * @param {Array} list
+ * @returns {Array}
+ */
+export function sortBadgesByRarity(list = []) {
+  if (!Array.isArray(list) || list.length === 0) return []
+  return [...list].sort((a, b) => {
+    // 1. Phẩm cấp cao nhất (với họ danh hiệu lấy phẩm cấp mốc cuối cùng)
+    const tierA = a.isFamily ? (a.tiers?.[a.tiers.length - 1]?.tier || a.tier) : a.tier
+    const tierB = b.isFamily ? (b.tiers?.[b.tiers.length - 1]?.tier || b.tier) : b.tier
+    const wA = TIER_WEIGHT[tierA] ?? 0
+    const wB = TIER_WEIGHT[tierB] ?? 0
+    if (wB !== wA) return wB - wA
+
+    // 2. Trạng thái đã mở khóa
+    const unlScoreA = a.unlocked || (a.isFamily && a.isAllUnlocked)
+      ? 2
+      : (a.isFamily && a.unlockedTiersCount > 0 ? 1 : 0)
+    const unlScoreB = b.unlocked || (b.isFamily && b.isAllUnlocked)
+      ? 2
+      : (b.isFamily && b.unlockedTiersCount > 0 ? 1 : 0)
+    if (unlScoreB !== unlScoreA) return unlScoreB - unlScoreA
+
+    // 3. Tiến độ phần trăm (%)
+    const pctA = a.isFamily ? (a.nextTarget?.pct || (a.isAllUnlocked ? 100 : 0)) : (a.pct || 0)
+    const pctB = b.isFamily ? (b.nextTarget?.pct || (b.isAllUnlocked ? 100 : 0)) : (b.pct || 0)
+    if (pctB !== pctA) return pctB - pctA
+
+    // 4. Giữ thứ tự ổn định theo ID
+    return String(a.id || '').localeCompare(String(b.id || ''))
+  })
+}
+

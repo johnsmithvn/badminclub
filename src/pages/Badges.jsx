@@ -26,6 +26,7 @@ import {
   getRarestBadges,
   groupBadgesByFamily,
   getBadgeFamily,
+  sortBadgesByRarity,
   ANIME_TIERS,
   NOTCH_CLIP,
   NOTCH_S_CLIP,
@@ -197,7 +198,8 @@ export default function Badges() {
   // 5.1 Danh sách huy hiệu đã mở khóa chính thức (không tính tự phong) cho Kho Đã Đạt
   const unlockedShowcaseBadges = useMemo(() => {
     const list = memberBadges.unlocked || []
-    return list.filter((b) => b.tier !== 'fun')
+    const official = list.filter((b) => b.tier !== 'fun')
+    return sortBadgesByRarity(official)
   }, [memberBadges.unlocked])
 
   // 6. Danh sách các Bounty đang mở từ DB THẬT
@@ -1578,8 +1580,8 @@ export default function Badges() {
                 return true
               })
 
-              const familyBadges = filteredBadges.filter((b) => b.isFamily)
-              const soloBadges = filteredBadges.filter((b) => !b.isFamily)
+              const familyBadges = sortBadgesByRarity(filteredBadges.filter((b) => b.isFamily))
+              const soloBadges = sortBadgesByRarity(filteredBadges.filter((b) => !b.isFamily))
 
               // Ẩn nhóm nếu không có huy hiệu nào sau khi lọc
               if (filteredBadges.length === 0 && (filterKind !== 'all' || filterStatus !== 'all' || searchQuery)) {
