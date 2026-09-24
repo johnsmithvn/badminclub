@@ -83,6 +83,28 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
           height: '100%',
         }}
       >
+        {/* Tag phân loại loại danh hiệu: Tiến Hóa vs Độc Bậc */}
+        {badge.tier !== 'fun' && (
+          <div style={{ position: 'absolute', top: 8, right: 9, zIndex: 2 }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 2,
+                font: "700 8px/1 'Oswald', sans-serif",
+                letterSpacing: '.12em',
+                padding: '2px 5px',
+                clipPath: NOTCH_S_CLIP,
+                background: isFamily ? 'rgba(109,20,255,0.25)' : 'rgba(255,226,75,0.12)',
+                border: isFamily ? '1px solid rgba(139,43,255,0.5)' : '1px solid rgba(255,226,75,0.35)',
+                color: isFamily ? '#D9A8FF' : '#FFE24B',
+              }}
+            >
+              {isFamily ? `🧬 ${t('badges.tagFamily')}` : `🏆 ${t('badges.tagSolo')}`}
+            </span>
+          </div>
+        )}
+
         {/* 1. Huy hiệu lục giác */}
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <BadgeHex

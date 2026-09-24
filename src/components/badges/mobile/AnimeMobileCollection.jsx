@@ -41,6 +41,14 @@ export default function AnimeMobileCollection({
   // Nhóm đang được chọn để hiển thị lưới 3 cột (mặc định là nhóm đầu tiên)
   const [selectedGroupIdx, setSelectedGroupIdx] = useState(0)
 
+  // Bộ lọc loại danh hiệu: all | family | solo
+  const [filterKind, setFilterKind] = useState('all')
+
+  // Danh sách huy hiệu chính thức đã mở khóa cho Kho Đã Mở
+  const unlockedShowcaseBadges = useMemo(() => {
+    return (memberBadges?.unlocked || []).filter((b) => b.tier !== 'fun')
+  }, [memberBadges?.unlocked])
+
   // Danh sách các nhóm
   const groups = useMemo(() => {
     if (!catalogGroups || catalogGroups.length === 0) return []
@@ -644,9 +652,124 @@ export default function AnimeMobileCollection({
           </div>
         </div>
 
+        {/* ═══ KHỐI 2.5: KHO HUY HIỆU ĐÃ MỞ (Unlocked Showcase Reel - Chiều cao compact) ═══ */}
+        <div
+          style={{
+            flex: '0 0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 7,
+            padding: '10px 12px',
+            clipPath: NOTCH_S_CLIP,
+            background: 'linear-gradient(135deg, rgba(255, 226, 75, 0.05), rgba(109, 20, 255, 0.08))',
+            border: '1px solid rgba(255, 226, 75, 0.25)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 14 }}>🏆</span>
+              <span style={{ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFE24B' }}>
+                {t('badges.unlockedVaultTitle')}
+              </span>
+            </div>
+            <span style={{ font: "400 9.5px/1 'IBM Plex Mono', monospace", color: '#D9A8FF' }}>
+              {unlockedShowcaseBadges.length} · {collectionScore} pts
+            </span>
+          </div>
+
+          {unlockedShowcaseBadges.length === 0 ? (
+            <span style={{ font: "400 10.5px/1.3 'Be Vietnam Pro', sans-serif", color: '#7E6FA0', fontStyle: 'italic' }}>
+              {t('badges.unlockedVaultEmpty')}
+            </span>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+              {unlockedShowcaseBadges.map((badge) => {
+                const tMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
+                return (
+                  <div
+                    key={badge.id}
+                    onClick={() => onSelectBadge && onSelectBadge(badge)}
+                    style={{
+                      flex: '0 0 auto',
+                      width: 68,
+                      height: 74,
+                      padding: 1,
+                      clipPath: NOTCH_S_CLIP,
+                      background: tMeta.edge || 'rgba(255,255,255,.15)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div
+                      style={{
+                        clipPath: NOTCH_S_CLIP,
+                        background: '#150A26',
+                        padding: '6px 3px 4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 3,
+                        height: '100%',
+                      }}
+                    >
+                      <BadgeHex tier={badge.tier} glyph={badge.glyph} size={32} spin={badge.tier === 'legend'} />
+                      <span
+                        style={{
+                          font: "700 8.5px/1.2 'Be Vietnam Pro', sans-serif",
+                          textAlign: 'center',
+                          color: '#FFFFFF',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          width: '100%',
+                        }}
+                      >
+                        {t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '' })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ═══ THANH BỘ LỌC LOẠI (Kind Filter Tabs) ═══ */}
+        <div style={{ flex: '0 0 auto', display: 'flex', gap: 6 }}>
+          {[
+            { id: 'all', label: t('badges.filterKindAll') },
+            { id: 'family', label: t('badges.filterKindFamily') },
+            { id: 'solo', label: t('badges.filterKindSolo') },
+          ].map((k) => {
+            const isActive = filterKind === k.id
+            return (
+              <button
+                key={k.id}
+                type="button"
+                onClick={() => setFilterKind(k.id)}
+                style={{
+                  flex: 1,
+                  font: "600 10px/1 'Oswald', sans-serif",
+                  letterSpacing: '.08em',
+                  padding: '7px 4px',
+                  clipPath: NOTCH_S_CLIP,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: isActive ? 'linear-gradient(135deg, #6D14FF, #2EE9FF)' : 'rgba(255,255,255,.05)',
+                  color: isActive ? '#01101F' : '#9C8ABE',
+                  transition: 'all .15s ease',
+                }}
+              >
+                {k.label}
+              </button>
+            )
+          })}
+        </div>
+
         {/* ═══ KHỐI 3: NHÓM DANH HIỆU ĐANG CHỌN (Lưới 3 Cột) ═══ */}
         {activeGroup && (
-          <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* Header nhóm */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <span style={{ width: 3, height: 15, background: 'linear-gradient(180deg, #6D14FF, #2EE9FF)' }} />
               <span style={{ font: "700 12.5px/1 'Oswald', sans-serif", letterSpacing: '.1em', color: '#FFFFFF' }}>
@@ -669,9 +792,26 @@ export default function AnimeMobileCollection({
               </span>
             </div>
 
-            {/* Lưới 3 cột danh hiệu */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-              {(activeGroup.badges || []).map((b) => {
+            {/* Phân loại các badges trong nhóm theo filterKind */}
+            {(() => {
+              const allBadges = activeGroup.badges || []
+              const filtered = allBadges.filter((b) => {
+                if (filterKind === 'family' && !b.isFamily) return false
+                if (filterKind === 'solo' && b.isFamily) return false
+                return true
+              })
+              const famBadges = filtered.filter((b) => b.isFamily)
+              const solBadges = filtered.filter((b) => !b.isFamily)
+
+              if (filtered.length === 0) {
+                return (
+                  <div style={{ padding: '12px', background: 'rgba(255,255,255,.02)', borderRadius: 6, color: '#7E6FA0', fontSize: 11, fontStyle: 'italic' }}>
+                    {t('badges.noBadgesMatch')}
+                  </div>
+                )
+              }
+
+              const renderBadgeItem = (b) => {
                 const isUnlocked = b.unlocked || (b.isFamily && !!b.highestUnlocked)
                 const currentBadge = b.isFamily ? (b.highestUnlocked || b.nextTarget || b.tiers?.[0] || b) : b
                 const tierKey = currentBadge.tier || 'rare'
@@ -692,29 +832,45 @@ export default function AnimeMobileCollection({
                       transition: 'transform 0.15s ease',
                     }}
                   >
+                    {/* Tag nhỏ trên thẻ */}
+                    {b.tier !== 'fun' && (
+                      <div style={{ position: 'absolute', top: 5, right: 6, zIndex: 2 }}>
+                        <span
+                          style={{
+                            font: "700 7px/1 'Oswald', sans-serif",
+                            padding: '1px 3px',
+                            borderRadius: 2,
+                            background: b.isFamily ? 'rgba(109,20,255,.3)' : 'rgba(255,226,75,.2)',
+                            color: b.isFamily ? '#D9A8FF' : '#FFE24B',
+                          }}
+                        >
+                          {b.isFamily ? '🧬' : '🏆'}
+                        </span>
+                      </div>
+                    )}
                     <div
                       style={{
                         position: 'relative',
                         clipPath: NOTCH_CLIP,
                         background: isUnlocked ? tMeta.panel : '#120823',
-                        padding: '12px 6px 10px',
+                        padding: '10px 4px 8px',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: 7,
+                        gap: 6,
                         height: '100%',
                       }}
                     >
                       <BadgeHex
                         tier={tierKey}
                         glyph={currentBadge.glyph}
-                        size={64}
+                        size={56}
                         dim={!isUnlocked}
                         spin={tierKey === 'legend' && isUnlocked}
                       />
                       <span
                         style={{
-                          font: "700 11px/1.25 'Be Vietnam Pro', sans-serif",
+                          font: "700 10.5px/1.2 'Be Vietnam Pro', sans-serif",
                           textAlign: 'center',
                           color: isUnlocked ? '#FFFFFF' : '#9C8ABE',
                           overflow: 'hidden',
@@ -722,22 +878,21 @@ export default function AnimeMobileCollection({
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical',
-                          minHeight: 28,
+                          minHeight: 26,
                         }}
                       >
                         {bName}
                       </span>
 
-                      {/* Thanh tiến độ nếu chưa mở và có tiến độ */}
                       {!isUnlocked && currentBadge.pct > 0 && (
                         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", color: tMeta.ink }}>
+                          <span style={{ font: "600 9px/1 'IBM Plex Mono', monospace", color: tMeta.ink }}>
                             {currentBadge.progressStr || `${currentBadge.pct}%`}
                           </span>
                           <div
                             style={{
                               width: '100%',
-                              height: 4,
+                              height: 3,
                               clipPath: NOTCH_S_CLIP,
                               background: 'rgba(255,255,255,.08)',
                             }}
@@ -755,8 +910,48 @@ export default function AnimeMobileCollection({
                     </div>
                   </div>
                 )
-              })}
-            </div>
+              }
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {famBadges.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {filterKind === 'all' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.08em', color: '#D9A8FF' }}>
+                            🧬 {t('badges.sectionFamilyTitle')}
+                          </span>
+                          <span style={{ font: "600 8.5px/1 'Oswald', sans-serif", padding: '1px 5px', borderRadius: 3, background: 'rgba(109,20,255,.2)', color: '#D9A8FF' }}>
+                            {famBadges.length}
+                          </span>
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                        {famBadges.map(renderBadgeItem)}
+                      </div>
+                    </div>
+                  )}
+
+                  {solBadges.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {filterKind === 'all' && famBadges.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                          <span style={{ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.08em', color: '#FFE24B' }}>
+                            🏆 {t('badges.sectionSoloTitle')}
+                          </span>
+                          <span style={{ font: "600 8.5px/1 'Oswald', sans-serif", padding: '1px 5px', borderRadius: 3, background: 'rgba(255,226,75,.15)', color: '#FFE24B' }}>
+                            {solBadges.length}
+                          </span>
+                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                        {solBadges.map(renderBadgeItem)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )}
 

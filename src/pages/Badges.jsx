@@ -67,6 +67,11 @@ export default function Badges() {
   const [isEditingSignature, setIsEditingSignature] = useState(false)
   const [signatureDraft, setSignatureDraft] = useState('')
 
+  // Bộ lọc danh hiệu: Loại (all | family | solo), Trạng thái (all | unlocked | in_progress | locked), Tìm kiếm
+  const [filterKind, setFilterKind] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+
   // Thành viên người dùng hiện tại (đăng nhập)
   // `myMember` chỉ nhận 1 tham số (xem money.js) — truyền thêm `me` là thừa và gây hiểu nhầm
   // rằng danh tính đăng nhập có ảnh hưởng; nó đọc `db.currentUserId` bên trong.
@@ -188,6 +193,12 @@ export default function Badges() {
     if (!activeMemberId) return { all: [], unlocked: [], inProgress: [] }
     return calculateMemberBadges(activeMemberId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
   }, [activeMemberId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
+
+  // 5.1 Danh sách huy hiệu đã mở khóa chính thức (không tính tự phong) cho Kho Đã Đạt
+  const unlockedShowcaseBadges = useMemo(() => {
+    const list = memberBadges.unlocked || []
+    return list.filter((b) => b.tier !== 'fun')
+  }, [memberBadges.unlocked])
 
   // 6. Danh sách các Bounty đang mở từ DB THẬT
   const bounties = useMemo(() => {
@@ -1262,17 +1273,322 @@ export default function Badges() {
             />
           </div>
 
-          {/* 4. Lưới 4 Nhóm Danh Hiệu theo bản thiết kế Anime A1 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* ═══ 3.5. KHO HUY HIỆU ĐÃ MỞ (Unlocked Vault Reel - Chiều cao compact, không chiếm màn hình) ═══ */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 9,
+              padding: '12px 16px',
+              clipPath: NOTCH_CLIP,
+              background: 'linear-gradient(135deg, rgba(255, 226, 75, 0.05), rgba(109, 20, 255, 0.08))',
+              border: '1px solid rgba(255, 226, 75, 0.25)',
+            }}
+          >
+            {/* Header Kho */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>🏆</span>
+                <span style={{ font: '700 13.5px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFE24B' }}>
+                  {t('badges.unlockedVaultTitle')}
+                </span>
+                <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#D9A8FF' }}>
+                  · {t('badges.unlockedVaultSub', { count: unlockedShowcaseBadges.length, points: memberBadges.collectionScore })}
+                </span>
+              </div>
+            </div>
+
+            {/* Dải cuộn ngang Compact Reel */}
+            {unlockedShowcaseBadges.length === 0 ? (
+              <div
+                style={{
+                  padding: '10px 12px',
+                  background: 'rgba(255,255,255,.02)',
+                  borderRadius: 6,
+                  font: "400 11.5px/1.4 'Be Vietnam Pro', sans-serif",
+                  color: '#8E7DAE',
+                  fontStyle: 'italic',
+                }}
+              >
+                {t('badges.unlockedVaultEmpty')}
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  overflowX: 'auto',
+                  paddingBottom: 4,
+                }}
+              >
+                {unlockedShowcaseBadges.map((badge) => {
+                  const tMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
+                  return (
+                    <div
+                      key={badge.id}
+                      onClick={() => handleSelectBadge(badge)}
+                      role="button"
+                      tabIndex={0}
+                      title={t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '' })}
+                      style={{
+                        flex: '0 0 auto',
+                        width: 80,
+                        height: 84,
+                        padding: 1,
+                        clipPath: NOTCH_S_CLIP,
+                        background: tMeta.edge || 'rgba(255,255,255,.15)',
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)'
+                      }}
+                    >
+                      <div
+                        style={{
+                          clipPath: NOTCH_S_CLIP,
+                          background: '#150A26',
+                          padding: '7px 4px 5px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 4,
+                          height: '100%',
+                        }}
+                      >
+                        <BadgeHex tier={badge.tier} glyph={badge.glyph} size={36} spin={badge.tier === 'legend'} />
+                        <span
+                          style={{
+                            font: "700 9.5px/1.2 'Be Vietnam Pro', sans-serif",
+                            textAlign: 'center',
+                            color: '#FFFFFF',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            width: '100%',
+                            padding: '0 2px',
+                          }}
+                        >
+                          {t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '' })}
+                        </span>
+                        <span
+                          style={{
+                            font: "600 7.5px/1 'Oswald', sans-serif",
+                            letterSpacing: '.1em',
+                            color: tMeta.ink || '#FFFFFF',
+                          }}
+                        >
+                          {tMeta.name}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ═══ THANH CÔNG CỤ BỘ LỌC & TÌM KIẾM (Filter & Search Toolbar) ═══ */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+              padding: '12px 16px',
+              clipPath: NOTCH_S_CLIP,
+              background: 'rgba(255,255,255,.03)',
+              border: '1px solid #2A1145',
+            }}
+          >
+            {/* Nhóm Bộ Lọc Loại (Kind Filter) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', label: t('badges.filterKindAll') },
+                { id: 'family', label: t('badges.filterKindFamily') },
+                { id: 'solo', label: t('badges.filterKindSolo') },
+              ].map((k) => {
+                const isActive = filterKind === k.id
+                return (
+                  <button
+                    key={k.id}
+                    type="button"
+                    onClick={() => setFilterKind(k.id)}
+                    style={{
+                      font: '600 11px/1 Oswald, sans-serif',
+                      letterSpacing: '.1em',
+                      padding: '7px 12px',
+                      clipPath: NOTCH_S_CLIP,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: isActive
+                        ? 'linear-gradient(135deg, #6D14FF, #2EE9FF)'
+                        : 'rgba(255,255,255,.05)',
+                      color: isActive ? '#01101F' : '#9C8ABE',
+                      transition: 'all .15s ease',
+                    }}
+                  >
+                    {k.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Nhóm Bộ Lọc Trạng Thái & Ô Tìm Kiếm */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{
+                  background: '#190C2D',
+                  border: '1px solid #3B1B66',
+                  borderRadius: 6,
+                  color: '#FFFFFF',
+                  padding: '6px 12px',
+                  fontSize: 11.5,
+                  fontFamily: "'Oswald', sans-serif",
+                  letterSpacing: '.06em',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="all">{t('badges.filterStatusAll')}</option>
+                <option value="unlocked">{t('badges.filterStatusUnlocked')}</option>
+                <option value="in_progress">{t('badges.filterStatusInProgress')}</option>
+                <option value="locked">{t('badges.filterStatusLocked')}</option>
+              </select>
+
+              {/* Ô Input tìm kiếm danh hiệu */}
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('badges.searchPlaceholder')}
+                  style={{
+                    background: '#190C2D',
+                    border: '1px solid #3B1B66',
+                    borderRadius: 6,
+                    color: '#FFFFFF',
+                    padding: '6px 28px 6px 10px',
+                    fontSize: 12,
+                    fontFamily: "'Be Vietnam Pro', sans-serif",
+                    outline: 'none',
+                    width: 170,
+                    transition: 'width 0.2s ease, border-color 0.2s ease',
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.width = '210px'
+                    e.target.style.borderColor = '#8B2BFF'
+                  }}
+                  onBlur={(e) => {
+                    if (!searchQuery) e.target.style.width = '170px'
+                    e.target.style.borderColor = '#3B1B66'
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      position: 'absolute',
+                      right: 6,
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#9C8ABE',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      padding: 2,
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {(filterKind !== 'all' || filterStatus !== 'all' || searchQuery) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterKind('all')
+                    setFilterStatus('all')
+                    setSearchQuery('')
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#FF2E7E',
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    fontFamily: "'Oswald', sans-serif",
+                    letterSpacing: '.08em',
+                  }}
+                >
+                  {t('badges.clearFilter')}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 4. Lưới các Nhóm Danh Hiệu (Phân khu Có Cấp vs Đơn Bậc) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             {catalogGroups.map((group) => {
               const groupBadges = group.badges || []
               const openedInGroup = groupBadges.filter((b) => b.unlocked).length
               const groupTone = group.tone || 'elite'
               const toneMeta = ANIME_TIERS[groupTone] || ANIME_TIERS.elite
 
+              // Lọc badges theo Kind, Status và Search
+              const filteredBadges = groupBadges.filter((b) => {
+                // 1. Kind
+                if (filterKind === 'family' && !b.isFamily) return false
+                if (filterKind === 'solo' && b.isFamily) return false
+
+                // 2. Status
+                if (filterStatus === 'unlocked') {
+                  const isUnl = b.unlocked || (b.isFamily && (b.unlockedTiersCount > 0 || !!b.highestUnlocked))
+                  if (!isUnl) return false
+                } else if (filterStatus === 'in_progress') {
+                  const isInProg = b.isFamily
+                    ? (!b.isAllUnlocked && (b.nextTarget?.pct > 0 || b.pct > 0))
+                    : (!b.unlocked && b.pct > 0)
+                  if (!isInProg) return false
+                } else if (filterStatus === 'locked') {
+                  const isLck = b.isFamily
+                    ? (b.unlockedTiersCount === 0 && (!b.nextTarget || !b.nextTarget.pct))
+                    : (!b.unlocked && (!b.pct || b.pct === 0))
+                  if (!isLck) return false
+                }
+
+                // 3. Search
+                if (searchQuery.trim()) {
+                  const q = searchQuery.trim().toLowerCase()
+                  const bName = b.isFamily
+                    ? t(`badges.families.${b.familyKey}.name`, { defaultValue: b.name || '' }).toLowerCase()
+                    : t(`badges.items.${b.id}.name`, { defaultValue: b.name || '' }).toLowerCase()
+                  if (!bName.includes(q)) return false
+                }
+
+                return true
+              })
+
+              const familyBadges = filteredBadges.filter((b) => b.isFamily)
+              const soloBadges = filteredBadges.filter((b) => !b.isFamily)
+
+              // Ẩn nhóm nếu không có huy hiệu nào sau khi lọc
+              if (filteredBadges.length === 0 && (filterKind !== 'all' || filterStatus !== 'all' || searchQuery)) {
+                return null
+              }
+
               return (
-                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {/* Header nhóm */}
+                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Header nhóm chính */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <span style={{ width: 3, height: 20, background: 'linear-gradient(180deg,#FF2E7E,#6D14FF)' }} />
                     <span style={{ font: '700 17px/1 Oswald, sans-serif', letterSpacing: '.1em', color: '#FFFFFF' }}>
@@ -1299,23 +1615,111 @@ export default function Badges() {
                     <div style={{ flex: '1 1 0%', height: 1, background: 'linear-gradient(90deg,#2A1145,transparent)' }} />
                   </div>
 
-                  {/* Lưới các thẻ danh hiệu 5 cột */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-                      gap: 12,
-                    }}
-                  >
-                    {groupBadges.map((badge) => (
-                      <BadgeCard
-                        key={badge.id}
-                        badge={badge}
-                        isHighlighted={highlightedBadgeId === badge.id}
-                        onClick={(b) => handleSelectBadge(b)}
-                      />
-                    ))}
-                  </div>
+                  {filteredBadges.length === 0 ? (
+                    <div
+                      style={{
+                        padding: '16px 20px',
+                        clipPath: NOTCH_S_CLIP,
+                        background: 'rgba(255,255,255,.02)',
+                        border: '1px dashed rgba(255,255,255,.08)',
+                        color: '#7E6FA0',
+                        font: "400 12px/1.4 'Be Vietnam Pro', sans-serif",
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      {t('badges.noBadgesMatch')}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                      {/* ─── PHÂN KHU 1: HỌ TIẾN HÓA (CÓ CẤP ĐỘ) ─── */}
+                      {familyBadges.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {filterKind === 'all' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
+                              <span style={{ font: "700 12.5px/1 'Oswald', sans-serif", letterSpacing: '.1em', color: '#D9A8FF' }}>
+                                🧬 {t('badges.sectionFamilyTitle')}
+                              </span>
+                              <span style={{ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
+                                · {t('badges.sectionFamilySub')}
+                              </span>
+                              <span
+                                style={{
+                                  font: "600 9px/1 'Oswald', sans-serif",
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                  background: 'rgba(109,20,255,.2)',
+                                  color: '#D9A8FF',
+                                  border: '1px solid rgba(139,43,255,.3)',
+                                }}
+                              >
+                                {familyBadges.length}
+                              </span>
+                            </div>
+                          )}
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+                              gap: 12,
+                            }}
+                          >
+                            {familyBadges.map((badge) => (
+                              <BadgeCard
+                                key={badge.id}
+                                badge={badge}
+                                isHighlighted={highlightedBadgeId === badge.id}
+                                onClick={(b) => handleSelectBadge(b)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ─── PHÂN KHU 2: CHIẾN TÍCH ĐỘC BẬC (ĐƠN BẬC) ─── */}
+                      {soloBadges.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {filterKind === 'all' && familyBadges.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4, marginTop: 4 }}>
+                              <span style={{ font: "700 12.5px/1 'Oswald', sans-serif", letterSpacing: '.1em', color: '#FFE24B' }}>
+                                🏆 {t('badges.sectionSoloTitle')}
+                              </span>
+                              <span style={{ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
+                                · {t('badges.sectionSoloSub')}
+                              </span>
+                              <span
+                                style={{
+                                  font: "600 9px/1 'Oswald', sans-serif",
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                  background: 'rgba(255,226,75,.15)',
+                                  color: '#FFE24B',
+                                  border: '1px solid rgba(255,226,75,.25)',
+                                }}
+                              >
+                                {soloBadges.length}
+                              </span>
+                            </div>
+                          )}
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+                              gap: 12,
+                            }}
+                          >
+                            {soloBadges.map((badge) => (
+                              <BadgeCard
+                                key={badge.id}
+                                badge={badge}
+                                isHighlighted={highlightedBadgeId === badge.id}
+                                onClick={(b) => handleSelectBadge(b)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}
