@@ -44,9 +44,11 @@ export default function UpcomingSessionCard({
     : `${statusText} · ${t('home.personal.expectedMatchesCount', { n: expectedMatches })}`
 
   const timePart = session.time || '—'
-  const overlineText = session.isToday
-    ? t('home.personal.upcomingSessionToday', { time: timePart })
-    : t('home.personal.upcomingSessionDate', { date: session.dateFormatted || session.date, time: timePart })
+  const overlineText = session.isHappeningNow
+    ? t('home.personal.upcomingSessionLive', { time: timePart })
+    : session.isToday
+      ? t('home.personal.upcomingSessionToday', { time: timePart })
+      : t('home.personal.upcomingSessionDate', { date: session.dateFormatted || session.date, time: timePart })
 
   const challenges = session.challenges || []
 
