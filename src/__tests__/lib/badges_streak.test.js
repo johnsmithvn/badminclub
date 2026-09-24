@@ -61,14 +61,14 @@ test('Badges Streak & Chasers Engine Suite', async (t) => {
     }
 
     const res = calculateMemberBadges('userA', db)
-    const badge5 = res.all.find((b) => b.id === 'bat_bai_v') // threshold = 5
+    const badge5 = res.all.find((b) => b.id === 'bat_bai_5') // threshold = 5
 
     assert.ok(badge5, 'Huy hiệu 5 trận thắng tồn tại trong all badges')
     assert.equal(badge5.unlocked, false, 'Chưa mở khóa danh hiệu 5 trận thắng')
     assert.equal(badge5.currentVal, 0, 'Tiến độ hiện tại phải là 0 vì chuỗi đã bị cắt, không được lấy số 4 trong quá khứ')
     assert.equal(badge5.pct, 0, 'Phần trăm tiến độ là 0%')
-    assert.ok(res.locked.some((b) => b.id === 'bat_bai_v'), 'Huy hiệu có tiến độ 0 nằm trong locked, không được nằm trong inProgress')
-    assert.equal(res.inProgress.some((b) => b.id === 'bat_bai_v'), false, 'Không được nằm trong inProgress khi tiến độ = 0')
+    assert.ok(res.locked.some((b) => b.id === 'bat_bai_5'), 'Huy hiệu có tiến độ 0 nằm trong locked, không được nằm trong inProgress')
+    assert.equal(res.inProgress.some((b) => b.id === 'bat_bai_5'), false, 'Không được nằm trong inProgress khi tiến độ = 0')
   })
 
   await t.test('4. getBadgeChasers only includes members with ACTIVE current streak (> 0)', () => {
@@ -96,7 +96,7 @@ test('Badges Streak & Chasers Engine Suite', async (t) => {
       ],
     }
 
-    const chasers = getBadgeChasers('bat_bai_v', 'me', db) // Huy hiệu chuỗi 5 trận thắng
+    const chasers = getBadgeChasers('bat_bai_5', 'me', db) // Huy hiệu chuỗi 5 trận thắng
 
     // Người bị cắt chuỗi tuyệt đối KHÔNG được xuất hiện
     const foundBroken = chasers.find((c) => c.id === 'userBroken')
@@ -130,7 +130,7 @@ test('Badges Streak & Chasers Engine Suite', async (t) => {
     }
 
     const res = calculateMemberBadges('userLegend', db)
-    const badge5 = res.unlocked.find((b) => b.id === 'bat_bai_v')
+    const badge5 = res.unlocked.find((b) => b.id === 'bat_bai_5')
 
     assert.ok(badge5, 'Huy hiệu 5 trận thắng đã mở khóa vẫn nằm trong unlocked vĩnh viễn')
     assert.equal(badge5.unlocked, true)

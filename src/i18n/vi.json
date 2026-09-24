@@ -4069,6 +4069,11 @@
       "statusBroken": "đã bị ngắt",
       "statusAchieved": "ĐÃ ĐẠT ✓",
       "statusSeason": "Mùa 3",
+      "missionProgressTitle": "TIẾN ĐỘ THỬ THÁCH",
+      "missionCompleted": "Đã hoàn thành toàn bộ mục tiêu thử thách!",
+      "missionRemaining": "Hiện tại đạt {{current}} / {{target}} · Còn thiếu {{remain}} để đạt mốc",
+      "funPunchline": "Danh hiệu tự phong · Thích thì flex, không cần ai duyệt! (0 điểm sưu tập nhưng 100 điểm thần thái)",
+      "funBadgeNote": "Huy hiệu phong cách cá nhân của CLB · Tự do ghim lên kệ bất kỳ lúc nào!",
       "completedDesc": "Bạn đã hoàn thành chiến tích này!",
       "currentStreakTitle": "CHUỖI HIỆN TẠI",
       "streakHint": "10 ô · W = thắng",
@@ -4175,12 +4180,28 @@
       "emptyRarest": "Chưa có dữ liệu danh hiệu hiếm."
     },
     "items": {
+      "bat_bai_5": {
+        "name": "Bất bại I",
+        "cond": "Thắng 5 trận liên tiếp trong cùng một mùa"
+      },
+      "bat_bai_8": {
+        "name": "Bất bại II",
+        "cond": "Thắng 8 trận liên tiếp trong cùng một mùa"
+      },
+      "bat_bai_10": {
+        "name": "Bất bại III",
+        "cond": "Thắng 10 trận liên tiếp trong cùng một mùa"
+      },
+      "bat_bai_18": {
+        "name": "Quỷ Vương bất tử",
+        "cond": "Thắng 18 trận liên tiếp trong cùng một mùa"
+      },
       "bat_bai_v": {
-        "name": "Bất bại V",
+        "name": "Bất bại I",
         "cond": "Thắng 5 trận liên tiếp trong cùng một mùa"
       },
       "bat_bai_x": {
-        "name": "Bất bại X",
+        "name": "Bất bại III",
         "cond": "Thắng 10 trận liên tiếp trong cùng một mùa"
       },
       "ke_ngat_chuoi": {
@@ -4225,43 +4246,47 @@
       },
       "vo_hut": {
         "name": "Chuyên gia vồ hụt",
-        "cond": "Chắc là do vợt thủng"
+        "cond": "Vung vợt xé gió như sấm sét nhưng cầu vẫn rơi xuống đất trước. Chắc chắn là do vợt bị thủng lỗ to!"
       },
       "lau_san": {
         "name": "Thánh lau sàn",
-        "cond": "Bơi được trên sân"
+        "cond": "Cứu cầu theo phong cách trượt băng nghệ thuật, mặt sân sáng bóng không tì vết sau mỗi pha tiếp đất!"
       },
       "he_chua": {
         "name": "Hề chúa sân cầu",
-        "cond": ":v"
+        "cond": "Đánh cầu là phụ, tấu hài là chính. Mỗi đường cầu đi vào lòng người bằng một tràng cười nghiêng ngả!"
       },
       "chich_choe": {
         "name": "Mỏ hỗn",
-        "cond": "Đố dám cãi"
+        "cond": "Miệng hoạt động hết công suất hơn cả tay chân. Đánh hỏng nhưng lý lẽ và đối đáp thì không bao giờ hỏng!"
       },
       "doi_vot": {
         "name": "Đại gia đổi vợt",
-        "cond": "Đố biết vợt bao nhiêu xèng"
+        "cond": "Cầu đánh chưa trúng nhưng bảo kiếm xịn thì phải đổi liên tục. Trình độ có hạn, đam mê thiết bị là vô hạn!"
       },
       "ganh_ta": {
         "name": "Gánh tạ gãy lưng",
-        "cond": "Hội người cao tuổi gọi tên"
+        "cond": "Đứng trên sân mà ngỡ đang thi cử tạ Olympic. Đánh xong trận là đồng đội phải đi bấm huyệt lưng gấp!"
       },
       "ngam_cau": {
         "name": "Không phải dạng vừa đâu",
-        "cond": "Tự phong"
+        "cond": "Đứng hình 3 giây chiêm ngưỡng quỹ đạo cầu bay đẹp như tranh vẽ... và ngoan ngoãn đáp ngay trong sân mình!"
       },
       "huy_diet_luoi": {
         "name": "Vua phá lưới",
-        "cond": "Không phải bàn"
+        "cond": "Mục tiêu duy nhất trong tầm mắt là dải băng trắng. Đập quả nào là lưới run rẩy, đối thủ thở phào quả đó!"
+      },
+      "nguoi_co_suc_hut": {
+        "name": "Người có sức hút",
+        "cond": "Nam châm sống của sân cầu. Đứng đâu cầu cũng tự động bay thẳng vào người, né mỏi cả cổ!"
       },
       "hoa_hau_nhat_cau": {
         "name": "Người có sức hút",
-        "cond": "Tay ai mà nhặt nhanh thế"
+        "cond": "Nam châm sống của sân cầu. Đứng đâu cầu cũng tự động bay thẳng vào người, né mỏi cả cổ!"
       },
       "tho_san_goc_chet": {
         "name": "Thợ săn newbie",
-        "cond": "Khó Lói"
+        "cond": "Chiến thuật gia tài ba, chuyên điều cầu vào những góc hiểm hóc mà chính đồng đội cũng không đỡ nổi!"
       },
       "hidden_comeback": {
         "name": "Nghịch thiên đảo chiều",
@@ -4331,13 +4356,25 @@
         "name": "Thợ săn kèo IV",
         "cond": "Hạ đối thủ có Elo cao hơn mình từ 200 điểm"
       },
+      "de_bep_10": {
+        "name": "Đè bẹp I",
+        "cond": "Thắng set đối thủ ghi ≤ 10 điểm"
+      },
+      "de_bep_7": {
+        "name": "Đè bẹp II",
+        "cond": "Thắng set đối thủ ghi ≤ 7 điểm"
+      },
+      "de_bep_4": {
+        "name": "Đè bẹp III",
+        "cond": "Thắng set đối thủ ghi ≤ 4 điểm"
+      },
+      "de_bep_2": {
+        "name": "Đè bẹp IV",
+        "cond": "Thắng set đối thủ ghi ≤ 2 điểm"
+      },
       "de_bep_15": {
         "name": "Đè bẹp I",
         "cond": "Thắng set với cách biệt lớn (đối thủ ≤ 15 điểm)"
-      },
-      "de_bep_10": {
-        "name": "Đè bẹp II",
-        "cond": "Thắng set áp đảo (đối thủ ≤ 10 điểm)"
       },
       "de_bep_5": {
         "name": "Đè bẹp III",
@@ -4439,9 +4476,13 @@
         "name": "Đòi nợ",
         "cond": "Thắng lại đối thủ đã hạ mình liên tiếp"
       },
+      "can_quet_clb": {
+        "name": "Càn quét CLB",
+        "cond": "Hạ gục ít nhất 15 đối thủ khác nhau trong mùa giải"
+      },
       "tay_doi": {
-        "name": "Tay đôi",
-        "cond": "Thắng 10 đối thủ khác nhau trong cùng một mùa"
+        "name": "Càn quét CLB",
+        "cond": "Hạ gục ít nhất 15 đối thủ khác nhau trong mùa giải"
       },
       "tron_buoi": {
         "name": "Trọn buổi",

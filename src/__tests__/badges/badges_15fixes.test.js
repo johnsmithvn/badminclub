@@ -90,37 +90,17 @@ test('15 Fixes: Không trùng ID và tách biệt ke_ngat_chuoi, bounty_hunter, 
   assert.equal(res3Diff.unlocked.some((b) => b.id === 'sat_than'), true, 'Ngắt 3 người khác nhau mở được Sát thần')
 })
 
-test('15 Fixes: Công nợ dues_clean_months đo đúng 12 tháng liên tiếp không nợ', () => {
-  const d24MonthsAgo = new Date()
-  d24MonthsAgo.setMonth(d24MonthsAgo.getMonth() - 24)
-
+test('15 Fixes: so_sach đã được loại bỏ hoàn toàn khỏi hệ thống danh hiệu', () => {
   const mockDb = {
-    members: [{ id: 'm1', name: 'Minh', joined: d24MonthsAgo.toISOString() }],
+    members: [{ id: 'm1', name: 'Minh', joined: '2024-01-01' }],
     dues: [],
     groups: [],
     matches: [],
   }
 
-  // 1. Hoàn toàn sạch nợ -> Mở khóa Sổ sách sạch 12/12
   const resClean = calculateMemberBadges('m1', mockDb)
-  const soSachBadge = resClean.unlocked.find((b) => b.id === 'so_sach')
-  assert.ok(soSachBadge, 'Thành viên 24 tháng không nợ gì mở được Sổ sách sạch')
-
-  // 2. Tháng trước nợ 1 đồng -> Chuỗi liên tiếp lùi từ tháng trước bị ngắt ngay lập tức
-  const prevDate = new Date()
-  prevDate.setMonth(prevDate.getMonth() - 1)
-  const prevMonthKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
-  const mockDbDebt = {
-    ...mockDb,
-    dues: [
-      { id: 'd1', memberId: 'm1', month: prevMonthKey, amount: 200000, paid: false, paidAmount: 0 },
-    ],
-  }
-  const resDebt = calculateMemberBadges('m1', mockDbDebt)
-  const soSachDebt = resDebt.unlocked.find((b) => b.id === 'so_sach')
-  assert.equal(soSachDebt, undefined, 'Có nợ trong tháng trước thì không đạt Sổ sách sạch')
-  const soSachProg = resDebt.inProgress.find((b) => b.id === 'so_sach') || resDebt.locked.find((b) => b.id === 'so_sach')
-  assert.equal(soSachProg?.currentVal, 0, 'Tiến độ chuỗi tháng sạch liên tiếp về 0')
+  const soSach = resClean.all.find((b) => b.id === 'so_sach')
+  assert.equal(soSach, undefined, 'Huy hiệu Sổ sạch không còn tồn tại trong hệ thống')
 })
 
 test('15 Fixes: getBadgeOwners tìm đúng trận mốc chạm chuỗi', () => {
@@ -141,9 +121,9 @@ test('15 Fixes: getBadgeOwners tìm đúng trận mốc chạm chuỗi', () => {
     ],
   }
 
-  const owners = getBadgeOwners('bat_bai_v', mockDb)
+  const owners = getBadgeOwners('bat_bai_5', mockDb)
   const vuOwner = owners.find((o) => o.id === 'm1')
-  assert.ok(vuOwner, 'Vũ là chủ sở hữu Bất bại V')
+  assert.ok(vuOwner, 'Vũ là chủ sở hữu Bất bại I')
 
   // Trận thứ 7 có timestamp là 7000
   const expectedDate = new Date(7000)
@@ -324,13 +304,17 @@ test('15 Fixes: getMemberHighestBadge nhận preloadedSeasonMatches', () => {
     ],
     matches: [
       { id: '1', at: 100, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+      { id: '2', at: 200, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+      { id: '3', at: 300, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+      { id: '4', at: 400, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
+      { id: '5', at: 500, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A' },
     ],
   }
 
   const preloaded = mockDb.matches
   const highest = getMemberHighestBadge('m1', mockDb, null, preloaded)
   assert.ok(highest, 'Trả về danh hiệu cao nhất với preloaded matches')
-  assert.equal(highest.id, 'mo_man')
+  assert.equal(highest.id, 'bat_bai_5')
 })
 
 test('15 Fixes: trum_giai đang TẮT cho tới khi có tính năng Giải đấu', () => {

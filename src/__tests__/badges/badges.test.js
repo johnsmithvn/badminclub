@@ -29,13 +29,13 @@ test('Badges Engine: Chuỗi thắng đơn & tính toán mốc Bất bại', () 
   assert.equal(maxStreak, 5, 'Chuỗi dài nhất phải đạt 5 trận')
 
   const res = calculateMemberBadges('m1', mockDb)
-  const batBaiV = res.unlocked.find((b) => b.id === 'bat_bai_v')
-  assert.ok(batBaiV, 'Minh phải mở khóa danh hiệu Bất bại V khi đạt chuỗi 5')
-  assert.equal(batBaiV.tier, 'elite')
+  const batBai5 = res.unlocked.find((b) => b.id === 'bat_bai_5')
+  assert.ok(batBai5, 'Minh phải mở khóa danh hiệu Bất bại I khi đạt chuỗi 5')
+  assert.equal(batBai5.tier, 'rare')
 
-  const batBaiX = res.inProgress.find((b) => b.id === 'bat_bai_x')
-  assert.ok(batBaiX, 'Bất bại X phải ở trạng thái đang đạt (inProgress)')
-  assert.equal(batBaiX.pct, 50, 'Tiến độ Bất bại X phải là 50% (5/10)')
+  const batBai10 = res.inProgress.find((b) => b.id === 'bat_bai_10')
+  assert.ok(batBai10, 'Bất bại III phải ở trạng thái đang đạt (inProgress)')
+  assert.equal(batBai10.pct, 50, 'Tiến độ Bất bại 10 phải là 50% (5/10)')
 })
 
 test('Badges Engine: Tự động kích hoạt Bounty khi chạm mốc 5 trận', () => {
@@ -105,9 +105,9 @@ test('Badges Engine: Điểm sưu tập tính đúng theo tier và tự phong b�
   }
 
   const res = calculateMemberBadges('m1', mockDb)
-  // Bất bại V (Elite 30) + Bất bại 3 (Rare 15) + Mở màn (Rare 15) = 60 pts.
+  // Bất bại I (Rare 15) = 15 pts.
   // 10 huy hiệu fun = 0 pts.
-  assert.equal(res.collectionScore, 60, 'Tổng điểm sưu tập tính chuẩn xác theo các huy hiệu chính thức đã mở, Fun = 0')
+  assert.equal(res.collectionScore, 15, 'Tổng điểm sưu tập tính chuẩn xác theo các huy hiệu chính thức đã mở, Fun = 0')
 })
 
 test('Badges Engine: Bảng xếp hạng Collector Leaderboard sắp xếp chuẩn', () => {
@@ -117,7 +117,7 @@ test('Badges Engine: Bảng xếp hạng Collector Leaderboard sắp xếp chu�
       { id: 'm2', name: 'Tuấn' },
     ],
     matches: [
-      // Minh có chuỗi 5 -> Mở khóa các huy hiệu chuỗi và trận đấu
+      // Minh có chuỗi 5 -> Mở khóa Bất bại I
       { id: '1', at: 10, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A' },
       { id: '2', at: 20, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A' },
       { id: '3', at: 30, teamA: ['m1'], teamB: ['m3'], winnerTeam: 'A' },
@@ -130,8 +130,8 @@ test('Badges Engine: Bảng xếp hạng Collector Leaderboard sắp xếp chu�
   assert.equal(lb.length, 2)
   assert.equal(lb[0].name, 'Minh')
   assert.equal(lb[0].rank, 1)
-  assert.equal(lb[0].score, 60)
-  assert.equal(lb[0].count, 3, 'Minh có 3 huy hiệu chính thức đã mở, không tính danh hiệu tự phong')
+  assert.equal(lb[0].score, 15)
+  assert.equal(lb[0].count, 1, 'Minh có 1 huy hiệu chính thức đã mở, không tính danh hiệu tự phong')
   assert.equal(lb[1].name, 'Tuấn')
   assert.equal(lb[1].rank, 2)
   assert.equal(lb[1].score, 0)
@@ -157,11 +157,16 @@ test('Badges Engine: Streak timeline 10 ô W/L', () => {
   assert.equal(timeline[9].label, '10')
 })
 
-test('Badges Engine: getBadgeById tra cứu chính xác', () => {
-  const b1 = getBadgeById('bat_bai_v')
+test('Badges Engine: getBadgeById tra cứu chính xác và hỗ trợ alias ID cũ', () => {
+  const b1 = getBadgeById('bat_bai_5')
   assert.ok(b1)
-  assert.equal(b1.id, 'bat_bai_v')
-  assert.equal(b1.tier, 'elite')
+  assert.equal(b1.id, 'bat_bai_5')
+  assert.equal(b1.tier, 'rare')
+
+  // Tra bằng alias ID cũ bat_bai_v
+  const bAlias = getBadgeById('bat_bai_v')
+  assert.ok(bAlias)
+  assert.equal(bAlias.id, 'bat_bai_5')
 
   const b2 = getBadgeById('bounty_hunter')
   assert.ok(b2)
@@ -185,9 +190,9 @@ test('Badges Engine: getMemberHighestBadge chọn đúng tier cao nhất', () =>
 
   const highest = getMemberHighestBadge('m1', mockDb)
   assert.ok(highest)
-  // Đã mở Bất bại V (Elite)
-  assert.equal(highest.id, 'bat_bai_v')
-  assert.equal(highest.tier, 'elite')
+  // Đã mở Bất bại I (Rare)
+  assert.equal(highest.id, 'bat_bai_5')
+  assert.equal(highest.tier, 'rare')
 })
 
 test('Badges: Cơ chế mở khóa offline -> online chỉ bật cho chính chủ nhận danh hiệu', () => {
@@ -213,25 +218,25 @@ test('Badges: Cơ chế mở khóa offline -> online chỉ bật cho chính ch�
   const meHa = dbHa.members.find((m) => m.userId === dbHa.currentUserId)
   assert.equal(meHa.id, 'm2')
   const badgesHa = calculateMemberBadges(meHa.id, dbHa).unlocked
-  assert.equal(badgesHa.some((b) => b.id === 'bat_bai_v'), false, 'Hà không nhận danh hiệu Bất bại V')
+  assert.equal(badgesHa.some((b) => b.id === 'bat_bai_5'), false, 'Hà không nhận danh hiệu Bất bại I')
 
   // 2. Khi Minh đăng nhập lại (user_minh - lần tới onl):
   const dbMinh = { ...mockDb, currentUserId: 'user_minh' }
   const meMinh = dbMinh.members.find((m) => m.userId === dbMinh.currentUserId)
   assert.equal(meMinh.id, 'm1')
   const badgesMinh = calculateMemberBadges(meMinh.id, dbMinh).unlocked
-  const batBaiV = badgesMinh.find((b) => b.id === 'bat_bai_v')
-  assert.ok(batBaiV, 'Minh đạt danh hiệu Bất bại V sau khi các trận đấu được ghi nhận')
+  const batBai5 = badgesMinh.find((b) => b.id === 'bat_bai_5')
+  assert.ok(batBai5, 'Minh đạt danh hiệu Bất bại I sau khi các trận đấu được ghi nhận')
 
   // 3. Kiểm tra danh sách đã xem:
   const seenBadgesMinh = ['veteran_1'] // Minh mới chỉ xem veteran_1 trước đó
   const unseenMinh = badgesMinh.filter((b) => !seenBadgesMinh.includes(b.id))
-  assert.ok(unseenMinh.some((b) => b.id === 'bat_bai_v'), 'bat_bai_v nằm trong danh sách chưa xem của Minh')
+  assert.ok(unseenMinh.some((b) => b.id === 'bat_bai_5'), 'bat_bai_5 nằm trong danh sách chưa xem của Minh')
 
   // Sau khi Minh xem và đánh dấu:
-  seenBadgesMinh.push('bat_bai_v')
+  seenBadgesMinh.push('bat_bai_5')
   const unseenMinhNext = badgesMinh.filter((b) => !seenBadgesMinh.includes(b.id))
-  assert.equal(unseenMinhNext.some((b) => b.id === 'bat_bai_v'), false, 'bat_bai_v đã được đánh dấu đã xem')
+  assert.equal(unseenMinhNext.some((b) => b.id === 'bat_bai_5'), false, 'bat_bai_5 đã được đánh dấu đã xem')
 })
 
 test('Guest Names: getMemberSeasonLedger hiển thị đúng tên khách thay vì UUID', async () => {

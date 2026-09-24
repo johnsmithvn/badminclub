@@ -21,6 +21,22 @@ export const TIER_ORDER = {
   hidden: 1,
 }
 
+export const BADGE_ID_ALIASES = {
+  bat_bai_3: 'bat_bai_5',
+  bat_bai_v: 'bat_bai_5',
+  bat_bai_x: 'bat_bai_10',
+  bat_bai_15: 'bat_bai_18',
+  de_bep_15: 'de_bep_10',
+  de_bep_5: 'de_bep_4',
+  de_bep_3: 'de_bep_2',
+  tay_doi: 'can_quet_clb',
+  hoa_hau_nhat_cau: 'nguoi_co_suc_hut',
+}
+
+export function resolveBadgeId(id) {
+  return BADGE_ID_ALIASES[id] || id
+}
+
 export const ANIME_FONTS = {
   display: 'Oswald, sans-serif',
   ui: "'Be Vietnam Pro', sans-serif",
@@ -811,8 +827,8 @@ export function calculateMemberBadges(
   const bountiesBrokenCount = countBountiesBroken(memberId, db, false, allSeasonMatches)
   const bountiesBrokenDistinctCount = countBountiesBroken(memberId, db, true, allSeasonMatches)
 
-  // D2: Chuẩn hóa đọc badgeShelf và badge_shelf, bỏ shelf rác
-  const shelfStored = member?.badgeShelf || member?.badge_shelf || []
+  // D2: Chuẩn hóa đọc badgeShelf và badge_shelf, map qua ID mới nếu có ID cũ
+  const shelfStored = (member?.badgeShelf || member?.badge_shelf || []).map(resolveBadgeId)
 
   // Thống kê chuyên sâu từ dữ liệu trận đấu mùa giải
   const memberMatches = allSeasonMatches.filter(
@@ -1093,23 +1109,9 @@ export function calculateMemberBadges(
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
         break
 
-      case 'first_season_win':
-        currentVal = Math.min(1, totalWins)
-        isUnlocked = totalWins >= 1
-        progressStr = isUnlocked ? '1 / 1' : '0 / 1'
-        pct = isUnlocked ? 100 : 0
-        break
-
       case 'comeback_set3':
         isUnlocked = hasComebackSet3
         currentVal = isUnlocked ? 1 : 0
-        progressStr = isUnlocked ? '1 / 1' : '0 / 1'
-        pct = isUnlocked ? 100 : 0
-        break
-
-      case 'night_win':
-        currentVal = Math.min(1, nightWinsCount)
-        isUnlocked = nightWinsCount >= 1
         progressStr = isUnlocked ? '1 / 1' : '0 / 1'
         pct = isUnlocked ? 100 : 0
         break
@@ -1271,54 +1273,7 @@ export function calculateMemberBadges(
         pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
         break
 
-      case 'dues_clean_months': {
-        // A1: Đếm số tháng liên tiếp không nợ quỹ (tối đa threshold tháng)
-        const thresholdMonths = Number(badge.threshold || 12)
-        if (!joinDate || tenureMonths < 1) {
-          currentVal = 0
-          isUnlocked = false
-          progressStr = `0 / ${thresholdMonths}`
-          pct = 0
-          break
-        }
 
-        const maxCheckMonths = Math.min(thresholdMonths, tenureMonths)
-        const now = new Date()
-        let curYear = now.getFullYear()
-        // Bắt đầu từ tháng TRƯỚC (tháng đã chốt hạn đóng quỹ), không tính tháng hiện tại đang dở dang
-        let curMonth = now.getMonth() // 0..11, tương ứng tháng trước (1..12)
-        if (curMonth === 0) {
-          curMonth = 12
-          curYear--
-        }
-
-        let cleanConsecutive = 0
-        for (let i = 0; i < maxCheckMonths; i++) {
-          const mKey = `${curYear}-${String(curMonth).padStart(2, '0')}`
-          let debts = { total: 0 }
-          try {
-            debts = myDebtCounts(db, mKey, memberId)
-          } catch {
-            debts = { total: 0 }
-          }
-          if ((debts.total || 0) > 0) {
-            break
-          }
-          cleanConsecutive++
-
-          curMonth--
-          if (curMonth === 0) {
-            curMonth = 12
-            curYear--
-          }
-        }
-
-        currentVal = cleanConsecutive
-        isUnlocked = tenureMonths >= thresholdMonths && currentVal >= thresholdMonths
-        progressStr = `${currentVal} / ${thresholdMonths}`
-        pct = Math.min(100, Math.round((currentVal / thresholdMonths) * 100))
-        break
-      }
 
       case 'bounty_break':
       case 'bounty_break_season': {
@@ -1645,10 +1600,11 @@ export function getBadgeOwners(badgeId, db, season = null, preloadedMatches = nu
   const matches = Array.isArray(preloadedMatches) ? preloadedMatches : (seasonMatchesOf(db, resolvedSeason) || [])
   const clubStats = preloadedClubStats || computeClubBadgeStats(db, resolvedSeason, matches)
   const owners = []
+  const resolvedId = resolveBadgeId(badgeId)
 
   members.forEach((m) => {
     const { unlocked } = calculateMemberBadges(m.id, db, resolvedSeason, matches, clubStats)
-    const found = unlocked.find((b) => b.id === badgeId)
+    const found = unlocked.find((b) => b.id === resolvedId)
     if (found) {
       const { maxStreak, matches: memberStreakMatches } = getMemberStreak(m.id, db, resolvedSeason, matches)
       let atDate = ''
@@ -1758,9 +1714,10 @@ export function getBadgeChasers(badgeId, currentUserId, db, season = null, prelo
   const matches = Array.isArray(preloadedMatches) ? preloadedMatches : (seasonMatchesOf(db, resolvedSeason) || [])
   const clubStats = preloadedClubStats || computeClubBadgeStats(db, resolvedSeason, matches)
   const chasers = []
+  const resolvedId = resolveBadgeId(badgeId)
   members.forEach((m) => {
     const { inProgress } = calculateMemberBadges(m.id, db, resolvedSeason, matches, clubStats)
-    const found = inProgress.find((b) => b.id === badgeId)
+    const found = inProgress.find((b) => b.id === resolvedId)
     // Chỉ lấy thành viên ĐANG CÓ TIẾN ĐỘ THẬT (> 0).
     if (found && Number(found.currentVal) > 0) {
       chasers.push({
@@ -1828,7 +1785,8 @@ export function newlyUnlockedBadges(before, after) {
 
 export function getBadgeById(badgeId) {
   if (!badgeId) return null
-  return activeCatalog().find((b) => b.id === badgeId) || null
+  const resolvedId = resolveBadgeId(badgeId)
+  return activeCatalog().find((b) => b.id === resolvedId) || null
 }
 
 /**
@@ -1838,9 +1796,10 @@ export function getBadgeById(badgeId) {
  */
 export function getBadgeFamily(badgeId) {
   if (!badgeId) return null
+  const resolvedId = resolveBadgeId(badgeId)
   const familiesCfg = cfgBadges.families || {}
   for (const [fKey, fData] of Object.entries(familiesCfg)) {
-    if ((fData.badgeIds || []).includes(badgeId)) {
+    if ((fData.badgeIds || []).includes(resolvedId)) {
       return {
         key: fKey,
         ...fData,

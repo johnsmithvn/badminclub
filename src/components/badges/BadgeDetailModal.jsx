@@ -75,32 +75,31 @@ export default function BadgeDetailModal({
 
   if (!badge) return null
 
-  const conditions = [
-    {
-      ok: activeTierBadge.unlocked,
-      text: badgeCond,
-      val: activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${pct}%`),
-    },
-    {
-      ok: true,
-      text: t('badges.detail.condScoreLogged'),
-      val: t('badges.detail.statusOk'),
-    },
-    {
-      ok: activeTierBadge.unlocked || isHolding,
-      text: t('badges.detail.condNoLoss'),
-      val: activeTierBadge.unlocked
-        ? t('badges.detail.statusAchieved')
-        : isHolding
-          ? t('badges.detail.statusHolding')
-          : t('badges.detail.statusBroken'),
-    },
-    {
-      ok: true,
-      text: t('badges.detail.condSeason'),
-      val: t('badges.seasonLabel'),
-    },
-  ]
+  const isFun = activeTierBadge.tier === 'fun'
+  const isStreakBadge = activeTierBadge.checkType === 'win_streak' || activeTierBadge.checkType === 'pair_streak'
+
+  const conditions = useMemo(() => {
+    if (isFun) return []
+    const list = [
+      {
+        ok: !!activeTierBadge.unlocked,
+        text: badgeCond,
+        val: activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${pct}%`),
+      },
+    ]
+    if (isStreakBadge) {
+      list.push({
+        ok: !!activeTierBadge.unlocked || isHolding,
+        text: t('badges.detail.condNoLoss'),
+        val: activeTierBadge.unlocked
+          ? t('badges.detail.statusAchieved')
+          : isHolding
+            ? t('badges.detail.statusHolding')
+            : t('badges.detail.statusBroken'),
+      })
+    }
+    return list
+  }, [isFun, isStreakBadge, activeTierBadge.unlocked, badgeCond, activeTierBadge.progressStr, pct, isHolding])
 
   const modalContent = (
     <div
@@ -544,88 +543,185 @@ export default function BadgeDetailModal({
 
           {/* CỘT PHẢI: ĐIỀU KIỆN · CHUỖI · AI ĐÃ CÓ · AI ĐANG ĐUỔI */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* 1. Checklist Điều kiện */}
-            <div
-              style={{
-                padding: '17px 19px',
-                clipPath: NOTCH_CLIP,
-                background: 'rgba(255,255,255,.04)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 13,
-              }}
-            >
-              <div style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-                {t('badges.detail.conditionsTitle')}
-              </div>
-              {conditions.map((c, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div
-                    style={{
-                      width: 24,
-                      height: 24,
-                      flex: '0 0 auto',
-                      clipPath: HEX_CLIP,
-                      display: 'grid',
-                      placeItems: 'center',
-                      font: "700 12px/1 'Oswald', sans-serif",
-                      background: c.ok ? 'linear-gradient(135deg,#00776B,#2EE9C0)' : '#241640',
-                      color: c.ok ? '#01130F' : '#9C8ABE',
-                    }}
-                  >
-                    {c.ok ? '✓' : '·'}
-                  </div>
-                  <span style={{ flex: '1 1 0%', minWidth: 0, font: "400 13px/1.4 'Be Vietnam Pro', sans-serif", color: '#C9B8E6' }}>
-                    {c.text}
-                  </span>
-                  <span style={{ flex: '0 0 auto', font: "600 12.5px/1 'IBM Plex Mono', monospace", color: c.ok ? '#5FEBD0' : '#C9B8E6' }}>
-                    {c.val}
+            {/* 1. Nếu là danh hiệu Fun (Tự phong): Khối Troll đặc biệt */}
+            {isFun ? (
+              <div
+                style={{
+                  padding: '20px 22px',
+                  clipPath: NOTCH_CLIP,
+                  background: 'linear-gradient(135deg, rgba(255, 226, 75, 0.08), rgba(255, 46, 126, 0.06))',
+                  border: '1px solid rgba(255, 226, 75, 0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 22 }}>🎭</span>
+                  <span style={{ font: "700 15px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFE24B' }}>
+                    {t('badges.groups.fun')}
                   </span>
                 </div>
-              ))}
-            </div>
 
-            {/* 2. Chuỗi 10 ô W/L */}
-            <div
-              style={{
-                padding: '17px 19px',
-                clipPath: NOTCH_CLIP,
-                background: 'rgba(255,255,255,.04)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                <span style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-                  {t('badges.detail.currentStreakTitle')}
-                </span>
-                <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                  {t('badges.detail.streakHint')}
-                </span>
+                <div
+                  style={{
+                    font: "400 13.5px/1.6 'Be Vietnam Pro', sans-serif",
+                    color: '#FFFBEA',
+                    background: 'rgba(0,0,0,.35)',
+                    padding: '12px 14px',
+                    borderRadius: 8,
+                    borderLeft: '3px solid #FFE24B',
+                  }}
+                >
+                  "{badgeCond}"
+                </div>
+
+                <div style={{ font: "600 12.5px/1.5 'Be Vietnam Pro', sans-serif", color: '#FFC46B' }}>
+                  ✨ {t('badges.detail.funPunchline')}
+                </div>
+
+                <div style={{ font: "400 11.5px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                  {t('badges.detail.funBadgeNote')}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 7 }}>
-                {streakTimeline.map((s, i) => (
+            ) : (
+              <>
+                {/* 1. Checklist Điều kiện thực chất */}
+                <div
+                  style={{
+                    padding: '17px 19px',
+                    clipPath: NOTCH_CLIP,
+                    background: 'rgba(255,255,255,.04)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 13,
+                  }}
+                >
+                  <div style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
+                    {t('badges.detail.conditionsTitle')}
+                  </div>
+                  {conditions.map((c, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div
+                        style={{
+                          width: 24,
+                          height: 24,
+                          flex: '0 0 auto',
+                          clipPath: HEX_CLIP,
+                          display: 'grid',
+                          placeItems: 'center',
+                          font: "700 12px/1 'Oswald', sans-serif",
+                          background: c.ok ? 'linear-gradient(135deg,#00776B,#2EE9C0)' : '#241640',
+                          color: c.ok ? '#01130F' : '#9C8ABE',
+                        }}
+                      >
+                        {c.ok ? '✓' : '·'}
+                      </div>
+                      <span style={{ flex: '1 1 0%', minWidth: 0, font: "400 13px/1.4 'Be Vietnam Pro', sans-serif", color: '#C9B8E6' }}>
+                        {c.text}
+                      </span>
+                      <span style={{ flex: '0 0 auto', font: "600 12.5px/1 'IBM Plex Mono', monospace", color: c.ok ? '#5FEBD0' : '#C9B8E6' }}>
+                        {c.val}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 2. Chuỗi 10 ô W/L (CHỈ hiển thị cho danh hiệu chuỗi thắng) */}
+                {isStreakBadge ? (
                   <div
-                    key={i}
                     style={{
-                      flex: '1 1 0%',
-                      height: 44,
-                      clipPath: NOTCH_S_CLIP,
-                      display: 'grid',
-                      placeItems: 'center',
-                      font: "700 15px/1 'Oswald', sans-serif",
-                      background: s.won
-                        ? 'linear-gradient(165deg,#FF2E7E,#7A0A2E)'
-                        : 'rgba(255,255,255,.05)',
-                      color: s.won ? '#FFFBEA' : '#6B5C8C',
+                      padding: '17px 19px',
+                      clipPath: NOTCH_CLIP,
+                      background: 'rgba(255,255,255,.04)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
                     }}
                   >
-                    {s.label}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                      <span style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
+                        {t('badges.detail.currentStreakTitle')}
+                      </span>
+                      <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                        {t('badges.detail.streakHint')}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 7 }}>
+                      {streakTimeline.map((s, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            flex: '1 1 0%',
+                            height: 44,
+                            clipPath: NOTCH_S_CLIP,
+                            display: 'grid',
+                            placeItems: 'center',
+                            font: "700 15px/1 'Oswald', sans-serif",
+                            background: s.won
+                              ? 'linear-gradient(165deg,#FF2E7E,#7A0A2E)'
+                              : 'rgba(255,255,255,.05)',
+                            color: s.won ? '#FFFBEA' : '#6B5C8C',
+                          }}
+                        >
+                          {s.label}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                ) : (
+                  /* Khối Tiến trình Thử thách cho các danh hiệu nhiệm vụ / thành tích khác */
+                  <div
+                    style={{
+                      padding: '17px 19px',
+                      clipPath: NOTCH_CLIP,
+                      background: 'rgba(255,255,255,.04)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
+                        {t('badges.detail.missionProgressTitle')}
+                      </span>
+                      <span style={{ font: "700 18px/1 'Oswald', sans-serif", color: activeTierBadge.unlocked ? '#5FEBD0' : '#FFE24B' }}>
+                        {activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${pct}%`)}
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        height: 12,
+                        clipPath: NOTCH_S_CLIP,
+                        background: 'rgba(255,255,255,.08)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${activeTierBadge.unlocked ? 100 : pct}%`,
+                          background: meta.edge || 'linear-gradient(90deg, #FF2E7E, #FFE24B)',
+                          transition: 'width 0.3s ease',
+                        }}
+                      />
+                    </div>
+
+                    <span style={{ font: "400 12px/1.5 'Be Vietnam Pro', sans-serif", color: '#C9B8E6' }}>
+                      {activeTierBadge.unlocked
+                        ? t('badges.detail.missionCompleted')
+                        : t('badges.detail.missionRemaining', {
+                            current: activeTierBadge.currentVal || 0,
+                            target: activeTierBadge.threshold || 1,
+                            remain: Math.max(0, (activeTierBadge.threshold || 1) - (activeTierBadge.currentVal || 0)),
+                          })}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* 3. Split: Ai đã có & Ai đang đuổi */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
