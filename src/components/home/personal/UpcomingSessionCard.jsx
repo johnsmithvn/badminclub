@@ -1,3 +1,4 @@
+import { SessionPill } from '#ui'
 import { t } from '#i18n'
 
 export default function UpcomingSessionCard({
@@ -52,7 +53,10 @@ export default function UpcomingSessionCard({
   return (
     <div style={isMobile ? S.cardMobile : S.cardDesktop}>
       <div style={S.infoCol}>
-        <span style={S.overline}>{overlineText}</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={S.overline}>{overlineText}</span>
+          {session.status && <SessionPill status={session.status} size="sm" />}
+        </div>
         <span style={isMobile ? S.titleMobile : S.titleDesktop}>{venueStr}</span>
         <span style={S.meta}>{subtitle}</span>
       </div>

@@ -1260,13 +1260,36 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
  * @param {string} memberId
  */
 export function getNextUpcomingSession(db, memberId) {
-  if (!db || !Array.isArray(db.sessions)) return null
+  if (!db || !Array.isArray(db.sessions) || db.sessions.length === 0) return null
   const nowStr = db.today || new Date().toISOString().slice(0, 10)
-  const openSessionsList = db.sessions
-    .filter((s) => s.status === 'open' && s.date >= nowStr)
-    .sort((a, b) => a.date.localeCompare(b.date))
 
-  const s = openSessionsList[0] || db.sessions.find((x) => x.status === 'open') || null
+  // Lọc các buổi hợp lệ (kể cả đã chốt, đang mở hay chưa mở; bỏ qua buổi đã huỷ)
+  const validSessions = db.sessions.filter((s) => s && s.status !== 'cancelled')
+  if (!validSessions.length) return null
+
+  // 1. Ưu tiên các buổi từ hôm nay trở đi (date >= nowStr), sắp xếp thời gian gần nhất lên đầu
+  const upcomingList = validSessions
+    .filter((s) => s.date >= nowStr)
+    .sort((a, b) => {
+      const cmp = a.date.localeCompare(b.date)
+      if (cmp !== 0) return cmp
+      const timeA = a.courts?.[0]?.from || ''
+      const timeB = b.courts?.[0]?.from || ''
+      return timeA.localeCompare(timeB)
+    })
+
+  // 2. Nếu không có buổi nào từ hôm nay trở đi, lấy buổi gần nhất trong quá khứ
+  const pastList = validSessions
+    .filter((s) => s.date < nowStr)
+    .sort((a, b) => {
+      const cmp = b.date.localeCompare(a.date)
+      if (cmp !== 0) return cmp
+      const timeA = a.courts?.[0]?.from || ''
+      const timeB = b.courts?.[0]?.from || ''
+      return timeB.localeCompare(timeA)
+    })
+
+  const s = upcomingList[0] || pastList[0] || null
   if (!s) return null
 
   const att = db.attendance?.[s.id] || {}
@@ -1345,6 +1368,7 @@ export function getNextUpcomingSession(db, memberId) {
     isRegistered,
     expectedMatches,
     challenges: challengesList,
+    status: s.status,
   }
 }
 
