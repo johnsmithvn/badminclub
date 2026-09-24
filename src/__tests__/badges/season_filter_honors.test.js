@@ -67,8 +67,8 @@ test('Season Honors & Seasonal Isolation: Danh hiệu theo mùa & bảo toàn v�
       assert.ok(tenure.currentVal >= 12, 'Thâm niên tính toàn thời gian không bị reset theo mùa')
     }
     // Danh hiệu tự phong (Fun) giữ nguyên
-    const denDau = resChampS4.unlocked.find((b) => b.id === 'den_dau')
-    assert.ok(denDau, 'Danh hiệu Tấu hài (Fun) giữ vĩnh viễn')
+    const ngamCau = resChampS4.unlocked.find((b) => b.id === 'ngam_cau')
+    assert.ok(ngamCau, 'Danh hiệu Tấu hài (Fun) giữ vĩnh viễn')
   })
 
   await t.test('3. Top 1 Nam Mùa 3 giữ vĩnh viễn danh hiệu Sao mà đỡ được kèm nhãn Mùa 3', () => {
