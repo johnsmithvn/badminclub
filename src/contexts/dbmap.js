@@ -49,6 +49,7 @@ export function toDb(raw, ctx) {
     // Đơn giá một buổi CLB tự đặt; 0 = để app tự chia.
     unitNam: num(g.unit_male), unitNu: num(g.unit_female),
     from: hm(g.start_time), to: hm(g.end_time), active: g.active,
+    sortOrder: num(g.sort_order),
     courtIds: (g.group_courts || []).map((x) => x.court_id),
   }))
 
@@ -360,7 +361,7 @@ export function toRows(db, ctx) {
     price_per_hour: c.price, active: c.active !== false,
   }))
 
-  db.groups.forEach((g) => {
+  db.groups.forEach((g, idx) => {
     put('member_groups', {
       // `member_groups.weekday` là cột NOT NULL không có DEFAULT nên vẫn phải ghi, nhưng client
       // đã bỏ hẳn khái niệm này: thứ trong tuần nằm ở `schedules.weekdays[]`. Ghi 0 và quên nó đi.
@@ -368,6 +369,7 @@ export function toRows(db, ctx) {
       fee_male: g.feeNam, fee_female: g.feeNu, start_time: g.from, end_time: g.to,
       // Đơn giá một buổi CLB tự đặt. 0 và null đều nghĩa là "để app tự chia" → ghi null cho gọn.
       unit_male: g.unitNam || null, unit_female: g.unitNu || null,
+      sort_order: g.sortOrder != null ? g.sortOrder : idx,
       active: g.active !== false,
     })
     ;(g.courtIds || []).forEach((court) => put('group_courts', { group_id: g.id, court_id: court }))

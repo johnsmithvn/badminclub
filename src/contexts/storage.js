@@ -44,7 +44,10 @@ export async function load(clubId) {
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
-    of('member_groups', '*, group_courts(court_id)'),
+    of('member_groups', '*, group_courts(court_id)').order('sort_order', { ascending: true })
+      .then((res) => (res.error && res.error.message?.includes('sort_order')
+        ? of('member_groups', '*, group_courts(court_id)')
+        : res)),
     of('club_members', '*, club_member_groups(group_id), profile:profiles(*)'),
     of('guests'),
     of('schedules', '*, schedule_slots(*)'),
@@ -266,6 +269,17 @@ async function apply(op) {
       const cleanRows = op.rows.map((r) => {
         const copy = { ...r }
         delete copy.court_label
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(cleanRows)
+    }
+    if (res.error && res.error.message?.includes('sort_order')) {
+      console.warn('[storage] DB chưa chạy migration 0056 (thiếu cột sort_order). Bỏ qua sort_order để không chặn lưu.')
+      const cleanRows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.sort_order
         return copy
       })
       res = op.conflict

@@ -2117,6 +2117,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           unitNu: def.unitNu || 0,
           from: f.grFrom || '18:00', to: f.grTo || '20:00',
           courtIds: [], active: true,
+          sortOrder: d.groups.length,
         }]),
       }))
       upUi(() => ({ dialog: null, form: {} }))
@@ -2221,7 +2222,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
     saveGroupsTab: (groupsList) => {
       up(() => ({
-        groups: groupsList.map((g) => ({
+        groups: groupsList.map((g, idx) => ({
           ...g,
           name: (g.name || '').trim(),
           short: (g.short || '').trim() || (g.name || '').slice(0, 3),
@@ -2231,6 +2232,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           unitNu: g.unitNu === -1 || g.unitNu === '-1' ? -1 : intOf(g.unitNu),
           from: g.from || '18:00',
           to: g.to || '20:00',
+          sortOrder: idx,
         })),
       }))
       toast(t('toast.groupsSaved'))
