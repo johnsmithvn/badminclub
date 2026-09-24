@@ -56,7 +56,22 @@ export default function UpcomingSessionCard({
     <div style={isMobile ? S.cardMobile : S.cardDesktop}>
       <div style={S.infoCol}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={S.overline}>{overlineText}</span>
+          <span style={session.isHappeningNow ? { ...S.overline, color: 'var(--teal-500)' } : S.overline}>
+            {session.isHappeningNow && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 6,
+                  height: 6,
+                  borderRadius: 99,
+                  background: 'var(--teal-500)',
+                  marginRight: 6,
+                  verticalAlign: 'middle',
+                }}
+              />
+            )}
+            {overlineText}
+          </span>
           {session.status && <SessionPill status={session.status} size="sm" />}
         </div>
         <span style={isMobile ? S.titleMobile : S.titleDesktop}>{venueStr}</span>
