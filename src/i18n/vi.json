@@ -4919,7 +4919,8 @@
     },
     "scope": {
       "club_only": "Nội bộ CLB",
-      "open": "Mở rộng"
+      "open": "Mở rộng",
+      "openNote": "Mở cho người ngoài"
     },
     "tab": {
       "overview": "Tổng quan",
@@ -4950,7 +4951,11 @@
       "events": "Nội dung",
       "collected": "Đã thu",
       "back": "Giải đấu",
-      "courts": "{{n}} sân"
+      "courts": "{{n}} sân",
+      "playersUpper": "VẬN ĐỘNG VIÊN",
+      "eventsUpper": "NỘI DUNG",
+      "matchesUpper": "TRẬN ĐÃ ĐẤU",
+      "courtsUpper": "SÂN"
     },
     "list": {
       "emptyTitle": "Chưa có giải nào",
@@ -5282,7 +5287,45 @@
     },
     "module": {
       "hub": "Tổng quan & đăng ký",
-      "bracket": "Nhánh đấu"
+      "scheme": "Sơ đồ thi đấu",
+      "bracket": "Nhánh đấu",
+      "openBracket": "Mở sơ đồ thi đấu →",
+      "registerLink": "Link đăng ký",
+      "projection": "Màn hình trình chiếu",
+      "enterScore": "Nhập tỷ số",
+      "liveCount": "{{n}} trận đang đá",
+      "linkCopied": "Đã sao chép link đăng ký giải đấu!",
+      "registerLinkHint": "Đường dẫn công khai để thí sinh và thành viên đăng ký tham gia giải đấu:",
+      "copy": "Sao chép",
+      "copied": "✓ Đã chép",
+      "projectionDesc": "Chế độ màn hình trình chiếu hỗ trợ hiển thị dải sân trực tiếp, bảng xếp hạng và các trận kế tiếp trên màn hình TV / Máy chiếu lớn tại nhà thi đấu.",
+      "projectionNote": "Tính năng đang được kích hoạt và đồng bộ theo thời gian thực (real-time poll) trên hệ thống giải đấu."
+    },
+    "courtStrip": {
+      "court": "SÂN {{n}}",
+      "live": "LIVE",
+      "empty": "Sân trống",
+      "next": "Kế tiếp {{time}} · {{match}}"
+    },
+    "overview": {
+      "live": "Đang đánh & kế tiếp",
+      "noneOpen": "Không còn trận nào chờ đánh",
+      "open": "Mở nhánh",
+      "pairs": "CẶP",
+      "matchesDone": "TRẬN XONG",
+      "liveMatches": "ĐANG ĐÁ",
+      "estRemaining": "CÒN LẠI ƯỚC TÍNH",
+      "upcoming": "Trận kế tiếp",
+      "stageRunning": "ĐANG ĐÁ",
+      "stagePending": "CHỜ",
+      "stageDone": "ĐÃ XONG",
+      "remainingTake": "{{n}} trận còn lại · lấy {{k}}",
+      "won": "THẮNG",
+      "lost": "THUA",
+      "diff": "HS",
+      "matchesCount": "{{done}}/{{total}} trận",
+      "rrStageDesc": "{{total}} trận · {{groups}} bảng",
+      "koStageDesc": "{{total}} trận · Loại trực tiếp"
     },
     "bracket": {
       "subline": "{{event}} · Loại trực tiếp · {{n}} đội",
@@ -5346,11 +5389,6 @@
       "title": "Hoàn tác {{code}}",
       "body": "Gỡ kết quả trận này và rút đội đi tiếp khỏi trận sau. Chỉ được khi trận sau chưa đánh.",
       "reason": "Lý do"
-    },
-    "overview": {
-      "live": "Đang đánh & kế tiếp",
-      "noneOpen": "Không còn trận nào chờ đánh",
-      "open": "Mở nhánh"
     },
     "stage": {
       "groups": "Vòng bảng",

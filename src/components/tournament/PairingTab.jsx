@@ -114,7 +114,7 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
           </div>
         </Card>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 10 }}>
           {teams.map((team, i) => (
             <TeamCard key={team.id} no={i + 1} team={team} size={event.teamSize} name={name} editable={editable}
               picked={picked && players.find((p) => p.id === picked)} pickedName={picked ? name(players.find((p) => p.id === picked)) : ''}
@@ -175,7 +175,11 @@ function PlayerChip({ name, reg, block, editable, on, onClick }) {
       }}
     >
       <GenderChip gender={reg.gender} />
-      <span style={{ flex: 1, font: '600 13px/1.2 var(--font-sans)', color: 'var(--text-primary)', minWidth: 0 }}>{name}</span>
+      {/* Tên dài (biệt danh có emoji…): tối đa 2 dòng rồi "…", di chuột xem đủ — thẻ cặp không bị kéo cao. */}
+      <span title={name} style={{
+        flex: 1, font: '600 13px/1.25 var(--font-sans)', color: 'var(--text-primary)', minWidth: 0,
+        display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden', overflowWrap: 'anywhere',
+      }}>{name}</span>
       <Mono size={11} color="var(--text-muted)">{Math.round(reg.ratingSnapshot || 0)}</Mono>
     </span>
   )

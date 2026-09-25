@@ -28,59 +28,139 @@ export default function EventBar({ tour, value, onChange, canEdit, isMobile, onA
 
   return (
     <TabTrack>
-      <div style={{ display: 'flex', gap: 10, paddingBottom: 2 }}>
+      <div style={{ display: 'flex', gap: 12, paddingBottom: 4 }}>
         {tour.events.map((ev) => {
           const on = ev.id === value
-          const c = eventCounts(tour, ev.id)
-          const canDelete = canEdit && on && ev.status === 'draft' && c.total === 0
+          const canDelete = canEdit && on && ev.status === 'draft'
+
+          // Đếm số trận của nội dung
+          const evMatches = (tour.matches || []).filter((m) => m.eventId === ev.id)
+          const doneMatches = evMatches.filter((m) => m.status === 'done' || m.status === 'walkover' || m.status === 'retired').length
+          const totalMatches = evMatches.length
+
+          // Tên thể thức ngắn gọn
+          const stages = (tour.stages || []).filter((s) => s.eventId === ev.id)
+          const formatText = stages.length > 1
+            ? t('tournament.format.tpl.rr_ko')
+            : (stages[0]?.type === 'round_robin' ? t('tournament.format.tpl.rr') : (stages[0]?.type === 'knockout' ? t('tournament.format.tpl.ko') : t('tournament.format.tpl.rr')))
+
+          const progressPercent = totalMatches > 0 ? Math.round((doneMatches / totalMatches) * 100) : 0
+
           return (
             <div key={ev.id} style={{ position: 'relative', flex: '0 0 auto' }}>
-            <button
-              type="button"
-              onClick={() => onChange(ev.id)}
-              aria-pressed={on}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 11, textAlign: 'left', cursor: 'pointer',
-                width: '100%', minWidth: isMobile ? 220 : 250, minHeight: isMobile ? 64 : 60, padding: '10px 12px', borderRadius: 10,
-                background: 'var(--surface-card)', color: 'inherit',
-                border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
-                boxShadow: on ? '0 0 0 1px var(--teal-500)' : 'var(--shadow-xs)',
-                transition: 'border-color var(--dur-fast) var(--ease-standard)',
-              }}
-            >
-              <KindCode kind={ev.kind} on={on} />
-              <span style={{ display: 'grid', gap: 6, minWidth: 0, flex: 1 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-                  <span style={{ font: '600 13.5px/1.2 var(--font-sans)', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                    {t('tournament.kind.' + ev.kind)}
+              <button
+                type="button"
+                onClick={() => onChange(ev.id)}
+                aria-pressed={on}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  width: '100%',
+                  minWidth: isMobile ? 220 : 255,
+                  minHeight: 68,
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: 'var(--surface-card)',
+                  color: 'inherit',
+                  border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+                  boxShadow: on ? '0 0 0 1px var(--teal-500), 0 2px 8px rgba(0, 178, 169, 0.15)' : 'var(--shadow-xs)',
+                  transition: 'all var(--dur-fast) var(--ease-standard)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                <KindCode kind={ev.kind} on={on} />
+
+                <span style={{ display: 'grid', gap: 4, minWidth: 0, flex: 1 }}>
+                  {/* Hàng 1: Tên nội dung + Pill trạng thái */}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                    <span style={{
+                      font: '700 13.5px/1.2 var(--font-sans)',
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {t('tournament.kind.' + ev.kind)}
+                    </span>
+                    <EventPill status={ev.status} />
                   </span>
-                  <EventPill status={ev.status} />
+
+                  {/* Hàng 2: Mô tả thể thức */}
+                  <span style={{ font: '400 11.5px/1 var(--font-sans)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                    {formatText}
+                  </span>
+
+                  {/* Hàng 3: Số VĐV chi tiết nam / nữ */}
+                  <span style={{ font: '400 11.5px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {t('tournament.event.counts', eventCounts(tour, ev.id))}
+                  </span>
+
+                  {/* Hàng 4: Mini Progress Bar nếu đã có trận */}
+                  {totalMatches > 0 && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                      <span style={{
+                        flex: 1,
+                        height: 3,
+                        borderRadius: 99,
+                        background: 'var(--surface-sunken)',
+                        overflow: 'hidden',
+                        display: 'block',
+                      }}>
+                        <span style={{
+                          display: 'block',
+                          height: '100%',
+                          width: `${progressPercent}%`,
+                          background: 'var(--teal-500)',
+                          borderRadius: 99,
+                        }} />
+                      </span>
+                      <span style={{ font: '500 10.5px/1 var(--font-mono)', color: 'var(--teal-500)', whiteSpace: 'nowrap' }}>
+                        {t('tournament.overview.matchesCount', { done: doneMatches, total: totalMatches })}
+                      </span>
+                    </span>
+                  )}
                 </span>
-                <span style={{ font: '400 11.5px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  {t('tournament.event.counts', c)}
-                </span>
-              </span>
-            </button>
-            {/* Ngoài thẻ: nút trong nút là HTML sai, bấm xoá sẽ kích luôn chọn thẻ. */}
-            {canDelete && (
-              <IconButton icon="trash-2" size="sm" label={t('tournament.event.delete')}
-                style={{ position: 'absolute', right: 6, bottom: 4 }} onClick={() => onDelete(ev.id)} />
-            )}
+              </button>
+
+              {/* Nút xoá nội dung nếu chưa khoá */}
+              {canDelete && (
+                <IconButton
+                  icon="trash-2"
+                  size="sm"
+                  label={t('tournament.event.delete')}
+                  style={{ position: 'absolute', right: 6, bottom: 4 }}
+                  onClick={() => onDelete(ev.id)}
+                />
+              )}
             </div>
           )
         })}
+
         {canEdit && Object.keys(EVENT_KINDS).length > tour.events.length && (
           <button
             type="button"
             onClick={() => setAdding(true)}
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '0 16px',
-              minHeight: isMobile ? 64 : 60, borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap',
-              background: 'transparent', border: '1px dashed var(--border-default)',
-              font: '600 13px/1 var(--font-sans)', color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '0 18px',
+              minHeight: 68,
+              borderRadius: 12,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              background: 'transparent',
+              border: '1px dashed var(--border-default)',
+              font: '600 13px/1 var(--font-sans)',
+              color: 'var(--text-secondary)',
+              transition: 'border-color var(--dur-fast), color var(--dur-fast)',
             }}
           >
-            <Icon name="plus" size={15} />{t('tournament.event.add')}
+            <Icon name="plus" size={15} />
+            + {t('tournament.hero.events')}
           </button>
         )}
       </div>

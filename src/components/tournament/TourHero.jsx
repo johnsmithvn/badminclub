@@ -15,59 +15,125 @@ const FORWARD = new Set(['registration', 'running', 'finished'])
  */
 export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdit, onDelete, onStatus }) {
   const active = tour.registrations.filter((r) => r.status === 'registered').length
+  const matches = tour.matches || []
+  const doneMatches = matches.filter((m) => m.status === 'done' || m.status === 'walkover' || m.status === 'retired').length
+  const totalMatches = matches.length
+  const courtsCount = tour.courtLabels.length > 0 ? tour.courtLabels.length : 4
+
   const stats = [
-    { label: t('tournament.hero.players'), value: active },
-    { label: t('tournament.hero.events'), value: tour.events.length },
-    { label: t('tournament.hero.collected'), value: fmtK(money.collected), sub: '/ ' + fmtK(money.expected) },
+    { label: t('tournament.hero.playersUpper') + ' (' + t('tournament.hero.players') + ')', value: active },
+    { label: t('tournament.hero.eventsUpper'), value: tour.events.length },
+    totalMatches > 0
+      ? { label: t('tournament.hero.matchesUpper'), value: `${doneMatches}/${totalMatches}` }
+      : { label: t('tournament.hero.collected'), value: fmtK(money?.collected ?? 0), sub: money?.expected ? '/ ' + fmtK(money.expected) : undefined },
+    { label: t('tournament.hero.courtsUpper'), value: courtsCount },
   ]
   const moves = nextStatuses(tour.status)
 
+  const metaText = [
+    tourMeta(tour),
+    tour.scope === 'open' ? t('tournament.scope.openNote') : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <section style={{
-      display: 'grid', gap: 14, padding: isMobile ? '14px 14px 16px' : '16px 20px 18px', borderRadius: 10,
-      background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
+      display: 'grid',
+      gap: 16,
+      padding: isMobile ? '16px' : '20px 24px',
+      borderRadius: 14,
+      background: 'var(--surface-card)',
+      border: '1px solid var(--border-subtle)',
+      boxShadow: 'var(--shadow-xs)',
+      position: 'relative',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Button variant="ghost" size="sm" icon="arrow-left" onClick={onBack}>{t('tournament.hero.back')}</Button>
-        <span style={{ flex: 1 }} />
-        {canEdit && moves.map((s) => (
-          <Button key={s} size="sm" variant={FORWARD.has(s) ? 'primary' : 'secondary'} onClick={() => onStatus(s)}>
-            {t('tournament.statusTo.' + s)}
-          </Button>
-        ))}
-        {canEdit && <Button size="sm" variant="secondary" icon="pencil" onClick={onEdit}>{t('tournament.edit')}</Button>}
-        {canEdit && <IconButton icon="trash-2" label={t('tournament.delete')} onClick={onDelete} />}
-      </div>
+      {/* Hàng thao tác quản trị phía trên */}
+      {canEdit && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+          {moves.map((s) => (
+            <Button key={s} size="sm" variant={FORWARD.has(s) ? 'primary' : 'secondary'} onClick={() => onStatus(s)}>
+              {t('tournament.statusTo.' + s)}
+            </Button>
+          ))}
+          <Button size="sm" variant="secondary" icon="pencil" onClick={onEdit}>{t('tournament.edit')}</Button>
+          <IconButton icon="trash-2" size="sm" label={t('tournament.delete')} onClick={onDelete} />
+        </div>
+      )}
 
+      {/* Phần chính của Hero: Tiêu đề bên trái, 4 Stat Box bên phải */}
       <div style={{
-        display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 14 : 24,
-        alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between',
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? 18 : 28,
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {/* Khối bên trái: Status pill + scope -> Tên giải to -> Meta line */}
+        <div style={{ display: 'grid', gap: 8, minWidth: 0, flex: '1 1 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <TourPill status={tour.status} />
-            <Overline>{t('tournament.scope.' + tour.scope)}</Overline>
+            <span style={{
+              font: '700 11px/1 var(--font-sans)',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}>
+              {t('tournament.scope.' + tour.scope)}
+            </span>
           </div>
+
           <h1 style={{
-            margin: 0, font: `700 ${isMobile ? 22 : 28}px/1.15 var(--font-display)`, color: 'var(--text-primary)',
+            margin: 0,
+            font: `700 ${isMobile ? 24 : 32}px/1.2 var(--font-display)`,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.02em',
             overflowWrap: 'anywhere',
           }}>
             {tour.name}
           </h1>
-          <div style={{ font: '400 12.5px/1.4 var(--font-mono)', color: 'var(--text-muted)' }}>{tourMeta(tour)}</div>
+
+          <div style={{ font: '400 13px/1.4 var(--font-mono)', color: 'var(--text-secondary)' }}>
+            {metaText}
+          </div>
         </div>
 
+        {/* Khối bên phải: 4 ô thống kê Hero */}
         <div style={{
-          display: 'grid', gridTemplateColumns: `repeat(${stats.length}, auto)`, gap: isMobile ? 18 : 28,
-          justifyContent: isMobile ? 'start' : 'end',
+          display: 'grid',
+          gridTemplateColumns: `repeat(${stats.length}, 1fr)`,
+          gap: isMobile ? 12 : 20,
+          padding: isMobile ? '12px 14px' : '14px 22px',
+          background: 'var(--surface-inset)',
+          borderRadius: 12,
+          border: '1px solid var(--border-subtle)',
+          flexShrink: 0,
+          textAlign: 'center',
         }}>
-          {stats.map((s) => (
-            <div key={s.label} style={{ display: 'grid', gap: 5 }}>
-              <span style={{ font: '700 22px/1 var(--font-display)', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+          {stats.map((s, idx) => (
+            <div key={s.label} style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              minWidth: isMobile ? 55 : 68,
+              borderLeft: idx > 0 ? '1px solid var(--border-subtle)' : 'none',
+              paddingLeft: idx > 0 ? (isMobile ? 8 : 16) : 0,
+            }}>
+              <span style={{
+                font: '700 24px/1 var(--font-display)',
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+                whiteSpace: 'nowrap',
+              }}>
                 {s.value}
-                {s.sub && <span style={{ font: '400 12px/1 var(--font-mono)', color: 'var(--text-muted)', marginLeft: 4 }}>{s.sub}</span>}
               </span>
-              <Overline>{s.label}</Overline>
+              <span style={{
+                font: '700 9.5px/1 var(--font-sans)',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                whiteSpace: 'nowrap',
+              }}>
+                {s.label}
+              </span>
             </div>
           ))}
         </div>
