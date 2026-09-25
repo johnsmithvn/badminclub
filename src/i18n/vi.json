@@ -5062,6 +5062,7 @@
       "emptyHint": "Thêm thành viên CLB vào giải, rồi chọn nội dung họ đánh.",
       "noEvents": "Thêm nội dung thi đấu trước để thí sinh chọn",
     "addEvents": "Đưa vào nội dung",
+    "selectAll": "Chọn tất cả ({{n}})",
     "addEventsHint": "Người không đúng giới của nội dung sẽ tự được bỏ qua. Sửa từng người sau ở cột Nội dung đăng ký."
     },
     "toast": {

@@ -123,6 +123,14 @@ function AddPlayersDialog({ tour, db, onClose, onAdd }) {
     else n.add(id)
     return n
   })
+  // "Chọn tất cả" theo danh sách ĐANG HIỆN (đã lọc theo ô tìm) — tìm "Nguyễn" rồi chọn hết là đúng nhóm đó.
+  const shownPicked = list.filter((m) => picked.has(m.id)).length
+  const allShown = list.length > 0 && shownPicked === list.length
+  const toggleAll = () => setPicked((s) => {
+    const n = new Set(s)
+    list.forEach((m) => (allShown ? n.delete(m.id) : n.add(m.id)))
+    return n
+  })
   const submit = async () => {
     setBusy(true)
     if (await onAdd([...picked], [...evIds])) onClose()
@@ -161,6 +169,12 @@ function AddPlayersDialog({ tour, db, onClose, onAdd }) {
         <SearchField value={q} onChange={(e) => setQ(e.target.value)} onClear={() => setQ('')} width="100%"
           placeholder={t('tournament.players.search')} />
         {pool.length === 0 && <Empty icon="users" title={t('tournament.players.noneLeft')} />}
+        {list.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', minHeight: 44, borderBottom: '1px solid var(--border-default)' }}>
+            <Checkbox size="touch" checked={allShown} indeterminate={shownPicked > 0 && !allShown} onChange={toggleAll}
+              label={t('tournament.players.selectAll', { n: list.length })} style={{ flex: 1 }} />
+          </div>
+        )}
         <div style={{ display: 'grid', maxHeight: 380, overflowY: 'auto' }}>
           {list.map((m) => (
             <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, borderBottom: '1px solid var(--border-subtle)' }}>
