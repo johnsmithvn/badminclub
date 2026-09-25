@@ -22,6 +22,7 @@ const NAV = [
   { value: 'sessions', icon: 'clipboard-check', badge: 'unclosedSessions' },
   { value: 'matches', icon: 'history', badge: 'pendingChallenges' },
   { value: 'leaderboard', icon: 'trophy' },
+  { value: 'tournaments', icon: 'medal' },
   { value: 'badges', icon: 'award' },
   { value: 'members', icon: 'users' },
   { section: 'money' },
@@ -202,7 +203,7 @@ export default function Sidebar({ route }) {
       <div style={{ padding: '8px 10px 8px 6px', flex: 1, overflowY: 'auto' }}>
         <SidebarNav
           items={items}
-          value={route === 'session' ? 'sessions' : route}
+          value={route === 'session' ? 'sessions' : route === 'tournament' || route === 'tournamentBracket' ? 'tournaments' : route}
           onChange={(v) => {
             navigate(pathOf(v, v === 'session' ? db.sessionId : undefined))
           }}

@@ -1,0 +1,159 @@
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Button, Skeleton } from '#ds'
+import { Empty, Mono } from '#ui'
+import { useApp } from '#contexts/AppContext.jsx'
+import { useMobile } from '#hooks/useMobile.js'
+import { can } from '#lib/roles.js'
+import { koRounds, progressOf, queueOf } from '#lib/tournament/bracketView.js'
+import { pathOf } from '#routes'
+import { t } from '#i18n'
+import { useTourPoll } from '#hooks/useTourPoll.js'
+import BracketBoard from '#components/tournament/BracketBoard.jsx'
+import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
+import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
+import { draftKey, matchCode, teamName } from '#components/tournament/tourUtils.js'
+
+/**
+ * Nhánh đấu trực tiếp của một nội dung (handoff "Nhánh đấu trực tiếp"). Ghi điểm / hoàn tác / sửa điểm
+ * qua RPC; máy khác thấy kết quả qua poll `pollMs` (dừng khi tab ẩn — Supabase free, plan §4.4).
+ */
+export default function TournamentBracket() {
+  const { id, eventId } = useParams()
+  const { db, a, tour } = useApp()
+  const navigate = useNavigate()
+  const isMobile = useMobile(768)
+  const canEdit = can(db.viewAs || 'owner', 'sessions')
+  const [missingId, setMissingId] = useState(null)
+  // Giữ ID chứ không giữ bản chụp trận: poll / ghi xong thì hộp thoại đọc bản mới nhất.
+  const [scoringId, setScoringId] = useState(null)
+  const [editingId, setEditingId] = useState(null)
+  const [undoingId, setUndoingId] = useState(null)
+
+  useEffect(() => {
+    let alive = true
+    a.tourOpen(id)
+      .then((d) => { if (alive && (!d || d.deletedAt || d.clubId !== db.clubId)) setMissingId(id) })
+      .catch(() => { if (alive) setMissingId(id) })
+    return () => { alive = false; a.tourOpen(null) }
+  }, [id, a, db.clubId])
+
+  const loaded = Boolean(tour && tour.id === id)
+  useTourPoll(loaded, a.tourPoll)
+
+  // Nháp bảng điểm của trận đã chốt ở máy khác / đã bị làm lại lịch: xoá, không thì mở lại thấy điểm cũ.
+  useEffect(() => {
+    if (!loaded) return
+    try {
+      const open = new Set(tour.matches.filter((m) => m.status === 'ready' || m.status === 'live').map((m) => draftKey(m.id)))
+      Object.keys(localStorage).filter((k) => k.startsWith(draftKey('')) && !open.has(k)).forEach((k) => localStorage.removeItem(k))
+    } catch { /* localStorage bị chặn — không có nháp để dọn */ }
+  }, [loaded, tour])
+
+  const toHub = () => navigate(pathOf('tournament', id))
+  if (missingId === id) {
+    return (
+      <div style={{ borderRadius: 10, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', paddingBottom: 18 }}>
+        <Empty icon="medal" title={t('tournament.notFound')} />
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <Button variant="secondary" icon="arrow-left" onClick={() => navigate(pathOf('tournaments'))}>{t('tournament.hero.back')}</Button>
+        </div>
+      </div>
+    )
+  }
+  if (!loaded) return <Skeleton height={320} />
+
+  const scheduled = tour.events.filter((e) => tour.stages.some((s) => s.eventId === e.id && s.status !== 'pending'))
+  const event = tour.events.find((e) => e.id === eventId)
+  const stage = event && tour.stages.find((s) => s.eventId === event.id && s.seq === 1 && s.status !== 'pending')
+  const nav = (
+    <TourModuleNav active="bracket" events={scheduled} eventId={eventId} isMobile={isMobile}
+      onHub={toHub} onBracket={(eid) => eid && navigate(pathOf('tournamentBracket', id, eid))} />
+  )
+
+  if (!event || !stage) {
+    return (
+      <>
+        {nav}
+        <div style={{ borderRadius: 10, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', paddingBottom: 18 }}>
+          <Empty icon="medal"
+            title={event ? t('tournament.bracket.noSchedule', { name: t('tournament.kind.' + event.kind) }) : t('tournament.bracket.noEvents')}
+            hint={t('tournament.bracket.noScheduleHint')} />
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <Button variant="secondary" icon="arrow-left" onClick={toHub}>{t('tournament.bracket.openHub')}</Button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  const own = tour.matches.filter((m) => m.stageId === stage.id)
+  const view = koRounds(tour.matches, stage.id)
+  const prog = progressOf(own)
+  const teamsN = new Set(own.flatMap((m) => (m.round === 0 ? [m.teamAId, m.teamBId] : [])).filter(Boolean)).size
+  const next = queueOf(own).slice(0, 3)
+  const byId = (mid) => (mid ? own.find((m) => m.id === mid) || null : null)
+  const scoring = byId(scoringId)
+  const editing = byId(editingId)
+  const undoing = byId(undoingId)
+
+  return (
+    <>
+      {nav}
+      <section style={{
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: isMobile ? 12 : 20, padding: isMobile ? 14 : '14px 18px', borderRadius: 10,
+        background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
+      }}>
+        <div style={{ display: 'grid', gap: 6, minWidth: 0, flex: '1 1 260px' }}>
+          <span style={{ font: `700 ${isMobile ? 20 : 24}px/1.15 var(--font-display)`, color: 'var(--text-primary)' }}>{tour.name}</span>
+          <span style={{ font: '400 12px/1.3 var(--font-mono)', color: 'var(--text-muted)' }}>
+            {t('tournament.bracket.subline', { event: t('tournament.kind.' + event.kind), n: teamsN })}
+          </span>
+        </div>
+        <div style={{ display: 'grid', gap: 6, flex: '0 1 240px', minWidth: 180 }}>
+          <span style={{ display: 'flex', justifyContent: 'space-between', font: '600 11px/1 var(--font-sans)', color: 'var(--text-muted)' }}>
+            <span>{t('tournament.bracket.progress')}</span>
+            <Mono size={11}>{t('tournament.bracket.progressVal', prog)}</Mono>
+          </span>
+          <span style={{ height: 6, borderRadius: 3, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
+            <span style={{
+              display: 'block', height: '100%', borderRadius: 3, background: 'var(--teal-500)',
+              width: (prog.total ? Math.round((prog.done / prog.total) * 100) : 0) + '%', transition: 'width .5s cubic-bezier(.2,.8,.2,1)',
+            }} />
+          </span>
+        </div>
+        {next.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: '1 1 100%' }}>
+            <span style={{ font: '600 11px/1 var(--font-sans)', color: 'var(--text-muted)' }}>{t('tournament.bracket.next')}</span>
+            {next.map((m) => (
+              <span key={m.id} style={{ display: 'inline-flex', gap: 6, padding: '4px 9px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+                <Mono size={11} weight={700} color="var(--text-primary)">{matchCode(m)}</Mono>
+                <span style={{ font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }}>
+                  {teamName(tour, db, m.teamAId)} – {teamName(tour, db, m.teamBId)}
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <BracketBoard
+        view={view} tour={tour} db={db} canEdit={canEdit} isMobile={isMobile}
+        onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
+        onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
+      />
+
+      {scoring && (
+        <ScoreDialog match={scoring} tour={tour} db={db} onClose={() => setScoringId(null)}
+          onCommit={(p) => a.tourCommit(scoring.id, p)}
+          onCourt={(label) => a.tourSchedule(scoring.id, scoring.seqNo, label)}
+          onStart={(m) => m.status === 'ready' && a.tourStartMatch(m.id, m.courtLabel)} />
+      )}
+      {editing && (
+        <EditScoreDialog match={editing} tour={tour} db={db} onClose={() => setEditingId(null)}
+          onSave={(sets, reason) => a.tourEditScore(editing.id, sets, reason)} />
+      )}
+      {undoing && <UndoDialog match={undoing} onClose={() => setUndoingId(null)} onUndo={(reason) => a.tourUndo(undoing.id, reason)} />}
+    </>
+  )
+}

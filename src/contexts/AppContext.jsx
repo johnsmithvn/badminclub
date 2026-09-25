@@ -27,6 +27,7 @@ export function StoreProvider({ children }) {
   const { activeClubId, activeClub, session } = useAuth()
   const [db, setDb] = useState(null)
   const [ui, setUi] = useState(UI0)
+  const [tour, setTour] = useState(null)
   const [error, setError] = useState(null)
 
   // "Latest ref": actions cần đọc state mới nhất nhưng không nhận được qua closure.
@@ -34,8 +35,10 @@ export function StoreProvider({ children }) {
   // bỏ đi dưới concurrent rendering, ref sẽ trỏ vào state chưa bao giờ commit.
   const dbRef = useRef(db)
   const uiRef = useRef(ui)
+  const tourRef = useRef(tour)
   useLayoutEffect(() => { dbRef.current = db }, [db])
   useLayoutEffect(() => { uiRef.current = ui }, [ui])
+  useLayoutEffect(() => { tourRef.current = tour }, [tour])
 
   // navigate của React Router chỉ lấy được trong component con (App.jsx gán vào đây).
   const navRef = useRef(null)
@@ -68,9 +71,11 @@ export function StoreProvider({ children }) {
     reset()
     if (!activeClubId) {
       setDb(null)
+      setTour(null)
       return undefined
     }
     setDb(null)
+    setTour(null)
     reload()
     return () => { flushNow() }
   }, [activeClubId, reload])
@@ -95,7 +100,7 @@ export function StoreProvider({ children }) {
       reload()
     })
     // makeActions chỉ GIỮ ref trong closure, đọc trong event handler (sau commit), không đọc lúc render.
-    return { toast, navRef, a: makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) }
+    return { toast, navRef, a: makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload, setTour, tourRef }) }
   }, [reload])
 
   // Dọn kèo chết một lần sau mỗi lần nạp CLB — xem `A.sweepStaleChallenges`. Khoá theo clubId vì
@@ -107,7 +112,7 @@ export function StoreProvider({ children }) {
     api.a.sweepStaleChallenges()
   }, [db, api])
 
-  const value = useMemo(() => ({ db, ui, error, reload, setDb, setUi, ...api }), [db, ui, error, reload, api])
+  const value = useMemo(() => ({ db, ui, tour, error, reload, setDb, setUi, setTour, ...api }), [db, ui, tour, error, reload, api])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

@@ -25,6 +25,7 @@ import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
+import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
@@ -78,7 +79,7 @@ const PUSH_EVENTS = new Set([
   //      Dồn vào cuối tháng, dễ bắn hàng loạt. Bật lại sau khi đã đo thực tế.
 ])
 
-export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) {
+export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload, setTour, tourRef }) {
   const db = () => dbRef.current
   /** Form đang nhập — đọc qua ref, KHÔNG đọc qua updater của setUi (updater không chạy đồng bộ). */
   const form = () => uiRef.current.form || {}
@@ -4546,6 +4547,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
     toast(t('season.seasonEndedSuccess'))
   }
+
+  // Giải đấu: state riêng `tour`, ghi riêng — xem tournamentActions.js.
+  Object.assign(A, makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }))
 
   return A
 }

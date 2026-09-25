@@ -188,5 +188,23 @@
     "warnSessionCount": 5,
     "barChartHeight": 170,
     "barMonthCount": 4
+  },
+  "tournament": {
+    "_notePoll": "Trang nhánh / Hub khi giải đang chạy nạp lại bảng trận mỗi pollMs (Supabase free: poll thay realtime). Tab ẩn thì dừng.",
+    "pollMs": 15000,
+    "_note": "Luật điểm mẫu cho nút chọn ở tab Thể thức. sets 1|3|5 · points: điểm chạm · winBy2: phải cách 2 · cap: trần (29–29 ai được 30 thắng).",
+    "rulePresets": {
+      "r1x15": { "sets": 1, "points": 15, "winBy2": false, "cap": 15 },
+      "r1x21": { "sets": 1, "points": 21, "winBy2": true, "cap": 30 },
+      "r1x30": { "sets": 1, "points": 30, "winBy2": false, "cap": 30 },
+      "r3x11": { "sets": 3, "points": 11, "winBy2": false, "cap": 11 },
+      "r3x15": { "sets": 3, "points": 15, "winBy2": false, "cap": 15 },
+      "r3x21": { "sets": 3, "points": 21, "winBy2": true, "cap": 30 }
+    },
+    "_noteDefault": "Mặc định khi tạo thể thức — theo quy chế giải mùa 1 (Masters Phú Khê 2026).",
+    "defaultRules": {
+      "qualify": { "md": "r1x30", "wd": "r1x30", "xd": "r1x21", "default": "r1x21" },
+      "ranking": "r3x15"
+    }
   }
 }

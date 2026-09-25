@@ -26,7 +26,9 @@ export default function AppHeader({ route }) {
   // header. Màn Trang chủ CŨ (`pages/Home.jsx`) nằm ở route 'overview' ('/tong-quan') và KHÔNG tự
   // dựng header, nên tuyệt đối không thêm 'overview' vào đây (thêm vào là màn đó mất tiêu đề +
   // nút đổi theme). Xem bảng SCREEN trong `src/App.jsx`.
-  if (route === 'session' || route === 'fund' || route === 'leaderboard' || route === 'matches' || route === 'home') {
+  // Giải đấu: danh sách có PageHeader, Hub có hero, nhánh đấu có header riêng.
+  if (route === 'session' || route === 'fund' || route === 'leaderboard' || route === 'matches' || route === 'home' ||
+    route === 'tournaments' || route === 'tournament' || route === 'tournamentBracket') {
     return null
   }
 

@@ -6,7 +6,7 @@ import { t } from '#i18n'
 /** Route bên trong một CLB — cần đăng nhập VÀ đã chọn CLB. */
 export const ROUTE_KEYS = [
   'home', 'overview', 'calendar', 'sessions', 'session', 'matches', 'leaderboard', 'badges', 'members',
-  'debts', 'fund', 'profile', 'settings', 'schema',
+  'debts', 'fund', 'profile', 'settings', 'schema', 'tournaments', 'tournament', 'tournamentBracket',
 ]
 
 /**
@@ -35,6 +35,9 @@ const PATHS = {
   profile: '/ca-nhan',
   settings: '/cai-dat',
   schema: '/so-do-du-lieu',
+  tournaments: '/giai-dau',
+  tournament: '/giai-dau/:id',
+  tournamentBracket: '/giai-dau/:id/nhanh/:eventId',
 }
 
 export const PAGES = ROUTE_KEYS.map((key) => ({ key, path: PATHS[key] }))
@@ -47,19 +50,22 @@ export const pageOf = (key) => ({
 })
 
 /** Key → URL. Route 'session' cần id, 'challenges' dẫn sang tab Sàn kèo. */
-export function pathOf(key, id) {
+/** `sub`: tham số thứ hai của route có hai tham số (nhánh đấu: `:eventId`). */
+export function pathOf(key, id, sub) {
   if (key === 'challenges') {
     return id ? `/tran-dau?tab=challenges&challengeId=${id}` : '/tran-dau?tab=challenges'
   }
   const p = PATHS[key]
   if (!p) return PATHS.home
-  return id ? p.replace(':id', id) : p
+  const withId = id ? p.replace(':id', id) : p
+  return sub ? withId.replace(':eventId', sub) : withId
 }
 
 /** URL hiện tại → route key. */
 
 export function keyOfPath(pathname) {
   if (pathname.startsWith('/buoi-tap/')) return 'session'
+  if (pathname.startsWith('/giai-dau/')) return pathname.includes('/nhanh/') ? 'tournamentBracket' : 'tournament'
   if (pathname === '/lich-co-dinh') return 'settings'
   const hit = ROUTE_KEYS.find((k) => PATHS[k] === pathname)
   return hit || 'home'

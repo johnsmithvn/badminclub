@@ -20,12 +20,14 @@ import { CATS, MANUAL_CATS } from '#lib/ledger.js'
 import { BLOCK_KEYS } from '#lib/schedules.js'
 import { MERGE_FIELDS } from '#lib/members.js'
 import { SCHEMA_GROUPS } from '#data/schema.js'
+import { EVENT_KINDS, EVENT_STATUSES, HUB_TABS, TOUR_STATUSES, hubChecklist } from '#lib/tournament/hub.js'
+import { RULE_PRESETS, TEMPLATES } from '#lib/tournament/format.js'
 
 // Miền giá trị của các họ key ghép động mà file nguồn không export ra được.
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
 // Đúng bộ mục sidebar trong Sidebar.jsx (KHÔNG phải toàn bộ route: 'session' không có ở sidebar).
 const NAV = ['home', 'calendar', 'sessions', 'matches', 'leaderboard', 'badges', 'members',
-  'debts', 'fund', 'profile', 'settings']
+  'debts', 'fund', 'profile', 'settings', 'tournaments']
 const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
 const CHANGE_FIELDS = ['level', 'phone', 'gender', 'name']
@@ -159,6 +161,28 @@ WARN_KEYS.forEach((k) => ['title', 'body'].forEach((f) => need('home.warn.' + k 
 Object.values(BLOCK_KEYS).forEach(need)
 ;['groupFree', 'groupLocked', 'del', 'delBlocked'].forEach((k) => need('schedules.' + k))
 ;[...Object.keys(cfg.rating?.crossGenderConfidence || {}), 'very_high'].forEach((k) => need('rating.confidence.' + k))
+
+// Giải đấu. Mã lỗi `tournament.err.*` tới màn hình qua t(e.message) — cả từ JS lẫn từ RAISE của RPC
+// SQL — nên quét thẳng nguồn của hai phía: thêm một RAISE mới mà quên dịch là test đỏ.
+Object.keys(EVENT_KINDS).forEach((k) => { need('tournament.kind.' + k); need('tournament.kindShort.' + k) })
+TOUR_STATUSES.forEach((s) => { need('tournament.status.' + s); need('tournament.statusTo.' + s) })
+EVENT_STATUSES.forEach((s) => need('tournament.eventStatus.' + s))
+;['club_only', 'open'].forEach((s) => need('tournament.scope.' + s))
+HUB_TABS.forEach((k) => ['tab', 'tabNo', 'sub'].forEach((f) => need('tournament.' + f + '.' + k)))
+hubChecklist({ events: [], registrations: [], entries: [], prizes: [] }).forEach((c) => need('tournament.check.' + c.key))
+;['entries', 'fees'].forEach((k) => need('tournament.check.' + k + 'Left'))
+;[...files('src/lib/tournament'), 'src/contexts/tournamentActions.js', 'supabase/migrations/0057_tournaments.sql']
+  .forEach((p) => { for (const m of readFileSync(p, 'utf8').matchAll(/tournament\.(?:err|pairing|format)\.[A-Za-z]+/g)) need(m[0]) })
+;['balanced', 'random'].forEach((m) => { need('tournament.pairing.mode.' + m); need('tournament.pairing.modeHint.' + m) })
+;['ok', 'warn', 'bad', 'idle'].forEach((k) => need('tournament.pairing.tone.' + k))
+Object.keys(RULE_PRESETS).forEach((k) => need('tournament.format.preset.' + k))
+TEMPLATES.forEach((k) => { need('tournament.format.tpl.' + k); need('tournament.format.tplSub.' + k) })
+;['seed', 'slot'].forEach((k) => need('tournament.format.seed.' + k))
+;['r32', 'r16', 'qf', 'sf', 'final', 'third', 'group'].forEach((k) => { need('tournament.round.' + k); need('tournament.code.' + k) })
+;['pending', 'ready', 'live', 'done', 'walkover', 'retired', 'bye'].forEach((k) => need('tournament.matchStatus.' + k))
+;['live', 'manual', 'walkover'].forEach((k) => need('tournament.sb.tab.' + k))
+;['setPoint', 'matchPoint'].forEach((k) => need('tournament.sb.' + k))
+;['walkover', 'retired'].forEach((k) => need('tournament.sb.wo.' + k))
 
 assert.equal(dyn.length, 0, 'key i18n ghép động không tồn tại:\n  ' + dyn.join('\n  '))
 
