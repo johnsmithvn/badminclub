@@ -3344,51 +3344,27 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     linkChallengeToSession: (challengeId, sessionId) => {
       const d0 = db()
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)
-      if (!chal) return
+      if (!chal) return false
       const s = sessionId ? sessionOf(d0, sessionId) : null
-      if (sessionId && !s) return
+      if (sessionId && !s) return false
       const myMem = myMember(d0)
       const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
-      if (!canAssign() && !isPlayer) return
+      if (!canAssign() && !isPlayer) {
+        toast(t('common.unauthorized'))
+        return false
+      }
 
-      // Validate: Nếu gắn vào buổi, kiểm tra xem có người chơi nào vắng mặt / không đi buổi đó không
+      // Validate: Nếu gắn vào buổi, kiểm tra xem có người chơi nào đã báo vắng mặt không
       if (sessionId && s) {
         const att = d0.attendance?.[s.id] || {}
         const allPlayers = [...(chal.teamA || []), ...(chal.teamB || [])]
 
-        // 1. Chặn nếu có người chơi đã báo vắng (hoặc nghỉ không báo)
+        // Chặn nếu có người chơi đã báo vắng (hoặc nghỉ không báo)
         const absentKeys = allPlayers.filter((id) => att[id] === false || att[id] === 'noshow')
         if (absentKeys.length > 0) {
           const absentNames = absentKeys.map((id) => playerName(d0, id) || id)
           toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
-          return
-        }
-
-        // 2. Chặn nếu có người chơi không thuộc nhóm thành viên hoặc khách của buổi đó
-        const mems = sessionMembers(d0, s) || []
-        const guests = sGuests(d0, s.id) || []
-        const eligibleKeys = new Set([
-          ...mems.map((m) => m.id),
-          ...guests.map((g) => g.guestId || g.memberId || g.id),
-        ])
-        const notInSessionKeys = allPlayers.filter((id) => !eligibleKeys.has(id))
-        if (notInSessionKeys.length > 0) {
-          const notInSessionNames = notInSessionKeys.map((id) => playerName(d0, id) || id)
-          toast(t('planner.chalAbsentCantSchedule', { names: notInSessionNames.join(', ') }))
-          return
-        }
-
-        // 3. Nếu buổi chơi đã bắt đầu điểm danh có mặt: đòi hỏi người chơi phải có mặt
-        const hasStartedAttendance = Object.values(att).some((v) => isPresent(v))
-        if (hasStartedAttendance) {
-          const sessPlayers = sessionPlayers(d0, s)
-          const presentKeys = new Set(sessPlayers.map((p) => p.key))
-          const notPresentKeys = allPlayers.filter((id) => !presentKeys.has(id))
-          if (notPresentKeys.length > 0) {
-            const notPresentNames = notPresentKeys.map((id) => playerName(d0, id) || id)
-            toast(t('planner.chalAbsentCantSchedule', { names: notPresentNames.join(', ') }))
-            return
-          }
+          return false
         }
       }
 
@@ -3400,6 +3376,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       } else {
         toast(t('challenge.toastUnlinkedFromSession', { code: chal.code }))
       }
+      return true
     },
 
     saveMatchScore: ({ sid, sessionId, ci, courtIdx, courtIndex, sets, challengeCode, challengeId, teamA: propTeamA, teamB: propTeamB, ratingEnabled: propRatingEnabled, minutes }) => {

@@ -3112,8 +3112,10 @@ export default function CourtAssignmentTab({ s }) {
                       key={sess.id}
                       type="button"
                       onClick={() => {
-                        a.linkChallengeToSession(selectingSessionChallenge.id, sess.id)
-                        setSelectingSessionChallenge(null)
+                        const ok = a.linkChallengeToSession(selectingSessionChallenge.id, sess.id)
+                        if (ok !== false) {
+                          setSelectingSessionChallenge(null)
+                        }
                       }}
                       style={{
                         display: 'flex',
@@ -3180,8 +3182,10 @@ export default function CourtAssignmentTab({ s }) {
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    a.linkChallengeToSession(selectingSessionChallenge.id, null)
-                    setSelectingSessionChallenge(null)
+                    const ok = a.linkChallengeToSession(selectingSessionChallenge.id, null)
+                    if (ok !== false) {
+                      setSelectingSessionChallenge(null)
+                    }
                   }}
                   style={{
                     color: 'var(--status-incident-fg)',

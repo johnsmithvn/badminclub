@@ -1414,7 +1414,7 @@ export default function Matches() {
 
                     {/* Đổi buổi hoặc Gỡ khỏi buổi nếu kèo đã gắn vào buổi */}
                     {/* Đưa kèo tự do vào buổi chơi: Mở dialog chọn buổi rõ ràng */}
-                    {isAccepted && !sessionObj && (
+                    {isAccepted && !sessionObj && (isParticipant || isAdmin) && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -3703,8 +3703,10 @@ export default function Matches() {
                       key={s.id}
                       type="button"
                       onClick={() => {
-                        a.linkChallengeToSession(selectingSessionChallenge.id, s.id)
-                        setSelectingSessionChallenge(null)
+                        const ok = a.linkChallengeToSession(selectingSessionChallenge.id, s.id)
+                        if (ok !== false) {
+                          setSelectingSessionChallenge(null)
+                        }
                       }}
                       style={{
                         display: 'flex',
@@ -3797,8 +3799,10 @@ export default function Matches() {
                 <button
                   type="button"
                   onClick={() => {
-                    a.linkChallengeToSession(selectingSessionChallenge.id, null)
-                    setSelectingSessionChallenge(null)
+                    const ok = a.linkChallengeToSession(selectingSessionChallenge.id, null)
+                    if (ok !== false) {
+                      setSelectingSessionChallenge(null)
+                    }
                   }}
                   style={{
                     ...S.smallGhostBtn,
