@@ -209,6 +209,13 @@
     "_noteGroupBalance": "Vòng bảng: lệch rating TRUNG BÌNH giữa bảng mạnh nhất và yếu nhất ≤ số này là 'cân' (README handoff §5.3, chỉnh theo thang Elo thật).",
     "groupBalanceOk": 15,
     "_noteEstimate": "Tổng quan · 'Còn lại ước tính' = trận còn lại × số phút này / số sân. Ước tính thô, chưa tính đội không đánh 2 trận cùng lúc (plan §5.7).",
-    "estimateMatchMin": 18
+    "estimateMatchMin": 18,
+    "_noteRecommender": "Gợi ý thể thức (README handoff §5.7): phút sân mỗi trận theo luật mẫu (luật tự chỉnh → estimateMatchMin), phút nghỉ giữa 2 trận. Chỉ là ƯỚC TÍNH theo tổng phút sân / số sân — chưa tính đội không đánh 2 trận cùng lúc.",
+    "_notePairing": "Ghép cặp: gợi ý đổi 2 người chỉ khi độ lệch giảm HƠN swapMinGain điểm rating; 'ăn ý' chỉ tin cặp đã đánh chung từ chemistryMinGames trận.",
+    "pairing": { "swapMinGain": 6, "chemistryMinGames": 2 },
+    "recommender": {
+      "restMin": 3,
+      "minutesByPreset": { "r1x15": 10, "r1x21": 14, "r1x30": 18, "r3x11": 16, "r3x15": 22, "r3x21": 35 }
+    }
   }
 }

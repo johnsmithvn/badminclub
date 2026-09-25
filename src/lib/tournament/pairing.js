@@ -4,7 +4,11 @@
  * Rating dùng `registration.ratingSnapshot` (chụp lúc đăng ký), không đọc Elo sống.
  */
 
-import { BALANCE_THRESHOLD, IMBALANCE_THRESHOLD } from '#lib/rating.js'
+import cfg from '#config/app.json' with { type: 'json' }
+import { BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, calcPairImpact } from '#lib/rating.js'
+
+const PAIR = cfg.tournament.pairing
+export const PAIR_MODES = ['balanced', 'seeded', 'chemistry', 'random']
 
 const rating = (r) => r.ratingSnapshot || 0
 
@@ -41,28 +45,87 @@ export function shuffle(list, rand = Math.random) {
 }
 
 /**
- * Ghép tự động những người CHƯA có cặp. Trả mảng cặp [a, b] (registration). Người lẻ không ghép.
- *   balanced: mạnh nhất + yếu nhất → tổng rating các cặp gần nhau.
- *   random:   bốc ngẫu nhiên.
- * `mixed` (đôi nam nữ) luôn ghép 1 nam + 1 nữ: balanced = nam mạnh→yếu với nữ yếu→mạnh.
+ * Ăn ý của 2 người = lịch sử đánh CHUNG một đội ở CLB (`db.matches`, dùng lại `calcPairImpact` của rating.js).
+ * `known` = đã đánh chung đủ `chemistryMinGames` trận để tin được tỉ lệ thắng.
+ * @returns {{ games: number, winPct: number, known: boolean }}
  */
-export function autoPair(pool, { genderRule, mode = 'balanced', rand = Math.random }) {
+export function chemistryOf(history, a, b) {
+  const info = calcPairImpact(history || [], a.playerId, b.playerId)
+  return { games: info.gamesCount, winPct: Math.round(info.actualWinPct), known: info.gamesCount >= PAIR.chemistryMinGames }
+}
+
+/**
+ * Ghép tự động những người CHƯA có cặp. Trả mảng cặp [a, b] (registration). Người lẻ không ghép.
+ *   balanced:  mạnh nhất + yếu nhất → tổng rating các cặp gần nhau.
+ *   seeded:    mạnh + mạnh (1–2, 3–4…) → có cặp hạt giống rõ ràng.
+ *   chemistry: cặp đã đánh chung nhiều và thắng nhiều ghép trước; người chưa có lịch sử ghép kiểu cân bằng.
+ *   random:    bốc ngẫu nhiên.
+ * Nam nữ: luôn 1 nam + 1 nữ, thừa bên nào thì bên đó chờ.
+ * @param {object[]} [history]  `db.matches` — chỉ cần cho `chemistry`
+ */
+export function autoPair(pool, { genderRule, mode = 'balanced', rand = Math.random, history = [] }) {
   const byDesc = (a, b) => rating(b) - rating(a) || a.id.localeCompare(b.id)
-  if (genderRule === 'mixed') {
+  const mixed = genderRule === 'mixed'
+  if (mode === 'chemistry') {
+    const cand = []
+    pool.forEach((a, i) => pool.slice(i + 1).forEach((b) => {
+      if (mixed && a.gender === b.gender) return
+      const c = chemistryOf(history, a, b)
+      if (c.known) cand.push({ a, b, ...c })
+    }))
+    cand.sort((x, y) => y.winPct - x.winPct || y.games - x.games || x.a.id.localeCompare(y.a.id))
+    const used = new Set()
+    const pairs = []
+    cand.forEach(({ a, b }) => {
+      if (used.has(a.id) || used.has(b.id)) return
+      used.add(a.id)
+      used.add(b.id)
+      pairs.push(mixed && a.gender !== 'nam' ? [b, a] : [a, b])
+    })
+    return [...pairs, ...autoPair(pool.filter((r) => !used.has(r.id)), { genderRule, mode: 'balanced' })]
+  }
+  if (mixed) {
     const men = pool.filter((r) => r.gender === 'nam')
     const women = pool.filter((r) => r.gender === 'nu')
     const m = mode === 'random' ? shuffle(men, rand) : [...men].sort(byDesc)
-    const w = mode === 'random' ? shuffle(women, rand) : [...women].sort(byDesc).reverse()
+    const w = mode === 'random' ? shuffle(women, rand) : mode === 'seeded' ? [...women].sort(byDesc) : [...women].sort(byDesc).reverse()
     return m.slice(0, Math.min(m.length, w.length)).map((man, i) => [man, w[i]])
   }
   const list = mode === 'random' ? shuffle(pool, rand) : [...pool].sort(byDesc)
   const pairs = []
-  if (mode === 'random') {
+  if (mode === 'random' || mode === 'seeded') {
     for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]])
   } else {
     for (let i = 0, j = list.length - 1; i < j; i++, j--) pairs.push([list[i], list[j]])
   }
   return pairs
+}
+
+/**
+ * Gợi ý đổi 2 người giữa 2 đội chưa ghim để giảm độ lệch (handoff "gợi ý đổi"). Nam nữ: chỉ đổi cùng giới.
+ * Chỉ gợi ý khi độ lệch giảm HƠN `swapMinGain` — đổi để được vài điểm thì không đáng làm BTC bận.
+ * @param {object[]} teams  từ `eventTeams`
+ * @returns {null | { teamA: string, regA: object, teamB: string, regB: object, before: number, after: number }}
+ */
+export function suggestSwap(teams, genderRule) {
+  const full = teams.filter((t) => t.full)
+  if (full.length < 2) return null
+  const spreadOf = (sums) => Math.max(...sums) - Math.min(...sums)
+  const before = spreadOf(full.map((t) => t.sum))
+  let best = null
+  full.forEach((ta, i) => full.slice(i + 1).forEach((tb) => {
+    if (ta.pinned || tb.pinned) return
+    ta.players.forEach((p) => tb.players.forEach((q) => {
+      if (genderRule === 'mixed' && p.gender !== q.gender) return
+      const d = rating(q) - rating(p)
+      if (!d) return
+      const after = spreadOf(full.map((t) => (t === ta ? t.sum + d : t === tb ? t.sum - d : t.sum)))
+      if (before - after > PAIR.swapMinGain && (!best || after < best.after)) {
+        best = { teamA: ta.id, regA: p, teamB: tb.id, regB: q, before, after }
+      }
+    }))
+  }))
+  return best
 }
 
 /**

@@ -208,7 +208,7 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       const ev = cur.events.find((e) => e.id === eventId)
       const pinnedIds = new Set(cur.teams.filter((t) => t.eventId === eventId && t.pinned).map((t) => t.id))
       const pool = eventPlayers(cur, eventId).filter((p) => !p.teamId || !pinnedIds.has(p.teamId))
-      const pairs = autoPair(pool, { genderRule: ev.genderRule, mode })
+      const pairs = autoPair(pool, { genderRule: ev.genderRule, mode, history: db().matches || [] })
       if (!pairs.length) return
       const teams = pairs.map(() => ({ ...base(), id: uid(), eventId, pinned: false, status: 'active' }))
       await write('tournament_teams', 'insert', teams)
@@ -216,6 +216,19 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
         ...base(), teamId: teams[i].id, eventId, registrationId: p.id,
       }))))
     }),
+
+    /** Đổi chỗ 2 người giữa 2 đội (gợi ý `suggestSwap`): gỡ 2 dòng rồi ghi lại chéo nhau. */
+    tourSwapPlayers: (eventId, { teamA, regA, teamB, regB }) => {
+      const tps = tour().teamPlayers.filter((p) => p.eventId === eventId && (p.registrationId === regA.id || p.registrationId === regB.id))
+      if (tps.length !== 2) return false
+      return run(async () => {
+        await write('tournament_team_players', 'delete', tourRows('tournament_team_players', tps))
+        await write('tournament_team_players', 'insert', [
+          { ...base(), teamId: teamB, eventId, registrationId: regA.id },
+          { ...base(), teamId: teamA, eventId, registrationId: regB.id },
+        ])
+      }, 'tournament.toast.swapped')
+    },
 
     /** Chốt đội hình: kiểm lại luật, nội dung đơn thì lập mỗi người một đội, rồi khoá (DB trigger giữ khoá). */
     tourLockLineup: (eventId) => {
@@ -344,41 +357,27 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
 
     /** Đổi mẫu thể thức cho nội dung */
     tourSaveTemplate: async (eventId, templateKey, custom = {}) => {
-      const cur = tour()
-      const ev = cur.events.find((e) => e.id === eventId)
-      if (!ev) return false
-      const oldStages = cur.stages.filter((s) => s.eventId === eventId)
-      // Đã sinh trận thì không thay thể thức (DB cũng chặn xoá giai đoạn có trận qua FK) — làm lại lịch trước.
-      if (oldStages.some((s) => s.status !== 'pending')) { toast(t('tournament.err.scheduleExists')); return false }
-      const { stages, links } = buildTemplateStages(templateKey, ev, custom)
-      const oldStageIds = new Set(oldStages.map((s) => s.id))
-      const oldLinks = (cur.stageLinks || []).filter((l) => oldStageIds.has(l.fromStageId) || oldStageIds.has(l.toStageId))
-
-      const newStages = stages.map((s) => ({ ...base(), ...s, id: uid(), eventId }))
-      const stageMapBySeq = {}
-      newStages.forEach((s) => { stageMapBySeq[s.seq] = s.id })
-
-      const newLinks = links.map((l) => ({
-        ...base(),
-        id: uid(),
-        fromStageId: stageMapBySeq[l.fromStageSeq],
-        toStageId: stageMapBySeq[l.toStageSeq],
-        ranks: l.ranks,
-      }))
-
-      try {
-        if (oldLinks.length) await write('tournament_stage_links', 'delete', oldLinks.map((l) => l.id))
-        if (oldStages.length) await write('tournament_stages', 'delete', oldStages.map((s) => s.id))
-        await write('tournament_stages', 'insert', newStages)
-        if (newLinks.length) await write('tournament_stage_links', 'insert', newLinks)
-        await write('tournament_events', 'upsert', [{ ...base(), ...ev, templateKey }])
-        await reloadTour()
-        toast(t('tournament.toast.formatSaved'))
-        return true
-      } catch (e) {
-        toast(tourErr(e))
+      if (tour().stages.some((s) => s.eventId === eventId && s.status !== 'pending')) {
+        toast(t('tournament.err.scheduleExists'))
         return false
       }
+      return run(() => replaceFormat(eventId, templateKey, custom), 'tournament.toast.formatSaved')
+    },
+
+    /**
+     * Áp dụng gợi ý thể thức (`recommend`) cho nhiều nội dung trong MỘT lần bấm. Nội dung đã có lịch thì giữ
+     * nguyên — gợi ý không bao giờ xoá lịch đang chạy.
+     * @param {Array<{ eventId: string, pick: { tpl, numGroups, advance } }>} list
+     */
+    tourApplyRecommendation: (list) => {
+      const locked = new Set(tour().stages.filter((s) => s.status !== 'pending').map((s) => s.eventId))
+      const todo = list.filter((x) => x.pick && !locked.has(x.eventId))
+      if (!todo.length) return false
+      return run(async () => {
+        for (const { eventId, pick } of todo) {
+          await replaceFormat(eventId, pick.tpl, { numGroups: pick.numGroups, advancePerGroup: pick.advance || 2 })
+        }
+      }, 'tournament.toast.recommendApplied', { n: todo.length })
     },
 
     /**
@@ -462,6 +461,25 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       if (!stage) return false
       return run(() => tournamentRpc('tournament_reset_stage', { p_stage: stage.id, p_reason: reason }), 'tournament.toast.resetDone')
     },
+  }
+
+  /** Thay toàn bộ giai đoạn + link của nội dung theo mẫu (chỉ khi chưa giai đoạn nào có lịch — người gọi kiểm). */
+  async function replaceFormat(eventId, templateKey, custom = {}) {
+    const cur = tour()
+    const ev = cur.events.find((e) => e.id === eventId)
+    if (!ev) return
+    const oldStages = cur.stages.filter((s) => s.eventId === eventId)
+    const oldIds = new Set(oldStages.map((s) => s.id))
+    const oldLinks = (cur.stageLinks || []).filter((l) => oldIds.has(l.fromStageId) || oldIds.has(l.toStageId))
+    const { stages, links } = buildTemplateStages(templateKey, ev, custom)
+    const newStages = stages.map((s) => ({ ...base(), ...s, id: uid(), eventId }))
+    const idOfSeq = Object.fromEntries(newStages.map((s) => [s.seq, s.id]))
+    const newLinks = links.map((l) => ({ ...base(), id: uid(), fromStageId: idOfSeq[l.fromStageSeq], toStageId: idOfSeq[l.toStageSeq], ranks: l.ranks }))
+    if (oldLinks.length) await write('tournament_stage_links', 'delete', oldLinks.map((l) => l.id))
+    if (oldStages.length) await write('tournament_stages', 'delete', oldStages.map((s) => s.id))
+    await write('tournament_stages', 'insert', newStages)
+    if (newLinks.length) await write('tournament_stage_links', 'insert', newLinks)
+    await write('tournament_events', 'upsert', [{ ...base(), ...ev, templateKey }])
   }
 
   /** Rời đội hiện tại của nội dung; đội còn trống thì xoá luôn (không để đội ma). */

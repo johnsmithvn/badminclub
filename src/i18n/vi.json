@@ -5090,7 +5090,9 @@
       "undone": "Đã hoàn tác kết quả",
       "stageClosed": "Đã chốt thứ hạng giai đoạn",
       "formatSaved": "Đã lưu thể thức thi đấu",
-      "entered": "Đã đưa {{n}} thí sinh vào nội dung"
+      "entered": "Đã đưa {{n}} thí sinh vào nội dung",
+      "recommendApplied": "Đã áp dụng thể thức cho {{n}} nội dung",
+      "swapped": "Đã đổi người giữa 2 cặp"
     },
     "err": {
       "permissionDenied": "Bạn không có quyền quản lý giải đấu",
@@ -5146,13 +5148,21 @@
       "group": "Vòng bảng"
     },
     "pairing": {
+      "chem": "Đánh chung {{n}} trận · thắng {{pct}}%",
+      "chemNone": "Chưa từng đánh chung",
+      "swapHint": "Đổi {{a}} ↔ {{b}}: độ lệch {{from}} → {{to}}",
+      "swapApply": "Đổi ngay",
       "modeLabel": "Cách ghép",
       "mode": {
         "balanced": "Cân bằng",
+        "seeded": "Hạt giống",
+        "chemistry": "Ăn ý",
         "random": "Ngẫu nhiên"
       },
       "modeHint": {
         "balanced": "Mạnh nhất ghép yếu nhất để tổng rating các cặp gần nhau.",
+        "seeded": "Mạnh ghép mạnh — có cặp hạt giống rõ ràng.",
+        "chemistry": "Ưu tiên những cặp từng đánh chung và thắng nhiều ở CLB; ai chưa có lịch sử thì ghép cân bằng.",
         "random": "Bốc thăm, vẫn giữ luật nam nữ và các cặp đã ghim."
       },
       "clear": "Xoá ghép",
@@ -5330,6 +5340,7 @@
       "champ": "Vô địch",
       "champWait": "Chờ chung kết",
       "champKicker": "Nhà vô địch",
+      "champSubtitle": "Đội thắng chung kết sẽ bay vào đây",
       "groupRound": "Lượt {{n}}",
       "tbd": "Chờ đội",
       "bye": "Miễn đấu",
@@ -5344,7 +5355,8 @@
       "openHub": "Về Hub giải",
       "next": "Trận kế tiếp",
       "court": "Sân",
-      "pickEvent": "Nội dung"
+      "pickEvent": "Nội dung",
+      "slotsN": "{{n}} đội"
     },
     "sb": {
       "title": "{{code}} · {{event}}",
@@ -5384,6 +5396,27 @@
       "title": "Hoàn tác {{code}}",
       "body": "Gỡ kết quả trận này và rút đội đi tiếp khỏi trận sau. Chỉ được khi trận sau chưa đánh.",
       "reason": "Lý do"
+    },
+    "recommend": {
+      "open": "Gợi ý thể thức",
+      "title": "Gợi ý thể thức cho cả giải",
+      "hint": "Tính từ số đội, số sân và giờ của giải. Chỉ cần chọn ưu tiên rồi áp dụng.",
+      "priority": { "balanced": "Cân bằng", "games": "Nhiều trận", "fast": "Nhanh" },
+      "priorityHint": {
+        "balanced": "Mỗi đội được đánh vài trận, có vòng bảng nếu kịp giờ.",
+        "games": "Mỗi đội đánh nhiều trận nhất có thể trong khung giờ.",
+        "fast": "Xong sớm nhất."
+      },
+      "teams": "{{n}} đội",
+      "teamsEst": "~{{n}} đội (chưa ghép)",
+      "cost": "{{n}} trận · {{m}} phút sân",
+      "take": "lấy {{n}}/bảng",
+      "none": "Chưa đủ 2 đội",
+      "locked": "Đã có lịch — giữ nguyên",
+      "noWindow": "Giải chưa khai báo giờ hoặc sân (tab Thông tin) — vẫn gợi ý được, nhưng không ước tính giờ xong.",
+      "fits": "Xong khoảng {{finish}} (ước tính) — trong khung giờ đến {{end}}.",
+      "over": "Xong khoảng {{finish}} (ước tính) — vượt khung giờ đến {{end}}, dù đã chọn phương án gọn nhất.",
+      "apply": "Áp dụng cho {{n}} nội dung"
     },
     "stage": {
       "groups": "Vòng bảng",

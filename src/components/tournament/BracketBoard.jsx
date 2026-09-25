@@ -96,18 +96,27 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
           <RoundHead name={t('tournament.bracket.champ')} sub={champion ? '' : t('tournament.bracket.champWait')} />
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, minHeight: height }}>
             <div data-k={CHAMP_KEY} style={{
-              display: 'grid', gap: 6, padding: '14px 14px 16px', borderRadius: 10, textAlign: 'center',
+              display: 'grid', gap: 8, padding: '24px 16px', borderRadius: 12, textAlign: 'center',
               background: champion ? 'var(--status-delayed-bg)' : 'var(--surface-inset)',
-              border: `1px ${champion ? 'solid' : 'dashed'} ${champion ? 'var(--podium-gold)' : 'var(--border-default)'}`,
+              border: `1.5px ${champion ? 'solid var(--podium-gold)' : 'dashed var(--border-default)'}`,
+              boxShadow: champion ? 'var(--shadow-sm)' : 'none',
+              transition: 'background .3s, border-color .3s',
             }}>
-              <Icon name="trophy" size={22} style={{ color: champion ? 'var(--podium-gold)' : 'var(--text-muted)', justifySelf: 'center' }} />
-              <Overline>{t('tournament.bracket.champKicker')}</Overline>
-              <span style={{ font: '700 16px/1.25 var(--font-display)', color: champion ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                {champion ? teamName(tour, db, champion) : t('tournament.bracket.champWait')}
-              </span>
+              <Icon name="trophy" size={32} style={{ color: champion ? 'var(--podium-gold)' : 'var(--text-muted)', justifySelf: 'center', opacity: champion ? 1 : 0.6 }} />
+              <div>
+                <Overline>{t('tournament.bracket.champKicker')}</Overline>
+                <div style={{ font: '700 16px/1.3 var(--font-display)', color: champion ? 'var(--text-primary)' : 'var(--text-secondary)', marginTop: 4 }}>
+                  {champion ? teamName(tour, db, champion) : t('tournament.bracket.champWait')}
+                </div>
+                {!champion && (
+                  <div style={{ font: '400 11.5px/1.4 var(--font-sans)', color: 'var(--text-muted)', marginTop: 4 }}>
+                    {t('tournament.bracket.champSubtitle')}
+                  </div>
+                )}
+              </div>
             </div>
             {view.third && (
-              <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
                 <RoundHead name={t('tournament.round.third')} rule={ruleLabel(view.third.rule)} />
                 {card(view.third, { round: view.rounds.length })}
               </div>
@@ -183,6 +192,7 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     const lost = hasResult(m) && m.winner && m.winner !== side
     const seed = src?.kind === 'seed' ? String(src.n) : src?.kind === 'draw' ? t('tournament.format.drawNo', { n: src.n }) : ''
     const label = teamId ? teamName(tour, db, teamId) : src?.kind === 'bye' ? t('tournament.bracket.bye') : t('tournament.bracket.tbd')
+    // Không có "bấm tên đội = thắng" (plan §6): kết quả chỉ vào qua ô điểm / bảng điểm, có tỷ số thật.
     return (
       <div data-k={slotKey(m.id, side)} style={{
         display: 'flex', alignItems: 'center', gap: 8, minHeight: 32, padding: '0 8px 0 10px', borderRadius: 6,

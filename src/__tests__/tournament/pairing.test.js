@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { autoPair, balanceOf, eventPlayers, eventTeams, lineupIssue, shuffle } from '#lib/tournament/pairing.js'
+import { autoPair, balanceOf, chemistryOf, eventPlayers, eventTeams, lineupIssue, shuffle, suggestSwap } from '#lib/tournament/pairing.js'
 import { defaultStage, drawNumbers, entrantsOf, koPreview, presetKeyOf, RULE_PRESETS } from '#lib/tournament/format.js'
 
 const r = (id, gender, rating) => ({ id, gender, ratingSnapshot: rating, status: 'registered' })
@@ -112,3 +112,49 @@ test('xem trước nhánh: 8 đội = 24 trận/3 nội dung như mùa 1; 5 đ�
   assert.equal(koPreview(3, st).rounds.some((x) => x.kind === 'third'), false)
   assert.equal(koPreview(1, st).total, 0)
 })
+
+test('ghép hạt giống: mạnh + mạnh (1–2, 3–4); nam nữ: nam mạnh với nữ mạnh', () => {
+  const pool = [r('a', 'nam', 800), r('b', 'nam', 700), r('c', 'nam', 500), r('d', 'nam', 300)]
+  assert.deepEqual(names(autoPair(pool, { genderRule: 'male', mode: 'seeded' })), ['a+b', 'c+d'])
+  const mix = [r('m1', 'nam', 800), r('m2', 'nam', 500), r('w1', 'nu', 600), r('w2', 'nu', 300)]
+  assert.deepEqual(names(autoPair(mix, { genderRule: 'mixed', mode: 'seeded' })), ['m1+w1', 'm2+w2'])
+})
+
+// Trận CLB dạng `db.matches`: teamA/teamB là id thành viên (= registration.playerId).
+const played = (a, b, won, n) => Array.from({ length: n }, (_, i) => ({
+  id: `${a}${b}${i}`, teamA: [a, b], teamB: ['x', 'y'], winnerTeam: won ? 'A' : 'B', ratingEnabled: true,
+}))
+const p = (id, gender, rating) => ({ ...r(id, gender, rating), playerId: id })
+
+test('ghép ăn ý: cặp đã đánh chung ≥ 2 trận, thắng nhiều ghép trước; người chưa có lịch sử ghép cân bằng', () => {
+  const pool = [p('a', 'nam', 800), p('b', 'nam', 780), p('c', 'nam', 500), p('d', 'nam', 300), p('e', 'nam', 400), p('f', 'nam', 600)]
+  const history = [...played('a', 'b', true, 3), ...played('c', 'd', true, 1)]
+  assert.deepEqual(chemistryOf(history, pool[0], pool[1]), { games: 3, winPct: 100, known: true })
+  assert.equal(chemistryOf(history, pool[2], pool[3]).known, false, '1 trận chung chưa đủ để tin')
+  const pairs = names(autoPair(pool, { genderRule: 'male', mode: 'chemistry', history }))
+  assert.equal(pairs[0], 'a+b', 'cặp ăn ý ghép trước dù cả hai đều mạnh')
+  assert.deepEqual(pairs.slice(1), ['f+d', 'c+e'], 'còn lại ghép cân bằng')
+  // Nam nữ: chỉ tính cặp khác giới, người nam đứng trước.
+  const mix = [p('m', 'nam', 500), p('w', 'nu', 500), p('m2', 'nam', 500)]
+  const mh = [...played('w', 'm', true, 2), ...played('m', 'm2', true, 5)]
+  assert.deepEqual(names(autoPair(mix, { genderRule: 'mixed', mode: 'chemistry', history: mh })), ['m+w'])
+})
+
+const team = (id, players, pinned = false) => ({ id, players, pinned, full: true, sum: players.reduce((s, x) => s + x.ratingSnapshot, 0) })
+
+test('gợi ý đổi người: chọn cú đổi giảm lệch nhiều nhất; bỏ đội ghim; nam nữ chỉ đổi cùng giới; lợi ít thì thôi', () => {
+  const t1 = team('t1', [r('a', 'nam', 800), r('b', 'nam', 700)])
+  const t2 = team('t2', [r('c', 'nam', 400), r('d', 'nam', 300)])
+  const s = suggestSwap([t1, t2], 'male')
+  assert.equal(s.before, 800)
+  assert.equal(s.after, 0, 'đổi 800 ↔ 400 (hoặc 700 ↔ 300): 1100 vs 1100')
+  assert.equal(suggestSwap([{ ...t1, pinned: true }, t2], 'male'), null, 'đội ghim không bị đụng')
+
+  const close = [team('t1', [r('a', 'nam', 503), r('b', 'nam', 500)]), team('t2', [r('c', 'nam', 500), r('d', 'nam', 500)])]
+  assert.equal(suggestSwap(close, 'male'), null, 'lệch 3 điểm — không đáng gợi ý')
+
+  const mix = [team('x1', [r('m1', 'nam', 800), r('w1', 'nu', 600)]), team('x2', [r('m2', 'nam', 400), r('w2', 'nu', 300)])]
+  const sm = suggestSwap(mix, 'mixed')
+  assert.equal(sm.regA.gender, sm.regB.gender)
+})
+

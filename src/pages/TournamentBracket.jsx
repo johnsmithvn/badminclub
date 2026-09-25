@@ -14,7 +14,7 @@ import { Seg } from '#components/tournament/TourBits.jsx'
 import { stageGroups } from '#lib/tournament/standings.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
-import { draftKey, matchCode, teamName } from '#components/tournament/tourUtils.js'
+import { draftKey, matchCode, ruleLabel, teamName } from '#components/tournament/tourUtils.js'
 
 /**
  * Nhánh đấu trực tiếp của một nội dung (handoff "Nhánh đấu trực tiếp"). Ghi điểm / hoàn tác / sửa điểm
@@ -112,63 +112,88 @@ export default function TournamentBracket() {
   return (
     <>
       {nav}
-      <section style={{
-        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: isMobile ? 12 : 20, padding: isMobile ? 14 : '14px 18px', borderRadius: 10,
-        background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
+
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: 'flex-start',
+        gap: 16,
       }}>
-        <div style={{ display: 'grid', gap: 6, minWidth: 0, flex: '1 1 260px' }}>
-          <span style={{ font: `700 ${isMobile ? 20 : 24}px/1.15 var(--font-display)`, color: 'var(--text-primary)' }}>{tour.name}</span>
-          <span style={{ font: '400 12px/1.3 var(--font-mono)', color: 'var(--text-muted)' }}>
-            {t('tournament.bracket.subline', { event: t('tournament.kind.' + event.kind), n: teamsN })}
-          </span>
-        </div>
-        <div style={{ display: 'grid', gap: 6, flex: '0 1 240px', minWidth: 180 }}>
-          <span style={{ display: 'flex', justifyContent: 'space-between', font: '600 11px/1 var(--font-sans)', color: 'var(--text-muted)' }}>
-            <span>{t('tournament.bracket.progress')}</span>
-            <Mono size={11}>{t('tournament.bracket.progressVal', prog)}</Mono>
-          </span>
-          <span style={{ height: 6, borderRadius: 3, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
-            <span style={{
-              display: 'block', height: '100%', borderRadius: 3, background: 'var(--teal-500)',
-              width: (prog.total ? Math.round((prog.done / prog.total) * 100) : 0) + '%', transition: 'width .5s cubic-bezier(.2,.8,.2,1)',
-            }} />
-          </span>
-        </div>
-        {next.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: '1 1 100%' }}>
-            <span style={{ font: '600 11px/1 var(--font-sans)', color: 'var(--text-muted)' }}>{t('tournament.bracket.next')}</span>
-            {next.map((m) => (
-              <span key={m.id} style={{ display: 'inline-flex', gap: 6, padding: '4px 9px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-                <Mono size={11} weight={700} color="var(--text-primary)">{matchCode(m)}</Mono>
-                <span style={{ font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }}>
-                  {teamName(tour, db, m.teamAId)} – {teamName(tour, db, m.teamBId)}
-                </span>
+        {/* Khối chính hiển thị Header và Nhánh đấu */}
+        <div style={{ flex: 1, minWidth: 0, width: '100%', display: 'grid', gap: 14 }}>
+          {/* Header Nhánh đấu */}
+          <section style={{
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between',
+            gap: isMobile ? 12 : 16, padding: isMobile ? 14 : '14px 18px', borderRadius: 12,
+            background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
+          }}>
+            <div style={{ display: 'grid', gap: 6, minWidth: 0, flex: '1 1 280px' }}>
+              <span style={{ font: `700 ${isMobile ? 18 : 22}px/1.2 var(--font-display)`, color: 'var(--text-primary)' }}>
+                {tour.name} · {t('tournament.kind.' + event.kind)}
               </span>
-            ))}
-          </div>
-        )}
-      </section>
+              <span style={{ font: '400 12px/1.4 var(--font-sans)', color: 'var(--text-muted)' }}>
+                {[
+                  t(isRR ? 'tournament.format.groupStage' : 'tournament.format.koStage'),
+                  t('tournament.bracket.slotsN', { n: teamsN }),
+                  !isRR && stage.config?.seeding ? t('tournament.format.seed.' + stage.config.seeding) : null,
+                  stage.config?.thirdPlace ? t('tournament.round.third') : null,
+                  stage.matchRule ? ruleLabel(stage.matchRule) : null,
+                ].filter(Boolean).join(' · ')}
+              </span>
+            </div>
 
-      {live.length > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <Seg options={live.map((s) => ({ key: s.id, label: stageLabel(s) }))} value={stage.id} onChange={setPickedStageId} />
-          {stage.status === 'done' && <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closed')}</Mono>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px',
+                borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+              }}>
+                <span style={{ font: '600 11px/1 var(--font-sans)', color: 'var(--text-muted)' }}>
+                  {t('tournament.bracket.progress')}:
+                </span>
+                <Mono size={11.5} weight={700} color="var(--teal-500)">
+                  {t('tournament.bracket.progressVal', prog)}
+                </Mono>
+              </div>
+
+            </div>
+
+            {next.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: '1 1 100%', paddingTop: 4 }}>
+                <span style={{ font: '600 11px/1 var(--font-sans)', color: 'var(--text-muted)' }}>{t('tournament.bracket.next')}</span>
+                {next.map((m) => (
+                  <span key={m.id} style={{ display: 'inline-flex', gap: 6, padding: '4px 9px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+                    <Mono size={11} weight={700} color="var(--text-primary)">{matchCode(m)}</Mono>
+                    <span style={{ font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }}>
+                      {teamName(tour, db, m.teamAId)} – {teamName(tour, db, m.teamBId)}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {live.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <Seg options={live.map((s) => ({ key: s.id, label: stageLabel(s) }))} value={stage.id} onChange={setPickedStageId} />
+              {stage.status === 'done' && <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closed')}</Mono>}
+            </div>
+          )}
+
+          {isRR ? (
+            <GroupBoard
+              groups={groups} tour={tour} db={db} canEdit={canEdit} locked={stage.status === 'done'} isMobile={isMobile}
+              onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
+              onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
+            />
+          ) : (
+            <BracketBoard
+              key={stage.id} view={view} tour={tour} db={db} canEdit={canEdit} isMobile={isMobile}
+              onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
+              onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
+            />
+          )}
         </div>
-      )}
-
-      {isRR ? (
-        <GroupBoard
-          groups={groups} tour={tour} db={db} canEdit={canEdit} locked={stage.status === 'done'} isMobile={isMobile}
-          onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
-          onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
-        />
-      ) : (
-        <BracketBoard
-          key={stage.id} view={view} tour={tour} db={db} canEdit={canEdit} isMobile={isMobile}
-          onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
-          onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
-        />
-      )}
+      </div>
 
       {scoring && (
         <ScoreDialog match={scoring} tour={tour} db={db} onClose={() => setScoringId(null)}

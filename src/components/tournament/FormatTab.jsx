@@ -8,6 +8,7 @@ import { RULE_PRESETS, TEMPLATES, advanceCounts, defaultStage, entrantsOf, koPre
 import { calcGroupBalance, snakeGroups } from '#lib/tournament/roundRobin.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
+import RecommendDialog from './RecommendDialog.jsx'
 import { ruleLabel } from './tourUtils.js'
 
 const presetOpts = Object.keys(RULE_PRESETS).map((k) => ({ key: k, label: t('tournament.format.preset.' + k) }))
@@ -19,6 +20,7 @@ const presetOpts = Object.keys(RULE_PRESETS).map((k) => ({ key: k, label: t('tou
 export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpenBracket }) {
   const [resetting, setResetting] = useState(false)
   const [swapFrom, setSwapFrom] = useState(null) // đội đang chọn để đổi số bốc thăm
+  const [recommending, setRecommending] = useState(false)
   const stages = tour.stages.filter((s) => s.eventId === event.id).sort((x, y) => x.seq - y.seq)
   const saved = stages.find((s) => s.seq === 1) || null
   const stage = saved || defaultStage(event)
@@ -80,6 +82,9 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(180px,220px) minmax(0,1fr) minmax(240px,300px)', gap: 12, alignItems: 'start' }}>
       <div style={{ display: 'grid', gap: 8 }}>
+        {canEdit && (
+          <Button variant="secondary" icon="wand-sparkles" onClick={() => setRecommending(true)}>{t('tournament.recommend.open')}</Button>
+        )}
         <Overline>{t('tournament.format.templates')}</Overline>
         {TEMPLATES.map((k) => {
           const on = currentTemplate === k
@@ -272,6 +277,7 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
         </Card>
       </div>
 
+      {recommending && <RecommendDialog tour={tour} onClose={() => setRecommending(false)} onApply={a.tourApplyRecommendation} />}
       {resetting && <ResetDialog onClose={() => setResetting(false)} onReset={(reason) => a.tourResetSchedule(event.id, reason)} />}
     </div>
   )

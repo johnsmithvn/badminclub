@@ -225,3 +225,53 @@ export function ruleFor(stage, roundKind) {
 
   return stage.matchRule
 }
+
+/**
+ * Mô phỏng tỉ số ngẫu nhiên cho một trận đấu, trả về kết quả hợp lệ 100% theo rule.
+ *
+ * @param {{ sets: number, points: number, winBy2: boolean, cap: number }} rule
+ * @param {Function} [rand=Math.random] Hàm sinh số ngẫu nhiên (hỗ trợ deterministic test)
+ * @returns {{ sets: Array<[number, number]>, winner: 'A' | 'B' }}
+ */
+export function simulateMatchScore(rule, rand = Math.random) {
+  if (!rule || typeof rule.sets !== 'number' || typeof rule.points !== 'number') {
+    throw new Error('simulateMatchScore: invalid rule')
+  }
+
+  const needWins = Math.ceil(rule.sets / 2)
+  let winsA = 0
+  let winsB = 0
+  const sets = []
+
+  while (winsA < needWins && winsB < needWins) {
+    const winSide = rand() < 0.5 ? 'A' : 'B'
+    let scoreWinner, scoreLoser
+
+    const canDeuce = Boolean(rule.winBy2 && rule.cap > rule.points)
+    const isDeuce = canDeuce && rand() < 0.25
+
+    if (isDeuce) {
+      const minL = rule.points - 1
+      const maxL = rule.cap - 1
+      scoreLoser = minL + Math.floor(rand() * (maxL - minL + 1))
+      if (scoreLoser === rule.cap - 1) {
+        scoreWinner = rule.cap
+      } else {
+        scoreWinner = scoreLoser + 2
+      }
+    } else {
+      scoreWinner = rule.points
+      const maxL = rule.winBy2 ? rule.points - 2 : rule.points - 1
+      const minL = Math.max(0, Math.floor(rule.points * 0.45))
+      scoreLoser = minL + Math.floor(rand() * (maxL - minL + 1))
+    }
+
+    const setScore = winSide === 'A' ? [scoreWinner, scoreLoser] : [scoreLoser, scoreWinner]
+    sets.push(setScore)
+    if (winSide === 'A') winsA++
+    else winsB++
+  }
+
+  const winner = winsA > winsB ? 'A' : 'B'
+  return { sets, winner }
+}

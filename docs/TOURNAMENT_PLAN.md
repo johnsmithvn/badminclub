@@ -457,7 +457,7 @@ cuộn ngang, bảng Thí sinh thành danh sách thẻ, chạm ≥ 48px. Thêm "
 | **2 — Đội & thể thức** ✅ | `pairing.js` + tab Ghép cặp · `format.js` (mẫu `ko`) + tab Thể thức (luật theo vòng) · `schedule.js` · nút Tạo lịch | 3 nội dung có đội, sinh đủ 24 trận |
 | **3 — Nhánh đấu** ✅ | trang nhánh · bảng điểm · chốt/sửa/hoàn tác/walkover/đổi chỗ/xếp lịch · poll | Đánh hết 24 trận trên 2 máy cùng lúc không mất đội |
 | **4 — Vòng bảng** ✅ | `roundRobin`, `standings`, `links` · mẫu `rr`, `rr_ko`, `rr_ko_plate` · "Chốt giai đoạn" (BTC đảo đội hoà bằng ↑) · trang nhánh chuyển giai đoạn · migration `0058` | Test §3.1 đủ ca hoà 2/3 đội. **0058 chưa áp production** — áp rồi chạy `supabase/manual/0058_tournament_round_robin_check.sql` |
-| 5 — Gợi ý & ghép nâng cao | `format.recommend` + modal · ghép `seeded`/`chemistry` · `suggestSwap` | Với số liệu mùa 1 trả về `ko` là phương án vừa giờ |
+| **5 — Gợi ý & ghép nâng cao** ✅ | `recommend.js` (cả giải, README §5.7; BTC chỉ chọn ưu tiên — số đội/sân/giờ/luật đọc từ giải) + `RecommendDialog` áp dụng 1 lần · ghép `seeded`/`chemistry` (dùng lại `calcPairImpact`) · `suggestSwap` + nút "Đổi ngay" | Với số liệu mùa 1 trả về `ko` là phương án vừa giờ (`recommend.test.js`) |
 | 6 — Sau | sơ đồ pipeline/canvas · khách ngoài · nối sổ quỹ (design lại) · thông báo "sắp tới lượt" | — |
 
 Mỗi phase là một lần duyệt riêng (>5 file). Không tự `npm run build`; user build và bấm thử theo checklist.

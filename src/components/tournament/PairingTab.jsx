@@ -3,7 +3,7 @@ import { Alert, Button, Card, Icon, IconButton } from '#ds'
 import { Empty, GenderChip, Mono, Overline } from '#ui'
 import { playerName } from '#lib/money.js'
 import { eligibleNotEntered, entriesOpen } from '#lib/tournament/hub.js'
-import { balanceOf, eventPlayers, eventTeams, lineupIssue } from '#lib/tournament/pairing.js'
+import { PAIR_MODES, balanceOf, chemistryOf, eventPlayers, eventTeams, lineupIssue, suggestSwap } from '#lib/tournament/pairing.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
 
@@ -25,6 +25,8 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
   const editable = canEdit && entriesOpen(event)
   const hasSchedule = tour.stages.some((s) => s.eventId === event.id && s.status !== 'pending')
   const issue = lineupIssue(event, teams, players)
+  // Gợi ý đổi người: chỉ khi còn sửa được đội hình (chưa chốt).
+  const swap = editable && event.teamSize > 1 ? suggestSwap(teams, event.genderRule) : null
   const name = (r) => playerName(db, r.playerId)
   const evName = t('tournament.kind.' + event.kind)
 
@@ -95,7 +97,7 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
       {editable && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Overline>{t('tournament.pairing.modeLabel')}</Overline>
-          <Seg options={['balanced', 'random'].map((k) => ({ key: k, label: t('tournament.pairing.mode.' + k) }))} value={mode} onChange={setMode} />
+          <Seg options={PAIR_MODES.map((k) => ({ key: k, label: t('tournament.pairing.mode.' + k) }))} value={mode} onChange={setMode} />
           <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', flex: '1 1 200px' }}>{t('tournament.pairing.modeHint.' + mode)}</span>
           <Button size="sm" variant="secondary" onClick={() => a.tourClearPairs(event.id)}>{t('tournament.pairing.clear')}</Button>
           <Button size="sm" icon="wand-sparkles" onClick={() => a.tourAutoPair(event.id, mode)}>{t('tournament.pairing.auto')}</Button>
@@ -119,7 +121,8 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
             <TeamCard key={team.id} no={i + 1} team={team} size={event.teamSize} name={name} editable={editable}
               picked={picked && players.find((p) => p.id === picked)} pickedName={picked ? name(players.find((p) => p.id === picked)) : ''}
               onPlace={() => place(team.id)} onRemove={(regId) => a.tourUnplace(event.id, regId)}
-              onPin={() => a.tourPin(team.id, !team.pinned)} dnd={dnd(team.id)} />
+              onPin={() => a.tourPin(team.id, !team.pinned)} dnd={dnd(team.id)}
+              chem={team.full && team.players.length === 2 ? chemistryOf(db.matches, team.players[0], team.players[1]) : null} />
           ))}
           {editable && pool.length > 0 && (
             <TeamCard no={teams.length + 1} team={{ players: [], sum: 0 }} size={event.teamSize} name={name} editable isNew
@@ -144,6 +147,14 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
               </div>
             ))}
             {bal.avg != null && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.pairing.avg', { n: bal.avg })}</div>}
+            {swap && (
+              <div style={{ display: 'grid', gap: 8, padding: 10, borderRadius: 8, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)' }}>
+                <span style={{ font: '600 12px/1.35 var(--font-sans)', color: 'var(--text-primary)' }}>
+                  {t('tournament.pairing.swapHint', { a: name(swap.regA), b: name(swap.regB), from: Math.round(swap.before), to: Math.round(swap.after) })}
+                </span>
+                <Button size="sm" icon="check" onClick={() => a.tourSwapPlayers(event.id, swap)}>{t('tournament.pairing.swapApply')}</Button>
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -185,7 +196,7 @@ function PlayerChip({ name, reg, block, editable, on, onClick }) {
   )
 }
 
-function TeamCard({ no, team, size, name, editable, isNew, picked, pickedName, onPlace, onRemove, onPin, dnd }) {
+function TeamCard({ no, team, size, name, editable, isNew, picked, pickedName, onPlace, onRemove, onPin, dnd, chem }) {
   const empty = Math.max(0, size - team.players.length)
   return (
     <div {...dnd} style={{
@@ -207,6 +218,11 @@ function TeamCard({ no, team, size, name, editable, isNew, picked, pickedName, o
         )}
         {!isNew && !editable && team.pinned && <Icon name="lock" size={13} style={{ color: 'var(--text-muted)' }} />}
       </div>
+      {chem && (
+        <span style={{ font: 'var(--type-caption)', color: chem.known ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
+          {chem.known ? t('tournament.pairing.chem', { n: chem.games, pct: chem.winPct }) : t('tournament.pairing.chemNone')}
+        </span>
+      )}
       {team.players.map((p) => (
         <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ flex: 1, minWidth: 0 }}><PlayerChip name={name(p)} reg={p} block editable={false} /></span>
