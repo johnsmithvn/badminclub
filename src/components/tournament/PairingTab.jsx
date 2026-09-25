@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Alert, Button, Card, Icon, IconButton } from '#ds'
 import { Empty, GenderChip, Mono, Overline } from '#ui'
 import { playerName } from '#lib/money.js'
-import { entriesOpen } from '#lib/tournament/hub.js'
+import { eligibleNotEntered, entriesOpen } from '#lib/tournament/hub.js'
 import { balanceOf, eventPlayers, eventTeams, lineupIssue } from '#lib/tournament/pairing.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
@@ -53,8 +53,20 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
     </Alert>
   ) : null
 
+  // Trống thường vì thí sinh đã vào giải nhưng chưa được đưa vào NỘI DUNG này: cho đưa hết người hợp giới một lần.
   if (!players.length) {
-    return <Card><Empty icon="users" title={t('tournament.pairing.noPlayers')} hint={t('tournament.players.emptyHint')} /></Card>
+    const eligible = eligibleNotEntered(tour, event).length
+    return (
+      <Card>
+        <Empty icon="users" title={t('tournament.pairing.noPlayers')}
+          hint={eligible ? t('tournament.pairing.noPlayersHint', { n: eligible }) : t('tournament.players.emptyHint')} />
+        {editable && eligible > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 12 }}>
+            <Button icon="user-round-plus" onClick={() => a.tourEnterAll(event.id)}>{t('tournament.pairing.enterAll', { n: eligible })}</Button>
+          </div>
+        )}
+      </Card>
+    )
   }
 
   if (event.teamSize === 1) {

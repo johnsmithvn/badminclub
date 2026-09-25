@@ -6,7 +6,7 @@
 
 import { loadTournament, loadTournamentMatches, loadTournaments, tournamentRpc, tournamentWrite } from '#contexts/storage.js'
 import { tourRows } from '#contexts/dbmap.js'
-import { EVENT_KINDS, entriesOpen, newRegistration, nextStatuses } from '#lib/tournament/hub.js'
+import { EVENT_KINDS, canEnter, eligibleNotEntered, entriesOpen, newRegistration, nextStatuses } from '#lib/tournament/hub.js'
 import { autoPair, eventPlayers, eventTeams, lineupIssue } from '#lib/tournament/pairing.js'
 import { buildTemplateStages, drawNumbers, entrantsOf } from '#lib/tournament/format.js'
 import { buildKnockout } from '#lib/tournament/bracket.js'
@@ -112,8 +112,11 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       return run(() => write('tournament_events', 'delete', [eventId]), 'tournament.toast.eventDeleted')
     },
 
-    /** Đăng ký thành viên (bỏ qua người đã có dòng — kể cả đã rút: dùng tourRestore). */
-    tourRegister: (memberIds) => {
+    /**
+     * Đăng ký thành viên (bỏ qua người đã có dòng — kể cả đã rút: dùng tourRestore), rồi đưa luôn vào các
+     * nội dung `eventIds` còn nhận người và hợp giới — khỏi bấm chip từng người.
+     */
+    tourRegister: (memberIds, eventIds = []) => {
       const cur = tour()
       const d = db()
       const had = new Set(cur.registrations.map((r) => r.playerId))
@@ -127,7 +130,23 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
           ...newRegistration({ tournament: cur, member: { ...m, level: levelOf(m, d.month) }, ratings: d.playerRatings, levels: d.levels }),
         }))
       if (!rows.length) return false
-      return run(() => write('tournament_registrations', 'insert', rows), 'tournament.toast.registered', { n: rows.length })
+      const entries = cur.events
+        .filter((ev) => eventIds.includes(ev.id) && entriesOpen(ev))
+        .flatMap((ev) => rows.filter((r) => canEnter(ev, r.gender)).map((r) => ({ ...base(), eventId: ev.id, registrationId: r.id })))
+      return run(async () => {
+        await write('tournament_registrations', 'insert', rows)
+        if (entries.length) await write('tournament_event_entries', 'insert', entries)
+      }, 'tournament.toast.registered', { n: rows.length })
+    },
+
+    /** Đưa mọi thí sinh đang đăng ký, hợp giới, chưa có trong nội dung vào nội dung đó. */
+    tourEnterAll: (eventId) => {
+      const cur = tour()
+      const ev = cur.events.find((e) => e.id === eventId)
+      if (!ev || !entriesOpen(ev)) return toast(t('tournament.err.eventLocked'))
+      const rows = eligibleNotEntered(cur, ev).map((r) => ({ ...base(), eventId, registrationId: r.id }))
+      if (!rows.length) return false
+      return run(() => write('tournament_event_entries', 'insert', rows), 'tournament.toast.entered', { n: rows.length })
     },
 
     tourSetPaid: (regId, paid) => {

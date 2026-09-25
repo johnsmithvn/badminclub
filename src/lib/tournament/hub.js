@@ -28,6 +28,12 @@ export function canEnter(event, gender) {
 /** Nội dung còn nhận / bỏ người không — khớp trigger `tournament_lineup_guard` ở DB. */
 export const entriesOpen = (event) => event.status === 'draft' || event.status === 'pairing'
 
+/** Thí sinh đang đăng ký, hợp giới với nội dung, chưa vào nội dung đó. */
+export function eligibleNotEntered(tour, event) {
+  const inEvent = new Set(tour.entries.filter((e) => e.eventId === event.id).map((e) => e.registrationId))
+  return tour.registrations.filter((r) => r.status === 'registered' && canEnter(event, r.gender) && !inEvent.has(r.id))
+}
+
 /**
  * Vòng đời giải: nháp ⇄ mở đăng ký → đang diễn ra → kết thúc. Huỷ được khi chưa kết thúc.
  * Đi ngược từ `running` không có: lúc đó đã có trận, lùi lại là trận mồ côi.

@@ -5060,7 +5060,9 @@
       "wrongGender": "Không đúng giới của nội dung",
       "emptyTitle": "Chưa có thí sinh",
       "emptyHint": "Thêm thành viên CLB vào giải, rồi chọn nội dung họ đánh.",
-      "noEvents": "Thêm nội dung thi đấu trước để thí sinh chọn"
+      "noEvents": "Thêm nội dung thi đấu trước để thí sinh chọn",
+    "addEvents": "Đưa vào nội dung",
+    "addEventsHint": "Người không đúng giới của nội dung sẽ tự được bỏ qua. Sửa từng người sau ở cột Nội dung đăng ký."
     },
     "toast": {
       "created": "Đã tạo giải {{name}} — đang ở trạng thái nháp",
@@ -5081,7 +5083,8 @@
       "edited": "Đã sửa điểm",
       "undone": "Đã hoàn tác kết quả",
       "stageClosed": "Đã chốt thứ hạng giai đoạn",
-      "formatSaved": "Đã lưu thể thức thi đấu"
+      "formatSaved": "Đã lưu thể thức thi đấu",
+      "entered": "Đã đưa {{n}} thí sinh vào nội dung"
     },
     "err": {
       "permissionDenied": "Bạn không có quyền quản lý giải đấu",
@@ -5176,6 +5179,8 @@
       "issueIncomplete": "Còn cặp thiếu người — ghép đủ hoặc gỡ ra",
       "issueMixed": "Đôi nam nữ phải đúng 1 nam + 1 nữ mỗi cặp",
       "noPlayers": "Chưa có thí sinh nào chọn nội dung này",
+      "noPlayersHint": "Có {{n}} thí sinh hợp lệ đã vào giải nhưng chưa được đưa vào nội dung này (tab Thí sinh → cột Nội dung đăng ký).",
+      "enterAll": "Đưa {{n}} thí sinh vào nội dung này",
       "noEvent": "Chọn một nội dung ở hàng thẻ phía trên"
     },
     "format": {

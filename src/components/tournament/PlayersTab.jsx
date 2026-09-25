@@ -41,7 +41,7 @@ export default function PlayersTab({ tour, db, a, canEdit, isMobile }) {
           border: `1px ${on ? 'solid' : 'dashed'} ${on ? 'var(--teal-500)' : 'var(--border-default)'}`,
         }}
       >
-        {t('tournament.kindShort.' + ev.kind)}
+        {on ? '' : '+ '}{t('tournament.kindShort.' + ev.kind)}
       </button>
     )
   }
@@ -111,6 +111,9 @@ function AddPlayersDialog({ tour, db, onClose, onAdd }) {
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState(() => new Set())
   const [busy, setBusy] = useState(false)
+  // Nội dung đưa người mới vào luôn — mặc định mọi nội dung còn nhận người (ai sai giới thì tự bỏ qua).
+  const openEvents = tour.events.filter(entriesOpen)
+  const [evIds, setEvIds] = useState(() => new Set(openEvents.map((e) => e.id)))
   const had = new Set(tour.registrations.map((r) => r.playerId))
   const pool = db.members.filter((m) => m.active && !had.has(m.id))
   const list = filterMembers(db, pool, { ...FILTER0, q }, db.month).sort((x, y) => compareVietnameseNames(x.name, y.name))
@@ -122,7 +125,7 @@ function AddPlayersDialog({ tour, db, onClose, onAdd }) {
   })
   const submit = async () => {
     setBusy(true)
-    if (await onAdd([...picked])) onClose()
+    if (await onAdd([...picked], [...evIds])) onClose()
     else setBusy(false)
   }
 
@@ -143,6 +146,18 @@ function AddPlayersDialog({ tour, db, onClose, onAdd }) {
       )}
     >
       <div style={{ display: 'grid', gap: 10 }}>
+        {openEvents.length > 0 && (
+          <div style={{ display: 'grid', gap: 6 }}>
+            <span style={{ font: '600 12px/1.3 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.players.addEvents')}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              {openEvents.map((ev) => (
+                <Checkbox key={ev.id} checked={evIds.has(ev.id)} label={t('tournament.kind.' + ev.kind)}
+                  onChange={() => setEvIds((s) => { const n = new Set(s); if (n.has(ev.id)) n.delete(ev.id); else n.add(ev.id); return n })} />
+              ))}
+            </div>
+            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.players.addEventsHint')}</span>
+          </div>
+        )}
         <SearchField value={q} onChange={(e) => setQ(e.target.value)} onClear={() => setQ('')} width="100%"
           placeholder={t('tournament.players.search')} />
         {pool.length === 0 && <Empty icon="users" title={t('tournament.players.noneLeft')} />}
