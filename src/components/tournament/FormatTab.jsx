@@ -4,7 +4,7 @@ import { Mono, Overline } from '#ui'
 import { playerName } from '#lib/money.js'
 import { entriesOpen } from '#lib/tournament/hub.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
-import { RULE_PRESETS, TEMPLATES, advanceCounts, defaultStage, entrantsOf, koPreview, presetKeyOf, rrPreview } from '#lib/tournament/format.js'
+import { RULE_PRESETS, TEMPLATES, advanceCounts, defaultStage, entrantsOf, koPreview, presetKeyOf, rrPreview, templateOf } from '#lib/tournament/format.js'
 import { calcGroupBalance, snakeGroups } from '#lib/tournament/roundRobin.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
@@ -28,9 +28,7 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
   const teams = eventTeams(tour, event.id)
   const full = teams.filter((x) => x.full)
 
-  const currentTemplate = event.templateKey || (stage.type === 'round_robin'
-    ? (stages.length >= 3 ? 'rr_ko_plate' : (stages.some((s) => s.type === 'knockout') ? 'rr_ko' : 'rr'))
-    : 'ko')
+  const currentTemplate = templateOf(tour, event) || 'ko'
 
   const isRR = stage.type === 'round_robin'
   const preview = isRR ? rrPreview(full.length, stage) : koPreview(full.length, stage)

@@ -1,7 +1,7 @@
 import { Button, IconButton } from '#ds'
-import { Overline } from '#ui'
 import { fmtK } from '#lib/money.js'
 import { nextStatuses } from '#lib/tournament/hub.js'
+import { progressOf } from '#lib/tournament/bracketView.js'
 import { t } from '#i18n'
 import { TourPill } from './TourBits.jsx'
 import { tourMeta } from './tourUtils.js'
@@ -15,25 +15,20 @@ const FORWARD = new Set(['registration', 'running', 'finished'])
  */
 export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdit, onDelete, onStatus }) {
   const active = tour.registrations.filter((r) => r.status === 'registered').length
-  const matches = tour.matches || []
-  const doneMatches = matches.filter((m) => m.status === 'done' || m.status === 'walkover' || m.status === 'retired').length
-  const totalMatches = matches.length
-  const courtsCount = tour.courtLabels.length > 0 ? tour.courtLabels.length : 4
+  // Trận bye không ai đánh → không tính (progressOf), không thì nhánh có bye không bao giờ tới 100%.
+  const prog = progressOf(tour.matches || [])
+  const courts = tour.courtLabels.length
 
   const stats = [
     { label: t('tournament.hero.playersUpper') + ' (' + t('tournament.hero.players') + ')', value: active },
     { label: t('tournament.hero.eventsUpper'), value: tour.events.length },
-    totalMatches > 0
-      ? { label: t('tournament.hero.matchesUpper'), value: `${doneMatches}/${totalMatches}` }
+    prog.total > 0
+      ? { label: t('tournament.hero.matchesUpper'), value: `${prog.done}/${prog.total}` }
       : { label: t('tournament.hero.collected'), value: fmtK(money?.collected ?? 0), sub: money?.expected ? '/ ' + fmtK(money.expected) : undefined },
-    { label: t('tournament.hero.courtsUpper'), value: courtsCount },
+    // Chưa khai báo sân thì không hiện ô sân — không bịa số.
+    ...(courts ? [{ label: t('tournament.hero.courtsUpper'), value: courts }] : []),
   ]
   const moves = nextStatuses(tour.status)
-
-  const metaText = [
-    tourMeta(tour),
-    tour.scope === 'open' ? t('tournament.scope.openNote') : null,
-  ].filter(Boolean).join(' · ')
 
   return (
     <section style={{
@@ -46,18 +41,18 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
       boxShadow: 'var(--shadow-xs)',
       position: 'relative',
     }}>
-      {/* Hàng thao tác quản trị phía trên */}
-      {canEdit && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-          {moves.map((s) => (
-            <Button key={s} size="sm" variant={FORWARD.has(s) ? 'primary' : 'secondary'} onClick={() => onStatus(s)}>
-              {t('tournament.statusTo.' + s)}
-            </Button>
-          ))}
-          <Button size="sm" variant="secondary" icon="pencil" onClick={onEdit}>{t('tournament.edit')}</Button>
-          <IconButton icon="trash-2" size="sm" label={t('tournament.delete')} onClick={onDelete} />
-        </div>
-      )}
+      {/* Hàng trên: quay lại danh sách (mọi người) · thao tác quản trị (có quyền) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Button variant="ghost" size="sm" icon="arrow-left" onClick={onBack}>{t('tournament.hero.back')}</Button>
+        <span style={{ flex: 1 }} />
+        {canEdit && moves.map((s) => (
+          <Button key={s} size="sm" variant={FORWARD.has(s) ? 'primary' : 'secondary'} onClick={() => onStatus(s)}>
+            {t('tournament.statusTo.' + s)}
+          </Button>
+        ))}
+        {canEdit && <Button size="sm" variant="secondary" icon="pencil" onClick={onEdit}>{t('tournament.edit')}</Button>}
+        {canEdit && <IconButton icon="trash-2" size="sm" label={t('tournament.delete')} onClick={onDelete} />}
+      </div>
 
       {/* Phần chính của Hero: Tiêu đề bên trái, 4 Stat Box bên phải */}
       <div style={{
@@ -92,7 +87,7 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
           </h1>
 
           <div style={{ font: '400 13px/1.4 var(--font-mono)', color: 'var(--text-secondary)' }}>
-            {metaText}
+            {tourMeta(tour)}
           </div>
         </div>
 
@@ -124,6 +119,7 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
                 whiteSpace: 'nowrap',
               }}>
                 {s.value}
+                {s.sub && <span style={{ font: '400 12px/1 var(--font-mono)', color: 'var(--text-muted)', marginLeft: 4 }}>{s.sub}</span>}
               </span>
               <span style={{
                 font: '700 9.5px/1 var(--font-sans)',

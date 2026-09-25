@@ -238,3 +238,15 @@ export function advanceCounts(n, numGroups, advance, plate = 0) {
     plate: sizes.reduce((s, k) => s + Math.max(0, Math.min(k - advance, plate === 'all' ? k : plate)), 0),
   }
 }
+
+/**
+ * Mẫu thể thức của một nội dung: `templateKey` đã lưu, không có thì đoán từ các giai đoạn.
+ * null = chưa chọn thể thức (chưa có giai đoạn nào).
+ */
+export function templateOf(tour, event) {
+  if (event.templateKey) return event.templateKey
+  const stages = tour.stages.filter((s) => s.eventId === event.id)
+  if (!stages.length) return null
+  if (!stages.some((s) => s.type === 'round_robin')) return 'ko'
+  return stages.length >= 3 ? 'rr_ko_plate' : stages.some((s) => s.type === 'knockout') ? 'rr_ko' : 'rr'
+}

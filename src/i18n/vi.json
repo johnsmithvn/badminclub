@@ -4919,8 +4919,7 @@
     },
     "scope": {
       "club_only": "Nội bộ CLB",
-      "open": "Mở rộng",
-      "openNote": "Mở cho người ngoài"
+      "open": "Mở rộng"
     },
     "tab": {
       "overview": "Tổng quan",
@@ -4990,6 +4989,7 @@
       "noneLeft": "Giải đã có đủ mọi loại nội dung",
       "delete": "Xoá nội dung",
       "counts": "{{total}} VĐV · {{male}} nam · {{female}} nữ",
+      "noFormat": "Chưa chọn thể thức",
       "emptyTitle": "Giải chưa có nội dung thi đấu",
       "emptyHint": "Thêm nội dung (Đôi nam, Đôi nữ, Đôi nam nữ…) để thí sinh chọn khi đăng ký."
     },
@@ -5287,25 +5287,18 @@
     },
     "module": {
       "hub": "Tổng quan & đăng ký",
-      "scheme": "Sơ đồ thi đấu",
       "bracket": "Nhánh đấu",
-      "openBracket": "Mở sơ đồ thi đấu →",
-      "registerLink": "Link đăng ký",
-      "projection": "Màn hình trình chiếu",
+      "badge": "GĐ",
+      "eventsN": "{{n}} nội dung",
       "enterScore": "Nhập tỷ số",
-      "liveCount": "{{n}} trận đang đá",
-      "linkCopied": "Đã sao chép link đăng ký giải đấu!",
-      "registerLinkHint": "Đường dẫn công khai để thí sinh và thành viên đăng ký tham gia giải đấu:",
-      "copy": "Sao chép",
-      "copied": "✓ Đã chép",
-      "projectionDesc": "Chế độ màn hình trình chiếu hỗ trợ hiển thị dải sân trực tiếp, bảng xếp hạng và các trận kế tiếp trên màn hình TV / Máy chiếu lớn tại nhà thi đấu.",
-      "projectionNote": "Tính năng đang được kích hoạt và đồng bộ theo thời gian thực (real-time poll) trên hệ thống giải đấu."
+      "liveCount": "{{n}} trận đang đá"
     },
     "courtStrip": {
-      "court": "SÂN {{n}}",
       "live": "LIVE",
       "empty": "Sân trống",
-      "next": "Kế tiếp {{time}} · {{match}}"
+      "noCourt": "Chưa gán sân",
+      "playing": "Đang đánh set đầu",
+      "next": "Kế tiếp · {{code}} · {{match}}"
     },
     "overview": {
       "live": "Đang đánh & kế tiếp",
@@ -5320,6 +5313,8 @@
       "stagePending": "CHỜ",
       "stageDone": "ĐÃ XONG",
       "remainingTake": "{{n}} trận còn lại · lấy {{k}}",
+      "remaining": "{{n}} trận còn lại",
+      "minutes": "{{n}}p",
       "won": "THẮNG",
       "lost": "THUA",
       "diff": "HS",

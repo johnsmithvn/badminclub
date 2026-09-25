@@ -75,7 +75,7 @@ export default function TournamentBracket() {
   const stageLabel = (s) => t(s.type === 'round_robin' ? 'tournament.stage.groups'
     : !hasPlate ? 'tournament.format.koStage' : s.seq === 3 ? 'tournament.stage.plate' : 'tournament.stage.main')
   const nav = (
-    <TourModuleNav active="bracket" events={scheduled} eventId={eventId} isMobile={isMobile}
+    <TourModuleNav tour={tour} active="bracket" events={scheduled} eventId={eventId} isMobile={isMobile}
       onHub={toHub} onBracket={(eid) => eid && navigate(pathOf('tournamentBracket', id, eid))} />
   )
 

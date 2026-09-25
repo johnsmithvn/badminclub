@@ -5,11 +5,12 @@ import { hubChecklist } from '#lib/tournament/hub.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
 import { progressOf, queueOf } from '#lib/tournament/bracketView.js'
 import { groupStandings, orderedRows, stageGroups, swapUpInTie } from '#lib/tournament/standings.js'
+import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 import { matchCode, teamName } from './tourUtils.js'
 
 /**
- * Tab Tổng Quan (OverviewTab) theo đúng thiết kế TDMS Dark Handoff:
+ * Tab Tổng quan (handoff "Giải đấu · desktop v2"):
  * - Bố cục 2 cột (Trái ~70%, Phải ~30% trên desktop).
  * - Cột Trái:
  *   1. Cụm 4 ô Mini-Stats (CẶP, TRẬN XONG, ĐANG ĐÁ, CÒN LẠI ƯỚC TÍNH)
@@ -25,23 +26,23 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
   const queue = queueOf(tour.matches)
   const prog = progressOf(tour.matches)
 
-  // Thứ tự BTC tự xếp cho các đội hoà (bốc thăm / chọn tay), theo bảng: { [groupId]: teamId[] }.
+  // Thứ tự BTC tự xếp cho các đội hoà (bốc thăm / chọn tay), theo bảng: { [groupId]: teamId[] }. Chỉ trên máy
+  // này tới lúc bấm "Chốt giai đoạn" — lúc đó mới ghi `final_rank`.
   const [manual, setManual] = useState({})
 
   // Lấy các giai đoạn vòng bảng của nội dung hiện tại (hoặc nội dung đầu tiên)
   const curEventId = event?.id || tour.events[0]?.id
   const curEvent = tour.events.find((e) => e.id === curEventId) || tour.events[0]
-  const eventMatches = (tour.matches || []).filter((m) => !curEventId || m.eventId === curEventId)
-  const allMatches = tour.matches || []
+  const eventMatches = (tour.matches || []).filter((m) => m.eventId === curEventId)
 
-  // Các số đo Mini-Stats
-  const teamsCount = curEvent ? eventTeams(tour, curEvent.id).length : Math.floor(tour.registrations.filter((r) => r.status === 'registered').length / 2)
-  const evDoneMatches = eventMatches.filter((m) => m.status === 'done' || m.status === 'walkover' || m.status === 'retired').length
-  const evTotalMatches = eventMatches.length
-  const liveCount = (curEventId ? eventMatches : allMatches).filter((m) => m.status === 'live').length
-  const courtsCount = tour.courtLabels.length > 0 ? tour.courtLabels.length : 4
-  const remainingMatches = Math.max(0, evTotalMatches - evDoneMatches)
-  const estMinutes = remainingMatches > 0 ? Math.round((remainingMatches * 18) / Math.max(1, courtsCount)) : 0
+  // Các số đo Mini-Stats — trận bye không ai đánh nên không tính (progressOf).
+  const teamsCount = curEvent ? eventTeams(tour, curEvent.id).length : 0
+  const { done: evDoneMatches, total: evTotalMatches } = progressOf(eventMatches)
+  const liveCount = eventMatches.filter((m) => m.status === 'live').length
+  // Ước tính thô (phút sân / số sân — chưa tính đường găng, plan §5.7). Giải chưa khai báo sân → không ước tính.
+  const courtsCount = tour.courtLabels.length
+  const remainingMatches = evTotalMatches - evDoneMatches
+  const estMinutes = courtsCount ? Math.round((remainingMatches * cfg.tournament.estimateMatchMin) / courtsCount) : null
 
   // Các giai đoạn của nội dung hiện tại
   const curStages = (tour.stages || [])
@@ -63,8 +64,8 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
     a.tourCloseStage(stage.id, ranks)
   }
 
-  // Danh sách các trận kế tiếp (hàng chờ)
-  const upcomingMatches = queue.filter((m) => m.status !== 'live').slice(0, 6)
+  // Đang đánh (đứng đầu hàng chờ) rồi tới các trận kế tiếp — của cả giải, mọi nội dung.
+  const upcomingMatches = queue.slice(0, 6)
 
   return (
     <div style={{
@@ -146,7 +147,7 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
               {t('tournament.overview.estRemaining')}
             </span>
             <span style={{ font: '700 24px/1 var(--font-display)', color: 'var(--text-primary)' }}>
-              {estMinutes > 0 ? `${estMinutes}p` : '0p'}
+              {estMinutes == null ? '—' : t('tournament.overview.minutes', { n: estMinutes })}
             </span>
           </div>
         </div>
@@ -166,9 +167,7 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
             {curStages.map((st, i) => {
               const isRunning = st.status === 'running'
               const isDone = st.status === 'done'
-              const stageMatches = (tour.matches || []).filter((m) => m.stageId === st.id)
-              const stageDone = stageMatches.filter((m) => m.status === 'done' || m.status === 'walkover' || m.status === 'retired').length
-              const stageTotal = stageMatches.length
+              const stageTotal = progressOf((tour.matches || []).filter((m) => m.stageId === st.id)).total
 
               // Subtext thông tin giai đoạn
               const subInfo = st.type === 'round_robin'
@@ -191,7 +190,7 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                       placeItems: 'center',
                       font: '700 11px/1 var(--font-mono)',
                       background: isRunning ? 'var(--teal-500)' : (isDone ? 'var(--status-delivered-fg)' : 'var(--surface-inset)'),
-                      color: isRunning || isDone ? '#fff' : 'var(--text-muted)',
+                      color: isRunning || isDone ? 'var(--action-accent-fg)' : 'var(--text-muted)',
                       border: isRunning || isDone ? 'none' : '1px solid var(--border-default)',
                     }}>
                       {st.seq}
@@ -199,13 +198,14 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                     <div style={{ display: 'grid', gap: 2 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ font: '700 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
-                          {st.name || (st.type === 'round_robin' ? t('tournament.format.groupStage') : t('tournament.format.koStage'))}
+                          {t(st.type === 'round_robin' ? 'tournament.stage.groups'
+                            : curStages.length < 3 ? 'tournament.format.koStage' : st.seq === 3 ? 'tournament.stage.plate' : 'tournament.stage.main')}
                         </span>
                         <span style={{
                           padding: '1px 6px',
                           borderRadius: 4,
                           font: '700 9.5px/1 var(--font-sans)',
-                          background: isRunning ? 'rgba(0, 178, 169, 0.15)' : (isDone ? 'rgba(95, 217, 162, 0.15)' : 'rgba(255, 255, 255, 0.06)'),
+                          background: isRunning ? 'var(--surface-accent-soft)' : (isDone ? 'var(--status-delivered-bg)' : 'var(--surface-inset)'),
                           color: isRunning ? 'var(--teal-500)' : (isDone ? 'var(--status-delivered-fg)' : 'var(--text-muted)'),
                         }}>
                           {isRunning ? t('tournament.overview.stageRunning') : (isDone ? t('tournament.overview.stageDone') : t('tournament.overview.stagePending'))}
@@ -227,8 +227,8 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
           const groups = stageGroups(tour, stage.id)
           if (!groups.length) return null
           const targets = targetStagesOf(tour, stage)
-          const advancePerGroup = targets.length ? stage.config?.advancePerGroup || 2 : 2
-          const ev = (tour.events || []).find((e) => e.id === stage.eventId)
+          // Mẫu `rr` (không có giai đoạn sau): không ai "đi tiếp" → không tô, không ghi "lấy k".
+          const advancePerGroup = targets.length ? stage.config?.advancePerGroup || 2 : 0
           const allFinished = groups.every((g) => groupStandings(g, tour.matches).isFinished)
 
           return (
@@ -264,7 +264,9 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                         </span>
                         <Mono size={11.5} color="var(--text-muted)">
                           {remaining > 0
-                            ? t('tournament.overview.remainingTake', { n: remaining, k: advancePerGroup })
+                            ? (advancePerGroup
+                              ? t('tournament.overview.remainingTake', { n: remaining, k: advancePerGroup })
+                              : t('tournament.overview.remaining', { n: remaining }))
                             : t('tournament.standings.finished')}
                         </Mono>
                       </div>
@@ -312,7 +314,7 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                                 minHeight: 36,
                                 padding: '4px 6px',
                                 borderRadius: 6,
-                                background: advances ? 'rgba(0, 178, 169, 0.05)' : 'transparent',
+                                background: advances ? 'var(--surface-accent-soft)' : 'transparent',
                                 borderLeft: advances ? '3px solid var(--teal-500)' : '3px solid transparent',
                                 transition: 'background var(--dur-fast)',
                               }}
@@ -326,22 +328,28 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                                   display: 'grid',
                                   placeItems: 'center',
                                   font: '700 11px/1 var(--font-mono)',
-                                  background: rIdx === 0 ? 'var(--teal-500)' : 'var(--surface-inset)',
-                                  color: rIdx === 0 ? '#fff' : 'var(--text-secondary)',
+                                  background: rIdx === 0 ? 'var(--action-accent-bg)' : 'var(--surface-inset)',
+                                  color: rIdx === 0 ? 'var(--action-accent-fg)' : 'var(--text-secondary)',
                                 }}>
                                   {r.rank}
                                 </span>
                               </div>
 
-                              {/* Tên Cặp đấu */}
-                              <span style={{
-                                font: advances ? '600 13px/1.2 var(--font-sans)' : '500 13px/1.2 var(--font-sans)',
-                                color: 'var(--text-primary)',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}>
-                                {teamName(tour, db, r.teamId)}
+                              {/* Tên cặp (cắt "…") + nút ↑ xếp đội hoà — nút nằm ngoài phần bị cắt */}
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                <span style={{
+                                  font: advances ? '600 13px/1.2 var(--font-sans)' : '500 13px/1.2 var(--font-sans)',
+                                  color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+                                }}>
+                                  {teamName(tour, db, r.teamId)}
+                                </span>
+                                {up && (
+                                  <button type="button" aria-label={t('tournament.standings.moveUp')} title={t('tournament.standings.moveUp')}
+                                    onClick={() => setManual((x) => ({ ...x, [g.id]: up }))}
+                                    style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                                    <Icon name="chevron-up" size={12} />
+                                  </button>
+                                )}
                               </span>
 
                               {/* Thắng */}
@@ -447,6 +455,7 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                     padding: '6px 0',
                   }}
                 >
+                  <span style={{ width: 7, height: 7, borderRadius: 99, flex: '0 0 auto', background: m.status === 'live' ? 'var(--status-delivered-fg)' : 'transparent' }} />
                   <Mono size={11.5} weight={700} color="var(--text-primary)">
                     {matchCode(m)}
                   </Mono>

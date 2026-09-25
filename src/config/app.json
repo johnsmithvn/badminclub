@@ -207,6 +207,8 @@
       "ranking": "r3x15"
     },
     "_noteGroupBalance": "Vòng bảng: lệch rating TRUNG BÌNH giữa bảng mạnh nhất và yếu nhất ≤ số này là 'cân' (README handoff §5.3, chỉnh theo thang Elo thật).",
-    "groupBalanceOk": 15
+    "groupBalanceOk": 15,
+    "_noteEstimate": "Tổng quan · 'Còn lại ước tính' = trận còn lại × số phút này / số sân. Ước tính thô, chưa tính đội không đánh 2 trận cùng lúc (plan §5.7).",
+    "estimateMatchMin": 18
   }
 }

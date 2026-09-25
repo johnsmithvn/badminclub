@@ -11,7 +11,7 @@ export default function TourStepper({ items, value, onChange, isMobile }) {
       <div role="tablist" style={{ display: 'flex', gap: 8 }}>
         {items.map((it) => {
           const on = it.key === value
-          const isCheck = it.isDone || (it.key !== 'overview' && it.key !== 'info')
+          const isCheck = Boolean(it.isDone)
           return (
             <button
               key={it.key}
@@ -30,7 +30,7 @@ export default function TourStepper({ items, value, onChange, isMobile }) {
                 padding: '9px 16px 9px 12px',
                 borderRadius: 10,
                 color: 'inherit',
-                background: on ? 'rgba(0, 178, 169, 0.08)' : 'var(--surface-card)',
+                background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
                 border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
                 boxShadow: on ? '0 0 0 1px var(--teal-500), var(--shadow-xs)' : 'var(--shadow-xs)',
                 transition: 'all var(--dur-fast) var(--ease-standard)',
@@ -45,14 +45,14 @@ export default function TourStepper({ items, value, onChange, isMobile }) {
                 flex: '0 0 auto',
                 font: '700 11px/1 var(--font-mono)',
                 background: on
-                  ? 'var(--teal-500)'
-                  : (isCheck && it.isDone ? 'rgba(95, 217, 162, 0.15)' : 'var(--surface-inset)'),
+                  ? 'var(--action-accent-bg)'
+                  : (isCheck ? 'var(--status-delivered-bg)' : 'var(--surface-inset)'),
                 color: on
-                  ? '#fff'
-                  : (isCheck && it.isDone ? 'var(--status-delivered-fg)' : 'var(--text-muted)'),
+                  ? 'var(--action-accent-fg)'
+                  : (isCheck ? 'var(--status-delivered-fg)' : 'var(--text-muted)'),
                 border: `1px solid ${on ? 'transparent' : 'var(--border-default)'}`,
               }}>
-                {isCheck && it.isDone ? '✓' : t('tournament.tabNo.' + it.key)}
+                {isCheck ? '✓' : t('tournament.tabNo.' + it.key)}
               </span>
               <span style={{ display: 'grid', gap: 3 }}>
                 <span style={{

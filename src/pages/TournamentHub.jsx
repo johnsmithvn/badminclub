@@ -9,6 +9,7 @@ import { can } from '#lib/roles.js'
 import { HUB_TABS, entriesOpen, hubChecklist } from '#lib/tournament/hub.js'
 import { eventPlayers, eventTeams } from '#lib/tournament/pairing.js'
 import { tournamentMoney } from '#lib/tournament/finance.js'
+import { queueOf } from '#lib/tournament/bracketView.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import TourHero from '#components/tournament/TourHero.jsx'
@@ -43,9 +44,6 @@ export default function TournamentHub() {
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [scoringId, setScoringId] = useState(null)
-  const [showShareModal, setShowShareModal] = useState(false)
-  const [showProjectionModal, setShowProjectionModal] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -110,33 +108,12 @@ export default function TournamentHub() {
     if (await a.tourDelete()) back()
   }
 
-  // Hành động Nhập tỷ số nhanh từ thanh công cụ
-  const handleQuickScore = () => {
-    const liveMatch = tour.matches.find((m) => m.status === 'live')
-    if (liveMatch) {
-      setScoringId(liveMatch.id)
-      return
-    }
-    const readyMatch = tour.matches.find((m) => m.status === 'ready')
-    if (readyMatch) {
-      setScoringId(readyMatch.id)
-      return
-    }
-    // Nếu chưa có trận sẵn sàng, điều hướng đến nhánh hoặc thông báo
-    if (selected) openBracket(selected)
-  }
-
-  // Sao chép link đăng ký
-  const handleCopyLink = () => {
-    const url = `${window.location.origin}/giai-dau/${tour.id}`
-    try {
-      navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Bỏ qua lỗi clipboard
-    }
-    setShowShareModal(true)
+  // "Nhập tỷ số" (chỉ người có quyền): trận đang đánh, không có thì trận kế tiếp theo hàng chờ — của NỘI DUNG
+  // ĐANG CHỌN, không lấy đại trận của nội dung khác. Không có trận nào mở → sang trang nhánh.
+  const quickScore = () => {
+    const next = queueOf(tour.matches.filter((m) => m.eventId === selected))[0]
+    if (next) setScoringId(next.id)
+    else if (selected) openBracket(selected)
   }
 
   const scoringMatch = scoringId ? tour.matches.find((m) => m.id === scoringId) : null
@@ -150,13 +127,9 @@ export default function TournamentHub() {
         isMobile={isMobile}
         events={scheduled}
         eventId={scheduled.some((e) => e.id === selected) ? selected : undefined}
-        onSelectEvent={setEventId}
         onHub={() => setTab('overview')}
         onBracket={openBracket}
-        onScheme={openBracket}
-        onScore={handleQuickScore}
-        onRegisterLink={handleCopyLink}
-        onProjection={() => setShowProjectionModal(true)}
+        onScore={canEdit && scheduled.some((e) => e.id === selected) ? quickScore : undefined}
       />
 
       {/* 2. Hero Section */}
@@ -171,14 +144,10 @@ export default function TournamentHub() {
         onStatus={a.tourSetStatus}
       />
 
-      {/* 3. Dải Sân Live (Live Courts Strip) */}
-      <LiveCourtsStrip
-        tour={tour}
-        db={db}
-        onScore={(m) => setScoringId(m.id)}
-        onOpenBracket={openBracket}
-        isMobile={isMobile}
-      />
+      {/* 3. Dải sân — chỉ khi giải đã có lịch (giải nháp không có gì để xem trên sân) */}
+      {tour.matches.length > 0 && (
+        <LiveCourtsStrip tour={tour} db={db} isMobile={isMobile} onScore={canEdit ? (m) => setScoringId(m.id) : undefined} />
+      )}
 
       {/* 4. Hàng Thẻ Nội Dung (Event Bar) */}
       <EventBar
@@ -252,58 +221,6 @@ export default function TournamentHub() {
         />
       )}
 
-      {/* Dialog Chia Sẻ Link Đăng Ký */}
-      {showShareModal && (
-        <Dialog
-          open
-          width={480}
-          title={t('tournament.module.registerLink')}
-          onClose={() => setShowShareModal(false)}
-          footer={<Button variant="secondary" onClick={() => setShowShareModal(false)}>{t('common.close')}</Button>}
-        >
-          <div style={{ display: 'grid', gap: 14 }}>
-            <div style={{ font: 'var(--type-body)', color: 'var(--text-secondary)' }}>
-              {t('tournament.module.registerLinkHint')}
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 14px',
-              borderRadius: 8,
-              background: 'var(--surface-inset)',
-              border: '1px solid var(--border-subtle)',
-            }}>
-              <span style={{ font: '500 12.5px/1 var(--font-mono)', color: 'var(--teal-500)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {window.location.origin}/giai-dau/{tour.id}
-              </span>
-              <Button size="sm" onClick={handleCopyLink}>
-                {copied ? t('tournament.module.copied') : t('tournament.module.copy')}
-              </Button>
-            </div>
-          </div>
-        </Dialog>
-      )}
-
-      {/* Dialog Màn Hình Trình Chiếu */}
-      {showProjectionModal && (
-        <Dialog
-          open
-          width={480}
-          title={t('tournament.module.projection')}
-          onClose={() => setShowProjectionModal(false)}
-          footer={<Button variant="secondary" onClick={() => setShowProjectionModal(false)}>{t('common.close')}</Button>}
-        >
-          <div style={{ display: 'grid', gap: 12 }}>
-            <div style={{ font: 'var(--type-body)', color: 'var(--text-secondary)' }}>
-              {t('tournament.module.projectionDesc')}
-            </div>
-            <div style={{ font: '400 12.5px/1.4 var(--font-sans)', color: 'var(--text-muted)' }}>
-              {t('tournament.module.projectionNote')}
-            </div>
-          </div>
-        </Dialog>
-      )}
     </div>
   )
 }

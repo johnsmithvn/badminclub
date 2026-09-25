@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Button, Dialog, Icon, IconButton } from '#ds'
 import { Empty, TabTrack } from '#ui'
 import { EVENT_KINDS, eventCounts } from '#lib/tournament/hub.js'
+import { templateOf } from '#lib/tournament/format.js'
+import { progressOf } from '#lib/tournament/bracketView.js'
 import { t } from '#i18n'
 import { EventPill, KindCode } from './TourBits.jsx'
 
@@ -31,19 +33,13 @@ export default function EventBar({ tour, value, onChange, canEdit, isMobile, onA
       <div style={{ display: 'flex', gap: 12, paddingBottom: 4 }}>
         {tour.events.map((ev) => {
           const on = ev.id === value
-          const canDelete = canEdit && on && ev.status === 'draft'
-
-          // Đếm số trận của nội dung
-          const evMatches = (tour.matches || []).filter((m) => m.eventId === ev.id)
-          const doneMatches = evMatches.filter((m) => m.status === 'done' || m.status === 'walkover' || m.status === 'retired').length
-          const totalMatches = evMatches.length
-
-          // Tên thể thức ngắn gọn
-          const stages = (tour.stages || []).filter((s) => s.eventId === ev.id)
-          const formatText = stages.length > 1
-            ? t('tournament.format.tpl.rr_ko')
-            : (stages[0]?.type === 'round_robin' ? t('tournament.format.tpl.rr') : (stages[0]?.type === 'knockout' ? t('tournament.format.tpl.ko') : t('tournament.format.tpl.rr')))
-
+          const c = eventCounts(tour, ev.id)
+          // Chỉ nội dung nháp và chưa ai đăng ký — khớp điều kiện của tourDeleteEvent, không để nút bấm ra lỗi.
+          const canDelete = canEdit && on && ev.status === 'draft' && c.total === 0
+          // Trận bye không ai đánh → progressOf bỏ ra, không thì nhánh có bye không bao giờ tới 100%.
+          const { done: doneMatches, total: totalMatches } = progressOf((tour.matches || []).filter((m) => m.eventId === ev.id))
+          const tpl = templateOf(tour, ev)
+          const formatText = tpl ? t('tournament.format.tpl.' + tpl) : t('tournament.event.noFormat')
           const progressPercent = totalMatches > 0 ? Math.round((doneMatches / totalMatches) * 100) : 0
 
           return (
@@ -66,8 +62,8 @@ export default function EventBar({ tour, value, onChange, canEdit, isMobile, onA
                   background: 'var(--surface-card)',
                   color: 'inherit',
                   border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
-                  boxShadow: on ? '0 0 0 1px var(--teal-500), 0 2px 8px rgba(0, 178, 169, 0.15)' : 'var(--shadow-xs)',
-                  transition: 'all var(--dur-fast) var(--ease-standard)',
+                  boxShadow: on ? '0 0 0 1px var(--teal-500), var(--shadow-sm)' : 'var(--shadow-xs)',
+                  transition: 'border-color var(--dur-fast) var(--ease-standard)',
                   position: 'relative',
                   overflow: 'hidden',
                 }}
@@ -94,7 +90,7 @@ export default function EventBar({ tour, value, onChange, canEdit, isMobile, onA
 
                   {/* Hàng 3: Số VĐV chi tiết nam / nữ */}
                   <span style={{ font: '400 11.5px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    {t('tournament.event.counts', eventCounts(tour, ev.id))}
+                    {t('tournament.event.counts', c)}
                   </span>
 
                   {/* Hàng 4: Mini Progress Bar nếu đã có trận */}
@@ -160,7 +156,7 @@ export default function EventBar({ tour, value, onChange, canEdit, isMobile, onA
             }}
           >
             <Icon name="plus" size={15} />
-            + {t('tournament.hero.events')}
+            {t('tournament.event.add')}
           </button>
         )}
       </div>
