@@ -773,7 +773,7 @@ export default function Badges() {
           {allSeasons.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>
-                {t('season.filterSeason', { defaultValue: 'Mùa giải:' })}
+                {t('season.filterSeason')}
               </span>
               <select
                 value={currentSeason?.id || currentSeason?.code || ''}
@@ -793,7 +793,7 @@ export default function Badges() {
               >
                 {allSeasons.map((s) => (
                   <option key={s.id || s.code} value={s.id || s.code} style={{ background: '#1D0D35', color: '#FFFFFF' }}>
-                    {s.code || s.name} {s.active ? `(${t('season.activeCurrent', { defaultValue: 'Hiện tại' })})` : ''}
+                    {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
                   </option>
                 ))}
               </select>

@@ -119,6 +119,35 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
   )
 }
 
+/**
+ * Vòng bảng: mỗi bảng một khối, trận xếp theo lượt (không vẽ nhánh — trận vòng tròn không có trận sau).
+ * `locked` = giai đoạn đã chốt: chỉ xem, không sửa / hoàn tác (DB cũng chặn — `stageDone`).
+ */
+export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScore, onUndo, onEdit, onQuick }) {
+  const edit = canEdit && !locked
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12, alignItems: 'start' }}>
+      {groups.map((g) => {
+        const own = tour.matches.filter((m) => m.groupId === g.id)
+        const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
+        return (
+          <section key={g.id} style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 10, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+            <span style={{ font: '700 14px/1 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.standings.groupTitle', { label: g.label })}</span>
+            {rounds.map((r) => (
+              <div key={r} style={{ display: 'grid', gap: 6 }}>
+                <Overline>{t('tournament.bracket.groupRound', { n: r + 1 })}</Overline>
+                {own.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => (
+                  <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
+                ))}
+              </div>
+            ))}
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
 function RoundHead({ name, sub, rule }) {
   return (
     <div style={{ display: 'grid', gap: 4, paddingBottom: 2 }}>

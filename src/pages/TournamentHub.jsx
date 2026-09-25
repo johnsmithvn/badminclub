@@ -110,7 +110,7 @@ export default function TournamentHub() {
       />
       <TourStepper items={HUB_TABS.map((k) => ({ key: k, sub: subs[k] }))} value={tab} onChange={setTab} isMobile={isMobile} />
 
-      {tab === 'overview' && <OverviewTab tour={tour} db={db} onGo={setTab} canEdit={canEdit} onOpenBracket={openBracket} />}
+      {tab === 'overview' && <OverviewTab tour={tour} db={db} a={a} event={event} onGo={setTab} canEdit={canEdit} isMobile={isMobile} onOpenBracket={openBracket} />}
       {tab === 'info' && <InfoTab tour={tour} canEdit={canEdit} isMobile={isMobile} a={a} onEdit={() => setEditing(true)} />}
       {tab === 'players' && <PlayersTab tour={tour} db={db} a={a} canEdit={canEdit} isMobile={isMobile} />}
       {(tab === 'format' || tab === 'pairing') && !event && <Empty icon="medal" title={t('tournament.pairing.noEvent')} />}

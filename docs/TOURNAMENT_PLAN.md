@@ -456,7 +456,7 @@ cuộn ngang, bảng Thí sinh thành danh sách thẻ, chạm ≥ 48px. Thêm "
 | **1 — Hub** ✅ | route + nav · danh sách giải · tab Thông tin (giải thưởng, dự trù, thẻ tiền) · tab Thí sinh | Tạo được giải mùa 1, thẻ tiền ra đúng số §8 |
 | **2 — Đội & thể thức** ✅ | `pairing.js` + tab Ghép cặp · `format.js` (mẫu `ko`) + tab Thể thức (luật theo vòng) · `schedule.js` · nút Tạo lịch | 3 nội dung có đội, sinh đủ 24 trận |
 | **3 — Nhánh đấu** ✅ | trang nhánh · bảng điểm · chốt/sửa/hoàn tác/walkover/đổi chỗ/xếp lịch · poll | Đánh hết 24 trận trên 2 máy cùng lúc không mất đội |
-| 4 — Vòng bảng | `roundRobin`, `standings`, `links` · mẫu `rr`, `rr_ko`, `rr_ko_plate` · "Chốt giai đoạn" | Test §3.1 đủ ca hoà 2/3 đội |
+| **4 — Vòng bảng** ✅ | `roundRobin`, `standings`, `links` · mẫu `rr`, `rr_ko`, `rr_ko_plate` · "Chốt giai đoạn" (BTC đảo đội hoà bằng ↑) · trang nhánh chuyển giai đoạn · migration `0058` | Test §3.1 đủ ca hoà 2/3 đội. **0058 chưa áp production** — áp rồi chạy `supabase/manual/0058_tournament_round_robin_check.sql` |
 | 5 — Gợi ý & ghép nâng cao | `format.recommend` + modal · ghép `seeded`/`chemistry` · `suggestSwap` | Với số liệu mùa 1 trả về `ko` là phương án vừa giờ |
 | 6 — Sau | sơ đồ pipeline/canvas · khách ngoài · nối sổ quỹ (design lại) · thông báo "sắp tới lượt" | — |
 
@@ -487,8 +487,8 @@ Code chạm Supabase (RPC, RLS) kiểm tay bằng `supabase/manual/0057_tourname
 
 1. ~~Toàn bộ v2 để bắt đầu Phase 0~~ — **đã duyệt 2026-09-25** (kèm các điều chỉnh v2.1 bên dưới).
 2. ~~`tournamentActions.js` tách riêng~~ — **đã duyệt**.
-3. Thứ tự xếp hạng vòng bảng §3.1 (chỉ ảnh hưởng Phase 4).
-4. Số đội / số người mùa 1 — test nghiệm thu giả định **8 đội/nội dung**, nhưng quy chế thu 4.950.000đ ⇒ 4·nam + 3·nữ = 99 ⇒ không thể đủ 8 đội ở cả đôi nam lẫn đôi nữ. Cần số thật.
+3. ~~Thứ tự xếp hạng vòng bảng §3.1~~ — **đã duyệt: BWF cố định** (không theo thứ tự tuỳ chỉnh của handoff). Hoà không tách được → BTC đảo bằng ↑ trước khi chốt.
+4. ~~Số đội mùa 1~~ — thực tế 10 nam 8 nữ; mùa 1 đã xong nên giữ nguyên test nghiệm thu. Yêu cầu: thể thức **linh hoạt** cho mùa sau (số đội lẻ, bảng lệch nhau 1 đội). Tab Thể thức cho chọn 1–4 bảng, 1–3 đội đi tiếp/bảng, nhánh phụ lấy hạng kế tiếp / 2 hạng kế tiếp / mọi đội còn lại; khoá bằng `flex_formats.test.js`.
 
 ## 10. Rủi ro còn lại
 

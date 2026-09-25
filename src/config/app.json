@@ -205,6 +205,8 @@
     "defaultRules": {
       "qualify": { "md": "r1x30", "wd": "r1x30", "xd": "r1x21", "default": "r1x21" },
       "ranking": "r3x15"
-    }
+    },
+    "_noteGroupBalance": "Vòng bảng: lệch rating TRUNG BÌNH giữa bảng mạnh nhất và yếu nhất ≤ số này là 'cân' (README handoff §5.3, chỉnh theo thang Elo thật).",
+    "groupBalanceOk": 15
   }
 }

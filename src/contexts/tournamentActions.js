@@ -8,8 +8,10 @@ import { loadTournament, loadTournamentMatches, loadTournaments, tournamentRpc, 
 import { tourRows } from '#contexts/dbmap.js'
 import { EVENT_KINDS, entriesOpen, newRegistration, nextStatuses } from '#lib/tournament/hub.js'
 import { autoPair, eventPlayers, eventTeams, lineupIssue } from '#lib/tournament/pairing.js'
-import { drawNumbers, entrantsOf } from '#lib/tournament/format.js'
+import { buildTemplateStages, drawNumbers, entrantsOf } from '#lib/tournament/format.js'
 import { buildKnockout } from '#lib/tournament/bracket.js'
+import { buildRoundRobin, snakeGroups } from '#lib/tournament/roundRobin.js'
+import { entrantsFromLinks } from '#lib/tournament/links.js'
 import { applyCommit, applyEdit, applyUndo } from '#lib/tournament/advance.js'
 import { levelOf, myMember } from '#lib/money.js'
 import { t } from '#i18n'
@@ -19,6 +21,9 @@ export const tourErr = (e) => {
   const m = String(e?.message || e || '')
   return m.startsWith('tournament.err.') ? t(m) : m
 }
+
+/** "Mọi đội còn lại" vào nhánh phụ: lấy thừa hạng — bảng không có hạng đó thì `entrantsFromLinks` bỏ qua. */
+const PLATE_ALL = 16
 
 export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
   const db = () => dbRef.current
@@ -254,13 +259,54 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       return run(() => write('tournament_teams', 'upsert', [{ ...a, drawNo: b.drawNo }, { ...b, drawNo: a.drawNo }]))
     },
 
-    /** Tạo lịch: bracket.js dựng nhánh ở client, RPC chỉ kiểm + ghi nguyên tử (plan §2.3). */
-    tourGenerate: (eventId) => {
+    /** Tạo lịch: round-robin hoặc knockout dựng ở client, RPC chỉ kiểm + ghi nguyên tử (plan §2.3). */
+    tourGenerate: (eventId, stageSeq = 1) => {
       const cur = tour()
-      const stage = cur.stages.find((s) => s.eventId === eventId && s.seq === 1)
+      const stage = cur.stages.find((s) => s.eventId === eventId && s.seq === stageSeq)
       if (!stage) return toast(t('tournament.format.needFormat'))
-      const { error, entrants } = entrantsOf(eventTeams(cur, eventId), stage.config?.seeding)
-      if (error) return toast(t(error))
+
+      if (stage.type === 'round_robin') {
+        const teams = eventTeams(cur, eventId)
+        const full = teams.filter((x) => x.full)
+        const numGroups = stage.config?.numGroups || 1
+        // Mỗi bảng ≥ 2 đội, không thì có bảng không có trận nào và không chốt hạng được.
+        if (full.length < numGroups * 2) return toast(t('tournament.format.tooFewForGroups', { n: numGroups * 2 }))
+        const rawGroups = snakeGroups(full, numGroups)
+        const groups = rawGroups.map((g) => ({
+          id: uid(),
+          stageId: stage.id,
+          label: g.label,
+          seq: g.seq,
+          teams: g.teams,
+        }))
+        let matches
+        try {
+          matches = buildRoundRobin({ stage, groups, legs: stage.config?.legs || 1, newId: uid })
+        } catch (e) {
+          return toast(e.message)
+        }
+        return run(() => tournamentRpc('tournament_generate_stage', { p_stage: stage.id, p_groups: groups, p_matches: matches }),
+          'tournament.toast.generated', { n: matches.length })
+      }
+
+      // Loại trực tiếp (knockout)
+      let entrants
+      if (stage.config?.seeding === 'rank') {
+        const link = (cur.stageLinks || []).find((l) => l.toStageId === stage.id)
+        if (!link) return toast(t('tournament.err.invalidLink'))
+        const priorStage = cur.stages.find((s) => s.id === link.fromStageId)
+        if (!priorStage || priorStage.status !== 'done') return toast(t('tournament.err.priorStageNotDone'))
+        const groups = (cur.groups || []).filter((g) => g.stageId === priorStage.id)
+        const groupTeams = cur.groupTeams || []
+        const res = entrantsFromLinks({ link, groups, groupTeams })
+        if (res.error) return toast(t(res.error))
+        entrants = res.entrants
+      } else {
+        const { error, entrants: ent } = entrantsOf(eventTeams(cur, eventId), stage.config?.seeding)
+        if (error) return toast(t(error))
+        entrants = ent
+      }
+
       let matches
       try {
         matches = buildKnockout({ stage, entrants, newId: uid })
@@ -269,6 +315,80 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       }
       return run(() => tournamentRpc('tournament_generate_stage', { p_stage: stage.id, p_groups: [], p_matches: matches }),
         'tournament.toast.generated', { n: matches.filter((m) => m.status !== 'bye').length })
+    },
+
+    /** Chốt giai đoạn (vòng bảng): ghi final_rank cho các đội và chuyển stage sang 'done'. */
+    tourCloseStage: (stageId, ranks) => {
+      return run(() => tournamentRpc('tournament_close_stage', { p_stage: stageId, p_ranks: ranks }),
+        'tournament.toast.stageClosed')
+    },
+
+    /** Đổi mẫu thể thức cho nội dung */
+    tourSaveTemplate: async (eventId, templateKey, custom = {}) => {
+      const cur = tour()
+      const ev = cur.events.find((e) => e.id === eventId)
+      if (!ev) return false
+      const oldStages = cur.stages.filter((s) => s.eventId === eventId)
+      // Đã sinh trận thì không thay thể thức (DB cũng chặn xoá giai đoạn có trận qua FK) — làm lại lịch trước.
+      if (oldStages.some((s) => s.status !== 'pending')) { toast(t('tournament.err.scheduleExists')); return false }
+      const { stages, links } = buildTemplateStages(templateKey, ev, custom)
+      const oldStageIds = new Set(oldStages.map((s) => s.id))
+      const oldLinks = (cur.stageLinks || []).filter((l) => oldStageIds.has(l.fromStageId) || oldStageIds.has(l.toStageId))
+
+      const newStages = stages.map((s) => ({ ...base(), ...s, id: uid(), eventId }))
+      const stageMapBySeq = {}
+      newStages.forEach((s) => { stageMapBySeq[s.seq] = s.id })
+
+      const newLinks = links.map((l) => ({
+        ...base(),
+        id: uid(),
+        fromStageId: stageMapBySeq[l.fromStageSeq],
+        toStageId: stageMapBySeq[l.toStageSeq],
+        ranks: l.ranks,
+      }))
+
+      try {
+        if (oldLinks.length) await write('tournament_stage_links', 'delete', oldLinks.map((l) => l.id))
+        if (oldStages.length) await write('tournament_stages', 'delete', oldStages.map((s) => s.id))
+        await write('tournament_stages', 'insert', newStages)
+        if (newLinks.length) await write('tournament_stage_links', 'insert', newLinks)
+        await write('tournament_events', 'upsert', [{ ...base(), ...ev, templateKey }])
+        await reloadTour()
+        toast(t('tournament.toast.formatSaved'))
+        return true
+      } catch (e) {
+        toast(tourErr(e))
+        return false
+      }
+    },
+
+    /**
+     * Đội đi tiếp sau vòng bảng: sửa `config.advancePerGroup` của vòng bảng VÀ `ranks` của các link (link là thứ
+     * `entrantsFromLinks` đọc — chỉ sửa config thì nhánh vẫn lấy số đội cũ).
+     *   advance: số đội mỗi bảng vào nhánh chính (hạng 1..advance).
+     *   plate:   (mẫu có nhánh phụ) số hạng ngay sau đó vào nhánh phụ; 'all' = mọi đội còn lại.
+     *            Bảng ít đội hơn thì `entrantsFromLinks` tự bỏ qua hạng thiếu.
+     * Không truyền thì giữ nguyên giá trị đang có.
+     */
+    tourSetAdvance: async (eventId, { advance, plate } = {}) => {
+      const cur = tour()
+      const stages = cur.stages.filter((s) => s.eventId === eventId).sort((x, y) => x.seq - y.seq)
+      const [rr, main, plateStage] = stages
+      if (!rr || rr.type !== 'round_robin' || !main) return false
+      if (stages.some((s) => s.status !== 'pending')) { toast(t('tournament.err.scheduleExists')); return false }
+      const linkOf = (to) => (cur.stageLinks || []).find((l) => l.fromStageId === rr.id && l.toStageId === to.id)
+      const seq = (from, k) => Array.from({ length: k }, (_, i) => from + i)
+      const n = advance ?? rr.config?.advancePerGroup ?? 2
+      const oldPlate = plateStage && linkOf(plateStage) ? linkOf(plateStage).ranks.length : 2
+      const p = plate ?? (oldPlate > 2 ? 'all' : oldPlate)
+      const links = [
+        linkOf(main) && { ...linkOf(main), ranks: seq(1, n) },
+        plateStage && linkOf(plateStage) && { ...linkOf(plateStage), ranks: seq(n + 1, p === 'all' ? PLATE_ALL : p) },
+      ].filter(Boolean)
+      return run(async () => {
+        await write('tournament_stages', 'upsert', [{ ...base(), ...rr, config: { ...rr.config, advancePerGroup: n } }])
+        if (links.length) await write('tournament_stage_links', 'upsert', links.map((l) => ({ ...base(), ...l })))
+      })
     },
 
     /* ---------- Phase 3: nhánh đấu trực tiếp ---------- */
@@ -315,7 +435,11 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
 
     /** Xoá lịch để làm lại (đổi chỗ, đổi luật) — RPC chặn nếu đã có trận xong. */
     tourResetSchedule: (eventId, reason) => {
-      const stage = tour().stages.find((s) => s.eventId === eventId && s.seq === 1)
+      // Làm lại giai đoạn MUỘN NHẤT đã sinh trận (nhánh sau vòng bảng trước) — DB chặn làm lại giai đoạn
+      // trước khi giai đoạn sau đã sinh (`downstreamStageRunning`).
+      const stage = tour().stages
+        .filter((s) => s.eventId === eventId && s.status !== 'pending')
+        .sort((x, y) => y.seq - x.seq)[0]
       if (!stage) return false
       return run(() => tournamentRpc('tournament_reset_stage', { p_stage: stage.id, p_reason: reason }), 'tournament.toast.resetDone')
     },

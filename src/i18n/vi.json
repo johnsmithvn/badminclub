@@ -328,7 +328,9 @@
     "actionTopLeftDescHandoff": "{{names}} đi đủ buổi, Elo đang lên nhanh. Ghép họ với nhóm {{median}}+ một trận mỗi buổi để tăng cọ xát.",
     "mapTitleWithSeason": "Bản đồ CLB {{season}}",
     "emptyGenderList": "Chưa có thành viên nào trong danh mục này.",
-    "filterGenderTitle": "Lọc giới tính"
+    "filterGenderTitle": "Lọc giới tính",
+    "filterSeason": "Mùa giải:",
+    "activeCurrent": "Hiện tại"
   },
   "gender": {
     "all": "Tất cả",
@@ -5077,7 +5079,9 @@
       "resetDone": "Đã xoá lịch để làm lại",
       "committed": "Đã chốt kết quả — đội thắng lên vòng sau",
       "edited": "Đã sửa điểm",
-      "undone": "Đã hoàn tác kết quả"
+      "undone": "Đã hoàn tác kết quả",
+      "stageClosed": "Đã chốt thứ hạng giai đoạn",
+      "formatSaved": "Đã lưu thể thức thi đấu"
     },
     "err": {
       "permissionDenied": "Bạn không có quyền quản lý giải đấu",
@@ -5113,7 +5117,15 @@
       "matchNotDone": "Trận chưa có kết quả để hoàn tác",
       "downstreamHasResult": "Trận sau đã hoặc đang đánh — hoàn tác trận sau trước",
       "cannotScheduleFinished": "Trận đã có kết quả — không xếp lịch lại được",
-      "scheduleExists": "Nội dung đã có lịch thi đấu — làm lại lịch trước"
+      "scheduleExists": "Nội dung đã có lịch thi đấu — làm lại lịch trước",
+      "invalidLink": "Liên kết giai đoạn không hợp lệ",
+      "noGroups": "Chưa có bảng đấu nào ở giai đoạn trước",
+      "rankNotAssigned": "Chưa xếp hạng đủ các đội đi tiếp từ giai đoạn trước",
+      "priorStageNotDone": "Giai đoạn trước chưa kết thúc — chốt giai đoạn trước rồi mới tạo nhánh",
+      "stageNotRunning": "Giai đoạn chưa bắt đầu thi đấu",
+      "stageMatchesNotFinished": "Còn trận đấu chưa kết thúc — hoàn thành tất cả các trận trước khi chốt",
+      "stageNotRoundRobin": "Chỉ chốt thứ hạng được ở vòng bảng",
+      "invalidRanks": "Thứ hạng gửi lên thiếu đội hoặc trùng hạng — tải lại trang rồi chốt lại"
     },
     "round": {
       "r32": "Vòng 1/32",
@@ -5170,10 +5182,16 @@
       "title": "Thể thức · {{name}}",
       "templates": "Mẫu có sẵn",
       "tpl": {
-        "ko": "Loại trực tiếp"
+        "ko": "Loại trực tiếp",
+        "rr": "Vòng tròn tính điểm",
+        "rr_ko": "Vòng bảng + Loại trực tiếp",
+        "rr_ko_plate": "Vòng bảng + Nhánh chính & phụ"
       },
       "tplSub": {
-        "ko": "Thua là về · có tranh hạng 3"
+        "ko": "Thua là về · có tranh hạng 3",
+        "rr": "Đấu vòng tròn xếp hạng BWF",
+        "rr_ko": "Chia bảng lấy nhất nhì vào knock-out",
+        "rr_ko_plate": "Nhất nhì tranh Cup · còn lại tranh Plate"
       },
       "qualify": "Vòng loại",
       "ranking": "Chung kết & tranh hạng 3",
@@ -5183,7 +5201,8 @@
       "seeding": "Xếp vào nhánh",
       "seed": {
         "seed": "Theo rating",
-        "slot": "Bốc thăm"
+        "slot": "Bốc thăm",
+        "rank": "Từ vòng bảng"
       },
       "preset": {
         "r1x15": "1 sec 15",
@@ -5215,7 +5234,27 @@
       "resetReason": "Lý do",
       "lockedRules": "Đã có lịch thi đấu — luật đã chép vào từng trận, không đổi được nữa.",
       "openBracket": "Mở nhánh đấu",
-      "swapHint": "Bấm một đội rồi bấm đội khác để đổi chỗ trong nhánh."
+      "swapHint": "Bấm một đội rồi bấm đội khác để đổi chỗ trong nhánh.",
+      "groups": "Số bảng",
+      "advancePerGroup": "Đội đi tiếp mỗi bảng",
+      "legs": "Số lượt",
+      "oneLeg": "1 lượt",
+      "twoLegs": "2 lượt (lượt đi & về)",
+      "groupBalance": "Độ lệch rating các bảng",
+      "balanced": "Cân (lệch ≤ 15)",
+      "unbalanced": "Lệch (lệch > 15)",
+      "groupStage": "Vòng bảng",
+      "koStage": "Vòng loại trực tiếp",
+      "groupCount": "{{n}} bảng",
+      "koQualify": "Nhánh loại trực tiếp",
+      "plateTakes": "Nhánh phụ lấy",
+      "plateOpt": {
+        "1": "Hạng {{from}}",
+        "2": "Hạng {{from}}–{{to}}",
+        "all": "Mọi đội còn lại"
+      },
+      "tooFewForGroups": "Cần ít nhất {{n}} đội đủ người để chia bảng (mỗi bảng ≥ 2 đội)",
+      "tooFewForGroupsHint": "Chưa đủ đội để chia số bảng đã chọn (mỗi bảng ≥ 2 đội) — giảm số bảng hoặc ghép thêm đội"
     },
     "code": {
       "r32": "V32-",
@@ -5247,6 +5286,7 @@
       "champ": "Vô địch",
       "champWait": "Chờ chung kết",
       "champKicker": "Nhà vô địch",
+      "groupRound": "Lượt {{n}}",
       "tbd": "Chờ đội",
       "bye": "Miễn đấu",
       "live": "ĐANG ĐÁNH",
@@ -5305,6 +5345,34 @@
       "live": "Đang đánh & kế tiếp",
       "noneOpen": "Không còn trận nào chờ đánh",
       "open": "Mở nhánh"
+    },
+    "stage": {
+      "groups": "Vòng bảng",
+      "main": "Nhánh chính",
+      "plate": "Nhánh phụ"
+    },
+    "standings": {
+      "title": "Bảng xếp hạng vòng bảng",
+      "groupTitle": "Bảng {{label}}",
+      "rank": "#",
+      "team": "Đội",
+      "played": "Trận",
+      "won": "T",
+      "lost": "B",
+      "setDiff": "+/- S",
+      "pointDiff": "+/- Đ",
+      "diff": "+/-",
+      "points": "Điểm",
+      "remaining": "còn {{n}} trận · lấy {{k}} đội",
+      "finished": "Đã xong tất cả các trận",
+      "closeStage": "Chốt giai đoạn",
+      "closeStageHint": "Chốt thứ hạng vòng bảng để chuyển tiếp sang giai đoạn sau",
+      "closed": "Giai đoạn đã chốt",
+      "generateStage": "Tạo lịch {{name}}",
+      "tieNotice": "Có đội bằng điểm cần BTC phân xử",
+      "tieReorder": "Có đội bằng điểm không tách được — BTC bấm ↑ để xếp lại (bốc thăm / quyết định) rồi chốt",
+      "moveUp": "Đưa lên trên đội liền trước",
+      "openBracket": "Mở nhánh đấu"
     }
   }
 }

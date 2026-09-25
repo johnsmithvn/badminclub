@@ -23,7 +23,9 @@ export function ruleLabel(rule) {
 /** Mã trận: TK1, BK2 — chung kết và 3-4 chỉ có một trận nên không đánh số. */
 export function matchCode(m) {
   const head = t('tournament.code.' + m.roundKind)
-  return m.roundKind === 'final' || m.roundKind === 'third' ? head : head + (m.slot + 1)
+  if (m.roundKind === 'final' || m.roundKind === 'third') return head
+  // Vòng bảng: slot đánh lại từ 0 mỗi lượt → thêm lượt vào mã, không thì hai trận khác lượt trùng mã.
+  return m.roundKind === 'group' ? `${head}${m.round + 1}.${m.slot + 1}` : head + (m.slot + 1)
 }
 
 /** Tên đội = tên các VĐV nối ' / ' (đội chưa xác định → null). */

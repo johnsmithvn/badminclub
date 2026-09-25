@@ -9,7 +9,9 @@ import { koRounds, progressOf, queueOf } from '#lib/tournament/bracketView.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
-import BracketBoard from '#components/tournament/BracketBoard.jsx'
+import BracketBoard, { GroupBoard } from '#components/tournament/BracketBoard.jsx'
+import { Seg } from '#components/tournament/TourBits.jsx'
+import { stageGroups } from '#lib/tournament/standings.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
 import { draftKey, matchCode, teamName } from '#components/tournament/tourUtils.js'
@@ -29,6 +31,7 @@ export default function TournamentBracket() {
   const [scoringId, setScoringId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [undoingId, setUndoingId] = useState(null)
+  const [pickedStageId, setPickedStageId] = useState(null) // null = giai đoạn muộn nhất đã có lịch
 
   useEffect(() => {
     let alive = true
@@ -65,7 +68,12 @@ export default function TournamentBracket() {
 
   const scheduled = tour.events.filter((e) => tour.stages.some((s) => s.eventId === e.id && s.status !== 'pending'))
   const event = tour.events.find((e) => e.id === eventId)
-  const stage = event && tour.stages.find((s) => s.eventId === event.id && s.seq === 1 && s.status !== 'pending')
+  // Nội dung nhiều giai đoạn (vòng bảng → nhánh chính / nhánh phụ): chỉ giai đoạn đã sinh trận mới xem được.
+  const live = event ? tour.stages.filter((s) => s.eventId === event.id && s.status !== 'pending').sort((x, y) => x.seq - y.seq) : []
+  const stage = live.find((s) => s.id === pickedStageId) || live[live.length - 1] || null
+  const hasPlate = Boolean(event) && tour.stages.some((x) => x.eventId === event.id && x.seq === 3)
+  const stageLabel = (s) => t(s.type === 'round_robin' ? 'tournament.stage.groups'
+    : !hasPlate ? 'tournament.format.koStage' : s.seq === 3 ? 'tournament.stage.plate' : 'tournament.stage.main')
   const nav = (
     <TourModuleNav active="bracket" events={scheduled} eventId={eventId} isMobile={isMobile}
       onHub={toHub} onBracket={(eid) => eid && navigate(pathOf('tournamentBracket', id, eid))} />
@@ -87,10 +95,14 @@ export default function TournamentBracket() {
     )
   }
 
+  const isRR = stage.type === 'round_robin'
   const own = tour.matches.filter((m) => m.stageId === stage.id)
-  const view = koRounds(tour.matches, stage.id)
+  const view = isRR ? null : koRounds(tour.matches, stage.id)
+  const groups = isRR ? stageGroups(tour, stage.id) : []
   const prog = progressOf(own)
-  const teamsN = new Set(own.flatMap((m) => (m.round === 0 ? [m.teamAId, m.teamBId] : [])).filter(Boolean)).size
+  const teamsN = isRR
+    ? groups.reduce((n, g) => n + g.teams.length, 0)
+    : new Set(own.flatMap((m) => (m.round === 0 ? [m.teamAId, m.teamBId] : [])).filter(Boolean)).size
   const next = queueOf(own).slice(0, 3)
   const byId = (mid) => (mid ? own.find((m) => m.id === mid) || null : null)
   const scoring = byId(scoringId)
@@ -137,11 +149,26 @@ export default function TournamentBracket() {
         )}
       </section>
 
-      <BracketBoard
-        view={view} tour={tour} db={db} canEdit={canEdit} isMobile={isMobile}
-        onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
-        onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
-      />
+      {live.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Seg options={live.map((s) => ({ key: s.id, label: stageLabel(s) }))} value={stage.id} onChange={setPickedStageId} />
+          {stage.status === 'done' && <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closed')}</Mono>}
+        </div>
+      )}
+
+      {isRR ? (
+        <GroupBoard
+          groups={groups} tour={tour} db={db} canEdit={canEdit} locked={stage.status === 'done'} isMobile={isMobile}
+          onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
+          onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
+        />
+      ) : (
+        <BracketBoard
+          key={stage.id} view={view} tour={tour} db={db} canEdit={canEdit} isMobile={isMobile}
+          onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
+          onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
+        />
+      )}
 
       {scoring && (
         <ScoreDialog match={scoring} tour={tour} db={db} onClose={() => setScoringId(null)}
