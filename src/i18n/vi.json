@@ -5378,13 +5378,6 @@
       "enterScore": "Nhập tỷ số",
       "liveCount": "{{n}} trận đang đánh"
     },
-    "courtStrip": {
-      "live": "LIVE",
-      "empty": "Sân trống",
-      "noCourt": "Chưa gán sân",
-      "playing": "Đang đánh set đầu",
-      "next": "Kế tiếp · {{code}} · {{match}}"
-    },
     "overview": {
       "rankName": {"1": "Nhất", "2": "Nhì", "3": "Ba", "4": "Tư"},
       "miniBracket": "Nhánh loại trực tiếp",
@@ -5448,7 +5441,11 @@
       "setupSource": "Nguồn đội",
       "setupTeams": "Đội tham gia",
       "setupRule": "Luật",
-      "setupHint": "Đổi thể thức, bốc thăm, đổi chỗ: tab Thể thức ở Hub (trước khi có lịch).",
+      "setupHint": "Đổi thể thức, bốc thăm, đổi chỗ: Sơ đồ thi đấu (trước khi có lịch).",
+      "seedOrder": "Thứ tự hạt giống",
+      "seedOrderHint": "Đầu danh sách = an toàn nhất, dễ được miễn nếu số đội không tròn luỹ thừa 2.",
+      "seedUp": "Đưa lên an toàn hơn",
+      "seedDown": "Đưa xuống kém an toàn hơn",
       "slotsN": "{{n}} đội"
     },
     "sb": {

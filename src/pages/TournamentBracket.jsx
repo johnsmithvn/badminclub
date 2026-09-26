@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Skeleton } from '#ds'
+import { Button, Icon, Skeleton } from '#ds'
 import { Empty, Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { can } from '#lib/roles.js'
 import { koRounds, progressOf, queueOf, stageEditable, swapOrder, targetStagesOf } from '#lib/tournament/bracketView.js'
+import { entrantsFromLinks } from '#lib/tournament/links.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
@@ -288,13 +289,34 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
   // Bốc thăm cần mọi đội có số bốc thăm (bốc ở tab Thể thức); đội hình từ vòng bảng thì giữ "Từ vòng bảng".
   const teamsIn = seats.map(([id]) => id).filter(Boolean)
   const drawn = teamsIn.every((id) => Number.isInteger(tour.teams.find((x) => x.id === id)?.drawNo))
+
+  // Thứ tự hạt giống (ai an toàn/dễ được miễn trước) khi nhánh lấy đội theo hạng vòng bảng — BTC đổi tay thay
+  // vì tự động; KHÔNG dùng chung bốc thăm (đó chỉ đúng cho nhánh xuất phát, xem `applySeedOrder` ở links.js).
+  const link = (tour.stageLinks || []).find((l) => l.toStageId === stage.id)
+  const priorGroups = fromGroups && link ? (tour.groups || []).filter((g) => g.stageId === link.fromStageId) : []
+  const autoEntrants = fromGroups && link ? entrantsFromLinks({ link, groups: priorGroups, groupTeams: tour.groupTeams || [] }).entrants : []
+  const savedOrder = stage.config?.seedOrder
+  const [seedOrder, setSeedOrder] = useState(() => (
+    Array.isArray(savedOrder) && savedOrder.length === autoEntrants.length && autoEntrants.every((e) => savedOrder.includes(e.id))
+      ? savedOrder : autoEntrants.map((e) => e.id)
+  ))
+  const moveSeed = (i, dir) => setSeedOrder((arr) => {
+    const j = i + dir
+    if (j < 0 || j >= arr.length) return arr
+    const next = [...arr]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    return next
+  })
+  const seedOrderChanged = fromGroups && seedOrder.join() !== (Array.isArray(savedOrder) && savedOrder.length === autoEntrants.length ? savedOrder : autoEntrants.map((e) => e.id)).join()
+
   const changed = draft.seeding !== (stage.config?.seeding || 'seed') || draft.thirdPlace !== Boolean(stage.config?.thirdPlace)
     || JSON.stringify(draft.matchRule) !== JSON.stringify(stage.matchRule) || JSON.stringify(draft.final) !== JSON.stringify(stage.ruleOverrides?.final || null)
+    || seedOrderChanged
   const restage = async () => {
     setBusy(true)
     await a.tourRestage(stage.id, {
       patch: {
-        config: { seeding: draft.seeding, thirdPlace: draft.thirdPlace },
+        config: { seeding: draft.seeding, thirdPlace: draft.thirdPlace, ...(fromGroups ? { seedOrder } : {}) },
         matchRule: draft.matchRule,
         ruleOverrides: draft.final ? { ...stage.ruleOverrides, final: draft.final, third: draft.final } : stage.ruleOverrides,
       },
@@ -317,6 +339,30 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
         )}
         {editable && !fromGroups && !drawn && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.format.needDraw')}</span>}
       </div>
+      {editable && fromGroups && autoEntrants.length > 0 && (
+        <div style={{ display: 'grid', gap: 6 }}>
+          {label(t('tournament.bracket.seedOrder'))}
+          <div style={{ display: 'grid', gap: 4 }}>
+            {seedOrder.map((id, i) => (
+              <span key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: 7, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+                <Mono size={10} weight={700} color="var(--text-muted)" style={{ minWidth: 16 }}>{i + 1}</Mono>
+                <span style={{ flex: 1, minWidth: 0, font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {teamName(tour, db, id)}
+                </span>
+                <button type="button" disabled={i === 0} aria-label={t('tournament.bracket.seedUp')} onClick={() => moveSeed(i, -1)}
+                  style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 20, height: 20, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.4 : 1 }}>
+                  <Icon name="chevron-up" size={11} />
+                </button>
+                <button type="button" disabled={i === seedOrder.length - 1} aria-label={t('tournament.bracket.seedDown')} onClick={() => moveSeed(i, 1)}
+                  style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 20, height: 20, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: i === seedOrder.length - 1 ? 'default' : 'pointer', opacity: i === seedOrder.length - 1 ? 0.4 : 1 }}>
+                  <Icon name="chevron-down" size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.bracket.seedOrderHint')}</span>
+        </div>
+      )}
       {editable ? (
         <>
           <div style={{ display: 'grid', gap: 6 }}>

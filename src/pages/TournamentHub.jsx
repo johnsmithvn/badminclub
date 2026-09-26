@@ -13,7 +13,6 @@ import { queueOf } from '#lib/tournament/bracketView.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import TourHero from '#components/tournament/TourHero.jsx'
-import LiveCourtsStrip from '#components/tournament/LiveCourtsStrip.jsx'
 import EventBar from '#components/tournament/EventBar.jsx'
 import TourStepper from '#components/tournament/TourStepper.jsx'
 import OverviewTab from '#components/tournament/OverviewTab.jsx'
@@ -147,12 +146,7 @@ export default function TournamentHub() {
         onStatus={a.tourSetStatus}
       />
 
-      {/* 3. Dải sân — chỉ khi giải đã có lịch (giải nháp không có gì để xem trên sân) */}
-      {tour.matches.length > 0 && (
-        <LiveCourtsStrip tour={tour} db={db} isMobile={isMobile} onScore={canEdit ? (m) => setScoringId(m.id) : undefined} />
-      )}
-
-      {/* 4. Hàng Thẻ Nội Dung (Event Bar) */}
+      {/* 3. Hàng Thẻ Nội Dung (Event Bar) */}
       <EventBar
         tour={tour}
         value={selected}

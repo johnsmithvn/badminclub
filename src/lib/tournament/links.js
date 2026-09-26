@@ -78,3 +78,24 @@ export function entrantsFromLinks({ link, groups, groupTeams }) {
 
   return entrants.length >= 2 ? { entrants, error: null } : { entrants: [], error: 'tournament.err.rankNotAssigned' }
 }
+
+/**
+ * BTC tự xếp lại thứ tự hạt giống (ai được ưu tiên/miễn trước) thay vì để tự động theo `entrantsFromLinks`
+ * (README §5.7 mặc định: hạng 1 mọi bảng an toàn nhất). `order` là mảng id đội theo thứ tự mới muốn — đầu
+ * mảng = seed 1 (an toàn nhất, dễ được miễn nếu số đội không tròn luỹ thừa 2).
+ *
+ * KHÔNG dùng chung cơ chế `tourRestage({ order })`/bốc thăm (`seeding:'slot'`) — cơ chế đó ghi `drawNo` lên
+ * TOÀN GIẢI và chỉ đúng cho nhánh xuất phát (seq 1); nhánh lấy đội theo hạng vòng bảng (seq > 1, `seeding:
+ * 'rank'`) phải giữ nguyên đọc từ `final_rank`, chỉ đổi THỨ TỰ ưu tiên giữa các đội đã đủ điều kiện.
+ *
+ * Sai lệch so với `entrants` hiện có (thiếu/thừa id — VD BTC đổi lại thứ hạng vòng bảng sau khi đã xếp) thì
+ * bỏ qua, dùng lại thứ tự tự động cho an toàn thay vì sinh nhánh sai.
+ * @param {Array<{id:string, seed:number}>} entrants  từ `entrantsFromLinks`, seed đã tăng dần
+ * @param {string[]|null|undefined} order  `stage.config.seedOrder` — id đội theo thứ tự BTC muốn
+ */
+export function applySeedOrder(entrants, order) {
+  if (!Array.isArray(order) || order.length !== entrants.length) return entrants
+  const ids = new Set(entrants.map((e) => e.id))
+  if (new Set(order).size !== order.length || !order.every((id) => ids.has(id))) return entrants
+  return order.map((id, i) => ({ id, seed: i + 1 }))
+}

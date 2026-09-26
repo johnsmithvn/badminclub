@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { entrantsFromLinks } from '#lib/tournament/links.js'
+import { applySeedOrder, entrantsFromLinks } from '#lib/tournament/links.js'
 import { buildKnockout } from '#lib/tournament/bracket.js'
 
 test('entrantsFromLinks: 2 bảng lấy Nhất Nhì -> chéo nhánh A1-B2 và B1-A2', () => {
@@ -144,6 +144,20 @@ test('entrantsFromLinks: nhánh phụ lấy hạng 3–4, bảng 3 đội không
   // Bảng đủ 4 đội mà hạng 4 chưa chốt → vẫn là lỗi.
   const unclosed = groupTeams.map((gt) => (gt.teamId === 'A4' ? { ...gt, finalRank: null } : gt))
   assert.equal(entrantsFromLinks({ link, groups, groupTeams: unclosed }).error, 'tournament.err.rankNotAssigned')
+})
+
+test('applySeedOrder: BTC tự xếp lại ai an toàn hơn; sai lệch tập đội thì bỏ qua dùng lại tự động', () => {
+  const auto = [{ id: 'A1', seed: 1 }, { id: 'B1', seed: 2 }, { id: 'A2', seed: 3 }, { id: 'B2', seed: 4 }]
+
+  assert.deepEqual(applySeedOrder(auto, ['B1', 'A1', 'B2', 'A2']), [
+    { id: 'B1', seed: 1 }, { id: 'A1', seed: 2 }, { id: 'B2', seed: 3 }, { id: 'A2', seed: 4 },
+  ], 'B1 lên đầu = an toàn nhất')
+
+  assert.deepEqual(applySeedOrder(auto, undefined), auto, 'không truyền order → giữ tự động')
+  assert.deepEqual(applySeedOrder(auto, null), auto)
+  assert.deepEqual(applySeedOrder(auto, ['A1', 'B1', 'A2']), auto, 'thiếu 1 đội (VD đổi lại hạng vòng bảng) → bỏ qua, không sinh nhánh sai')
+  assert.deepEqual(applySeedOrder(auto, ['A1', 'B1', 'A2', 'C9']), auto, 'id lạ không nằm trong entrants → bỏ qua')
+  assert.deepEqual(applySeedOrder(auto, ['A1', 'A1', 'A2', 'B2']), auto, 'trùng id → bỏ qua')
 })
 
 test('entrantsFromLinks: 2/3/4 bảng lấy nhất nhì → đội cùng bảng không gặp nhau vòng đầu, ở 2 nửa nhánh', () => {

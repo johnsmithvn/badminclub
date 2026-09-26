@@ -12,7 +12,7 @@ import { RULE_PRESETS, buildTemplateStages, drawNumbers, entrantsOf } from '#lib
 import { buildKnockout } from '#lib/tournament/bracket.js'
 import { buildRoundRobin } from '#lib/tournament/roundRobin.js'
 import { graphIssue, graphOf, groupsForStage, manualGroupsOk, nextSeq, stagesFromGraph } from '#lib/tournament/canvas.js'
-import { entrantsFromLinks } from '#lib/tournament/links.js'
+import { applySeedOrder, entrantsFromLinks } from '#lib/tournament/links.js'
 import { applyCommit, applyEdit, applyUndo } from '#lib/tournament/advance.js'
 import { stageEditable } from '#lib/tournament/bracketView.js'
 import { eventDone, tourDone } from '#lib/tournament/flow.js'
@@ -644,7 +644,8 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       const groupTeams = cur.groupTeams || []
       const res = entrantsFromLinks({ link, groups, groupTeams })
       if (res.error) return toast(t(res.error))
-      entrants = res.entrants
+      // BTC tự xếp ai được ưu tiên/miễn trước (thay tự động theo hạng) — chỉ áp khi còn khớp đúng tập đội.
+      entrants = applySeedOrder(res.entrants, stage.config?.seedOrder)
     } else {
       const { error, entrants: ent } = entrantsOf(eventTeams(cur, eventId), stage.config?.seeding)
       if (error) return toast(t(error))

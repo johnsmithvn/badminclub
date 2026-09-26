@@ -102,12 +102,16 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
   // Cỡ khối theo nội dung thật (đội trong bảng / nhánh thu nhỏ) — dùng cho xếp chỗ, dây nối, vùng thả.
   const sourceTeams = source ? est.stages[source.id]?.teams ?? full.length : full.length
   const previewOf = (s) => koPreviewOf(s, source, links.find((l) => l.toStageId === s.id), sourceTeams)
+  // Bề rộng 1 cột bảng theo tên đội DÀI NHẤT đang có (không phải số cố định) — tên dài (VD "A / B") không bị cắt "...".
+  const nameColW = full.length
+    ? Math.min(280, Math.max(150, 50 + Math.max(...full.map((x) => teamName(tour, db, x.id).length)) * 6))
+    : 150
   const sizeOf = (s) => {
     if (s.type === 'round_robin') {
       const groups = shownGroups(s, full)
       const cols = groups.length
       const rows = Math.max(3, ...groups.map((g) => g.length)) + 1
-      return { w: Math.max(280, 24 + cols * 150 + (cols - 1) * 8), h: 58 + 26 + rows * 30 + 36 }
+      return { w: Math.max(280, 24 + cols * nameColW + (cols - 1) * 8), h: 58 + 26 + rows * 30 + 36 }
     }
     const pv = previewOf(s) || []
     const rounds = pv.filter((r) => r.roundKind !== 'third')
@@ -618,7 +622,9 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
   const sub = rr
     ? `${t('tournament.format.groupCount', { n: s.config?.numGroups || 1 })} × ${Math.max(0, ...groups.map((g) => g.length))} · ${t('tournament.bracket.slotsN', { n: teams })}`
     : [isSource ? t('tournament.bracket.slotsN', { n: teams }) : t('tournament.canvas.fromPrev', { n: teams }),
-      s.config?.thirdPlace ? t('tournament.canvas.third') : null,
+      // < 4 đội thì không có bán kết để lấy 2 đội thua tranh 3-4 (khớp bracket.js: buildKnockout chỉ sinh
+      // trận 3-4 khi n >= 4) — nhãn "có tranh 3" mà vẫn hiện dù không sinh được trận là nói dối trên khối.
+      s.config?.thirdPlace && teams >= 4 ? t('tournament.canvas.third') : null,
       byes ? t('tournament.canvas.byes', { n: byes }) : null].filter(Boolean).join(' · ')
   return (
     <div onPointerDown={(e) => e.stopPropagation()} style={{
