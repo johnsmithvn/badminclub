@@ -136,3 +136,16 @@ test('trang nhánh: tên đội vòng đầu kéo được khi còn đổi chỗ
   assert.match(text(BracketSetup, { ...props, editable: true }), /Kéo tên đội ở vòng đầu/)
   assert.doesNotMatch(text(BracketSetup, { ...props, editable: false }), /Xong · tạo lại nhánh/)
 })
+
+test('nhập tỷ số tay (D11): 22–20 ở luật chạm 30 GHI ĐƯỢC — chỉ gợi ý lệch luật; set hoà mới chặn', async () => {
+  const { offRule, resultWinner, validateResult } = await import('#lib/tournament/scoring.js')
+  const R30 = { sets: 1, points: 30, winBy2: false, cap: 30 }
+  assert.equal(resultWinner([[22, 20]], R30), 'A')
+  assert.equal(validateResult([[22, 20]], R30), null)
+  assert.equal(offRule([[22, 20]], R30), 1, 'hiện dòng "không khớp luật", không chặn')
+  assert.equal(offRule([[30, 20]], R30), 0)
+  assert.equal(validateResult([[20, 20]], R30), 'tournament.err.tiedSet')
+  const R3 = { sets: 3, points: 15, winBy2: false, cap: 15 }
+  assert.equal(validateResult([[15, 10]], R3), 'tournament.err.matchNotFinished', '3 set: mới thắng 1 set')
+  assert.equal(resultWinner([[11, 8], [6, 11], [11, 3]], R3), 'A', 'đánh tới 11 ở luật 15 vẫn ra người thắng')
+})

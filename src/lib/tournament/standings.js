@@ -9,7 +9,7 @@
  *   4. Vẫn hoà → `ties`, BTC quyết ở bước "Chốt giai đoạn". Không tự phân xử.
  */
 
-import { setWinner } from '#lib/tournament/scoring.js'
+import { freeSetWinner } from '#lib/tournament/scoring.js'
 
 const HAS_RESULT = new Set(['done', 'walkover', 'retired'])
 
@@ -37,10 +37,13 @@ function resolveMatchResult(match) {
   let setsB = 0
   let ptsA = 0
   let ptsB = 0
-  ;(Array.isArray(match.sets) ? match.sets : []).forEach(([a = 0, b = 0]) => {
+  const list = Array.isArray(match.sets) ? match.sets : []
+  list.forEach(([a = 0, b = 0], i) => {
     ptsA += a
     ptsB += b
-    const w = match.rule ? setWinner(a, b, match.rule) : a > b ? 'A' : b > a ? 'B' : null
+    // Bỏ cuộc: set CUỐI là set đang đánh dở lúc dừng → không tính cho ai (điểm vẫn cộng); bên thắng được bù dưới đây.
+    if (match.status === 'retired' && i === list.length - 1) return
+    const w = freeSetWinner(a, b) // D11: set thuộc bên cao điểm hơn — không xét luật điểm
     if (w === 'A') setsA++
     else if (w === 'B') setsB++
   })

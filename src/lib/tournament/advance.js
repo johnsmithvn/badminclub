@@ -7,7 +7,7 @@
  * Mọi hàm trả `{ matches, error }` — lỗi là key i18n, `matches` giữ nguyên khi có lỗi.
  */
 
-import { matchWinner, setWinner, validateSets } from '#lib/tournament/scoring.js'
+import { freeSetWinner, resultWinner, validateResult } from '#lib/tournament/scoring.js'
 
 const RESULT = ['done', 'walkover', 'retired']
 // Trận đích đang đánh hoặc đã có kết quả → gỡ đội ra là xoá trận người ta đang/đã đánh.
@@ -49,7 +49,8 @@ export function canUndo(matches, matchId) {
  */
 function resultError({ sets, winner, status, note }, rule) {
   if (status === 'done') {
-    return validateSets(sets, rule) || (matchWinner(sets, rule) !== winner ? 'tournament.err.winnerMismatch' : null)
+    // D11: điểm tự do — chỉ kiểm đủ số set thắng, không set hoà, không thừa set (cùng `tournament_valid_sets` 0061).
+    return validateResult(sets, rule) || (resultWinner(sets, rule) !== winner ? 'tournament.err.winnerMismatch' : null)
   }
   if (status === 'walkover') {
     if (blank(note)) return 'tournament.err.missingReason'
@@ -57,8 +58,9 @@ function resultError({ sets, winner, status, note }, rule) {
   }
   if (status === 'retired') {
     if (blank(note)) return 'tournament.err.missingReason'
+    // Bỏ cuộc giữa chừng: set dở dang (kể cả đang hoà) được — chỉ cần là số 0..99 và không quá số set.
     const readable = sets.length <= rule.sets &&
-      sets.every((s) => Array.isArray(s) && s.length === 2 && setWinner(s[0], s[1], rule) !== 'invalid')
+      sets.every((s) => Array.isArray(s) && s.length === 2 && freeSetWinner(s[0], s[1]) !== 'invalid')
     return readable ? null : 'tournament.err.invalidSetScore'
   }
   return 'tournament.err.invalidStatus'
@@ -108,9 +110,9 @@ export function applyEdit(matches, { matchId, sets, reason }) {
   if (!cur) return { matches, error: 'tournament.err.matchNotFound' }
   if (cur.status !== 'done') return { matches, error: 'tournament.err.cannotEditNotDone' }
   if (blank(reason)) return { matches, error: 'tournament.err.missingReason' }
-  const invalid = validateSets(sets, cur.rule)
+  const invalid = validateResult(sets, cur.rule)
   if (invalid) return { matches, error: invalid }
-  if (matchWinner(sets, cur.rule) !== cur.winner) return { matches, error: 'tournament.err.cannotChangeWinnerInEdit' }
+  if (resultWinner(sets, cur.rule) !== cur.winner) return { matches, error: 'tournament.err.cannotChangeWinnerInEdit' }
 
   const { next, m } = cloneWith(matches, matchId)
   m.sets = sets

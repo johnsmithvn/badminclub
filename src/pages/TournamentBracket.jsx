@@ -6,6 +6,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { can } from '#lib/roles.js'
 import { koRounds, progressOf, queueOf, stageEditable, swapOrder } from '#lib/tournament/bracketView.js'
+import { flowOf } from '#lib/tournament/flow.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
@@ -13,6 +14,7 @@ import BracketBoard, { GroupBoard } from '#components/tournament/BracketBoard.js
 import { RuleField, Seg } from '#components/tournament/TourBits.jsx'
 import { stageGroups } from '#lib/tournament/standings.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
+import { Pipeline } from '#pages/TournamentFlow.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
 import { draftKey, matchCode, ruleLabel, stageName, teamName } from '#components/tournament/tourUtils.js'
 
@@ -113,6 +115,7 @@ export default function TournamentBracket() {
   const scoring = byId(scoringId)
   const editing = byId(editingId)
   const undoing = byId(undoingId)
+  const flow = event ? flowOf(tour, event) : null
 
   return (
     <>
@@ -123,11 +126,13 @@ export default function TournamentBracket() {
         flexDirection: isMobile ? 'column' : 'row',
         alignItems: 'flex-start',
         gap: 16,
+        minHeight: 'calc(100vh - 120px)',
+        width: '100%',
       }}>
         {/* Thiết lập nhánh (handoff) — CHỈ ĐỌC: đổi thể thức / bốc thăm / đổi chỗ ở tab Thể thức trước khi có lịch */}
         {!isRR && !isMobile && <BracketSetup key={stage.id} tour={tour} db={db} stage={stage} own={own} a={a} canEdit={canEdit} editable={restageable} />}
 
-        {/* Khối chính hiển thị Header và Nhánh đấu */}
+        {/* Khối chính hiển thị Header, Sơ đồ tiến trình và Nhánh đấu */}
         <div style={{ flex: 1, minWidth: 0, width: '100%', display: 'grid', gap: 14 }}>
           {/* Header Nhánh đấu */}
           <section style={{
@@ -168,17 +173,45 @@ export default function TournamentBracket() {
             {next.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: '1 1 100%', paddingTop: 4 }}>
                 <span style={{ font: '600 11px/1 var(--font-sans)', color: 'var(--text-muted)' }}>{t('tournament.bracket.next')}</span>
-                {next.map((m) => (
-                  <span key={m.id} style={{ display: 'inline-flex', gap: 6, padding: '4px 9px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-                    <Mono size={11} weight={700} color="var(--text-primary)">{matchCode(m)}</Mono>
-                    <span style={{ font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }}>
-                      {teamName(tour, db, m.teamAId)} – {teamName(tour, db, m.teamBId)}
+                {next.map((m) => {
+                  const label = `${teamName(tour, db, m.teamAId)} – ${teamName(tour, db, m.teamBId)}`
+                  return (
+                    <span key={m.id} title={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 9px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', maxWidth: 280 }}>
+                      <Mono size={11} weight={700} color="var(--text-primary)" style={{ flex: '0 0 auto' }}>{matchCode(m)}</Mono>
+                      <span style={{ font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {label}
+                      </span>
                     </span>
-                  </span>
-                ))}
+                  )
+                })}
               </div>
             )}
           </section>
+
+          {/* Sơ đồ thể thức · Tiến trình toàn giải cho nội dung này */}
+          {flow && (
+            <section style={{
+              padding: '12px 16px', borderRadius: 12,
+              background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
+              display: 'grid', gap: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ font: '700 11.5px/1 var(--font-sans)', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  {t('tournament.module.flow')}
+                </span>
+                <Mono size={11} color="var(--teal-500)">
+                  {stageLabel(stage)}
+                </Mono>
+              </div>
+              <Pipeline
+                flow={flow}
+                tour={tour}
+                db={db}
+                isMobile={isMobile}
+                onOpen={(stageId) => setPickedStageId(stageId)}
+              />
+            </section>
+          )}
 
           {live.length > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -190,6 +223,7 @@ export default function TournamentBracket() {
           {isRR ? (
             <GroupBoard
               groups={groups} tour={tour} db={db} canEdit={canEdit} locked={stage.status === 'done'} isMobile={isMobile}
+              stage={stage}
               onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
               onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
             />

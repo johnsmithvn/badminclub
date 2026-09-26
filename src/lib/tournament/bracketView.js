@@ -90,5 +90,8 @@ export function swapOrder(matches, stageId, teamA, teamB) {
   return order
 }
 
-/** Nhánh còn sửa / sinh lại được: chưa trận nào có kết quả (trừ bye) và chưa trận nào đang đánh. */
-export const stageEditable = (matches, stageId) => !matches.some((m) => m.stageId === stageId && (hasResult(m) || m.status === 'live'))
+/**
+ * Nhánh còn sửa / sinh lại được: chưa trận nào có KẾT QUẢ (trừ bye). Trận "đang đánh" không khoá — mở bảng ghi điểm
+ * là trận thành đang đánh, không được vì thế mà mất quyền đổi luật khi chưa ghi điểm nào (DB cũng chỉ chặn khi có kết quả).
+ */
+export const stageEditable = (matches, stageId) => !matches.some((m) => m.stageId === stageId && hasResult(m))

@@ -43,9 +43,9 @@ test('đổi chỗ vòng đầu: sinh lại kiểu bốc thăm với thứ tự 
   assert.equal(swapOrder([], 's', 'x', 'y'), null)
 })
 
-test('nhánh còn sửa được: chưa có kết quả và chưa đang đánh (bye không tính)', () => {
+test('nhánh còn sửa được: chưa trận nào có kết quả (bye không tính; "đang đánh" do mở bảng ghi điểm KHÔNG khoá)', () => {
   assert.equal(stageEditable([{ stageId: 's', status: 'bye' }, { stageId: 's', status: 'ready' }], 's'), true)
-  assert.equal(stageEditable([{ stageId: 's', status: 'live' }], 's'), false)
+  assert.equal(stageEditable([{ stageId: 's', status: 'live' }], 's'), true)
   assert.equal(stageEditable([{ stageId: 's', status: 'done' }, { stageId: 'x', status: 'ready' }], 's'), false)
 })
 
