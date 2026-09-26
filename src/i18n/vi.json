@@ -5515,6 +5515,7 @@
       "clearGroups": "Đưa hết về khay",
       "clearGroupsSub": "Giữ số bảng, xoá đội",
       "perGroup": "Cặp mỗi bảng",
+      "perGroupOpt": "{{k}} cặp · {{g}} bảng",
       "balance": "Độ cân các bảng",
       "balanceHint": "Rating trung bình mỗi bảng. Lệch dưới {{n}} là cân.",
       "balanceSpread": "lệch {{n}}",

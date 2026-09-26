@@ -124,10 +124,12 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
   const choose = (stageId, linkId = null) => { setSelId(stageId); setSelLinkId(linkId) }
 
   // Toạ độ con trỏ trong canvas (đã tính cuộn + phóng to).
-  const pointIn = (e) => {
+  const pointIn = (clientX, clientY) => {
     const r = viewRef.current.getBoundingClientRect()
-    return { x: (e.clientX - r.left + viewRef.current.scrollLeft) / zoom, y: (e.clientY - r.top + viewRef.current.scrollTop) / zoom }
+    return { x: (clientX - r.left + viewRef.current.scrollLeft) / zoom, y: (clientY - r.top + viewRef.current.scrollTop) / zoom }
   }
+  const moveRef = useRef({ x: 0, y: 0 })
+  const rafRef = useRef(0)
   const blockAt = (p) => stages.find((s) => {
     const q = pos(s.id)
     const z = sizeOf(s)
@@ -144,7 +146,7 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
   const startMove = (s) => (e) => {
     if (e.button !== 0) return
     e.stopPropagation()
-    const p = pointIn(e)
+    const p = pointIn(e.clientX, e.clientY)
     const q = pos(s.id)
     e.currentTarget.setPointerCapture?.(e.pointerId)
     setDrag({ id: s.id, ox: p.x - q.x, oy: p.y - q.y, x: q.x, y: q.y, moved: false })
@@ -152,7 +154,7 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
   const startWire = (e) => {
     e.stopPropagation()
     e.currentTarget.setPointerCapture?.(e.pointerId)
-    setWire(pointIn(e))
+    setWire(pointIn(e.clientX, e.clientY))
   }
   // Kéo nền (chỗ không có khối) = di chuyển khung nhìn; bấm nền không kéo = bỏ chọn.
   const startPan = (e) => {
@@ -160,27 +162,47 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
     e.currentTarget.setPointerCapture?.(e.pointerId)
     setPan({ sx: e.clientX, sy: e.clientY, left: viewRef.current.scrollLeft, top: viewRef.current.scrollTop, moved: false })
   }
+  // Gộp mọi pointermove trong một khung hình lại làm một (chuột báo nhanh hơn 60Hz sẽ gây giật nếu
+  // setState theo từng sự kiện thô) — chỉ xử lý toạ độ MỚI NHẤT mỗi khung hình vẽ.
   const onMove = (e) => {
-    if (drag) {
-      const p = pointIn(e)
-      const x = Math.max(0, Math.round(p.x - drag.ox))
-      const y = Math.max(0, Math.round(p.y - drag.oy))
-      setDrag({ ...drag, x, y, moved: drag.moved || Math.abs(x - drag.x) + Math.abs(y - drag.y) > 3 })
-    } else if (wire) setWire(pointIn(e))
-    else if (pan) {
-      viewRef.current.scrollLeft = pan.left - (e.clientX - pan.sx)
-      viewRef.current.scrollTop = pan.top - (e.clientY - pan.sy)
-      if (!pan.moved && Math.abs(e.clientX - pan.sx) + Math.abs(e.clientY - pan.sy) > 3) setPan({ ...pan, moved: true })
-    }
+    moveRef.current = { x: e.clientX, y: e.clientY }
+    if (rafRef.current) return
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0
+      const { x: cx, y: cy } = moveRef.current
+      if (drag) {
+        const p = pointIn(cx, cy)
+        const x = Math.max(0, Math.round(p.x - drag.ox))
+        const y = Math.max(0, Math.round(p.y - drag.oy))
+        setDrag((d) => (d ? { ...d, x, y, moved: d.moved || Math.abs(x - d.x) + Math.abs(y - d.y) > 3 } : d))
+      } else if (wire) {
+        setWire((w) => (w ? pointIn(cx, cy) : w))
+      } else if (pan) {
+        setPan((p) => {
+          if (!p) return p
+          viewRef.current.scrollLeft = p.left - (cx - p.sx)
+          viewRef.current.scrollTop = p.top - (cy - p.sy)
+          return !p.moved && Math.abs(cx - p.sx) + Math.abs(cy - p.sy) > 3 ? { ...p, moved: true } : p
+        })
+      }
+    })
   }
+  useEffect(() => () => rafRef.current && cancelAnimationFrame(rafRef.current), [])
   const onUp = (e) => {
     if (drag) {
-      if (drag.moved) act(a.tourCanvasSave(drag.id, { canvasX: drag.x, canvasY: drag.y }))
-      else choose(selId === drag.id ? null : drag.id)
-      setDrag(null)
+      if (drag.moved) {
+        // Giữ khối ở đúng chỗ vừa thả cho tới khi lưu + nạp lại giải xong (run() là network round-trip) —
+        // gỡ drag ngay thì pos() rơi về toạ độ cũ trong base[], khối giật lùi rồi mới nhảy lại đúng chỗ.
+        const { id, x, y } = drag
+        Promise.resolve(act(a.tourCanvasSave(id, { canvasX: x, canvasY: y })))
+          .finally(() => setDrag((d) => (d?.id === id ? null : d)))
+      } else {
+        choose(selId === drag.id ? null : drag.id)
+        setDrag(null)
+      }
     }
     if (wire) {
-      const target = blockAt(pointIn(e))
+      const target = blockAt(pointIn(e.clientX, e.clientY))
       if (target && source && target.id !== source.id && target.type === 'knockout') {
         const cur = links.find((l) => l.toStageId === target.id)
         if (!cur) act(a.tourCanvasLink(source.id, target.id, nextFreeRanks(links, source.id)))
@@ -250,7 +272,7 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
             {est.courts > 0 && <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.statCourts', { n: est.courts })}</Mono>}
           </span>
         </span>
-        {!hasSchedule && <Button size="sm" variant="secondary" icon="wand-sparkles" onClick={() => setQuick(true)}>{t('tournament.canvas.quick')}</Button>}
+        {!hasSchedule && <Button size="sm" variant="accent" icon="wand-sparkles" onClick={() => setQuick(true)}>{t('tournament.canvas.quick')}</Button>}
         {hasSchedule ? (
           <Button size="sm" iconAfter="arrow-right" onClick={() => onOpenBracket(event.id)}>
             {t('tournament.module.bracket')} →
@@ -264,9 +286,9 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
 
       <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 300px', minHeight: 0, height: '100%', overflow: 'hidden' }}>
         {/* Trái: khối + cặp chưa xếp */}
-        <aside style={{ display: 'grid', alignContent: 'start', gap: 14, padding: 14, borderRight: '1px solid var(--border-subtle)' }}>
+        <aside style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 14, borderRight: '1px solid var(--border-subtle)', minHeight: 0 }}>
           {overline(t('tournament.canvas.palette'))}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: '0 0 auto' }}>
             {PALETTE.map((item) => {
               const ok = canAdd(item)
               return (
@@ -291,14 +313,24 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
           </div>
 
           {source?.type === 'round_robin' && (
+            // flex:1 + minHeight:0 để vùng thả chiếm hết khoảng trống còn lại của sidebar (kể cả khi
+            // danh sách rỗng) — trước đây div chỉ cao bằng nội dung, thả hụt ra ngoài là rơi mất tác dụng.
             <div onDragOver={(e) => e.preventDefault()} onDrop={dropTeam(-1)}
-              style={{ display: 'grid', gap: 6, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', flex: '1 1 auto', minHeight: 0 }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: '0 0 auto' }}>
                 {overline(t('tournament.canvas.tray'))}
                 {unplaced.length > 0 && <Mono size={11} weight={700} color="var(--status-delayed-fg)">{unplaced.length}</Mono>}
               </span>
-              <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t(unplaced.length ? 'tournament.canvas.trayHint' : 'tournament.canvas.trayEmpty')}</span>
-              {unplaced.map((x) => <TeamChip key={x.id} team={x} tour={tour} db={db} />)}
+              {unplaced.length > 0 && (
+                <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', flex: '0 0 auto' }}>{t('tournament.canvas.trayHint')}</span>
+              )}
+              <div style={{ flex: '1 1 auto', minHeight: 60, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {unplaced.length ? unplaced.map((x) => <TeamChip key={x.id} team={x} tour={tour} db={db} />) : (
+                  <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 12, borderRadius: 8, border: '1px dashed var(--border-default)', textAlign: 'center' }}>
+                    <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.trayEmpty')}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </aside>
@@ -460,7 +492,7 @@ function QuickDialog({ tour, event, n, a, act, onClose }) {
       footer={(
         <>
           <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
-          <Button loading={busy} onClick={build}>{t('tournament.canvas.quickBuild')}</Button>
+          <Button variant="accent" loading={busy} onClick={build}>{t('tournament.canvas.quickBuild')}</Button>
         </>
       )}>
       <div style={{ display: 'grid', gap: 14 }}>
@@ -478,7 +510,7 @@ function QuickDialog({ tour, event, n, a, act, onClose }) {
         {!club && grouped && (
           <div style={{ display: 'grid', gap: 6 }}>
             <span style={{ font: '600 12px/1.3 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.canvas.perGroup')}</span>
-            <Seg options={[3, 4, 5, 6].map((k) => ({ key: k, label: String(k) }))} value={per} onChange={setPer} />
+            <Seg options={[3, 4, 5, 6].map((k) => ({ key: k, label: t('tournament.canvas.perGroupOpt', { k, g: Math.max(2, Math.min(4, Math.ceil(n / Math.max(2, k)))) }) }))} value={per} onChange={setPer} />
           </div>
         )}
         {plan && (
@@ -725,7 +757,7 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
           onChange={(k) => saveConfig({ numGroups: Number(k), manualGroups: null })} />
       ))}
       {rr && full.length >= 4 && panelRow(t('tournament.canvas.perGroup'), (
-        <Seg options={[3, 4, 5, 6].map((k) => ({ key: k, label: String(k) }))} value={perNow}
+        <Seg options={[3, 4, 5, 6].map((k) => ({ key: k, label: t('tournament.canvas.perGroupOpt', { k, g: Math.max(1, Math.min(4, Math.ceil(full.length / k))) }) }))} value={perNow}
           onChange={(k) => saveConfig({ numGroups: Math.max(1, Math.min(4, Math.ceil(full.length / k))), manualGroups: null })} />
       ))}
       {rr && panelRow(t('tournament.format.legs'), (
