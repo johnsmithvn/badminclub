@@ -288,7 +288,7 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, stage, advancePerGrou
         <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
           <Seg options={rounds.map((r) => ({ key: r, label: t('tournament.bracket.groupRound', { n: r + 1 }) + (roundDone(r) ? ' ✓' : '') }))}
             value={round} onChange={setActiveRound} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 6 }}>
             {own.filter((m) => m.round === round).sort((x, y) => x.slot - y.slot).map((m) => (
               <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
             ))}
@@ -356,6 +356,9 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     const lost = hasResult(m) && m.winner && m.winner !== side
     const seed = src?.kind === 'seed' ? String(src.n) : src?.kind === 'draw' ? t('tournament.format.drawNo', { n: src.n }) : ''
     const label = teamId ? teamName(tour, db, teamId) : src?.kind === 'bye' ? t('tournament.bracket.bye') : t('tournament.bracket.tbd')
+    // Đôi 2 người: mỗi người 1 dòng riêng (không nhét chung 1 dòng rồi cắt "...") — mỗi dòng tự cắt riêng,
+    // tên dài vẫn thấy được gần hết thay vì cả cặp bị cắt cụt ngay từ tên đầu.
+    const names = label ? label.split(' / ') : [label]
     const isTarget = dragOverSide === side
     const canQuickWin = inline && teamId
     // Vòng đầu, nhánh chưa đấu trận nào: kéo tên đội thả vào đội khác để đổi chỗ (handoff) — trang cha quyết `onSwap`.
@@ -372,7 +375,7 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     } : {}
     return (
       <div data-k={slotKey(m.id, side)} {...dnd} style={{
-        display: 'flex', alignItems: 'center', gap: 8, minHeight: 32, padding: '0 8px 0 10px', borderRadius: 6,
+        display: 'flex', alignItems: 'center', gap: 8, minHeight: names.length > 1 ? 42 : 32, padding: names.length > 1 ? '4px 8px 4px 10px' : '0 8px 0 10px', borderRadius: 6,
         width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden',
         borderTop: side === 'B' ? '1px solid var(--border-subtle)' : 'none', cursor: dnd.draggable ? 'grab' : undefined,
         background: isTarget ? 'rgba(0, 178, 169, 0.16)' : won ? 'var(--surface-accent-soft)' : 'transparent',
@@ -384,13 +387,18 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
         <span
           title={canQuickWin ? t('tournament.bracket.quickWinHint') : label}
           onClick={canQuickWin ? (e) => { e.stopPropagation(); quickWin(side) } : undefined}
-          style={{
-            flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            font: `${won ? 700 : 500} 12.5px/1.2 var(--font-sans)`,
-            color: !teamId || lost ? 'var(--text-muted)' : 'var(--text-primary)',
-            cursor: canQuickWin ? 'pointer' : undefined,
-          }}
-        >{label}</span>
+          style={{ flex: 1, minWidth: 0, display: 'grid', gap: 1, cursor: canQuickWin ? 'pointer' : undefined }}
+        >
+          {names.map((n, i) => (
+            <span key={i} style={{
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              font: `${won ? 700 : 500} ${names.length > 1 ? 11.5 : 12.5}px/1.25 var(--font-sans)`,
+              color: !teamId || lost ? 'var(--text-muted)' : 'var(--text-primary)',
+            }}>
+              {n}
+            </span>
+          ))}
+        </span>
         {inline && (
           <input
             type="number" inputMode="numeric" min={0} aria-label={t('tournament.bracket.inlineHint')}
