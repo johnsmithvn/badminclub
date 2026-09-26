@@ -154,6 +154,7 @@ export default function Settings() {
 
   // Tránh xoá trắng draft khi db đổi reference (Item 2)
   const prevClubIdRef = useRef(db.club?.id)
+  const justSavedRef = useRef(false)
 
   const syncCleanDrafts = useCallback(() => {
     // Chỉ reset draft nếu tab đó KHÔNG dirty
@@ -238,6 +239,11 @@ export default function Settings() {
     if (db.club?.id !== prevClubIdRef.current) {
       prevClubIdRef.current = db.club?.id
       // Đổi hẳn CLB: reset toàn bộ draft
+      handleRevert()
+      return
+    }
+    if (justSavedRef.current) {
+      justSavedRef.current = false
       handleRevert()
       return
     }
@@ -343,23 +349,36 @@ export default function Settings() {
       }
 
       // 4. Lưu Groups
+      let finalGroups = groupsDraft
       if (dirtyGroups.length > 0 || isFeeChanged || isRefundChanged) {
-        const finalGroups = groupsDraft.map((g) => {
-          if (g.hasCustomPricing === true) return g
-          if (isFeeChanged || isRefundChanged) {
-            return {
-              ...g,
-              feeNam: newClubFeeNam,
-              feeNu: newClubFeeNu,
-              unitNam: newClubUnitNam,
-              unitNu: newClubUnitNu,
-            }
+        finalGroups = groupsDraft.map((g, idx) => {
+          const base = (!g.hasCustomPricing && (isFeeChanged || isRefundChanged))
+            ? {
+                ...g,
+                feeNam: newClubFeeNam,
+                feeNu: newClubFeeNu,
+                unitNam: newClubUnitNam,
+                unitNu: newClubUnitNu,
+              }
+            : g
+          return {
+            ...base,
+            name: (base.name || '').trim(),
+            short: (base.short || '').trim() || (base.name || '').slice(0, 3),
+            feeNam: intOf(base.feeNam),
+            feeNu: intOf(base.feeNu),
+            unitNam: base.unitNam === -1 || base.unitNam === '-1' ? -1 : intOf(base.unitNam),
+            unitNu: base.unitNu === -1 || base.unitNu === '-1' ? -1 : intOf(base.unitNu),
+            from: base.from || '18:00',
+            to: base.to || '20:00',
+            sortOrder: idx,
           }
-          return g
         })
         a.saveGroupsTab(finalGroups)
+        setGroupsDraft(finalGroups)
       }
 
+      justSavedRef.current = true
       setIsSaved(true)
       setTimeout(() => {
         setIsSaved(false)
