@@ -62,7 +62,8 @@ export default function TourModuleNav({ tour, active = 'hub', events = [], event
 
       <nav style={{
         display: 'flex', alignItems: 'stretch', height: isMobile ? 'auto' : 52, gap: 4,
-        overflowX: 'auto', flex: isMobile ? '1 1 100%' : '1 1 auto', minWidth: 0,
+        overflowX: 'auto', overflowY: 'hidden', flex: isMobile ? '1 1 100%' : '1 1 auto', minWidth: 0,
+        scrollbarWidth: 'none',
       }}>
         {steps.map((s, i) => {
           const on = s.key === active
@@ -109,12 +110,12 @@ export default function TourModuleNav({ tour, active = 'hub', events = [], event
           </span>
         )}
 
-        {active === 'bracket' && events.length > 1 && (
+        {(active === 'bracket' || active === 'flow') && events.length > 1 && (
           <Select
             size="sm"
             aria-label={t('tournament.bracket.pickEvent')}
             value={eventId}
-            onChange={(e) => onBracket(e.target.value)}
+            onChange={(e) => (active === 'bracket' ? onBracket(e.target.value) : onFlow?.(e.target.value))}
             options={events.map((ev) => ({ value: ev.id, label: t('tournament.kind.' + ev.kind) }))}
             containerStyle={{ minWidth: 130 }}
           />

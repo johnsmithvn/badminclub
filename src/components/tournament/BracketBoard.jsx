@@ -71,10 +71,10 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
     <div ref={rootRef} style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 6 }}>
       <div style={{ display: 'flex', gap: ARM * 2, minWidth: 'min-content', padding: isMobile ? '4px 2px' : '4px 6px' }}>
         {view.rounds.map((rd, ri) => (
-          <div key={rd.round} style={{ width: CARD_W, flex: '0 0 auto', display: 'grid', gap: 10, alignContent: 'start' }}>
+          <div key={rd.round} style={{ width: CARD_W, minWidth: CARD_W, maxWidth: CARD_W, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10, alignContent: 'start' }}>
             <RoundHead name={t('tournament.round.' + rd.kind)} sub={t('tournament.bracket.roundSub', { n: rd.matches.filter((m) => m.status !== 'bye').length })}
               rule={ruleLabel(rd.matches[0].rule)} />
-            <div style={{ display: 'flex', flexDirection: 'column', height }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height, width: '100%', minWidth: 0 }}>
               {rd.matches.map((m) => {
                 const last = ri === view.rounds.length - 1
                 const lit = hasResult(m) || m.status === 'bye'
@@ -85,7 +85,7 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
                   [top ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 6, transition: 'border-color .4s',
                 })
                 return (
-                  <div key={m.id} style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <div key={m.id} style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', width: '100%', minWidth: 0 }}>
                     {!last && <span aria-hidden style={arm(m.slot % 2 === 0)} />}
                     {ri > 0 && <span aria-hidden style={{ position: 'absolute', left: -ARM, width: ARM, top: '50%', borderTop: '2px solid var(--border-default)' }} />}
                     {card(m, { round: ri })}
@@ -96,7 +96,7 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
           </div>
         ))}
 
-        <div style={{ width: CARD_W, flex: '0 0 auto', display: 'grid', gap: 10, alignContent: 'start' }}>
+        <div style={{ width: CARD_W, minWidth: CARD_W, maxWidth: CARD_W, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10, alignContent: 'start' }}>
           <RoundHead name={t('tournament.bracket.champ')} sub={champion ? '' : t('tournament.bracket.champWait')} />
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, minHeight: height }}>
             <div data-k={CHAMP_KEY} style={{
@@ -219,6 +219,7 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     return (
       <div data-k={slotKey(m.id, side)} {...dnd} style={{
         display: 'flex', alignItems: 'center', gap: 8, minHeight: 32, padding: '0 8px 0 10px', borderRadius: 6,
+        width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden',
         borderTop: side === 'B' ? '1px solid var(--border-subtle)' : 'none', cursor: dnd.draggable ? 'grab' : undefined,
         background: isTarget ? 'rgba(0, 178, 169, 0.16)' : won ? 'var(--surface-accent-soft)' : 'transparent',
         outline: isTarget ? '2px dashed var(--teal-500)' : 'none',
@@ -226,7 +227,7 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
         transition: 'background .15s, outline .15s',
       }}>
         <span style={{ width: 22, font: '600 10.5px/1 var(--font-mono)', color: 'var(--text-muted)', flex: '0 0 auto' }}>{seed}</span>
-        <span style={{
+        <span title={label} style={{
           flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           font: `${won ? 700 : 500} 12.5px/1.2 var(--font-sans)`,
           color: !teamId || lost ? 'var(--text-muted)' : 'var(--text-primary)',
@@ -255,12 +256,13 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
 
   return (
     <div data-card={m.id} data-round={round} data-slot={m.slot} style={{
-      width: '100%', display: 'grid', padding: '6px 4px 4px', borderRadius: 10,
+      width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden',
+      display: 'grid', padding: '6px 4px 4px', borderRadius: 10,
       background: m.status === 'bye' ? 'transparent' : 'var(--surface-card)',
       border: `1px ${m.status === 'bye' ? 'dashed' : 'solid'} ${m.status === 'live' ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
       boxShadow: m.status === 'bye' ? 'none' : 'var(--shadow-xs)', opacity: m.status === 'bye' ? 0.7 : 1,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 24, padding: '0 6px 4px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 24, padding: '0 6px 4px', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
         <Mono size={11} weight={700} color="var(--text-secondary)">{matchCode(m)}</Mono>
         {m.status === 'live' && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, font: '700 10px/1 var(--font-sans)', color: 'var(--status-transit-fg)' }}>

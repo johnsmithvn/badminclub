@@ -51,6 +51,7 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
   const est = estimateOf(tour, event)
   const checks = canvasChecks(tour, event)
   const blocked = checks.some((c) => c.tone === 'bad') || !stages.length
+  const hasSchedule = stages.some((s) => s.status !== 'pending')
 
   const [selId, setSelId] = useState(null)
   const [selLinkId, setSelLinkId] = useState(null)
@@ -245,8 +246,16 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
             {est.courts > 0 && <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.statCourts', { n: est.courts })}</Mono>}
           </span>
         </span>
-        <Button size="sm" variant="secondary" icon="wand-sparkles" onClick={() => setQuick(true)}>{t('tournament.canvas.quick')}</Button>
-        <Button size="sm" iconAfter="arrow-right" disabled={blocked || busy} loading={busy} onClick={publish}>{t('tournament.canvas.publish')}</Button>
+        {!hasSchedule && <Button size="sm" variant="secondary" icon="wand-sparkles" onClick={() => setQuick(true)}>{t('tournament.canvas.quick')}</Button>}
+        {hasSchedule ? (
+          <Button size="sm" iconAfter="arrow-right" onClick={() => onOpenBracket(event.id)}>
+            {t('tournament.module.bracket')} →
+          </Button>
+        ) : (
+          <Button size="sm" iconAfter="arrow-right" disabled={blocked || busy} loading={busy} onClick={publish}>
+            {t('tournament.canvas.publish')}
+          </Button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 300px', minHeight: 600 }}>

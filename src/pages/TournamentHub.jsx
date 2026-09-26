@@ -130,7 +130,7 @@ export default function TournamentHub() {
         events={scheduled}
         eventId={scheduled.some((e) => e.id === selected) ? selected : undefined}
         onHub={() => setTab('overview')}
-        onFlow={() => navigate(pathOf('tournamentFlow', id))}
+        onFlow={() => navigate(pathOf('tournamentFlow', id) + (selected ? '?event=' + selected : ''))}
         onBracket={openBracket}
         onScore={canEdit && scheduled.some((e) => e.id === selected) ? quickScore : undefined}
       />
@@ -145,7 +145,7 @@ export default function TournamentHub() {
         onEdit={() => setEditing(true)}
         onDelete={() => setDeleting(true)}
         onStatus={a.tourSetStatus}
-        onFlow={() => navigate(pathOf('tournamentFlow', id))}
+        onFlow={() => navigate(pathOf('tournamentFlow', id) + (selected ? '?event=' + selected : ''))}
         onScore={canEdit && scheduled.some((e) => e.id === selected) ? quickScore : undefined}
       />
 

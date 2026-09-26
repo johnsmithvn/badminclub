@@ -37,7 +37,7 @@ export const KindCode = ({ kind, on }) => (
 /** Hàng nút chọn một (handoff: các hàng tuỳ chọn ở Thể thức, "Cách ghép" ở Ghép cặp). */
 export function Seg({ options, value, onChange, disabled, size = 30 }) {
   return (
-    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4, padding: 3, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4, padding: 3, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', maxWidth: '100%', boxSizing: 'border-box' }}>
       {options.map((o) => {
         const on = o.key === value
         return (
@@ -78,7 +78,7 @@ export function RuleField({ value, onChange, disabled }) {
   const draft = { sets: d.sets, points: Number(d.points), winBy2: d.winBy2, cap: d.winBy2 ? Number(d.cap) : Number(d.points) }
   const ok = validRule(draft)
   return (
-    <span style={{ display: 'grid', gap: 8 }}>
+    <span style={{ display: 'grid', gap: 8, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
       <Seg options={opts} value={open ? 'custom' : preset} disabled={disabled}
         onChange={(k) => (k === 'custom' ? setOpen(true) : (setOpen(false), onChange({ ...RULE_PRESETS[k] })))} />
       {open && (
