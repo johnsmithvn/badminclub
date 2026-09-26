@@ -98,7 +98,7 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
         ))}
 
         <div style={{ width: CARD_W, minWidth: CARD_W, maxWidth: CARD_W, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10, alignContent: 'start' }}>
-          <RoundHead name={t('tournament.bracket.champ')} sub={champion ? '' : t('tournament.bracket.champWait')} />
+          <RoundHead name={t('tournament.bracket.champ')} sub={champion ? '' : t('tournament.bracket.champWait')} gold />
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, minHeight: height }}>
             <div data-k={CHAMP_KEY} style={{
               display: 'grid', gap: 8, padding: '24px 16px', borderRadius: 12, textAlign: 'center',
@@ -259,13 +259,25 @@ export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScor
   )
 }
 
-function RoundHead({ name, sub, rule }) {
+function RoundHead({ name, sub, rule, gold }) {
   return (
-    <div style={{ display: 'grid', gap: 4, paddingBottom: 2 }}>
-      <span style={{ font: '700 13px/1 var(--font-sans)', color: 'var(--text-primary)' }}>{name}</span>
-      <span style={{ display: 'flex', gap: 8, font: '400 11px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-        {sub && <span>{sub}</span>}
-        {rule && <span>{rule}</span>}
+    <div style={{ display: 'grid', gap: 6, paddingBottom: 8, borderBottom: `1px solid ${gold ? 'var(--podium-gold)' : 'var(--border-subtle)'}` }}>
+      <span style={{
+        font: '700 13px/1 var(--font-display)', letterSpacing: '0.05em', textTransform: 'uppercase',
+        color: gold ? 'var(--podium-gold)' : 'var(--text-primary)',
+      }}>
+        {name}
+      </span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+        {sub && <Mono size={11} color="var(--text-muted)">{sub}</Mono>}
+        {rule && (
+          <span style={{
+            font: '600 10.5px/1 var(--font-mono)', color: 'var(--teal-300)', background: 'rgba(0, 178, 169, .12)',
+            border: '1px solid var(--teal-500)', padding: '2px 6px', borderRadius: 4,
+          }}>
+            {rule}
+          </span>
+        )}
       </span>
     </div>
   )

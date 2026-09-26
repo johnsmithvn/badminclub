@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Skeleton } from '#ds'
+import { Button, Icon, Skeleton } from '#ds'
 import { Empty, Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -12,7 +12,7 @@ import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
 import BracketBoard, { GroupBoard } from '#components/tournament/BracketBoard.jsx'
 import { RuleField, Seg } from '#components/tournament/TourBits.jsx'
-import { stageGroups } from '#lib/tournament/standings.js'
+import { groupStandings, stageGroups } from '#lib/tournament/standings.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
 import { Pipeline } from '#pages/TournamentFlow.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
@@ -106,6 +106,9 @@ export default function TournamentBracket() {
   const own = tour.matches.filter((m) => m.stageId === stage.id)
   const view = isRR ? null : koRounds(tour.matches, stage.id)
   const groups = isRR ? stageGroups(tour, stage.id) : []
+  // Vòng bảng đấu xong hết trận nhưng chưa "Chốt giai đoạn" (hành động đó + "Tạo nhánh" chỉ có ở Hub → Tổng quan,
+  // trang này chưa có) — nhắc rõ để BTC không loay hoay không biết sang vòng loại kiểu gì.
+  const groupsDone = isRR && stage.status === 'running' && groups.length > 0 && groups.every((g) => groupStandings(g, tour.matches).isFinished)
   const prog = progressOf(own)
   const teamsN = isRR
     ? groups.reduce((n, g) => n + g.teams.length, 0)
@@ -218,6 +221,20 @@ export default function TournamentBracket() {
               <Seg options={live.map((s) => ({ key: s.id, label: stageLabel(s) }))} value={stage.id} onChange={setPickedStageId} />
               {stage.status === 'done' && <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closed')}</Mono>}
             </div>
+          )}
+
+          {groupsDone && (
+            <section style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+              padding: '12px 16px', borderRadius: 12,
+              background: 'var(--status-delivered-bg)', border: '1px solid var(--status-delivered-fg)',
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: '500 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
+                <Icon name="circle-check" size={16} style={{ color: 'var(--status-delivered-fg)', flex: '0 0 auto' }} />
+                {t('tournament.bracket.groupsDone')}
+              </span>
+              <Button size="sm" iconAfter="arrow-right" onClick={toHub}>{t('tournament.bracket.openHub')}</Button>
+            </section>
           )}
 
           {isRR ? (
