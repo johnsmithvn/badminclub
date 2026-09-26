@@ -11,13 +11,14 @@ const EASE = 'cubic-bezier(.2,.8,.2,1)' // DESIGN.md §6
 const CARD_W = 232
 const ARM = 20 // nửa khoảng giữa hai cột — dài một nhánh đường nối
 const SLOT_H = 108 // chiều cao một ô trận ở vòng đầu (thẻ ~92 + khe)
+const SWAP_MIME = 'text/x-tour-swap'
 
 /**
  * Nhánh loại trực tiếp (handoff "Nhánh đấu trực tiếp"): cột theo vòng · đường nối · cột Vô địch + trận 3-4.
  * Hiệu ứng (plan §6.2): đội thắng bay lên ô vòng sau, vô địch loé vàng, thẻ hiện dần lần đầu mở.
  * Hàm thuần `flightsOf` quyết định bay từ đâu tới đâu; ở đây chỉ chạy Web Animations.
  */
-export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScore, onUndo, onEdit, onQuick }) {
+export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScore, onUndo, onEdit, onQuick, onSwap }) {
   const rootRef = useRef(null)
   const prevRef = useRef(null)
   const matches = tour.matches
@@ -59,8 +60,11 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
 
   const champion = view.final && hasResult(view.final)
     ? (view.final.winner === 'A' ? view.final.teamAId : view.final.teamBId) : null
+  const thirdWinner = view.third && hasResult(view.third)
+    ? (view.third.winner === 'A' ? view.third.teamAId : view.third.teamBId) : null
   const card = (m, extra) => (
-    <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={canEdit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} {...extra} />
+    <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={canEdit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick}
+      onSwap={extra.round === 0 ? onSwap : null} {...extra} />
   )
 
   return (
@@ -111,6 +115,11 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
                 {!champion && (
                   <div style={{ font: '400 11.5px/1.4 var(--font-sans)', color: 'var(--text-muted)', marginTop: 4 }}>
                     {t('tournament.bracket.champSubtitle')}
+                  </div>
+                )}
+                {thirdWinner && (
+                  <div style={{ font: '500 12px/1.4 var(--font-sans)', color: 'var(--text-secondary)', marginTop: 6 }}>
+                    {t('tournament.bracket.champThird', { name: teamName(tour, db, thirdWinner) })}
                   </div>
                 )}
               </div>
@@ -170,7 +179,7 @@ function RoundHead({ name, sub, rule }) {
 }
 
 /** Thẻ một trận: mã, trạng thái, nút GHI ĐIỂM / Hoàn tác / Sửa điểm; hai dòng đội (ô `data-k` cho hiệu ứng). */
-function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQuick }) {
+function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQuick, onSwap }) {
   const [quick, setQuick] = useState(['', ''])
   const open = m.status === 'ready' || m.status === 'live'
   const inline = canEdit && open && m.rule?.sets === 1
@@ -193,10 +202,20 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     const seed = src?.kind === 'seed' ? String(src.n) : src?.kind === 'draw' ? t('tournament.format.drawNo', { n: src.n }) : ''
     const label = teamId ? teamName(tour, db, teamId) : src?.kind === 'bye' ? t('tournament.bracket.bye') : t('tournament.bracket.tbd')
     // Không có "bấm tên đội = thắng" (plan §6): kết quả chỉ vào qua ô điểm / bảng điểm, có tỷ số thật.
+    // Vòng đầu, nhánh chưa đấu trận nào: kéo tên đội thả vào đội khác để đổi chỗ (handoff) — trang cha quyết `onSwap`.
+    const dnd = onSwap && teamId ? {
+      draggable: true,
+      onDragStart: (e) => e.dataTransfer.setData(SWAP_MIME, teamId),
+      onDragOver: (e) => e.preventDefault(),
+      onDrop: (e) => {
+        const from = e.dataTransfer.getData(SWAP_MIME)
+        if (from && from !== teamId) { e.preventDefault(); onSwap(from, teamId) }
+      },
+    } : {}
     return (
-      <div data-k={slotKey(m.id, side)} style={{
+      <div data-k={slotKey(m.id, side)} {...dnd} style={{
         display: 'flex', alignItems: 'center', gap: 8, minHeight: 32, padding: '0 8px 0 10px', borderRadius: 6,
-        borderTop: side === 'B' ? '1px solid var(--border-subtle)' : 'none',
+        borderTop: side === 'B' ? '1px solid var(--border-subtle)' : 'none', cursor: dnd.draggable ? 'grab' : undefined,
         background: won ? 'var(--surface-accent-soft)' : 'transparent', transition: 'background .15s',
       }}>
         <span style={{ width: 22, font: '600 10.5px/1 var(--font-mono)', color: 'var(--text-muted)', flex: '0 0 auto' }}>{seed}</span>

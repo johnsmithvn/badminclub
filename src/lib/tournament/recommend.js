@@ -73,12 +73,12 @@ export function sortByPriority(list, priority) {
   return [...list].sort(by[priority] || by.balanced)
 }
 
-const toMin = (hhmm) => {
+export const toMin = (hhmm) => {
   if (!hhmm) return null
   const [h, m] = String(hhmm).split(':').map(Number)
   return Number.isFinite(h) ? h * 60 + (m || 0) : null
 }
-const fmtClock = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+export const fmtClock = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 
 /**
  * Số đội của nội dung: đội đủ người; chưa ghép thì ước từ số người đã vào nội dung (`estimated: true`).
@@ -104,50 +104,93 @@ function rulesOf(tour, event) {
   return { dq: minutesOf(q), df: minutesOf(f) }
 }
 
+/** Khoá phương án (để BTC chọn tay một phương án khác): mẫu · số bảng · số đội đi tiếp. */
+export const optionKey = (o) => `${o.tpl}:${o.numGroups}:${o.advance}`
+
+/**
+ * Luật trận gợi ý theo số phút sân còn cho MỖI trận (README handoff §5.7):
+ *   vòng loại ≤ 10 → 1×15 · ≤ 18 → 1×21 cách 2 · ≤ 24 → 1×30 · hơn → 3×21;
+ *   chung kết (phút × finalFactor) ≤ 20 → 3×11 · ≤ 30 → 3×15 · hơn → 3×21.
+ */
+export function suggestRules(minutesPerMatch) {
+  const q = minutesPerMatch
+  const f = minutesPerMatch * REC.finalFactor
+  return {
+    qualify: q <= 10 ? 'r1x15' : q <= 18 ? 'r1x21' : q <= 24 ? 'r1x30' : 'r3x21',
+    final: f <= 20 ? 'r3x11' : f <= 30 ? 'r3x15' : 'r3x21',
+  }
+}
+
 /**
  * Gợi ý cho mọi nội dung của giải.
  * @param {object} tour  state `tour`
  * @param {'balanced'|'games'|'fast'} priority
- * @returns {{ events: Array<{ eventId, n, estimated, pick, options }>, totalMinutes, capacity, finish, fits }}
- *   `capacity`/`finish`/`fits` = null khi giải chưa khai báo giờ hoặc sân (không ước tính được, vẫn gợi ý).
- *   Vượt khung giờ → hạ dần nội dung tốn nhất xuống phương án rẻ hơn kế tiếp, tới khi vừa hoặc hết đường hạ.
+ * @param {{ [eventId]: string }} [picks]  phương án BTC chọn tay (`optionKey`) — giữ nguyên, không bị hạ khi vượt giờ
+ * @returns {{ events: Array<{ eventId, n, estimated, pick, options, autoKey, edited }>, totalMinutes, capacity, finish, fits, rules }}
+ *   `options[i].badges`: 'recommended' (phương án tự chọn) · 'fastest' · 'mostGames' · 'over' (chọn nó thì vượt giờ).
+ *   `capacity`/`finish`/`fits`/`rules` = null khi giải chưa khai báo giờ hoặc sân (không ước tính được, vẫn gợi ý).
+ *   Vượt khung giờ → hạ dần nội dung tốn nhất (không phải nội dung chọn tay) xuống phương án rẻ hơn kế tiếp.
  */
-export function recommend(tour, priority = 'balanced') {
-  const events = tour.events.map((ev) => {
-    const { n, estimated } = teamsOf(tour, ev)
-    const r = rulesOf(tour, ev)
-    const options = sortByPriority(candidatesFor(n).map((c) => costOf(c, n, r)), priority)
-    return { eventId: ev.id, n, estimated, options, idx: 0 }
-  })
-  const sum = () => events.reduce((s, e) => s + (e.options[e.idx]?.minutes || 0), 0)
-
+export function recommend(tour, priority = 'balanced', picks = {}) {
   const start = toMin(tour.startTime)
   const end = toMin(tour.endTime)
   const courts = tour.courtLabels?.length || 0
   const capacity = start != null && end != null && end > start && courts ? (end - start) * courts : null
 
-  if (capacity != null) {
-    // Nội dung tốn nhất còn phương án rẻ hơn → hạ xuống phương án rẻ hơn KẾ TIẾP trong thứ tự ưu tiên.
-    for (let guard = 0; guard < 100 && sum() > capacity; guard++) {
-      const movable = events
-        .map((e) => {
-          const cur = e.options[e.idx]
-          const next = cur && e.options.findIndex((o, i) => i > e.idx && o.minutes < cur.minutes)
-          return { e, cost: cur?.minutes || 0, next }
-        })
-        .filter((x) => x.next > 0)
-        .sort((a, b) => b.cost - a.cost)
-      if (!movable.length) break
-      movable[0].e.idx = movable[0].next
+  const build = (useP) => {
+    const events = tour.events.map((ev) => {
+      const { n, estimated } = teamsOf(tour, ev)
+      const r = rulesOf(tour, ev)
+      const options = sortByPriority(candidatesFor(n).map((c) => costOf(c, n, r)), priority)
+      const manual = useP && picks[ev.id] ? options.findIndex((o) => optionKey(o) === picks[ev.id]) : -1
+      return { eventId: ev.id, n, estimated, options, idx: manual >= 0 ? manual : 0, fixed: manual >= 0 }
+    })
+    const sum = () => events.reduce((s, e) => s + (e.options[e.idx]?.minutes || 0), 0)
+    if (capacity != null) {
+      for (let guard = 0; guard < 100 && sum() > capacity; guard++) {
+        const movable = events
+          .filter((e) => !e.fixed)
+          .map((e) => {
+            const cur = e.options[e.idx]
+            const next = cur && e.options.findIndex((o, i) => i > e.idx && o.minutes < cur.minutes)
+            return { e, cost: cur?.minutes || 0, next }
+          })
+          .filter((x) => x.next > 0)
+          .sort((a, b) => b.cost - a.cost)
+        if (!movable.length) break
+        movable[0].e.idx = movable[0].next
+      }
     }
+    return { events, total: sum() }
   }
 
-  const totalMinutes = sum()
+  const auto = build(false)
+  const { events, total } = build(true)
+  const matches = events.reduce((s, e) => s + (e.options[e.idx]?.matches || 0), 0)
+
   return {
-    events: events.map(({ idx, options, ...e }) => ({ ...e, pick: options[idx] || null, options })),
-    totalMinutes,
+    events: events.map((e, ei) => {
+      const autoKey = auto.events[ei].options[auto.events[ei].idx] ? optionKey(auto.events[ei].options[auto.events[ei].idx]) : null
+      const fastest = Math.min(...e.options.map((o) => o.minutes))
+      const most = Math.max(...e.options.map((o) => o.minG))
+      const others = total - (e.options[e.idx]?.minutes || 0)
+      const options = e.options.map((o) => ({
+        ...o,
+        key: optionKey(o),
+        badges: [
+          optionKey(o) === autoKey && 'recommended',
+          o.minutes === fastest && 'fastest',
+          o.minG === most && e.options.length > 1 && 'mostGames',
+          capacity != null && others + o.minutes > capacity && 'over',
+        ].filter(Boolean),
+      }))
+      const pick = options[e.idx] || null
+      return { eventId: e.eventId, n: e.n, estimated: e.estimated, options, pick, autoKey, edited: Boolean(pick && autoKey && pick.key !== autoKey) }
+    }),
+    totalMinutes: total,
     capacity,
-    finish: capacity != null ? fmtClock(start + Math.ceil(totalMinutes / courts)) : null,
-    fits: capacity != null ? totalMinutes <= capacity : null,
+    finish: capacity != null ? fmtClock(start + Math.ceil(total / courts)) : null,
+    fits: capacity != null ? total <= capacity : null,
+    rules: capacity != null && matches ? suggestRules(capacity / matches - REC.restMin) : null,
   }
 }

@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Alert, Button, Dialog, Input } from '#ds'
 import { fmtK, intOf } from '#lib/money.js'
 import { t } from '#i18n'
+import { Seg } from './TourBits.jsx'
 
-const blank = { name: '', startsOn: '', startTime: '', endTime: '', venue: '', courtLabels: [], feeMale: '', feeFemale: '' }
+const blank = { name: '', startsOn: '', startTime: '', endTime: '', venue: '', courtLabels: [], feeMale: '', feeFemale: '', scope: 'club_only' }
 
 /** Tạo / sửa thông tin chung của giải. `tour` rỗng = tạo mới. onSave(form) trả true khi xong. */
 export default function TourFormDialog({ tour, onClose, onSave }) {
@@ -25,6 +26,7 @@ export default function TourFormDialog({ tour, onClose, onSave }) {
       name: f.name.trim(), startsOn: f.startsOn, startTime: f.startTime || null, endTime: f.endTime || null,
       venue: f.venue.trim(), feeMale: intOf(f.feeMale), feeFemale: intOf(f.feeFemale),
       courtLabels: courts.split(',').map((s) => s.trim()).filter(Boolean),
+      scope: f.scope === 'open' ? 'open' : 'club_only',
     })
     if (!ok) setBusy(false)
   }
@@ -51,6 +53,12 @@ export default function TourFormDialog({ tour, onClose, onSave }) {
           <Input label={t('tournament.form.endTime')} type="time" mono value={f.endTime || ''} onChange={set('endTime')} />
         </div>
         <Input label={t('tournament.form.venue')} value={f.venue} onChange={set('venue')} />
+        {/* Mở rộng = thêm được người ngoài CLB ở tab Thí sinh (0059). */}
+        <div style={{ display: 'grid', gap: 6 }}>
+          <span style={{ font: '600 12px/1.3 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.form.scope')}</span>
+          <Seg options={['club_only', 'open'].map((k) => ({ key: k, label: t('tournament.scope.' + k) }))} value={f.scope || 'club_only'}
+            onChange={(k) => setF((x) => ({ ...x, scope: k }))} />
+        </div>
         <Input label={t('tournament.form.courts')} hint={t('tournament.form.courtsHint')} value={courts}
           onChange={(e) => setCourts(e.target.value)} />
         <div style={row}>

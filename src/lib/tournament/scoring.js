@@ -275,3 +275,16 @@ export function simulateMatchScore(rule, rand = Math.random) {
   const winner = winsA > winsB ? 'A' : 'B'
   return { sets, winner }
 }
+
+/**
+ * Luật trận dùng được: số sec 1 | 3 | 5, điểm chạm 1..99 (nguyên), trần ≥ điểm chạm và ≤ 99; không cách 2 thì trần = điểm.
+ * Khớp điều kiện `tournament_generate_stage` kiểm ở DB — luật tự chỉnh sai thì chặn ngay ở ô nhập.
+ */
+export function validRule(rule) {
+  if (!rule || ![1, 3, 5].includes(rule.sets)) return false
+  const { points, cap } = rule
+  if (!Number.isInteger(points) || points < 1 || points > 99) return false
+  if (!Number.isInteger(cap) || cap < points || cap > 99) return false
+  if (!rule.winBy2 && cap !== points) return false
+  return typeof rule.winBy2 === 'boolean'
+}

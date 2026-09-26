@@ -203,7 +203,7 @@ export default function Sidebar({ route }) {
       <div style={{ padding: '8px 10px 8px 6px', flex: 1, overflowY: 'auto' }}>
         <SidebarNav
           items={items}
-          value={route === 'session' ? 'sessions' : route === 'tournament' || route === 'tournamentBracket' ? 'tournaments' : route}
+          value={route === 'session' ? 'sessions' : route === 'tournament' || route === 'tournamentBracket' || route === 'tournamentFlow' ? 'tournaments' : route}
           onChange={(v) => {
             navigate(pathOf(v, v === 'session' ? db.sessionId : undefined))
           }}

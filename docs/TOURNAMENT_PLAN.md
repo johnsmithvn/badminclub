@@ -21,7 +21,10 @@ Nhãn theo RULES §1: **[V]** đã kiểm trong code · **[A]** giả định ·
 |---|---|---|
 | D1 | Trận giải **không** tính Elo, **không** tính điểm mùa | Không ghi `matches`, không đụng `rating.js`/`season.js`/backtest. Không cần `matches.session_id DROP NOT NULL`. |
 | D2 | Tiền **tượng trưng**: cờ đã đóng phí + dự trù chi + giải thưởng, **chỉ để xem** | Không ghi `transactions`, không sửa `ledger()`. Nối sổ quỹ = phase sau, design lại. |
-| D3 | **Hoãn khách ngoài CLB** (mùa 1: "tất cả thành viên") | Không đụng bảng `guests`. Cột `player_type` vẫn giữ để sau thêm khách không phải migration lại. |
+| D3 | ~~Hoãn khách ngoài CLB~~ → **Phase 6: bảng riêng `tournament_guests`** (0059), chỉ khi giải "Mở rộng" | Không đụng bảng `guests`. Trong `tournament_registrations`, `player_type='guest'` ⇒ `player_id` → `tournament_guests.id` (enum giữ nguyên, trigger kiểm cùng CLB). |
+| D8 | Canvas kéo thả **có làm** (Phase 6) — trong màn Sơ đồ, chỉ nội dung chưa có lịch, màn rộng | Luật sơ đồ chạy được: `canvas.js#graphIssue` (1 nguồn seq 1; nguồn vòng bảng → các nhánh loại, mỗi hạng một nhánh). Sửa trên canvas ⇒ mẫu `custom` |
+| D9 | Thông báo "sắp tới lượt": **chỉ chuông trong app**, không push | Trigger `tournament_notify_match` (0059): pending→ready, hoặc trận chưa đánh được xếp sân |
+| D10 | Làm gọn đăng ký: trạng thái giải **tự đi theo lịch**; "Tạo lịch" tự chốt đội hình; giải miễn phí ẩn phí; checklist chỉ việc chặn giải chạy | `syncStatus` trong `tournamentActions.js`; chỉ còn nút Huỷ giải |
 | D4 | Thể thức **tự do** theo mô hình giai đoạn (§2) | Schema đủ cho mọi thể thức ngay từ 0057; code làm dần theo phase. |
 | D5 | Ghi nhánh đấu qua **RPC nguyên tử**; dữ liệu giải **nạp riêng**, không qua `diff()` | §4.1 |
 | D6 | Supabase free → **poll** khi trang đang mở, không realtime | §4.4 |
@@ -458,7 +461,11 @@ cuộn ngang, bảng Thí sinh thành danh sách thẻ, chạm ≥ 48px. Thêm "
 | **3 — Nhánh đấu** ✅ | trang nhánh · bảng điểm · chốt/sửa/hoàn tác/walkover/đổi chỗ/xếp lịch · poll | Đánh hết 24 trận trên 2 máy cùng lúc không mất đội |
 | **4 — Vòng bảng** ✅ | `roundRobin`, `standings`, `links` · mẫu `rr`, `rr_ko`, `rr_ko_plate` · "Chốt giai đoạn" (BTC đảo đội hoà bằng ↑) · trang nhánh chuyển giai đoạn · migration `0058` | Test §3.1 đủ ca hoà 2/3 đội. **0058 chưa áp production** — áp rồi chạy `supabase/manual/0058_tournament_round_robin_check.sql` |
 | **5 — Gợi ý & ghép nâng cao** ✅ | `recommend.js` (cả giải, README §5.7; BTC chỉ chọn ưu tiên — số đội/sân/giờ/luật đọc từ giải) + `RecommendDialog` áp dụng 1 lần · ghép `seeded`/`chemistry` (dùng lại `calcPairImpact`) · `suggestSwap` + nút "Đổi ngay" | Với số liệu mùa 1 trả về `ko` là phương án vừa giờ (`recommend.test.js`) |
-| 6 — Sau | sơ đồ pipeline/canvas · khách ngoài · nối sổ quỹ (design lại) · thông báo "sắp tới lượt" | — |
+| 6a — Sơ đồ ✅ | `/giai-dau/:id/so-do` chỉ xem: mọi nội dung một màn, khối đội → giai đoạn → (hạng đi đâu) → người thắng; bấm khối mở đúng giai đoạn ở trang nhánh (`?stage=`) · thanh module 3 bước · `flow.js` + test | — |
+| **6 — Hoàn tất** ✅ | canvas kéo thả (`FlowCanvas`, `canvas.js`) · khách ngoài (`tournament_guests`) · chuông sắp tới lượt · làm gọn đăng ký (D10) · migration `0059` | `npm test` xanh. **0058, 0059 chưa áp production** — áp rồi chạy `supabase/manual/0058_…`, `0059_tournament_check.sql` |
+| Không làm | nối sổ quỹ — **giữ tượng trưng** (D2, chốt lại ở Phase 6) | — |
+| **6b — Canvas bám handoff** ✅ | Trình dựng toàn màn: thanh số liệu (khối · trận · giờ ước tính) + Tạo nhanh + Công bố & chạy nhánh · khay khối kéo vào · khay cặp chưa xếp (kéo cặp vào/ra bảng) · khối bảng hiện đội, khối loại hiện nhánh thu nhỏ (dựng bằng chính `buildKnockout`) · kéo chấm để nối · phóng to/thu nhỏ/căn khung · Kiểm tra sơ đồ đủ mọi cảnh báo · trang nhánh có thanh "Thiết lập nhánh" chỉ đọc | Thụy Sĩ và nút Quay/tự chạy vẫn không làm (không thuật toán / ghi kết quả bịa) |
+| **6c — Rà soát đủ handoff** ✅ | Thí sinh: lọc Tất cả/Khách, cột Nguồn, SĐT khách, báo khách khi giải nội bộ, nút sang Ghép cặp · thẻ nội dung: khách + x/y cặp đủ · Tổng quan: nhánh thu nhỏ · Ghép cặp: nhận xét từng cặp, So với TB · Thể thức: mẫu CLB (migration `0060`), Sửa trên sơ đồ tự do, luật tự chỉnh (`RuleField`), Mỗi đội đá ít nhất · Gợi ý: chọn phương án khác + nhãn + luật gợi ý · Canvas: kéo nền / cuộn phóng, chọn đường nối, Đưa hết về khay, Cặp mỗi bảng, Độ cân các bảng, lượt miễn, hộp Tạo nhanh, "vừa lưu" · Nhánh: thiết lập sửa được + "Xong · tạo lại nhánh", kéo đổi chỗ vòng đầu, câu kết trận, Hạng 3 | **0058, 0059, 0060 chưa áp production** |
 
 Mỗi phase là một lần duyệt riêng (>5 file). Không tự `npm run build`; user build và bấm thử theo checklist.
 

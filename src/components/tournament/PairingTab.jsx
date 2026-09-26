@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Alert, Button, Card, Icon, IconButton } from '#ds'
 import { Empty, GenderChip, Mono, Overline } from '#ui'
-import { playerName } from '#lib/money.js'
-import { eligibleNotEntered, entriesOpen } from '#lib/tournament/hub.js'
-import { PAIR_MODES, balanceOf, chemistryOf, eventPlayers, eventTeams, lineupIssue, suggestSwap } from '#lib/tournament/pairing.js'
+import { eligibleNotEntered, entriesOpen, regName } from '#lib/tournament/hub.js'
+import { PAIR_MODES, balanceOf, chemistryOf, eventPlayers, eventTeams, lineupIssue, suggestSwap, teamInsights, vsAverage } from '#lib/tournament/pairing.js'
+import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
 
@@ -27,7 +27,8 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
   const issue = lineupIssue(event, teams, players)
   // Gợi ý đổi người: chỉ khi còn sửa được đội hình (chưa chốt).
   const swap = editable && event.teamSize > 1 ? suggestSwap(teams, event.genderRule) : null
-  const name = (r) => playerName(db, r.playerId)
+  const avgDiff = vsAverage(teams)
+  const name = (r) => regName(tour, db, r)
   const evName = t('tournament.kind.' + event.kind)
 
   const place = (teamId) => {
@@ -121,8 +122,9 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
             <TeamCard key={team.id} no={i + 1} team={team} size={event.teamSize} name={name} editable={editable}
               picked={picked && players.find((p) => p.id === picked)} pickedName={picked ? name(players.find((p) => p.id === picked)) : ''}
               onPlace={() => place(team.id)} onRemove={(regId) => a.tourUnplace(event.id, regId)}
-              onPin={() => a.tourPin(team.id, !team.pinned)} dnd={dnd(team.id)}
-              chem={team.full && team.players.length === 2 ? chemistryOf(db.matches, team.players[0], team.players[1]) : null} />
+              onPin={() => a.tourPin(team.id, !team.pinned)} dnd={dnd(team.id)} genderRule={event.genderRule}
+              chem={team.full && team.players.length === 2 ? chemistryOf(db.matches, team.players[0], team.players[1]) : null}
+              insights={team.full ? teamInsights(team, { genderRule: event.genderRule, history: db.matches }) : []} />
           ))}
           {editable && pool.length > 0 && (
             <TeamCard no={teams.length + 1} team={{ players: [], sum: 0 }} size={event.teamSize} name={name} editable isNew
@@ -137,15 +139,30 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
               {bal.spread != null && <span style={{ font: '700 22px/1 var(--font-display)', color: TONE[bal.tone] }}>{t('tournament.pairing.spread', { n: Math.round(bal.spread) })}</span>}
               <span style={{ font: '600 12px/1 var(--font-sans)', color: TONE[bal.tone] }}>{t('tournament.pairing.tone.' + bal.tone)}</span>
             </div>
-            {teams.filter((x) => x.full).map((team, i) => (
-              <div key={team.id} style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto', alignItems: 'center', gap: 8 }}>
-                <Mono size={11} color="var(--text-muted)">{i + 1}</Mono>
-                <span style={{ height: 8, borderRadius: 99, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
-                  <span style={{ display: 'block', height: '100%', width: (team.sum / maxSum) * 100 + '%', borderRadius: 99, background: 'var(--teal-500)' }} />
-                </span>
-                <Mono size={11}>{Math.round(team.sum)}</Mono>
+            {teams.some((x) => x.full) && (
+              <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto 52px', gap: 8, font: '600 10.5px/1 var(--font-sans)', color: 'var(--text-muted)' }}>
+                <span />
+                <span />
+                <span />
+                <span style={{ textAlign: 'right' }}>{t('tournament.pairing.vsAvg')}</span>
               </div>
-            ))}
+            )}
+            {teams.filter((x) => x.full).map((team, i) => {
+              const d = avgDiff[team.id]
+              return (
+                <div key={team.id} style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto 52px', alignItems: 'center', gap: 8 }}>
+                  <Mono size={11} color="var(--text-muted)">{i + 1}</Mono>
+                  <span style={{ height: 8, borderRadius: 99, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
+                    <span style={{ display: 'block', height: '100%', width: (team.sum / maxSum) * 100 + '%', borderRadius: 99, background: d?.warn ? 'var(--status-delayed-fg)' : 'var(--teal-500)' }} />
+                  </span>
+                  <Mono size={11}>{Math.round(team.sum)}</Mono>
+                  <Mono size={11} weight={600} color={d?.warn ? 'var(--status-delayed-fg)' : 'var(--text-muted)'} style={{ textAlign: 'right' }}>
+                    {d ? (d.diff > 0 ? '+' + d.diff : d.diff) : ''}
+                  </Mono>
+                </div>
+              )
+            })}
+            {teams.some((x) => x.full) && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.pairing.avgHint', { n: cfg.tournament.pairing.avgWarn })}</div>}
             {bal.avg != null && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.pairing.avg', { n: bal.avg })}</div>}
             {swap && (
               <div style={{ display: 'grid', gap: 8, padding: 10, borderRadius: 8, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)' }}>
@@ -196,8 +213,19 @@ function PlayerChip({ name, reg, block, editable, on, onClick }) {
   )
 }
 
-function TeamCard({ no, team, size, name, editable, isNew, picked, pickedName, onPlace, onRemove, onPin, dnd, chem }) {
+const INS_COLOR = { bad: 'var(--status-incident-fg)', warn: 'var(--status-delayed-fg)', good: 'var(--status-delivered-fg)', info: 'var(--text-muted)' }
+
+function TeamCard({ no, team, size, name, editable, isNew, picked, pickedName, onPlace, onRemove, onPin, dnd, chem, insights = [], genderRule }) {
   const empty = Math.max(0, size - team.players.length)
+  // Ô trống nói rõ cần ai (handoff): nam nữ → thiếu nam hay thiếu nữ; còn lại → "Kéo người vào đây".
+  const need = (i) => {
+    if (genderRule !== 'mixed') return t('tournament.pairing.slotAny')
+    const hasMan = team.players.some((p) => p.gender === 'nam')
+    const hasWoman = team.players.some((p) => p.gender === 'nu')
+    if (hasMan && !hasWoman) return t('tournament.pairing.slotWoman')
+    if (hasWoman && !hasMan) return t('tournament.pairing.slotMan')
+    return t(i === 0 ? 'tournament.pairing.slotMan' : 'tournament.pairing.slotWoman')
+  }
   return (
     <div {...dnd} style={{
       display: 'grid', gap: 6, padding: 10, borderRadius: 10, alignContent: 'start',
@@ -223,6 +251,10 @@ function TeamCard({ no, team, size, name, editable, isNew, picked, pickedName, o
           {chem.known ? t('tournament.pairing.chem', { n: chem.games, pct: chem.winPct }) : t('tournament.pairing.chemNone')}
         </span>
       )}
+      {/* "Chưa có dữ liệu đánh cùng" đã nói ở dòng trên — không lặp lại */}
+      {insights.filter((x) => x.key !== 'tournament.pairing.insNoHistory').map((x) => (
+        <span key={x.key} style={{ font: 'var(--type-caption)', color: INS_COLOR[x.tone] }}>{t(x.key, x.vars)}</span>
+      ))}
       {team.players.map((p) => (
         <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ flex: 1, minWidth: 0 }}><PlayerChip name={name(p)} reg={p} block editable={false} /></span>
@@ -243,7 +275,7 @@ function TeamCard({ no, team, size, name, editable, isNew, picked, pickedName, o
             border: `1px dashed ${picked ? 'var(--teal-500)' : 'var(--border-default)'}`,
           }}
         >
-          {picked ? t('tournament.pairing.slotPick', { name: pickedName }) : t('tournament.pairing.slotEmpty')}
+          {picked ? t('tournament.pairing.slotPick', { name: pickedName }) : need(i)}
         </button>
       ))}
     </div>

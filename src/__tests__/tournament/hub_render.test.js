@@ -20,12 +20,13 @@ test('hero: tên, trạng thái, meta mono, số; nút quản trị chỉ khi c�
   assert.match(admin, /Giải Masters Phú Khê 2026/)
   assert.match(admin, /Đang mở đăng ký/)
   assert.match(admin, /16\/08\/2026 · Sân An Bình · 2 sân · 08:00–12:00/)
-  assert.match(admin, /Bắt đầu giải/, 'đang mở đăng ký → nút chính là Bắt đầu giải')
+  assert.doesNotMatch(admin, /Bắt đầu giải/, 'trạng thái tự đi theo lịch (tạo lịch → đang diễn ra) — không bắt BTC bấm')
+  assert.match(admin, /Huỷ giải/, 'việc tay duy nhất còn lại với trạng thái giải')
   assert.match(admin, /350\.000/)
   assert.match(admin, /\b4\b.*VĐV/, '4 người đang đăng ký — người đã rút không tính')
 
   const viewer = text(TourHero, { ...props, canEdit: false })
-  assert.doesNotMatch(viewer, /Bắt đầu giải|Sửa thông tin/, 'thành viên thường thấy nút là bấm vào ăn lỗi RLS')
+  assert.doesNotMatch(viewer, /Huỷ giải|Sửa thông tin/, 'thành viên thường thấy nút là bấm vào ăn lỗi RLS')
   assert.match(viewer, /Giải Masters Phú Khê 2026/)
 })
 
@@ -57,7 +58,7 @@ test('tổng quan: checklist nói đúng việc còn thiếu', () => {
   assert.match(s, /Trước khi bắt đầu/)
   assert.match(s, /1 thí sinh chưa chọn nội dung/, 'r4 chưa chọn nội dung nào')
   assert.match(s, /2 thí sinh chưa đóng lệ phí/)
-  assert.match(s, /Có cơ cấu giải thưởng/)
+  assert.doesNotMatch(s, /Có cơ cấu giải thưởng/, 'giải thưởng không chặn giải chạy — đã bỏ khỏi checklist')
 })
 
 test('thông tin: thu theo giới, chi, tiền thưởng nhân số nội dung, số dư; không quyền thì không sửa', () => {

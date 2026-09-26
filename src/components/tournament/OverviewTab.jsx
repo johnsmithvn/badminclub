@@ -7,7 +7,9 @@ import { progressOf, queueOf } from '#lib/tournament/bracketView.js'
 import { groupStandings, orderedRows, stageGroups, swapUpInTie } from '#lib/tournament/standings.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
-import { matchCode, teamName } from './tourUtils.js'
+import { matchCode, stageName, teamName } from './tourUtils.js'
+import { koRounds } from '#lib/tournament/bracketView.js'
+import { estimateOf, koPreviewOf } from '#lib/tournament/canvas.js'
 
 /**
  * Tab Tổng quan (handoff "Giải đấu · desktop v2"):
@@ -198,8 +200,7 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                     <div style={{ display: 'grid', gap: 2 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ font: '700 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
-                          {t(st.type === 'round_robin' ? 'tournament.stage.groups'
-                            : curStages.length < 3 ? 'tournament.format.koStage' : st.seq === 3 ? 'tournament.stage.plate' : 'tournament.stage.main')}
+                          {stageName(st, curStages)}
                         </span>
                         <span style={{
                           padding: '1px 6px',
@@ -409,7 +410,7 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                     </span>
                     {canEdit && targets.filter((x) => x.status === 'pending').map((x) => (
                       <Button key={x.id} icon="calendar-plus" onClick={() => a?.tourGenerate(stage.eventId, x.seq)}>
-                        {t('tournament.standings.generateStage', { name: t(targets.length > 1 ? (x.seq === 2 ? 'tournament.stage.main' : 'tournament.stage.plate') : 'tournament.format.koStage') })}
+                        {t('tournament.standings.generateStage', { name: stageName(x, curStages) })}
                       </Button>
                     ))}
                     {targets.some((x) => x.status !== 'pending') && (
@@ -423,6 +424,11 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
             </div>
           )
         })}
+
+        {/* 4. Nhánh loại trực tiếp thu nhỏ (handoff): đã có lịch → đội thật; chưa → ô chờ "Nhất A", "Thắng BK1" */}
+        {curStages.filter((s) => s.type === 'knockout').map((st) => (
+          <MiniBracket key={st.id} tour={tour} db={db} stage={st} stages={curStages} onOpen={() => onOpenBracket(st.eventId)} />
+        ))}
       </div>
 
       {/* CỘT PHẢI (~30% chiều rộng): Trận Kế Tiếp + Checklist */}
@@ -520,4 +526,67 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
 function targetStagesOf(tour, stage) {
   const to = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === stage.id).map((l) => l.toStageId))
   return (tour.stages || []).filter((s) => to.has(s.id)).sort((x, y) => x.seq - y.seq)
+}
+
+/**
+ * Nhánh loại trực tiếp thu nhỏ trong Tổng quan (handoff "BK1 · chờ vòng bảng", "Nhất A", "Thắng BK1").
+ * Đã sinh lịch: đội thật từ trận. Chưa: xem trước bằng `koPreviewOf` (cùng hàm canvas dùng — khớp lịch sẽ sinh).
+ */
+function MiniBracket({ tour, db, stage, stages, onOpen }) {
+  const live = stage.status !== 'pending'
+  const source = stages.find((s) => s.seq === 1)
+  const link = (tour.stageLinks || []).find((l) => l.toStageId === stage.id)
+  const ev = tour.events.find((e) => e.id === stage.eventId)
+  const n = ev ? estimateOf(tour, ev).teams : 0
+  const slot = (x) => {
+    if (x.kind === 'slot') {
+      const r = Number(x.label.slice(1))
+      return t('tournament.overview.rankSlot', { rank: r <= 4 ? t('tournament.overview.rankName.' + r) : t('tournament.flow.rank', { n: r }), g: x.label[0] })
+    }
+    if (x.kind === 'seed') return t('tournament.canvas.seed', { n: x.n })
+    if (x.kind === 'winner') return t('tournament.canvas.won', { n: x.no })
+    if (x.kind === 'loser') return t('tournament.canvas.lost', { n: x.no })
+    return t('tournament.canvas.bye')
+  }
+  // Cột: [{ title, cells: [[dòng A, dòng B, tên trận]] }]
+  let cols = []
+  if (live) {
+    const view = koRounds(tour.matches, stage.id)
+    const codeOf = new Map(tour.matches.filter((m) => m.stageId === stage.id).map((m) => [m.id, matchCode(m)]))
+    const side = (m, s) => {
+      const id = s === 'A' ? m.teamAId : m.teamBId
+      if (id) return teamName(tour, db, id)
+      const src = s === 'A' ? m.sourceA : m.sourceB
+      if (src?.kind === 'winner') return t('tournament.canvas.won', { n: codeOf.get(src.match) || '' })
+      if (src?.kind === 'loser') return t('tournament.canvas.lost', { n: codeOf.get(src.match) || '' })
+      return src?.kind === 'bye' ? t('tournament.canvas.bye') : t('tournament.bracket.tbd')
+    }
+    cols = view.rounds.map((r) => ({ title: t('tournament.round.' + r.kind), cells: r.matches.filter((m) => m.status !== 'bye').map((m) => [side(m, 'A'), side(m, 'B'), matchCode(m)]) }))
+    if (view.third) cols.push({ title: t('tournament.round.third'), cells: [[side(view.third, 'A'), side(view.third, 'B'), matchCode(view.third)]] })
+  } else {
+    const pv = koPreviewOf(stage, source, link, n) || []
+    cols = pv.map((r) => ({ title: t('tournament.round.' + r.roundKind), cells: r.matches.map((m) => [slot(m.a), slot(m.b), '#' + m.no]) }))
+  }
+  if (!cols.length) return null
+  return (
+    <Card title={stageName(stage, stages)} icon="split" padding="12px 16px 14px"
+      actions={live && <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={onOpen}>{t('tournament.overview.openBracketBtn')}</Button>}>
+      {!live && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', paddingBottom: 8 }}>{t('tournament.overview.miniWait')}</div>}
+      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+        {cols.map((c, ci) => (
+          <div key={ci} style={{ display: 'grid', alignContent: 'space-around', gap: 8, minWidth: 150, flex: '0 0 auto' }}>
+            <Mono size={10} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{c.title}</Mono>
+            {c.cells.map(([a, b, code], i) => (
+              <div key={i} style={{ display: 'grid', gap: 2, padding: '6px 8px', borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+                <Mono size={9.5} color="var(--text-muted)">{code}</Mono>
+                {[a, b].map((x, k) => (
+                  <span key={k} style={{ font: '500 11.5px/1.3 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x}</span>
+                ))}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
 }

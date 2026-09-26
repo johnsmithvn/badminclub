@@ -1,13 +1,10 @@
 import { Button, IconButton } from '#ds'
 import { fmtK } from '#lib/money.js'
-import { nextStatuses } from '#lib/tournament/hub.js'
 import { progressOf } from '#lib/tournament/bracketView.js'
 import { t } from '#i18n'
 import { TourPill } from './TourBits.jsx'
 import { tourMeta } from './tourUtils.js'
 
-// Hướng "tiến" của giải được nút chính, còn lại là nút phụ; huỷ luôn là nút phụ đứng cuối.
-const FORWARD = new Set(['registration', 'running', 'finished'])
 
 /**
  * Hero của Hub (handoff: khối đầu trang) — pill trạng thái, tên giải chữ display, dòng meta mono,
@@ -28,7 +25,8 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
     // Chưa khai báo sân thì không hiện ô sân — không bịa số.
     ...(courts ? [{ label: t('tournament.hero.courtsUpper'), value: courts }] : []),
   ]
-  const moves = nextStatuses(tour.status)
+  // Trạng thái tự đi theo lịch (tạo lịch → đang diễn ra, xong hết → kết thúc). BTC chỉ còn: huỷ / khôi phục.
+  const moves = tour.status === 'cancelled' ? ['registration'] : tour.status === 'finished' ? [] : ['cancelled']
 
   return (
     <section style={{
@@ -46,7 +44,7 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
         <Button variant="ghost" size="sm" icon="arrow-left" onClick={onBack}>{t('tournament.hero.back')}</Button>
         <span style={{ flex: 1 }} />
         {canEdit && moves.map((s) => (
-          <Button key={s} size="sm" variant={FORWARD.has(s) ? 'primary' : 'secondary'} onClick={() => onStatus(s)}>
+          <Button key={s} size="sm" variant="secondary" onClick={() => onStatus(s)}>
             {t('tournament.statusTo.' + s)}
           </Button>
         ))}

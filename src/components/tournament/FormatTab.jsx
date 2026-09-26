@@ -1,26 +1,26 @@
 import { useState } from 'react'
-import { Alert, Button, Card, Dialog, Input } from '#ds'
+import { Alert, Button, Card, Dialog, IconButton, Input } from '#ds'
 import { Mono, Overline } from '#ui'
-import { playerName } from '#lib/money.js'
-import { entriesOpen } from '#lib/tournament/hub.js'
-import { eventTeams } from '#lib/tournament/pairing.js'
-import { RULE_PRESETS, TEMPLATES, advanceCounts, defaultStage, entrantsOf, koPreview, presetKeyOf, rrPreview, templateOf } from '#lib/tournament/format.js'
+import { entriesOpen, regName } from '#lib/tournament/hub.js'
+import { eventPlayers, eventTeams, lineupIssue } from '#lib/tournament/pairing.js'
+import { RULE_PRESETS, TEMPLATES, advanceCounts, defaultStage, entrantsOf, koPreview, rrPreview, templateOf } from '#lib/tournament/format.js'
 import { calcGroupBalance, snakeGroups } from '#lib/tournament/roundRobin.js'
+import { estimateOf, graphIssue } from '#lib/tournament/canvas.js'
 import { t } from '#i18n'
-import { Seg } from './TourBits.jsx'
+import { RuleField, Seg } from './TourBits.jsx'
 import RecommendDialog from './RecommendDialog.jsx'
 import { ruleLabel } from './tourUtils.js'
 
-const presetOpts = Object.keys(RULE_PRESETS).map((k) => ({ key: k, label: t('tournament.format.preset.' + k) }))
 
 /**
  * Thể thức (handoff `isFormat`): trái mẫu có sẵn · giữa thẻ giai đoạn (các hàng tuỳ chọn) · phải xem trước
  * + lịch thi đấu. Mỗi lần chọn lưu ngay. Đã có lịch thì khoá — luật đã chép vào từng trận.
  */
-export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpenBracket }) {
+export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpenBracket, onOpenFlow }) {
   const [resetting, setResetting] = useState(false)
   const [swapFrom, setSwapFrom] = useState(null) // đội đang chọn để đổi số bốc thăm
   const [recommending, setRecommending] = useState(false)
+  const [savingTpl, setSavingTpl] = useState(false)
   const stages = tour.stages.filter((s) => s.eventId === event.id).sort((x, y) => x.seq - y.seq)
   const saved = stages.find((s) => s.seq === 1) || null
   const stage = saved || defaultStage(event)
@@ -66,9 +66,22 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
   const matchCount = tour.matches.filter((m) => m.eventId === event.id && m.status !== 'bye').length
 
   // Còn thiếu bước nào trước khi tạo lịch — nói đúng bước, không để nút xám câm.
+  // Đội hình chưa chốt không còn chặn: "Tạo lịch" tự chốt — chỉ chặn khi đội hình chưa hợp lệ (nói đúng lý do).
+  // Sơ đồ (mẫu hoặc tự dựng) phải sinh lịch trọn được — thiếu nối / trùng hạng thì nói đúng lỗi.
+  const graphErr = saved ? graphIssue(stages, tour.stageLinks || []) : null
   const blocker = !saved ? 'tournament.format.needFormat'
-    : entriesOpen(event) ? 'tournament.format.needLineup'
+    : graphErr ? graphErr
+    : entriesOpen(event) ? lineupIssue(event, teams, eventPlayers(tour, event.id))
       : (isRR ? (full.length < numGroups * 2 ? 'tournament.format.tooFewForGroupsHint' : null) : (entrantsOf(teams, seeding).error || null))
+
+  // "Mỗi đội đá ít nhất" (handoff): từ thể thức đã lưu; chưa lưu thì là mẫu loại trực tiếp mặc định (1 trận).
+  const minPerTeam = saved ? estimateOf(tour, event).minPerTeam : full.length >= 2 ? 1 : 0
+  const minRow = (
+    <div style={{ display: 'flex', minHeight: 32, alignItems: 'center' }}>
+      <span style={{ flex: 1, font: '500 12.5px/1 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.format.minPerTeam')}</span>
+      <Mono size={12.5} weight={600} color="var(--text-primary)">{t('tournament.format.minPerTeamVal', { n: minPerTeam })}</Mono>
+    </div>
+  )
 
   const row = (label, control) => (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '180px 1fr', gap: 8, alignItems: 'center', padding: '10px 0', borderTop: '1px solid var(--border-subtle)' }}>
@@ -100,10 +113,36 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
             </button>
           )
         })}
+        {/* Mẫu CLB đã lưu (0060): bấm để dựng lại sơ đồ trong 1 bước */}
+        {(tour.templates || []).map((x) => (
+          <div key={x.id} style={{ position: 'relative' }}>
+            <button type="button" disabled={!editable} onClick={() => pickTemplate('club:' + x.id)}
+              style={{
+                width: '100%', display: 'grid', gap: 5, textAlign: 'left', padding: '12px 34px 12px 14px', borderRadius: 10, color: 'inherit',
+                cursor: editable ? 'pointer' : 'default', background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
+              }}>
+              <span style={{ font: '700 13.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{x.name}</span>
+              <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.format.clubTemplate', { n: x.graph?.stages?.length || 0 })}</span>
+            </button>
+            {canEdit && (
+              <IconButton icon="trash-2" size="sm" label={t('tournament.format.deleteTemplate')} onClick={() => a.tourDeleteClubTemplate(x.id)}
+                style={{ position: 'absolute', right: 6, top: 8 }} />
+            )}
+          </div>
+        ))}
+        {canEdit && saved && (
+          <div style={{ display: 'grid', gap: 6, paddingTop: 4 }}>
+            {onOpenFlow && editable && (
+              <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={() => onOpenFlow(event.id)}>{t('tournament.format.editOnCanvas')}</Button>
+            )}
+            <Button size="sm" variant="ghost" icon="save" onClick={() => setSavingTpl(true)}>{t('tournament.format.saveTemplate')}</Button>
+          </div>
+        )}
       </div>
 
       <Card title={t('tournament.format.title', { name: t('tournament.kind.' + event.kind) })} icon="settings-2" padding="12px 18px 6px">
         {scheduled && <Alert tone="info">{t('tournament.format.lockedRules')}</Alert>}
+        {currentTemplate === 'custom' && !scheduled && <Alert tone="info">{t('tournament.canvas.custom')}</Alert>}
         
         {isRR ? (
           <>
@@ -119,7 +158,7 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
                   onChange={(k) => a.tourSetAdvance(event.id, { advance: Number(k) })} />
               ))
             )}
-            {plateStage && (
+            {plateStage && currentTemplate === 'rr_ko_plate' && (
               row(t('tournament.format.plateTakes'), (
                 <Seg options={[1, 2, 'all'].map((k) => ({ key: k, label: t('tournament.format.plateOpt.' + k, { from: advance + 1, to: advance + 2 }) }))}
                   value={plateK} disabled={!editable}
@@ -132,18 +171,18 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
                 onChange={(legs) => saveConfig({ legs: Number(legs) })} />
             ))}
             {row(t('tournament.format.qualify'), (
-              <Seg options={presetOpts} value={presetKeyOf(stage.matchRule)} disabled={!editable}
-                onChange={(k) => save({ matchRule: { ...RULE_PRESETS[k] } })} />
+              <RuleField value={stage.matchRule} disabled={!editable}
+                onChange={(rule) => save({ matchRule: rule })} />
             ))}
             {nextStage && (
               <>
                 {row(t('tournament.format.koQualify'), (
-                  <Seg options={presetOpts} value={presetKeyOf(nextStage.matchRule)} disabled={!editable}
-                    onChange={(k) => saveKo(() => ({ matchRule: { ...RULE_PRESETS[k] } }))} />
+                  <RuleField value={nextStage.matchRule} disabled={!editable}
+                    onChange={(rule) => saveKo(() => ({ matchRule: rule }))} />
                 ))}
                 {row(t('tournament.format.ranking'), (
-                  <Seg options={presetOpts} value={presetKeyOf(nextStage.ruleOverrides?.final)} disabled={!editable}
-                    onChange={(k) => saveKo((s) => ({ ruleOverrides: { ...s.ruleOverrides, final: { ...RULE_PRESETS[k] }, third: { ...RULE_PRESETS[k] } } }))} />
+                  <RuleField value={nextStage.ruleOverrides?.final} disabled={!editable}
+                    onChange={(rule) => saveKo((s) => ({ ruleOverrides: { ...s.ruleOverrides, final: rule, third: rule } }))} />
                 ))}
               </>
             )}
@@ -158,12 +197,12 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
         ) : (
           <>
             {row(t('tournament.format.qualify'), (
-              <Seg options={presetOpts} value={presetKeyOf(stage.matchRule)} disabled={!editable}
-                onChange={(k) => save({ matchRule: { ...RULE_PRESETS[k] } })} />
+              <RuleField value={stage.matchRule} disabled={!editable}
+                onChange={(rule) => save({ matchRule: rule })} />
             ))}
             {row(t('tournament.format.ranking'), (
-              <Seg options={presetOpts} value={presetKeyOf(stage.ruleOverrides?.final)} disabled={!editable}
-                onChange={(k) => save({ ruleOverrides: { ...stage.ruleOverrides, final: { ...RULE_PRESETS[k] }, third: { ...RULE_PRESETS[k] } } })} />
+              <RuleField value={stage.ruleOverrides?.final} disabled={!editable}
+                onChange={(rule) => save({ ruleOverrides: { ...stage.ruleOverrides, final: rule, third: rule } })} />
             ))}
             {row(t('tournament.format.thirdPlace'), (
               <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
@@ -205,6 +244,7 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
                 <span style={{ flex: 1, font: '600 13px/1 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.format.total')}</span>
                 <Mono weight={700} size={14} color="var(--text-primary)">{preview.total + (nextPreview?.total || 0) + (platePreview?.total || 0)}</Mono>
               </div>
+              {minPerTeam > 0 && minRow}
             </>
           ) : (
             <>
@@ -222,6 +262,7 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
                   <Mono weight={700} size={14} color="var(--text-primary)">{preview.total}</Mono>
                 </div>
               )}
+              {preview.total > 0 && minRow}
             </>
           )}
         </Card>
@@ -250,7 +291,7 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
                   {team.drawNo ? t('tournament.format.drawNo', { n: team.drawNo }) : '—'}
                 </Mono>
                 <span style={{ font: '500 12.5px/1.3 var(--font-sans)', color: 'var(--text-secondary)' }}>
-                  {team.players.map((p) => playerName(db, p.playerId)).join(' · ')}
+                  {team.players.map((p) => regName(tour, db, p)).join(' · ')}
                 </span>
               </div>
             ))}
@@ -277,9 +318,35 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
         </Card>
       </div>
 
+      {savingTpl && (
+        <TemplateDialog onClose={() => setSavingTpl(false)}
+          onSave={async (name) => (await a.tourSaveClubTemplate(event.id, name)) && setSavingTpl(false)} />
+      )}
       {recommending && <RecommendDialog tour={tour} onClose={() => setRecommending(false)} onApply={a.tourApplyRecommendation} />}
       {resetting && <ResetDialog onClose={() => setResetting(false)} onReset={(reason) => a.tourResetSchedule(event.id, reason)} />}
     </div>
+  )
+}
+
+/** "Lưu làm mẫu CLB": chỉ hỏi tên mẫu. */
+function TemplateDialog({ onClose, onSave }) {
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async () => {
+    setBusy(true)
+    if (!(await onSave(name.trim()))) setBusy(false)
+  }
+  return (
+    <Dialog open width={420} title={t('tournament.format.saveTemplate')} onClose={busy ? undefined : onClose}
+      footer={(
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
+          <Button loading={busy} disabled={!name.trim()} onClick={submit}>{t('tournament.format.templateSaveBtn')}</Button>
+        </>
+      )}>
+      <Input label={t('tournament.format.templateName')} placeholder={t('tournament.format.templateNamePh')} value={name}
+        onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && name.trim() && submit()} autoFocus />
+    </Dialog>
   )
 }
 

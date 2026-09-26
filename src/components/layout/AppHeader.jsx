@@ -28,7 +28,7 @@ export default function AppHeader({ route }) {
   // nút đổi theme). Xem bảng SCREEN trong `src/App.jsx`.
   // Giải đấu: danh sách có PageHeader, Hub có hero, nhánh đấu có header riêng.
   if (route === 'session' || route === 'fund' || route === 'leaderboard' || route === 'matches' || route === 'home' ||
-    route === 'tournaments' || route === 'tournament' || route === 'tournamentBracket') {
+    route === 'tournaments' || route === 'tournament' || route === 'tournamentBracket' || route === 'tournamentFlow') {
     return null
   }
 

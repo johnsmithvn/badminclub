@@ -210,11 +210,13 @@
     "groupBalanceOk": 15,
     "_noteEstimate": "Tổng quan · 'Còn lại ước tính' = trận còn lại × số phút này / số sân. Ước tính thô, chưa tính đội không đánh 2 trận cùng lúc (plan §5.7).",
     "estimateMatchMin": 18,
-    "_noteRecommender": "Gợi ý thể thức (README handoff §5.7): phút sân mỗi trận theo luật mẫu (luật tự chỉnh → estimateMatchMin), phút nghỉ giữa 2 trận. Chỉ là ƯỚC TÍNH theo tổng phút sân / số sân — chưa tính đội không đánh 2 trận cùng lúc.",
+    "_noteRecommender": "Gợi ý thể thức (README handoff §5.7): phút sân mỗi trận theo luật mẫu (luật tự chỉnh → estimateMatchMin), phút nghỉ giữa 2 trận. Chỉ là ƯỚC TÍNH theo tổng phút sân / số sân — chưa tính đội không đánh 2 trận cùng lúc. finalFactor: trận chung kết / tranh 3 dài hơn trận vòng loại bao nhiêu lần — GIẢ ĐỊNH để gợi ý luật chung kết, chỉnh theo số liệu thật.",
     "_notePairing": "Ghép cặp: gợi ý đổi 2 người chỉ khi độ lệch giảm HƠN swapMinGain điểm rating; 'ăn ý' chỉ tin cặp đã đánh chung từ chemistryMinGames trận.",
-    "pairing": { "swapMinGain": 6, "chemistryMinGames": 2 },
+    "_notePairingInsight": "Nhận xét từng cặp (handoff): chênh trình trong cặp > gapWarn → cảnh báo người yếu bị nhắm; tổng cặp lệch trung bình > avgWarn → tô vàng; đã đánh chung đủ trận mà thắng ≥ chemGood% / ≤ chemBad% → ăn ý / kém ăn ý.",
+    "pairing": { "swapMinGain": 6, "chemistryMinGames": 2, "gapWarn": 80, "avgWarn": 40, "chemGood": 60, "chemBad": 40 },
     "recommender": {
       "restMin": 3,
+      "finalFactor": 1.6,
       "minutesByPreset": { "r1x15": 10, "r1x21": 14, "r1x30": 18, "r3x11": 16, "r3x15": 22, "r3x21": 35 }
     }
   }

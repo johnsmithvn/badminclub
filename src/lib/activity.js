@@ -482,6 +482,12 @@ export function resolveNotificationPayload(item, db) {
     }
   }
 
+  // Chuông giải đấu (0059): payload lưu KEY nội dung ('md'…) — tên dịch lúc hiển thị (RULES §3.3).
+  if (item?.type === 'tournament_match_ready' || item?.type === 'tournament_match_court') {
+    res.event = p.kind ? t('tournament.kind.' + p.kind) : ''
+    res.court = p.court || ''
+  }
+
   if (item?.type === 'refund_session') {
     if (p.date && p.date.includes('-')) {
       res.date = dd(p.date)

@@ -55,17 +55,37 @@ test('đếm thí sinh của nội dung: bỏ người đã rút, tách nam / n�
     entries: [{ eventId: 'xd', registrationId: 'a' }, { eventId: 'xd', registrationId: 'b' },
       { eventId: 'xd', registrationId: 'c' }, { eventId: 'md', registrationId: 'a' }],
   })
-  assert.deepEqual(eventCounts(tour, 'xd'), { total: 2, male: 1, female: 1 })
-  assert.deepEqual(eventCounts(tour, 'md'), { total: 1, male: 1, female: 0 })
+  const pick = ({ total, male, female }) => ({ total, male, female })
+  assert.deepEqual(pick(eventCounts(tour, 'xd')), { total: 2, male: 1, female: 1 })
+  assert.deepEqual(pick(eventCounts(tour, 'md')), { total: 1, male: 1, female: 0 })
 })
 
-test('checklist "Trước khi bắt đầu": giải rỗng thiếu hết; đủ thì xong hết', () => {
+test('đếm thẻ nội dung: số khách, số đội đủ người / số đội lập được (handoff "x/y cặp đủ")', () => {
+  const tour = tourOf({
+    events: [ev('xd'), ev('md'), ev('ms')],
+    registrations: [reg('a', 'nam'), reg('b', 'nu', { playerType: 'guest' }), reg('c', 'nam'), reg('d', 'nam')],
+    entries: ['a', 'b', 'c'].map((id) => ({ eventId: 'xd', registrationId: id }))
+      .concat(['a', 'c', 'd'].map((id) => ({ eventId: 'md', registrationId: id })), [{ eventId: 'ms', registrationId: 'a' }]),
+    teams: [{ id: 't1', eventId: 'xd' }, { id: 't2', eventId: 'md' }],
+    teamPlayers: [{ teamId: 't1', registrationId: 'a' }, { teamId: 't1', registrationId: 'b' }, { teamId: 't2', registrationId: 'c' }],
+  })
+  const xd = eventCounts(tour, 'xd')
+  assert.equal(xd.guests, 1)
+  assert.equal(xd.full, 1)
+  assert.equal(xd.slots, 1, 'nam nữ: min(2 nam, 1 nữ)')
+  const md = eventCounts(tour, 'md')
+  assert.equal(md.full, 0, 'đội t2 mới có 1 người')
+  assert.equal(md.slots, 1, '3 người → 1 đôi')
+  assert.deepEqual([eventCounts(tour, 'ms').full, eventCounts(tour, 'ms').slots], [1, 1], 'đơn: mỗi người một đội')
+})
+
+test('checklist "Trước khi bắt đầu": chỉ việc chặn giải chạy; giải rỗng thiếu hết; đủ thì xong hết', () => {
   const empty = hubChecklist(tourOf())
   assert.ok(empty.every((c) => !c.done), 'giải chưa có gì mà báo xong mục nào là sai')
 
   const partial = hubChecklist(tourOf({
     events: [ev('md')],
-    registrations: [reg('a', 'nam', { paid: true }), reg('b', 'nam'), reg('x', 'nam', { status: 'withdrawn' })],
+    registrations: [reg('a', 'nam', { paid: true, fee: 100 }), reg('b', 'nam', { fee: 100 }), reg('x', 'nam', { status: 'withdrawn', fee: 100 })],
     entries: [{ eventId: 'md', registrationId: 'a' }],
   }))
   const byKey = Object.fromEntries(partial.map((c) => [c.key, c]))
@@ -74,6 +94,7 @@ test('checklist "Trước khi bắt đầu": giải rỗng thiếu hết; đủ 
   assert.equal(byKey.entries.n, 1, 'b chưa chọn nội dung; x đã rút không tính')
   assert.equal(byKey.fees.n, 1)
   assert.equal(byKey.fees.tab, 'players')
+  assert.equal(byKey.prizes, undefined, 'giải thưởng không chặn giải chạy — không nằm trong checklist')
 
   assert.equal(byKey.lineups.done, false, 'nội dung còn nháp = chưa chốt đội hình')
   assert.equal(byKey.schedules.tab, 'format')
@@ -84,4 +105,8 @@ test('checklist "Trước khi bắt đầu": giải rỗng thiếu hết; đủ 
     entries: [{ eventId: 'md', registrationId: 'a' }],
   }))
   assert.ok(full.every((c) => c.done))
+
+  // Giải miễn phí: không có dòng thu phí (không có gì để thu).
+  const free = hubChecklist(tourOf({ events: [ev('md')], registrations: [reg('a', 'nam', { fee: 0 })], entries: [] }))
+  assert.equal(free.some((c) => c.key === 'fees'), false)
 })

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { simulateMatchScore, validateSets, matchWinner } from '#lib/tournament/scoring.js'
-import { candidatesFor, costOf, recommend } from '#lib/tournament/recommend.js'
+import { candidatesFor, costOf, optionKey, recommend, suggestRules } from '#lib/tournament/recommend.js'
 
 test('Module Giải đấu - simulateMatchScore', async (t) => {
   await t.test('1. simulateMatchScore: sinh tỉ số ngẫu nhiên luôn hợp lệ với mọi luật', () => {
@@ -134,3 +134,30 @@ test('chưa ghép cặp: ước số đội từ số người đã vào nội d
   assert.equal(ev.n, 2, 'nam nữ: min(3 nam, 2 nữ)')
   assert.equal(ev.estimated, true)
 })
+
+test('chọn tay phương án khác: giữ nguyên dù vượt giờ; nhãn KHUYÊN DÙNG / NHANH NHẤT / NHIỀU TRẬN / VƯỢT GIỜ; ĐÃ CHỈNH', () => {
+  const tr = tourWith({ md: 8, wd: 8, xd: 8 })
+  const auto = recommend(tr, 'balanced')
+  const md = auto.events.find((e) => e.eventId === 'e-md')
+  assert.ok(md.options.find((o) => o.key === md.pick.key).badges.includes('recommended'))
+  assert.ok(md.options.some((o) => o.badges.includes('fastest')))
+  assert.ok(md.options.some((o) => o.badges.includes('mostGames')))
+  const heavy = md.options.find((o) => o.tpl !== 'ko')
+  assert.ok(heavy.badges.includes('over'), 'mùa 1 vừa khít giờ — đổi sang vòng bảng là vượt')
+  assert.equal(md.edited, false)
+
+  const manual = recommend(tr, 'balanced', { 'e-md': optionKey(heavy) })
+  const mdM = manual.events.find((e) => e.eventId === 'e-md')
+  assert.equal(mdM.pick.key, heavy.key, 'BTC chọn tay → không bị hạ về loại trực tiếp')
+  assert.equal(mdM.edited, true)
+  assert.equal(manual.fits, false)
+})
+
+test('luật gợi ý theo phút còn cho mỗi trận (README §5.7); không có giờ/sân thì không gợi ý', () => {
+  assert.deepEqual(suggestRules(9), { qualify: 'r1x15', final: 'r3x11' })
+  assert.deepEqual(suggestRules(16), { qualify: 'r1x21', final: 'r3x15' })
+  assert.deepEqual(suggestRules(30), { qualify: 'r3x21', final: 'r3x21' })
+  assert.ok(recommend(tourWith({ md: 8 })).rules)
+  assert.equal(recommend(tourWith({ md: 8 }, { start: null })).rules, null)
+})
+

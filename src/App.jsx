@@ -35,6 +35,7 @@ import SessionDetail from '#pages/SessionDetail.jsx'
 import Sessions from '#pages/Sessions.jsx'
 import Settings from '#pages/Settings.jsx'
 import TournamentBracket from '#pages/TournamentBracket.jsx'
+import TournamentFlow from '#pages/TournamentFlow.jsx'
 import TournamentHub from '#pages/TournamentHub.jsx'
 import Tournaments from '#pages/Tournaments.jsx'
 
@@ -42,7 +43,7 @@ const SCREEN = {
   home: MyStats, overview: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail,
   matches: Matches, leaderboard: Leaderboard, badges: Badges, members: Members, debts: Debts, fund: Fund,
   profile: Profile, settings: Settings, schema: Schema, tournaments: Tournaments, tournament: TournamentHub,
-  tournamentBracket: TournamentBracket,
+  tournamentBracket: TournamentBracket, tournamentFlow: TournamentFlow,
 }
 
 export default function App() {

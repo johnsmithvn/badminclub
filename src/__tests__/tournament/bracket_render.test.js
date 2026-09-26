@@ -108,7 +108,9 @@ test('thanh module: bước hiện tại, chưa có lịch thì Nhánh đấu kh
   const hub = html(TourModuleNav, { active: 'hub', events: [], onHub: noop, onBracket: noop })
   assert.ok(isDisabled(buttonTag(hub, 'Nhánh đấu')), 'chưa nội dung nào có lịch — vào nhánh chỉ thấy trang trống')
   const br = text(TourModuleNav, { active: 'bracket', events: evs, eventId: 'a', onHub: noop, onBracket: noop })
-  assert.match(br, /1 Tổng quan & đăng ký 2 Nhánh đấu/)
+  assert.match(br, /1 Tổng quan & đăng ký 2 Sơ đồ thi đấu 3 Nhánh đấu/)
+  assert.ok(isDisabled(buttonTag(html(TourModuleNav, { active: 'hub', events: [], onHub: noop, onFlow: noop, onBracket: noop, tour: { events: [], stages: [], matches: [], courtLabels: [] } }), 'Sơ đồ thi đấu')),
+    'chưa nội dung nào có thể thức — sơ đồ không có gì để xem')
   assert.match(br, /Đôi nam .*Đôi nam nữ/)
   assert.doesNotMatch(text(TourModuleNav, { active: 'hub', events: evs, eventId: 'a', onHub: noop, onBracket: noop }), /Đôi nam nữ/,
     'ở Hub không hiện ô chọn nội dung — Hub đã có hàng thẻ nội dung')

@@ -73,3 +73,22 @@ export function flightsOf(prev, next) {
 
 /** Điểm từng set của một bên: [[21,18],[15,21]] + 'A' → [21, 15]. */
 export const sideScores = (sets, side) => (sets || []).map((s) => (side === 'A' ? s[0] : s[1]))
+
+/**
+ * Thứ tự đội ở vòng đầu (theo ô, bỏ ô bye) sau khi đổi chỗ 2 đội — dùng làm SỐ BỐC THĂM để sinh lại nhánh kiểu `slot`.
+ * Ô bye của `slot` và `seed` trùng nhau (đều là vị trí hạt giống > n của `bracketOrder`), nên sinh lại với thứ tự
+ * này cho đúng nhánh cũ, chỉ 2 đội đổi chỗ. Trả null nếu một trong hai đội không ở vòng đầu.
+ * @returns {string[] | null}  id đội theo thứ tự — phần tử thứ i nhận số bốc thăm i + 1
+ */
+export function swapOrder(matches, stageId, teamA, teamB) {
+  const first = matches.filter((m) => m.stageId === stageId && m.round === 0 && m.roundKind !== 'third').sort((a, b) => a.slot - b.slot)
+  const order = first.flatMap((m) => [m.teamAId, m.teamBId]).filter(Boolean)
+  const i = order.indexOf(teamA)
+  const j = order.indexOf(teamB)
+  if (i < 0 || j < 0 || i === j) return null
+  ;[order[i], order[j]] = [order[j], order[i]]
+  return order
+}
+
+/** Nhánh còn sửa / sinh lại được: chưa trận nào có kết quả (trừ bye) và chưa trận nào đang đánh. */
+export const stageEditable = (matches, stageId) => !matches.some((m) => m.stageId === stageId && (hasResult(m) || m.status === 'live'))

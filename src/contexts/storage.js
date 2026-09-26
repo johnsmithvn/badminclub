@@ -390,8 +390,18 @@ export async function loadTournament(tournamentId) {
     ofT('tournament_budget_lines').order('sort_order', { ascending: true }),
   ])
 
+  // Khách ngoài CLB là danh sách của CLB (dùng lại qua nhiều giải), không theo tournament_id → nạp theo club_id.
+  const tourRow = unwrap(tourRes)
+  const [guestsRes, templatesRes] = tourRow ? await Promise.all([
+    supabase.from('tournament_guests').select('*').eq('club_id', tourRow.club_id).is('deleted_at', null),
+    // Mẫu thể thức của CLB (0060). Chưa áp 0060 thì bảng chưa có → coi như chưa có mẫu, không làm hỏng trang giải.
+    supabase.from('tournament_templates').select('*').eq('club_id', tourRow.club_id).order('created_at', { ascending: true }),
+  ]) : [null, null]
+
   return toTour({
-    tournament: unwrap(tourRes),
+    tournament: tourRow,
+    guests: guestsRes ? unwrap(guestsRes) || [] : [],
+    templates: templatesRes && !templatesRes.error ? templatesRes.data || [] : [],
     events: unwrap(eventsRes) || [],
     stages: unwrap(stagesRes) || [],
     stageLinks: unwrap(stageLinksRes) || [],

@@ -895,6 +895,21 @@ export function toTour(raw) {
       config: s.config || {},
       matchRule: s.match_rule || {},
       ruleOverrides: s.rule_overrides || {},
+      canvasX: numN(s.canvas_x),
+      canvasY: numN(s.canvas_y),
+    })),
+
+    // Mẫu thể thức của CLB (0060) — "Lưu làm mẫu CLB".
+    templates: (raw.templates || []).map((x) => ({ id: x.id, clubId: x.club_id, name: x.name || '', graph: x.graph || { stages: [], links: [] } })),
+
+    // Khách ngoài CLB (0059): registration.playerType 'guest' → playerId là id ở đây.
+    guests: (raw.guests || []).map((g) => ({
+      id: g.id,
+      clubId: g.club_id,
+      name: g.name || '',
+      gender: g.gender,
+      level: g.level || '',
+      phone: g.phone || '',
     })),
 
     stageLinks: (raw.stageLinks || []).map((l) => ({
@@ -1042,6 +1057,25 @@ export function tourRows(table, list) {
           config: item.config || {},
           match_rule: item.matchRule,
           rule_overrides: item.ruleOverrides || {},
+          canvas_x: numN(item.canvasX),
+          canvas_y: numN(item.canvasY),
+        }
+      case 'tournament_templates':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          name: item.name,
+          graph: item.graph,
+          created_by: uu(item.createdBy),
+        }
+      case 'tournament_guests':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          name: item.name,
+          gender: item.gender,
+          level: item.level || null,
+          phone: item.phone || null,
         }
       case 'tournament_stage_links':
         return {

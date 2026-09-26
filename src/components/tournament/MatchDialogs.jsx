@@ -83,7 +83,7 @@ function LiveBoard({ match, names, isMobile, onCommit, onStart }) {
   }, [s.swapped])
 
   const order = s.swapped ? ['B', 'A'] : ['A', 'B'] // đổi sân = đổi bên hiển thị
-  const status = v.winner ? t('tournament.sb.won', { name: names[v.winner] })
+  const status = v.winner ? endedLine(s.sets, v.winner, names)
     : v.justSwitched ? t('tournament.sb.switched', { n: s.sets.length })
       : t('tournament.sb.playing', { n: v.setNo })
   const confirm = async () => {
@@ -197,7 +197,7 @@ function ManualEntry({ match, names, onCommit }) {
     <div style={{ display: 'grid', gap: 12 }}>
       <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.sb.manualHint', { n: match.rule.sets })}</span>
       <SetsInput rows={rows} setRows={setRows} max={match.rule.sets} names={names} />
-      {winner && <span style={{ font: '600 13px/1.3 var(--font-sans)', color: 'var(--status-transit-fg)' }}>{t('tournament.sb.won', { name: names[winner] })}</span>}
+      {winner && <span style={{ font: '600 13px/1.3 var(--font-sans)', color: 'var(--status-transit-fg)' }}>{endedLine(sets, winner, names)}</span>}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Button icon="arrow-up-right" disabled={!sets.length} loading={busy} onClick={submit}>{t('tournament.sb.confirm')}</Button>
       </div>
@@ -285,4 +285,12 @@ export function UndoDialog({ match, onClose, onUndo }) {
       <Input label={t('tournament.undoDlg.reason')} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
     </Dialog>
   )
+}
+
+/** Câu kết trận (handoff): "Kết thúc · X thắng 2–1 sec (21–18, 19–21, 15–12)" — rồi mới bấm xác nhận. */
+function endedLine(sets, winner, names) {
+  const won = sets.filter(([a, b]) => (winner === 'A' ? a > b : b > a)).length
+  return t('tournament.bracket.ended', {
+    name: names[winner], w: won, l: sets.length - won, sets: sets.map(([a, b]) => `${a}–${b}`).join(', '),
+  })
 }

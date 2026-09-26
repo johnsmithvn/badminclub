@@ -102,6 +102,43 @@ export function autoPair(pool, { genderRule, mode = 'balanced', rand = Math.rand
 }
 
 /**
+ * Nhận xét một cặp (handoff "Ghép cặp"): chỉ điều có căn cứ, không đoán. Trả danh sách key i18n + biến.
+ *   · sai luật nam nữ · chênh trình trong cặp lớn (người yếu bị nhắm) · ăn ý / kém ăn ý (đã đánh chung đủ trận)
+ *   · chưa có dữ liệu đánh chung · có khách (rating tự khai)
+ * @param {object} team  từ `eventTeams` (players = registration)
+ * @param {{ genderRule: string, history?: object[] }} opts
+ * @returns {Array<{ tone: 'bad'|'warn'|'good'|'info', key: string, vars?: object }>}
+ */
+export function teamInsights(team, { genderRule, history = [] }) {
+  const ps = team.players
+  if (ps.length < 2) return []
+  const out = []
+  if (genderRule === 'mixed' && ps.filter((p) => p.gender === 'nam').length !== 1) {
+    out.push({ tone: 'bad', key: 'tournament.pairing.insMixed' })
+  }
+  const gap = Math.round(Math.abs(rating(ps[0]) - rating(ps[1])))
+  if (gap > PAIR.gapWarn) out.push({ tone: 'warn', key: 'tournament.pairing.insGap', vars: { n: gap } })
+  const c = chemistryOf(history, ps[0], ps[1])
+  if (!c.known) out.push({ tone: 'info', key: 'tournament.pairing.insNoHistory' })
+  else if (c.winPct >= PAIR.chemGood) out.push({ tone: 'good', key: 'tournament.pairing.insChemGood' })
+  else if (c.winPct <= PAIR.chemBad) out.push({ tone: 'warn', key: 'tournament.pairing.insChemBad' })
+  else out.push({ tone: 'info', key: 'tournament.pairing.insChemMid' })
+  if (ps.some((p) => p.playerType === 'guest')) out.push({ tone: 'info', key: 'tournament.pairing.insGuest' })
+  return out
+}
+
+/** Tổng rating cặp so với trung bình các cặp đủ người; `warn` khi lệch quá `avgWarn` (handoff: tô vàng). */
+export function vsAverage(teams) {
+  const full = teams.filter((t) => t.full)
+  if (!full.length) return {}
+  const avg = full.reduce((s, t) => s + t.sum, 0) / full.length
+  return Object.fromEntries(full.map((t) => {
+    const d = Math.round(t.sum - avg)
+    return [t.id, { diff: d, warn: Math.abs(d) > PAIR.avgWarn }]
+  }))
+}
+
+/**
  * Gợi ý đổi 2 người giữa 2 đội chưa ghim để giảm độ lệch (handoff "gợi ý đổi"). Nam nữ: chỉ đổi cùng giới.
  * Chỉ gợi ý khi độ lệch giảm HƠN `swapMinGain` — đổi để được vài điểm thì không đáng làm BTC bận.
  * @param {object[]} teams  từ `eventTeams`

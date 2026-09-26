@@ -4,14 +4,14 @@ import { dd } from '#utils/dates.js'
 import { t } from '#i18n'
 
 /**
- * Thanh module của giải (handoff `GiaiDauNav`): tên giải + meta · bước ① Tổng quan & đăng ký → ② Nhánh đấu ·
+ * Thanh module của giải (handoff `GiaiDauNav`): tên giải + meta · bước ① Tổng quan & đăng ký → ② Sơ đồ → ③ Nhánh đấu ·
  * số trận đang đánh · chọn nội dung (ở trang nhánh) · nút "Nhập tỷ số" (chỉ khi trang truyền `onScore` — người có quyền).
- * "Sơ đồ thi đấu", "Link đăng ký", "Màn hình trình chiếu" của handoff chưa có tính năng (Phase 6) → không hiện,
+ * "Link đăng ký", "Màn hình trình chiếu" của handoff chưa có tính năng → không hiện,
  * không để nút chết (plan §6.1).
  * @param {object} [tour]  giải — có thì hiện tên + meta + số trận đang đánh
  * @param {Array<{ id: string, kind: string }>} events  nội dung ĐÃ có lịch (vào được nhánh)
  */
-export default function TourModuleNav({ tour, active = 'hub', events = [], eventId, onHub, onBracket, onScore, isMobile }) {
+export default function TourModuleNav({ tour, active = 'hub', events = [], eventId, onHub, onFlow, onBracket, onScore, isMobile }) {
   const liveCount = (tour?.matches || []).filter((m) => m.status === 'live').length
   const courts = tour?.courtLabels?.length || 0
   const subMeta = tour ? [
@@ -22,6 +22,8 @@ export default function TourModuleNav({ tour, active = 'hub', events = [], event
 
   const steps = [
     { key: 'hub', label: t('tournament.module.hub'), onClick: onHub, off: false },
+    // Sơ đồ có nghĩa khi đã chọn thể thức cho ít nhất một nội dung.
+    { key: 'flow', label: t('tournament.module.flow'), onClick: onFlow, off: !onFlow || !tour?.stages?.length },
     { key: 'bracket', label: t('tournament.module.bracket'), onClick: () => onBracket(eventId || events[0]?.id), off: events.length === 0 },
   ]
 

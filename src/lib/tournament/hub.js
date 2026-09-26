@@ -6,6 +6,7 @@
 
 import { feeFor } from '#lib/tournament/finance.js'
 import { initialRatingOf } from '#lib/rating.js'
+import { playerName } from '#lib/money.js'
 
 /** Mỗi loại nội dung quyết định số người / đội và luật giới — UI không tự chọn hai cột này. */
 export const EVENT_KINDS = {
@@ -43,7 +44,7 @@ const FLOW = {
   registration: ['draft', 'running', 'cancelled'],
   running: ['finished', 'cancelled'],
   finished: [],
-  cancelled: ['draft'],
+  cancelled: ['draft', 'registration'],
 }
 export const nextStatuses = (status) => FLOW[status] || []
 export const TOUR_STATUSES = Object.keys(FLOW)
@@ -72,14 +73,52 @@ export function newRegistration({ tournament, member, ratings, levels }) {
   }
 }
 
-/** Số thí sinh (đang đăng ký) của một nội dung, tách nam / nữ. */
+/**
+ * Đăng ký của một khách ngoài CLB (`tournament_guests`). Khách không có Elo → rating khởi điểm theo trình độ
+ * tự khai (cùng hàm Elo dùng cho thành viên mới), phí theo giới như thành viên.
+ */
+export function newGuestRegistration({ tournament, guest, levels }) {
+  return {
+    playerType: 'guest',
+    playerId: guest.id,
+    gender: guest.gender,
+    level: guest.level || '',
+    ratingSnapshot: initialRatingOf(guest.level, levels),
+    fee: feeFor(tournament, guest.gender),
+    paid: false,
+    paidAt: null,
+    status: 'registered',
+  }
+}
+
+/** Tên VĐV của một đăng ký: khách ngoài lấy từ `tour.guests`, thành viên lấy như mọi màn khác (`playerName`). */
+export function regName(tour, db, reg) {
+  if (reg.playerType === 'guest') return (tour.guests || []).find((g) => g.id === reg.playerId)?.name || playerName(db, reg.playerId)
+  return playerName(db, reg.playerId)
+}
+
+/**
+ * Số thí sinh (đang đăng ký) của một nội dung: tách nam / nữ, số khách; và số đội ĐỦ người trên số đội có thể
+ * lập từ số người đó (handoff "x/y cặp đủ": đơn = mỗi người một đội, nam nữ = min(nam, nữ), đôi = n/2).
+ */
 export function eventCounts(tour, eventId) {
+  const event = tour.events.find((e) => e.id === eventId)
   const active = new Map(tour.registrations.filter((r) => r.status === 'registered').map((r) => [r.id, r]))
   const regs = tour.entries.filter((e) => e.eventId === eventId).map((e) => active.get(e.registrationId)).filter(Boolean)
+  const male = regs.filter((r) => r.gender === 'nam').length
+  const female = regs.filter((r) => r.gender === 'nu').length
+  const size = event?.teamSize || 2
+  const teams = (tour.teams || []).filter((t) => t.eventId === eventId)
+  const full = size === 1
+    ? regs.length
+    : teams.filter((t) => (tour.teamPlayers || []).filter((p) => p.teamId === t.id && active.has(p.registrationId)).length === size).length
   return {
     total: regs.length,
-    male: regs.filter((r) => r.gender === 'nam').length,
-    female: regs.filter((r) => r.gender === 'nu').length,
+    male,
+    female,
+    guests: regs.filter((r) => r.playerType === 'guest').length,
+    full,
+    slots: size === 1 ? regs.length : event?.genderRule === 'mixed' ? Math.min(male, female) : Math.floor(regs.length / 2),
   }
 }
 
@@ -91,13 +130,15 @@ export function hubChecklist(tour) {
   const active = tour.registrations.filter((r) => r.status === 'registered')
   const entered = new Set(tour.entries.map((e) => e.registrationId))
   const noEvent = active.filter((r) => !entered.has(r.id)).length
-  const unpaid = active.filter((r) => !r.paid).length
+  // Chỉ việc thật sự CHẶN giải chạy (plan: làm gọn đăng ký). Thu phí chỉ khi giải có phí; giải thưởng
+  // không chặn gì (vẫn sửa ở tab Thông tin) nên không nằm trong checklist.
+  const charged = active.filter((r) => r.fee > 0)
+  const unpaid = charged.filter((r) => !r.paid).length
   return [
     { key: 'events', done: tour.events.length > 0, tab: 'overview' },
     { key: 'players', done: active.length > 0, tab: 'players' },
     { key: 'entries', done: active.length > 0 && noEvent === 0, tab: 'players', n: noEvent },
-    { key: 'fees', done: active.length > 0 && unpaid === 0, tab: 'players', n: unpaid },
-    { key: 'prizes', done: tour.prizes.length > 0, tab: 'info' },
+    ...(charged.length ? [{ key: 'fees', done: unpaid === 0, tab: 'players', n: unpaid }] : []),
     { key: 'lineups', done: tour.events.length > 0 && tour.events.every((e) => !entriesOpen(e)), tab: 'pairing' },
     { key: 'schedules', done: tour.events.length > 0 && tour.events.every((e) => e.status === 'running' || e.status === 'finished'), tab: 'format' },
   ]

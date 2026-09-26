@@ -91,6 +91,8 @@ export default function EventBar({ tour, value, onChange, canEdit, isMobile, onA
                   {/* Hàng 3: Số VĐV chi tiết nam / nữ */}
                   <span style={{ font: '400 11.5px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                     {t('tournament.event.counts', c)}
+                    {c.guests > 0 && t('tournament.event.guestsN', { n: c.guests })}
+                    {ev.teamSize > 1 && c.slots > 0 && ' · ' + t('tournament.event.fullPairs', c)}
                   </span>
 
                   {/* Hàng 4: Mini Progress Bar nếu đã có trận */}

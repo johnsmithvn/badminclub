@@ -86,7 +86,9 @@ export default function TournamentHub() {
   const subs = {
     overview: t('tournament.sub.overview', { done: checklist.filter((c) => c.done).length, total: checklist.length }),
     info: t('tournament.sub.info'),
-    players: t('tournament.sub.players', { n: active.length, unpaid: active.filter((r) => !r.paid).length }),
+    players: active.some((r) => r.fee > 0)
+      ? t('tournament.sub.players', { n: active.length, unpaid: active.filter((r) => r.fee > 0 && !r.paid).length })
+      : t('tournament.sub.playersFree', { n: active.length }),
     format: formatSub(tour, event),
     pairing: pairingSub(tour, event),
   }
@@ -128,6 +130,7 @@ export default function TournamentHub() {
         events={scheduled}
         eventId={scheduled.some((e) => e.id === selected) ? selected : undefined}
         onHub={() => setTab('overview')}
+        onFlow={() => navigate(pathOf('tournamentFlow', id))}
         onBracket={openBracket}
         onScore={canEdit && scheduled.some((e) => e.id === selected) ? quickScore : undefined}
       />
@@ -182,9 +185,12 @@ export default function TournamentHub() {
         />
       )}
       {tab === 'info' && <InfoTab tour={tour} canEdit={canEdit} isMobile={isMobile} a={a} onEdit={() => setEditing(true)} />}
-      {tab === 'players' && <PlayersTab tour={tour} db={db} a={a} canEdit={canEdit} isMobile={isMobile} />}
+      {tab === 'players' && <PlayersTab tour={tour} db={db} a={a} canEdit={canEdit} isMobile={isMobile} event={event} onGo={setTab} />}
       {(tab === 'format' || tab === 'pairing') && !event && <Empty icon="medal" title={t('tournament.pairing.noEvent')} />}
-      {tab === 'format' && event && <FormatTab tour={tour} event={event} db={db} a={a} canEdit={canEdit} isMobile={isMobile} onOpenBracket={openBracket} />}
+      {tab === 'format' && event && (
+        <FormatTab tour={tour} event={event} db={db} a={a} canEdit={canEdit} isMobile={isMobile} onOpenBracket={openBracket}
+          onOpenFlow={isMobile ? null : (eid) => navigate(pathOf('tournamentFlow', id) + '?edit=' + eid)} />
+      )}
       {tab === 'pairing' && event && <PairingTab tour={tour} event={event} db={db} a={a} canEdit={canEdit} isMobile={isMobile} />}
 
       {/* Dialog Sửa Thông Tin Giải */}

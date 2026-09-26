@@ -7,6 +7,7 @@ import { getPersonalHighlights } from '#lib/activity.js'
 import NotificationItem from './NotificationItem.jsx'
 import { t } from '#i18n'
 import { supabase } from '#supabase'
+import { pathOf } from '#routes'
 import {
   isPushSupported,
   getPushPermissionState,
@@ -103,6 +104,11 @@ export default function NotificationPanel({ open, onClose }) {
     } else if (item.refType === 'debts') {
       a.setTab('debts', 'sessions')
       a.go('debts')
+      onClose()
+    } else if (item.refType === 'tournament' && item.refId) {
+      // "Sắp tới lượt": mở thẳng nhánh của nội dung có trận đó.
+      const eventId = item.payload?.eventId
+      a.go(eventId ? pathOf('tournamentBracket', item.refId, eventId) : pathOf('tournament', item.refId))
       onClose()
     } else if (item.refType === 'member') {
       // Yêu cầu CHỜ DUYỆT nằm ở màn Thành viên (nút Duyệt / Từ chối); kết quả duyệt thì người

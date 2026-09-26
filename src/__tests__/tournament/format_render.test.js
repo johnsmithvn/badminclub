@@ -73,7 +73,8 @@ test('thể thức: mặc định theo quy chế; xem trước; thiếu bước 
   const stage = { id: 's1', eventId: 'e-xd', seq: 1, type: 'knockout', status: 'pending', config: { thirdPlace: true, seeding: 'seed' },
     matchRule: RULE_PRESETS.r1x21, ruleOverrides: { final: RULE_PRESETS.r3x15, third: RULE_PRESETS.r3x15 } }
   const draft = text(FormatTab, props({ ...tr, stages: [stage] }))
-  assert.match(draft, /Chốt đội hình ở bước 3 trước khi tạo lịch/)
+  assert.doesNotMatch(draft, /Chốt đội hình ở bước 3/, 'không còn bước chốt riêng — "Tạo lịch" tự chốt')
+  assert.match(draft, /Lịch thi đấu Cần ít nhất 2 đội đủ người/, 'đội hình chưa hợp lệ → nói đúng lý do ngay cạnh nút')
   assert.match(draft, /Cần ít nhất 2 đội đủ người để xem trước/)
 })
 
