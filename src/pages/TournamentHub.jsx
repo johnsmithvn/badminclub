@@ -19,10 +19,8 @@ import TourStepper from '#components/tournament/TourStepper.jsx'
 import OverviewTab from '#components/tournament/OverviewTab.jsx'
 import InfoTab from '#components/tournament/InfoTab.jsx'
 import PlayersTab from '#components/tournament/PlayersTab.jsx'
-import FormatTab from '#components/tournament/FormatTab.jsx'
 import PairingTab from '#components/tournament/PairingTab.jsx'
 import { ScoreDialog } from '#components/tournament/MatchDialogs.jsx'
-import { ruleLabel } from '#components/tournament/tourUtils.js'
 import TourFormDialog from '#components/tournament/TourFormDialog.jsx'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
 
@@ -89,7 +87,6 @@ export default function TournamentHub() {
     players: active.some((r) => r.fee > 0)
       ? t('tournament.sub.players', { n: active.length, unpaid: active.filter((r) => r.fee > 0 && !r.paid).length })
       : t('tournament.sub.playersFree', { n: active.length }),
-    format: formatSub(tour, event),
     pairing: pairingSub(tour, event),
   }
 
@@ -97,9 +94,12 @@ export default function TournamentHub() {
     overview: checklist.every((c) => c.done),
     info: tour.prizes.length > 0,
     players: active.length >= 2,
-    format: tour.stages.some((s) => s.eventId === selected && s.status !== 'pending'),
     pairing: Boolean(event && event.status !== 'draft' && event.status !== 'pairing'),
   }
+
+  const openFlow = () => navigate(pathOf('tournamentFlow', id) + (selected ? '?event=' + selected : ''))
+  // Checklist Tổng quan trỏ 'schedules' sang Sơ đồ (route riêng, không phải tab Hub) — mọi tab khác vẫn setTab như cũ.
+  const goChecklist = (key) => (key === 'flow' ? openFlow() : setTab(key))
 
   const saveInfo = async (form) => {
     const ok = await a.tourUpdate(form)
@@ -130,7 +130,7 @@ export default function TournamentHub() {
         events={scheduled}
         eventId={scheduled.some((e) => e.id === selected) ? selected : undefined}
         onHub={() => setTab('overview')}
-        onFlow={() => navigate(pathOf('tournamentFlow', id) + (selected ? '?event=' + selected : ''))}
+        onFlow={openFlow}
         onBracket={openBracket}
         onScore={canEdit && scheduled.some((e) => e.id === selected) ? quickScore : undefined}
       />
@@ -145,7 +145,7 @@ export default function TournamentHub() {
         onEdit={() => setEditing(true)}
         onDelete={() => setDeleting(true)}
         onStatus={a.tourSetStatus}
-        onFlow={() => navigate(pathOf('tournamentFlow', id) + (selected ? '?event=' + selected : ''))}
+        onFlow={openFlow}
         onScore={canEdit && scheduled.some((e) => e.id === selected) ? quickScore : undefined}
       />
 
@@ -165,7 +165,7 @@ export default function TournamentHub() {
         onDelete={a.tourDeleteEvent}
       />
 
-      {/* 5. Stepper 5 Tab */}
+      {/* 5. Stepper 4 Tab */}
       <TourStepper
         items={HUB_TABS.map((k) => ({ key: k, sub: subs[k], isDone: isDones[k] }))}
         value={tab}
@@ -180,7 +180,7 @@ export default function TournamentHub() {
           db={db}
           a={a}
           event={event}
-          onGo={setTab}
+          onGo={goChecklist}
           canEdit={canEdit}
           isMobile={isMobile}
           onOpenBracket={openBracket}
@@ -189,11 +189,7 @@ export default function TournamentHub() {
       )}
       {tab === 'info' && <InfoTab tour={tour} canEdit={canEdit} isMobile={isMobile} a={a} onEdit={() => setEditing(true)} />}
       {tab === 'players' && <PlayersTab tour={tour} db={db} a={a} canEdit={canEdit} isMobile={isMobile} event={event} onGo={setTab} />}
-      {(tab === 'format' || tab === 'pairing') && !event && <Empty icon="medal" title={t('tournament.pairing.noEvent')} />}
-      {tab === 'format' && event && (
-        <FormatTab tour={tour} event={event} db={db} a={a} canEdit={canEdit} isMobile={isMobile} onOpenBracket={openBracket}
-          onOpenFlow={isMobile ? null : (eid) => navigate(pathOf('tournamentFlow', id) + '?edit=' + eid)} />
-      )}
+      {tab === 'pairing' && !event && <Empty icon="medal" title={t('tournament.pairing.noEvent')} />}
       {tab === 'pairing' && event && <PairingTab tour={tour} event={event} db={db} a={a} canEdit={canEdit} isMobile={isMobile} />}
 
       {/* Dialog Sửa Thông Tin Giải */}
@@ -237,14 +233,7 @@ export default function TournamentHub() {
   )
 }
 
-/** Dòng phụ bước ② Thể thức của nội dung đang chọn: 'Loại trực tiếp · 1 sec 30 · chạm'. */
-function formatSub(tour, event) {
-  const st = event && tour.stages.find((s) => s.eventId === event.id && s.seq === 1)
-  if (!st) return t('tournament.sub.formatNone')
-  return t('tournament.sub.format', { flow: t('tournament.format.tpl.ko') + ' · ' + ruleLabel(st.matchRule) })
-}
-
-/** Dòng phụ bước ③ Ghép cặp: số cặp đủ người / đơn / đã chốt. */
+/** Dòng phụ bước ② Ghép cặp: số cặp đủ người / đơn / đã chốt. */
 function pairingSub(tour, event) {
   if (!event) return ''
   const teams = eventTeams(tour, event.id)

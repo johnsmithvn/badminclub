@@ -4927,23 +4927,19 @@
       "overview": "Tổng quan",
       "info": "Thông tin & giải thưởng",
       "players": "Thí sinh",
-      "format": "Thể thức",
       "pairing": "Ghép cặp"
     },
     "tabNo": {
       "overview": "TQ",
       "info": "i",
       "players": "1",
-      "format": "2",
-      "pairing": "3"
+      "pairing": "2"
     },
     "sub": {
       "overview": "{{done}}/{{total}} việc chuẩn bị",
       "info": "Lệ phí · chi · quy định",
       "players": "{{n}} VĐV · {{unpaid}} chưa đóng",
       "playersFree": "{{n}} VĐV · miễn phí",
-      "format": "{{flow}}",
-      "formatNone": "Chưa chọn thể thức",
       "pairing": "{{full}}/{{total}} cặp đủ người",
       "pairingSingles": "{{n}} VĐV · đơn",
       "pairingLocked": "Đã chốt · {{n}} đội"

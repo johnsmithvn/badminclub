@@ -97,7 +97,7 @@ test('checklist "Trước khi bắt đầu": chỉ việc chặn giải chạy; 
   assert.equal(byKey.prizes, undefined, 'giải thưởng không chặn giải chạy — không nằm trong checklist')
 
   assert.equal(byKey.lineups.done, false, 'nội dung còn nháp = chưa chốt đội hình')
-  assert.equal(byKey.schedules.tab, 'format')
+  assert.equal(byKey.schedules.tab, 'flow', 'không phải tab Hub — TournamentHub.jsx bắt riêng để điều hướng sang Sơ đồ')
 
   const full = hubChecklist(tourOf({
     events: [ev('md', 'running')], prizes: [{ id: 'p' }],

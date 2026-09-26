@@ -1,12 +1,12 @@
-// Giao diện Phase 2 (Ghép cặp, Thể thức) render bằng component thật — xem _render.js.
+// Giao diện Phase 2 (Ghép cặp) render bằng component thật — xem _render.js.
+// Thể thức (chọn mẫu, luật, bốc thăm, tạo lịch) không còn là component riêng — đã gộp hết vào FlowCanvas
+// (2026-09-26, xem format_render lịch sử git nếu cần bản cũ) — coverage nằm ở handoff_render.test.js/canvas.test.js.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { text, html, load, fakeActions, buttonTag, isDisabled } from './_render.js'
 import { db, tour } from './fixture.js'
-import { RULE_PRESETS } from '#lib/tournament/format.js'
 
 const { default: PairingTab } = await load('#components/tournament/PairingTab.jsx')
-const { default: FormatTab } = await load('#components/tournament/FormatTab.jsx')
 
 // Đôi nam nữ: 2 nam + 2 nữ đăng ký; 1 cặp đã ghép (An + Cúc), 2 người chờ.
 const xdTour = (evStatus = 'draft', p = {}) => tour({
@@ -64,22 +64,4 @@ test('ghép cặp: nội dung đơn không ghép, chỉ chốt danh sách; khôn
   assert.match(s, /là nội dung đơn, không cần ghép cặp/)
   assert.match(s, /Chốt danh sách/)
   assert.doesNotMatch(text(PairingTab, props(xdTour(), { canEdit: false })), /Tự ghép|Chốt đội hình|Ghim/)
-})
-
-// Rút gọn (2026-09-26): số bảng/luật/bốc thăm/xem trước/tạo lịch đã dời hết sang FlowCanvas ("Sửa trên sơ đồ tự do")
-// để tránh 2 màn cùng sửa một thứ — FormatTab giờ chỉ còn chọn mẫu khởi tạo + trạng thái sinh lịch (§ hub.js).
-test('thể thức: chọn mẫu; chưa có lịch → trỏ sang sơ đồ; đã có lịch → khoá, xem/làm lại', () => {
-  const tr = xdTour()
-  const s = text(FormatTab, props(tr, { onOpenFlow: () => {} }))
-  assert.match(s, /Loại trực tiếp/, 'danh sách mẫu vẫn còn')
-  assert.match(s, /Sửa trên sơ đồ tự do/, 'chưa có lịch → trỏ sang Canvas thay vì tự sửa luật ở đây')
-  assert.doesNotMatch(s, /Tạo lịch thi đấu/, 'nút tạo lịch không còn ở đây nữa — Canvas lo')
-
-  const stage = { id: 's1', eventId: 'e-xd', seq: 1, type: 'knockout', status: 'pending', config: { thirdPlace: true, seeding: 'seed' },
-    matchRule: RULE_PRESETS.r1x21, ruleOverrides: { final: RULE_PRESETS.r3x15, third: RULE_PRESETS.r3x15 } }
-  const done = { ...tr, stages: [{ ...stage, status: 'running' }], matches: [{ id: 'x1', eventId: 'e-xd', status: 'ready' }] }
-  const d = text(FormatTab, props(done, { onOpenFlow: () => {} }))
-  assert.match(d, /Đã có lịch thi đấu — 1 trận/)
-  assert.match(d, /Làm lại lịch/)
-  assert.doesNotMatch(d, /Sửa trên sơ đồ tự do/, 'đã có lịch thì sơ đồ cũng khoá, không mời sang đó sửa nữa')
 })

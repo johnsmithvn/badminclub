@@ -50,8 +50,11 @@ export const nextStatuses = (status) => FLOW[status] || []
 export const TOUR_STATUSES = Object.keys(FLOW)
 /** Khớp CHECK `tournament_events.status` ở DB. */
 export const EVENT_STATUSES = ['draft', 'pairing', 'drawn', 'running', 'finished']
-/** Tab của Hub — thứ tự trên stepper, đúng handoff: ① Thí sinh → ② Thể thức → ③ Ghép cặp. */
-export const HUB_TABS = ['overview', 'info', 'players', 'format', 'pairing']
+/**
+ * Tab của Hub — thứ tự trên stepper: ① Thí sinh → ② Ghép cặp. Mẫu thể thức, luật, bốc thăm, tạo lịch đều đã
+ * dời sang Sơ đồ thi đấu (FlowCanvas) — bỏ tab "Thể thức" riêng để tránh 2 màn cùng sửa một thứ (2026-09-26).
+ */
+export const HUB_TABS = ['overview', 'info', 'players', 'pairing']
 
 /**
  * Dòng đăng ký mới của một thành viên. Giới, trình độ, rating, phí đều CHỤP tại lúc đăng ký:
@@ -140,6 +143,7 @@ export function hubChecklist(tour) {
     { key: 'entries', done: active.length > 0 && noEvent === 0, tab: 'players', n: noEvent },
     ...(charged.length ? [{ key: 'fees', done: unpaid === 0, tab: 'players', n: unpaid }] : []),
     { key: 'lineups', done: tour.events.length > 0 && tour.events.every((e) => !entriesOpen(e)), tab: 'pairing' },
-    { key: 'schedules', done: tour.events.length > 0 && tour.events.every((e) => e.status === 'running' || e.status === 'finished'), tab: 'format' },
+    // 'flow' không phải tab Hub — TournamentHub.jsx bắt riêng giá trị này để điều hướng sang trang Sơ đồ.
+    { key: 'schedules', done: tour.events.length > 0 && tour.events.every((e) => e.status === 'running' || e.status === 'finished'), tab: 'flow' },
   ]
 }

@@ -22,8 +22,9 @@ export default function TourModuleNav({ tour, active = 'hub', events = [], event
 
   const steps = [
     { key: 'hub', label: t('tournament.module.hub'), onClick: onHub, off: false },
-    // Sơ đồ có nghĩa khi đã chọn thể thức cho ít nhất một nội dung.
-    { key: 'flow', label: t('tournament.module.flow'), onClick: onFlow, off: !onFlow || !tour?.stages?.length },
+    // Bỏ tab Thể thức riêng (2026-09-26): Sơ đồ tự lo cả bước khởi tạo (kéo khối / Tạo nhanh) nên không
+    // còn cần đợi có sẵn giai đoạn mới cho vào — chỉ cần đang xem một nội dung (có onFlow) là bấm được.
+    { key: 'flow', label: t('tournament.module.flow'), onClick: onFlow, off: !onFlow },
     { key: 'bracket', label: t('tournament.module.bracket'), onClick: () => onBracket(eventId || events[0]?.id), off: events.length === 0 },
   ]
 

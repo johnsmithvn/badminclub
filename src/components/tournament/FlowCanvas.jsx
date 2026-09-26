@@ -44,7 +44,7 @@ const overline = (x) => <span style={{ font: '700 10.5px/1 var(--font-sans)', le
  *   Phải: Toàn giải (tạo nhanh, căn khung, kiểm tra sơ đồ) · bảng sửa khối · bảng sửa đường nối.
  * Luật & số liệu thuần ở `lib/tournament/canvas.js` (có test); đây chỉ vẽ và gọi action.
  */
-export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }) {
+export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpenBracket }) {
   const stages = tour.stages.filter((s) => s.eventId === event.id).sort((x, y) => x.seq - y.seq)
   const links = (tour.stageLinks || []).filter((l) => stages.some((s) => s.id === l.toStageId))
   const source = stages.find((s) => s.seq === 1) || null
@@ -63,6 +63,7 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
   const [quick, setQuick] = useState(false)
   const [recommending, setRecommending] = useState(false)
   const [savingTpl, setSavingTpl] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [busy, setBusy] = useState(false)
   const [save, setSave] = useState('idle') // 'idle' | 'saving' | 'saved' — nhãn "vừa lưu" (handoff)
   const viewRef = useRef(null)
@@ -279,9 +280,12 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
           </span>
           {!hasSchedule && <Button size="sm" variant="accent" icon="wand-sparkles" onClick={() => setQuick(true)}>{t('tournament.canvas.quick')}</Button>}
           {hasSchedule ? (
-            <Button size="sm" iconAfter="arrow-right" onClick={() => onOpenBracket(event.id)}>
-              {t('tournament.module.bracket')} →
-            </Button>
+            <>
+              {canEdit && <Button size="sm" variant="secondary" icon="rotate-ccw" onClick={() => setResetting(true)}>{t('tournament.format.reset')}</Button>}
+              <Button size="sm" iconAfter="arrow-right" onClick={() => onOpenBracket(event.id)}>
+                {t('tournament.module.bracket')} →
+              </Button>
+            </>
           ) : (
             <Button size="sm" iconAfter="arrow-right" disabled={blocked || busy} loading={busy} onClick={publish}>
               {t('tournament.canvas.publish')}
@@ -458,7 +462,30 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
         <TemplateDialog onClose={() => setSavingTpl(false)}
           onSave={async (name) => (await a.tourSaveClubTemplate(event.id, name)) && setSavingTpl(false)} />
       )}
+      {resetting && <ResetDialog onClose={() => setResetting(false)} onReset={(reason) => a.tourResetSchedule(event.id, reason)} />}
     </div>
+  )
+}
+
+function ResetDialog({ onClose, onReset }) {
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async () => {
+    setBusy(true)
+    if (await onReset(reason.trim())) onClose()
+    else setBusy(false)
+  }
+  return (
+    <Dialog open width={460} title={t('tournament.format.resetTitle')} description={t('tournament.format.resetBody')}
+      onClose={busy ? undefined : onClose}
+      footer={(
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="danger" loading={busy} disabled={!reason.trim()} onClick={submit}>{t('tournament.format.reset')}</Button>
+        </>
+      )}>
+      <Input label={t('tournament.format.resetReason')} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+    </Dialog>
   )
 }
 

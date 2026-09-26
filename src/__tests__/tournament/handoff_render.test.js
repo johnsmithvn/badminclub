@@ -7,7 +7,6 @@ import { db, tour } from './fixture.js'
 const { default: PairingTab } = await load('#components/tournament/PairingTab.jsx')
 const { default: EventBar } = await load('#components/tournament/EventBar.jsx')
 const { default: OverviewTab } = await load('#components/tournament/OverviewTab.jsx')
-const { default: FormatTab } = await load('#components/tournament/FormatTab.jsx')
 const { default: RecommendDialog } = await load('#components/tournament/RecommendDialog.jsx')
 const { default: FlowCanvas } = await load('#components/tournament/FlowCanvas.jsx')
 const { default: BracketBoard } = await load('#components/tournament/BracketBoard.jsx')
@@ -73,17 +72,13 @@ test('tổng quan: nhánh thu nhỏ chưa có lịch hiện ô chờ "Nhất A /
   assert.match(s2, /Thắng trận BK1/, 'chung kết chờ người thắng bán kết')
 })
 
-test('thể thức: mẫu CLB, trỏ sang sơ đồ — sửa số bảng/luật/bốc thăm/lưu mẫu/Mỗi đội đá ít nhất đã dời hết sang Canvas', () => {
+// Tab Thể thức riêng đã bỏ hẳn (2026-09-26) — mẫu CLB, Lưu làm mẫu, Gợi ý, Bốc thăm, Mỗi đội đá ít nhất đều ở đây.
+test('sơ đồ: mẫu CLB, Lưu làm mẫu, Mỗi đội đá ít nhất', () => {
   const tr = mdTour({
     stages: [stage('rr', 1, 'round_robin', { config: { numGroups: 2 } })],
     templates: [{ id: 'tp', name: 'Mẫu 3 nhánh', graph: { stages: [{}, {}, {}], links: [] } }],
   })
-  const s = text(FormatTab, { tour: tr, event: tr.events[0], db, a: fakeActions(), canEdit: true, isMobile: false, onOpenBracket: noop, onOpenFlow: noop })
-  assert.match(s, /Mẫu 3 nhánh Mẫu CLB · 3 khối/)
-  assert.match(s, /Sửa trên sơ đồ tự do/)
-
-  // "Lưu làm mẫu CLB" + "Mỗi đội đá ít nhất" giờ nằm ở FlowCanvas (đợt gộp Thể thức vào Sơ đồ, 2026-09-26).
-  const canvas = text(FlowCanvas, { tour: tr, event: tr.events[0], db, a: fakeActions(), onBack: noop, onOpenBracket: noop })
+  const canvas = text(FlowCanvas, { tour: tr, event: tr.events[0], db, a: fakeActions(), canEdit: true, onBack: noop, onOpenBracket: noop })
   assert.match(canvas, /Lưu làm mẫu CLB/)
   assert.match(canvas, /Mỗi đội đá ít nhất 1 trận/, '4 cặp chia 2 bảng × 2 → mỗi cặp 1 trận vòng bảng')
 })

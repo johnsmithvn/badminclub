@@ -24,6 +24,7 @@ export default function TournamentFlow() {
   const { db, a, tour } = useApp()
   const navigate = useNavigate()
   const isMobile = useMobile(768)
+  const canEdit = can(db.viewAs || 'owner', 'sessions')
   const [missingId, setMissingId] = useState(null)
   const [params] = useSearchParams()
   const currentEventId = params.get('event') || params.get('edit')
@@ -115,6 +116,7 @@ export default function TournamentFlow() {
         event={currentEvent}
         db={db}
         a={a}
+        canEdit={canEdit}
         onBack={toHub}
         onOpenBracket={(eid) => navigate(pathOf('tournamentBracket', id, eid))}
       />
