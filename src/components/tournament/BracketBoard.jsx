@@ -6,6 +6,7 @@ import { CHAMP_KEY, flightsOf, hasResult, sideScores, slotKey } from '#lib/tourn
 import { finalRows, groupStandings, swapUpInTie } from '#lib/tournament/standings.js'
 import { closeScoreOf, freeSetWinner } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
+import { Seg } from './TourBits.jsx'
 import { matchCode, ruleLabel, teamName } from './tourUtils.js'
 
 const EASE = 'cubic-bezier(.2,.8,.2,1)' // DESIGN.md §6
@@ -153,135 +154,148 @@ export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScor
     <div style={{ display: 'grid', gap: 16, width: '100%' }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : (groups.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(360px, 1fr))'),
+        gridTemplateColumns: isMobile ? '1fr' : (groups.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(520px, 1fr))'),
         gap: 16,
         alignItems: 'start',
         width: '100%',
       }}>
-        {groups.map((g) => {
-          const own = tour.matches.filter((m) => m.groupId === g.id)
-          const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
-          const st = groupStandings(g, tour.matches)
-          const rows = finalRows(stage, g, st, manual?.[g.id])
-          const canReorder = canEdit && stage?.status === 'running' && st.isFinished
-
-          return (
-            <section key={g.id} style={{
-              display: 'grid', gap: 14, padding: isMobile ? 12 : 16, borderRadius: 12,
-              background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-xs)', width: '100%', boxSizing: 'border-box',
-            }}>
-              {/* Tiêu đề Bảng + Trạng thái tiến độ */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
-                  {t('tournament.standings.groupTitle', { label: g.label })}
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {advancePerGroup > 0 && (
-                    <span style={{
-                      font: '600 10.5px/1 var(--font-sans)', color: 'var(--teal-500)',
-                      background: 'var(--surface-accent-soft)', padding: '3px 8px', borderRadius: 99,
-                      border: '1px solid rgba(0, 178, 169, 0.25)',
-                    }}>
-                      {t('tournament.overview.remainingTake', { n: st.matchesCount.total - st.matchesCount.done, k: advancePerGroup })}
-                    </span>
-                  )}
-                  <Mono size={11} color="var(--text-muted)">
-                    {st.matchesCount.done}/{st.matchesCount.total} {t('tournament.overview.matchesDone')}
-                  </Mono>
-                </div>
-              </div>
-
-              {/* Chưa đấu trận nào thì ai cũng hoà 0-0 — đúng toán nhưng chưa có gì để BTC "phân xử", chỉ nhắc
-                  khi bảng đã đấu xong hết (lúc thật sự cần chốt thứ hạng). */}
-              {st.ties.length > 0 && st.isFinished && stage?.status !== 'done' && (
-                <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Icon name="alert-circle" size={13} />
-                  <span>{t(canReorder ? 'tournament.standings.tieReorder' : 'tournament.standings.tieNotice')}</span>
-                </div>
-              )}
-
-              {/* BẢNG XẾP HẠNG (Standings) */}
-              <div style={{
-                borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
-                padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden',
-              }}>
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
-                  font: '700 10px/1 var(--font-sans)', color: 'var(--text-muted)', padding: '0 4px 6px',
-                  borderBottom: '1px solid var(--border-subtle)', letterSpacing: '0.04em', textTransform: 'uppercase',
-                }}>
-                  <span style={{ textAlign: 'center' }}>#</span>
-                  <span>{t('tournament.overview.pairs')}</span>
-                  <span style={{ textAlign: 'center' }}>{t('tournament.overview.won')}</span>
-                  <span style={{ textAlign: 'center' }}>{t('tournament.overview.lost')}</span>
-                  <span style={{ textAlign: 'right' }}>{t('tournament.overview.diff')}</span>
-                </div>
-
-                {rows.map((r) => {
-                  const advances = advancePerGroup > 0 && r.rank <= advancePerGroup
-                  const label = teamName(tour, db, r.teamId)
-                  const up = canReorder && swapUpInTie(rows, st.ties, r.teamId)
-                  return (
-                    <div key={r.teamId} style={{
-                      display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
-                      padding: '5px 4px', borderRadius: 6,
-                      background: advances ? 'var(--surface-accent-soft)' : 'transparent',
-                      borderLeft: advances ? '3px solid var(--teal-500)' : '3px solid transparent',
-                    }}>
-                      <span style={{
-                        textAlign: 'center', font: '700 11px/1 var(--font-mono)',
-                        color: r.rank === 1 ? 'var(--podium-gold)' : 'var(--text-secondary)',
-                      }}>
-                        {r.rank}
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                        <span title={label} style={{
-                          font: advances ? '600 12.5px/1.2 var(--font-sans)' : '500 12.5px/1.2 var(--font-sans)',
-                          color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
-                        }}>
-                          {label}
-                        </span>
-                        {up && (
-                          <button type="button" aria-label={t('tournament.standings.moveUp')} title={t('tournament.standings.moveUp')}
-                            onClick={() => onReorder(g.id, up)}
-                            style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 20, height: 20, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                            <Icon name="chevron-up" size={11} />
-                          </button>
-                        )}
-                      </span>
-                      <Mono size={11.5} weight={600} color={r.won > 0 ? 'var(--status-delivered-fg)' : 'var(--text-secondary)'} style={{ textAlign: 'center' }}>
-                        {r.won}
-                      </Mono>
-                      <Mono size={11.5} color={r.lost > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'} style={{ textAlign: 'center' }}>
-                        {r.lost}
-                      </Mono>
-                      <Mono size={11.5} weight={600} color={r.pointDiff > 0 ? 'var(--status-delivered-fg)' : (r.pointDiff < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')} style={{ textAlign: 'right' }}>
-                        {r.pointDiff > 0 ? `+${r.pointDiff}` : r.pointDiff}
-                      </Mono>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* DANH SÁCH CÁC TRẬN ĐẤU THEO LƯỢT — xếp nhiều cột khi còn chỗ ngang, đỡ cuộn dọc dài lê thê */}
-              <div style={{ display: 'grid', gap: 10, marginTop: 2 }}>
-                {rounds.map((r) => (
-                  <div key={r} style={{ display: 'grid', gap: 6 }}>
-                    <Overline>{t('tournament.bracket.groupRound', { n: r + 1 })}</Overline>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 6 }}>
-                      {own.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => (
-                        <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )
-        })}
+        {groups.map((g) => (
+          <GroupCard key={g.id} g={g} tour={tour} db={db} canEdit={canEdit} edit={edit} isMobile={isMobile} stage={stage}
+            advancePerGroup={advancePerGroup} manual={manual} onReorder={onReorder}
+            onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
+        ))}
       </div>
     </div>
+  )
+}
+
+/**
+ * Một bảng: xếp hạng (xử lý hoà) cố định bên trái · tab chọn vòng bên phải, chỉ hiện đúng 1 vòng tại 1 lúc
+ * (thay vì liệt kê hết mọi lượt xuống dưới — đỡ cuộn dài). Mặc định mở vòng đầu tiên còn trận chưa xong;
+ * tab có dấu ✓ khi vòng đó đã đấu hết. Không phải bóng đá — không có "hoà", giữ đúng cột THẮNG/THUA/HS.
+ */
+function GroupCard({ g, tour, db, canEdit, edit, isMobile, stage, advancePerGroup, manual, onReorder, onScore, onUndo, onEdit, onQuick }) {
+  const own = tour.matches.filter((m) => m.groupId === g.id)
+  const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
+  const roundDone = (r) => own.filter((m) => m.round === r).every((m) => hasResult(m))
+  const [activeRound, setActiveRound] = useState(() => rounds.find((r) => !roundDone(r)) ?? rounds[0])
+  const round = rounds.includes(activeRound) ? activeRound : rounds[0]
+  const st = groupStandings(g, tour.matches)
+  const rows = finalRows(stage, g, st, manual?.[g.id])
+  const canReorder = canEdit && stage?.status === 'running' && st.isFinished
+
+  return (
+    <section style={{
+      display: 'grid', gap: 14, padding: isMobile ? 12 : 16, borderRadius: 12,
+      background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+      boxShadow: 'var(--shadow-xs)', width: '100%', boxSizing: 'border-box',
+    }}>
+      {/* Tiêu đề Bảng + Trạng thái tiến độ */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
+          {t('tournament.standings.groupTitle', { label: g.label })}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {advancePerGroup > 0 && (
+            <span style={{
+              font: '600 10.5px/1 var(--font-sans)', color: 'var(--teal-500)',
+              background: 'var(--surface-accent-soft)', padding: '3px 8px', borderRadius: 99,
+              border: '1px solid rgba(0, 178, 169, 0.25)',
+            }}>
+              {t('tournament.overview.remainingTake', { n: st.matchesCount.total - st.matchesCount.done, k: advancePerGroup })}
+            </span>
+          )}
+          <Mono size={11} color="var(--text-muted)">
+            {st.matchesCount.done}/{st.matchesCount.total} {t('tournament.overview.matchesDone')}
+          </Mono>
+        </div>
+      </div>
+
+      {/* Chưa đấu trận nào thì ai cũng hoà 0-0 — đúng toán nhưng chưa có gì để BTC "phân xử", chỉ nhắc
+          khi bảng đã đấu xong hết (lúc thật sự cần chốt thứ hạng). */}
+      {st.ties.length > 0 && st.isFinished && stage?.status !== 'done' && (
+        <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Icon name="alert-circle" size={13} />
+          <span>{t(canReorder ? 'tournament.standings.tieReorder' : 'tournament.standings.tieNotice')}</span>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(260px, 380px) 1fr', gap: 14, alignItems: 'start', minWidth: 0 }}>
+        {/* BẢNG XẾP HẠNG (Standings) */}
+        <div style={{
+          borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+          padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden',
+        }}>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
+            font: '700 10px/1 var(--font-sans)', color: 'var(--text-muted)', padding: '0 4px 6px',
+            borderBottom: '1px solid var(--border-subtle)', letterSpacing: '0.04em', textTransform: 'uppercase',
+          }}>
+            <span style={{ textAlign: 'center' }}>#</span>
+            <span>{t('tournament.overview.pairs')}</span>
+            <span style={{ textAlign: 'center' }}>{t('tournament.overview.won')}</span>
+            <span style={{ textAlign: 'center' }}>{t('tournament.overview.lost')}</span>
+            <span style={{ textAlign: 'right' }}>{t('tournament.overview.diff')}</span>
+          </div>
+
+          {rows.map((r) => {
+            const advances = advancePerGroup > 0 && r.rank <= advancePerGroup
+            const label = teamName(tour, db, r.teamId)
+            const up = canReorder && swapUpInTie(rows, st.ties, r.teamId)
+            return (
+              <div key={r.teamId} style={{
+                display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
+                padding: '5px 4px', borderRadius: 6,
+                background: advances ? 'var(--surface-accent-soft)' : 'transparent',
+                borderLeft: advances ? '3px solid var(--teal-500)' : '3px solid transparent',
+              }}>
+                <span style={{
+                  textAlign: 'center', font: '700 11px/1 var(--font-mono)',
+                  color: r.rank === 1 ? 'var(--podium-gold)' : 'var(--text-secondary)',
+                }}>
+                  {r.rank}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                  <span title={label} style={{
+                    font: advances ? '600 12.5px/1.2 var(--font-sans)' : '500 12.5px/1.2 var(--font-sans)',
+                    color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+                  }}>
+                    {label}
+                  </span>
+                  {up && (
+                    <button type="button" aria-label={t('tournament.standings.moveUp')} title={t('tournament.standings.moveUp')}
+                      onClick={() => onReorder(g.id, up)}
+                      style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 20, height: 20, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                      <Icon name="chevron-up" size={11} />
+                    </button>
+                  )}
+                </span>
+                <Mono size={11.5} weight={600} color={r.won > 0 ? 'var(--status-delivered-fg)' : 'var(--text-secondary)'} style={{ textAlign: 'center' }}>
+                  {r.won}
+                </Mono>
+                <Mono size={11.5} color={r.lost > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'} style={{ textAlign: 'center' }}>
+                  {r.lost}
+                </Mono>
+                <Mono size={11.5} weight={600} color={r.pointDiff > 0 ? 'var(--status-delivered-fg)' : (r.pointDiff < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')} style={{ textAlign: 'right' }}>
+                  {r.pointDiff > 0 ? `+${r.pointDiff}` : r.pointDiff}
+                </Mono>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* TAB CHỌN VÒNG + TRẬN CỦA VÒNG ĐANG CHỌN */}
+        <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+          <Seg options={rounds.map((r) => ({ key: r, label: t('tournament.bracket.groupRound', { n: r + 1 }) + (roundDone(r) ? ' ✓' : '') }))}
+            value={round} onChange={setActiveRound} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 6 }}>
+            {own.filter((m) => m.round === round).sort((x, y) => x.slot - y.slot).map((m) => (
+              <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 

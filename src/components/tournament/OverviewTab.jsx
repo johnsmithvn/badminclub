@@ -298,7 +298,7 @@ export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBrac
       </div>
 
       {/* CỘT PHẢI (~30% chiều rộng): Trận Kế Tiếp + Checklist */}
-      <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
         {/* Khối Trận Đang Đánh & Kế Tiếp (giữ Card chuẩn của handoff để khớp tiến độ và mở nhánh) */}
         {tour.matches && tour.matches.length > 0 && (
           <Card
