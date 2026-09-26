@@ -10,7 +10,7 @@ import { nextPowerOf2 } from '#lib/tournament/bracket.js'
 import { eventTeams, shuffle } from '#lib/tournament/pairing.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
-import { RuleField, Seg } from './TourBits.jsx'
+import { RuleField, Seg, TeamNameLines } from './TourBits.jsx'
 import RecommendDialog from './RecommendDialog.jsx'
 import { rankLabel, ruleLabel, stageName, teamName } from './tourUtils.js'
 
@@ -600,9 +600,7 @@ function TeamChip({ team, tour, db, seed }) {
       style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: 7, cursor: 'grab', minWidth: 0,
         background: 'var(--surface-card)', border: '1px solid var(--border-default)' }}>
       {seed != null && <Mono size={10} weight={700} color="var(--text-muted)">{seed}</Mono>}
-      <span style={{ flex: 1, minWidth: 0, font: '600 11.5px/1.2 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {teamName(tour, db, team.id)}
-      </span>
+      <TeamNameLines name={teamName(tour, db, team.id)} fontSize={11.5} weight={600} />
       {guest && <Mono size={9} weight={700} color="var(--status-transit-fg)">{t('tournament.players.guestTag')}</Mono>}
       <Mono size={10} color="var(--text-muted)">{Math.round(team.sum || 0)}</Mono>
     </span>

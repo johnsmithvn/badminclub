@@ -149,18 +149,22 @@ export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScor
   const edit = canEdit && !locked
   const toStages = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === stage?.id).map((l) => l.toStageId))
   const advancePerGroup = toStages.size > 0 ? (stage?.config?.advancePerGroup || 2) : 0
+  // 1-2 bảng: mỗi thẻ đủ rộng để xếp hạng-trái/tab-phải cạnh nhau, ép đúng số cột (không auto-fit — auto-fit
+  // với 1-2 item trên màn rộng có thể kẹt 1 thẻ hẹp lè tè giữa khoảng trống chết, xem chat). 3+ bảng: thẻ hẹp
+  // lại (xếp hạng TRÊN, tab DƯỚI trong `GroupCard`) để auto-fit xếp đều nhiều thẻ/hàng mà không vỡ layout.
+  const wide = !isMobile && groups.length <= 2
 
   return (
     <div style={{ display: 'grid', gap: 16, width: '100%' }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : (groups.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(520px, 1fr))'),
+        gridTemplateColumns: isMobile ? '1fr' : (wide ? `repeat(${groups.length}, minmax(0, 1fr))` : 'repeat(auto-fit, minmax(340px, 1fr))'),
         gap: 16,
         alignItems: 'start',
         width: '100%',
       }}>
         {groups.map((g) => (
-          <GroupCard key={g.id} g={g} tour={tour} db={db} canEdit={canEdit} edit={edit} isMobile={isMobile} stage={stage}
+          <GroupCard key={g.id} g={g} tour={tour} db={db} canEdit={canEdit} edit={edit} isMobile={isMobile} wide={wide} stage={stage}
             advancePerGroup={advancePerGroup} manual={manual} onReorder={onReorder}
             onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
         ))}
@@ -170,11 +174,13 @@ export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScor
 }
 
 /**
- * Một bảng: xếp hạng (xử lý hoà) cố định bên trái · tab chọn vòng bên phải, chỉ hiện đúng 1 vòng tại 1 lúc
- * (thay vì liệt kê hết mọi lượt xuống dưới — đỡ cuộn dài). Mặc định mở vòng đầu tiên còn trận chưa xong;
- * tab có dấu ✓ khi vòng đó đã đấu hết. Không phải bóng đá — không có "hoà", giữ đúng cột THẮNG/THUA/HS.
+ * Một bảng: xếp hạng (xử lý hoà) · tab chọn vòng, chỉ hiện đúng 1 vòng tại 1 lúc (thay vì liệt kê hết mọi
+ * lượt xuống dưới — đỡ cuộn dài). `wide` (1-2 bảng): xếp hạng-trái/tab-phải cạnh nhau. Không `wide` (3+ bảng,
+ * thẻ hẹp hơn để xếp nhiều thẻ/hàng): xếp hạng TRÊN, tab DƯỚI — không đủ chỗ ngang cho 2 cột.
+ * Mặc định mở vòng đầu tiên còn trận chưa xong; tab có dấu ✓ khi vòng đó đã đấu hết. Không phải bóng đá —
+ * không có "hoà", giữ đúng cột THẮNG/THUA/HS.
  */
-function GroupCard({ g, tour, db, canEdit, edit, isMobile, stage, advancePerGroup, manual, onReorder, onScore, onUndo, onEdit, onQuick }) {
+function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advancePerGroup, manual, onReorder, onScore, onUndo, onEdit, onQuick }) {
   const own = tour.matches.filter((m) => m.groupId === g.id)
   const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
   const roundDone = (r) => own.filter((m) => m.round === r).every((m) => hasResult(m))

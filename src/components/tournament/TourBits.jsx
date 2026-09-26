@@ -64,6 +64,24 @@ export function Seg({ options, value, onChange, disabled, size = 30 }) {
   )
 }
 
+/**
+ * Tên đội tách theo từng người (đôi 2 người ghép " / ") — mỗi người 1 dòng, tự cắt "..." riêng, không để
+ * người 1 tên dài đẩy người 2 mất dạng (xem chat: bug ở B4.4 và danh sách hạt giống/đội tham gia).
+ * `fontSize`/`weight`/`color` áp cho mọi dòng như nhau — nơi cần khác nhau (VD đội thắng đậm hơn) tự viết riêng.
+ */
+export function TeamNameLines({ name, fontSize = 11.5, weight = 500, color = 'var(--text-primary)' }) {
+  const names = name ? name.split(' / ') : [name]
+  return (
+    <span style={{ flex: 1, minWidth: 0, display: 'grid', gap: 1 }}>
+      {names.map((n, i) => (
+        <span key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', font: `${weight} ${fontSize}px/1.25 var(--font-sans)`, color }}>
+          {n}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 /** Ô số −/giá trị/+ (handoff: giả lập VĐV, thời gian & sân trong hộp Gợi ý thể thức). */
 export function NumStep({ value, min = 0, max = Infinity, step = 1, onChange, format = String, disabled }) {
   const btn = (children, delta, edge) => (

@@ -18,6 +18,15 @@ const TONE = {
 export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
   const [mode, setMode] = useState('balanced')
   const [picked, setPicked] = useState(null)
+  // Chặn bấm chồng (VD spam "Tự ghép"): mỗi cú bấm gọi thẳng DB dựa trên state CŨ (chưa tải lại xong sau cú
+  // bấm trước) — 2 request cùng lúc dẫm lên nhau, có thể ra lỗi trùng khoá thật từ DB (uq_tournament_team_players_event).
+  const [busy, setBusy] = useState(false)
+  const run = (fn) => async () => {
+    if (busy) return
+    setBusy(true)
+    await fn()
+    setBusy(false)
+  }
 
   const players = eventPlayers(tour, event.id)
   const teams = eventTeams(tour, event.id)
@@ -29,8 +38,8 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
   const genLabel = t(hasFormat ? 'tournament.pairing.lockGenerate' : 'tournament.pairing.lockGenerateKo')
   const lockButtons = (issueNow, lockKey) => (
     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-      <Button variant="secondary" icon="lock" disabled={Boolean(issueNow)} onClick={() => a.tourLockLineup(event.id)}>{t(lockKey)}</Button>
-      <Button icon="calendar-plus" disabled={Boolean(issueNow)} onClick={() => a.tourGenerate(event.id)}>{genLabel}</Button>
+      <Button variant="secondary" icon="lock" disabled={Boolean(issueNow) || busy} onClick={run(() => a.tourLockLineup(event.id))}>{t(lockKey)}</Button>
+      <Button icon="calendar-plus" disabled={Boolean(issueNow) || busy} loading={busy} onClick={run(() => a.tourGenerate(event.id))}>{genLabel}</Button>
     </div>
   )
   const issue = lineupIssue(event, teams, players)
@@ -59,10 +68,10 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
     <Alert tone="info" title={t('tournament.pairing.locked', { name: evName })}>
       {canEdit && !hasSchedule && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Button size="sm" variant="secondary" icon="undo-2" onClick={() => a.tourUnlockLineup(event.id)}>
+          <Button size="sm" variant="secondary" icon="undo-2" disabled={busy} onClick={run(() => a.tourUnlockLineup(event.id))}>
             {t('tournament.pairing.unlock')}
           </Button>
-          <Button size="sm" icon="calendar-plus" onClick={() => a.tourGenerate(event.id)}>
+          <Button size="sm" icon="calendar-plus" disabled={busy} loading={busy} onClick={run(() => a.tourGenerate(event.id))}>
             {t(hasFormat ? 'tournament.format.generate' : 'tournament.pairing.generateKo')}
           </Button>
         </div>
@@ -79,7 +88,7 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
           hint={eligible ? t('tournament.pairing.noPlayersHint', { n: eligible }) : t('tournament.players.emptyHint')} />
         {editable && eligible > 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 12 }}>
-            <Button icon="user-round-plus" onClick={() => a.tourEnterAll(event.id)}>{t('tournament.pairing.enterAll', { n: eligible })}</Button>
+            <Button icon="user-round-plus" disabled={busy} loading={busy} onClick={run(() => a.tourEnterAll(event.id))}>{t('tournament.pairing.enterAll', { n: eligible })}</Button>
           </div>
         )}
       </Card>
@@ -114,8 +123,8 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
           <Overline>{t('tournament.pairing.modeLabel')}</Overline>
           <Seg options={PAIR_MODES.map((k) => ({ key: k, label: t('tournament.pairing.mode.' + k) }))} value={mode} onChange={setMode} />
           <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', flex: '1 1 200px' }}>{t('tournament.pairing.modeHint.' + mode)}</span>
-          <Button size="sm" variant="secondary" onClick={() => a.tourClearPairs(event.id)}>{t('tournament.pairing.clear')}</Button>
-          <Button size="sm" icon="wand-sparkles" onClick={() => a.tourAutoPair(event.id, mode)}>{t('tournament.pairing.auto')}</Button>
+          <Button size="sm" variant="secondary" disabled={busy} onClick={run(() => a.tourClearPairs(event.id))}>{t('tournament.pairing.clear')}</Button>
+          <Button size="sm" icon="wand-sparkles" disabled={busy} loading={busy} onClick={run(() => a.tourAutoPair(event.id, mode))}>{t('tournament.pairing.auto')}</Button>
         </div>
       )}
 

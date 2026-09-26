@@ -9,6 +9,7 @@ import { t } from '#i18n'
 import { matchCode, stageName, teamName } from './tourUtils.js'
 import { koRounds } from '#lib/tournament/bracketView.js'
 import { estimateOf, koPreviewOf } from '#lib/tournament/canvas.js'
+import { TeamNameLines } from './TourBits.jsx'
 
 /**
  * Tab Tổng quan (handoff "Giải đấu · desktop v2"):
@@ -457,12 +458,7 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
                     const won = done && cell.m.winner === s
                     return (
                       <span key={s} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, minWidth: 0 }}>
-                        <span style={{
-                          font: `${won ? 700 : 500} 11.5px/1.3 var(--font-sans)`, color: won ? 'var(--text-primary)' : 'var(--text-secondary)',
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        }}>
-                          {name}
-                        </span>
+                        <TeamNameLines name={name} fontSize={11.5} weight={won ? 700 : 500} color={won ? 'var(--text-primary)' : 'var(--text-secondary)'} />
                         {done && (
                           <Mono size={10} weight={won ? 700 : 500} color={won ? 'var(--status-transit-fg)' : 'var(--text-muted)'} style={{ flex: '0 0 auto' }}>
                             {sideScores(cell.m.sets, s).join(' ')}

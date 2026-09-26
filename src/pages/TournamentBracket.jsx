@@ -11,7 +11,7 @@ import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
 import BracketBoard, { GroupBoard } from '#components/tournament/BracketBoard.jsx'
-import { RuleField, Seg } from '#components/tournament/TourBits.jsx'
+import { RuleField, Seg, TeamNameLines } from '#components/tournament/TourBits.jsx'
 import { finalRows, groupStandings, stageGroups } from '#lib/tournament/standings.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
@@ -346,9 +346,7 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
             {seedOrder.map((id, i) => (
               <span key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: 7, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
                 <Mono size={10} weight={700} color="var(--text-muted)" style={{ minWidth: 16 }}>{i + 1}</Mono>
-                <span style={{ flex: 1, minWidth: 0, font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {teamName(tour, db, id)}
-                </span>
+                <TeamNameLines name={teamName(tour, db, id)} />
                 <button type="button" disabled={i === 0} aria-label={t('tournament.bracket.seedUp')} onClick={() => moveSeed(i, -1)}
                   style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 20, height: 20, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.4 : 1 }}>
                   <Icon name="chevron-up" size={11} />
@@ -395,9 +393,9 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
         {seats.map(([id, src], i) => (
           <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 7, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
             <Mono size={10} weight={700} color="var(--text-muted)" style={{ minWidth: 22 }}>{tag(src)}</Mono>
-            <span style={{ flex: 1, minWidth: 0, font: '500 11.5px/1.2 var(--font-sans)', color: id ? 'var(--text-primary)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {id ? teamName(tour, db, id) : t('tournament.bracket.bye')}
-            </span>
+            {id
+              ? <TeamNameLines name={teamName(tour, db, id)} />
+              : <span style={{ flex: 1, minWidth: 0, font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('tournament.bracket.bye')}</span>}
           </span>
         ))}
       </div>

@@ -51,6 +51,28 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
     }
   }
 
+  /**
+   * Ghi LẠC QUAN: cập nhật state `tour` cục bộ NGAY bằng `apply` (không chờ mạng), ghi DB `fn` chạy nền.
+   * Lỗi → tải lại từ server (đồng bộ về đúng sự thật) + báo lỗi; F5 bất cứ lúc nào cũng luôn ra đúng dữ liệu
+   * server, không có chuyện hiện sai vĩnh viễn — tệ nhất là thao tác cuối phải làm lại.
+   *
+   * CHỈ dùng cho thao tác đơn giản, máy tính trước ra chắc chắn y hệt server sẽ lưu (Sơ đồ thi đấu: dời khối,
+   * đổi luật, đổi seeding, xếp cặp vào bảng — phép biến đổi JSON thuần, không thuật toán/validate phức tạp).
+   * KHÔNG dùng cho ghi tỷ số hay chỗ có thuật toán server-side (đúng > nhanh ở đó, xem đầu file).
+   */
+  const runOptimistic = (apply, fn) => {
+    setTour((cur) => (cur ? apply(cur) : cur))
+    ;(async () => {
+      try {
+        await fn()
+      } catch (e) {
+        toast(tourErr(e))
+        await reloadTour().catch(() => {})
+      }
+    })()
+    return true
+  }
+
   const write = (table, op, list) => tournamentWrite(table, op, op === 'delete' ? list : tourRows(table, list))
   const base = () => ({ clubId: tour().clubId, tournamentId: tour().id })
 
@@ -207,19 +229,26 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
 
     /* ---------- Phase 2: đội hình ---------- */
 
-    /** Đưa người vào đội `teamId` (null = lập đội mới); rời đội cũ trước, đội cũ rỗng thì xoá. */
-    tourPlace: (eventId, regId, teamId) => run(async () => {
-      await leaveTeam(eventId, regId)
-      let tid = teamId
-      if (!tid) {
-        tid = uid()
-        await write('tournament_teams', 'insert', [{ ...base(), id: tid, eventId, pinned: false, status: 'active' }])
-      }
-      await write('tournament_team_players', 'insert', [{ ...base(), teamId: tid, eventId, registrationId: regId }])
-    }),
+    /**
+     * Đưa người vào đội `teamId` (null = lập đội mới); rời đội cũ trước, đội cũ rỗng thì xoá.
+     * Ghi lạc quan (xem `runOptimistic`) — kéo người vào ô ở Ghép cặp hiện ngay trên máy, id đội mới sinh
+     * SẴN ở máy (`uid()`) rồi dùng lại y hệt lúc ghi DB, không lệch giữa state lạc quan và cái ghi xuống.
+     */
+    tourPlace: (eventId, regId, teamId) => {
+      const newTeamId = teamId ? null : uid()
+      const tid = teamId || newTeamId
+      return runOptimistic(
+        (t) => ({ ...t, ...placeLocal(t, eventId, regId, teamId, newTeamId) }),
+        async () => {
+          await leaveTeam(eventId, regId)
+          if (!teamId) await write('tournament_teams', 'insert', [{ ...base(), id: tid, eventId, pinned: false, status: 'active' }])
+          await write('tournament_team_players', 'insert', [{ ...base(), teamId: tid, eventId, registrationId: regId }])
+        },
+      )
+    },
 
-    /** Trả người về danh sách chưa có cặp. */
-    tourUnplace: (eventId, regId) => run(() => leaveTeam(eventId, regId)),
+    /** Trả người về danh sách chưa có cặp. Ghi lạc quan — kéo ra khay hiện ngay, không chờ mạng. */
+    tourUnplace: (eventId, regId) => runOptimistic((t) => ({ ...t, ...unplaceLocal(t, eventId, regId) }), () => leaveTeam(eventId, regId)),
 
     tourPin: (teamId, pinned) => {
       const t0 = tour().teams.find((x) => x.id === teamId)
@@ -440,17 +469,29 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       })
     },
 
-    /** Sửa khối (toạ độ sau khi kéo, tên, số bảng, luật…) — `patch` ghép vào giai đoạn. */
+    /**
+     * Sửa khối (toạ độ sau khi kéo, tên, số bảng, luật, xếp cặp vào bảng…) — `patch` ghép vào giai đoạn.
+     * Ghi lạc quan (xem `runOptimistic`): kéo/đổi luật/thả cặp hiện NGAY trên máy, ghi DB chạy nền — Sơ đồ
+     * thi đấu là chỗ gọi hàm này liên tục (kéo khối, đổi seeding, thả cặp), lỗi khựng cảm nhận rõ nhất ở đây.
+     */
     tourCanvasSave: (stageId, patch) => {
       const cur = tour()
       const stage = cur.stages.find((s) => s.id === stageId)
       if (!stage || stage.status !== 'pending') return false
       const ev = cur.events.find((e) => e.id === stage.eventId)
       const onlyMove = Object.keys(patch).every((k) => k === 'canvasX' || k === 'canvasY')
-      return run(async () => {
-        await write('tournament_stages', 'upsert', [{ ...base(), ...stage, ...patch }])
-        if (!onlyMove) await markCustom(ev) // kéo cho gọn không làm đổi thể thức
-      })
+      const next = { ...stage, ...patch }
+      return runOptimistic(
+        (t) => ({
+          ...t,
+          stages: t.stages.map((s) => (s.id === stageId ? next : s)),
+          events: onlyMove || !ev ? t.events : t.events.map((e) => (e.id === ev.id ? { ...e, templateKey: 'custom' } : e)),
+        }),
+        async () => {
+          await write('tournament_stages', 'upsert', [{ ...base(), ...next }])
+          if (!onlyMove) await markCustom(ev) // kéo cho gọn không làm đổi thể thức
+        },
+      )
     },
 
     /** Nối nguồn → khối bằng bộ hạng `ranks`; bộ rỗng = gỡ nối. */
@@ -747,6 +788,25 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
   /** Nội dung sửa trên canvas → mẫu 'custom' (tab Thể thức không tự đè thể thức tự dựng). */
   async function markCustom(ev) {
     if (ev && ev.templateKey !== 'custom') await write('tournament_events', 'upsert', [{ ...base(), ...ev, templateKey: 'custom' }])
+  }
+
+  /** Bản thuần (không ghi DB) của `leaveTeam` — dùng để đoán trước state cho `runOptimistic`. */
+  function unplaceLocal(cur, eventId, regId) {
+    const tp = cur.teamPlayers.find((p) => p.eventId === eventId && p.registrationId === regId)
+    if (!tp) return { teams: cur.teams, teamPlayers: cur.teamPlayers }
+    const teamPlayers = cur.teamPlayers.filter((p) => p !== tp)
+    const teamEmpty = !teamPlayers.some((p) => p.teamId === tp.teamId)
+    return { teams: teamEmpty ? cur.teams.filter((x) => x.id !== tp.teamId) : cur.teams, teamPlayers }
+  }
+
+  /** Bản thuần của `tourPlace` — `newTeamId` đã sinh sẵn ở nơi gọi, dùng lại y hệt lúc ghi DB thật. */
+  function placeLocal(cur, eventId, regId, teamId, newTeamId) {
+    const { teams, teamPlayers } = unplaceLocal(cur, eventId, regId)
+    const tid = teamId || newTeamId
+    return {
+      teams: teamId ? teams : [...teams, { id: tid, eventId, pinned: false, status: 'active' }],
+      teamPlayers: [...teamPlayers, { teamId: tid, eventId, registrationId: regId }],
+    }
   }
 
   /** Rời đội hiện tại của nội dung; đội còn trống thì xoá luôn (không để đội ma). */
