@@ -305,6 +305,11 @@ export function freeSetWinner(a, b) {
   return a > b ? 'A' : b > a ? 'B' : null
 }
 
+/** Tỷ số "sát nút" mặc định cho ghi nhanh (bấm tên đội = thắng khi chưa gõ điểm): [điểm bên thắng, điểm bên thua]. */
+export function closeScoreOf(points) {
+  return [points, Math.max(0, points - 2)]
+}
+
 /**
  * Phân tích kết quả nhập (tự do về điểm).
  * @returns {{ error: string|null, winner: 'A'|'B'|null, winsA: number, winsB: number }}

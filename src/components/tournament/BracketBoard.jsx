@@ -4,7 +4,7 @@ import { Mono, Overline } from '#ui'
 import { canUndo } from '#lib/tournament/advance.js'
 import { CHAMP_KEY, flightsOf, hasResult, sideScores, slotKey } from '#lib/tournament/bracketView.js'
 import { groupStandings } from '#lib/tournament/standings.js'
-import { freeSetWinner } from '#lib/tournament/scoring.js'
+import { closeScoreOf, freeSetWinner } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
 import { matchCode, ruleLabel, teamName } from './tourUtils.js'
 
@@ -299,6 +299,15 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     // Action trả false ĐỒNG BỘ khi kiểm trên máy hỏng, Promise khi đi mạng — bọc lại cho cả hai.
     Promise.resolve(onQuick(m, [[a, b]], w === 'A' || w === 'B' ? w : a > b ? 'A' : 'B')).then((ok) => ok && setQuick(['', '']))
   }
+  // Bấm tên đội = thắng nhanh: ô nào chưa gõ thì lấy tỷ số "sát nút" mặc định (điểm thật, qua đúng validation
+  // freeSetWinner như submitQuick) — không phải kết quả bịa vô căn cứ, chỉ là tốc ký; sửa lại ở "Sửa điểm" sau.
+  const quickWin = (side) => {
+    const [hi, lo] = closeScoreOf(m.rule.points)
+    const a = quick[0] !== '' ? Number(quick[0]) : (side === 'A' ? hi : lo)
+    const b = quick[1] !== '' ? Number(quick[1]) : (side === 'B' ? hi : lo)
+    const w = freeSetWinner(a, b)
+    Promise.resolve(onQuick(m, [[a, b]], w === 'A' || w === 'B' ? w : side)).then((ok) => ok && setQuick(['', '']))
+  }
 
   const row = (side) => {
     const teamId = side === 'A' ? m.teamAId : m.teamBId
@@ -308,7 +317,7 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     const seed = src?.kind === 'seed' ? String(src.n) : src?.kind === 'draw' ? t('tournament.format.drawNo', { n: src.n }) : ''
     const label = teamId ? teamName(tour, db, teamId) : src?.kind === 'bye' ? t('tournament.bracket.bye') : t('tournament.bracket.tbd')
     const isTarget = dragOverSide === side
-    // Không có "bấm tên đội = thắng" (plan §6): kết quả chỉ vào qua ô điểm / bảng điểm, có tỷ số thật.
+    const canQuickWin = inline && teamId
     // Vòng đầu, nhánh chưa đấu trận nào: kéo tên đội thả vào đội khác để đổi chỗ (handoff) — trang cha quyết `onSwap`.
     const dnd = onSwap && teamId ? {
       draggable: true,
@@ -332,11 +341,16 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
         transition: 'background .15s, outline .15s',
       }}>
         <span style={{ width: 22, font: '600 10.5px/1 var(--font-mono)', color: 'var(--text-muted)', flex: '0 0 auto' }}>{seed}</span>
-        <span title={label} style={{
-          flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          font: `${won ? 700 : 500} 12.5px/1.2 var(--font-sans)`,
-          color: !teamId || lost ? 'var(--text-muted)' : 'var(--text-primary)',
-        }}>{label}</span>
+        <span
+          title={canQuickWin ? t('tournament.bracket.quickWinHint') : label}
+          onClick={canQuickWin ? (e) => { e.stopPropagation(); quickWin(side) } : undefined}
+          style={{
+            flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            font: `${won ? 700 : 500} 12.5px/1.2 var(--font-sans)`,
+            color: !teamId || lost ? 'var(--text-muted)' : 'var(--text-primary)',
+            cursor: canQuickWin ? 'pointer' : undefined,
+          }}
+        >{label}</span>
         {inline && (
           <input
             type="number" inputMode="numeric" min={0} aria-label={t('tournament.bracket.inlineHint')}

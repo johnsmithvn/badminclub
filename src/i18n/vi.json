@@ -5441,6 +5441,7 @@
       "undo": "Hoàn tác",
       "edit": "Sửa điểm",
       "inlineHint": "Nhập điểm rồi Enter",
+      "quickWinHint": "Bấm tên để thắng nhanh với tỷ số sát nút — sửa lại ở \"Sửa điểm\" nếu cần.",
       "noSchedule": "{{name}} chưa có lịch thi đấu",
       "noScheduleHint": "Tạo lịch ở Hub, bước ② Thể thức.",
       "noEvents": "Giải chưa có nội dung nào có lịch thi đấu",
