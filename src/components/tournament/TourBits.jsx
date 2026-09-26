@@ -15,8 +15,9 @@ export const TourPill = ({ status: raw, size = 'sm' }) => {
   return <StatusPill status={TOUR_PILL[status] || 'idle'} label={t('tournament.status.' + status)} size={size} />
 }
 
-export const EventPill = ({ status }) => (
-  <StatusPill status={EVENT_PILL[status] || 'idle'} label={t('tournament.eventStatus.' + status)} size="sm" />
+/** `roundLabel`: vòng/giai đoạn đang diễn ra (VD "Bán kết") thay cho nhãn chung "Đang đánh" khi status = running. */
+export const EventPill = ({ status, roundLabel }) => (
+  <StatusPill status={EVENT_PILL[status] || 'idle'} label={roundLabel || t('tournament.eventStatus.' + status)} size="sm" />
 )
 
 /** Ô mã nội dung (ĐN, ĐNN…) — cùng kiểu ô số của stepper trong handoff. */

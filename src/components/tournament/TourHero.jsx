@@ -11,7 +11,7 @@ import { tourMeta } from './tourUtils.js'
  * vạch sân cầu lông trang trí, pill trạng thái, tên giải chữ display 42px, dòng meta mono,
  * cụm CTA nổi bật (nhập tỷ số cam, mở sơ đồ, link chia sẻ), cụm 4 số liệu bên phải.
  */
-export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdit, onDelete, onStatus, onFlow, onScore }) {
+export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdit, onDelete, onStatus }) {
   const [copied, setCopied] = useState(false)
   const active = tour.registrations.filter((r) => r.status === 'registered').length
   const prog = progressOf(tour.matches || [])
@@ -70,23 +70,8 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
           {canEdit && <IconButton icon="trash-2" size="sm" label={t('tournament.delete')} onClick={onDelete} />}
         </div>
 
-        {/* Dải nút CTA hành động nhanh góc trên bên phải */}
+        {/* Dải nút CTA góc trên bên phải — "Nhập tỷ số"/"Mở sơ đồ" đã có ở TourModuleNav (mọi trang), không lặp lại ở đây */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
-          {onFlow && (
-            <button
-              type="button"
-              onClick={onFlow}
-              style={{
-                height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px',
-                borderRadius: 6, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)',
-                font: '600 12px/1 var(--font-sans)', color: 'var(--teal-500)', cursor: 'pointer',
-                transition: 'opacity var(--dur-fast)',
-              }}
-            >
-              {t('tournament.hero.openFlow')} →
-            </button>
-          )}
-
           <button
             type="button"
             onClick={copyLink}
@@ -98,22 +83,6 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
           >
             {copied ? t('tournament.hero.copied') : t('tournament.hero.copyLink')}
           </button>
-
-          {onScore && (
-            <button
-              type="button"
-              onClick={onScore}
-              style={{
-                height: 34, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 18px',
-                borderRadius: 999, background: '#E8590C', color: '#FFFFFF',
-                font: '700 13px/1 var(--font-sans)', border: 'none', cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(232, 89, 12, 0.4)',
-                transition: 'transform var(--dur-fast), filter var(--dur-fast)',
-              }}
-            >
-              {t('tournament.hero.enterScoreBtn')}
-            </button>
-          )}
         </div>
       </div>
 

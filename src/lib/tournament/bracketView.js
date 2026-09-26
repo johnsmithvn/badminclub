@@ -33,6 +33,21 @@ export function koRounds(matches, stageId) {
 /** Mã trận hiển thị: TK1, BK2, CK, 3-4 — số thứ tự trong vòng (1-based). Chữ cái lấy từ i18n ở UI. */
 export const matchNo = (m) => m.slot + 1
 
+/**
+ * Khoá vòng/giai đoạn đang diễn ra của một nội dung — để hiện nhãn cụ thể trên thẻ nội dung
+ * ("Vòng bảng"/"Tứ kết"/"Bán kết"...) thay vì chỉ trạng thái chung "Đang đánh". Khớp key `tournament.round.*`.
+ * @returns {string|null}  'group' (vòng bảng) hoặc kind của `koRounds` (qf/sf/final/r16/r32) — null nếu chưa có giai đoạn nào chạy.
+ */
+export function activeRoundKey(tour, eventId) {
+  const stages = (tour.stages || []).filter((s) => s.eventId === eventId).sort((a, b) => a.seq - b.seq)
+  const stage = stages.find((s) => s.status === 'running') || [...stages].reverse().find((s) => s.status === 'done')
+  if (!stage) return null
+  if (stage.type === 'round_robin') return 'group'
+  const view = koRounds(tour.matches || [], stage.id)
+  const cur = view.rounds.find((r) => r.matches.some((m) => m.status !== 'done' && m.status !== 'bye')) || view.rounds[view.rounds.length - 1]
+  return cur ? cur.kind : null
+}
+
 /** Tiến độ: trận đã có kết quả / trận phải đánh (bye không tính). */
 export function progressOf(matches) {
   const real = matches.filter((m) => m.status !== 'bye')

@@ -3,7 +3,7 @@ import { Button, Dialog, Icon, IconButton } from '#ds'
 import { Empty, TabTrack } from '#ui'
 import { EVENT_KINDS, eventCounts } from '#lib/tournament/hub.js'
 import { templateOf } from '#lib/tournament/format.js'
-import { progressOf } from '#lib/tournament/bracketView.js'
+import { activeRoundKey, progressOf } from '#lib/tournament/bracketView.js'
 import { t } from '#i18n'
 import { EventPill, KindCode } from './TourBits.jsx'
 
@@ -41,6 +41,7 @@ export default function EventBar({ tour, value, onChange, canEdit, isMobile, onA
           const tpl = templateOf(tour, ev)
           const formatText = tpl ? t('tournament.format.tpl.' + tpl) : t('tournament.event.noFormat')
           const progressPercent = totalMatches > 0 ? Math.round((doneMatches / totalMatches) * 100) : 0
+          const roundKey = ev.status === 'running' ? activeRoundKey(tour, ev.id) : null
 
           return (
             <div key={ev.id} style={{ position: 'relative', flex: '0 0 auto' }}>
@@ -80,7 +81,7 @@ export default function EventBar({ tour, value, onChange, canEdit, isMobile, onA
                     }}>
                       {t('tournament.kind.' + ev.kind)}
                     </span>
-                    <EventPill status={ev.status} />
+                    <EventPill status={ev.status} roundLabel={roundKey ? t('tournament.round.' + roundKey) : undefined} />
                   </span>
 
                   {/* Hàng 2: Mô tả thể thức */}

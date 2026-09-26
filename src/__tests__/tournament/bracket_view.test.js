@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildKnockout } from '#lib/tournament/bracket.js'
 import { applyCommit } from '#lib/tournament/advance.js'
-import { CHAMP_KEY, flightsOf, koRounds, progressOf, queueOf, sideScores, slotKey } from '#lib/tournament/bracketView.js'
+import { CHAMP_KEY, activeRoundKey, flightsOf, koRounds, progressOf, queueOf, sideScores, slotKey } from '#lib/tournament/bracketView.js'
 import { boardReducer, boardView, emptyBoard, parseDraft } from '#lib/tournament/scoreboard.js'
 
 const R30 = { sets: 1, points: 30, winBy2: false, cap: 30 }
@@ -97,6 +97,28 @@ test('bảng ghi điểm: luật 21 cách 2 — 29-29 ai được 30 thắng; tr
   const z = emptyBoard()
   assert.equal(boardReducer(z, { type: 'minus', side: 'B' }, R21), z)
   assert.equal(boardReducer(z, { type: 'undo' }, R21), z)
+})
+
+test('activeRoundKey: nhãn vòng/giai đoạn đang diễn ra cho thẻ nội dung', () => {
+  assert.equal(activeRoundKey({ stages: [], matches: [] }, 'e1'), null, 'chưa có giai đoạn nào thì không có nhãn')
+
+  const rr = { stages: [{ id: 's1', eventId: 'e1', seq: 1, type: 'round_robin', status: 'running' }], matches: [] }
+  assert.equal(activeRoundKey(rr, 'e1'), 'group')
+
+  const ms8 = bracket(8)
+  const ko = { stages: [{ id: 's1', eventId: 'e1', seq: 1, type: 'knockout', status: 'running' }], matches: ms8 }
+  assert.equal(activeRoundKey(ko, 'e1'), 'qf', 'chưa đánh trận nào → vòng đầu tiên')
+
+  const qfDone = ms8.filter((m) => m.roundKind === 'qf').reduce((acc, m) => commit(acc, m), ms8)
+  assert.equal(activeRoundKey({ ...ko, matches: qfDone }, 'e1'), 'sf', 'xong hết tứ kết → sang bán kết')
+
+  const sfDone = ms8.filter((m) => m.roundKind === 'sf').reduce((acc, m) => commit(acc, acc.find((x) => x.id === m.id)), qfDone)
+  const final = sfDone.find((m) => m.roundKind === 'final')
+  const allDone = commit(sfDone, final, [[15, 3], [15, 4]], 'A')
+  assert.equal(activeRoundKey({ ...ko, matches: allDone }, 'e1'), 'final', 'xong hết → giữ vòng cuối')
+
+  const other = { stages: [{ id: 's1', eventId: 'e1', seq: 1, type: 'round_robin', status: 'pending' }], matches: [] }
+  assert.equal(activeRoundKey(other, 'e1'), null, 'chưa chạy giai đoạn nào (còn pending) thì không có nhãn')
 })
 
 test('bản nháp đọc từ máy: hỏng thì bắt đầu lại, không làm sập bảng điểm', () => {

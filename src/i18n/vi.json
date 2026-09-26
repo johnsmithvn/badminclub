@@ -4954,10 +4954,8 @@
       "eventsUpper": "NỘI DUNG",
       "matchesUpper": "TRẬN ĐÃ ĐẤU",
       "courtsUpper": "SÂN",
-      "openFlow": "Mở sơ đồ thi đấu →",
       "copyLink": "Link đăng ký",
-      "copied": "Đã chép link",
-      "enterScoreBtn": "Nhập tỷ số"
+      "copied": "Đã chép link"
     },
     "list": {
       "emptyTitle": "Chưa có giải nào",
