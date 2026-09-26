@@ -121,7 +121,7 @@ export default function TournamentHub() {
   const scoringMatch = scoringId ? tour.matches.find((m) => m.id === scoringId) : null
 
   return (
-    <div style={{ display: 'grid', gap: 14, width: '100%', maxWidth: 1440, margin: '0 auto' }}>
+    <div style={{ display: 'grid', gap: 14, width: '100%' }}>
       {/* 1. Thanh Module Nav & Action Header */}
       <TourModuleNav
         tour={tour}
@@ -184,6 +184,7 @@ export default function TournamentHub() {
           canEdit={canEdit}
           isMobile={isMobile}
           onOpenBracket={openBracket}
+          onScore={(m) => setScoringId(m.id)}
         />
       )}
       {tab === 'info' && <InfoTab tour={tour} canEdit={canEdit} isMobile={isMobile} a={a} onEdit={() => setEditing(true)} />}
@@ -219,7 +220,10 @@ export default function TournamentHub() {
       {/* Dialog Ghi Điểm / Nhập Tỷ Số Trận Đấu */}
       {scoringMatch && (
         <ScoreDialog
+          key={scoringMatch.id}
           match={scoringMatch}
+          next={queueOf(tour.matches.filter((m) => m.eventId === scoringMatch.eventId)).find((m) => m.id !== scoringMatch.id)}
+          onNext={setScoringId}
           tour={tour}
           db={db}
           onClose={() => setScoringId(null)}

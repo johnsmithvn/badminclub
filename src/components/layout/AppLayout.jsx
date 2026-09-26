@@ -13,7 +13,7 @@ export default function AppLayout({ route, children }) {
   const isMobile = useMobile(768)
   const [moreOpen, setMoreOpen] = useState(false)
 
-  const isWideRoute = route === 'tournamentFlow' || route === 'tournamentBracket'
+  const isWideRoute = route === 'tournament' || route === 'tournamentFlow' || route === 'tournamentBracket'
 
   return (
     <div style={S.root}>

@@ -5467,6 +5467,7 @@
       "undo": "Hoàn tác điểm (Z)",
       "keys": "Phím A / L cộng điểm bên trái / phải",
       "confirm": "Xác nhận · đưa đội thắng lên",
+      "confirmNext": "Chốt & trận kế ({{code}})",
       "playing": "Set {{n}} đang đánh",
       "switched": "Hết set {{n}} — đổi sân",
       "won": "{{name}} thắng — xác nhận để đưa lên vòng sau",
@@ -5482,6 +5483,17 @@
         "notePh": "Ví dụ: vắng mặt, chấn thương",
         "retiredSets": "Điểm các set đã đánh (nếu có)"
       }
+    },
+    "reason": {
+      "absent": "Vắng mặt",
+      "withdrew": "Rút lui",
+      "late": "Đến muộn",
+      "injury": "Chấn thương",
+      "tired": "Kiệt sức",
+      "typo": "Nhập nhầm",
+      "referee": "Trọng tài sửa",
+      "wrongWinner": "Nhầm đội thắng",
+      "replay": "Đấu lại"
     },
     "editDlg": {
       "title": "Sửa điểm {{code}}",

@@ -22,7 +22,7 @@ import { estimateOf, koPreviewOf } from '#lib/tournament/canvas.js'
  *   1. Khối "Trận kế tiếp" (Upcoming Matches Timeline)
  *   2. Khối việc cần chuẩn bị (Checklist)
  */
-export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenBracket, isMobile }) {
+export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenBracket, onScore, isMobile }) {
   const list = hubChecklist(tour)
   const label = (c) => (!c.done && c.n ? t('tournament.check.' + c.key + 'Left', { n: c.n }) : t('tournament.check.' + c.key))
   const queue = queueOf(tour.matches)
@@ -536,6 +536,9 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                   }}>
                     {teamName(tour, db, m.teamAId)} – {teamName(tour, db, m.teamBId)}
                   </span>
+                  {canEdit && onScore && (
+                    <Button size="sm" variant="secondary" onClick={() => onScore(m)}>{t('tournament.module.enterScore')}</Button>
+                  )}
                   <Button size="sm" variant="ghost" iconAfter="arrow-right" onClick={() => onOpenBracket(m.eventId)}>
                     {t('tournament.overview.open')}
                   </Button>
