@@ -1133,14 +1133,18 @@ export default function CourtAssignmentTab({ s }) {
                     size="sm"
                     className="flame-btn-deploy"
                     icon={hasPlayedSets ? 'play' : 'flame'}
+                    style={isMobile ? { padding: '0 8px', minWidth: 32 } : undefined}
                     onClick={(e) => {
                       e.stopPropagation()
                       handleLoadChallenge(c)
                     }}
-                  >
-                    {hasPlayedSets
+                    title={hasPlayedSets
                       ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
                       : t('quickMatch.loadChal')}
+                  >
+                    {!isMobile && (hasPlayedSets
+                      ? t('challenge.loadNextSetBtn', { set: seriesProg.nextSetNumber })
+                      : t('quickMatch.loadChal'))}
                   </Button>
                 )
 
@@ -1171,23 +1175,12 @@ export default function CourtAssignmentTab({ s }) {
                       }}
                       title={!hasAbsent ? t('challenge.clickToScoreDirectly') : undefined}
                     >
-                      {/* Hàng 1 trên Mobile: Mã kèo + Tag ván + Nút Đấu */}
+                      {/* Hàng 1 trên Mobile: Tag ván + Nút Đấu */}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           {!hasAbsent && (
                             <span className="flame-icon-burn" style={{ fontSize: 16 }}>🔥</span>
                           )}
-                          <span style={{
-                            font: "700 11px/1 'IBM Plex Mono', monospace",
-                            color: '#FFA040',
-                            letterSpacing: '0.04em',
-                            background: 'rgba(255, 107, 0, 0.15)',
-                            padding: '3px 6px',
-                            borderRadius: 4,
-                            border: '1px solid rgba(255, 107, 0, 0.35)',
-                          }}>
-                            #{c.code}
-                          </span>
                           <span
                             className={!hasAbsent ? 'flame-tag-bo' : undefined}
                             style={{
@@ -1226,7 +1219,7 @@ export default function CourtAssignmentTab({ s }) {
                         </span>
                       )}
 
-                      {/* Hàng 2 trên Mobile: Đối đầu Đội A ⚔️ Đội B */}
+                      {/* Hàng 2 trên Mobile: Đối đầu Đội A ⚔️ Đội B (tối đa 2 dòng) */}
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -1235,7 +1228,24 @@ export default function CourtAssignmentTab({ s }) {
                         borderTop: '1px dashed rgba(255, 140, 0, 0.25)',
                         gap: 8,
                       }}>
-                        <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5, flex: 1, textAlign: 'left', lineHeight: 1.3 }}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            fontSize: 13.5,
+                            flex: 1,
+                            minWidth: 0,
+                            textAlign: 'left',
+                            lineHeight: 1.3,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            wordBreak: 'break-word',
+                          }}
+                          title={nameA}
+                        >
                           {nameA}
                         </span>
                         <span style={{
@@ -1243,10 +1253,28 @@ export default function CourtAssignmentTab({ s }) {
                           padding: '0 6px',
                           filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.5))',
                           userSelect: 'none',
+                          flexShrink: 0,
                         }}>
                           ⚔️
                         </span>
-                        <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5, flex: 1, textAlign: 'right', lineHeight: 1.3 }}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            fontSize: 13.5,
+                            flex: 1,
+                            minWidth: 0,
+                            textAlign: 'right',
+                            lineHeight: 1.3,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            wordBreak: 'break-word',
+                          }}
+                          title={nameB}
+                        >
                           {nameB}
                         </span>
                       </div>
@@ -1277,29 +1305,53 @@ export default function CourtAssignmentTab({ s }) {
                     title={!hasAbsent ? t('challenge.clickToScoreDirectly') : undefined}
                   >
                     {!hasAbsent && (
-                      <span className="flame-icon-burn" style={{ fontSize: 16 }}>🔥</span>
+                      <span className="flame-icon-burn" style={{ fontSize: 16, flexShrink: 0 }}>🔥</span>
                     )}
-                    <span style={{
-                      font: "700 11px/1 'IBM Plex Mono', monospace",
-                      color: '#FFA040',
-                      letterSpacing: '0.04em',
-                      background: 'rgba(255, 107, 0, 0.15)',
-                      padding: '3px 6px',
-                      borderRadius: 4,
-                      border: '1px solid rgba(255, 107, 0, 0.35)',
-                    }}>
-                      #{c.code}
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        fontSize: 13.5,
+                        maxWidth: 240,
+                        lineHeight: 1.3,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        wordBreak: 'break-word',
+                      }}
+                      title={nameA}
+                    >
+                      {nameA}
                     </span>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5 }}>{nameA}</span>
                     <span style={{
                       fontSize: 14,
                       padding: '0 2px',
                       filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.4))',
                       userSelect: 'none',
+                      flexShrink: 0,
                     }}>
                       ⚔️
                     </span>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5 }}>{nameB}</span>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        fontSize: 13.5,
+                        maxWidth: 240,
+                        lineHeight: 1.3,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        wordBreak: 'break-word',
+                      }}
+                      title={nameB}
+                    >
+                      {nameB}
+                    </span>
                     <span
                       className={!hasAbsent ? 'flame-tag-bo' : undefined}
                       style={{
@@ -1307,6 +1359,7 @@ export default function CourtAssignmentTab({ s }) {
                         padding: '3px 8px',
                         borderRadius: 6,
                         fontWeight: 700,
+                        flexShrink: 0,
                         ...(hasAbsent
                           ? {
                               background: 'var(--surface-card)',
@@ -1380,7 +1433,6 @@ export default function CourtAssignmentTab({ s }) {
         {/* ---------------- 1. KHU VỰC CHỜ (WAITING POOL - GIAO DIỆN CS1) ---------------- */}
         <Card
           title={t('assign.waitingCount', { n: waitingPlayers.length })}
-          subtitle={isMobile ? undefined : t('assign.waitingSub', { n: waitingPlayers.length, total: players.length })}
           icon="users"
           padding="12px 14px"
           actions={
@@ -1394,7 +1446,7 @@ export default function CourtAssignmentTab({ s }) {
                   onClick={() => setShowClubChallengesModal(true)}
                   title={t('challenge.importClubChallenge', { n: unlinkedChallenges.length })}
                   style={{
-                    padding: isMobile ? '0 8px' : '0 10px',
+                    padding: '0 8px',
                     borderColor: 'var(--status-scheduled-fg, #3C74C4)',
                     color: 'var(--status-scheduled-fg, #3C74C4)',
                     background: 'rgba(60, 116, 196, 0.1)',
@@ -1403,7 +1455,6 @@ export default function CourtAssignmentTab({ s }) {
                     gap: 6,
                   }}
                 >
-                  <span>{isMobile ? t('challenge.btnShort') : t('challenge.btnClubChallenges')}</span>
                   <span
                     style={{
                       display: 'inline-flex',
@@ -1430,11 +1481,9 @@ export default function CourtAssignmentTab({ s }) {
                   size="sm"
                   icon="table"
                   onClick={() => setShowStatsSheet(true)}
-                  title={t('assign.statsSheetSub')}
-                  style={{ padding: isMobile ? '0 8px' : '0 12px' }}
-                >
-                  {isMobile ? '▤' : `▤ ${t('assign.tabStats')}`}
-                </Button>
+                  title={t('assign.tabStats')}
+                  style={{ padding: '0 8px', minWidth: 32 }}
+                />
               )}
               {canManage && (
                 <Button
@@ -1443,10 +1492,9 @@ export default function CourtAssignmentTab({ s }) {
                   icon="wand-sparkles"
                   onClick={handleAutoPickFewest}
                   disabled={waitingPlayers.length === 0 || isCourtFull}
-                  style={{ padding: isMobile ? '0 8px' : '0 12px' }}
-                >
-                  {isMobile ? t('assign.fewestBtnShort') : t('assign.fewestBtn')}
-                </Button>
+                  title={t('assign.fewestBtn')}
+                  style={{ padding: '0 8px', minWidth: 32 }}
+                />
               )}
             </div>
           }
@@ -1461,7 +1509,6 @@ export default function CourtAssignmentTab({ s }) {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={S.searchInput}
               />
-              {!isMobile && <span style={S.touchHint}>{t('assign.poolTouchHint')}</span>}
             </div>
 
             {/* Hàng sort & lọc dính ở đầu (CS1 mockup) */}

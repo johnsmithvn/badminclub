@@ -791,7 +791,7 @@
     "tapNameHint": "Chạm tên →",
     "slotEmptyLabel": "Trống",
     "slotTeamLabel": "Đội {{team}} · ô {{n}}",
-    "waitingCount": "Đang chờ · {{n}} người",
+    "waitingCount": "{{n}} người",
     "searchPlayerPlaceholder": "Tìm theo tên hoặc trình độ...",
     "sortFewest": "Ít trận nhất",
     "sortWaiting": "Chờ lâu",
