@@ -40,14 +40,16 @@ test('ghép cặp: đã đánh chung đủ 2 trận thì hiện số trận và 
 
 test('gợi ý thể thức: chỉ chọn ưu tiên; đọc giờ + sân của giải; nút áp dụng đếm nội dung', () => {
   const s = text(RecommendDialog, { tour: mdTour(), onClose: noop, onApply: noop })
-  assert.match(s, /Gợi ý thể thức cho cả giải/)
+  assert.match(s, /Gợi ý thể thức/)
   assert.match(s, /Cân bằng.*Nhiều trận.*Nhanh/)
   assert.match(s, /Đôi nam.*2 đội/)
   assert.match(s, /Xong khoảng \d\d:\d\d \(ước tính\)/, 'fixture có giờ 08:00–12:00 và 2 sân')
   assert.match(s, /Áp dụng cho 1 nội dung/)
 
-  const noWindow = text(RecommendDialog, { tour: mdTour({ courtLabels: [] }), onClose: noop, onApply: noop })
-  assert.match(noWindow, /chưa khai báo giờ hoặc sân/)
+  // Giải chưa khai báo giờ/sân: hộp giả lập vẫn tự có mặc định (2 sân, 08:00-12:00) để BTC lên phương án
+  // trước khi khai báo — không còn chặn ở "chưa khai báo giờ hoặc sân" như bản chỉ đọc thật cũ.
+  const noReal = text(RecommendDialog, { tour: mdTour({ courtLabels: [] }), onClose: noop, onApply: noop })
+  assert.match(noReal, /Xong khoảng \d\d:\d\d \(ước tính\)/)
 })
 
 test('gợi ý thể thức: nội dung đã có lịch thì giữ nguyên, không tính vào nút áp dụng', () => {

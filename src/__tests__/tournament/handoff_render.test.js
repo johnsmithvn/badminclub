@@ -93,7 +93,7 @@ test('gợi ý thể thức: danh sách phương án có nhãn; luật gợi ý 
   const tr = tour({
     events: [{ id: 'e1', kind: 'md', teamSize: 2, genderRule: 'male', status: 'draft' }],
     teams: Array.from({ length: 8 }, (_, i) => ({ id: 'x' + i, eventId: 'e1' })),
-    registrations: Array.from({ length: 16 }, (_, i) => ({ id: 'q' + i, playerId: 'm1', gender: 'nam', ratingSnapshot: 500, status: 'registered', fee: 0 })),
+    registrations: Array.from({ length: 16 }, (_, i) => ({ id: 'q' + i, playerId: 'm' + i, gender: 'nam', ratingSnapshot: 500, status: 'registered', fee: 0 })),
     teamPlayers: Array.from({ length: 16 }, (_, i) => ({ teamId: 'x' + Math.floor(i / 2), eventId: 'e1', registrationId: 'q' + i })),
   })
   const s = text(RecommendDialog, { tour: tr, onClose: noop, onApply: noop })

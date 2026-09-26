@@ -63,6 +63,26 @@ export function Seg({ options, value, onChange, disabled, size = 30 }) {
   )
 }
 
+/** Ô số −/giá trị/+ (handoff: giả lập VĐV, thời gian & sân trong hộp Gợi ý thể thức). */
+export function NumStep({ value, min = 0, max = Infinity, step = 1, onChange, format = String, disabled }) {
+  const btn = (children, delta, edge) => (
+    <button type="button" disabled={disabled || edge} onClick={() => onChange(Math.min(max, Math.max(min, value + delta)))}
+      style={{
+        width: 28, height: 28, borderRadius: 6, background: 'var(--surface-inset)', border: '1px solid var(--border-default)',
+        font: '600 14px/1 var(--font-sans)', color: 'var(--text-secondary)', cursor: disabled || edge ? 'default' : 'pointer', opacity: disabled || edge ? 0.5 : 1,
+      }}>
+      {children}
+    </button>
+  )
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      {btn('−', -step, value <= min)}
+      <span style={{ minWidth: 40, textAlign: 'center', font: '700 14px/1 var(--font-mono)', color: 'var(--text-primary)' }}>{format(value)}</span>
+      {btn('+', step, value >= max)}
+    </span>
+  )
+}
+
 /**
  * Chọn luật trận: các luật mẫu (app.json) + "Tuỳ chỉnh luật" (handoff: số sec · điểm chạm · cách 2 · trần).
  * Tuỳ chỉnh chỉ ghi khi bấm "Dùng luật này" và luật hợp lệ (`validRule`) — không ghi dở dang từng phím gõ.

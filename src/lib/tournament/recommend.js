@@ -2,8 +2,10 @@
  * @file recommend.js
  * Gợi ý thể thức cho CẢ giải (README handoff §5.7, plan §7 Phase 5). Thuần: không React, không Supabase.
  *
- * Nguyên tắc: BTC không phải nhập gì — số đội, số sân, giờ giải, luật điểm đều đọc từ giải; chỉ chọn 1 trong 3
- * ưu tiên. Thời gian là ƯỚC TÍNH theo tổng phút sân / số sân (chưa tính đội không đánh 2 trận cùng lúc).
+ * Mặc định đọc số đội/sân/giờ/luật thật từ giải, chỉ chọn 1 trong 3 ưu tiên. BTC cũng có thể GIẢ LẬP (tham số
+ * `sim`) để lên phương án trước khi có đăng ký thật: chỉnh số VĐV nam/nữ, bật/tắt từng nội dung, số sân, giờ,
+ * phút/trận — không đụng gì tới dữ liệu đăng ký/đội thật, `sim` chỉ đổi ĐẦU VÀO của phép tính. Thời gian là
+ * ƯỚC TÍNH theo tổng phút sân / số sân (chưa tính đội không đánh 2 trận cùng lúc).
  */
 
 import cfg from '#config/app.json' with { type: 'json' }
@@ -25,6 +27,29 @@ function koCost(n) {
   return { q: n - 1 + (n >= 4 ? 1 : 0) - f, f }
 }
 
+/** Tổng VĐV còn thi đấu theo giới của cả giải (khử trùng theo người) — số mặc định khi mở hộp giả lập. */
+export function genderCounts(tour) {
+  const seen = new Set()
+  let M = 0
+  let W = 0
+  for (const r of tour.registrations || []) {
+    if (r.status === 'withdrawn') continue
+    const key = r.playerId || r.id
+    if (seen.has(key)) continue
+    seen.add(key)
+    if (r.gender === 'nam') M++
+    else if (r.gender === 'nu') W++
+  }
+  return { M, W }
+}
+
+/** Số đội giả lập của một nội dung từ tổng VĐV nam/nữ (chưa biết ai đăng ký nội dung nào, coi như đều vào hết). */
+export function simTeamsOf(event, M, W) {
+  if (event.teamSize === 1) return event.genderRule === 'male' ? M : event.genderRule === 'female' ? W : M + W
+  if (event.genderRule === 'mixed') return Math.min(M, W)
+  return Math.floor((event.genderRule === 'female' ? W : M) / 2)
+}
+
 /** Các phương án cho một nội dung n đội — đúng các mẫu tab Thể thức làm được. */
 export function candidatesFor(n) {
   if (n < 2) return []
@@ -40,8 +65,7 @@ export function candidatesFor(n) {
 }
 
 /** Số trận, phút sân, số trận tối thiểu mỗi đội của một phương án. */
-export function costOf(c, n, { dq, df }) {
-  const rest = REC.restMin
+export function costOf(c, n, { dq, df, rest = REC.restMin }) {
   let q = 0
   let f = 0
   let minG = 1
@@ -95,7 +119,7 @@ export function teamsOf(tour, event) {
 }
 
 /** Luật vòng loại / chung kết của nội dung: giai đoạn đã lưu, không có thì mặc định theo quy chế (app.json). */
-function rulesOf(tour, event) {
+export function rulesOf(tour, event) {
   const d = cfg.tournament.defaultRules
   const s1 = tour.stages.find((s) => s.eventId === event.id && s.seq === 1)
   const q = s1?.matchRule || RULE_PRESETS[d.qualify[event.kind] || d.qualify.default]
@@ -126,25 +150,32 @@ export function suggestRules(minutesPerMatch) {
  * @param {object} tour  state `tour`
  * @param {'balanced'|'games'|'fast'} priority
  * @param {{ [eventId]: string }} [picks]  phương án BTC chọn tay (`optionKey`) — giữ nguyên, không bị hạ khi vượt giờ
+ * @param {object} [sim]  giả lập, mỗi khoá tuỳ chọn, thiếu khoá nào thì đọc thật từ giải như cũ:
+ *   `M`/`W` (số VĐV nam/nữ) → thay `teamsOf` bằng `simTeamsOf`; `enabled` ({eventId: bool}) → bỏ nội dung tắt
+ *   khỏi cả danh sách lẫn phép tính giờ; `courts`/`start`/`end` (phút) → thay sân/giờ giải; `dq`/`df`/`rest`
+ *   (phút/trận vòng loại, chung kết, nghỉ giữa trận) → thay luật đọc từ giai đoạn đã lưu.
  * @returns {{ events: Array<{ eventId, n, estimated, pick, options, autoKey, edited }>, totalMinutes, capacity, finish, fits, rules }}
  *   `options[i].badges`: 'recommended' (phương án tự chọn) · 'fastest' · 'mostGames' · 'over' (chọn nó thì vượt giờ).
  *   `capacity`/`finish`/`fits`/`rules` = null khi giải chưa khai báo giờ hoặc sân (không ước tính được, vẫn gợi ý).
  *   Vượt khung giờ → hạ dần nội dung tốn nhất (không phải nội dung chọn tay) xuống phương án rẻ hơn kế tiếp.
  */
-export function recommend(tour, priority = 'balanced', picks = {}) {
-  const start = toMin(tour.startTime)
-  const end = toMin(tour.endTime)
-  const courts = tour.courtLabels?.length || 0
+export function recommend(tour, priority = 'balanced', picks = {}, sim = {}) {
+  const start = sim.start ?? toMin(tour.startTime)
+  const end = sim.end ?? toMin(tour.endTime)
+  const courts = sim.courts ?? (tour.courtLabels?.length || 0)
   const capacity = start != null && end != null && end > start && courts ? (end - start) * courts : null
+  const rest = sim.rest
 
   const build = (useP) => {
-    const events = tour.events.map((ev) => {
-      const { n, estimated } = teamsOf(tour, ev)
-      const r = rulesOf(tour, ev)
-      const options = sortByPriority(candidatesFor(n).map((c) => costOf(c, n, r)), priority)
-      const manual = useP && picks[ev.id] ? options.findIndex((o) => optionKey(o) === picks[ev.id]) : -1
-      return { eventId: ev.id, n, estimated, options, idx: manual >= 0 ? manual : 0, fixed: manual >= 0 }
-    })
+    const events = tour.events
+      .filter((ev) => sim.enabled?.[ev.id] !== false)
+      .map((ev) => {
+        const { n, estimated } = sim.M != null && sim.W != null ? { n: simTeamsOf(ev, sim.M, sim.W), estimated: true } : teamsOf(tour, ev)
+        const r = sim.dq != null && sim.df != null ? { dq: sim.dq, df: sim.df } : rulesOf(tour, ev)
+        const options = sortByPriority(candidatesFor(n).map((c) => costOf(c, n, rest != null ? { ...r, rest } : r)), priority)
+        const manual = useP && picks[ev.id] ? options.findIndex((o) => optionKey(o) === picks[ev.id]) : -1
+        return { eventId: ev.id, n, estimated, options, idx: manual >= 0 ? manual : 0, fixed: manual >= 0 }
+      })
     const sum = () => events.reduce((s, e) => s + (e.options[e.idx]?.minutes || 0), 0)
     if (capacity != null) {
       for (let guard = 0; guard < 100 && sum() > capacity; guard++) {
@@ -193,4 +224,20 @@ export function recommend(tour, priority = 'balanced', picks = {}) {
     fits: capacity != null ? total <= capacity : null,
     rules: capacity != null && matches ? suggestRules(capacity / matches - REC.restMin) : null,
   }
+}
+
+/**
+ * Các bước hiển thị ở panel "Xem trước" cho phương án đang chọn — thuần mô tả, không phải dữ liệu ghi DB
+ * (giai đoạn thật dựng lúc "Áp dụng", đọc số đội thật lúc đó).
+ * @returns {Array<{ key: 'groups'|'ko'|'plate', n: number, numGroups?: number, sizes?: number[] }>}
+ */
+export function pipelineOf(pick, n) {
+  if (!pick) return []
+  if (pick.tpl === 'ko') return [{ key: 'ko', n }]
+  const steps = [{ key: 'groups', n, numGroups: pick.numGroups, sizes: groupSizes(n, pick.numGroups) }]
+  if (pick.tpl !== 'rr') {
+    steps.push({ key: 'ko', n: pick.numGroups * pick.advance })
+    if (pick.tpl === 'rr_ko_plate') steps.push({ key: 'plate', n: null })
+  }
+  return steps
 }

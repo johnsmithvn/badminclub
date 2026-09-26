@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { simulateMatchScore, validateSets, matchWinner } from '#lib/tournament/scoring.js'
-import { candidatesFor, costOf, optionKey, recommend, suggestRules } from '#lib/tournament/recommend.js'
+import { candidatesFor, costOf, genderCounts, optionKey, pipelineOf, recommend, simTeamsOf, suggestRules } from '#lib/tournament/recommend.js'
 
 test('Module Giải đấu - simulateMatchScore', async (t) => {
   await t.test('1. simulateMatchScore: sinh tỉ số ngẫu nhiên luôn hợp lệ với mọi luật', () => {
@@ -159,5 +159,56 @@ test('luật gợi ý theo phút còn cho mỗi trận (README §5.7); không c�
   assert.deepEqual(suggestRules(30), { qualify: 'r3x21', final: 'r3x21' })
   assert.ok(recommend(tourWith({ md: 8 })).rules)
   assert.equal(recommend(tourWith({ md: 8 }, { start: null })).rules, null)
+})
+
+test('simTeamsOf: công thức giả lập theo giới/số người mỗi đội', () => {
+  assert.equal(simTeamsOf({ teamSize: 2, genderRule: 'male' }, 16, 8), 8, 'đôi nam: floor(16/2)')
+  assert.equal(simTeamsOf({ teamSize: 2, genderRule: 'female' }, 16, 9), 4, 'đôi nữ: floor(9/2)')
+  assert.equal(simTeamsOf({ teamSize: 2, genderRule: 'mixed' }, 16, 8), 8, 'đôi nam nữ: min(16,8)')
+  assert.equal(simTeamsOf({ teamSize: 1, genderRule: 'male' }, 16, 8), 16, 'đơn nam: cả M')
+  assert.equal(simTeamsOf({ teamSize: 1, genderRule: 'mixed' }, 16, 8), 24, 'đơn mở rộng: M+W')
+})
+
+test('genderCounts: đếm theo người (khử trùng), bỏ đội đã rút', () => {
+  const tr = tourWith({ md: 2 })
+  tr.registrations.push({ id: 'x', playerId: 'md-t0-p0', gender: 'nam', status: 'registered' }) // trùng người đã đếm
+  tr.registrations.push({ id: 'y', playerId: 'y', gender: 'nu', status: 'withdrawn' })
+  assert.deepEqual(genderCounts(tr), { M: 4, W: 0 })
+})
+
+test('sim: giả lập M/W thay số đội thật; tắt nội dung thì loại khỏi kết quả và khỏi phép tính giờ', () => {
+  const tr = tourWith({ md: 8, wd: 8 }, { start: '08:00', end: '09:30', courts: 1 })
+  const sim = recommend(tr, 'balanced', {}, { M: 4, W: 4 })
+  assert.equal(pickOf(sim, 'md').tpl, 'ko', '2 đội giả lập (floor(4/2)) → không còn đủ dữ liệu 8 đội thật')
+  assert.equal(sim.events.find((e) => e.eventId === 'e-md').n, 2)
+
+  const off = recommend(tr, 'balanced', {}, { enabled: { 'e-wd': false } })
+  assert.equal(off.events.length, 1, 'wd bị tắt thì không còn trong danh sách')
+  assert.equal(off.events[0].eventId, 'e-md')
+})
+
+test('pipelineOf: các bước hiển thị đúng theo mẫu; ko không có bảng, rr dừng ở bảng, rr_ko_plate có nhánh phụ', () => {
+  assert.deepEqual(pipelineOf(null, 8), [])
+  assert.deepEqual(pipelineOf({ tpl: 'ko', numGroups: 1, advance: 0 }, 8), [{ key: 'ko', n: 8 }])
+  const rr = pipelineOf({ tpl: 'rr', numGroups: 1, advance: 0 }, 6)
+  assert.deepEqual(rr.map((s) => s.key), ['groups'], 'vòng tròn không có bước loại trực tiếp tiếp theo')
+  const gko = pipelineOf({ tpl: 'rr_ko', numGroups: 2, advance: 2 }, 8)
+  assert.deepEqual(gko.map((s) => s.key), ['groups', 'ko'])
+  assert.equal(gko[1].n, 4, '2 bảng × 2 đội đi tiếp = 4 đội vào nhánh')
+  const plate = pipelineOf({ tpl: 'rr_ko_plate', numGroups: 2, advance: 2 }, 8)
+  assert.deepEqual(plate.map((s) => s.key), ['groups', 'ko', 'plate'])
+})
+
+test('sim: chỉnh sân/giờ/phút-trận giả lập độc lập với dữ liệu thật của giải', () => {
+  const tr = tourWith({ md: 8 }, { start: '08:00', end: '09:30', courts: 1 })
+  const real = recommend(tr, 'balanced')
+  assert.equal(real.fits, false, 'thật: 1 sân 90 phút không đủ cho loại trực tiếp 8 đội')
+
+  const wide = recommend(tr, 'balanced', {}, { courts: 4, start: 480, end: 720 })
+  assert.equal(wide.fits, true, 'giả lập 4 sân, 8g-12g thì đủ giờ dù giải thật chỉ khai 1 sân')
+  assert.equal(tr.startTime, '08:00', 'sim không ghi đè lại dữ liệu thật của tour')
+
+  const short = recommend(tr, 'balanced', {}, { dq: 5, df: 5, rest: 0 })
+  assert.ok(short.totalMinutes < real.totalMinutes, 'phút/trận giả lập thấp hơn → tổng phút sân giảm')
 })
 
