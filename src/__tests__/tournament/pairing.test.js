@@ -53,6 +53,14 @@ test('người của nội dung và đội: bỏ người đã rút; đội có 
   assert.ok(teams.every((t) => t.full))
 })
 
+test('đội chưa bốc thăm (drawNo null hết): giữ nguyên thứ tự ghép, đội mới luôn ở cuối', () => {
+  const t = tour()
+  t.teams = [{ id: 'zzz-first', eventId: 'xd', drawNo: null }, { id: 'aaa-second', eventId: 'xd', drawNo: null }]
+  const teams = eventTeams(t, 'xd')
+  assert.deepEqual(teams.map((x) => x.id), ['zzz-first', 'aaa-second'],
+    'không tiebreak theo id — id "aaa" đứng trước "zzz" theo bảng chữ cái nhưng phải giữ đúng thứ tự ghép')
+})
+
 test('độ cân bằng: lệch = cặp mạnh nhất − yếu nhất; màu theo ngưỡng kèo đấu', () => {
   const t = (sum, full = true) => ({ sum, full })
   assert.deepEqual(balanceOf([t(1000), t(1100)]), { spread: 100, tone: 'ok', avg: 1050 })

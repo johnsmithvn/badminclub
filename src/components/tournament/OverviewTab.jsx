@@ -460,7 +460,10 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
   // (đội thua bán kết rẽ nhánh phụ, không phải "thắng đi tiếp" nên không vẽ nối vào đó).
   const mainCols = cols.filter((c) => !c.isThird)
   const thirdCol = cols.find((c) => c.isThird)
-  const rowH = 64
+  // 104/trận: mỗi ô có mã trận + 2 bên, mỗi bên tới 2 dòng tên (TeamNameLines, đôi) — 64 từng dùng là hụt,
+  // dòng cuối bị cắt/tràn. Cùng cỡ với SLOT_H=112 ở BracketBoard.jsx (bảng đấu đầy đủ, thẻ to hơn) — ô ở
+  // đây gọn hơn (font nhỏ hơn, đệm ít hơn) nên thấp hơn chút, không phải số áng chừng.
+  const rowH = 104
   const firstCount = mainCols[0]?.cells.length || 1
   const box = (cell) => {
     const done = cell.m && hasResult(cell.m)

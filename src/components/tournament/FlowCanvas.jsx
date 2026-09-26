@@ -110,8 +110,10 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
     if (s.type === 'round_robin') {
       const groups = shownGroups(s, full)
       const cols = groups.length
-      const rows = Math.max(3, ...groups.map((g) => g.length)) + 1
-      return { w: Math.max(280, 24 + cols * nameColW + (cols - 1) * 8), h: 58 + 26 + rows * 30 + 36 }
+      const rows = Math.max(3, ...groups.map((g) => g.length))
+      // 48/đội: TeamChip xếp 2 dòng tên (TeamNameLines, đôi) + đệm + viền + gap — đo thật trong Block, không
+      // phải số áng chừng; 160 = tiêu đề khối + đệm nội dung + tiêu đề bảng + ô "thả cặp vào" + chân khối.
+      return { w: Math.max(280, 24 + cols * nameColW + (cols - 1) * 8), h: 160 + rows * 48 }
     }
     const pv = previewOf(s) || []
     const rounds = pv.filter((r) => r.roundKind !== 'third')

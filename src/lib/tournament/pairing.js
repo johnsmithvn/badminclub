@@ -31,7 +31,10 @@ export function eventTeams(tour, eventId) {
       const players = tour.teamPlayers.filter((p) => p.teamId === t.id).map((p) => regs.get(p.registrationId)).filter(Boolean)
       return { ...t, players, sum: players.reduce((s, r) => s + rating(r), 0), full: players.length === (event?.teamSize || 2) }
     })
-    .sort((a, b) => (a.drawNo ?? Infinity) - (b.drawNo ?? Infinity) || a.id.localeCompare(b.id))
+    // Sort ỔN ĐỊNH (JS sort giữ nguyên thứ tự khi hoà) — trước khi bốc thăm mọi đội đều `drawNo: null` nên
+    // hoà hết, giữ nguyên thứ tự `tour.teams` (đội mới ghép luôn ở cuối = "Cặp mới nhất"). KHÔNG thêm
+    // tiebreak theo `id` (uuid ngẫu nhiên) — làm vậy đội mới sẽ rơi vào giữa danh sách trông như lỗi.
+    .sort((a, b) => (a.drawNo ?? Infinity) - (b.drawNo ?? Infinity))
 }
 
 /** Xáo Fisher–Yates với nguồn ngẫu nhiên truyền vào (test cần lặp lại được). */
