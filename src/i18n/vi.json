@@ -5237,6 +5237,9 @@
       },
       "lock": "Chốt đội hình",
       "lockSingles": "Chốt danh sách",
+      "lockGenerate": "Chốt & tạo lịch",
+      "lockGenerateKo": "Chốt & tạo lịch · loại trực tiếp",
+      "generateKo": "Tạo lịch · loại trực tiếp",
       "unlock": "Mở lại để sửa",
       "locked": "{{name}} đã chốt đội hình. Chỉ xem, không sửa.",
       "singles": "{{name}} là nội dung đơn, không cần ghép cặp. Chốt danh sách để mỗi người thành một đội.",
@@ -5320,6 +5323,7 @@
       "drawHint": "Số bốc thăm quyết định vị trí trong nhánh: Đ1 gặp Đ2, Đ3 gặp Đ4…",
       "needDraw": "Bốc thăm trước khi tạo lịch",
       "needFormat": "Chọn thể thức trước khi tạo lịch",
+      "autoKo": "Chưa chọn thể thức — dùng Loại trực tiếp",
       "needLineup": "Chốt đội hình ở bước 3 trước khi tạo lịch",
       "schedule": "Lịch thi đấu",
       "generate": "Tạo lịch thi đấu",
@@ -5467,6 +5471,7 @@
       "undo": "Hoàn tác điểm (Z)",
       "keys": "Phím A / L cộng điểm bên trái / phải",
       "confirm": "Xác nhận · đưa đội thắng lên",
+      "confirmNext": "Chốt & trận kế ({{code}})",
       "playing": "Set {{n}} đang đánh",
       "switched": "Hết set {{n}} — đổi sân",
       "won": "{{name}} thắng — xác nhận để đưa lên vòng sau",
@@ -5482,6 +5487,17 @@
         "notePh": "Ví dụ: vắng mặt, chấn thương",
         "retiredSets": "Điểm các set đã đánh (nếu có)"
       }
+    },
+    "reason": {
+      "absent": "Vắng mặt",
+      "withdrew": "Rút lui",
+      "late": "Đến muộn",
+      "injury": "Chấn thương",
+      "tired": "Kiệt sức",
+      "typo": "Nhập nhầm",
+      "referee": "Trọng tài sửa",
+      "wrongWinner": "Nhầm đội thắng",
+      "replay": "Đấu lại"
     },
     "editDlg": {
       "title": "Sửa điểm {{code}}",

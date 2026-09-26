@@ -79,16 +79,30 @@ test('xong chung kết: có vô địch; trận đã có trận sau đánh thì 
   assert.doesNotMatch(bk1, />Hoàn tác</, 'CK đã đánh — hoàn tác BK1 là xoá trận người ta đã đánh')
 })
 
-test('bảng ghi điểm: tên hai đội, 0-0, ba chế độ; chưa có đội thắng thì nút xác nhận khoá', () => {
+test('bảng ghi điểm: tên hai đội, dùng modal ghi điểm kiểu sân + tab xử thua/bỏ cuộc; chưa có đội thắng thì nút xác nhận khoá', () => {
   const { tr, m } = setup()
   const props = { match: m('sf'), tour: tr, db, onClose: noop, onCommit: noop, onStart: noop }
   const s = text(ScoreDialog, props)
   assert.match(s, /BK1 · Đôi nam/)
   assert.match(s, /1 sec 30 · chạm/)
-  assert.match(s, /Ghi từng quả Nhập tỷ số Xử thua \/ Bỏ cuộc/)
-  assert.match(s, /Nguyễn Văn An .*0 Chạm để \+1.*Phạm Dung .*0 Chạm để \+1/)
-  assert.match(s, /Set 1 đang đánh/)
+  assert.match(s, /Nhập tỷ số Xử thua \/ Bỏ cuộc/)
+  assert.doesNotMatch(s, /Ghi từng quả/)
+  assert.match(s, /Nguyễn Văn An .*Phạm Dung .*30-28 30-25 30-20 Khác/, 'tận dụng modal ghi điểm của sân: 2 thẻ đội + presets')
   assert.ok(isDisabled(buttonTag(html(ScoreDialog, props), 'Xác nhận · đưa đội thắng lên')))
+})
+
+test('chốt & trận kế: chỉ hiện khi có trận kế trong hàng chờ', () => {
+  const { tr, m } = setup()
+  const props = { match: m('sf'), tour: tr, db, onClose: noop, onCommit: noop, onStart: noop }
+  assert.doesNotMatch(text(ScoreDialog, props), /Chốt & trận kế/)
+  assert.match(text(ScoreDialog, { ...props, next: m('sf', 1), onNext: noop }), /Chốt & trận kế \(BK2\)/)
+})
+
+test('nhập tỷ số trận 3 set: chỉ hiện 2 set cần thắng — set 3 chỉ hiện khi hoà 1–1', () => {
+  const { tr, m } = setup()
+  const s = text(ScoreDialog, { match: m('final'), tour: tr, db, onClose: noop, onCommit: noop, onStart: noop })
+  assert.match(s, /Set 1 .*Set 2/)
+  assert.doesNotMatch(s, /Set 3/)
 })
 
 test('sửa điểm: nạp điểm cũ, bắt ghi lý do; hoàn tác: bắt ghi lý do', () => {

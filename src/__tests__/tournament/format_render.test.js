@@ -45,9 +45,12 @@ test('ghép cặp: 2 cặp đủ → hiện độ lệch và chốt được; đ
   assert.match(s, /Mọi người đã có cặp/)
   assert.doesNotMatch(s, /Cần ít nhất/)
   assert.ok(!isDisabled(buttonTag(html(PairingTab, props(two)), 'Chốt đội hình')), 'đủ luật thì chốt được')
+  assert.ok(!isDisabled(buttonTag(html(PairingTab, props(two)), 'Chốt &amp; tạo lịch · loại trực tiếp')),
+    'một bấm: chốt + tạo lịch; chưa chọn thể thức thì nói rõ sẽ dùng loại trực tiếp')
 
   const locked = text(PairingTab, props({ ...two, events: [{ ...two.events[0], status: 'drawn' }] }))
   assert.match(locked, /đã chốt đội hình\. Chỉ xem/)
+  assert.match(locked, /Tạo lịch · loại trực tiếp/, 'đã chốt mà chưa có lịch → tạo lịch ngay tại đây')
   assert.match(locked, /Mở lại để sửa/)
   assert.doesNotMatch(locked, /Tự ghép|Xoá ghép|Chốt đội hình/, 'đã chốt mà còn nút sửa là bấm vào ăn lỗi trigger DB')
 })

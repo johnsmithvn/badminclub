@@ -109,7 +109,11 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
     const rounds = pv.filter((r) => r.roundKind !== 'third')
     const third = pv.some((r) => r.roundKind === 'third')
     const first = rounds[0]?.matches.length || 1
-    return { w: Math.max(280, 24 + Math.max(1, rounds.length) * 150), h: 58 + 20 + first * 64 + (third ? 70 : 0) + 36 }
+    const totalCols = Math.max(1, rounds.length) + (third ? 1 : 0)
+    return {
+      w: Math.max(280, 24 + totalCols * 140 + Math.max(0, totalCols - 1) * 10),
+      h: 58 + 20 + Math.max(first * 64, third ? 90 : 64) + 36,
+    }
   }
   const base = layoutOf(stages, sizeOf)
   const pos = (id) => (drag?.id === id ? { x: drag.x, y: drag.y } : base[id])
@@ -547,7 +551,7 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
         </span>
       </div>
 
-      <div style={{ padding: '8px 12px', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 12px', overflowX: 'auto', overflowY: 'hidden' }}>
         {rr ? (
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${groups.length}, minmax(0,1fr))`, gap: 8 }}>
             {groups.map((ids, gi) => {

@@ -176,12 +176,12 @@ export default function TournamentBracket() {
                 {next.map((m) => {
                   const label = `${teamName(tour, db, m.teamAId)} – ${teamName(tour, db, m.teamBId)}`
                   return (
-                    <span key={m.id} title={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 9px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', maxWidth: 280 }}>
+                    <button key={m.id} type="button" title={label} disabled={!canEdit} onClick={() => setScoringId(m.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 9px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', maxWidth: 280, cursor: canEdit ? 'pointer' : 'default' }}>
                       <Mono size={11} weight={700} color="var(--text-primary)" style={{ flex: '0 0 auto' }}>{matchCode(m)}</Mono>
                       <span style={{ font: '500 11.5px/1.2 var(--font-sans)', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {label}
                       </span>
-                    </span>
+                    </button>
                   )
                 })}
               </div>
@@ -239,7 +239,8 @@ export default function TournamentBracket() {
       </div>
 
       {scoring && (
-        <ScoreDialog match={scoring} tour={tour} db={db} onClose={() => setScoringId(null)}
+        <ScoreDialog key={scoring.id} match={scoring} tour={tour} db={db} onClose={() => setScoringId(null)}
+          next={queueOf(own).find((m) => m.id !== scoring.id)} onNext={setScoringId}
           onCommit={(p) => a.tourCommit(scoring.id, p)}
           onCourt={(label) => a.tourSchedule(scoring.id, scoring.seqNo, label)}
           onStart={(m) => m.status === 'ready' && a.tourStartMatch(m.id, m.courtLabel)} />

@@ -312,28 +312,51 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
     /** Tạo lịch: round-robin hoặc knockout dựng ở client, RPC chỉ kiểm + ghi nguyên tử (plan §2.3). */
     /**
      * Tạo lịch. Giai đoạn đầu mà đội hình chưa chốt thì TỰ chốt luôn (làm gọn: không bắt bấm "Chốt đội hình"
-     * rồi mới sang đây bấm "Tạo lịch"). Đội hình chưa hợp lệ → báo đúng lý do, không làm gì.
+     * rồi mới sang đây bấm "Tạo lịch"). Chưa chọn thể thức → dùng Loại trực tiếp mặc định (báo một dòng).
+     * Đội hình chưa hợp lệ → báo đúng lý do, không làm gì.
      */
     tourGenerate: async (eventId, stageSeq = 1) => {
       const ev = tour().events.find((e) => e.id === eventId)
-      if (stageSeq === 1 && ev && entriesOpen(ev)) {
-        const issue = lineupIssue(ev, eventTeams(tour(), eventId), eventPlayers(tour(), eventId))
-        if (issue) { toast(t(issue)); return false }
-        try {
-          await lockLineup(eventId)
-          await reloadTour()
-        } catch (e) {
-          toast(tourErr(e))
-          return false
+      if (stageSeq === 1 && ev) {
+        const open = entriesOpen(ev)
+        const noFormat = !tour().stages.some((s) => s.eventId === eventId && s.seq === 1)
+        if (open) {
+          const issue = lineupIssue(ev, eventTeams(tour(), eventId), eventPlayers(tour(), eventId))
+          if (issue) { toast(t(issue)); return false }
+        }
+        if (open || noFormat) {
+          try {
+            // Nạp lại giữa hai bước: lockLineup ghi đè cả dòng nội dung — dữ liệu cũ sẽ xoá mất template vừa đặt.
+            if (noFormat) { await replaceFormat(eventId, 'ko'); await reloadTour() }
+            if (open) { await lockLineup(eventId); await reloadTour() }
+            if (noFormat) toast(t('tournament.format.autoKo'))
+          } catch (e) {
+            toast(tourErr(e))
+            return false
+          }
         }
       }
       return generate(eventId, stageSeq)
     },
 
-    /** Chốt giai đoạn (vòng bảng): ghi final_rank cho các đội và chuyển stage sang 'done'. */
-    tourCloseStage: (stageId, ranks) => {
-      return synced(run(() => tournamentRpc('tournament_close_stage', { p_stage: stageId, p_ranks: ranks }),
+    /**
+     * Chốt giai đoạn (vòng bảng): ghi final_rank cho các đội và chuyển stage sang 'done'. Rồi TỰ sinh lịch các
+     * giai đoạn nhận đội từ đây mà mọi nguồn đã chốt (vd. bảng → nhánh chính + nhánh phụ) — khỏi bấm thêm
+     * "Tạo lịch" từng nhánh. Sinh hỏng (hạng hoà chưa tách…) thì nút tạo lịch tay vẫn còn ở bảng xếp hạng.
+     */
+    tourCloseStage: async (stageId, ranks) => {
+      const ok = await synced(run(() => tournamentRpc('tournament_close_stage', { p_stage: stageId, p_ranks: ranks }),
         'tournament.toast.stageClosed'))
+      if (!ok) return ok
+      const cur = tour()
+      const links = cur.stageLinks || []
+      const done = (id) => cur.stages.find((s) => s.id === id)?.status === 'done'
+      const ready = cur.stages
+        .filter((s) => s.status === 'pending' && links.some((l) => l.fromStageId === stageId && l.toStageId === s.id))
+        .filter((s) => links.filter((l) => l.toStageId === s.id).every((l) => done(l.fromStageId)))
+        .sort((x, y) => x.seq - y.seq)
+      for (const s of ready) await generate(s.eventId, s.seq)
+      return ok
     },
 
     /** Đổi mẫu thể thức cho nội dung */
