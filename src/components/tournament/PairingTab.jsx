@@ -24,6 +24,15 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
   const pool = players.filter((p) => !p.teamId)
   const editable = canEdit && entriesOpen(event)
   const hasSchedule = tour.stages.some((s) => s.eventId === event.id && s.status !== 'pending')
+  const hasFormat = tour.stages.some((s) => s.eventId === event.id && s.seq === 1)
+  // Một bấm: chốt đội hình + tạo lịch (chưa chọn thể thức → Loại trực tiếp). "Chỉ chốt" khi muốn chỉnh thể thức trước.
+  const genLabel = t(hasFormat ? 'tournament.pairing.lockGenerate' : 'tournament.pairing.lockGenerateKo')
+  const lockButtons = (issueNow, lockKey) => (
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      <Button variant="secondary" icon="lock" disabled={Boolean(issueNow)} onClick={() => a.tourLockLineup(event.id)}>{t(lockKey)}</Button>
+      <Button icon="calendar-plus" disabled={Boolean(issueNow)} onClick={() => a.tourGenerate(event.id)}>{genLabel}</Button>
+    </div>
+  )
   const issue = lineupIssue(event, teams, players)
   // Gợi ý đổi người: chỉ khi còn sửa được đội hình (chưa chốt).
   const swap = editable && event.teamSize > 1 ? suggestSwap(teams, event.genderRule) : null
@@ -49,9 +58,14 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
   const lockBar = !entriesOpen(event) ? (
     <Alert tone="info" title={t('tournament.pairing.locked', { name: evName })}>
       {canEdit && !hasSchedule && (
-        <Button size="sm" variant="secondary" icon="undo-2" onClick={() => a.tourUnlockLineup(event.id)}>
-          {t('tournament.pairing.unlock')}
-        </Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button size="sm" variant="secondary" icon="undo-2" onClick={() => a.tourUnlockLineup(event.id)}>
+            {t('tournament.pairing.unlock')}
+          </Button>
+          <Button size="sm" icon="calendar-plus" onClick={() => a.tourGenerate(event.id)}>
+            {t(hasFormat ? 'tournament.format.generate' : 'tournament.pairing.generateKo')}
+          </Button>
+        </div>
       )}
     </Alert>
   ) : null
@@ -81,7 +95,7 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
             {players.map((p) => <PlayerChip key={p.id} name={name(p)} reg={p} />)}
           </div>
           {editable && (
-            <div><Button icon="lock" disabled={Boolean(issue)} onClick={() => a.tourLockLineup(event.id)}>{t('tournament.pairing.lockSingles')}</Button></div>
+            lockButtons(issue, 'tournament.pairing.lockSingles')
           )}
         </div>
       </Card>
@@ -215,7 +229,7 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
       {editable && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {issue && <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)' }}>{t(issue)}</span>}
-          <Button icon="lock" disabled={Boolean(issue)} onClick={() => a.tourLockLineup(event.id)}>{t('tournament.pairing.lock')}</Button>
+          {lockButtons(issue, 'tournament.pairing.lock')}
         </div>
       )}
     </div>
