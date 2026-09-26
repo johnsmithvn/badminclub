@@ -4916,7 +4916,7 @@
       "draft": "Nhận đăng ký",
       "pairing": "Đang ghép cặp",
       "drawn": "Đã chốt đội hình",
-      "running": "Đang đá",
+      "running": "Đang đánh",
       "finished": "Đã xong"
     },
     "scope": {
@@ -5376,7 +5376,7 @@
       "badge": "GĐ",
       "eventsN": "{{n}} nội dung",
       "enterScore": "Nhập tỷ số",
-      "liveCount": "{{n}} trận đang đá"
+      "liveCount": "{{n}} trận đang đánh"
     },
     "courtStrip": {
       "live": "LIVE",
@@ -5396,10 +5396,10 @@
       "open": "Mở nhánh",
       "pairs": "CẶP",
       "matchesDone": "TRẬN XONG",
-      "liveMatches": "ĐANG ĐÁ",
+      "liveMatches": "ĐANG ĐÁNH",
       "estRemaining": "CÒN LẠI ƯỚC TÍNH",
       "upcoming": "Trận kế tiếp",
-      "stageRunning": "ĐANG ĐÁ",
+      "stageRunning": "ĐANG ĐÁNH",
       "stagePending": "CHỜ",
       "stageDone": "ĐÃ XONG",
       "remainingTake": "{{n}} trận còn lại · lấy {{k}}",

@@ -15,7 +15,7 @@ import { estimateOf, koPreviewOf } from '#lib/tournament/canvas.js'
  * Tab Tổng quan (handoff "Giải đấu · desktop v2"):
  * - Bố cục 2 cột (Trái ~70%, Phải ~30% trên desktop).
  * - Cột Trái:
- *   1. Cụm 4 ô Mini-Stats (CẶP, TRẬN XONG, ĐANG ĐÁ, CÒN LẠI ƯỚC TÍNH)
+ *   1. Cụm 4 ô Mini-Stats (CẶP, TRẬN XONG, ĐANG ĐÁNH, CÒN LẠI ƯỚC TÍNH)
  *   2. Thanh Tiến độ Giai đoạn (Stage Pipeline)
  *   3. Bảng xếp hạng vòng bảng (Hiển thị song song Bảng A, Bảng B...)
  * - Cột Phải:

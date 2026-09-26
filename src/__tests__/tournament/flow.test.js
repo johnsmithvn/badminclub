@@ -89,7 +89,7 @@ test('sơ đồ render: khối đội → vòng bảng → nhánh chính / phụ
   const props = { flow: flowOf(tr, ev), tour: tr, db, isMobile: false, onOpen: () => {} }
   const s = text(Pipeline, props)
   assert.match(s, /Đội tham gia 8 đội/)
-  assert.match(s, /Vòng bảng ĐANG ĐÁ 2 bảng/)
+  assert.match(s, /Vòng bảng ĐANG ĐÁNH 2 bảng/)
   assert.match(s, /Hạng 1–2 .*Nhánh chính CHỜ ~4 đội \(dự kiến\)/)
   assert.match(s, /Hạng 3–4 .*Nhánh phụ CHỜ ~4 đội \(dự kiến\)/)
   assert.match(s, /Vô địch Chờ kết quả/)
