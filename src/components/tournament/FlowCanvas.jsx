@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Dialog, Input } from '#ds'
+import { Alert, Button, Dialog, Input } from '#ds'
 import { Mono } from '#ui'
 import {
   CANVAS, RANK_CHOICES, byesOf, canvasChecks, estimateOf, groupBalanceOf, koPreviewOf, layoutOf, moveTeam, nextFreeRanks,
@@ -253,35 +253,40 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
 
   return (
     <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--surface-card)', height: 'calc(100vh - 110px)', minHeight: 650 }}>
-      {/* Thanh trên */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-        <Button size="sm" variant="ghost" icon="arrow-left" onClick={onBack}>{t('tournament.canvas.back')}</Button>
-        <span style={{ display: 'grid', gap: 3, flex: '1 1 200px', minWidth: 0 }}>
-          <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.canvas.title')}</span>
-          <Mono size={11.5} color="var(--text-muted)">
-            {t('tournament.canvas.sub', { event: t('tournament.kind.' + event.kind), n: full.length })}
-            {save !== 'idle' && ' · ' + t(save === 'saving' ? 'tournament.canvas.saving' : 'tournament.canvas.saved')}
-          </Mono>
-        </span>
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '8px 14px', borderRadius: 10, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-          {[[stages.length, 'statBlocks'], [est.matches, 'statMatches']].map(([v, k]) => (
-            <span key={k}><Mono size={15} weight={700} color="var(--text-primary)">{v}</Mono> <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.' + k)}</Mono></span>
-          ))}
-          <span>
-            <Mono size={15} weight={700} color="var(--text-primary)">{est.courts ? dur(Math.ceil(est.minutes / est.courts)) : '—'}</Mono>{' '}
-            {est.courts > 0 && <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.statCourts', { n: est.courts })}</Mono>}
+      <div>
+        {/* Thanh trên */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <Button size="sm" variant="ghost" icon="arrow-left" onClick={onBack}>{t('tournament.canvas.back')}</Button>
+          <span style={{ display: 'grid', gap: 3, flex: '1 1 200px', minWidth: 0 }}>
+            <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.canvas.title')}</span>
+            <Mono size={11.5} color="var(--text-muted)">
+              {t('tournament.canvas.sub', { event: t('tournament.kind.' + event.kind), n: full.length })}
+              {save !== 'idle' && ' · ' + t(save === 'saving' ? 'tournament.canvas.saving' : 'tournament.canvas.saved')}
+            </Mono>
           </span>
-        </span>
-        {!hasSchedule && <Button size="sm" variant="accent" icon="wand-sparkles" onClick={() => setQuick(true)}>{t('tournament.canvas.quick')}</Button>}
-        {hasSchedule ? (
-          <Button size="sm" iconAfter="arrow-right" onClick={() => onOpenBracket(event.id)}>
-            {t('tournament.module.bracket')} →
-          </Button>
-        ) : (
-          <Button size="sm" iconAfter="arrow-right" disabled={blocked || busy} loading={busy} onClick={publish}>
-            {t('tournament.canvas.publish')}
-          </Button>
-        )}
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '8px 14px', borderRadius: 10, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+            {[[stages.length, 'statBlocks'], [est.matches, 'statMatches']].map(([v, k]) => (
+              <span key={k}><Mono size={15} weight={700} color="var(--text-primary)">{v}</Mono> <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.' + k)}</Mono></span>
+            ))}
+            <span>
+              <Mono size={15} weight={700} color="var(--text-primary)">{est.courts ? dur(Math.ceil(est.minutes / est.courts)) : '—'}</Mono>{' '}
+              {est.courts > 0 && <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.statCourts', { n: est.courts })}</Mono>}
+            </span>
+          </span>
+          {!hasSchedule && <Button size="sm" variant="accent" icon="wand-sparkles" onClick={() => setQuick(true)}>{t('tournament.canvas.quick')}</Button>}
+          {hasSchedule ? (
+            <Button size="sm" iconAfter="arrow-right" onClick={() => onOpenBracket(event.id)}>
+              {t('tournament.module.bracket')} →
+            </Button>
+          ) : (
+            <Button size="sm" iconAfter="arrow-right" disabled={blocked || busy} loading={busy} onClick={publish}>
+              {t('tournament.canvas.publish')}
+            </Button>
+          )}
+        </div>
+        {/* Đã có lịch: tourCanvasSave/Link/Add/Delete đều no-op im lặng (stage.status !== 'pending') — cùng câu
+            cảnh báo với tab Thể thức để hai màn không "nói" khác nhau về cùng một trạng thái khoá. */}
+        {hasSchedule && <Alert tone="info" style={{ margin: '10px 16px 0' }}>{t('tournament.format.lockedRules')}</Alert>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 300px', minHeight: 0, height: '100%', overflow: 'hidden' }}>
