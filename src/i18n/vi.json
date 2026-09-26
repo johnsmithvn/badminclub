@@ -5253,6 +5253,7 @@
     },
     "format": {
       "editOnCanvas": "Sửa trên sơ đồ tự do",
+      "continueOnCanvas": "Chọn mẫu xong thì tiếp tục ở Sơ đồ thi đấu: sửa số bảng, luật, bốc thăm, chia đội và tạo lịch đều ở đó.",
       "saveTemplate": "Lưu làm mẫu CLB",
       "templateName": "Tên mẫu",
       "templateNamePh": "vd. Masters 3 nhánh",

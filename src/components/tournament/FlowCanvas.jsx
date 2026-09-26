@@ -11,6 +11,7 @@ import { eventTeams, shuffle } from '#lib/tournament/pairing.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 import { RuleField, Seg } from './TourBits.jsx'
+import RecommendDialog from './RecommendDialog.jsx'
 import { rankLabel, ruleLabel, stageName, teamName } from './tourUtils.js'
 
 const TEAM_MIME = 'text/x-tour-team'
@@ -60,6 +61,8 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
   const [pan, setPan] = useState(null) // kéo nền: { sx, sy, left, top }
   const [zoom, setZoom] = useState(1)
   const [quick, setQuick] = useState(false)
+  const [recommending, setRecommending] = useState(false)
+  const [savingTpl, setSavingTpl] = useState(false)
   const [busy, setBusy] = useState(false)
   const [save, setSave] = useState('idle') // 'idle' | 'saving' | 'saved' — nhãn "vừa lưu" (handoff)
   const viewRef = useRef(null)
@@ -261,6 +264,7 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
             <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.canvas.title')}</span>
             <Mono size={11.5} color="var(--text-muted)">
               {t('tournament.canvas.sub', { event: t('tournament.kind.' + event.kind), n: full.length })}
+              {est.minPerTeam > 0 && ' · ' + t('tournament.format.minPerTeam') + ' ' + t('tournament.format.minPerTeamVal', { n: est.minPerTeam })}
               {save !== 'idle' && ' · ' + t(save === 'saving' ? 'tournament.canvas.saving' : 'tournament.canvas.saved')}
             </Mono>
           </span>
@@ -428,7 +432,9 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
                 <span style={{ font: '700 18px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.kind.' + event.kind)}</span>
                 <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.wholeHint')}</span>
               </div>
+              <PanelButton title={t('tournament.recommend.open')} sub={t('tournament.recommend.hint')} onClick={() => setRecommending(true)} />
               <PanelButton title={t('tournament.canvas.quickTitle')} sub={t('tournament.canvas.quickSub')} onClick={() => setQuick(true)} />
+              {stages.length > 0 && <PanelButton title={t('tournament.format.saveTemplate')} onClick={() => setSavingTpl(true)} />}
               <PanelButton title={t('tournament.canvas.fit')} onClick={fit} />
               <PanelButton title={t('tournament.canvas.relayout')} onClick={relayout} />
               <div style={{ display: 'grid', gap: 8, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
@@ -447,6 +453,11 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
       </div>
 
       {quick && <QuickDialog tour={tour} event={event} n={full.length} a={a} act={act} onClose={() => setQuick(false)} />}
+      {recommending && <RecommendDialog tour={tour} onClose={() => setRecommending(false)} onApply={a.tourApplyRecommendation} />}
+      {savingTpl && (
+        <TemplateDialog onClose={() => setSavingTpl(false)}
+          onSave={async (name) => (await a.tourSaveClubTemplate(event.id, name)) && setSavingTpl(false)} />
+      )}
     </div>
   )
 }
@@ -459,6 +470,28 @@ function PanelButton({ title, sub, onClick }) {
       <span style={{ font: '600 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{title}</span>
       {sub && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{sub}</span>}
     </button>
+  )
+}
+
+/** "Lưu làm mẫu CLB": chỉ hỏi tên mẫu — sơ đồ hiện tại (khối + đường nối) lưu nguyên hình. */
+function TemplateDialog({ onClose, onSave }) {
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async () => {
+    setBusy(true)
+    if (!(await onSave(name.trim()))) setBusy(false)
+  }
+  return (
+    <Dialog open width={420} title={t('tournament.format.saveTemplate')} onClose={busy ? undefined : onClose}
+      footer={(
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
+          <Button loading={busy} disabled={!name.trim()} onClick={submit}>{t('tournament.format.templateSaveBtn')}</Button>
+        </>
+      )}>
+      <Input label={t('tournament.format.templateName')} placeholder={t('tournament.format.templateNamePh')} value={name}
+        onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && name.trim() && submit()} autoFocus />
+    </Dialog>
   )
 }
 
@@ -808,6 +841,15 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
         </span>
       )}
       {!rr && link && <Button size="sm" variant="secondary" onClick={() => onPickLink(link.id)}>{t('tournament.canvas.link')} · {rankLabel(link.ranks)}</Button>}
+      {!rr && isSource && panelRow(t('tournament.format.seeding'), (
+        <Seg options={['seed', 'slot'].map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))}
+          value={stage.config?.seeding || 'seed'} onChange={(k) => saveConfig({ seeding: k })} />
+      ))}
+      {!rr && isSource && stage.config?.seeding === 'slot' && full.length > 0 && (
+        <Button size="sm" variant="secondary" icon="rotate-ccw" onClick={() => act(a.tourDraw(stage.eventId))}>
+          {t(full.some((x) => x.drawNo) ? 'tournament.format.redraw' : 'tournament.format.draw')}
+        </Button>
+      )}
       {!rr && panelRow(t('tournament.format.thirdPlace'), (
         <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
           value={stage.config?.thirdPlace ? 'on' : 'off'} onChange={(k) => saveConfig({ thirdPlace: k === 'on' })} />

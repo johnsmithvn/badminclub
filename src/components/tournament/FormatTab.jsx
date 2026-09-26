@@ -1,131 +1,43 @@
 import { useState } from 'react'
 import { Alert, Button, Card, Dialog, IconButton, Input } from '#ds'
-import { Mono, Overline } from '#ui'
-import { entriesOpen, regName } from '#lib/tournament/hub.js'
-import { eventPlayers, eventTeams, lineupIssue } from '#lib/tournament/pairing.js'
-import { RULE_PRESETS, TEMPLATES, advanceCounts, defaultStage, entrantsOf, koPreview, rrPreview, templateOf } from '#lib/tournament/format.js'
-import { calcGroupBalance, snakeGroups } from '#lib/tournament/roundRobin.js'
-import { estimateOf, graphIssue } from '#lib/tournament/canvas.js'
+import { Overline } from '#ui'
+import { TEMPLATES, advanceCounts, defaultStage, templateOf } from '#lib/tournament/format.js'
+import { eventTeams } from '#lib/tournament/pairing.js'
 import { t } from '#i18n'
-import { RuleField, Seg } from './TourBits.jsx'
-import RecommendDialog from './RecommendDialog.jsx'
-import { ruleLabel } from './tourUtils.js'
-
 
 /**
- * Thể thức (handoff `isFormat`): trái mẫu có sẵn · giữa thẻ giai đoạn (các hàng tuỳ chọn) · phải xem trước
- * + lịch thi đấu. Mỗi lần chọn lưu ngay. Đã có lịch thì khoá — luật đã chép vào từng trận.
+ * Thể thức (handoff `isFormat`): chọn mẫu để dựng giai đoạn đầu tiên — mọi chỉnh sửa sâu (số bảng, luật,
+ * bốc thăm, gợi ý thể thức, lưu mẫu CLB) đã dời hết sang "Sửa trên sơ đồ tự do" (FlowCanvas), tránh 2 màn
+ * làm cùng một việc. Tab này còn lại 3 việc: chọn/xoá mẫu, xem nhanh hình giai đoạn, trạng thái sinh lịch.
  */
-export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpenBracket, onOpenFlow }) {
+export default function FormatTab({ tour, event, a, canEdit, isMobile, onOpenBracket, onOpenFlow }) {
   const [resetting, setResetting] = useState(false)
-  const [swapFrom, setSwapFrom] = useState(null) // đội đang chọn để đổi số bốc thăm
-  const [recommending, setRecommending] = useState(false)
-  const [savingTpl, setSavingTpl] = useState(false)
   const stages = tour.stages.filter((s) => s.eventId === event.id).sort((x, y) => x.seq - y.seq)
   const saved = stages.find((s) => s.seq === 1) || null
   const stage = saved || defaultStage(event)
   const nextStage = stages.find((s) => s.seq === 2) || null
   const scheduled = Boolean(saved && saved.status !== 'pending')
   const editable = canEdit && !scheduled
-  const teams = eventTeams(tour, event.id)
-  const full = teams.filter((x) => x.full)
+  const full = eventTeams(tour, event.id).filter((x) => x.full)
 
   const currentTemplate = templateOf(tour, event) || 'ko'
-
   const isRR = stage.type === 'round_robin'
-  const preview = isRR ? rrPreview(full.length, stage) : koPreview(full.length, stage)
   const numGroups = stage.config?.numGroups || 1
   const advance = stage.config?.advancePerGroup || 2
   const plateStage = stages.find((s) => s.seq === 3) || null
-  // Nhánh phụ lấy mấy hạng — đọc từ link (thứ thật sự quyết định), 'all' khi lấy thừa hạng.
   const plateLink = plateStage && (tour.stageLinks || []).find((l) => l.toStageId === plateStage.id)
   const plateK = plateLink ? (plateLink.ranks.length > 2 ? 'all' : plateLink.ranks.length) : 0
   const counts = advanceCounts(full.length, numGroups, advance, plateK)
-  const nextPreview = nextStage ? koPreview(counts.main, nextStage) : null
-  const platePreview = plateStage ? koPreview(counts.plate, plateStage) : null
-  const koStages = stages.filter((s) => s.type === 'knockout')
-  // Luật nhánh sau vòng bảng: nhánh chính và nhánh phụ dùng chung một luật.
-  const saveKo = (patch) => koStages.forEach((s) => a.tourSaveStage(event.id, { ...s, ...patch(s) }))
-
-  const seeding = stage.config?.seeding || 'seed'
-  const save = (patch) => a.tourSaveStage(event.id, { ...stage, ...patch })
-  const saveConfig = (cfgPatch) => save({ config: { ...stage.config, ...cfgPatch } })
+  const matchCount = tour.matches.filter((m) => m.eventId === event.id && m.status !== 'bye').length
 
   const pickTemplate = (tplKey) => {
     if (!editable || tplKey === currentTemplate) return
     a.tourSaveTemplate(event.id, tplKey)
   }
 
-  // Đổi chỗ trong nhánh = đổi số bốc thăm hai đội (chỉ trước khi có lịch, mọi đội đã có số).
-  const canSwap = editable && !entriesOpen(event) && teams.filter((x) => x.full).every((x) => Number.isInteger(x.drawNo))
-  const pickSwap = (teamId) => {
-    if (!swapFrom) return setSwapFrom(teamId)
-    if (swapFrom !== teamId) a.tourSwapDraw(event.id, swapFrom, teamId)
-    setSwapFrom(null)
-  }
-  const matchCount = tour.matches.filter((m) => m.eventId === event.id && m.status !== 'bye').length
-
-  // Còn thiếu bước nào trước khi tạo lịch — nói đúng bước, không để nút xám câm.
-  // Đội hình chưa chốt không còn chặn: "Tạo lịch" tự chốt — chỉ chặn khi đội hình chưa hợp lệ (nói đúng lý do).
-  // Sơ đồ (mẫu hoặc tự dựng) phải sinh lịch trọn được — thiếu nối / trùng hạng thì nói đúng lỗi.
-  const graphErr = saved ? graphIssue(stages, tour.stageLinks || []) : null
-  const blocker = !saved ? 'tournament.format.needFormat'
-    : graphErr ? graphErr
-    : entriesOpen(event) ? lineupIssue(event, teams, eventPlayers(tour, event.id))
-      : (isRR ? (full.length < numGroups * 2 ? 'tournament.format.tooFewForGroupsHint' : null) : (entrantsOf(teams, seeding).error || null))
-
-  // "Mỗi đội đá ít nhất" (handoff): từ thể thức đã lưu; chưa lưu thì là mẫu loại trực tiếp mặc định (1 trận).
-  const minPerTeam = saved ? estimateOf(tour, event).minPerTeam : full.length >= 2 ? 1 : 0
-  const minRow = (
-    <div style={{ display: 'flex', minHeight: 32, alignItems: 'center' }}>
-      <span style={{ flex: 1, font: '500 12.5px/1 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.format.minPerTeam')}</span>
-      <Mono size={12.5} weight={600} color="var(--text-primary)">{t('tournament.format.minPerTeamVal', { n: minPerTeam })}</Mono>
-    </div>
-  )
-
-  const row = (label, control) => (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '180px 1fr', gap: 8, alignItems: 'center', padding: '10px 0', borderTop: '1px solid var(--border-subtle)' }}>
-      <span style={{ font: '600 12.5px/1.3 var(--font-sans)', color: 'var(--text-secondary)' }}>{label}</span>
-      <span>{control}</span>
-    </div>
-  )
-
-  const groupBal = isRR && numGroups > 1 && full.length >= numGroups * 2 ? calcGroupBalance(snakeGroups(full, numGroups)) : null
-
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(200px,240px) minmax(0,1fr) minmax(240px,300px)', gap: 14, alignItems: 'start' }}>
       <div style={{ display: 'grid', gap: 10 }}>
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => setRecommending(true)}
-            style={{
-              padding: '14px',
-              borderRadius: 10,
-              background: 'rgba(0, 178, 169, 0.12)',
-              border: '1px solid var(--teal-500)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-              textAlign: 'left',
-              cursor: 'pointer',
-              color: 'inherit',
-              transition: 'background .2s, border-color .2s, transform .15s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 178, 169, 0.18)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 178, 169, 0.12)' }}
-          >
-            <span style={{ font: '700 14px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
-              {t('tournament.recommend.open')}
-            </span>
-            <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('tournament.recommend.hint')}
-            </span>
-            <span style={{ font: '700 12px/1 var(--font-sans)', color: 'var(--teal-300)', marginTop: 2 }}>
-              {t('tournament.format.openRecommender')}
-            </span>
-          </button>
-        )}
         <Overline>{t('tournament.format.templates')}</Overline>
         {TEMPLATES.map((k) => {
           const on = currentTemplate === k
@@ -171,28 +83,12 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
       </div>
 
       <div style={{ display: 'grid', gap: 12 }}>
-        {/* Stage Flow Pipeline (Diagram luồng đấu trực quan theo handoff) */}
+        {/* Stage Flow Pipeline (Diagram luồng đấu trực quan theo handoff) — chỉ xem, sửa ở Sơ đồ */}
         <div style={{
-          padding: '14px 16px',
-          background: 'var(--surface-inset)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 12,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          overflowX: 'auto',
+          padding: '14px 16px', background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', borderRadius: 12,
+          display: 'flex', alignItems: 'center', gap: 10, overflowX: 'auto',
         }}>
-          {/* Giai đoạn 1 */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            padding: '8px 12px',
-            borderRadius: 8,
-            background: 'var(--surface-card)',
-            border: '1px solid var(--teal-500)',
-            minWidth: 120,
-          }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--teal-500)', minWidth: 120 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 18, height: 18, borderRadius: 4, display: 'grid', placeItems: 'center', background: 'var(--teal-500)', color: '#04302C', font: '700 10.5px/1 var(--font-mono)' }}>1</span>
               <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
@@ -203,232 +99,33 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
               {isRR ? t('tournament.format.groupSub', { groups: numGroups, teams: full.length }) : t('tournament.format.koSub', { teams: full.length })}
             </span>
           </div>
-
-          {/* Giai đoạn 2 (nếu có) */}
           {nextStage && (
             <>
               <span style={{ color: 'var(--border-strong)', font: '600 14px/1 var(--font-mono)' }}>──→</span>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-                padding: '8px 12px',
-                borderRadius: 8,
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border-default)',
-                minWidth: 120,
-              }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-default)', minWidth: 120 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 18, height: 18, borderRadius: 4, display: 'grid', placeItems: 'center', background: 'var(--surface-accent-soft)', color: 'var(--teal-300)', font: '700 10.5px/1 var(--font-mono)' }}>2</span>
                   <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
                     {t(plateStage ? 'tournament.stage.main' : 'tournament.format.koStage')}
                   </span>
                 </div>
-                <span style={{ font: '500 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
-                  {t('tournament.format.advanceSub', { n: counts.main })}
-                </span>
+                <span style={{ font: '500 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>{t('tournament.format.advanceSub', { n: counts.main })}</span>
               </div>
             </>
           )}
-
-          {/* Giai đoạn 3 (Plate Stage - nếu có) */}
           {plateStage && (
             <>
               <span style={{ color: 'var(--border-strong)', font: '600 14px/1 var(--font-mono)' }}>──→</span>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-                padding: '8px 12px',
-                borderRadius: 8,
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border-default)',
-                minWidth: 120,
-              }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-default)', minWidth: 120 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 18, height: 18, borderRadius: 4, display: 'grid', placeItems: 'center', background: 'var(--surface-accent-soft)', color: 'var(--text-secondary)', font: '700 10.5px/1 var(--font-mono)' }}>3</span>
-                  <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
-                    {t('tournament.stage.plate')}
-                  </span>
+                  <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.stage.plate')}</span>
                 </div>
-                <span style={{ font: '500 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
-                  {t('tournament.format.plateSub', { n: counts.plate })}
-                </span>
+                <span style={{ font: '500 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>{t('tournament.format.plateSub', { n: counts.plate })}</span>
               </div>
             </>
           )}
         </div>
-
-        <Card
-          title={t('tournament.format.title', { name: t('tournament.kind.' + event.kind) })}
-          icon="settings-2"
-          padding="14px 18px 8px"
-          actions={canEdit && saved && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {onOpenFlow && editable && (
-                <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={() => onOpenFlow(event.id)}>{t('tournament.format.editOnCanvas')}</Button>
-              )}
-              <Button size="sm" variant="ghost" icon="save" onClick={() => setSavingTpl(true)}>{t('tournament.format.saveTemplate')}</Button>
-            </div>
-          )}
-        >
-          {scheduled && <Alert tone="info">{t('tournament.format.lockedRules')}</Alert>}
-          {currentTemplate === 'custom' && !scheduled && <Alert tone="info">{t('tournament.canvas.custom')}</Alert>}
-        
-        {isRR ? (
-          <>
-            {row(t('tournament.format.groups'), (
-              <Seg options={(currentTemplate === 'rr' ? [1, 2, 3, 4] : [2, 3, 4]).map((k) => ({ key: k, label: String(k) }))}
-                value={numGroups} disabled={!editable}
-                onChange={(k) => saveConfig({ numGroups: Number(k) })} />
-            ))}
-            {(currentTemplate === 'rr_ko' || currentTemplate === 'rr_ko_plate') && (
-              row(t('tournament.format.advancePerGroup'), (
-                <Seg options={[1, 2, 3].map((k) => ({ key: k, label: String(k) }))}
-                  value={advance} disabled={!editable}
-                  onChange={(k) => a.tourSetAdvance(event.id, { advance: Number(k) })} />
-              ))
-            )}
-            {plateStage && currentTemplate === 'rr_ko_plate' && (
-              row(t('tournament.format.plateTakes'), (
-                <Seg options={[1, 2, 'all'].map((k) => ({ key: k, label: t('tournament.format.plateOpt.' + k, { from: advance + 1, to: advance + 2 }) }))}
-                  value={plateK} disabled={!editable}
-                  onChange={(k) => a.tourSetAdvance(event.id, { plate: k })} />
-              ))
-            )}
-            {row(t('tournament.format.legs'), (
-              <Seg options={[{ key: 1, label: t('tournament.format.oneLeg') }, { key: 2, label: t('tournament.format.twoLegs') }]}
-                value={stage.config?.legs || 1} disabled={!editable}
-                onChange={(legs) => saveConfig({ legs: Number(legs) })} />
-            ))}
-            {row(t('tournament.format.qualify'), (
-              <RuleField value={stage.matchRule} disabled={!editable}
-                onChange={(rule) => save({ matchRule: rule })} />
-            ))}
-            {nextStage && (
-              <>
-                {row(t('tournament.format.koQualify'), (
-                  <RuleField value={nextStage.matchRule} disabled={!editable}
-                    onChange={(rule) => saveKo(() => ({ matchRule: rule }))} />
-                ))}
-                {row(t('tournament.format.ranking'), (
-                  <RuleField value={nextStage.ruleOverrides?.final} disabled={!editable}
-                    onChange={(rule) => saveKo((s) => ({ ruleOverrides: { ...s.ruleOverrides, final: rule, third: rule } }))} />
-                ))}
-              </>
-            )}
-            {groupBal && (
-              row(t('tournament.format.groupBalance'), (
-                <Mono size={12} weight={600} color={groupBal.isBalanced ? 'var(--status-delivered-fg)' : 'var(--status-delayed-fg)'}>
-                  {groupBal.isBalanced ? t('tournament.format.balanced') : t('tournament.format.unbalanced')} (±{groupBal.spread})
-                </Mono>
-              ))
-            )}
-          </>
-        ) : (
-          <>
-            {row(t('tournament.format.qualify'), (
-              <RuleField value={stage.matchRule} disabled={!editable}
-                onChange={(rule) => save({ matchRule: rule })} />
-            ))}
-            {row(t('tournament.format.ranking'), (
-              <RuleField value={stage.ruleOverrides?.final} disabled={!editable}
-                onChange={(rule) => save({ ruleOverrides: { ...stage.ruleOverrides, final: rule, third: rule } })} />
-            ))}
-            {row(t('tournament.format.thirdPlace'), (
-              <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
-                value={stage.config?.thirdPlace ? 'on' : 'off'} disabled={!editable}
-                onChange={(k) => saveConfig({ thirdPlace: k === 'on' })} />
-            ))}
-            {row(t('tournament.format.seeding'), (
-              <Seg options={['seed', 'slot'].map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))} value={seeding} disabled={!editable}
-                onChange={(k) => saveConfig({ seeding: k })} />
-            ))}
-          </>
-        )}
-      </Card>
-      </div>
-
-      <div style={{ display: 'grid', gap: 12 }}>
-        <Card title={full.length >= 2 ? t('tournament.format.preview', { n: full.length }) : t('tournament.format.previewNone')} padding="10px 16px 12px">
-          {isRR ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 34, borderTop: '1px solid var(--border-subtle)' }}>
-                <span style={{ flex: 1, font: '600 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.format.groupStage')} ({t('tournament.format.groupCount', { n: preview.numGroups })})</span>
-                <Mono size={11} color="var(--text-muted)">{ruleLabel(preview.rule)}</Mono>
-                <Mono size={12}>{t('tournament.format.previewRow', { n: preview.total })}</Mono>
-              </div>
-              {nextStage && nextPreview && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 34, borderTop: '1px solid var(--border-subtle)' }}>
-                  <span style={{ flex: 1, font: '600 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t(plateStage ? 'tournament.stage.main' : 'tournament.format.koStage')}</span>
-                  <Mono size={11} color="var(--text-muted)">{ruleLabel(nextStage.matchRule)}</Mono>
-                  <Mono size={12}>{t('tournament.format.previewRow', { n: nextPreview.total })}</Mono>
-                </div>
-              )}
-              {platePreview && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 34, borderTop: '1px solid var(--border-subtle)' }}>
-                  <span style={{ flex: 1, font: '600 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.stage.plate')}</span>
-                  <Mono size={11} color="var(--text-muted)">{ruleLabel(plateStage.matchRule)}</Mono>
-                  <Mono size={12}>{t('tournament.format.previewRow', { n: platePreview.total })}</Mono>
-                </div>
-              )}
-              <div style={{ display: 'flex', minHeight: 36, alignItems: 'center', borderTop: '1px solid var(--border-default)' }}>
-                <span style={{ flex: 1, font: '600 13px/1 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.format.total')}</span>
-                <Mono weight={700} size={14} color="var(--text-primary)">{preview.total + (nextPreview?.total || 0) + (platePreview?.total || 0)}</Mono>
-              </div>
-              {minPerTeam > 0 && minRow}
-            </>
-          ) : (
-            <>
-              {preview.rounds.map((r) => (
-                <div key={r.kind} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 34, borderTop: '1px solid var(--border-subtle)' }}>
-                  <span style={{ flex: 1, font: '600 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.round.' + r.kind)}</span>
-                  <Mono size={11} color="var(--text-muted)">{ruleLabel(r.rule)}</Mono>
-                  <Mono size={12}>{t('tournament.format.previewRow', { n: r.matches })}</Mono>
-                </div>
-              ))}
-              {preview.byes > 0 && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', paddingTop: 6 }}>{t('tournament.format.byes', { n: preview.byes })}</div>}
-              {preview.total > 0 && (
-                <div style={{ display: 'flex', minHeight: 36, alignItems: 'center', borderTop: '1px solid var(--border-default)' }}>
-                  <span style={{ flex: 1, font: '600 13px/1 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.format.total')}</span>
-                  <Mono weight={700} size={14} color="var(--text-primary)">{preview.total}</Mono>
-                </div>
-              )}
-              {preview.total > 0 && minRow}
-            </>
-          )}
-        </Card>
-
-        {seeding === 'slot' && full.length > 0 && (
-          <Card title={t('tournament.format.draw')} subtitle={t('tournament.format.drawHint')} padding="10px 16px 12px"
-            actions={editable && !entriesOpen(event) && (
-              <Button size="sm" variant="secondary" icon="rotate-ccw" onClick={() => a.tourDraw(event.id)}>
-                {t(full.some((x) => x.drawNo) ? 'tournament.format.redraw' : 'tournament.format.draw')}
-              </Button>
-            )}>
-            {canSwap && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', paddingBottom: 6 }}>{t('tournament.format.swapHint')}</div>}
-            {[...full].sort((x, y) => (x.drawNo ?? 99) - (y.drawNo ?? 99)).map((team) => (
-              <div key={team.id}
-                role={canSwap ? 'button' : undefined}
-                tabIndex={canSwap ? 0 : undefined}
-                aria-pressed={canSwap ? swapFrom === team.id : undefined}
-                onClick={canSwap ? () => pickSwap(team.id) : undefined}
-                onKeyDown={canSwap ? (e) => e.key === 'Enter' && pickSwap(team.id) : undefined}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, borderTop: '1px solid var(--border-subtle)',
-                  cursor: canSwap ? 'pointer' : 'default', borderRadius: 6, padding: '0 6px',
-                  background: swapFrom === team.id ? 'var(--surface-accent-soft)' : 'transparent',
-                }}>
-                <Mono weight={700} size={12} color="var(--text-primary)" style={{ width: 34 }}>
-                  {team.drawNo ? t('tournament.format.drawNo', { n: team.drawNo }) : '—'}
-                </Mono>
-                <span style={{ font: '500 12.5px/1.3 var(--font-sans)', color: 'var(--text-secondary)' }}>
-                  {team.players.map((p) => regName(tour, db, p)).join(' · ')}
-                </span>
-              </div>
-            ))}
-          </Card>
-        )}
 
         <Card title={t('tournament.format.schedule')} padding="12px 16px">
           {scheduled ? (
@@ -443,42 +140,15 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 10 }}>
-              {blocker && <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)' }}>{t(blocker)}</span>}
-              {canEdit && <div><Button icon="calendar-plus" disabled={Boolean(blocker)} onClick={() => a.tourGenerate(event.id)}>{t('tournament.format.generate')}</Button></div>}
+              <Alert tone="info">{t('tournament.format.continueOnCanvas')}</Alert>
+              {onOpenFlow && <div><Button iconAfter="arrow-right" onClick={() => onOpenFlow(event.id)}>{t('tournament.format.editOnCanvas')}</Button></div>}
             </div>
           )}
         </Card>
       </div>
 
-      {savingTpl && (
-        <TemplateDialog onClose={() => setSavingTpl(false)}
-          onSave={async (name) => (await a.tourSaveClubTemplate(event.id, name)) && setSavingTpl(false)} />
-      )}
-      {recommending && <RecommendDialog tour={tour} onClose={() => setRecommending(false)} onApply={a.tourApplyRecommendation} />}
       {resetting && <ResetDialog onClose={() => setResetting(false)} onReset={(reason) => a.tourResetSchedule(event.id, reason)} />}
     </div>
-  )
-}
-
-/** "Lưu làm mẫu CLB": chỉ hỏi tên mẫu. */
-function TemplateDialog({ onClose, onSave }) {
-  const [name, setName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const submit = async () => {
-    setBusy(true)
-    if (!(await onSave(name.trim()))) setBusy(false)
-  }
-  return (
-    <Dialog open width={420} title={t('tournament.format.saveTemplate')} onClose={busy ? undefined : onClose}
-      footer={(
-        <>
-          <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
-          <Button loading={busy} disabled={!name.trim()} onClick={submit}>{t('tournament.format.templateSaveBtn')}</Button>
-        </>
-      )}>
-      <Input label={t('tournament.format.templateName')} placeholder={t('tournament.format.templateNamePh')} value={name}
-        onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && name.trim() && submit()} autoFocus />
-    </Dialog>
   )
 }
 

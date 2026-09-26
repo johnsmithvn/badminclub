@@ -66,69 +66,20 @@ test('ghép cặp: nội dung đơn không ghép, chỉ chốt danh sách; khôn
   assert.doesNotMatch(text(PairingTab, props(xdTour(), { canEdit: false })), /Tự ghép|Chốt đội hình|Ghim/)
 })
 
-test('thể thức: mặc định theo quy chế; xem trước; thiếu bước nào thì nói bước đó', () => {
+// Rút gọn (2026-09-26): số bảng/luật/bốc thăm/xem trước/tạo lịch đã dời hết sang FlowCanvas ("Sửa trên sơ đồ tự do")
+// để tránh 2 màn cùng sửa một thứ — FormatTab giờ chỉ còn chọn mẫu khởi tạo + trạng thái sinh lịch (§ hub.js).
+test('thể thức: chọn mẫu; chưa có lịch → trỏ sang sơ đồ; đã có lịch → khoá, xem/làm lại', () => {
   const tr = xdTour()
-  const s = text(FormatTab, props(tr))
-  assert.match(s, /Thể thức · Đôi nam nữ/)
-  assert.match(s, /Loại trực tiếp/)
-  assert.match(s, /Chọn thể thức trước khi tạo lịch/, 'chưa lưu thể thức → nói đúng việc cần làm')
+  const s = text(FormatTab, props(tr, { onOpenFlow: () => {} }))
+  assert.match(s, /Loại trực tiếp/, 'danh sách mẫu vẫn còn')
+  assert.match(s, /Sửa trên sơ đồ tự do/, 'chưa có lịch → trỏ sang Canvas thay vì tự sửa luật ở đây')
+  assert.doesNotMatch(s, /Tạo lịch thi đấu/, 'nút tạo lịch không còn ở đây nữa — Canvas lo')
 
   const stage = { id: 's1', eventId: 'e-xd', seq: 1, type: 'knockout', status: 'pending', config: { thirdPlace: true, seeding: 'seed' },
     matchRule: RULE_PRESETS.r1x21, ruleOverrides: { final: RULE_PRESETS.r3x15, third: RULE_PRESETS.r3x15 } }
-  const draft = text(FormatTab, props({ ...tr, stages: [stage] }))
-  assert.doesNotMatch(draft, /Chốt đội hình ở bước 3/, 'không còn bước chốt riêng — "Tạo lịch" tự chốt')
-  assert.match(draft, /Lịch thi đấu Cần ít nhất 2 đội đủ người/, 'đội hình chưa hợp lệ → nói đúng lý do ngay cạnh nút')
-  assert.match(draft, /Cần ít nhất 2 đội đủ người để xem trước/)
-})
-
-test('thể thức: đủ đội + đã chốt → xem trước đúng số trận, tạo lịch được; đã có lịch thì khoá luật', () => {
-  const teams = Array.from({ length: 5 }, (_, i) => ({ id: 't' + i, eventId: 'e-md', pinned: false, drawNo: null }))
-  const regs = Array.from({ length: 10 }, (_, i) => ({ id: 'q' + i, playerId: 'm1', gender: 'nam', ratingSnapshot: 400 + i, fee: 0, paid: true, status: 'registered' }))
-  const base = tour({
-    events: [{ id: 'e-md', kind: 'md', teamSize: 2, genderRule: 'male', status: 'drawn' }],
-    registrations: regs,
-    entries: regs.map((r) => ({ eventId: 'e-md', registrationId: r.id })),
-    teams,
-    teamPlayers: regs.map((r, i) => ({ teamId: 't' + Math.floor(i / 2), eventId: 'e-md', registrationId: r.id })),
-    stages: [{ id: 's1', eventId: 'e-md', seq: 1, type: 'knockout', status: 'pending', config: { thirdPlace: true, seeding: 'seed' },
-      matchRule: RULE_PRESETS.r1x30, ruleOverrides: { final: RULE_PRESETS.r3x15, third: RULE_PRESETS.r3x15 } }],
-  })
-  const s = text(FormatTab, props(base))
-  assert.match(s, /Xem trước với 5 đội/)
-  assert.match(s, /Tứ kết 1 sec 30 · chạm 1 trận/, '5 đội: 3 đội được miễn tứ kết')
-  assert.match(s, /Chung kết 3 sec 15 2?1 trận/)
-  assert.match(s, /3 đội được miễn vòng đầu/)
-  assert.match(s, /Tổng số trận 5/, '1 TK + 2 BK + CK + 3-4')
-  const ready = html(FormatTab, props(base))
-  assert.ok(buttonTag(ready, 'Tạo lịch thi đấu') && !isDisabled(buttonTag(ready, 'Tạo lịch thi đấu')), 'đủ điều kiện thì tạo lịch được')
-  assert.ok(!isDisabled(buttonTag(ready, '3 sec 21 · cách 2')), 'chưa có lịch thì đổi luật được')
-
-  const slot = { ...base, stages: [{ ...base.stages[0], config: { thirdPlace: true, seeding: 'slot' } }] }
-  assert.match(text(FormatTab, props(slot)), /Bốc thăm trước khi tạo lịch/)
-
-  const done = { ...base, stages: [{ ...base.stages[0], status: 'running' }], matches: [
-    { id: 'x1', eventId: 'e-md', status: 'ready' }, { id: 'x2', eventId: 'e-md', status: 'bye' }] }
-  const d = text(FormatTab, props(done))
-  assert.match(d, /Đã có lịch thi đấu — 1 trận/, 'trận bye không tính')
-  assert.match(d, /luật đã chép vào từng trận/)
+  const done = { ...tr, stages: [{ ...stage, status: 'running' }], matches: [{ id: 'x1', eventId: 'e-xd', status: 'ready' }] }
+  const d = text(FormatTab, props(done, { onOpenFlow: () => {} }))
+  assert.match(d, /Đã có lịch thi đấu — 1 trận/)
   assert.match(d, /Làm lại lịch/)
-  assert.ok(isDisabled(buttonTag(html(FormatTab, props(done)), '3 sec 21 · cách 2')), 'đã có lịch: nút luật phải khoá')
-})
-
-test('bốc thăm: đã chốt + đủ số → danh sách theo Đ1, Đ2… và có hướng dẫn đổi chỗ', () => {
-  const regs = Array.from({ length: 4 }, (_, i) => ({ id: 'q' + i, playerId: 'm' + (i + 1), gender: 'nam', ratingSnapshot: 400, fee: 0, paid: true, status: 'registered' }))
-  const tr = tour({
-    events: [{ id: 'e-ms', kind: 'ms', teamSize: 1, genderRule: 'male', status: 'drawn' }],
-    registrations: regs,
-    entries: regs.map((r) => ({ eventId: 'e-ms', registrationId: r.id })),
-    teams: regs.map((r, i) => ({ id: 't' + i, eventId: 'e-ms', drawNo: 4 - i })),
-    teamPlayers: regs.map((r, i) => ({ teamId: 't' + i, eventId: 'e-ms', registrationId: r.id })),
-    stages: [{ id: 's1', eventId: 'e-ms', seq: 1, type: 'knockout', status: 'pending', config: { thirdPlace: false, seeding: 'slot' },
-      matchRule: RULE_PRESETS.r1x21, ruleOverrides: {} }],
-  })
-  const s = text(FormatTab, props(tr))
-  assert.match(s, /Bấm một đội rồi bấm đội khác để đổi chỗ/)
-  assert.match(s, /Đ1 Phạm Dung Đ2 Lê Thị Cúc Đ3 Trần Bình Đ4 Nguyễn Văn An/, 'xếp theo số bốc thăm')
-  const locked = text(FormatTab, props({ ...tr, stages: [{ ...tr.stages[0], status: 'running' }] }))
-  assert.doesNotMatch(locked, /đổi chỗ/, 'đã có lịch — đổi chỗ phải làm lại lịch trước')
+  assert.doesNotMatch(d, /Sửa trên sơ đồ tự do/, 'đã có lịch thì sơ đồ cũng khoá, không mời sang đó sửa nữa')
 })
