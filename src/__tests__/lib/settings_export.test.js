@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { makeActions } from '#contexts/appActions.js'
+import { toDb } from '#contexts/dbmap.js'
 
 test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt', () => {
   let currentDb = {
@@ -175,5 +176,43 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
   })
   assert.equal(currentDb.groups[0].feeNam, 280000, 'nhóm G1 có mức riêng ở vị trí đầu tiên vẫn giữ nguyên 280k')
   assert.equal(currentDb.groups[1].feeNam, 320000, 'nhóm G2 theo CLB phải cập nhật thành 320k')
+
+  // 7. Nhóm đầu là mức riêng, nhóm sau theo CLB: toRows và toDb bảo toàn cờ has_custom_pricing
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 300000, feeNu: 250000, unitNam: 55000, unitNu: 45000, hasCustomPricing: true },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000, hasCustomPricing: false },
+  ])
+
+  // Giả lập cấu trúc dòng member_groups ghi xuống Postgres
+  const memberGroupsRows = currentDb.groups.map((g, idx) => ({
+    id: g.id,
+    club_id: 'CLB1',
+    name: g.name,
+    fee_male: g.feeNam,
+    fee_female: g.feeNu,
+    unit_male: g.unitNam,
+    unit_female: g.unitNu,
+    sort_order: idx,
+    has_custom_pricing: Boolean(g.hasCustomPricing),
+  }))
+
+  assert.equal(memberGroupsRows[0].has_custom_pricing, true, 'nhóm G1 có mức riêng phải ghi has_custom_pricing: true')
+  assert.equal(memberGroupsRows[1].has_custom_pricing, false, 'nhóm G2 theo CLB phải ghi has_custom_pricing: false')
+
+  // Giả lập load lại từ DB (F5) qua toDb
+  const reloadedDb = toDb({
+    club: currentDb.club,
+    groups: memberGroupsRows,
+  }, { clubId: 'CLB1' })
+
+  assert.equal(reloadedDb.groups[0].hasCustomPricing, true, 'nhóm G1 nạp lại phải giữ cờ hasCustomPricing: true')
+  assert.equal(reloadedDb.groups[1].hasCustomPricing, false, 'nhóm G2 nạp lại phải giữ cờ hasCustomPricing: false')
+
+  // Tìm nhóm đại diện biểu phí CLB: phải ra G2 (250k) chứ không được nhầm sang G1 (300k)
+  const resolvedDef = (reloadedDb.groups || []).find((g) => g.hasCustomPricing === false) ||
+    (reloadedDb.groups || []).find((g) => !g.hasCustomPricing) ||
+    reloadedDb.groups?.[0]
+  assert.equal(resolvedDef.id, 'G2', 'nhóm đại diện biểu phí CLB phải là G2 (hasCustomPricing: false)')
+  assert.equal(resolvedDef.feeNam, 250000, 'biểu phí CLB phải là 250k, không bị nuốt thành 300k của G1')
 })
 

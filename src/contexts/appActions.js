@@ -2106,7 +2106,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     addGroup: () => {
       const f = form()
       const d0 = db()
-      const def = d0.groups[0] || {}
+      const def = (d0.groups || []).find((g) => g.hasCustomPricing === false) || (d0.groups || []).find((g) => !g.hasCustomPricing) || d0.groups[0] || {}
       const name = (f.grName || '').trim()
       if (!name) return toast(t('toast.needGroupName'))
       up((d) => ({
@@ -2119,6 +2119,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           from: f.grFrom || '18:00', to: f.grTo || '20:00',
           courtIds: [], active: true,
           sortOrder: d.groups.length,
+          hasCustomPricing: false,
         }]),
       }))
       upUi(() => ({ dialog: null, form: {} }))
@@ -2178,7 +2179,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     }) => {
       const parseUnit = (v) => (v === -1 || v === '-1' ? -1 : intOf(v))
       up((d) => {
-        const def = (d.groups || []).find((g) => !g.hasCustomPricing) || d.groups[0] || {}
+        const def = (d.groups || []).find((g) => g.hasCustomPricing === false) || (d.groups || []).find((g) => !g.hasCustomPricing) || d.groups[0] || {}
         const isCustom = (g) => {
           if (g.hasCustomPricing === true) return true
           if (g.hasCustomPricing === false) return false
@@ -2255,10 +2256,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           levels: d.levels || cfg.levelsDefault,
         },
         money: {
-          feeNam: d.groups[0]?.feeNam || 0,
-          feeNu: d.groups[0]?.feeNu || 0,
-          unitNam: d.groups[0]?.unitNam || 0,
-          unitNu: d.groups[0]?.unitNu || 0,
+          feeNam: ((d.groups || []).find((g) => g.hasCustomPricing === false) || d.groups[0])?.feeNam || 0,
+          feeNu: ((d.groups || []).find((g) => g.hasCustomPricing === false) || d.groups[0])?.feeNu || 0,
+          unitNam: ((d.groups || []).find((g) => g.hasCustomPricing === false) || d.groups[0])?.unitNam || 0,
+          unitNu: ((d.groups || []).find((g) => g.hasCustomPricing === false) || d.groups[0])?.unitNu || 0,
           hasMemberExtraDiscount: Boolean(d.club?.hasMemberExtraDiscount),
           memberExtraDiscount: d.club?.memberExtraDiscount != null ? intOf(d.club.memberExtraDiscount) : 5000,
           guestPrices: (d.guestPrices || []).map((p) => ({

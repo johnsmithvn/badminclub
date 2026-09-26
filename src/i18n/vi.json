@@ -5495,6 +5495,7 @@
     },
     "canvas": {
       "panHint": "Kéo nền để di chuyển · cuộn chuột để phóng",
+      "hintPalette": "Kéo khối từ trái vào",
       "clearGroups": "Đưa hết về khay",
       "clearGroupsSub": "Giữ số bảng, xoá đội",
       "perGroup": "Cặp mỗi bảng",
@@ -5533,7 +5534,9 @@
       "groupsEdit": "Chia bảng",
       "groupsHint": "Bấm một đội rồi bấm bảng muốn chuyển tới.",
       "snake": "Chia rắn theo rating",
+      "snakeSub": "Hạt giống 1 mỗi bảng, rồi đảo chiều, bảng cân nhất",
       "draw": "Bốc thăm",
+      "drawSub": "Dùng cả cặp đang ở khay",
       "groupsInvalid": "Mỗi bảng cần ít nhất 2 đội — khi tạo lịch sẽ tự chia rắn theo rating.",
       "groupsNoTeams": "Chưa có đội đủ người — ghép cặp trước rồi mới chia bảng.",
       "ok": "Sơ đồ hợp lệ — tạo lịch ở tab Thể thức hoặc bấm Tạo lịch trên khối.",

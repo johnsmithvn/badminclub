@@ -31,7 +31,11 @@ export default function Settings() {
 
   // ----------------- Baseline & Draft State Management -----------------
   const defGroup = useMemo(
-    () => (db.groups || []).find((g) => !g.hasCustomPricing) || db.groups?.[0] || {},
+    () =>
+      (db.groups || []).find((g) => g.hasCustomPricing === false) ||
+      (db.groups || []).find((g) => !g.hasCustomPricing) ||
+      db.groups?.[0] ||
+      {},
     [db.groups]
   )
 
@@ -178,7 +182,11 @@ export default function Settings() {
     }
 
     if (dirtyMoney.length === 0) {
-      const dg = (db.groups || []).find((g) => !g.hasCustomPricing) || db.groups?.[0] || {}
+      const dg =
+        (db.groups || []).find((g) => g.hasCustomPricing === false) ||
+        (db.groups || []).find((g) => !g.hasCustomPricing) ||
+        db.groups?.[0] ||
+        {}
       setMoneyDraft({
         hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
         feeNam: String(dg.feeNam || ''),
@@ -216,7 +224,11 @@ export default function Settings() {
       levels: db.levels || cfg.levelsDefault,
     })
 
-    const dg = (db.groups || []).find((g) => !g.hasCustomPricing) || db.groups?.[0] || {}
+    const dg =
+      (db.groups || []).find((g) => g.hasCustomPricing === false) ||
+      (db.groups || []).find((g) => !g.hasCustomPricing) ||
+      db.groups?.[0] ||
+      {}
     setMoneyDraft({
       hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
       feeNam: String(dg.feeNam || ''),
@@ -372,6 +384,7 @@ export default function Settings() {
             from: base.from || '18:00',
             to: base.to || '20:00',
             sortOrder: idx,
+            hasCustomPricing: Boolean(base.hasCustomPricing),
           }
         })
         a.saveGroupsTab(finalGroups)

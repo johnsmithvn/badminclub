@@ -286,6 +286,17 @@ async function apply(op) {
         ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
         : await q.insert(cleanRows)
     }
+    if (res.error && res.error.message?.includes('has_custom_pricing')) {
+      console.warn('[storage] DB chưa chạy migration 0062 (thiếu cột has_custom_pricing). Bỏ qua has_custom_pricing để không chặn lưu.')
+      const cleanRows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.has_custom_pricing
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(cleanRows)
+    }
     return unwrap(res)
   }
   if (op.op === 'delIds') {

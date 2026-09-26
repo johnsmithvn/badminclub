@@ -51,6 +51,7 @@ export function toDb(raw, ctx) {
     from: hm(g.start_time), to: hm(g.end_time), active: g.active,
     sortOrder: num(g.sort_order),
     courtIds: (g.group_courts || []).map((x) => x.court_id),
+    hasCustomPricing: Boolean(g.has_custom_pricing),
   }))
 
   // KHÔNG bịa nhóm mặc định khi CLB chưa có nhóm nào. Trước đây chỗ này sinh một nhóm "Cố định"
@@ -371,6 +372,7 @@ export function toRows(db, ctx) {
       unit_male: g.unitNam || null, unit_female: g.unitNu || null,
       sort_order: g.sortOrder != null ? g.sortOrder : idx,
       active: g.active !== false,
+      has_custom_pricing: Boolean(g.hasCustomPricing),
     })
     ;(g.courtIds || []).forEach((court) => put('group_courts', { group_id: g.id, court_id: court }))
   })

@@ -353,10 +353,16 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
               </div>
             </div>
           </div>
-          <span style={{ position: 'absolute', left: 12, bottom: 14, font: 'var(--type-caption)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
-            {t('tournament.canvas.panHint')}
-          </span>
-          <div style={{ position: 'absolute', right: 12, bottom: 12, display: 'flex', gap: 6 }}>
+          <div style={{
+            position: 'absolute', left: '50%', bottom: 14, transform: 'translateX(-50%)', display: 'flex', gap: 16,
+            padding: '8px 14px', borderRadius: 999, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+            font: 'var(--type-caption)', color: 'var(--text-muted)', whiteSpace: 'nowrap', pointerEvents: 'none',
+          }}>
+            <span>{t('tournament.canvas.hintPalette')}</span>
+            <span>{t('tournament.canvas.portHint')}</span>
+            <span>{t('tournament.canvas.panHint')}</span>
+          </div>
+          <div style={{ position: 'absolute', left: 12, bottom: 12, display: 'flex', gap: 6 }}>
             <Button size="sm" variant="secondary" aria-label={t('tournament.canvas.zoomOut')} onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - 0.1).toFixed(2)))}>−</Button>
             <Mono size={11} color="var(--text-muted)" style={{ alignSelf: 'center', minWidth: 36, textAlign: 'center' }}>{Math.round(zoom * 100)}%</Mono>
             <Button size="sm" variant="secondary" aria-label={t('tournament.canvas.zoomIn')} onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + 0.1).toFixed(2)))}>+</Button>
@@ -562,22 +568,45 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
               )
             })}
           </div>
-        ) : preview ? (
-          <div style={{ display: 'flex', gap: 10 }}>
-            {preview.filter((r) => r.roundKind !== 'third').map((r, ri) => (
-              <div key={ri} style={{ display: 'grid', alignContent: 'space-around', gap: 6, width: 140, flex: '0 0 auto' }}>
-                <Mono size={9.5} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{t('tournament.round.' + r.roundKind)}</Mono>
-                {r.matches.map((m) => <MiniMatch key={m.no} m={m} />)}
-              </div>
-            ))}
-            {preview.filter((r) => r.roundKind === 'third').map((r) => (
-              <div key="third" style={{ display: 'grid', alignContent: 'end', gap: 6, width: 140, flex: '0 0 auto' }}>
-                <Mono size={9.5} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{t('tournament.round.third')}</Mono>
-                {r.matches.map((m) => <MiniMatch key={m.no} m={m} />)}
-              </div>
-            ))}
-          </div>
-        ) : null}
+        ) : preview ? (() => {
+          const rounds = preview.filter((r) => r.roundKind !== 'third')
+          const third = preview.find((r) => r.roundKind === 'third')
+          const rowH = 64
+          const firstCount = rounds[0]?.matches.length || 1
+          return (
+            <div style={{ display: 'flex', gap: 10 }}>
+              {rounds.map((r, ri) => (
+                <div key={ri} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 140, flex: '0 0 auto' }}>
+                  <Mono size={9.5} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{t('tournament.round.' + r.roundKind)}</Mono>
+                  <div style={{ display: 'grid', gridTemplateRows: `repeat(${r.matches.length}, 1fr)`, height: firstCount * rowH, width: '100%' }}>
+                    {r.matches.map((m, mi) => {
+                      const last = ri === rounds.length - 1
+                      const arm = (top) => ({
+                        position: 'absolute', right: -10, width: 10, ...(top ? { top: '50%', bottom: 0 } : { top: 0, bottom: '50%' }),
+                        [top ? 'borderTop' : 'borderBottom']: '1.5px solid var(--border-default)',
+                        borderRight: '1.5px solid var(--border-default)',
+                        [top ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 5,
+                      })
+                      return (
+                        <div key={m.no} style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                          {!last && <span aria-hidden style={arm(mi % 2 === 0)} />}
+                          {ri > 0 && <span aria-hidden style={{ position: 'absolute', left: -10, width: 10, top: '50%', borderTop: '1.5px solid var(--border-default)' }} />}
+                          <div style={{ flex: 1, minWidth: 0 }}><MiniMatch m={m} /></div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+              {third && (
+                <div style={{ display: 'grid', alignContent: 'end', gap: 6, width: 140, flex: '0 0 auto' }}>
+                  <Mono size={9.5} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{t('tournament.round.third')}</Mono>
+                  {third.matches.map((m) => <MiniMatch key={m.no} m={m} />)}
+                </div>
+              )}
+            </div>
+          )
+        })() : null}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderTop: '1px solid var(--border-subtle)' }}>
@@ -701,25 +730,32 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
       ))}
       {rr && numGroups > 1 && full.length > 0 && (
         <div style={{ display: 'grid', gap: 6 }}>
-          <Button size="sm" variant="secondary" onClick={() => onSaveGroups(null)}>{t('tournament.canvas.snake')}</Button>
-          <Button size="sm" variant="secondary" onClick={draw}>{t('tournament.canvas.draw')}</Button>
-          <Button size="sm" variant="ghost" onClick={() => onSaveGroups(Array.from({ length: numGroups }, () => []))}>
-            {t('tournament.canvas.clearGroups')} · {t('tournament.canvas.clearGroupsSub')}
-          </Button>
+          <PanelButton title={t('tournament.canvas.snake')} sub={t('tournament.canvas.snakeSub')} onClick={() => onSaveGroups(null)} />
+          <PanelButton title={t('tournament.canvas.draw')} sub={t('tournament.canvas.drawSub')} onClick={draw} />
+          <PanelButton title={t('tournament.canvas.clearGroups')} sub={t('tournament.canvas.clearGroupsSub')} onClick={() => onSaveGroups(Array.from({ length: numGroups }, () => []))} />
         </div>
       )}
       {bal && (
-        <div style={{ display: 'grid', gap: 6, padding: 10, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'grid', gap: 8, padding: 10, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
           <span style={{ display: 'flex', justifyContent: 'space-between', font: '600 12px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
             {t('tournament.canvas.balance')}
             <Mono size={11} weight={700} color={bal.isBalanced ? 'var(--status-delivered-fg)' : 'var(--status-delayed-fg)'}>{t('tournament.canvas.balanceSpread', { n: bal.spread })}</Mono>
           </span>
-          {bal.avgs.map((v, i) => (
-            <span key={i} style={{ display: 'flex', justifyContent: 'space-between', font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
-              {t('tournament.standings.groupTitle', { label: String.fromCharCode(65 + i) })}
-              <Mono size={11}>{v ?? '—'}</Mono>
-            </span>
-          ))}
+          {bal.avgs.map((v, i) => {
+            const base = bal.min - 30
+            const range = (bal.max - base) || 1
+            const pct = v == null ? 0 : Math.max(8, Math.round(((v - base) / range) * 100))
+            const outlier = v != null && (v === bal.max || v === bal.min) && bal.spread > cfg.tournament.groupBalanceOk
+            return (
+              <span key={i} style={{ display: 'grid', gridTemplateColumns: '20px minmax(0,1fr) 38px', gap: 8, alignItems: 'center' }}>
+                <span style={{ font: '700 12px/1 var(--font-display)', color: 'var(--text-secondary)' }}>{String.fromCharCode(65 + i)}</span>
+                <span style={{ height: 8, borderRadius: 4, background: 'var(--surface-sunken)', overflow: 'hidden', display: 'block' }}>
+                  <span style={{ display: 'block', height: '100%', borderRadius: 4, width: pct + '%', background: outlier ? 'var(--status-delayed-fg)' : 'var(--teal-500)' }} />
+                </span>
+                <Mono size={11} weight={600} color="var(--text-secondary)" style={{ textAlign: 'right' }}>{v ?? '—'}</Mono>
+              </span>
+            )
+          })}
           <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.balanceHint', { n: cfg.tournament.groupBalanceOk })}</span>
         </div>
       )}
