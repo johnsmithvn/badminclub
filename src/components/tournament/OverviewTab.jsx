@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { Button, Card, Icon } from '#ds'
 import { Mono } from '#ui'
 import { hubChecklist } from '#lib/tournament/hub.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
 import { progressOf, queueOf } from '#lib/tournament/bracketView.js'
-import { groupStandings, orderedRows, stageGroups, swapUpInTie } from '#lib/tournament/standings.js'
+import { stageGroups } from '#lib/tournament/standings.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 import { matchCode, stageName, teamName } from './tourUtils.js'
@@ -22,15 +21,11 @@ import { estimateOf, koPreviewOf } from '#lib/tournament/canvas.js'
  *   1. Khối "Trận kế tiếp" (Upcoming Matches Timeline)
  *   2. Khối việc cần chuẩn bị (Checklist)
  */
-export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenBracket, onScore, isMobile }) {
+export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBracket, onScore, isMobile }) {
   const list = hubChecklist(tour)
   const label = (c) => (!c.done && c.n ? t('tournament.check.' + c.key + 'Left', { n: c.n }) : t('tournament.check.' + c.key))
   const queue = queueOf(tour.matches)
   const prog = progressOf(tour.matches)
-
-  // Thứ tự BTC tự xếp cho các đội hoà (bốc thăm / chọn tay), theo bảng: { [groupId]: teamId[] }. Chỉ trên máy
-  // này tới lúc bấm "Chốt giai đoạn" — lúc đó mới ghi `final_rank`.
-  const [manual, setManual] = useState({})
 
   // Lấy các giai đoạn vòng bảng của nội dung hiện tại (hoặc nội dung đầu tiên)
   const curEventId = event?.id || tour.events[0]?.id
@@ -50,21 +45,7 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
   const curStages = (tour.stages || [])
     .filter((s) => !curEventId || s.eventId === curEventId)
     .sort((x, y) => x.seq - y.seq)
-
-  // Giai đoạn vòng bảng
   const rrStages = curStages.filter((s) => s.type === 'round_robin')
-
-  // Đã chốt: hiện đúng thứ hạng đã ghi (`final_rank`), không tính lại.
-  const rowsOf = (stage, g, st) => (stage.status === 'done'
-    ? orderedRows(st.rows, [...g.teams].sort((x, y) => (x.finalRank ?? 99) - (y.finalRank ?? 99)).map((x) => x.teamId))
-    : orderedRows(st.rows, manual[g.id]))
-
-  const handleCloseStage = (stage, groups) => {
-    if (!a?.tourCloseStage) return
-    const ranks = groups.flatMap((g) => rowsOf(stage, g, groupStandings(g, tour.matches))
-      .map((r) => ({ groupId: g.id, teamId: r.teamId, finalRank: r.rank })))
-    a.tourCloseStage(stage.id, ranks)
-  }
 
   // Đang đánh (đứng đầu hàng chờ) rồi tới các trận kế tiếp — của cả giải, mọi nội dung.
   const upcomingMatches = queue.slice(0, 6)
@@ -280,205 +261,20 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
           </div>
         )}
 
-        {/* 3. Bảng Xếp Hạng Vòng Bảng (2 Bảng Side-by-side chuẩn thiết kế) */}
+        {/* 3. Vòng bảng: chỉ tóm tắt tiến độ + mở Nhánh đấu — bảng xếp hạng đầy đủ (xử lý hoà, Chốt giai đoạn,
+            Tạo lịch nhánh) đã gộp về GroupBoard ở trang Nhánh đấu, tránh 2 nơi cùng sửa một thứ (2026-09-26). */}
         {rrStages.map((stage) => {
           const groups = stageGroups(tour, stage.id)
           if (!groups.length) return null
-          const targets = targetStagesOf(tour, stage)
-          // Mẫu `rr` (không có giai đoạn sau): không ai "đi tiếp" → không tô, không ghi "lấy k".
-          const advancePerGroup = targets.length ? stage.config?.advancePerGroup || 2 : 0
-          const allFinished = groups.every((g) => groupStandings(g, tour.matches).isFinished)
-
+          const stMatches = groups.flatMap((g) => tour.matches.filter((m) => m.groupId === g.id))
+          const { done, total } = progressOf(stMatches)
           return (
-            <div key={stage.id} style={{ display: 'grid', gap: 14 }}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(2, groups.length)}, 1fr)`,
-                gap: 16,
-              }}>
-                {groups.map((g) => {
-                  const st = groupStandings(g, tour.matches)
-                  const rows = rowsOf(stage, g, st)
-                  const canReorder = canEdit && stage.status === 'running' && st.isFinished
-                  const remaining = st.matchesCount.total - st.matchesCount.done
-
-                  return (
-                    <div
-                      key={g.id}
-                      style={{
-                        display: 'grid',
-                        gap: 10,
-                        background: 'var(--surface-card)',
-                        borderRadius: 12,
-                        padding: '14px 16px',
-                        border: '1px solid var(--border-subtle)',
-                        boxShadow: 'var(--shadow-xs)',
-                      }}
-                    >
-                      {/* Header Bảng Con (ví dụ: Bảng A · 2 trận còn lại · lấy 2) */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingBottom: 6 }}>
-                        <span style={{ font: '700 14.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
-                          {t('tournament.standings.groupTitle', { label: g.label })}
-                        </span>
-                        <Mono size={11.5} color="var(--text-muted)">
-                          {remaining > 0
-                            ? (advancePerGroup
-                              ? t('tournament.overview.remainingTake', { n: remaining, k: advancePerGroup })
-                              : t('tournament.overview.remaining', { n: remaining }))
-                            : t('tournament.standings.finished')}
-                        </Mono>
-                      </div>
-
-                      {st.ties.length > 0 && stage.status !== 'done' && (
-                        <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Icon name="alert-circle" size={13} />
-                          <span>{t(canReorder ? 'tournament.standings.tieReorder' : 'tournament.standings.tieNotice')}</span>
-                        </div>
-                      )}
-
-                      {/* Header Cột */}
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '26px 1fr 40px 40px 44px',
-                        alignItems: 'center',
-                        gap: 6,
-                        font: '700 10.5px/1 var(--font-sans)',
-                        color: 'var(--text-muted)',
-                        padding: '0 6px 6px',
-                        borderBottom: '1px solid var(--border-subtle)',
-                        letterSpacing: '0.04em',
-                      }}>
-                        <span style={{ textAlign: 'center' }}>#</span>
-                        <span>{t('tournament.overview.pairs')}</span>
-                        <span style={{ textAlign: 'center' }}>{t('tournament.overview.won')}</span>
-                        <span style={{ textAlign: 'center' }}>{t('tournament.overview.lost')}</span>
-                        <span style={{ textAlign: 'right' }}>{t('tournament.overview.diff')}</span>
-                      </div>
-
-                      {/* Các dòng VĐV / Cặp đấu */}
-                      <div style={{ display: 'grid', gap: 4 }}>
-                        {rows.map((r, rIdx) => {
-                          const advances = r.rank <= advancePerGroup
-                          const up = canReorder && swapUpInTie(rows, st.ties, r.teamId)
-
-                          return (
-                            <div
-                              key={r.teamId}
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns: '26px 1fr 40px 40px 44px',
-                                alignItems: 'center',
-                                gap: 6,
-                                minHeight: 36,
-                                padding: '4px 6px',
-                                borderRadius: 6,
-                                background: advances ? 'var(--surface-accent-soft)' : 'transparent',
-                                borderLeft: advances ? '3px solid var(--teal-500)' : '3px solid transparent',
-                                transition: 'background var(--dur-fast)',
-                              }}
-                            >
-                              {/* Cột Thứ hạng # */}
-                              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                <span style={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: 5,
-                                  display: 'grid',
-                                  placeItems: 'center',
-                                  font: '700 11px/1 var(--font-mono)',
-                                  background: rIdx === 0 ? 'var(--action-accent-bg)' : 'var(--surface-inset)',
-                                  color: rIdx === 0 ? 'var(--action-accent-fg)' : 'var(--text-secondary)',
-                                }}>
-                                  {r.rank}
-                                </span>
-                              </div>
-
-                              {/* Tên cặp (cắt "…") + nút ↑ xếp đội hoà — nút nằm ngoài phần bị cắt */}
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                                <span style={{
-                                  font: advances ? '600 13px/1.2 var(--font-sans)' : '500 13px/1.2 var(--font-sans)',
-                                  color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
-                                }}>
-                                  {teamName(tour, db, r.teamId)}
-                                </span>
-                                {up && (
-                                  <button type="button" aria-label={t('tournament.standings.moveUp')} title={t('tournament.standings.moveUp')}
-                                    onClick={() => setManual((x) => ({ ...x, [g.id]: up }))}
-                                    style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                                    <Icon name="chevron-up" size={12} />
-                                  </button>
-                                )}
-                              </span>
-
-                              {/* Thắng */}
-                              <Mono size={12} weight={600} color={r.won > 0 ? 'var(--status-delivered-fg)' : 'var(--text-secondary)'} style={{ textAlign: 'center' }}>
-                                {r.won}
-                              </Mono>
-
-                              {/* Thua */}
-                              <Mono size={12} color={r.lost > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'} style={{ textAlign: 'center' }}>
-                                {r.lost}
-                              </Mono>
-
-                              {/* Hiệu số HS */}
-                              <Mono size={12} weight={600} color={r.pointDiff > 0 ? 'var(--status-delivered-fg)' : (r.pointDiff < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')} style={{ textAlign: 'right' }}>
-                                {r.pointDiff > 0 ? `+${r.pointDiff}` : r.pointDiff}
-                              </Mono>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Các thao tác Chốt giai đoạn / Tạo nhánh sau */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                padding: '12px 16px',
-                background: 'var(--surface-card)',
-                borderRadius: 12,
-                border: '1px solid var(--border-subtle)',
-                flexWrap: 'wrap',
-              }}>
-                {stage.status === 'running' && (
-                  <>
-                    {allFinished ? (
-                      canEdit && (
-                        <Button icon="circle-check" onClick={() => handleCloseStage(stage, groups)}>
-                          {t('tournament.standings.closeStage')}
-                        </Button>
-                      )
-                    ) : (
-                      <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-                        {t('tournament.standings.closeStageHint')}
-                      </span>
-                    )}
-                  </>
-                )}
-                {stage.status === 'done' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ font: '600 12.5px/1 var(--font-sans)', color: 'var(--status-delivered-fg)' }}>
-                      ✓ {t('tournament.standings.closed')}
-                    </span>
-                    {canEdit && targets.filter((x) => x.status === 'pending').map((x) => (
-                      <Button key={x.id} icon="calendar-plus" onClick={() => a?.tourGenerate(stage.eventId, x.seq)}>
-                        {t('tournament.standings.generateStage', { name: stageName(x, curStages) })}
-                      </Button>
-                    ))}
-                    {targets.some((x) => x.status !== 'pending') && (
-                      <Button variant="secondary" iconAfter="arrow-right" onClick={() => onOpenBracket(stage.eventId)}>
-                        {t('tournament.standings.openBracket')}
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+            <Card key={stage.id} title={stageName(stage, curStages)} icon="table" padding="12px 16px"
+              actions={<Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={() => onOpenBracket(stage.eventId)}>{t('tournament.overview.openBracketBtn')}</Button>}>
+              <Mono size={12} color="var(--text-muted)">
+                {t('tournament.overview.rrStageDesc', { total, groups: groups.length })} · {done}/{total} {t('tournament.overview.matchesDone')}
+              </Mono>
+            </Card>
           )
         })}
 
@@ -580,12 +376,6 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
       </div>
     </div>
   )
-}
-
-/** Các giai đoạn nhận đội từ vòng bảng qua link (nhánh chính, nhánh phụ), theo seq. */
-function targetStagesOf(tour, stage) {
-  const to = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === stage.id).map((l) => l.toStageId))
-  return (tour.stages || []).filter((s) => to.has(s.id)).sort((x, y) => x.seq - y.seq)
 }
 
 /**

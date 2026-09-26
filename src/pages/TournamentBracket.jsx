@@ -1,20 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Icon, Skeleton } from '#ds'
+import { Button, Skeleton } from '#ds'
 import { Empty, Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { can } from '#lib/roles.js'
 import { koRounds, progressOf, queueOf, stageEditable, swapOrder } from '#lib/tournament/bracketView.js'
-import { flowOf } from '#lib/tournament/flow.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
 import BracketBoard, { GroupBoard } from '#components/tournament/BracketBoard.jsx'
 import { RuleField, Seg } from '#components/tournament/TourBits.jsx'
-import { groupStandings, stageGroups } from '#lib/tournament/standings.js'
+import { stageGroups } from '#lib/tournament/standings.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
-import { Pipeline } from '#pages/TournamentFlow.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
 import { draftKey, matchCode, ruleLabel, stageName, teamName } from '#components/tournament/tourUtils.js'
 
@@ -106,9 +104,6 @@ export default function TournamentBracket() {
   const own = tour.matches.filter((m) => m.stageId === stage.id)
   const view = isRR ? null : koRounds(tour.matches, stage.id)
   const groups = isRR ? stageGroups(tour, stage.id) : []
-  // Vòng bảng đấu xong hết trận nhưng chưa "Chốt giai đoạn" (hành động đó + "Tạo nhánh" chỉ có ở Hub → Tổng quan,
-  // trang này chưa có) — nhắc rõ để BTC không loay hoay không biết sang vòng loại kiểu gì.
-  const groupsDone = isRR && stage.status === 'running' && groups.length > 0 && groups.every((g) => groupStandings(g, tour.matches).isFinished)
   const prog = progressOf(own)
   const teamsN = isRR
     ? groups.reduce((n, g) => n + g.teams.length, 0)
@@ -118,7 +113,6 @@ export default function TournamentBracket() {
   const scoring = byId(scoringId)
   const editing = byId(editingId)
   const undoing = byId(undoingId)
-  const flow = event ? flowOf(tour, event) : null
 
   return (
     <>
@@ -191,31 +185,6 @@ export default function TournamentBracket() {
             )}
           </section>
 
-          {/* Sơ đồ thể thức · Tiến trình toàn giải cho nội dung này */}
-          {flow && (
-            <section style={{
-              padding: '12px 16px', borderRadius: 12,
-              background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
-              display: 'grid', gap: 10,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ font: '700 11.5px/1 var(--font-sans)', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                  {t('tournament.module.flow')}
-                </span>
-                <Mono size={11} color="var(--teal-500)">
-                  {stageLabel(stage)}
-                </Mono>
-              </div>
-              <Pipeline
-                flow={flow}
-                tour={tour}
-                db={db}
-                isMobile={isMobile}
-                onOpen={(stageId) => setPickedStageId(stageId)}
-              />
-            </section>
-          )}
-
           {live.length > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <Seg options={live.map((s) => ({ key: s.id, label: stageLabel(s) }))} value={stage.id} onChange={setPickedStageId} />
@@ -223,24 +192,10 @@ export default function TournamentBracket() {
             </div>
           )}
 
-          {groupsDone && (
-            <section style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
-              padding: '12px 16px', borderRadius: 12,
-              background: 'var(--status-delivered-bg)', border: '1px solid var(--status-delivered-fg)',
-            }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: '500 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
-                <Icon name="circle-check" size={16} style={{ color: 'var(--status-delivered-fg)', flex: '0 0 auto' }} />
-                {t('tournament.bracket.groupsDone')}
-              </span>
-              <Button size="sm" iconAfter="arrow-right" onClick={toHub}>{t('tournament.bracket.openHub')}</Button>
-            </section>
-          )}
-
           {isRR ? (
             <GroupBoard
-              groups={groups} tour={tour} db={db} canEdit={canEdit} locked={stage.status === 'done'} isMobile={isMobile}
-              stage={stage}
+              groups={groups} tour={tour} db={db} a={a} canEdit={canEdit} locked={stage.status === 'done'} isMobile={isMobile}
+              stage={stage} onClosed={() => setPickedStageId(null)}
               onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
               onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
             />

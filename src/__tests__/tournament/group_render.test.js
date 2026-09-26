@@ -4,7 +4,6 @@ import assert from 'node:assert/strict'
 import { text, load } from './_render.js'
 import { db, tour } from './fixture.js'
 
-const { default: OverviewTab } = await load('#components/tournament/OverviewTab.jsx')
 const { GroupBoard } = await load('#components/tournament/BracketBoard.jsx')
 const { stageGroups } = await import('#lib/tournament/standings.js')
 
@@ -39,12 +38,15 @@ function rrTour({ stageStatus = 'running', finalRanks = {} } = {}) {
   })
 }
 
-const overview = (tr, canEdit = true) => text(OverviewTab, {
-  tour: tr, db, a: {}, event: tr.events[0], onGo: noop, canEdit, isMobile: false, onOpenBracket: noop,
+// Bảng xếp hạng + Chốt giai đoạn / Tạo lịch nhánh sau đã gộp về GroupBoard (trang Nhánh đấu) — không còn ở
+// OverviewTab (Tổng quan chỉ còn thẻ tóm tắt tiến độ + nút "Mở nhánh đấu", xem canvas.test.js/handoff_render).
+const board = (tr, p = {}) => text(GroupBoard, {
+  groups: stageGroups(tr, 's1'), tour: tr, db, a: {}, canEdit: true, locked: tr.stages[0].status === 'done',
+  stage: tr.stages[0], isMobile: false, onScore: noop, onUndo: noop, onEdit: noop, onQuick: noop, ...p,
 })
 
-test('Tổng quan: bảng xếp hạng có đội (ghép từ groupTeams), hoà tuyệt đối thì mời BTC xếp rồi chốt', () => {
-  const s = overview(rrTour())
+test('Nhánh đấu: bảng xếp hạng có đội (ghép từ groupTeams), hoà tuyệt đối thì mời BTC xếp rồi chốt', () => {
+  const s = board(rrTour())
   assert.match(s, /Bảng A/)
   assert.match(s, /Nguyễn Văn An/)
   assert.match(s, /Trần Bình/)
@@ -52,19 +54,19 @@ test('Tổng quan: bảng xếp hạng có đội (ghép từ groupTeams), hoà 
   assert.match(s, /bấm ↑ để xếp lại/)
   assert.match(s, /Chốt giai đoạn/)
 
-  const viewer = overview(rrTour(), false)
+  const viewer = board(rrTour(), { canEdit: false })
   assert.doesNotMatch(viewer, /Chốt giai đoạn|bấm ↑/, 'không có quyền → không nút chốt, không nút xếp')
 })
 
-test('Tổng quan: đã chốt → hiện đúng hạng đã ghi và nút tạo lịch nhánh sau', () => {
-  const s = overview(rrTour({ stageStatus: 'done', finalRanks: { tC: 1, tA: 2, tB: 3 } }))
+test('Nhánh đấu: đã chốt → hiện đúng hạng đã ghi và nút tạo lịch nhánh sau', () => {
+  const s = board(rrTour({ stageStatus: 'done', finalRanks: { tC: 1, tA: 2, tB: 3 } }))
   assert.match(s, /Giai đoạn đã chốt/)
   assert.match(s, /Tạo lịch Vòng loại trực tiếp/)
   assert.ok(s.indexOf('Lê Thị Cúc') < s.indexOf('Nguyễn Văn An') && s.indexOf('Nguyễn Văn An') < s.indexOf('Trần Bình'),
     'thứ tự theo final_rank đã ghi, không tính lại')
 })
 
-test('Trang nhánh: vòng bảng hiện theo bảng và lượt; đã chốt thì không còn nút sửa / hoàn tác', () => {
+test('Nhánh đấu: vòng bảng hiện theo bảng và lượt; đã chốt thì không còn nút sửa / hoàn tác', () => {
   const tr = rrTour()
   const props = { groups: stageGroups(tr, 's1'), tour: tr, db, canEdit: true, isMobile: false, onScore: noop, onUndo: noop, onEdit: noop, onQuick: noop }
   const open = text(GroupBoard, { ...props, locked: false })

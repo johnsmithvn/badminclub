@@ -2,11 +2,11 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Button, Icon } from '#ds'
 import { Mono, Overline } from '#ui'
 import { canUndo } from '#lib/tournament/advance.js'
-import { CHAMP_KEY, flightsOf, hasResult, sideScores, slotKey } from '#lib/tournament/bracketView.js'
-import { groupStandings } from '#lib/tournament/standings.js'
+import { CHAMP_KEY, flightsOf, hasResult, sideScores, slotKey, targetStagesOf } from '#lib/tournament/bracketView.js'
+import { groupStandings, orderedRows, swapUpInTie } from '#lib/tournament/standings.js'
 import { closeScoreOf, freeSetWinner } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
-import { matchCode, ruleLabel, teamName } from './tourUtils.js'
+import { matchCode, ruleLabel, stageName, teamName } from './tourUtils.js'
 
 const EASE = 'cubic-bezier(.2,.8,.2,1)' // DESIGN.md §6
 const CARD_W = 242
@@ -139,122 +139,187 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
 }
 
 /**
- * Vòng bảng: mỗi bảng một khối hiển thị cả Bảng xếp hạng mini và danh sách trận theo lượt.
+ * Vòng bảng: mỗi bảng một khối hiển thị cả Bảng xếp hạng (xử lý hoà) và danh sách trận theo lượt;
+ * dưới cùng là "Chốt giai đoạn" / "Tạo lịch nhánh" — gộp về đây, không còn bản rút gọn riêng ở Hub → Tổng quan
+ * (2 bảng gần như giống hệt, tách ra chỉ tổ chức lại BTC đi 2 nơi — xem lịch sử chat 2026-09-26).
  * `locked` = giai đoạn đã chốt: chỉ xem, không sửa / hoàn tác (DB cũng chặn — `stageDone`).
  */
-export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScore, onUndo, onEdit, onQuick, stage }) {
+export function GroupBoard({ groups, tour, db, a, canEdit, locked, isMobile, onScore, onUndo, onEdit, onQuick, stage, onClosed }) {
+  const [manual, setManual] = useState({})
+  const [closing, setClosing] = useState(false)
   const edit = canEdit && !locked
-  const curStage = stage || tour.stages?.find((s) => s.id === groups[0]?.stageId) || null
-  const toStages = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === curStage?.id).map((l) => l.toStageId))
-  const advancePerGroup = toStages.size > 0 ? (curStage?.config?.advancePerGroup || 2) : 0
+  const toStages = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === stage?.id).map((l) => l.toStageId))
+  const advancePerGroup = toStages.size > 0 ? (stage?.config?.advancePerGroup || 2) : 0
+  const targets = stage ? targetStagesOf(tour, stage) : []
+  const evStages = stage ? tour.stages.filter((s) => s.eventId === stage.eventId) : []
+  const allFinished = groups.every((g) => groupStandings(g, tour.matches).isFinished)
+  // Đã chốt: hiện đúng thứ hạng đã ghi (`final_rank`), không tính lại; chưa: theo thứ tự BTC tự xếp khi hoà (`manual`).
+  const rowsOf = (g, st) => (stage?.status === 'done'
+    ? orderedRows(st.rows, [...g.teams].sort((x, y) => (x.finalRank ?? 99) - (y.finalRank ?? 99)).map((x) => x.teamId))
+    : orderedRows(st.rows, manual[g.id]))
+  const closeStage = async () => {
+    if (!stage || !a?.tourCloseStage) return
+    setClosing(true)
+    const ranks = groups.flatMap((g) => rowsOf(g, groupStandings(g, tour.matches)).map((r) => ({ groupId: g.id, teamId: r.teamId, finalRank: r.rank })))
+    const ok = await a.tourCloseStage(stage.id, ranks)
+    setClosing(false)
+    if (ok) onClosed?.()
+  }
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: isMobile ? '1fr' : (groups.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(360px, 1fr))'),
-      gap: 16,
-      alignItems: 'start',
-      width: '100%',
-    }}>
-      {groups.map((g) => {
-        const own = tour.matches.filter((m) => m.groupId === g.id)
-        const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
-        const st = groupStandings(g, tour.matches)
+    <div style={{ display: 'grid', gap: 16, width: '100%' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : (groups.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(360px, 1fr))'),
+        gap: 16,
+        alignItems: 'start',
+        width: '100%',
+      }}>
+        {groups.map((g) => {
+          const own = tour.matches.filter((m) => m.groupId === g.id)
+          const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
+          const st = groupStandings(g, tour.matches)
+          const rows = rowsOf(g, st)
+          const canReorder = canEdit && stage?.status === 'running' && st.isFinished
 
-        return (
-          <section key={g.id} style={{
-            display: 'grid', gap: 14, padding: isMobile ? 12 : 16, borderRadius: 12,
-            background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-xs)', width: '100%', boxSizing: 'border-box',
-          }}>
-            {/* Tiêu đề Bảng + Trạng thái tiến độ */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
-                {t('tournament.standings.groupTitle', { label: g.label })}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {advancePerGroup > 0 && (
-                  <span style={{
-                    font: '600 10.5px/1 var(--font-sans)', color: 'var(--teal-500)',
-                    background: 'var(--surface-accent-soft)', padding: '3px 8px', borderRadius: 99,
-                    border: '1px solid rgba(0, 178, 169, 0.25)',
-                  }}>
-                    {t('tournament.overview.remainingTake', { n: st.matchesCount.total - st.matchesCount.done, k: advancePerGroup })}
-                  </span>
-                )}
-                <Mono size={11} color="var(--text-muted)">
-                  {st.matchesCount.done}/{st.matchesCount.total} {t('tournament.overview.matchesDone')}
-                </Mono>
-              </div>
-            </div>
-
-            {/* BẢNG XẾP HẠNG MINI (Standings) */}
-            <div style={{
-              borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
-              padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden',
+          return (
+            <section key={g.id} style={{
+              display: 'grid', gap: 14, padding: isMobile ? 12 : 16, borderRadius: 12,
+              background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-xs)', width: '100%', boxSizing: 'border-box',
             }}>
-              <div style={{
-                display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
-                font: '700 10px/1 var(--font-sans)', color: 'var(--text-muted)', padding: '0 4px 6px',
-                borderBottom: '1px solid var(--border-subtle)', letterSpacing: '0.04em', textTransform: 'uppercase',
-              }}>
-                <span style={{ textAlign: 'center' }}>#</span>
-                <span>{t('tournament.overview.pairs')}</span>
-                <span style={{ textAlign: 'center' }}>{t('tournament.overview.won')}</span>
-                <span style={{ textAlign: 'center' }}>{t('tournament.overview.lost')}</span>
-                <span style={{ textAlign: 'right' }}>{t('tournament.overview.diff')}</span>
+              {/* Tiêu đề Bảng + Trạng thái tiến độ */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
+                  {t('tournament.standings.groupTitle', { label: g.label })}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {advancePerGroup > 0 && (
+                    <span style={{
+                      font: '600 10.5px/1 var(--font-sans)', color: 'var(--teal-500)',
+                      background: 'var(--surface-accent-soft)', padding: '3px 8px', borderRadius: 99,
+                      border: '1px solid rgba(0, 178, 169, 0.25)',
+                    }}>
+                      {t('tournament.overview.remainingTake', { n: st.matchesCount.total - st.matchesCount.done, k: advancePerGroup })}
+                    </span>
+                  )}
+                  <Mono size={11} color="var(--text-muted)">
+                    {st.matchesCount.done}/{st.matchesCount.total} {t('tournament.overview.matchesDone')}
+                  </Mono>
+                </div>
               </div>
 
-              {st.rows.map((r) => {
-                const advances = advancePerGroup > 0 && r.rank <= advancePerGroup
-                const label = teamName(tour, db, r.teamId)
-                return (
-                  <div key={r.teamId} style={{
-                    display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
-                    padding: '5px 4px', borderRadius: 6,
-                    background: advances ? 'var(--surface-accent-soft)' : 'transparent',
-                    borderLeft: advances ? '3px solid var(--teal-500)' : '3px solid transparent',
-                  }}>
-                    <span style={{
-                      textAlign: 'center', font: '700 11px/1 var(--font-mono)',
-                      color: r.rank === 1 ? 'var(--podium-gold)' : 'var(--text-secondary)',
-                    }}>
-                      {r.rank}
-                    </span>
-                    <span title={label} style={{
-                      font: advances ? '600 12.5px/1.2 var(--font-sans)' : '500 12.5px/1.2 var(--font-sans)',
-                      color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
-                    }}>
-                      {label}
-                    </span>
-                    <Mono size={11.5} weight={600} color={r.won > 0 ? 'var(--status-delivered-fg)' : 'var(--text-secondary)'} style={{ textAlign: 'center' }}>
-                      {r.won}
-                    </Mono>
-                    <Mono size={11.5} color={r.lost > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'} style={{ textAlign: 'center' }}>
-                      {r.lost}
-                    </Mono>
-                    <Mono size={11.5} weight={600} color={r.pointDiff > 0 ? 'var(--status-delivered-fg)' : (r.pointDiff < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')} style={{ textAlign: 'right' }}>
-                      {r.pointDiff > 0 ? `+${r.pointDiff}` : r.pointDiff}
-                    </Mono>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* DANH SÁCH CÁC TRẬN ĐẤU THEO LƯỢT */}
-            <div style={{ display: 'grid', gap: 10, marginTop: 2 }}>
-              {rounds.map((r) => (
-                <div key={r} style={{ display: 'grid', gap: 6 }}>
-                  <Overline>{t('tournament.bracket.groupRound', { n: r + 1 })}</Overline>
-                  {own.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => (
-                    <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
-                  ))}
+              {st.ties.length > 0 && stage?.status !== 'done' && (
+                <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Icon name="alert-circle" size={13} />
+                  <span>{t(canReorder ? 'tournament.standings.tieReorder' : 'tournament.standings.tieNotice')}</span>
                 </div>
+              )}
+
+              {/* BẢNG XẾP HẠNG (Standings) */}
+              <div style={{
+                borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+                padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden',
+              }}>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
+                  font: '700 10px/1 var(--font-sans)', color: 'var(--text-muted)', padding: '0 4px 6px',
+                  borderBottom: '1px solid var(--border-subtle)', letterSpacing: '0.04em', textTransform: 'uppercase',
+                }}>
+                  <span style={{ textAlign: 'center' }}>#</span>
+                  <span>{t('tournament.overview.pairs')}</span>
+                  <span style={{ textAlign: 'center' }}>{t('tournament.overview.won')}</span>
+                  <span style={{ textAlign: 'center' }}>{t('tournament.overview.lost')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('tournament.overview.diff')}</span>
+                </div>
+
+                {rows.map((r) => {
+                  const advances = advancePerGroup > 0 && r.rank <= advancePerGroup
+                  const label = teamName(tour, db, r.teamId)
+                  const up = canReorder && swapUpInTie(rows, st.ties, r.teamId)
+                  return (
+                    <div key={r.teamId} style={{
+                      display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
+                      padding: '5px 4px', borderRadius: 6,
+                      background: advances ? 'var(--surface-accent-soft)' : 'transparent',
+                      borderLeft: advances ? '3px solid var(--teal-500)' : '3px solid transparent',
+                    }}>
+                      <span style={{
+                        textAlign: 'center', font: '700 11px/1 var(--font-mono)',
+                        color: r.rank === 1 ? 'var(--podium-gold)' : 'var(--text-secondary)',
+                      }}>
+                        {r.rank}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                        <span title={label} style={{
+                          font: advances ? '600 12.5px/1.2 var(--font-sans)' : '500 12.5px/1.2 var(--font-sans)',
+                          color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+                        }}>
+                          {label}
+                        </span>
+                        {up && (
+                          <button type="button" aria-label={t('tournament.standings.moveUp')} title={t('tournament.standings.moveUp')}
+                            onClick={() => setManual((x) => ({ ...x, [g.id]: up }))}
+                            style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 20, height: 20, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                            <Icon name="chevron-up" size={11} />
+                          </button>
+                        )}
+                      </span>
+                      <Mono size={11.5} weight={600} color={r.won > 0 ? 'var(--status-delivered-fg)' : 'var(--text-secondary)'} style={{ textAlign: 'center' }}>
+                        {r.won}
+                      </Mono>
+                      <Mono size={11.5} color={r.lost > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'} style={{ textAlign: 'center' }}>
+                        {r.lost}
+                      </Mono>
+                      <Mono size={11.5} weight={600} color={r.pointDiff > 0 ? 'var(--status-delivered-fg)' : (r.pointDiff < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')} style={{ textAlign: 'right' }}>
+                        {r.pointDiff > 0 ? `+${r.pointDiff}` : r.pointDiff}
+                      </Mono>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* DANH SÁCH CÁC TRẬN ĐẤU THEO LƯỢT */}
+              <div style={{ display: 'grid', gap: 10, marginTop: 2 }}>
+                {rounds.map((r) => (
+                  <div key={r} style={{ display: 'grid', gap: 6 }}>
+                    <Overline>{t('tournament.bracket.groupRound', { n: r + 1 })}</Overline>
+                    {own.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => (
+                      <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )
+        })}
+      </div>
+
+      {/* Chốt giai đoạn / Tạo lịch nhánh sau — gộp về đây, khỏi phải quay lại Hub */}
+      {stage && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+          padding: '12px 16px', background: 'var(--surface-card)', borderRadius: 12, border: '1px solid var(--border-subtle)',
+        }}>
+          {stage.status === 'running' && (
+            allFinished ? (
+              canEdit && <Button icon="circle-check" loading={closing} onClick={closeStage}>{t('tournament.standings.closeStage')}</Button>
+            ) : (
+              <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.standings.closeStageHint')}</span>
+            )
+          )}
+          {stage.status === 'done' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ font: '600 12.5px/1 var(--font-sans)', color: 'var(--status-delivered-fg)' }}>✓ {t('tournament.standings.closed')}</span>
+              {canEdit && targets.filter((x) => x.status === 'pending').map((x) => (
+                <Button key={x.id} icon="calendar-plus" onClick={() => a?.tourGenerate(stage.eventId, x.seq)}>
+                  {t('tournament.standings.generateStage', { name: stageName(x, evStages) })}
+                </Button>
               ))}
             </div>
-          </section>
-        )
-      })}
+          )}
+        </div>
+      )}
     </div>
   )
 }

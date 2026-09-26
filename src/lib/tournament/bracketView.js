@@ -95,3 +95,9 @@ export function swapOrder(matches, stageId, teamA, teamB) {
  * là trận thành đang đánh, không được vì thế mà mất quyền đổi luật khi chưa ghi điểm nào (DB cũng chỉ chặn khi có kết quả).
  */
 export const stageEditable = (matches, stageId) => !matches.some((m) => m.stageId === stageId && hasResult(m))
+
+/** Các giai đoạn nhận đội từ giai đoạn này qua link (nhánh chính, nhánh phụ), theo seq. */
+export function targetStagesOf(tour, stage) {
+  const to = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === stage.id).map((l) => l.toStageId))
+  return (tour.stages || []).filter((s) => to.has(s.id)).sort((x, y) => x.seq - y.seq)
+}
